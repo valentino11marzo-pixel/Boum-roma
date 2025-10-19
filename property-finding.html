@@ -34,7 +34,50 @@
             font-weight: 200;
             letter-spacing: 0.02em;
             line-height: 1.6;
+            cursor: none;
+            overflow-x: hidden;
         }
+
+        /* Custom Cursor */
+        .cursor {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--gold);
+            border-radius: 50%;
+            position: fixed;
+            pointer-events: none;
+            z-index: 9999;
+            transition: all 0.1s ease;
+            mix-blend-mode: difference;
+        }
+
+        .cursor-glow {
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(255, 215, 0, 0.15) 0%, transparent 70%);
+            position: fixed;
+            pointer-events: none;
+            z-index: 9998;
+            transition: all 0.3s ease;
+            mix-blend-mode: screen;
+        }
+
+        /* Scroll Reveal */
+        .reveal {
+            opacity: 0;
+            transform: translateY(60px);
+            transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .reveal.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .reveal-delay-1 { transition-delay: 0.1s; }
+        .reveal-delay-2 { transition-delay: 0.2s; }
+        .reveal-delay-3 { transition-delay: 0.3s; }
+        .reveal-delay-4 { transition-delay: 0.4s; }
 
         /* Nav */
         nav {
@@ -117,113 +160,55 @@
             text-transform: uppercase;
             transition: all 0.3s;
             font-weight: 500;
+            position: relative;
         }
 
         .nav-cta:hover {
             background: var(--gold);
             color: var(--pure-black);
+            transform: scale(1.05);
         }
 
-        /* Mobile Menu */
-        .hamburger {
-            display: none;
-            flex-direction: column;
-            gap: 5px;
-            cursor: pointer;
-            z-index: 1000;
-            padding: 10px;
-        }
-
-        .hamburger span {
-            width: 25px;
-            height: 2px;
-            background: var(--gold);
-            transition: all 0.3s;
-        }
-
-        .hamburger.active span:nth-child(1) {
-            transform: rotate(45deg) translate(6px, 6px);
-        }
-
-        .hamburger.active span:nth-child(2) {
-            opacity: 0;
-        }
-
-        .hamburger.active span:nth-child(3) {
-            transform: rotate(-45deg) translate(6px, -6px);
-        }
-
-        .mobile-menu {
-            position: fixed;
-            top: 0;
-            right: -100%;
-            width: 300px;
-            height: 100vh;
-            background: rgba(0, 0, 0, 0.98);
-            backdrop-filter: blur(20px);
-            z-index: 999;
-            padding: 100px 40px 40px;
-            transition: right 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            overflow-y: auto;
-        }
-
-        .mobile-menu.active {
-            right: 0;
-        }
-
-        .mobile-menu-links {
-            display: flex;
-            flex-direction: column;
-            gap: 30px;
-        }
-
-        .mobile-menu-link {
-            color: var(--text-secondary);
-            text-decoration: none;
-            font-size: 18px;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            transition: all 0.3s;
-            padding: 10px 0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        .mobile-menu-link:hover {
-            color: var(--gold);
-            padding-left: 10px;
-        }
-
-        .mobile-menu-cta {
-            margin-top: 40px;
-            padding: 20px;
-            background: var(--gold);
-            color: var(--pure-black);
-            text-align: center;
-            text-decoration: none;
-            font-size: 14px;
-            font-weight: 600;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            display: block;
+        .magnetic-btn {
+            transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         /* Hero */
         .hero {
-            min-height: 80vh;
+            min-height: 90vh;
             display: flex;
             align-items: center;
             padding: 150px 50px 100px;
-            background: linear-gradient(135deg, rgba(255, 215, 0, 0.05) 0%, transparent 100%);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(255, 215, 0, 0.15) 0%, transparent 70%);
+            top: -100px;
+            left: -100px;
+            animation: float 20s infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0); }
+            50% { transform: translate(100px, 100px); }
         }
 
         .hero-content {
             max-width: 1200px;
             margin: 0 auto;
+            position: relative;
+            z-index: 2;
         }
 
         .hero-tag {
             display: inline-block;
-            padding: 8px 20px;
+            padding: 10px 24px;
             background: var(--gold);
             color: var(--pure-black);
             font-size: 10px;
@@ -231,12 +216,13 @@
             letter-spacing: 2px;
             text-transform: uppercase;
             margin-bottom: 30px;
+            clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
         }
 
         .hero-title {
-            font-size: clamp(60px, 12vw, 140px);
+            font-size: clamp(50px, 10vw, 120px);
             font-weight: 100;
-            line-height: 0.85;
+            line-height: 0.9;
             letter-spacing: -0.03em;
             text-transform: uppercase;
             margin-bottom: 30px;
@@ -248,15 +234,16 @@
         }
 
         .hero-subtitle {
-            font-size: 20px;
+            font-size: 22px;
             color: var(--text-secondary);
             margin-bottom: 60px;
             font-weight: 300;
-            max-width: 700px;
+            max-width: 800px;
+            line-height: 1.5;
         }
 
         .hero-cta {
-            padding: 20px 60px;
+            padding: 22px 70px;
             background: var(--gold);
             color: var(--pure-black);
             text-decoration: none;
@@ -264,12 +251,34 @@
             font-weight: 600;
             letter-spacing: 3px;
             text-transform: uppercase;
-            transition: all 0.4s;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             display: inline-block;
+            position: relative;
+            overflow: hidden;
+            clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+        }
+
+        .hero-cta::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .hero-cta:hover::before {
+            width: 300px;
+            height: 300px;
         }
 
         .hero-cta:hover {
-            transform: scaleX(1.05);
+            transform: scale(1.05);
+            box-shadow: 0 10px 40px rgba(255, 215, 0, 0.4);
         }
 
         /* Main Grid */
@@ -280,6 +289,71 @@
             display: grid;
             grid-template-columns: 2fr 1fr;
             gap: 80px;
+        }
+
+        /* Value Grid - New Premium Design */
+        .value-section {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 100px 50px;
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.03) 0%, transparent 100%);
+        }
+
+        .value-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2px;
+            background: rgba(255, 215, 0, 0.2);
+            padding: 2px;
+        }
+
+        .value-card {
+            background: var(--pure-black);
+            padding: 50px 40px;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .value-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: var(--gold);
+            transform: scaleX(0);
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .value-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .value-card:hover {
+            background: rgba(255, 215, 0, 0.02);
+        }
+
+        .value-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+            display: block;
+        }
+
+        .value-title {
+            font-size: 20px;
+            font-weight: 400;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 15px;
+            color: var(--gold);
+        }
+
+        .value-text {
+            font-size: 14px;
+            line-height: 1.7;
+            color: var(--text-secondary);
         }
 
         /* Left Column */
@@ -297,73 +371,123 @@
         }
 
         .section-heading {
-            font-size: 36px;
-            font-weight: 300;
-            margin-bottom: 20px;
+            font-size: 42px;
+            font-weight: 100;
+            margin-bottom: 25px;
             text-transform: uppercase;
             letter-spacing: -1px;
+            line-height: 1.1;
         }
 
         .section-text {
             font-size: 16px;
             line-height: 1.8;
             color: var(--text-secondary);
-            margin-bottom: 30px;
+            margin-bottom: 25px;
         }
 
         .features-list {
             list-style: none;
-            margin: 40px 0;
+            margin: 50px 0;
+            display: grid;
+            gap: 2px;
+            background: rgba(255, 215, 0, 0.1);
+            padding: 2px;
         }
 
         .features-list li {
-            padding: 20px 0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 30px;
+            background: var(--pure-black);
             display: flex;
             align-items: flex-start;
             gap: 20px;
             font-size: 14px;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .features-list li::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 4px;
+            height: 100%;
+            background: var(--gold);
+            transform: scaleY(0);
+            transition: transform 0.3s;
+        }
+
+        .features-list li:hover::before {
+            transform: scaleY(1);
+        }
+
+        .features-list li:hover {
+            background: rgba(255, 215, 0, 0.02);
         }
 
         .feature-icon {
             color: var(--gold);
-            font-size: 20px;
+            font-size: 24px;
             flex-shrink: 0;
         }
 
         .feature-content h4 {
             font-size: 16px;
-            font-weight: 400;
-            margin-bottom: 5px;
+            font-weight: 500;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
 
         .feature-content p {
-            font-size: 13px;
+            font-size: 14px;
             color: var(--text-secondary);
-            line-height: 1.6;
+            line-height: 1.7;
         }
 
         .process-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
             gap: 2px;
-            background: var(--text-fade);
+            background: rgba(255, 215, 0, 0.2);
             padding: 2px;
             margin: 40px 0;
         }
 
         .process-step {
             background: var(--pure-black);
-            padding: 40px 20px;
+            padding: 50px 20px;
             text-align: center;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s;
+        }
+
+        .process-step::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.05), transparent);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .process-step:hover::before {
+            opacity: 1;
         }
 
         .process-number {
-            font-size: 32px;
-            font-weight: 200;
+            font-size: 42px;
+            font-weight: 100;
             color: var(--gold);
             font-family: 'Oswald', sans-serif;
-            margin-bottom: 10px;
+            margin-bottom: 15px;
+            letter-spacing: -2px;
         }
 
         .process-label {
@@ -371,27 +495,40 @@
             text-transform: uppercase;
             letter-spacing: 1px;
             color: var(--text-secondary);
+            line-height: 1.4;
         }
 
         .reality-box {
-            background: rgba(255, 215, 0, 0.05);
-            border-left: 4px solid var(--gold);
-            padding: 30px;
-            margin: 40px 0;
+            background: var(--dark-void);
+            border: 2px solid rgba(255, 215, 0, 0.2);
+            padding: 40px;
+            margin: 50px 0;
+            position: relative;
+            clip-path: polygon(20px 0, 100% 0, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%, 0 20px);
+        }
+
+        .reality-box::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 80px;
+            height: 4px;
+            background: var(--gold);
         }
 
         .reality-box h4 {
             font-size: 14px;
             text-transform: uppercase;
-            letter-spacing: 2px;
+            letter-spacing: 3px;
             color: var(--gold);
-            margin-bottom: 15px;
+            margin-bottom: 20px;
         }
 
         .reality-box p {
-            font-size: 14px;
-            line-height: 1.7;
-            color: var(--text-secondary);
+            font-size: 15px;
+            line-height: 1.8;
+            color: var(--text-primary);
         }
 
         /* Right Column - Pricing Card */
@@ -399,15 +536,16 @@
             position: sticky;
             top: 120px;
             background: var(--dark-void);
-            border: 1px solid rgba(255, 215, 0, 0.2);
+            border: 2px solid rgba(255, 215, 0, 0.2);
             padding: 50px 40px;
+            clip-path: polygon(20px 0, 100% 0, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%, 0 20px);
         }
 
         .price-display {
             text-align: center;
             margin-bottom: 40px;
             padding-bottom: 40px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            border-bottom: 2px solid rgba(255, 215, 0, 0.1);
         }
 
         .price-amount {
@@ -439,33 +577,39 @@
         }
 
         .price-note {
-            font-size: 11px;
-            color: var(--text-secondary);
-            margin-top: 10px;
+            font-size: 12px;
+            color: var(--text-primary);
+            margin-top: 15px;
+            font-weight: 400;
         }
 
         .stats-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 2px;
-            background: var(--text-fade);
+            background: rgba(255, 215, 0, 0.2);
             padding: 2px;
             margin-bottom: 40px;
         }
 
         .stat-box {
             background: var(--pure-black);
-            padding: 30px 15px;
+            padding: 35px 20px;
             text-align: center;
+            transition: all 0.3s;
+        }
+
+        .stat-box:hover {
+            background: rgba(255, 215, 0, 0.02);
         }
 
         .stat-number {
-            font-size: 32px;
+            font-size: 36px;
             font-weight: 100;
             color: var(--gold);
             font-family: 'Oswald', sans-serif;
             letter-spacing: -2px;
-            margin-bottom: 5px;
+            margin-bottom: 8px;
         }
 
         .stat-label {
@@ -473,11 +617,12 @@
             text-transform: uppercase;
             letter-spacing: 1px;
             color: var(--text-fade);
+            line-height: 1.4;
         }
 
         .cta-primary {
             width: 100%;
-            padding: 20px;
+            padding: 24px;
             background: var(--gold);
             color: var(--pure-black);
             text-decoration: none;
@@ -485,35 +630,60 @@
             font-weight: 700;
             letter-spacing: 3px;
             text-transform: uppercase;
-            transition: all 0.3s;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             border: none;
             display: block;
             text-align: center;
-            margin-bottom: 15px;
+            margin-bottom: 20px;
             cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+        }
+
+        .cta-primary::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .cta-primary:hover::before {
+            width: 400px;
+            height: 400px;
         }
 
         .cta-primary:hover {
-            transform: scaleX(1.05);
+            transform: scale(1.02);
+            box-shadow: 0 10px 30px rgba(255, 215, 0, 0.3);
         }
 
         .guarantees {
             margin-top: 30px;
             padding-top: 30px;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            border-top: 2px solid rgba(255, 215, 0, 0.1);
         }
 
         .guarantee-item {
             display: flex;
             align-items: center;
-            gap: 10px;
-            margin-bottom: 15px;
+            gap: 12px;
+            margin-bottom: 18px;
             font-size: 11px;
             color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
 
         .guarantee-icon {
             color: var(--green);
+            font-size: 16px;
         }
 
         /* Form Section */
@@ -521,11 +691,11 @@
             max-width: 1200px;
             margin: 0 auto;
             padding: 100px 50px;
-            background: var(--dark-void);
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.02) 0%, transparent 100%);
         }
 
         .form-container {
-            max-width: 800px;
+            max-width: 900px;
             margin: 0 auto;
         }
 
@@ -536,7 +706,7 @@
 
         .form-tag {
             display: inline-block;
-            padding: 8px 20px;
+            padding: 10px 24px;
             background: var(--gold);
             color: var(--pure-black);
             font-size: 10px;
@@ -544,6 +714,7 @@
             text-transform: uppercase;
             letter-spacing: 2px;
             margin-bottom: 30px;
+            clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
         }
 
         .form-title {
@@ -560,9 +731,10 @@
         }
 
         .pfs-form {
-            background: var(--pure-black);
-            padding: 50px;
-            border: 1px solid rgba(255, 255, 255, 0.05);
+            background: var(--dark-void);
+            padding: 60px;
+            border: 2px solid rgba(255, 215, 0, 0.1);
+            clip-path: polygon(30px 0, 100% 0, 100% calc(100% - 30px), calc(100% - 30px) 100%, 0 100%, 0 30px);
         }
 
         .form-group {
@@ -587,14 +759,14 @@
         .form-select,
         .form-textarea {
             width: 100%;
-            padding: 16px 20px;
-            background: var(--dark-void);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 18px 22px;
+            background: var(--pure-black);
+            border: 1px solid rgba(255, 215, 0, 0.2);
             color: var(--text-primary);
             font-size: 15px;
             font-family: inherit;
             transition: all 0.3s;
-            border-radius: 8px;
+            clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
         }
 
         .form-input:focus,
@@ -618,7 +790,7 @@
 
         .form-submit {
             width: 100%;
-            padding: 22px;
+            padding: 24px;
             background: var(--gold);
             color: var(--pure-black);
             border: none;
@@ -627,14 +799,34 @@
             text-transform: uppercase;
             letter-spacing: 3px;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             margin-top: 20px;
-            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+            clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+        }
+
+        .form-submit::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .form-submit:hover:not(:disabled)::before {
+            width: 500px;
+            height: 500px;
         }
 
         .form-submit:hover:not(:disabled) {
-            transform: scaleX(1.05);
-            letter-spacing: 4px;
+            transform: scale(1.02);
+            box-shadow: 0 10px 40px rgba(255, 215, 0, 0.4);
         }
 
         .form-submit:disabled {
@@ -652,7 +844,7 @@
         /* Footer */
         footer {
             padding: 80px 50px 40px;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            border-top: 1px solid rgba(255, 215, 0, 0.1);
         }
 
         .footer-grid {
@@ -709,7 +901,7 @@
             display: flex;
             justify-content: space-between;
             padding-top: 40px;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            border-top: 1px solid rgba(255, 215, 0, 0.1);
             font-size: 10px;
             text-transform: uppercase;
             letter-spacing: 2px;
@@ -720,8 +912,20 @@
 
         /* Mobile */
         @media (max-width: 768px) {
+            body {
+                cursor: auto;
+            }
+
+            .cursor, .cursor-glow {
+                display: none;
+            }
+
             .hero {
                 padding: 140px 20px 60px;
+            }
+
+            .value-grid {
+                grid-template-columns: 1fr;
             }
 
             .main-grid {
@@ -744,10 +948,6 @@
 
             .nav-links {
                 display: none !important;
-            }
-
-            .hamburger {
-                display: flex;
             }
 
             .form-section {
@@ -776,6 +976,10 @@
     </style>
 </head>
 <body>
+    <!-- Custom Cursor -->
+    <div class="cursor"></div>
+    <div class="cursor-glow"></div>
+
     <!-- Nav -->
     <nav>
         <div class="nav-container">
@@ -785,50 +989,50 @@
             </a>
             
             <div class="nav-links">
-                <a href="/apartments.html" class="nav-link">Apartments</a>
-                <a href="/property-finding.html" class="nav-link active">Property Finding</a>
-                <a href="/concierge.html" class="nav-link">Concierge</a>
-                <a href="/how-it-works.html" class="nav-link">How It Works</a>
-                <a href="/about.html" class="nav-link">About</a>
-                <a href="https://wa.me/393313251961" class="nav-cta">WhatsApp</a>
-            </div>
-
-            <!-- Hamburger -->
-            <div class="hamburger" id="hamburger">
-                <span></span>
-                <span></span>
-                <span></span>
+                <a href="#" class="nav-link">Apartments</a>
+                <a href="#" class="nav-link active">Property Finding</a>
+                <a href="#" class="nav-link">Concierge</a>
+                <a href="#" class="nav-link">How It Works</a>
+                <a href="#" class="nav-link">About</a>
+                <a href="#" class="nav-cta magnetic-btn">WhatsApp</a>
             </div>
         </div>
     </nav>
 
-    <!-- Mobile Menu -->
-    <div class="mobile-menu" id="mobileMenu">
-        <div class="mobile-menu-links">
-            <a href="/" class="mobile-menu-link">Home</a>
-            <a href="/apartments.html" class="mobile-menu-link">Apartments</a>
-            <a href="/property-finding.html" class="mobile-menu-link">Property Finding</a>
-            <a href="/concierge.html" class="mobile-menu-link">Concierge</a>
-            <a href="/how-it-works.html" class="mobile-menu-link">How It Works</a>
-            <a href="/about.html" class="mobile-menu-link">About</a>
-            <a href="/contact.html" class="mobile-menu-link">Contact</a>
-        </div>
-        <a href="https://wa.me/393313251961" class="mobile-menu-cta">WhatsApp Us</a>
-    </div>
-
     <!-- Hero -->
-    <section class="hero">
+    <section class="hero reveal">
         <div class="hero-content">
-            <div class="hero-tag">Fixed Fee · Expert Network</div>
-            <h1 class="hero-title">
-                Can't find what<br>
-                you're looking for?<br>
-                <span class="gold-accent">Let us hunt it down.</span>
+            <div class="hero-tag reveal-delay-1">Your Personal Rome Realtor</div>
+            <h1 class="hero-title reveal-delay-2">
+                Can't find<br>
+                the right place?<br>
+                <span class="gold-accent">We'll find it for you.</span>
             </h1>
-            <p class="hero-subtitle">
-                Give us your exact requirements. We leverage our network and experience to find 5 curated options. You pick one. €350 flat fee. Money-back guarantee if we don't deliver.
+            <p class="hero-subtitle reveal-delay-3">
+                Your dedicated expert searches off-market properties, negotiates on your behalf, handles viewings, and manages everything from contracts to utilities. €350 upfront—deducted from your first month when we succeed.
             </p>
-            <a href="#form" class="hero-cta">Start Your Search</a>
+            <a href="#form" class="hero-cta magnetic-btn reveal-delay-4">Get Your Expert</a>
+        </div>
+    </section>
+
+    <!-- Value Grid -->
+    <section class="value-section reveal">
+        <div class="value-grid">
+            <div class="value-card reveal-delay-1">
+                <span class="value-icon">🔑</span>
+                <h3 class="value-title">Off-Market Access</h3>
+                <p class="value-text">Properties never listed online. Direct landlord connections built over 6+ years in Rome.</p>
+            </div>
+            <div class="value-card reveal-delay-2">
+                <span class="value-icon">🤝</span>
+                <h3 class="value-title">Personal Negotiator</h3>
+                <p class="value-text">We handle viewings, negotiate terms, and secure better prices. You skip the stress.</p>
+            </div>
+            <div class="value-card reveal-delay-3">
+                <span class="value-icon">🌍</span>
+                <h3 class="value-title">Foreign-Friendly Setup</h3>
+                <p class="value-text">Contracts, utilities, codice fiscale, residency support. Everything handled in English.</p>
+            </div>
         </div>
     </section>
 
@@ -836,169 +1040,157 @@
     <div class="main-grid">
         <!-- Left Column -->
         <div class="main-content">
-            <div class="section-title">How It Works</div>
-            <h2 class="section-heading">Simple process. Expert execution.</h2>
+            <div class="section-title reveal">How It Works</div>
+            <h2 class="section-heading reveal">One expert.<br>Your apartment.</h2>
             
-            <div class="process-grid">
+            <div class="process-grid reveal">
                 <div class="process-step">
                     <div class="process-number">01</div>
-                    <div class="process-label">Tell us requirements</div>
+                    <div class="process-label">Share Your Requirements</div>
                 </div>
                 <div class="process-step">
                     <div class="process-number">24H</div>
-                    <div class="process-label">We search network</div>
+                    <div class="process-label">We Activate Search</div>
                 </div>
                 <div class="process-step">
-                    <div class="process-number">05</div>
-                    <div class="process-label">You get options</div>
+                    <div class="process-number">🏠</div>
+                    <div class="process-label">Curated Options</div>
                 </div>
                 <div class="process-step">
                     <div class="process-number">✓</div>
-                    <div class="process-label">Fast move-in</div>
+                    <div class="process-label">Secure & Move In</div>
                 </div>
             </div>
 
-            <div class="reality-box">
-                <h4>The Reality</h4>
+            <div class="reality-box reveal">
+                <h4>Honest Timeline</h4>
                 <p>
-                    We don't promise 48-hour move-ins for Property Finding Service. That's only available on select direct listings. Here, we're realistic: finding the perfect apartment takes time. Our average is 4-7 days from your selection to move-in. But we're fast, efficient, and we leverage relationships most people don't have access to. That's the advantage.
+                    Finding your perfect apartment takes time—sometimes days, sometimes weeks. Rome's rental market is complex, competitive, and chaotic. What we promise: relentless effort, expert guidance, and honest communication. We don't stop until you're settled.
                 </p>
             </div>
 
-            <div class="section-title">What's Included</div>
-            <ul class="features-list">
-                <li>
-                    <span class="feature-icon">✓</span>
+            <div class="section-title reveal">What You Actually Get</div>
+            <ul class="features-list reveal">
+                <li class="reveal-delay-1">
+                    <span class="feature-icon">🎯</span>
                     <div class="feature-content">
-                        <h4>Tailored Search</h4>
-                        <p>We search based on your exact budget, preferred areas, move-in date, and must-haves. No generic listings.</p>
+                        <h4>Dedicated Expert</h4>
+                        <p>One person. Your contact. They know your needs, your budget, your timeline. No automated systems.</p>
+                    </div>
+                </li>
+                <li class="reveal-delay-2">
+                    <span class="feature-icon">🏢</span>
+                    <div class="feature-content">
+                        <h4>Off-Market Properties</h4>
+                        <p>Access to apartments that aren't publicly listed. Less competition. Better options. Real advantage.</p>
+                    </div>
+                </li>
+                <li class="reveal-delay-3">
+                    <span class="feature-icon">👤</span>
+                    <div class="feature-content">
+                        <h4>We Do The Viewings</h4>
+                        <p>You're abroad or busy? We visit apartments, shoot videos, ask the right questions. You decide remotely.</p>
+                    </div>
+                </li>
+                <li class="reveal-delay-4">
+                    <span class="feature-icon">💬</span>
+                    <div class="feature-content">
+                        <h4>Expert Negotiation</h4>
+                        <p>We know what's fair. We negotiate rent, deposit terms, and contract flexibility. You get better deals.</p>
                     </div>
                 </li>
                 <li>
-                    <span class="feature-icon">✓</span>
+                    <span class="feature-icon">📋</span>
                     <div class="feature-content">
-                        <h4>Network Access</h4>
-                        <p>We tap into properties that aren't publicly listed. Direct landlord relationships. Minimal competition.</p>
+                        <h4>Full Setup Support</h4>
+                        <p>Contracts. Utilities. Codice fiscale. Residency registration. Everything needed to live legally in Rome.</p>
                     </div>
                 </li>
                 <li>
-                    <span class="feature-icon">✓</span>
+                    <span class="feature-icon">💰</span>
                     <div class="feature-content">
-                        <h4>5 Curated Options</h4>
-                        <p>We filter out the noise. You get 5 strong options with video tours and complete details.</p>
-                    </div>
-                </li>
-                <li>
-                    <span class="feature-icon">✓</span>
-                    <div class="feature-content">
-                        <h4>Negotiation Support</h4>
-                        <p>We negotiate on your behalf for better terms, deposit flexibility, and competitive pricing.</p>
-                    </div>
-                </li>
-                <li>
-                    <span class="feature-icon">✓</span>
-                    <div class="feature-content">
-                        <h4>Full BOOM Experience</h4>
-                        <p>Once you select an apartment, you get all BOOM services: contract, utilities, support, guarantees.</p>
-                    </div>
-                </li>
-                <li>
-                    <span class="feature-icon">✓</span>
-                    <div class="feature-content">
-                        <h4>Money-Back Guarantee</h4>
-                        <p>If we can't find anything that meets your requirements, we refund you 100%. No risk.</p>
+                        <h4>Fee Deducted On Success</h4>
+                        <p>When we secure your apartment, the €350 comes off your first month's rent. You end up saving.</p>
                     </div>
                 </li>
             </ul>
 
-            <div class="section-title">Why It Works</div>
-            <h2 class="section-heading">Experience. Connections. Speed.</h2>
-            <p class="section-text">
-                I've built relationships with landlords, property managers, and agencies across Rome over the past 2 years. I know which buildings have availability before it's advertised. I know which landlords are flexible. I know which neighborhoods actually work for internationals.
+            <div class="section-title reveal">Why This Works</div>
+            <h2 class="section-heading reveal">Experience meets<br>execution.</h2>
+            <p class="section-text reveal">
+                Rome's rental market is impossible for outsiders. Landlords prefer locals. Agencies add layers of complexity. Properties disappear in hours. Foreigners get stuck in bad deals or miss out completely.
             </p>
-            <p class="section-text">
-                When you pay €350, you're not just paying for a search. You're paying for access to my network, my negotiation skills, and my understanding of Rome's chaotic rental market. 
+            <p class="section-text reveal">
+                We've spent 6+ years building direct relationships with landlords, property managers, and building administrators. We know which neighborhoods work for internationals. We know market rates. We know who to call when inventory is tight.
             </p>
-            <p class="section-text">
-                96% of clients find their perfect apartment through this service. The other 4% get their money back, no questions asked.
+            <p class="section-text reveal">
+                You're not paying €350 for a search. You're paying for insider access, expert negotiation, and someone who won't stop until you have keys in hand. When we succeed—and we usually do—that fee disappears into your first month's rent.
             </p>
         </div>
 
         <!-- Right Column - Pricing -->
-        <div class="pricing-card">
+        <div class="pricing-card reveal">
             <div class="price-display">
                 <div class="price-amount">
                     <span class="currency">€</span>
                     <span class="amount">350</span>
                 </div>
-                <div class="price-label">Fixed fee</div>
-                <div class="price-note">Pay only if we find something you love</div>
+                <div class="price-label">Upfront Fee</div>
+                <div class="price-note">Deducted from first month when we succeed</div>
             </div>
 
             <div class="stats-grid">
                 <div class="stat-box">
                     <div class="stat-number">24H</div>
-                    <div class="stat-label">Search Activation</div>
+                    <div class="stat-label">Search Starts</div>
                 </div>
                 <div class="stat-box">
-                    <div class="stat-number">5</div>
-                    <div class="stat-label">Curated Options</div>
+                    <div class="stat-number">1:1</div>
+                    <div class="stat-label">Dedicated Expert</div>
                 </div>
                 <div class="stat-box">
-                    <div class="stat-number">96%</div>
-                    <div class="stat-label">Success Rate</div>
+                    <div class="stat-number">6+</div>
+                    <div class="stat-label">Years Network</div>
                 </div>
                 <div class="stat-box">
-                    <div class="stat-number">4-7</div>
-                    <div class="stat-label">Days to Move-in</div>
+                    <div class="stat-number">€0</div>
+                    <div class="stat-label">Net Cost*</div>
                 </div>
             </div>
 
-            <a href="#form" class="cta-primary">Start Your Search</a>
+            <a href="#form" class="cta-primary magnetic-btn">Get Your Expert</a>
 
             <div class="guarantees">
                 <div class="guarantee-item">
                     <span class="guarantee-icon">✓</span>
-                    <span>Money-back guarantee</span>
+                    <span>Fee deducted on success</span>
                 </div>
                 <div class="guarantee-item">
                     <span class="guarantee-icon">✓</span>
-                    <span>24-hour search activation</span>
+                    <span>Off-market access included</span>
                 </div>
                 <div class="guarantee-item">
                     <span class="guarantee-icon">✓</span>
-                    <span>Off-market network access</span>
+                    <span>Remote viewing support</span>
                 </div>
                 <div class="guarantee-item">
                     <span class="guarantee-icon">✓</span>
-                    <span>Full BOOM support included</span>
+                    <span>Complete move-in setup</span>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Form Section -->
-    <section class="form-section" id="form">
+    <section class="form-section reveal" id="form">
         <div class="form-container">
             <div class="form-header">
-                <div class="form-tag">€350 Fixed Fee</div>
-                <h2 class="form-title">Tell Us What You Need</h2>
-                <p class="form-subtitle">Fill out this form and we'll start your search within 24 hours.</p>
+                <div class="form-tag reveal-delay-1">€350 · Deducted On Success</div>
+                <h2 class="form-title reveal-delay-2">Start Your Search</h2>
+                <p class="form-subtitle reveal-delay-3">Tell us what you need. We'll activate your dedicated expert within 24 hours.</p>
             </div>
 
-            <form class="pfs-form" action="https://api.web3forms.com/submit" method="POST">
-                <!-- Web3Forms Access Key -->
-                <input type="hidden" name="access_key" value="8d4c9378-5211-4d7c-a2a6-f90c3789a2a6">
-                
-                <!-- Custom Subject -->
-                <input type="hidden" name="subject" value="💰 BOOM - New Property Finding Request (€350)">
-                
-                <!-- Form Type -->
-                <input type="hidden" name="form_type" value="property-finding-service">
-                
-                <!-- Redirect -->
-                <input type="hidden" name="redirect" value="https://boom-rome.vercel.app/thank-you.html">
-
+            <form class="pfs-form reveal-delay-4" id="propertyForm">
                 <!-- Personal Info -->
                 <div class="form-row">
                     <div class="form-group">
@@ -1017,7 +1209,7 @@
                         <input type="tel" name="phone" class="form-input" required placeholder="+39 123 456 7890">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Move-in Date <span class="required">*</span></label>
+                        <label class="form-label">Preferred Move-in <span class="required">*</span></label>
                         <input type="date" name="move_in_date" class="form-input" required>
                     </div>
                 </div>
@@ -1050,28 +1242,25 @@
 
                 <div class="form-group">
                     <label class="form-label">Preferred Areas <span class="required">*</span></label>
-                    <input type="text" name="preferred_areas" class="form-input" required placeholder="e.g., Trastevere, Monti, Testaccio">
+                    <input type="text" name="preferred_areas" class="form-input" required placeholder="e.g., Trastevere, Monti, Testaccio, Centro">
                 </div>
 
                 <div class="form-group">
                     <label class="form-label">Must-Have Features</label>
-                    <input type="text" name="must_haves" class="form-input" placeholder="e.g., elevator, balcony, pet-friendly, dishwasher">
+                    <input type="text" name="must_haves" class="form-input" placeholder="e.g., elevator, balcony, pet-friendly, furnished">
                 </div>
 
                 <div class="form-group">
-                    <label class="form-label">Additional Requirements</label>
-                    <textarea name="additional_info" class="form-textarea" placeholder="Tell us anything else we should know about your search..."></textarea>
+                    <label class="form-label">Anything Else We Should Know?</label>
+                    <textarea name="additional_info" class="form-textarea" placeholder="Special requirements, timeline constraints, concerns about Rome..."></textarea>
                 </div>
 
-                <!-- Honeypot -->
-                <input type="checkbox" name="botcheck" style="display: none;">
-
-                <button type="submit" class="form-submit">
-                    Start My Search - €350
+                <button type="submit" class="form-submit magnetic-btn" id="submitBtn">
+                    Activate My Search
                 </button>
 
                 <p class="form-note">
-                    You'll receive confirmation within 2 hours. Search begins immediately after payment.
+                    Your expert will contact you within 24 hours to begin the search.
                 </p>
             </form>
         </div>
@@ -1095,29 +1284,29 @@
             <div class="footer-links">
                 <h4>System</h4>
                 <ul>
-                    <li><a href="/apartments.html">Apartments</a></li>
-                    <li><a href="/property-finding.html">Property Finding</a></li>
-                    <li><a href="/how-it-works.html">How It Works</a></li>
-                    <li><a href="/concierge.html">Concierge</a></li>
+                    <li><a href="#">Apartments</a></li>
+                    <li><a href="#">Property Finding</a></li>
+                    <li><a href="#">How It Works</a></li>
+                    <li><a href="#">Concierge</a></li>
                 </ul>
             </div>
             
             <div class="footer-links">
                 <h4>Company</h4>
                 <ul>
-                    <li><a href="/about.html">Why BOOM</a></li>
-                    <li><a href="/owners.html">For Owners</a></li>
-                    <li><a href="/faq.html">FAQ</a></li>
-                    <li><a href="/contact.html">Contact</a></li>
+                    <li><a href="#">Why BOOM</a></li>
+                    <li><a href="#">For Owners</a></li>
+                    <li><a href="#">FAQ</a></li>
+                    <li><a href="#">Contact</a></li>
                 </ul>
             </div>
             
             <div class="footer-links">
                 <h4>Legal</h4>
                 <ul>
-                    <li><a href="/terms.html">Terms</a></li>
-                    <li><a href="/privacy.html">Privacy</a></li>
-                    <li><a href="/login.html">Login</a></li>
+                    <li><a href="#">Terms</a></li>
+                    <li><a href="#">Privacy</a></li>
+                    <li><a href="#">Login</a></li>
                 </ul>
             </div>
         </div>
@@ -1129,31 +1318,58 @@
     </footer>
 
     <script>
-        // Hamburger Menu
-        const hamburger = document.getElementById('hamburger');
-        const mobileMenu = document.getElementById('mobileMenu');
+        // Custom Cursor
+        const cursor = document.querySelector('.cursor');
+        const cursorGlow = document.querySelector('.cursor-glow');
 
-        hamburger.addEventListener('click', () => {
-            hamburger.classList.toggle('active');
-            mobileMenu.classList.toggle('active');
-            document.body.style.overflow = mobileMenu.classList.contains('active') ? 'hidden' : '';
+        document.addEventListener('mousemove', (e) => {
+            cursor.style.left = e.clientX + 'px';
+            cursor.style.top = e.clientY + 'px';
+            cursorGlow.style.left = (e.clientX - 200) + 'px';
+            cursorGlow.style.top = (e.clientY - 200) + 'px';
         });
 
-        document.querySelectorAll('.mobile-menu-link').forEach(link => {
-            link.addEventListener('click', () => {
-                hamburger.classList.remove('active');
-                mobileMenu.classList.remove('active');
-                document.body.style.overflow = '';
+        // Magnetic Buttons
+        const magneticButtons = document.querySelectorAll('.magnetic-btn');
+        
+        magneticButtons.forEach(btn => {
+            btn.addEventListener('mouseenter', function() {
+                cursor.style.width = '60px';
+                cursor.style.height = '60px';
+                cursor.style.borderWidth = '1px';
+            });
+
+            btn.addEventListener('mouseleave', function() {
+                cursor.style.width = '20px';
+                cursor.style.height = '20px';
+                cursor.style.borderWidth = '2px';
+                btn.style.transform = 'translate(0, 0)';
+            });
+
+            btn.addEventListener('mousemove', function(e) {
+                const rect = btn.getBoundingClientRect();
+                const x = e.clientX - rect.left - rect.width / 2;
+                const y = e.clientY - rect.top - rect.height / 2;
+                btn.style.transform = `translate(${x * 0.3}px, ${y * 0.3}px)`;
             });
         });
 
-        mobileMenu.addEventListener('click', (e) => {
-            if (e.target === mobileMenu) {
-                hamburger.classList.remove('active');
-                mobileMenu.classList.remove('active');
-                document.body.style.overflow = '';
-            }
-        });
+        // Scroll Reveal Animation
+        const reveals = document.querySelectorAll('.reveal');
+
+        function checkReveal() {
+            reveals.forEach(element => {
+                const elementTop = element.getBoundingClientRect().top;
+                const elementVisible = 100;
+                
+                if (elementTop < window.innerHeight - elementVisible) {
+                    element.classList.add('active');
+                }
+            });
+        }
+
+        window.addEventListener('scroll', checkReveal);
+        checkReveal(); // Initial check
 
         // Smooth scroll to form
         document.querySelectorAll('a[href="#form"]').forEach(anchor => {
@@ -1163,6 +1379,12 @@
                     behavior: 'smooth'
                 });
             });
+        });
+
+        // Form submission demo
+        document.getElementById('propertyForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            alert('Demo mode: In production, this would process your request and activate your dedicated expert.');
         });
     </script>
 </body>
