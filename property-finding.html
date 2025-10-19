@@ -1381,10 +1381,27 @@
             });
         });
 
-        // Form submission demo
-        document.getElementById('propertyForm').addEventListener('submit', (e) => {
+        // Form submission - Store data and redirect to Stripe
+        document.getElementById('propertyForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            alert('Demo mode: In production, this would process your request and activate your dedicated expert.');
+            
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Redirecting to secure payment...';
+
+            // Collect form data
+            const formData = new FormData(e.target);
+            const searchData = {};
+            for (let [key, value] of formData.entries()) {
+                searchData[key] = value;
+            }
+
+            // Store data in localStorage for retrieval after payment
+            localStorage.setItem('pfsSearchData', JSON.stringify(searchData));
+            localStorage.setItem('pfsTimestamp', new Date().toISOString());
+
+            // Redirect to Stripe Payment Link
+            window.location.href = 'https://buy.stripe.com/bJecN69Nl5M51aS69D5J607';
         });
     </script>
 </body>
