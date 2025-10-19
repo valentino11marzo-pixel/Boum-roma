@@ -1,0 +1,176 @@
+<!-- BOOM Universal Header - Include this in all pages -->
+<style>
+    /* Mobile Menu Styles */
+    .hamburger {
+        display: none;
+        flex-direction: column;
+        gap: 5px;
+        cursor: pointer;
+        z-index: 1000;
+        padding: 10px;
+    }
+
+    .hamburger span {
+        width: 25px;
+        height: 2px;
+        background: var(--gold);
+        transition: all 0.3s;
+    }
+
+    .hamburger.active span:nth-child(1) {
+        transform: rotate(45deg) translate(6px, 6px);
+    }
+
+    .hamburger.active span:nth-child(2) {
+        opacity: 0;
+    }
+
+    .hamburger.active span:nth-child(3) {
+        transform: rotate(-45deg) translate(6px, -6px);
+    }
+
+    .mobile-menu {
+        position: fixed;
+        top: 0;
+        right: -100%;
+        width: 300px;
+        height: 100vh;
+        background: rgba(0, 0, 0, 0.98);
+        backdrop-filter: blur(20px);
+        z-index: 999;
+        padding: 100px 40px 40px;
+        transition: right 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        overflow-y: auto;
+    }
+
+    .mobile-menu.active {
+        right: 0;
+    }
+
+    .mobile-menu-links {
+        display: flex;
+        flex-direction: column;
+        gap: 30px;
+    }
+
+    .mobile-menu-link {
+        color: var(--text-secondary);
+        text-decoration: none;
+        font-size: 18px;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        transition: all 0.3s;
+        padding: 10px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .mobile-menu-link:hover {
+        color: var(--gold);
+        padding-left: 10px;
+    }
+
+    .mobile-menu-cta {
+        margin-top: 40px;
+        padding: 20px;
+        background: var(--gold);
+        color: var(--pure-black);
+        text-align: center;
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 600;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        display: block;
+    }
+
+    @media (max-width: 768px) {
+        .hamburger {
+            display: flex;
+        }
+
+        .nav-links {
+            display: none !important;
+        }
+    }
+</style>
+
+<!-- Navigation -->
+<nav id="navbar">
+    <div class="nav-container">
+        <a href="/" class="logo">
+            <div class="logo-circle"></div>
+            <span class="logo-text">BOOM</span>
+        </a>
+        
+        <!-- Desktop Menu -->
+        <div class="nav-links">
+            <a href="/apartments.html" class="nav-link">Apartments</a>
+            <a href="/property-finding.html" class="nav-link">Property Finding</a>
+            <a href="/concierge.html" class="nav-link">Concierge</a>
+            <a href="/how-it-works.html" class="nav-link">How It Works</a>
+            <a href="/about.html" class="nav-link">About</a>
+            <a href="https://wa.me/393313251961" class="nav-cta">WhatsApp</a>
+        </div>
+
+        <!-- Hamburger Menu (Mobile) -->
+        <div class="hamburger" id="hamburger">
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+    </div>
+</nav>
+
+<!-- Mobile Menu Overlay -->
+<div class="mobile-menu" id="mobileMenu">
+    <div class="mobile-menu-links">
+        <a href="/" class="mobile-menu-link">Home</a>
+        <a href="/apartments.html" class="mobile-menu-link">Apartments</a>
+        <a href="/property-finding.html" class="mobile-menu-link">Property Finding</a>
+        <a href="/concierge.html" class="mobile-menu-link">Concierge</a>
+        <a href="/how-it-works.html" class="mobile-menu-link">How It Works</a>
+        <a href="/about.html" class="mobile-menu-link">About</a>
+        <a href="/contact.html" class="mobile-menu-link">Contact</a>
+    </div>
+    <a href="https://wa.me/393313251961" class="mobile-menu-cta">WhatsApp Us</a>
+</div>
+
+<script>
+    // Hamburger Menu Toggle
+    const hamburger = document.getElementById('hamburger');
+    const mobileMenu = document.getElementById('mobileMenu');
+
+    hamburger.addEventListener('click', () => {
+        hamburger.classList.toggle('active');
+        mobileMenu.classList.toggle('active');
+        document.body.style.overflow = mobileMenu.classList.contains('active') ? 'hidden' : '';
+    });
+
+    // Close menu when clicking a link
+    document.querySelectorAll('.mobile-menu-link').forEach(link => {
+        link.addEventListener('click', () => {
+            hamburger.classList.remove('active');
+            mobileMenu.classList.remove('active');
+            document.body.style.overflow = '';
+        });
+    });
+
+    // Close menu when clicking outside
+    mobileMenu.addEventListener('click', (e) => {
+        if (e.target === mobileMenu) {
+            hamburger.classList.remove('active');
+            mobileMenu.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+    });
+
+    // Navbar scroll effect
+    window.addEventListener('scroll', function() {
+        const navbar = document.getElementById('navbar');
+        if (window.scrollY > 50) {
+            navbar.classList.add('scrolled');
+        } else {
+            navbar.classList.remove('scrolled');
+        }
+    });
+</script>

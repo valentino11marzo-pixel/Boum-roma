@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ripetta Terrace - BOOM</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;900&family=Oswald:wght@200;300;400;500&display=swap" rel="stylesheet">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        :root {
+            --gold: #FFD700;
+            --orange: #FF6B35;
+            --pure-black: #000000;
+            --dark-surface: #111111;
+            --text-primary: #FFFFFF;
+            --text-fade: #666666;
+            --text-secondary: #999999;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--pure-black);
+            color: var(--text-primary);
+            font-weight: 200;
+            letter-spacing: 0.02em;
+            line-height: 1.6;
+        }
+
+        /* Premium Waitlist Banner */
+        .waitlist-banner {
+            position: fixed;
+            top: 80px;
+            left: 0;
+            right: 0;
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            color: var(--pure-black);
+            padding: 12px 50px;
+            z-index: 99;
+            text-align: center;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        nav {
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 100;
+            padding: 20px 50px;
+            background: rgba(0,0,0,0.98);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 215, 0, 0.1);
+        }
+
+        .nav-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            text-decoration: none;
+            color: white;
+        }
+
+        .logo-circle {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            border-radius: 50%;
+            box-shadow: 0 0 30px rgba(255, 215, 0, 0.5);
+            animation: glow 3s infinite;
+        }
+
+        @keyframes glow {
+            0%, 100% { box-shadow: 0 0 30px rgba(255, 215, 0, 0.5); }
+            50% { box-shadow: 0 0 50px rgba(255, 215, 0, 0.8); }
+        }
+
+        .logo-text {
+            font-family: 'Oswald', sans-serif;
+            font-size: 32px;
+            font-weight: 300;
+            letter-spacing: -2px;
+            text-transform: uppercase;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 40px;
+            align-items: center;
+        }
+
+        .nav-link {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: color 0.3s;
+            font-weight: 400;
+        }
+
+        .nav-cta {
+            padding: 12px 30px;
+            background: transparent;
+            border: 1px solid var(--gold);
+            color: var(--gold);
+            text-decoration: none;
+            font-size: 11px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+
+        .nav-cta:hover {
+            background: var(--gold);
+            color: var(--pure-black);
+        }
+
+        .hero-gallery {
+            margin-top: 128px;
+            height: 70vh;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .gallery-image {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        .gallery-image.active {
+            opacity: 1;
+        }
+
+        .gallery-controls {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            z-index: 10;
+        }
+
+        .gallery-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .gallery-dot.active {
+            background: var(--gold);
+            transform: scale(1.3);
+        }
+
+        .gallery-badge {
+            position: absolute;
+            top: 40px;
+            right: 40px;
+            padding: 15px 30px;
+            background: rgba(255, 215, 0, 0.95);
+            color: var(--pure-black);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-weight: 700;
+            z-index: 10;
+        }
+
+        .content-grid {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 80px 50px;
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 80px;
+        }
+
+        .breadcrumb {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--text-fade);
+            margin-bottom: 30px;
+        }
+
+        .breadcrumb a {
+            color: var(--text-fade);
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+
+        .breadcrumb a:hover {
+            color: var(--gold);
+        }
+
+        .apartment-location {
+            color: var(--gold);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 3px;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+        }
+
+        .apartment-title {
+            font-size: clamp(40px, 6vw, 72px);
+            font-weight: 100;
+            margin-bottom: 30px;
+            text-transform: uppercase;
+            letter-spacing: -2px;
+            line-height: 0.9;
+            font-family: 'Oswald', sans-serif;
+        }
+
+        .apartment-tagline {
+            font-size: 18px;
+            color: var(--text-secondary);
+            margin-bottom: 60px;
+            font-weight: 300;
+        }
+
+        .specs-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 30px;
+            margin-bottom: 60px;
+        }
+
+        .spec-box {
+            text-align: center;
+            padding: 30px 20px;
+            background: rgba(255, 215, 0, 0.05);
+            border: 1px solid rgba(255, 215, 0, 0.2);
+            transition: all 0.3s;
+        }
+
+        .spec-box:hover {
+            border-color: var(--gold);
+            background: rgba(255, 215, 0, 0.1);
+        }
+
+        .spec-icon {
+            font-size: 32px;
+            margin-bottom: 15px;
+            display: block;
+        }
+
+        .spec-value {
+            font-size: 24px;
+            font-weight: 300;
+            margin-bottom: 5px;
+        }
+
+        .spec-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--text-fade);
+        }
+
+        .section-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            color: var(--gold);
+            margin-bottom: 20px;
+            margin-top: 60px;
+        }
+
+        .apartment-description {
+            font-size: 16px;
+            line-height: 1.8;
+            color: var(--text-secondary);
+            margin-bottom: 40px;
+            font-weight: 300;
+        }
+
+        .features-list {
+            list-style: none;
+            margin-bottom: 60px;
+        }
+
+        .features-list li {
+            padding: 20px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            font-size: 14px;
+        }
+
+        .feature-icon {
+            color: var(--gold);
+            font-size: 20px;
+        }
+
+        .neighborhood-box {
+            background: rgba(255, 215, 0, 0.05);
+            border: 1px solid rgba(255, 215, 0, 0.2);
+            padding: 40px;
+            margin-bottom: 60px;
+        }
+
+        .neighborhood-box h3 {
+            font-size: 24px;
+            font-weight: 300;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+        }
+
+        .neighborhood-box p {
+            font-size: 14px;
+            line-height: 1.8;
+            color: var(--text-secondary);
+        }
+
+        .booking-card {
+            position: sticky;
+            top: 168px;
+            background: var(--dark-surface);
+            border: 1px solid rgba(255, 215, 0, 0.3);
+            padding: 40px;
+        }
+
+        .price-display {
+            text-align: center;
+            margin-bottom: 40px;
+            padding-bottom: 40px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .price-amount {
+            font-size: 64px;
+            font-weight: 100;
+            font-family: 'Oswald', sans-serif;
+            color: var(--gold);
+            letter-spacing: -3px;
+            margin-bottom: 10px;
+        }
+
+        .price-period {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--text-fade);
+        }
+
+        .price-note {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-top: 10px;
+        }
+
+        .booking-details {
+            margin-bottom: 30px;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 15px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 13px;
+        }
+
+        .detail-label {
+            color: var(--text-fade);
+        }
+
+        .detail-value {
+            color: var(--text-primary);
+            font-weight: 400;
+        }
+
+        .cta-primary {
+            width: 100%;
+            padding: 20px;
+            background: var(--orange);
+            color: white;
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            transition: all 0.3s;
+            border: none;
+            display: block;
+            text-align: center;
+            margin-bottom: 15px;
+            cursor: pointer;
+        }
+
+        .cta-primary:hover {
+            background: #FFA500;
+            transform: scaleX(1.05);
+        }
+
+        .cta-ghost {
+            width: 100%;
+            padding: 18px;
+            background: transparent;
+            border: 1px solid var(--text-fade);
+            color: var(--text-primary);
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 400;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            transition: all 0.3s;
+            display: block;
+            text-align: center;
+        }
+
+        .cta-ghost:hover {
+            border-color: var(--gold);
+            background: rgba(255, 215, 0, 0.05);
+        }
+
+        .guarantees {
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .guarantee-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        .guarantee-icon {
+            color: var(--gold);
+        }
+
+        @media (max-width: 768px) {
+            .waitlist-banner {
+                padding: 12px 20px;
+            }
+
+            .hero-gallery {
+                margin-top: 128px;
+            }
+
+            .content-grid {
+                grid-template-columns: 1fr;
+                gap: 40px;
+                padding: 40px 20px;
+            }
+
+            .booking-card {
+                position: static;
+                top: auto;
+            }
+
+            .specs-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="waitlist-banner">
+        👑 Premium Waitlist - Available September 1, 2026
+    </div>
+
+    <nav>
+        <div class="nav-container">
+            <a href="/" class="logo">
+                <div class="logo-circle"></div>
+                <span class="logo-text">BOOM</span>
+            </a>
+            
+            <div class="nav-links">
+                <a href="/apartments.html" class="nav-link">Back to Apartments</a>
+                <a href="https://wa.me/393313251961" class="nav-cta">WhatsApp</a>
+            </div>
+        </div>
+    </nav>
+
+    <section class="hero-gallery">
+        <img src="https://i.imgur.com/hxai5bz.jpeg" class="gallery-image active" alt="Ripetta 1">
+        <img src="https://i.imgur.com/9CI1JnI.jpeg" class="gallery-image" alt="Ripetta 2">
+        <img src="https://i.imgur.com/1GL2Tdf.jpeg" class="gallery-image" alt="Ripetta 3">
+        
+        <div class="gallery-badge">👑 The Crown Jewel</div>
+        
+        <div class="gallery-controls">
+            <div class="gallery-dot active" data-index="0"></div>
+            <div class="gallery-dot" data-index="1"></div>
+            <div class="gallery-dot" data-index="2"></div>
+        </div>
+    </section>
+
+    <div class="content-grid">
+        <div class="apartment-info">
+            <div class="breadcrumb">
+                <a href="/">Home</a> / <a href="/apartments.html">Apartments</a> / Ripetta Terrace
+            </div>
+
+            <div class="apartment-location">Centro Storico</div>
+            <h1 class="apartment-title">Ripetta Terrace</h1>
+            <p class="apartment-tagline">Panoramic terrace apartment overlooking the Tiber River</p>
+
+            <div class="specs-grid">
+                <div class="spec-box">
+                    <span class="spec-icon">🏠</span>
+                    <div class="spec-value">100m²</div>
+                    <div class="spec-label">Total Size</div>
+                </div>
+                <div class="spec-box">
+                    <span class="spec-icon">🛏️</span>
+                    <div class="spec-value">1 Bed</div>
+                    <div class="spec-label">Bedroom</div>
+                </div>
+                <div class="spec-box">
+                    <span class="spec-icon">🚿</span>
+                    <div class="spec-value">1 Bath</div>
+                    <div class="spec-label">Bathroom</div>
+                </div>
+                <div class="spec-box">
+                    <span class="spec-icon">🏢</span>
+                    <div class="spec-value">1st</div>
+                    <div class="spec-label">Floor</div>
+                </div>
+                <div class="spec-box">
+                    <span class="spec-icon">🌅</span>
+                    <div class="spec-value">Terrace</div>
+                    <div class="spec-label">Panoramic</div>
+                </div>
+                <div class="spec-box">
+                    <span class="spec-icon">⏳</span>
+                    <div class="spec-value">Sep 1</div>
+                    <div class="spec-label">2026</div>
+                </div>
+            </div>
+
+            <div class="section-title">About</div>
+            <div class="apartment-description">
+                <p>The crown jewel. Panoramic terrace apartment overlooking the Tiber River and historic Rome. This premium property offers 100m² of living space plus a massive private terrace — perfect for entertaining, sunset aperitivos, and living the ultimate Roman lifestyle.</p>
+                <p>Located on Passeggiata di Ripetta, one of Rome's most elegant riverside promenades, this apartment combines historic charm with modern comfort. The terrace offers breathtaking views of the river and city skyline. Inside, the apartment is fully furnished with high-quality finishes throughout.</p>
+                <p>This is for those who want to live at the absolute peak of Roman luxury — walking distance to Piazza del Popolo, Spanish Steps, and Villa Borghese, while enjoying your own private outdoor sanctuary overlooking the Eternal City.</p>
+            </div>
+
+            <div class="section-title">Features</div>
+            <ul class="features-list">
+                <li><span class="feature-icon">✓</span> Panoramic terrace with river views</li>
+                <li><span class="feature-icon">✓</span> 100m² interior living space</li>
+                <li><span class="feature-icon">✓</span> Overlooks Tiber River & historic center</li>
+                <li><span class="feature-icon">✓</span> Fully furnished premium finishes</li>
+                <li><span class="feature-icon">✓</span> Air conditioning</li>
+                <li><span class="feature-icon">✓</span> Heating system</li>
+                <li><span class="feature-icon">✓</span> Historic building on Passeggiata di Ripetta</li>
+                <li><span class="feature-icon">✓</span> Small pets welcome</li>
+            </ul>
+
+            <div class="neighborhood-box">
+                <h3>About Passeggiata di Ripetta</h3>
+                <p>Passeggiata di Ripetta is one of Rome's most prestigious addresses — a riverside promenade in the heart of the historic center. You're steps from Piazza del Popolo, the Spanish Steps, and Via del Corso shopping district. This is where Rome's elite have lived for centuries. The terrace views alone make this the most sought-after rental in our entire portfolio. This is not just an apartment — it's a lifestyle.</p>
+            </div>
+        </div>
+
+        <div class="booking-card">
+            <div class="price-display">
+                <div class="price-amount">€2,300</div>
+                <div class="price-period">/month</div>
+                <div class="price-note">+ ~€150/month utilities</div>
+            </div>
+
+            <div class="booking-details">
+                <h4 style="font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: var(--gold); margin-bottom: 20px;">What You'll Pay</h4>
+                
+                <div style="margin-bottom: 25px;">
+                    <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 2px; color: var(--text-fade); margin-bottom: 15px;">First Month</div>
+                    <div class="detail-row">
+                        <span class="detail-label">Monthly Rent</span>
+                        <span class="detail-value">€2,300</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Utilities (approx)</span>
+                        <span class="detail-value">€150</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">BOOM Fee (10%)</span>
+                        <span class="detail-value">€2,760</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Security Deposit</span>
+                        <span class="detail-value">€2,300</span>
+                    </div>
+                    <div class="detail-row" style="border-top: 2px solid var(--gold); padding-top: 15px; margin-top: 10px;">
+                        <span class="detail-label" style="font-weight: 600; color: var(--gold);">Total Upfront</span>
+                        <span class="detail-value" style="font-weight: 600; color: var(--gold); font-size: 18px;">€7,510</span>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 25px;">
+                    <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 2px; color: var(--text-fade); margin-bottom: 15px;">Every Month After</div>
+                    <div class="detail-row">
+                        <span class="detail-label">Monthly Rent</span>
+                        <span class="detail-value">€2,300</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Utilities (approx)</span>
+                        <span class="detail-value">€150</span>
+                    </div>
+                    <div class="detail-row" style="border-top: 2px solid var(--gold); padding-top: 15px; margin-top: 10px;">
+                        <span class="detail-label" style="font-weight: 600; color: var(--gold);">Monthly Cost</span>
+                        <span class="detail-value" style="font-weight: 600; color: var(--gold); font-size: 18px;">€2,450</span>
+                    </div>
+                </div>
+            </div>
+
+            <div style="padding: 20px; background: rgba(255, 215, 0, 0.1); border: 1px solid rgba(255, 215, 0, 0.3); border-radius: 8px; margin-bottom: 30px;">
+                <div style="font-size: 11px; color: var(--text-secondary); line-height: 1.6;">
+                    <strong style="color: #FFD700;">The Crown Jewel.</strong> This is our most exclusive property. Panoramic terrace, Tiber views, 100m² in the heart of Rome. Join the waitlist now — this will not last.
+                </div>
+            </div>
+
+            <div class="booking-details" style="margin-top: 30px;">
+                <h4 style="font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: var(--text-fade); margin-bottom: 15px;">Lease Details</h4>
+                <div class="detail-row">
+                    <span class="detail-label">Available from</span>
+                    <span class="detail-value">September 1, 2026</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Status</span>
+                    <span class="detail-value" style="color: var(--orange);">Waitlist</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Minimum stay</span>
+                    <span class="detail-value">3 months</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Maximum stay</span>
+                    <span class="detail-value">18 months</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Smoking allowed</span>
+                    <span class="detail-value">Yes</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Pets allowed</span>
+                    <span class="detail-value">Small size</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Max occupancy</span>
+                    <span class="detail-value">4 people</span>
+                </div>
+            </div>
+
+            <button onclick="joinWaitlist()" class="cta-primary">Join Waitlist</button>
+            <a href="https://wa.me/393313251961?text=Question%20about%20Ripetta%20Terrace%20Waitlist" class="cta-ghost">Ask a Question</a>
+
+            <div class="guarantees">
+                <div class="guarantee-item">
+                    <span class="guarantee-icon">✓</span>
+                    <span>VIP priority notification</span>
+                </div>
+                <div class="guarantee-item">
+                    <span class="guarantee-icon">✓</span>
+                    <span>Video verified property</span>
+                </div>
+                <div class="guarantee-item">
+                    <span class="guarantee-icon">✓</span>
+                    <span>Panoramic terrace</span>
+                </div>
+                <div class="guarantee-item">
+                    <span class="guarantee-icon">✓</span>
+                    <span>24/7 concierge support</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const images = document.querySelectorAll('.gallery-image');
+        const dots = document.querySelectorAll('.gallery-dot');
+        let currentIndex = 0;
+
+        function showImage(index) {
+            images.forEach(img => img.classList.remove('active'));
+            dots.forEach(dot => dot.classList.remove('active'));
+            
+            images[index].classList.add('active');
+            dots[index].classList.add('active');
+            currentIndex = index;
+        }
+
+        dots.forEach((dot, index) => {
+            dot.addEventListener('click', () => showImage(index));
+        });
+
+        setInterval(() => {
+            const nextIndex = (currentIndex + 1) % images.length;
+            showImage(nextIndex);
+        }, 4000);
+
+        function joinWaitlist() {
+            const params = new URLSearchParams({
+                apt: 'Ripetta Terrace',
+                location: 'Passeggiata di Ripetta, Centro',
+                price: '2300',
+                available: '2026-09-01'
+            });
+            window.location.href = '/precheck.html?' + params.toString();
+        }
+    </script>
+</body>
+</html>

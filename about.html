@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About BOOM - Our Story</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;900&family=Oswald:wght@200;300;400;500&display=swap" rel="stylesheet">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        :root {
+            --gold: #FFD700;
+            --cyan: #00CED1;
+            --green: #00FF88;
+            --pure-black: #000000;
+            --dark-void: #0A0A0A;
+            --dark-surface: #111111;
+            --text-primary: #FFFFFF;
+            --text-fade: #666666;
+            --text-secondary: #999999;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--pure-black);
+            color: var(--text-primary);
+            font-weight: 200;
+            line-height: 1.6;
+        }
+
+        /* Nav */
+        nav {
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 100;
+            padding: 20px 50px;
+            background: rgba(0,0,0,0.98);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 215, 0, 0.1);
+        }
+
+        .nav-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            text-decoration: none;
+            color: white;
+        }
+
+        .logo-circle {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            border-radius: 50%;
+            box-shadow: 0 0 30px rgba(255, 215, 0, 0.5);
+            animation: glow 3s infinite;
+        }
+
+        @keyframes glow {
+            0%, 100% { box-shadow: 0 0 30px rgba(255, 215, 0, 0.5); }
+            50% { box-shadow: 0 0 50px rgba(255, 215, 0, 0.8); }
+        }
+
+        .logo-text {
+            font-family: 'Oswald', sans-serif;
+            font-size: 32px;
+            font-weight: 300;
+            letter-spacing: -2px;
+            text-transform: uppercase;
+        }
+
+        .hamburger {
+            display: none;
+            flex-direction: column;
+            gap: 5px;
+            cursor: pointer;
+            padding: 10px;
+        }
+
+        .hamburger span {
+            width: 25px;
+            height: 2px;
+            background: var(--gold);
+            transition: all 0.3s;
+        }
+
+        /* Hero */
+        .hero {
+            min-height: 80vh;
+            display: flex;
+            align-items: center;
+            padding: 150px 50px 80px;
+            background: radial-gradient(circle at center, rgba(255, 215, 0, 0.08), transparent);
+        }
+
+        .hero-content {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .hero-tag {
+            display: inline-block;
+            padding: 8px 20px;
+            background: var(--gold);
+            color: var(--pure-black);
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-size: clamp(50px, 10vw, 120px);
+            font-weight: 100;
+            line-height: 0.9;
+            letter-spacing: -0.03em;
+            text-transform: uppercase;
+            margin-bottom: 30px;
+        }
+
+        .gold-accent {
+            color: var(--gold);
+            font-weight: 300;
+        }
+
+        .hero-subtitle {
+            font-size: 24px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        /* Story Section */
+        .story-section {
+            padding: 100px 50px;
+            background: var(--dark-void);
+        }
+
+        .story-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* Story Grid with Image */
+        .story-grid {
+            display: grid;
+            grid-template-columns: 400px 1fr;
+            gap: 60px;
+            margin-bottom: 60px;
+            align-items: start;
+        }
+
+        .story-image {
+            width: 100%;
+            aspect-ratio: 3/4;
+            object-fit: cover;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 215, 0, 0.2);
+            position: sticky;
+            top: 120px;
+        }
+
+        .story-intro {
+            font-size: 20px;
+            color: var(--gold);
+            font-weight: 300;
+            margin-bottom: 30px;
+            line-height: 1.8;
+        }
+
+        .story-content {
+            font-size: 18px;
+            line-height: 2;
+            color: var(--text-secondary);
+        }
+
+        .story-content p {
+            margin-bottom: 30px;
+        }
+
+        .story-content strong {
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        /* Full Width Content */
+        .story-full-width {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .quote-block {
+            padding: 40px;
+            margin: 60px 0;
+            background: rgba(255, 215, 0, 0.05);
+            border-left: 4px solid var(--gold);
+        }
+
+        .quote-text {
+            font-size: 24px;
+            font-weight: 300;
+            line-height: 1.6;
+            color: var(--text-primary);
+            font-style: italic;
+            margin-bottom: 20px;
+        }
+
+        .quote-author {
+            font-size: 14px;
+            color: var(--gold);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        /* Mission Section */
+        .mission-section {
+            padding: 100px 50px;
+            background: var(--pure-black);
+        }
+
+        .mission-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: 80px;
+        }
+
+        .section-tag {
+            display: inline-block;
+            padding: 8px 20px;
+            background: var(--cyan);
+            color: var(--pure-black);
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-size: clamp(36px, 6vw, 64px);
+            font-weight: 100;
+            text-transform: uppercase;
+            letter-spacing: -2px;
+            margin-bottom: 20px;
+        }
+
+        .section-subtitle {
+            font-size: 18px;
+            color: var(--text-secondary);
+        }
+
+        .mission-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 40px;
+        }
+
+        .mission-card {
+            padding: 40px;
+            background: var(--dark-void);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            transition: all 0.3s;
+        }
+
+        .mission-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--gold);
+        }
+
+        .mission-number {
+            display: inline-flex;
+            width: 50px;
+            height: 50px;
+            background: var(--gold);
+            color: var(--pure-black);
+            border-radius: 50%;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 25px;
+        }
+
+        .mission-title {
+            font-size: 22px;
+            font-weight: 400;
+            text-transform: uppercase;
+            margin-bottom: 15px;
+            letter-spacing: -0.5px;
+        }
+
+        .mission-description {
+            font-size: 15px;
+            color: var(--text-secondary);
+            line-height: 1.7;
+        }
+
+        /* Values Section */
+        .values-section {
+            padding: 100px 50px;
+            background: var(--dark-surface);
+        }
+
+        .values-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .values-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 2px;
+            background: var(--text-fade);
+            padding: 2px;
+        }
+
+        .value-card {
+            padding: 50px 40px;
+            background: var(--pure-black);
+            text-align: center;
+        }
+
+        .value-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+
+        .value-title {
+            font-size: 24px;
+            font-weight: 400;
+            text-transform: uppercase;
+            margin-bottom: 15px;
+            color: var(--gold);
+        }
+
+        .value-description {
+            font-size: 14px;
+            color: var(--text-secondary);
+            line-height: 1.7;
+        }
+
+        /* Stats Section */
+        .stats-section {
+            padding: 100px 50px;
+            background: var(--pure-black);
+        }
+
+        .stats-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 40px;
+            margin-top: 60px;
+        }
+
+        .stat-card {
+            text-align: center;
+            padding: 40px 20px;
+            background: var(--dark-void);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+        }
+
+        .stat-number {
+            font-size: 72px;
+            font-weight: 100;
+            color: var(--gold);
+            font-family: 'Oswald', sans-serif;
+            letter-spacing: -3px;
+            margin-bottom: 10px;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        /* CTA Section */
+        .cta-section {
+            padding: 120px 50px;
+            text-align: center;
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.03), transparent);
+        }
+
+        .cta-title {
+            font-size: clamp(40px, 8vw, 80px);
+            font-weight: 100;
+            text-transform: uppercase;
+            line-height: 0.9;
+            margin-bottom: 30px;
+        }
+
+        .cta-subtitle {
+            font-size: 20px;
+            color: var(--text-secondary);
+            margin-bottom: 50px;
+        }
+
+        .cta-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn-primary {
+            padding: 20px 60px;
+            background: var(--gold);
+            color: var(--pure-black);
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            transition: all 0.3s;
+        }
+
+        .btn-primary:hover {
+            transform: scaleX(1.05);
+        }
+
+        .btn-ghost {
+            padding: 18px 58px;
+            background: transparent;
+            border: 1px solid var(--text-fade);
+            color: var(--text-primary);
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            transition: all 0.3s;
+        }
+
+        .btn-ghost:hover {
+            border-color: var(--gold);
+        }
+
+        /* Footer */
+        footer {
+            padding: 80px 50px 40px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .footer-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr;
+            gap: 60px;
+            margin-bottom: 60px;
+            max-width: 1400px;
+            margin: 0 auto 60px;
+        }
+
+        .footer-brand h3 {
+            font-family: 'Oswald', sans-serif;
+            font-size: 48px;
+            font-weight: 300;
+            letter-spacing: -3px;
+            margin-bottom: 20px;
+        }
+
+        .footer-brand p {
+            font-size: 12px;
+            color: var(--text-fade);
+            line-height: 1.8;
+            font-weight: 300;
+        }
+
+        .footer-links h4 {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            margin-bottom: 20px;
+            color: var(--gold);
+        }
+
+        .footer-links ul {
+            list-style: none;
+        }
+
+        .footer-links a {
+            color: var(--text-fade);
+            text-decoration: none;
+            font-size: 12px;
+            display: block;
+            padding: 5px 0;
+            transition: color 0.3s;
+            font-weight: 300;
+        }
+
+        .footer-links a:hover {
+            color: var(--text-primary);
+        }
+
+        .footer-bottom {
+            display: flex;
+            justify-content: space-between;
+            padding-top: 40px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--text-fade);
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Mobile */
+        @media (max-width: 1024px) {
+            .story-grid {
+                grid-template-columns: 1fr;
+                gap: 40px;
+            }
+
+            .story-image {
+                position: relative;
+                top: 0;
+                max-width: 400px;
+                margin: 0 auto;
+            }
+        }
+
+        @media (max-width: 768px) {
+            nav {
+                padding: 15px 20px;
+            }
+
+            .hamburger {
+                display: flex;
+            }
+
+            .hero {
+                padding: 120px 20px 60px;
+            }
+
+            .story-section,
+            .mission-section,
+            .values-section,
+            .stats-section,
+            .cta-section {
+                padding: 60px 20px;
+            }
+
+            .mission-grid,
+            .values-grid,
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .values-grid {
+                gap: 0;
+            }
+
+            .footer-grid {
+                grid-template-columns: 1fr;
+                gap: 40px;
+            }
+
+            .footer-bottom {
+                flex-direction: column;
+                gap: 10px;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Nav -->
+    <nav>
+        <div class="nav-container">
+            <a href="/" class="logo">
+                <div class="logo-circle"></div>
+                <span class="logo-text">BOOM</span>
+            </a>
+
+            <div class="hamburger" id="hamburger">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero -->
+    <section class="hero">
+        <div class="hero-content">
+            <span class="hero-tag">Our Story</span>
+            <h1>
+                Built in <span class="gold-accent">Rome</span>,<br>
+                for Rome
+            </h1>
+            <p class="hero-subtitle">
+                If we can make Rome's rental market work, we can make it work anywhere. This is the hardest market in Europe. And we're fixing it.
+            </p>
+        </div>
+    </section>
+
+    <!-- Story -->
+    <section class="story-section">
+        <div class="story-container">
+            <!-- Grid with Image -->
+            <div class="story-grid">
+                <img src="https://i.imgur.com/C9Xk7zT.jpeg" alt="Valentino - Founder of BOOM" class="story-image">
+                
+                <div>
+                    <p class="story-intro">
+                        I'm Valentino. 24 years old. Born and raised in Rome. And I'm fucking tired of watching people get screwed by this city's rental market.
+                    </p>
+
+                    <div class="story-content">
+                        <p>
+                            <strong>Here's the truth:</strong> Rome has the most chaotic, frustrating, borderline-criminal rental market in Europe. I've watched hundreds of internationals arrive with dreams and leave with trauma. Scammed by fake agents. Trapped by impossible deposits. Living in apartments that look nothing like the photos.
+                        </p>
+
+                        <p>
+                            I grew up here. I know every neighborhood. I've seen every scam. I've watched my international friends waste months searching, lose thousands in fees, and get treated like ATMs by landlords who vanish the moment something breaks.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Full Width Content -->
+            <div class="story-full-width">
+                <div class="story-content">
+                    <p>
+                        <strong>So I built BOOM.</strong> Not because I thought "hey, real estate sounds fun." But because I was genuinely pissed off. Pissed off at agencies charging €5,000 in fake fees. Pissed off at landlords who think a 1m² balcony facing a dumpster is a "sunny terrace." Pissed off at a system designed to exploit people who don't speak Italian and don't understand local laws.
+                    </p>
+
+                    <p>
+                        <strong>BOOM is what I wish existed when my friends moved here.</strong> Video-verified apartments so you know exactly what you're getting. One transparent fee so there are no surprises. English contracts that actually make sense. 24/7 support because emergencies don't happen 9-5. Real human beings who actually answer when shit breaks.
+                    </p>
+                </div>
+
+                <div class="quote-block">
+                    <p class="quote-text">
+                        "If it works in Rome, it works anywhere. This is the hardest rental market in Europe. And if we can make it simple here, we can make it simple everywhere."
+                    </p>
+                    <div class="quote-author">— Valentino, Founder</div>
+                </div>
+
+                <div class="story-content">
+                    <p>
+                        <strong>We're not trying to be the biggest.</strong> We're trying to be the best. Every apartment video-verified. Every landlord vetted. Every contract fair. Every fee transparent. Every promise kept.
+                    </p>
+
+                    <p>
+                        We started in Rome because it's home. Because if we can fix Rome's broken rental market, we can fix any market. And because frankly, nobody else is doing this shit right.
+                    </p>
+
+                    <p>
+                        <strong>This is BOOM.</strong> Get your apartment in days, not weeks. No bullshit. No hidden fees. No catfish photos. Just honest service in Europe's most dishonest rental market.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Mission -->
+    <section class="mission-section">
+        <div class="mission-container">
+            <div class="section-header">
+                <span class="section-tag">Our Mission</span>
+                <h2 class="section-title">What We Stand For</h2>
+                <p class="section-subtitle">The principles that guide everything we do</p>
+            </div>
+
+            <div class="mission-grid">
+                <div class="mission-card">
+                    <div class="mission-number">1</div>
+                    <h3 class="mission-title">Radical Transparency</h3>
+                    <p class="mission-description">
+                        One service fee. That's it. No hidden charges, no surprise bills, no fake maintenance fees. You know exactly what you're paying from day one.
+                    </p>
+                </div>
+
+                <div class="mission-card">
+                    <div class="mission-number">2</div>
+                    <h3 class="mission-title">Video Verification</h3>
+                    <p class="mission-description">
+                        Every single apartment is video-verified before listing. No catfish photos from 2015. What you see is exactly what you get.
+                    </p>
+                </div>
+
+                <div class="mission-card">
+                    <div class="mission-number">3</div>
+                    <h3 class="mission-title">Speed Without Compromise</h3>
+                    <p class="mission-description">
+                        48 hours from approval to keys. But we never rush the verification process. Fast service, never sloppy service.
+                    </p>
+                </div>
+
+                <div class="mission-card">
+                    <div class="mission-number">4</div>
+                    <h3 class="mission-title">Always Available</h3>
+                    <p class="mission-description">
+                        24/7 WhatsApp support. Average response time: 2 minutes. Because emergencies don't wait for office hours.
+                    </p>
+                </div>
+
+                <div class="mission-card">
+                    <div class="mission-number">5</div>
+                    <h3 class="mission-title">English Everything</h3>
+                    <p class="mission-description">
+                        Contracts, communication, support - all in English. No "sorry, no speak English" when you have a problem.
+                    </p>
+                </div>
+
+                <div class="mission-card">
+                    <div class="mission-number">6</div>
+                    <h3 class="mission-title">Long-Term Partnership</h3>
+                    <p class="mission-description">
+                        We don't disappear after you sign. We're your Rome partner for as long as you're here. Support from day one to move-out.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Values -->
+    <section class="values-section">
+        <div class="values-container">
+            <div class="section-header">
+                <span class="section-tag">Core Values</span>
+                <h2 class="section-title">How We Operate</h2>
+            </div>
+
+            <div class="values-grid">
+                <div class="value-card">
+                    <div class="value-icon">🎯</div>
+                    <h3 class="value-title">Honest</h3>
+                    <p class="value-description">
+                        We tell you the truth even when it's not what you want to hear. No overselling, no fake promises.
+                    </p>
+                </div>
+
+                <div class="value-card">
+                    <div class="value-icon">⚡</div>
+                    <h3 class="value-title">Fast</h3>
+                    <p class="value-description">
+                        Time is money. Especially when you're burning cash on hotels. We move fast without cutting corners.
+                    </p>
+                </div>
+
+                <div class="value-card">
+                    <div class="value-icon">🔒</div>
+                    <h3 class="value-title">Reliable</h3>
+                    <p class="value-description">
+                        We do what we say we'll do. Every time. No excuses, no ghosting, no disappearing after signing.
+                    </p>
+                </div>
+
+                <div class="value-card">
+                    <div class="value-icon">💡</div>
+                    <h3 class="value-title">Smart</h3>
+                    <p class="value-description">
+                        We use technology to make things simple. But we never hide behind it. Real humans, always available.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Stats -->
+    <section class="stats-section">
+        <div class="stats-container">
+            <div class="section-header">
+                <span class="section-tag">By The Numbers</span>
+                <h2 class="section-title">BOOM In Numbers</h2>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number">48H</div>
+                    <div class="stat-label">Average Move-in Time</div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-number">98%</div>
+                    <div class="stat-label">Success Rate</div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-number">2MIN</div>
+                    <div class="stat-label">Avg Response Time</div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-number">100%</div>
+                    <div class="stat-label">Video Verified</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="cta-section">
+        <h2 class="cta-title">
+            Ready to experience<br>
+            <span class="gold-accent">Rome done right?</span>
+        </h2>
+        <p class="cta-subtitle">Stop fighting the system. Let us handle it.</p>
+        
+        <div class="cta-buttons">
+            <a href="/apartments.html" class="btn-primary">See Apartments</a>
+            <a href="/contact.html" class="btn-ghost">Get In Touch</a>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-grid">
+            <div class="footer-brand">
+                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
+                    <div style="width: 40px; height: 40px; background: linear-gradient(135deg, #FFD700, #FFA500); border-radius: 50%; opacity: 0.9;"></div>
+                    <h3>BOOM</h3>
+                </div>
+                <p>
+                    Built in Rome, for Rome.<br><br>
+                    <strong>Egidi Immobiliare S.r.l.</strong><br>
+                    P.IVA 17322991005
+                </p>
+            </div>
+            
+            <div class="footer-links">
+                <h4>System</h4>
+                <ul>
+                    <li><a href="/apartments.html">Apartments</a></li>
+                    <li><a href="/property-finding.html">Property Finding</a></li>
+                    <li><a href="/how-it-works.html">How It Works</a></li>
+                    <li><a href="/concierge.html">Concierge</a></li>
+                </ul>
+            </div>
+            
+            <div class="footer-links">
+                <h4>Company</h4>
+                <ul>
+                    <li><a href="/about.html">Why BOOM</a></li>
+                    <li><a href="/owners.html">For Owners</a></li>
+                    <li><a href="/faq.html">FAQ</a></li>
+                    <li><a href="/contact.html">Contact</a></li>
+                </ul>
+            </div>
+            
+            <div class="footer-links">
+                <h4>Legal</h4>
+                <ul>
+                    <li><a href="/terms.html">Terms</a></li>
+                    <li><a href="/privacy.html">Privacy</a></li>
+                    <li><a href="/login.html">Login</a></li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="footer-bottom">
+            <span>© 2025 BOOM — Rome, Italy</span>
+            <span>Status: Operational</span>
+        </div>
+    </footer>
+
+    <script>
+        const hamburger = document.getElementById('hamburger');
+        if (hamburger) {
+            hamburger.addEventListener('click', () => {
+                hamburger.classList.toggle('active');
+            });
+        }
+    </script>
+</body>
+</html>

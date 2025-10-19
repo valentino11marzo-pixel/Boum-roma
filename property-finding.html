@@ -1,0 +1,1169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Property Finding Service - BOOM</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;900&family=Oswald:wght@200;300;400;500&display=swap" rel="stylesheet">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        :root {
+            --gold: #FFD700;
+            --cyan: #00CED1;
+            --green: #00FF88;
+            --red: #FF3B3B;
+            --pure-black: #000000;
+            --dark-void: #0A0A0A;
+            --text-primary: #FFFFFF;
+            --text-fade: #666666;
+            --text-secondary: #999999;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--pure-black);
+            color: var(--text-primary);
+            font-weight: 200;
+            letter-spacing: 0.02em;
+            line-height: 1.6;
+        }
+
+        /* Nav */
+        nav {
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 100;
+            padding: 20px 50px;
+            background: rgba(0,0,0,0.98);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 215, 0, 0.1);
+        }
+
+        .nav-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            text-decoration: none;
+            color: white;
+        }
+
+        .logo-circle {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            border-radius: 50%;
+            box-shadow: 0 0 30px rgba(255, 215, 0, 0.5);
+            animation: glow 3s infinite;
+        }
+
+        @keyframes glow {
+            0%, 100% { box-shadow: 0 0 30px rgba(255, 215, 0, 0.5); }
+            50% { box-shadow: 0 0 50px rgba(255, 215, 0, 0.8); }
+        }
+
+        .logo-text {
+            font-family: 'Oswald', sans-serif;
+            font-size: 32px;
+            font-weight: 300;
+            letter-spacing: -2px;
+            text-transform: uppercase;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 40px;
+            align-items: center;
+        }
+
+        .nav-link {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: color 0.3s;
+            font-weight: 400;
+        }
+
+        .nav-link.active {
+            color: var(--gold);
+        }
+
+        .nav-cta {
+            padding: 12px 30px;
+            background: transparent;
+            border: 1px solid var(--gold);
+            color: var(--gold);
+            text-decoration: none;
+            font-size: 11px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+
+        .nav-cta:hover {
+            background: var(--gold);
+            color: var(--pure-black);
+        }
+
+        /* Mobile Menu */
+        .hamburger {
+            display: none;
+            flex-direction: column;
+            gap: 5px;
+            cursor: pointer;
+            z-index: 1000;
+            padding: 10px;
+        }
+
+        .hamburger span {
+            width: 25px;
+            height: 2px;
+            background: var(--gold);
+            transition: all 0.3s;
+        }
+
+        .hamburger.active span:nth-child(1) {
+            transform: rotate(45deg) translate(6px, 6px);
+        }
+
+        .hamburger.active span:nth-child(2) {
+            opacity: 0;
+        }
+
+        .hamburger.active span:nth-child(3) {
+            transform: rotate(-45deg) translate(6px, -6px);
+        }
+
+        .mobile-menu {
+            position: fixed;
+            top: 0;
+            right: -100%;
+            width: 300px;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.98);
+            backdrop-filter: blur(20px);
+            z-index: 999;
+            padding: 100px 40px 40px;
+            transition: right 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow-y: auto;
+        }
+
+        .mobile-menu.active {
+            right: 0;
+        }
+
+        .mobile-menu-links {
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+
+        .mobile-menu-link {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 18px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.3s;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .mobile-menu-link:hover {
+            color: var(--gold);
+            padding-left: 10px;
+        }
+
+        .mobile-menu-cta {
+            margin-top: 40px;
+            padding: 20px;
+            background: var(--gold);
+            color: var(--pure-black);
+            text-align: center;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            display: block;
+        }
+
+        /* Hero */
+        .hero {
+            min-height: 80vh;
+            display: flex;
+            align-items: center;
+            padding: 150px 50px 100px;
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.05) 0%, transparent 100%);
+        }
+
+        .hero-content {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .hero-tag {
+            display: inline-block;
+            padding: 8px 20px;
+            background: var(--gold);
+            color: var(--pure-black);
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 30px;
+        }
+
+        .hero-title {
+            font-size: clamp(60px, 12vw, 140px);
+            font-weight: 100;
+            line-height: 0.85;
+            letter-spacing: -0.03em;
+            text-transform: uppercase;
+            margin-bottom: 30px;
+        }
+
+        .gold-accent {
+            color: var(--gold);
+            font-weight: 300;
+        }
+
+        .hero-subtitle {
+            font-size: 20px;
+            color: var(--text-secondary);
+            margin-bottom: 60px;
+            font-weight: 300;
+            max-width: 700px;
+        }
+
+        .hero-cta {
+            padding: 20px 60px;
+            background: var(--gold);
+            color: var(--pure-black);
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            transition: all 0.4s;
+            display: inline-block;
+        }
+
+        .hero-cta:hover {
+            transform: scaleX(1.05);
+        }
+
+        /* Main Grid */
+        .main-grid {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 100px 50px;
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 80px;
+        }
+
+        /* Left Column */
+        .section-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            color: var(--gold);
+            margin-bottom: 20px;
+            margin-top: 60px;
+        }
+
+        .section-title:first-child {
+            margin-top: 0;
+        }
+
+        .section-heading {
+            font-size: 36px;
+            font-weight: 300;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: -1px;
+        }
+
+        .section-text {
+            font-size: 16px;
+            line-height: 1.8;
+            color: var(--text-secondary);
+            margin-bottom: 30px;
+        }
+
+        .features-list {
+            list-style: none;
+            margin: 40px 0;
+        }
+
+        .features-list li {
+            padding: 20px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            align-items: flex-start;
+            gap: 20px;
+            font-size: 14px;
+        }
+
+        .feature-icon {
+            color: var(--gold);
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        .feature-content h4 {
+            font-size: 16px;
+            font-weight: 400;
+            margin-bottom: 5px;
+        }
+
+        .feature-content p {
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .process-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 2px;
+            background: var(--text-fade);
+            padding: 2px;
+            margin: 40px 0;
+        }
+
+        .process-step {
+            background: var(--pure-black);
+            padding: 40px 20px;
+            text-align: center;
+        }
+
+        .process-number {
+            font-size: 32px;
+            font-weight: 200;
+            color: var(--gold);
+            font-family: 'Oswald', sans-serif;
+            margin-bottom: 10px;
+        }
+
+        .process-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-secondary);
+        }
+
+        .reality-box {
+            background: rgba(255, 215, 0, 0.05);
+            border-left: 4px solid var(--gold);
+            padding: 30px;
+            margin: 40px 0;
+        }
+
+        .reality-box h4 {
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--gold);
+            margin-bottom: 15px;
+        }
+
+        .reality-box p {
+            font-size: 14px;
+            line-height: 1.7;
+            color: var(--text-secondary);
+        }
+
+        /* Right Column - Pricing Card */
+        .pricing-card {
+            position: sticky;
+            top: 120px;
+            background: var(--dark-void);
+            border: 1px solid rgba(255, 215, 0, 0.2);
+            padding: 50px 40px;
+        }
+
+        .price-display {
+            text-align: center;
+            margin-bottom: 40px;
+            padding-bottom: 40px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .price-amount {
+            display: flex;
+            align-items: baseline;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .currency {
+            font-size: 32px;
+            color: var(--gold);
+        }
+
+        .amount {
+            font-size: 96px;
+            font-weight: 100;
+            font-family: 'Oswald', sans-serif;
+            color: var(--gold);
+            letter-spacing: -4px;
+        }
+
+        .price-label {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--text-fade);
+        }
+
+        .price-note {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-top: 10px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2px;
+            background: var(--text-fade);
+            padding: 2px;
+            margin-bottom: 40px;
+        }
+
+        .stat-box {
+            background: var(--pure-black);
+            padding: 30px 15px;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 32px;
+            font-weight: 100;
+            color: var(--gold);
+            font-family: 'Oswald', sans-serif;
+            letter-spacing: -2px;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-fade);
+        }
+
+        .cta-primary {
+            width: 100%;
+            padding: 20px;
+            background: var(--gold);
+            color: var(--pure-black);
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            transition: all 0.3s;
+            border: none;
+            display: block;
+            text-align: center;
+            margin-bottom: 15px;
+            cursor: pointer;
+        }
+
+        .cta-primary:hover {
+            transform: scaleX(1.05);
+        }
+
+        .guarantees {
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .guarantee-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        .guarantee-icon {
+            color: var(--green);
+        }
+
+        /* Form Section */
+        .form-section {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 100px 50px;
+            background: var(--dark-void);
+        }
+
+        .form-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .form-header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+
+        .form-tag {
+            display: inline-block;
+            padding: 8px 20px;
+            background: var(--gold);
+            color: var(--pure-black);
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 30px;
+        }
+
+        .form-title {
+            font-size: clamp(36px, 6vw, 56px);
+            font-weight: 100;
+            text-transform: uppercase;
+            letter-spacing: -2px;
+            margin-bottom: 20px;
+        }
+
+        .form-subtitle {
+            font-size: 16px;
+            color: var(--text-secondary);
+        }
+
+        .pfs-form {
+            background: var(--pure-black);
+            padding: 50px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .form-group {
+            margin-bottom: 30px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--text-fade);
+            margin-bottom: 10px;
+            font-weight: 500;
+        }
+
+        .required {
+            color: var(--gold);
+        }
+
+        .form-input,
+        .form-select,
+        .form-textarea {
+            width: 100%;
+            padding: 16px 20px;
+            background: var(--dark-void);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+            font-size: 15px;
+            font-family: inherit;
+            transition: all 0.3s;
+            border-radius: 8px;
+        }
+
+        .form-input:focus,
+        .form-select:focus,
+        .form-textarea:focus {
+            outline: none;
+            border-color: var(--gold);
+            box-shadow: 0 0 0 3px rgba(255, 215, 0, 0.1);
+        }
+
+        .form-textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .form-submit {
+            width: 100%;
+            padding: 22px;
+            background: var(--gold);
+            color: var(--pure-black);
+            border: none;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 20px;
+            border-radius: 8px;
+        }
+
+        .form-submit:hover:not(:disabled) {
+            transform: scaleX(1.05);
+            letter-spacing: 4px;
+        }
+
+        .form-submit:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .form-note {
+            font-size: 12px;
+            color: var(--text-fade);
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        /* Footer */
+        footer {
+            padding: 80px 50px 40px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .footer-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr;
+            gap: 60px;
+            margin-bottom: 60px;
+            max-width: 1400px;
+            margin: 0 auto 60px;
+        }
+
+        .footer-brand h3 {
+            font-family: 'Oswald', sans-serif;
+            font-size: 48px;
+            font-weight: 300;
+            letter-spacing: -3px;
+            margin-bottom: 20px;
+        }
+
+        .footer-brand p {
+            font-size: 12px;
+            color: var(--text-fade);
+            line-height: 1.8;
+            font-weight: 300;
+        }
+
+        .footer-links h4 {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            margin-bottom: 20px;
+            color: var(--gold);
+        }
+
+        .footer-links ul {
+            list-style: none;
+        }
+
+        .footer-links a {
+            color: var(--text-fade);
+            text-decoration: none;
+            font-size: 12px;
+            display: block;
+            padding: 5px 0;
+            transition: color 0.3s;
+            font-weight: 300;
+        }
+
+        .footer-links a:hover {
+            color: var(--text-primary);
+        }
+
+        .footer-bottom {
+            display: flex;
+            justify-content: space-between;
+            padding-top: 40px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--text-fade);
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Mobile */
+        @media (max-width: 768px) {
+            .hero {
+                padding: 140px 20px 60px;
+            }
+
+            .main-grid {
+                grid-template-columns: 1fr;
+                gap: 40px;
+                padding: 60px 20px;
+            }
+
+            .pricing-card {
+                position: static;
+            }
+
+            .process-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            nav {
+                padding: 15px 20px;
+            }
+
+            .nav-links {
+                display: none !important;
+            }
+
+            .hamburger {
+                display: flex;
+            }
+
+            .form-section {
+                padding: 60px 20px;
+            }
+
+            .pfs-form {
+                padding: 30px 20px;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .footer-grid {
+                grid-template-columns: 1fr;
+                gap: 40px;
+            }
+
+            .footer-bottom {
+                flex-direction: column;
+                gap: 10px;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Nav -->
+    <nav>
+        <div class="nav-container">
+            <a href="/" class="logo">
+                <div class="logo-circle"></div>
+                <span class="logo-text">BOOM</span>
+            </a>
+            
+            <div class="nav-links">
+                <a href="/apartments.html" class="nav-link">Apartments</a>
+                <a href="/property-finding.html" class="nav-link active">Property Finding</a>
+                <a href="/concierge.html" class="nav-link">Concierge</a>
+                <a href="/how-it-works.html" class="nav-link">How It Works</a>
+                <a href="/about.html" class="nav-link">About</a>
+                <a href="https://wa.me/393313251961" class="nav-cta">WhatsApp</a>
+            </div>
+
+            <!-- Hamburger -->
+            <div class="hamburger" id="hamburger">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Mobile Menu -->
+    <div class="mobile-menu" id="mobileMenu">
+        <div class="mobile-menu-links">
+            <a href="/" class="mobile-menu-link">Home</a>
+            <a href="/apartments.html" class="mobile-menu-link">Apartments</a>
+            <a href="/property-finding.html" class="mobile-menu-link">Property Finding</a>
+            <a href="/concierge.html" class="mobile-menu-link">Concierge</a>
+            <a href="/how-it-works.html" class="mobile-menu-link">How It Works</a>
+            <a href="/about.html" class="mobile-menu-link">About</a>
+            <a href="/contact.html" class="mobile-menu-link">Contact</a>
+        </div>
+        <a href="https://wa.me/393313251961" class="mobile-menu-cta">WhatsApp Us</a>
+    </div>
+
+    <!-- Hero -->
+    <section class="hero">
+        <div class="hero-content">
+            <div class="hero-tag">Fixed Fee · Expert Network</div>
+            <h1 class="hero-title">
+                Can't find what<br>
+                you're looking for?<br>
+                <span class="gold-accent">Let us hunt it down.</span>
+            </h1>
+            <p class="hero-subtitle">
+                Give us your exact requirements. We leverage our network and experience to find 5 curated options. You pick one. €350 flat fee. Money-back guarantee if we don't deliver.
+            </p>
+            <a href="#form" class="hero-cta">Start Your Search</a>
+        </div>
+    </section>
+
+    <!-- Main Grid -->
+    <div class="main-grid">
+        <!-- Left Column -->
+        <div class="main-content">
+            <div class="section-title">How It Works</div>
+            <h2 class="section-heading">Simple process. Expert execution.</h2>
+            
+            <div class="process-grid">
+                <div class="process-step">
+                    <div class="process-number">01</div>
+                    <div class="process-label">Tell us requirements</div>
+                </div>
+                <div class="process-step">
+                    <div class="process-number">24H</div>
+                    <div class="process-label">We search network</div>
+                </div>
+                <div class="process-step">
+                    <div class="process-number">05</div>
+                    <div class="process-label">You get options</div>
+                </div>
+                <div class="process-step">
+                    <div class="process-number">✓</div>
+                    <div class="process-label">Fast move-in</div>
+                </div>
+            </div>
+
+            <div class="reality-box">
+                <h4>The Reality</h4>
+                <p>
+                    We don't promise 48-hour move-ins for Property Finding Service. That's only available on select direct listings. Here, we're realistic: finding the perfect apartment takes time. Our average is 4-7 days from your selection to move-in. But we're fast, efficient, and we leverage relationships most people don't have access to. That's the advantage.
+                </p>
+            </div>
+
+            <div class="section-title">What's Included</div>
+            <ul class="features-list">
+                <li>
+                    <span class="feature-icon">✓</span>
+                    <div class="feature-content">
+                        <h4>Tailored Search</h4>
+                        <p>We search based on your exact budget, preferred areas, move-in date, and must-haves. No generic listings.</p>
+                    </div>
+                </li>
+                <li>
+                    <span class="feature-icon">✓</span>
+                    <div class="feature-content">
+                        <h4>Network Access</h4>
+                        <p>We tap into properties that aren't publicly listed. Direct landlord relationships. Minimal competition.</p>
+                    </div>
+                </li>
+                <li>
+                    <span class="feature-icon">✓</span>
+                    <div class="feature-content">
+                        <h4>5 Curated Options</h4>
+                        <p>We filter out the noise. You get 5 strong options with video tours and complete details.</p>
+                    </div>
+                </li>
+                <li>
+                    <span class="feature-icon">✓</span>
+                    <div class="feature-content">
+                        <h4>Negotiation Support</h4>
+                        <p>We negotiate on your behalf for better terms, deposit flexibility, and competitive pricing.</p>
+                    </div>
+                </li>
+                <li>
+                    <span class="feature-icon">✓</span>
+                    <div class="feature-content">
+                        <h4>Full BOOM Experience</h4>
+                        <p>Once you select an apartment, you get all BOOM services: contract, utilities, support, guarantees.</p>
+                    </div>
+                </li>
+                <li>
+                    <span class="feature-icon">✓</span>
+                    <div class="feature-content">
+                        <h4>Money-Back Guarantee</h4>
+                        <p>If we can't find anything that meets your requirements, we refund you 100%. No risk.</p>
+                    </div>
+                </li>
+            </ul>
+
+            <div class="section-title">Why It Works</div>
+            <h2 class="section-heading">Experience. Connections. Speed.</h2>
+            <p class="section-text">
+                I've built relationships with landlords, property managers, and agencies across Rome over the past 2 years. I know which buildings have availability before it's advertised. I know which landlords are flexible. I know which neighborhoods actually work for internationals.
+            </p>
+            <p class="section-text">
+                When you pay €350, you're not just paying for a search. You're paying for access to my network, my negotiation skills, and my understanding of Rome's chaotic rental market. 
+            </p>
+            <p class="section-text">
+                96% of clients find their perfect apartment through this service. The other 4% get their money back, no questions asked.
+            </p>
+        </div>
+
+        <!-- Right Column - Pricing -->
+        <div class="pricing-card">
+            <div class="price-display">
+                <div class="price-amount">
+                    <span class="currency">€</span>
+                    <span class="amount">350</span>
+                </div>
+                <div class="price-label">Fixed fee</div>
+                <div class="price-note">Pay only if we find something you love</div>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <div class="stat-number">24H</div>
+                    <div class="stat-label">Search Activation</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-number">5</div>
+                    <div class="stat-label">Curated Options</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-number">96%</div>
+                    <div class="stat-label">Success Rate</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-number">4-7</div>
+                    <div class="stat-label">Days to Move-in</div>
+                </div>
+            </div>
+
+            <a href="#form" class="cta-primary">Start Your Search</a>
+
+            <div class="guarantees">
+                <div class="guarantee-item">
+                    <span class="guarantee-icon">✓</span>
+                    <span>Money-back guarantee</span>
+                </div>
+                <div class="guarantee-item">
+                    <span class="guarantee-icon">✓</span>
+                    <span>24-hour search activation</span>
+                </div>
+                <div class="guarantee-item">
+                    <span class="guarantee-icon">✓</span>
+                    <span>Off-market network access</span>
+                </div>
+                <div class="guarantee-item">
+                    <span class="guarantee-icon">✓</span>
+                    <span>Full BOOM support included</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Form Section -->
+    <section class="form-section" id="form">
+        <div class="form-container">
+            <div class="form-header">
+                <div class="form-tag">€350 Fixed Fee</div>
+                <h2 class="form-title">Tell Us What You Need</h2>
+                <p class="form-subtitle">Fill out this form and we'll start your search within 24 hours.</p>
+            </div>
+
+            <form class="pfs-form" action="https://api.web3forms.com/submit" method="POST">
+                <!-- Web3Forms Access Key -->
+                <input type="hidden" name="access_key" value="8d4c9378-5211-4d7c-a2a6-f90c3789a2a6">
+                
+                <!-- Custom Subject -->
+                <input type="hidden" name="subject" value="💰 BOOM - New Property Finding Request (€350)">
+                
+                <!-- Form Type -->
+                <input type="hidden" name="form_type" value="property-finding-service">
+                
+                <!-- Redirect -->
+                <input type="hidden" name="redirect" value="https://boom-rome.vercel.app/thank-you.html">
+
+                <!-- Personal Info -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Name <span class="required">*</span></label>
+                        <input type="text" name="name" class="form-input" required placeholder="Your full name">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Email <span class="required">*</span></label>
+                        <input type="email" name="email" class="form-input" required placeholder="your@email.com">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Phone <span class="required">*</span></label>
+                        <input type="tel" name="phone" class="form-input" required placeholder="+39 123 456 7890">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Move-in Date <span class="required">*</span></label>
+                        <input type="date" name="move_in_date" class="form-input" required>
+                    </div>
+                </div>
+
+                <!-- Requirements -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Budget (€/month) <span class="required">*</span></label>
+                        <select name="budget" class="form-select" required>
+                            <option value="">Select your budget</option>
+                            <option value="€800-€1,200">€800 - €1,200</option>
+                            <option value="€1,200-€1,500">€1,200 - €1,500</option>
+                            <option value="€1,500-€2,000">€1,500 - €2,000</option>
+                            <option value="€2,000-€2,500">€2,000 - €2,500</option>
+                            <option value="€2,500-€3,000">€2,500 - €3,000</option>
+                            <option value="€3,000+">€3,000+</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Bedrooms <span class="required">*</span></label>
+                        <select name="bedrooms" class="form-select" required>
+                            <option value="">How many bedrooms?</option>
+                            <option value="Studio">Studio</option>
+                            <option value="1">1 Bedroom</option>
+                            <option value="2">2 Bedrooms</option>
+                            <option value="3+">3+ Bedrooms</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Preferred Areas <span class="required">*</span></label>
+                    <input type="text" name="preferred_areas" class="form-input" required placeholder="e.g., Trastevere, Monti, Testaccio">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Must-Have Features</label>
+                    <input type="text" name="must_haves" class="form-input" placeholder="e.g., elevator, balcony, pet-friendly, dishwasher">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Additional Requirements</label>
+                    <textarea name="additional_info" class="form-textarea" placeholder="Tell us anything else we should know about your search..."></textarea>
+                </div>
+
+                <!-- Honeypot -->
+                <input type="checkbox" name="botcheck" style="display: none;">
+
+                <button type="submit" class="form-submit">
+                    Start My Search - €350
+                </button>
+
+                <p class="form-note">
+                    You'll receive confirmation within 2 hours. Search begins immediately after payment.
+                </p>
+            </form>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-grid">
+            <div class="footer-brand">
+                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
+                    <div style="width: 40px; height: 40px; background: linear-gradient(135deg, #FFD700, #FFA500); border-radius: 50%; opacity: 0.9;"></div>
+                    <h3>BOOM</h3>
+                </div>
+                <p>
+                    Built in Rome, for Rome.<br><br>
+                    <strong>Egidi Immobiliare S.r.l.</strong><br>
+                    P.IVA 17322991005
+                </p>
+            </div>
+            
+            <div class="footer-links">
+                <h4>System</h4>
+                <ul>
+                    <li><a href="/apartments.html">Apartments</a></li>
+                    <li><a href="/property-finding.html">Property Finding</a></li>
+                    <li><a href="/how-it-works.html">How It Works</a></li>
+                    <li><a href="/concierge.html">Concierge</a></li>
+                </ul>
+            </div>
+            
+            <div class="footer-links">
+                <h4>Company</h4>
+                <ul>
+                    <li><a href="/about.html">Why BOOM</a></li>
+                    <li><a href="/owners.html">For Owners</a></li>
+                    <li><a href="/faq.html">FAQ</a></li>
+                    <li><a href="/contact.html">Contact</a></li>
+                </ul>
+            </div>
+            
+            <div class="footer-links">
+                <h4>Legal</h4>
+                <ul>
+                    <li><a href="/terms.html">Terms</a></li>
+                    <li><a href="/privacy.html">Privacy</a></li>
+                    <li><a href="/login.html">Login</a></li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="footer-bottom">
+            <span>© 2025 BOOM – Rome, Italy</span>
+            <span>Status: Operational</span>
+        </div>
+    </footer>
+
+    <script>
+        // Hamburger Menu
+        const hamburger = document.getElementById('hamburger');
+        const mobileMenu = document.getElementById('mobileMenu');
+
+        hamburger.addEventListener('click', () => {
+            hamburger.classList.toggle('active');
+            mobileMenu.classList.toggle('active');
+            document.body.style.overflow = mobileMenu.classList.contains('active') ? 'hidden' : '';
+        });
+
+        document.querySelectorAll('.mobile-menu-link').forEach(link => {
+            link.addEventListener('click', () => {
+                hamburger.classList.remove('active');
+                mobileMenu.classList.remove('active');
+                document.body.style.overflow = '';
+            });
+        });
+
+        mobileMenu.addEventListener('click', (e) => {
+            if (e.target === mobileMenu) {
+                hamburger.classList.remove('active');
+                mobileMenu.classList.remove('active');
+                document.body.style.overflow = '';
+            }
+        });
+
+        // Smooth scroll to form
+        document.querySelectorAll('a[href="#form"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                document.querySelector('#form').scrollIntoView({
+                    behavior: 'smooth'
+                });
+            });
+        });
+    </script>
+</body>
+</html>

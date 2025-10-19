@@ -1,0 +1,1087 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FAQ – BOOM Rome</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;900&family=Oswald:wght@200;300;400;500&display=swap" rel="stylesheet">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        :root {
+            --gold: #FFD700;
+            --green: #00FF88;
+            --pure-black: #000000;
+            --dark-void: #0A0A0A;
+            --dark-surface: #111111;
+            --text-primary: #FFFFFF;
+            --text-fade: #666666;
+            --text-secondary: #999999;
+        }
+
+        ::selection {
+            background: var(--gold);
+            color: var(--pure-black);
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--pure-black);
+            color: var(--text-primary);
+            font-weight: 200;
+            letter-spacing: 0.02em;
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        @media (hover: hover) {
+            .cursor {
+                position: fixed;
+                width: 20px;
+                height: 20px;
+                border: 1px solid var(--gold);
+                border-radius: 50%;
+                pointer-events: none;
+                z-index: 9999;
+                transition: transform 0.1s ease;
+                mix-blend-mode: difference;
+            }
+
+            .cursor-follower {
+                position: fixed;
+                width: 40px;
+                height: 40px;
+                border-radius: 50%;
+                background: var(--gold);
+                opacity: 0.1;
+                pointer-events: none;
+                z-index: 9998;
+                transition: transform 0.3s ease;
+            }
+        }
+
+        nav {
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 100;
+            padding: 30px 50px;
+            background: rgba(0,0,0,0.98);
+            backdrop-filter: blur(20px);
+        }
+
+        .nav-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            text-decoration: none;
+            color: white;
+        }
+
+        .logo-circle {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            border-radius: 50%;
+            box-shadow: 0 0 30px rgba(255, 215, 0, 0.5);
+            animation: glow 3s infinite;
+            opacity: 0.9;
+        }
+
+        @keyframes glow {
+            0%, 100% { box-shadow: 0 0 30px rgba(255, 215, 0, 0.5); }
+            50% { box-shadow: 0 0 50px rgba(255, 215, 0, 0.8); }
+        }
+
+        .logo-text {
+            font-family: 'Oswald', sans-serif;
+            font-size: 32px;
+            font-weight: 300;
+            letter-spacing: -2px;
+            text-transform: uppercase;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 40px;
+            align-items: center;
+        }
+
+        .nav-link {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: color 0.3s;
+            font-weight: 400;
+        }
+
+        .nav-link:hover {
+            color: var(--text-primary);
+        }
+
+        .nav-cta {
+            padding: 12px 30px;
+            background: var(--gold);
+            color: var(--pure-black);
+            text-decoration: none;
+            font-size: 11px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+
+        .nav-cta:hover {
+            transform: translateY(-2px);
+        }
+
+        /* Hero */
+        .hero {
+            min-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 0 50px;
+            position: relative;
+            text-align: center;
+        }
+
+        .hero-content {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .page-tag {
+            display: inline-block;
+            padding: 8px 20px;
+            background: var(--green);
+            color: var(--pure-black);
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-size: clamp(50px, 10vw, 120px);
+            font-weight: 100;
+            line-height: 0.9;
+            letter-spacing: -0.03em;
+            text-transform: uppercase;
+            margin-bottom: 30px;
+            font-family: 'Oswald', sans-serif;
+        }
+
+        .hero-subtitle {
+            font-size: clamp(16px, 2vw, 20px);
+            color: var(--text-secondary);
+            font-weight: 300;
+            margin-bottom: 60px;
+        }
+
+        /* Search Bar */
+        .search-container {
+            max-width: 600px;
+            margin: 0 auto 80px;
+        }
+
+        .search-box {
+            position: relative;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 20px 60px 20px 25px;
+            background: var(--dark-surface);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50px;
+            color: var(--text-primary);
+            font-size: 16px;
+            font-family: 'Inter', sans-serif;
+            transition: all 0.3s;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--gold);
+            box-shadow: 0 0 30px rgba(255, 215, 0, 0.2);
+        }
+
+        .search-input::placeholder {
+            color: var(--text-fade);
+        }
+
+        .search-icon {
+            position: absolute;
+            right: 25px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 20px;
+            color: var(--text-fade);
+        }
+
+        /* FAQ Section */
+        .faq-section {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 0 50px 100px;
+        }
+
+        .category-tabs {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 60px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .tab-button {
+            padding: 12px 30px;
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: var(--text-secondary);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: 'Inter', sans-serif;
+            font-weight: 400;
+        }
+
+        .tab-button:hover {
+            border-color: var(--gold);
+            color: var(--text-primary);
+        }
+
+        .tab-button.active {
+            background: var(--gold);
+            border-color: var(--gold);
+            color: var(--pure-black);
+            font-weight: 600;
+        }
+
+        .faq-category {
+            display: none;
+        }
+
+        .faq-category.active {
+            display: block;
+        }
+
+        .faq-item {
+            margin-bottom: 20px;
+            background: var(--dark-surface);
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: all 0.3s;
+        }
+
+        .faq-item:hover {
+            border-color: rgba(255, 215, 0, 0.2);
+        }
+
+        .faq-question {
+            padding: 25px 30px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            user-select: none;
+        }
+
+        .faq-question h3 {
+            font-size: 16px;
+            font-weight: 400;
+            color: var(--text-primary);
+            flex: 1;
+        }
+
+        .faq-icon {
+            font-size: 20px;
+            color: var(--gold);
+            transition: transform 0.3s;
+        }
+
+        .faq-item.open .faq-icon {
+            transform: rotate(180deg);
+        }
+
+        .faq-answer {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+
+        .faq-answer-content {
+            padding: 0 30px 25px 30px;
+            font-size: 15px;
+            line-height: 1.8;
+            color: var(--text-secondary);
+        }
+
+        .faq-answer-content strong {
+            color: var(--gold);
+            font-weight: 500;
+        }
+
+        /* CTA Section */
+        .cta-section {
+            text-align: center;
+            padding: 100px 50px;
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.02), transparent);
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .cta-title {
+            font-size: clamp(40px, 8vw, 80px);
+            font-weight: 100;
+            text-transform: uppercase;
+            margin-bottom: 30px;
+            font-family: 'Oswald', sans-serif;
+        }
+
+        .cta-subtitle {
+            font-size: 18px;
+            color: var(--text-secondary);
+            margin-bottom: 50px;
+        }
+
+        .cta-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .cta-primary {
+            padding: 20px 60px;
+            background: var(--gold);
+            color: var(--pure-black);
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            transition: all 0.4s;
+            display: inline-block;
+        }
+
+        .cta-primary:hover {
+            transform: scaleX(1.05);
+        }
+
+        .cta-ghost {
+            padding: 18px 58px;
+            background: transparent;
+            border: 1px solid var(--text-fade);
+            color: var(--text-primary);
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 400;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            transition: all 0.4s;
+            display: inline-block;
+        }
+
+        .cta-ghost:hover {
+            border-color: var(--gold);
+            background: rgba(255, 215, 0, 0.05);
+        }
+
+        /* Footer */
+        footer {
+            padding: 80px 50px 40px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .footer-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr;
+            gap: 60px;
+            margin-bottom: 60px;
+            max-width: 1400px;
+            margin: 0 auto 60px;
+        }
+
+        .footer-brand h3 {
+            font-family: 'Oswald', sans-serif;
+            font-size: 48px;
+            font-weight: 300;
+            letter-spacing: -3px;
+            margin-bottom: 20px;
+        }
+
+        .footer-brand p {
+            font-size: 12px;
+            color: var(--text-fade);
+            line-height: 1.8;
+            font-weight: 300;
+        }
+
+        .footer-links h4 {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            margin-bottom: 20px;
+            color: var(--gold);
+        }
+
+        .footer-links ul {
+            list-style: none;
+        }
+
+        .footer-links a {
+            color: var(--text-fade);
+            text-decoration: none;
+            font-size: 12px;
+            display: block;
+            padding: 5px 0;
+            transition: color 0.3s;
+            font-weight: 300;
+        }
+
+        .footer-links a:hover {
+            color: var(--text-primary);
+        }
+
+        .footer-bottom {
+            display: flex;
+            justify-content: space-between;
+            padding-top: 40px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--text-fade);
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        @media (max-width: 768px) {
+            nav {
+                padding: 20px;
+            }
+
+            .nav-links {
+                display: none;
+            }
+
+            .hero {
+                padding: 0 20px;
+                min-height: 70vh;
+            }
+
+            h1 {
+                font-size: 40px;
+            }
+
+            .search-container,
+            .faq-section {
+                padding-left: 20px;
+                padding-right: 20px;
+            }
+
+            .category-tabs {
+                gap: 10px;
+            }
+
+            .tab-button {
+                padding: 10px 20px;
+                font-size: 10px;
+            }
+
+            .faq-question {
+                padding: 20px;
+            }
+
+            .faq-answer-content {
+                padding: 0 20px 20px 20px;
+            }
+
+            .cta-section {
+                padding: 80px 20px;
+            }
+
+            .cta-buttons {
+                flex-direction: column;
+            }
+
+            .footer-grid {
+                grid-template-columns: 1fr;
+                gap: 40px;
+            }
+
+            .footer-bottom {
+                flex-direction: column;
+                gap: 10px;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="cursor"></div>
+    <div class="cursor-follower"></div>
+
+    <nav>
+        <div class="nav-container">
+            <a href="/" class="logo">
+                <div class="logo-circle"></div>
+                <span class="logo-text">BOOM</span>
+            </a>
+            
+            <div class="nav-links">
+                <a href="/apartments.html" class="nav-link">Apartments</a>
+                <a href="/property-finding.html" class="nav-link">Property Finding</a>
+                <a href="/how-it-works.html" class="nav-link">How It Works</a>
+                <a href="https://wa.me/393313251961" class="nav-cta">Get Help</a>
+            </div>
+        </div>
+    </nav>
+
+    <section class="hero">
+        <div class="hero-content">
+            <span class="page-tag">Help Center</span>
+            <h1>Questions?<br>We got answers.</h1>
+            <p class="hero-subtitle">Everything you need to know about renting with BOOM</p>
+        </div>
+    </section>
+
+    <div class="search-container">
+        <div class="search-box">
+            <input type="text" id="faqSearch" class="search-input" placeholder="Search for answers...">
+            <span class="search-icon">🔍</span>
+        </div>
+    </div>
+
+    <section class="faq-section">
+        <div class="category-tabs">
+            <button class="tab-button active" data-category="general">General</button>
+            <button class="tab-button" data-category="booking">Booking</button>
+            <button class="tab-button" data-category="payments">Payments</button>
+            <button class="tab-button" data-category="moving">Moving In</button>
+            <button class="tab-button" data-category="living">Living</button>
+            <button class="tab-button" data-category="owners">For Owners</button>
+        </div>
+
+        <!-- General FAQs -->
+        <div class="faq-category active" data-category="general">
+            <div class="faq-item">
+                <div class="faq-question">
+                    <h3>What is BOOM?</h3>
+                    <span class="faq-icon">▼</span>
+                </div>
+                <div class="faq-answer">
+                    <div class="faq-answer-content">
+                        BOOM is a premium mid-term rental platform (3-24 months) in Rome. We verify every property, handle all paperwork, and provide 24/7 support. Think of us as the <strong>Apple of Rome rentals</strong> — premium, reliable, no bullshit.
+                    </div>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">
+                    <h3>Why should I use BOOM instead of other platforms?</h3>
+                    <span class="faq-icon">▼</span>
+                </div>
+                <div class="faq-answer">
+                    <div class="faq-answer-content">
+                        <strong>Simple:</strong><br>
+                        • Every apartment is video-verified (no catfishing)<br>
+                        • 24/7 English & Italian support<br>
+                        • Transparent pricing (no hidden fees)<br>
+                        • Professional contracts<br>
+                        • We handle everything from contracts to utilities<br>
+                        • Average placement time: 8 days (vs 45 days market average)
+                    </div>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">
+                    <h3>Is BOOM a real estate agency?</h3>
+                    <span class="faq-icon">▼</span>
+                </div>
+                <div class="faq-answer">
+                    <div class="faq-answer-content">
+                        Yes. We're <strong>Egidi Immobiliare S.r.l.</strong>, a licensed real estate agency in Rome (P.IVA 17322991005). Fully legal, fully insured, fully compliant with Italian rental law.
+                    </div>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">
+                    <h3>What areas of Rome do you cover?</h3>
+                    <span class="faq-icon">▼</span>
+                </div>
+                <div class="faq-answer">
+                    <div class="faq-answer-content">
+                        We focus on <strong>premium central areas</strong>: Trieste, Pigneto, Historic Center, Trastevere, Prati, Monti, San Lorenzo, and surrounding neighborhoods. If you need something in a specific area, use our <strong>Property Finding Service</strong>.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Booking FAQs -->
+        <div class="faq-category" data-category="booking">
+            <div class="faq-item">
+                <div class="faq-question">
+                    <h3>How do I book an apartment?</h3>
+                    <span class="faq-icon">▼</span>
+                </div>
+                <div class="faq-answer">
+                    <div class="faq-answer-content">
+                        1. Browse apartments on our site<br>
+                        2. WhatsApp us to schedule a visit (video tour available)<br>
+                        3. Apply with basic documents<br>
+                        4. Sign contract & pay deposit<br>
+                        5. Move in within 48-72 hours<br><br>
+                        <strong>Total time: 2-5 days average</strong>
+                    </div>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">
+                    <h3>What documents do I need?</h3>
+                    <span class="faq-icon">▼</span>
+                </div>
+                <div class="faq-answer">
+                    <div class="faq-answer-content">
+                        • Valid ID or passport<br>
+                        • Proof of income (last 3 pay slips OR bank statements)<br>
+                        • Reference letter (optional but helpful)<br>
+                        • Codice Fiscale (we help you get one if needed)<br><br>
+                        That's it. No crazy Italian bureaucracy.
+                    </div>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">
+                    <h3>Can I book from abroad?</h3>
+                    <span class="faq-icon">▼</span>
+                </div>
+                <div class="faq-answer">
+                    <div class="faq-answer-content">
+                        <strong>Yes!</strong> We do everything remotely:<br>
+                        • Video tours<br>
+                        • Digital contract signing<br>
+                        • Online payments<br>
+                        • We can even receive your mail/packages before you arrive
+                    </div>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">
+                    <h3>What's the Property Finding Service?</h3>
+                    <span class="faq-icon">▼</span>
+                </div>
+                <div class="faq-answer">
+                    <div class="faq-answer-content">
+                        For <strong>€350 fixed fee</strong>, we hunt down your perfect apartment:<br>
+                        • Tell us your requirements<br>
+                        • We search off-market properties<br>
+                        • Present 5 curated options within 24h<br>
+                        • Video tours of all<br>
+                        • Negotiate on your behalf<br><br>
+                        <strong>98% success rate.</strong> If we fail, you get €0.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Payments FAQs -->
+        <div class="faq-category" data-category="payments">
+            <div class="faq-item">
+                <div class="faq-question">
+                    <h3>How much do I pay upfront?</h3>
+                    <span class="faq-icon">▼</span>
+                </div>
+                <div class="faq-answer">
+                    <div class="faq-answer-content">
+                        Typically:<br>
+                        • <strong>First month rent</strong><br>
+                        • <strong>2 months deposit</strong> (refundable)<br>
+                        • <strong>BOOM commission</strong> (1 month rent or 10% annual)<br><br>
+                        Example: €1,500/month apartment = €1,500 + €3,000 + €1,500 = <strong>€6,000 upfront</strong><br><br>
+                        No hidden fees. Ever.
+                    </div>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">
+                    <h3>What payment methods do you accept?</h3>
+                    <span class="faq-icon">▼</span>
+                </div>
+                <div class="faq-answer">
+                    <div class="faq-answer-content">
+                        • <strong>Bank transfer</strong> (preferred)<br>
+                        • <strong>Credit/debit card</strong> (via Stripe)<br>
+                        • <strong>PayPal</strong> (on request)<br><br>
+                        Monthly rent is typically paid by bank transfer.
+                    </div>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">
+                    <h3>Are utilities included in the rent?</h3>
+                    <span class="faq-icon">▼</span>
+                </div>
+                <div class="faq-answer">
+                    <div class="faq-answer-content">
+                        <strong>It depends.</strong> Some apartments include utilities (water, gas, electricity), others don't. We always specify this clearly in the listing.<br><br>
+                        Average utility cost in Rome: <strong>€80-150/month</strong> depending on usage and season.
+                    </div>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">
+                    <h3>When do I get my deposit back?</h3>
+                    <span class="faq-icon">▼</span>
+                </div>
+                <div class="faq-answer">
+                    <div class="faq-answer-content">
+                        Your deposit is returned <strong>within 30 days</strong> after you move out, minus:<br>
+                        • Any damages beyond normal wear & tear<br>
+                        • Unpaid rent or bills<br>
+                        • Professional cleaning (if required)<br><br>
+                        We do a <strong>video inventory</strong> at check-in & check-out to avoid disputes.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Moving In FAQs -->
+        <div class="faq-category" data-category="moving">
+            <div class="faq-item">
+                <div class="faq-question">
+                    <h3>How does check-in work?</h3>
+                    <span class="faq-icon">▼</span>
+                </div>
+                <div class="faq-answer">
+                    <div class="faq-answer-content">
+                        1. We schedule a time (flexible, even weekends/holidays)<br>
+                        2. Meet at the apartment<br>
+                        3. Video inventory walkthrough together<br>
+                        4. Sign inventory report<br>
+                        5. Receive keys & welcome pack<br>
+                        6. We show you how everything works<br><br>
+                        <strong>Takes 30-45 minutes.</strong> Airport pickup available for €50.
+                    </div>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">
+                    <h3>Can I move in immediately?</h3>
+                    <span class="faq-icon">▼</span>
+                </div>
+                <div class="faq-answer">
+                    <div class="faq-answer-content">
+                        If the apartment is listed as <strong>"Available Now"</strong>, yes! Once documents are signed and payment is confirmed, you can move in within <strong>48-72 hours</strong>.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Living FAQs -->
+        <div class="faq-category" data-category="living">
+            <div class="faq-item">
+                <div class="faq-question">
+                    <h3>What if something breaks?</h3>
+                    <span class="faq-icon">▼</span>
+                </div>
+                <div class="faq-answer">
+                    <div class="faq-answer-content">
+                        <strong>WhatsApp us.</strong> We handle it:<br>
+                        • Normal wear & tear: We fix it, owner pays<br>
+                        • Emergency (leak, no heat, etc): We arrive within 2 hours<br>
+                        • Your fault: You pay for repairs<br><br>
+                        <strong>24/7 support. Always.</strong>
+                    </div>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">
+                    <h3>Can I extend my lease?</h3>
+                    <span class="faq-icon">▼</span>
+                </div>
+                <div class="faq-answer">
+                    <div class="faq-answer-content">
+                        <strong>Yes!</strong> Just let us know <strong>30 days before</strong> your lease ends. If the owner agrees (they usually do), we extend with no extra commission.
+                    </div>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">
+                    <h3>Can I leave early?</h3>
+                    <span class="faq-icon">▼</span>
+                </div>
+                <div class="faq-answer">
+                    <div class="faq-answer-content">
+                        You need to give <strong>30 days notice</strong>. You're responsible for rent until:<br>
+                        • The end of the notice period, OR<br>
+                        • We find a replacement tenant<br><br>
+                        Whichever comes first. We usually find someone within 7-10 days.
+                    </div>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">
+                    <h3>What concierge services do you offer?</h3>
+                    <span class="faq-icon">▼</span>
+                </div>
+                <div class="faq-answer">
+                    <div class="faq-answer-content">
+                        • <strong>Weekly cleaning:</strong> €60/month<br>
+                        • <strong>Airport transfer:</strong> €50 flat<br>
+                        • <strong>Permit help:</strong> €150/document<br>
+                        • <strong>Mail service:</strong> €20/month<br>
+                        • <strong>24/7 emergency:</strong> Included<br><br>
+                        All optional. Pay only for what you use.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Owners FAQs -->
+        <div class="faq-category" data-category="owners">
+            <div class="faq-item">
+                <div class="faq-question">
+                    <h3>How much commission do you charge owners?</h3>
+                    <span class="faq-icon">▼</span>
+                </div>
+                <div class="faq-answer">
+                    <div class="faq-answer-content">
+                        <strong>1 month rent OR 10% annual</strong> (whichever is lower).<br><br>
+                        In return, you get:<br>
+                        • Professional marketing<br>
+                        • Tenant screening<br>
+                        • Guaranteed rent (we pay even if tenant doesn't)<br>
+                        • 24/7 management<br>
+                        • Legal contracts<br>
+                        • Zero hassle
+                    </div>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">
+                    <h3>How fast can you rent my property?</h3>
+                    <span class="faq-icon">▼</span>
+                </div>
+                <div class="faq-answer">
+                    <div class="faq-answer-content">
+                        Average: <strong>8 days.</strong><br><br>
+                        We have a waitlist of verified tenants looking for apartments. Your property won't stay empty.
+                    </div>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">
+                    <h3>Do I need to do anything?</h3>
+                    <span class="faq-icon">▼</span>
+                </div>
+                <div class="faq-answer">
+                    <div class="faq-answer-content">
+                        <strong>Almost nothing.</strong><br><br>
+                        You give us keys. We:<br>
+                        • Market the property<br>
+                        • Handle viewings<br>
+                        • Screen tenants<br>
+                        • Sign contracts<br>
+                        • Collect rent<br>
+                        • Handle maintenance<br>
+                        • Pay you every month<br><br>
+                        You just collect money.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="cta-section">
+        <h2 class="cta-title">Still have questions?</h2>
+        <p class="cta-subtitle">WhatsApp us. We reply in 2 minutes.</p>
+        <div class="cta-buttons">
+            <a href="https://wa.me/393313251961" class="cta-primary">WhatsApp Us</a>
+            <a href="mailto:hello@boom-rome.com" class="cta-ghost">Email Us</a>
+        </div>
+    </section>
+
+    <footer>
+        <div class="footer-grid">
+            <div class="footer-brand">
+                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
+                    <div style="width: 40px; height: 40px; background: linear-gradient(135deg, #FFD700, #FFA500); border-radius: 50%; opacity: 0.9;"></div>
+                    <h3>BOOM</h3>
+                </div>
+                <p>
+                    Built in Rome, for Rome.<br><br>
+                    <strong>Egidi Immobiliare S.r.l.</strong><br>
+                    P.IVA 17322991005
+                </p>
+            </div>
+            
+            <div class="footer-links">
+                <h4>System</h4>
+                <ul>
+                    <li><a href="/apartments.html">Apartments</a></li>
+                    <li><a href="/property-finding.html">Property Finding</a></li>
+                    <li><a href="/how-it-works.html">How It Works</a></li>
+                    <li><a href="/concierge.html">Concierge</a></li>
+                </ul>
+            </div>
+            
+            <div class="footer-links">
+                <h4>Company</h4>
+                <ul>
+                    <li><a href="/about.html">Why BOOM</a></li>
+                    <li><a href="/owners.html">For Owners</a></li>
+                    <li><a href="/contact.html">Contact</a></li>
+                </ul>
+            </div>
+            
+            <div class="footer-links">
+                <h4>Legal</h4>
+                <ul>
+                    <li><a href="/terms.html">Terms</a></li>
+                    <li><a href="/privacy.html">Privacy</a></li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="footer-bottom">
+            <span>© 2025 BOOM – Rome, Italy</span>
+            <span>Status: Operational</span>
+        </div>
+    </footer>
+
+    <script>
+        // Custom Cursor
+        if (window.matchMedia('(hover: hover)').matches) {
+            const cursor = document.querySelector('.cursor');
+            const follower = document.querySelector('.cursor-follower');
+
+            document.addEventListener('mousemove', (e) => {
+                cursor.style.left = e.clientX + 'px';
+                cursor.style.top = e.clientY + 'px';
+                
+                setTimeout(() => {
+                    follower.style.left = e.clientX - 10 + 'px';
+                    follower.style.top = e.clientY - 10 + 'px';
+                }, 100);
+            });
+
+            document.querySelectorAll('a, button').forEach(link => {
+                link.addEventListener('mouseenter', () => {
+                    cursor.style.transform = 'scale(2)';
+                    follower.style.transform = 'scale(0.5)';
+                });
+                link.addEventListener('mouseleave', () => {
+                    cursor.style.transform = 'scale(1)';
+                    follower.style.transform = 'scale(1)';
+                });
+            });
+        }
+
+        // Category Tabs
+        const tabButtons = document.querySelectorAll('.tab-button');
+        const categories = document.querySelectorAll('.faq-category');
+
+        tabButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const category = button.dataset.category;
+                
+                tabButtons.forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+                
+                categories.forEach(cat => {
+                    if (cat.dataset.category === category) {
+                        cat.classList.add('active');
+                    } else {
+                        cat.classList.remove('active');
+                    }
+                });
+            });
+        });
+
+        // FAQ Accordion
+        const faqItems = document.querySelectorAll('.faq-item');
+        
+        faqItems.forEach(item => {
+            const question = item.querySelector('.faq-question');
+            const answer = item.querySelector('.faq-answer');
+            
+            question.addEventListener('click', () => {
+                const isOpen = item.classList.contains('open');
+                
+                // Close all items
+                faqItems.forEach(i => {
+                    i.classList.remove('open');
+                    i.querySelector('.faq-answer').style.maxHeight = '0';
+                });
+                
+                // Open clicked item if it was closed
+                if (!isOpen) {
+                    item.classList.add('open');
+                    answer.style.maxHeight = answer.scrollHeight + 'px';
+                }
+            });
+        });
+
+        // Search Functionality
+        const searchInput = document.getElementById('faqSearch');
+        
+        searchInput.addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            
+            faqItems.forEach(item => {
+                const question = item.querySelector('.faq-question h3').textContent.toLowerCase();
+                const answer = item.querySelector('.faq-answer-content').textContent.toLowerCase();
+                
+                if (question.includes(searchTerm) || answer.includes(searchTerm)) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+
+            // Show all categories when searching
+            if (searchTerm) {
+                categories.forEach(cat => cat.classList.add('active'));
+                tabButtons.forEach(btn => btn.classList.remove('active'));
+            }
+        });
+    </script>
+</body>
+</html>

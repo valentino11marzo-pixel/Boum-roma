@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How It Works - BOOM Rome</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;900&family=Oswald:wght@200;300;400;500&display=swap" rel="stylesheet">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        :root {
+            --gold: #FFD700;
+            --cyan: #00CED1;
+            --green: #00FF88;
+            --pure-black: #000000;
+            --dark-void: #0A0A0A;
+            --dark-surface: #111111;
+            --text-primary: #FFFFFF;
+            --text-fade: #666666;
+            --text-secondary: #999999;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--pure-black);
+            color: var(--text-primary);
+            font-weight: 200;
+            line-height: 1.6;
+        }
+
+        /* Nav - same as other pages */
+        nav {
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 100;
+            padding: 20px 50px;
+            background: rgba(0,0,0,0.98);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 215, 0, 0.1);
+        }
+
+        .nav-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            text-decoration: none;
+            color: white;
+        }
+
+        .logo-circle {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            border-radius: 50%;
+            box-shadow: 0 0 30px rgba(255, 215, 0, 0.5);
+            animation: glow 3s infinite;
+        }
+
+        @keyframes glow {
+            0%, 100% { box-shadow: 0 0 30px rgba(255, 215, 0, 0.5); }
+            50% { box-shadow: 0 0 50px rgba(255, 215, 0, 0.8); }
+        }
+
+        .logo-text {
+            font-family: 'Oswald', sans-serif;
+            font-size: 32px;
+            font-weight: 300;
+            letter-spacing: -2px;
+            text-transform: uppercase;
+        }
+
+        .hamburger {
+            display: none;
+            flex-direction: column;
+            gap: 5px;
+            cursor: pointer;
+            padding: 10px;
+        }
+
+        .hamburger span {
+            width: 25px;
+            height: 2px;
+            background: var(--gold);
+            transition: all 0.3s;
+        }
+
+        /* Hero */
+        .hero {
+            min-height: 70vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 150px 50px 80px;
+            text-align: center;
+            background: radial-gradient(circle at center, rgba(255, 215, 0, 0.05), transparent);
+        }
+
+        .hero-content {
+            max-width: 900px;
+        }
+
+        .hero-tag {
+            display: inline-block;
+            padding: 8px 20px;
+            background: var(--gold);
+            color: var(--pure-black);
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-size: clamp(50px, 10vw, 120px);
+            font-weight: 100;
+            line-height: 0.9;
+            letter-spacing: -0.03em;
+            text-transform: uppercase;
+            margin-bottom: 30px;
+        }
+
+        .gold-accent {
+            color: var(--gold);
+            font-weight: 300;
+        }
+
+        .hero-subtitle {
+            font-size: 20px;
+            color: var(--text-secondary);
+            max-width: 700px;
+            margin: 0 auto;
+        }
+
+        /* Timeline Section */
+        .timeline-section {
+            padding: 100px 50px;
+            background: var(--dark-void);
+        }
+
+        .timeline-container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: 80px;
+        }
+
+        .section-tag {
+            display: inline-block;
+            padding: 8px 20px;
+            background: var(--cyan);
+            color: var(--pure-black);
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-size: clamp(36px, 6vw, 56px);
+            font-weight: 100;
+            text-transform: uppercase;
+            letter-spacing: -2px;
+            margin-bottom: 20px;
+        }
+
+        .section-subtitle {
+            font-size: 18px;
+            color: var(--text-secondary);
+        }
+
+        /* Timeline */
+        .timeline {
+            position: relative;
+            padding-left: 80px;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 30px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: linear-gradient(180deg, var(--gold), var(--cyan), var(--green));
+        }
+
+        .timeline-item {
+            position: relative;
+            margin-bottom: 80px;
+            padding: 40px;
+            background: var(--pure-black);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            transition: all 0.3s;
+        }
+
+        .timeline-item:hover {
+            border-color: var(--gold);
+            transform: translateX(10px);
+        }
+
+        .timeline-number {
+            position: absolute;
+            left: -80px;
+            top: 40px;
+            width: 60px;
+            height: 60px;
+            background: var(--gold);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--pure-black);
+            font-family: 'Oswald', sans-serif;
+        }
+
+        .timeline-title {
+            font-size: 28px;
+            font-weight: 400;
+            text-transform: uppercase;
+            margin-bottom: 15px;
+            letter-spacing: -0.5px;
+        }
+
+        .timeline-duration {
+            display: inline-block;
+            padding: 5px 15px;
+            background: rgba(255, 215, 0, 0.1);
+            color: var(--gold);
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            border-radius: 20px;
+            margin-bottom: 20px;
+        }
+
+        .timeline-description {
+            font-size: 16px;
+            color: var(--text-secondary);
+            line-height: 1.8;
+            margin-bottom: 20px;
+        }
+
+        .timeline-features {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .timeline-feature {
+            padding: 8px 16px;
+            background: rgba(0, 206, 209, 0.1);
+            border: 1px solid rgba(0, 206, 209, 0.3);
+            color: var(--cyan);
+            font-size: 12px;
+            font-weight: 500;
+            border-radius: 6px;
+        }
+
+        /* Comparison Section */
+        .comparison-section {
+            padding: 100px 50px;
+            background: var(--pure-black);
+        }
+
+        .comparison-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            margin-top: 60px;
+        }
+
+        .comparison-card {
+            padding: 50px 40px;
+            border-radius: 12px;
+            border: 2px solid;
+        }
+
+        .comparison-card.traditional {
+            background: rgba(255, 59, 59, 0.05);
+            border-color: rgba(255, 59, 59, 0.3);
+        }
+
+        .comparison-card.boom {
+            background: rgba(0, 255, 136, 0.05);
+            border-color: var(--green);
+        }
+
+        .comparison-label {
+            display: inline-block;
+            padding: 8px 20px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            border-radius: 20px;
+            margin-bottom: 30px;
+        }
+
+        .comparison-card.traditional .comparison-label {
+            background: rgba(255, 59, 59, 0.2);
+            color: #FF3B3B;
+        }
+
+        .comparison-card.boom .comparison-label {
+            background: rgba(0, 255, 136, 0.2);
+            color: var(--green);
+        }
+
+        .comparison-title {
+            font-size: 36px;
+            font-weight: 300;
+            margin-bottom: 40px;
+            text-transform: uppercase;
+        }
+
+        .comparison-list {
+            list-style: none;
+        }
+
+        .comparison-list li {
+            padding: 20px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 15px;
+            display: flex;
+            align-items: flex-start;
+            gap: 15px;
+        }
+
+        .comparison-list li:last-child {
+            border-bottom: none;
+        }
+
+        .comparison-icon {
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        /* Guarantees Section */
+        .guarantees-section {
+            padding: 100px 50px;
+            background: var(--dark-void);
+        }
+
+        .guarantees-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .guarantees-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-top: 60px;
+        }
+
+        .guarantee-card {
+            padding: 40px;
+            background: var(--pure-black);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        .guarantee-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--gold);
+        }
+
+        .guarantee-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+
+        .guarantee-title {
+            font-size: 20px;
+            font-weight: 500;
+            text-transform: uppercase;
+            margin-bottom: 15px;
+            letter-spacing: -0.5px;
+        }
+
+        .guarantee-description {
+            font-size: 14px;
+            color: var(--text-secondary);
+            line-height: 1.7;
+        }
+
+        /* CTA Section */
+        .cta-section {
+            padding: 120px 50px;
+            text-align: center;
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.03), transparent);
+        }
+
+        .cta-title {
+            font-size: clamp(40px, 8vw, 80px);
+            font-weight: 100;
+            text-transform: uppercase;
+            line-height: 0.9;
+            margin-bottom: 30px;
+        }
+
+        .cta-subtitle {
+            font-size: 20px;
+            color: var(--text-secondary);
+            margin-bottom: 50px;
+        }
+
+        .cta-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn-primary {
+            padding: 20px 60px;
+            background: var(--gold);
+            color: var(--pure-black);
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            transition: all 0.3s;
+        }
+
+        .btn-primary:hover {
+            transform: scaleX(1.05);
+        }
+
+        .btn-ghost {
+            padding: 18px 58px;
+            background: transparent;
+            border: 1px solid var(--text-fade);
+            color: var(--text-primary);
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            transition: all 0.3s;
+        }
+
+        .btn-ghost:hover {
+            border-color: var(--gold);
+        }
+
+        /* Footer */
+        footer {
+            padding: 80px 50px 40px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .footer-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr;
+            gap: 60px;
+            margin-bottom: 60px;
+            max-width: 1400px;
+            margin: 0 auto 60px;
+        }
+
+        .footer-brand h3 {
+            font-family: 'Oswald', sans-serif;
+            font-size: 48px;
+            font-weight: 300;
+            letter-spacing: -3px;
+            margin-bottom: 20px;
+        }
+
+        .footer-brand p {
+            font-size: 12px;
+            color: var(--text-fade);
+            line-height: 1.8;
+            font-weight: 300;
+        }
+
+        .footer-links h4 {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            margin-bottom: 20px;
+            color: var(--gold);
+        }
+
+        .footer-links ul {
+            list-style: none;
+        }
+
+        .footer-links a {
+            color: var(--text-fade);
+            text-decoration: none;
+            font-size: 12px;
+            display: block;
+            padding: 5px 0;
+            transition: color 0.3s;
+            font-weight: 300;
+        }
+
+        .footer-links a:hover {
+            color: var(--text-primary);
+        }
+
+        .footer-bottom {
+            display: flex;
+            justify-content: space-between;
+            padding-top: 40px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--text-fade);
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Mobile */
+        @media (max-width: 768px) {
+            .hero {
+                padding: 120px 20px 60px;
+            }
+
+            .timeline-section,
+            .comparison-section,
+            .guarantees-section,
+            .cta-section {
+                padding: 60px 20px;
+            }
+
+            .timeline {
+                padding-left: 50px;
+            }
+
+            .timeline-number {
+                left: -50px;
+                width: 40px;
+                height: 40px;
+                font-size: 18px;
+            }
+
+            .timeline-item {
+                padding: 30px 20px;
+            }
+
+            .comparison-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .footer-grid {
+                grid-template-columns: 1fr;
+                gap: 40px;
+            }
+
+            .footer-bottom {
+                flex-direction: column;
+                gap: 10px;
+                text-align: center;
+            }
+
+            nav {
+                padding: 15px 20px;
+            }
+
+            .hamburger {
+                display: flex;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Nav -->
+    <nav>
+        <div class="nav-container">
+            <a href="/" class="logo">
+                <div class="logo-circle"></div>
+                <span class="logo-text">BOOM</span>
+            </a>
+
+            <div class="hamburger" id="hamburger">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero -->
+    <section class="hero">
+        <div class="hero-content">
+            <span class="hero-tag">Simple Process</span>
+            <h1>
+                From first click<br>
+                to <span class="gold-accent">keys in hand</span>
+            </h1>
+            <p class="hero-subtitle">
+                No bullshit. No hidden fees. No surprises. Just a straightforward process designed to get you into your apartment fast.
+            </p>
+        </div>
+    </section>
+
+    <!-- Timeline -->
+    <section class="timeline-section">
+        <div class="timeline-container">
+            <div class="section-header">
+                <span class="section-tag">The Process</span>
+                <h2 class="section-title">How BOOM Works</h2>
+                <p class="section-subtitle">7 simple steps to your new Rome apartment</p>
+            </div>
+
+            <div class="timeline">
+                <!-- Step 1 -->
+                <div class="timeline-item">
+                    <div class="timeline-number">1</div>
+                    <h3 class="timeline-title">Browse & Choose</h3>
+                    <span class="timeline-duration">15 minutes</span>
+                    <p class="timeline-description">
+                        Browse verified apartments on our website. All listings include 360° video tours, accurate photos, and complete details. No catfish. No surprises.
+                    </p>
+                    <div class="timeline-features">
+                        <span class="timeline-feature">Video Tours</span>
+                        <span class="timeline-feature">Real Photos</span>
+                        <span class="timeline-feature">Transparent Pricing</span>
+                    </div>
+                </div>
+
+                <!-- Step 2 -->
+                <div class="timeline-item">
+                    <div class="timeline-number">2</div>
+                    <h3 class="timeline-title">Apply Online</h3>
+                    <span class="timeline-duration">5 minutes</span>
+                    <p class="timeline-description">
+                        Fill out our simple application form. We need basic info: name, email, move-in date, and reason for moving to Rome. No bureaucratic nightmare.
+                    </p>
+                    <div class="timeline-features">
+                        <span class="timeline-feature">Quick Form</span>
+                        <span class="timeline-feature">No Documents Yet</span>
+                    </div>
+                </div>
+
+                <!-- Step 3 -->
+                <div class="timeline-item">
+                    <div class="timeline-number">3</div>
+                    <h3 class="timeline-title">Instant Confirmation</h3>
+                    <span class="timeline-duration">2 hours max</span>
+                    <p class="timeline-description">
+                        We review your application and respond within 2 hours. Usually faster. We'll tell you if the apartment is yours and what documents we need.
+                    </p>
+                    <div class="timeline-features">
+                        <span class="timeline-feature">Fast Response</span>
+                        <span class="timeline-feature">Clear Next Steps</span>
+                    </div>
+                </div>
+
+                <!-- Step 4 -->
+                <div class="timeline-item">
+                    <div class="timeline-number">4</div>
+                    <h3 class="timeline-title">Submit Documents</h3>
+                    <span class="timeline-duration">1 day</span>
+                    <p class="timeline-description">
+                        Upload your ID, proof of income/enrollment, and any other required documents through our secure portal. We guide you through exactly what we need.
+                    </p>
+                    <div class="timeline-features">
+                        <span class="timeline-feature">Secure Upload</span>
+                        <span class="timeline-feature">Clear Requirements</span>
+                        <span class="timeline-feature">Help Available</span>
+                    </div>
+                </div>
+
+                <!-- Step 5 -->
+                <div class="timeline-item">
+                    <div class="timeline-number">5</div>
+                    <h3 class="timeline-title">Sign Contract & Pay</h3>
+                    <span class="timeline-duration">30 minutes</span>
+                    <p class="timeline-description">
+                        Professional contract in English. We explain everything. Pay first month + deposit + service fee via Stripe. Secure, instant, no bank transfers.
+                    </p>
+                    <div class="timeline-features">
+                        <span class="timeline-feature">English Contract</span>
+                        <span class="timeline-feature">Stripe Payment</span>
+                        <span class="timeline-feature">No Hidden Fees</span>
+                    </div>
+                </div>
+
+                <!-- Step 6 -->
+                <div class="timeline-item">
+                    <div class="timeline-number">6</div>
+                    <h3 class="timeline-title">Utilities Setup</h3>
+                    <span class="timeline-duration">Automatic</span>
+                    <p class="timeline-description">
+                        We handle everything: electricity, water, gas, internet. All in your name. All working when you arrive. You just show up and start living.
+                    </p>
+                    <div class="timeline-features">
+                        <span class="timeline-feature">We Handle It</span>
+                        <span class="timeline-feature">Ready to Go</span>
+                    </div>
+                </div>
+
+                <!-- Step 7 -->
+                <div class="timeline-item">
+                    <div class="timeline-number">7</div>
+                    <h3 class="timeline-title">Move In</h3>
+                    <span class="timeline-duration">48h from approval</span>
+                    <p class="timeline-description">
+                        We meet you at the apartment. Full walkthrough. Video inventory. Hand you the keys. Welcome pack included. 24/7 support from day one.
+                    </p>
+                    <div class="timeline-features">
+                        <span class="timeline-feature">Personal Handover</span>
+                        <span class="timeline-feature">Video Inventory</span>
+                        <span class="timeline-feature">24/7 Support</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Comparison -->
+    <section class="comparison-section">
+        <div class="comparison-container">
+            <div class="section-header">
+                <span class="section-tag">The Difference</span>
+                <h2 class="section-title">BOOM vs Traditional</h2>
+                <p class="section-subtitle">Why we're not like everyone else</p>
+            </div>
+
+            <div class="comparison-grid">
+                <!-- Traditional Way -->
+                <div class="comparison-card traditional">
+                    <span class="comparison-label">Traditional Agencies</span>
+                    <h3 class="comparison-title">The Old Way</h3>
+                    <ul class="comparison-list">
+                        <li>
+                            <span class="comparison-icon">😤</span>
+                            <span>45 days average search time</span>
+                        </li>
+                        <li>
+                            <span class="comparison-icon">💸</span>
+                            <span>Hidden fees everywhere</span>
+                        </li>
+                        <li>
+                            <span class="comparison-icon">📸</span>
+                            <span>Photos from 2015, apartment from 1965</span>
+                        </li>
+                        <li>
+                            <span class="comparison-icon">🤷</span>
+                            <span>"No speak English" syndrome</span>
+                        </li>
+                        <li>
+                            <span class="comparison-icon">👻</span>
+                            <span>Disappear after signing</span>
+                        </li>
+                        <li>
+                            <span class="comparison-icon">🏦</span>
+                            <span>Bank transfer circus</span>
+                        </li>
+                        <li>
+                            <span class="comparison-icon">📄</span>
+                            <span>Italian contract (good luck)</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- BOOM Way -->
+                <div class="comparison-card boom">
+                    <span class="comparison-label">BOOM</span>
+                    <h3 class="comparison-title">Our Way</h3>
+                    <ul class="comparison-list">
+                        <li>
+                            <span class="comparison-icon">⚡</span>
+                            <span>48 hours from approval to keys</span>
+                        </li>
+                        <li>
+                            <span class="comparison-icon">💰</span>
+                            <span>One transparent service fee. That's it.</span>
+                        </li>
+                        <li>
+                            <span class="comparison-icon">📹</span>
+                            <span>360° video tours of every apartment</span>
+                        </li>
+                        <li>
+                            <span class="comparison-icon">🇬🇧</span>
+                            <span>Everything in English</span>
+                        </li>
+                        <li>
+                            <span class="comparison-icon">📱</span>
+                            <span>24/7 WhatsApp support forever</span>
+                        </li>
+                        <li>
+                            <span class="comparison-icon">💳</span>
+                            <span>Stripe payment in 2 minutes</span>
+                        </li>
+                        <li>
+                            <span class="comparison-icon">✏️</span>
+                            <span>Professional English contract explained</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Guarantees -->
+    <section class="guarantees-section">
+        <div class="guarantees-container">
+            <div class="section-header">
+                <span class="section-tag">Our Promise</span>
+                <h2 class="section-title">What We Guarantee</h2>
+            </div>
+
+            <div class="guarantees-grid">
+                <div class="guarantee-card">
+                    <div class="guarantee-icon">⚡</div>
+                    <h3 class="guarantee-title">48H Move-In</h3>
+                    <p class="guarantee-description">
+                        If we can't get you into your apartment within 48 hours of approval, we cover your hotel costs. No excuses.
+                    </p>
+                </div>
+
+                <div class="guarantee-card">
+                    <div class="guarantee-icon">📹</div>
+                    <h3 class="guarantee-title">100% Verified</h3>
+                    <p class="guarantee-description">
+                        Every apartment is video-verified before listing. What you see is exactly what you get. No catfish photos.
+                    </p>
+                </div>
+
+                <div class="guarantee-card">
+                    <div class="guarantee-icon">🔒</div>
+                    <h3 class="guarantee-title">Deposit Protection</h3>
+                    <p class="guarantee-description">
+                        Your deposit is legally protected and fully refundable. We do video inventory at move-in and move-out.
+                    </p>
+                </div>
+
+                <div class="guarantee-card">
+                    <div class="guarantee-icon">💬</div>
+                    <h3 class="guarantee-title">2-Minute Response</h3>
+                    <p class="guarantee-description">
+                        Average WhatsApp response time: 2 minutes. Day or night. We're always here when you need us.
+                    </p>
+                </div>
+
+                <div class="guarantee-card">
+                    <div class="guarantee-icon">💰</div>
+                    <h3 class="guarantee-title">No Hidden Fees</h3>
+                    <p class="guarantee-description">
+                        One transparent service fee. No surprises. No fake maintenance charges. No mysterious expenses.
+                    </p>
+                </div>
+
+                <div class="guarantee-card">
+                    <div class="guarantee-icon">🛠️</div>
+                    <h3 class="guarantee-title">Free Maintenance</h3>
+                    <p class="guarantee-description">
+                        Normal wear and tear? We fix it for free. Something breaks? We're there in 2 hours max.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="cta-section">
+        <h2 class="cta-title">
+            Ready to move to<br>
+            <span class="gold-accent">Rome the right way?</span>
+        </h2>
+        <p class="cta-subtitle">Start browsing apartments or let us find your perfect match.</p>
+        
+        <div class="cta-buttons">
+            <a href="/apartments.html" class="btn-primary">See Apartments</a>
+            <a href="/property-finding.html" class="btn-ghost">Property Finding</a>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-grid">
+            <div class="footer-brand">
+                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
+                    <div style="width: 40px; height: 40px; background: linear-gradient(135deg, #FFD700, #FFA500); border-radius: 50%; opacity: 0.9;"></div>
+                    <h3>BOOM</h3>
+                </div>
+                <p>
+                    Built in Rome, for Rome.<br><br>
+                    <strong>Egidi Immobiliare S.r.l.</strong><br>
+                    P.IVA 17322991005
+                </p>
+            </div>
+            
+            <div class="footer-links">
+                <h4>System</h4>
+                <ul>
+                    <li><a href="/apartments.html">Apartments</a></li>
+                    <li><a href="/property-finding.html">Property Finding</a></li>
+                    <li><a href="/how-it-works.html">How It Works</a></li>
+                    <li><a href="/concierge.html">Concierge</a></li>
+                </ul>
+            </div>
+            
+            <div class="footer-links">
+                <h4>Company</h4>
+                <ul>
+                    <li><a href="/about.html">Why BOOM</a></li>
+                    <li><a href="/owners.html">For Owners</a></li>
+                    <li><a href="/faq.html">FAQ</a></li>
+                    <li><a href="/contact.html">Contact</a></li>
+                </ul>
+            </div>
+            
+            <div class="footer-links">
+                <h4>Legal</h4>
+                <ul>
+                    <li><a href="/terms.html">Terms</a></li>
+                    <li><a href="/privacy.html">Privacy</a></li>
+                    <li><a href="/login.html">Login</a></li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="footer-bottom">
+            <span>© 2025 BOOM – Rome, Italy</span>
+            <span>Status: Operational</span>
+        </div>
+    </footer>
+
+    <script>
+        // Hamburger menu
+        const hamburger = document.getElementById('hamburger');
+        if (hamburger) {
+            hamburger.addEventListener('click', () => {
+                hamburger.classList.toggle('active');
+            });
+        }
+    </script>
+</body>
+</html>

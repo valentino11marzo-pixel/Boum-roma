@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BOOM – 404 Page Not Found</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;900&family=Oswald:wght@200;300;400;500&display=swap" rel="stylesheet">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        :root {
+            --gold: #FFD700;
+            --cyan: #00CED1;
+            --green: #00FF88;
+            --red: #FF3B3B;
+            --pure-black: #000000;
+            --dark-surface: #111111;
+            --text-primary: #FFFFFF;
+            --text-secondary: #999999;
+            --text-fade: #666666;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--pure-black);
+            color: var(--text-primary);
+            font-weight: 200;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Animated Background */
+        .bg-animation {
+            position: absolute;
+            width: 200%;
+            height: 200%;
+            top: -50%;
+            left: -50%;
+            opacity: 0.03;
+        }
+
+        .glitch-text {
+            font-size: 300px;
+            font-weight: 900;
+            color: var(--dark-surface);
+            position: absolute;
+            animation: glitch 3s infinite;
+            user-select: none;
+        }
+
+        @keyframes glitch {
+            0%, 100% { transform: translate(0); }
+            20% { transform: translate(-2px, 2px); }
+            40% { transform: translate(-2px, -2px); }
+            60% { transform: translate(2px, 2px); }
+            80% { transform: translate(2px, -2px); }
+        }
+
+        /* Floating Elements */
+        .float-element {
+            position: absolute;
+            font-size: 48px;
+            opacity: 0.1;
+            animation: float 20s infinite ease-in-out;
+        }
+
+        .float-element:nth-child(1) {
+            top: 10%;
+            left: 10%;
+            animation-delay: 0s;
+        }
+
+        .float-element:nth-child(2) {
+            top: 70%;
+            left: 80%;
+            animation-delay: 5s;
+        }
+
+        .float-element:nth-child(3) {
+            top: 40%;
+            left: 60%;
+            animation-delay: 10s;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            25% { transform: translateY(-30px) rotate(5deg); }
+            75% { transform: translateY(30px) rotate(-5deg); }
+        }
+
+        /* Content */
+        .error-container {
+            text-align: center;
+            z-index: 10;
+            position: relative;
+            padding: 0 20px;
+        }
+
+        .error-code {
+            font-size: 180px;
+            font-weight: 900;
+            font-family: 'Oswald', sans-serif;
+            letter-spacing: -10px;
+            line-height: 1;
+            margin-bottom: 30px;
+            background: linear-gradient(135deg, var(--red), var(--orange));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+
+        h1 {
+            font-size: clamp(32px, 6vw, 56px);
+            font-weight: 100;
+            text-transform: uppercase;
+            letter-spacing: -2px;
+            margin-bottom: 20px;
+        }
+
+        .error-message {
+            font-size: 20px;
+            color: var(--text-secondary);
+            margin-bottom: 50px;
+            font-weight: 300;
+        }
+
+        .error-submessage {
+            font-size: 16px;
+            color: var(--text-fade);
+            margin-bottom: 60px;
+            line-height: 1.6;
+        }
+
+        /* Quick Links */
+        .quick-links {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 50px;
+        }
+
+        .quick-link {
+            padding: 15px 30px;
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: var(--text-primary);
+            text-decoration: none;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .quick-link::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 215, 0, 0.1);
+            transition: left 0.3s;
+        }
+
+        .quick-link:hover::before {
+            left: 0;
+        }
+
+        .quick-link:hover {
+            border-color: var(--gold);
+            color: var(--gold);
+            transform: translateY(-2px);
+        }
+
+        .quick-link.primary {
+            background: var(--gold);
+            border-color: var(--gold);
+            color: var(--pure-black);
+            font-weight: 600;
+        }
+
+        .quick-link.primary:hover {
+            background: transparent;
+            color: var(--gold);
+        }
+
+        /* Search Bar */
+        .search-container {
+            max-width: 500px;
+            margin: 0 auto 60px;
+            position: relative;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 18px 60px 18px 20px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+            font-size: 14px;
+            font-family: inherit;
+            transition: all 0.3s;
+            border-radius: 100px;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--gold);
+            background: rgba(255, 215, 0, 0.02);
+        }
+
+        .search-input::placeholder {
+            color: var(--text-fade);
+        }
+
+        .search-btn {
+            position: absolute;
+            right: 5px;
+            top: 50%;
+            transform: translateY(-50%);
+            padding: 12px 20px;
+            background: var(--gold);
+            border: none;
+            border-radius: 100px;
+            color: var(--pure-black);
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .search-btn:hover {
+            background: var(--green);
+        }
+
+        /* Fun Messages */
+        .fun-messages {
+            margin-top: 80px;
+            padding: 30px;
+            background: var(--dark-surface);
+            border-radius: 10px;
+            max-width: 600px;
+            margin: 80px auto 0;
+        }
+
+        .fun-title {
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--gold);
+            margin-bottom: 20px;
+        }
+
+        .fun-list {
+            list-style: none;
+        }
+
+        .fun-list li {
+            padding: 10px 0;
+            font-size: 14px;
+            color: var(--text-secondary);
+            position: relative;
+            padding-left: 20px;
+        }
+
+        .fun-list li::before {
+            content: '→';
+            position: absolute;
+            left: 0;
+            color: var(--gold);
+        }
+
+        /* Logo */
+        .logo-404 {
+            display: inline-flex;
+            align-items: center;
+            gap: 15px;
+            text-decoration: none;
+            color: white;
+            margin-bottom: 40px;
+        }
+
+        .logo-circle {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            border-radius: 50%;
+            box-shadow: 0 0 50px rgba(255, 215, 0, 0.3);
+            animation: rotate 20s linear infinite;
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .logo-text {
+            font-family: 'Oswald', sans-serif;
+            font-size: 48px;
+            font-weight: 300;
+            letter-spacing: -3px;
+            text-transform: uppercase;
+        }
+
+        /* Mobile */
+        @media (max-width: 768px) {
+            .error-code {
+                font-size: 120px;
+            }
+
+            h1 {
+                font-size: 28px;
+            }
+
+            .error-message {
+                font-size: 16px;
+            }
+
+            .quick-links {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .quick-link {
+                width: 100%;
+                max-width: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Background Animation -->
+    <div class="bg-animation">
+        <div class="glitch-text">404</div>
+    </div>
+
+    <!-- Floating Elements -->
+    <div class="float-element">🏠</div>
+    <div class="float-element">🔍</div>
+    <div class="float-element">🚀</div>
+
+    <!-- Error Content -->
+    <div class="error-container">
+        <!-- Logo -->
+        <a href="/index.html" class="logo-404">
+            <div class="logo-circle"></div>
+            <span class="logo-text">BOOM</span>
+        </a>
+
+        <div class="error-code">404</div>
+        
+        <h1>Lost in Rome?</h1>
+        
+        <p class="error-message">
+            This page vanished faster than<br>your deposit with traditional agencies.
+        </p>
+        
+        <p class="error-submessage">
+            Maybe it's under construction, maybe we fucked up.<br>
+            Either way, let's get you back on track.
+        </p>
+
+        <!-- Search -->
+        <div class="search-container">
+            <input type="text" class="search-input" placeholder="Search for apartments, help, anything..." id="searchInput">
+            <button class="search-btn" onclick="search()">Go</button>
+        </div>
+
+        <!-- Quick Links -->
+        <div class="quick-links">
+            <a href="/index.html" class="quick-link primary">Back Home</a>
+            <a href="/apartments.html" class="quick-link">View Apartments</a>
+            <a href="/faq.html" class="quick-link">Get Help</a>
+            <a href="https://wa.me/393313251961" class="quick-link">WhatsApp Us</a>
+        </div>
+
+        <!-- Fun Messages -->
+        <div class="fun-messages">
+            <h3 class="fun-title">While you're here...</h3>
+            <ul class="fun-list">
+                <li>We find apartments in 48 hours, but can't find this page</li>
+                <li>Still faster than traditional agencies finding you a flat</li>
+                <li>At least this 404 page has no hidden fees</li>
+                <li>Unlike Rome landlords, we admit when something's missing</li>
+                <li>This page is more transparent than agency contracts</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // Search function
+        function search() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            
+            if (query.includes('apartment') || query.includes('flat') || query.includes('home')) {
+                window.location.href = '/apartments.html';
+            } else if (query.includes('help') || query.includes('support')) {
+                window.location.href = '/faq.html';
+            } else if (query.includes('contact')) {
+                window.location.href = '/contact.html';
+            } else if (query.includes('owner') || query.includes('landlord')) {
+                window.location.href = '/owner.html';
+            } else {
+                window.location.href = '/index.html';
+            }
+        }
+
+        // Enter key support
+        document.getElementById('searchInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                search();
+            }
+        });
+
+        // Random message rotation
+        const messages = [
+            "This page vanished faster than your deposit with traditional agencies.",
+            "404: Page not found. Unlike our apartments - we find those in 48 hours.",
+            "Error 404: This page is missing. Just like agency transparency.",
+            "Oops! This page ghosted us like traditional agents after signing.",
+            "404: Can't find this page. Still easier than finding a Rome apartment alone."
+        ];
+
+        // Randomly select message on load
+        window.addEventListener('load', function() {
+            const randomMessage = messages[Math.floor(Math.random() * messages.length)];
+            document.querySelector('.error-message').innerHTML = randomMessage.replace('\n', '<br>');
+        });
+    </script>
+</body>
+</html>

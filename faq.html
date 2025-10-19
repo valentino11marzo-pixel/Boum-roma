@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BOOM – Frequently Asked Questions</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;900&family=Oswald:wght@200;300;400;500&display=swap" rel="stylesheet">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        :root {
+            --gold: #FFD700;
+            --cyan: #00CED1;
+            --green: #00FF88;
+            --red: #FF3B3B;
+            --pure-black: #000000;
+            --dark-surface: #111111;
+            --text-primary: #FFFFFF;
+            --text-secondary: #999999;
+            --text-fade: #666666;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--pure-black);
+            color: var(--text-primary);
+            font-weight: 200;
+            line-height: 1.6;
+        }
+
+        /* Navigation */
+        nav {
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 100;
+            padding: 30px 50px;
+            background: rgba(0,0,0,0.95);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .nav-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            text-decoration: none;
+            color: white;
+        }
+
+        .logo-circle {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            border-radius: 50%;
+            opacity: 0.9;
+        }
+
+        .logo-text {
+            font-family: 'Oswald', sans-serif;
+            font-size: 32px;
+            font-weight: 300;
+            letter-spacing: -2px;
+            text-transform: uppercase;
+        }
+
+        /* Hero Section */
+        .faq-hero {
+            padding: 150px 50px 60px;
+            text-align: center;
+            background: radial-gradient(circle at center, rgba(255, 215, 0, 0.05) 0%, transparent 60%);
+        }
+
+        h1 {
+            font-size: clamp(40px, 8vw, 80px);
+            font-weight: 100;
+            text-transform: uppercase;
+            line-height: 0.9;
+            letter-spacing: -2px;
+            margin-bottom: 30px;
+        }
+
+        .gold-accent {
+            color: var(--gold);
+            font-weight: 300;
+        }
+
+        .hero-subtitle {
+            font-size: 18px;
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* Search Bar */
+        .search-section {
+            padding: 40px 50px;
+            background: var(--dark-surface);
+            position: sticky;
+            top: 80px;
+            z-index: 90;
+        }
+
+        .search-container {
+            max-width: 800px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 20px 60px 20px 20px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+            font-size: 16px;
+            font-family: inherit;
+            transition: all 0.3s;
+            border-radius: 100px;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--gold);
+            background: rgba(255, 215, 0, 0.02);
+        }
+
+        .search-input::placeholder {
+            color: var(--text-fade);
+        }
+
+        .search-icon {
+            position: absolute;
+            right: 25px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 20px;
+            color: var(--gold);
+        }
+
+        /* Category Tabs */
+        .categories-section {
+            padding: 60px 50px 40px;
+            background: var(--pure-black);
+        }
+
+        .categories-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .category-tabs {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 60px;
+        }
+
+        .category-tab {
+            padding: 15px 30px;
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: var(--text-primary);
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .category-tab:hover {
+            border-color: var(--gold);
+            color: var(--gold);
+        }
+
+        .category-tab.active {
+            background: var(--gold);
+            border-color: var(--gold);
+            color: var(--pure-black);
+            font-weight: 600;
+        }
+
+        /* FAQ Items */
+        .faq-list {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .faq-category {
+            margin-bottom: 60px;
+        }
+
+        .category-title {
+            font-size: 24px;
+            font-weight: 300;
+            text-transform: uppercase;
+            letter-spacing: -0.5px;
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255, 215, 0, 0.3);
+            color: var(--gold);
+        }
+
+        .faq-item {
+            padding: 30px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .faq-item:hover {
+            padding-left: 10px;
+        }
+
+        .faq-question {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 18px;
+            font-weight: 400;
+            color: var(--text-primary);
+            transition: color 0.3s;
+        }
+
+        .faq-item:hover .faq-question {
+            color: var(--gold);
+        }
+
+        .faq-toggle {
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 215, 0, 0.1);
+            color: var(--gold);
+            font-size: 20px;
+            border-radius: 50%;
+            transition: all 0.3s;
+            flex-shrink: 0;
+        }
+
+        .faq-answer {
+            margin-top: 20px;
+            padding-right: 50px;
+            font-size: 14px;
+            color: var(--text-secondary);
+            line-height: 1.8;
+            display: none;
+        }
+
+        .faq-item.active .faq-answer {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .faq-item.active .faq-toggle {
+            transform: rotate(45deg);
+            background: var(--gold);
+            color: var(--pure-black);
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .highlight {
+            color: var(--gold);
+            font-weight: 500;
+        }
+
+        /* Quick Links */
+        .quick-links {
+            padding: 80px 50px;
+            background: var(--dark-surface);
+            text-align: center;
+        }
+
+        .links-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            max-width: 1000px;
+            margin: 40px auto 0;
+        }
+
+        .quick-link-card {
+            padding: 30px;
+            background: var(--pure-black);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: all 0.3s;
+        }
+
+        .quick-link-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--gold);
+        }
+
+        .link-icon {
+            font-size: 32px;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+
+        .link-title {
+            font-size: 16px;
+            font-weight: 400;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+
+        .link-desc {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        /* CTA Section */
+        .cta-section {
+            padding: 100px 50px;
+            text-align: center;
+            background: radial-gradient(circle at center, rgba(255, 215, 0, 0.05) 0%, transparent 60%);
+        }
+
+        .cta-title {
+            font-size: clamp(36px, 6vw, 64px);
+            font-weight: 100;
+            text-transform: uppercase;
+            margin-bottom: 30px;
+        }
+
+        .cta-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn-primary {
+            padding: 20px 60px;
+            background: var(--gold);
+            color: var(--pure-black);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.3s;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 20px 40px rgba(255, 215, 0, 0.3);
+        }
+
+        /* Mobile */
+        @media (max-width: 768px) {
+            nav {
+                padding: 20px;
+            }
+
+            .faq-hero {
+                padding: 120px 20px 40px;
+            }
+
+            .categories-section {
+                padding: 40px 20px;
+            }
+
+            .category-tabs {
+                gap: 10px;
+            }
+
+            .category-tab {
+                padding: 10px 20px;
+                font-size: 11px;
+            }
+
+            .faq-answer {
+                padding-right: 20px;
+            }
+
+            .links-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav>
+        <div class="nav-container">
+            <a href="/index.html" class="logo">
+                <div class="logo-circle"></div>
+                <span class="logo-text">BOOM</span>
+            </a>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="faq-hero">
+        <h1>
+            Questions?<br>
+            <span class="gold-accent">We've got answers.</span>
+        </h1>
+        
+        <p class="hero-subtitle">
+            Everything you need to know about renting with BOOM.
+            Can't find your answer? WhatsApp us anytime.
+        </p>
+    </section>
+
+    <!-- Search Bar -->
+    <section class="search-section">
+        <div class="search-container">
+            <input type="text" class="search-input" placeholder="Search for answers..." id="searchInput">
+            <span class="search-icon">🔍</span>
+        </div>
+    </section>
+
+    <!-- Categories -->
+    <section class="categories-section">
+        <div class="categories-container">
+            <div class="category-tabs">
+                <button class="category-tab active" onclick="filterCategory('all')">All Topics</button>
+                <button class="category-tab" onclick="filterCategory('getting-started')">Getting Started</button>
+                <button class="category-tab" onclick="filterCategory('payments')">Payments</button>
+                <button class="category-tab" onclick="filterCategory('process')">Process</button>
+                <button class="category-tab" onclick="filterCategory('support')">Support</button>
+            </div>
+
+            <div class="faq-list">
+                <!-- Getting Started -->
+                <div class="faq-category" data-category="getting-started">
+                    <h2 class="category-title">Getting Started</h2>
+                    
+                    <div class="faq-item">
+                        <div class="faq-question">
+                            How does BOOM actually work?
+                            <span class="faq-toggle">+</span>
+                        </div>
+                        <div class="faq-answer">
+                            BOOM is simple: <span class="highlight">Browse video-verified apartments → Apply online → Move in within 48 hours.</span> 
+                            We've eliminated all the traditional bullshit. No agency visits, no hidden fees, no waiting weeks. 
+                            Everything is transparent, fast, and guaranteed. We handle all paperwork, utilities setup, and provide 24/7 support throughout your stay.
+                        </div>
+                    </div>
+
+                    <div class="faq-item">
+                        <div class="faq-question">
+                            Why is BOOM different from other agencies?
+                            <span class="faq-toggle">+</span>
+                        </div>
+                        <div class="faq-answer">
+                            Traditional agencies take 45+ days, charge hidden fees, and disappear after signing. 
+                            <span class="highlight">BOOM guarantees 48-hour move-in, zero hidden fees, and 24/7 WhatsApp support.</span> 
+                            Every apartment has a 360° video tour, all prices are final, and we actually answer at 3am. 
+                            We built this because we suffered through Rome's rental nightmare ourselves.
+                        </div>
+                    </div>
+
+                    <div class="faq-item">
+                        <div class="faq-question">
+                            Is this legitimate? Sounds too good to be true.
+                            <span class="faq-toggle">+</span>
+                        </div>
+                        <div class="faq-answer">
+                            We get it. Rome rentals are usually scams. <span class="highlight">BOOM is operated by Egidi Immobiliare S.r.l. 
+                            (P.IVA 17322991005)</span>, a registered Italian real estate company. We have 500+ happy tenants, 
+                            a physical office in Centro Storico, and you can verify our registration with the Rome Chamber of Commerce. 
+                            Plus, we use Stripe for payments - you're protected.
+                        </div>
+                    </div>
+
+                    <div class="faq-item">
+                        <div class="faq-question">
+                            Who can rent with BOOM?
+                            <span class="faq-toggle">+</span>
+                        </div>
+                        <div class="faq-answer">
+                            Anyone looking for 3-24 month rentals in Rome. <span class="highlight">International professionals, 
+                            students, digital nomads, relocating families.</span> You need: valid ID/passport, proof of income 
+                            (employment contract, bank statements, or sponsor letter), and ability to pay first month + deposit. 
+                            We have a 95% approval rate for internationals.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Payments -->
+                <div class="faq-category" data-category="payments">
+                    <h2 class="category-title">Payments & Fees</h2>
+                    
+                    <div class="faq-item">
+                        <div class="faq-question">
+                            What are the actual costs?
+                            <span class="faq-toggle">+</span>
+                        </div>
+                        <div class="faq-answer">
+                            <span class="highlight">Total upfront: First month rent + 2 months deposit + BOOM fee (1 month).</span> 
+                            That's it. No agency fees, no surprise charges, no "administration costs". 
+                            For a €1,800/month apartment: €1,800 (first month) + €3,600 (deposit) + €1,800 (BOOM fee) = €7,200 total. 
+                            The deposit is fully refundable. Utilities are included in most properties.
+                        </div>
+                    </div>
+
+                    <div class="faq-item">
+                        <div class="faq-question">
+                            How do I pay rent?
+                            <span class="faq-toggle">+</span>
+                        </div>
+                        <div class="faq-answer">
+                            <span class="highlight">Bank transfer or Stripe (cards accepted).</span> Rent is due on the 1st of each month. 
+                            We send reminders 5 days before. You can set up automatic payments through your dashboard. 
+                            Late payment? We WhatsApp you immediately - no surprise fees if you communicate with us.
+                        </div>
+                    </div>
+
+                    <div class="faq-item">
+                        <div class="faq-question">
+                            When do I get my deposit back?
+                            <span class="faq-toggle">+</span>
+                        </div>
+                        <div class="faq-answer">
+                            <span class="highlight">Within 14 days of move-out</span>, after final inspection. We do the inspection together 
+                            via video call - full transparency. Normal wear is expected and fine. We only deduct for actual damage 
+                            beyond normal use. 98% of our tenants get their full deposit back.
+                        </div>
+                    </div>
+
+                    <div class="faq-item">
+                        <div class="faq-question">
+                            Are utilities really included?
+                            <span class="faq-toggle">+</span>
+                        </div>
+                        <div class="faq-answer">
+                            <span class="highlight">Yes, in 90% of our apartments.</span> This includes electricity, water, gas, internet, 
+                            and condo fees up to €200/month. If you exceed this (rare), we'll show you the actual bills and charge 
+                            only the difference. For properties without utilities included, it's clearly stated upfront.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Process -->
+                <div class="faq-category" data-category="process">
+                    <h2 class="category-title">The Process</h2>
+                    
+                    <div class="faq-item">
+                        <div class="faq-question">
+                            How fast can I really move in?
+                            <span class="faq-toggle">+</span>
+                        </div>
+                        <div class="faq-answer">
+                            <span class="highlight">48 hours from application approval.</span> Apply today, approved tomorrow, 
+                            keys in hand the day after. Record: 6 hours (emergency relocation from USA). 
+                            Average: 2-3 days. This includes contract signing, payment, and check-in. 
+                            We work weekends and holidays too.
+                        </div>
+                    </div>
+
+                    <div class="faq-item">
+                        <div class="faq-question">
+                            What documents do I need?
+                            <span class="faq-toggle">+</span>
+                        </div>
+                        <div class="faq-answer">
+                            Required: <span class="highlight">1) Passport/ID, 2) Proof of income (last 3 payslips or bank statements 
+                            showing 3x rent amount), 3) Employment contract or university enrollment.</span> 
+                            Optional but helpful: Previous rental references, Italian codice fiscale (we can help you get one). 
+                            Students can use sponsor letters from parents.
+                        </div>
+                    </div>
+
+                    <div class="faq-item">
+                        <div class="faq-question">
+                            Can I visit apartments before deciding?
+                            <span class="faq-toggle">+</span>
+                        </div>
+                        <div class="faq-answer">
+                            <span class="highlight">Yes, but our 360° video tours show everything.</span> 
+                            Physical viewings available daily 10am-7pm, including weekends. WhatsApp us to schedule. 
+                            But honestly? Our videos show more than you'd see in person - we film inside closets, 
+                            under sinks, every corner. No catfishing possible.
+                        </div>
+                    </div>
+
+                    <div class="faq-item">
+                        <div class="faq-question">
+                            What if I need to leave early?
+                            <span class="faq-toggle">+</span>
+                        </div>
+                        <div class="faq-answer">
+                            Life happens. <span class="highlight">Give us 60 days notice and we'll work with you.</span> 
+                            We'll help find a replacement tenant. If we find someone, you can leave earlier without penalty. 
+                            For job loss or medical emergencies, we have special provisions. Just talk to us - we're human.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Support -->
+                <div class="faq-category" data-category="support">
+                    <h2 class="category-title">Living & Support</h2>
+                    
+                    <div class="faq-item">
+                        <div class="faq-question">
+                            What if something breaks?
+                            <span class="faq-toggle">+</span>
+                        </div>
+                        <div class="faq-answer">
+                            <span class="highlight">WhatsApp us. We fix it within 24 hours.</span> 
+                            Emergency repairs (no hot water, electricity issues, lockouts): 2 hours maximum response. 
+                            Non-urgent repairs: next business day. We have contracts with plumbers, electricians, 
+                            and handymen on call 24/7. You pay nothing for normal maintenance.
+                        </div>
+                    </div>
+
+                    <div class="faq-item">
+                        <div class="faq-question">
+                            Do you really answer at 3am?
+                            <span class="faq-toggle">+</span>
+                        </div>
+                        <div class="faq-answer">
+                            <span class="highlight">Yes. Valentino's phone is always on.</span> 
+                            Locked out at 3am? We'll get you in. Pipe burst on Sunday? Plumber arrives in 1 hour. 
+                            Can't figure out the heating? Video call us. Average WhatsApp response time: 2 minutes. 
+                            This isn't marketing bullshit - ask any of our tenants.
+                        </div>
+                    </div>
+
+                    <div class="faq-item">
+                        <div class="faq-question">
+                            Can you help with residence permits?
+                            <span class="faq-toggle">+</span>
+                        </div>
+                        <div class="faq-answer">
+                            <span class="highlight">Yes. €150 and we handle everything.</span> 
+                            We'll prepare documents, book appointments, and even accompany you if needed. 
+                            This includes: residence permit, codice fiscale, SPID digital identity, and health card registration. 
+                            We know the system inside out - what takes others months, we do in days.
+                        </div>
+                    </div>
+
+                    <div class="faq-item">
+                        <div class="faq-question">
+                            What about cleaning and maintenance?
+                            <span class="faq-toggle">+</span>
+                        </div>
+                        <div class="faq-answer">
+                            Optional services: <span class="highlight">Weekly cleaning €60/month, laundry service €30/load, 
+                            grocery delivery setup, plant care.</span> All apartments are professionally cleaned before move-in. 
+                            You're responsible for keeping it clean during your stay. Final cleaning can be arranged for €100 
+                            or do it yourself.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Quick Links -->
+    <section class="quick-links">
+        <h2 style="font-size: 24px; font-weight: 300; margin-bottom: 20px;">Still Need Help?</h2>
+        
+        <div class="links-grid">
+            <a href="/contact.html" class="quick-link-card">
+                <div class="link-icon">💬</div>
+                <div class="link-title">WhatsApp Us</div>
+                <div class="link-desc">2-minute response time</div>
+            </a>
+            
+            <a href="/apartments.html" class="quick-link-card">
+                <div class="link-icon">🏠</div>
+                <div class="link-title">View Apartments</div>
+                <div class="link-desc">18 available now</div>
+            </a>
+            
+            <a href="/pfs.html" class="quick-link-card">
+                <div class="link-icon">🔍</div>
+                <div class="link-title">Property Finding</div>
+                <div class="link-desc">Custom search service</div>
+            </a>
+            
+            <a href="/owner.html" class="quick-link-card">
+                <div class="link-icon">🔑</div>
+                <div class="link-title">List Your Property</div>
+                <div class="link-desc">For landlords</div>
+            </a>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="cta-section">
+        <h2 class="cta-title">
+            Ready to move?<br>
+            <span class="gold-accent">Let's go.</span>
+        </h2>
+        
+        <div class="cta-buttons">
+            <a href="/apartments.html" class="btn-primary">View Apartments</a>
+        </div>
+    </section>
+
+    <script>
+        // FAQ Toggle
+        document.querySelectorAll('.faq-item').forEach(item => {
+            item.addEventListener('click', function() {
+                // Close other items in same category
+                const category = this.closest('.faq-category');
+                category.querySelectorAll('.faq-item').forEach(otherItem => {
+                    if (otherItem !== this) {
+                        otherItem.classList.remove('active');
+                    }
+                });
+                
+                // Toggle current item
+                this.classList.toggle('active');
+            });
+        });
+
+        // Category Filter
+        function filterCategory(category) {
+            // Update tabs
+            document.querySelectorAll('.category-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // Show/hide categories
+            document.querySelectorAll('.faq-category').forEach(cat => {
+                if (category === 'all' || cat.dataset.category === category) {
+                    cat.style.display = 'block';
+                } else {
+                    cat.style.display = 'none';
+                }
+            });
+        }
+
+        // Search Functionality
+        document.getElementById('searchInput').addEventListener('input', function(e) {
+            const searchTerm = e.target.value.toLowerCase();
+            
+            document.querySelectorAll('.faq-item').forEach(item => {
+                const question = item.querySelector('.faq-question').textContent.toLowerCase();
+                const answer = item.querySelector('.faq-answer').textContent.toLowerCase();
+                
+                if (question.includes(searchTerm) || answer.includes(searchTerm)) {
+                    item.style.display = 'block';
+                    // Highlight search term
+                    if (searchTerm.length > 2) {
+                        item.classList.add('active');
+                    }
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+            
+            // Show all categories when searching
+            if (searchTerm.length > 0) {
+                document.querySelectorAll('.faq-category').forEach(cat => {
+                    cat.style.display = 'block';
+                });
+            }
+        });
+    </script>
+</body>
+</html>

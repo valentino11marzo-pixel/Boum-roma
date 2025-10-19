@@ -1,0 +1,91 @@
+        :root {
+            --gold: #FFD700;
+            --orange: #FF6B35;
+            --cyan: #00CED1;
+            --purple: #9D4EDD;
+            --green: #00FF88;
+            --pure-black: #000000;
+            --dark-void: #0A0A0A;
+            --dark-surface: #111111;
+            --text-primary: #FFFFFF;
+            --text-fade: #666666;
+            --text-secondary: #999999;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--pure-black);
+            color: var(--text-primary);
+            font-weight: 200;
+            letter-spacing: 0.02em;
+            line-height: 1.6;
+        }
+
+        /* Waitlist Banner */
+        .waitlist-banner {
+            position: fixed;
+            top: 80px;
+            left: 0;
+            right: 0;
+            background: linear-gradient(135deg, var(--orange), var(--gold));
+            color: var(--pure-black);
+            padding: 20px 50px;
+            z-index: 99;
+            border-bottom: 2px solid var(--gold);
+            animation: slideDown 0.5s ease;
+        }
+
+        @keyframes slideDown {
+            from { transform: translateY(-100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .waitlist-banner-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 30px;
+        }
+
+        .waitlist-text {
+            flex: 1;
+        }
+
+        .waitlist-title {
+            font-size: 18px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 5px;
+        }
+
+        .waitlist-subtitle {
+            font-size: 14px;
+            font-weight: 400;
+        }
+
+        .waitlist-countdown {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .countdown-item {
+            text-align: center;
+        }
+
+        .countdown-value {
+            font-size: 32px;
+            font-weight: 700;
+            font-family: 'Oswald', sans-serif;
+            line-height: 1;
+        }
+
+        .countdown-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            opacity: 0.8;
+        }

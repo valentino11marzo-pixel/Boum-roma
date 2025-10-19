@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thank You - BOOM</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;900&family=Oswald:wght@200;300;400;500&display=swap" rel="stylesheet">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        :root {
+            --gold: #FFD700;
+            --cyan: #00CED1;
+            --green: #00FF88;
+            --pure-black: #000000;
+            --dark-void: #0A0A0A;
+            --text-primary: #FFFFFF;
+            --text-fade: #666666;
+            --text-secondary: #999999;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--pure-black);
+            color: var(--text-primary);
+            font-weight: 200;
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .thank-you-container {
+            max-width: 600px;
+            text-align: center;
+            padding: 60px 40px;
+            background: var(--dark-void);
+            border: 1px solid rgba(255, 215, 0, 0.2);
+            border-radius: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .thank-you-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--gold), var(--green));
+        }
+
+        .success-icon {
+            width: 80px;
+            height: 80px;
+            background: var(--gold);
+            border-radius: 50%;
+            margin: 0 auto 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            animation: scaleIn 0.5s ease;
+        }
+
+        @keyframes scaleIn {
+            from {
+                transform: scale(0);
+                opacity: 0;
+            }
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        h1 {
+            font-size: clamp(32px, 6vw, 56px);
+            font-weight: 100;
+            text-transform: uppercase;
+            letter-spacing: -2px;
+            margin-bottom: 20px;
+            color: var(--gold);
+        }
+
+        .thank-you-message {
+            font-size: 18px;
+            color: var(--text-secondary);
+            margin-bottom: 40px;
+            line-height: 1.8;
+        }
+
+        .info-box {
+            background: rgba(255, 215, 0, 0.05);
+            border: 1px solid rgba(255, 215, 0, 0.2);
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 40px;
+            text-align: left;
+        }
+
+        .info-box h3 {
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--gold);
+            margin-bottom: 20px;
+        }
+
+        .info-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 15px;
+            margin-bottom: 15px;
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .info-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .info-icon {
+            color: var(--green);
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        .btn-home {
+            display: inline-block;
+            padding: 18px 50px;
+            background: var(--gold);
+            color: var(--pure-black);
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+
+        .btn-home:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(255, 215, 0, 0.3);
+        }
+
+        .whatsapp-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 30px;
+            color: var(--green);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .whatsapp-link:hover {
+            color: var(--gold);
+        }
+
+        @media (max-width: 768px) {
+            .thank-you-container {
+                padding: 40px 20px;
+            }
+
+            .info-box {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="thank-you-container">
+        <div class="success-icon">✓</div>
+        
+        <h1>Thank You!</h1>
+        
+        <p class="thank-you-message">
+            Your request has been received successfully. We'll review it and get back to you within 2 hours (usually much faster).
+        </p>
+
+        <div class="info-box">
+            <h3>What Happens Next?</h3>
+            
+            <div class="info-item">
+                <span class="info-icon">✓</span>
+                <span>We'll review your information and prepare a personalized response</span>
+            </div>
+            
+            <div class="info-item">
+                <span class="info-icon">✓</span>
+                <span>You'll receive an email confirmation with next steps</span>
+            </div>
+            
+            <div class="info-item">
+                <span class="info-icon">✓</span>
+                <span>If urgent, we'll reach out via WhatsApp within 30 minutes</span>
+            </div>
+            
+            <div class="info-item">
+                <span class="info-icon">✓</span>
+                <span>Average response time: 2 minutes (yes, really)</span>
+            </div>
+        </div>
+
+        <a href="/" class="btn-home">Back to Home</a>
+
+        <a href="https://wa.me/393313251961" class="whatsapp-link">
+            <span>💬</span>
+            <span>Need urgent help? WhatsApp us now</span>
+        </a>
+    </div>
+</body>
+</html>

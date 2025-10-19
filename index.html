@@ -1,0 +1,2167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BOOM – Get Your Rome Apartment in Days, Not Weeks</title>
+    <meta name="description" content="Premium mid-term rentals in Rome. Video-verified apartments, 48h move-in, full management. No BS fees.">
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;900&family=Oswald:wght@200;300;400;500&display=swap" rel="stylesheet">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        :root {
+            --gold: #FFD700;
+            --cyan: #00CED1;
+            --green: #00FF88;
+            --red: #FF3B3B;
+            --purple: #9D4EDD;
+            --orange: #FF6B35;
+            --pure-black: #000000;
+            --dark-void: #0A0A0A;
+            --dark-surface: #111111;
+            --text-primary: #FFFFFF;
+            --text-fade: #666666;
+            --text-secondary: #999999;
+        }
+
+        ::selection {
+            background: var(--gold);
+            color: var(--pure-black);
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--pure-black);
+            color: var(--text-primary);
+            font-weight: 300;
+            letter-spacing: 0.01em;
+            line-height: 1.6;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        .grid-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(255, 215, 0, 0.025) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 215, 0, 0.025) 1px, transparent 1px);
+            background-size: 80px 80px;
+            z-index: 0;
+            pointer-events: none;
+            opacity: 0.8;
+        }
+
+        .particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .particle {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: var(--gold);
+            border-radius: 50%;
+            opacity: 0;
+            animation: float 20s infinite;
+        }
+
+        @keyframes float {
+            0% { transform: translateY(100vh) translateX(0); opacity: 0; }
+            10% { opacity: 0.4; }
+            90% { opacity: 0.4; }
+            100% { transform: translateY(-100vh) translateX(100px); opacity: 0; }
+        }
+
+        .particle:nth-child(1) { left: 10%; animation-delay: 0s; animation-duration: 25s; }
+        .particle:nth-child(2) { left: 25%; animation-delay: 5s; animation-duration: 30s; }
+        .particle:nth-child(3) { left: 40%; animation-delay: 2s; animation-duration: 28s; }
+        .particle:nth-child(4) { left: 55%; animation-delay: 8s; animation-duration: 22s; }
+        .particle:nth-child(5) { left: 70%; animation-delay: 3s; animation-duration: 26s; }
+        .particle:nth-child(6) { left: 85%; animation-delay: 7s; animation-duration: 24s; }
+
+        @media (hover: hover) and (pointer: fine) {
+            .cursor {
+                position: fixed;
+                width: 20px;
+                height: 20px;
+                border: 1px solid var(--gold);
+                border-radius: 50%;
+                pointer-events: none;
+                z-index: 9999;
+                transition: transform 0.15s ease;
+                mix-blend-mode: difference;
+            }
+
+            .cursor-follower {
+                position: fixed;
+                width: 40px;
+                height: 40px;
+                border-radius: 50%;
+                background: var(--gold);
+                opacity: 0.12;
+                pointer-events: none;
+                z-index: 9998;
+                transition: transform 0.35s ease;
+            }
+        }
+
+        nav {
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 100;
+            padding: 28px 50px;
+            background: transparent;
+            transition: all 0.3s ease;
+        }
+
+        nav.scrolled {
+            background: rgba(0, 0, 0, 0.98);
+            padding: 18px 50px;
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 215, 0, 0.12);
+        }
+
+        .nav-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            text-decoration: none;
+            color: white;
+            transition: transform 0.3s ease;
+        }
+
+        .logo:hover { transform: scale(1.03); }
+
+        .logo-circle {
+            width: 42px;
+            height: 42px;
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            border-radius: 50%;
+            box-shadow: 0 0 25px rgba(255, 215, 0, 0.5);
+            animation: glow 3s infinite ease-in-out;
+            opacity: 0.92;
+        }
+
+        @keyframes glow {
+            0%, 100% { box-shadow: 0 0 25px rgba(255, 215, 0, 0.5); }
+            50% { box-shadow: 0 0 40px rgba(255, 215, 0, 0.8); }
+        }
+
+        .logo-text {
+            font-family: 'Oswald', sans-serif;
+            font-size: 32px;
+            font-weight: 300;
+            letter-spacing: -2px;
+            text-transform: uppercase;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 40px;
+            align-items: center;
+        }
+
+        .nav-link {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: color 0.3s ease;
+            position: relative;
+            font-weight: 500;
+        }
+
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 0;
+            width: 0;
+            height: 1px;
+            background: var(--gold);
+            transition: width 0.3s ease;
+        }
+
+        .nav-link:hover { color: var(--text-primary); }
+        .nav-link:hover::after { width: 100%; }
+
+        .nav-cta {
+            padding: 11px 28px;
+            background: transparent;
+            border: 1px solid var(--gold);
+            color: var(--gold);
+            text-decoration: none;
+            font-size: 11px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+
+        .nav-cta:hover {
+            background: var(--gold);
+            color: var(--pure-black);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(255, 215, 0, 0.35);
+        }
+
+        .hamburger {
+            display: none;
+            flex-direction: column;
+            gap: 5px;
+            cursor: pointer;
+            z-index: 1001;
+            padding: 10px;
+        }
+
+        .hamburger span {
+            width: 26px;
+            height: 2px;
+            background: var(--gold);
+            transition: all 0.3s ease;
+            border-radius: 2px;
+        }
+
+        .hamburger.active span:nth-child(1) { transform: rotate(45deg) translate(7px, 7px); }
+        .hamburger.active span:nth-child(2) { opacity: 0; }
+        .hamburger.active span:nth-child(3) { transform: rotate(-45deg) translate(7px, -7px); }
+
+        .mobile-menu {
+            position: fixed;
+            top: 0;
+            right: -100%;
+            width: 320px;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.98);
+            backdrop-filter: blur(30px);
+            z-index: 1000;
+            padding: 120px 40px 40px;
+            transition: right 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow-y: auto;
+            border-left: 1px solid rgba(255, 215, 0, 0.15);
+        }
+
+        .mobile-menu.active { right: 0; }
+
+        .mobile-menu-links {
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+
+        .mobile-menu-link {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 16px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.3s ease;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            font-weight: 500;
+        }
+
+        .mobile-menu-link:hover {
+            color: var(--gold);
+            padding-left: 12px;
+        }
+
+        .mobile-menu-cta {
+            margin-top: 40px;
+            padding: 18px;
+            background: var(--gold);
+            color: var(--pure-black);
+            text-align: center;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            display: block;
+            border-radius: 4px;
+        }
+
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 0 50px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .radar-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 0;
+        }
+
+        .radar-ring {
+            position: absolute;
+            border: 1px solid var(--gold);
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            opacity: 0;
+            animation: radar-pulse 6s infinite ease-out;
+        }
+
+        .radar-ring:nth-child(1) { animation-delay: 0s; }
+        .radar-ring:nth-child(2) { animation-delay: 2s; }
+        .radar-ring:nth-child(3) { animation-delay: 4s; }
+
+        @keyframes radar-pulse {
+            0% { width: 100px; height: 100px; opacity: 0.5; border-width: 2px; }
+            50% { opacity: 0.25; }
+            100% { width: 800px; height: 800px; opacity: 0; border-width: 0.5px; }
+        }
+
+        .radar-center {
+            width: 14px;
+            height: 14px;
+            background: var(--gold);
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 25px rgba(255, 215, 0, 0.6);
+            animation: center-pulse 3s infinite ease-in-out;
+        }
+
+        @keyframes center-pulse {
+            0%, 100% { 
+                box-shadow: 0 0 25px rgba(255, 215, 0, 0.6);
+                transform: translate(-50%, -50%) scale(1);
+            }
+            50% { 
+                box-shadow: 0 0 40px rgba(255, 215, 0, 0.9);
+                transform: translate(-50%, -50%) scale(1.2);
+            }
+        }
+
+        .corner-accents {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            max-width: 1300px;
+            max-height: 750px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .corner {
+            position: absolute;
+            width: 70px;
+            height: 70px;
+            border: 1.5px solid var(--gold);
+            opacity: 0.28;
+        }
+
+        .corner.tl { top: 0; left: 0; border-right: none; border-bottom: none; animation: corner-fade 10s infinite ease-in-out; }
+        .corner.tr { top: 0; right: 0; border-left: none; border-bottom: none; animation: corner-fade 10s infinite ease-in-out; animation-delay: 2.5s; }
+        .corner.bl { bottom: 0; left: 0; border-right: none; border-top: none; animation: corner-fade 10s infinite ease-in-out; animation-delay: 5s; }
+        .corner.br { bottom: 0; right: 0; border-left: none; border-top: none; animation: corner-fade 10s infinite ease-in-out; animation-delay: 7.5s; }
+
+        @keyframes corner-fade {
+            0%, 80%, 100% { opacity: 0.25; }
+            40% { opacity: 0.65; }
+        }
+
+        .hero-content {
+            z-index: 1;
+            position: relative;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 40px;
+            padding: 10px 20px;
+            border: 1px solid rgba(255, 215, 0, 0.35);
+            background: rgba(255, 215, 0, 0.06);
+            backdrop-filter: blur(10px);
+            border-radius: 4px;
+        }
+
+        .live-indicator {
+            width: 8px;
+            height: 8px;
+            background: var(--gold);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+            box-shadow: 0 0 12px var(--gold);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(0.95); }
+        }
+
+        .badge-text {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            color: var(--gold);
+            font-weight: 600;
+        }
+
+        h1 {
+            font-size: clamp(48px, 10vw, 170px);
+            font-weight: 100;
+            line-height: 0.88;
+            letter-spacing: -0.03em;
+            text-transform: uppercase;
+            margin-bottom: 35px;
+        }
+
+        .gold-accent {
+            color: var(--gold);
+            font-weight: 300;
+        }
+
+        .hero-meta {
+            display: flex;
+            gap: 50px;
+            margin-bottom: 60px;
+            flex-wrap: wrap;
+        }
+
+        .meta-item {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--text-fade);
+            font-weight: 500;
+        }
+
+        .meta-value {
+            color: var(--gold);
+            font-weight: 600;
+        }
+
+        .hero-cta-group {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .cta-primary {
+            padding: 22px 65px;
+            background: var(--gold);
+            color: var(--pure-black);
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            border: none;
+            display: inline-block;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cta-primary:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 50px rgba(255, 215, 0, 0.5);
+        }
+
+        .cta-ghost {
+            padding: 20px 63px;
+            background: transparent;
+            border: 1px solid var(--text-fade);
+            color: var(--text-primary);
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 500;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            display: inline-block;
+        }
+
+        .cta-ghost:hover {
+            border-color: var(--gold);
+            background: rgba(255, 215, 0, 0.06);
+            transform: translateY(-4px);
+        }
+
+        section { position: relative; z-index: 1; }
+
+        .section-tag {
+            display: inline-block;
+            padding: 8px 20px;
+            color: white;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 30px;
+            border-radius: 3px;
+        }
+
+        .section-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            color: var(--gold);
+            margin-bottom: 25px;
+            font-weight: 700;
+        }
+
+        .problems-section {
+            padding: 120px 50px;
+            background: var(--dark-void);
+        }
+
+        .problems-container {
+            max-width: 1280px;
+            margin: 0 auto;
+        }
+
+        .problems-header {
+            text-align: center;
+            margin-bottom: 80px;
+        }
+
+        .problems-title {
+            font-size: clamp(38px, 7vw, 95px);
+            font-weight: 100;
+            line-height: 0.92;
+            text-transform: uppercase;
+            margin-bottom: 20px;
+        }
+
+        .text-gradient-red {
+            background: linear-gradient(135deg, var(--red), var(--orange));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: 700;
+        }
+
+        .problems-subtitle {
+            font-size: 17px;
+            color: var(--text-secondary);
+            font-weight: 400;
+        }
+
+        .problems-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 28px;
+        }
+
+        .problem-card {
+            padding: 42px 32px;
+            border-radius: 16px;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .problem-card:hover { transform: translateY(-10px) scale(1.02); }
+
+        .card-red { background: linear-gradient(135deg, rgba(255, 59, 59, 0.18), rgba(255, 59, 59, 0.08)); border: 1px solid rgba(255, 59, 59, 0.4); }
+        .card-purple { background: linear-gradient(135deg, rgba(157, 78, 221, 0.18), rgba(157, 78, 221, 0.08)); border: 1px solid rgba(157, 78, 221, 0.4); }
+        .card-orange { background: linear-gradient(135deg, rgba(255, 107, 53, 0.18), rgba(255, 107, 53, 0.08)); border: 1px solid rgba(255, 107, 53, 0.4); }
+        .card-cyan { background: linear-gradient(135deg, rgba(0, 206, 209, 0.18), rgba(0, 206, 209, 0.08)); border: 1px solid rgba(0, 206, 209, 0.4); }
+        .card-green { background: linear-gradient(135deg, rgba(0, 255, 136, 0.18), rgba(0, 255, 136, 0.08)); border: 1px solid rgba(0, 255, 136, 0.4); }
+        .card-yellow { background: linear-gradient(135deg, rgba(255, 215, 0, 0.18), rgba(255, 215, 0, 0.08)); border: 1px solid rgba(255, 215, 0, 0.4); }
+
+        .problem-emoji {
+            font-size: 50px;
+            display: block;
+            margin-bottom: 24px;
+        }
+
+        .problem-card h3 {
+            font-size: 22px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: -0.5px;
+        }
+
+        .problem-card p {
+            font-size: 15px;
+            color: var(--text-secondary);
+            line-height: 1.65;
+            font-weight: 400;
+        }
+
+        .apartments-section {
+            padding: 120px 50px;
+            background: var(--pure-black);
+        }
+
+        .apartments-container {
+            max-width: 1300px;
+            margin: 0 auto;
+        }
+
+        .apartments-header {
+            text-align: center;
+            margin-bottom: 80px;
+        }
+
+        .apartments-title {
+            font-size: clamp(38px, 7vw, 85px);
+            font-weight: 200;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            line-height: 1.05;
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, var(--green), var(--cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: 700;
+        }
+
+        .apartments-subtitle {
+            font-size: 17px;
+            color: var(--text-secondary);
+            font-weight: 400;
+        }
+
+        .apartments-modern-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+            gap: 32px;
+            margin-bottom: 70px;
+        }
+
+        .apartment-modern-card {
+            background: var(--dark-surface);
+            border-radius: 18px;
+            overflow: hidden;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+            display: block;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .apartment-modern-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.4);
+            border-color: rgba(255, 215, 0, 0.25);
+        }
+
+        .apartment-image-placeholder {
+            height: 215px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            background-size: cover;
+            background-position: center;
+        }
+
+        .apartment-badge {
+            position: absolute;
+            top: 18px;
+            left: 18px;
+            padding: 6px 16px;
+            background: rgba(0, 0, 0, 0.88);
+            color: white;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            border-radius: 20px;
+            font-weight: 700;
+        }
+
+        .apartment-info {
+            padding: 32px;
+        }
+
+        .apartment-price-tag {
+            display: flex;
+            align-items: baseline;
+            gap: 6px;
+            margin-bottom: 16px;
+        }
+
+        .price-amount {
+            font-size: 34px;
+            font-weight: 700;
+            color: var(--gold);
+            font-family: 'Oswald', sans-serif;
+        }
+
+        .price-period {
+            font-size: 14px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .apartment-name {
+            font-size: 24px;
+            font-weight: 500;
+            margin-bottom: 16px;
+            text-transform: uppercase;
+            letter-spacing: -0.5px;
+        }
+
+        .apartment-features {
+            display: flex;
+            gap: 14px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            color: var(--text-secondary);
+            flex-wrap: wrap;
+        }
+
+        .apartment-features span {
+            padding: 6px 12px;
+            background: rgba(255, 255, 255, 0.06);
+            border-radius: 6px;
+            font-weight: 500;
+        }
+
+        .apartment-link {
+            color: var(--cyan);
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            transition: all 0.3s ease;
+        }
+
+        .apartment-link:hover {
+            color: var(--green);
+            letter-spacing: 2.5px;
+        }
+
+        .apartments-cta {
+            text-align: center;
+        }
+
+        .btn-gradient {
+            display: inline-block;
+            padding: 22px 55px;
+            background: linear-gradient(135deg, var(--green), var(--cyan));
+            color: var(--pure-black);
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2.5px;
+            border-radius: 100px;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .btn-gradient:hover {
+            transform: scale(1.05);
+            box-shadow: 0 25px 50px rgba(0, 255, 136, 0.45);
+        }
+
+        .pfs-section {
+            padding: 120px 50px;
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.04), transparent);
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .pfs-container {
+            max-width: 1300px;
+            margin: 0 auto;
+        }
+
+        .pfs-headline {
+            font-size: clamp(40px, 7vw, 100px);
+            font-weight: 100;
+            line-height: 0.96;
+            letter-spacing: -0.02em;
+            text-transform: uppercase;
+            margin-bottom: 50px;
+        }
+
+        .pfs-grid {
+            display: grid;
+            grid-template-columns: 1.8fr 1fr;
+            gap: 85px;
+            margin-top: 75px;
+            align-items: start;
+        }
+
+        .pfs-price {
+            display: flex;
+            align-items: baseline;
+            gap: 12px;
+            margin-bottom: 42px;
+        }
+
+        .pfs-price .currency {
+            font-size: 26px;
+            color: var(--gold);
+            font-weight: 300;
+        }
+
+        .pfs-price .amount {
+            font-size: 105px;
+            font-weight: 100;
+            font-family: 'Oswald', sans-serif;
+            color: var(--gold);
+            letter-spacing: -5px;
+        }
+
+        .pfs-price .period {
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--text-fade);
+            font-weight: 600;
+        }
+
+        .pfs-features h3 {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            color: var(--text-fade);
+            margin-bottom: 24px;
+            font-weight: 700;
+        }
+
+        .pfs-features ul {
+            list-style: none;
+        }
+
+        .pfs-features li {
+            padding: 17px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            font-size: 16px;
+            font-weight: 400;
+            position: relative;
+            padding-left: 28px;
+        }
+
+        .pfs-features li::before {
+            content: '→';
+            position: absolute;
+            left: 0;
+            color: var(--gold);
+            font-weight: 700;
+        }
+
+        .pfs-cta-group {
+            margin-top: 52px;
+        }
+
+        .pfs-note {
+            font-size: 12px;
+            color: var(--text-fade);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-top: 24px;
+            font-weight: 500;
+        }
+
+        .pfs-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 3px;
+            background: rgba(255, 255, 255, 0.15);
+            padding: 3px;
+            align-self: start;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .pfs-stat {
+            background: var(--pure-black);
+            padding: 42px 22px;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 46px;
+            font-weight: 100;
+            color: var(--gold);
+            font-family: 'Oswald', sans-serif;
+            letter-spacing: -2px;
+        }
+
+        .stat-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--text-fade);
+            margin-top: 12px;
+            font-weight: 600;
+        }
+
+        .concierge-section {
+            padding: 120px 50px;
+            background: var(--dark-void);
+        }
+
+        .concierge-container {
+            max-width: 1300px;
+            margin: 0 auto;
+        }
+
+        .concierge-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 32px;
+            margin: 75px 0;
+        }
+
+        .concierge-card {
+            background: var(--pure-black);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            padding: 42px 38px;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            border-radius: 12px;
+        }
+
+        .concierge-card:hover {
+            transform: translateY(-8px);
+            border-color: rgba(255, 215, 0, 0.28);
+            background: rgba(255, 215, 0, 0.04);
+        }
+
+        .concierge-icon {
+            font-size: 42px;
+            color: var(--gold);
+            margin-bottom: 26px;
+        }
+
+        .concierge-card h3 {
+            font-size: 21px;
+            font-weight: 500;
+            margin-bottom: 16px;
+            text-transform: uppercase;
+            letter-spacing: -0.5px;
+        }
+
+        .concierge-card p {
+            font-size: 14px;
+            color: var(--text-secondary);
+            line-height: 1.7;
+            margin-bottom: 20px;
+            font-weight: 400;
+        }
+
+        .concierge-price {
+            font-size: 25px;
+            color: var(--gold);
+            font-family: 'Oswald', sans-serif;
+            letter-spacing: -1px;
+            font-weight: 300;
+        }
+
+        .concierge-cta {
+            text-align: center;
+            margin-top: 68px;
+        }
+
+        .concierge-note {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--text-fade);
+            margin-bottom: 34px;
+            font-weight: 500;
+        }
+
+        footer {
+            padding: 85px 50px 45px;
+            border-top: 1px solid rgba(255, 255, 255, 0.12);
+            background: var(--pure-black);
+            position: relative;
+            z-index: 1;
+        }
+
+        .footer-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr;
+            gap: 60px;
+            margin-bottom: 60px;
+            max-width: 1400px;
+            margin: 0 auto 60px;
+        }
+
+        .footer-brand {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 22px;
+        }
+
+        .footer-brand-circle {
+            width: 42px;
+            height: 42px;
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            border-radius: 50%;
+            opacity: 0.92;
+            flex-shrink: 0;
+        }
+
+        .footer-brand h3 {
+            font-family: 'Oswald', sans-serif;
+            font-size: 42px;
+            font-weight: 300;
+            letter-spacing: -3px;
+        }
+
+        .footer-tagline {
+            font-size: 14px;
+            color: var(--text-secondary);
+            line-height: 1.7;
+            margin-bottom: 22px;
+            font-weight: 400;
+        }
+
+        .footer-company {
+            font-size: 12px;
+            color: var(--text-fade);
+            line-height: 1.7;
+            font-weight: 400;
+        }
+
+        .footer-company strong {
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+
+        .footer-links h4 {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            margin-bottom: 22px;
+            color: var(--gold);
+            font-weight: 700;
+        }
+
+        .footer-links ul {
+            list-style: none;
+        }
+
+        .footer-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 13px;
+            display: block;
+            padding: 7px 0;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .footer-links a:hover {
+            color: var(--text-primary);
+            padding-left: 6px;
+        }
+
+        .footer-bottom {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 40px;
+            border-top: 1px solid rgba(255, 255, 255, 0.12);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--text-fade);
+            max-width: 1400px;
+            margin: 0 auto;
+            font-weight: 500;
+        }
+
+        .footer-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            background: var(--green);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .reveal {
+            opacity: 0;
+            transform: translateY(50px);
+            transition: all 1.1s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .reveal.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* 🔥 NEW SCROLL ANIMATIONS */
+        .reveal-fade {
+            opacity: 0;
+            transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .reveal-fade.active {
+            opacity: 1;
+        }
+
+        .reveal-scale {
+            opacity: 0;
+            transform: scale(0.9);
+            transition: all 0.9s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .reveal-scale.active {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .reveal-left {
+            opacity: 0;
+            transform: translateX(-80px);
+            transition: all 1s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .reveal-left.active {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .reveal-right {
+            opacity: 0;
+            transform: translateX(80px);
+            transition: all 1s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .reveal-right.active {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        /* Stagger Delay for Cards */
+        .stagger-1 { transition-delay: 0.1s; }
+        .stagger-2 { transition-delay: 0.2s; }
+        .stagger-3 { transition-delay: 0.3s; }
+        .stagger-4 { transition-delay: 0.4s; }
+        .stagger-5 { transition-delay: 0.5s; }
+        .stagger-6 { transition-delay: 0.6s; }
+
+        /* Section Background Effects */
+        .section-glow {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .section-glow::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(255, 215, 0, 0.08) 0%, transparent 70%);
+            transform: translate(-50%, -50%);
+            opacity: 0;
+            transition: opacity 1.2s ease;
+            pointer-events: none;
+        }
+
+        .section-glow.active::before {
+            opacity: 1;
+        }
+
+        /* Parallax Layers */
+        .parallax-slow {
+            transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Magnetic Buttons */
+        @media (hover: hover) and (pointer: fine) {
+            .magnetic {
+                transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            }
+        }
+
+        /* Floating Animation for Icons */
+        .float-animation {
+            animation: float-gentle 3s ease-in-out infinite;
+        }
+
+        @keyframes float-gentle {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        /* Glow on Scroll */
+        .glow-on-scroll {
+            position: relative;
+            transition: all 0.6s ease;
+        }
+
+        .glow-on-scroll.active {
+            filter: drop-shadow(0 0 20px rgba(255, 215, 0, 0.3));
+        }
+
+        /* Number Counter Animation */
+        .counter {
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* Section Divider Animation */
+        .section-divider {
+            width: 100%;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--gold), transparent);
+            opacity: 0;
+            transform: scaleX(0);
+            transition: all 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .section-divider.active {
+            opacity: 0.3;
+            transform: scaleX(1);
+        }
+
+        /* Spotlight Effect */
+        .spotlight {
+            position: relative;
+        }
+
+        .spotlight::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(255, 215, 0, 0.1) 0%, transparent 50%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+
+        .spotlight:hover::after {
+            opacity: 1;
+        }
+
+        /* Scan Line Effect */
+        @keyframes scan-line {
+            0% { top: 0%; opacity: 0.7; }
+            100% { top: 100%; opacity: 0; }
+        }
+
+        .scan-effect {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .scan-effect::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--gold), transparent);
+            animation: scan-line 3s ease-in-out infinite;
+            opacity: 0;
+        }
+
+        .scan-effect.active::before {
+            opacity: 1;
+        }
+
+        @media (max-width: 768px) {
+            nav { padding: 18px 22px; }
+            nav.scrolled { padding: 14px 22px; }
+            .nav-links { display: none; }
+            .hamburger { display: flex; }
+            .logo-circle { width: 36px; height: 36px; }
+            .logo-text { font-size: 28px; }
+
+            .hero {
+                padding: 0 20px;
+                min-height: 100vh;
+            }
+
+            @keyframes radar-pulse {
+                0% { width: 60px; height: 60px; opacity: 0.6; border-width: 1.5px; }
+                50% { opacity: 0.3; }
+                100% { width: 450px; height: 450px; opacity: 0; border-width: 0.5px; }
+            }
+
+            .radar-center { width: 10px; height: 10px; }
+
+            .corner-accents {
+                max-width: 90%;
+                max-height: 70vh;
+            }
+
+            .corner {
+                width: 40px;
+                height: 40px;
+                border-width: 1px;
+            }
+
+            .particles { display: none; }
+
+            h1 {
+                font-size: clamp(36px, 11vw, 55px);
+                line-height: 0.92;
+                margin-bottom: 25px;
+            }
+
+            .hero-badge {
+                padding: 8px 16px;
+                margin-bottom: 30px;
+            }
+
+            .badge-text {
+                font-size: 9px;
+                letter-spacing: 2px;
+            }
+
+            .hero-meta {
+                gap: 20px;
+                margin-bottom: 40px;
+            }
+
+            .meta-item { font-size: 10px; }
+
+            .hero-cta-group {
+                flex-direction: column;
+                width: 100%;
+                gap: 15px;
+            }
+
+            .cta-primary, .cta-ghost {
+                width: 100%;
+                text-align: center;
+                padding: 18px 30px;
+                font-size: 11px;
+            }
+
+            .mobile-menu { width: 100%; }
+
+            .problems-section,
+            .apartments-section,
+            .pfs-section,
+            .concierge-section {
+                padding: 85px 22px;
+            }
+
+            .problems-title,
+            .apartments-title,
+            .pfs-headline {
+                font-size: clamp(32px, 9vw, 50px);
+            }
+
+            .problems-cards,
+            .apartments-modern-grid,
+            .concierge-grid {
+                grid-template-columns: 1fr;
+                gap: 24px;
+            }
+
+            .problem-card,
+            .concierge-card {
+                padding: 35px 28px;
+            }
+
+            .apartment-info {
+                padding: 28px;
+            }
+
+            .pfs-grid {
+                grid-template-columns: 1fr;
+                gap: 50px;
+            }
+
+            .pfs-stats {
+                grid-template-columns: 1fr 1fr;
+                order: -1;
+            }
+
+            .pfs-price .amount {
+                font-size: 75px;
+            }
+
+            footer {
+                padding: 65px 22px 35px;
+            }
+
+            .footer-grid {
+                grid-template-columns: 1fr;
+                gap: 45px;
+            }
+
+            .footer-bottom {
+                flex-direction: column;
+                gap: 12px;
+                text-align: center;
+            }
+        }
+
+        @media (max-width: 375px) {
+            h1 {
+                font-size: 32px;
+                line-height: 0.95;
+            }
+
+            .corner {
+                width: 30px;
+                height: 30px;
+            }
+
+            .hero-meta { gap: 15px; }
+            .meta-item { font-size: 9px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="grid-bg"></div>
+
+    <div class="particles">
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+    </div>
+
+    <div class="cursor"></div>
+    <div class="cursor-follower"></div>
+
+    <nav id="navbar">
+        <div class="nav-container">
+            <a href="/" class="logo">
+                <div class="logo-circle"></div>
+                <span class="logo-text">BOOM</span>
+            </a>
+            
+            <div class="nav-links">
+                <a href="/apartments.html" class="nav-link">Apartments</a>
+                <a href="/property-finding.html" class="nav-link">Property Finding</a>
+                <a href="/concierge.html" class="nav-link">Concierge</a>
+                <a href="/how-it-works.html" class="nav-link">How It Works</a>
+                <a href="/about.html" class="nav-link">About</a>
+                <a href="https://wa.me/393313251961" class="nav-cta" target="_blank">WhatsApp</a>
+            </div>
+
+            <div class="hamburger" id="hamburger">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+    </nav>
+
+    <div class="mobile-menu" id="mobileMenu">
+        <div class="mobile-menu-links">
+            <a href="/" class="mobile-menu-link">Home</a>
+            <a href="/apartments.html" class="mobile-menu-link">Apartments</a>
+            <a href="/property-finding.html" class="mobile-menu-link">Property Finding</a>
+            <a href="/concierge.html" class="mobile-menu-link">Concierge</a>
+            <a href="/how-it-works.html" class="mobile-menu-link">How It Works</a>
+            <a href="/about.html" class="mobile-menu-link">About</a>
+            <a href="/contact.html" class="mobile-menu-link">Contact</a>
+        </div>
+        <a href="https://wa.me/393313251961" target="_blank" class="mobile-menu-cta">WhatsApp Us</a>
+    </div>
+
+    <section class="hero">
+        <div class="radar-container">
+            <div class="radar-ring"></div>
+            <div class="radar-ring"></div>
+            <div class="radar-ring"></div>
+            <div class="radar-center"></div>
+        </div>
+
+        <div class="corner-accents">
+            <div class="corner tl"></div>
+            <div class="corner tr"></div>
+            <div class="corner bl"></div>
+            <div class="corner br"></div>
+        </div>
+        
+        <div class="hero-content">
+            <div class="hero-badge">
+                <span class="live-indicator"></span>
+                <span class="badge-text">Live in Rome · 4 Ready</span>
+            </div>
+            
+            <h1 class="reveal">
+                Get your Rome<br>
+                apartment in <span class="gold-accent">days</span>,<br>
+                not weeks
+            </h1>
+            
+            <div class="hero-meta reveal">
+                <div class="meta-item">
+                    Response: <span class="meta-value">2min</span>
+                </div>
+                <div class="meta-item">
+                    Success: <span class="meta-value">98%</span>
+                </div>
+                <div class="meta-item">
+                    Hidden Fees: <span class="meta-value">€0</span>
+                </div>
+                <div class="meta-item">
+                    Languages: <span class="meta-value">EN/IT</span>
+                </div>
+            </div>
+            
+            <div class="hero-cta-group reveal">
+                <a href="/apartments.html" class="cta-primary">See Apartments</a>
+                <a href="/how-it-works.html" class="cta-ghost">How it Works</a>
+            </div>
+        </div>
+    </section>
+
+    <section class="problems-section section-glow">
+        <div class="problems-container">
+            <div class="problems-header">
+                <span class="section-tag reveal-scale" style="background: var(--red);">THE UGLY TRUTH</span>
+                <h2 class="problems-title reveal">
+                    Rome rentals are a<br>
+                    <span class="text-gradient-red">fucking nightmare</span>
+                </h2>
+                <p class="problems-subtitle reveal-fade">We know. We lived it. Now we fixed it.</p>
+            </div>
+            
+            <div class="section-divider"></div>
+            
+            <div class="problems-cards">
+                <div class="problem-card card-red reveal stagger-1 spotlight">
+                    <span class="problem-emoji float-animation">😤</span>
+                    <h3>45 Days Average</h3>
+                    <p>While you burn money on hotels and see 30 shitty flats</p>
+                </div>
+                
+                <div class="problem-card card-purple reveal stagger-2 spotlight">
+                    <span class="problem-emoji float-animation">🤑</span>
+                    <h3>€8000 Upfront</h3>
+                    <p>3 months deposit + 3 months advance + fake fees = bankruptcy</p>
+                </div>
+                
+                <div class="problem-card card-orange reveal stagger-3 spotlight">
+                    <span class="problem-emoji float-animation">📸</span>
+                    <h3>Catfish Photos</h3>
+                    <p>That "sunny terrace" is a 1m² balcony facing a dumpster</p>
+                </div>
+                
+                <div class="problem-card card-cyan reveal stagger-4 spotlight">
+                    <span class="problem-emoji float-animation">👻</span>
+                    <h3>Ghost Agents</h3>
+                    <p>They vanish after signing. Good luck when shit breaks</p>
+                </div>
+                
+                <div class="problem-card card-green reveal stagger-5 spotlight">
+                    <span class="problem-emoji float-animation">🤷</span>
+                    <h3>"No Speak English"</h3>
+                    <p>Suddenly forget English when you have problems</p>
+                </div>
+                
+                <div class="problem-card card-yellow reveal stagger-6 spotlight">
+                    <span class="problem-emoji float-animation">💸</span>
+                    <h3>Deposit Hostage</h3>
+                    <p>Kiss goodbye to 3 months deposit. They'll invent damages</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="apartments-section section-glow">
+        <div class="apartments-container">
+            <div class="apartments-header">
+                <span class="section-tag reveal-scale" style="background: var(--green);">AVAILABLE NOW</span>
+                <h2 class="apartments-title reveal">
+                    Move in <span class="gradient-text">this week</span>
+                </h2>
+                <p class="apartments-subtitle reveal-fade">All verified. All real. All ready.</p>
+            </div>
+            
+            <div class="section-divider"></div>
+            
+            <div class="apartments-modern-grid">
+                <a href="/apartments/villa-ada-studio" class="apartment-modern-card reveal-scale stagger-1 scan-effect spotlight">
+                    <div class="apartment-image-placeholder" style="background-image: url('https://i.imgur.com/QOAu6k1.jpeg');">
+                        <span class="apartment-badge">Video Tour</span>
+                    </div>
+                    <div class="apartment-info">
+                        <div class="apartment-price-tag">
+                            <span class="price-amount counter">€1,200</span>
+                            <span class="price-period">/month</span>
+                        </div>
+                        <h3 class="apartment-name">Villa Ada Studio</h3>
+                        <div class="apartment-features">
+                            <span>40m²</span>
+                            <span>1 bed</span>
+                            <span>Ground Floor</span>
+                        </div>
+                        <span class="apartment-link">View Details →</span>
+                    </div>
+                </a>
+                
+                <a href="/apartments/pigneto-terrace" class="apartment-modern-card reveal-scale stagger-2 scan-effect spotlight">
+                    <div class="apartment-image-placeholder" style="background-image: url('https://i.imgur.com/tJnYADn.jpeg');">
+                        <span class="apartment-badge">Bohemian</span>
+                    </div>
+                    <div class="apartment-info">
+                        <div class="apartment-price-tag">
+                            <span class="price-amount counter">€1,700</span>
+                            <span class="price-period">/month</span>
+                        </div>
+                        <h3 class="apartment-name">Pigneto Terrace</h3>
+                        <div class="apartment-features">
+                            <span>80m²</span>
+                            <span>2 bed</span>
+                            <span>Balcony</span>
+                        </div>
+                        <span class="apartment-link">View Details →</span>
+                    </div>
+                </a>
+
+                <a href="/apartments/coronari-classic" class="apartment-modern-card reveal-scale stagger-3 scan-effect spotlight">
+                    <div class="apartment-image-placeholder" style="background-image: url('https://i.imgur.com/8LVxrhs.jpeg');">
+                        <span class="apartment-badge">Historic Center</span>
+                    </div>
+                    <div class="apartment-info">
+                        <div class="apartment-price-tag">
+                            <span class="price-amount counter">€2,000</span>
+                            <span class="price-period">/month</span>
+                        </div>
+                        <h3 class="apartment-name">Coronari Classic</h3>
+                        <div class="apartment-features">
+                            <span>70m²</span>
+                            <span>1 bed</span>
+                            <span>Elevator</span>
+                        </div>
+                        <span class="apartment-link">View Details →</span>
+                    </div>
+                </a>
+            </div>
+            
+            <div class="apartments-cta reveal-fade">
+                <a href="/apartments.html" class="btn-gradient magnetic">View All Apartments</a>
+            </div>
+        </div>
+    </section>
+
+    <section class="pfs-section section-glow">
+        <div class="pfs-container">
+            <div class="section-label reveal-left">🔍 PROPERTY FINDING SERVICE</div>
+            <h2 class="pfs-headline reveal">
+                Can't find what<br>
+                you're looking for?<br>
+                <span class="gold-accent">We'll hunt it down.</span>
+            </h2>
+            
+            <div class="section-divider"></div>
+            
+            <div class="pfs-grid">
+                <div class="pfs-main reveal-left">
+                    <div class="pfs-price glow-on-scroll">
+                        <span class="currency">€</span>
+                        <span class="amount counter" data-count="350">350</span>
+                        <span class="period">fixed fee</span>
+                    </div>
+                    
+                    <div class="pfs-features">
+                        <h3>What You Get</h3>
+                        <ul>
+                            <li>Custom search based on your exact requirements</li>
+                            <li>Access to off-market properties</li>
+                            <li>5 curated options within 24 hours</li>
+                            <li>Video tours of all properties</li>
+                            <li>Negotiation on your behalf</li>
+                            <li>Full BOOM support and guarantees</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="pfs-cta-group">
+                        <a href="/property-finding.html" class="cta-primary magnetic">Learn More</a>
+                        <p class="pfs-note">Success rate: 98% find their perfect home</p>
+                    </div>
+                </div>
+                
+                <div class="pfs-stats reveal-right scan-effect">
+                    <div class="pfs-stat spotlight">
+                        <div class="stat-number counter" data-count="24">24</div>
+                        <div class="stat-label">H To Find Options</div>
+                    </div>
+                    <div class="pfs-stat spotlight">
+                        <div class="stat-number counter" data-count="5">5</div>
+                        <div class="stat-label">Curated Properties</div>
+                    </div>
+                    <div class="pfs-stat spotlight">
+                        <div class="stat-number counter" data-count="98">98</div>
+                        <div class="stat-label">% Success Rate</div>
+                    </div>
+                    <div class="pfs-stat spotlight">
+                        <div class="stat-number counter" data-count="0">€0</div>
+                        <div class="stat-label">If We Fail</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="concierge-section section-glow">
+        <div class="concierge-container">
+            <div class="section-label reveal-left">🎯 CONCIERGE SERVICES</div>
+            <h2 class="pfs-headline reveal">
+                Life doesn't stop<br>
+                at the apartment.<br>
+                <span class="gold-accent">We handle everything.</span>
+            </h2>
+            
+            <div class="section-divider"></div>
+            
+            <div class="concierge-grid">
+                <div class="concierge-card reveal-scale stagger-1 spotlight">
+                    <div class="concierge-icon float-animation">🧹</div>
+                    <h3>Weekly Cleaning</h3>
+                    <p>Professional service. Same cleaner every week. €15/hour.</p>
+                    <div class="concierge-price">€60/month</div>
+                </div>
+                
+                <div class="concierge-card reveal-scale stagger-2 spotlight">
+                    <div class="concierge-icon float-animation">✈️</div>
+                    <h3>Airport Transfer</h3>
+                    <p>Private driver. Flight tracking. Meet at gate. Fixed price.</p>
+                    <div class="concierge-price">€50 flat</div>
+                </div>
+                
+                <div class="concierge-card reveal-scale stagger-3 spotlight">
+                    <div class="concierge-icon float-animation">⚡</div>
+                    <h3>24/7 Emergency</h3>
+                    <p>Locksmith, plumber, electrician. We arrive in 2 hours max.</p>
+                    <div class="concierge-price">Included</div>
+                </div>
+                
+                <div class="concierge-card reveal-scale stagger-4 spotlight">
+                    <div class="concierge-icon float-animation">🌐</div>
+                    <h3>Permit Help</h3>
+                    <p>Residence permit, codice fiscale, SPID. We do the paperwork.</p>
+                    <div class="concierge-price">€150/doc</div>
+                </div>
+                
+                <div class="concierge-card reveal-scale stagger-5 spotlight">
+                    <div class="concierge-icon float-animation">🗝️</div>
+                    <h3>Check-in/out</h3>
+                    <p>Flexible timing. Weekend/holiday OK. Video inventory together.</p>
+                    <div class="concierge-price">Any time</div>
+                </div>
+                
+                <div class="concierge-card reveal-scale stagger-6 spotlight">
+                    <div class="concierge-icon float-animation">📦</div>
+                    <h3>Mail Service</h3>
+                    <p>Receive packages before you arrive. Forward mail anywhere.</p>
+                    <div class="concierge-price">€20/month</div>
+                </div>
+            </div>
+            
+            <div class="concierge-cta reveal-fade">
+                <p class="concierge-note">All services available from day one. Pay only for what you use.</p>
+                <a href="/concierge.html" class="cta-ghost magnetic">Explore All Services</a>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="footer-grid">
+            <div>
+                <div class="footer-brand">
+                    <div class="footer-brand-circle"></div>
+                    <h3>BOOM</h3>
+                </div>
+                <p class="footer-tagline">
+                    Built in Rome, for Rome. If we can make Rome's rental market work, we can make it work anywhere.
+                </p>
+                <div class="footer-company">
+                    <strong>Egidi Immobiliare S.r.l.</strong><br>
+                    P.IVA 17322991005<br>
+                    Rome, Italy
+                </div>
+            </div>
+            
+            <div class="footer-links">
+                <h4>Platform</h4>
+                <ul>
+                    <li><a href="/apartments.html">Apartments</a></li>
+                    <li><a href="/property-finding.html">Property Finding</a></li>
+                    <li><a href="/concierge.html">Concierge</a></li>
+                    <li><a href="/how-it-works.html">How It Works</a></li>
+                </ul>
+            </div>
+            
+            <div class="footer-links">
+                <h4>Company</h4>
+                <ul>
+                    <li><a href="/about.html">About</a></li>
+                    <li><a href="/for-owners.html">For Owners</a></li>
+                    <li><a href="/contact.html">Contact</a></li>
+                </ul>
+            </div>
+            
+            <div class="footer-links">
+                <h4>Legal</h4>
+                <ul>
+                    <li><a href="/terms.html">Terms of Service</a></li>
+                    <li><a href="/privacy.html">Privacy Policy</a></li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="footer-bottom">
+            <span>© 2025 BOOM – All Rights Reserved</span>
+            <div class="footer-status">
+                <span class="status-dot"></span>
+                <span>Operational</span>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        if (window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
+            const cursor = document.querySelector('.cursor');
+            const follower = document.querySelector('.cursor-follower');
+
+            document.addEventListener('mousemove', (e) => {
+                cursor.style.left = e.clientX + 'px';
+                cursor.style.top = e.clientY + 'px';
+                
+                setTimeout(() => {
+                    follower.style.left = e.clientX - 10 + 'px';
+                    follower.style.top = e.clientY - 10 + 'px';
+                }, 100);
+            });
+
+            document.querySelectorAll('a, button').forEach(link => {
+                link.addEventListener('mouseenter', () => {
+                    cursor.style.transform = 'scale(2)';
+                    follower.style.transform = 'scale(0.5)';
+                });
+                link.addEventListener('mouseleave', () => {
+                    cursor.style.transform = 'scale(1)';
+                    follower.style.transform = 'scale(1)';
+                });
+            });
+        }
+
+        const hamburger = document.getElementById('hamburger');
+        const mobileMenu = document.getElementById('mobileMenu');
+
+        hamburger.addEventListener('click', () => {
+            hamburger.classList.toggle('active');
+            mobileMenu.classList.toggle('active');
+            document.body.style.overflow = mobileMenu.classList.contains('active') ? 'hidden' : '';
+        });
+
+        document.querySelectorAll('.mobile-menu-link').forEach(link => {
+            link.addEventListener('click', () => {
+                hamburger.classList.remove('active');
+                mobileMenu.classList.remove('active');
+                document.body.style.overflow = '';
+            });
+        });
+
+        mobileMenu.addEventListener('click', (e) => {
+            if (e.target === mobileMenu) {
+                hamburger.classList.remove('active');
+                mobileMenu.classList.remove('active');
+                document.body.style.overflow = '';
+            }
+        });
+
+        window.addEventListener('scroll', function() {
+            const navbar = document.getElementById('navbar');
+            if (window.scrollY > 50) {
+                navbar.classList.add('scrolled');
+            } else {
+                navbar.classList.remove('scrolled');
+            }
+        });
+
+        const reveals = document.querySelectorAll('.reveal');
+        
+        const revealObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('active');
+                    revealObserver.unobserve(entry.target);
+                }
+            });
+        }, {
+            threshold: 0.1,
+            rootMargin: '0px 0px -100px 0px'
+        });
+
+        reveals.forEach(reveal => {
+            revealObserver.observe(reveal);
+        });
+
+        // 🔥 NEW ADVANCED ANIMATIONS
+
+        // All Reveal Types
+        const allRevealElements = document.querySelectorAll('.reveal, .reveal-fade, .reveal-scale, .reveal-left, .reveal-right');
+        
+        const advancedRevealObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('active');
+                }
+            });
+        }, {
+            threshold: 0.15,
+            rootMargin: '0px 0px -80px 0px'
+        });
+
+        allRevealElements.forEach(el => {
+            advancedRevealObserver.observe(el);
+        });
+
+        // Section Glow Effect
+        const sectionGlows = document.querySelectorAll('.section-glow');
+        
+        const glowObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('active');
+                }
+            });
+        }, {
+            threshold: 0.2
+        });
+
+        sectionGlows.forEach(section => {
+            glowObserver.observe(section);
+        });
+
+        // Section Dividers
+        const dividers = document.querySelectorAll('.section-divider');
+        
+        const dividerObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    setTimeout(() => {
+                        entry.target.classList.add('active');
+                    }, 300);
+                }
+            });
+        }, {
+            threshold: 0.5
+        });
+
+        dividers.forEach(divider => {
+            dividerObserver.observe(divider);
+        });
+
+        // Number Counter Animation
+        const counters = document.querySelectorAll('.counter[data-count]');
+        
+        const counterObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting && !entry.target.classList.contains('counted')) {
+                    entry.target.classList.add('counted');
+                    const target = parseInt(entry.target.getAttribute('data-count'));
+                    const duration = 2000;
+                    const steps = 60;
+                    const increment = target / steps;
+                    let current = 0;
+                    
+                    const timer = setInterval(() => {
+                        current += increment;
+                        if (current >= target) {
+                            current = target;
+                            clearInterval(timer);
+                        }
+                        entry.target.textContent = Math.floor(current);
+                    }, duration / steps);
+                }
+            });
+        }, {
+            threshold: 0.5
+        });
+
+        counters.forEach(counter => {
+            counterObserver.observe(counter);
+        });
+
+        // Glow on Scroll Elements
+        const glowElements = document.querySelectorAll('.glow-on-scroll');
+        
+        const glowElementObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('active');
+                }
+            });
+        }, {
+            threshold: 0.3
+        });
+
+        glowElements.forEach(el => {
+            glowElementObserver.observe(el);
+        });
+
+        // Scan Effect
+        const scanElements = document.querySelectorAll('.scan-effect');
+        
+        const scanObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('active');
+                }
+            });
+        }, {
+            threshold: 0.2
+        });
+
+        scanElements.forEach(el => {
+            scanObserver.observe(el);
+        });
+
+        // Magnetic Button Effect (Desktop Only)
+        if (window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
+            const magneticButtons = document.querySelectorAll('.magnetic');
+            
+            magneticButtons.forEach(button => {
+                button.addEventListener('mousemove', (e) => {
+                    const rect = button.getBoundingClientRect();
+                    const x = e.clientX - rect.left - rect.width / 2;
+                    const y = e.clientY - rect.top - rect.height / 2;
+                    
+                    const moveX = x * 0.3;
+                    const moveY = y * 0.3;
+                    
+                    button.style.transform = `translate(${moveX}px, ${moveY}px)`;
+                });
+                
+                button.addEventListener('mouseleave', () => {
+                    button.style.transform = 'translate(0, 0)';
+                });
+            });
+        }
+
+        // Spotlight Mouse Tracking (Desktop Only)
+        if (window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
+            const spotlightElements = document.querySelectorAll('.spotlight');
+            
+            spotlightElements.forEach(el => {
+                el.addEventListener('mousemove', (e) => {
+                    const rect = el.getBoundingClientRect();
+                    const x = ((e.clientX - rect.left) / rect.width) * 100;
+                    const y = ((e.clientY - rect.top) / rect.height) * 100;
+                    
+                    el.style.setProperty('--mouse-x', `${x}%`);
+                    el.style.setProperty('--mouse-y', `${y}%`);
+                });
+            });
+        }
+
+        // Parallax Effect on Scroll
+        let ticking = false;
+        
+        window.addEventListener('scroll', () => {
+            if (!ticking) {
+                window.requestAnimationFrame(() => {
+                    const scrolled = window.pageYOffset;
+                    
+                    // Parallax on floating elements
+                    document.querySelectorAll('.parallax-slow').forEach(el => {
+                        const speed = 0.5;
+                        el.style.transform = `translateY(${scrolled * speed}px)`;
+                    });
+                    
+                    ticking = false;
+                });
+                
+                ticking = true;
+            }
+        });
+
+        // Smooth Scroll for Internal Links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            document.querySelectorAll('*').forEach(el => {
+                el.style.animation = 'none';
+                el.style.transition = 'none';
+            });
+        }
+
+        // 🔥 PERFORMANCE: Disable heavy animations on low-end devices
+        if (window.innerWidth < 768 || navigator.hardwareConcurrency < 4) {
+            // Disable particles, spotlight effects, and complex animations on mobile/low-end
+            document.querySelectorAll('.float-animation').forEach(el => {
+                el.style.animation = 'none';
+            });
+            
+            document.querySelectorAll('.scan-effect').forEach(el => {
+                el.classList.remove('scan-effect');
+            });
+        }
+    </script>
+</body>
+</html>

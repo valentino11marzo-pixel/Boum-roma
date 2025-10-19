@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>For Owners – BOOM Rome</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;900&family=Oswald:wght@200;300;400;500&display=swap" rel="stylesheet">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        :root {
+            --gold: #FFD700;
+            --cyan: #00CED1;
+            --green: #00FF88;
+            --red: #FF3B3B;
+            --purple: #9D4EDD;
+            --orange: #FF6B35;
+            --pure-black: #000000;
+            --dark-void: #0A0A0A;
+            --dark-surface: #111111;
+            --text-primary: #FFFFFF;
+            --text-fade: #666666;
+            --text-secondary: #999999;
+        }
+
+        ::selection {
+            background: var(--gold);
+            color: var(--pure-black);
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--pure-black);
+            color: var(--text-primary);
+            font-weight: 200;
+            letter-spacing: 0.02em;
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        @media (hover: hover) {
+            .cursor {
+                position: fixed;
+                width: 20px;
+                height: 20px;
+                border: 1px solid var(--gold);
+                border-radius: 50%;
+                pointer-events: none;
+                z-index: 9999;
+                transition: transform 0.1s ease;
+                mix-blend-mode: difference;
+            }
+
+            .cursor-follower {
+                position: fixed;
+                width: 40px;
+                height: 40px;
+                border-radius: 50%;
+                background: var(--gold);
+                opacity: 0.1;
+                pointer-events: none;
+                z-index: 9998;
+                transition: transform 0.3s ease;
+            }
+        }
+
+        nav {
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 100;
+            padding: 30px 50px;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0) 100%);
+            transition: all 0.3s;
+        }
+
+        nav.scrolled {
+            background: rgba(0,0,0,0.98);
+            padding: 20px 50px;
+            backdrop-filter: blur(20px);
+        }
+
+        .nav-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            text-decoration: none;
+            color: white;
+        }
+
+        .logo-circle {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            border-radius: 50%;
+            box-shadow: 0 0 30px rgba(255, 215, 0, 0.5);
+            animation: glow 3s infinite;
+            opacity: 0.9;
+        }
+
+        @keyframes glow {
+            0%, 100% { box-shadow: 0 0 30px rgba(255, 215, 0, 0.5); }
+            50% { box-shadow: 0 0 50px rgba(255, 215, 0, 0.8); }
+        }
+
+        .logo-text {
+            font-family: 'Oswald', sans-serif;
+            font-size: 32px;
+            font-weight: 300;
+            letter-spacing: -2px;
+            text-transform: uppercase;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 40px;
+            align-items: center;
+        }
+
+        .nav-link {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: color 0.3s;
+            position: relative;
+            font-weight: 400;
+        }
+
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 0;
+            width: 0;
+            height: 1px;
+            background: var(--gold);
+            transition: width 0.3s;
+        }
+
+        .nav-link:hover {
+            color: var(--text-primary);
+        }
+
+        .nav-link:hover::after {
+            width: 100%;
+        }
+
+        .nav-cta {
+            padding: 12px 30px;
+            background: transparent;
+            border: 1px solid var(--gold);
+            color: var(--gold);
+            text-decoration: none;
+            font-size: 11px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+
+        .nav-cta:hover {
+            background: var(--gold);
+            color: var(--pure-black);
+            transform: translateY(-2px);
+        }
+
+        /* Hero Section */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 0 50px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero-bg-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: min(50vw, 800px);
+            font-weight: 200;
+            letter-spacing: -0.05em;
+            color: var(--dark-void);
+            z-index: 0;
+            user-select: none;
+            line-height: 0.8;
+            font-family: 'Oswald', sans-serif;
+        }
+
+        .hero-content {
+            z-index: 1;
+            position: relative;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 40px;
+            padding: 10px 20px;
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            background: rgba(0, 255, 136, 0.05);
+        }
+
+        .live-indicator {
+            width: 8px;
+            height: 8px;
+            background: var(--green);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+            box-shadow: 0 0 10px var(--green);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .badge-text {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            color: var(--green);
+            font-weight: 500;
+        }
+
+        h1 {
+            font-size: clamp(60px, 12vw, 180px);
+            font-weight: 100;
+            line-height: 0.85;
+            letter-spacing: -0.03em;
+            text-transform: uppercase;
+            margin-bottom: 30px;
+        }
+
+        .gold-accent {
+            color: var(--gold);
+            font-weight: 300;
+        }
+
+        .hero-subtitle {
+            font-size: clamp(18px, 3vw, 24px);
+            color: var(--text-secondary);
+            font-weight: 300;
+            margin-bottom: 60px;
+            max-width: 700px;
+        }
+
+        .cta-primary {
+            padding: 20px 60px;
+            background: var(--gold);
+            color: var(--pure-black);
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            transition: all 0.4s;
+            border: none;
+            display: inline-block;
+        }
+
+        .cta-primary:hover {
+            transform: scaleX(1.05);
+            letter-spacing: 4px;
+        }
+
+        /* Stats Bar */
+        .stats-bar {
+            padding: 80px 50px;
+            background: var(--dark-void);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .stats-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 40px;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 64px;
+            font-weight: 100;
+            font-family: 'Oswald', sans-serif;
+            color: var(--gold);
+            letter-spacing: -3px;
+            margin-bottom: 10px;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--text-fade);
+        }
+
+        /* Benefits Section */
+        .benefits-section {
+            padding: 100px 50px;
+            background: var(--pure-black);
+        }
+
+        .benefits-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .section-header {
+            margin-bottom: 80px;
+        }
+
+        .section-tag {
+            display: inline-block;
+            padding: 8px 20px;
+            background: var(--green);
+            color: var(--pure-black);
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            font-size: clamp(40px, 8vw, 100px);
+            font-weight: 100;
+            line-height: 0.9;
+            text-transform: uppercase;
+            margin-bottom: 20px;
+        }
+
+        .gradient-green {
+            background: linear-gradient(135deg, var(--green), var(--cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: 700;
+        }
+
+        .benefits-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+        }
+
+        .benefit-card {
+            padding: 50px 40px;
+            background: var(--dark-surface);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            transition: all 0.3s;
+        }
+
+        .benefit-card:hover {
+            transform: translateY(-5px);
+            border-color: rgba(255, 215, 0, 0.2);
+            background: rgba(255, 215, 0, 0.02);
+        }
+
+        .benefit-icon {
+            font-size: 48px;
+            margin-bottom: 25px;
+        }
+
+        .benefit-card h3 {
+            font-size: 24px;
+            font-weight: 300;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: -0.5px;
+        }
+
+        .benefit-card p {
+            font-size: 14px;
+            color: var(--text-secondary);
+            line-height: 1.8;
+            margin-bottom: 20px;
+        }
+
+        .benefit-highlight {
+            font-size: 28px;
+            color: var(--gold);
+            font-family: 'Oswald', sans-serif;
+            letter-spacing: -1px;
+        }
+
+        /* Commission Section */
+        .commission-section {
+            padding: 100px 50px;
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.02), transparent);
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .commission-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .commission-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 80px;
+            align-items: center;
+            margin-top: 80px;
+        }
+
+        .commission-price {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .price-option {
+            padding: 40px;
+            background: var(--dark-surface);
+            border: 2px solid var(--gold);
+            border-radius: 10px;
+        }
+
+        .price-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            color: var(--gold);
+            margin-bottom: 15px;
+        }
+
+        .price-value {
+            font-size: 64px;
+            font-weight: 100;
+            font-family: 'Oswald', sans-serif;
+            color: var(--gold);
+            letter-spacing: -3px;
+            margin-bottom: 10px;
+        }
+
+        .price-desc {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .commission-features ul {
+            list-style: none;
+        }
+
+        .commission-features li {
+            padding: 20px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 16px;
+            position: relative;
+            padding-left: 30px;
+        }
+
+        .commission-features li::before {
+            content: '✓';
+            position: absolute;
+            left: 0;
+            color: var(--green);
+            font-weight: 700;
+            font-size: 20px;
+        }
+
+        /* Dashboard Preview */
+        .dashboard-section {
+            padding: 100px 50px;
+            background: var(--dark-void);
+        }
+
+        .dashboard-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .dashboard-preview {
+            margin-top: 80px;
+            padding: 60px;
+            background: var(--dark-surface);
+            border: 1px solid rgba(255, 215, 0, 0.1);
+            border-radius: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .dashboard-preview::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255, 215, 0, 0.05) 0%, transparent 70%);
+        }
+
+        .dashboard-features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 30px;
+            position: relative;
+        }
+
+        .dashboard-feature {
+            padding: 30px;
+            background: var(--pure-black);
+            border-radius: 10px;
+        }
+
+        .dashboard-feature-icon {
+            font-size: 32px;
+            margin-bottom: 15px;
+        }
+
+        .dashboard-feature h4 {
+            font-size: 16px;
+            font-weight: 500;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .dashboard-feature p {
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        /* CTA Section */
+        .final-cta {
+            padding: 150px 50px;
+            background: var(--pure-black);
+            text-align: center;
+            position: relative;
+        }
+
+        .final-cta-glow {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 600px;
+            height: 600px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255, 215, 0, 0.1) 0%, transparent 70%);
+        }
+
+        .final-cta-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .final-cta h2 {
+            font-size: clamp(50px, 10vw, 120px);
+            font-weight: 100;
+            line-height: 0.9;
+            text-transform: uppercase;
+            margin-bottom: 40px;
+        }
+
+        .final-cta p {
+            font-size: 18px;
+            color: var(--text-secondary);
+            margin-bottom: 60px;
+        }
+
+        /* Footer */
+        footer {
+            padding: 80px 50px 40px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .footer-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr;
+            gap: 60px;
+            margin-bottom: 60px;
+            max-width: 1400px;
+            margin: 0 auto 60px;
+        }
+
+        .footer-brand h3 {
+            font-family: 'Oswald', sans-serif;
+            font-size: 48px;
+            font-weight: 300;
+            letter-spacing: -3px;
+            margin-bottom: 20px;
+        }
+
+        .footer-brand p {
+            font-size: 12px;
+            color: var(--text-fade);
+            line-height: 1.8;
+            font-weight: 300;
+        }
+
+        .footer-links h4 {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            margin-bottom: 20px;
+            color: var(--gold);
+        }
+
+        .footer-links ul {
+            list-style: none;
+        }
+
+        .footer-links a {
+            color: var(--text-fade);
+            text-decoration: none;
+            font-size: 12px;
+            display: block;
+            padding: 5px 0;
+            transition: color 0.3s;
+            font-weight: 300;
+        }
+
+        .footer-links a:hover {
+            color: var(--text-primary);
+        }
+
+        .footer-bottom {
+            display: flex;
+            justify-content: space-between;
+            padding-top: 40px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--text-fade);
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .reveal {
+            opacity: 0;
+            transform: translateY(50px);
+            transition: all 1s ease;
+        }
+
+        .reveal.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        @media (max-width: 768px) {
+            nav {
+                padding: 20px;
+            }
+
+            .nav-links {
+                display: none;
+            }
+
+            .hero {
+                padding: 0 20px;
+            }
+
+            h1 {
+                font-size: 50px;
+            }
+
+            .stats-container {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .benefits-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .commission-grid {
+                grid-template-columns: 1fr;
+                gap: 40px;
+            }
+
+            .dashboard-features {
+                grid-template-columns: 1fr;
+            }
+
+            .footer-grid {
+                grid-template-columns: 1fr;
+                gap: 40px;
+            }
+
+            .footer-bottom {
+                flex-direction: column;
+                gap: 10px;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="cursor"></div>
+    <div class="cursor-follower"></div>
+
+    <nav id="navbar">
+        <div class="nav-container">
+            <a href="/" class="logo">
+                <div class="logo-circle"></div>
+                <span class="logo-text">BOOM</span>
+            </a>
+            
+            <div class="nav-links">
+                <a href="/apartments.html" class="nav-link">Apartments</a>
+                <a href="/property-finding.html" class="nav-link">Property Finding</a>
+                <a href="/concierge.html" class="nav-link">Concierge</a>
+                <a href="/how-it-works.html" class="nav-link">How It Works</a>
+                <a href="/about.html" class="nav-link">About</a>
+                <a href="https://wa.me/393313251961" class="nav-cta">WhatsApp</a>
+            </div>
+        </div>
+    </nav>
+
+    <section class="hero">
+        <div class="hero-bg-text">€</div>
+        
+        <div class="hero-content">
+            <div class="hero-badge">
+                <span class="live-indicator"></span>
+                <span class="badge-text">For Property Owners</span>
+            </div>
+            
+            <h1 class="reveal">
+                Rent your flat<br>
+                without the<br>
+                <span class="gold-accent">bullshit</span>
+            </h1>
+            
+            <p class="hero-subtitle reveal">
+                98% occupancy. Guaranteed rent. Professional tenants.<br>
+                Zero hassle. Just monthly money in your account.
+            </p>
+            
+            <a href="https://wa.me/393313251961" class="cta-primary reveal">List Your Property</a>
+        </div>
+    </section>
+
+    <section class="stats-bar">
+        <div class="stats-container">
+            <div class="stat-item reveal">
+                <div class="stat-number">98%</div>
+                <div class="stat-label">Occupancy Rate</div>
+            </div>
+            <div class="stat-item reveal">
+                <div class="stat-number">3.2</div>
+                <div class="stat-label">Year Avg Lease</div>
+            </div>
+            <div class="stat-item reveal">
+                <div class="stat-number">24H</div>
+                <div class="stat-label">Payment to You</div>
+            </div>
+            <div class="stat-item reveal">
+                <div class="stat-number">€0</div>
+                <div class="stat-label">Hidden Fees</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="benefits-section">
+        <div class="benefits-container">
+            <div class="section-header">
+                <span class="section-tag">WHY BOOM</span>
+                <h2 class="section-title reveal">
+                    We handle everything.<br>
+                    <span class="gradient-green">You collect rent.</span>
+                </h2>
+            </div>
+            
+            <div class="benefits-grid">
+                <div class="benefit-card reveal">
+                    <div class="benefit-icon">💰</div>
+                    <h3>Guaranteed Rent</h3>
+                    <p>Your rent arrives every month. Even if tenant is late. Even if they don't pay. We handle everything.</p>
+                    <div class="benefit-highlight">Risk-Free Income</div>
+                </div>
+                
+                <div class="benefit-card reveal">
+                    <div class="benefit-icon">👔</div>
+                    <h3>Premium Tenants Only</h3>
+                    <p>Expats, digital nomads, professionals. Verified income. Background checked. References validated.</p>
+                    <div class="benefit-highlight">No Problematic Tenants</div>
+                </div>
+                
+                <div class="benefit-card reveal">
+                    <div class="benefit-icon">🛡️</div>
+                    <h3>Legal Protection</h3>
+                    <p>Compliant contracts. Insurance included. Legal support if needed. You're fully protected.</p>
+                    <div class="benefit-highlight">Zero Legal Risk</div>
+                </div>
+                
+                <div class="benefit-card reveal">
+                    <div class="benefit-icon">🔧</div>
+                    <h3>We Handle Repairs</h3>
+                    <p>Tenant calls us, not you. We coordinate repairs. We handle complaints. You stay stress-free.</p>
+                    <div class="benefit-highlight">24/7 Management</div>
+                </div>
+                
+                <div class="benefit-card reveal">
+                    <div class="benefit-icon">📸</div>
+                    <h3>Professional Marketing</h3>
+                    <p>Video tour. Professional photos. Multi-platform listing. Your flat gets seen by the right people.</p>
+                    <div class="benefit-highlight">Maximum Visibility</div>
+                </div>
+                
+                <div class="benefit-card reveal">
+                    <div class="benefit-icon">⚡</div>
+                    <h3>Fast Placement</h3>
+                    <p>Average time to rent: 8 days. We have a waitlist. Your flat won't stay empty.</p>
+                    <div class="benefit-highlight">Minimal Vacancy</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="commission-section">
+        <div class="commission-container">
+            <div class="section-header">
+                <span class="section-tag">PRICING</span>
+                <h2 class="section-title reveal">
+                    Simple, transparent.<br>
+                    <span class="gold-accent">No surprises.</span>
+                </h2>
+            </div>
+            
+            <div class="commission-grid">
+                <div class="commission-price reveal">
+                    <div class="price-option">
+                        <div class="price-label">Standard Commission</div>
+                        <div class="price-value">1 Month</div>
+                        <div class="price-desc">One month rent as commission. That's it.</div>
+                    </div>
+                    
+                    <div class="price-option" style="border-color: var(--green);">
+                        <div class="price-label" style="color: var(--green);">Or Annual Rate</div>
+                        <div class="price-value" style="color: var(--green);">10%</div>
+                        <div class="price-desc">10% of annual rent. Better for long leases.</div>
+                    </div>
+                </div>
+                
+                <div class="commission-features reveal">
+                    <h3 style="font-size: 18px; font-weight: 400; margin-bottom: 30px; text-transform: uppercase;">What's Included</h3>
+                    <ul>
+                        <li>Professional video tour & photos</li>
+                        <li>Multi-platform marketing</li>
+                        <li>Tenant screening & verification</li>
+                        <li>Legal contract preparation</li>
+                        <li>Inventory & condition report</li>
+                        <li>Monthly rent guarantee</li>
+                        <li>24/7 tenant support</li>
+                        <li>Maintenance coordination</li>
+                        <li>Bi-annual property inspections</li>
+                        <li>End-of-lease management</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="dashboard-section">
+        <div class="dashboard-container">
+            <div class="section-header" style="text-align: center;">
+                <span class="section-tag">OWNER DASHBOARD</span>
+                <h2 class="section-title reveal">
+                    Track everything.<br>
+                    <span class="gold-accent">Control everything.</span>
+                </h2>
+            </div>
+            
+            <div class="dashboard-preview reveal">
+                <div class="dashboard-features">
+                    <div class="dashboard-feature">
+                        <div class="dashboard-feature-icon">📊</div>
+                        <h4>Financial Reports</h4>
+                        <p>Real-time income tracking. Tax-ready statements. Export anytime.</p>
+                    </div>
+                    
+                    <div class="dashboard-feature">
+                        <div class="dashboard-feature-icon">📅</div>
+                        <h4>Important Dates</h4>
+                        <p>Lease renewals. Inspection dates. Payment schedules. Never miss anything.</p>
+                    </div>
+                    
+                    <div class="dashboard-feature">
+                        <div class="dashboard-feature-icon">📄</div>
+                        <h4>Document Storage</h4>
+                        <p>Contracts, invoices, reports. Everything in one secure place.</p>
+                    </div>
+                    
+                    <div class="dashboard-feature">
+                        <div class="dashboard-feature-icon">💬</div>
+                        <h4>Direct Messaging</h4>
+                        <p>Contact us anytime. 2-minute response time guaranteed.</p>
+                    </div>
+                    
+                    <div class="dashboard-feature">
+                        <div class="dashboard-feature-icon">📸</div>
+                        <h4>Property Photos</h4>
+                        <p>Before & after photos. Inspection reports. Complete transparency.</p>
+                    </div>
+                    
+                    <div class="dashboard-feature">
+                        <div class="dashboard-feature-icon">⚠️</div>
+                        <h4>Instant Alerts</h4>
+                        <p>Maintenance issues. Payment confirmations. Everything you need to know.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="final-cta">
+        <div class="final-cta-glow"></div>
+        <div class="final-cta-content">
+            <h2 class="reveal">
+                Ready to<br>
+                <span class="gold-accent">start earning?</span>
+            </h2>
+            <p class="reveal">No games. No bullshit. Just transparent, professional property management.</p>
+            <a href="https://wa.me/393313251961" class="cta-primary reveal">List Your Property Now</a>
+        </div>
+    </section>
+
+    <footer>
+        <div class="footer-grid">
+            <div class="footer-brand">
+                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
+                    <div style="width: 40px; height: 40px; background: linear-gradient(135deg, #FFD700, #FFA500); border-radius: 50%; opacity: 0.9;"></div>
+                    <h3>BOOM</h3>
+                </div>
+                <p>
+                    Built in Rome, for Rome.<br><br>
+                    <strong>Egidi Immobiliare S.r.l.</strong><br>
+                    P.IVA 17322991005
+                </p>
+            </div>
+            
+            <div class="footer-links">
+                <h4>System</h4>
+                <ul>
+                    <li><a href="/apartments.html">Apartments</a></li>
+                    <li><a href="/property-finding.html">Property Finding</a></li>
+                    <li><a href="/how-it-works.html">How It Works</a></li>
+                    <li><a href="/concierge.html">Concierge</a></li>
+                </ul>
+            </div>
+            
+            <div class="footer-links">
+                <h4>Company</h4>
+                <ul>
+                    <li><a href="/about.html">Why BOOM</a></li>
+                    <li><a href="/owners.html">For Owners</a></li>
+                    <li><a href="/contact.html">Contact</a></li>
+                </ul>
+            </div>
+            
+            <div class="footer-links">
+                <h4>Legal</h4>
+                <ul>
+                    <li><a href="/terms.html">Terms</a></li>
+                    <li><a href="/privacy.html">Privacy</a></li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="footer-bottom">
+            <span>© 2025 BOOM – Rome, Italy</span>
+            <span>Status: Operational</span>
+        </div>
+    </footer>
+
+    <script>
+        if (window.matchMedia('(hover: hover)').matches) {
+            const cursor = document.querySelector('.cursor');
+            const follower = document.querySelector('.cursor-follower');
+
+            document.addEventListener('mousemove', (e) => {
+                cursor.style.left = e.clientX + 'px';
+                cursor.style.top = e.clientY + 'px';
+                
+                setTimeout(() => {
+                    follower.style.left = e.clientX - 10 + 'px';
+                    follower.style.top = e.clientY - 10 + 'px';
+                }, 100);
+            });
+
+            document.querySelectorAll('a, button').forEach(link => {
+                link.addEventListener('mouseenter', () => {
+                    cursor.style.transform = 'scale(2)';
+                    follower.style.transform = 'scale(0.5)';
+                });
+                link.addEventListener('mouseleave', () => {
+                    cursor.style.transform = 'scale(1)';
+                    follower.style.transform = 'scale(1)';
+                });
+            });
+        }
+
+        window.addEventListener('scroll', function() {
+            const navbar = document.getElementById('navbar');
+            if (window.scrollY > 50) {
+                navbar.classList.add('scrolled');
+            } else {
+                navbar.classList.remove('scrolled');
+            }
+        });
+
+        const reveals = document.querySelectorAll('.reveal');
+        
+        function reveal() {
+            reveals.forEach(element => {
+                const windowHeight = window.innerHeight;
+                const elementTop = element.getBoundingClientRect().top;
+                const elementVisible = 150;
+                
+                if (elementTop < windowHeight - elementVisible) {
+                    element.classList.add('active');
+                }
+            });
+        }
+
+        window.addEventListener('scroll', reveal);
+        reveal();
+    </script>
+</body>
+</html>

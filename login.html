@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login – BOOM Rome</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;900&family=Oswald:wght@200;300;400;500&display=swap" rel="stylesheet">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        :root {
+            --gold: #FFD700;
+            --green: #00FF88;
+            --pure-black: #000000;
+            --dark-void: #0A0A0A;
+            --dark-surface: #111111;
+            --text-primary: #FFFFFF;
+            --text-fade: #666666;
+            --text-secondary: #999999;
+        }
+
+        ::selection {
+            background: var(--gold);
+            color: var(--pure-black);
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--pure-black);
+            color: var(--text-primary);
+            font-weight: 200;
+            letter-spacing: 0.02em;
+            line-height: 1.6;
+            overflow-x: hidden;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        @media (hover: hover) {
+            .cursor {
+                position: fixed;
+                width: 20px;
+                height: 20px;
+                border: 1px solid var(--gold);
+                border-radius: 50%;
+                pointer-events: none;
+                z-index: 9999;
+                transition: transform 0.1s ease;
+                mix-blend-mode: difference;
+            }
+
+            .cursor-follower {
+                position: fixed;
+                width: 40px;
+                height: 40px;
+                border-radius: 50%;
+                background: var(--gold);
+                opacity: 0.1;
+                pointer-events: none;
+                z-index: 9998;
+                transition: transform 0.3s ease;
+            }
+        }
+
+        /* Background Glow */
+        .bg-glow {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 1000px;
+            height: 1000px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255, 215, 0, 0.08) 0%, transparent 70%);
+            z-index: 0;
+            animation: pulse-glow 8s infinite;
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.08; }
+            50% { transform: translate(-50%, -50%) scale(1.1); opacity: 0.12; }
+        }
+
+        /* Back Button */
+        .back-button {
+            position: fixed;
+            top: 40px;
+            left: 40px;
+            z-index: 100;
+        }
+
+        .back-link {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.3s;
+            font-weight: 400;
+        }
+
+        .back-link:hover {
+            color: var(--gold);
+            transform: translateX(-5px);
+        }
+
+        .back-arrow {
+            font-size: 16px;
+        }
+
+        /* Login Container */
+        .login-container {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 480px;
+            padding: 60px 50px;
+            background: var(--dark-surface);
+            border: 1px solid rgba(255, 215, 0, 0.2);
+            border-radius: 20px;
+            margin: 20px;
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 50px;
+        }
+
+        .logo-circle {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            border-radius: 50%;
+            box-shadow: 0 0 40px rgba(255, 215, 0, 0.5);
+            animation: glow 3s infinite;
+            opacity: 0.9;
+            margin: 0 auto 25px;
+        }
+
+        @keyframes glow {
+            0%, 100% { box-shadow: 0 0 40px rgba(255, 215, 0, 0.5); }
+            50% { box-shadow: 0 0 60px rgba(255, 215, 0, 0.8); }
+        }
+
+        .login-title {
+            font-size: 36px;
+            font-weight: 100;
+            text-transform: uppercase;
+            letter-spacing: -1px;
+            margin-bottom: 10px;
+            font-family: 'Oswald', sans-serif;
+        }
+
+        .login-subtitle {
+            font-size: 13px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        /* Tab Switcher */
+        .tab-switcher {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 40px;
+            background: var(--pure-black);
+            padding: 5px;
+            border-radius: 10px;
+        }
+
+        .tab-button {
+            flex: 1;
+            padding: 15px;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border-radius: 8px;
+            font-family: 'Inter', sans-serif;
+            font-weight: 400;
+        }
+
+        .tab-button.active {
+            background: var(--gold);
+            color: var(--pure-black);
+            font-weight: 600;
+        }
+
+        .tab-button:hover:not(.active) {
+            color: var(--text-primary);
+        }
+
+        /* Form */
+        .login-form {
+            display: none;
+        }
+
+        .login-form.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--text-fade);
+            margin-bottom: 10px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 18px 20px;
+            background: var(--pure-black);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            color: var(--text-primary);
+            font-size: 15px;
+            font-family: 'Inter', sans-serif;
+            transition: all 0.3s;
+            font-weight: 300;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--gold);
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.2);
+        }
+
+        .form-input::placeholder {
+            color: var(--text-fade);
+        }
+
+        .forgot-password {
+            text-align: right;
+            margin-top: 10px;
+        }
+
+        .forgot-link {
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: color 0.3s;
+        }
+
+        .forgot-link:hover {
+            color: var(--gold);
+        }
+
+        .submit-button {
+            width: 100%;
+            padding: 20px;
+            background: var(--gold);
+            color: var(--pure-black);
+            border: none;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.4s;
+            margin-top: 30px;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .submit-button:hover {
+            transform: scaleX(1.05);
+            letter-spacing: 4px;
+        }
+
+        .submit-button:active {
+            transform: scaleX(0.95);
+        }
+
+        /* Divider */
+        .divider {
+            display: flex;
+            align-items: center;
+            text-align: center;
+            margin: 40px 0;
+            color: var(--text-fade);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .divider::before,
+        .divider::after {
+            content: '';
+            flex: 1;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .divider span {
+            padding: 0 15px;
+        }
+
+        /* Alternative Login */
+        .alt-login {
+            text-align: center;
+        }
+
+        .whatsapp-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            padding: 18px 40px;
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            color: var(--text-primary);
+            text-decoration: none;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.3s;
+            font-weight: 400;
+        }
+
+        .whatsapp-button:hover {
+            border-color: var(--green);
+            background: rgba(0, 255, 136, 0.05);
+            transform: translateY(-2px);
+        }
+
+        .whatsapp-icon {
+            font-size: 20px;
+        }
+
+        /* Info Notice */
+        .info-notice {
+            margin-top: 40px;
+            padding: 20px;
+            background: rgba(0, 255, 136, 0.05);
+            border: 1px solid rgba(0, 255, 136, 0.2);
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .info-notice p {
+            font-size: 12px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .info-notice strong {
+            color: var(--green);
+        }
+
+        /* Coming Soon Badge */
+        .coming-soon {
+            display: inline-block;
+            padding: 5px 15px;
+            background: rgba(255, 215, 0, 0.2);
+            border: 1px solid var(--gold);
+            border-radius: 20px;
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--gold);
+            margin-left: 10px;
+            font-weight: 600;
+        }
+
+        @media (max-width: 768px) {
+            .back-button {
+                top: 20px;
+                left: 20px;
+            }
+
+            .login-container {
+                padding: 40px 30px;
+                margin: 20px;
+            }
+
+            .login-title {
+                font-size: 28px;
+            }
+
+            .tab-switcher {
+                flex-direction: column;
+            }
+
+            .submit-button:hover {
+                transform: none;
+                letter-spacing: 3px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="cursor"></div>
+    <div class="cursor-follower"></div>
+    <div class="bg-glow"></div>
+
+    <div class="back-button">
+        <a href="/" class="back-link">
+            <span class="back-arrow">←</span>
+            <span>Back to Home</span>
+        </a>
+    </div>
+
+    <div class="login-container">
+        <div class="login-header">
+            <div class="logo-circle"></div>
+            <h1 class="login-title">BOOM</h1>
+            <p class="login-subtitle">Client & Owner Portal</p>
+        </div>
+
+        <div class="tab-switcher">
+            <button class="tab-button active" data-form="tenant">Tenant Login</button>
+            <button class="tab-button" data-form="owner">Owner Login</button>
+        </div>
+
+        <!-- Tenant Login Form -->
+        <form class="login-form active" id="tenantForm">
+            <div class="form-group">
+                <label class="form-label">Email Address</label>
+                <input type="email" class="form-input" placeholder="your@email.com" required>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Password</label>
+                <input type="password" class="form-input" placeholder="Enter your password" required>
+            </div>
+
+            <div class="forgot-password">
+                <a href="#" class="forgot-link">Forgot Password?</a>
+            </div>
+
+            <button type="submit" class="submit-button">
+                Access Dashboard
+            </button>
+        </form>
+
+        <!-- Owner Login Form -->
+        <form class="login-form" id="ownerForm">
+            <div class="form-group">
+                <label class="form-label">Email Address</label>
+                <input type="email" class="form-input" placeholder="your@email.com" required>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Password</label>
+                <input type="password" class="form-input" placeholder="Enter your password" required>
+            </div>
+
+            <div class="forgot-password">
+                <a href="#" class="forgot-link">Forgot Password?</a>
+            </div>
+
+            <button type="submit" class="submit-button">
+                Access Dashboard
+            </button>
+        </form>
+
+        <div class="divider">
+            <span>Or</span>
+        </div>
+
+        <div class="alt-login">
+            <a href="https://wa.me/393313251961" class="whatsapp-button">
+                <span class="whatsapp-icon">💬</span>
+                <span>Contact via WhatsApp</span>
+            </a>
+        </div>
+
+        <div class="info-notice">
+            <p>
+                <strong>Dashboard Coming Soon</strong><br>
+                Full self-service portal launching Q2 2025. For now, all services are available via WhatsApp or email.
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // Custom Cursor
+        if (window.matchMedia('(hover: hover)').matches) {
+            const cursor = document.querySelector('.cursor');
+            const follower = document.querySelector('.cursor-follower');
+
+            document.addEventListener('mousemove', (e) => {
+                cursor.style.left = e.clientX + 'px';
+                cursor.style.top = e.clientY + 'px';
+                
+                setTimeout(() => {
+                    follower.style.left = e.clientX - 10 + 'px';
+                    follower.style.top = e.clientY - 10 + 'px';
+                }, 100);
+            });
+
+            document.querySelectorAll('a, button, input').forEach(element => {
+                element.addEventListener('mouseenter', () => {
+                    cursor.style.transform = 'scale(2)';
+                    follower.style.transform = 'scale(0.5)';
+                });
+                element.addEventListener('mouseleave', () => {
+                    cursor.style.transform = 'scale(1)';
+                    follower.style.transform = 'scale(1)';
+                });
+            });
+        }
+
+        // Tab Switcher
+        const tabButtons = document.querySelectorAll('.tab-button');
+        const loginForms = document.querySelectorAll('.login-form');
+
+        tabButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const formType = button.dataset.form;
+                
+                tabButtons.forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+                
+                loginForms.forEach(form => {
+                    if (form.id === formType + 'Form') {
+                        form.classList.add('active');
+                    } else {
+                        form.classList.remove('active');
+                    }
+                });
+            });
+        });
+
+        // Form Submission (Placeholder)
+        const forms = document.querySelectorAll('.login-form');
+        forms.forEach(form => {
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                alert('Dashboard launching Q2 2025. For now, please contact us via WhatsApp!');
+            });
+        });
+    </script>
+</body>
+</html>
