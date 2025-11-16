@@ -1,0 +1,2066 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Owner Portal V2.0 - BOOM</title>
+
+```
+<!-- Meta Tags -->
+<meta name="description" content="Manage your BOOM properties with complete document management">
+<meta name="theme-color" content="#0A0A0A">
+
+<!-- Google Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Bebas+Neue&family=Oswald:wght@200;300;400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+
+    :root {
+        /* BOOM Colors */
+        --boom-yellow: #FFD700;
+        --boom-cyan: #00CED1;
+        --boom-green: #00FF88;
+        --boom-red: #FF3B3B;
+        --boom-purple: #9D4EDD;
+        --boom-orange: #FF6B35;
+        --boom-blue: #4A90E2;
+        
+        /* Dark Theme */
+        --dark-bg: #0A0A0A;
+        --dark-surface: #1A1A1A;
+        --dark-elevated: #252525;
+        --dark-border: rgba(255, 255, 255, 0.08);
+        --dark-hover: rgba(255, 255, 255, 0.05);
+        
+        /* Text */
+        --text-primary: #FFFFFF;
+        --text-secondary: #888888;
+        --text-tertiary: #555555;
+        
+        /* Fonts */
+        --font-display: 'Bebas Neue', sans-serif;
+        --font-heading: 'Oswald', sans-serif;
+        --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    body {
+        font-family: var(--font-body);
+        background: var(--dark-bg);
+        color: var(--text-primary);
+        line-height: 1.6;
+        overflow-x: hidden;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: var(--dark-bg); }
+    ::-webkit-scrollbar-thumb { background: var(--dark-elevated); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #333; }
+
+    /* Dashboard Layout */
+    .dashboard-container {
+        display: grid;
+        grid-template-columns: 280px 1fr;
+        min-height: 100vh;
+    }
+
+    /* Sidebar */
+    .sidebar {
+        background: var(--dark-surface);
+        border-right: 1px solid var(--dark-border);
+        padding: 30px 20px;
+        position: sticky;
+        top: 0;
+        height: 100vh;
+        overflow-y: auto;
+        z-index: 100;
+    }
+
+    .logo-container {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 40px;
+        padding: 10px;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .logo-container:hover { transform: translateX(5px); }
+
+    .logo-circle {
+        width: 40px;
+        height: 40px;
+        background: var(--boom-yellow);
+        border-radius: 50%;
+        box-shadow: 0 0 30px rgba(255, 215, 0, 0.6);
+        animation: pulse 3s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+        0%, 100% { box-shadow: 0 0 30px rgba(255, 215, 0, 0.6); }
+        50% { box-shadow: 0 0 40px rgba(255, 215, 0, 0.8); }
+    }
+
+    .logo-text {
+        font-family: var(--font-display);
+        font-size: 32px;
+        letter-spacing: 2px;
+    }
+
+    .owner-badge {
+        padding: 10px 20px;
+        background: linear-gradient(135deg, rgba(157, 78, 221, 0.15), rgba(74, 144, 226, 0.15));
+        border: 1px solid var(--boom-purple);
+        border-radius: 100px;
+        text-align: center;
+        margin-bottom: 30px;
+    }
+
+    .owner-badge-title {
+        font-size: 11px;
+        color: var(--boom-purple);
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+    }
+
+    .owner-name {
+        font-size: 14px;
+        font-weight: 600;
+        margin-top: 4px;
+    }
+
+    .nav-menu { list-style: none; }
+
+    .nav-section-title {
+        font-size: 11px;
+        color: var(--text-tertiary);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-weight: 600;
+        margin: 25px 0 10px 15px;
+    }
+
+    .nav-item { margin-bottom: 4px; }
+
+    .nav-link {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 12px 16px;
+        color: var(--text-secondary);
+        text-decoration: none;
+        border-radius: 12px;
+        transition: all 0.15s;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        position: relative;
+    }
+
+    .nav-link::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        height: 100%;
+        width: 3px;
+        background: var(--boom-purple);
+        transform: scaleY(0);
+        transition: transform 0.3s;
+    }
+
+    .nav-link:hover,
+    .nav-link.active {
+        background: var(--dark-hover);
+        color: var(--boom-purple);
+    }
+
+    .nav-link.active::before { transform: scaleY(1); }
+
+    .nav-icon {
+        font-size: 20px;
+        width: 24px;
+        text-align: center;
+    }
+
+    .nav-badge {
+        margin-left: auto;
+        padding: 2px 8px;
+        background: var(--boom-red);
+        color: white;
+        border-radius: 10px;
+        font-size: 11px;
+        font-weight: 700;
+    }
+
+    /* Main Content */
+    .main-content {
+        padding: 40px;
+        max-width: 1600px;
+        overflow-y: auto;
+    }
+
+    /* Page Header */
+    .page-header { margin-bottom: 40px; }
+
+    .header-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 30px;
+        flex-wrap: wrap;
+        gap: 20px;
+    }
+
+    .header-title {
+        font-family: var(--font-heading);
+        font-size: 48px;
+        font-weight: 300;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        background: linear-gradient(135deg, var(--text-primary), var(--boom-purple));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+
+    .header-subtitle {
+        font-size: 16px;
+        color: var(--text-secondary);
+        font-weight: 400;
+        margin-top: 8px;
+    }
+
+    .header-actions {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+    }
+
+    .btn {
+        padding: 14px 28px;
+        border: none;
+        border-radius: 100px;
+        font-size: 14px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        cursor: pointer;
+        transition: all 0.3s;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-family: var(--font-body);
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, var(--boom-purple), var(--boom-blue));
+        color: white;
+        box-shadow: 0 4px 20px rgba(157, 78, 221, 0.4);
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 30px rgba(157, 78, 221, 0.6);
+    }
+
+    .btn-secondary {
+        background: var(--dark-elevated);
+        color: var(--text-primary);
+        border: 1px solid var(--dark-border);
+    }
+
+    .btn-secondary:hover {
+        background: var(--dark-surface);
+        border-color: var(--boom-purple);
+    }
+
+    /* Stats Grid */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 20px;
+        margin-bottom: 40px;
+    }
+
+    .stat-card {
+        background: var(--dark-surface);
+        border: 1px solid var(--dark-border);
+        border-radius: 20px;
+        padding: 28px;
+        position: relative;
+        overflow: hidden;
+        transition: all 0.3s;
+    }
+
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, var(--boom-purple), var(--boom-cyan));
+        transform: scaleX(0);
+        transition: transform 0.3s;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+        border-color: var(--boom-purple);
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    }
+
+    .stat-card:hover::before { transform: scaleX(1); }
+
+    .stat-card.highlight {
+        background: linear-gradient(135deg, rgba(157, 78, 221, 0.12), rgba(0, 206, 209, 0.12));
+        border-color: var(--boom-purple);
+    }
+
+    .stat-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+
+    .stat-icon {
+        width: 50px;
+        height: 50px;
+        background: linear-gradient(135deg, rgba(157, 78, 221, 0.2), rgba(74, 144, 226, 0.2));
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+    }
+
+    .stat-trend {
+        font-size: 12px;
+        font-weight: 600;
+        padding: 4px 10px;
+        border-radius: 20px;
+    }
+
+    .trend-up {
+        background: rgba(0, 255, 136, 0.15);
+        color: var(--boom-green);
+    }
+
+    .stat-label {
+        font-size: 13px;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-weight: 600;
+        margin-bottom: 8px;
+    }
+
+    .stat-value {
+        font-family: var(--font-display);
+        font-size: 42px;
+        letter-spacing: 1px;
+        line-height: 1;
+        background: linear-gradient(135deg, var(--text-primary), var(--boom-purple));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+
+    .stat-description {
+        font-size: 13px;
+        color: var(--text-tertiary);
+        margin-top: 8px;
+    }
+
+    /* Properties Grid */
+    .properties-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+        gap: 24px;
+        margin-bottom: 40px;
+    }
+
+    .property-card {
+        background: var(--dark-surface);
+        border: 1px solid var(--dark-border);
+        border-radius: 20px;
+        overflow: hidden;
+        transition: all 0.3s;
+        position: relative;
+    }
+
+    .property-card:hover {
+        transform: translateY(-8px);
+        border-color: var(--boom-purple);
+        box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
+    }
+
+    .property-image-container {
+        width: 100%;
+        height: 220px;
+        background: linear-gradient(135deg, rgba(157, 78, 221, 0.15), rgba(0, 206, 209, 0.15));
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .property-image {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .property-image-placeholder {
+        font-size: 64px;
+        opacity: 0.6;
+    }
+
+    .property-status-badge {
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        padding: 8px 16px;
+        border-radius: 100px;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        backdrop-filter: blur(10px);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    }
+
+    .status-occupied {
+        background: rgba(0, 255, 136, 0.2);
+        border: 1px solid var(--boom-green);
+        color: var(--boom-green);
+    }
+
+    .status-vacant {
+        background: rgba(255, 215, 0, 0.2);
+        border: 1px solid var(--boom-yellow);
+        color: var(--boom-yellow);
+    }
+
+    .property-content {
+        padding: 24px;
+    }
+
+    .property-title {
+        font-family: var(--font-heading);
+        font-size: 22px;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 8px;
+    }
+
+    .property-address {
+        font-size: 14px;
+        color: var(--text-secondary);
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .property-stats {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+        margin-bottom: 20px;
+    }
+
+    .property-stat {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .stat-label-small {
+        font-size: 11px;
+        color: var(--text-tertiary);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .stat-value-small {
+        font-size: 16px;
+        font-weight: 600;
+    }
+
+    .property-tenant {
+        padding: 12px 16px;
+        background: var(--dark-elevated);
+        border-radius: 12px;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .tenant-avatar {
+        width: 36px;
+        height: 36px;
+        background: var(--boom-purple);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 14px;
+    }
+
+    .tenant-info { flex: 1; }
+
+    .tenant-name {
+        font-size: 14px;
+        font-weight: 600;
+    }
+
+    .tenant-label {
+        font-size: 11px;
+        color: var(--text-tertiary);
+        text-transform: uppercase;
+    }
+
+    /* Documents Section */
+    .documents-section {
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid var(--dark-border);
+    }
+
+    .documents-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+
+    .documents-title {
+        font-size: 13px;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-weight: 600;
+    }
+
+    .documents-count {
+        font-size: 12px;
+        padding: 4px 10px;
+        background: var(--dark-elevated);
+        border-radius: 12px;
+        color: var(--boom-cyan);
+        font-weight: 600;
+    }
+
+    .documents-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        max-height: 200px;
+        overflow-y: auto;
+        margin-bottom: 15px;
+    }
+
+    .document-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        background: var(--dark-elevated);
+        border-radius: 10px;
+        transition: all 0.2s;
+        cursor: pointer;
+    }
+
+    .document-item:hover {
+        background: rgba(157, 78, 221, 0.1);
+        transform: translateX(5px);
+    }
+
+    .document-icon {
+        font-size: 20px;
+        width: 32px;
+        height: 32px;
+        background: rgba(157, 78, 221, 0.15);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .document-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .document-name {
+        font-size: 13px;
+        font-weight: 500;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .document-meta {
+        font-size: 11px;
+        color: var(--text-tertiary);
+    }
+
+    .document-actions {
+        display: flex;
+        gap: 8px;
+    }
+
+    .doc-action-btn {
+        width: 32px;
+        height: 32px;
+        background: transparent;
+        border: 1px solid var(--dark-border);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-size: 14px;
+    }
+
+    .doc-action-btn:hover {
+        background: var(--boom-purple);
+        border-color: var(--boom-purple);
+        color: white;
+    }
+
+    .doc-action-btn.delete:hover {
+        background: var(--boom-red);
+        border-color: var(--boom-red);
+    }
+
+    .no-documents {
+        text-align: center;
+        padding: 30px 20px;
+        color: var(--text-tertiary);
+        font-size: 13px;
+    }
+
+    .property-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 10px;
+    }
+
+    .btn-action {
+        padding: 12px;
+        background: var(--dark-elevated);
+        border: 1px solid var(--dark-border);
+        color: var(--text-primary);
+        border-radius: 10px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.15s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .btn-action:hover {
+        background: var(--boom-purple);
+        border-color: var(--boom-purple);
+        color: white;
+        transform: translateY(-2px);
+    }
+
+    .btn-action.danger:hover {
+        background: var(--boom-red);
+        border-color: var(--boom-red);
+    }
+
+    /* Modal */
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.92);
+        backdrop-filter: blur(8px);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        animation: fadeIn 0.3s ease;
+    }
+
+    .modal-overlay.active { display: flex; }
+
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    .modal-container {
+        background: var(--dark-surface);
+        border: 1px solid var(--dark-border);
+        border-radius: 24px;
+        max-width: 700px;
+        width: 100%;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
+        animation: slideUp 0.3s ease;
+    }
+
+    @keyframes slideUp {
+        from { transform: translateY(30px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+
+    .modal-header {
+        padding: 30px 35px;
+        border-bottom: 1px solid var(--dark-border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .modal-title {
+        font-family: var(--font-heading);
+        font-size: 32px;
+        font-weight: 400;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .modal-close {
+        width: 40px;
+        height: 40px;
+        background: var(--dark-elevated);
+        border: 1px solid var(--dark-border);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.15s;
+        font-size: 24px;
+        color: var(--text-secondary);
+    }
+
+    .modal-close:hover {
+        background: var(--boom-red);
+        border-color: var(--boom-red);
+        color: white;
+        transform: rotate(90deg);
+    }
+
+    .modal-body {
+        padding: 35px;
+    }
+
+    .form-grid {
+        display: grid;
+        gap: 24px;
+    }
+
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
+
+    .form-field {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .form-label {
+        font-size: 13px;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-weight: 600;
+    }
+
+    .form-label.required::after {
+        content: '*';
+        color: var(--boom-red);
+        margin-left: 4px;
+    }
+
+    .form-input,
+    .form-textarea,
+    .form-select {
+        width: 100%;
+        padding: 14px 18px;
+        background: var(--dark-elevated);
+        border: 1px solid var(--dark-border);
+        border-radius: 12px;
+        color: var(--text-primary);
+        font-family: var(--font-body);
+        font-size: 14px;
+        transition: all 0.3s;
+    }
+
+    .form-input:focus,
+    .form-textarea:focus,
+    .form-select:focus {
+        outline: none;
+        border-color: var(--boom-purple);
+        background: var(--dark-bg);
+        box-shadow: 0 0 0 4px rgba(157, 78, 221, 0.1);
+    }
+
+    .form-textarea {
+        resize: vertical;
+        min-height: 120px;
+    }
+
+    /* Upload Zone */
+    .upload-zone {
+        border: 2px dashed var(--dark-border);
+        border-radius: 16px;
+        padding: 40px 20px;
+        text-align: center;
+        transition: all 0.3s;
+        cursor: pointer;
+        background: var(--dark-elevated);
+    }
+
+    .upload-zone:hover,
+    .upload-zone.drag-over {
+        border-color: var(--boom-purple);
+        background: rgba(157, 78, 221, 0.05);
+    }
+
+    .upload-icon {
+        font-size: 48px;
+        margin-bottom: 15px;
+    }
+
+    .upload-text {
+        font-size: 14px;
+        color: var(--text-secondary);
+        margin-bottom: 8px;
+    }
+
+    .upload-hint {
+        font-size: 12px;
+        color: var(--text-tertiary);
+    }
+
+    .uploaded-files {
+        margin-top: 20px;
+        display: grid;
+        gap: 10px;
+    }
+
+    .uploaded-file {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px;
+        background: var(--dark-elevated);
+        border-radius: 12px;
+    }
+
+    .file-preview {
+        width: 50px;
+        height: 50px;
+        border-radius: 8px;
+        object-fit: cover;
+        background: rgba(157, 78, 221, 0.15);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+    }
+
+    .file-details {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .file-name {
+        font-size: 13px;
+        font-weight: 500;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .file-size {
+        font-size: 11px;
+        color: var(--text-tertiary);
+    }
+
+    .file-remove {
+        width: 32px;
+        height: 32px;
+        background: transparent;
+        border: 1px solid var(--dark-border);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s;
+        color: var(--text-secondary);
+    }
+
+    .file-remove:hover {
+        background: var(--boom-red);
+        border-color: var(--boom-red);
+        color: white;
+    }
+
+    .modal-footer {
+        padding: 24px 35px;
+        border-top: 1px solid var(--dark-border);
+        display: flex;
+        gap: 12px;
+    }
+
+    .btn-full { flex: 1; }
+
+    /* Notification */
+    .notification {
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        padding: 20px 28px;
+        background: var(--dark-surface);
+        border: 1px solid var(--boom-green);
+        border-radius: 16px;
+        box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
+        z-index: 2000;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 300px;
+        animation: slideInRight 0.3s ease;
+    }
+
+    @keyframes slideInRight {
+        from { transform: translateX(400px); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+
+    .notification-icon { font-size: 24px; }
+    .notification-content { flex: 1; }
+
+    .notification-title {
+        font-weight: 600;
+        font-size: 14px;
+        margin-bottom: 4px;
+    }
+
+    .notification-message {
+        font-size: 13px;
+        color: var(--text-secondary);
+    }
+
+    .notification.success { border-color: var(--boom-green); }
+    .notification.error { border-color: var(--boom-red); }
+
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 80px 20px;
+        display: none;
+    }
+
+    .empty-state.active { display: block; }
+
+    .empty-icon {
+        font-size: 80px;
+        margin-bottom: 24px;
+        opacity: 0.3;
+    }
+
+    .empty-title {
+        font-family: var(--font-heading);
+        font-size: 28px;
+        font-weight: 400;
+        text-transform: uppercase;
+        margin-bottom: 12px;
+    }
+
+    .empty-description {
+        font-size: 16px;
+        color: var(--text-secondary);
+        margin-bottom: 32px;
+    }
+
+    /* Storage Info */
+    .storage-info {
+        background: var(--dark-elevated);
+        border-radius: 12px;
+        padding: 16px;
+        margin-top: 20px;
+    }
+
+    .storage-bar-container {
+        margin-top: 12px;
+    }
+
+    .storage-bar {
+        height: 8px;
+        background: var(--dark-bg);
+        border-radius: 4px;
+        overflow: hidden;
+    }
+
+    .storage-bar-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--boom-purple), var(--boom-cyan));
+        transition: width 0.3s;
+        border-radius: 4px;
+    }
+
+    .storage-text {
+        display: flex;
+        justify-content: space-between;
+        font-size: 12px;
+        color: var(--text-secondary);
+        margin-top: 8px;
+    }
+
+    /* Responsive */
+    @media (max-width: 1024px) {
+        .dashboard-container {
+            grid-template-columns: 1fr;
+        }
+
+        .sidebar {
+            display: none;
+        }
+
+        .properties-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .property-actions {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 640px) {
+        .main-content {
+            padding: 20px;
+        }
+
+        .header-title {
+            font-size: 32px;
+        }
+
+        .stats-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .form-row {
+            grid-template-columns: 1fr;
+        }
+
+        .modal-container {
+            margin: 10px;
+        }
+    }
+</style>
+```
+
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo-container" onclick="window.location.href='/'">
+                <div class="logo-circle"></div>
+                <div class="logo-text">BOOM</div>
+            </div>
+
+```
+        <div class="owner-badge">
+            <div class="owner-badge-title">Owner Portal V2.0</div>
+            <div class="owner-name" id="ownerName">Your Properties</div>
+        </div>
+
+        <nav>
+            <ul class="nav-menu">
+                <li class="nav-section-title">Main</li>
+                <li class="nav-item">
+                    <a class="nav-link active" data-view="dashboard">
+                        <span class="nav-icon">📊</span>
+                        <span>Dashboard</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-view="properties">
+                        <span class="nav-icon">🏠</span>
+                        <span>Properties</span>
+                        <span class="nav-badge" id="propertiesCount">0</span>
+                    </a>
+                </li>
+                
+                <li class="nav-section-title">Tools</li>
+                <li class="nav-item">
+                    <a class="nav-link" onclick="showStorageInfo()">
+                        <span class="nav-icon">💾</span>
+                        <span>Storage</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" onclick="exportAllData()">
+                        <span class="nav-icon">📥</span>
+                        <span>Export All</span>
+                    </a>
+                </li>
+                
+                <li class="nav-section-title">Account</li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/">
+                        <span class="nav-icon">🚪</span>
+                        <span>Exit Portal</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Page Header -->
+        <div class="page-header">
+            <div class="header-top">
+                <div>
+                    <h1 class="header-title">Owner Dashboard</h1>
+                    <p class="header-subtitle">Complete property & document management</p>
+                </div>
+                <div class="header-actions">
+                    <button class="btn btn-secondary" onclick="exportAllData()">
+                        📥 Export
+                    </button>
+                    <button class="btn btn-primary" onclick="openAddPropertyModal()">
+                        ➕ Add Property
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistics Grid -->
+        <div class="stats-grid">
+            <div class="stat-card highlight">
+                <div class="stat-header">
+                    <div class="stat-icon">💰</div>
+                    <div class="stat-trend trend-up">↑ Live</div>
+                </div>
+                <div class="stat-label">Monthly Revenue</div>
+                <div class="stat-value" id="statMonthlyRevenue">€0</div>
+                <div class="stat-description">From occupied properties</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div class="stat-icon">📆</div>
+                    <div class="stat-trend trend-up">↑ Projected</div>
+                </div>
+                <div class="stat-label">Annual Revenue</div>
+                <div class="stat-value" id="statAnnualRevenue">€0</div>
+                <div class="stat-description">Yearly income</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div class="stat-icon">🏠</div>
+                </div>
+                <div class="stat-label">Total Properties</div>
+                <div class="stat-value" id="statTotalProperties">0</div>
+                <div class="stat-description" id="statOccupancyDesc">0 occupied, 0 vacant</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div class="stat-icon">📄</div>
+                </div>
+                <div class="stat-label">Total Documents</div>
+                <div class="stat-value" id="statTotalDocuments">0</div>
+                <div class="stat-description">Stored securely</div>
+            </div>
+        </div>
+
+        <!-- Properties Grid -->
+        <div class="properties-grid" id="propertiesGrid"></div>
+
+        <!-- Empty State -->
+        <div class="empty-state" id="emptyState">
+            <div class="empty-icon">🏠</div>
+            <div class="empty-title">No Properties Yet</div>
+            <div class="empty-description">
+                Start building your portfolio by adding your first property
+            </div>
+            <button class="btn btn-primary" onclick="openAddPropertyModal()">
+                ➕ Add Your First Property
+            </button>
+        </div>
+    </main>
+</div>
+
+<!-- Add/Edit Property Modal -->
+<div class="modal-overlay" id="propertyModal">
+    <div class="modal-container">
+        <div class="modal-header">
+            <h2 class="modal-title" id="modalTitle">Add Property</h2>
+            <button class="modal-close" onclick="closePropertyModal()">×</button>
+        </div>
+
+        <form id="propertyForm" onsubmit="saveProperty(event)">
+            <div class="modal-body">
+                <input type="hidden" id="propertyId">
+                
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label class="form-label required">Property Name</label>
+                        <input 
+                            type="text" 
+                            class="form-input" 
+                            id="propertyName" 
+                            required 
+                            placeholder="e.g., Modern Loft Trastevere"
+                        >
+                    </div>
+
+                    <div class="form-field">
+                        <label class="form-label required">Address</label>
+                        <input 
+                            type="text" 
+                            class="form-input" 
+                            id="propertyAddress" 
+                            required 
+                            placeholder="e.g., Via della Scala 42, Rome"
+                        >
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-field">
+                            <label class="form-label">Bedrooms</label>
+                            <input 
+                                type="number" 
+                                class="form-input" 
+                                id="propertyBeds" 
+                                min="0" 
+                                placeholder="2"
+                            >
+                        </div>
+                        <div class="form-field">
+                            <label class="form-label">Size (m²)</label>
+                            <input 
+                                type="number" 
+                                class="form-input" 
+                                id="propertySize" 
+                                min="0" 
+                                placeholder="85"
+                            >
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-field">
+                            <label class="form-label required">Monthly Price (€)</label>
+                            <input 
+                                type="number" 
+                                class="form-input" 
+                                id="propertyPrice" 
+                                required 
+                                min="0" 
+                                step="50"
+                                placeholder="1800"
+                            >
+                        </div>
+                        <div class="form-field">
+                            <label class="form-label required">Status</label>
+                            <select class="form-select" id="propertyStatus" required>
+                                <option value="vacant">Vacant - Available Now</option>
+                                <option value="occupied">Occupied - Currently Rented</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-field">
+                        <label class="form-label">Tenant Name</label>
+                        <input 
+                            type="text" 
+                            class="form-input" 
+                            id="propertyTenant" 
+                            placeholder="e.g., John Smith (optional)"
+                        >
+                    </div>
+
+                    <div class="form-field">
+                        <label class="form-label">Property Description</label>
+                        <textarea 
+                            class="form-textarea" 
+                            id="propertyDescription" 
+                            placeholder="Add details about the property, amenities, special features..."
+                        ></textarea>
+                    </div>
+
+                    <!-- Photo Upload -->
+                    <div class="form-field">
+                        <label class="form-label">Property Photo (Optional)</label>
+                        <div class="upload-zone" id="photoUploadZone" onclick="document.getElementById('propertyPhotoInput').click()">
+                            <div class="upload-icon">📸</div>
+                            <div class="upload-text">Click to upload property photo</div>
+                            <div class="upload-hint">JPG, PNG up to 2MB</div>
+                            <input 
+                                type="file" 
+                                id="propertyPhotoInput" 
+                                accept="image/*" 
+                                style="display: none"
+                                onchange="handlePropertyPhoto(event)"
+                            >
+                        </div>
+                        <div id="photoPreview"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-full" onclick="closePropertyModal()">
+                    Cancel
+                </button>
+                <button type="submit" class="btn btn-primary btn-full">
+                    💾 Save Property
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Upload Documents Modal -->
+<div class="modal-overlay" id="documentsModal">
+    <div class="modal-container">
+        <div class="modal-header">
+            <h2 class="modal-title" id="documentsModalTitle">Upload Documents</h2>
+            <button class="modal-close" onclick="closeDocumentsModal()">×</button>
+        </div>
+
+        <div class="modal-body">
+            <input type="hidden" id="currentPropertyId">
+            
+            <div class="form-field">
+                <label class="form-label">Document Category</label>
+                <select class="form-select" id="documentCategory">
+                    <option value="contract">📝 Contract</option>
+                    <option value="photo">📸 Photo</option>
+                    <option value="id">🪪 ID Document</option>
+                    <option value="receipt">🧾 Receipt</option>
+                    <option value="invoice">💵 Invoice</option>
+                    <option value="other">📄 Other</option>
+                </select>
+            </div>
+
+            <div class="upload-zone" id="documentUploadZone">
+                <div class="upload-icon">📤</div>
+                <div class="upload-text">Drag & drop files here or click to browse</div>
+                <div class="upload-hint">PDF, DOC, Images up to 3MB each</div>
+                <input 
+                    type="file" 
+                    id="documentInput" 
+                    multiple 
+                    style="display: none"
+                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif"
+                >
+            </div>
+
+            <div class="uploaded-files" id="uploadedFilesList"></div>
+
+            <!-- Storage Info -->
+            <div class="storage-info">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <span style="font-size: 13px; font-weight: 600;">Storage Used</span>
+                    <span style="font-size: 12px; color: var(--text-secondary);" id="storageUsedText">0 MB / 5 MB</span>
+                </div>
+                <div class="storage-bar-container">
+                    <div class="storage-bar">
+                        <div class="storage-bar-fill" id="storageBarFill" style="width: 0%"></div>
+                    </div>
+                </div>
+                <div class="storage-text">
+                    <span>Browser Storage</span>
+                    <span id="storagePercentage">0%</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-footer">
+            <button class="btn btn-secondary btn-full" onclick="closeDocumentsModal()">
+                Done
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ========================================
+    // 🚀 BOOM OWNER DASHBOARD V2.0
+    // ========================================
+
+    let properties = [];
+    let currentPropertyPhoto = null;
+    let pendingFiles = [];
+
+    const STORAGE_KEYS = {
+        PROPERTIES: 'boomOwnerProperties',
+        DOCUMENTS: 'boomOwnerDocuments'
+    };
+
+    const MAX_STORAGE_MB = 5;
+    const MAX_FILE_SIZE = 3 * 1024 * 1024; // 3MB per file
+
+    // Initialize App
+    document.addEventListener('DOMContentLoaded', function() {
+        loadProperties();
+        setupEventListeners();
+        updateUI();
+    });
+
+    function loadProperties() {
+        const stored = localStorage.getItem(STORAGE_KEYS.PROPERTIES);
+        if (stored) {
+            try {
+                properties = JSON.parse(stored);
+            } catch (e) {
+                console.error('Failed to load properties:', e);
+                properties = [];
+            }
+        }
+    }
+
+    function saveToStorage() {
+        try {
+            localStorage.setItem(STORAGE_KEYS.PROPERTIES, JSON.stringify(properties));
+            updateStorageInfo();
+        } catch (e) {
+            if (e.name === 'QuotaExceededError') {
+                showNotification('Storage full! Please remove some files.', 'error');
+            } else {
+                console.error('Failed to save:', e);
+            }
+        }
+    }
+
+    function setupEventListeners() {
+        // Document upload zone
+        const docZone = document.getElementById('documentUploadZone');
+        const docInput = document.getElementById('documentInput');
+
+        docZone.addEventListener('click', () => docInput.click());
+        
+        docZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            docZone.classList.add('drag-over');
+        });
+
+        docZone.addEventListener('dragleave', () => {
+            docZone.classList.remove('drag-over');
+        });
+
+        docZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            docZone.classList.remove('drag-over');
+            handleDocumentUpload(e.dataTransfer.files);
+        });
+
+        docInput.addEventListener('change', (e) => {
+            handleDocumentUpload(e.target.files);
+        });
+
+        // Modal clicks
+        document.getElementById('propertyModal').addEventListener('click', (e) => {
+            if (e.target.id === 'propertyModal') closePropertyModal();
+        });
+
+        document.getElementById('documentsModal').addEventListener('click', (e) => {
+            if (e.target.id === 'documentsModal') closeDocumentsModal();
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closePropertyModal();
+                closeDocumentsModal();
+            }
+        });
+    }
+
+    // ========================================
+    // PROPERTY MANAGEMENT
+    // ========================================
+
+    function openAddPropertyModal() {
+        document.getElementById('modalTitle').textContent = 'Add Property';
+        document.getElementById('propertyForm').reset();
+        document.getElementById('propertyId').value = '';
+        document.getElementById('photoPreview').innerHTML = '';
+        currentPropertyPhoto = null;
+        document.getElementById('propertyModal').classList.add('active');
+    }
+
+    function editProperty(id) {
+        const property = properties.find(p => p.id === id);
+        if (!property) return;
+
+        document.getElementById('modalTitle').textContent = 'Edit Property';
+        document.getElementById('propertyId').value = property.id;
+        document.getElementById('propertyName').value = property.name;
+        document.getElementById('propertyAddress').value = property.address;
+        document.getElementById('propertyBeds').value = property.beds || '';
+        document.getElementById('propertySize').value = property.size || '';
+        document.getElementById('propertyPrice').value = property.price;
+        document.getElementById('propertyStatus').value = property.status;
+        document.getElementById('propertyTenant').value = property.tenant || '';
+        document.getElementById('propertyDescription').value = property.description || '';
+
+        // Show existing photo if any
+        if (property.photo) {
+            currentPropertyPhoto = property.photo;
+            document.getElementById('photoPreview').innerHTML = `
+                <div class="uploaded-file">
+                    <img src="${property.photo}" class="file-preview" style="width: 50px; height: 50px; object-fit: cover;">
+                    <div class="file-details">
+                        <div class="file-name">Current Photo</div>
+                    </div>
+                    <button type="button" class="file-remove" onclick="removePropertyPhoto()">×</button>
+                </div>
+            `;
+        }
+
+        document.getElementById('propertyModal').classList.add('active');
+    }
+
+    function saveProperty(event) {
+        event.preventDefault();
+
+        const id = document.getElementById('propertyId').value || generateId();
+        const property = {
+            id: id,
+            name: document.getElementById('propertyName').value.trim(),
+            address: document.getElementById('propertyAddress').value.trim(),
+            beds: document.getElementById('propertyBeds').value || 0,
+            size: document.getElementById('propertySize').value || 0,
+            price: parseFloat(document.getElementById('propertyPrice').value),
+            status: document.getElementById('propertyStatus').value,
+            tenant: document.getElementById('propertyTenant').value.trim(),
+            description: document.getElementById('propertyDescription').value.trim(),
+            photo: currentPropertyPhoto,
+            documents: properties.find(p => p.id === id)?.documents || [],
+            createdAt: properties.find(p => p.id === id)?.createdAt || new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        };
+
+        const existingIndex = properties.findIndex(p => p.id === id);
+        if (existingIndex !== -1) {
+            properties[existingIndex] = property;
+            showNotification('Property updated successfully', 'success');
+        } else {
+            properties.push(property);
+            showNotification('Property added successfully', 'success');
+        }
+
+        saveToStorage();
+        closePropertyModal();
+        updateUI();
+    }
+
+    function deleteProperty(id) {
+        const property = properties.find(p => p.id === id);
+        if (!property) return;
+
+        if (!confirm(`Delete "${property.name}"?\n\nThis will also delete all associated documents.\n\nThis cannot be undone.`)) {
+            return;
+        }
+
+        properties = properties.filter(p => p.id !== id);
+        saveToStorage();
+        updateUI();
+        showNotification('Property deleted successfully', 'success');
+    }
+
+    function closePropertyModal() {
+        document.getElementById('propertyModal').classList.remove('active');
+        currentPropertyPhoto = null;
+    }
+
+    // ========================================
+    // PHOTO UPLOAD
+    // ========================================
+
+    function handlePropertyPhoto(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        if (!file.type.startsWith('image/')) {
+            showNotification('Please upload an image file', 'error');
+            return;
+        }
+
+        if (file.size > MAX_FILE_SIZE) {
+            showNotification('Image must be under 3MB', 'error');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            currentPropertyPhoto = e.target.result;
+            document.getElementById('photoPreview').innerHTML = `
+                <div class="uploaded-file">
+                    <img src="${e.target.result}" class="file-preview" style="width: 50px; height: 50px; object-fit: cover;">
+                    <div class="file-details">
+                        <div class="file-name">${file.name}</div>
+                        <div class="file-size">${formatFileSize(file.size)}</div>
+                    </div>
+                    <button type="button" class="file-remove" onclick="removePropertyPhoto()">×</button>
+                </div>
+            `;
+            showNotification('Photo uploaded', 'success');
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function removePropertyPhoto() {
+        currentPropertyPhoto = null;
+        document.getElementById('photoPreview').innerHTML = '';
+        document.getElementById('propertyPhotoInput').value = '';
+    }
+
+    // ========================================
+    // DOCUMENT MANAGEMENT
+    // ========================================
+
+    function openDocumentsModal(propertyId) {
+        const property = properties.find(p => p.id === propertyId);
+        if (!property) return;
+
+        document.getElementById('currentPropertyId').value = propertyId;
+        document.getElementById('documentsModalTitle').textContent = `Documents - ${property.name}`;
+        document.getElementById('uploadedFilesList').innerHTML = '';
+        pendingFiles = [];
+        updateStorageInfo();
+        document.getElementById('documentsModal').classList.add('active');
+    }
+
+    function closeDocumentsModal() {
+        document.getElementById('documentsModal').classList.remove('active');
+        if (pendingFiles.length > 0) {
+            const propertyId = document.getElementById('currentPropertyId').value;
+            saveDocuments(propertyId);
+        }
+        updateUI();
+    }
+
+    function handleDocumentUpload(files) {
+        Array.from(files).forEach(file => {
+            if (file.size > MAX_FILE_SIZE) {
+                showNotification(`${file.name} is too large (max 3MB)`, 'error');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const doc = {
+                    id: generateId(),
+                    name: file.name,
+                    size: file.size,
+                    type: file.type,
+                    category: document.getElementById('documentCategory').value,
+                    data: e.target.result,
+                    uploadedAt: new Date().toISOString()
+                };
+
+                pendingFiles.push(doc);
+                displayUploadedFile(doc);
+                updateStorageInfo();
+            };
+            reader.readAsDataURL(file);
+        });
+
+        document.getElementById('documentInput').value = '';
+    }
+
+    function displayUploadedFile(doc) {
+        const icon = getCategoryIcon(doc.category);
+        const isImage = doc.type.startsWith('image/');
+        
+        const fileHtml = `
+            <div class="uploaded-file" data-file-id="${doc.id}">
+                ${isImage ? 
+                    `<img src="${doc.data}" class="file-preview" style="width: 50px; height: 50px; object-fit: cover;">` :
+                    `<div class="file-preview">${icon}</div>`
+                }
+                <div class="file-details">
+                    <div class="file-name">${doc.name}</div>
+                    <div class="file-size">${formatFileSize(doc.size)} • ${getCategoryName(doc.category)}</div>
+                </div>
+                <button class="file-remove" onclick="removePendingFile('${doc.id}')">×</button>
+            </div>
+        `;
+
+        document.getElementById('uploadedFilesList').insertAdjacentHTML('beforeend', fileHtml);
+        showNotification('File ready to upload', 'success');
+    }
+
+    function removePendingFile(fileId) {
+        pendingFiles = pendingFiles.filter(f => f.id !== fileId);
+        document.querySelector(`[data-file-id="${fileId}"]`)?.remove();
+        updateStorageInfo();
+    }
+
+    function saveDocuments(propertyId) {
+        const property = properties.find(p => p.id === propertyId);
+        if (!property || pendingFiles.length === 0) return;
+
+        if (!property.documents) property.documents = [];
+        property.documents.push(...pendingFiles);
+        
+        saveToStorage();
+        showNotification(`${pendingFiles.length} document(s) uploaded`, 'success');
+        pendingFiles = [];
+    }
+
+    function viewDocument(propertyId, docId) {
+        const property = properties.find(p => p.id === propertyId);
+        if (!property) return;
+
+        const doc = property.documents?.find(d => d.id === docId);
+        if (!doc) return;
+
+        // Open in new tab
+        const win = window.open();
+        if (doc.type.startsWith('image/')) {
+            win.document.write(`<img src="${doc.data}" style="max-width: 100%; height: auto;">`);
+        } else if (doc.type === 'application/pdf') {
+            win.document.write(`<iframe src="${doc.data}" style="width:100%; height:100vh; border:none;"></iframe>`);
+        } else {
+            win.document.write(`<pre>${doc.data}</pre>`);
+        }
+    }
+
+    function downloadDocument(propertyId, docId) {
+        const property = properties.find(p => p.id === propertyId);
+        if (!property) return;
+
+        const doc = property.documents?.find(d => d.id === docId);
+        if (!doc) return;
+
+        const link = document.createElement('a');
+        link.href = doc.data;
+        link.download = doc.name;
+        link.click();
+        showNotification('Download started', 'success');
+    }
+
+    function deleteDocument(propertyId, docId) {
+        const property = properties.find(p => p.id === propertyId);
+        if (!property) return;
+
+        if (!confirm('Delete this document?')) return;
+
+        property.documents = property.documents.filter(d => d.id !== docId);
+        saveToStorage();
+        updateUI();
+        showNotification('Document deleted', 'success');
+    }
+
+    // ========================================
+    // UI UPDATES
+    // ========================================
+
+    function updateUI() {
+        updateStatistics();
+        renderProperties();
+    }
+
+    function updateStatistics() {
+        const total = properties.length;
+        const occupied = properties.filter(p => p.status === 'occupied').length;
+        const vacant = total - occupied;
+        
+        const monthlyRevenue = properties
+            .filter(p => p.status === 'occupied')
+            .reduce((sum, p) => sum + parseFloat(p.price), 0);
+        
+        const annualRevenue = monthlyRevenue * 12;
+        
+        const totalDocuments = properties.reduce((sum, p) => 
+            sum + (p.documents?.length || 0), 0
+        );
+
+        document.getElementById('statMonthlyRevenue').textContent = `€${monthlyRevenue.toLocaleString()}`;
+        document.getElementById('statAnnualRevenue').textContent = `€${annualRevenue.toLocaleString()}`;
+        document.getElementById('statTotalProperties').textContent = total;
+        document.getElementById('statOccupancyDesc').textContent = `${occupied} occupied, ${vacant} vacant`;
+        document.getElementById('statTotalDocuments').textContent = totalDocuments;
+        document.getElementById('propertiesCount').textContent = total;
+    }
+
+    function renderProperties() {
+        const grid = document.getElementById('propertiesGrid');
+        const emptyState = document.getElementById('emptyState');
+
+        if (properties.length === 0) {
+            grid.style.display = 'none';
+            emptyState.classList.add('active');
+            return;
+        }
+
+        emptyState.classList.remove('active');
+        grid.style.display = 'grid';
+
+        grid.innerHTML = properties.map(property => `
+            <div class="property-card">
+                <div class="property-image-container">
+                    ${property.photo ? 
+                        `<img src="${property.photo}" class="property-image" alt="${property.name}">` :
+                        `<div class="property-image-placeholder">🏠</div>`
+                    }
+                    <div class="property-status-badge ${property.status === 'occupied' ? 'status-occupied' : 'status-vacant'}">
+                        ${property.status === 'occupied' ? '✓ Occupied' : '○ Vacant'}
+                    </div>
+                </div>
+                
+                <div class="property-content">
+                    <h3 class="property-title">${property.name}</h3>
+                    <div class="property-address">📍 ${property.address}</div>
+
+                    <div class="property-stats">
+                        ${property.beds ? `
+                            <div class="property-stat">
+                                <div class="stat-label-small">Bedrooms</div>
+                                <div class="stat-value-small">🛏️ ${property.beds}</div>
+                            </div>
+                        ` : ''}
+                        ${property.size ? `
+                            <div class="property-stat">
+                                <div class="stat-label-small">Size</div>
+                                <div class="stat-value-small">📏 ${property.size}m²</div>
+                            </div>
+                        ` : ''}
+                        <div class="property-stat">
+                            <div class="stat-label-small">Monthly Rent</div>
+                            <div class="stat-value-small">💰 €${parseFloat(property.price).toLocaleString()}</div>
+                        </div>
+                    </div>
+
+                    ${property.tenant && property.status === 'occupied' ? `
+                        <div class="property-tenant">
+                            <div class="tenant-avatar">${property.tenant.charAt(0).toUpperCase()}</div>
+                            <div class="tenant-info">
+                                <div class="tenant-label">Current Tenant</div>
+                                <div class="tenant-name">${property.tenant}</div>
+                            </div>
+                        </div>
+                    ` : ''}
+
+                    ${renderDocumentsSection(property)}
+
+                    <div class="property-actions">
+                        <button class="btn-action" onclick="editProperty('${property.id}')">✏️ Edit</button>
+                        <button class="btn-action" onclick="openDocumentsModal('${property.id}')">📄 Docs</button>
+                        <button class="btn-action danger" onclick="deleteProperty('${property.id}')">🗑️ Delete</button>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function renderDocumentsSection(property) {
+        const docs = property.documents || [];
+        
+        if (docs.length === 0) {
+            return `
+                <div class="documents-section">
+                    <div class="documents-header">
+                        <div class="documents-title">Documents</div>
+                        <div class="documents-count">0</div>
+                    </div>
+                    <div class="no-documents">No documents uploaded yet</div>
+                </div>
+            `;
+        }
+
+        return `
+            <div class="documents-section">
+                <div class="documents-header">
+                    <div class="documents-title">Documents</div>
+                    <div class="documents-count">${docs.length}</div>
+                </div>
+                <div class="documents-list">
+                    ${docs.slice(0, 3).map(doc => `
+                        <div class="document-item">
+                            <div class="document-icon">${getCategoryIcon(doc.category)}</div>
+                            <div class="document-info">
+                                <div class="document-name">${doc.name}</div>
+                                <div class="document-meta">${getCategoryName(doc.category)} • ${formatFileSize(doc.size)}</div>
+                            </div>
+                            <div class="document-actions">
+                                <button class="doc-action-btn" onclick="viewDocument('${property.id}', '${doc.id}')" title="View">👁️</button>
+                                <button class="doc-action-btn" onclick="downloadDocument('${property.id}', '${doc.id}')" title="Download">⬇️</button>
+                                <button class="doc-action-btn delete" onclick="deleteDocument('${property.id}', '${doc.id}')" title="Delete">🗑️</button>
+                            </div>
+                        </div>
+                    `).join('')}
+                    ${docs.length > 3 ? `
+                        <div style="text-align: center; padding: 10px; font-size: 12px; color: var(--text-secondary);">
+                            +${docs.length - 3} more document(s)
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+    }
+
+    // ========================================
+    // STORAGE MANAGEMENT
+    // ========================================
+
+    function updateStorageInfo() {
+        const used = getStorageSize();
+        const maxBytes = MAX_STORAGE_MB * 1024 * 1024;
+        const percentage = (used / maxBytes) * 100;
+
+        document.getElementById('storageUsedText').textContent = 
+            `${(used / 1024 / 1024).toFixed(2)} MB / ${MAX_STORAGE_MB} MB`;
+        
+        document.getElementById('storageBarFill').style.width = `${Math.min(percentage, 100)}%`;
+        document.getElementById('storagePercentage').textContent = `${percentage.toFixed(1)}%`;
+
+        if (percentage > 90) {
+            showNotification('Storage almost full!', 'error');
+        }
+    }
+
+    function getStorageSize() {
+        let total = 0;
+        for (let key in localStorage) {
+            if (localStorage.hasOwnProperty(key)) {
+                total += localStorage[key].length + key.length;
+            }
+        }
+        return total * 2; // UTF-16 = 2 bytes per char
+    }
+
+    function showStorageInfo() {
+        const used = getStorageSize();
+        const usedMB = (used / 1024 / 1024).toFixed(2);
+        const percentage = ((used / (MAX_STORAGE_MB * 1024 * 1024)) * 100).toFixed(1);
+        
+        alert(`Storage Info:\n\nUsed: ${usedMB} MB / ${MAX_STORAGE_MB} MB\nPercentage: ${percentage}%\n\nTip: Export your data regularly for backup!`);
+    }
+
+    function exportAllData() {
+        const data = {
+            properties: properties,
+            exportedAt: new Date().toISOString(),
+            version: '2.0'
+        };
+
+        const dataStr = JSON.stringify(data, null, 2);
+        const dataBlob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(dataBlob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `boom-owner-data-${new Date().toISOString().split('T')[0]}.json`;
+        link.click();
+        URL.revokeObjectURL(url);
+        showNotification('All data exported successfully', 'success');
+    }
+
+    // ========================================
+    // UTILITY FUNCTIONS
+    // ========================================
+
+    function generateId() {
+        return 'boom_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    }
+
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    function getCategoryIcon(category) {
+        const icons = {
+            contract: '📝',
+            photo: '📸',
+            id: '🪪',
+            receipt: '🧾',
+            invoice: '💵',
+            other: '📄'
+        };
+        return icons[category] || '📄';
+    }
+
+    function getCategoryName(category) {
+        const names = {
+            contract: 'Contract',
+            photo: 'Photo',
+            id: 'ID Document',
+            receipt: 'Receipt',
+            invoice: 'Invoice',
+            other: 'Other'
+        };
+        return names[category] || 'Document';
+    }
+
+    function showNotification(message, type = 'success') {
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        notification.innerHTML = `
+            <div class="notification-icon">${type === 'success' ? '✓' : '✕'}</div>
+            <div class="notification-content">
+                <div class="notification-title">${type === 'success' ? 'Success' : 'Error'}</div>
+                <div class="notification-message">${message}</div>
+            </div>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.style.animation = 'slideInRight 0.3s ease reverse';
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
+    }
+
+    console.log('🚀 BOOM Owner Dashboard V2.0 Loaded');
+    console.log('📄 Documents: ENABLED');
+    console.log('📸 Photos: ENABLED');
+    console.log('💾 Storage: Browser LocalStorage');
+</script>
+```
+
+</body>
+</html>
