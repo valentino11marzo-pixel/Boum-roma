@@ -1,11 +1,24 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-EYCD59RDVJ"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-EYCD59RDVJ');
+    </script>
+    
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login – BOOM Rome</title>
+    <title>Login – BOOM Platform</title>
     
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;900&family=Oswald:wght@200;300;400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;900&display=swap" rel="stylesheet">
+    
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
     
     <style>
         * {
@@ -17,18 +30,14 @@
 
         :root {
             --gold: #FFD700;
+            --cyan: #00CED1;
             --green: #00FF88;
+            --red: #FF3B3B;
             --pure-black: #000000;
-            --dark-void: #0A0A0A;
-            --dark-surface: #111111;
+            --dark-surface: #0A0A0A;
             --text-primary: #FFFFFF;
-            --text-fade: #666666;
             --text-secondary: #999999;
-        }
-
-        ::selection {
-            background: var(--gold);
-            color: var(--pure-black);
+            --text-fade: #666666;
         }
 
         body {
@@ -37,38 +46,10 @@
             color: var(--text-primary);
             font-weight: 200;
             letter-spacing: 0.02em;
-            line-height: 1.6;
-            overflow-x: hidden;
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-        }
-
-        @media (hover: hover) {
-            .cursor {
-                position: fixed;
-                width: 20px;
-                height: 20px;
-                border: 1px solid var(--gold);
-                border-radius: 50%;
-                pointer-events: none;
-                z-index: 9999;
-                transition: transform 0.1s ease;
-                mix-blend-mode: difference;
-            }
-
-            .cursor-follower {
-                position: fixed;
-                width: 40px;
-                height: 40px;
-                border-radius: 50%;
-                background: var(--gold);
-                opacity: 0.1;
-                pointer-events: none;
-                z-index: 9998;
-                transition: transform 0.3s ease;
-            }
         }
 
         /* Background Glow */
@@ -77,17 +58,11 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 1000px;
-            height: 1000px;
-            border-radius: 50%;
+            width: 600px;
+            height: 600px;
             background: radial-gradient(circle, rgba(255, 215, 0, 0.08) 0%, transparent 70%);
             z-index: 0;
-            animation: pulse-glow 8s infinite;
-        }
-
-        @keyframes pulse-glow {
-            0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.08; }
-            50% { transform: translate(-50%, -50%) scale(1.1); opacity: 0.12; }
+            pointer-events: none;
         }
 
         /* Back Button */
@@ -104,7 +79,7 @@
             gap: 10px;
             color: var(--text-secondary);
             text-decoration: none;
-            font-size: 12px;
+            font-size: 11px;
             text-transform: uppercase;
             letter-spacing: 2px;
             transition: all 0.3s;
@@ -113,11 +88,6 @@
 
         .back-link:hover {
             color: var(--gold);
-            transform: translateX(-5px);
-        }
-
-        .back-arrow {
-            font-size: 16px;
         }
 
         /* Login Container */
@@ -125,143 +95,126 @@
             position: relative;
             z-index: 1;
             width: 100%;
-            max-width: 480px;
-            padding: 60px 50px;
+            max-width: 420px;
+            padding: 50px 40px;
             background: var(--dark-surface);
-            border: 1px solid rgba(255, 215, 0, 0.2);
-            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
             margin: 20px;
         }
 
         .login-header {
             text-align: center;
-            margin-bottom: 50px;
-        }
-
-        .logo-circle {
-            width: 60px;
-            height: 60px;
-            background: linear-gradient(135deg, #FFD700, #FFA500);
-            border-radius: 50%;
-            box-shadow: 0 0 40px rgba(255, 215, 0, 0.5);
-            animation: glow 3s infinite;
-            opacity: 0.9;
-            margin: 0 auto 25px;
-        }
-
-        @keyframes glow {
-            0%, 100% { box-shadow: 0 0 40px rgba(255, 215, 0, 0.5); }
-            50% { box-shadow: 0 0 60px rgba(255, 215, 0, 0.8); }
-        }
-
-        .login-title {
-            font-size: 36px;
-            font-weight: 100;
-            text-transform: uppercase;
-            letter-spacing: -1px;
-            margin-bottom: 10px;
-            font-family: 'Oswald', sans-serif;
-        }
-
-        .login-subtitle {
-            font-size: 13px;
-            color: var(--text-secondary);
-            text-transform: uppercase;
-            letter-spacing: 2px;
-        }
-
-        /* Tab Switcher */
-        .tab-switcher {
-            display: flex;
-            gap: 10px;
             margin-bottom: 40px;
-            background: var(--pure-black);
-            padding: 5px;
-            border-radius: 10px;
         }
 
-        .tab-button {
-            flex: 1;
-            padding: 15px;
-            background: transparent;
-            border: none;
-            color: var(--text-secondary);
-            font-size: 12px;
+        /* Logo SVG */
+        .logo-svg {
+            width: 80px;
+            height: 80px;
+            filter: drop-shadow(0 0 20px rgba(255, 215, 0, 0.5));
+            margin-bottom: 20px;
+        }
+
+        .logo-text {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            font-size: 32px;
+            font-weight: 300;
+            letter-spacing: 4px;
             text-transform: uppercase;
-            letter-spacing: 2px;
-            cursor: pointer;
-            transition: all 0.3s;
-            border-radius: 8px;
-            font-family: 'Inter', sans-serif;
-            font-weight: 400;
+            margin-bottom: 8px;
         }
 
-        .tab-button.active {
-            background: var(--gold);
-            color: var(--pure-black);
-            font-weight: 600;
+        .login-header p {
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 300;
         }
 
-        .tab-button:hover:not(.active) {
-            color: var(--text-primary);
-        }
-
-        /* Form */
-        .login-form {
+        /* Error */
+        .login-error {
+            background: rgba(255, 59, 59, 0.1);
+            border: 1px solid rgba(255, 59, 59, 0.3);
+            color: var(--red);
+            padding: 12px 15px;
+            font-size: 13px;
+            margin-bottom: 20px;
             display: none;
         }
 
-        .login-form.active {
-            display: block;
-        }
+        .login-error.show { display: block; }
 
+        /* Form */
         .form-group {
-            margin-bottom: 25px;
+            margin-bottom: 20px;
         }
 
         .form-label {
             display: block;
             font-size: 11px;
+            font-weight: 400;
             text-transform: uppercase;
             letter-spacing: 2px;
-            color: var(--text-fade);
-            margin-bottom: 10px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
         }
 
         .form-input {
             width: 100%;
-            padding: 18px 20px;
-            background: var(--pure-black);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-            color: var(--text-primary);
-            font-size: 15px;
-            font-family: 'Inter', sans-serif;
-            transition: all 0.3s;
+            padding: 14px 16px;
+            font-family: inherit;
+            font-size: 14px;
             font-weight: 300;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+            transition: all 0.3s;
         }
 
         .form-input:focus {
             outline: none;
             border-color: var(--gold);
-            box-shadow: 0 0 20px rgba(255, 215, 0, 0.2);
         }
 
         .form-input::placeholder {
             color: var(--text-fade);
         }
 
-        .forgot-password {
-            text-align: right;
-            margin-top: 10px;
+        /* Button */
+        .btn-primary {
+            width: 100%;
+            padding: 14px;
+            background: transparent;
+            border: 1px solid var(--gold);
+            color: var(--gold);
+            font-family: inherit;
+            font-size: 11px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary:hover {
+            background: var(--gold);
+            color: var(--pure-black);
+            transform: scale(1.02);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
         }
 
         .forgot-link {
-            font-size: 11px;
+            display: block;
+            text-align: center;
             color: var(--text-secondary);
-            text-decoration: none;
-            text-transform: uppercase;
+            font-size: 11px;
             letter-spacing: 1px;
+            margin-top: 20px;
+            text-decoration: none;
             transition: color 0.3s;
         }
 
@@ -269,40 +222,13 @@
             color: var(--gold);
         }
 
-        .submit-button {
-            width: 100%;
-            padding: 20px;
-            background: var(--gold);
-            color: var(--pure-black);
-            border: none;
-            border-radius: 10px;
-            font-size: 12px;
-            font-weight: 600;
-            letter-spacing: 3px;
-            text-transform: uppercase;
-            cursor: pointer;
-            transition: all 0.4s;
-            margin-top: 30px;
-            font-family: 'Inter', sans-serif;
-        }
-
-        .submit-button:hover {
-            transform: scaleX(1.05);
-            letter-spacing: 4px;
-        }
-
-        .submit-button:active {
-            transform: scaleX(0.95);
-        }
-
         /* Divider */
         .divider {
             display: flex;
             align-items: center;
-            text-align: center;
-            margin: 40px 0;
+            margin: 30px 0;
             color: var(--text-fade);
-            font-size: 11px;
+            font-size: 10px;
             text-transform: uppercase;
             letter-spacing: 2px;
         }
@@ -311,248 +237,239 @@
         .divider::after {
             content: '';
             flex: 1;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            height: 1px;
+            background: rgba(255, 255, 255, 0.1);
         }
 
-        .divider span {
-            padding: 0 15px;
+        .divider::before { margin-right: 15px; }
+        .divider::after { margin-left: 15px; }
+
+        /* Demo Accounts */
+        .demo-accounts {
+            background: rgba(255, 255, 255, 0.02);
+            padding: 20px;
         }
 
-        /* Alternative Login */
-        .alt-login {
-            text-align: center;
-        }
-
-        .whatsapp-button {
-            display: inline-flex;
-            align-items: center;
-            gap: 12px;
-            padding: 18px 40px;
-            background: transparent;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 10px;
-            color: var(--text-primary);
-            text-decoration: none;
-            font-size: 12px;
+        .demo-accounts h4 {
+            font-size: 10px;
             text-transform: uppercase;
             letter-spacing: 2px;
-            transition: all 0.3s;
+            color: var(--text-fade);
+            margin-bottom: 12px;
             font-weight: 400;
         }
 
-        .whatsapp-button:hover {
-            border-color: var(--green);
-            background: rgba(0, 255, 136, 0.05);
-            transform: translateY(-2px);
-        }
-
-        .whatsapp-icon {
-            font-size: 20px;
-        }
-
-        /* Info Notice */
-        .info-notice {
-            margin-top: 40px;
-            padding: 20px;
-            background: rgba(0, 255, 136, 0.05);
-            border: 1px solid rgba(0, 255, 136, 0.2);
-            border-radius: 10px;
-            text-align: center;
-        }
-
-        .info-notice p {
+        .demo-account {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
             font-size: 12px;
-            color: var(--text-secondary);
-            line-height: 1.6;
         }
 
-        .info-notice strong {
-            color: var(--green);
-        }
+        .demo-account:last-child { border-bottom: none; }
 
-        /* Coming Soon Badge */
-        .coming-soon {
-            display: inline-block;
-            padding: 5px 15px;
-            background: rgba(255, 215, 0, 0.2);
-            border: 1px solid var(--gold);
-            border-radius: 20px;
-            font-size: 9px;
-            text-transform: uppercase;
-            letter-spacing: 2px;
+        .demo-account .role {
             color: var(--gold);
-            margin-left: 10px;
-            font-weight: 600;
+            font-weight: 400;
         }
 
-        @media (max-width: 768px) {
-            .back-button {
-                top: 20px;
-                left: 20px;
-            }
+        .demo-account .email {
+            color: var(--text-secondary);
+        }
 
-            .login-container {
-                padding: 40px 30px;
-                margin: 20px;
-            }
+        /* Footer */
+        .login-footer {
+            text-align: center;
+            padding-top: 25px;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            margin-top: 25px;
+        }
 
-            .login-title {
-                font-size: 28px;
-            }
+        .login-footer p {
+            color: var(--text-fade);
+            font-size: 11px;
+            letter-spacing: 1px;
+        }
 
-            .tab-switcher {
-                flex-direction: column;
-            }
+        .login-footer a {
+            color: var(--gold);
+            text-decoration: none;
+        }
 
-            .submit-button:hover {
-                transform: none;
-                letter-spacing: 3px;
-            }
+        /* Loading */
+        .loading-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.95);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .loading-overlay.active { display: flex; }
+
+        .spinner {
+            width: 30px;
+            height: 30px;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-top-color: var(--gold);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 15px;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        @media (max-width: 480px) {
+            .login-container { padding: 35px 25px; }
+            .back-button { top: 20px; left: 20px; }
         }
     </style>
 </head>
 <body>
-    <div class="cursor"></div>
-    <div class="cursor-follower"></div>
     <div class="bg-glow"></div>
 
     <div class="back-button">
         <a href="/" class="back-link">
-            <span class="back-arrow">←</span>
-            <span>Back to Home</span>
+            <span>←</span>
+            <span>Back to Site</span>
         </a>
     </div>
 
     <div class="login-container">
         <div class="login-header">
-            <div class="logo-circle"></div>
-            <h1 class="login-title">BOOM</h1>
-            <p class="login-subtitle">Client & Owner Portal</p>
+            <!-- BOOM Logo SVG -->
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" class="logo-svg">
+                <defs>
+                    <linearGradient id="goldGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stop-color="#FFD54F"/>
+                        <stop offset="100%" stop-color="#F5A623"/>
+                    </linearGradient>
+                </defs>
+                <g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#goldGradient)">
+                    <path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z m610 -144 c743 -103 1436 -459 1919 -985 338 -367 562 -751 704 -1205 276 -879 132 -1858 -388 -2640 -242 -364 -493 -615 -900 -900 l-70 -49 109 104 c413 396 679 919 767 1505 33 217 33 558 0 765 -75 476 -257 896 -549 1265 -127 161 -363 380 -549 511 -300 211 -689 363 -1079 420 -172 26 -604 26 -764 0 -296 -47 -545 -128 -808 -262 -236 -122 -440 -271 -632 -464 -486 -485 -749 -1121 -751 -1815 -1 -611 170 -1148 515 -1608 100 -134 286 -335 382 -413 33 -27 -8 -2 -91 55 -513 351 -904 805 -1143 1331 -71 156 -136 336 -168 465 -9 33 -19 76 -24 95 -5 19 -20 100 -34 180 -59 343 -60 740 0 1070 81 456 229 826 479 1200 246 368 558 669 949 917 386 245 881 418 1321 462 61 6 124 13 140 15 73 10 556 -4 665 -19z m-60 -1329 c105 -16 258 -49 335 -72 82 -26 197 -66 240 -84 149 -65 190 -84 266 -126 677 -379 1129 -1049 1246 -1849 27 -182 24 -517 -5 -695 -75 -458 -225 -813 -500 -1179 -116 -154 -340 -369 -527 -506 -44 -32 -87 -63 -95 -69 -8 -6 35 39 96 99 178 177 283 321 397 550 161 322 231 676 205 1045 -32 467 -223 902 -542 1237 -239 251 -521 426 -873 542 -79 26 -273 67 -383 81 -108 13 -349 13 -465 0 -276 -32 -597 -145 -834 -293 -224 -140 -466 -378 -613 -602 -307 -470 -407 -1055 -273 -1599 80 -327 217 -589 454 -871 71 -84 73 -88 31 -56 -293 225 -547 535 -718 877 -34 68 -65 143 -122 294 -42 112 -101 383 -120 555 -14 127 -14 401 0 534 51 482 223 912 516 1288 269 344 654 620 1085 778 160 59 400 115 574 134 121 13 508 5 625 -13z m-30 -1165 c401 -81 721 -242 992 -499 643 -612 769 -1607 300 -2367 -118 -190 -291 -386 -463 -524 -137 -111 -148 -113 -49 -12 110 112 206 248 275 386 67 137 98 222 132 367 24 103 26 132 27 323 0 182 -3 224 -22 310 -47 211 -126 394 -245 569 -126 186 -358 387 -564 490 -384 191 -823 225 -1218 95 -482 -160 -854 -541 -1004 -1029 -117 -379 -81 -810 96 -1165 37 -72 130 -215 166 -252 17 -18 26 -33 20 -33 -6 0 -61 52 -121 116 -259 272 -424 575 -511 934 -111 459 -18 1006 245 1430 298 483 791 797 1379 880 110 16 448 4 565 -19z m-239 -911 c360 -28 680 -171 925 -415 194 -193 317 -415 382 -688 24 -102 26 -130 26 -312 0 -191 -1 -205 -30 -320 -53 -205 -132 -372 -251 -535 -58 -79 -263 -288 -323 -330 -31 -22 -29 -18 18 35 195 220 312 519 312 795 0 325 -121 614 -350 841 -369 364 -926 453 -1385 222 -336 -170 -578 -499 -636 -865 -19 -126 -7 -371 25 -490 44 -162 97 -284 173 -398 9 -14 -4 -5 -30 20 -26 24 -45 51 -42 58 2 7 1 11 -4 7 -11 -6 -58 51 -118 140 -109 163 -183 347 -219 545 -23 127 -23 351 -1 489 55 335 248 677 492 871 261 208 530 311 881 338 11 1 81 -3 155 -8z m29 -714 c459 -74 823 -428 895 -869 58 -358 -60 -696 -345 -987 l-34 -35 22 35 c115 182 179 403 168 575 -14 235 -104 433 -268 591 -137 134 -287 209 -472 239 -115 19 -187 19 -303 0 -337 -55 -612 -302 -704 -635 -32 -113 -34 -325 -5 -440 23 -92 70 -213 98 -254 l21 -31 -31 29 c-39 36 -120 152 -155 221 -35 71 -81 215 -102 319 -25 130 -17 357 17 476 102 354 357 618 706 730 152 49 331 62 492 36z m-73 -567 c178 -24 327 -101 454 -236 137 -143 199 -303 201 -513 1 -162 -42 -309 -135 -453 -52 -82 -73 -97 -38 -28 51 99 67 290 36 412 -57 219 -251 413 -466 464 -75 17 -236 20 -311 4 -213 -44 -422 -247 -473 -460 -31 -133 -13 -325 41 -431 35 -70 8 -47 -52 43 -58 88 -90 167 -114 286 -25 121 -25 220 -1 331 33 146 84 243 186 351 171 183 413 266 672 230z m15 -470 c80 -17 186 -76 248 -139 106 -107 158 -248 147 -398 -6 -92 -25 -152 -79 -250 -45 -82 -60 -91 -27 -17 18 41 21 62 17 149 -4 89 -8 108 -35 162 -43 82 -126 165 -209 205 -58 29 -80 34 -158 37 -112 5 -184 -12 -259 -62 -182 -121 -251 -323 -171 -506 l24 -55 -25 30 c-36 44 -92 162 -104 223 -39 189 14 369 146 492 105 99 204 139 345 139 48 1 111 -4 140 -10z"/>
+                </g>
+            </svg>
+            <h1 class="logo-text">BOOM</h1>
+            <p>Property Management Platform</p>
         </div>
 
-        <div class="tab-switcher">
-            <button class="tab-button active" data-form="tenant">Tenant Login</button>
-            <button class="tab-button" data-form="owner">Owner Login</button>
-        </div>
+        <div class="login-error" id="loginError"></div>
 
-        <!-- Tenant Login Form -->
-        <form class="login-form active" id="tenantForm">
+        <form id="loginForm">
             <div class="form-group">
-                <label class="form-label">Email Address</label>
-                <input type="email" class="form-input" placeholder="your@email.com" required>
+                <label class="form-label">Email</label>
+                <input type="email" class="form-input" id="email" required placeholder="your@email.com">
             </div>
-
-            <div class="form-group">
-                <label class="form-label">Password</label>
-                <input type="password" class="form-input" placeholder="Enter your password" required>
-            </div>
-
-            <div class="forgot-password">
-                <a href="#" class="forgot-link">Forgot Password?</a>
-            </div>
-
-            <button type="submit" class="submit-button">
-                Access Dashboard
-            </button>
-        </form>
-
-        <!-- Owner Login Form -->
-        <form class="login-form" id="ownerForm">
-            <div class="form-group">
-                <label class="form-label">Email Address</label>
-                <input type="email" class="form-input" placeholder="your@email.com" required>
-            </div>
-
             <div class="form-group">
                 <label class="form-label">Password</label>
-                <input type="password" class="form-input" placeholder="Enter your password" required>
+                <input type="password" class="form-input" id="password" required placeholder="••••••••">
             </div>
-
-            <div class="forgot-password">
-                <a href="#" class="forgot-link">Forgot Password?</a>
-            </div>
-
-            <button type="submit" class="submit-button">
-                Access Dashboard
-            </button>
+            <button type="submit" class="btn-primary" id="loginBtn">Sign In</button>
+            <a href="#" class="forgot-link" onclick="forgotPassword()">Forgot password?</a>
         </form>
 
-        <div class="divider">
-            <span>Or</span>
+        <div class="divider">Demo Accounts</div>
+
+        <div class="demo-accounts">
+            <h4>Test the platform</h4>
+            <div class="demo-account">
+                <span class="role">Admin</span>
+                <span class="email">admin@boom-rome.com</span>
+            </div>
+            <div class="demo-account">
+                <span class="role">Owner</span>
+                <span class="email">owner@boom-rome.com</span>
+            </div>
+            <div class="demo-account">
+                <span class="role">Tenant</span>
+                <span class="email">tenant@boom-rome.com</span>
+            </div>
         </div>
 
-        <div class="alt-login">
-            <a href="https://wa.me/393313251961" class="whatsapp-button">
-                <span class="whatsapp-icon">💬</span>
-                <span>Contact via WhatsApp</span>
-            </a>
-        </div>
-
-        <div class="info-notice">
-            <p>
-                <strong>Dashboard Coming Soon</strong><br>
-                Full self-service portal launching Q2 2025. For now, all services are available via WhatsApp or email.
-            </p>
+        <div class="login-footer">
+            <p>Need help? <a href="mailto:info@boom-rome.com">Contact Support</a></p>
         </div>
     </div>
 
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+        <span style="color: var(--text-secondary)">Signing in...</span>
+    </div>
+
+    <script src="js/firebase-config.js"></script>
     <script>
-        // Custom Cursor
-        if (window.matchMedia('(hover: hover)').matches) {
-            const cursor = document.querySelector('.cursor');
-            const follower = document.querySelector('.cursor-follower');
+        // Check if logged in
+        auth.onAuthStateChanged(async (user) => {
+            if (user) {
+                const doc = await db.collection('users').doc(user.uid).get();
+                if (doc.exists) {
+                    const userData = doc.data();
+                    const redirect = { admin: 'admin.html', owner: 'owner.html', tenant: 'tenant.html' };
+                    window.location.href = redirect[userData.role] || 'admin.html';
+                }
+            }
+        });
 
-            document.addEventListener('mousemove', (e) => {
-                cursor.style.left = e.clientX + 'px';
-                cursor.style.top = e.clientY + 'px';
+        // Login
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const errorEl = document.getElementById('loginError');
+            const loadingEl = document.getElementById('loadingOverlay');
+            const loginBtn = document.getElementById('loginBtn');
+            
+            loadingEl.classList.add('active');
+            loginBtn.disabled = true;
+            errorEl.classList.remove('show');
+            
+            try {
+                const result = await auth.signInWithEmailAndPassword(email, password);
+                const doc = await db.collection('users').doc(result.user.uid).get();
                 
-                setTimeout(() => {
-                    follower.style.left = e.clientX - 10 + 'px';
-                    follower.style.top = e.clientY - 10 + 'px';
-                }, 100);
-            });
+                if (doc.exists) {
+                    const userData = doc.data();
+                    const redirect = { admin: 'admin.html', owner: 'owner.html', tenant: 'tenant.html' };
+                    window.location.href = redirect[userData.role] || 'admin.html';
+                } else {
+                    errorEl.textContent = 'Account not configured. Contact admin.';
+                    errorEl.classList.add('show');
+                    loadingEl.classList.remove('active');
+                    loginBtn.disabled = false;
+                }
+            } catch (error) {
+                const errors = {
+                    'auth/user-not-found': 'No account with this email',
+                    'auth/wrong-password': 'Incorrect password',
+                    'auth/invalid-email': 'Invalid email address',
+                    'auth/too-many-requests': 'Too many attempts. Try later.'
+                };
+                errorEl.textContent = errors[error.code] || error.message;
+                errorEl.classList.add('show');
+                loadingEl.classList.remove('active');
+                loginBtn.disabled = false;
+            }
+        });
 
-            document.querySelectorAll('a, button, input').forEach(element => {
-                element.addEventListener('mouseenter', () => {
-                    cursor.style.transform = 'scale(2)';
-                    follower.style.transform = 'scale(0.5)';
-                });
-                element.addEventListener('mouseleave', () => {
-                    cursor.style.transform = 'scale(1)';
-                    follower.style.transform = 'scale(1)';
-                });
-            });
+        async function forgotPassword() {
+            const email = document.getElementById('email').value;
+            if (!email) {
+                document.getElementById('loginError').textContent = 'Enter your email first';
+                document.getElementById('loginError').classList.add('show');
+                return;
+            }
+            try {
+                await auth.sendPasswordResetEmail(email);
+                alert('Password reset email sent!');
+            } catch (error) {
+                document.getElementById('loginError').textContent = 'Error sending reset email';
+                document.getElementById('loginError').classList.add('show');
+            }
         }
-
-        // Tab Switcher
-        const tabButtons = document.querySelectorAll('.tab-button');
-        const loginForms = document.querySelectorAll('.login-form');
-
-        tabButtons.forEach(button => {
-            button.addEventListener('click', () => {
-                const formType = button.dataset.form;
-                
-                tabButtons.forEach(btn => btn.classList.remove('active'));
-                button.classList.add('active');
-                
-                loginForms.forEach(form => {
-                    if (form.id === formType + 'Form') {
-                        form.classList.add('active');
-                    } else {
-                        form.classList.remove('active');
-                    }
-                });
-            });
-        });
-
-        // Form Submission (Placeholder)
-        const forms = document.querySelectorAll('.login-form');
-        forms.forEach(form => {
-            form.addEventListener('submit', (e) => {
-                e.preventDefault();
-                alert('Dashboard launching Q2 2025. For now, please contact us via WhatsApp!');
-            });
-        });
     </script>
 </body>
 </html>

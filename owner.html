@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-EYCD59RDVJ"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-EYCD59RDVJ');
+    </script>
+    
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Owner Portal – BOOM</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;900&display=swap" rel="stylesheet">
+    
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+
+        :root {
+            --gold: #FFD700;
+            --cyan: #00CED1;
+            --green: #00FF88;
+            --red: #FF3B3B;
+            --pure-black: #000000;
+            --dark-surface: #0A0A0A;
+            --text-primary: #FFFFFF;
+            --text-secondary: #999999;
+            --text-fade: #666666;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--pure-black);
+            color: var(--text-primary);
+            font-weight: 200;
+            letter-spacing: 0.02em;
+        }
+
+        .dashboard-layout { display: grid; grid-template-columns: 280px 1fr; min-height: 100vh; }
+
+        /* Sidebar */
+        .sidebar {
+            background: var(--dark-surface);
+            padding: 30px 25px;
+            border-right: 1px solid rgba(255, 215, 0, 0.1);
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-logo { display: flex; align-items: center; gap: 15px; margin-bottom: 40px; text-decoration: none; color: white; }
+        .logo-svg { width: 50px; height: 50px; filter: drop-shadow(0 0 15px rgba(255, 215, 0, 0.5)); }
+        .logo-text { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 24px; font-weight: 300; letter-spacing: 4px; text-transform: uppercase; }
+
+        .sidebar-user { padding: 20px; background: rgba(255, 255, 255, 0.02); margin-bottom: 30px; }
+        .user-avatar { width: 50px; height: 50px; background: linear-gradient(135deg, var(--cyan), var(--green)); border-radius: 50%; margin-bottom: 12px; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 500; }
+        .user-name { font-size: 14px; font-weight: 400; margin-bottom: 3px; }
+        .user-role { font-size: 10px; color: var(--cyan); text-transform: uppercase; letter-spacing: 2px; }
+
+        .nav-item { display: block; padding: 12px 15px; color: var(--text-secondary); text-decoration: none; font-size: 12px; font-weight: 300; transition: all 0.3s; margin-bottom: 5px; }
+        .nav-item:hover { color: var(--text-primary); background: rgba(255, 255, 255, 0.02); }
+        .nav-item.active { color: var(--gold); background: rgba(255, 215, 0, 0.05); border-left: 2px solid var(--gold); }
+
+        .sidebar-footer { margin-top: auto; padding-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.05); }
+        .logout-btn { width: 100%; padding: 12px; background: transparent; border: 1px solid rgba(255, 255, 255, 0.1); color: var(--text-secondary); font-family: inherit; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; cursor: pointer; transition: all 0.3s; }
+        .logout-btn:hover { border-color: var(--red); color: var(--red); }
+
+        /* Main */
+        .main-content { padding: 40px 50px; }
+
+        .welcome h1 { font-size: 32px; font-weight: 200; margin-bottom: 8px; }
+        .welcome h1 span { color: var(--gold); }
+        .welcome p { color: var(--text-secondary); font-size: 14px; margin-bottom: 40px; }
+
+        /* Earnings Card */
+        .earnings-card {
+            background: var(--dark-surface);
+            border: 1px solid var(--gold);
+            padding: 40px;
+            margin-bottom: 40px;
+        }
+
+        .earnings-label { font-size: 10px; text-transform: uppercase; letter-spacing: 2px; color: var(--text-secondary); margin-bottom: 15px; }
+        .earnings-value { font-size: 56px; font-weight: 200; color: var(--gold); margin-bottom: 20px; }
+        .earnings-details { display: flex; gap: 40px; padding-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.1); }
+        .earnings-detail { font-size: 14px; color: var(--text-secondary); }
+        .earnings-detail strong { color: var(--text-primary); font-weight: 400; }
+
+        .section-title { font-size: 12px; font-weight: 400; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 2px; }
+
+        /* Property Cards */
+        .properties-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 25px; margin-bottom: 40px; }
+
+        .property-card {
+            background: var(--dark-surface);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            overflow: hidden;
+            transition: all 0.3s;
+        }
+
+        .property-card:hover { transform: translateY(-5px); border-color: rgba(255, 215, 0, 0.2); }
+
+        .property-image { height: 160px; background: rgba(255, 255, 255, 0.02); position: relative; }
+        .property-image img { width: 100%; height: 100%; object-fit: cover; }
+
+        .property-status { position: absolute; top: 12px; right: 12px; padding: 5px 12px; font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
+        .status-available { background: var(--green); color: var(--pure-black); }
+        .status-rented { background: var(--red); color: white; }
+        .status-maintenance { background: var(--gold); color: var(--pure-black); }
+
+        .property-body { padding: 25px; }
+        .property-body h3 { font-size: 18px; font-weight: 300; margin-bottom: 5px; }
+        .property-location { color: var(--text-secondary); font-size: 12px; margin-bottom: 20px; }
+
+        .property-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; padding-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.05); }
+        .property-stat { text-align: center; }
+        .property-stat .value { font-size: 20px; font-weight: 300; color: var(--gold); }
+        .property-stat .label { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-fade); margin-top: 3px; }
+
+        .empty-state { text-align: center; padding: 60px; color: var(--text-secondary); }
+        .empty-state h3 { font-size: 16px; font-weight: 300; color: var(--text-primary); margin-bottom: 8px; }
+
+        /* Mobile */
+        .mobile-header { display: none; background: var(--dark-surface); padding: 15px 20px; border-bottom: 1px solid rgba(255, 215, 0, 0.1); justify-content: space-between; align-items: center; }
+        .mobile-logo { display: flex; align-items: center; gap: 10px; }
+        .mobile-logo .logo-svg { width: 35px; height: 35px; }
+        .mobile-logo .logo-text { font-size: 18px; letter-spacing: 3px; }
+        .menu-toggle { padding: 8px 12px; background: transparent; border: 1px solid rgba(255, 255, 255, 0.2); color: var(--text-primary); cursor: pointer; }
+
+        @media (max-width: 900px) {
+            .dashboard-layout { grid-template-columns: 1fr; }
+            .sidebar { display: none; position: fixed; top: 60px; left: 0; right: 0; bottom: 0; z-index: 100; height: auto; }
+            .sidebar.open { display: flex; }
+            .mobile-header { display: flex; }
+            .main-content { padding: 25px; }
+            .earnings-value { font-size: 42px; }
+            .properties-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="mobile-header">
+        <div class="mobile-logo">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" class="logo-svg"><defs><linearGradient id="gM" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#FFD54F"/><stop offset="100%" stop-color="#F5A623"/></linearGradient></defs><g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#gM)"><path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z"/></g></svg>
+            <span class="logo-text">BOOM</span>
+        </div>
+        <button class="menu-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
+    </div>
+
+    <div class="dashboard-layout">
+        <aside class="sidebar" id="sidebar">
+            <a href="/" class="sidebar-logo">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" class="logo-svg"><defs><linearGradient id="g" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#FFD54F"/><stop offset="100%" stop-color="#F5A623"/></linearGradient></defs><g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#g)"><path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z"/></g></svg>
+                <span class="logo-text">BOOM</span>
+            </a>
+            <div class="sidebar-user">
+                <div class="user-avatar" id="userAvatar">O</div>
+                <div class="user-name" id="userName">Owner</div>
+                <div class="user-role">Property Owner</div>
+            </div>
+            <a class="nav-item active">Dashboard</a>
+            <a class="nav-item">Payments</a>
+            <a class="nav-item">Documents</a>
+            <a class="nav-item" href="/" target="_blank">View Website</a>
+            <div class="sidebar-footer">
+                <button class="logout-btn" onclick="auth.signOut().then(() => location.href='login.html')">Logout</button>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <div class="welcome">
+                <h1>Welcome back, <span id="welcomeName">Owner</span></h1>
+                <p>Here's an overview of your properties</p>
+            </div>
+
+            <div class="earnings-card">
+                <div class="earnings-label">Total Monthly Earnings</div>
+                <div class="earnings-value" id="totalEarnings">€0</div>
+                <div class="earnings-details">
+                    <div class="earnings-detail"><strong id="totalProperties">0</strong> Properties</div>
+                    <div class="earnings-detail"><strong id="rentedCount">0</strong> Currently Rented</div>
+                    <div class="earnings-detail"><strong id="occupancyRate">0%</strong> Occupancy</div>
+                </div>
+            </div>
+
+            <h2 class="section-title">Your Properties</h2>
+            <div class="properties-grid" id="propertiesList">
+                <div class="empty-state" style="grid-column: 1/-1;"><h3>Loading...</h3></div>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/firebase-config.js"></script>
+    <script>
+        let currentUser = null;
+
+        auth.onAuthStateChanged(async (user) => {
+            if (!user) { window.location.href = 'login.html'; return; }
+            const doc = await db.collection('users').doc(user.uid).get();
+            if (!doc.exists || doc.data().role !== 'owner') { window.location.href = 'login.html'; return; }
+
+            currentUser = { id: user.uid, ...doc.data() };
+            document.getElementById('userName').textContent = currentUser.name || 'Owner';
+            document.getElementById('welcomeName').textContent = (currentUser.name || 'Owner').split(' ')[0];
+            document.getElementById('userAvatar').textContent = (currentUser.name || 'O')[0].toUpperCase();
+            await loadProperties();
+        });
+
+        async function loadProperties() {
+            const snap = await db.collection('properties').where('ownerId', '==', currentUser.id).get();
+            const props = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            
+            const rented = props.filter(p => p.status === 'rented');
+            const totalEarnings = rented.reduce((sum, p) => sum + (p.price || 0), 0);
+            const occupancy = props.length > 0 ? Math.round((rented.length / props.length) * 100) : 0;
+
+            document.getElementById('totalEarnings').textContent = '€' + totalEarnings.toLocaleString();
+            document.getElementById('totalProperties').textContent = props.length;
+            document.getElementById('rentedCount').textContent = rented.length;
+            document.getElementById('occupancyRate').textContent = occupancy + '%';
+
+            const container = document.getElementById('propertiesList');
+            if (props.length === 0) {
+                container.innerHTML = '<div class="empty-state" style="grid-column: 1/-1;"><h3>No properties assigned</h3><p>Contact BOOM to add your properties</p></div>';
+                return;
+            }
+
+            container.innerHTML = props.map(p => `
+                <div class="property-card">
+                    <div class="property-image">
+                        <img src="${p.image || 'https://via.placeholder.com/400x160/111/222?text=·'}" alt="${p.name}">
+                        <span class="property-status status-${p.status}">${p.status}</span>
+                    </div>
+                    <div class="property-body">
+                        <h3>${p.name}</h3>
+                        <div class="property-location">${p.zone || 'Rome'}</div>
+                        <div class="property-stats">
+                            <div class="property-stat"><div class="value">€${(p.price || 0).toLocaleString()}</div><div class="label">Monthly</div></div>
+                            <div class="property-stat"><div class="value">${p.bedrooms || 0}</div><div class="label">Beds</div></div>
+                            <div class="property-stat"><div class="value">${p.size || 0}m²</div><div class="label">Size</div></div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+    </script>
+</body>
+</html>

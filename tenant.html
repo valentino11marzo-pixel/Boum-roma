@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-EYCD59RDVJ"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-EYCD59RDVJ');
+    </script>
+    
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tenant Portal – BOOM</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;900&display=swap" rel="stylesheet">
+    
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+
+        :root {
+            --gold: #FFD700;
+            --cyan: #00CED1;
+            --green: #00FF88;
+            --red: #FF3B3B;
+            --pure-black: #000000;
+            --dark-surface: #0A0A0A;
+            --text-primary: #FFFFFF;
+            --text-secondary: #999999;
+            --text-fade: #666666;
+        }
+
+        body { font-family: 'Inter', -apple-system, sans-serif; background: var(--pure-black); color: var(--text-primary); font-weight: 200; letter-spacing: 0.02em; }
+
+        .dashboard-layout { display: grid; grid-template-columns: 280px 1fr; min-height: 100vh; }
+
+        /* Sidebar */
+        .sidebar { background: var(--dark-surface); padding: 30px 25px; border-right: 1px solid rgba(255, 215, 0, 0.1); position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; }
+        .sidebar-logo { display: flex; align-items: center; gap: 15px; margin-bottom: 40px; text-decoration: none; color: white; }
+        .logo-svg { width: 50px; height: 50px; filter: drop-shadow(0 0 15px rgba(255, 215, 0, 0.5)); }
+        .logo-text { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 24px; font-weight: 300; letter-spacing: 4px; text-transform: uppercase; }
+
+        .sidebar-user { padding: 20px; background: rgba(255, 255, 255, 0.02); margin-bottom: 30px; }
+        .user-avatar { width: 50px; height: 50px; background: linear-gradient(135deg, var(--green), var(--cyan)); border-radius: 50%; margin-bottom: 12px; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 500; }
+        .user-name { font-size: 14px; font-weight: 400; margin-bottom: 3px; }
+        .user-role { font-size: 10px; color: var(--green); text-transform: uppercase; letter-spacing: 2px; }
+
+        .nav-item { display: block; padding: 12px 15px; color: var(--text-secondary); text-decoration: none; font-size: 12px; font-weight: 300; transition: all 0.3s; margin-bottom: 5px; cursor: pointer; }
+        .nav-item:hover { color: var(--text-primary); background: rgba(255, 255, 255, 0.02); }
+        .nav-item.active { color: var(--gold); background: rgba(255, 215, 0, 0.05); border-left: 2px solid var(--gold); }
+
+        .sidebar-footer { margin-top: auto; padding-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.05); }
+        .logout-btn { width: 100%; padding: 12px; background: transparent; border: 1px solid rgba(255, 255, 255, 0.1); color: var(--text-secondary); font-family: inherit; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; cursor: pointer; transition: all 0.3s; }
+        .logout-btn:hover { border-color: var(--red); color: var(--red); }
+
+        /* Main */
+        .main-content { padding: 40px 50px; }
+        .welcome h1 { font-size: 32px; font-weight: 200; margin-bottom: 8px; }
+        .welcome h1 span { color: var(--gold); }
+        .welcome p { color: var(--text-secondary); font-size: 14px; margin-bottom: 40px; }
+
+        .dashboard-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 30px; }
+
+        /* Home Card */
+        .home-card { background: var(--dark-surface); border: 1px solid var(--green); overflow: hidden; margin-bottom: 30px; }
+        .home-image { height: 200px; background: rgba(255, 255, 255, 0.02); }
+        .home-image img { width: 100%; height: 100%; object-fit: cover; }
+        .home-body { padding: 30px; }
+        .home-status { display: inline-block; padding: 5px 12px; background: var(--green); color: var(--pure-black); font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 15px; }
+        .home-title { font-size: 24px; font-weight: 300; margin-bottom: 8px; }
+        .home-address { font-size: 13px; color: var(--text-secondary); margin-bottom: 25px; }
+        .home-details { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; padding-top: 25px; border-top: 1px solid rgba(255, 255, 255, 0.1); }
+        .home-detail { text-align: center; }
+        .home-detail .value { font-size: 22px; font-weight: 300; color: var(--gold); }
+        .home-detail .label { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-fade); margin-top: 5px; }
+
+        /* Quick Actions */
+        .quick-actions { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 30px; }
+        .quick-action { background: var(--dark-surface); border: 1px solid rgba(255, 255, 255, 0.05); padding: 25px; text-align: center; cursor: pointer; transition: all 0.3s; }
+        .quick-action:hover { border-color: rgba(255, 215, 0, 0.2); transform: translateY(-3px); }
+        .quick-action-icon { width: 45px; height: 45px; background: rgba(255, 215, 0, 0.1); border-radius: 50%; margin: 0 auto 12px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+        .quick-action h4 { font-size: 12px; font-weight: 400; margin-bottom: 3px; }
+        .quick-action p { font-size: 10px; color: var(--text-secondary); }
+
+        .section-title { font-size: 11px; font-weight: 400; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 2px; }
+
+        /* Documents */
+        .documents-list { background: var(--dark-surface); }
+        .document-item { display: flex; align-items: center; gap: 15px; padding: 18px 20px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); cursor: pointer; transition: background 0.3s; }
+        .document-item:last-child { border-bottom: none; }
+        .document-item:hover { background: rgba(255, 255, 255, 0.02); }
+        .document-icon { width: 36px; height: 36px; background: rgba(255, 215, 0, 0.1); display: flex; align-items: center; justify-content: center; font-size: 14px; }
+        .document-info h4 { font-size: 13px; font-weight: 300; margin-bottom: 2px; }
+        .document-info span { font-size: 10px; color: var(--text-fade); }
+
+        /* Side Column */
+        .side-column { display: flex; flex-direction: column; gap: 25px; }
+
+        /* Payment Card */
+        .payment-card { background: var(--dark-surface); padding: 25px; }
+        .payment-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .payment-header h3 { font-size: 11px; font-weight: 400; text-transform: uppercase; letter-spacing: 2px; }
+        .payment-badge { padding: 4px 10px; background: var(--gold); color: var(--pure-black); font-size: 8px; font-weight: 600; text-transform: uppercase; }
+        .payment-amount { font-size: 32px; font-weight: 200; color: var(--gold); margin-bottom: 8px; }
+        .payment-due { font-size: 12px; color: var(--text-secondary); margin-bottom: 20px; }
+        .payment-status { display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: rgba(0, 255, 136, 0.1); color: var(--green); font-size: 11px; }
+
+        /* Contact Card */
+        .contact-card { background: var(--dark-surface); padding: 25px; }
+        .contact-card h3 { font-size: 11px; font-weight: 400; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 2px; }
+        .contact-method { display: flex; align-items: center; gap: 12px; padding: 12px; background: rgba(255, 255, 255, 0.02); margin-bottom: 10px; cursor: pointer; transition: all 0.3s; text-decoration: none; color: inherit; }
+        .contact-method:last-child { margin-bottom: 0; }
+        .contact-method:hover { background: rgba(255, 215, 0, 0.05); }
+        .contact-method span { font-size: 12px; }
+
+        /* Modal */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.9); z-index: 1000; align-items: center; justify-content: center; padding: 20px; }
+        .modal-overlay.active { display: flex; }
+        .modal { background: var(--dark-surface); border: 1px solid rgba(255, 215, 0, 0.1); width: 100%; max-width: 450px; }
+        .modal-header { padding: 25px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); display: flex; justify-content: space-between; align-items: center; }
+        .modal-header h3 { font-size: 14px; font-weight: 300; text-transform: uppercase; letter-spacing: 2px; }
+        .modal-close { width: 32px; height: 32px; background: transparent; border: 1px solid rgba(255, 255, 255, 0.1); color: var(--text-secondary); font-size: 16px; cursor: pointer; }
+        .modal-body { padding: 25px; }
+        .modal-footer { padding: 20px 25px; border-top: 1px solid rgba(255, 255, 255, 0.05); display: flex; justify-content: flex-end; gap: 10px; }
+
+        .form-group { margin-bottom: 18px; }
+        .form-label { display: block; font-size: 10px; font-weight: 400; text-transform: uppercase; letter-spacing: 2px; color: var(--text-secondary); margin-bottom: 8px; }
+        .form-input, .form-select, .form-textarea { width: 100%; padding: 12px 15px; font-family: inherit; font-size: 14px; font-weight: 300; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.1); color: var(--text-primary); transition: all 0.3s; }
+        .form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: var(--gold); }
+        .form-textarea { min-height: 100px; resize: vertical; }
+        .form-select option { background: var(--dark-surface); }
+
+        .btn { padding: 12px 20px; background: transparent; border: 1px solid rgba(255, 255, 255, 0.2); color: var(--text-primary); font-family: inherit; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; cursor: pointer; transition: all 0.3s; }
+        .btn:hover { border-color: var(--gold); color: var(--gold); }
+        .btn-primary { border: 1px solid var(--gold); color: var(--gold); }
+        .btn-primary:hover { background: var(--gold); color: var(--pure-black); }
+
+        .toast-container { position: fixed; bottom: 25px; right: 25px; z-index: 2000; }
+        .toast { padding: 15px 20px; background: var(--dark-surface); border: 1px solid rgba(255, 255, 255, 0.1); margin-top: 10px; display: flex; align-items: center; gap: 12px; }
+        .toast.success { border-left: 2px solid var(--green); }
+        .toast.error { border-left: 2px solid var(--red); }
+
+        /* Mobile */
+        .mobile-header { display: none; background: var(--dark-surface); padding: 15px 20px; border-bottom: 1px solid rgba(255, 215, 0, 0.1); justify-content: space-between; align-items: center; }
+        .mobile-logo { display: flex; align-items: center; gap: 10px; }
+        .mobile-logo .logo-svg { width: 35px; height: 35px; }
+        .mobile-logo .logo-text { font-size: 18px; letter-spacing: 3px; }
+        .menu-toggle { padding: 8px 12px; background: transparent; border: 1px solid rgba(255, 255, 255, 0.2); color: var(--text-primary); cursor: pointer; }
+
+        @media (max-width: 1024px) { .dashboard-grid { grid-template-columns: 1fr; } }
+        @media (max-width: 900px) {
+            .dashboard-layout { grid-template-columns: 1fr; }
+            .sidebar { display: none; position: fixed; top: 60px; left: 0; right: 0; bottom: 0; z-index: 100; height: auto; }
+            .sidebar.open { display: flex; }
+            .mobile-header { display: flex; }
+            .main-content { padding: 25px; }
+            .quick-actions { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="mobile-header">
+        <div class="mobile-logo">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" class="logo-svg"><defs><linearGradient id="gM" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#FFD54F"/><stop offset="100%" stop-color="#F5A623"/></linearGradient></defs><g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#gM)"><path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z"/></g></svg>
+            <span class="logo-text">BOOM</span>
+        </div>
+        <button class="menu-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
+    </div>
+
+    <div class="dashboard-layout">
+        <aside class="sidebar" id="sidebar">
+            <a href="/" class="sidebar-logo">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" class="logo-svg"><defs><linearGradient id="g" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#FFD54F"/><stop offset="100%" stop-color="#F5A623"/></linearGradient></defs><g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#g)"><path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z"/></g></svg>
+                <span class="logo-text">BOOM</span>
+            </a>
+            <div class="sidebar-user">
+                <div class="user-avatar" id="userAvatar">T</div>
+                <div class="user-name" id="userName">Tenant</div>
+                <div class="user-role">Tenant</div>
+            </div>
+            <a class="nav-item active">Dashboard</a>
+            <a class="nav-item">Payments</a>
+            <a class="nav-item">Documents</a>
+            <a class="nav-item" onclick="openMaintenanceModal()">Report Issue</a>
+            <a class="nav-item" href="/" target="_blank">View Website</a>
+            <div class="sidebar-footer">
+                <button class="logout-btn" onclick="auth.signOut().then(() => location.href='login.html')">Logout</button>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <div class="welcome">
+                <h1>Welcome home, <span id="welcomeName">Tenant</span></h1>
+                <p>Manage your rental and payments</p>
+            </div>
+
+            <div class="dashboard-grid">
+                <div class="main-column">
+                    <div class="home-card">
+                        <div class="home-image"><img id="propertyImage" src="https://via.placeholder.com/800x200/111/222?text=·" alt="Your Home"></div>
+                        <div class="home-body">
+                            <span class="home-status">Active Lease</span>
+                            <h2 class="home-title" id="propertyName">Loading...</h2>
+                            <p class="home-address" id="propertyAddress">Rome</p>
+                            <div class="home-details">
+                                <div class="home-detail"><div class="value" id="propertyBedrooms">-</div><div class="label">Bedrooms</div></div>
+                                <div class="home-detail"><div class="value" id="propertyBathrooms">-</div><div class="label">Bathrooms</div></div>
+                                <div class="home-detail"><div class="value" id="propertySize">-</div><div class="label">Size (m²)</div></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="quick-actions">
+                        <div class="quick-action" onclick="openMaintenanceModal()"><div class="quick-action-icon">⚙</div><h4>Report Issue</h4><p>Maintenance request</p></div>
+                        <div class="quick-action"><div class="quick-action-icon">€</div><h4>Payments</h4><p>View history</p></div>
+                        <div class="quick-action"><div class="quick-action-icon">📄</div><h4>Documents</h4><p>Contract & files</p></div>
+                        <div class="quick-action"><div class="quick-action-icon">👤</div><h4>Profile</h4><p>Update info</p></div>
+                    </div>
+
+                    <h3 class="section-title">Your Documents</h3>
+                    <div class="documents-list">
+                        <div class="document-item"><div class="document-icon">📄</div><div class="document-info"><h4>Rental Contract</h4><span>Signed Dec 2024</span></div></div>
+                        <div class="document-item"><div class="document-icon">📋</div><div class="document-info"><h4>House Rules</h4><span>Building guidelines</span></div></div>
+                        <div class="document-item"><div class="document-icon">✓</div><div class="document-info"><h4>Inventory</h4><span>Move-in checklist</span></div></div>
+                    </div>
+                </div>
+
+                <div class="side-column">
+                    <div class="payment-card">
+                        <div class="payment-header"><h3>Next Payment</h3><span class="payment-badge">Monthly</span></div>
+                        <div class="payment-amount" id="rentAmount">€0</div>
+                        <div class="payment-due">Due <strong>1st January 2025</strong></div>
+                        <div class="payment-status"><span>✓</span> Paid for December</div>
+                    </div>
+
+                    <div class="contact-card">
+                        <h3>Need Help?</h3>
+                        <a href="https://wa.me/393313251961" class="contact-method" target="_blank"><span style="color: var(--green)">💬</span><span>WhatsApp</span></a>
+                        <a href="mailto:info@boom-rome.com" class="contact-method"><span style="color: var(--gold)">✉</span><span>Email Support</span></a>
+                        <div class="contact-method" onclick="openMaintenanceModal()"><span style="color: var(--gold)">⚙</span><span>Report Issue</span></div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Maintenance Modal -->
+    <div class="modal-overlay" id="maintenanceModal">
+        <div class="modal">
+            <div class="modal-header"><h3>Report an Issue</h3><button class="modal-close" onclick="closeMaintenanceModal()">×</button></div>
+            <div class="modal-body">
+                <form id="maintenanceForm">
+                    <div class="form-group">
+                        <label class="form-label">Category</label>
+                        <select class="form-select" id="issueCategory" required>
+                            <option value="">Select...</option>
+                            <option value="plumbing">Plumbing</option>
+                            <option value="electrical">Electrical</option>
+                            <option value="heating">Heating / AC</option>
+                            <option value="appliances">Appliances</option>
+                            <option value="locks">Locks / Security</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Priority</label>
+                        <select class="form-select" id="issuePriority" required>
+                            <option value="low">Low – Can wait</option>
+                            <option value="medium">Medium – Soon</option>
+                            <option value="high">High – Urgent</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-textarea" id="issueDescription" required placeholder="Describe the issue..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeMaintenanceModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="submitMaintenance()">Submit</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="js/firebase-config.js"></script>
+    <script>
+        let currentUser = null;
+        let tenantProperty = null;
+
+        auth.onAuthStateChanged(async (user) => {
+            if (!user) { window.location.href = 'login.html'; return; }
+            const doc = await db.collection('users').doc(user.uid).get();
+            if (!doc.exists || doc.data().role !== 'tenant') { window.location.href = 'login.html'; return; }
+
+            currentUser = { id: user.uid, ...doc.data() };
+            document.getElementById('userName').textContent = currentUser.name || 'Tenant';
+            document.getElementById('welcomeName').textContent = (currentUser.name || 'Tenant').split(' ')[0];
+            document.getElementById('userAvatar').textContent = (currentUser.name || 'T')[0].toUpperCase();
+            await loadProperty();
+        });
+
+        async function loadProperty() {
+            if (!currentUser.propertyId) {
+                document.getElementById('propertyName').textContent = 'No property assigned';
+                document.getElementById('propertyAddress').textContent = 'Contact BOOM';
+                return;
+            }
+            const doc = await db.collection('properties').doc(currentUser.propertyId).get();
+            if (!doc.exists) return;
+
+            tenantProperty = { id: doc.id, ...doc.data() };
+            document.getElementById('propertyName').textContent = tenantProperty.name;
+            document.getElementById('propertyAddress').textContent = tenantProperty.zone || 'Rome';
+            document.getElementById('propertyBedrooms').textContent = tenantProperty.bedrooms || '-';
+            document.getElementById('propertyBathrooms').textContent = tenantProperty.bathrooms || '-';
+            document.getElementById('propertySize').textContent = tenantProperty.size || '-';
+            document.getElementById('rentAmount').textContent = '€' + (tenantProperty.price || 0).toLocaleString();
+            if (tenantProperty.image) document.getElementById('propertyImage').src = tenantProperty.image;
+        }
+
+        function openMaintenanceModal() { document.getElementById('maintenanceForm').reset(); document.getElementById('maintenanceModal').classList.add('active'); }
+        function closeMaintenanceModal() { document.getElementById('maintenanceModal').classList.remove('active'); }
+
+        async function submitMaintenance() {
+            const category = document.getElementById('issueCategory').value;
+            const priority = document.getElementById('issuePriority').value;
+            const description = document.getElementById('issueDescription').value;
+            if (!category || !description) { toast('Fill all fields', 'error'); return; }
+
+            try {
+                await db.collection('maintenance').add({
+                    tenantId: currentUser.id,
+                    tenantName: currentUser.name,
+                    propertyId: currentUser.propertyId,
+                    propertyName: tenantProperty?.name || 'Unknown',
+                    category, priority, description,
+                    status: 'pending',
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                toast('Request submitted!', 'success');
+                closeMaintenanceModal();
+            } catch (error) { toast('Error submitting', 'error'); }
+        }
+
+        function toast(message, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            const t = document.createElement('div');
+            t.className = `toast ${type}`;
+            t.innerHTML = `<span>${type === 'success' ? '✓' : '✕'}</span> ${message}`;
+            container.appendChild(t);
+            setTimeout(() => t.remove(), 3000);
+        }
+    </script>
+</body>
+</html>

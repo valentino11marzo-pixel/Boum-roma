@@ -1,11 +1,24 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-EYCD59RDVJ"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-EYCD59RDVJ');
+    </script>
+    
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BOOM – Admin Dashboard</title>
+    <title>Admin Dashboard – BOOM</title>
     
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;900&family=Oswald:wght@200;300;400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;900&display=swap" rel="stylesheet">
+    
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
     
     <style>
         * {
@@ -20,9 +33,8 @@
             --cyan: #00CED1;
             --green: #00FF88;
             --red: #FF3B3B;
-            --purple: #9D4EDD;
             --pure-black: #000000;
-            --dark-surface: #111111;
+            --dark-surface: #0A0A0A;
             --text-primary: #FFFFFF;
             --text-secondary: #999999;
             --text-fade: #666666;
@@ -33,78 +45,146 @@
             background: var(--pure-black);
             color: var(--text-primary);
             font-weight: 200;
+            letter-spacing: 0.02em;
         }
 
-        /* Admin Header */
-        .admin-header {
+        /* Layout */
+        .dashboard-layout {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
             background: var(--dark-surface);
-            padding: 20px 40px;
-            border-bottom: 2px solid var(--gold);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            padding: 30px 25px;
+            border-right: 1px solid rgba(255, 215, 0, 0.1);
             position: sticky;
             top: 0;
-            z-index: 100;
-        }
-
-        .admin-title {
+            height: 100vh;
+            overflow-y: auto;
             display: flex;
-            align-items: center;
-            gap: 20px;
+            flex-direction: column;
         }
 
-        .logo-circle {
-            width: 40px;
-            height: 40px;
-            background: linear-gradient(135deg, #FFD700, #FFA500);
-            border-radius: 50%;
-        }
-
-        .admin-text {
-            font-size: 24px;
-            font-weight: 300;
-            text-transform: uppercase;
-            letter-spacing: -1px;
-        }
-
-        .admin-badge {
-            padding: 5px 15px;
-            background: var(--red);
-            color: white;
-            font-size: 10px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .admin-user {
+        .sidebar-logo {
             display: flex;
             align-items: center;
             gap: 15px;
+            margin-bottom: 40px;
+            text-decoration: none;
+            color: white;
         }
 
-        .user-info {
-            text-align: right;
+        .logo-svg {
+            width: 50px;
+            height: 50px;
+            filter: drop-shadow(0 0 15px rgba(255, 215, 0, 0.5));
+        }
+
+        .logo-text {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            font-size: 24px;
+            font-weight: 300;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+        }
+
+        .sidebar-user {
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.02);
+            margin-bottom: 30px;
+        }
+
+        .user-avatar {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, var(--red), var(--gold));
+            border-radius: 50%;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: 500;
         }
 
         .user-name {
             font-size: 14px;
             font-weight: 400;
+            margin-bottom: 3px;
         }
 
         .user-role {
-            font-size: 11px;
+            font-size: 10px;
+            color: var(--red);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .nav-section {
+            margin-bottom: 30px;
+        }
+
+        .nav-title {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--text-fade);
+            margin-bottom: 15px;
+            padding-left: 15px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 15px;
             color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 300;
+            transition: all 0.3s;
+            margin-bottom: 5px;
+            cursor: pointer;
+        }
+
+        .nav-item:hover {
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .nav-item.active {
+            color: var(--gold);
+            background: rgba(255, 215, 0, 0.05);
+            border-left: 2px solid var(--gold);
+        }
+
+        .nav-badge {
+            padding: 2px 8px;
+            background: var(--gold);
+            color: var(--pure-black);
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .sidebar-footer {
+            margin-top: auto;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
         }
 
         .logout-btn {
-            padding: 10px 20px;
+            width: 100%;
+            padding: 12px;
             background: transparent;
-            border: 1px solid var(--red);
+            border: 1px solid rgba(255, 59, 59, 0.3);
             color: var(--red);
-            font-size: 12px;
+            font-family: inherit;
+            font-size: 11px;
             text-transform: uppercase;
+            letter-spacing: 2px;
             cursor: pointer;
             transition: all 0.3s;
         }
@@ -112,81 +192,64 @@
         .logout-btn:hover {
             background: var(--red);
             color: white;
+            border-color: var(--red);
         }
 
-        /* Main Layout */
-        .admin-container {
-            display: grid;
-            grid-template-columns: 260px 1fr;
-            min-height: calc(100vh - 80px);
-        }
-
-        /* Sidebar */
-        .admin-sidebar {
-            background: var(--dark-surface);
-            padding: 30px 20px;
-            border-right: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        .sidebar-section {
-            margin-bottom: 40px;
-        }
-
-        .sidebar-title {
-            font-size: 10px;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            color: var(--text-fade);
-            margin-bottom: 15px;
-        }
-
-        .sidebar-link {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px 15px;
-            color: var(--text-secondary);
-            text-decoration: none;
-            font-size: 13px;
-            transition: all 0.3s;
-            border-radius: 5px;
-            margin-bottom: 5px;
-        }
-
-        .sidebar-link:hover {
-            background: rgba(255, 255, 255, 0.02);
-            color: var(--text-primary);
-        }
-
-        .sidebar-link.active {
-            background: rgba(255, 215, 0, 0.1);
-            color: var(--gold);
-        }
-
-        .sidebar-icon {
-            font-size: 16px;
-        }
-
-        .sidebar-count {
-            margin-left: auto;
-            padding: 2px 8px;
-            background: var(--gold);
-            color: var(--pure-black);
-            font-size: 10px;
-            font-weight: 600;
-            border-radius: 10px;
-        }
-
-        /* Main Content */
-        .admin-main {
-            padding: 40px;
+        /* Main */
+        .main-content {
+            padding: 40px 50px;
             overflow-y: auto;
         }
 
-        /* Stats Grid */
-        .stats-overview {
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 40px;
+        }
+
+        .page-title {
+            font-size: 28px;
+            font-weight: 200;
+        }
+
+        .btn {
+            padding: 12px 25px;
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn:hover {
+            border-color: var(--gold);
+            color: var(--gold);
+        }
+
+        .btn-primary {
+            background: transparent;
+            border: 1px solid var(--gold);
+            color: var(--gold);
+        }
+
+        .btn-primary:hover {
+            background: var(--gold);
+            color: var(--pure-black);
+        }
+
+        /* Sections */
+        .section { display: none; }
+        .section.active { display: block; }
+
+        /* Stats */
+        .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            grid-template-columns: repeat(4, 1fr);
             gap: 20px;
             margin-bottom: 40px;
         }
@@ -199,194 +262,98 @@
         }
 
         .stat-card:hover {
-            transform: translateY(-3px);
             border-color: rgba(255, 215, 0, 0.2);
-        }
-
-        .stat-icon {
-            font-size: 24px;
-            margin-bottom: 15px;
-            opacity: 0.5;
-        }
-
-        .stat-value {
-            font-size: 42px;
-            font-weight: 200;
-            color: var(--gold);
-            margin-bottom: 5px;
+            transform: translateY(-3px);
         }
 
         .stat-label {
-            font-size: 11px;
+            font-size: 10px;
             text-transform: uppercase;
             letter-spacing: 2px;
             color: var(--text-secondary);
+            margin-bottom: 15px;
         }
 
-        .stat-change {
-            font-size: 12px;
-            color: var(--green);
-            margin-top: 10px;
-        }
-
-        .stat-change.negative {
-            color: var(--red);
+        .stat-value {
+            font-size: 36px;
+            font-weight: 200;
+            color: var(--gold);
         }
 
         /* Quick Actions */
         .quick-actions {
             background: var(--dark-surface);
-            padding: 30px;
+            padding: 25px 30px;
             margin-bottom: 40px;
-            border-left: 3px solid var(--gold);
+            border-left: 2px solid var(--gold);
         }
 
         .quick-actions-title {
-            font-size: 18px;
+            font-size: 12px;
             font-weight: 400;
             margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
         }
 
         .action-buttons {
             display: flex;
             gap: 15px;
-            flex-wrap: wrap;
         }
 
-        .action-btn {
-            padding: 15px 30px;
-            background: transparent;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            color: var(--text-primary);
-            font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        .action-btn:hover {
-            border-color: var(--gold);
-            color: var(--gold);
-        }
-
-        .action-btn.primary {
-            background: var(--gold);
-            border-color: var(--gold);
-            color: var(--pure-black);
-            font-weight: 600;
-        }
-
-        /* Data Tables */
-        .data-section {
-            margin-bottom: 40px;
-        }
-
-        .section-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-
-        .section-title {
-            font-size: 20px;
-            font-weight: 300;
-            text-transform: uppercase;
-        }
-
-        .filter-buttons {
-            display: flex;
-            gap: 10px;
-        }
-
-        .filter-btn {
-            padding: 8px 16px;
-            background: transparent;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: var(--text-secondary);
-            font-size: 11px;
-            text-transform: uppercase;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        .filter-btn:hover {
-            border-color: var(--gold);
-            color: var(--gold);
-        }
-
-        .filter-btn.active {
-            background: var(--gold);
-            border-color: var(--gold);
-            color: var(--pure-black);
-        }
-
+        /* Tables */
         .data-table {
             width: 100%;
             background: var(--dark-surface);
             border: 1px solid rgba(255, 255, 255, 0.05);
+            border-collapse: collapse;
         }
 
         .data-table th {
-            padding: 15px;
+            padding: 15px 20px;
             background: rgba(0, 0, 0, 0.5);
             text-align: left;
-            font-size: 11px;
+            font-size: 10px;
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 2px;
             color: var(--text-secondary);
-            font-weight: 500;
+            font-weight: 400;
         }
 
         .data-table td {
-            padding: 15px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 15px 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
             font-size: 13px;
+            font-weight: 300;
         }
 
-        .data-table tr:hover {
+        .data-table tr:hover td {
             background: rgba(255, 255, 255, 0.02);
         }
 
         .status-badge {
             display: inline-block;
             padding: 4px 12px;
-            font-size: 10px;
+            font-size: 9px;
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 1px;
-            border-radius: 100px;
         }
 
-        .status-active {
-            background: var(--green);
-            color: var(--pure-black);
-        }
-
-        .status-pending {
-            background: var(--gold);
-            color: var(--pure-black);
-        }
-
-        .status-inactive {
-            background: var(--red);
-            color: white;
-        }
-
-        .table-actions {
-            display: flex;
-            gap: 10px;
-        }
+        .status-active { background: var(--green); color: var(--pure-black); }
+        .status-pending { background: var(--gold); color: var(--pure-black); }
+        .status-inactive { background: var(--red); color: white; }
 
         .table-action {
-            padding: 5px 10px;
+            padding: 6px 12px;
             background: transparent;
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.15);
             color: var(--text-secondary);
-            font-size: 11px;
+            font-family: inherit;
+            font-size: 10px;
             cursor: pointer;
             transition: all 0.3s;
+            margin-right: 5px;
         }
 
         .table-action:hover {
@@ -394,454 +361,1038 @@
             color: var(--gold);
         }
 
-        /* Revenue Chart Placeholder */
-        .revenue-chart {
-            background: var(--dark-surface);
-            padding: 30px;
-            height: 300px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 40px;
-            border: 1px solid rgba(255, 255, 255, 0.05);
+        .table-action.danger:hover {
+            border-color: var(--red);
+            color: var(--red);
         }
 
-        .chart-placeholder {
+        .empty-state {
             text-align: center;
-        }
-
-        .chart-icon {
-            font-size: 48px;
-            opacity: 0.2;
-            margin-bottom: 15px;
-        }
-
-        .chart-text {
-            font-size: 14px;
+            padding: 60px;
             color: var(--text-secondary);
         }
 
-        /* Responsive */
-        @media (max-width: 1024px) {
-            .admin-container {
-                grid-template-columns: 1fr;
-            }
-
-            .admin-sidebar {
-                display: none;
-            }
+        .empty-state h3 {
+            font-size: 16px;
+            font-weight: 300;
+            margin-bottom: 8px;
+            color: var(--text-primary);
         }
 
-        @media (max-width: 768px) {
-            .admin-header {
-                padding: 15px 20px;
-                flex-direction: column;
-                gap: 20px;
-            }
+        /* Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
 
-            .admin-main {
-                padding: 20px;
-            }
+        .modal-overlay.active { display: flex; }
 
-            .stats-overview {
-                grid-template-columns: 1fr;
-            }
+        .modal {
+            background: var(--dark-surface);
+            border: 1px solid rgba(255, 215, 0, 0.1);
+            width: 100%;
+            max-width: 700px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
 
-            .data-table {
-                display: block;
-                overflow-x: auto;
+        .modal-header {
+            padding: 25px 30px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h3 {
+            font-size: 16px;
+            font-weight: 300;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .modal-close {
+            width: 35px;
+            height: 35px;
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-secondary);
+            font-size: 18px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .modal-close:hover {
+            border-color: var(--red);
+            color: var(--red);
+        }
+
+        .modal-body { padding: 30px; }
+
+        .modal-footer {
+            padding: 20px 30px;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            justify-content: flex-end;
+            gap: 15px;
+        }
+
+        /* Forms */
+        .form-group { margin-bottom: 20px; }
+
+        .form-label {
+            display: block;
+            font-size: 10px;
+            font-weight: 400;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        .form-input,
+        .form-select,
+        .form-textarea {
+            width: 100%;
+            padding: 12px 15px;
+            font-family: inherit;
+            font-size: 14px;
+            font-weight: 300;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+            transition: all 0.3s;
+        }
+
+        .form-input:focus,
+        .form-select:focus,
+        .form-textarea:focus {
+            outline: none;
+            border-color: var(--gold);
+        }
+
+        .form-input::placeholder { color: var(--text-fade); }
+        .form-select option { background: var(--dark-surface); }
+        .form-textarea { min-height: 100px; resize: vertical; }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        /* Zone Info Box */
+        .zone-info {
+            background: rgba(255, 215, 0, 0.03);
+            border: 1px solid rgba(255, 215, 0, 0.15);
+            padding: 20px;
+            margin-top: 15px;
+            display: none;
+        }
+
+        .zone-info.show { display: block; }
+
+        .zone-info h4 {
+            font-size: 14px;
+            font-weight: 400;
+            color: var(--gold);
+            margin-bottom: 10px;
+        }
+
+        .zone-info p {
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.7;
+            margin-bottom: 10px;
+        }
+
+        .zone-info .metro {
+            font-size: 12px;
+            color: var(--cyan);
+        }
+
+        .zone-info .avg-price {
+            font-size: 12px;
+            color: var(--green);
+            margin-top: 10px;
+        }
+
+        /* Cost Calculator */
+        .cost-calculator {
+            background: rgba(0, 255, 136, 0.03);
+            border: 1px solid rgba(0, 255, 136, 0.15);
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .cost-calculator h4 {
+            font-size: 12px;
+            font-weight: 400;
+            color: var(--green);
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .cost-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 13px;
+        }
+
+        .cost-row:last-child { border-bottom: none; }
+
+        .cost-row.total {
+            border-top: 1px solid var(--gold);
+            margin-top: 10px;
+            padding-top: 15px;
+            font-weight: 400;
+        }
+
+        .cost-row.total .value {
+            color: var(--gold);
+            font-size: 20px;
+        }
+
+        .cost-row .label { color: var(--text-secondary); }
+        .cost-row .value { color: var(--text-primary); }
+
+        /* Toast */
+        .toast-container {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            z-index: 2000;
+        }
+
+        .toast {
+            padding: 15px 20px;
+            background: var(--dark-surface);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            animation: toastIn 0.3s ease;
+        }
+
+        @keyframes toastIn {
+            from { opacity: 0; transform: translateX(50px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .toast.success { border-left: 2px solid var(--green); }
+        .toast.error { border-left: 2px solid var(--red); }
+
+        /* Mobile */
+        .mobile-header {
+            display: none;
+            background: var(--dark-surface);
+            padding: 15px 20px;
+            border-bottom: 1px solid rgba(255, 215, 0, 0.1);
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .mobile-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .mobile-logo .logo-svg { width: 35px; height: 35px; }
+        .mobile-logo .logo-text { font-size: 18px; letter-spacing: 3px; }
+
+        .menu-toggle {
+            padding: 8px 12px;
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: var(--text-primary);
+            cursor: pointer;
+        }
+
+        @media (max-width: 1024px) {
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        @media (max-width: 900px) {
+            .dashboard-layout { grid-template-columns: 1fr; }
+            .sidebar {
+                display: none;
+                position: fixed;
+                top: 60px; left: 0; right: 0; bottom: 0;
+                z-index: 100;
+                height: auto;
             }
+            .sidebar.open { display: flex; }
+            .mobile-header { display: flex; }
+            .main-content { padding: 25px; }
+            .form-row { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 600px) {
+            .stats-grid { grid-template-columns: 1fr; }
+            .action-buttons { flex-direction: column; }
+            .action-buttons .btn { width: 100%; }
         }
     </style>
 </head>
 <body>
-    <!-- Admin Header -->
-    <header class="admin-header">
-        <div class="admin-title">
-            <div class="logo-circle"></div>
-            <span class="admin-text">BOOM Admin</span>
-            <span class="admin-badge">Master Control</span>
+    <!-- Mobile Header -->
+    <div class="mobile-header">
+        <div class="mobile-logo">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" class="logo-svg">
+                <defs><linearGradient id="goldGradMobile" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#FFD54F"/><stop offset="100%" stop-color="#F5A623"/></linearGradient></defs>
+                <g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#goldGradMobile)"><path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z"/></g>
+            </svg>
+            <span class="logo-text">BOOM</span>
         </div>
-        
-        <div class="admin-user">
-            <div class="user-info">
-                <div class="user-name">Valentino R.</div>
-                <div class="user-role">Founder & CEO</div>
-            </div>
-            <button class="logout-btn">Logout</button>
-        </div>
-    </header>
+        <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+    </div>
 
-    <div class="admin-container">
+    <div class="dashboard-layout">
         <!-- Sidebar -->
-        <aside class="admin-sidebar">
-            <div class="sidebar-section">
-                <div class="sidebar-title">Overview</div>
-                <a href="#" class="sidebar-link active">
-                    <span class="sidebar-icon">📊</span>
-                    <span>Dashboard</span>
-                </a>
-                <a href="#" class="sidebar-link">
-                    <span class="sidebar-icon">📈</span>
-                    <span>Analytics</span>
-                </a>
-                <a href="#" class="sidebar-link">
-                    <span class="sidebar-icon">💰</span>
-                    <span>Revenue</span>
-                </a>
+        <aside class="sidebar" id="sidebar">
+            <a href="/" class="sidebar-logo">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" class="logo-svg">
+                    <defs><linearGradient id="goldGrad" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#FFD54F"/><stop offset="100%" stop-color="#F5A623"/></linearGradient></defs>
+                    <g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#goldGrad)"><path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z"/></g>
+                </svg>
+                <span class="logo-text">BOOM</span>
+            </a>
+
+            <div class="sidebar-user">
+                <div class="user-avatar" id="userAvatar">A</div>
+                <div class="user-name" id="userName">Admin</div>
+                <div class="user-role">Administrator</div>
             </div>
 
-            <div class="sidebar-section">
-                <div class="sidebar-title">Management</div>
-                <a href="#" class="sidebar-link">
-                    <span class="sidebar-icon">🏠</span>
-                    <span>Properties</span>
-                    <span class="sidebar-count">18</span>
-                </a>
-                <a href="#" class="sidebar-link">
-                    <span class="sidebar-icon">👥</span>
-                    <span>Tenants</span>
-                    <span class="sidebar-count">45</span>
-                </a>
-                <a href="#" class="sidebar-link">
-                    <span class="sidebar-icon">🔑</span>
-                    <span>Owners</span>
-                    <span class="sidebar-count">12</span>
-                </a>
-                <a href="#" class="sidebar-link">
-                    <span class="sidebar-icon">📝</span>
-                    <span>Applications</span>
-                    <span class="sidebar-count">8</span>
-                </a>
-                <a href="#" class="sidebar-link">
-                    <span class="sidebar-icon">💳</span>
-                    <span>Payments</span>
-                </a>
-                <a href="#" class="sidebar-link">
-                    <span class="sidebar-icon">🔧</span>
-                    <span>Maintenance</span>
-                    <span class="sidebar-count">2</span>
-                </a>
+            <div class="nav-section">
+                <div class="nav-title">Main</div>
+                <a class="nav-item active" data-section="dashboard">Dashboard</a>
+                <a class="nav-item" data-section="properties">Properties</a>
             </div>
 
-            <div class="sidebar-section">
-                <div class="sidebar-title">Support</div>
-                <a href="#" class="sidebar-link">
-                    <span class="sidebar-icon">💬</span>
-                    <span>Messages</span>
-                    <span class="sidebar-count">5</span>
-                </a>
-                <a href="#" class="sidebar-link">
-                    <span class="sidebar-icon">🎯</span>
-                    <span>Concierge</span>
-                </a>
-                <a href="#" class="sidebar-link">
-                    <span class="sidebar-icon">⚠️</span>
-                    <span>Issues</span>
-                    <span class="sidebar-count">1</span>
-                </a>
+            <div class="nav-section">
+                <div class="nav-title">Management</div>
+                <a class="nav-item" data-section="users">Users <span class="nav-badge" id="usersCount">0</span></a>
+                <a class="nav-item" data-section="bookings">Bookings</a>
+                <a class="nav-item" data-section="maintenance">Maintenance</a>
             </div>
 
-            <div class="sidebar-section">
-                <div class="sidebar-title">System</div>
-                <a href="#" class="sidebar-link">
-                    <span class="sidebar-icon">⚙️</span>
-                    <span>Settings</span>
-                </a>
-                <a href="#" class="sidebar-link">
-                    <span class="sidebar-icon">📊</span>
-                    <span>Reports</span>
-                </a>
-                <a href="#" class="sidebar-link">
-                    <span class="sidebar-icon">🔐</span>
-                    <span>Security</span>
-                </a>
+            <div class="nav-section">
+                <div class="nav-title">Links</div>
+                <a class="nav-item" href="/" target="_blank">View Website</a>
+            </div>
+
+            <div class="sidebar-footer">
+                <button class="logout-btn" onclick="logout()">Logout</button>
             </div>
         </aside>
 
-        <!-- Main Content -->
-        <main class="admin-main">
-            <!-- Stats Overview -->
-            <div class="stats-overview">
-                <div class="stat-card">
-                    <div class="stat-icon">💰</div>
-                    <div class="stat-value">€85,400</div>
-                    <div class="stat-label">Monthly Revenue</div>
-                    <div class="stat-change">+12% from last month</div>
+        <!-- Main -->
+        <main class="main-content">
+            <!-- Dashboard -->
+            <div class="section active" id="dashboardSection">
+                <div class="page-header">
+                    <h1 class="page-title">Dashboard</h1>
                 </div>
-                
-                <div class="stat-card">
-                    <div class="stat-icon">🏠</div>
-                    <div class="stat-value">18</div>
-                    <div class="stat-label">Active Properties</div>
-                    <div class="stat-change">+2 this week</div>
-                </div>
-                
-                <div class="stat-card">
-                    <div class="stat-icon">👥</div>
-                    <div class="stat-value">45</div>
-                    <div class="stat-label">Current Tenants</div>
-                    <div class="stat-change">95% occupancy</div>
-                </div>
-                
-                <div class="stat-card">
-                    <div class="stat-icon">⏱️</div>
-                    <div class="stat-value">28h</div>
-                    <div class="stat-label">Avg. Placement Time</div>
-                    <div class="stat-change">-20h from average</div>
-                </div>
-                
-                <div class="stat-card">
-                    <div class="stat-icon">⭐</div>
-                    <div class="stat-value">4.9</div>
-                    <div class="stat-label">Average Rating</div>
-                    <div class="stat-change">+0.2 this month</div>
-                </div>
-                
-                <div class="stat-card">
-                    <div class="stat-icon">📱</div>
-                    <div class="stat-value">2 min</div>
-                    <div class="stat-label">Response Time</div>
-                    <div class="stat-change">Industry leading</div>
-                </div>
-            </div>
 
-            <!-- Quick Actions -->
-            <div class="quick-actions">
-                <h3 class="quick-actions-title">Quick Actions</h3>
-                <div class="action-buttons">
-                    <button class="action-btn primary">+ Add Property</button>
-                    <button class="action-btn">Create Contract</button>
-                    <button class="action-btn">Process Payment</button>
-                    <button class="action-btn">Schedule Viewing</button>
-                    <button class="action-btn">Send Notification</button>
-                    <button class="action-btn">Generate Report</button>
-                </div>
-            </div>
-
-            <!-- Revenue Chart -->
-            <div class="revenue-chart">
-                <div class="chart-placeholder">
-                    <div class="chart-icon">📊</div>
-                    <div class="chart-text">Revenue Chart - Integration with analytics coming soon</div>
-                </div>
-            </div>
-
-            <!-- Recent Applications -->
-            <div class="data-section">
-                <div class="section-header">
-                    <h3 class="section-title">Recent Applications</h3>
-                    <div class="filter-buttons">
-                        <button class="filter-btn active">All</button>
-                        <button class="filter-btn">Pending</button>
-                        <button class="filter-btn">Approved</button>
-                        <button class="filter-btn">Rejected</button>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">Properties</div>
+                        <div class="stat-value" id="statProperties">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Tenants</div>
+                        <div class="stat-value" id="statTenants">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Monthly Revenue</div>
+                        <div class="stat-value" id="statRevenue">€0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Occupancy</div>
+                        <div class="stat-value" id="statOccupancy">0%</div>
                     </div>
                 </div>
-                
+
+                <div class="quick-actions">
+                    <h3 class="quick-actions-title">Quick Actions</h3>
+                    <div class="action-buttons">
+                        <button class="btn btn-primary" onclick="showSection('properties'); openPropertyModal()">+ Add Property</button>
+                        <button class="btn" onclick="showSection('users'); openUserModal()">+ Add User</button>
+                        <button class="btn" onclick="showSection('maintenance')">View Maintenance</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Properties -->
+            <div class="section" id="propertiesSection">
+                <div class="page-header">
+                    <h1 class="page-title">Properties</h1>
+                    <button class="btn btn-primary" onclick="openPropertyModal()">+ Add Property</button>
+                </div>
+
                 <table class="data-table">
                     <thead>
                         <tr>
-                            <th>Applicant</th>
+                            <th>Name</th>
+                            <th>Zone</th>
+                            <th>Price</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="propertiesList">
+                        <tr><td colspan="5" class="empty-state"><h3>No properties yet</h3></td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Users -->
+            <div class="section" id="usersSection">
+                <div class="page-header">
+                    <h1 class="page-title">Users</h1>
+                    <button class="btn btn-primary" onclick="openUserModal()">+ Add User</button>
+                </div>
+
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Role</th>
                             <th>Property</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersList">
+                        <tr><td colspan="5" class="empty-state"><h3>No users yet</h3></td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Bookings -->
+            <div class="section" id="bookingsSection">
+                <div class="page-header"><h1 class="page-title">Bookings</h1></div>
+                <div class="empty-state"><h3>No bookings yet</h3></div>
+            </div>
+
+            <!-- Maintenance -->
+            <div class="section" id="maintenanceSection">
+                <div class="page-header"><h1 class="page-title">Maintenance Requests</h1></div>
+                <table class="data-table" id="maintenanceTable" style="display: none;">
+                    <thead>
+                        <tr>
+                            <th>Property</th>
+                            <th>Category</th>
+                            <th>Priority</th>
+                            <th>Status</th>
                             <th>Date</th>
-                            <th>Income Verified</th>
-                            <th>Status</th>
-                            <th>Actions</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        <tr>
-                            <td>Sarah Chen</td>
-                            <td>Trastevere Terrace</td>
-                            <td>Dec 28, 2024</td>
-                            <td>€4,500/mo</td>
-                            <td><span class="status-badge status-pending">Pending</span></td>
-                            <td>
-                                <div class="table-actions">
-                                    <button class="table-action">Review</button>
-                                    <button class="table-action">Approve</button>
-                                </div>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>Marco Silva</td>
-                            <td>Monti Studio</td>
-                            <td>Dec 27, 2024</td>
-                            <td>€3,200/mo</td>
-                            <td><span class="status-badge status-active">Approved</span></td>
-                            <td>
-                                <div class="table-actions">
-                                    <button class="table-action">Contract</button>
-                                    <button class="table-action">Contact</button>
-                                </div>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>Emma Schmidt</td>
-                            <td>Parioli Penthouse</td>
-                            <td>Dec 26, 2024</td>
-                            <td>€8,000/mo</td>
-                            <td><span class="status-badge status-active">Approved</span></td>
-                            <td>
-                                <div class="table-actions">
-                                    <button class="table-action">View</button>
-                                    <button class="table-action">Message</button>
-                                </div>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>David Kim</td>
-                            <td>San Lorenzo Studio</td>
-                            <td>Dec 25, 2024</td>
-                            <td>Pending</td>
-                            <td><span class="status-badge status-pending">Pending</span></td>
-                            <td>
-                                <div class="table-actions">
-                                    <button class="table-action">Verify</button>
-                                    <button class="table-action">Request Docs</button>
-                                </div>
-                            </td>
-                        </tr>
-                    </tbody>
+                    <tbody id="maintenanceList"></tbody>
                 </table>
-            </div>
-
-            <!-- Active Properties -->
-            <div class="data-section">
-                <div class="section-header">
-                    <h3 class="section-title">Active Properties</h3>
-                    <div class="filter-buttons">
-                        <button class="filter-btn active">All</button>
-                        <button class="filter-btn">Available</button>
-                        <button class="filter-btn">Occupied</button>
-                        <button class="filter-btn">Maintenance</button>
-                    </div>
-                </div>
-                
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Property</th>
-                            <th>Location</th>
-                            <th>Owner</th>
-                            <th>Tenant</th>
-                            <th>Monthly Rent</th>
-                            <th>Status</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>Trastevere Terrace</td>
-                            <td>Via della Scala 42</td>
-                            <td>Giovanni R.</td>
-                            <td>John Doe</td>
-                            <td>€1,800</td>
-                            <td><span class="status-badge status-active">Occupied</span></td>
-                            <td>
-                                <div class="table-actions">
-                                    <button class="table-action">View</button>
-                                    <button class="table-action">Edit</button>
-                                </div>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>Monti Designer Loft</td>
-                            <td>Via dei Serpenti 15</td>
-                            <td>Maria S.</td>
-                            <td>Available</td>
-                            <td>€1,200</td>
-                            <td><span class="status-badge status-pending">Available</span></td>
-                            <td>
-                                <div class="table-actions">
-                                    <button class="table-action">Promote</button>
-                                    <button class="table-action">Edit</button>
-                                </div>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>Parioli Penthouse</td>
-                            <td>Via Archimede 90</td>
-                            <td>Francesco P.</td>
-                            <td>Lisa Anderson</td>
-                            <td>€2,800</td>
-                            <td><span class="status-badge status-active">Occupied</span></td>
-                            <td>
-                                <div class="table-actions">
-                                    <button class="table-action">View</button>
-                                    <button class="table-action">Contract</button>
-                                </div>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Recent Activity -->
-            <div class="data-section">
-                <div class="section-header">
-                    <h3 class="section-title">Recent Activity</h3>
-                </div>
-                
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Time</th>
-                            <th>Event</th>
-                            <th>User</th>
-                            <th>Details</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>10 min ago</td>
-                            <td>New Application</td>
-                            <td>Sarah Chen</td>
-                            <td>Applied for Trastevere Terrace</td>
-                        </tr>
-                        <tr>
-                            <td>2 hours ago</td>
-                            <td>Payment Received</td>
-                            <td>John Doe</td>
-                            <td>€1,800 - January Rent</td>
-                        </tr>
-                        <tr>
-                            <td>5 hours ago</td>
-                            <td>Maintenance Request</td>
-                            <td>Lisa Anderson</td>
-                            <td>AC not working properly</td>
-                        </tr>
-                        <tr>
-                            <td>1 day ago</td>
-                            <td>Contract Signed</td>
-                            <td>Marco Silva</td>
-                            <td>Monti Studio - 12 months</td>
-                        </tr>
-                    </tbody>
-                </table>
+                <div class="empty-state" id="maintenanceEmpty"><h3>No maintenance requests</h3></div>
             </div>
         </main>
     </div>
 
+    <!-- Property Modal -->
+    <div class="modal-overlay" id="propertyModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="propertyModalTitle">Add Property</h3>
+                <button class="modal-close" onclick="closePropertyModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <form id="propertyForm">
+                    <input type="hidden" id="propertyId">
+                    
+                    <div class="form-group">
+                        <label class="form-label">Property Name</label>
+                        <input type="text" class="form-input" id="propName" required placeholder="e.g. Trastevere Terrace">
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Zone</label>
+                            <select class="form-select" id="propZone" required onchange="showZoneInfo()">
+                                <option value="">Select zone...</option>
+                                <option value="Centro Storico">Centro Storico</option>
+                                <option value="Trastevere">Trastevere</option>
+                                <option value="Prati">Prati</option>
+                                <option value="Testaccio">Testaccio</option>
+                                <option value="Pigneto">Pigneto</option>
+                                <option value="Monteverde">Monteverde</option>
+                                <option value="San Giovanni">San Giovanni</option>
+                                <option value="EUR">EUR</option>
+                                <option value="Flaminio">Flaminio</option>
+                                <option value="Ostiense">Ostiense</option>
+                                <option value="Monti">Monti</option>
+                                <option value="Parioli">Parioli</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Status</label>
+                            <select class="form-select" id="propStatus" required>
+                                <option value="available">Available</option>
+                                <option value="rented">Rented</option>
+                                <option value="maintenance">Maintenance</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Zone Info (auto-populated) -->
+                    <div class="zone-info" id="zoneInfo">
+                        <h4 id="zoneInfoTitle">Zone Name</h4>
+                        <p id="zoneInfoDesc">Description will appear here...</p>
+                        <p class="metro" id="zoneInfoMetro">Metro: -</p>
+                        <p class="avg-price" id="zoneInfoPrice">Average rent: -</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Owner</label>
+                        <select class="form-select" id="propOwner">
+                            <option value="">Select owner...</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Monthly Rent (€)</label>
+                            <input type="number" class="form-input" id="propPrice" required placeholder="1500" oninput="calculateCosts()">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Size (m²)</label>
+                            <input type="number" class="form-input" id="propSize" placeholder="65">
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Bedrooms</label>
+                            <input type="number" class="form-input" id="propBedrooms" placeholder="2">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Bathrooms</label>
+                            <input type="number" class="form-input" id="propBathrooms" placeholder="1">
+                        </div>
+                    </div>
+
+                    <!-- Cost Calculator (auto-calculated) -->
+                    <div class="cost-calculator">
+                        <h4>Cost Breakdown</h4>
+                        <div class="cost-row">
+                            <span class="label">Monthly Rent</span>
+                            <span class="value" id="calcRent">€0</span>
+                        </div>
+                        <div class="cost-row">
+                            <span class="label">BOOM Management Fee (15%)</span>
+                            <span class="value" id="calcFee">€0</span>
+                        </div>
+                        <div class="cost-row">
+                            <span class="label">Owner Net Income</span>
+                            <span class="value" id="calcOwnerNet">€0</span>
+                        </div>
+                        <div class="cost-row total">
+                            <span class="label">Annual Revenue (Projected)</span>
+                            <span class="value" id="calcAnnual">€0</span>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group" style="margin-top: 20px;">
+                        <label class="form-label">Address</label>
+                        <input type="text" class="form-input" id="propAddress" placeholder="Via Roma 123, Rome">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Image URL</label>
+                        <input type="url" class="form-input" id="propImage" placeholder="https://...">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closePropertyModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveProperty()">Save Property</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Modal -->
+    <div class="modal-overlay" id="userModal">
+        <div class="modal" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3 id="userModalTitle">Add User</h3>
+                <button class="modal-close" onclick="closeUserModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <form id="userForm">
+                    <input type="hidden" id="userId">
+                    <div class="form-group">
+                        <label class="form-label">Full Name</label>
+                        <input type="text" class="form-input" id="userFullName" required placeholder="John Doe">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-input" id="userEmail" required placeholder="john@example.com">
+                    </div>
+                    <div class="form-group" id="passwordGroup">
+                        <label class="form-label">Password</label>
+                        <input type="password" class="form-input" id="userPassword" placeholder="Min 6 characters">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Phone</label>
+                        <input type="tel" class="form-input" id="userPhone" placeholder="+39 333 123 4567">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Role</label>
+                        <select class="form-select" id="userRole" required onchange="togglePropertySelect()">
+                            <option value="">Select role...</option>
+                            <option value="owner">Owner</option>
+                            <option value="tenant">Tenant</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="userPropertyGroup" style="display: none;">
+                        <label class="form-label">Assign Property</label>
+                        <select class="form-select" id="userProperty">
+                            <option value="">Select property...</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeUserModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveUser()">Save User</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="js/firebase-config.js"></script>
     <script>
-        // Filter functionality
-        document.querySelectorAll('.filter-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const parent = this.parentElement;
-                parent.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-                this.classList.add('active');
+        // ========== ZONE DATA (Auto-populated when creating listing) ==========
+        const ZONE_DATA = {
+            'Centro Storico': {
+                desc: 'Il cuore di Roma. Monumenti iconici come Pantheon, Piazza Navona, Fontana di Trevi. Alta domanda da expat e professionisti. Ottimo per affitti premium e short-term.',
+                metro: 'Metro A (Barberini, Spagna) / Metro B (Colosseo)',
+                avgPrice: 1800
+            },
+            'Trastevere': {
+                desc: 'Quartiere bohémien e vivace. Vita notturna, ristoranti autentici, atmosfera romana doc. Molto richiesto da giovani professionisti, studenti e artisti.',
+                metro: 'Tram 8 / Bus H / Stazione Trastevere',
+                avgPrice: 1500
+            },
+            'Prati': {
+                desc: 'Quartiere elegante vicino al Vaticano. Residenziale, sicuro, ottimo per famiglie e professionisti. Negozi di qualità su Via Cola di Rienzo.',
+                metro: 'Metro A (Ottaviano, Lepanto, Cipro)',
+                avgPrice: 1650
+            },
+            'Testaccio': {
+                desc: 'Ex quartiere operaio ora trendy. Mercato storico, locali notturni, cucina romana autentica. In forte crescita, ottimo investimento.',
+                metro: 'Metro B (Piramide, Garbatella)',
+                avgPrice: 1350
+            },
+            'Pigneto': {
+                desc: 'Il quartiere hipster di Roma. Locali indie, street art, vita notturna alternativa. Popolare tra artisti, creativi e giovani professionisti.',
+                metro: 'Metro C (Pigneto, Malatesta)',
+                avgPrice: 1100
+            },
+            'Monteverde': {
+                desc: 'Quartiere verde e tranquillo. Ottimo per famiglie con Villa Pamphilj vicina. Atmosfera residenziale ma ben collegato al centro.',
+                metro: 'Tram 8 / Stazione Trastevere',
+                avgPrice: 1400
+            },
+            'San Giovanni': {
+                desc: 'Zona residenziale storica con la Basilica di San Giovanni. Buoni collegamenti metro, mix di residenti locali e stranieri. Mercato stabile.',
+                metro: 'Metro A/C (San Giovanni, Re di Roma)',
+                avgPrice: 1350
+            },
+            'EUR': {
+                desc: 'Quartiere business moderno. Architettura razionalista anni 40, uffici, parchi. Ideale per chi lavora nella zona sud o cerca spazi ampi.',
+                metro: 'Metro B (EUR Fermi, EUR Palasport, Laurentina)',
+                avgPrice: 1200
+            },
+            'Flaminio': {
+                desc: 'Quartiere elegante nord di Roma. MAXXI, Auditorium Parco della Musica, Villa Borghese vicina. Ottimo per professionisti e famiglie.',
+                metro: 'Metro A (Flaminio) / Tram 2',
+                avgPrice: 1550
+            },
+            'Ostiense': {
+                desc: 'Ex zona industriale in trasformazione. Street art, università Roma Tre, locali trendy. Ottimo potenziale di crescita, prezzi ancora accessibili.',
+                metro: 'Metro B (Garbatella, Basilica S. Paolo, Marconi)',
+                avgPrice: 1150
+            },
+            'Monti': {
+                desc: 'Il quartiere più antico di Roma, oggi trendy e vivace. Boutique vintage, bar alla moda, atmosfera village. Altissima domanda turistica.',
+                metro: 'Metro B (Cavour, Colosseo)',
+                avgPrice: 1700
+            },
+            'Parioli': {
+                desc: 'Il quartiere più esclusivo di Roma. Residenziale di lusso, ambasciate, ville storiche. Target alto, affitti premium.',
+                metro: 'Metro A (Libia, Sant\'Agnese) / Tram 3, 19',
+                avgPrice: 2200
+            }
+        };
+
+        let currentUser = null;
+        let allProperties = [];
+        let allUsers = [];
+
+        // ========== INIT ==========
+        document.addEventListener('DOMContentLoaded', async () => {
+            auth.onAuthStateChanged(async (user) => {
+                if (!user) { window.location.href = 'login.html'; return; }
+
+                const doc = await db.collection('users').doc(user.uid).get();
+                if (!doc.exists || doc.data().role !== 'admin') { 
+                    window.location.href = 'login.html'; 
+                    return; 
+                }
+
+                currentUser = { id: user.uid, ...doc.data() };
+                document.getElementById('userName').textContent = currentUser.name || 'Admin';
+                document.getElementById('userAvatar').textContent = (currentUser.name || 'A')[0].toUpperCase();
+
+                await loadDashboard();
+                await loadProperties();
+                await loadUsers();
+                await loadMaintenance();
+                setupNavigation();
             });
         });
 
-        // Sidebar navigation
-        document.querySelectorAll('.sidebar-link').forEach(link => {
-            link.addEventListener('click', function(e) {
-                e.preventDefault();
-                document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
-                this.classList.add('active');
+        // ========== NAVIGATION ==========
+        function setupNavigation() {
+            document.querySelectorAll('.nav-item[data-section]').forEach(item => {
+                item.addEventListener('click', () => showSection(item.dataset.section));
             });
-        });
+        }
+
+        function showSection(name) {
+            document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+            document.querySelector(`.nav-item[data-section="${name}"]`)?.classList.add('active');
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.getElementById(`${name}Section`)?.classList.add('active');
+            document.getElementById('sidebar').classList.remove('open');
+        }
+
+        function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
+
+        // ========== ZONE INFO (Auto-populate) ==========
+        function showZoneInfo() {
+            const zone = document.getElementById('propZone').value;
+            const infoBox = document.getElementById('zoneInfo');
+            
+            if (zone && ZONE_DATA[zone]) {
+                const data = ZONE_DATA[zone];
+                document.getElementById('zoneInfoTitle').textContent = zone;
+                document.getElementById('zoneInfoDesc').textContent = data.desc;
+                document.getElementById('zoneInfoMetro').textContent = 'Transport: ' + data.metro;
+                document.getElementById('zoneInfoPrice').textContent = 'Average rent in zone: €' + data.avgPrice.toLocaleString() + '/month';
+                infoBox.classList.add('show');
+            } else {
+                infoBox.classList.remove('show');
+            }
+        }
+
+        // ========== COST CALCULATOR (Auto-calculate) ==========
+        function calculateCosts() {
+            const rent = parseInt(document.getElementById('propPrice').value) || 0;
+            const feePercent = 0.15; // 15% BOOM fee
+            const fee = Math.round(rent * feePercent);
+            const ownerNet = rent - fee;
+            const annual = rent * 12;
+
+            document.getElementById('calcRent').textContent = '€' + rent.toLocaleString();
+            document.getElementById('calcFee').textContent = '€' + fee.toLocaleString();
+            document.getElementById('calcOwnerNet').textContent = '€' + ownerNet.toLocaleString();
+            document.getElementById('calcAnnual').textContent = '€' + annual.toLocaleString();
+        }
+
+        // ========== DASHBOARD ==========
+        async function loadDashboard() {
+            const [propsSnap, usersSnap] = await Promise.all([
+                db.collection('properties').get(),
+                db.collection('users').get()
+            ]);
+
+            const props = propsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+            const users = usersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+            const tenants = users.filter(u => u.role === 'tenant');
+            const rented = props.filter(p => p.status === 'rented');
+            const revenue = rented.reduce((sum, p) => sum + (p.price || 0), 0);
+            const occupancy = props.length > 0 ? Math.round((rented.length / props.length) * 100) : 0;
+
+            document.getElementById('statProperties').textContent = props.length;
+            document.getElementById('statTenants').textContent = tenants.length;
+            document.getElementById('statRevenue').textContent = '€' + revenue.toLocaleString();
+            document.getElementById('statOccupancy').textContent = occupancy + '%';
+            document.getElementById('usersCount').textContent = users.length;
+        }
+
+        // ========== PROPERTIES ==========
+        async function loadProperties() {
+            const snap = await db.collection('properties').orderBy('createdAt', 'desc').get();
+            allProperties = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            renderProperties(allProperties);
+        }
+
+        function renderProperties(props) {
+            const list = document.getElementById('propertiesList');
+            if (props.length === 0) {
+                list.innerHTML = '<tr><td colspan="5" class="empty-state"><h3>No properties yet</h3></td></tr>';
+                return;
+            }
+            list.innerHTML = props.map(p => `
+                <tr>
+                    <td><strong>${p.name}</strong></td>
+                    <td>${p.zone || '-'}</td>
+                    <td>€${(p.price || 0).toLocaleString()}/mo</td>
+                    <td><span class="status-badge ${p.status === 'available' ? 'status-active' : p.status === 'rented' ? 'status-inactive' : 'status-pending'}">${p.status}</span></td>
+                    <td>
+                        <button class="table-action" onclick="editProperty('${p.id}')">Edit</button>
+                        <button class="table-action danger" onclick="deleteProperty('${p.id}')">Delete</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function openPropertyModal(prop = null) {
+            document.getElementById('propertyModalTitle').textContent = prop ? 'Edit Property' : 'Add Property';
+            document.getElementById('propertyForm').reset();
+            document.getElementById('propertyId').value = prop?.id || '';
+            document.getElementById('zoneInfo').classList.remove('show');
+
+            if (prop) {
+                document.getElementById('propName').value = prop.name || '';
+                document.getElementById('propZone').value = prop.zone || '';
+                document.getElementById('propStatus').value = prop.status || 'available';
+                document.getElementById('propOwner').value = prop.ownerId || '';
+                document.getElementById('propPrice').value = prop.price || '';
+                document.getElementById('propSize').value = prop.size || '';
+                document.getElementById('propBedrooms').value = prop.bedrooms || '';
+                document.getElementById('propBathrooms').value = prop.bathrooms || '';
+                document.getElementById('propAddress').value = prop.address || '';
+                document.getElementById('propImage').value = prop.image || '';
+                showZoneInfo();
+                calculateCosts();
+            }
+
+            // Populate owners dropdown
+            const ownerSelect = document.getElementById('propOwner');
+            ownerSelect.innerHTML = '<option value="">Select owner...</option>' + 
+                allUsers.filter(u => u.role === 'owner').map(u => `<option value="${u.id}">${u.name}</option>`).join('');
+
+            document.getElementById('propertyModal').classList.add('active');
+        }
+
+        function closePropertyModal() { document.getElementById('propertyModal').classList.remove('active'); }
+
+        function editProperty(id) {
+            const prop = allProperties.find(p => p.id === id);
+            if (prop) openPropertyModal(prop);
+        }
+
+        async function saveProperty() {
+            const id = document.getElementById('propertyId').value;
+            const ownerSelect = document.getElementById('propOwner');
+            const owner = allUsers.find(u => u.id === ownerSelect.value);
+            const zone = document.getElementById('propZone').value;
+
+            const data = {
+                name: document.getElementById('propName').value,
+                zone: zone,
+                zoneInfo: ZONE_DATA[zone] || null, // Store zone info with property
+                status: document.getElementById('propStatus').value,
+                ownerId: ownerSelect.value || null,
+                ownerName: owner?.name || null,
+                price: parseInt(document.getElementById('propPrice').value) || 0,
+                size: parseInt(document.getElementById('propSize').value) || 0,
+                bedrooms: parseInt(document.getElementById('propBedrooms').value) || 0,
+                bathrooms: parseInt(document.getElementById('propBathrooms').value) || 0,
+                address: document.getElementById('propAddress').value,
+                image: document.getElementById('propImage').value,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+
+            try {
+                if (id) {
+                    await db.collection('properties').doc(id).update(data);
+                } else {
+                    data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+                    await db.collection('properties').add(data);
+                }
+                toast(id ? 'Property updated' : 'Property created', 'success');
+                closePropertyModal();
+                await loadProperties();
+                await loadDashboard();
+            } catch (error) {
+                toast('Error: ' + error.message, 'error');
+            }
+        }
+
+        async function deleteProperty(id) {
+            if (confirm('Delete this property?')) {
+                try {
+                    await db.collection('properties').doc(id).delete();
+                    toast('Property deleted', 'success');
+                    await loadProperties();
+                    await loadDashboard();
+                } catch (error) {
+                    toast('Error', 'error');
+                }
+            }
+        }
+
+        // ========== USERS ==========
+        async function loadUsers() {
+            const snap = await db.collection('users').get();
+            allUsers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            renderUsers(allUsers);
+        }
+
+        function renderUsers(users) {
+            const list = document.getElementById('usersList');
+            if (users.length === 0) {
+                list.innerHTML = '<tr><td colspan="5" class="empty-state"><h3>No users yet</h3></td></tr>';
+                return;
+            }
+            list.innerHTML = users.map(u => `
+                <tr>
+                    <td><strong>${u.name || '-'}</strong></td>
+                    <td>${u.email}</td>
+                    <td><span class="status-badge ${u.role === 'admin' ? 'status-pending' : 'status-active'}">${u.role}</span></td>
+                    <td>${u.propertyName || '-'}</td>
+                    <td><button class="table-action" onclick="editUser('${u.id}')">Edit</button></td>
+                </tr>
+            `).join('');
+        }
+
+        function togglePropertySelect() {
+            const role = document.getElementById('userRole').value;
+            document.getElementById('userPropertyGroup').style.display = (role === 'owner' || role === 'tenant') ? 'block' : 'none';
+        }
+
+        function openUserModal(user = null) {
+            document.getElementById('userModalTitle').textContent = user ? 'Edit User' : 'Add User';
+            document.getElementById('userForm').reset();
+            document.getElementById('userId').value = user?.id || '';
+
+            if (user) {
+                document.getElementById('userFullName').value = user.name || '';
+                document.getElementById('userEmail').value = user.email || '';
+                document.getElementById('userPhone').value = user.phone || '';
+                document.getElementById('userRole').value = user.role || '';
+                document.getElementById('userProperty').value = user.propertyId || '';
+                document.getElementById('userEmail').disabled = true;
+            } else {
+                document.getElementById('userEmail').disabled = false;
+            }
+
+            const propSelect = document.getElementById('userProperty');
+            propSelect.innerHTML = '<option value="">Select property...</option>' + 
+                allProperties.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+
+            togglePropertySelect();
+            document.getElementById('userModal').classList.add('active');
+        }
+
+        function closeUserModal() { document.getElementById('userModal').classList.remove('active'); }
+
+        function editUser(id) {
+            const user = allUsers.find(u => u.id === id);
+            if (user) openUserModal(user);
+        }
+
+        async function saveUser() {
+            const id = document.getElementById('userId').value;
+            const email = document.getElementById('userEmail').value;
+            const password = document.getElementById('userPassword').value;
+            const propSelect = document.getElementById('userProperty');
+            const property = allProperties.find(p => p.id === propSelect.value);
+
+            const userData = {
+                name: document.getElementById('userFullName').value,
+                phone: document.getElementById('userPhone').value,
+                role: document.getElementById('userRole').value,
+                propertyId: propSelect.value || null,
+                propertyName: property?.name || null,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+
+            try {
+                if (id) {
+                    await db.collection('users').doc(id).update(userData);
+                    toast('User updated', 'success');
+                } else {
+                    if (!password || password.length < 6) {
+                        toast('Password min 6 characters', 'error');
+                        return;
+                    }
+                    const result = await auth.createUserWithEmailAndPassword(email, password);
+                    userData.email = email;
+                    userData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+                    await db.collection('users').doc(result.user.uid).set(userData);
+                    toast('User created', 'success');
+                }
+                closeUserModal();
+                await loadUsers();
+                await loadDashboard();
+            } catch (error) {
+                const errors = { 'auth/email-already-in-use': 'Email already exists' };
+                toast(errors[error.code] || error.message, 'error');
+            }
+        }
+
+        // ========== MAINTENANCE ==========
+        async function loadMaintenance() {
+            const snap = await db.collection('maintenance').orderBy('createdAt', 'desc').get();
+            const requests = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            
+            if (requests.length === 0) {
+                document.getElementById('maintenanceTable').style.display = 'none';
+                document.getElementById('maintenanceEmpty').style.display = 'block';
+                return;
+            }
+
+            document.getElementById('maintenanceTable').style.display = 'table';
+            document.getElementById('maintenanceEmpty').style.display = 'none';
+            
+            document.getElementById('maintenanceList').innerHTML = requests.map(r => `
+                <tr>
+                    <td>${r.propertyName || '-'}</td>
+                    <td>${r.category || '-'}</td>
+                    <td><span class="status-badge ${r.priority === 'high' ? 'status-inactive' : r.priority === 'medium' ? 'status-pending' : 'status-active'}">${r.priority}</span></td>
+                    <td><span class="status-badge ${r.status === 'pending' ? 'status-pending' : 'status-active'}">${r.status}</span></td>
+                    <td>${r.createdAt?.toDate?.()?.toLocaleDateString() || '-'}</td>
+                </tr>
+            `).join('');
+        }
+
+        // ========== TOAST ==========
+        function toast(message, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            const t = document.createElement('div');
+            t.className = `toast ${type}`;
+            t.innerHTML = `<span>${type === 'success' ? '✓' : '✕'}</span> ${message}`;
+            container.appendChild(t);
+            setTimeout(() => t.remove(), 3000);
+        }
+
+        // ========== LOGOUT ==========
+        function logout() { auth.signOut().then(() => window.location.href = 'login.html'); }
     </script>
 </body>
 </html>
