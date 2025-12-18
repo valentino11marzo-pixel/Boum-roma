@@ -1,11 +1,30 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-EYCD59RDVJ"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-EYCD59RDVJ');
+    </script>
+    
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BOOM – Concierge Services</title>
+    <title>Concierge Services – BOOM Rome</title>
+    <meta name="description" content="Your personal support system in Rome. From airport pickups to bureaucracy navigation, we handle the details so you can enjoy la dolce vita.">
     
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;900&family=Oswald:wght@200;300;400;500&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="manifest" href="/site.webmanifest">
+    <meta name="theme-color" content="#000000">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600&display=swap" rel="stylesheet">
     
     <style>
         * {
@@ -16,37 +35,213 @@
         }
 
         :root {
-            --gold: #FFD700;
-            --cyan: #00CED1;
-            --green: #00FF88;
-            --red: #FF3B3B;
-            --purple: #9D4EDD;
-            --orange: #FF6B35;
+            --gold: #D4AF37;
+            --gold-light: #E8C547;
+            --gold-soft: rgba(212, 175, 55, 0.1);
+            --gold-glow: rgba(212, 175, 55, 0.3);
+            --cream: #FAF8F5;
+            --warm-white: #FEFDFB;
+            --charcoal: #1A1A1A;
             --pure-black: #000000;
-            --dark-surface: #111111;
             --text-primary: #FFFFFF;
-            --text-secondary: #999999;
-            --text-fade: #666666;
+            --text-secondary: rgba(255, 255, 255, 0.7);
+            --text-muted: rgba(255, 255, 255, 0.5);
+            --green-soft: #4ADE80;
+            --blue-soft: #60A5FA;
+            --purple-soft: #A78BFA;
         }
 
         body {
-            font-family: 'Inter', -apple-system, sans-serif;
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
             background: var(--pure-black);
             color: var(--text-primary);
-            font-weight: 200;
-            line-height: 1.6;
+            font-weight: 300;
+            line-height: 1.7;
+            overflow-x: hidden;
         }
 
-        /* Navigation */
+        html {
+            scroll-behavior: smooth;
+        }
+
+        /* ===== AMBIENT BACKGROUND EFFECTS ===== */
+        .ambient-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        .ambient-orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.4;
+            animation: float 20s ease-in-out infinite;
+        }
+
+        .orb-1 {
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(212, 175, 55, 0.15) 0%, transparent 70%);
+            top: -200px;
+            left: -200px;
+            animation-delay: 0s;
+        }
+
+        .orb-2 {
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(212, 175, 55, 0.1) 0%, transparent 70%);
+            top: 50%;
+            right: -150px;
+            animation-delay: -7s;
+            animation-duration: 25s;
+        }
+
+        .orb-3 {
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(212, 175, 55, 0.08) 0%, transparent 70%);
+            bottom: 10%;
+            left: 20%;
+            animation-delay: -14s;
+            animation-duration: 30s;
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translate(0, 0) scale(1);
+            }
+            25% {
+                transform: translate(30px, -30px) scale(1.05);
+            }
+            50% {
+                transform: translate(-20px, 20px) scale(0.95);
+            }
+            75% {
+                transform: translate(20px, 30px) scale(1.02);
+            }
+        }
+
+        /* Breathing gradient line */
+        .breathing-line {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--gold), transparent);
+            background-size: 200% 100%;
+            animation: breathe 4s ease-in-out infinite;
+            z-index: 1000;
+            opacity: 0.6;
+        }
+
+        @keyframes breathe {
+            0%, 100% {
+                background-position: 200% 0;
+                opacity: 0.3;
+            }
+            50% {
+                background-position: 0% 0;
+                opacity: 0.8;
+            }
+        }
+
+        /* Floating particles */
+        .particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+            overflow: hidden;
+        }
+
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: var(--gold);
+            border-radius: 50%;
+            opacity: 0;
+            animation: particle-float 15s ease-in-out infinite;
+        }
+
+        @keyframes particle-float {
+            0% {
+                transform: translateY(100vh) translateX(0);
+                opacity: 0;
+            }
+            10% {
+                opacity: 0.6;
+            }
+            90% {
+                opacity: 0.6;
+            }
+            100% {
+                transform: translateY(-100px) translateX(100px);
+                opacity: 0;
+            }
+        }
+
+        /* Custom Cursor */
+        .cursor {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--gold);
+            border-radius: 50%;
+            position: fixed;
+            pointer-events: none;
+            z-index: 9999;
+            transition: all 0.15s ease;
+            mix-blend-mode: difference;
+        }
+
+        .cursor-glow {
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, rgba(212, 175, 55, 0.08) 0%, transparent 70%);
+            position: fixed;
+            pointer-events: none;
+            z-index: 9998;
+            transition: all 0.4s ease;
+        }
+
+        /* Scroll Reveal */
+        .reveal {
+            opacity: 0;
+            transform: translateY(40px);
+            transition: all 0.9s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .reveal.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .reveal-delay-1 { transition-delay: 0.1s; }
+        .reveal-delay-2 { transition-delay: 0.2s; }
+        .reveal-delay-3 { transition-delay: 0.3s; }
+        .reveal-delay-4 { transition-delay: 0.4s; }
+
+        /* ===== NAVIGATION ===== */
         nav {
             position: fixed;
             width: 100%;
             top: 0;
             z-index: 100;
-            padding: 30px 50px;
-            background: rgba(0,0,0,0.95);
-            backdrop-filter: blur(20px);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 20px 50px;
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(30px);
+            border-bottom: 1px solid rgba(212, 175, 55, 0.1);
         }
 
         .nav-container {
@@ -65,20 +260,61 @@
             color: white;
         }
 
-        .logo-circle {
-            width: 40px;
-            height: 40px;
-            background: linear-gradient(135deg, #FFD700, #FFA500);
-            border-radius: 50%;
-            opacity: 0.9;
+        .logo-svg {
+            width: 70px;
+            height: 70px;
+            filter: drop-shadow(0 0 15px rgba(212, 175, 55, 0.4));
+            transition: filter 0.3s ease;
+        }
+
+        .logo:hover .logo-svg {
+            filter: drop-shadow(0 0 25px rgba(212, 175, 55, 0.7));
         }
 
         .logo-text {
-            font-family: 'Oswald', sans-serif;
-            font-size: 32px;
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            font-size: 28px;
             font-weight: 300;
-            letter-spacing: -2px;
+            letter-spacing: 4px;
             text-transform: uppercase;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 40px;
+            align-items: center;
+        }
+
+        .nav-link {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: color 0.3s;
+            font-weight: 400;
+        }
+
+        .nav-link:hover,
+        .nav-link.active {
+            color: var(--gold);
+        }
+
+        .nav-cta {
+            padding: 12px 30px;
+            background: transparent;
+            border: 1px solid var(--gold);
+            color: var(--gold);
+            text-decoration: none;
+            font-size: 11px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            transition: all 0.3s;
+        }
+
+        .nav-cta:hover {
+            background: var(--gold);
+            color: var(--pure-black);
         }
 
         /* Mobile Menu */
@@ -117,11 +353,12 @@
             width: 300px;
             height: 100vh;
             background: rgba(0, 0, 0, 0.98);
-            backdrop-filter: blur(20px);
+            backdrop-filter: blur(30px);
             z-index: 999;
-            padding: 100px 40px 40px;
+            padding: 120px 40px 40px;
             transition: right 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             overflow-y: auto;
+            border-left: 1px solid rgba(212, 175, 55, 0.1);
         }
 
         .mobile-menu.active {
@@ -131,13 +368,13 @@
         .mobile-menu-links {
             display: flex;
             flex-direction: column;
-            gap: 30px;
+            gap: 25px;
         }
 
         .mobile-menu-link {
             color: var(--text-secondary);
             text-decoration: none;
-            font-size: 18px;
+            font-size: 16px;
             text-transform: uppercase;
             letter-spacing: 2px;
             transition: all 0.3s;
@@ -152,190 +389,711 @@
 
         .mobile-menu-cta {
             margin-top: 40px;
-            padding: 20px;
+            padding: 18px;
             background: var(--gold);
             color: var(--pure-black);
             text-align: center;
             text-decoration: none;
-            font-size: 14px;
+            font-size: 12px;
             font-weight: 600;
             letter-spacing: 2px;
             text-transform: uppercase;
             display: block;
         }
 
-        /* Hero Section */
-        .concierge-hero {
-            padding: 150px 50px 100px;
+        /* ===== HERO SECTION ===== */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             text-align: center;
+            padding: 150px 50px 100px;
             position: relative;
-            background: radial-gradient(circle at center, rgba(0, 206, 209, 0.05) 0%, transparent 60%);
+            z-index: 2;
         }
 
-        .hero-badge {
-            display: inline-block;
-            padding: 8px 20px;
-            background: var(--cyan);
-            color: var(--pure-black);
-            font-size: 10px;
-            font-weight: 700;
+        .hero-content {
+            max-width: 900px;
+        }
+
+        .hero-eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 28px;
+            border: 1px solid var(--gold);
+            color: var(--gold);
+            font-size: 11px;
+            font-weight: 500;
             text-transform: uppercase;
-            letter-spacing: 2px;
-            margin-bottom: 30px;
+            letter-spacing: 3px;
+            margin-bottom: 40px;
+            animation: fadeInUp 0.8s ease forwards;
+            position: relative;
+            overflow: hidden;
         }
 
-        h1 {
-            font-size: clamp(40px, 8vw, 100px);
-            font-weight: 100;
-            text-transform: uppercase;
-            line-height: 0.85;
-            letter-spacing: -3px;
-            margin-bottom: 30px;
+        .hero-eyebrow::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.1), transparent);
+            animation: shimmer 3s infinite;
         }
 
-        .accent-text {
-            color: var(--cyan);
-            font-weight: 300;
+        @keyframes shimmer {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+
+        .live-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--green-soft);
+            border-radius: 50%;
+            animation: pulse-dot 2s infinite;
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.3); }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .hero h1 {
+            font-family: 'Playfair Display', Georgia, serif;
+            font-size: clamp(42px, 7vw, 85px);
+            font-weight: 400;
+            line-height: 1.1;
+            margin-bottom: 30px;
+            animation: fadeInUp 0.8s ease 0.2s forwards;
+            opacity: 0;
+        }
+
+        .hero h1 em {
+            font-style: italic;
+            background: linear-gradient(135deg, var(--gold) 0%, var(--gold-light) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
 
         .hero-subtitle {
             font-size: 20px;
             color: var(--text-secondary);
-            max-width: 700px;
+            max-width: 650px;
             margin: 0 auto 50px;
+            font-weight: 300;
+            line-height: 1.8;
+            animation: fadeInUp 0.8s ease 0.4s forwards;
+            opacity: 0;
         }
 
-        .hero-cta {
-            padding: 20px 60px;
-            background: var(--cyan);
+        .hero-cta-group {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+            animation: fadeInUp 0.8s ease 0.6s forwards;
+            opacity: 0;
+        }
+
+        .btn-primary {
+            padding: 18px 50px;
+            background: linear-gradient(135deg, var(--gold) 0%, var(--gold-light) 100%);
             color: var(--pure-black);
             text-decoration: none;
             font-size: 12px;
-            font-weight: 700;
-            letter-spacing: 3px;
-            text-transform: uppercase;
-            transition: all 0.3s;
-            display: inline-block;
-        }
-
-        .hero-cta:hover {
-            transform: translateY(-3px);
-        }
-
-        /* Services Grid */
-        .services-section {
-            padding: 100px 50px;
-            background: var(--dark-surface);
-        }
-
-        .services-container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        .section-header {
-            text-align: center;
-            margin-bottom: 80px;
-        }
-
-        .section-tag {
-            display: inline-block;
-            padding: 8px 20px;
-            background: var(--gold);
-            color: var(--pure-black);
-            font-size: 10px;
-            font-weight: 700;
-            text-transform: uppercase;
+            font-weight: 600;
             letter-spacing: 2px;
-            margin-bottom: 30px;
-        }
-
-        .section-title {
-            font-size: clamp(36px, 6vw, 64px);
-            font-weight: 100;
             text-transform: uppercase;
-            letter-spacing: -2px;
-        }
-
-        .services-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-            gap: 30px;
-        }
-
-        .service-card {
-            background: var(--pure-black);
-            padding: 40px;
-            border: 1px solid rgba(255, 255, 255, 0.05);
             transition: all 0.3s;
+            border: none;
             cursor: pointer;
             position: relative;
             overflow: hidden;
         }
 
-        .service-card::before {
+        .btn-primary::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn-primary:hover::before {
+            left: 100%;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 40px rgba(212, 175, 55, 0.4);
+        }
+
+        .btn-secondary {
+            padding: 18px 50px;
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: var(--text-primary);
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 500;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            transition: all 0.3s;
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--gold);
+            color: var(--gold);
+        }
+
+        .hero-scroll {
+            position: absolute;
+            bottom: 50px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: var(--text-muted);
+            font-size: 11px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            animation: bounce 2s infinite;
+        }
+
+        .hero-scroll::after {
+            content: '';
+            width: 1px;
+            height: 40px;
+            background: linear-gradient(to bottom, var(--gold), transparent);
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateX(-50%) translateY(0); }
+            50% { transform: translateX(-50%) translateY(10px); }
+        }
+
+        /* ===== COMFORT ZONE SECTION ===== */
+        .comfort-section {
+            padding: 120px 50px;
+            position: relative;
+            z-index: 2;
+            background: linear-gradient(180deg, transparent 0%, rgba(26, 26, 26, 0.5) 100%);
+        }
+
+        .comfort-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .comfort-visual {
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 50px;
+            position: relative;
+        }
+
+        .comfort-ring {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            border-radius: 50%;
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            animation: ring-pulse 4s ease-in-out infinite;
+        }
+
+        .ring-1 {
+            width: 60px;
+            height: 60px;
+            animation-delay: 0s;
+        }
+
+        .ring-2 {
+            width: 90px;
+            height: 90px;
+            animation-delay: 0.5s;
+        }
+
+        .ring-3 {
+            width: 120px;
+            height: 120px;
+            animation-delay: 1s;
+        }
+
+        @keyframes ring-pulse {
+            0%, 100% {
+                opacity: 0.2;
+                transform: translate(-50%, -50%) scale(1);
+            }
+            50% {
+                opacity: 0.6;
+                transform: translate(-50%, -50%) scale(1.05);
+            }
+        }
+
+        .comfort-icon {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 36px;
+        }
+
+        .comfort-text {
+            font-family: 'Playfair Display', Georgia, serif;
+            font-size: clamp(22px, 3.5vw, 32px);
+            font-weight: 400;
+            line-height: 1.7;
+            color: var(--text-primary);
+        }
+
+        .comfort-text em {
+            font-style: italic;
+            color: var(--gold);
+        }
+
+        .comfort-stats {
+            display: flex;
+            justify-content: center;
+            gap: 60px;
+            margin-top: 60px;
+            flex-wrap: wrap;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-family: 'Playfair Display', Georgia, serif;
+            font-size: 42px;
+            color: var(--gold);
+            margin-bottom: 8px;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        /* ===== SCENARIOS SECTION ===== */
+        .scenarios-section {
+            padding: 120px 50px;
+            background: var(--charcoal);
+            position: relative;
+            z-index: 2;
+        }
+
+        .section-header {
+            text-align: center;
+            max-width: 700px;
+            margin: 0 auto 80px;
+        }
+
+        .section-tag {
+            display: inline-block;
+            padding: 8px 20px;
+            border: 1px solid var(--gold);
+            color: var(--gold);
+            font-size: 10px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            margin-bottom: 25px;
+        }
+
+        .section-title {
+            font-family: 'Playfair Display', Georgia, serif;
+            font-size: clamp(32px, 5vw, 48px);
+            font-weight: 400;
+            margin-bottom: 20px;
+            line-height: 1.2;
+        }
+
+        .section-subtitle {
+            font-size: 18px;
+            color: var(--text-secondary);
+            line-height: 1.7;
+        }
+
+        .scenarios-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 30px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .scenario-card {
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 50px 40px;
+            transition: all 0.4s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .scenario-card::before {
             content: '';
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 3px;
-            background: linear-gradient(90deg, var(--cyan), var(--green));
+            background: linear-gradient(90deg, var(--gold), transparent);
             transform: translateX(-100%);
-            transition: transform 0.5s;
+            transition: transform 0.4s ease;
         }
 
-        .service-card:hover::before {
+        .scenario-card:hover {
+            border-color: rgba(212, 175, 55, 0.3);
+            transform: translateY(-5px);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .scenario-card:hover::before {
             transform: translateX(0);
         }
 
-        .service-card:hover {
-            transform: translateY(-5px);
-            border-color: var(--cyan);
-            background: rgba(0, 206, 209, 0.02);
+        .scenario-emoji {
+            font-size: 40px;
+            margin-bottom: 25px;
+            display: block;
         }
 
-        .service-icon {
-            font-size: 48px;
-            margin-bottom: 20px;
-            opacity: 0.8;
+        .scenario-situation {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 12px;
         }
 
-        .service-title {
+        .scenario-title {
+            font-family: 'Playfair Display', Georgia, serif;
             font-size: 22px;
             font-weight: 400;
+            margin-bottom: 18px;
+            line-height: 1.3;
+        }
+
+        .scenario-solution {
+            font-size: 15px;
+            color: var(--text-secondary);
+            line-height: 1.7;
+            margin-bottom: 25px;
+        }
+
+        .scenario-result {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            color: var(--gold);
+        }
+
+        .scenario-result::before {
+            content: '✓';
+            width: 20px;
+            height: 20px;
+            background: var(--gold);
+            color: var(--pure-black);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: bold;
+        }
+
+        /* ===== SERVICES SECTION ===== */
+        .services-section {
+            padding: 120px 50px;
+            background: var(--pure-black);
+            position: relative;
+            z-index: 2;
+        }
+
+        .services-tabs {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 60px;
+            flex-wrap: wrap;
+        }
+
+        .service-tab {
+            padding: 14px 28px;
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-secondary);
+            font-size: 12px;
+            letter-spacing: 1px;
             text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .service-tab:hover {
+            border-color: rgba(212, 175, 55, 0.5);
+            color: var(--gold);
+        }
+
+        .service-tab.active {
+            background: var(--gold);
+            border-color: var(--gold);
+            color: var(--pure-black);
+        }
+
+        .services-content {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .service-category {
+            display: none;
+        }
+
+        .service-category.active {
+            display: block;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .category-intro {
+            text-align: center;
+            max-width: 600px;
+            margin: 0 auto 50px;
+        }
+
+        .category-intro h3 {
+            font-family: 'Playfair Display', Georgia, serif;
+            font-size: 28px;
             margin-bottom: 15px;
-            letter-spacing: -0.5px;
+        }
+
+        .category-intro p {
+            color: var(--text-secondary);
+            font-size: 16px;
+        }
+
+        .services-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+
+        .service-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 35px;
+            transition: all 0.3s ease;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 20px;
+        }
+
+        .service-card:hover {
+            border-color: rgba(212, 175, 55, 0.3);
+            background: rgba(212, 175, 55, 0.03);
+        }
+
+        .service-card:hover .service-name {
+            color: var(--gold);
+        }
+
+        .service-info {
+            flex: 1;
+        }
+
+        .service-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            background: rgba(74, 222, 128, 0.1);
+            border: 1px solid rgba(74, 222, 128, 0.3);
+            color: var(--green-soft);
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 12px;
+        }
+
+        .service-badge.new {
+            background: rgba(167, 139, 250, 0.1);
+            border-color: rgba(167, 139, 250, 0.3);
+            color: var(--purple-soft);
+        }
+
+        .service-badge.popular {
+            background: rgba(212, 175, 55, 0.1);
+            border-color: rgba(212, 175, 55, 0.3);
+            color: var(--gold);
+        }
+
+        .service-name {
+            font-size: 18px;
+            font-weight: 400;
+            margin-bottom: 8px;
+            transition: color 0.3s;
         }
 
         .service-desc {
             font-size: 14px;
-            color: var(--text-secondary);
-            line-height: 1.8;
-            margin-bottom: 30px;
+            color: var(--text-muted);
+            line-height: 1.6;
         }
 
         .service-price {
-            font-size: 28px;
-            color: var(--cyan);
-            font-weight: 300;
-            margin-bottom: 10px;
+            text-align: right;
+            min-width: 100px;
         }
 
-        .service-price-note {
-            font-size: 12px;
-            color: var(--text-fade);
+        .price-amount {
+            font-size: 20px;
+            color: var(--gold);
+            font-weight: 500;
         }
 
-        /* Booking Form Section */
-        .booking-section {
+        .price-note {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        /* ===== WHATSAPP SECTION ===== */
+        .whatsapp-section {
             padding: 100px 50px;
-            background: var(--pure-black);
+            background: linear-gradient(135deg, rgba(212, 175, 55, 0.08) 0%, rgba(0, 0, 0, 0.95) 100%);
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            z-index: 2;
+        }
+
+        .whatsapp-content {
+            max-width: 600px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .whatsapp-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 25px;
+            background: rgba(37, 211, 102, 0.1);
+            border: 1px solid rgba(37, 211, 102, 0.3);
+            border-radius: 30px;
+            margin-bottom: 30px;
+        }
+
+        .whatsapp-badge-dot {
+            width: 8px;
+            height: 8px;
+            background: #25D366;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.2); }
+        }
+
+        .whatsapp-badge-text {
+            font-size: 12px;
+            color: #25D366;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .whatsapp-title {
+            font-family: 'Playfair Display', Georgia, serif;
+            font-size: clamp(28px, 4vw, 40px);
+            font-weight: 400;
+            margin-bottom: 20px;
+            line-height: 1.3;
+        }
+
+        .whatsapp-subtitle {
+            font-size: 17px;
+            color: var(--text-secondary);
+            margin-bottom: 40px;
+            line-height: 1.7;
+        }
+
+        .whatsapp-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            padding: 20px 50px;
+            background: #25D366;
+            color: white;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            transition: all 0.3s;
+            border-radius: 4px;
+        }
+
+        .whatsapp-btn:hover {
+            background: #22c55e;
+            transform: translateY(-3px);
+            box-shadow: 0 15px 40px rgba(37, 211, 102, 0.3);
+        }
+
+        .whatsapp-btn svg {
+            width: 22px;
+            height: 22px;
+        }
+
+        .whatsapp-response {
+            margin-top: 25px;
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        /* ===== BOOKING FORM ===== */
+        .booking-section {
+            padding: 120px 50px;
+            background: var(--charcoal);
+            position: relative;
+            z-index: 2;
         }
 
         .booking-container {
-            max-width: 800px;
+            max-width: 700px;
             margin: 0 auto;
         }
 
@@ -345,67 +1103,21 @@
         }
 
         .form-title {
-            font-size: clamp(36px, 6vw, 56px);
-            font-weight: 100;
-            text-transform: uppercase;
-            letter-spacing: -2px;
-            margin-bottom: 20px;
+            font-family: 'Playfair Display', Georgia, serif;
+            font-size: clamp(32px, 5vw, 44px);
+            font-weight: 400;
+            margin-bottom: 15px;
         }
 
         .form-subtitle {
-            font-size: 16px;
+            font-size: 17px;
             color: var(--text-secondary);
         }
 
         .booking-form {
-            background: var(--dark-surface);
-            padding: 50px;
-            border: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        .form-group {
-            margin-bottom: 30px;
-        }
-
-        .form-label {
-            display: block;
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            color: var(--text-fade);
-            margin-bottom: 10px;
-            font-weight: 500;
-        }
-
-        .required {
-            color: var(--gold);
-        }
-
-        .form-input,
-        .form-select,
-        .form-textarea {
-            width: 100%;
-            padding: 16px 20px;
-            background: var(--pure-black);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: var(--text-primary);
-            font-size: 15px;
-            font-family: inherit;
-            transition: all 0.3s;
-            border-radius: 8px;
-        }
-
-        .form-input:focus,
-        .form-select:focus,
-        .form-textarea:focus {
-            outline: none;
-            border-color: var(--cyan);
-            box-shadow: 0 0 0 3px rgba(0, 206, 209, 0.1);
-        }
-
-        .form-textarea {
-            min-height: 120px;
-            resize: vertical;
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
         }
 
         .form-row {
@@ -414,74 +1126,146 @@
             gap: 20px;
         }
 
-        .form-submit {
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .form-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .form-label .required {
+            color: var(--gold);
+        }
+
+        .form-input,
+        .form-select,
+        .form-textarea {
+            padding: 18px 20px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+            font-size: 16px;
+            font-family: inherit;
+            transition: all 0.3s;
             width: 100%;
-            padding: 22px;
-            background: var(--cyan);
+        }
+
+        .form-input:focus,
+        .form-select:focus,
+        .form-textarea:focus {
+            outline: none;
+            border-color: var(--gold);
+            background: rgba(212, 175, 55, 0.05);
+        }
+
+        .form-input::placeholder,
+        .form-textarea::placeholder {
+            color: var(--text-muted);
+        }
+
+        .form-select {
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23D4AF37' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 20px center;
+        }
+
+        .form-select option {
+            background: var(--charcoal);
+            color: var(--text-primary);
+        }
+
+        .form-textarea {
+            min-height: 140px;
+            resize: vertical;
+        }
+
+        .form-submit {
+            padding: 20px 50px;
+            background: linear-gradient(135deg, var(--gold) 0%, var(--gold-light) 100%);
             color: var(--pure-black);
             border: none;
             font-size: 13px;
-            font-weight: 700;
+            font-weight: 600;
+            letter-spacing: 2px;
             text-transform: uppercase;
-            letter-spacing: 3px;
             cursor: pointer;
             transition: all 0.3s;
-            margin-top: 20px;
-            border-radius: 8px;
+            margin-top: 10px;
+            position: relative;
+            overflow: hidden;
         }
 
-        .form-submit:hover:not(:disabled) {
-            transform: scaleX(1.05);
-            letter-spacing: 4px;
+        .form-submit::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transition: left 0.5s;
         }
 
-        .form-submit:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
+        .form-submit:hover::before {
+            left: 100%;
+        }
+
+        .form-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 40px rgba(212, 175, 55, 0.3);
         }
 
         .form-note {
-            font-size: 12px;
-            color: var(--text-fade);
             text-align: center;
-            margin-top: 20px;
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-top: 15px;
         }
 
-        /* Footer */
+        /* ===== FOOTER ===== */
         footer {
             padding: 80px 50px 40px;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            background: var(--pure-black);
+            border-top: 1px solid rgba(212, 175, 55, 0.1);
+            position: relative;
+            z-index: 2;
         }
 
         .footer-grid {
+            max-width: 1200px;
+            margin: 0 auto;
             display: grid;
             grid-template-columns: 2fr 1fr 1fr 1fr;
             gap: 60px;
-            margin-bottom: 60px;
-            max-width: 1400px;
-            margin: 0 auto 60px;
         }
 
         .footer-brand h3 {
-            font-family: 'Oswald', sans-serif;
-            font-size: 48px;
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            font-size: 24px;
             font-weight: 300;
-            letter-spacing: -3px;
+            letter-spacing: 3px;
             margin-bottom: 20px;
         }
 
         .footer-brand p {
-            font-size: 12px;
-            color: var(--text-fade);
+            font-size: 14px;
+            color: var(--text-secondary);
             line-height: 1.8;
-            font-weight: 300;
         }
 
         .footer-links h4 {
-            font-size: 10px;
+            font-size: 11px;
             text-transform: uppercase;
-            letter-spacing: 3px;
-            margin-bottom: 20px;
+            letter-spacing: 2px;
+            margin-bottom: 25px;
             color: var(--gold);
         }
 
@@ -489,86 +1273,189 @@
             list-style: none;
         }
 
+        .footer-links li {
+            margin-bottom: 15px;
+        }
+
         .footer-links a {
-            color: var(--text-fade);
+            color: var(--text-secondary);
             text-decoration: none;
-            font-size: 12px;
-            display: block;
-            padding: 5px 0;
+            font-size: 14px;
             transition: color 0.3s;
-            font-weight: 300;
         }
 
         .footer-links a:hover {
-            color: var(--text-primary);
+            color: var(--gold);
         }
 
         .footer-bottom {
+            max-width: 1200px;
+            margin: 60px auto 0;
+            padding-top: 30px;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
             display: flex;
             justify-content: space-between;
-            padding-top: 40px;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-            font-size: 10px;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            color: var(--text-fade);
-            max-width: 1400px;
-            margin: 0 auto;
+            font-size: 12px;
+            color: var(--text-muted);
         }
 
-        /* Mobile */
-        @media (max-width: 768px) {
-            nav {
-                padding: 20px;
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 1024px) {
+            .scenarios-grid {
+                grid-template-columns: 1fr 1fr;
             }
-
-            .hamburger {
-                display: flex;
-            }
-
-            .concierge-hero {
-                padding: 120px 20px 60px;
-            }
-
+            
             .services-grid {
                 grid-template-columns: 1fr;
             }
+        }
 
+        @media (max-width: 768px) {
+            nav {
+                padding: 15px 25px;
+            }
+            
+            .nav-links {
+                display: none;
+            }
+            
+            .hamburger {
+                display: flex;
+            }
+            
+            .hero {
+                padding: 130px 25px 80px;
+            }
+            
+            .hero-cta-group {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .comfort-section,
+            .scenarios-section,
+            .services-section,
+            .whatsapp-section,
             .booking-section {
-                padding: 60px 20px;
+                padding: 80px 25px;
             }
-
-            .booking-form {
-                padding: 30px 20px;
+            
+            .comfort-stats {
+                gap: 30px;
             }
-
+            
+            .scenarios-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .scenario-card {
+                padding: 40px 30px;
+            }
+            
+            .services-tabs {
+                gap: 8px;
+            }
+            
+            .service-tab {
+                padding: 12px 18px;
+                font-size: 10px;
+            }
+            
+            .service-card {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .service-price {
+                text-align: left;
+            }
+            
             .form-row {
                 grid-template-columns: 1fr;
             }
-
+            
             .footer-grid {
-                grid-template-columns: 1fr;
+                grid-template-columns: 1fr 1fr;
                 gap: 40px;
             }
-
+            
             .footer-bottom {
                 flex-direction: column;
                 gap: 10px;
                 text-align: center;
             }
+            
+            .cursor,
+            .cursor-glow {
+                display: none;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .logo-text {
+                font-size: 22px;
+            }
+            
+            .logo-svg {
+                width: 50px;
+                height: 50px;
+            }
+            
+            .footer-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .stat-value {
+                font-size: 32px;
+            }
         }
     </style>
 </head>
 <body>
+    <!-- Ambient Background Effects -->
+    <div class="ambient-bg">
+        <div class="ambient-orb orb-1"></div>
+        <div class="ambient-orb orb-2"></div>
+        <div class="ambient-orb orb-3"></div>
+    </div>
+
+    <!-- Floating Particles -->
+    <div class="particles" id="particles"></div>
+
+    <!-- Breathing Line -->
+    <div class="breathing-line"></div>
+
+    <!-- Custom Cursor -->
+    <div class="cursor"></div>
+    <div class="cursor-glow"></div>
+
     <!-- Navigation -->
     <nav>
         <div class="nav-container">
-            <a href="/index.html" class="logo">
-                <div class="logo-circle"></div>
+            <a href="/" class="logo">
+                <svg class="logo-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+                  <defs>
+                    <linearGradient id="goldGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                      <stop offset="0%" stop-color="#F5D76E"/>
+                      <stop offset="50%" stop-color="#D4AF37"/>
+                      <stop offset="100%" stop-color="#AA8C2C"/>
+                    </linearGradient>
+                  </defs>
+                  <g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#goldGradient)">
+                    <path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z m610 -144 c743 -103 1436 -459 1919 -985 338 -367 562 -751 704 -1205 276 -879 132 -1858 -388 -2640 -242 -364 -493 -615 -900 -900 l-70 -49 109 104 c413 396 679 919 767 1505 33 217 33 558 0 765 -75 476 -257 896 -549 1265 -127 161 -363 380 -549 511 -300 211 -689 363 -1079 420 -172 26 -604 26 -764 0 -296 -47 -545 -128 -808 -262 -236 -122 -440 -271 -632 -464 -486 -485 -749 -1121 -751 -1815 -1 -611 170 -1148 515 -1608 100 -134 286 -335 382 -413 33 -27 -8 -2 -91 55 -513 351 -904 805 -1143 1331 -71 156 -136 336 -168 465 -9 33 -19 76 -24 95 -5 19 -20 100 -34 180 -59 343 -60 740 0 1070 81 456 229 826 479 1200 246 368 558 669 949 917 386 245 881 418 1321 462 61 6 124 13 140 15 73 10 556 -4 665 -19z m-60 -1329 c105 -16 258 -49 335 -72 82 -26 197 -66 240 -84 149 -65 190 -84 266 -126 677 -379 1129 -1049 1246 -1849 27 -182 24 -517 -5 -695 -75 -458 -225 -813 -500 -1179 -116 -154 -340 -369 -527 -506 -44 -32 -87 -63 -95 -69 -8 -6 35 39 96 99 178 177 283 321 397 550 161 322 231 676 205 1045 -32 467 -223 902 -542 1237 -239 251 -521 426 -873 542 -79 26 -273 67 -383 81 -108 13 -349 13 -465 0 -276 -32 -597 -145 -834 -293 -224 -140 -466 -378 -613 -602 -307 -470 -407 -1055 -273 -1599 80 -327 217 -589 454 -871 71 -84 73 -88 31 -56 -293 225 -547 535 -718 877 -34 68 -65 143 -122 294 -42 112 -101 383 -120 555 -14 127 -14 401 0 534 51 482 223 912 516 1288 269 344 654 620 1085 778 160 59 400 115 574 134 121 13 508 5 625 -13z m-30 -1165 c401 -81 721 -242 992 -499 643 -612 769 -1607 300 -2367 -118 -190 -291 -386 -463 -524 -137 -111 -148 -113 -49 -12 110 112 206 248 275 386 67 137 98 222 132 367 24 103 26 132 27 323 0 182 -3 224 -22 310 -47 211 -126 394 -245 569 -126 186 -358 387 -564 490 -384 191 -823 225 -1218 95 -482 -160 -854 -541 -1004 -1029 -117 -379 -81 -810 96 -1165 37 -72 130 -215 166 -252 17 -18 26 -33 20 -33 -6 0 -61 52 -121 116 -259 272 -424 575 -511 934 -111 459 -18 1006 245 1430 298 483 791 797 1379 880 110 16 448 4 565 -19z m-239 -911 c360 -28 680 -171 925 -415 194 -193 317 -415 382 -688 24 -102 26 -130 26 -312 0 -191 -1 -205 -30 -320 -53 -205 -132 -372 -251 -535 -58 -79 -263 -288 -323 -330 -31 -22 -29 -18 18 35 195 220 312 519 312 795 0 325 -121 614 -350 841 -369 364 -926 453 -1385 222 -336 -170 -578 -499 -636 -865 -19 -126 -7 -371 25 -490 44 -162 97 -284 173 -398 9 -14 -4 -5 -30 20 -26 24 -45 51 -42 58 2 7 1 11 -4 7 -11 -6 -58 51 -118 140 -109 163 -183 347 -219 545 -23 127 -23 351 -1 489 55 335 248 677 492 871 261 208 530 311 881 338 11 1 81 -3 155 -8z m29 -714 c459 -74 823 -428 895 -869 58 -358 -60 -696 -345 -987 l-34 -35 22 35 c115 182 179 403 168 575 -14 235 -104 433 -268 591 -137 134 -287 209 -472 239 -115 19 -187 19 -303 0 -337 -55 -612 -302 -704 -635 -32 -113 -34 -325 -5 -440 23 -92 70 -213 98 -254 l21 -31 -31 29 c-39 36 -120 152 -155 221 -35 71 -81 215 -102 319 -25 130 -17 357 17 476 102 354 357 618 706 730 152 49 331 62 492 36z m-73 -567 c178 -24 327 -101 454 -236 137 -143 199 -303 201 -513 1 -162 -42 -309 -135 -453 -52 -82 -73 -97 -38 -28 51 99 67 290 36 412 -57 219 -251 413 -466 464 -75 17 -236 20 -311 4 -213 -44 -422 -247 -473 -460 -31 -133 -13 -325 41 -431 35 -70 8 -47 -52 43 -58 88 -90 167 -114 286 -25 121 -25 220 -1 331 33 146 84 243 186 351 171 183 413 266 672 230z m15 -470 c80 -17 186 -76 248 -139 106 -107 158 -248 147 -398 -6 -92 -25 -152 -79 -250 -45 -82 -60 -91 -27 -17 18 41 21 62 17 149 -4 89 -8 108 -35 162 -43 82 -126 165 -209 205 -58 29 -80 34 -158 37 -112 5 -184 -12 -259 -62 -182 -121 -251 -323 -171 -506 l24 -55 -25 30 c-36 44 -92 162 -104 223 -39 189 14 369 146 492 105 99 204 139 345 139 48 1 111 -4 140 -10z"/>
+                  </g>
+                </svg>
                 <span class="logo-text">BOOM</span>
             </a>
+            
+            <div class="nav-links">
+                <a href="/apartments.html" class="nav-link">Apartments</a>
+                <a href="/property-finding.html" class="nav-link">Find Property</a>
+                <a href="/concierge.html" class="nav-link active">Concierge</a>
+                <a href="/about.html" class="nav-link">About</a>
+                <a href="/contact.html" class="nav-cta">Contact</a>
+            </div>
 
-            <!-- Hamburger -->
             <div class="hamburger" id="hamburger">
                 <span></span>
                 <span></span>
@@ -580,108 +1467,540 @@
     <!-- Mobile Menu -->
     <div class="mobile-menu" id="mobileMenu">
         <div class="mobile-menu-links">
-            <a href="/" class="mobile-menu-link">Home</a>
             <a href="/apartments.html" class="mobile-menu-link">Apartments</a>
             <a href="/property-finding.html" class="mobile-menu-link">Property Finding</a>
-            <a href="/concierge.html" class="mobile-menu-link">Concierge</a>
             <a href="/how-it-works.html" class="mobile-menu-link">How It Works</a>
+            <a href="/concierge.html" class="mobile-menu-link">Concierge</a>
             <a href="/about.html" class="mobile-menu-link">About</a>
-            <a href="/contact.html" class="mobile-menu-link">Contact</a>
+            <a href="/owners.html" class="mobile-menu-link">For Owners</a>
+            <a href="/faq.html" class="mobile-menu-link">FAQ</a>
+            <a href="/contact.html" class="mobile-menu-cta">Contact Us</a>
         </div>
-        <a href="https://wa.me/393313251961" class="mobile-menu-cta">WhatsApp Us</a>
     </div>
 
     <!-- Hero Section -->
-    <section class="concierge-hero">
-        <span class="hero-badge">Available 24/7</span>
-        
-        <h1>
-            Life doesn't stop<br>
-            at the apartment.<br>
-            <span class="accent-text">We handle everything.</span>
-        </h1>
-        
-        <p class="hero-subtitle">
-            From airport pickups to midnight emergencies, weekly cleaning to bureaucratic nightmares. 
-            One WhatsApp message away. This is how living in Rome should feel.
-        </p>
-
-        <a href="#booking" class="hero-cta">Book a Service</a>
+    <section class="hero">
+        <div class="hero-content">
+            <div class="hero-eyebrow">
+                <span class="live-dot"></span>
+                Available 24/7
+            </div>
+            <h1>Life in Rome,<br><em>simplified</em></h1>
+            <p class="hero-subtitle">
+                From the moment you arrive, we're here. Airport pickups, visa support, 
+                healthcare enrollment, utility setup – all just a message away.
+            </p>
+            <div class="hero-cta-group">
+                <a href="#booking" class="btn-primary">Request a Service</a>
+                <a href="https://wa.me/393313251961" class="btn-secondary" target="_blank">WhatsApp Us</a>
+            </div>
+        </div>
+        <div class="hero-scroll">Discover</div>
     </section>
 
-    <!-- Core Services -->
-    <section class="services-section">
-        <div class="services-container">
-            <div class="section-header">
-                <span class="section-tag">Core Services</span>
-                <h2 class="section-title">Always Included</h2>
+    <!-- Comfort Zone Section -->
+    <section class="comfort-section">
+        <div class="comfort-container reveal">
+            <div class="comfort-visual">
+                <div class="comfort-ring ring-1"></div>
+                <div class="comfort-ring ring-2"></div>
+                <div class="comfort-ring ring-3"></div>
+                <span class="comfort-icon">🤝</span>
             </div>
-            
-            <div class="services-grid">
-                <div class="service-card">
-                    <div class="service-icon">🆘</div>
-                    <h3 class="service-title">24/7 Emergency</h3>
-                    <p class="service-desc">
-                        Locked out? Pipe burst? Power failure? We respond in 2 hours max, 
-                        any time, any day. Even Christmas at 3am.
-                    </p>
-                    <div class="service-price">FREE</div>
-                    <div class="service-price-note">Always included</div>
+            <p class="comfort-text">
+                Moving abroad is exciting – but the paperwork, the language barrier, 
+                the unexpected emergencies? <em>Those shouldn't steal your joy.</em> 
+                We built this service because we've been there. Every question answered, 
+                every problem solved, so you can focus on <em>living your Roman life.</em>
+            </p>
+            <div class="comfort-stats">
+                <div class="stat-item">
+                    <div class="stat-value">2 min</div>
+                    <div class="stat-label">Avg Response</div>
                 </div>
-                
-                <div class="service-card">
-                    <div class="service-icon">🔧</div>
-                    <h3 class="service-title">Maintenance</h3>
-                    <p class="service-desc">
-                        Something breaks? WhatsApp us a photo. Technician arrives next day. 
-                        You pay nothing for normal wear and tear.
-                    </p>
-                    <div class="service-price">FREE</div>
-                    <div class="service-price-note">Normal maintenance covered</div>
+                <div class="stat-item">
+                    <div class="stat-value">500+</div>
+                    <div class="stat-label">Tenants Helped</div>
                 </div>
-                
-                <div class="service-card">
-                    <div class="service-icon">📱</div>
-                    <h3 class="service-title">WhatsApp Support</h3>
-                    <p class="service-desc">
-                        Can't figure out the heating? Need a restaurant recommendation? 
-                        Lost your keys? We answer in 2 minutes.
-                    </p>
-                    <div class="service-price">FREE</div>
-                    <div class="service-price-note">Average: 2 min response</div>
+                <div class="stat-item">
+                    <div class="stat-value">24/7</div>
+                    <div class="stat-label">Support</div>
                 </div>
-                
-                <div class="service-card">
-                    <div class="service-icon">🧹</div>
-                    <h3 class="service-title">Weekly Cleaning</h3>
-                    <p class="service-desc">
-                        Professional service, same cleaner every week, supplies included. 
-                        Book regularly or one-time.
-                    </p>
-                    <div class="service-price">€15/hour</div>
-                    <div class="service-price-note">Avg €60 per session</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Life Scenarios Section -->
+    <section class="scenarios-section">
+        <div class="section-header reveal">
+            <div class="section-tag">Real Scenarios</div>
+            <h2 class="section-title">We've got you covered</h2>
+            <p class="section-subtitle">These moments happen. Here's how we turn them into non-issues.</p>
+        </div>
+
+        <div class="scenarios-grid">
+            <div class="scenario-card reveal reveal-delay-1">
+                <span class="scenario-emoji">✈️</span>
+                <div class="scenario-situation">The Arrival</div>
+                <h3 class="scenario-title">Your flight lands at 11pm, exhausted</h3>
+                <p class="scenario-solution">
+                    Your driver is already tracking your flight. They're waiting in arrivals 
+                    with a sign. No queues, no confusion, no surge pricing.
+                </p>
+                <div class="scenario-result">Home in 40 minutes, stress-free</div>
+            </div>
+
+            <div class="scenario-card reveal reveal-delay-2">
+                <span class="scenario-emoji">🛂</span>
+                <div class="scenario-situation">The Visa</div>
+                <h3 class="scenario-title">Digital Nomad Visa paperwork overwhelms</h3>
+                <p class="scenario-solution">
+                    We guide you through every requirement, help gather documents, 
+                    and prepare you for your consulate appointment.
+                </p>
+                <div class="scenario-result">Application submitted with confidence</div>
+            </div>
+
+            <div class="scenario-card reveal reveal-delay-3">
+                <span class="scenario-emoji">🏥</span>
+                <div class="scenario-situation">The Healthcare</div>
+                <h3 class="scenario-title">You need to enroll in Italy's health system</h3>
+                <p class="scenario-solution">
+                    We find your local ASL, prepare your documents, 
+                    and accompany you to complete SSN registration.
+                </p>
+                <div class="scenario-result">Tessera sanitaria in your wallet</div>
+            </div>
+
+            <div class="scenario-card reveal reveal-delay-1">
+                <span class="scenario-emoji">📱</span>
+                <div class="scenario-situation">The Setup</div>
+                <h3 class="scenario-title">You need Italian SIM and fast internet</h3>
+                <p class="scenario-solution">
+                    We recommend the best plans for your usage, help with activation, 
+                    and coordinate fiber installation at your apartment.
+                </p>
+                <div class="scenario-result">Connected within 48 hours</div>
+            </div>
+
+            <div class="scenario-card reveal reveal-delay-2">
+                <span class="scenario-emoji">💡</span>
+                <div class="scenario-situation">The Utilities</div>
+                <h3 class="scenario-title">Electricity, gas, water contracts in Italian</h3>
+                <p class="scenario-solution">
+                    We handle provider selection, contract setup, 
+                    direct debit activation, and meter readings.
+                </p>
+                <div class="scenario-result">All utilities sorted, you just pay</div>
+            </div>
+
+            <div class="scenario-card reveal reveal-delay-3">
+                <span class="scenario-emoji">🐕</span>
+                <div class="scenario-situation">The Companion</div>
+                <h3 class="scenario-title">Your pet needs Italian paperwork too</h3>
+                <p class="scenario-solution">
+                    We help with pet passport, microchip registration, 
+                    find English-speaking vets, and locate pet-friendly services.
+                </p>
+                <div class="scenario-result">Your furry friend is officially Roman</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- WhatsApp Section -->
+    <section class="whatsapp-section reveal">
+        <div class="whatsapp-content">
+            <div class="whatsapp-badge">
+                <span class="whatsapp-badge-dot"></span>
+                <span class="whatsapp-badge-text">Usually respond in 2 minutes</span>
+            </div>
+            <h2 class="whatsapp-title">Questions? Just ask.</h2>
+            <p class="whatsapp-subtitle">
+                No forms, no waiting. Text us on WhatsApp anytime. 
+                We're real people who actually live in Rome.
+            </p>
+            <a href="https://wa.me/393313251961" class="whatsapp-btn" target="_blank">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                </svg>
+                Message Us Now
+            </a>
+            <p class="whatsapp-response">+39 331 325 1961</p>
+        </div>
+    </section>
+
+    <!-- Services Section -->
+    <section class="services-section" id="services">
+        <div class="section-header reveal">
+            <div class="section-tag">Our Services</div>
+            <h2 class="section-title">Everything you need</h2>
+            <p class="section-subtitle">Transparent pricing. No surprises. Just help when you need it.</p>
+        </div>
+
+        <div class="services-tabs reveal">
+            <button class="service-tab active" data-tab="setup">Getting Started</button>
+            <button class="service-tab" data-tab="daily">Daily Life</button>
+            <button class="service-tab" data-tab="bureaucracy">Bureaucracy</button>
+            <button class="service-tab" data-tab="professional">Professional</button>
+            <button class="service-tab" data-tab="support">Support</button>
+        </div>
+
+        <div class="services-content">
+            <!-- Getting Started -->
+            <div class="service-category active" data-category="setup">
+                <div class="category-intro">
+                    <h3>Getting Started in Rome</h3>
+                    <p>Essential services to get you settled quickly and stress-free</p>
                 </div>
-                
-                <div class="service-card">
-                    <div class="service-icon">✈️</div>
-                    <h3 class="service-title">Airport Transfer</h3>
-                    <p class="service-desc">
-                        Private driver, flight tracking, meet at arrivals. 
-                        FCO or Ciampino. Fixed price, no surprises.
-                    </p>
-                    <div class="service-price">€50</div>
-                    <div class="service-price-note">Flat rate from airport</div>
+                <div class="services-grid">
+                    <div class="service-card">
+                        <div class="service-info">
+                            <span class="service-badge new">New 2024</span>
+                            <div class="service-name">Digital Nomad Visa Support</div>
+                            <div class="service-desc">Full guidance through Italy's DN visa: document prep, requirements checklist, consulate prep</div>
+                        </div>
+                        <div class="service-price">
+                            <div class="price-amount">€200</div>
+                            <div class="price-note">full support</div>
+                        </div>
+                    </div>
+                    <div class="service-card">
+                        <div class="service-info">
+                            <span class="service-badge popular">Most Requested</span>
+                            <div class="service-name">Healthcare System Enrollment</div>
+                            <div class="service-desc">ASL registration, SSN enrollment, tessera sanitaria – we handle it all</div>
+                        </div>
+                        <div class="service-price">
+                            <div class="price-amount">€120</div>
+                            <div class="price-note">full service</div>
+                        </div>
+                    </div>
+                    <div class="service-card">
+                        <div class="service-info">
+                            <div class="service-name">Italian SIM Card Setup</div>
+                            <div class="service-desc">Best plan for your needs, activation assistance, number porting if needed</div>
+                        </div>
+                        <div class="service-price">
+                            <div class="price-amount">€40</div>
+                            <div class="price-note">+ SIM cost</div>
+                        </div>
+                    </div>
+                    <div class="service-card">
+                        <div class="service-info">
+                            <div class="service-name">Home Internet / Fiber Setup</div>
+                            <div class="service-desc">Provider comparison, contract setup, installation coordination</div>
+                        </div>
+                        <div class="service-price">
+                            <div class="price-amount">€80</div>
+                            <div class="price-note">coordination fee</div>
+                        </div>
+                    </div>
+                    <div class="service-card">
+                        <div class="service-info">
+                            <div class="service-name">Utility Activation Package</div>
+                            <div class="service-desc">Electricity, gas, water contracts – provider selection and direct debit setup</div>
+                        </div>
+                        <div class="service-price">
+                            <div class="price-amount">€150</div>
+                            <div class="price-note">all utilities</div>
+                        </div>
+                    </div>
+                    <div class="service-card">
+                        <div class="service-info">
+                            <div class="service-name">Airport Transfer</div>
+                            <div class="service-desc">FCO or Ciampino, flight tracking, meet at arrivals – no surge pricing</div>
+                        </div>
+                        <div class="service-price">
+                            <div class="price-amount">€50</div>
+                            <div class="price-note">flat rate</div>
+                        </div>
+                    </div>
                 </div>
-                
-                <div class="service-card">
-                    <div class="service-icon">🛒</div>
-                    <h3 class="service-title">Grocery Setup</h3>
-                    <p class="service-desc">
-                        Fridge stocked before arrival. Send us your list, 
-                        we shop and deliver. You reimburse groceries + service fee.
-                    </p>
-                    <div class="service-price">€30</div>
-                    <div class="service-price-note">+ groceries cost</div>
+            </div>
+
+            <!-- Daily Life -->
+            <div class="service-category" data-category="daily">
+                <div class="category-intro">
+                    <h3>Daily Life Made Easy</h3>
+                    <p>Ongoing services to keep your life running smoothly</p>
+                </div>
+                <div class="services-grid">
+                    <div class="service-card">
+                        <div class="service-info">
+                            <div class="service-name">Weekly Cleaning</div>
+                            <div class="service-desc">Same trusted cleaner every week, supplies included, flexible scheduling</div>
+                        </div>
+                        <div class="service-price">
+                            <div class="price-amount">€15/hr</div>
+                            <div class="price-note">~€60 per session</div>
+                        </div>
+                    </div>
+                    <div class="service-card">
+                        <div class="service-info">
+                            <div class="service-name">Grocery Setup</div>
+                            <div class="service-desc">Fridge stocked before you arrive with your preferred items</div>
+                        </div>
+                        <div class="service-price">
+                            <div class="price-amount">€30</div>
+                            <div class="price-note">+ grocery cost</div>
+                        </div>
+                    </div>
+                    <div class="service-card">
+                        <div class="service-info">
+                            <div class="service-name">Laundry Service</div>
+                            <div class="service-desc">Wash, dry, fold – picked up and delivered to your door</div>
+                        </div>
+                        <div class="service-price">
+                            <div class="price-amount">€30</div>
+                            <div class="price-note">per load</div>
+                        </div>
+                    </div>
+                    <div class="service-card">
+                        <div class="service-info">
+                            <div class="service-name">Mail & Package Handling</div>
+                            <div class="service-desc">Receive and hold your deliveries, forward as needed</div>
+                        </div>
+                        <div class="service-price">
+                            <div class="price-amount">€20</div>
+                            <div class="price-note">per month</div>
+                        </div>
+                    </div>
+                    <div class="service-card">
+                        <div class="service-info">
+                            <span class="service-badge new">New</span>
+                            <div class="service-name">Pet Services</div>
+                            <div class="service-desc">Pet passport help, vet recommendations, microchip registration</div>
+                        </div>
+                        <div class="service-price">
+                            <div class="price-amount">€100</div>
+                            <div class="price-note">setup package</div>
+                        </div>
+                    </div>
+                    <div class="service-card">
+                        <div class="service-info">
+                            <div class="service-name">Gym Membership Setup</div>
+                            <div class="service-desc">Find the right gym, handle registration, explain Italian gym culture</div>
+                        </div>
+                        <div class="service-price">
+                            <div class="price-amount">€40</div>
+                            <div class="price-note">one-time</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bureaucracy -->
+            <div class="service-category" data-category="bureaucracy">
+                <div class="category-intro">
+                    <h3>Bureaucracy Navigation</h3>
+                    <p>We speak Italian bureaucracy so you don't have to</p>
+                </div>
+                <div class="services-grid">
+                    <div class="service-card">
+                        <div class="service-info">
+                            <div class="service-name">Codice Fiscale</div>
+                            <div class="service-desc">Italian tax code – essential for everything from bank accounts to contracts</div>
+                        </div>
+                        <div class="service-price">
+                            <div class="price-amount">€80</div>
+                            <div class="price-note">full service</div>
+                        </div>
+                    </div>
+                    <div class="service-card">
+                        <div class="service-info">
+                            <span class="service-badge popular">Essential</span>
+                            <div class="service-name">Residence Permit (Permesso)</div>
+                            <div class="service-desc">Permesso di soggiorno application, document prep, appointment booking</div>
+                        </div>
+                        <div class="service-price">
+                            <div class="price-amount">€150</div>
+                            <div class="price-note">full support</div>
+                        </div>
+                    </div>
+                    <div class="service-card">
+                        <div class="service-info">
+                            <div class="service-name">SPID Digital ID</div>
+                            <div class="service-desc">Access Italian government services online – essential for expats</div>
+                        </div>
+                        <div class="service-price">
+                            <div class="price-amount">€100</div>
+                            <div class="price-note">setup & guide</div>
+                        </div>
+                    </div>
+                    <div class="service-card">
+                        <div class="service-info">
+                            <div class="service-name">Bank Account Setup</div>
+                            <div class="service-desc">Expat-friendly bank selection, appointment booking, document prep</div>
+                        </div>
+                        <div class="service-price">
+                            <div class="price-amount">€100</div>
+                            <div class="price-note">full support</div>
+                        </div>
+                    </div>
+                    <div class="service-card">
+                        <div class="service-info">
+                            <span class="service-badge new">New</span>
+                            <div class="service-name">Driving License Conversion</div>
+                            <div class="service-desc">Convert your license to Italian, handle Motorizzazione paperwork</div>
+                        </div>
+                        <div class="service-price">
+                            <div class="price-amount">€180</div>
+                            <div class="price-note">full process</div>
+                        </div>
+                    </div>
+                    <div class="service-card">
+                        <div class="service-info">
+                            <div class="service-name">Document Apostille</div>
+                            <div class="service-desc">Get your documents officially certified for Italian use</div>
+                        </div>
+                        <div class="service-price">
+                            <div class="price-amount">€60</div>
+                            <div class="price-note">per document</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Professional -->
+            <div class="service-category" data-category="professional">
+                <div class="category-intro">
+                    <h3>Professional Services</h3>
+                    <p>Expert connections for your business and financial needs</p>
+                </div>
+                <div class="services-grid">
+                    <div class="service-card">
+                        <div class="service-info">
+                            <span class="service-badge popular">High Demand</span>
+                            <div class="service-name">Expat Tax Consultation</div>
+                            <div class="service-desc">Connect with English-speaking commercialista for dual-tax situations</div>
+                        </div>
+                        <div class="service-price">
+                            <div class="price-amount">€150</div>
+                            <div class="price-note">initial consult</div>
+                        </div>
+                    </div>
+                    <div class="service-card">
+                        <div class="service-info">
+                            <div class="service-name">Accountant Introduction</div>
+                            <div class="service-desc">Vetted English-speaking Italian accountant for ongoing needs</div>
+                        </div>
+                        <div class="service-price">
+                            <div class="price-amount">€80</div>
+                            <div class="price-note">introduction fee</div>
+                        </div>
+                    </div>
+                    <div class="service-card">
+                        <div class="service-info">
+                            <div class="service-name">Notary Appointment</div>
+                            <div class="service-desc">Book and prepare for notaio appointments, translation support</div>
+                        </div>
+                        <div class="service-price">
+                            <div class="price-amount">€100</div>
+                            <div class="price-note">+ notary fees</div>
+                        </div>
+                    </div>
+                    <div class="service-card">
+                        <div class="service-info">
+                            <span class="service-badge new">For Remote Workers</span>
+                            <div class="service-name">Coworking Space Booking</div>
+                            <div class="service-desc">Find and book the right coworking space for your needs in Rome</div>
+                        </div>
+                        <div class="service-price">
+                            <div class="price-amount">€50</div>
+                            <div class="price-note">finder's fee</div>
+                        </div>
+                    </div>
+                    <div class="service-card">
+                        <div class="service-info">
+                            <div class="service-name">Translation Service</div>
+                            <div class="service-desc">Official document translation by certified translators</div>
+                        </div>
+                        <div class="service-price">
+                            <div class="price-amount">€30</div>
+                            <div class="price-note">per document</div>
+                        </div>
+                    </div>
+                    <div class="service-card">
+                        <div class="service-info">
+                            <div class="service-name">Business Setup Guidance</div>
+                            <div class="service-desc">Overview of Italian business structures, introductions to professionals</div>
+                        </div>
+                        <div class="service-price">
+                            <div class="price-amount">€200</div>
+                            <div class="price-note">consultation</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Support -->
+            <div class="service-category" data-category="support">
+                <div class="category-intro">
+                    <h3>Ongoing Support</h3>
+                    <p>Help when you need it, questions answered anytime</p>
+                </div>
+                <div class="services-grid">
+                    <div class="service-card">
+                        <div class="service-info">
+                            <div class="service-name">Emergency Repairs</div>
+                            <div class="service-desc">Plumbing, electrical, locksmith – trusted professionals, fast response</div>
+                        </div>
+                        <div class="service-price">
+                            <div class="price-amount">Quote</div>
+                            <div class="price-note">based on issue</div>
+                        </div>
+                    </div>
+                    <div class="service-card">
+                        <div class="service-info">
+                            <span class="service-badge popular">Essential</span>
+                            <div class="service-name">English-Speaking Doctor</div>
+                            <div class="service-desc">Connect with vetted English-speaking doctors in Rome</div>
+                        </div>
+                        <div class="service-price">
+                            <div class="price-amount">€50</div>
+                            <div class="price-note">introduction</div>
+                        </div>
+                    </div>
+                    <div class="service-card">
+                        <div class="service-info">
+                            <div class="service-name">Appointment Companion</div>
+                            <div class="service-desc">We accompany you and translate at any appointment</div>
+                        </div>
+                        <div class="service-price">
+                            <div class="price-amount">€50</div>
+                            <div class="price-note">per hour</div>
+                        </div>
+                    </div>
+                    <div class="service-card">
+                        <div class="service-info">
+                            <div class="service-name">Italian Language Tutor</div>
+                            <div class="service-desc">Connect with experienced Italian language tutors</div>
+                        </div>
+                        <div class="service-price">
+                            <div class="price-amount">€40</div>
+                            <div class="price-note">introduction</div>
+                        </div>
+                    </div>
+                    <div class="service-card">
+                        <div class="service-info">
+                            <div class="service-name">City Transfer</div>
+                            <div class="service-desc">Station, appointments, anywhere within Rome</div>
+                        </div>
+                        <div class="service-price">
+                            <div class="price-amount">€25</div>
+                            <div class="price-note">within centro</div>
+                        </div>
+                    </div>
+                    <div class="service-card">
+                        <div class="service-info">
+                            <div class="service-name">General Questions</div>
+                            <div class="service-desc">Ask us anything about Rome life – always free, always available</div>
+                        </div>
+                        <div class="service-price">
+                            <div class="price-amount">FREE</div>
+                            <div class="price-note">always</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -689,27 +2008,19 @@
 
     <!-- Booking Form Section -->
     <section class="booking-section" id="booking">
-        <div class="booking-container">
+        <div class="booking-container reveal">
             <div class="form-header">
                 <div class="section-tag">Book Now</div>
                 <h2 class="form-title">Request a Service</h2>
-                <p class="form-subtitle">Tell us what you need and we'll get back to you within 2 hours.</p>
+                <p class="form-subtitle">Tell us what you need. We'll confirm within 2 hours.</p>
             </div>
 
             <form class="booking-form" action="https://api.web3forms.com/submit" method="POST">
-                <!-- Web3Forms Access Key -->
                 <input type="hidden" name="access_key" value="8d4c9378-5211-4d7c-a2a6-f90c3789a2a6">
-                
-                <!-- Custom Subject -->
                 <input type="hidden" name="subject" value="🎯 BOOM - New Concierge Service Request">
-                
-                <!-- Form Type -->
                 <input type="hidden" name="form_type" value="concierge-booking">
-                
-                <!-- Redirect -->
-                <input type="hidden" name="redirect" value="https://boom-rome.vercel.app/thank-you.html">
+                <input type="hidden" name="redirect" value="https://www.boomrome.com/_thank-you.html">
 
-                <!-- Personal Info -->
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">Name <span class="required">*</span></label>
@@ -732,22 +2043,41 @@
                     </div>
                 </div>
 
-                <!-- Service Selection -->
                 <div class="form-group">
                     <label class="form-label">Service Needed <span class="required">*</span></label>
                     <select name="service_type" class="form-select" required>
                         <option value="">Select a service</option>
-                        <option value="Cleaning (€15/hour)">🧹 Cleaning (€15/hour)</option>
-                        <option value="Airport Transfer (€50)">✈️ Airport Transfer (€50)</option>
-                        <option value="Grocery Setup (€30 + cost)">🛒 Grocery Setup (€30 + cost)</option>
-                        <option value="Laundry Service (€30/load)">👕 Laundry Service (€30/load)</option>
-                        <option value="Mail/Package Service (€20/month)">📦 Mail/Package Service (€20/month)</option>
-                        <option value="Residence Permit (€150)">🛂 Residence Permit (€150)</option>
-                        <option value="Codice Fiscale (€80)">🆔 Codice Fiscale (€80)</option>
-                        <option value="SPID Digital ID (€100)">📱 SPID Digital ID (€100)</option>
-                        <option value="Bank Account Setup (€100)">🏦 Bank Account Setup (€100)</option>
-                        <option value="Translation Service (€30/doc)">🌍 Translation Service (€30/doc)</option>
-                        <option value="Emergency Repair">🔧 Emergency Repair</option>
+                        <optgroup label="Getting Started">
+                            <option value="Digital Nomad Visa Support (€200)">🛂 Digital Nomad Visa Support (€200)</option>
+                            <option value="Healthcare Enrollment (€120)">🏥 Healthcare Enrollment (€120)</option>
+                            <option value="Italian SIM Setup (€40)">📱 Italian SIM Setup (€40)</option>
+                            <option value="Internet/Fiber Setup (€80)">🌐 Internet/Fiber Setup (€80)</option>
+                            <option value="Utility Activation (€150)">💡 Utility Activation (€150)</option>
+                            <option value="Airport Transfer (€50)">✈️ Airport Transfer (€50)</option>
+                        </optgroup>
+                        <optgroup label="Daily Life">
+                            <option value="Cleaning (€15/hour)">🧹 Cleaning (€15/hour)</option>
+                            <option value="Grocery Setup (€30 + cost)">🛒 Grocery Setup (€30 + cost)</option>
+                            <option value="Laundry Service (€30/load)">👕 Laundry Service (€30/load)</option>
+                            <option value="Pet Services (€100)">🐕 Pet Services (€100)</option>
+                        </optgroup>
+                        <optgroup label="Bureaucracy">
+                            <option value="Codice Fiscale (€80)">🆔 Codice Fiscale (€80)</option>
+                            <option value="Residence Permit (€150)">📋 Residence Permit (€150)</option>
+                            <option value="SPID Digital ID (€100)">📱 SPID Digital ID (€100)</option>
+                            <option value="Bank Account Setup (€100)">🏦 Bank Account (€100)</option>
+                            <option value="Driving License (€180)">🚗 Driving License (€180)</option>
+                        </optgroup>
+                        <optgroup label="Professional">
+                            <option value="Tax Consultation (€150)">💼 Tax Consultation (€150)</option>
+                            <option value="Coworking Booking (€50)">🏢 Coworking Booking (€50)</option>
+                            <option value="Translation (€30/doc)">🌍 Translation (€30/doc)</option>
+                        </optgroup>
+                        <optgroup label="Support">
+                            <option value="Emergency Repair">🔧 Emergency Repair</option>
+                            <option value="English Doctor (€50)">👨‍⚕️ English Doctor (€50)</option>
+                            <option value="Appointment Companion (€50/hr)">🤝 Appointment Companion (€50/hr)</option>
+                        </optgroup>
                         <option value="Other">Other</option>
                     </select>
                 </div>
@@ -757,16 +2087,11 @@
                     <textarea name="details" class="form-textarea" required placeholder="Tell us more about what you need..."></textarea>
                 </div>
 
-                <!-- Honeypot -->
                 <input type="checkbox" name="botcheck" style="display: none;">
 
-                <button type="submit" class="form-submit">
-                    Submit Request
-                </button>
+                <button type="submit" class="form-submit">Submit Request</button>
 
-                <p class="form-note">
-                    We'll confirm availability and pricing within 2 hours.
-                </p>
+                <p class="form-note">We'll confirm availability and pricing within 2 hours.</p>
             </form>
         </div>
     </section>
@@ -776,7 +2101,18 @@
         <div class="footer-grid">
             <div class="footer-brand">
                 <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
-                    <div style="width: 40px; height: 40px; background: linear-gradient(135deg, #FFD700, #FFA500); border-radius: 50%; opacity: 0.9;"></div>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="48" height="48" style="opacity: 0.9;">
+                      <defs>
+                        <linearGradient id="goldGradientFooter" x1="0%" y1="0%" x2="0%" y2="100%">
+                          <stop offset="0%" stop-color="#F5D76E"/>
+                          <stop offset="50%" stop-color="#D4AF37"/>
+                          <stop offset="100%" stop-color="#AA8C2C"/>
+                        </linearGradient>
+                      </defs>
+                      <g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#goldGradientFooter)">
+                        <path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z"/>
+                      </g>
+                    </svg>
                     <h3>BOOM</h3>
                 </div>
                 <p>
@@ -787,7 +2123,7 @@
             </div>
             
             <div class="footer-links">
-                <h4>System</h4>
+                <h4>Services</h4>
                 <ul>
                     <li><a href="/apartments.html">Apartments</a></li>
                     <li><a href="/property-finding.html">Property Finding</a></li>
@@ -823,6 +2159,72 @@
     </footer>
 
     <script>
+        // Create floating particles
+        function createParticles() {
+            const container = document.getElementById('particles');
+            const particleCount = 15;
+            
+            for (let i = 0; i < particleCount; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.animationDelay = Math.random() * 15 + 's';
+                particle.style.animationDuration = (15 + Math.random() * 10) + 's';
+                particle.style.width = (2 + Math.random() * 4) + 'px';
+                particle.style.height = particle.style.width;
+                container.appendChild(particle);
+            }
+        }
+        createParticles();
+
+        // Custom Cursor
+        const cursor = document.querySelector('.cursor');
+        const cursorGlow = document.querySelector('.cursor-glow');
+
+        document.addEventListener('mousemove', (e) => {
+            cursor.style.left = e.clientX + 'px';
+            cursor.style.top = e.clientY + 'px';
+            cursorGlow.style.left = (e.clientX - 150) + 'px';
+            cursorGlow.style.top = (e.clientY - 150) + 'px';
+        });
+
+        // Scroll Reveal Animation
+        const reveals = document.querySelectorAll('.reveal');
+
+        function checkReveal() {
+            reveals.forEach(element => {
+                const elementTop = element.getBoundingClientRect().top;
+                const elementVisible = 120;
+                
+                if (elementTop < window.innerHeight - elementVisible) {
+                    element.classList.add('active');
+                }
+            });
+        }
+
+        window.addEventListener('scroll', checkReveal);
+        checkReveal();
+
+        // Service Tabs
+        const tabs = document.querySelectorAll('.service-tab');
+        const categories = document.querySelectorAll('.service-category');
+
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                const targetCategory = tab.dataset.tab;
+                
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                
+                categories.forEach(cat => {
+                    cat.classList.remove('active');
+                    if (cat.dataset.category === targetCategory) {
+                        cat.classList.add('active');
+                    }
+                });
+            });
+        });
+
         // Hamburger Menu
         const hamburger = document.getElementById('hamburger');
         const mobileMenu = document.getElementById('mobileMenu');
@@ -858,6 +2260,13 @@
                 });
             });
         });
+
+        // Set minimum date to today
+        const dateInput = document.querySelector('input[type="date"]');
+        if (dateInput) {
+            const today = new Date().toISOString().split('T')[0];
+            dateInput.setAttribute('min', today);
+        }
     </script>
 </body>
 </html>
