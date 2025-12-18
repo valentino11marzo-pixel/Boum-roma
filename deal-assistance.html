@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-EYCD59RDVJ"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-EYCD59RDVJ');
+    </script>
+    
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deal Assistance Service - BOOM</title>
+    <meta name="description" content="Found an apartment in Rome? We'll help you close the deal safely. Contract review, negotiation, and full support for €249.">
+    
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <meta name="theme-color" content="#000000">
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;900&display=swap" rel="stylesheet">
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+        :root { --gold: #FFD700; --cyan: #00CED1; --green: #00FF88; --red: #FF3B3B; --pure-black: #000000; --dark-void: #0A0A0A; --text-primary: #FFFFFF; --text-fade: #666666; --text-secondary: #999999; }
+        body { font-family: 'Inter', -apple-system, sans-serif; background: var(--pure-black); color: var(--text-primary); font-weight: 200; letter-spacing: 0.02em; line-height: 1.6; overflow-x: hidden; }
+        .reveal { opacity: 0; transform: translateY(60px); transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1); }
+        .reveal.active { opacity: 1; transform: translateY(0); }
+        .reveal-delay-1 { transition-delay: 0.1s; } .reveal-delay-2 { transition-delay: 0.2s; } .reveal-delay-3 { transition-delay: 0.3s; }
+        nav { position: fixed; width: 100%; top: 0; z-index: 100; padding: 20px 50px; background: rgba(0,0,0,0.98); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(255, 215, 0, 0.1); }
+        .nav-container { max-width: 1400px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
+        .logo { display: flex; align-items: center; gap: 15px; text-decoration: none; color: white; }
+        .logo-svg { width: 80px; height: 80px; filter: drop-shadow(0 0 20px rgba(255, 215, 0, 0.5)); transition: filter 0.3s ease; }
+        .logo:hover .logo-svg { filter: drop-shadow(0 0 35px rgba(255, 215, 0, 0.8)); }
+        .logo-text { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 32px; font-weight: 300; letter-spacing: 4px; text-transform: uppercase; }
+        .nav-links { display: flex; gap: 40px; align-items: center; }
+        .nav-link { color: var(--text-secondary); text-decoration: none; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; transition: color 0.3s; font-weight: 400; }
+        .nav-link:hover, .nav-link.active { color: var(--gold); }
+        .nav-cta { padding: 12px 30px; background: transparent; border: 1px solid var(--gold); color: var(--gold); text-decoration: none; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; transition: all 0.3s; font-weight: 500; }
+        .nav-cta:hover { background: var(--gold); color: var(--pure-black); }
+        .hero { min-height: 90vh; display: flex; align-items: center; padding: 150px 50px 100px; position: relative; overflow: hidden; }
+        .hero::before { content: ''; position: absolute; width: 600px; height: 600px; background: radial-gradient(circle, rgba(255, 215, 0, 0.15) 0%, transparent 70%); top: -100px; right: -100px; animation: float 20s infinite; }
+        @keyframes float { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(-100px, 100px); } }
+        .hero-content { max-width: 1200px; margin: 0 auto; position: relative; z-index: 2; }
+        .hero-tag { display: inline-block; padding: 10px 24px; background: var(--gold); color: var(--pure-black); font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 30px; clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px); }
+        .hero-title { font-size: clamp(50px, 10vw, 110px); font-weight: 100; line-height: 0.9; letter-spacing: -0.03em; text-transform: uppercase; margin-bottom: 30px; }
+        .gold-accent { color: var(--gold); font-weight: 300; }
+        .hero-subtitle { font-size: 22px; color: var(--text-secondary); margin-bottom: 60px; font-weight: 300; max-width: 700px; line-height: 1.5; }
+        .hero-cta { padding: 22px 70px; background: var(--gold); color: var(--pure-black); text-decoration: none; font-size: 12px; font-weight: 600; letter-spacing: 3px; text-transform: uppercase; transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); display: inline-block; clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px); }
+        .hero-cta:hover { transform: scale(1.05); box-shadow: 0 10px 40px rgba(255, 215, 0, 0.4); }
+        .problem-section { max-width: 1200px; margin: 0 auto; padding: 100px 50px; }
+        .section-header { text-align: center; margin-bottom: 60px; }
+        .section-tag { font-size: 11px; text-transform: uppercase; letter-spacing: 3px; color: var(--gold); margin-bottom: 20px; }
+        .section-title { font-size: clamp(36px, 6vw, 56px); font-weight: 100; text-transform: uppercase; letter-spacing: 2px; }
+        .problem-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; background: rgba(255, 59, 59, 0.3); padding: 2px; }
+        .problem-card { background: var(--pure-black); padding: 50px 40px; position: relative; transition: all 0.4s; }
+        .problem-card::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 4px; background: var(--red); transform: scaleX(0); transition: transform 0.4s; }
+        .problem-card:hover::before { transform: scaleX(1); }
+        .problem-icon { font-size: 36px; margin-bottom: 20px; }
+        .problem-title { font-size: 18px; font-weight: 500; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 15px; color: var(--red); }
+        .problem-text { font-size: 14px; line-height: 1.7; color: var(--text-secondary); }
+        .solution-section { max-width: 1200px; margin: 0 auto; padding: 100px 50px; background: linear-gradient(135deg, rgba(255, 215, 0, 0.03) 0%, transparent 100%); }
+        .features-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 2px; background: rgba(255, 215, 0, 0.2); padding: 2px; }
+        .feature-card { background: var(--pure-black); padding: 50px 40px; position: relative; transition: all 0.4s; }
+        .feature-card::before { content: ''; position: absolute; left: 0; top: 0; width: 4px; height: 100%; background: var(--gold); transform: scaleY(0); transition: transform 0.4s; }
+        .feature-card:hover::before { transform: scaleY(1); }
+        .feature-card:hover { background: rgba(255, 215, 0, 0.02); }
+        .feature-icon { font-size: 32px; margin-bottom: 20px; }
+        .feature-title { font-size: 18px; font-weight: 500; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 15px; color: var(--gold); }
+        .feature-text { font-size: 14px; line-height: 1.7; color: var(--text-secondary); }
+        .pricing-section { max-width: 900px; margin: 0 auto; padding: 100px 50px; }
+        .pricing-card { background: var(--dark-void); border: 2px solid rgba(255, 215, 0, 0.3); padding: 60px; text-align: center; clip-path: polygon(30px 0, 100% 0, 100% calc(100% - 30px), calc(100% - 30px) 100%, 0 100%, 0 30px); }
+        .price-tag { font-size: 11px; text-transform: uppercase; letter-spacing: 3px; color: var(--gold); margin-bottom: 20px; }
+        .price-amount { display: flex; align-items: baseline; justify-content: center; gap: 10px; margin-bottom: 20px; }
+        .currency { font-size: 36px; color: var(--gold); }
+        .amount { font-size: 120px; font-weight: 100; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: var(--gold); letter-spacing: -4px; }
+        .price-note { font-size: 14px; color: var(--text-secondary); margin-bottom: 40px; }
+        .price-note strong { color: var(--green); }
+        .pricing-features { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 40px; text-align: left; }
+        .pricing-feature { display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--text-secondary); }
+        .pricing-feature span { color: var(--green); }
+        .cta-primary { width: 100%; padding: 24px; background: var(--gold); color: var(--pure-black); text-decoration: none; font-size: 13px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; transition: all 0.3s; border: none; display: block; cursor: pointer; clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px); }
+        .cta-primary:hover { transform: scale(1.02); box-shadow: 0 10px 30px rgba(255, 215, 0, 0.3); }
+        .process-section { max-width: 1200px; margin: 0 auto; padding: 100px 50px; }
+        .process-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; background: rgba(255, 215, 0, 0.2); padding: 2px; }
+        .process-step { background: var(--pure-black); padding: 50px 30px; text-align: center; transition: all 0.3s; }
+        .process-step:hover { background: rgba(255, 215, 0, 0.02); }
+        .process-number { font-size: 48px; font-weight: 100; color: var(--gold); font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; margin-bottom: 15px; }
+        .process-title { font-size: 14px; font-weight: 500; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+        .process-text { font-size: 12px; color: var(--text-secondary); line-height: 1.6; }
+        .form-section { max-width: 900px; margin: 0 auto; padding: 100px 50px; }
+        .form-container { background: var(--dark-void); border: 2px solid rgba(255, 215, 0, 0.1); padding: 60px; clip-path: polygon(30px 0, 100% 0, 100% calc(100% - 30px), calc(100% - 30px) 100%, 0 100%, 0 30px); }
+        .form-header { text-align: center; margin-bottom: 40px; }
+        .form-title { font-size: 32px; font-weight: 100; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 15px; }
+        .form-subtitle { font-size: 14px; color: var(--text-secondary); }
+        .form-group { margin-bottom: 25px; }
+        .form-label { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: var(--text-fade); margin-bottom: 10px; font-weight: 500; }
+        .required { color: var(--gold); }
+        .form-input, .form-select, .form-textarea { width: 100%; padding: 18px 22px; background: var(--pure-black); border: 1px solid rgba(255, 215, 0, 0.2); color: var(--text-primary); font-size: 15px; font-family: inherit; transition: all 0.3s; clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px); }
+        .form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(255, 215, 0, 0.1); }
+        .form-textarea { min-height: 120px; resize: vertical; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .form-submit { width: 100%; padding: 22px; background: var(--gold); color: var(--pure-black); border: none; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 3px; cursor: pointer; transition: all 0.3s; margin-top: 20px; clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px); }
+        .form-submit:hover { transform: scale(1.02); box-shadow: 0 10px 40px rgba(255, 215, 0, 0.4); }
+        footer { padding: 80px 50px 40px; border-top: 1px solid rgba(255, 215, 0, 0.1); }
+        .footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 60px; margin-bottom: 60px; max-width: 1400px; margin: 0 auto 60px; }
+        .footer-brand h3 { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 32px; font-weight: 300; letter-spacing: 4px; margin-bottom: 15px; }
+        .footer-brand p { font-size: 12px; color: var(--text-fade); line-height: 1.8; }
+        .footer-links h4 { font-size: 10px; text-transform: uppercase; letter-spacing: 3px; margin-bottom: 20px; color: var(--gold); }
+        .footer-links ul { list-style: none; }
+        .footer-links a { color: var(--text-fade); text-decoration: none; font-size: 12px; display: block; padding: 8px 0; transition: color 0.3s; }
+        .footer-links a:hover { color: var(--gold); }
+        .footer-bottom { text-align: center; padding-top: 40px; border-top: 1px solid rgba(255, 215, 0, 0.1); font-size: 11px; color: var(--text-fade); max-width: 1400px; margin: 0 auto; }
+        @media (max-width: 1024px) { .nav-links { display: none; } .hero { padding: 150px 30px 80px; } .problem-grid, .features-grid { grid-template-columns: 1fr; } .process-grid { grid-template-columns: repeat(2, 1fr); } .pricing-features { grid-template-columns: 1fr; } .footer-grid { grid-template-columns: 1fr 1fr; } }
+        @media (max-width: 768px) { nav { padding: 15px 20px; } .logo-svg { width: 50px; height: 50px; } .logo-text { font-size: 24px; } .hero { min-height: 80vh; } .form-row { grid-template-columns: 1fr; } .process-grid { grid-template-columns: 1fr; } .footer-grid { grid-template-columns: 1fr; gap: 40px; } }
+    </style>
+</head>
+<body>
+    <nav>
+        <div class="nav-container">
+            <a href="/" class="logo">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="80" height="80" class="logo-svg">
+                  <defs><linearGradient id="goldGradientNav" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#FFD54F"/><stop offset="100%" stop-color="#F5A623"/></linearGradient></defs>
+                  <g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#goldGradientNav)">
+                    <path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z m610 -144 c743 -103 1436 -459 1919 -985 338 -367 562 -751 704 -1205 276 -879 132 -1858 -388 -2640 -242 -364 -493 -615 -900 -900 l-70 -49 109 104 c413 396 679 919 767 1505 33 217 33 558 0 765 -75 476 -257 896 -549 1265 -127 161 -363 380 -549 511 -300 211 -689 363 -1079 420 -172 26 -604 26 -764 0 -296 -47 -545 -128 -808 -262 -236 -122 -440 -271 -632 -464 -486 -485 -749 -1121 -751 -1815 -1 -611 170 -1148 515 -1608 100 -134 286 -335 382 -413 33 -27 -8 -2 -91 55 -513 351 -904 805 -1143 1331 -71 156 -136 336 -168 465 -9 33 -19 76 -24 95 -5 19 -20 100 -34 180 -59 343 -60 740 0 1070 81 456 229 826 479 1200 246 368 558 669 949 917 386 245 881 418 1321 462 61 6 124 13 140 15 73 10 556 -4 665 -19z m-60 -1329 c105 -16 258 -49 335 -72 82 -26 197 -66 240 -84 149 -65 190 -84 266 -126 677 -379 1129 -1049 1246 -1849 27 -182 24 -517 -5 -695 -75 -458 -225 -813 -500 -1179 -116 -154 -340 -369 -527 -506 -44 -32 -87 -63 -95 -69 -8 -6 35 39 96 99 178 177 283 321 397 550 161 322 231 676 205 1045 -32 467 -223 902 -542 1237 -239 251 -521 426 -873 542 -79 26 -273 67 -383 81 -108 13 -349 13 -465 0 -276 -32 -597 -145 -834 -293 -224 -140 -466 -378 -613 -602 -307 -470 -407 -1055 -273 -1599 80 -327 217 -589 454 -871 71 -84 73 -88 31 -56 -293 225 -547 535 -718 877 -34 68 -65 143 -122 294 -42 112 -101 383 -120 555 -14 127 -14 401 0 534 51 482 223 912 516 1288 269 344 654 620 1085 778 160 59 400 115 574 134 121 13 508 5 625 -13z m-30 -1165 c401 -81 721 -242 992 -499 643 -612 769 -1607 300 -2367 -118 -190 -291 -386 -463 -524 -137 -111 -148 -113 -49 -12 110 112 206 248 275 386 67 137 98 222 132 367 24 103 26 132 27 323 0 182 -3 224 -22 310 -47 211 -126 394 -245 569 -126 186 -358 387 -564 490 -384 191 -823 225 -1218 95 -482 -160 -854 -541 -1004 -1029 -117 -379 -81 -810 96 -1165 37 -72 130 -215 166 -252 17 -18 26 -33 20 -33 -6 0 -61 52 -121 116 -259 272 -424 575 -511 934 -111 459 -18 1006 245 1430 298 483 791 797 1379 880 110 16 448 4 565 -19z m-239 -911 c360 -28 680 -171 925 -415 194 -193 317 -415 382 -688 24 -102 26 -130 26 -312 0 -191 -1 -205 -30 -320 -53 -205 -132 -372 -251 -535 -58 -79 -263 -288 -323 -330 -31 -22 -29 -18 18 35 195 220 312 519 312 795 0 325 -121 614 -350 841 -369 364 -926 453 -1385 222 -336 -170 -578 -499 -636 -865 -19 -126 -7 -371 25 -490 44 -162 97 -284 173 -398 9 -14 -4 -5 -30 20 -26 24 -45 51 -42 58 2 7 1 11 -4 7 -11 -6 -58 51 -118 140 -109 163 -183 347 -219 545 -23 127 -23 351 -1 489 55 335 248 677 492 871 261 208 530 311 881 338 11 1 81 -3 155 -8z m29 -714 c459 -74 823 -428 895 -869 58 -358 -60 -696 -345 -987 l-34 -35 22 35 c115 182 179 403 168 575 -14 235 -104 433 -268 591 -137 134 -287 209 -472 239 -115 19 -187 19 -303 0 -337 -55 -612 -302 -704 -635 -32 -113 -34 -325 -5 -440 23 -92 70 -213 98 -254 l21 -31 -31 29 c-39 36 -120 152 -155 221 -35 71 -81 215 -102 319 -25 130 -17 357 17 476 102 354 357 618 706 730 152 49 331 62 492 36z m-73 -567 c178 -24 327 -101 454 -236 137 -143 199 -303 201 -513 1 -162 -42 -309 -135 -453 -52 -82 -73 -97 -38 -28 51 99 67 290 36 412 -57 219 -251 413 -466 464 -75 17 -236 20 -311 4 -213 -44 -422 -247 -473 -460 -31 -133 -13 -325 41 -431 35 -70 8 -47 -52 43 -58 88 -90 167 -114 286 -25 121 -25 220 -1 331 33 146 84 243 186 351 171 183 413 266 672 230z m15 -470 c80 -17 186 -76 248 -139 106 -107 158 -248 147 -398 -6 -92 -25 -152 -79 -250 -45 -82 -60 -91 -27 -17 18 41 21 62 17 149 -4 89 -8 108 -35 162 -43 82 -126 165 -209 205 -58 29 -80 34 -158 37 -112 5 -184 -12 -259 -62 -182 -121 -251 -323 -171 -506 l24 -55 -25 30 c-36 44 -92 162 -104 223 -39 189 14 369 146 492 105 99 204 139 345 139 48 1 111 -4 140 -10z"/>
+                  </g>
+                </svg>
+                <span class="logo-text">BOOM</span>
+            </a>
+            <div class="nav-links">
+                <a href="/apartments.html" class="nav-link">Apartments</a>
+                <a href="/property-finding.html" class="nav-link">Property Finding</a>
+                <a href="/deal-assistance.html" class="nav-link active">Deal Assistance</a>
+                <a href="/concierge.html" class="nav-link">Concierge</a>
+                <a href="https://wa.me/393313251961" class="nav-cta">WhatsApp</a>
+            </div>
+        </div>
+    </nav>
+
+    <section class="hero">
+        <div class="hero-content">
+            <div class="hero-tag reveal">New Service</div>
+            <h1 class="hero-title reveal reveal-delay-1">Found a<br><span class="gold-accent">Place?</span></h1>
+            <p class="hero-subtitle reveal reveal-delay-2">You found an apartment on Idealista, Immobiliare.it, or Facebook. Now what? We'll help you verify, negotiate, and close the deal safely — without getting scammed or overpaying.</p>
+            <a href="https://buy.stripe.com/dRmfZi0cL3DX06OapT5J60a" class="hero-cta reveal reveal-delay-3">Pay & Get Started — €249</a>
+        </div>
+    </section>
+
+    <section class="problem-section">
+        <div class="section-header reveal"><div class="section-tag">The Reality</div><h2 class="section-title">What Could Go Wrong</h2></div>
+        <div class="problem-grid">
+            <div class="problem-card reveal"><div class="problem-icon">🚨</div><h3 class="problem-title">Scam Risk</h3><p class="problem-text">Fake listings, phantom landlords, duplicate key schemes. Rome's rental market is full of traps for foreigners who can't verify legitimacy.</p></div>
+            <div class="problem-card reveal reveal-delay-1"><div class="problem-icon">📜</div><h3 class="problem-title">Contract Traps</h3><p class="problem-text">Italian rental contracts are complex. Hidden clauses, missing protections, unfair terms — one mistake can cost you thousands.</p></div>
+            <div class="problem-card reveal reveal-delay-2"><div class="problem-icon">💸</div><h3 class="problem-title">Overpaying</h3><p class="problem-text">Without local market knowledge, you'll likely pay 15-30% more than necessary. Landlords see "expat" and add zeros.</p></div>
+        </div>
+    </section>
+
+    <section class="solution-section">
+        <div class="section-header reveal"><div class="section-tag">Our Solution</div><h2 class="section-title">What We Do For You</h2></div>
+        <div class="features-grid">
+            <div class="feature-card reveal"><div class="feature-icon">🔍</div><h3 class="feature-title">Verification</h3><p class="feature-text">We verify the landlord/agency identity, property ownership, and listing legitimacy. No more wondering if it's real.</p></div>
+            <div class="feature-card reveal reveal-delay-1"><div class="feature-icon">📋</div><h3 class="feature-title">Contract Review</h3><p class="feature-text">Full review of your rental contract. We flag unfair clauses, missing protections, and negotiate better terms on your behalf.</p></div>
+            <div class="feature-card reveal reveal-delay-2"><div class="feature-icon">💰</div><h3 class="feature-title">Price Negotiation</h3><p class="feature-text">We know the market. We'll negotiate the best possible price and terms, often saving you more than our fee.</p></div>
+            <div class="feature-card reveal reveal-delay-3"><div class="feature-icon">✍️</div><h3 class="feature-title">Closing Support</h3><p class="feature-text">We're there at signing. Help with document translation, deposit handling, and utilities checklist.</p></div>
+        </div>
+    </section>
+
+    <section class="pricing-section">
+        <div class="pricing-card reveal">
+            <div class="price-tag">One-Time Fee</div>
+            <div class="price-amount"><span class="currency">€</span><span class="amount">249</span></div>
+            <p class="price-note">Average client saves <strong>€600+</strong> through our negotiation.<br>The service pays for itself.</p>
+            <div class="pricing-features">
+                <div class="pricing-feature"><span>✓</span> Landlord/Agency Verification</div>
+                <div class="pricing-feature"><span>✓</span> Property Ownership Check</div>
+                <div class="pricing-feature"><span>✓</span> Full Contract Review</div>
+                <div class="pricing-feature"><span>✓</span> Price Negotiation</div>
+                <div class="pricing-feature"><span>✓</span> Signing Day Support</div>
+                <div class="pricing-feature"><span>✓</span> Utilities Checklist</div>
+                <div class="pricing-feature"><span>✓</span> 30-Day Post-Move Support</div>
+                <div class="pricing-feature"><span>✓</span> WhatsApp Direct Line</div>
+            </div>
+            <a href="https://buy.stripe.com/dRmfZi0cL3DX06OapT5J60a" class="cta-primary">Pay Now — €249</a>
+        </div>
+    </section>
+
+    <section class="process-section">
+        <div class="section-header reveal"><div class="section-tag">How It Works</div><h2 class="section-title">4 Simple Steps</h2></div>
+        <div class="process-grid">
+            <div class="process-step reveal"><div class="process-number">01</div><h3 class="process-title">Share Listing</h3><p class="process-text">Send us the listing URL and any info you have about the property</p></div>
+            <div class="process-step reveal reveal-delay-1"><div class="process-number">02</div><h3 class="process-title">We Verify</h3><p class="process-text">We check everything: owner, property, market price, red flags</p></div>
+            <div class="process-step reveal reveal-delay-2"><div class="process-number">03</div><h3 class="process-title">We Negotiate</h3><p class="process-text">We handle all communication with landlord/agency in Italian</p></div>
+            <div class="process-step reveal reveal-delay-3"><div class="process-number">04</div><h3 class="process-title">You Sign</h3><p class="process-text">We're there at signing to ensure everything goes smoothly</p></div>
+        </div>
+    </section>
+
+    <section class="form-section" id="form">
+        <div class="form-container reveal">
+            <div class="form-header"><h2 class="form-title">Questions First?</h2><p class="form-subtitle">Not ready to pay? Send us details and we'll assess your situation</p></div>
+            <form action="https://api.web3forms.com/submit" method="POST">
+                <input type="hidden" name="access_key" value="8d4c9378-5211-4d7c-a2a6-f90c3789a2a6">
+                <input type="hidden" name="subject" value="🤝 NEW DAS INQUIRY - Deal Assistance Service">
+                <input type="hidden" name="from_name" value="BOOM Deal Assistance">
+                <input type="hidden" name="redirect" value="https://boom-rome.com/_thank-you.html">
+                <div class="form-row">
+                    <div class="form-group"><label class="form-label">Full Name <span class="required">*</span></label><input type="text" name="name" class="form-input" required placeholder="John Smith"></div>
+                    <div class="form-group"><label class="form-label">Email <span class="required">*</span></label><input type="email" name="email" class="form-input" required placeholder="john@email.com"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label class="form-label">WhatsApp Number <span class="required">*</span></label><input type="tel" name="phone" class="form-input" required placeholder="+1 234 567 8900"></div>
+                    <div class="form-group"><label class="form-label">Desired Move-in Date</label><input type="date" name="move_date" class="form-input"></div>
+                </div>
+                <div class="form-group"><label class="form-label">Listing URL <span class="required">*</span></label><input type="url" name="listing_url" class="form-input" required placeholder="https://idealista.it/immobile/..."></div>
+                <div class="form-group"><label class="form-label">Monthly Rent (as advertised)</label><input type="text" name="rent" class="form-input" placeholder="€1,500"></div>
+                <div class="form-group"><label class="form-label">Tell us more</label><textarea name="message" class="form-textarea" placeholder="Any concerns about the listing? What stage are you at with the landlord/agency?"></textarea></div>
+                <button type="submit" class="form-submit">Send Inquiry</button>
+            </form>
+        </div>
+    </section>
+
+    <footer>
+        <div class="footer-grid">
+            <div class="footer-brand"><div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="48" height="48" style="opacity: 0.9;">
+                      <defs>
+                        <linearGradient id="goldGradientFooter" x1="0%" y1="0%" x2="0%" y2="100%">
+                          <stop offset="0%" stop-color="#FFD54F"/>
+                          <stop offset="100%" stop-color="#F5A623"/>
+                        </linearGradient>
+                      </defs>
+                      <g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#goldGradientFooter)">
+                        <path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z m610 -144 c743 -103 1436 -459 1919 -985 338 -367 562 -751 704 -1205 276 -879 132 -1858 -388 -2640 -242 -364 -493 -615 -900 -900 l-70 -49 109 104 c413 396 679 919 767 1505 33 217 33 558 0 765 -75 476 -257 896 -549 1265 -127 161 -363 380 -549 511 -300 211 -689 363 -1079 420 -172 26 -604 26 -764 0 -296 -47 -545 -128 -808 -262 -236 -122 -440 -271 -632 -464 -486 -485 -749 -1121 -751 -1815 -1 -611 170 -1148 515 -1608 100 -134 286 -335 382 -413 33 -27 -8 -2 -91 55 -513 351 -904 805 -1143 1331 -71 156 -136 336 -168 465 -9 33 -19 76 -24 95 -5 19 -20 100 -34 180 -59 343 -60 740 0 1070 81 456 229 826 479 1200 246 368 558 669 949 917 386 245 881 418 1321 462 61 6 124 13 140 15 73 10 556 -4 665 -19z m-60 -1329 c105 -16 258 -49 335 -72 82 -26 197 -66 240 -84 149 -65 190 -84 266 -126 677 -379 1129 -1049 1246 -1849 27 -182 24 -517 -5 -695 -75 -458 -225 -813 -500 -1179 -116 -154 -340 -369 -527 -506 -44 -32 -87 -63 -95 -69 -8 -6 35 39 96 99 178 177 283 321 397 550 161 322 231 676 205 1045 -32 467 -223 902 -542 1237 -239 251 -521 426 -873 542 -79 26 -273 67 -383 81 -108 13 -349 13 -465 0 -276 -32 -597 -145 -834 -293 -224 -140 -466 -378 -613 -602 -307 -470 -407 -1055 -273 -1599 80 -327 217 -589 454 -871 71 -84 73 -88 31 -56 -293 225 -547 535 -718 877 -34 68 -65 143 -122 294 -42 112 -101 383 -120 555 -14 127 -14 401 0 534 51 482 223 912 516 1288 269 344 654 620 1085 778 160 59 400 115 574 134 121 13 508 5 625 -13z m-30 -1165 c401 -81 721 -242 992 -499 643 -612 769 -1607 300 -2367 -118 -190 -291 -386 -463 -524 -137 -111 -148 -113 -49 -12 110 112 206 248 275 386 67 137 98 222 132 367 24 103 26 132 27 323 0 182 -3 224 -22 310 -47 211 -126 394 -245 569 -126 186 -358 387 -564 490 -384 191 -823 225 -1218 95 -482 -160 -854 -541 -1004 -1029 -117 -379 -81 -810 96 -1165 37 -72 130 -215 166 -252 17 -18 26 -33 20 -33 -6 0 -61 52 -121 116 -259 272 -424 575 -511 934 -111 459 -18 1006 245 1430 298 483 791 797 1379 880 110 16 448 4 565 -19z m-239 -911 c360 -28 680 -171 925 -415 194 -193 317 -415 382 -688 24 -102 26 -130 26 -312 0 -191 -1 -205 -30 -320 -53 -205 -132 -372 -251 -535 -58 -79 -263 -288 -323 -330 -31 -22 -29 -18 18 35 195 220 312 519 312 795 0 325 -121 614 -350 841 -369 364 -926 453 -1385 222 -336 -170 -578 -499 -636 -865 -19 -126 -7 -371 25 -490 44 -162 97 -284 173 -398 9 -14 -4 -5 -30 20 -26 24 -45 51 -42 58 2 7 1 11 -4 7 -11 -6 -58 51 -118 140 -109 163 -183 347 -219 545 -23 127 -23 351 -1 489 55 335 248 677 492 871 261 208 530 311 881 338 11 1 81 -3 155 -8z m29 -714 c459 -74 823 -428 895 -869 58 -358 -60 -696 -345 -987 l-34 -35 22 35 c115 182 179 403 168 575 -14 235 -104 433 -268 591 -137 134 -287 209 -472 239 -115 19 -187 19 -303 0 -337 -55 -612 -302 -704 -635 -32 -113 -34 -325 -5 -440 23 -92 70 -213 98 -254 l21 -31 -31 29 c-39 36 -120 152 -155 221 -35 71 -81 215 -102 319 -25 130 -17 357 17 476 102 354 357 618 706 730 152 49 331 62 492 36z m-73 -567 c178 -24 327 -101 454 -236 137 -143 199 -303 201 -513 1 -162 -42 -309 -135 -453 -52 -82 -73 -97 -38 -28 51 99 67 290 36 412 -57 219 -251 413 -466 464 -75 17 -236 20 -311 4 -213 -44 -422 -247 -473 -460 -31 -133 -13 -325 41 -431 35 -70 8 -47 -52 43 -58 88 -90 167 -114 286 -25 121 -25 220 -1 331 33 146 84 243 186 351 171 183 413 266 672 230z m15 -470 c80 -17 186 -76 248 -139 106 -107 158 -248 147 -398 -6 -92 -25 -152 -79 -250 -45 -82 -60 -91 -27 -17 18 41 21 62 17 149 -4 89 -8 108 -35 162 -43 82 -126 165 -209 205 -58 29 -80 34 -158 37 -112 5 -184 -12 -259 -62 -182 -121 -251 -323 -171 -506 l24 -55 -25 30 c-36 44 -92 162 -104 223 -39 189 14 369 146 492 105 99 204 139 345 139 48 1 111 -4 140 -10z"/>
+                      </g>
+                    </svg>
+                    <h3>BOOM</h3>
+                </div><p>Premium apartment rentals and relocation services in Rome. We make moving to the Eternal City simple.</p></div>
+            <div class="footer-links"><h4>Services</h4><ul><li><a href="/apartments.html">Apartments</a></li><li><a href="/property-finding.html">Property Finding</a></li><li><a href="/deal-assistance.html">Deal Assistance</a></li><li><a href="/concierge.html">Concierge</a></li></ul></div>
+            <div class="footer-links"><h4>Company</h4><ul><li><a href="/about.html">About</a></li><li><a href="/how-it-works.html">How It Works</a></li><li><a href="/faq.html">FAQ</a></li><li><a href="/contact.html">Contact</a></li></ul></div>
+            <div class="footer-links"><h4>Legal</h4><ul><li><a href="/terms.html">Terms</a></li><li><a href="/privacy.html">Privacy</a></li></ul></div>
+        </div>
+        <div class="footer-bottom"><span>© 2025 BOOM — Rome, Italy</span></div>
+    </footer>
+
+    <script>
+        const reveals = document.querySelectorAll('.reveal');
+        const revealOnScroll = () => { reveals.forEach(el => { const top = el.getBoundingClientRect().top; if (top < window.innerHeight - 100) { el.classList.add('active'); } }); };
+        window.addEventListener('scroll', revealOnScroll); revealOnScroll();
+    </script>
+</body>
+</html>
