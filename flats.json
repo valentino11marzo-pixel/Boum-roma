@@ -1,0 +1,152 @@
+[
+  {
+    "id": "marconi",
+    "file": "apartment-marconi.html",
+    "name": "Marconi Shared",
+    "address": "Via Federico Guarducci, Marconi",
+    "zone": "Marconi",
+    "tagline": "Spacious private room in shared 3-bedroom apartment",
+    "price": 750,
+    "type": "Shared Room",
+    "beds": "1 Room in 3BR",
+    "size": "110m²",
+    "floor": "7th Floor",
+    "image": "https://i.imgur.com/s2es0MN.jpeg",
+    "gallery": [
+      "https://i.imgur.com/s2es0MN.jpeg",
+      "https://i.imgur.com/V73fwGD.jpeg",
+      "https://i.imgur.com/ArIwJXE.jpeg",
+      "https://i.imgur.com/iAScYmL.jpeg"
+    ],
+    "videoUrl": "",
+    "tags": ["All Inclusive", "Balcony", "AC"],
+    "status": "available",
+    "availableDate": "Feb 1"
+  },
+  {
+    "id": "levico",
+    "file": "apartment_levico.html",
+    "name": "Levico",
+    "address": "Via Levico, Trieste/Coppedè",
+    "zone": "Trieste",
+    "tagline": "Charming garden apartment in prestigious area",
+    "price": 1200,
+    "type": "Garden Floor",
+    "beds": "1 Bedroom",
+    "size": "40m²",
+    "floor": "Ground Floor",
+    "image": "https://i.imgur.com/Ne0ROPe.jpeg",
+    "gallery": [
+      "https://i.imgur.com/Ne0ROPe.jpeg"
+    ],
+    "videoUrl": "",
+    "tags": ["All Inclusive", "Garden", "WiFi"],
+    "status": "available",
+    "availableDate": "Feb 1"
+  },
+  {
+    "id": "piemonte",
+    "file": "apartment_piemonte.html",
+    "name": "Piemonte Attic",
+    "address": "Via Piemonte, Vittorio Veneto",
+    "zone": "Centro",
+    "tagline": "Recently renovated attic in the heart of Rome",
+    "price": 1300,
+    "type": "Attic",
+    "beds": "1 Bedroom",
+    "size": "55m²",
+    "floor": "5th Floor",
+    "image": "https://i.imgur.com/Smv5uPX.jpeg",
+    "gallery": [
+      "https://i.imgur.com/Smv5uPX.jpeg"
+    ],
+    "videoUrl": "",
+    "tags": ["Renovated", "AC", "Central"],
+    "status": "available",
+    "availableDate": "Jan 1"
+  },
+  {
+    "id": "pigneto",
+    "file": "apartment_pigneto.html",
+    "name": "Pigneto Terrace",
+    "address": "Via Ascoli Piceno, Pigneto",
+    "zone": "Pigneto",
+    "tagline": "Bohemian 2BR with stunning terrace views",
+    "price": 1700,
+    "type": "Bohemian",
+    "beds": "2 Bedrooms",
+    "size": "80m²",
+    "floor": "2nd Floor",
+    "image": "https://i.imgur.com/tJnYADn.jpeg",
+    "gallery": [
+      "https://i.imgur.com/tJnYADn.jpeg"
+    ],
+    "videoUrl": "",
+    "tags": ["All Inclusive", "Terrace", "Balcony"],
+    "status": "available",
+    "availableDate": "Apr 1"
+  },
+  {
+    "id": "navona",
+    "file": "apartment_navona.html",
+    "name": "Coronari Classic",
+    "address": "Via dei Coronari, Piazza Navona",
+    "zone": "Centro Storico",
+    "tagline": "Historic apartment steps from Piazza Navona",
+    "price": 2000,
+    "type": "Historic",
+    "beds": "1 Bedroom",
+    "size": "70m²",
+    "floor": "1st Floor",
+    "image": "https://i.imgur.com/8LVxrhs.jpeg",
+    "gallery": [
+      "https://i.imgur.com/8LVxrhs.jpeg"
+    ],
+    "videoUrl": "",
+    "tags": ["Historic Center", "Elevator", "Fireplace"],
+    "status": "available",
+    "availableDate": "Mar 1"
+  },
+  {
+    "id": "angelico",
+    "file": "apartment_angelico.html",
+    "name": "Angelico Loft",
+    "address": "Viale Angelico, Mazzini",
+    "zone": "Prati",
+    "tagline": "Modern loft-style apartment near Vatican",
+    "price": 2000,
+    "type": "Loft Style",
+    "beds": "1BR + Loft",
+    "size": "65m²",
+    "floor": "2nd Floor",
+    "image": "https://i.imgur.com/CI4n46J.jpeg",
+    "gallery": [
+      "https://i.imgur.com/CI4n46J.jpeg"
+    ],
+    "videoUrl": "",
+    "tags": ["All Inclusive", "Modern", "Sep 2026"],
+    "status": "waitlist",
+    "availableDate": "Sep 1"
+  },
+  {
+    "id": "ripetta",
+    "file": "apartment_ripetta.html",
+    "name": "Ripetta Terrace",
+    "address": "Passeggiata di Ripetta, Centro",
+    "zone": "Centro",
+    "tagline": "Premium terrace apartment with river views",
+    "price": 2300,
+    "type": "Premium Terrace",
+    "beds": "1 Bedroom",
+    "size": "100m²",
+    "floor": "1st Floor",
+    "image": "https://i.imgur.com/hxai5bz.jpeg",
+    "gallery": [
+      "https://i.imgur.com/hxai5bz.jpeg"
+    ],
+    "videoUrl": "",
+    "tags": ["Panoramic Terrace", "River View", "Sep 2026"],
+    "status": "waitlist",
+    "availableDate": "Sep 1"
+  }
+]
