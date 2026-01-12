@@ -2136,7 +2136,12 @@
                 toast('success', 'Listing aggiornato!', 'Visibile su boomrome.com');
             } else {
                 listingData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-                await db.collection('listings').add(listingData);
+                // Create new listing and get the document reference
+                const docRef = await db.collection('listings').add(listingData);
+                // If no custom file was set, auto-generate the detail page URL
+                if (!listingData.file || listingData.file.trim() === '') {
+                    await docRef.update({ file: 'apartment-detail.html?id=' + docRef.id });
+                }
                 toast('success', 'Listing creato!', 'Ora visibile su boomrome.com');
             }
             closeModal(); 

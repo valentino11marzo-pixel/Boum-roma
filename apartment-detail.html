@@ -3,404 +3,122 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Luxury 2BR Trastevere - BOOM</title>
-    
+    <title>Apartment Details - BOOM Rome</title>
+    <meta name="description" content="View apartment details - BOOM Rome verified rentals">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;900&family=Oswald:wght@200;300;400;500&display=swap" rel="stylesheet">
-    
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            -webkit-font-smoothing: antialiased;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+        :root { --gold: #FFD700; --cyan: #00CED1; --green: #00FF88; --orange: #FF6B35; --red: #FF3B3B; --pure-black: #000000; --dark-surface: #111111; --text-primary: #FFFFFF; --text-fade: #666666; --text-secondary: #999999; }
+        ::selection { background: var(--gold); color: var(--pure-black); }
+        body { font-family: 'Inter', -apple-system, sans-serif; background: var(--pure-black); color: var(--text-primary); font-weight: 200; letter-spacing: 0.02em; line-height: 1.6; }
 
-        :root {
-            --gold: #FFD700;
-            --cyan: #00CED1;
-            --green: #00FF88;
-            --pure-black: #000000;
-            --dark-void: #0A0A0A;
-            --text-primary: #FFFFFF;
-            --text-fade: #666666;
-            --text-secondary: #999999;
-        }
+        /* Navigation */
+        nav { position: fixed; width: 100%; top: 0; z-index: 100; padding: 20px 50px; background: rgba(0,0,0,0.98); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(255, 215, 0, 0.1); }
+        .nav-container { max-width: 1400px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
+        .logo { display: flex; align-items: center; gap: 14px; text-decoration: none; color: white; transition: transform 0.3s ease; }
+        .logo:hover { transform: scale(1.03); }
+        .logo-svg { width: 80px; height: 80px; filter: drop-shadow(0 0 20px rgba(255, 215, 0, 0.5)); transition: filter 0.3s ease; }
+        .logo:hover .logo-svg { filter: drop-shadow(0 0 35px rgba(255, 215, 0, 0.8)); }
+        .logo-text { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 32px; font-weight: 300; letter-spacing: 4px; text-transform: uppercase; }
+        .nav-links { display: flex; gap: 40px; align-items: center; }
+        .nav-link { color: var(--text-secondary); text-decoration: none; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; transition: color 0.3s; font-weight: 400; position: relative; }
+        .nav-link::after { content: ''; position: absolute; bottom: -5px; left: 0; width: 0; height: 1px; background: var(--gold); transition: width 0.3s ease; }
+        .nav-link:hover { color: var(--text-primary); }
+        .nav-link:hover::after { width: 100%; }
+        .nav-cta { padding: 12px 30px; background: transparent; border: 1px solid var(--gold); color: var(--gold); text-decoration: none; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; transition: all 0.3s; font-weight: 500; }
+        .nav-cta:hover { background: var(--gold); color: var(--pure-black); transform: translateY(-2px); box-shadow: 0 8px 20px rgba(255, 215, 0, 0.35); }
 
-        body {
-            font-family: 'Inter', -apple-system, sans-serif;
-            background: var(--pure-black);
-            color: var(--text-primary);
-            font-weight: 200;
-            letter-spacing: 0.02em;
-            line-height: 1.6;
-        }
+        .hamburger { display: none; flex-direction: column; gap: 5px; cursor: pointer; z-index: 1001; padding: 10px; }
+        .hamburger span { width: 26px; height: 2px; background: var(--gold); transition: all 0.3s ease; }
+        .hamburger.active span:nth-child(1) { transform: rotate(45deg) translate(7px, 7px); }
+        .hamburger.active span:nth-child(2) { opacity: 0; }
+        .hamburger.active span:nth-child(3) { transform: rotate(-45deg) translate(7px, -7px); }
+        .mobile-menu { position: fixed; top: 0; right: -100%; width: 320px; height: 100vh; background: rgba(0, 0, 0, 0.98); backdrop-filter: blur(30px); z-index: 1000; padding: 120px 40px 40px; transition: right 0.4s cubic-bezier(0.4, 0, 0.2, 1); border-left: 1px solid rgba(255, 215, 0, 0.15); }
+        .mobile-menu.active { right: 0; }
+        .mobile-menu-links { display: flex; flex-direction: column; gap: 25px; }
+        .mobile-menu-link { color: var(--text-secondary); text-decoration: none; font-size: 16px; text-transform: uppercase; letter-spacing: 2px; transition: all 0.3s; padding: 12px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+        .mobile-menu-link:hover { color: var(--gold); padding-left: 12px; }
+        .mobile-menu-cta { margin-top: 40px; padding: 18px; background: var(--gold); color: var(--pure-black); text-align: center; text-decoration: none; font-size: 13px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; display: block; }
 
-        nav {
-            position: fixed;
-            width: 100%;
-            top: 0;
-            z-index: 100;
-            padding: 20px 50px;
-            background: rgba(0,0,0,0.98);
-            backdrop-filter: blur(20px);
-            border-bottom: 1px solid rgba(255, 215, 0, 0.1);
-        }
+        /* Hero Image */
+        .hero-image { width: 100%; height: 60vh; min-height: 400px; background-size: cover; background-position: center; position: relative; margin-top: 80px; }
+        .hero-image::before { content: ''; position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.8)); }
+        .hero-overlay { position: absolute; bottom: 0; left: 0; right: 0; padding: 60px 50px; }
+        .hero-badges { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+        .badge { padding: 8px 16px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; border-radius: 20px; }
+        .badge-type { background: rgba(0,0,0,0.8); color: var(--gold); backdrop-filter: blur(10px); }
+        .badge-status { background: var(--green); color: #000; }
+        .badge-status.waitlist { background: var(--orange); }
+        .hero-price { font-family: 'Oswald', sans-serif; font-size: 72px; font-weight: 300; color: var(--gold); line-height: 1; }
+        .hero-price span { font-size: 24px; color: var(--text-secondary); }
+        .hero-title { font-size: 36px; font-weight: 400; text-transform: uppercase; margin-top: 10px; letter-spacing: -1px; }
+        .hero-address { font-size: 16px; color: var(--text-secondary); margin-top: 8px; }
 
-        .nav-container {
-            max-width: 1400px;
-            margin: 0 auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
+        /* Content */
+        .content { max-width: 1200px; margin: 0 auto; padding: 60px 50px; }
+        .content-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 60px; }
 
-        .logo {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            text-decoration: none;
-            color: white;
-        }
+        /* Details Section */
+        .section { margin-bottom: 50px; }
+        .section-title { font-size: 12px; text-transform: uppercase; letter-spacing: 3px; color: var(--gold); margin-bottom: 20px; }
+        
+        .features-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+        .feature-card { background: var(--dark-surface); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 24px; text-align: center; }
+        .feature-icon { font-size: 32px; margin-bottom: 12px; }
+        .feature-label { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+        .feature-value { font-size: 18px; font-weight: 400; }
 
-        .logo-circle {
-            width: 40px;
-            height: 40px;
-            background: linear-gradient(135deg, #FFD700, #FFA500);
-            border-radius: 50%;
-            box-shadow: 0 0 30px rgba(255, 215, 0, 0.5);
-            animation: glow 3s infinite;
-        }
+        .description { font-size: 16px; line-height: 1.8; color: var(--text-secondary); }
 
-        @keyframes glow {
-            0%, 100% { box-shadow: 0 0 30px rgba(255, 215, 0, 0.5); }
-            50% { box-shadow: 0 0 50px rgba(255, 215, 0, 0.8); }
-        }
+        .tags { display: flex; gap: 10px; flex-wrap: wrap; }
+        .tag { padding: 8px 16px; background: rgba(255, 215, 0, 0.1); border: 1px solid rgba(255, 215, 0, 0.3); color: var(--gold); font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 1px; border-radius: 6px; }
 
-        .logo-text {
-            font-family: 'Oswald', sans-serif;
-            font-size: 32px;
-            font-weight: 300;
-            letter-spacing: -2px;
-            text-transform: uppercase;
-        }
+        /* Sidebar */
+        .sidebar { position: sticky; top: 120px; }
+        .contact-card { background: var(--dark-surface); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 32px; }
+        .contact-title { font-size: 20px; font-weight: 400; margin-bottom: 8px; }
+        .contact-subtitle { font-size: 14px; color: var(--text-secondary); margin-bottom: 24px; }
+        .btn-primary { display: block; width: 100%; padding: 18px; background: var(--gold); color: #000; text-align: center; text-decoration: none; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; border-radius: 8px; margin-bottom: 12px; transition: all 0.3s; }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(255,215,0,0.3); }
+        .btn-secondary { display: block; width: 100%; padding: 18px; background: transparent; border: 1px solid rgba(255,255,255,0.2); color: var(--text-primary); text-align: center; text-decoration: none; font-size: 14px; font-weight: 500; text-transform: uppercase; letter-spacing: 2px; border-radius: 8px; transition: all 0.3s; }
+        .btn-secondary:hover { border-color: var(--gold); color: var(--gold); }
 
-        .main-container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 120px 50px 100px;
-        }
+        .back-link { display: inline-flex; align-items: center; gap: 8px; color: var(--text-secondary); text-decoration: none; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 30px; transition: color 0.3s; }
+        .back-link:hover { color: var(--gold); }
 
-        .back-link {
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-            color: var(--text-secondary);
-            text-decoration: none;
-            font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 40px;
-            transition: color 0.3s;
-        }
+        /* Loading */
+        .loading { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh; margin-top: 80px; }
+        .spinner { width: 50px; height: 50px; border: 3px solid rgba(255,215,0,0.2); border-top-color: var(--gold); border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
 
-        .back-link:hover {
-            color: var(--gold);
-        }
+        /* Error */
+        .error-state { text-align: center; padding: 100px 20px; margin-top: 80px; }
+        .error-icon { font-size: 80px; margin-bottom: 20px; }
+        .error-title { font-size: 32px; margin-bottom: 10px; }
+        .error-text { color: var(--text-secondary); margin-bottom: 30px; }
 
-        .content-grid {
-            display: grid;
-            grid-template-columns: 2fr 1fr;
-            gap: 60px;
-        }
+        /* Footer */
+        footer { padding: 60px 50px 40px; border-top: 1px solid rgba(255, 255, 255, 0.1); margin-top: 60px; }
+        .footer-bottom { display: flex; justify-content: space-between; font-size: 10px; text-transform: uppercase; letter-spacing: 2px; color: var(--text-fade); max-width: 1400px; margin: 0 auto; }
 
-        /* Gallery */
-        .gallery-section {
-            margin-bottom: 60px;
+        @media (max-width: 968px) {
+            .content-grid { grid-template-columns: 1fr; }
+            .sidebar { position: static; }
+            .features-grid { grid-template-columns: repeat(2, 1fr); }
         }
-
-        .main-image {
-            width: 100%;
-            height: 500px;
-            object-fit: cover;
-            margin-bottom: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .thumbnail-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 15px;
-        }
-
-        .thumbnail {
-            width: 100%;
-            height: 120px;
-            object-fit: cover;
-            cursor: pointer;
-            border: 2px solid transparent;
-            transition: all 0.3s;
-        }
-
-        .thumbnail:hover,
-        .thumbnail.active {
-            border-color: var(--gold);
-        }
-
-        /* Info Section */
-        .apartment-header {
-            margin-bottom: 40px;
-        }
-
-        .apartment-badge {
-            display: inline-block;
-            padding: 8px 20px;
-            background: var(--gold);
-            color: var(--pure-black);
-            font-size: 10px;
-            font-weight: 700;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            margin-bottom: 20px;
-        }
-
-        .apartment-title {
-            font-size: clamp(40px, 8vw, 70px);
-            font-weight: 100;
-            line-height: 0.9;
-            letter-spacing: -0.02em;
-            text-transform: uppercase;
-            margin-bottom: 15px;
-        }
-
-        .apartment-location {
-            font-size: 16px;
-            color: var(--text-secondary);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .quick-facts {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 2px;
-            background: var(--text-fade);
-            padding: 2px;
-            margin: 40px 0;
-        }
-
-        .fact-box {
-            background: var(--dark-void);
-            padding: 30px 20px;
-            text-align: center;
-        }
-
-        .fact-icon {
-            font-size: 24px;
-            margin-bottom: 10px;
-        }
-
-        .fact-value {
-            font-size: 24px;
-            font-weight: 300;
-            color: var(--gold);
-            margin-bottom: 5px;
-        }
-
-        .fact-label {
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: var(--text-fade);
-        }
-
-        .section-title {
-            font-size: 14px;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            color: var(--gold);
-            margin-bottom: 20px;
-            margin-top: 50px;
-        }
-
-        .section-title:first-of-type {
-            margin-top: 0;
-        }
-
-        .description-text {
-            font-size: 16px;
-            line-height: 1.8;
-            color: var(--text-secondary);
-            margin-bottom: 30px;
-        }
-
-        .amenities-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 15px;
-        }
-
-        .amenity-item {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            padding: 15px;
-            background: rgba(255, 255, 255, 0.02);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        .amenity-icon {
-            font-size: 20px;
-            color: var(--gold);
-        }
-
-        .amenity-text {
-            font-size: 14px;
-        }
-
-        /* Booking Card */
-        .booking-card {
-            background: var(--dark-void);
-            border: 1px solid rgba(255, 215, 0, 0.3);
-            padding: 50px 40px;
-            position: sticky;
-            top: 120px;
-        }
-
-        .price-display {
-            text-align: center;
-            margin-bottom: 40px;
-            padding-bottom: 30px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .price-amount {
-            font-size: 72px;
-            font-weight: 100;
-            font-family: 'Oswald', sans-serif;
-            color: var(--gold);
-            letter-spacing: -3px;
-            margin-bottom: 10px;
-        }
-
-        .price-period {
-            font-size: 14px;
-            color: var(--text-fade);
-            text-transform: uppercase;
-            letter-spacing: 2px;
-        }
-
-        .cost-breakdown {
-            margin-bottom: 30px;
-        }
-
-        .cost-line {
-            display: flex;
-            justify-content: space-between;
-            padding: 12px 0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-            font-size: 13px;
-        }
-
-        .cost-line:last-child {
-            border-bottom: none;
-        }
-
-        .cost-label {
-            color: var(--text-secondary);
-        }
-
-        .apply-btn {
-            width: 100%;
-            padding: 20px;
-            background: var(--gold);
-            color: var(--pure-black);
-            text-decoration: none;
-            font-size: 12px;
-            font-weight: 700;
-            letter-spacing: 3px;
-            text-transform: uppercase;
-            text-align: center;
-            display: block;
-            transition: all 0.3s;
-            border: none;
-            cursor: pointer;
-            margin-bottom: 15px;
-        }
-
-        .apply-btn:hover {
-            transform: scaleX(1.05);
-        }
-
-        .whatsapp-btn {
-            width: 100%;
-            padding: 15px;
-            background: transparent;
-            border: 1px solid var(--gold);
-            color: var(--gold);
-            text-decoration: none;
-            font-size: 11px;
-            font-weight: 600;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            text-align: center;
-            display: block;
-            transition: all 0.3s;
-        }
-
-        .whatsapp-btn:hover {
-            background: var(--gold);
-            color: var(--pure-black);
-        }
-
-        .guarantees {
-            margin-top: 30px;
-            padding-top: 30px;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .guarantee-item {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 12px;
-            font-size: 11px;
-            color: var(--text-secondary);
-        }
-
-        .guarantee-icon {
-            color: var(--green);
-        }
-
         @media (max-width: 768px) {
-            .main-container {
-                padding: 100px 20px 60px;
-            }
-
-            .content-grid {
-                grid-template-columns: 1fr;
-                gap: 40px;
-            }
-
-            .booking-card {
-                position: static;
-            }
-
-            .main-image {
-                height: 300px;
-            }
-
-            .thumbnail-grid {
-                grid-template-columns: repeat(3, 1fr);
-            }
-
-            .quick-facts {
-                grid-template-columns: repeat(2, 1fr);
-            }
-
-            .amenities-grid {
-                grid-template-columns: 1fr;
-            }
+            nav { padding: 15px 20px; }
+            .nav-links { display: none; }
+            .hamburger { display: flex; }
+            .logo-text { font-size: 24px; letter-spacing: 3px; }
+            .hero-image { height: 50vh; margin-top: 70px; }
+            .hero-overlay { padding: 40px 20px; }
+            .hero-price { font-size: 48px; }
+            .hero-title { font-size: 24px; }
+            .content { padding: 40px 20px; }
+            .features-grid { grid-template-columns: 1fr 1fr; }
+            footer { padding: 40px 20px; }
+            .footer-bottom { flex-direction: column; gap: 10px; text-align: center; }
         }
     </style>
 </head>
@@ -408,183 +126,187 @@
     <nav>
         <div class="nav-container">
             <a href="/" class="logo">
-                <div class="logo-circle"></div>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" class="logo-svg">
+                    <defs><linearGradient id="goldGradNav" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#FFD54F"/><stop offset="100%" stop-color="#F5A623"/></linearGradient></defs>
+                    <g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#goldGradNav)"><path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z m610 -144 c743 -103 1436 -459 1919 -985 338 -367 562 -751 704 -1205 276 -879 132 -1858 -388 -2640 -242 -364 -493 -615 -900 -900 l-70 -49 109 104 c413 396 679 919 767 1505 33 217 33 558 0 765 -75 476 -257 896 -549 1265 -127 161 -363 380 -549 511 -300 211 -689 363 -1079 420 -172 26 -604 26 -764 0 -296 -47 -545 -128 -808 -262 -236 -122 -440 -271 -632 -464 -486 -485 -749 -1121 -751 -1815 -1 -611 170 -1148 515 -1608 100 -134 286 -335 382 -413 33 -27 -8 -2 -91 55 -513 351 -904 805 -1143 1331 -71 156 -136 336 -168 465 -9 33 -19 76 -24 95 -5 19 -20 100 -34 180 -59 343 -60 740 0 1070 81 456 229 826 479 1200 246 368 558 669 949 917 386 245 881 418 1321 462 61 6 124 13 140 15 73 10 556 -4 665 -19z m-60 -1329 c105 -16 258 -49 335 -72 82 -26 197 -66 240 -84 149 -65 190 -84 266 -126 677 -379 1129 -1049 1246 -1849 27 -182 24 -517 -5 -695 -75 -458 -225 -813 -500 -1179 -116 -154 -340 -369 -527 -506 -44 -32 -87 -63 -95 -69 -8 -6 35 39 96 99 178 177 283 321 397 550 161 322 231 676 205 1045 -32 467 -223 902 -542 1237 -239 251 -521 426 -873 542 -79 26 -273 67 -383 81 -108 13 -349 13 -465 0 -276 -32 -597 -145 -834 -293 -224 -140 -466 -378 -613 -602 -307 -470 -407 -1055 -273 -1599 80 -327 217 -589 454 -871 71 -84 73 -88 31 -56 -293 225 -547 535 -718 877 -34 68 -65 143 -122 294 -42 112 -101 383 -120 555 -14 127 -14 401 0 534 51 482 223 912 516 1288 269 344 654 620 1085 778 160 59 400 115 574 134 121 13 508 5 625 -13z m-30 -1165 c401 -81 721 -242 992 -499 643 -612 769 -1607 300 -2367 -118 -190 -291 -386 -463 -524 -137 -111 -148 -113 -49 -12 110 112 206 248 275 386 67 137 98 222 132 367 24 103 26 132 27 323 0 182 -3 224 -22 310 -47 211 -126 394 -245 569 -126 186 -358 387 -564 490 -384 191 -823 225 -1218 95 -482 -160 -854 -541 -1004 -1029 -117 -379 -81 -810 96 -1165 37 -72 130 -215 166 -252 17 -18 26 -33 20 -33 -6 0 -61 52 -121 116 -259 272 -424 575 -511 934 -111 459 -18 1006 245 1430 298 483 791 797 1379 880 110 16 448 4 565 -19z m-239 -911 c360 -28 680 -171 925 -415 194 -193 317 -415 382 -688 24 -102 26 -130 26 -312 0 -191 -1 -205 -30 -320 -53 -205 -132 -372 -251 -535 -58 -79 -263 -288 -323 -330 -31 -22 -29 -18 18 35 195 220 312 519 312 795 0 325 -121 614 -350 841 -369 364 -926 453 -1385 222 -336 -170 -578 -499 -636 -865 -19 -126 -7 -371 25 -490 44 -162 97 -284 173 -398 9 -14 -4 -5 -30 20 -26 24 -45 51 -42 58 2 7 1 11 -4 7 -11 -6 -58 51 -118 140 -109 163 -183 347 -219 545 -23 127 -23 351 -1 489 55 335 248 677 492 871 261 208 530 311 881 338 11 1 81 -3 155 -8z m29 -714 c459 -74 823 -428 895 -869 58 -358 -60 -696 -345 -987 l-34 -35 22 35 c115 182 179 403 168 575 -14 235 -104 433 -268 591 -137 134 -287 209 -472 239 -115 19 -187 19 -303 0 -337 -55 -612 -302 -704 -635 -32 -113 -34 -325 -5 -440 23 -92 70 -213 98 -254 l21 -31 -31 29 c-39 36 -120 152 -155 221 -35 71 -81 215 -102 319 -25 130 -17 357 17 476 102 354 357 618 706 730 152 49 331 62 492 36z m-73 -567 c178 -24 327 -101 454 -236 137 -143 199 -303 201 -513 1 -162 -42 -309 -135 -453 -52 -82 -73 -97 -38 -28 51 99 67 290 36 412 -57 219 -251 413 -466 464 -75 17 -236 20 -311 4 -213 -44 -422 -247 -473 -460 -31 -133 -13 -325 41 -431 35 -70 8 -47 -52 43 -58 88 -90 167 -114 286 -25 121 -25 220 -1 331 33 146 84 243 186 351 171 183 413 266 672 230z m15 -470 c80 -17 186 -76 248 -139 106 -107 158 -248 147 -398 -6 -92 -25 -152 -79 -250 -45 -82 -60 -91 -27 -17 18 41 21 62 17 149 -4 89 -8 108 -35 162 -43 82 -126 165 -209 205 -58 29 -80 34 -158 37 -112 5 -184 -12 -259 -62 -182 -121 -251 -323 -171 -506 l24 -55 -25 30 c-36 44 -92 162 -104 223 -39 189 14 369 146 492 105 99 204 139 345 139 48 1 111 -4 140 -10z"/></g>
+                </svg>
                 <span class="logo-text">BOOM</span>
             </a>
+            <div class="nav-links">
+                <a href="/apartments.html" class="nav-link">Apartments</a>
+                <a href="/property-finding.html" class="nav-link">Property Finding</a>
+                <a href="/concierge.html" class="nav-link">Concierge</a>
+                <a href="/how-it-works.html" class="nav-link">How It Works</a>
+                <a href="https://wa.me/393313251961" class="nav-cta" target="_blank">WhatsApp</a>
+            </div>
+            <div class="hamburger" id="hamburger"><span></span><span></span><span></span></div>
         </div>
     </nav>
 
-    <div class="main-container">
-        <a href="/apartments.html" class="back-link">← Back to All Apartments</a>
+    <div class="mobile-menu" id="mobileMenu">
+        <div class="mobile-menu-links">
+            <a href="/" class="mobile-menu-link">Home</a>
+            <a href="/apartments.html" class="mobile-menu-link">Apartments</a>
+            <a href="/property-finding.html" class="mobile-menu-link">Property Finding</a>
+            <a href="/concierge.html" class="mobile-menu-link">Concierge</a>
+            <a href="/how-it-works.html" class="mobile-menu-link">How It Works</a>
+            <a href="/about.html" class="mobile-menu-link">About</a>
+        </div>
+        <a href="https://wa.me/393313251961" target="_blank" class="mobile-menu-cta">WhatsApp Us</a>
+    </div>
 
-        <div class="content-grid">
-            <!-- Left Column -->
-            <div>
-                <!-- Gallery -->
-                <div class="gallery-section">
-                    <img src="https://drive.google.com/uc?id=1riW2Aykhy0TZYT90JFoIfiU_2DHPvwEX" alt="Main view" class="main-image" id="mainImage">
-                    
-                    <div class="thumbnail-grid">
-                        <img src="https://drive.google.com/uc?id=1riW2Aykhy0TZYT90JFoIfiU_2DHPvwEX" class="thumbnail active" onclick="changeImage(this)">
-                        <img src="https://drive.google.com/uc?id=1uc1OMmb7sTCtbmZn8dOZtHn9StOqAhYS" class="thumbnail" onclick="changeImage(this)">
-                        <img src="https://drive.google.com/uc?id=1BpvHPi2NxcdNb1GZ8-_yH4e3Ezk2wRZe" class="thumbnail" onclick="changeImage(this)">
-                        <img src="https://drive.google.com/uc?id=1IylHwK566en3ettZIdHmNJCyce-ecZU7" class="thumbnail" onclick="changeImage(this)">
-                    </div>
-                </div>
-
-                <!-- Info -->
-                <div class="apartment-header">
-                    <span class="apartment-badge">48H Move-in Available</span>
-                    <h1 class="apartment-title">Luxury 2BR<br>Trastevere</h1>
-                    <p class="apartment-location">
-                        📍 Via della Scala 23, Trastevere, Rome
-                    </p>
-                </div>
-
-                <!-- Quick Facts -->
-                <div class="quick-facts">
-                    <div class="fact-box">
-                        <div class="fact-icon">🛏️</div>
-                        <div class="fact-value">2</div>
-                        <div class="fact-label">Bedrooms</div>
-                    </div>
-                    <div class="fact-box">
-                        <div class="fact-icon">🚿</div>
-                        <div class="fact-value">1</div>
-                        <div class="fact-label">Bathroom</div>
-                    </div>
-                    <div class="fact-box">
-                        <div class="fact-icon">📏</div>
-                        <div class="fact-value">65m²</div>
-                        <div class="fact-label">Size</div>
-                    </div>
-                    <div class="fact-box">
-                        <div class="fact-icon">🏢</div>
-                        <div class="fact-value">3rd</div>
-                        <div class="fact-label">Floor</div>
-                    </div>
-                </div>
-
-                <!-- Description -->
-                <h3 class="section-title">About This Apartment</h3>
-                <p class="description-text">
-                    Beautiful renovated apartment in the heart of Trastevere, Rome's most charming neighborhood. This spacious 2-bedroom flat features modern amenities, high ceilings, and excellent natural light. Perfect for professionals or couples looking for authentic Roman living.
-                </p>
-                <p class="description-text">
-                    The apartment is fully furnished with a contemporary aesthetic. Located on a quiet street, yet steps away from restaurants, cafes, and nightlife. Excellent public transport connections to the rest of Rome.
-                </p>
-
-                <!-- Amenities -->
-                <h3 class="section-title">Amenities & Features</h3>
-                <div class="amenities-grid">
-                    <div class="amenity-item">
-                        <span class="amenity-icon">✓</span>
-                        <span class="amenity-text">High-Speed WiFi</span>
-                    </div>
-                    <div class="amenity-item">
-                        <span class="amenity-icon">✓</span>
-                        <span class="amenity-text">Air Conditioning</span>
-                    </div>
-                    <div class="amenity-item">
-                        <span class="amenity-icon">✓</span>
-                        <span class="amenity-text">Washing Machine</span>
-                    </div>
-                    <div class="amenity-item">
-                        <span class="amenity-icon">✓</span>
-                        <span class="amenity-text">Full Kitchen</span>
-                    </div>
-                    <div class="amenity-item">
-                        <span class="amenity-icon">✓</span>
-                        <span class="amenity-text">Balcony</span>
-                    </div>
-                    <div class="amenity-item">
-                        <span class="amenity-icon">✓</span>
-                        <span class="amenity-text">Elevator</span>
-                    </div>
-                    <div class="amenity-item">
-                        <span class="amenity-icon">✓</span>
-                        <span class="amenity-text">Heating</span>
-                    </div>
-                    <div class="amenity-item">
-                        <span class="amenity-icon">✓</span>
-                        <span class="amenity-text">Fully Furnished</span>
-                    </div>
-                </div>
-
-                <!-- Location -->
-                <h3 class="section-title">Location Highlights</h3>
-                <p class="description-text">
-                    • 3 min walk to Piazza Trilussa<br>
-                    • 5 min walk to Tram 8 (connects to Largo Argentina)<br>
-                    • 10 min walk to Ponte Sisto bridge<br>
-                    • Surrounded by authentic restaurants and cafes<br>
-                    • Weekly market on Sunday mornings<br>
-                    • Safe, residential neighborhood with 24/7 activity
-                </p>
-            </div>
-
-            <!-- Right Column - Booking -->
-            <div>
-                <div class="booking-card">
-                    <div class="price-display">
-                        <div class="price-amount">€1,450</div>
-                        <div class="price-period">per month</div>
-                    </div>
-
-                    <div class="cost-breakdown">
-                        <div class="cost-line">
-                            <span class="cost-label">Monthly Rent</span>
-                            <span>€1,450</span>
-                        </div>
-                        <div class="cost-line">
-                            <span class="cost-label">Utilities (est.)</span>
-                            <span>~€100</span>
-                        </div>
-                        <div class="cost-line">
-                            <span class="cost-label">Security Deposit</span>
-                            <span>€1,450</span>
-                        </div>
-                        <div class="cost-line">
-                            <span class="cost-label">BOOM Service Fee</span>
-                            <span>€1,450</span>
-                        </div>
-                    </div>
-
-                    <a href="/application.html?id=1" class="apply-btn">Apply Now</a>
-                    <a href="https://wa.me/393313251961?text=Interested%20in%20Luxury%202BR%20Trastevere" class="whatsapp-btn">Ask Questions</a>
-
-                    <div class="guarantees">
-                        <div class="guarantee-item">
-                            <span class="guarantee-icon">✓</span>
-                            <span>Video verified property</span>
-                        </div>
-                        <div class="guarantee-item">
-                            <span class="guarantee-icon">✓</span>
-                            <span>48h move-in guarantee</span>
-                        </div>
-                        <div class="guarantee-item">
-                            <span class="guarantee-icon">✓</span>
-                            <span>English contract & support</span>
-                        </div>
-                        <div class="guarantee-item">
-                            <span class="guarantee-icon">✓</span>
-                            <span>Deposit protection</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
+    <div id="content">
+        <div class="loading">
+            <div class="spinner"></div>
+            <span style="color: var(--text-secondary);">Loading apartment...</span>
         </div>
     </div>
 
+    <footer>
+        <div class="footer-bottom">
+            <span>© 2025 BOOM — Rome, Italy</span>
+            <span>Egidi Immobiliare S.r.l. • P.IVA 17322991005</span>
+        </div>
+    </footer>
+
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
     <script>
-        function changeImage(thumbnail) {
-            const mainImage = document.getElementById('mainImage');
-            mainImage.src = thumbnail.src;
-            
-            // Update active thumbnail
-            document.querySelectorAll('.thumbnail').forEach(t => t.classList.remove('active'));
-            thumbnail.classList.add('active');
+        // Get apartment ID from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const apartmentId = urlParams.get('id');
+        
+        function showError(message) {
+            document.getElementById('content').innerHTML = `
+                <div class="error-state">
+                    <div class="error-icon">🏠</div>
+                    <h1 class="error-title">Apartment Not Found</h1>
+                    <p class="error-text">${message}</p>
+                    <a href="/apartments.html" class="btn-primary" style="display:inline-block;width:auto;padding:18px 40px;">← Browse All Apartments</a>
+                </div>
+            `;
         }
+        
+        function renderApartment(flat) {
+            document.title = `${flat.name} - BOOM Rome`;
+            
+            const tags = Array.isArray(flat.tags) ? flat.tags : [];
+            const features = Array.isArray(flat.features) ? flat.features : [];
+            
+            document.getElementById('content').innerHTML = `
+                <div class="hero-image" style="background-image: url('${flat.image || 'https://via.placeholder.com/1200x600/111/333?text=No+Image'}');">
+                    <div class="hero-overlay">
+                        <div class="hero-badges">
+                            <span class="badge badge-type">${flat.type || 'Apartment'}</span>
+                            <span class="badge badge-status ${flat.status === 'waitlist' ? 'waitlist' : ''}">${flat.status === 'available' ? 'Available ' + (flat.availableDate || 'Now') : 'Waitlist · ' + (flat.availableDate || 'TBD')}</span>
+                        </div>
+                        <div class="hero-price">€${(flat.price || 0).toLocaleString()}<span>/month</span></div>
+                        <h1 class="hero-title">${flat.name || 'Apartment'}</h1>
+                        <p class="hero-address">${flat.address || flat.zone || 'Rome, Italy'}</p>
+                    </div>
+                </div>
+                
+                <div class="content">
+                    <a href="/apartments.html" class="back-link">← Back to all apartments</a>
+                    
+                    <div class="content-grid">
+                        <div class="main">
+                            <div class="section">
+                                <h2 class="section-title">Features</h2>
+                                <div class="features-grid">
+                                    <div class="feature-card">
+                                        <div class="feature-icon">🛏️</div>
+                                        <div class="feature-label">Bedrooms</div>
+                                        <div class="feature-value">${flat.beds || flat.bedrooms || '—'}</div>
+                                    </div>
+                                    <div class="feature-card">
+                                        <div class="feature-icon">📐</div>
+                                        <div class="feature-label">Size</div>
+                                        <div class="feature-value">${flat.size || (flat.sqm ? flat.sqm + 'm²' : '—')}</div>
+                                    </div>
+                                    <div class="feature-card">
+                                        <div class="feature-icon">🏢</div>
+                                        <div class="feature-label">Floor</div>
+                                        <div class="feature-value">${flat.floor || '—'}</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            ${flat.description ? `
+                            <div class="section">
+                                <h2 class="section-title">Description</h2>
+                                <p class="description">${flat.description}</p>
+                            </div>
+                            ` : ''}
+                            
+                            ${tags.length > 0 ? `
+                            <div class="section">
+                                <h2 class="section-title">Highlights</h2>
+                                <div class="tags">
+                                    ${tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
+                                </div>
+                            </div>
+                            ` : ''}
+                            
+                            ${features.length > 0 ? `
+                            <div class="section">
+                                <h2 class="section-title">Amenities</h2>
+                                <div class="tags">
+                                    ${features.map(f => `<span class="tag">${f}</span>`).join('')}
+                                </div>
+                            </div>
+                            ` : ''}
+                        </div>
+                        
+                        <div class="sidebar">
+                            <div class="contact-card">
+                                <h3 class="contact-title">Interested?</h3>
+                                <p class="contact-subtitle">Contact us to schedule a viewing or get more information.</p>
+                                <a href="https://wa.me/393313251961?text=Hi! I'm interested in ${encodeURIComponent(flat.name)} (€${flat.price}/month)" class="btn-primary" target="_blank">💬 WhatsApp Us</a>
+                                <a href="/property-finding.html" class="btn-secondary">🔍 Property Finding Service</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        async function loadApartment() {
+            if (!apartmentId) {
+                showError('No apartment ID provided. Please select an apartment from our listings.');
+                return;
+            }
+            
+            try {
+                firebase.initializeApp({
+                    apiKey: "AIzaSyDDb8UeSc8RhO_VxQrhLrupu1aPD4rwRso",
+                    authDomain: "boom-property-dashboards.firebaseapp.com",
+                    projectId: "boom-property-dashboards"
+                });
+                
+                const db = firebase.firestore();
+                const doc = await db.collection('listings').doc(apartmentId).get();
+                
+                if (!doc.exists) {
+                    showError('This apartment could not be found. It may have been removed or the link is incorrect.');
+                    return;
+                }
+                
+                renderApartment({ id: doc.id, ...doc.data() });
+                
+            } catch (error) {
+                console.error('Error loading apartment:', error);
+                showError('Unable to load apartment details. Please try again later.');
+            }
+        }
+        
+        // Mobile menu
+        document.getElementById('hamburger').addEventListener('click', () => {
+            document.getElementById('hamburger').classList.toggle('active');
+            document.getElementById('mobileMenu').classList.toggle('active');
+        });
+        
+        loadApartment();
     </script>
 </body>
 </html>
