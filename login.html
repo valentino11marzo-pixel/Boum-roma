@@ -402,7 +402,7 @@
                 </g>
             </svg>
             <h1 class="brand-name">BOOM</h1>
-            <p class="brand-sub">Admin Portal</p>
+            <p class="brand-sub">Client Portal</p>
         </div>
         
         <div class="message" id="message"></div>
@@ -464,39 +464,24 @@
     
     <script>
         // ═══════════════════════════════════════════════════════════════
-        // BOOM LOGIN - ROBUST & CLEAN
+        // BOOM LOGIN - ULTRA SIMPLE
         // ═══════════════════════════════════════════════════════════════
         
-        const firebaseConfig = {
+        // Initialize Firebase
+        firebase.initializeApp({
             apiKey: "AIzaSyDDb8UeSc8RhO_VxQrhLrupu1aPD4rwRso",
             authDomain: "boom-property-dashboards.firebaseapp.com",
             projectId: "boom-property-dashboards"
-        };
+        });
         
-        // Initialize Firebase
-        let auth;
-        let firebaseReady = false;
+        const auth = firebase.auth();
         
-        try {
-            firebase.initializeApp(firebaseConfig);
-            auth = firebase.auth();
-            firebaseReady = true;
-            console.log('✓ Firebase initialized');
-        } catch (e) {
-            console.error('Firebase init error:', e);
-        }
-        
-        // DOM elements
+        // DOM
         const form = document.getElementById('loginForm');
         const emailInput = document.getElementById('email');
         const passwordInput = document.getElementById('password');
         const submitBtn = document.getElementById('submitBtn');
         const messageEl = document.getElementById('message');
-        const forgotBtn = document.getElementById('forgotBtn');
-        
-        // State
-        let isLoading = false;
-        let authCheckDone = false;
         
         // Show message
         function showMessage(text, type) {
@@ -504,124 +489,58 @@
             messageEl.className = 'message ' + type;
         }
         
-        // Clear message
-        function clearMessage() {
-            messageEl.className = 'message';
-            messageEl.textContent = '';
+        // Set loading
+        function setLoading(on) {
+            submitBtn.disabled = on;
+            submitBtn.classList.toggle('loading', on);
         }
         
-        // Set loading state
-        function setLoading(loading) {
-            isLoading = loading;
-            submitBtn.disabled = loading;
-            submitBtn.classList.toggle('loading', loading);
-            emailInput.disabled = loading;
-            passwordInput.disabled = loading;
-        }
-        
-        // Check if already logged in (with timeout)
-        if (firebaseReady) {
-            const authTimeout = setTimeout(() => {
-                if (!authCheckDone) {
-                    authCheckDone = true;
-                    console.log('Auth check timeout - proceeding');
-                }
-            }, 3000);
-            
-            auth.onAuthStateChanged(user => {
-                clearTimeout(authTimeout);
-                authCheckDone = true;
-                
-                if (user) {
-                    console.log('User already logged in, redirecting...');
-                    window.location.replace('/portal.html');
-                }
-            });
-        }
-        
-        // Handle form submit
+        // Form submit
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
-            
-            if (isLoading) return;
-            if (!firebaseReady) {
-                showMessage('Connection error. Please refresh.', 'error');
-                return;
-            }
             
             const email = emailInput.value.trim();
             const password = passwordInput.value;
             
             if (!email || !password) {
-                showMessage('Please enter email and password', 'error');
+                showMessage('Enter email and password', 'error');
                 return;
             }
             
-            clearMessage();
             setLoading(true);
+            messageEl.className = 'message';
             
             try {
                 await auth.signInWithEmailAndPassword(email, password);
                 showMessage('Success! Redirecting...', 'success');
-                
-                // Small delay for UX
-                setTimeout(() => {
-                    window.location.replace('/portal.html');
-                }, 400);
-                
-            } catch (error) {
-                console.error('Login error:', error.code, error.message);
-                
-                const messages = {
-                    'auth/invalid-email': 'Invalid email format',
-                    'auth/user-disabled': 'Account disabled',
-                    'auth/user-not-found': 'Account not found',
+                window.location.href = '/portal.html';
+            } catch (err) {
+                const msg = {
+                    'auth/invalid-email': 'Invalid email',
+                    'auth/user-not-found': 'User not found',
                     'auth/wrong-password': 'Wrong password',
                     'auth/invalid-credential': 'Invalid credentials',
-                    'auth/too-many-requests': 'Too many attempts. Try later.',
-                    'auth/network-request-failed': 'Network error. Check connection.'
-                };
+                    'auth/too-many-requests': 'Too many attempts'
+                }[err.code] || 'Login failed';
                 
-                showMessage(messages[error.code] || 'Login failed', 'error');
+                showMessage(msg, 'error');
                 setLoading(false);
             }
         });
         
-        // Handle forgot password
-        forgotBtn.addEventListener('click', async (e) => {
+        // Forgot password
+        document.getElementById('forgotBtn').addEventListener('click', async (e) => {
             e.preventDefault();
-            
             const email = emailInput.value.trim();
-            
             if (!email) {
-                showMessage('Enter your email first', 'error');
-                emailInput.focus();
+                showMessage('Enter email first', 'error');
                 return;
             }
-            
-            if (!firebaseReady) {
-                showMessage('Connection error. Please refresh.', 'error');
-                return;
-            }
-            
             try {
                 await auth.sendPasswordResetEmail(email);
-                showMessage('Reset email sent! Check inbox.', 'success');
-            } catch (error) {
-                showMessage('Could not send reset email', 'error');
-            }
-        });
-        
-        // Prevent form submission on autofill before Firebase is ready
-        emailInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && !firebaseReady) {
-                e.preventDefault();
-            }
-        });
-        
-        passwordInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && !firebaseReady) {
-                e.preventDefault();
+                showMessage('Reset email sent!', 'success');
+            } catch (e) {
+                showMessage('Error sending email', 'error');
             }
         });
     </script>
