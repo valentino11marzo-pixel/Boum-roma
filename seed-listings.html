@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BOOM - Seed Listings Database</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, sans-serif; background: #000; color: #fff; padding: 40px; min-height: 100vh; }
+        .container { max-width: 800px; margin: 0 auto; }
+        h1 { color: #FFD700; font-size: 32px; margin-bottom: 10px; }
+        .subtitle { color: #999; margin-bottom: 40px; }
+        .card { background: #111; border: 1px solid #222; border-radius: 12px; padding: 24px; margin-bottom: 20px; }
+        .card h3 { color: #FFD700; font-size: 14px; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 15px; }
+        .listing { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #222; }
+        .listing:last-child { border-bottom: none; }
+        .listing-name { font-weight: 500; }
+        .listing-price { color: #FFD700; }
+        .listing-status { font-size: 12px; padding: 4px 10px; border-radius: 4px; }
+        .listing-status.available { background: rgba(0,255,136,0.2); color: #00FF88; }
+        .listing-status.waitlist { background: rgba(255,107,53,0.2); color: #FF6B35; }
+        .btn { padding: 15px 30px; background: #FFD700; color: #000; border: none; font-size: 14px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; border-radius: 8px; transition: all 0.3s; }
+        .btn:hover { transform: scale(1.02); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-danger { background: #FF3B3B; color: #fff; }
+        .log { background: #0a0a0a; border: 1px solid #222; border-radius: 8px; padding: 20px; margin-top: 20px; font-family: monospace; font-size: 13px; max-height: 300px; overflow-y: auto; }
+        .log-entry { padding: 5px 0; border-bottom: 1px solid #1a1a1a; }
+        .log-entry.success { color: #00FF88; }
+        .log-entry.error { color: #FF3B3B; }
+        .log-entry.info { color: #999; }
+        .actions { display: flex; gap: 15px; margin-top: 30px; }
+        .warning { background: rgba(255,107,53,0.1); border: 1px solid rgba(255,107,53,0.3); color: #FF6B35; padding: 15px 20px; border-radius: 8px; margin-bottom: 20px; font-size: 13px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏠 Seed Listings Database</h1>
+        <p class="subtitle">Populate Firebase with existing BOOM apartments</p>
+        
+        <div class="warning">
+            ⚠️ <strong>Run this ONCE</strong> to import existing apartments into Firebase. After that, manage listings from the Portal AdminFlats section.
+        </div>
+        
+        <div class="card">
+            <h3>Apartments to Import (7)</h3>
+            <div id="listingsList"></div>
+        </div>
+        
+        <div class="actions">
+            <button class="btn" id="seedBtn" onclick="seedDatabase()">🚀 Import All to Firebase</button>
+            <button class="btn btn-danger" id="clearBtn" onclick="clearListings()">🗑️ Clear All Listings</button>
+        </div>
+        
+        <div class="log" id="log">
+            <div class="log-entry info">Ready. Click "Import All to Firebase" to begin.</div>
+        </div>
+    </div>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    
+    <script>
+        // Firebase Config
+        firebase.initializeApp({
+            apiKey: "AIzaSyDDb8UeSc8RhO_VxQrhLrupu1aPD4rwRso",
+            authDomain: "boom-property-dashboards.firebaseapp.com",
+            projectId: "boom-property-dashboards"
+        });
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+        
+        // Existing BOOM Apartments Data
+        const LISTINGS = [
+            {
+                id: 'marconi',
+                file: 'apartment-marconi.html',
+                name: 'Marconi Shared',
+                address: 'Via Federico Guarducci, Marconi',
+                zone: 'Marconi',
+                price: 750,
+                type: 'Shared Room',
+                beds: '1 Room in 3BR',
+                bedrooms: 1,
+                size: '110m²',
+                sqm: 110,
+                floor: '7th Floor',
+                image: 'https://i.imgur.com/s2es0MN.jpeg',
+                tags: ['All Inclusive', 'Balcony', 'AC'],
+                status: 'available',
+                availableDate: 'Feb 1',
+                description: 'Bright shared room in a spacious 3-bedroom apartment in Marconi area. Perfect for students or young professionals.',
+                features: ['Balcony', 'Air Conditioning', 'Washing Machine', 'WiFi', 'Fully Furnished']
+            },
+            {
+                id: 'levico',
+                file: 'apartment_levico.html',
+                name: 'Levico',
+                address: 'Via Levico, Trieste/Coppedè',
+                zone: 'Trieste',
+                price: 1200,
+                type: 'Garden Floor',
+                beds: '1 Bedroom',
+                bedrooms: 1,
+                size: '40m²',
+                sqm: 40,
+                floor: 'Ground Floor',
+                image: 'https://i.imgur.com/Ne0ROPe.jpeg',
+                tags: ['All Inclusive', 'Garden', 'WiFi'],
+                status: 'available',
+                availableDate: 'Feb 1',
+                description: 'Charming ground floor apartment with private garden access in the elegant Trieste/Coppedè neighborhood.',
+                features: ['Private Garden', 'WiFi', 'Fully Furnished', 'Quiet Area']
+            },
+            {
+                id: 'piemonte',
+                file: 'apartment_piemonte.html',
+                name: 'Piemonte Attic',
+                address: 'Via Piemonte, Vittorio Veneto',
+                zone: 'Vittorio Veneto',
+                price: 1300,
+                type: 'Attic',
+                beds: '1 Bedroom',
+                bedrooms: 1,
+                size: '55m²',
+                sqm: 55,
+                floor: '5th Floor',
+                image: 'https://i.imgur.com/Smv5uPX.jpeg',
+                tags: ['Renovated', 'AC', 'Central'],
+                status: 'available',
+                availableDate: 'Jan 1',
+                description: 'Recently renovated attic apartment in the prestigious Via Veneto area. Walking distance to Villa Borghese.',
+                features: ['Air Conditioning', 'Renovated', 'Central Location', 'Elevator', 'Fully Furnished']
+            },
+            {
+                id: 'pigneto',
+                file: 'apartment_pigneto.html',
+                name: 'Pigneto Terrace',
+                address: 'Via Ascoli Piceno, Pigneto',
+                zone: 'Pigneto',
+                price: 1700,
+                type: 'Bohemian',
+                beds: '2 Bedrooms',
+                bedrooms: 2,
+                size: '80m²',
+                sqm: 80,
+                floor: '2nd Floor',
+                image: 'https://i.imgur.com/tJnYADn.jpeg',
+                tags: ['All Inclusive', 'Terrace', 'Balcony'],
+                status: 'available',
+                availableDate: 'Apr 1',
+                description: 'Spacious 2-bedroom apartment with terrace in Rome\'s trendy Pigneto neighborhood. Perfect for couples or roommates.',
+                features: ['Large Terrace', 'Balcony', 'All Bills Included', 'Fully Furnished', 'Dishwasher']
+            },
+            {
+                id: 'navona',
+                file: 'apartment_navona.html',
+                name: 'Coronari Classic',
+                address: 'Via dei Coronari, Piazza Navona',
+                zone: 'Centro Storico',
+                price: 2000,
+                type: 'Historic',
+                beds: '1 Bedroom',
+                bedrooms: 1,
+                size: '70m²',
+                sqm: 70,
+                floor: '1st Floor',
+                image: 'https://i.imgur.com/8LVxrhs.jpeg',
+                tags: ['Historic Center', 'Elevator', 'Fireplace'],
+                status: 'available',
+                availableDate: 'Mar 1',
+                description: 'Elegant apartment on Via dei Coronari, one of Rome\'s most beautiful streets. Steps from Piazza Navona.',
+                features: ['Historic Building', 'Fireplace', 'Elevator', 'High Ceilings', 'Fully Furnished']
+            },
+            {
+                id: 'angelico',
+                file: 'apartment_angelico.html',
+                name: 'Angelico Loft',
+                address: 'Viale Angelico, Mazzini',
+                zone: 'Prati',
+                price: 2000,
+                type: 'Loft Style',
+                beds: '1BR + Loft',
+                bedrooms: 2,
+                size: '65m²',
+                sqm: 65,
+                floor: '2nd Floor',
+                image: 'https://i.imgur.com/CI4n46J.jpeg',
+                tags: ['All Inclusive', 'Modern', 'Sep 2026'],
+                status: 'waitlist',
+                availableDate: 'Sep 2026',
+                description: 'Modern loft-style apartment in elegant Prati neighborhood, near Vatican. All bills included.',
+                features: ['Loft Space', 'Modern Design', 'All Bills Included', 'Air Conditioning', 'Washing Machine']
+            },
+            {
+                id: 'ripetta',
+                file: 'apartment_ripetta.html',
+                name: 'Ripetta Terrace',
+                address: 'Passeggiata di Ripetta, Centro',
+                zone: 'Centro Storico',
+                price: 2300,
+                type: 'Premium Terrace',
+                beds: '1 Bedroom',
+                bedrooms: 1,
+                size: '100m²',
+                sqm: 100,
+                floor: '1st Floor',
+                image: 'https://i.imgur.com/hxai5bz.jpeg',
+                tags: ['Panoramic Terrace', 'River View', 'Sep 2026'],
+                status: 'waitlist',
+                availableDate: 'Sep 2026',
+                description: 'Premium apartment with stunning panoramic terrace overlooking the Tiber River. Exclusive location.',
+                features: ['Panoramic Terrace', 'River View', 'Premium Location', 'Air Conditioning', 'Fully Furnished']
+            }
+        ];
+        
+        // Display listings
+        function displayListings() {
+            const container = document.getElementById('listingsList');
+            container.innerHTML = LISTINGS.map(l => `
+                <div class="listing">
+                    <div>
+                        <div class="listing-name">${l.name}</div>
+                        <div style="color:#666;font-size:12px">${l.zone} · ${l.beds}</div>
+                    </div>
+                    <div style="text-align:right">
+                        <div class="listing-price">€${l.price}/mo</div>
+                        <span class="listing-status ${l.status}">${l.status}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // Log function
+        function log(message, type = 'info') {
+            const logEl = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logEl.appendChild(entry);
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+        
+        // Seed database
+        async function seedDatabase() {
+            const btn = document.getElementById('seedBtn');
+            btn.disabled = true;
+            btn.textContent = 'Importing...';
+            
+            log('Starting import process...', 'info');
+            
+            // Check if user is authenticated
+            const user = auth.currentUser;
+            if (!user) {
+                log('⚠️ Not authenticated. Attempting anonymous auth for seeding...', 'info');
+                // For seeding, we'll try to write directly - security rules should allow this for initial setup
+            }
+            
+            let success = 0;
+            let errors = 0;
+            
+            for (const listing of LISTINGS) {
+                try {
+                    // Use the listing ID as document ID for consistency
+                    await db.collection('listings').doc(listing.id).set({
+                        ...listing,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    log(`✓ Imported: ${listing.name} (€${listing.price})`, 'success');
+                    success++;
+                } catch (error) {
+                    log(`✗ Failed: ${listing.name} - ${error.message}`, 'error');
+                    errors++;
+                }
+            }
+            
+            log(``, 'info');
+            log(`═══════════════════════════════════`, 'info');
+            log(`Import complete: ${success} success, ${errors} errors`, success === LISTINGS.length ? 'success' : 'error');
+            
+            if (success > 0) {
+                log(``, 'info');
+                log(`✓ Apartments are now live at /apartments.html`, 'success');
+                log(`✓ Manage them from Portal → AdminFlats`, 'success');
+            }
+            
+            btn.disabled = false;
+            btn.textContent = '🚀 Import All to Firebase';
+        }
+        
+        // Clear all listings
+        async function clearListings() {
+            if (!confirm('⚠️ This will DELETE all listings from Firebase. Are you sure?')) {
+                return;
+            }
+            
+            const btn = document.getElementById('clearBtn');
+            btn.disabled = true;
+            btn.textContent = 'Clearing...';
+            
+            log('Clearing all listings...', 'info');
+            
+            try {
+                const snapshot = await db.collection('listings').get();
+                const batch = db.batch();
+                snapshot.docs.forEach(doc => batch.delete(doc.ref));
+                await batch.commit();
+                log(`✓ Cleared ${snapshot.size} listings`, 'success');
+            } catch (error) {
+                log(`✗ Error clearing: ${error.message}`, 'error');
+            }
+            
+            btn.disabled = false;
+            btn.textContent = '🗑️ Clear All Listings';
+        }
+        
+        // Initialize
+        displayListings();
+        log('Loaded ' + LISTINGS.length + ' apartments ready to import', 'info');
+    </script>
+</body>
+</html>

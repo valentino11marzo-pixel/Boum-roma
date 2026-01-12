@@ -236,6 +236,26 @@
 .form-input.error { border-color: var(--red); }
 .form-error { color: var(--red); font-size: 11px; margin-top: -10px; margin-bottom: 10px; }
 
+/* Image Upload Zone */
+.image-upload-zone { border: 2px dashed var(--border); border-radius: 12px; padding: 30px; text-align: center; cursor: pointer; transition: all .3s; background: var(--bg); }
+.image-upload-zone:hover, .image-upload-zone.dragover { border-color: var(--gold); background: rgba(212,175,55,0.05); }
+.image-upload-zone.uploading { pointer-events: none; opacity: 0.7; }
+.upload-icon { font-size: 40px; margin-bottom: 10px; }
+.upload-text { color: var(--text-secondary); font-size: 13px; margin-bottom: 5px; }
+.upload-hint { color: var(--text-muted); font-size: 11px; }
+.upload-progress { margin-top: 15px; }
+.progress-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.progress-fill { height: 100%; background: linear-gradient(90deg, var(--gold), #FFD54F); width: 0%; transition: width .3s; }
+.progress-text { font-size: 11px; color: var(--text-secondary); margin-top: 5px; }
+.image-preview { margin-top: 15px; position: relative; display: inline-block; }
+.image-preview img { max-width: 100%; max-height: 200px; border-radius: 8px; border: 1px solid var(--border); }
+.image-preview .remove-btn { position: absolute; top: -8px; right: -8px; width: 24px; height: 24px; background: var(--red); color: #fff; border: none; border-radius: 50%; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; }
+.uploaded-images { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 15px; }
+.uploaded-image { position: relative; }
+.uploaded-image img { width: 80px; height: 80px; object-fit: cover; border-radius: 8px; border: 2px solid var(--border); }
+.uploaded-image.primary img { border-color: var(--gold); }
+.uploaded-image .badge { position: absolute; top: -5px; left: -5px; font-size: 9px; padding: 2px 6px; }
+
 /* Language Selector */
 .lang-selector { display: flex; gap: 4px; background: var(--bg-elevated); padding: 4px; border-radius: 8px; }
 .lang-btn { padding: 8px 16px; border: none; background: transparent; color: var(--text-secondary); font-size: 12px; font-weight: 600; cursor: pointer; border-radius: 6px; transition: all .2s; }
@@ -1877,57 +1897,119 @@
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // ADMINFLATS PAGE - Website Listings Management
+    // ADMINFLATS PAGE - Website Listings Management (REAL SYNC)
     // ═══════════════════════════════════════════════════════════════════════════
     function adminflatsPage() {
+        const available = S.listings.filter(l => l.status === 'available').length;
+        const waitlist = S.listings.filter(l => l.status === 'waitlist').length;
+        const rented = S.listings.filter(l => l.status === 'rented').length;
+        
         return `<div class="page-header">
-                <div><h1 class="page-title">🏢 AdminFlats</h1><p class="page-subtitle">Gestione Listings per boomrome.com</p></div>
+                <div><h1 class="page-title">🏢 AdminFlats</h1><p class="page-subtitle">Gestione appartamenti boomrome.com — Sincronizzazione LIVE</p></div>
                 <div class="page-actions">
                     <a href="https://www.boomrome.com/apartments.html" target="_blank" class="btn btn-secondary">👁️ Vedi Sito</a>
                     <button class="btn" onclick="openModal('addListing')">+ Nuovo Listing</button>
                 </div>
             </div>
             
-            <div class="alert info" style="margin-bottom:20px">
-                <span class="alert-icon">ℹ️</span>
+            <div class="alert success" style="margin-bottom:20px">
+                <span class="alert-icon">🔄</span>
                 <div class="alert-content">
-                    <div class="alert-title">Sincronizzazione Website</div>
-                    <div class="alert-text">I listings qui gestiti vengono mostrati sulla pagina appartamenti del sito. Modifica, attiva o disattiva gli annunci.</div>
+                    <div class="alert-title">Sincronizzazione Attiva</div>
+                    <div class="alert-text">Le modifiche qui si riflettono AUTOMATICAMENTE su boomrome.com/apartments.html in tempo reale.</div>
                 </div>
             </div>
             
             <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:24px">
-                <div class="stat-card green"><div class="stat-value">${S.listings.filter(l => l.status === 'active').length}</div><div class="stat-label">Attivi</div></div>
-                <div class="stat-card orange"><div class="stat-value">${S.listings.filter(l => l.status === 'pending').length}</div><div class="stat-label">In Attesa</div></div>
-                <div class="stat-card red"><div class="stat-value">${S.listings.filter(l => l.status === 'rented').length}</div><div class="stat-label">Affittati</div></div>
+                <div class="stat-card green"><div class="stat-value">${available}</div><div class="stat-label">🟢 Disponibili</div></div>
+                <div class="stat-card orange"><div class="stat-value">${waitlist}</div><div class="stat-label">🟡 Waitlist</div></div>
+                <div class="stat-card red"><div class="stat-value">${rented}</div><div class="stat-label">🔴 Affittati</div></div>
                 <div class="stat-card blue"><div class="stat-value">${S.listings.length}</div><div class="stat-label">Totale</div></div>
             </div>
             
             <div class="card">
-                <div class="card-header"><h3 class="card-title">📋 Tutti i Listings</h3></div>
+                <div class="card-header">
+                    <h3 class="card-title">📋 Tutti gli Appartamenti</h3>
+                    <span class="badge gray">${S.listings.length} listings</span>
+                </div>
                 <div class="card-body flush">
-                    <div class="table-wrapper">
-                        <table>
-                            <thead><tr><th>Nome</th><th>Zona</th><th>Prezzo</th><th>Camere</th><th>Status</th><th>Azioni</th></tr></thead>
-                            <tbody>
-                                ${S.listings.length > 0 ? S.listings.map(l => `
-                                    <tr>
-                                        <td><strong>${l.name || 'Senza nome'}</strong><br><small style="color:var(--text-muted)">${l.description?.slice(0, 50) || ''}...</small></td>
-                                        <td>${l.zone || '-'}</td>
-                                        <td style="color:var(--gold);font-weight:600">€${l.price || 0}/mese</td>
-                                        <td>${l.bedrooms || 1} cam · ${l.sqm || '-'} mq</td>
-                                        <td><span class="badge ${l.status === 'active' ? 'green' : l.status === 'pending' ? 'orange' : l.status === 'rented' ? 'red' : 'gray'}">${l.status || 'draft'}</span></td>
-                                        <td>
-                                            <div style="display:flex;gap:6px">
-                                                <button class="btn btn-secondary" style="padding:6px 10px;font-size:11px" onclick="editListing('${l.id}')">✏️</button>
-                                                <button class="btn btn-secondary" style="padding:6px 10px;font-size:11px" onclick="toggleListingStatus('${l.id}','${l.status}')">${l.status === 'active' ? '⏸️' : '▶️'}</button>
-                                                <button class="btn btn-secondary" style="padding:6px 10px;font-size:11px" onclick="confirmDelete('listings','${l.id}','${l.name}')">🗑️</button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                `).join('') : '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted)">Nessun listing. Clicca "+ Nuovo Listing" per iniziare.</td></tr>'}
-                            </tbody>
-                        </table>
+                    ${S.listings.length > 0 ? `<div class="table-wrapper"><table>
+                        <thead><tr>
+                            <th style="width:50px">Img</th>
+                            <th>Appartamento</th>
+                            <th>Zona</th>
+                            <th>Prezzo</th>
+                            <th>Dettagli</th>
+                            <th>Status</th>
+                            <th>Disponibile</th>
+                            <th style="width:130px">Azioni</th>
+                        </tr></thead>
+                        <tbody>
+                            ${S.listings.sort((a,b) => (a.price || 0) - (b.price || 0)).map(l => `
+                                <tr>
+                                    <td><div style="width:45px;height:45px;border-radius:8px;background:url('${l.image || 'https://via.placeholder.com/45/111/333'}') center/cover;border:1px solid var(--border)"></div></td>
+                                    <td>
+                                        <strong style="color:var(--text)">${l.name || 'Senza nome'}</strong><br>
+                                        <small style="color:var(--text-muted)">${l.address || l.zone || '—'}</small>
+                                    </td>
+                                    <td><span class="badge gray">${l.zone || '—'}</span></td>
+                                    <td style="color:var(--gold);font-weight:600;font-size:16px">€${(l.price || 0).toLocaleString()}</td>
+                                    <td>
+                                        <small style="color:var(--text-secondary)">
+                                            ${l.beds || (l.bedrooms ? l.bedrooms + ' cam' : '—')} · ${l.size || (l.sqm ? l.sqm + 'm²' : '—')}<br>
+                                            ${l.floor || '—'} · ${l.type || 'Appartamento'}
+                                        </small>
+                                    </td>
+                                    <td>
+                                        <span class="badge ${l.status === 'available' ? 'green' : l.status === 'waitlist' ? 'orange' : l.status === 'rented' ? 'red' : 'gray'}">
+                                            ${l.status === 'available' ? '🟢 Disponibile' : l.status === 'waitlist' ? '🟡 Waitlist' : l.status === 'rented' ? '🔴 Affittato' : l.status || 'draft'}
+                                        </span>
+                                    </td>
+                                    <td><small>${l.availableDate || '—'}</small></td>
+                                    <td>
+                                        <div style="display:flex;gap:5px">
+                                            <button class="btn btn-secondary" style="padding:6px 10px;font-size:11px" onclick="editListing('${l.id}')" title="Modifica">✏️</button>
+                                            <button class="btn btn-secondary" style="padding:6px 10px;font-size:11px" onclick="cycleListing('${l.id}','${l.status}')" title="Cambia status">🔄</button>
+                                            <button class="btn btn-secondary" style="padding:6px 10px;font-size:11px" onclick="duplicateListing('${l.id}')" title="Duplica">📋</button>
+                                            <button class="btn btn-secondary" style="padding:6px 10px;font-size:11px" onclick="confirmDelete('listings','${l.id}','${l.name}')" title="Elimina">🗑️</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table></div>` : `
+                    <div class="empty-state" style="padding:60px 24px">
+                        <div class="empty-icon">🏠</div>
+                        <h3 class="empty-title">Nessun Listing</h3>
+                        <p class="empty-text" style="margin-bottom:20px">Inizia aggiungendo i tuoi appartamenti o importa quelli esistenti.</p>
+                        <div style="display:flex;gap:10px;justify-content:center">
+                            <button class="btn" onclick="openModal('addListing')">+ Aggiungi Manualmente</button>
+                            <a href="/seed-listings.html" target="_blank" class="btn btn-secondary">📥 Importa Esistenti</a>
+                        </div>
+                    </div>`}
+                </div>
+            </div>
+            
+            <div class="card" style="margin-top:20px">
+                <div class="card-header"><h3 class="card-title">ℹ️ Guida Rapida</h3></div>
+                <div class="card-body">
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px;font-size:13px">
+                        <div>
+                            <strong style="color:var(--green)">🟢 Disponibile</strong>
+                            <p style="color:var(--text-secondary);margin-top:5px">Visibile sul sito, pronto per affitto</p>
+                        </div>
+                        <div>
+                            <strong style="color:var(--orange)">🟡 Waitlist</strong>
+                            <p style="color:var(--text-secondary);margin-top:5px">Visibile come "Coming Soon"</p>
+                        </div>
+                        <div>
+                            <strong style="color:var(--red)">🔴 Affittato</strong>
+                            <p style="color:var(--text-secondary);margin-top:5px">Nascosto dal sito pubblico</p>
+                        </div>
+                        <div>
+                            <strong style="color:var(--text-muted)">📄 File</strong>
+                            <p style="color:var(--text-secondary);margin-top:5px">Collega a pagina dettaglio (es: apartment_levico.html)</p>
+                        </div>
                     </div>
                 </div>
             </div>`;
@@ -1935,38 +2017,263 @@
 
     async function saveListing(e) {
         e.preventDefault();
-        const data = Object.fromEntries(new FormData(e.target));
+        
+        // Check if upload is still in progress
+        if (uploadingImage) {
+            return toast('warning', 'Attendi', 'Upload immagine in corso...');
+        }
+        
+        const form = e.target;
+        const data = Object.fromEntries(new FormData(form));
+        
         if (!data.name || !data.price) return toast('error', 'Nome e prezzo obbligatori');
+        
+        // Determine image URL: prefer uploaded (hidden input), then manual URL input
+        const imageUrl = data.image || data.imageUrl || listingImageUrl || '';
+        
+        // Process tags from comma-separated string to array
+        const tagsArray = data.tags ? data.tags.split(',').map(t => t.trim()).filter(t => t) : [];
+        const featuresArray = data.features ? data.features.split(',').map(t => t.trim()).filter(t => t) : [];
+        
+        const listingData = {
+            name: data.name,
+            address: data.address || '',
+            zone: data.zone || '',
+            price: parseInt(data.price) || 0,
+            type: data.type || 'Apartment',
+            beds: data.beds || '',
+            bedrooms: parseInt(data.bedrooms) || 1,
+            size: data.size || '',
+            sqm: parseInt(data.sqm) || null,
+            floor: data.floor || '',
+            image: imageUrl,
+            tags: tagsArray,
+            features: featuresArray,
+            status: data.status || 'available',
+            availableDate: data.availableDate || '',
+            description: data.description || '',
+            file: data.file || '',
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        
         try {
             if (data.id) {
-                await db.collection('listings').doc(data.id).update({ ...data, price: parseInt(data.price), sqm: parseInt(data.sqm) || null, bedrooms: parseInt(data.bedrooms) || 1, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+                await db.collection('listings').doc(data.id).update(listingData);
+                toast('success', 'Listing aggiornato!', 'Visibile su boomrome.com');
             } else {
-                await db.collection('listings').add({ ...data, price: parseInt(data.price), sqm: parseInt(data.sqm) || null, bedrooms: parseInt(data.bedrooms) || 1, status: data.status || 'active', createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+                listingData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+                await db.collection('listings').add(listingData);
+                toast('success', 'Listing creato!', 'Ora visibile su boomrome.com');
             }
-            closeModal(); await refresh(); toast('success', 'Listing salvato!');
-        } catch (err) { toast('error', 'Errore', err.message); }
+            closeModal(); 
+            await refresh();
+        } catch (err) { 
+            console.error('Save listing error:', err);
+            toast('error', 'Errore salvataggio', err.message); 
+        }
     }
 
     function editListing(id) {
         const l = S.listings.find(x => x.id === id);
-        if (!l) return;
+        if (!l) return toast('error', 'Listing non trovato');
         openModal('editListing', l);
     }
 
-    async function toggleListingStatus(id, currentStatus) {
-        const newStatus = currentStatus === 'active' ? 'pending' : 'active';
+    async function cycleListing(id, currentStatus) {
+        // Cycle through: available -> waitlist -> rented -> available
+        const statusCycle = { 'available': 'waitlist', 'waitlist': 'rented', 'rented': 'available' };
+        const newStatus = statusCycle[currentStatus] || 'available';
+        const statusLabels = { 'available': '🟢 Disponibile', 'waitlist': '🟡 Waitlist', 'rented': '🔴 Affittato' };
+        
         try {
-            await db.collection('listings').doc(id).update({ status: newStatus });
+            await db.collection('listings').doc(id).update({ 
+                status: newStatus,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
             await refresh();
-            toast('success', `Listing ${newStatus === 'active' ? 'attivato' : 'disattivato'}`);
+            toast('success', 'Status aggiornato', statusLabels[newStatus]);
         } catch (err) { toast('error', 'Errore', err.message); }
+    }
+
+    async function duplicateListing(id) {
+        const l = S.listings.find(x => x.id === id);
+        if (!l) return;
+        
+        try {
+            const { id: _, createdAt, updatedAt, ...listingData } = l;
+            await db.collection('listings').add({
+                ...listingData,
+                name: l.name + ' (copia)',
+                status: 'rented', // Start as hidden
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            await refresh();
+            toast('success', 'Listing duplicato!', 'Modifica i dettagli');
+        } catch (err) { toast('error', 'Errore', err.message); }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // IMAGE UPLOAD SYSTEM
+    // ═══════════════════════════════════════════════════════════════════════════
+    let listingImageUrl = '';
+    let uploadingImage = false;
+
+    function initImageUpload() {
+        const zone = document.getElementById('imageUploadZone');
+        const input = document.getElementById('imageFileInput');
+        if (!zone || !input) return;
+
+        // Click to select file
+        zone.addEventListener('click', () => input.click());
+
+        // Drag & drop
+        zone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            zone.classList.add('dragover');
+        });
+        zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+        zone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            zone.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) handleImageSelect(files[0]);
+        });
+
+        // File input change
+        input.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) handleImageSelect(e.target.files[0]);
+        });
+    }
+
+    async function handleImageSelect(file) {
+        // Validate file
+        if (!file.type.startsWith('image/')) {
+            return toast('error', 'File non valido', 'Seleziona un\'immagine (JPG, PNG, WebP)');
+        }
+        if (file.size > 10 * 1024 * 1024) {
+            return toast('error', 'File troppo grande', 'Massimo 10MB');
+        }
+
+        const zone = document.getElementById('imageUploadZone');
+        const preview = document.getElementById('imagePreview');
+        const progress = document.getElementById('uploadProgress');
+        const progressBar = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
+        const urlInput = document.getElementById('listingImageUrl');
+
+        // Show uploading state
+        zone.classList.add('uploading');
+        progress.style.display = 'block';
+        progressBar.style.width = '0%';
+        progressText.textContent = 'Caricamento in corso...';
+        uploadingImage = true;
+
+        try {
+            // Create unique filename
+            const timestamp = Date.now();
+            const safeName = file.name.replace(/[^a-zA-Z0-9.]/g, '_');
+            const path = `listings/${timestamp}_${safeName}`;
+            
+            // Upload to Firebase Storage
+            const ref = storage.ref(path);
+            const uploadTask = ref.put(file);
+
+            // Monitor progress
+            uploadTask.on('state_changed', 
+                (snapshot) => {
+                    const pct = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+                    progressBar.style.width = pct + '%';
+                    progressText.textContent = `Caricamento: ${pct}%`;
+                },
+                (error) => {
+                    console.error('Upload error:', error);
+                    toast('error', 'Errore upload', error.message);
+                    zone.classList.remove('uploading');
+                    progress.style.display = 'none';
+                    uploadingImage = false;
+                },
+                async () => {
+                    // Upload complete - get URL
+                    const url = await uploadTask.snapshot.ref.getDownloadURL();
+                    listingImageUrl = url;
+                    
+                    // Update UI
+                    progressBar.style.width = '100%';
+                    progressText.textContent = '✓ Caricamento completato!';
+                    
+                    // Show preview
+                    preview.innerHTML = `
+                        <div class="image-preview">
+                            <img src="${url}" alt="Preview">
+                            <button type="button" class="remove-btn" onclick="removeListingImage()">×</button>
+                        </div>
+                    `;
+                    
+                    // Update hidden input
+                    if (urlInput) urlInput.value = url;
+                    
+                    zone.classList.remove('uploading');
+                    uploadingImage = false;
+                    
+                    setTimeout(() => {
+                        progress.style.display = 'none';
+                    }, 2000);
+                    
+                    toast('success', 'Immagine caricata!');
+                }
+            );
+        } catch (error) {
+            console.error('Upload error:', error);
+            toast('error', 'Errore upload', error.message);
+            zone.classList.remove('uploading');
+            progress.style.display = 'none';
+            uploadingImage = false;
+        }
+    }
+
+    function removeListingImage() {
+        listingImageUrl = '';
+        const preview = document.getElementById('imagePreview');
+        const urlInput = document.getElementById('listingImageUrl');
+        if (preview) preview.innerHTML = '';
+        if (urlInput) urlInput.value = '';
+        toast('info', 'Immagine rimossa');
+    }
+
+    function setExistingImage(url) {
+        if (!url) return;
+        listingImageUrl = url;
+        const preview = document.getElementById('imagePreview');
+        const urlInput = document.getElementById('listingImageUrl');
+        if (preview) {
+            preview.innerHTML = `
+                <div class="image-preview">
+                    <img src="${url}" alt="Preview">
+                    <button type="button" class="remove-btn" onclick="removeListingImage()">×</button>
+                </div>
+            `;
+        }
+        if (urlInput) urlInput.value = url;
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
     // MODALS
     // ═══════════════════════════════════════════════════════════════════════════
-    function openModal(type, data) { document.getElementById('modals').innerHTML = getModal(type, data); setTimeout(() => document.querySelector('.modal-overlay')?.classList.add('active'), 10); }
-    function closeModal() { document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active')); setTimeout(() => { document.getElementById('modals').innerHTML = ''; selectedFile = null; }, 200); }
+    function openModal(type, data) { 
+        document.getElementById('modals').innerHTML = getModal(type, data); 
+        setTimeout(() => {
+            document.querySelector('.modal-overlay')?.classList.add('active');
+            // Initialize image upload for listing modals
+            if (type === 'addListing' || type === 'editListing') {
+                listingImageUrl = '';
+                initImageUpload();
+                if (type === 'editListing' && data?.image) {
+                    setExistingImage(data.image);
+                }
+            }
+        }, 10); 
+    }
+    function closeModal() { document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active')); setTimeout(() => { document.getElementById('modals').innerHTML = ''; selectedFile = null; listingImageUrl = ''; }, 200); }
 
     function getModal(type, data) {
         if (type === 'notifications') return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">🔔 Notifiche</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body">${S.notifications.map(n => `<div class="alert ${n.type} mb-8"><span class="alert-icon">${n.type === 'danger' ? '⚠️' : '📋'}</span><div class="alert-content"><div class="alert-title">${n.title}</div><div class="alert-text">${n.text}</div></div></div>`).join('')}</div><div class="modal-footer"><button class="btn" onclick="closeModal()">Chiudi</button></div></div></div>`;
@@ -1991,10 +2298,107 @@
 
         if (type === 'confirm') return `<div class="modal-overlay"><div class="modal" style="max-width:400px"><div class="modal-body"><div class="confirm-modal"><div class="confirm-icon">${data.icon || '⚠️'}</div><h3 class="confirm-title">${data.title}</h3><p class="confirm-text">${data.text}</p><div style="display:flex;gap:10px;justify-content:center"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn ${data.danger ? 'btn-danger' : ''}" onclick="${data.action}">${data.btnText || 'Conferma'}</button></div></div></div></div></div>`;
 
-        // Listing modals
-        if (type === 'addListing') return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">🏢 Nuovo Listing</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="saveListing(event)"><div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="name" required placeholder="Es: Trastevere Studio"></div><div class="form-group"><label class="form-label">Zona *</label><input type="text" class="form-input" name="zone" required placeholder="Es: Trastevere"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Prezzo €/mese *</label><input type="number" class="form-input" name="price" required></div><div class="form-group"><label class="form-label">Superficie mq</label><input type="number" class="form-input" name="sqm"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Camere</label><input type="number" class="form-input" name="bedrooms" value="1" min="0"></div><div class="form-group"><label class="form-label">Status</label><select class="form-select" name="status"><option value="active">Attivo</option><option value="pending">In Attesa</option><option value="rented">Affittato</option></select></div></div><div class="form-group"><label class="form-label">Indirizzo</label><input type="text" class="form-input" name="address" placeholder="Via Roma 1, Roma"></div><div class="form-group"><label class="form-label">Descrizione</label><textarea class="form-textarea" name="description" rows="3" placeholder="Descrivi l'appartamento..."></textarea></div><div class="form-group"><label class="form-label">Features (separate da virgola)</label><input type="text" class="form-input" name="features" placeholder="Balcone, Aria Condizionata, Lavatrice"></div><div class="form-group"><label class="form-label">URL Immagine</label><input type="url" class="form-input" name="imageUrl" placeholder="https://..."></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Salva</button></div></div></div>`;
+        // LISTING MODALS - Complete fields for website sync
+        if (type === 'addListing') return `<div class="modal-overlay"><div class="modal xl" style="max-width:700px"><div class="modal-header"><h3 class="modal-title">🏢 Nuovo Appartamento</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body" style="max-height:70vh;overflow-y:auto"><form id="mForm" onsubmit="saveListing(event)">
+            <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
+                <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">📍 Informazioni Base</h4>
+                <div class="form-row"><div class="form-group"><label class="form-label">Nome Appartamento *</label><input type="text" class="form-input" name="name" required placeholder="Es: Levico Garden"></div><div class="form-group"><label class="form-label">Tipo *</label><input type="text" class="form-input" name="type" placeholder="Es: Garden Floor, Attic, Loft"></div></div>
+                <div class="form-row"><div class="form-group"><label class="form-label">Indirizzo</label><input type="text" class="form-input" name="address" placeholder="Via Levico 15, Trieste"></div><div class="form-group"><label class="form-label">Zona *</label><input type="text" class="form-input" name="zone" required placeholder="Es: Trieste, Trastevere, Centro"></div></div>
+            </div>
+            <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
+                <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">💰 Prezzo & Disponibilità</h4>
+                <div class="form-row"><div class="form-group"><label class="form-label">Prezzo €/mese *</label><input type="number" class="form-input" name="price" required placeholder="1200"></div><div class="form-group"><label class="form-label">Status *</label><select class="form-select" name="status"><option value="available">🟢 Disponibile</option><option value="waitlist">🟡 Waitlist</option><option value="rented">🔴 Affittato</option></select></div></div>
+                <div class="form-group"><label class="form-label">Disponibile da</label><input type="text" class="form-input" name="availableDate" placeholder="Es: Feb 1, Sep 2026, Immediate"></div>
+            </div>
+            <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
+                <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">🏠 Caratteristiche</h4>
+                <div class="form-row"><div class="form-group"><label class="form-label">Camere da Letto</label><input type="number" class="form-input" name="bedrooms" value="1" min="0"></div><div class="form-group"><label class="form-label">Configurazione Letti</label><input type="text" class="form-input" name="beds" placeholder="Es: 1 Bedroom, 2BR, 1 Room in 3BR"></div></div>
+                <div class="form-row"><div class="form-group"><label class="form-label">Superficie m²</label><input type="number" class="form-input" name="sqm" placeholder="65"></div><div class="form-group"><label class="form-label">Formato Superficie</label><input type="text" class="form-input" name="size" placeholder="Es: 65m², 110m²"></div></div>
+                <div class="form-group"><label class="form-label">Piano</label><input type="text" class="form-input" name="floor" placeholder="Es: 2nd Floor, Ground Floor, 5th Floor"></div>
+            </div>
+            <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
+                <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">🏷️ Tags & Features</h4>
+                <div class="form-group"><label class="form-label">Tags (separati da virgola)</label><input type="text" class="form-input" name="tags" placeholder="All Inclusive, Balcony, AC, WiFi, Central"></div>
+                <div class="form-group"><label class="form-label">Features (separati da virgola)</label><input type="text" class="form-input" name="features" placeholder="Balcone, Aria Condizionata, Lavatrice, WiFi"></div>
+            </div>
+            <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
+                <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">📷 Immagine Principale</h4>
+                <div class="image-upload-zone" id="imageUploadZone">
+                    <div class="upload-icon">📷</div>
+                    <div class="upload-text">Trascina un'immagine qui o clicca per selezionare</div>
+                    <div class="upload-hint">JPG, PNG, WebP • Max 10MB</div>
+                </div>
+                <input type="file" id="imageFileInput" accept="image/*" style="display:none">
+                <div class="upload-progress" id="uploadProgress" style="display:none">
+                    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+                    <div class="progress-text" id="progressText">Caricamento...</div>
+                </div>
+                <div id="imagePreview"></div>
+                <input type="hidden" name="image" id="listingImageUrl">
+                <div class="form-group" style="margin-top:12px;margin-bottom:0"><label class="form-label">Oppure incolla URL immagine</label><input type="url" class="form-input" name="imageUrl" placeholder="https://i.imgur.com/..." onchange="if(this.value){document.getElementById('listingImageUrl').value=this.value}"></div>
+            </div>
+            <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
+                <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">🔗 Link</h4>
+                <div class="form-group" style="margin-bottom:0"><label class="form-label">File Pagina Dettaglio</label><input type="text" class="form-input" name="file" placeholder="Es: apartment_levico.html (opzionale)"></div>
+            </div>
+            <div style="background:var(--bg);padding:16px;border-radius:8px">
+                <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">📝 Descrizione</h4>
+                <div class="form-group" style="margin-bottom:0"><label class="form-label">Descrizione Appartamento</label><textarea class="form-textarea" name="description" rows="3" placeholder="Descrizione dettagliata dell'appartamento..."></textarea></div>
+            </div>
+        </form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">💾 Salva & Pubblica</button></div></div></div>`;
 
-        if (type === 'editListing') return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">✏️ Modifica Listing</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="saveListing(event)"><input type="hidden" name="id" value="${data.id}"><div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="name" value="${data.name || ''}" required></div><div class="form-group"><label class="form-label">Zona *</label><input type="text" class="form-input" name="zone" value="${data.zone || ''}" required></div></div><div class="form-row"><div class="form-group"><label class="form-label">Prezzo €/mese *</label><input type="number" class="form-input" name="price" value="${data.price || ''}" required></div><div class="form-group"><label class="form-label">Superficie mq</label><input type="number" class="form-input" name="sqm" value="${data.sqm || ''}"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Camere</label><input type="number" class="form-input" name="bedrooms" value="${data.bedrooms || 1}" min="0"></div><div class="form-group"><label class="form-label">Status</label><select class="form-select" name="status"><option value="active" ${data.status === 'active' ? 'selected' : ''}>Attivo</option><option value="pending" ${data.status === 'pending' ? 'selected' : ''}>In Attesa</option><option value="rented" ${data.status === 'rented' ? 'selected' : ''}>Affittato</option></select></div></div><div class="form-group"><label class="form-label">Indirizzo</label><input type="text" class="form-input" name="address" value="${data.address || ''}"></div><div class="form-group"><label class="form-label">Descrizione</label><textarea class="form-textarea" name="description" rows="3">${data.description || ''}</textarea></div><div class="form-group"><label class="form-label">Features</label><input type="text" class="form-input" name="features" value="${data.features || ''}"></div><div class="form-group"><label class="form-label">URL Immagine</label><input type="url" class="form-input" name="imageUrl" value="${data.imageUrl || ''}"></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Salva</button></div></div></div>`;
+        if (type === 'editListing') { 
+            const tagsStr = Array.isArray(data.tags) ? data.tags.join(', ') : (data.tags || '');
+            const featuresStr = Array.isArray(data.features) ? data.features.join(', ') : (data.features || '');
+            return `<div class="modal-overlay"><div class="modal xl" style="max-width:700px"><div class="modal-header"><h3 class="modal-title">✏️ Modifica: ${data.name || 'Appartamento'}</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body" style="max-height:70vh;overflow-y:auto"><form id="mForm" onsubmit="saveListing(event)">
+            <input type="hidden" name="id" value="${data.id}">
+            <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
+                <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">📍 Informazioni Base</h4>
+                <div class="form-row"><div class="form-group"><label class="form-label">Nome Appartamento *</label><input type="text" class="form-input" name="name" value="${data.name || ''}" required></div><div class="form-group"><label class="form-label">Tipo</label><input type="text" class="form-input" name="type" value="${data.type || ''}"></div></div>
+                <div class="form-row"><div class="form-group"><label class="form-label">Indirizzo</label><input type="text" class="form-input" name="address" value="${data.address || ''}"></div><div class="form-group"><label class="form-label">Zona *</label><input type="text" class="form-input" name="zone" value="${data.zone || ''}" required></div></div>
+            </div>
+            <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
+                <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">💰 Prezzo & Disponibilità</h4>
+                <div class="form-row"><div class="form-group"><label class="form-label">Prezzo €/mese *</label><input type="number" class="form-input" name="price" value="${data.price || ''}" required></div><div class="form-group"><label class="form-label">Status</label><select class="form-select" name="status"><option value="available" ${data.status === 'available' ? 'selected' : ''}>🟢 Disponibile</option><option value="waitlist" ${data.status === 'waitlist' ? 'selected' : ''}>🟡 Waitlist</option><option value="rented" ${data.status === 'rented' ? 'selected' : ''}>🔴 Affittato</option></select></div></div>
+                <div class="form-group"><label class="form-label">Disponibile da</label><input type="text" class="form-input" name="availableDate" value="${data.availableDate || ''}"></div>
+            </div>
+            <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
+                <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">🏠 Caratteristiche</h4>
+                <div class="form-row"><div class="form-group"><label class="form-label">Camere</label><input type="number" class="form-input" name="bedrooms" value="${data.bedrooms || 1}" min="0"></div><div class="form-group"><label class="form-label">Config. Letti</label><input type="text" class="form-input" name="beds" value="${data.beds || ''}"></div></div>
+                <div class="form-row"><div class="form-group"><label class="form-label">Superficie m²</label><input type="number" class="form-input" name="sqm" value="${data.sqm || ''}"></div><div class="form-group"><label class="form-label">Formato</label><input type="text" class="form-input" name="size" value="${data.size || ''}"></div></div>
+                <div class="form-group"><label class="form-label">Piano</label><input type="text" class="form-input" name="floor" value="${data.floor || ''}"></div>
+            </div>
+            <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
+                <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">🏷️ Tags & Features</h4>
+                <div class="form-group"><label class="form-label">Tags</label><input type="text" class="form-input" name="tags" value="${tagsStr}"></div>
+                <div class="form-group"><label class="form-label">Features</label><input type="text" class="form-input" name="features" value="${featuresStr}"></div>
+            </div>
+            <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
+                <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">📷 Immagine Principale</h4>
+                <div class="image-upload-zone" id="imageUploadZone">
+                    <div class="upload-icon">📷</div>
+                    <div class="upload-text">Trascina una nuova immagine o clicca per cambiare</div>
+                    <div class="upload-hint">JPG, PNG, WebP • Max 10MB</div>
+                </div>
+                <input type="file" id="imageFileInput" accept="image/*" style="display:none">
+                <div class="upload-progress" id="uploadProgress" style="display:none">
+                    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+                    <div class="progress-text" id="progressText">Caricamento...</div>
+                </div>
+                <div id="imagePreview"></div>
+                <input type="hidden" name="image" id="listingImageUrl" value="${data.image || ''}">
+                <div class="form-group" style="margin-top:12px;margin-bottom:0"><label class="form-label">Oppure incolla URL immagine</label><input type="url" class="form-input" name="imageUrl" value="${data.image || ''}" placeholder="https://i.imgur.com/..." onchange="if(this.value){document.getElementById('listingImageUrl').value=this.value}"></div>
+            </div>
+            <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
+                <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">🔗 Link</h4>
+                <div class="form-group" style="margin-bottom:0"><label class="form-label">File Pagina Dettaglio</label><input type="text" class="form-input" name="file" value="${data.file || ''}"></div>
+            </div>
+            <div style="background:var(--bg);padding:16px;border-radius:8px">
+                <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">📝 Descrizione</h4>
+                <div class="form-group" style="margin-bottom:0"><textarea class="form-textarea" name="description" rows="3">${data.description || ''}</textarea></div>
+            </div>
+        </form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">💾 Salva Modifiche</button></div></div></div>`;
+        }
 
         return '';
     }
