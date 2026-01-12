@@ -271,6 +271,29 @@
 </style>
 </head>
 <body>
+    <!-- Early Protocol Check -->
+    <script>
+        if (window.location.protocol === 'file:') {
+            document.body.innerHTML = `
+                <div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#000;color:#fff;font-family:system-ui;text-align:center;padding:20px">
+                    <div>
+                        <div style="font-size:60px;margin-bottom:20px">🖥️</div>
+                        <h1 style="color:#FFD700;margin-bottom:10px">Server Web Richiesto</h1>
+                        <p style="color:#999;margin-bottom:20px">Questo file non può essere aperto direttamente dal computer.<br>Deve essere caricato su un server web.</p>
+                        <div style="background:#111;padding:20px;border-radius:8px;text-align:left;margin-bottom:20px">
+                            <p style="color:#FFD700;margin-bottom:10px;font-size:12px">✅ URL CORRETTO:</p>
+                            <code style="color:#00FF88">https://www.boomrome.com/portal.html</code>
+                            <p style="color:#FF3B3B;margin-top:15px;margin-bottom:10px;font-size:12px">❌ URL ERRATO:</p>
+                            <code style="color:#666">file:///Users/.../portal.html</code>
+                        </div>
+                        <a href="https://www.boomrome.com/portal.html" style="display:inline-block;padding:12px 30px;background:#FFD700;color:#000;text-decoration:none;font-weight:600;border-radius:8px">Vai al Portal →</a>
+                    </div>
+                </div>
+            `;
+            throw new Error('File protocol not supported');
+        }
+    </script>
+
     <!-- Offline Banner -->
     <div class="offline-banner" id="offlineBanner">⚠️ Connessione assente - Modalità offline</div>
     
@@ -329,11 +352,62 @@
     <div class="toast-container" id="toasts"></div>
     <div id="modals"></div>
 
-    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-storage-compat.js"></script>
     <script>
+        // Track script loading
+        window.firebaseScriptsLoaded = 0;
+        window.firebaseScriptsTotal = 4;
+        function onFirebaseScriptLoad() {
+            window.firebaseScriptsLoaded++;
+            console.log(`Firebase script ${window.firebaseScriptsLoaded}/${window.firebaseScriptsTotal} loaded`);
+        }
+        function onFirebaseScriptError(e) {
+            console.error('Failed to load Firebase script:', e.target.src);
+            document.body.innerHTML = `
+                <div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#000;color:#fff;font-family:system-ui;text-align:center;padding:20px">
+                    <div>
+                        <div style="font-size:60px;margin-bottom:20px">⚠️</div>
+                        <h1 style="color:#FFD700;margin-bottom:10px">Errore Caricamento Script</h1>
+                        <p style="color:#999;margin-bottom:20px">Impossibile caricare Firebase SDK.<br>Script: ${e.target.src}</p>
+                        <ul style="color:#666;text-align:left;display:inline-block;margin-bottom:20px">
+                            <li>Disabilita AdBlocker per questo sito</li>
+                            <li>Controlla la connessione internet</li>
+                            <li>Prova con un altro browser</li>
+                        </ul>
+                        <button onclick="location.reload()" style="padding:12px 30px;background:#FFD700;color:#000;border:none;font-weight:600;cursor:pointer;border-radius:8px">🔄 Riprova</button>
+                    </div>
+                </div>
+            `;
+        }
+    </script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js" onload="onFirebaseScriptLoad()" onerror="onFirebaseScriptError(event)"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js" onload="onFirebaseScriptLoad()" onerror="onFirebaseScriptError(event)"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js" onload="onFirebaseScriptLoad()" onerror="onFirebaseScriptError(event)"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-storage-compat.js" onload="onFirebaseScriptLoad()" onerror="onFirebaseScriptError(event)"></script>
+    <script>
+    // ═══════════════════════════════════════════════════════════════════════════
+    // FIREBASE LOADING CHECK
+    // ═══════════════════════════════════════════════════════════════════════════
+    if (typeof firebase === 'undefined') {
+        console.error('❌ Firebase SDK not loaded! Check network connection or ad blocker.');
+        document.body.innerHTML = `
+            <div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#000;color:#fff;font-family:system-ui;text-align:center;padding:20px">
+                <div>
+                    <div style="font-size:60px;margin-bottom:20px">⚠️</div>
+                    <h1 style="color:#FFD700;margin-bottom:10px">Errore Caricamento</h1>
+                    <p style="color:#999;margin-bottom:20px">Firebase SDK non caricato.<br>Possibili cause:</p>
+                    <ul style="color:#666;text-align:left;display:inline-block;margin-bottom:20px">
+                        <li>Ad blocker attivo (disabilita per questo sito)</li>
+                        <li>Problema di connessione internet</li>
+                        <li>Firewall aziendale che blocca gstatic.com</li>
+                    </ul>
+                    <button onclick="location.reload()" style="padding:12px 30px;background:#FFD700;color:#000;border:none;font-weight:600;cursor:pointer;border-radius:8px">🔄 Riprova</button>
+                </div>
+            </div>
+        `;
+        throw new Error('Firebase SDK not available');
+    }
+    console.log('✅ Firebase SDK loaded successfully');
+
     // ═══════════════════════════════════════════════════════════════════════════
     // PRODUCTION CONFIGURATION
     // ═══════════════════════════════════════════════════════════════════════════

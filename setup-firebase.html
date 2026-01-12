@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BOOM - Setup Firebase</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, sans-serif; background: #000; color: #fff; padding: 40px; min-height: 100vh; }
+        .container { max-width: 600px; margin: 0 auto; }
+        h1 { color: #FFD700; margin-bottom: 10px; }
+        .subtitle { color: #999; margin-bottom: 30px; }
+        .card { background: #111; border: 1px solid #222; border-radius: 12px; padding: 24px; margin-bottom: 20px; }
+        .btn { display: block; width: 100%; padding: 16px; background: #FFD700; color: #000; border: none; font-size: 16px; font-weight: 600; cursor: pointer; border-radius: 8px; margin-bottom: 10px; }
+        .btn:disabled { opacity: 0.5; }
+        .btn-secondary { background: #333; color: #fff; }
+        .log { background: #0a0a0a; border-radius: 8px; padding: 16px; margin-top: 20px; font-family: monospace; font-size: 12px; max-height: 300px; overflow-y: auto; white-space: pre-wrap; }
+        .success { color: #00FF88; }
+        .error { color: #FF3B3B; }
+        .info { color: #999; }
+        .status { padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; }
+        .status.success { background: rgba(0,255,136,0.1); border: 1px solid rgba(0,255,136,0.3); }
+        .status.error { background: rgba(255,59,59,0.1); border: 1px solid rgba(255,59,59,0.3); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 BOOM Firebase Setup</h1>
+        <p class="subtitle">Inizializza il database con i tuoi appartamenti</p>
+        
+        <div class="status" id="status" style="display:none"></div>
+        
+        <div class="card">
+            <p style="margin-bottom:16px;color:#999">Questo script importa i 7 appartamenti esistenti in Firebase. Eseguilo UNA VOLTA.</p>
+            <button class="btn" id="seedBtn" onclick="seedDatabase()">🚀 Importa Appartamenti in Firebase</button>
+            <button class="btn btn-secondary" onclick="checkDatabase()">🔍 Verifica Database</button>
+        </div>
+        
+        <div class="log" id="log"></div>
+    </div>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script>
+        const log = (msg, type = 'info') => {
+            const el = document.getElementById('log');
+            el.innerHTML += `<span class="${type}">[${new Date().toLocaleTimeString()}] ${msg}</span>\n`;
+            el.scrollTop = el.scrollHeight;
+        };
+        
+        const showStatus = (msg, type) => {
+            const el = document.getElementById('status');
+            el.className = 'status ' + type;
+            el.innerHTML = msg;
+            el.style.display = 'block';
+        };
+        
+        // Initialize Firebase
+        firebase.initializeApp({
+            apiKey: "AIzaSyDDb8UeSc8RhO_VxQrhLrupu1aPD4rwRso",
+            authDomain: "boom-property-dashboards.firebaseapp.com",
+            projectId: "boom-property-dashboards"
+        });
+        const db = firebase.firestore();
+        
+        const FLATS = [
+            { id: 'marconi', file: 'apartment-marconi.html', name: 'Marconi Shared', address: 'Via Federico Guarducci, Marconi', zone: 'Marconi', price: 750, type: 'Shared Room', beds: '1 Room in 3BR', bedrooms: 1, size: '110m²', sqm: 110, floor: '7th Floor', image: 'https://i.imgur.com/s2es0MN.jpeg', tags: ['All Inclusive', 'Balcony', 'AC'], status: 'available', availableDate: 'Feb 1' },
+            { id: 'levico', file: 'apartment_levico.html', name: 'Levico', address: 'Via Levico, Trieste/Coppedè', zone: 'Trieste', price: 1200, type: 'Garden Floor', beds: '1 Bedroom', bedrooms: 1, size: '40m²', sqm: 40, floor: 'Ground Floor', image: 'https://i.imgur.com/Ne0ROPe.jpeg', tags: ['All Inclusive', 'Garden', 'WiFi'], status: 'available', availableDate: 'Feb 1' },
+            { id: 'piemonte', file: 'apartment_piemonte.html', name: 'Piemonte Attic', address: 'Via Piemonte, Vittorio Veneto', zone: 'Vittorio Veneto', price: 1300, type: 'Attic', beds: '1 Bedroom', bedrooms: 1, size: '55m²', sqm: 55, floor: '5th Floor', image: 'https://i.imgur.com/Smv5uPX.jpeg', tags: ['Renovated', 'AC', 'Central'], status: 'available', availableDate: 'Jan 1' },
+            { id: 'pigneto', file: 'apartment_pigneto.html', name: 'Pigneto Terrace', address: 'Via Ascoli Piceno, Pigneto', zone: 'Pigneto', price: 1700, type: 'Bohemian', beds: '2 Bedrooms', bedrooms: 2, size: '80m²', sqm: 80, floor: '2nd Floor', image: 'https://i.imgur.com/tJnYADn.jpeg', tags: ['All Inclusive', 'Terrace', 'Balcony'], status: 'available', availableDate: 'Apr 1' },
+            { id: 'navona', file: 'apartment_navona.html', name: 'Coronari Classic', address: 'Via dei Coronari, Piazza Navona', zone: 'Centro Storico', price: 2000, type: 'Historic', beds: '1 Bedroom', bedrooms: 1, size: '70m²', sqm: 70, floor: '1st Floor', image: 'https://i.imgur.com/8LVxrhs.jpeg', tags: ['Historic Center', 'Elevator', 'Fireplace'], status: 'available', availableDate: 'Mar 1' },
+            { id: 'angelico', file: 'apartment_angelico.html', name: 'Angelico Loft', address: 'Viale Angelico, Mazzini', zone: 'Prati', price: 2000, type: 'Loft Style', beds: '1BR + Loft', bedrooms: 2, size: '65m²', sqm: 65, floor: '2nd Floor', image: 'https://i.imgur.com/CI4n46J.jpeg', tags: ['All Inclusive', 'Modern', 'Sep 2026'], status: 'waitlist', availableDate: 'Sep 2026' },
+            { id: 'ripetta', file: 'apartment_ripetta.html', name: 'Ripetta Terrace', address: 'Passeggiata di Ripetta, Centro', zone: 'Centro Storico', price: 2300, type: 'Premium Terrace', beds: '1 Bedroom', bedrooms: 1, size: '100m²', sqm: 100, floor: '1st Floor', image: 'https://i.imgur.com/hxai5bz.jpeg', tags: ['Panoramic Terrace', 'River View', 'Sep 2026'], status: 'waitlist', availableDate: 'Sep 2026' }
+        ];
+        
+        async function seedDatabase() {
+            const btn = document.getElementById('seedBtn');
+            btn.disabled = true;
+            btn.textContent = 'Importazione...';
+            log('Inizio importazione...', 'info');
+            
+            let success = 0, errors = 0;
+            
+            for (const flat of FLATS) {
+                try {
+                    await db.collection('listings').doc(flat.id).set({
+                        ...flat,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    log(`✓ ${flat.name} (€${flat.price})`, 'success');
+                    success++;
+                } catch (e) {
+                    log(`✗ ${flat.name}: ${e.message}`, 'error');
+                    errors++;
+                }
+            }
+            
+            log(`\nCompletato: ${success} importati, ${errors} errori`, success === FLATS.length ? 'success' : 'error');
+            
+            if (success > 0) {
+                showStatus(`✅ ${success} appartamenti importati con successo! Il sito ora li mostrerà da Firebase.`, 'success');
+            } else {
+                showStatus(`❌ Errore durante l'importazione. Controlla le regole Firestore.`, 'error');
+            }
+            
+            btn.disabled = false;
+            btn.textContent = '🚀 Importa Appartamenti in Firebase';
+        }
+        
+        async function checkDatabase() {
+            log('Verifica database...', 'info');
+            try {
+                const snap = await db.collection('listings').get();
+                log(`Trovati ${snap.size} listings nel database`, snap.size > 0 ? 'success' : 'info');
+                snap.forEach(doc => {
+                    const d = doc.data();
+                    log(`  • ${d.name} - €${d.price} [${d.status}]`, 'info');
+                });
+            } catch (e) {
+                log(`Errore: ${e.message}`, 'error');
+            }
+        }
+        
+        log('Firebase inizializzato. Pronto.', 'success');
+    </script>
+</body>
+</html>
