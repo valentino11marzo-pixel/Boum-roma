@@ -464,7 +464,7 @@
     
     <script>
         // ═══════════════════════════════════════════════════════════════
-        // BOOM LOGIN - ULTRA SIMPLE
+        // BOOM LOGIN - WITH SAFARI FIX
         // ═══════════════════════════════════════════════════════════════
         
         // Initialize Firebase
@@ -475,6 +475,11 @@
         });
         
         const auth = firebase.auth();
+        
+        // Safari fix: use session persistence instead of local
+        auth.setPersistence(firebase.auth.Auth.Persistence.SESSION).catch(e => {
+            console.log('Persistence fallback:', e.message);
+        });
         
         // DOM
         const form = document.getElementById('loginForm');
