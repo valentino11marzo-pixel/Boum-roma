@@ -836,7 +836,7 @@
     }
 
     function hideLoading() { document.getElementById('loading').classList.add('hidden'); }
-    function showAuth() { document.getElementById('authScreen').classList.remove('hidden'); document.getElementById('app').classList.remove('active'); }
+    function showAuth() { window.location.href = 'login.html'; }
     function showApp() { hideLoading(); document.getElementById('authScreen').classList.add('hidden'); document.getElementById('app').classList.add('active'); setupApp(); }
     function showAuthError(m) { const e = document.getElementById('authError'); e.textContent = m; e.classList.add('show'); document.getElementById('authInfo').classList.remove('show'); }
     function showAuthInfo(m) { const e = document.getElementById('authInfo'); e.textContent = m; e.classList.add('show'); document.getElementById('authError').classList.remove('show'); }
@@ -873,7 +873,7 @@
             } catch (e) {
                 console.error('Logout error:', e);
             }
-            location.reload(); 
+            window.location.href = 'login.html'; 
         } 
     }
     function authErr(c) { return { 'auth/user-not-found': 'Utente non trovato', 'auth/wrong-password': 'Password errata', 'auth/invalid-email': 'Email non valida', 'auth/email-already-in-use': 'Email già registrata', 'auth/weak-password': 'Password troppo debole', 'auth/invalid-credential': 'Credenziali non valide' }[c] || 'Errore: ' + c; }
