@@ -1771,6 +1771,69 @@
         </div></div>`;
     }
     
+    function openUserDocUpload(userId) {
+        const u = S.users.find(x => x.id === userId);
+        if (!u) return;
+        document.getElementById('modals').innerHTML = `<div class="modal-overlay active"><div class="modal">
+            <div class="modal-header"><h3 class="modal-title">📤 Carica Documento per ${u.name}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+            <div class="modal-body"><form id="userDocForm" onsubmit="saveUserDoc(event,'${userId}')">
+                <div class="form-row">
+                    <div class="form-group"><label class="form-label">Nome Documento *</label><input type="text" class="form-input" name="name" required placeholder="es. Carta Identità"></div>
+                    <div class="form-group"><label class="form-label">Tipo</label><select class="form-select" name="type">
+                        <option value="id">🪪 Documento ID</option>
+                        <option value="contract">📋 Contratto</option>
+                        <option value="receipt">🧾 Ricevuta</option>
+                        <option value="utility">💡 Utenza</option>
+                        <option value="other">📄 Altro</option>
+                    </select></div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">File</label>
+                    <div style="border:2px dashed var(--border);border-radius:8px;padding:24px;text-align:center;cursor:pointer" onclick="document.getElementById('userFileInput').click()">
+                        <input type="file" id="userFileInput" style="display:none" onchange="handleFile(this)" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
+                        <div style="font-size:24px">📁</div>
+                        <div style="font-weight:500">Clicca per selezionare</div>
+                        <div style="font-size:11px;color:var(--text-muted)">PDF, DOC, JPG, PNG (max 10MB)</div>
+                    </div>
+                    <div id="filePreview"></div>
+                </div>
+                <div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes" rows="2" placeholder="Note opzionali..."></textarea></div>
+            </form></div>
+            <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('userDocForm').requestSubmit()">💾 Carica</button></div>
+        </div></div>`;
+    }
+    
+    async function saveUserDoc(e, userId) {
+        e.preventDefault();
+        const data = Object.fromEntries(new FormData(e.target));
+        if (!data.name) return toast('error', 'Inserisci nome documento');
+        try {
+            let fileUrl = null, fileName = null, fileSize = null;
+            if (selectedFile) {
+                toast('info', 'Caricamento file...');
+                const path = `documents/${userId}/${Date.now()}_${selectedFile.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+                const uploadTask = await storage.ref(path).put(selectedFile);
+                fileUrl = await uploadTask.ref.getDownloadURL();
+                fileName = selectedFile.name;
+                fileSize = selectedFile.size;
+            }
+            await db.collection('documents').add({
+                name: data.name,
+                type: data.type || 'other',
+                userId: userId,
+                notes: data.notes || '',
+                fileUrl, fileName, fileSize,
+                uploadedBy: S.profile.id,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            selectedFile = null;
+            closeModal(); await refresh();
+            toast('success', 'Documento caricato!');
+            // Riapri profilo utente
+            setTimeout(() => viewUser(userId), 300);
+        } catch (err) { toast('error', 'Errore', err.message); }
+    }
+    
     async function saveDocWithAssignment(e) {
         e.preventDefault();
         const data = Object.fromEntries(new FormData(e.target));
@@ -2363,7 +2426,9 @@
 
         if (type === 'addDocument') return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">📁 Carica Documento</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="saveDocument(event)"><div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="name" required></div><div class="form-group"><label class="form-label">Tipo</label><select class="form-select" name="type"><option value="contract">📋 Contratto</option><option value="id">🪪 Documento ID</option><option value="receipt">🧾 Ricevuta</option><option value="utility">💡 Utenza</option><option value="other">📄 Altro</option></select></div></div>${isAdmin() ? `<div class="form-group"><label class="form-label">Condividi con inquilino/proprietario</label><select class="form-select" name="shared"><option value="false">No - Solo io</option><option value="true">Sì - Condividi</option></select></div>` : ''}<div class="form-group"><label class="form-label">File</label><div class="file-zone" onclick="document.getElementById('fileInput').click()"><div class="file-zone-icon">📁</div><div class="file-zone-text">Clicca per selezionare</div></div><input type="file" id="fileInput" class="file-input" onchange="handleFile(this)"><div id="filePreview"></div></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Carica</button></div></div></div>`;
 
-        if (type === 'addUser') return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">👥 Nuovo Utente</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="saveUser(event)"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="name" required></div><div class="form-group"><label class="form-label">Email *</label><input type="email" class="form-input" name="email" required></div><div class="form-row"><div class="form-group"><label class="form-label">Ruolo</label><select class="form-select" name="role"><option value="tenant">🔑 Inquilino</option><option value="landlord">🏠 Proprietario</option><option value="admin">👑 Admin</option></select></div><div class="form-group"><label class="form-label">Password *</label><input type="password" class="form-input" name="password" required minlength="6"></div></div><div class="form-group"><label class="form-label">Telefono</label><input type="tel" class="form-input" name="phone"></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Crea</button></div></div></div>`;
+        if (type === 'addUser') return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">👥 Nuovo Utente</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="saveUser(event)"><div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="name" required></div><div class="form-group"><label class="form-label">Email *</label><input type="email" class="form-input" name="email" required></div></div><div class="form-row"><div class="form-group"><label class="form-label">Ruolo</label><select class="form-select" name="role"><option value="tenant">🔑 Inquilino</option><option value="landlord">🏠 Proprietario</option><option value="admin">👑 Admin</option></select></div><div class="form-group"><label class="form-label">Password *</label><input type="password" class="form-input" name="password" required minlength="6"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Telefono</label><input type="tel" class="form-input" name="phone" placeholder="+39..."></div><div class="form-group"><label class="form-label">Codice Fiscale</label><input type="text" class="form-input" name="codiceFiscale" placeholder="RSSMRA85M01H501Z" maxlength="16" style="text-transform:uppercase"></div></div><div class="form-group"><label class="form-label">Indirizzo</label><input type="text" class="form-input" name="address" placeholder="Via Roma 123, 00100 Roma"></div><div class="form-group"><label class="form-label">IBAN</label><input type="text" class="form-input" name="iban" placeholder="IT60X0542811101000000123456"></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes" rows="2" placeholder="Note interne..."></textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Crea</button></div></div></div>`;
+
+        if (type === 'editUser') { const u = extra; if (!u) return ''; return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">✏️ Modifica Utente</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="updateUser(event)"><input type="hidden" name="id" value="${u.id}"><div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="name" value="${u.name || ''}" required></div><div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" value="${u.email || ''}" disabled style="opacity:0.6"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Ruolo</label><select class="form-select" name="role"><option value="tenant" ${u.role === 'tenant' ? 'selected' : ''}>🔑 Inquilino</option><option value="landlord" ${u.role === 'landlord' ? 'selected' : ''}>🏠 Proprietario</option><option value="admin" ${u.role === 'admin' ? 'selected' : ''}>👑 Admin</option></select></div><div class="form-group"><label class="form-label">Telefono</label><input type="tel" class="form-input" name="phone" value="${u.phone || ''}" placeholder="+39..."></div></div><div class="form-row"><div class="form-group"><label class="form-label">Codice Fiscale</label><input type="text" class="form-input" name="codiceFiscale" value="${u.codiceFiscale || ''}" placeholder="RSSMRA85M01H501Z" maxlength="16" style="text-transform:uppercase"></div><div class="form-group"><label class="form-label">IBAN</label><input type="text" class="form-input" name="iban" value="${u.iban || ''}" placeholder="IT60X0542811101000000123456"></div></div><div class="form-group"><label class="form-label">Indirizzo</label><input type="text" class="form-input" name="address" value="${u.address || ''}" placeholder="Via Roma 123, 00100 Roma"></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes" rows="2" placeholder="Note interne...">${u.notes || ''}</textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Salva</button></div></div></div>`; }
 
         if (type === 'addProperty') { const landlords = S.users.filter(u => u.role === 'landlord'); return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">🏠 Nuovo Immobile</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="saveProperty(event)"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="name" required placeholder="Es: Trastevere Terrace"></div><div class="form-group"><label class="form-label">Indirizzo</label><input type="text" class="form-input" name="address" placeholder="Via Roma 123, Roma"></div><div class="form-row"><div class="form-group"><label class="form-label">Proprietario *</label><select class="form-select" name="ownerId" required><option value="">Seleziona...</option>${landlords.map(l => `<option value="${l.id}">${l.name}</option>`).join('')}</select></div><div class="form-group"><label class="form-label">Affitto € *</label><input type="number" class="form-input" name="rent" required></div></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Crea</button></div></div></div>`; }
 
@@ -2549,11 +2614,39 @@
         try {
             const cred = await auth.createUserWithEmailAndPassword(data.email, data.password);
             await db.collection('users').doc(cred.user.uid).set({
-                name: data.name, email: data.email, role: data.role || 'tenant', phone: data.phone || '',
+                name: data.name, 
+                email: data.email, 
+                role: data.role || 'tenant', 
+                phone: data.phone || '',
+                codiceFiscale: data.codiceFiscale?.toUpperCase() || '',
+                address: data.address || '',
+                iban: data.iban?.toUpperCase() || '',
+                notes: data.notes || '',
+                documents: [],
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
             closeModal(); await refresh(); toast('success', 'Utente creato!', data.name);
         } catch (err) { toast('error', 'Errore', authErr(err.code)); }
+    }
+
+    async function updateUser(e) {
+        e.preventDefault();
+        const data = Object.fromEntries(new FormData(e.target));
+        const userId = data.id;
+        if (!userId) { toast('error', 'ID utente mancante'); return; }
+        try {
+            await db.collection('users').doc(userId).update({
+                name: data.name,
+                phone: data.phone || '',
+                codiceFiscale: data.codiceFiscale?.toUpperCase() || '',
+                address: data.address || '',
+                iban: data.iban?.toUpperCase() || '',
+                notes: data.notes || '',
+                role: data.role,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            closeModal(); await refresh(); toast('success', 'Utente aggiornato!', data.name);
+        } catch (err) { toast('error', 'Errore', err.message); }
     }
 
     async function saveProperty(e) {
@@ -2719,24 +2812,53 @@
         const u = S.users.find(x => x.id === id); if (!u) return;
         const userProps = S.properties.filter(p => p.ownerId === id);
         const userContracts = S.contracts.filter(c => c.tenantId === id);
-        document.getElementById('modals').innerHTML = `<div class="modal-overlay active"><div class="modal">
+        const userDocs = S.documents.filter(d => d.userId === id);
+        document.getElementById('modals').innerHTML = `<div class="modal-overlay active"><div class="modal lg">
             <div class="modal-header"><h3 class="modal-title">👤 ${u.name}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
-            <div class="modal-body">
+            <div class="modal-body" style="max-height:70vh;overflow-y:auto">
                 <div class="detail-header"><div class="avatar xl ${u.role === 'admin' ? 'purple' : u.role === 'landlord' ? '' : 'blue'}">${initials(u.name)}</div>
                     <div class="detail-info"><h2 class="detail-title">${u.name}</h2><p class="detail-subtitle">${u.email}</p>
                         <div class="detail-badges"><span class="badge ${u.role === 'admin' ? 'purple' : u.role === 'landlord' ? 'gold' : 'blue'}">${roleLabel(u.role)}</span></div>
                     </div>
                 </div>
-                <div class="detail-grid mt-16">
+                
+                <div class="section-title mt-16" style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:12px">📋 Informazioni Personali</div>
+                <div class="detail-grid">
                     <div><div class="detail-label">Email</div><div class="detail-value">${u.email}</div></div>
-                    <div><div class="detail-label">Telefono</div><div class="detail-value">${u.phone || 'N/A'}</div></div>
+                    <div><div class="detail-label">Telefono</div><div class="detail-value">${u.phone || '—'}</div></div>
+                    <div><div class="detail-label">Codice Fiscale</div><div class="detail-value" style="font-family:monospace">${u.codiceFiscale || '—'}</div></div>
+                    <div><div class="detail-label">IBAN</div><div class="detail-value" style="font-family:monospace;font-size:12px">${u.iban || '—'}</div></div>
+                    <div style="grid-column:1/-1"><div class="detail-label">Indirizzo</div><div class="detail-value">${u.address || '—'}</div></div>
+                    ${u.notes ? `<div style="grid-column:1/-1"><div class="detail-label">Note</div><div class="detail-value" style="background:var(--surface);padding:10px;border-radius:8px;font-size:13px">${u.notes}</div></div>` : ''}
+                </div>
+                
+                <div class="section-title mt-16" style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:12px">📊 Account</div>
+                <div class="detail-grid">
                     <div><div class="detail-label">Registrato</div><div class="detail-value">${fmtDate(u.createdAt)}</div></div>
                     <div><div class="detail-label">Ultimo Accesso</div><div class="detail-value">${fmtDate(u.lastLogin)}</div></div>
                 </div>
-                ${u.role === 'landlord' && userProps.length ? `<div class="mt-16"><div class="detail-label">Immobili (${userProps.length})</div><div style="margin-top:8px">${userProps.map(p => `<span class="badge gold" style="margin-right:4px">${p.name}</span>`).join('')}</div></div>` : ''}
-                ${u.role === 'tenant' && userContracts.length ? `<div class="mt-16"><div class="detail-label">Contratti (${userContracts.length})</div><div style="margin-top:8px">${userContracts.map(c => { const p = S.properties.find(x => x.id === c.propertyId); return `<span class="badge blue" style="margin-right:4px">${p?.name || 'Contratto'}</span>`; }).join('')}</div></div>` : ''}
+                
+                ${u.role === 'landlord' && userProps.length ? `<div class="mt-16"><div class="section-title" style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:12px">🏠 Immobili (${userProps.length})</div><div style="display:flex;flex-wrap:wrap;gap:6px">${userProps.map(p => `<span class="badge gold">${p.name}</span>`).join('')}</div></div>` : ''}
+                ${u.role === 'tenant' && userContracts.length ? `<div class="mt-16"><div class="section-title" style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:12px">📋 Contratti (${userContracts.length})</div><div style="display:flex;flex-wrap:wrap;gap:6px">${userContracts.map(c => { const p = S.properties.find(x => x.id === c.propertyId); return `<span class="badge ${c.status === 'active' ? 'green' : 'gray'}">${p?.name || 'Contratto'}</span>`; }).join('')}</div></div>` : ''}
+                
+                <div class="mt-16">
+                    <div class="section-title" style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
+                        <span>📁 Documenti (${userDocs.length})</span>
+                        <button class="btn btn-sm" onclick="openUserDocUpload('${u.id}')">+ Aggiungi</button>
+                    </div>
+                    ${userDocs.length ? `<div style="display:flex;flex-direction:column;gap:8px">${userDocs.map(d => `<div style="display:flex;align-items:center;gap:10px;padding:10px;background:var(--surface);border-radius:8px">
+                        <span style="font-size:20px">${docIcon(d.type)}</span>
+                        <div style="flex:1;min-width:0"><div style="font-weight:500;font-size:13px">${d.name}</div><div style="font-size:11px;color:var(--text-muted)">${docTypeLabel(d.type)} · ${fmtDate(d.createdAt)}</div></div>
+                        <button class="btn btn-xs btn-secondary" onclick="downloadDocument('${d.id}')" title="Scarica">📥</button>
+                        <button class="btn btn-xs btn-danger" onclick="confirmDelete('document','${d.id}','${d.name}')" title="Elimina">🗑</button>
+                    </div>`).join('')}</div>` : '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px">Nessun documento caricato</div>'}
+                </div>
             </div>
-            <div class="modal-footer">${u.id !== S.profile.id ? `<button class="btn btn-danger btn-sm" onclick="confirmDelete('user','${u.id}','${u.name}')">🗑</button>` : ''}<button class="btn" onclick="closeModal()">Chiudi</button></div>
+            <div class="modal-footer">
+                ${u.id !== S.profile.id ? `<button class="btn btn-danger btn-sm" onclick="confirmDelete('user','${u.id}','${u.name}')">🗑 Elimina</button>` : ''}
+                <button class="btn btn-secondary" onclick="closeModal()">Chiudi</button>
+                <button class="btn" onclick="closeModal();openModal('editUser',S.users.find(x=>x.id==='${u.id}'))">✏️ Modifica</button>
+            </div>
         </div></div>`;
     }
 
@@ -3954,6 +4076,7 @@
     function priorityColor(p) { return { low: 'gray', medium: 'blue', high: 'orange', urgent: 'red' }[p] || 'gray'; }
     function catLabel(c) { return { plumbing: 'Idraulica', electrical: 'Elettricità', heating: 'Riscaldamento', appliance: 'Elettrodomestici', other: 'Altro' }[c] || c; }
     function docIcon(t) { return { contract: '📋', id: '🪪', receipt: '🧾', utility: '💡', other: '📄' }[t] || '📄'; }
+    function docTypeLabel(t) { return { contract: 'Contratto', id: 'Documento ID', receipt: 'Ricevuta', utility: 'Utenza', other: 'Altro' }[t] || t; }
     function stageLabel(s) { return PIPELINE_STAGES.find(x => x.id === s)?.name || s; }
     function stageBadgeColor(s) { return { lead: 'gray', contacted: 'blue', qualified: 'green', searching: 'purple', found: 'orange', closing: 'gold', paid: 'green', completed: 'green', lost: 'red' }[s] || 'gray'; }
     function fmtDate(d) { if (!d) return '—'; const dt = d.toDate ? d.toDate() : new Date(d); return isNaN(dt.getTime()) ? '—' : dt.toLocaleDateString('it-IT'); }
