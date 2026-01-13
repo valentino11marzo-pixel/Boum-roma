@@ -1662,14 +1662,21 @@
 
     function paymentsPage() {
         const overdueCount = S.payments.filter(p => p.status === 'pending' && isOverdue(p.dueDate)).length;
-        return `<div class="page-header"><h1 class="page-title">Pagamenti</h1><div class="page-actions">${overdueCount ? `<span class="badge red">${overdueCount} in ritardo</span>` : ''}<button class="btn btn-secondary btn-sm" onclick="exportPaymentsCSV()">📊 Export</button><button class="btn" onclick="openModal('addPayment')">+ Registra</button></div></div>
-            <div class="card"><div class="card-body flush">${S.payments.map(p => {
+        const paidTotal = S.payments.filter(p => p.status === 'paid').reduce((s, p) => s + (p.amount || 0), 0);
+        const pendingTotal = S.payments.filter(p => p.status === 'pending').reduce((s, p) => s + (p.amount || 0), 0);
+        return `<div class="page-header"><h1 class="page-title">Pagamenti</h1><div class="page-actions">${overdueCount ? `<span class="badge red">${overdueCount} in ritardo</span>` : ''}<button class="btn btn-secondary btn-sm" onclick="exportPaymentsCSV()">📊 Export</button><button class="btn btn-secondary" onclick="openModal('bulkPayments')">📅 Genera Multipli</button><button class="btn" onclick="openModal('addPayment')">+ Registra</button></div></div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px">
+                <div class="card" style="padding:16px;text-align:center"><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase">Totale Pagamenti</div><div style="font-size:24px;font-weight:600;margin-top:4px">${S.payments.length}</div></div>
+                <div class="card" style="padding:16px;text-align:center;background:var(--green-light)"><div style="font-size:11px;color:var(--green);text-transform:uppercase">Incassato</div><div style="font-size:24px;font-weight:600;margin-top:4px;color:var(--green)">€${paidTotal.toLocaleString('it-IT')}</div></div>
+                <div class="card" style="padding:16px;text-align:center;background:var(--orange-light)"><div style="font-size:11px;color:var(--orange);text-transform:uppercase">In Attesa</div><div style="font-size:24px;font-weight:600;margin-top:4px;color:var(--orange)">€${pendingTotal.toLocaleString('it-IT')}</div></div>
+            </div>
+            <div class="card"><div class="card-body flush">${S.payments.sort((a,b) => (b.month || '').localeCompare(a.month || '')).map(p => {
                 const c = S.contracts.find(x => x.id === p.contractId);
                 const prop = c ? S.properties.find(x => x.id === c.propertyId) : null;
                 const t = c ? S.users.find(x => x.id === c.tenantId) : null;
                 const overdue = p.status === 'pending' && isOverdue(p.dueDate);
-                return `<div class="list-item"><div class="list-icon" style="background:${p.status === 'paid' ? 'var(--green-light)' : overdue ? 'var(--red-light)' : 'var(--orange-light)'}">${p.status === 'paid' ? '✓' : overdue ? '⚠️' : '⏳'}</div><div class="list-content"><div class="list-title">${prop?.name || 'Pagamento'} · ${p.month || ''}</div><div class="list-subtitle">${t?.name || ''} · ${p.status === 'paid' ? 'Pagato ' + fmtDate(p.paidDate) : 'Scadenza ' + fmtDate(p.dueDate)}</div></div><div class="list-value ${p.status === 'paid' ? 'text-green' : overdue ? 'text-red' : 'text-gold'}">€${p.amount || 0}</div>${p.status === 'pending' ? `<button class="btn btn-xs btn-success" onclick="markPaymentPaid('${p.id}')">✓</button>` : ''}</div>`;
-            }).join('') || '<div class="empty-state"><div class="empty-icon">💳</div><div class="empty-title">Nessun pagamento</div></div>'}</div></div>`;
+                return `<div class="list-item clickable" onclick="openModal('editPayment',S.payments.find(x=>x.id==='${p.id}'))"><div class="list-icon" style="background:${p.status === 'paid' ? 'var(--green-light)' : overdue ? 'var(--red-light)' : 'var(--orange-light)'}">${p.status === 'paid' ? '✓' : overdue ? '⚠️' : '⏳'}</div><div class="list-content"><div class="list-title">${prop?.name || 'Pagamento'} · ${p.month || ''}</div><div class="list-subtitle">${t?.name || ''} · ${p.status === 'paid' ? 'Pagato ' + fmtDate(p.paidDate) : 'Scadenza ' + fmtDate(p.dueDate)}</div></div><div class="list-value ${p.status === 'paid' ? 'text-green' : overdue ? 'text-red' : 'text-gold'}">€${p.amount || 0}</div>${p.status === 'pending' ? `<button class="btn btn-xs btn-success" onclick="event.stopPropagation();markPaymentPaid('${p.id}')">✓</button>` : ''}</div>`;
+            }).join('') || '<div class="empty-state"><div class="empty-icon">💳</div><div class="empty-title">Nessun pagamento</div><button class="btn" onclick="openModal(\'bulkPayments\')">📅 Genera Pagamenti</button></div>'}</div></div>`;
     }
 
     function maintenancePage() {
@@ -2430,13 +2437,27 @@
 
         if (type === 'editUser') { const u = extra; if (!u) return ''; return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">✏️ Modifica Utente</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="updateUser(event)"><input type="hidden" name="id" value="${u.id}"><div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="name" value="${u.name || ''}" required></div><div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" value="${u.email || ''}" disabled style="opacity:0.6"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Ruolo</label><select class="form-select" name="role"><option value="tenant" ${u.role === 'tenant' ? 'selected' : ''}>🔑 Inquilino</option><option value="landlord" ${u.role === 'landlord' ? 'selected' : ''}>🏠 Proprietario</option><option value="admin" ${u.role === 'admin' ? 'selected' : ''}>👑 Admin</option></select></div><div class="form-group"><label class="form-label">Telefono</label><input type="tel" class="form-input" name="phone" value="${u.phone || ''}" placeholder="+39..."></div></div><div class="form-row"><div class="form-group"><label class="form-label">Codice Fiscale</label><input type="text" class="form-input" name="codiceFiscale" value="${u.codiceFiscale || ''}" placeholder="RSSMRA85M01H501Z" maxlength="16" style="text-transform:uppercase"></div><div class="form-group"><label class="form-label">IBAN</label><input type="text" class="form-input" name="iban" value="${u.iban || ''}" placeholder="IT60X0542811101000000123456"></div></div><div class="form-group"><label class="form-label">Indirizzo</label><input type="text" class="form-input" name="address" value="${u.address || ''}" placeholder="Via Roma 123, 00100 Roma"></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes" rows="2" placeholder="Note interne...">${u.notes || ''}</textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Salva</button></div></div></div>`; }
 
-        if (type === 'addProperty') { const landlords = S.users.filter(u => u.role === 'landlord'); return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">🏠 Nuovo Immobile</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="saveProperty(event)"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="name" required placeholder="Es: Trastevere Terrace"></div><div class="form-group"><label class="form-label">Indirizzo</label><input type="text" class="form-input" name="address" placeholder="Via Roma 123, Roma"></div><div class="form-row"><div class="form-group"><label class="form-label">Proprietario *</label><select class="form-select" name="ownerId" required><option value="">Seleziona...</option>${landlords.map(l => `<option value="${l.id}">${l.name}</option>`).join('')}</select></div><div class="form-group"><label class="form-label">Affitto € *</label><input type="number" class="form-input" name="rent" required></div></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Crea</button></div></div></div>`; }
+        if (type === 'addProperty') { const landlords = S.users.filter(u => u.role === 'landlord'); return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">🏠 Nuovo Immobile</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="saveProperty(event)"><div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="name" required placeholder="Es: Trastevere Terrace"></div><div class="form-group"><label class="form-label">Proprietario *</label><select class="form-select" name="ownerId" required><option value="">Seleziona...</option>${landlords.map(l => `<option value="${l.id}">${l.name}</option>`).join('')}</select></div></div><div class="form-group"><label class="form-label">Indirizzo</label><input type="text" class="form-input" name="address" placeholder="Via Roma 123, 00100 Roma"></div><div class="form-row"><div class="form-group"><label class="form-label">Affitto €/mese *</label><input type="number" class="form-input" name="rent" required></div><div class="form-group"><label class="form-label">Superficie m²</label><input type="number" class="form-input" name="sqm" placeholder="65"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Stanze</label><input type="number" class="form-input" name="rooms" placeholder="3"></div><div class="form-group"><label class="form-label">Bagni</label><input type="number" class="form-input" name="bathrooms" placeholder="1"></div><div class="form-group"><label class="form-label">Piano</label><input type="text" class="form-input" name="floor" placeholder="3° / 5"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Anno Costruzione</label><input type="number" class="form-input" name="yearBuilt" placeholder="1965"></div><div class="form-group"><label class="form-label">Tipo</label><select class="form-select" name="propertyType"><option value="apartment">Appartamento</option><option value="studio">Monolocale</option><option value="room">Stanza</option><option value="house">Casa</option><option value="loft">Loft</option></select></div></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes" rows="2" placeholder="Caratteristiche, condizioni..."></textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Crea</button></div></div></div>`; }
 
-        if (type === 'addContract') { const tenants = S.users.filter(u => u.role === 'tenant'); const props = S.properties.filter(p => !S.contracts.some(c => c.propertyId === p.id && c.status === 'active')); return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">📋 Nuovo Contratto</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="saveContract(event)"><div class="form-row"><div class="form-group"><label class="form-label">Immobile *</label><select class="form-select" name="propertyId" required onchange="fillContractRent(this)"><option value="">Seleziona...</option>${props.map(p => `<option value="${p.id}" data-rent="${p.rent}">${p.name} €${p.rent}</option>`).join('')}</select></div><div class="form-group"><label class="form-label">Inquilino *</label><select class="form-select" name="tenantId" required><option value="">Seleziona...</option>${tenants.map(t => `<option value="${t.id}">${t.name}</option>`).join('')}</select></div></div><div class="form-row"><div class="form-group"><label class="form-label">Inizio *</label><input type="date" class="form-input" name="startDate" required></div><div class="form-group"><label class="form-label">Fine *</label><input type="date" class="form-input" name="endDate" required></div></div><div class="form-row"><div class="form-group"><label class="form-label">Affitto € *</label><input type="number" class="form-input" name="rent" id="cRent" required></div><div class="form-group"><label class="form-label">Deposito €</label><input type="number" class="form-input" name="deposit"></div></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Crea</button></div></div></div>`; }
+        if (type === 'editProperty') { const p = extra; if (!p) return ''; const landlords = S.users.filter(u => u.role === 'landlord'); return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">✏️ Modifica Immobile</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="updateProperty(event,'${p.id}')"><div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="name" value="${p.name || ''}" required></div><div class="form-group"><label class="form-label">Proprietario *</label><select class="form-select" name="ownerId" required>${landlords.map(l => `<option value="${l.id}" ${p.ownerId === l.id ? 'selected' : ''}>${l.name}</option>`).join('')}</select></div></div><div class="form-group"><label class="form-label">Indirizzo</label><input type="text" class="form-input" name="address" value="${p.address || ''}"></div><div class="form-row"><div class="form-group"><label class="form-label">Affitto €/mese *</label><input type="number" class="form-input" name="rent" value="${p.rent || ''}" required></div><div class="form-group"><label class="form-label">Superficie m²</label><input type="number" class="form-input" name="sqm" value="${p.sqm || ''}"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Stanze</label><input type="number" class="form-input" name="rooms" value="${p.rooms || ''}"></div><div class="form-group"><label class="form-label">Bagni</label><input type="number" class="form-input" name="bathrooms" value="${p.bathrooms || ''}"></div><div class="form-group"><label class="form-label">Piano</label><input type="text" class="form-input" name="floor" value="${p.floor || ''}"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Anno Costruzione</label><input type="number" class="form-input" name="yearBuilt" value="${p.yearBuilt || ''}"></div><div class="form-group"><label class="form-label">Tipo</label><select class="form-select" name="propertyType"><option value="apartment" ${p.propertyType === 'apartment' ? 'selected' : ''}>Appartamento</option><option value="studio" ${p.propertyType === 'studio' ? 'selected' : ''}>Monolocale</option><option value="room" ${p.propertyType === 'room' ? 'selected' : ''}>Stanza</option><option value="house" ${p.propertyType === 'house' ? 'selected' : ''}>Casa</option><option value="loft" ${p.propertyType === 'loft' ? 'selected' : ''}>Loft</option></select></div></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes" rows="2">${p.notes || ''}</textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Salva</button></div></div></div>`; }
+
+        if (type === 'addContract') { const tenants = S.users.filter(u => u.role === 'tenant'); const props = S.properties.filter(p => !S.contracts.some(c => c.propertyId === p.id && c.status === 'active')); return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">📋 Nuovo Contratto</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="saveContract(event)"><div class="form-row"><div class="form-group"><label class="form-label">Immobile *</label><select class="form-select" name="propertyId" required onchange="fillContractRent(this)"><option value="">Seleziona...</option>${props.map(p => `<option value="${p.id}" data-rent="${p.rent}">${p.name} €${p.rent}</option>`).join('')}</select></div><div class="form-group"><label class="form-label">Inquilino *</label><select class="form-select" name="tenantId" required><option value="">Seleziona...</option>${tenants.map(t => `<option value="${t.id}">${t.name}</option>`).join('')}</select></div></div><div class="form-row"><div class="form-group"><label class="form-label">Inizio *</label><input type="date" class="form-input" name="startDate" required></div><div class="form-group"><label class="form-label">Fine *</label><input type="date" class="form-input" name="endDate" required></div></div><div class="form-row"><div class="form-group"><label class="form-label">Affitto € *</label><input type="number" class="form-input" name="rent" id="cRent" required></div><div class="form-group"><label class="form-label">Deposito €</label><input type="number" class="form-input" name="deposit"></div></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes" rows="2" placeholder="Condizioni particolari..."></textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Crea</button></div></div></div>`; }
+
+        if (type === 'editContract') { const c = extra; if (!c) return ''; const tenants = S.users.filter(u => u.role === 'tenant'); const props = S.properties; return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">✏️ Modifica Contratto</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="updateContract(event,'${c.id}')"><div class="form-row"><div class="form-group"><label class="form-label">Immobile</label><select class="form-select" name="propertyId">${props.map(p => `<option value="${p.id}" ${c.propertyId === p.id ? 'selected' : ''}>${p.name}</option>`).join('')}</select></div><div class="form-group"><label class="form-label">Inquilino</label><select class="form-select" name="tenantId">${tenants.map(t => `<option value="${t.id}" ${c.tenantId === t.id ? 'selected' : ''}>${t.name}</option>`).join('')}</select></div></div><div class="form-row"><div class="form-group"><label class="form-label">Inizio</label><input type="date" class="form-input" name="startDate" value="${c.startDate || ''}"></div><div class="form-group"><label class="form-label">Fine</label><input type="date" class="form-input" name="endDate" value="${c.endDate || ''}"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Affitto €</label><input type="number" class="form-input" name="rent" value="${c.rent || ''}"></div><div class="form-group"><label class="form-label">Deposito €</label><input type="number" class="form-input" name="deposit" value="${c.deposit || ''}"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Stato</label><select class="form-select" name="status"><option value="active" ${c.status === 'active' ? 'selected' : ''}>Attivo</option><option value="expired" ${c.status === 'expired' ? 'selected' : ''}>Scaduto</option><option value="terminated" ${c.status === 'terminated' ? 'selected' : ''}>Terminato</option></select></div></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes" rows="2">${c.notes || ''}</textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Salva</button></div></div></div>`; }
+
+        if (type === 'renewContract') { const c = extra; if (!c) return ''; const p = S.properties.find(x => x.id === c.propertyId); const currentEnd = c.endDate ? new Date(c.endDate) : new Date(); const newEnd = new Date(currentEnd); newEnd.setFullYear(newEnd.getFullYear() + 1); return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">🔄 Rinnova Contratto</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><div style="background:var(--surface);padding:16px;border-radius:8px;margin-bottom:16px"><div style="font-weight:600;margin-bottom:8px">${p?.name || 'Immobile'}</div><div style="font-size:13px;color:var(--text-muted)">Scadenza attuale: ${fmtDate(c.endDate)}</div></div><form id="mForm" onsubmit="renewContract(event,'${c.id}')"><div class="form-group"><label class="form-label">Nuova Data Fine *</label><input type="date" class="form-input" name="newEndDate" value="${newEnd.toISOString().split('T')[0]}" required></div><div class="form-row"><div class="form-group"><label class="form-label">Nuovo Affitto €</label><input type="number" class="form-input" name="newRent" value="${c.rent || ''}" placeholder="Lascia vuoto per mantenere"></div><div class="form-group"><label class="form-label">Adeguamento %</label><input type="number" class="form-input" name="adjustment" placeholder="Es: 2 per +2%"></div></div><div class="form-group"><label class="form-label">Note Rinnovo</label><textarea class="form-textarea" name="renewalNotes" rows="2" placeholder="Es: Rinnovo annuale con adeguamento ISTAT..."></textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">🔄 Rinnova</button></div></div></div>`; }
+
+        if (type === 'terminateContract') { const c = extra; if (!c) return ''; const p = S.properties.find(x => x.id === c.propertyId); const t = S.users.find(x => x.id === c.tenantId); return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">⛔ Termina Contratto</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><div style="background:var(--red-light);padding:16px;border-radius:8px;margin-bottom:16px;border:1px solid var(--red)"><div style="font-weight:600;color:var(--red);margin-bottom:8px">⚠️ Attenzione</div><div style="font-size:13px">Stai per terminare anticipatamente il contratto per <strong>${p?.name}</strong> con <strong>${t?.name}</strong>.</div></div><form id="mForm" onsubmit="terminateContract(event,'${c.id}')"><div class="form-group"><label class="form-label">Data Termine Effettivo *</label><input type="date" class="form-input" name="terminationDate" value="${new Date().toISOString().split('T')[0]}" required></div><div class="form-group"><label class="form-label">Motivo Termine</label><select class="form-select" name="terminationReason"><option value="mutual">Accordo reciproco</option><option value="tenant_request">Richiesta inquilino</option><option value="landlord_request">Richiesta proprietario</option><option value="breach">Violazione contrattuale</option><option value="other">Altro</option></select></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="terminationNotes" rows="2" placeholder="Dettagli sulla chiusura..."></textarea></div><div class="form-row"><div class="form-group"><label class="form-label">Deposito Restituito €</label><input type="number" class="form-input" name="depositReturned" value="${c.deposit || 0}"></div><div class="form-group"><label class="form-label">Trattenute €</label><input type="number" class="form-input" name="depositWithheld" value="0"></div></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn btn-danger" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">⛔ Termina</button></div></div></div>`; }
 
         if (type === 'addPayment') { const contracts = S.contracts.filter(c => c.status === 'active'); return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">💳 Registra Pagamento</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="savePayment(event)"><div class="form-group"><label class="form-label">Contratto *</label><select class="form-select" name="contractId" required onchange="fillPayAmount(this)"><option value="">Seleziona...</option>${contracts.map(c => { const p = S.properties.find(x => x.id === c.propertyId); const t = S.users.find(x => x.id === c.tenantId); return `<option value="${c.id}" data-rent="${c.rent}">${p?.name} - ${t?.name} €${c.rent}</option>`; }).join('')}</select></div><div class="form-row"><div class="form-group"><label class="form-label">Mese</label><input type="month" class="form-input" name="month" value="${new Date().toISOString().slice(0, 7)}"></div><div class="form-group"><label class="form-label">Importo € *</label><input type="number" class="form-input" name="amount" id="pAmount" required></div></div><div class="form-row"><div class="form-group"><label class="form-label">Scadenza</label><input type="date" class="form-input" name="dueDate" value="${new Date(new Date().getFullYear(), new Date().getMonth() + 1, 5).toISOString().split('T')[0]}"></div><div class="form-group"><label class="form-label">Stato</label><select class="form-select" name="status"><option value="pending">In Attesa</option><option value="paid">Pagato</option></select></div></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Registra</button></div></div></div>`; }
 
+        if (type === 'editPayment') { const pay = extra; if (!pay) return ''; const contracts = S.contracts; return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">✏️ Modifica Pagamento</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="updatePayment(event,'${pay.id}')"><div class="form-group"><label class="form-label">Contratto</label><select class="form-select" name="contractId">${contracts.map(c => { const p = S.properties.find(x => x.id === c.propertyId); return `<option value="${c.id}" ${pay.contractId === c.id ? 'selected' : ''}>${p?.name}</option>`; }).join('')}</select></div><div class="form-row"><div class="form-group"><label class="form-label">Mese</label><input type="month" class="form-input" name="month" value="${pay.month || ''}"></div><div class="form-group"><label class="form-label">Importo €</label><input type="number" class="form-input" name="amount" value="${pay.amount || ''}"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Scadenza</label><input type="date" class="form-input" name="dueDate" value="${pay.dueDate || ''}"></div><div class="form-group"><label class="form-label">Stato</label><select class="form-select" name="status"><option value="pending" ${pay.status === 'pending' ? 'selected' : ''}>In Attesa</option><option value="paid" ${pay.status === 'paid' ? 'selected' : ''}>Pagato</option></select></div></div><div class="form-group"><label class="form-label">Data Pagamento</label><input type="date" class="form-input" name="paidDate" value="${pay.paidDate ? pay.paidDate.split('T')[0] : ''}"></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes" rows="2">${pay.notes || ''}</textarea></div></form></div><div class="modal-footer"><button class="btn btn-danger btn-sm" onclick="confirmDelete('payment','${pay.id}','Pagamento ${pay.month}')">🗑</button><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Salva</button></div></div></div>`; }
+
+        if (type === 'bulkPayments') { const contracts = S.contracts.filter(c => c.status === 'active'); return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">📅 Genera Pagamenti Multipli</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="generateBulkPayments(event)"><div class="form-group"><label class="form-label">Contratto *</label><select class="form-select" name="contractId" required><option value="">Seleziona...</option>${contracts.map(c => { const p = S.properties.find(x => x.id === c.propertyId); const t = S.users.find(x => x.id === c.tenantId); return `<option value="${c.id}" data-rent="${c.rent}">${p?.name} - ${t?.name} €${c.rent}</option>`; }).join('')}</select></div><div class="form-row"><div class="form-group"><label class="form-label">Da Mese *</label><input type="month" class="form-input" name="startMonth" value="${new Date().toISOString().slice(0, 7)}" required></div><div class="form-group"><label class="form-label">Numero Mesi *</label><select class="form-select" name="numMonths"><option value="3">3 mesi</option><option value="6">6 mesi</option><option value="12" selected>12 mesi (1 anno)</option><option value="24">24 mesi (2 anni)</option></select></div></div><div class="form-row"><div class="form-group"><label class="form-label">Giorno Scadenza</label><input type="number" class="form-input" name="dueDay" value="5" min="1" max="28"></div><div class="form-group"><label class="form-label">Importo € (vuoto = da contratto)</label><input type="number" class="form-input" name="amount" placeholder="Auto"></div></div></form><div style="background:var(--surface);padding:12px;border-radius:8px;margin-top:16px;font-size:12px;color:var(--text-muted)">💡 Verranno generati pagamenti mensili con stato "In Attesa". I mesi già esistenti verranno saltati.</div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">📅 Genera</button></div></div></div>`; }
+
         if (type === 'addMaintenance') return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">🔧 Nuova Manutenzione</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="saveMaintenance(event)"><div class="form-group"><label class="form-label">Titolo *</label><input type="text" class="form-input" name="title" required></div><div class="form-group"><label class="form-label">Immobile *</label><select class="form-select" name="propertyId" required><option value="">Seleziona...</option>${S.properties.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}</select></div><div class="form-row"><div class="form-group"><label class="form-label">Categoria</label><select class="form-select" name="category"><option value="plumbing">Idraulica</option><option value="electrical">Elettricità</option><option value="heating">Riscaldamento</option><option value="other">Altro</option></select></div><div class="form-group"><label class="form-label">Priorità</label><select class="form-select" name="priority"><option value="low">Bassa</option><option value="medium" selected>Media</option><option value="high">Alta</option><option value="urgent">Urgente</option></select></div></div><div class="form-group"><label class="form-label">Descrizione</label><textarea class="form-textarea" name="description"></textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Invia</button></div></div></div>`;
+
+        if (type === 'editMaintenance') { const m = extra; if (!m) return ''; return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">✏️ Modifica Manutenzione</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="updateMaintenance(event,'${m.id}')"><div class="form-group"><label class="form-label">Titolo *</label><input type="text" class="form-input" name="title" value="${m.title || ''}" required></div><div class="form-group"><label class="form-label">Immobile</label><select class="form-select" name="propertyId">${S.properties.map(p => `<option value="${p.id}" ${m.propertyId === p.id ? 'selected' : ''}>${p.name}</option>`).join('')}</select></div><div class="form-row"><div class="form-group"><label class="form-label">Categoria</label><select class="form-select" name="category"><option value="plumbing" ${m.category === 'plumbing' ? 'selected' : ''}>Idraulica</option><option value="electrical" ${m.category === 'electrical' ? 'selected' : ''}>Elettricità</option><option value="heating" ${m.category === 'heating' ? 'selected' : ''}>Riscaldamento</option><option value="appliance" ${m.category === 'appliance' ? 'selected' : ''}>Elettrodomestici</option><option value="other" ${m.category === 'other' ? 'selected' : ''}>Altro</option></select></div><div class="form-group"><label class="form-label">Priorità</label><select class="form-select" name="priority"><option value="low" ${m.priority === 'low' ? 'selected' : ''}>Bassa</option><option value="medium" ${m.priority === 'medium' ? 'selected' : ''}>Media</option><option value="high" ${m.priority === 'high' ? 'selected' : ''}>Alta</option><option value="urgent" ${m.priority === 'urgent' ? 'selected' : ''}>Urgente</option></select></div></div><div class="form-group"><label class="form-label">Stato</label><select class="form-select" name="status"><option value="pending" ${m.status === 'pending' ? 'selected' : ''}>🟡 In Attesa</option><option value="in_progress" ${m.status === 'in_progress' ? 'selected' : ''}>🔵 In Corso</option><option value="resolved" ${m.status === 'resolved' ? 'selected' : ''}>🟢 Risolto</option></select></div><div class="form-group"><label class="form-label">Descrizione</label><textarea class="form-textarea" name="description" rows="3">${m.description || ''}</textarea></div><div class="form-row"><div class="form-group"><label class="form-label">Costo €</label><input type="number" class="form-input" name="cost" value="${m.cost || ''}"></div><div class="form-group"><label class="form-label">Tecnico/Fornitore</label><input type="text" class="form-input" name="technician" value="${m.technician || ''}"></div></div><div class="form-group"><label class="form-label">Note Risoluzione</label><textarea class="form-textarea" name="resolutionNotes" rows="2">${m.resolutionNotes || ''}</textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Salva</button></div></div></div>`; }
 
         if (type === 'addTenantMaintenance') { const myContract = getMyContracts().find(c => c.status === 'active'); const myProp = myContract ? S.properties.find(p => p.id === myContract.propertyId) : null; return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">🔧 Richiedi Manutenzione</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="saveTenantMaintenance(event)"><div class="form-group"><label class="form-label">Immobile</label><input type="text" class="form-input" value="${myProp?.name || 'N/A'}" readonly><input type="hidden" name="propertyId" value="${myProp?.id || ''}"></div><div class="form-group"><label class="form-label">Titolo *</label><input type="text" class="form-input" name="title" required placeholder="Es: Rubinetto perde"></div><div class="form-row"><div class="form-group"><label class="form-label">Categoria</label><select class="form-select" name="category"><option value="plumbing">Idraulica</option><option value="electrical">Elettricità</option><option value="heating">Riscaldamento</option><option value="appliance">Elettrodomestici</option><option value="other">Altro</option></select></div><div class="form-group"><label class="form-label">Urgenza</label><select class="form-select" name="priority"><option value="low">Non urgente</option><option value="medium" selected>Normale</option><option value="high">Urgente</option></select></div></div><div class="form-group"><label class="form-label">Descrizione</label><textarea class="form-textarea" name="description" placeholder="Descrivi il problema in dettaglio..."></textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Invia Richiesta</button></div></div></div>`; }
 
@@ -2654,8 +2675,17 @@
         const data = Object.fromEntries(new FormData(e.target));
         try {
             await db.collection('properties').add({
-                name: data.name, address: data.address || '', ownerId: data.ownerId,
-                rent: parseInt(data.rent) || 0, type: 'apartment',
+                name: data.name, 
+                address: data.address || '', 
+                ownerId: data.ownerId,
+                rent: parseInt(data.rent) || 0, 
+                sqm: parseInt(data.sqm) || null,
+                rooms: parseInt(data.rooms) || null,
+                bathrooms: parseInt(data.bathrooms) || null,
+                floor: data.floor || '',
+                yearBuilt: parseInt(data.yearBuilt) || null,
+                propertyType: data.propertyType || 'apartment',
+                notes: data.notes || '',
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
             closeModal(); await refresh(); toast('success', 'Immobile creato!');
@@ -2667,10 +2697,15 @@
         const data = Object.fromEntries(new FormData(e.target));
         try {
             await db.collection('contracts').add({
-                propertyId: data.propertyId, tenantId: data.tenantId,
-                startDate: data.startDate, endDate: data.endDate,
-                rent: parseInt(data.rent) || 0, deposit: parseInt(data.deposit) || 0,
-                status: 'active', createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                propertyId: data.propertyId, 
+                tenantId: data.tenantId,
+                startDate: data.startDate, 
+                endDate: data.endDate,
+                rent: parseInt(data.rent) || 0, 
+                deposit: parseInt(data.deposit) || 0,
+                notes: data.notes || '',
+                status: 'active', 
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
             closeModal(); await refresh(); toast('success', 'Contratto creato!');
         } catch (err) { toast('error', 'Errore', err.message); }
@@ -2721,6 +2756,189 @@
                 userId: S.profile.id, status: 'open', createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
             closeModal(); await refresh(); toast('success', 'Richiesta inviata!');
+        } catch (err) { toast('error', 'Errore', err.message); }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // UPDATE FUNCTIONS
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    async function updateProperty(e, id) {
+        e.preventDefault();
+        const data = Object.fromEntries(new FormData(e.target));
+        try {
+            await db.collection('properties').doc(id).update({
+                name: data.name,
+                address: data.address || '',
+                ownerId: data.ownerId,
+                rent: parseInt(data.rent) || 0,
+                sqm: parseInt(data.sqm) || null,
+                rooms: parseInt(data.rooms) || null,
+                bathrooms: parseInt(data.bathrooms) || null,
+                floor: data.floor || '',
+                yearBuilt: parseInt(data.yearBuilt) || null,
+                propertyType: data.propertyType || 'apartment',
+                notes: data.notes || '',
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            closeModal(); await refresh(); toast('success', 'Immobile aggiornato!');
+        } catch (err) { toast('error', 'Errore', err.message); }
+    }
+
+    async function updateContract(e, id) {
+        e.preventDefault();
+        const data = Object.fromEntries(new FormData(e.target));
+        try {
+            await db.collection('contracts').doc(id).update({
+                propertyId: data.propertyId,
+                tenantId: data.tenantId,
+                startDate: data.startDate,
+                endDate: data.endDate,
+                rent: parseInt(data.rent) || 0,
+                deposit: parseInt(data.deposit) || 0,
+                status: data.status,
+                notes: data.notes || '',
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            closeModal(); await refresh(); toast('success', 'Contratto aggiornato!');
+        } catch (err) { toast('error', 'Errore', err.message); }
+    }
+
+    async function renewContract(e, id) {
+        e.preventDefault();
+        const data = Object.fromEntries(new FormData(e.target));
+        const contract = S.contracts.find(c => c.id === id);
+        if (!contract) return;
+        
+        let newRent = contract.rent;
+        if (data.newRent) {
+            newRent = parseInt(data.newRent);
+        } else if (data.adjustment) {
+            newRent = Math.round(contract.rent * (1 + parseFloat(data.adjustment) / 100));
+        }
+        
+        try {
+            await db.collection('contracts').doc(id).update({
+                endDate: data.newEndDate,
+                rent: newRent,
+                renewalHistory: firebase.firestore.FieldValue.arrayUnion({
+                    date: new Date().toISOString(),
+                    previousEnd: contract.endDate,
+                    newEnd: data.newEndDate,
+                    previousRent: contract.rent,
+                    newRent: newRent,
+                    notes: data.renewalNotes || ''
+                }),
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            closeModal(); await refresh(); toast('success', 'Contratto rinnovato!', `Nuova scadenza: ${fmtDate(data.newEndDate)}`);
+        } catch (err) { toast('error', 'Errore', err.message); }
+    }
+
+    async function terminateContract(e, id) {
+        e.preventDefault();
+        const data = Object.fromEntries(new FormData(e.target));
+        try {
+            await db.collection('contracts').doc(id).update({
+                status: 'terminated',
+                terminatedAt: data.terminationDate,
+                terminationReason: data.terminationReason || 'other',
+                terminationNotes: data.terminationNotes || '',
+                depositReturned: parseInt(data.depositReturned) || 0,
+                depositWithheld: parseInt(data.depositWithheld) || 0,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            closeModal(); await refresh(); toast('success', 'Contratto terminato');
+        } catch (err) { toast('error', 'Errore', err.message); }
+    }
+
+    async function updatePayment(e, id) {
+        e.preventDefault();
+        const data = Object.fromEntries(new FormData(e.target));
+        try {
+            await db.collection('payments').doc(id).update({
+                contractId: data.contractId,
+                month: data.month || '',
+                amount: parseInt(data.amount) || 0,
+                dueDate: data.dueDate || null,
+                status: data.status,
+                paidDate: data.status === 'paid' && data.paidDate ? data.paidDate : (data.status === 'paid' ? new Date().toISOString() : null),
+                notes: data.notes || '',
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            closeModal(); await refresh(); toast('success', 'Pagamento aggiornato!');
+        } catch (err) { toast('error', 'Errore', err.message); }
+    }
+
+    async function generateBulkPayments(e) {
+        e.preventDefault();
+        const data = Object.fromEntries(new FormData(e.target));
+        const contract = S.contracts.find(c => c.id === data.contractId);
+        if (!contract) return toast('error', 'Contratto non trovato');
+        
+        const amount = data.amount ? parseInt(data.amount) : contract.rent;
+        const dueDay = parseInt(data.dueDay) || 5;
+        const numMonths = parseInt(data.numMonths) || 12;
+        const startMonth = new Date(data.startMonth + '-01');
+        
+        const existingMonths = S.payments
+            .filter(p => p.contractId === data.contractId)
+            .map(p => p.month);
+        
+        let created = 0, skipped = 0;
+        
+        try {
+            for (let i = 0; i < numMonths; i++) {
+                const payMonth = new Date(startMonth);
+                payMonth.setMonth(payMonth.getMonth() + i);
+                const monthStr = payMonth.toISOString().slice(0, 7);
+                
+                if (existingMonths.includes(monthStr)) {
+                    skipped++;
+                    continue;
+                }
+                
+                const dueDate = new Date(payMonth.getFullYear(), payMonth.getMonth(), dueDay);
+                
+                await db.collection('payments').add({
+                    contractId: data.contractId,
+                    month: monthStr,
+                    amount: amount,
+                    dueDate: dueDate.toISOString().split('T')[0],
+                    status: 'pending',
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                created++;
+            }
+            
+            closeModal(); await refresh();
+            toast('success', `${created} pagamenti creati!`, skipped > 0 ? `${skipped} già esistenti saltati` : '');
+        } catch (err) { toast('error', 'Errore', err.message); }
+    }
+
+    async function updateMaintenance(e, id) {
+        e.preventDefault();
+        const data = Object.fromEntries(new FormData(e.target));
+        const updateData = {
+            title: data.title,
+            propertyId: data.propertyId,
+            category: data.category || 'other',
+            priority: data.priority || 'medium',
+            status: data.status || 'pending',
+            description: data.description || '',
+            cost: data.cost ? parseInt(data.cost) : null,
+            technician: data.technician || '',
+            resolutionNotes: data.resolutionNotes || '',
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        
+        if (data.status === 'resolved') {
+            updateData.resolvedAt = firebase.firestore.FieldValue.serverTimestamp();
+        }
+        
+        try {
+            await db.collection('maintenance').doc(id).update(updateData);
+            closeModal(); await refresh(); toast('success', 'Manutenzione aggiornata!');
         } catch (err) { toast('error', 'Errore', err.message); }
     }
 
@@ -2868,23 +3086,41 @@
         const contracts = S.contracts.filter(c => c.propertyId === id);
         const activeContract = contracts.find(c => c.status === 'active');
         const tenant = activeContract ? S.users.find(u => u.id === activeContract.tenantId) : null;
+        const propTypeLabels = { apartment: 'Appartamento', studio: 'Monolocale', room: 'Stanza', house: 'Casa', loft: 'Loft' };
         document.getElementById('modals').innerHTML = `<div class="modal-overlay active"><div class="modal lg">
             <div class="modal-header"><h3 class="modal-title">🏠 ${p.name}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
-            <div class="modal-body">
-                <div class="detail-badges mb-16"><span class="badge ${activeContract ? 'green' : 'gray'}">${activeContract ? 'Affittato' : 'Libero'}</span></div>
+            <div class="modal-body" style="max-height:70vh;overflow-y:auto">
+                <div class="detail-badges mb-16">
+                    <span class="badge ${activeContract ? 'green' : 'gray'}">${activeContract ? 'Affittato' : 'Libero'}</span>
+                    <span class="badge gray">${propTypeLabels[p.propertyType] || 'Appartamento'}</span>
+                </div>
+                <div class="section-title" style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:12px">📍 Dettagli Immobile</div>
                 <div class="detail-grid">
                     <div><div class="detail-label">Indirizzo</div><div class="detail-value">${p.address || 'Roma'}</div></div>
                     <div><div class="detail-label">Affitto</div><div class="detail-value text-gold">€${p.rent}/mese</div></div>
+                    <div><div class="detail-label">Superficie</div><div class="detail-value">${p.sqm ? p.sqm + ' m²' : '—'}</div></div>
+                    <div><div class="detail-label">Stanze</div><div class="detail-value">${p.rooms || '—'}</div></div>
+                    <div><div class="detail-label">Bagni</div><div class="detail-value">${p.bathrooms || '—'}</div></div>
+                    <div><div class="detail-label">Piano</div><div class="detail-value">${p.floor || '—'}</div></div>
+                    <div><div class="detail-label">Anno</div><div class="detail-value">${p.yearBuilt || '—'}</div></div>
                     <div><div class="detail-label">Proprietario</div><div class="detail-value">${owner?.name || 'N/A'}</div></div>
-                    <div><div class="detail-label">Email Proprietario</div><div class="detail-value">${owner?.email || 'N/A'}</div></div>
-                    ${activeContract ? `<div><div class="detail-label">Inquilino</div><div class="detail-value">${tenant?.name || 'N/A'}</div></div>
-                    <div><div class="detail-label">Email Inquilino</div><div class="detail-value">${tenant?.email || 'N/A'}</div></div>
-                    <div><div class="detail-label">Contratto</div><div class="detail-value">${fmtDate(activeContract.startDate)} → ${fmtDate(activeContract.endDate)}</div></div>
-                    <div><div class="detail-label">Deposito</div><div class="detail-value">€${activeContract.deposit || 0}</div></div>` : ''}
                 </div>
-                ${contracts.length ? `<div class="mt-16"><div class="detail-label">Storico Contratti (${contracts.length})</div><div style="margin-top:8px">${contracts.map(c => { const t = S.users.find(u => u.id === c.tenantId); return `<div style="padding:8px 0;border-bottom:1px solid var(--border);font-size:13px"><span class="badge ${c.status === 'active' ? 'green' : 'gray'}" style="margin-right:8px">${c.status === 'active' ? 'Attivo' : 'Scaduto'}</span>${t?.name || 'Inquilino'} · ${fmtDate(c.startDate)} → ${fmtDate(c.endDate)} · €${c.rent}/mese</div>`; }).join('')}</div></div>` : ''}
+                ${p.notes ? `<div class="mt-16"><div class="detail-label">Note</div><div class="detail-value" style="background:var(--surface);padding:10px;border-radius:8px;font-size:13px;margin-top:6px">${p.notes}</div></div>` : ''}
+                ${activeContract ? `
+                <div class="section-title mt-16" style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:12px">👤 Inquilino Attuale</div>
+                <div class="detail-grid">
+                    <div><div class="detail-label">Nome</div><div class="detail-value">${tenant?.name || 'N/A'}</div></div>
+                    <div><div class="detail-label">Email</div><div class="detail-value">${tenant?.email || 'N/A'}</div></div>
+                    <div><div class="detail-label">Contratto</div><div class="detail-value">${fmtDate(activeContract.startDate)} → ${fmtDate(activeContract.endDate)}</div></div>
+                    <div><div class="detail-label">Deposito</div><div class="detail-value">€${activeContract.deposit || 0}</div></div>
+                </div>` : ''}
+                ${contracts.length ? `<div class="mt-16"><div class="section-title" style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:12px">📋 Storico Contratti (${contracts.length})</div><div style="background:var(--surface);border-radius:8px;overflow:hidden">${contracts.map(c => { const t = S.users.find(u => u.id === c.tenantId); return `<div style="padding:10px 12px;border-bottom:1px solid var(--border);font-size:13px;display:flex;align-items:center;gap:10px"><span class="badge ${c.status === 'active' ? 'green' : c.status === 'terminated' ? 'red' : 'gray'}">${c.status === 'active' ? 'Attivo' : c.status === 'terminated' ? 'Terminato' : 'Scaduto'}</span><span style="flex:1">${t?.name || 'Inquilino'} · ${fmtDate(c.startDate)} → ${fmtDate(c.endDate)}</span><span class="text-gold">€${c.rent}/mese</span></div>`; }).join('')}</div></div>` : ''}
             </div>
-            <div class="modal-footer"><button class="btn btn-danger btn-sm" onclick="confirmDelete('propert','${p.id}','${p.name}')">🗑</button><button class="btn" onclick="closeModal()">Chiudi</button></div>
+            <div class="modal-footer">
+                <button class="btn btn-danger btn-sm" onclick="confirmDelete('propert','${p.id}','${p.name}')">🗑</button>
+                <button class="btn btn-secondary" onclick="closeModal()">Chiudi</button>
+                <button class="btn" onclick="closeModal();openModal('editProperty',S.properties.find(x=>x.id==='${p.id}'))">✏️ Modifica</button>
+            </div>
         </div></div>`;
     }
 
@@ -2921,25 +3157,46 @@
         const t = S.users.find(x => x.id === c.tenantId);
         const o = S.users.find(x => x.id === p?.ownerId);
         const days = daysUntil(c.endDate);
+        const payments = S.payments.filter(pay => pay.contractId === id);
+        const paidTotal = payments.filter(pay => pay.status === 'paid').reduce((s, pay) => s + (pay.amount || 0), 0);
+        const pendingTotal = payments.filter(pay => pay.status === 'pending').reduce((s, pay) => s + (pay.amount || 0), 0);
         document.getElementById('modals').innerHTML = `<div class="modal-overlay active"><div class="modal lg">
             <div class="modal-header"><h3 class="modal-title">📋 Contratto ${p?.name || ''}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
-            <div class="modal-body">
-                <div class="detail-badges mb-16"><span class="badge ${c.status === 'active' ? 'green' : 'red'}">${c.status === 'active' ? 'Attivo' : 'Scaduto'}</span>${days !== null && days <= 30 && days >= 0 ? `<span class="badge orange">${days} giorni alla scadenza</span>` : ''}</div>
+            <div class="modal-body" style="max-height:70vh;overflow-y:auto">
+                <div class="detail-badges mb-16">
+                    <span class="badge ${c.status === 'active' ? 'green' : c.status === 'terminated' ? 'red' : 'gray'}">${c.status === 'active' ? 'Attivo' : c.status === 'terminated' ? 'Terminato' : 'Scaduto'}</span>
+                    ${c.status === 'active' && days !== null && days <= 60 && days >= 0 ? `<span class="badge orange">⏱ ${days} giorni alla scadenza</span>` : ''}
+                </div>
+                <div class="section-title" style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:12px">📍 Dettagli Contratto</div>
                 <div class="detail-grid">
                     <div><div class="detail-label">Immobile</div><div class="detail-value">${p?.name || 'N/A'}</div></div>
                     <div><div class="detail-label">Indirizzo</div><div class="detail-value">${p?.address || 'Roma'}</div></div>
-                    <div><div class="detail-label">Proprietario</div><div class="detail-value">${o?.name || 'N/A'}</div></div>
-                    <div><div class="detail-label">Inquilino</div><div class="detail-value">${t?.name || 'N/A'}</div></div>
+                    <div><div class="detail-label">Proprietario</div><div class="detail-value">${o?.name || 'N/A'} ${o?.phone ? '· ' + o.phone : ''}</div></div>
+                    <div><div class="detail-label">Inquilino</div><div class="detail-value">${t?.name || 'N/A'} ${t?.phone ? '· ' + t.phone : ''}</div></div>
                     <div><div class="detail-label">Data Inizio</div><div class="detail-value">${fmtDate(c.startDate)}</div></div>
                     <div><div class="detail-label">Data Fine</div><div class="detail-value">${fmtDate(c.endDate)}</div></div>
                     <div><div class="detail-label">Affitto Mensile</div><div class="detail-value text-gold">€${c.rent}</div></div>
                     <div><div class="detail-label">Deposito Cauzionale</div><div class="detail-value">€${c.deposit || 0}</div></div>
                 </div>
+                ${c.notes ? `<div class="mt-16"><div class="detail-label">Note</div><div class="detail-value" style="background:var(--surface);padding:10px;border-radius:8px;font-size:13px;margin-top:6px">${c.notes}</div></div>` : ''}
+                ${payments.length ? `
+                <div class="section-title mt-16" style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:12px">💳 Riepilogo Pagamenti</div>
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+                    <div style="background:var(--surface);padding:12px;border-radius:8px;text-align:center"><div style="font-size:11px;color:var(--text-muted)">Totale</div><div style="font-size:18px;font-weight:600">${payments.length}</div></div>
+                    <div style="background:var(--green-light);padding:12px;border-radius:8px;text-align:center"><div style="font-size:11px;color:var(--green)">Incassato</div><div style="font-size:18px;font-weight:600;color:var(--green)">€${paidTotal.toLocaleString('it-IT')}</div></div>
+                    <div style="background:var(--orange-light);padding:12px;border-radius:8px;text-align:center"><div style="font-size:11px;color:var(--orange)">In Attesa</div><div style="font-size:18px;font-weight:600;color:var(--orange)">€${pendingTotal.toLocaleString('it-IT')}</div></div>
+                </div>` : ''}
+                ${c.renewalHistory?.length ? `
+                <div class="section-title mt-16" style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:12px">🔄 Storico Rinnovi</div>
+                <div style="background:var(--surface);border-radius:8px;overflow:hidden">${c.renewalHistory.map(r => `<div style="padding:10px 12px;border-bottom:1px solid var(--border);font-size:13px">${fmtDate(r.date)} - Esteso fino a ${fmtDate(r.newEnd)} ${r.newRent !== r.previousRent ? `· Affitto: €${r.previousRent} → €${r.newRent}` : ''}</div>`).join('')}</div>` : ''}
             </div>
-            <div class="modal-footer">
+            <div class="modal-footer" style="flex-wrap:wrap;gap:8px">
                 <button class="btn btn-danger btn-sm" onclick="confirmDelete('contract','${c.id}','Contratto ${p?.name}')">🗑</button>
-                <button class="btn btn-secondary" onclick="downloadContractPDF('${c.id}')">📥 PDF</button>
-                <button class="btn" onclick="closeModal()">Chiudi</button>
+                ${c.status === 'active' ? `<button class="btn btn-sm" style="background:var(--red);color:white" onclick="closeModal();openModal('terminateContract',S.contracts.find(x=>x.id==='${c.id}'))">⛔ Termina</button>` : ''}
+                ${c.status === 'active' ? `<button class="btn btn-sm" style="background:var(--green);color:white" onclick="closeModal();openModal('renewContract',S.contracts.find(x=>x.id==='${c.id}'))">🔄 Rinnova</button>` : ''}
+                <button class="btn btn-secondary btn-sm" onclick="downloadContractPDF('${c.id}')">📥 PDF</button>
+                <button class="btn btn-secondary" onclick="closeModal()">Chiudi</button>
+                <button class="btn" onclick="closeModal();openModal('editContract',S.contracts.find(x=>x.id==='${c.id}'))">✏️ Modifica</button>
             </div>
         </div></div>`;
     }
@@ -2950,7 +3207,7 @@
         const m = S.maintenance.find(x => x.id === id); if (!m) return;
         const p = S.properties.find(x => x.id === m.propertyId);
         const u = S.users.find(x => x.id === m.userId);
-        document.getElementById('modals').innerHTML = `<div class="modal-overlay active"><div class="modal">
+        document.getElementById('modals').innerHTML = `<div class="modal-overlay active"><div class="modal lg">
             <div class="modal-header"><h3 class="modal-title">🔧 ${m.title}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
             <div class="modal-body">
                 <div class="detail-badges mb-16"><span class="badge ${statusColor(m.status)}">${statusLabel(m.status)}</span><span class="badge ${priorityColor(m.priority)}">${priorityLabel(m.priority)}</span></div>
@@ -2959,11 +3216,19 @@
                     <div><div class="detail-label">Categoria</div><div class="detail-value">${catLabel(m.category)}</div></div>
                     <div><div class="detail-label">Richiesto da</div><div class="detail-value">${u?.name || 'N/A'}</div></div>
                     <div><div class="detail-label">Data</div><div class="detail-value">${fmtDate(m.createdAt)}</div></div>
+                    ${m.cost ? `<div><div class="detail-label">Costo</div><div class="detail-value text-gold">€${m.cost}</div></div>` : ''}
+                    ${m.technician ? `<div><div class="detail-label">Tecnico</div><div class="detail-value">${m.technician}</div></div>` : ''}
+                    ${m.resolvedAt ? `<div><div class="detail-label">Risolto il</div><div class="detail-value">${fmtDate(m.resolvedAt)}</div></div>` : ''}
                 </div>
-                ${m.description ? `<div class="mt-16"><div class="detail-label">Descrizione</div><p style="background:var(--bg);padding:12px;border-radius:8px;margin-top:6px">${m.description}</p></div>` : ''}
-                ${isAdmin() ? `<div class="mt-16"><div class="detail-label">Cambia Stato</div><div style="display:flex;gap:6px;margin-top:8px"><button class="btn btn-xs ${m.status==='open'?'':'btn-secondary'}" onclick="updateMaintStatus('${m.id}','open')">🔧 Aperta</button><button class="btn btn-xs ${m.status==='in_progress'?'':'btn-secondary'}" onclick="updateMaintStatus('${m.id}','in_progress')">⏳ In Corso</button><button class="btn btn-xs ${m.status==='resolved'?'btn-success':'btn-secondary'}" onclick="updateMaintStatus('${m.id}','resolved')">✓ Risolta</button></div></div>` : ''}
+                ${m.description ? `<div class="mt-16"><div class="detail-label">Descrizione</div><p style="background:var(--surface);padding:12px;border-radius:8px;margin-top:6px;font-size:13px">${m.description}</p></div>` : ''}
+                ${m.resolutionNotes ? `<div class="mt-16"><div class="detail-label">Note Risoluzione</div><p style="background:var(--green-light);padding:12px;border-radius:8px;margin-top:6px;font-size:13px">${m.resolutionNotes}</p></div>` : ''}
+                ${isAdmin() ? `<div class="mt-16"><div class="detail-label">Cambia Stato Rapido</div><div style="display:flex;gap:6px;margin-top:8px"><button class="btn btn-xs ${m.status==='pending'||m.status==='open'?'':'btn-secondary'}" onclick="updateMaintStatus('${m.id}','pending')">🟡 In Attesa</button><button class="btn btn-xs ${m.status==='in_progress'?'':'btn-secondary'}" onclick="updateMaintStatus('${m.id}','in_progress')">🔵 In Corso</button><button class="btn btn-xs ${m.status==='resolved'?'btn-success':'btn-secondary'}" onclick="updateMaintStatus('${m.id}','resolved')">🟢 Risolto</button></div></div>` : ''}
             </div>
-            <div class="modal-footer">${isAdmin() ? `<button class="btn btn-danger btn-sm" onclick="confirmDelete('maintenance','${m.id}','${m.title}')">🗑</button>` : ''}<button class="btn" onclick="closeModal()">Chiudi</button></div>
+            <div class="modal-footer">
+                ${isAdmin() ? `<button class="btn btn-danger btn-sm" onclick="confirmDelete('maintenance','${m.id}','${m.title}')">🗑</button>` : ''}
+                <button class="btn btn-secondary" onclick="closeModal()">Chiudi</button>
+                ${isAdmin() ? `<button class="btn" onclick="closeModal();openModal('editMaintenance',S.maintenance.find(x=>x.id==='${m.id}'))">✏️ Modifica</button>` : ''}
+            </div>
         </div></div>`;
     }
 
