@@ -3075,7 +3075,7 @@
             <div class="modal-footer">
                 ${u.id !== S.profile.id ? `<button class="btn btn-danger btn-sm" onclick="confirmDelete('user','${u.id}','${u.name}')">🗑 Elimina</button>` : ''}
                 <button class="btn btn-secondary" onclick="closeModal()">Chiudi</button>
-                <button class="btn" onclick="const uid='${u.id}';closeModal();setTimeout(()=>openModal('editUser',S.users.find(x=>x.id===uid)),100)">✏️ Modifica</button>
+                <button class="btn" onclick="const uid='${u.id}';closeModal();setTimeout(()=>openModal('editUser',S.users.find(x=>x.id===uid)),250)">✏️ Modifica</button>
             </div>
         </div></div>`;
     }
@@ -3119,7 +3119,7 @@
             <div class="modal-footer">
                 <button class="btn btn-danger btn-sm" onclick="confirmDelete('propert','${p.id}','${p.name}')">🗑</button>
                 <button class="btn btn-secondary" onclick="closeModal()">Chiudi</button>
-                <button class="btn" onclick="const pid='${p.id}';closeModal();setTimeout(()=>openModal('editProperty',S.properties.find(x=>x.id===pid)),100)">✏️ Modifica</button>
+                <button class="btn" onclick="const pid='${p.id}';closeModal();setTimeout(()=>openModal('editProperty',S.properties.find(x=>x.id===pid)),250)">✏️ Modifica</button>
             </div>
         </div></div>`;
     }
@@ -3192,11 +3192,11 @@
             </div>
             <div class="modal-footer" style="flex-wrap:wrap;gap:8px">
                 <button class="btn btn-danger btn-sm" onclick="confirmDelete('contract','${c.id}','Contratto ${p?.name}')">🗑</button>
-                ${c.status === 'active' ? `<button class="btn btn-sm" style="background:var(--red);color:white" onclick="const cid='${c.id}';closeModal();setTimeout(()=>openModal('terminateContract',S.contracts.find(x=>x.id===cid)),100)">⛔ Termina</button>` : ''}
-                ${c.status === 'active' ? `<button class="btn btn-sm" style="background:var(--green);color:white" onclick="const cid='${c.id}';closeModal();setTimeout(()=>openModal('renewContract',S.contracts.find(x=>x.id===cid)),100)">🔄 Rinnova</button>` : ''}
+                ${c.status === 'active' ? `<button class="btn btn-sm" style="background:var(--red);color:white" onclick="const cid='${c.id}';closeModal();setTimeout(()=>openModal('terminateContract',S.contracts.find(x=>x.id===cid)),250)">⛔ Termina</button>` : ''}
+                ${c.status === 'active' ? `<button class="btn btn-sm" style="background:var(--green);color:white" onclick="const cid='${c.id}';closeModal();setTimeout(()=>openModal('renewContract',S.contracts.find(x=>x.id===cid)),250)">🔄 Rinnova</button>` : ''}
                 <button class="btn btn-secondary btn-sm" onclick="downloadContractPDF('${c.id}')">📥 PDF</button>
                 <button class="btn btn-secondary" onclick="closeModal()">Chiudi</button>
-                <button class="btn" onclick="const cid='${c.id}';closeModal();setTimeout(()=>openModal('editContract',S.contracts.find(x=>x.id===cid)),100)">✏️ Modifica</button>
+                <button class="btn" onclick="const cid='${c.id}';closeModal();setTimeout(()=>openModal('editContract',S.contracts.find(x=>x.id===cid)),250)">✏️ Modifica</button>
             </div>
         </div></div>`;
     }
@@ -3227,7 +3227,7 @@
             <div class="modal-footer">
                 ${isAdmin() ? `<button class="btn btn-danger btn-sm" onclick="confirmDelete('maintenance','${m.id}','${m.title}')">🗑</button>` : ''}
                 <button class="btn btn-secondary" onclick="closeModal()">Chiudi</button>
-                ${isAdmin() ? `<button class="btn" onclick="const mid='${m.id}';closeModal();setTimeout(()=>openModal('editMaintenance',S.maintenance.find(x=>x.id===mid)),100)">✏️ Modifica</button>` : ''}
+                ${isAdmin() ? `<button class="btn" onclick="const mid='${m.id}';closeModal();setTimeout(()=>openModal('editMaintenance',S.maintenance.find(x=>x.id===mid)),250)">✏️ Modifica</button>` : ''}
             </div>
         </div></div>`;
     }
