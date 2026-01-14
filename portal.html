@@ -65,7 +65,11 @@
         .header-badge.landlord{background:var(--gold-light);color:var(--gold)}
         .header-badge.tenant{background:var(--blue-light);color:var(--blue)}
         .notif-btn{position:relative;width:40px;height:40px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center}
-        .notif-btn .badge{position:absolute;top:-4px;right:-4px;min-width:18px;height:18px;background:var(--red);color:#fff;font-size:10px;font-weight:700;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 4px}
+        .notif-btn .badge,.notif-btn .notif-badge{position:absolute;top:-4px;right:-4px;min-width:18px;height:18px;background:var(--red);color:#fff;font-size:10px;font-weight:700;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 4px}
+        .notif-pulse{animation:notifPulse 0.5s ease-in-out 3}
+        @keyframes notifPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.2)}}
+        .notif-item.unread{border-left:3px solid var(--gold)}
+        .notif-item:hover{background:var(--surface)!important}
         .user-menu{display:flex;align-items:center;gap:10px;cursor:pointer;padding:6px 12px;border-radius:12px;transition:background .2s}
         .user-menu:hover{background:var(--bg-elevated)}
         .user-avatar{width:36px;height:36px;background:linear-gradient(135deg,var(--gold),var(--gold-dark));border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:13px;color:#000}
@@ -479,6 +483,9 @@
         // ⚠️ UPDATE WITH YOUR REAL IBAN
         iban: 'IT00X0000000000000000000000'
     };
+    
+    // Make.com Webhook for email notifications
+    const WEBHOOK_URL = 'https://hook.eu1.make.com/9z8afoyco6l8bg57wbgmmx6chsc6mayx';
 
     const SERVICES = {
         PFS: { name: 'Property Finding Service', price: 350, color: 'gold' },
@@ -505,9 +512,11 @@
         user: null, profile: null, page: 'dashboard', lang: 'IT',
         users: [], properties: [], contracts: [], payments: [],
         maintenance: [], documents: [], clients: [], invoices: [], notifications: [],
+        userNotifications: [], // Persistent notifications from Firestore
         listings: [], // For adminflats
         lastActivity: Date.now(),
-        isOnline: navigator.onLine
+        isOnline: navigator.onLine,
+        notifListener: null // Real-time listener reference
     };
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -701,7 +710,24 @@
     // ═══════════════════════════════════════════════════════════════════════════
     // AUTH
     // ═══════════════════════════════════════════════════════════════════════════
+    
+    // Set persistence for Safari compatibility
+    auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(e => {
+        console.log('Persistence error:', e.message);
+    });
+    
+    // Detect Safari desktop for special handling
+    const isSafariDesktop = /^((?!chrome|android).)*safari/i.test(navigator.userAgent) && !/mobile/i.test(navigator.userAgent);
+    if (isSafariDesktop) console.log('Safari desktop detected');
+    
+    // Auth timeout for Safari (longer timeout)
+    let authTimeout = setTimeout(() => {
+        console.log('Auth timeout - redirecting to login');
+        window.location.href = 'login.html';
+    }, isSafariDesktop ? 15000 : 10000);
+    
     auth.onAuthStateChanged(async u => {
+        clearTimeout(authTimeout);
         console.log('Auth state changed:', u ? u.email : 'no user');
         if (u) {
             S.user = u;
@@ -820,8 +846,326 @@
 
     function updateNotifBadge() {
         const btn = document.getElementById('notifBtn');
-        const count = S.notifications.length;
-        btn.innerHTML = count > 0 ? `🔔<span class="badge">${count}</span>` : '🔔';
+        const systemCount = S.notifications.length;
+        const userUnread = S.userNotifications.filter(n => !n.read).length;
+        const count = systemCount + userUnread;
+        btn.innerHTML = count > 0 ? `🔔<span class="notif-badge">${count > 9 ? '9+' : count}</span>` : '🔔';
+        btn.style.position = 'relative';
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // NOTIFICATION SYSTEM - Persistent & Real-time
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    function startNotificationListener() {
+        if (!S.profile?.id) return;
+        
+        // Stop existing listener if any
+        if (S.notifListener) S.notifListener();
+        
+        // Listen for notifications for this user
+        S.notifListener = db.collection('notifications')
+            .where('userId', '==', S.profile.id)
+            .orderBy('createdAt', 'desc')
+            .limit(50)
+            .onSnapshot(snapshot => {
+                S.userNotifications = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                updateNotifBadge();
+                // Play sound for new unread notifications
+                const newUnread = S.userNotifications.filter(n => !n.read && isRecent(n.createdAt, 30));
+                if (newUnread.length > 0 && document.hidden === false) {
+                    // Visual feedback for new notification
+                    document.getElementById('notifBtn')?.classList.add('notif-pulse');
+                    setTimeout(() => document.getElementById('notifBtn')?.classList.remove('notif-pulse'), 2000);
+                }
+            }, err => console.error('Notification listener error:', err));
+    }
+    
+    function stopNotificationListener() {
+        if (S.notifListener) {
+            S.notifListener();
+            S.notifListener = null;
+        }
+    }
+    
+    function isRecent(timestamp, seconds = 30) {
+        if (!timestamp) return false;
+        const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+        return (Date.now() - date.getTime()) < seconds * 1000;
+    }
+    
+    async function createNotification(userId, type, title, message, data = {}) {
+        if (!userId) return;
+        try {
+            // Get recipient user data
+            const recipient = S.users.find(u => u.id === userId);
+            
+            const notifData = {
+                userId,
+                type, // 'maintenance', 'payment', 'contract', 'document', 'system'
+                title,
+                message,
+                data, // Additional context (propertyId, contractId, etc.)
+                read: false,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                emailSent: false,
+                webhookSent: false
+            };
+            
+            const docRef = await db.collection('notifications').add(notifData);
+            console.log('Notification created for user:', userId);
+            
+            // Send to Make.com webhook for email
+            if (recipient?.email && WEBHOOK_URL) {
+                try {
+                    await fetch(WEBHOOK_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            notificationId: docRef.id,
+                            recipientEmail: recipient.email,
+                            recipientName: recipient.name || 'Cliente',
+                            type,
+                            title,
+                            message,
+                            propertyName: data.propertyId ? S.properties.find(p => p.id === data.propertyId)?.name : null,
+                            priority: data.priority || 'normal',
+                            timestamp: new Date().toISOString(),
+                            portalUrl: 'https://boomrome.com/portal.html'
+                        })
+                    });
+                    // Mark webhook as sent
+                    await db.collection('notifications').doc(docRef.id).update({ webhookSent: true });
+                    console.log('Webhook sent for notification');
+                } catch (webhookErr) {
+                    console.error('Webhook error:', webhookErr);
+                }
+            }
+        } catch (err) {
+            console.error('Error creating notification:', err);
+        }
+    }
+    
+    async function notifyMultipleUsers(userIds, type, title, message, data = {}) {
+        const promises = userIds.map(userId => createNotification(userId, type, title, message, data));
+        await Promise.all(promises);
+    }
+    
+    async function markNotificationRead(notifId) {
+        try {
+            await db.collection('notifications').doc(notifId).update({ read: true, readAt: firebase.firestore.FieldValue.serverTimestamp() });
+        } catch (err) { console.error('Error marking notification read:', err); }
+    }
+    
+    async function markAllNotificationsRead() {
+        try {
+            const batch = db.batch();
+            S.userNotifications.filter(n => !n.read).forEach(n => {
+                batch.update(db.collection('notifications').doc(n.id), { read: true, readAt: firebase.firestore.FieldValue.serverTimestamp() });
+            });
+            await batch.commit();
+            toast('success', 'Tutte le notifiche segnate come lette');
+        } catch (err) { toast('error', 'Errore', err.message); }
+    }
+    
+    async function deleteNotification(notifId) {
+        try {
+            await db.collection('notifications').doc(notifId).delete();
+        } catch (err) { toast('error', 'Errore', err.message); }
+    }
+    
+    async function clearAllNotifications() {
+        if (!confirm('Eliminare tutte le notifiche?')) return;
+        try {
+            const batch = db.batch();
+            S.userNotifications.forEach(n => batch.delete(db.collection('notifications').doc(n.id)));
+            await batch.commit();
+            toast('success', 'Notifiche eliminate');
+        } catch (err) { toast('error', 'Errore', err.message); }
+    }
+    
+    function showNotifications() {
+        const allNotifs = [
+            ...S.notifications.map(n => ({ ...n, source: 'system', read: true })),
+            ...S.userNotifications.map(n => ({ ...n, source: 'user' }))
+        ].sort((a, b) => {
+            const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
+            const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
+            return dateB - dateA;
+        });
+        
+        const notifTypeIcon = (type) => ({ maintenance: '🔧', payment: '💳', contract: '📋', document: '📄', system: '⚡', warning: '⚠️', danger: '🚨' }[type] || '🔔');
+        const notifTypeColor = (type) => ({ maintenance: 'blue', payment: 'gold', contract: 'green', document: 'purple', danger: 'red', warning: 'orange' }[type] || 'gray');
+        
+        document.getElementById('modals').innerHTML = `<div class="modal-overlay active"><div class="modal lg">
+            <div class="modal-header">
+                <h3 class="modal-title">🔔 Notifiche ${allNotifs.length > 0 ? `(${allNotifs.filter(n => !n.read).length} non lette)` : ''}</h3>
+                <button class="modal-close" onclick="closeModal()">×</button>
+            </div>
+            <div class="modal-body" style="max-height:60vh;overflow-y:auto;padding:0">
+                ${allNotifs.length > 0 ? allNotifs.map(n => `
+                    <div class="notif-item ${n.read ? 'read' : 'unread'}" style="padding:14px 20px;border-bottom:1px solid var(--border);display:flex;gap:12px;align-items:flex-start;cursor:pointer;background:${n.read ? 'transparent' : 'rgba(212,175,55,0.05)'}" onclick="${n.source === 'user' && !n.read ? `markNotificationRead('${n.id}')` : ''}">
+                        <div style="width:36px;height:36px;border-radius:50%;background:var(--${notifTypeColor(n.type)}-light);display:flex;align-items:center;justify-content:center;flex-shrink:0">${notifTypeIcon(n.type)}</div>
+                        <div style="flex:1;min-width:0">
+                            <div style="font-weight:${n.read ? '400' : '600'};margin-bottom:2px">${n.title}</div>
+                            <div style="font-size:13px;color:var(--text-muted)">${n.text || n.message || ''}</div>
+                            <div style="font-size:11px;color:var(--text-dim);margin-top:4px">${n.createdAt ? fmtDate(n.createdAt) : 'Ora'}</div>
+                        </div>
+                        ${n.source === 'user' ? `<button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();deleteNotification('${n.id}')" title="Elimina">×</button>` : ''}
+                    </div>
+                `).join('') : '<div class="empty-state" style="padding:40px"><div class="empty-icon">🔔</div><div class="empty-title">Nessuna notifica</div><div class="empty-subtitle">Sei al passo con tutto!</div></div>'}
+            </div>
+            ${allNotifs.length > 0 ? `<div class="modal-footer" style="justify-content:space-between">
+                <button class="btn btn-secondary btn-sm" onclick="clearAllNotifications()">🗑 Elimina tutte</button>
+                <button class="btn btn-sm" onclick="markAllNotificationsRead()">✓ Segna tutte lette</button>
+            </div>` : ''}
+        </div></div>`;
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // NOTIFICATION TRIGGERS - Called on specific events
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    async function notifyMaintenanceRequest(maintenanceData) {
+        // Notify landlord of the property
+        const property = S.properties.find(p => p.id === maintenanceData.propertyId);
+        if (!property) return;
+        const landlord = S.users.find(u => u.id === property.ownerId);
+        if (!landlord) return;
+        
+        const requester = S.users.find(u => u.id === maintenanceData.userId);
+        await createNotification(
+            landlord.id,
+            'maintenance',
+            '🔧 Nuova richiesta manutenzione',
+            `${requester?.name || 'Inquilino'} ha segnalato: "${maintenanceData.title}" per ${property.name}`,
+            { maintenanceId: maintenanceData.id, propertyId: property.id, priority: maintenanceData.priority }
+        );
+        
+        // Also notify admins
+        const admins = S.users.filter(u => u.role === 'admin' && u.id !== landlord.id);
+        for (const admin of admins) {
+            await createNotification(admin.id, 'maintenance', '🔧 Nuova manutenzione', `${property.name}: ${maintenanceData.title}`, { maintenanceId: maintenanceData.id });
+        }
+    }
+    
+    async function notifyMaintenanceResolved(maintenanceData) {
+        // Notify the tenant who requested it
+        if (!maintenanceData.userId) return;
+        const property = S.properties.find(p => p.id === maintenanceData.propertyId);
+        await createNotification(
+            maintenanceData.userId,
+            'maintenance',
+            '✅ Manutenzione completata',
+            `La richiesta "${maintenanceData.title}" per ${property?.name || 'immobile'} è stata risolta`,
+            { maintenanceId: maintenanceData.id }
+        );
+    }
+    
+    async function notifyPaymentReceived(paymentData) {
+        // Notify landlord
+        const contract = S.contracts.find(c => c.id === paymentData.contractId);
+        if (!contract) return;
+        const property = S.properties.find(p => p.id === contract.propertyId);
+        if (!property) return;
+        const landlord = S.users.find(u => u.id === property.ownerId);
+        if (!landlord) return;
+        const tenant = S.users.find(u => u.id === contract.tenantId);
+        
+        await createNotification(
+            landlord.id,
+            'payment',
+            '💰 Pagamento ricevuto',
+            `${tenant?.name || 'Inquilino'} ha pagato €${paymentData.amount} per ${property.name} (${paymentData.month})`,
+            { paymentId: paymentData.id, propertyId: property.id, amount: paymentData.amount }
+        );
+    }
+    
+    async function notifyPaymentDueSoon(payment, daysUntilDue) {
+        // Notify tenant
+        const contract = S.contracts.find(c => c.id === payment.contractId);
+        if (!contract) return;
+        const property = S.properties.find(p => p.id === contract.propertyId);
+        
+        await createNotification(
+            contract.tenantId,
+            'payment',
+            '⏰ Pagamento in scadenza',
+            `Il pagamento di €${payment.amount} per ${property?.name || 'immobile'} scade tra ${daysUntilDue} giorni`,
+            { paymentId: payment.id, dueDate: payment.dueDate }
+        );
+    }
+    
+    async function notifyContractExpiringSoon(contract, daysUntilEnd) {
+        const property = S.properties.find(p => p.id === contract.propertyId);
+        const tenant = S.users.find(u => u.id === contract.tenantId);
+        const landlord = property ? S.users.find(u => u.id === property.ownerId) : null;
+        
+        const message = `Il contratto per ${property?.name || 'immobile'} scade tra ${daysUntilEnd} giorni`;
+        
+        // Notify tenant
+        if (tenant) {
+            await createNotification(tenant.id, 'contract', '📋 Contratto in scadenza', message, { contractId: contract.id });
+        }
+        
+        // Notify landlord
+        if (landlord) {
+            await createNotification(landlord.id, 'contract', '📋 Contratto in scadenza', `${message} - Inquilino: ${tenant?.name || 'N/A'}`, { contractId: contract.id });
+        }
+    }
+    
+    async function notifyNewDocument(document, assignedUserId) {
+        if (!assignedUserId) return;
+        await createNotification(
+            assignedUserId,
+            'document',
+            '📄 Nuovo documento disponibile',
+            `È stato caricato un nuovo documento: "${document.name}"`,
+            { documentId: document.id, type: document.type }
+        );
+    }
+    
+    // Check and send scheduled notifications (run periodically)
+    async function checkScheduledNotifications() {
+        if (!isAdmin()) return; // Only admin triggers scheduled notifications
+        
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        // Check payments due in 5 days
+        for (const payment of S.payments.filter(p => p.status === 'pending')) {
+            const days = daysUntil(payment.dueDate);
+            if (days === 5) {
+                // Check if notification already sent today
+                const existing = S.userNotifications.find(n => 
+                    n.data?.paymentId === payment.id && 
+                    n.type === 'payment' &&
+                    isToday(n.createdAt)
+                );
+                if (!existing) await notifyPaymentDueSoon(payment, 5);
+            }
+        }
+        
+        // Check contracts expiring in 30 days
+        for (const contract of S.contracts.filter(c => c.status === 'active')) {
+            const days = daysUntil(contract.endDate);
+            if (days === 30 || days === 7) {
+                const existing = S.userNotifications.find(n => 
+                    n.data?.contractId === contract.id && 
+                    n.type === 'contract' &&
+                    n.title.includes('scadenza') &&
+                    isToday(n.createdAt)
+                );
+                if (!existing) await notifyContractExpiringSoon(contract, days);
+            }
+        }
+    }
+    
+    function isToday(timestamp) {
+        if (!timestamp) return false;
+        const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+        const today = new Date();
+        return date.toDateString() === today.toDateString();
     }
 
     async function refresh() { 
@@ -868,6 +1212,7 @@
     async function logout() { 
         if (confirm('Vuoi uscire?')) { 
             stopSessionCheck();
+            stopNotificationListener();
             try {
                 await auth.signOut(); 
             } catch (e) {
@@ -888,6 +1233,15 @@
         document.getElementById('headerAvatar').textContent = initials(S.profile.name);
         document.getElementById('headerName').textContent = S.profile.name;
         document.getElementById('headerRole').textContent = roleLabel(S.profile.role);
+        
+        // Start notification listener
+        startNotificationListener();
+        
+        // Check scheduled notifications (admin only, once per session)
+        if (isAdmin() && !window.scheduledNotifChecked) {
+            window.scheduledNotifChecked = true;
+            setTimeout(() => checkScheduledNotifications(), 5000);
+        }
         
         // Search bar for admin only
         if (isAdmin()) {
@@ -1441,6 +1795,20 @@
     function invoicesPage() {
         const pending = S.invoices.filter(i => i.status === 'pending');
         const paid = S.invoices.filter(i => i.status === 'paid');
+        
+        const getRecipientName = (inv) => {
+            if (inv.recipientName) return inv.recipientName;
+            const client = S.clients.find(c => c.id === inv.clientId || c.id === inv.recipientId);
+            const user = S.users.find(u => u.id === inv.clientId || u.id === inv.recipientId);
+            return client?.name || user?.name || 'N/A';
+        };
+        
+        const getRecipientBadge = (inv) => {
+            if (inv.recipientType === 'landlord') return '<span class="badge gold" style="font-size:10px">🏠</span>';
+            if (inv.recipientType === 'tenant') return '<span class="badge blue" style="font-size:10px">👤</span>';
+            return '<span class="badge purple" style="font-size:10px">💼</span>';
+        };
+        
         return `
             <div class="page-header"><div><h1 class="page-title">Fatture</h1></div><div class="page-actions"><button class="btn btn-secondary btn-sm" onclick="exportInvoicesCSV()">📊 Export</button><button class="btn" onclick="openModal('addInvoice')">+ Nuova</button></div></div>
             <div class="stats-grid" style="grid-template-columns:repeat(3,1fr)">
@@ -1449,8 +1817,7 @@
                 <div class="stat-card blue"><div class="stat-value">${S.invoices.length}</div><div class="stat-label">Totale</div></div>
             </div>
             <div class="card"><div class="card-body flush">${S.invoices.length ? S.invoices.map(inv => {
-                const client = S.clients.find(c => c.id === inv.clientId);
-                return `<div class="list-item clickable" onclick="viewInvoice('${inv.id}')"><div class="list-icon" style="background:${inv.status === 'paid' ? 'var(--green-light)' : 'var(--orange-light)'}">🧾</div><div class="list-content"><div class="list-title">${inv.number} - ${client?.name || 'Cliente'}</div><div class="list-subtitle">${inv.service || ''} · ${fmtDate(inv.createdAt)}</div></div><div class="list-meta"><div class="list-value ${inv.status === 'paid' ? 'text-green' : 'text-gold'}">€${(inv.amount || 0).toLocaleString('it-IT')}</div><span class="badge ${inv.status === 'paid' ? 'green' : 'orange'}">${inv.status === 'paid' ? 'Pagata' : 'In Attesa'}</span></div><button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();downloadInvoicePDF('${inv.id}')">📥</button></div>`;
+                return `<div class="list-item clickable" onclick="viewInvoice('${inv.id}')"><div class="list-icon" style="background:${inv.status === 'paid' ? 'var(--green-light)' : 'var(--orange-light)'}">🧾</div><div class="list-content"><div class="list-title">${inv.number} - ${getRecipientName(inv)} ${getRecipientBadge(inv)}</div><div class="list-subtitle">${inv.service || ''} · ${fmtDate(inv.date || inv.createdAt)}</div></div><div class="list-meta"><div class="list-value ${inv.status === 'paid' ? 'text-green' : 'text-gold'}">€${(inv.amount || 0).toLocaleString('it-IT')}</div><span class="badge ${inv.status === 'paid' ? 'green' : 'orange'}">${inv.status === 'paid' ? 'Pagata' : 'In Attesa'}</span></div><button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();downloadInvoicePDF('${inv.id}')">📥</button></div>`;
             }).join('') : '<div class="empty-state"><div class="empty-icon">🧾</div><div class="empty-title">Nessuna fattura</div><button class="btn" onclick="openModal(\'addInvoice\')">+ Crea</button></div>'}</div></div>`;
     }
 
@@ -1855,7 +2222,7 @@
                 fileName = selectedFile.name;
                 fileSize = selectedFile.size;
             }
-            await db.collection('documents').add({
+            const docRef = await db.collection('documents').add({
                 name: data.name, type: data.type || 'other',
                 userId: data.userId || S.profile.id,
                 propertyId: data.propertyId || null,
@@ -1865,6 +2232,12 @@
                 uploadedBy: S.profile.id,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
+            
+            // Notify assigned user (if not self)
+            if (data.userId && data.userId !== S.profile.id) {
+                await notifyNewDocument({ id: docRef.id, name: data.name, type: data.type }, data.userId);
+            }
+            
             selectedFile = null;
             closeModal(); await refresh();
             toast('success', 'Documento salvato!', data.userId ? 'Assegnato all\'utente' : '');
@@ -2429,7 +2802,7 @@
 
         if (type === 'addClient') return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">💼 Nuovo Cliente CRM</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="saveClient(event)"><div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="name" required></div><div class="form-group"><label class="form-label">Servizio *</label><select class="form-select" name="service" required><option value="PFS">🏠 PFS €350</option><option value="DAS">📝 DAS €249</option><option value="VV">👁️ VV €89</option></select></div></div><div class="form-row"><div class="form-group"><label class="form-label">Email *</label><input type="email" class="form-input" name="email" required></div><div class="form-group"><label class="form-label">Telefono</label><input type="tel" class="form-input" name="phone"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Budget €</label><input type="number" class="form-input" name="budget"></div><div class="form-group"><label class="form-label">Zona</label><input type="text" class="form-input" name="zone"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Data Arrivo</label><input type="date" class="form-input" name="arrivalDate"></div><div class="form-group"><label class="form-label">Durata</label><input type="text" class="form-input" name="duration" placeholder="6 mesi"></div></div><div class="form-group"><label class="form-label">Source</label><select class="form-select" name="source"><option value="google">Google</option><option value="instagram">Instagram</option><option value="referral">Referral</option><option value="website">Website</option><option value="other">Altro</option></select></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes"></textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Salva</button></div></div></div>`;
 
-        if (type === 'addInvoice') { const num = 'BOOM-' + new Date().getFullYear() + '-' + String(S.invoices.length + 1).padStart(4, '0'); return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">🧾 Nuova Fattura</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="saveInvoice(event)"><div class="form-row"><div class="form-group"><label class="form-label">Numero</label><input type="text" class="form-input" name="number" value="${num}" readonly></div><div class="form-group"><label class="form-label">Data</label><input type="date" class="form-input" name="date" value="${new Date().toISOString().split('T')[0]}"></div></div><div class="form-group"><label class="form-label">Cliente *</label><select class="form-select" name="clientId" required onchange="updateInvAmount(this)"><option value="">Seleziona...</option>${S.clients.map(c => `<option value="${c.id}" data-service="${c.service}" data-price="${SERVICES[c.service]?.price || 0}">${c.name} (${c.service})</option>`).join('')}</select></div><div class="form-row"><div class="form-group"><label class="form-label">Servizio</label><input type="text" class="form-input" name="service" id="invService" readonly></div><div class="form-group"><label class="form-label">Importo € *</label><input type="number" class="form-input" name="amount" id="invAmount" required></div></div><div class="form-group"><label class="form-label">Descrizione</label><textarea class="form-textarea" name="description"></textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Crea</button></div></div></div>`; }
+        if (type === 'addInvoice') { const num = 'BOOM-' + new Date().getFullYear() + '-' + String(S.invoices.length + 1).padStart(4, '0'); const landlords = S.users.filter(u => u.role === 'landlord'); const tenants = S.users.filter(u => u.role === 'tenant'); return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">🧾 Nuova Fattura</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="saveInvoice(event)"><div class="form-row"><div class="form-group"><label class="form-label">Numero</label><input type="text" class="form-input" name="number" value="${num}" readonly></div><div class="form-group"><label class="form-label">Data</label><input type="date" class="form-input" name="date" value="${new Date().toISOString().split('T')[0]}"></div></div><div class="form-group"><label class="form-label">Destinatario *</label><select class="form-select" name="recipientId" required><option value="">Seleziona...</option><optgroup label="🏠 Proprietari">${landlords.map(l => `<option value="${l.id}" data-type="landlord">${l.name}</option>`).join('')}</optgroup><optgroup label="👤 Inquilini">${tenants.map(t => `<option value="${t.id}" data-type="tenant">${t.name}</option>`).join('')}</optgroup><optgroup label="💼 Clienti CRM">${S.clients.map(c => `<option value="${c.id}" data-type="client" data-service="${c.service}" data-price="${SERVICES[c.service]?.price || 0}">${c.name} (${c.service})</option>`).join('')}</optgroup></select></div><div class="form-row"><div class="form-group"><label class="form-label">Servizio/Descrizione *</label><input type="text" class="form-input" name="service" placeholder="Es: Gestione immobiliare, PFS, Commissione..." required></div><div class="form-group"><label class="form-label">Importo € *</label><input type="number" class="form-input" name="amount" required></div></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="description" rows="2" placeholder="Dettagli aggiuntivi..."></textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Crea Fattura</button></div></div></div>`; }
 
         if (type === 'addDocument') return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">📁 Carica Documento</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="saveDocument(event)"><div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="name" required></div><div class="form-group"><label class="form-label">Tipo</label><select class="form-select" name="type"><option value="contract">📋 Contratto</option><option value="id">🪪 Documento ID</option><option value="receipt">🧾 Ricevuta</option><option value="utility">💡 Utenza</option><option value="other">📄 Altro</option></select></div></div>${isAdmin() ? `<div class="form-group"><label class="form-label">Condividi con inquilino/proprietario</label><select class="form-select" name="shared"><option value="false">No - Solo io</option><option value="true">Sì - Condividi</option></select></div>` : ''}<div class="form-group"><label class="form-label">File</label><div class="file-zone" onclick="document.getElementById('fileInput').click()"><div class="file-zone-icon">📁</div><div class="file-zone-text">Clicca per selezionare</div></div><input type="file" id="fileInput" class="file-input" onchange="handleFile(this)"><div id="filePreview"></div></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Carica</button></div></div></div>`;
 
@@ -2596,11 +2969,32 @@
     async function saveInvoice(e) {
         e.preventDefault();
         const data = Object.fromEntries(new FormData(e.target));
-        if (!data.clientId || !data.amount) return toast('error', 'Compila i campi obbligatori');
+        if (!data.recipientId || !data.amount || !data.service) return toast('error', 'Compila i campi obbligatori');
+        
+        // Determine recipient type and name
+        let recipientType = 'client';
+        let recipientName = '';
+        const landlord = S.users.find(u => u.id === data.recipientId && u.role === 'landlord');
+        const tenant = S.users.find(u => u.id === data.recipientId && u.role === 'tenant');
+        const client = S.clients.find(c => c.id === data.recipientId);
+        
+        if (landlord) { recipientType = 'landlord'; recipientName = landlord.name; }
+        else if (tenant) { recipientType = 'tenant'; recipientName = tenant.name; }
+        else if (client) { recipientType = 'client'; recipientName = client.name; }
+        
         try {
             await db.collection('invoices').add({
-                number: data.number, clientId: data.clientId, service: data.service || '', amount: parseInt(data.amount) || 0,
-                description: data.description || '', status: 'pending', createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                number: data.number, 
+                recipientId: data.recipientId,
+                recipientType,
+                recipientName,
+                clientId: data.recipientId, // Backward compatibility
+                service: data.service || '', 
+                amount: parseInt(data.amount) || 0,
+                date: data.date || new Date().toISOString().split('T')[0],
+                description: data.description || '', 
+                status: 'pending', 
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
             closeModal(); await refresh(); toast('success', 'Fattura creata!');
         } catch (err) { toast('error', 'Errore', err.message); }
@@ -2727,7 +3121,12 @@
 
     async function markPaymentPaid(id) {
         try {
+            const payment = S.payments.find(p => p.id === id);
             await db.collection('payments').doc(id).update({ status: 'paid', paidDate: new Date().toISOString() });
+            // Notify landlord of payment received
+            if (payment) {
+                await notifyPaymentReceived({ id, ...payment });
+            }
             await refresh(); toast('success', 'Pagamento confermato ✓');
         } catch (err) { toast('error', 'Errore', err.message); }
     }
@@ -2750,11 +3149,13 @@
         const data = Object.fromEntries(new FormData(e.target));
         if (!data.propertyId) return toast('error', 'Nessun immobile associato');
         try {
-            await db.collection('maintenance').add({
+            const docRef = await db.collection('maintenance').add({
                 title: data.title, propertyId: data.propertyId, category: data.category || 'other',
                 priority: data.priority || 'medium', description: data.description || '',
                 userId: S.profile.id, status: 'open', createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
+            // Notify landlord
+            await notifyMaintenanceRequest({ id: docRef.id, ...data, userId: S.profile.id });
             closeModal(); await refresh(); toast('success', 'Richiesta inviata!');
         } catch (err) { toast('error', 'Errore', err.message); }
     }
@@ -2919,6 +3320,7 @@
     async function updateMaintenance(e, id) {
         e.preventDefault();
         const data = Object.fromEntries(new FormData(e.target));
+        const oldMaint = S.maintenance.find(m => m.id === id);
         const updateData = {
             title: data.title,
             propertyId: data.propertyId,
@@ -2938,6 +3340,10 @@
         
         try {
             await db.collection('maintenance').doc(id).update(updateData);
+            // Notify tenant if status changed to resolved
+            if (data.status === 'resolved' && oldMaint?.status !== 'resolved' && oldMaint?.userId) {
+                await notifyMaintenanceResolved({ id, title: data.title, propertyId: data.propertyId, userId: oldMaint.userId });
+            }
             closeModal(); await refresh(); toast('success', 'Manutenzione aggiornata!');
         } catch (err) { toast('error', 'Errore', err.message); }
     }
