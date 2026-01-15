@@ -711,25 +711,49 @@
     // AUTH
     // ═══════════════════════════════════════════════════════════════════════════
     
-    // Set persistence for Safari compatibility
-    auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(e => {
-        console.log('Persistence error:', e.message);
-    });
-    
-    // Detect Safari desktop for special handling
+    // Detect Safari desktop
     const isSafariDesktop = /^((?!chrome|android).)*safari/i.test(navigator.userAgent) && !/mobile/i.test(navigator.userAgent);
     if (isSafariDesktop) console.log('Safari desktop detected');
     
-    // Auth timeout for Safari (longer timeout)
+    // Set persistence - try LOCAL first, fall back to SESSION for Safari
+    (async () => {
+        try {
+            await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+            console.log('Persistence set to LOCAL');
+        } catch (e) {
+            console.log('LOCAL persistence failed, trying SESSION:', e.message);
+            try {
+                await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
+                console.log('Persistence set to SESSION');
+            } catch (e2) {
+                console.log('SESSION persistence also failed:', e2.message);
+            }
+        }
+    })();
+    
+    // Track if auth already processed
+    let authProcessed = false;
+    let authRetryCount = 0;
+    const maxAuthRetries = 3;
+    
+    // Auth timeout - longer for Safari
     let authTimeout = setTimeout(() => {
-        console.log('Auth timeout - redirecting to login');
-        window.location.href = 'login.html';
-    }, isSafariDesktop ? 15000 : 10000);
+        if (!authProcessed) {
+            console.log('Auth timeout - no response');
+            hideLoading();
+            showAuth();
+        }
+    }, isSafariDesktop ? 20000 : 12000);
     
     auth.onAuthStateChanged(async u => {
+        // Prevent multiple processing
+        if (authProcessed && u) return;
+        
         clearTimeout(authTimeout);
         console.log('Auth state changed:', u ? u.email : 'no user');
+        
         if (u) {
+            authProcessed = true;
             S.user = u;
             try {
                 const doc = await db.collection('users').doc(u.uid).get();
@@ -749,7 +773,15 @@
                     location.reload();
                 }
             } catch (e) { 
-                console.error('Auth error:', e); 
+                console.error('Auth error:', e);
+                // Retry logic for Safari
+                if (isSafariDesktop && authRetryCount < maxAuthRetries) {
+                    authRetryCount++;
+                    console.log('Retrying auth... attempt', authRetryCount);
+                    authProcessed = false;
+                    setTimeout(() => auth.onAuthStateChanged(() => {}), 1000);
+                    return;
+                }
                 showAuthError('Errore di autenticazione: ' + e.message); 
                 hideLoading(); 
                 showAuth(); 
@@ -3641,8 +3673,28 @@
     function viewMaintenanceUser(id) { viewMaintenance(id); }
 
     async function updateMaintStatus(id, status) {
-        try { await db.collection('maintenance').doc(id).update({ status }); await refresh(); viewMaintenance(id); toast('success', 'Stato aggiornato'); }
-        catch (err) { toast('error', 'Errore', err.message); }
+        try {
+            const oldMaint = S.maintenance.find(m => m.id === id);
+            const updateData = { status, updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
+            if (status === 'resolved') {
+                updateData.resolvedAt = firebase.firestore.FieldValue.serverTimestamp();
+            }
+            await db.collection('maintenance').doc(id).update(updateData);
+            
+            // Notify tenant if resolved
+            if (status === 'resolved' && oldMaint?.status !== 'resolved' && oldMaint?.userId) {
+                await notifyMaintenanceResolved({ 
+                    id, 
+                    title: oldMaint.title, 
+                    propertyId: oldMaint.propertyId, 
+                    userId: oldMaint.userId 
+                });
+            }
+            
+            await refresh(); 
+            viewMaintenance(id); 
+            toast('success', 'Stato aggiornato');
+        } catch (err) { toast('error', 'Errore', err.message); }
     }
 
     // ═══════════════════════════════════════════════════════════════════════════

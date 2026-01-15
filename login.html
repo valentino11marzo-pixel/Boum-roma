@@ -476,9 +476,28 @@
         
         const auth = firebase.auth();
         
-        // Safari fix: use session persistence instead of local
-        auth.setPersistence(firebase.auth.Auth.Persistence.SESSION).catch(e => {
-            console.log('Persistence fallback:', e.message);
+        // Detect Safari
+        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+        
+        // Set persistence with fallback
+        (async () => {
+            try {
+                await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+            } catch (e) {
+                console.log('LOCAL failed, trying SESSION');
+                try {
+                    await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
+                } catch (e2) {
+                    console.log('Persistence setup failed:', e2);
+                }
+            }
+        })();
+        
+        // Check if already logged in
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                window.location.href = '/portal.html';
+            }
         });
         
         // DOM
@@ -518,7 +537,10 @@
             try {
                 await auth.signInWithEmailAndPassword(email, password);
                 showMessage('Success! Redirecting...', 'success');
-                window.location.href = '/portal.html';
+                // Small delay for Safari to save auth state
+                setTimeout(() => {
+                    window.location.href = '/portal.html';
+                }, isSafari ? 500 : 100);
             } catch (err) {
                 const msg = {
                     'auth/invalid-email': 'Invalid email',
