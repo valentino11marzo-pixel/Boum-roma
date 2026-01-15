@@ -135,6 +135,20 @@
         .modal-overlay.active{display:flex}
         .modal{background:var(--bg-card);border:1px solid var(--border);border-radius:20px;width:100%;max-width:560px;margin:auto;overflow:hidden;animation:modalIn .2s ease}
         .modal.lg{max-width:720px}.modal.xl{max-width:900px}
+        
+        /* Signature Pad Styles */
+        .signature-container{background:var(--bg-elevated);border:2px dashed var(--border);border-radius:12px;padding:16px;margin:16px 0}
+        .signature-container.signing{border-color:var(--gold);border-style:solid}
+        .signature-canvas{width:100%;height:200px;background:#fff;border-radius:8px;cursor:crosshair;touch-action:none}
+        .signature-actions{display:flex;gap:8px;margin-top:12px;justify-content:space-between}
+        .signature-hint{font-size:12px;color:var(--text-muted);text-align:center;margin-top:8px}
+        .signature-preview{max-width:200px;max-height:80px;border:1px solid var(--border);border-radius:8px;background:#fff;padding:4px}
+        .signature-status{display:flex;align-items:center;gap:8px;padding:12px 16px;border-radius:10px;margin:8px 0}
+        .signature-status.pending{background:var(--orange-light);color:var(--orange)}
+        .signature-status.signed{background:var(--green-light);color:var(--green)}
+        .signature-status.waiting{background:var(--blue-light);color:var(--blue)}
+        .contract-preview{background:var(--bg-elevated);border-radius:12px;padding:20px;margin:16px 0;max-height:300px;overflow-y:auto;font-size:13px;line-height:1.7}
+        .contract-preview h4{color:var(--gold);margin-bottom:12px}
         @keyframes modalIn{from{opacity:0;transform:scale(.95) translateY(-20px)}to{opacity:1;transform:scale(1) translateY(0)}}
         .modal-header{padding:22px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
         .modal-title{font-size:18px;font-weight:600}
@@ -947,15 +961,16 @@
             const docRef = await db.collection('notifications').add(notifData);
             console.log('Notification created for user:', userId);
             
-            // Send to Make.com webhook for email
-            if (recipient?.email && WEBHOOK_URL) {
+            // Send to Make.com webhook for email - only if valid email exists
+            const recipientEmail = recipient?.email?.trim();
+            if (recipientEmail && recipientEmail.includes('@') && WEBHOOK_URL) {
                 try {
                     await fetch(WEBHOOK_URL, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             notificationId: docRef.id,
-                            recipientEmail: recipient.email,
+                            recipientEmail: recipientEmail,
                             recipientName: recipient.name || 'Cliente',
                             type,
                             title,
@@ -967,11 +982,13 @@
                         })
                     });
                     // Mark webhook as sent
-                    await db.collection('notifications').doc(docRef.id).update({ webhookSent: true });
-                    console.log('Webhook sent for notification');
+                    await db.collection('notifications').doc(docRef.id).update({ webhookSent: true, emailSent: true });
+                    console.log('Webhook sent to:', recipientEmail);
                 } catch (webhookErr) {
                     console.error('Webhook error:', webhookErr);
                 }
+            } else {
+                console.log('Skipping webhook - no valid email for user:', userId);
             }
         } catch (err) {
             console.error('Error creating notification:', err);
@@ -1475,8 +1492,27 @@
         const myMaint = getMyMaintenance().filter(m => m.status === 'open');
         const occupancy = myProps.length > 0 ? Math.round((activeContracts.length / myProps.length) * 100) : 0;
         const expiringContracts = activeContracts.filter(c => { const d = daysUntil(c.endDate); return d !== null && d <= 60 && d >= 0; });
+        
+        // Contracts pending landlord signature
+        const pendingSignatures = myContracts.filter(c => !c.landlordSignature);
 
         let alerts = '';
+        
+        // Signature alert - highest priority
+        if (pendingSignatures.length > 0) {
+            const c = pendingSignatures[0];
+            const p = myProps.find(x => x.id === c.propertyId);
+            const tenant = S.users.find(u => u.id === c.tenantId);
+            alerts += `<div class="alert warning" style="cursor:pointer" onclick="openSignContractModal('${c.id}','landlord')">
+                <span class="alert-icon">✍️</span>
+                <div class="alert-content">
+                    <div class="alert-title">Contratto da Firmare</div>
+                    <div class="alert-text">Il contratto per "${p?.name || 'immobile'}" con ${tenant?.name || 'inquilino'} richiede la tua firma. Clicca qui per firmare.</div>
+                </div>
+                <button class="btn btn-sm" style="flex-shrink:0">Firma Ora →</button>
+            </div>`;
+        }
+        
         if (overduePayments.length > 0) {
             alerts += `<div class="alert danger"><span class="alert-icon">⚠️</span><div class="alert-content"><div class="alert-title">${overduePayments.length} Pagamenti in Ritardo</div><div class="alert-text">Alcuni inquilini non hanno pagato l'affitto.</div></div></div>`;
         }
@@ -1527,8 +1563,26 @@
         const contractDays = myContract ? daysUntil(myContract.endDate) : null;
         const paymentDays = nextPayment ? daysUntil(nextPayment.dueDate) : null;
         const paymentOverdue = nextPayment && isOverdue(nextPayment.dueDate);
+        
+        // Contracts pending signature
+        const pendingSignatures = getMyContracts().filter(c => !c.tenantSignature);
 
         let alerts = '';
+        
+        // Signature alert - highest priority
+        if (pendingSignatures.length > 0) {
+            const c = pendingSignatures[0];
+            const p = S.properties.find(x => x.id === c.propertyId);
+            alerts += `<div class="alert warning" style="cursor:pointer" onclick="openSignContractModal('${c.id}','tenant')">
+                <span class="alert-icon">✍️</span>
+                <div class="alert-content">
+                    <div class="alert-title">Contratto da Firmare</div>
+                    <div class="alert-text">Il contratto per "${p?.name || 'immobile'}" richiede la tua firma digitale. Clicca qui per firmare.</div>
+                </div>
+                <button class="btn btn-sm" style="flex-shrink:0">Firma Ora →</button>
+            </div>`;
+        }
+        
         if (paymentOverdue) {
             alerts += `<div class="alert danger"><span class="alert-icon">⚠️</span><div class="alert-content"><div class="alert-title">Pagamento in Ritardo!</div><div class="alert-text">L'affitto di €${nextPayment.amount} era dovuto il ${fmtDate(nextPayment.dueDate)}. Contatta il proprietario.</div></div></div>`;
         } else if (paymentDays !== null && paymentDays <= 5 && paymentDays >= 0) {
@@ -2413,6 +2467,34 @@
                     <button type="submit" class="btn">Salva Modifiche</button>
                 </form>
             </div></div>
+            
+            <div class="card"><div class="card-header"><h3 class="card-title">📱 Installa App</h3></div><div class="card-body">
+                <p style="margin-bottom:16px;color:var(--text-secondary);font-size:13px">Aggiungi BOOM Portal alla schermata Home per un accesso rapido</p>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+                    <div style="background:var(--bg-elevated);border-radius:12px;padding:16px">
+                        <div style="font-weight:600;margin-bottom:12px">🍎 iPhone/iPad</div>
+                        <ol style="font-size:13px;color:var(--text-secondary);padding-left:16px;line-height:1.8">
+                            <li>Apri questa pagina in <strong>Safari</strong></li>
+                            <li>Tocca l'icona <strong>Condividi</strong> ⬆️</li>
+                            <li>Scorri e tocca <strong>"Aggiungi a Home"</strong></li>
+                            <li>Tocca <strong>"Aggiungi"</strong> in alto a destra</li>
+                        </ol>
+                    </div>
+                    <div style="background:var(--bg-elevated);border-radius:12px;padding:16px">
+                        <div style="font-weight:600;margin-bottom:12px">🤖 Android</div>
+                        <ol style="font-size:13px;color:var(--text-secondary);padding-left:16px;line-height:1.8">
+                            <li>Apri questa pagina in <strong>Chrome</strong></li>
+                            <li>Tocca il menu <strong>⋮</strong> in alto a destra</li>
+                            <li>Tocca <strong>"Aggiungi a schermata Home"</strong></li>
+                            <li>Conferma toccando <strong>"Aggiungi"</strong></li>
+                        </ol>
+                    </div>
+                </div>
+                <div style="margin-top:16px;padding:12px;background:var(--gold-light);border-radius:8px;font-size:12px;color:var(--gold)">
+                    💡 Dopo l'installazione, troverai l'icona BOOM sulla tua Home. Aprila per accedere direttamente al portal!
+                </div>
+            </div></div>
+            
             <div class="card"><div class="card-header"><h3 class="card-title">🌐 Lingua Documenti</h3></div><div class="card-body">
                 <p style="margin-bottom:16px;color:var(--text-secondary);font-size:13px">Seleziona la lingua per la generazione dei PDF e documenti</p>
                 <div class="lang-selector" style="width:fit-content">
@@ -3598,13 +3680,48 @@
         const payments = S.payments.filter(pay => pay.contractId === id);
         const paidTotal = payments.filter(pay => pay.status === 'paid').reduce((s, pay) => s + (pay.amount || 0), 0);
         const pendingTotal = payments.filter(pay => pay.status === 'pending').reduce((s, pay) => s + (pay.amount || 0), 0);
+        
+        // Signature status
+        const sigStatus = c.signatureStatus || 'none';
+        const sigBadge = sigStatus === 'complete' 
+            ? '<span class="badge green">✅ Firmato</span>'
+            : sigStatus === 'partial'
+            ? '<span class="badge orange">✍️ Firma parziale</span>'
+            : '<span class="badge gray">📝 Da firmare</span>';
+        
         document.getElementById('modals').innerHTML = `<div class="modal-overlay active"><div class="modal lg">
             <div class="modal-header"><h3 class="modal-title">📋 Contratto ${p?.name || ''}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
             <div class="modal-body" style="max-height:70vh;overflow-y:auto">
                 <div class="detail-badges mb-16">
                     <span class="badge ${c.status === 'active' ? 'green' : c.status === 'terminated' ? 'red' : 'gray'}">${c.status === 'active' ? 'Attivo' : c.status === 'terminated' ? 'Terminato' : 'Scaduto'}</span>
+                    ${sigBadge}
                     ${c.status === 'active' && days !== null && days <= 60 && days >= 0 ? `<span class="badge orange">⏱ ${days} giorni alla scadenza</span>` : ''}
                 </div>
+                
+                <!-- Signature Section -->
+                <div class="card" style="padding:16px;margin-bottom:16px;background:var(--bg-elevated)">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                        <span style="font-weight:600">✍️ Firme Digitali</span>
+                        <button class="btn btn-xs ${sigStatus === 'complete' ? 'btn-success' : ''}" onclick="viewContractSignatures('${c.id}')">${sigStatus === 'complete' ? '📥 Vedi/Scarica' : '✍️ Gestisci Firme'}</button>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                        <div style="display:flex;align-items:center;gap:8px">
+                            <span style="font-size:20px">${c.landlordSignature ? '✅' : '⏳'}</span>
+                            <div>
+                                <div style="font-size:12px;color:var(--text-muted)">Proprietario</div>
+                                <div style="font-size:13px">${o?.name || 'N/A'}</div>
+                            </div>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:8px">
+                            <span style="font-size:20px">${c.tenantSignature ? '✅' : '⏳'}</span>
+                            <div>
+                                <div style="font-size:12px;color:var(--text-muted)">Inquilino</div>
+                                <div style="font-size:13px">${t?.name || 'N/A'}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
                 <div class="section-title" style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:12px">📍 Dettagli Contratto</div>
                 <div class="detail-grid">
                     <div><div class="detail-label">Immobile</div><div class="detail-value">${p?.name || 'N/A'}</div></div>
@@ -3695,6 +3812,456 @@
             viewMaintenance(id); 
             toast('success', 'Stato aggiornato');
         } catch (err) { toast('error', 'Errore', err.message); }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // DIGITAL SIGNATURE SYSTEM
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    let signaturePad = null;
+    let currentSigningContract = null;
+    let currentSigningRole = null;
+    
+    class SignaturePadCanvas {
+        constructor(canvas) {
+            this.canvas = canvas;
+            this.ctx = canvas.getContext('2d');
+            this.isDrawing = false;
+            this.lastX = 0;
+            this.lastY = 0;
+            this.paths = [];
+            
+            // High DPI support
+            const rect = canvas.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            this.ctx.scale(dpr, dpr);
+            canvas.style.width = rect.width + 'px';
+            canvas.style.height = rect.height + 'px';
+            
+            // Style
+            this.ctx.strokeStyle = '#000';
+            this.ctx.lineWidth = 2;
+            this.ctx.lineCap = 'round';
+            this.ctx.lineJoin = 'round';
+            
+            this.bindEvents();
+        }
+        
+        bindEvents() {
+            // Mouse events
+            this.canvas.addEventListener('mousedown', (e) => this.startDrawing(e));
+            this.canvas.addEventListener('mousemove', (e) => this.draw(e));
+            this.canvas.addEventListener('mouseup', () => this.stopDrawing());
+            this.canvas.addEventListener('mouseout', () => this.stopDrawing());
+            
+            // Touch events
+            this.canvas.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                const touch = e.touches[0];
+                this.startDrawing(touch);
+            });
+            this.canvas.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+                const touch = e.touches[0];
+                this.draw(touch);
+            });
+            this.canvas.addEventListener('touchend', () => this.stopDrawing());
+        }
+        
+        getPos(e) {
+            const rect = this.canvas.getBoundingClientRect();
+            return {
+                x: (e.clientX || e.pageX) - rect.left,
+                y: (e.clientY || e.pageY) - rect.top
+            };
+        }
+        
+        startDrawing(e) {
+            this.isDrawing = true;
+            const pos = this.getPos(e);
+            this.lastX = pos.x;
+            this.lastY = pos.y;
+            this.ctx.beginPath();
+            this.ctx.moveTo(pos.x, pos.y);
+            this.canvas.parentElement.classList.add('signing');
+        }
+        
+        draw(e) {
+            if (!this.isDrawing) return;
+            const pos = this.getPos(e);
+            this.ctx.lineTo(pos.x, pos.y);
+            this.ctx.stroke();
+            this.lastX = pos.x;
+            this.lastY = pos.y;
+        }
+        
+        stopDrawing() {
+            if (this.isDrawing) {
+                this.isDrawing = false;
+                this.paths.push(this.canvas.toDataURL());
+            }
+        }
+        
+        clear() {
+            const rect = this.canvas.getBoundingClientRect();
+            this.ctx.clearRect(0, 0, rect.width, rect.height);
+            this.paths = [];
+            this.canvas.parentElement.classList.remove('signing');
+        }
+        
+        isEmpty() {
+            return this.paths.length === 0;
+        }
+        
+        toDataURL() {
+            return this.canvas.toDataURL('image/png');
+        }
+    }
+    
+    function initSignaturePad() {
+        const canvas = document.getElementById('signatureCanvas');
+        if (canvas) {
+            signaturePad = new SignaturePadCanvas(canvas);
+        }
+    }
+    
+    function clearSignature() {
+        if (signaturePad) signaturePad.clear();
+    }
+    
+    function openSignContractModal(contractId, role) {
+        const contract = S.contracts.find(c => c.id === contractId);
+        if (!contract) return toast('error', 'Contratto non trovato');
+        
+        const property = S.properties.find(p => p.id === contract.propertyId);
+        const tenant = S.users.find(u => u.id === contract.tenantId);
+        const landlord = property ? S.users.find(u => u.id === property.ownerId) : null;
+        
+        currentSigningContract = contract;
+        currentSigningRole = role;
+        
+        const signerName = role === 'landlord' ? (landlord?.name || 'Proprietario') : (tenant?.name || 'Inquilino');
+        const alreadySigned = role === 'landlord' ? contract.landlordSignature : contract.tenantSignature;
+        
+        if (alreadySigned) {
+            return toast('info', 'Già firmato', `${signerName} ha già firmato questo contratto`);
+        }
+        
+        const otherSigned = role === 'landlord' ? contract.tenantSignature : contract.landlordSignature;
+        
+        document.getElementById('modals').innerHTML = `
+        <div class="modal-overlay active">
+            <div class="modal lg">
+                <div class="modal-header">
+                    <h3 class="modal-title">✍️ Firma Contratto</h3>
+                    <button class="modal-close" onclick="closeModal()">×</button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert info" style="margin-bottom:16px">
+                        <span class="alert-icon">📋</span>
+                        <div class="alert-content">
+                            <div class="alert-title">Contratto di Locazione</div>
+                            <div class="alert-text">${property?.name || 'Immobile'} - Canone: €${contract.rent}/mese</div>
+                        </div>
+                    </div>
+                    
+                    <div class="contract-preview">
+                        <h4>📄 Riepilogo Contratto</h4>
+                        <p><strong>Immobile:</strong> ${property?.name || 'N/A'} - ${property?.address || ''}</p>
+                        <p><strong>Proprietario:</strong> ${landlord?.name || 'N/A'}</p>
+                        <p><strong>Inquilino:</strong> ${tenant?.name || 'N/A'}</p>
+                        <p><strong>Canone:</strong> €${contract.rent}/mese</p>
+                        <p><strong>Deposito:</strong> €${contract.deposit || 0}</p>
+                        <p><strong>Durata:</strong> ${fmtDate(contract.startDate)} → ${fmtDate(contract.endDate)}</p>
+                        <p style="margin-top:12px;font-size:11px;color:var(--text-muted)">
+                            Firmando questo documento, ${signerName} accetta tutti i termini e le condizioni del contratto di locazione.
+                        </p>
+                    </div>
+                    
+                    <div class="signature-status ${otherSigned ? 'signed' : 'waiting'}">
+                        ${otherSigned 
+                            ? `✅ ${role === 'landlord' ? 'Inquilino' : 'Proprietario'} ha già firmato`
+                            : `⏳ In attesa della firma ${role === 'landlord' ? "dell'inquilino" : 'del proprietario'}`
+                        }
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">La tua firma (${signerName})</label>
+                        <div class="signature-container" id="signatureContainer">
+                            <canvas id="signatureCanvas" class="signature-canvas"></canvas>
+                        </div>
+                        <div class="signature-hint">Firma con il dito o il mouse nell'area bianca sopra</div>
+                        <div class="signature-actions">
+                            <button class="btn btn-secondary btn-sm" onclick="clearSignature()">🗑 Cancella</button>
+                            <div style="display:flex;gap:8px">
+                                <button class="btn btn-secondary btn-sm" onclick="closeModal()">Annulla</button>
+                                <button class="btn btn-sm" onclick="saveContractSignature('${contractId}', '${role}')">✍️ Conferma Firma</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+        
+        // Initialize signature pad after modal is rendered
+        setTimeout(initSignaturePad, 100);
+    }
+    
+    async function saveContractSignature(contractId, role) {
+        if (!signaturePad || signaturePad.isEmpty()) {
+            return toast('error', 'Firma richiesta', 'Disegna la tua firma prima di confermare');
+        }
+        
+        const signatureData = signaturePad.toDataURL();
+        const updateData = {};
+        
+        if (role === 'landlord') {
+            updateData.landlordSignature = signatureData;
+            updateData.landlordSignedAt = firebase.firestore.FieldValue.serverTimestamp();
+        } else {
+            updateData.tenantSignature = signatureData;
+            updateData.tenantSignedAt = firebase.firestore.FieldValue.serverTimestamp();
+        }
+        
+        // Check if both signatures will be complete
+        const contract = S.contracts.find(c => c.id === contractId);
+        const otherSigned = role === 'landlord' ? contract?.tenantSignature : contract?.landlordSignature;
+        if (otherSigned) {
+            updateData.signatureStatus = 'complete';
+            updateData.fullySignedAt = firebase.firestore.FieldValue.serverTimestamp();
+        } else {
+            updateData.signatureStatus = 'partial';
+        }
+        
+        try {
+            await db.collection('contracts').doc(contractId).update(updateData);
+            
+            // Notify the other party
+            const property = S.properties.find(p => p.id === contract?.propertyId);
+            if (role === 'landlord' && contract?.tenantId) {
+                await createNotification(
+                    contract.tenantId, 'contract',
+                    '✍️ Contratto firmato dal proprietario',
+                    `Il proprietario ha firmato il contratto per ${property?.name || 'immobile'}. ${otherSigned ? 'Il contratto è ora completo!' : 'Ora tocca a te firmare.'}`,
+                    { contractId }
+                );
+            } else if (role === 'tenant' && property?.ownerId) {
+                await createNotification(
+                    property.ownerId, 'contract',
+                    '✍️ Contratto firmato dall\'inquilino',
+                    `L'inquilino ha firmato il contratto per ${property?.name || 'immobile'}. ${otherSigned ? 'Il contratto è ora completo!' : 'Ora tocca a te firmare.'}`,
+                    { contractId }
+                );
+            }
+            
+            // Notify admin
+            const admins = S.users.filter(u => u.role === 'admin');
+            for (const admin of admins) {
+                if (updateData.signatureStatus === 'complete') {
+                    await createNotification(
+                        admin.id, 'contract',
+                        '✅ Contratto completato',
+                        `Il contratto per ${property?.name || 'immobile'} è stato firmato da entrambe le parti`,
+                        { contractId }
+                    );
+                }
+            }
+            
+            closeModal();
+            await refresh();
+            toast('success', 'Firma salvata!', updateData.signatureStatus === 'complete' ? 'Contratto completato ✓' : 'In attesa dell\'altra firma');
+            
+        } catch (err) {
+            toast('error', 'Errore', err.message);
+        }
+    }
+    
+    function viewContractSignatures(contractId) {
+        const contract = S.contracts.find(c => c.id === contractId);
+        if (!contract) return;
+        
+        const property = S.properties.find(p => p.id === contract.propertyId);
+        const tenant = S.users.find(u => u.id === contract.tenantId);
+        const landlord = property ? S.users.find(u => u.id === property.ownerId) : null;
+        
+        const canLandlordSign = S.profile.id === property?.ownerId || isAdmin();
+        const canTenantSign = S.profile.id === contract.tenantId || isAdmin();
+        
+        document.getElementById('modals').innerHTML = `
+        <div class="modal-overlay active">
+            <div class="modal lg">
+                <div class="modal-header">
+                    <h3 class="modal-title">📋 Stato Firme Contratto</h3>
+                    <button class="modal-close" onclick="closeModal()">×</button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert ${contract.signatureStatus === 'complete' ? 'success' : 'info'}" style="margin-bottom:20px">
+                        <span class="alert-icon">${contract.signatureStatus === 'complete' ? '✅' : '✍️'}</span>
+                        <div class="alert-content">
+                            <div class="alert-title">${contract.signatureStatus === 'complete' ? 'Contratto Completato' : 'Firme in Corso'}</div>
+                            <div class="alert-text">${property?.name || 'Immobile'}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="detail-grid" style="grid-template-columns:1fr 1fr;gap:20px">
+                        <!-- Landlord Signature -->
+                        <div class="card" style="padding:20px">
+                            <h4 style="margin-bottom:12px">🏠 Proprietario</h4>
+                            <p style="font-weight:600;margin-bottom:8px">${landlord?.name || 'N/A'}</p>
+                            ${contract.landlordSignature 
+                                ? `<div style="margin:12px 0">
+                                    <img src="${contract.landlordSignature}" class="signature-preview" alt="Firma proprietario">
+                                   </div>
+                                   <div class="signature-status signed">✅ Firmato ${contract.landlordSignedAt ? fmtDate(contract.landlordSignedAt) : ''}</div>`
+                                : `<div class="signature-status pending">⏳ In attesa di firma</div>
+                                   ${canLandlordSign ? `<button class="btn btn-sm" style="margin-top:12px" onclick="openSignContractModal('${contractId}','landlord')">✍️ Firma ora</button>` : ''}`
+                            }
+                        </div>
+                        
+                        <!-- Tenant Signature -->
+                        <div class="card" style="padding:20px">
+                            <h4 style="margin-bottom:12px">👤 Inquilino</h4>
+                            <p style="font-weight:600;margin-bottom:8px">${tenant?.name || 'N/A'}</p>
+                            ${contract.tenantSignature 
+                                ? `<div style="margin:12px 0">
+                                    <img src="${contract.tenantSignature}" class="signature-preview" alt="Firma inquilino">
+                                   </div>
+                                   <div class="signature-status signed">✅ Firmato ${contract.tenantSignedAt ? fmtDate(contract.tenantSignedAt) : ''}</div>`
+                                : `<div class="signature-status pending">⏳ In attesa di firma</div>
+                                   ${canTenantSign ? `<button class="btn btn-sm" style="margin-top:12px" onclick="openSignContractModal('${contractId}','tenant')">✍️ Firma ora</button>` : ''}`
+                            }
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    ${contract.signatureStatus === 'complete' 
+                        ? `<button class="btn" onclick="downloadSignedContractPDF('${contractId}')">📥 Scarica PDF Firmato</button>`
+                        : `<button class="btn btn-secondary" onclick="sendSignatureReminder('${contractId}')">📧 Invia Promemoria</button>`
+                    }
+                    <button class="btn btn-secondary" onclick="closeModal()">Chiudi</button>
+                </div>
+            </div>
+        </div>`;
+    }
+    
+    async function sendSignatureReminder(contractId) {
+        const contract = S.contracts.find(c => c.id === contractId);
+        if (!contract) return;
+        
+        const property = S.properties.find(p => p.id === contract.propertyId);
+        
+        // Send to whoever hasn't signed
+        if (!contract.landlordSignature && property?.ownerId) {
+            await createNotification(
+                property.ownerId, 'contract',
+                '✍️ Promemoria: Firma contratto',
+                `Il contratto per ${property?.name || 'immobile'} è in attesa della tua firma`,
+                { contractId }
+            );
+        }
+        
+        if (!contract.tenantSignature && contract.tenantId) {
+            await createNotification(
+                contract.tenantId, 'contract',
+                '✍️ Promemoria: Firma contratto',
+                `Il contratto per ${property?.name || 'immobile'} è in attesa della tua firma`,
+                { contractId }
+            );
+        }
+        
+        toast('success', 'Promemoria inviato!');
+    }
+    
+    async function downloadSignedContractPDF(contractId) {
+        const contract = S.contracts.find(c => c.id === contractId);
+        if (!contract) return;
+        
+        const property = S.properties.find(p => p.id === contract.propertyId);
+        const tenant = S.users.find(u => u.id === contract.tenantId);
+        const landlord = property ? S.users.find(u => u.id === property.ownerId) : null;
+        
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        
+        // Header
+        doc.setFillColor(0, 0, 0);
+        doc.rect(0, 0, 210, 40, 'F');
+        doc.setTextColor(212, 175, 55);
+        doc.setFontSize(28);
+        doc.text('BOOM', 105, 22, { align: 'center' });
+        doc.setFontSize(10);
+        doc.setTextColor(150, 150, 150);
+        doc.text('CONTRATTO DI LOCAZIONE - FIRMATO DIGITALMENTE', 105, 32, { align: 'center' });
+        
+        doc.setTextColor(0, 0, 0);
+        let y = 55;
+        
+        // Contract details
+        doc.setFontSize(14);
+        doc.setFont(undefined, 'bold');
+        doc.text('DATI CONTRATTO', 20, y);
+        y += 10;
+        
+        doc.setFontSize(11);
+        doc.setFont(undefined, 'normal');
+        const details = [
+            ['Immobile:', property?.name || 'N/A'],
+            ['Indirizzo:', property?.address || 'N/A'],
+            ['Proprietario:', landlord?.name || 'N/A'],
+            ['Inquilino:', tenant?.name || 'N/A'],
+            ['Canone mensile:', `€${contract.rent}`],
+            ['Deposito cauzionale:', `€${contract.deposit || 0}`],
+            ['Data inizio:', fmtDate(contract.startDate)],
+            ['Data fine:', fmtDate(contract.endDate)]
+        ];
+        
+        details.forEach(([label, value]) => {
+            doc.setFont(undefined, 'bold');
+            doc.text(label, 20, y);
+            doc.setFont(undefined, 'normal');
+            doc.text(value, 70, y);
+            y += 7;
+        });
+        
+        // Signatures section
+        y += 15;
+        doc.setFontSize(14);
+        doc.setFont(undefined, 'bold');
+        doc.text('FIRME DIGITALI', 20, y);
+        y += 10;
+        
+        // Landlord signature
+        doc.setFontSize(11);
+        doc.text('Proprietario:', 20, y);
+        if (contract.landlordSignature) {
+            try {
+                doc.addImage(contract.landlordSignature, 'PNG', 20, y + 5, 60, 25);
+                doc.setFontSize(8);
+                doc.text(`Firmato: ${fmtDate(contract.landlordSignedAt)}`, 20, y + 35);
+            } catch (e) { console.error('Landlord signature error:', e); }
+        }
+        
+        // Tenant signature
+        doc.setFontSize(11);
+        doc.text('Inquilino:', 110, y);
+        if (contract.tenantSignature) {
+            try {
+                doc.addImage(contract.tenantSignature, 'PNG', 110, y + 5, 60, 25);
+                doc.setFontSize(8);
+                doc.text(`Firmato: ${fmtDate(contract.tenantSignedAt)}`, 110, y + 35);
+            } catch (e) { console.error('Tenant signature error:', e); }
+        }
+        
+        // Footer
+        doc.setFontSize(8);
+        doc.setTextColor(128, 128, 128);
+        doc.text(`Documento generato digitalmente da BOOM Property Portal - ${new Date().toLocaleString('it-IT')}`, 105, 285, { align: 'center' });
+        doc.text('Egidi Immobiliare S.r.l. - www.boomrome.com', 105, 290, { align: 'center' });
+        
+        doc.save(`Contratto_${property?.name || 'BOOM'}_Firmato.pdf`);
+        toast('success', 'PDF scaricato!');
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
