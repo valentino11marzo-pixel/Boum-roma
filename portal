@@ -4923,7 +4923,11 @@
 
     function generateTemplatePDF() {
         const data = Object.fromEntries(new FormData(document.getElementById('tplForm')));
-        if (!data.clientName && !data.landlordName && !data.tenantName) {
+        console.log('generateTemplatePDF - templateType:', data.templateType);
+        console.log('generateTemplatePDF - inventoryList:', data.inventoryList);
+        console.log('generateTemplatePDF - full data:', data);
+        
+        if (!data.clientName && !data.landlordName && !data.tenantName && !data.propertyAddress) {
             return toast('error', 'Compila i campi obbligatori');
         }
         
@@ -5274,6 +5278,7 @@
         
         // VERBALE CONSEGNA CHIAVI (HANDOVER)
         else if (type === 'handover') {
+            console.log('>>> HANDOVER HANDLER MATCHED');
             const isCheckout = data.handoverType === 'checkout';
             const handoverTitle = isIT 
                 ? (isCheckout ? 'VERBALE DI RICONSEGNA IMMOBILE' : 'VERBALE DI CONSEGNA IMMOBILE')
@@ -5341,6 +5346,7 @@
         
         // INVENTARIO ARREDI (INVENTORY)
         else if (type === 'inventory') {
+            console.log('>>> INVENTORY HANDLER MATCHED');
             section(isIT ? 'IMMOBILE' : 'PROPERTY');
             field(isIT ? 'Indirizzo' : 'Address', data.propertyAddress);
             field(isIT ? 'Data Redazione' : 'Date', data.date);
@@ -5642,6 +5648,7 @@
         
         // DEFAULT - Altri documenti
         else {
+            console.log('>>> DEFAULT HANDLER - type was:', type);
             section('DATI');
             if (data.clientName) field('Cliente/Destinatario', data.clientName);
             if (data.landlordName) field('Proprietario', data.landlordName);
