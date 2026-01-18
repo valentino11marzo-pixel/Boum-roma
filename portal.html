@@ -2576,27 +2576,27 @@
     };
     
     function commandPage() {
-        const today = new Date();
-        const upcomingDeadlines = S.deadlines.filter(d => d.status !== 'done').sort((a, b) => {
-            const dA = daysUntil(a.date), dB = daysUntil(b.date);
-            return (dA ?? 999) - (dB ?? 999);
-        });
-        const overdueDeadlines = upcomingDeadlines.filter(d => daysUntil(d.date) !== null && daysUntil(d.date) < 0);
-        const urgentDeadlines = upcomingDeadlines.filter(d => {
-            const days = daysUntil(d.date);
-            return days !== null && days >= 0 && days <= 7;
-        });
-        const soonDeadlines = upcomingDeadlines.filter(d => {
-            const days = daysUntil(d.date);
-            return days !== null && days > 7 && days <= 30;
-        });
-        
-        const pendingTasks = S.tasks.filter(t => t.status !== 'done').sort((a, b) => {
-            const prio = { urgent: 0, normal: 1, low: 2 };
-            return (prio[a.priority] || 1) - (prio[b.priority] || 1);
-        });
-        const urgentTasks = pendingTasks.filter(t => t.priority === 'urgent');
-        const completedTasks = S.tasks.filter(t => t.status === 'done').length;
+        try {
+            const upcomingDeadlines = (S.deadlines || []).filter(d => d.status !== 'done').sort((a, b) => {
+                const dA = daysUntil(a.date), dB = daysUntil(b.date);
+                return (dA ?? 999) - (dB ?? 999);
+            });
+            const overdueDeadlines = upcomingDeadlines.filter(d => daysUntil(d.date) !== null && daysUntil(d.date) < 0);
+            const urgentDeadlines = upcomingDeadlines.filter(d => {
+                const days = daysUntil(d.date);
+                return days !== null && days >= 0 && days <= 7;
+            });
+            const soonDeadlines = upcomingDeadlines.filter(d => {
+                const days = daysUntil(d.date);
+                return days !== null && days > 7 && days <= 30;
+            });
+            
+            const pendingTasks = (S.tasks || []).filter(t => t.status !== 'done').sort((a, b) => {
+                const prio = { urgent: 0, normal: 1, low: 2 };
+                return (prio[a.priority] || 1) - (prio[b.priority] || 1);
+            });
+            const urgentTasks = pendingTasks.filter(t => t.priority === 'urgent');
+            const completedTasks = (S.tasks || []).filter(t => t.status === 'done').length;
         
         return `<div class="page-header">
                 <div><h1 class="page-title">🎯 Command Center</h1><p class="page-subtitle">Scadenze e task sotto controllo</p></div>
@@ -2630,7 +2630,7 @@
                 </div>
             </div>
             
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+            <div class="grid-2">
                 <!-- SCADENZARIO -->
                 <div class="card">
                     <div class="card-header">
@@ -2711,7 +2711,7 @@
                         <span class="badge gray">${completedTasks}</span>
                     </div>
                     <div class="card-body flush hidden" style="max-height:300px;overflow-y:auto">
-                        ${S.tasks.filter(t => t.status === 'done').slice(0, 20).map(t => `
+                        ${(S.tasks || []).filter(t => t.status === 'done').slice(0, 20).map(t => `
                             <div class="list-item" style="opacity:0.6">
                                 <span class="list-icon" style="background:var(--green-light);color:var(--green)">✓</span>
                                 <div class="list-content">
@@ -2724,6 +2724,10 @@
                     </div>
                 </div>
             ` : ''}`;
+        } catch (e) {
+            console.error('Command Center error:', e);
+            return `<div class="page-header"><div><h1 class="page-title">🎯 Command Center</h1><p class="page-subtitle">Errore nel caricamento</p></div></div><div class="card"><div class="card-body"><p>Si è verificato un errore: ${e.message}</p></div></div>`;
+        }
     }
     
     function renderDeadlineItem(d) {
@@ -2804,6 +2808,7 @@
                 createdBy: S.profile.id
             };
             const ref = await db.collection('tasks').add(task);
+            if (!S.tasks) S.tasks = [];
             S.tasks.push({ id: ref.id, ...task, createdAt: new Date() });
             document.getElementById('quickTaskInput').value = '';
             toast('success', 'Task aggiunto');
@@ -2818,7 +2823,7 @@
                 status: 'done',
                 completedAt: firebase.firestore.FieldValue.serverTimestamp()
             });
-            const t = S.tasks.find(x => x.id === id);
+            const t = (S.tasks || []).find(x => x.id === id);
             if (t) { t.status = 'done'; t.completedAt = new Date(); }
             toast('success', 'Task completato! 🎉');
             renderPage();
@@ -2830,7 +2835,7 @@
         if (!confirm('Eliminare questo task?')) return;
         try {
             await db.collection('tasks').doc(id).delete();
-            S.tasks = S.tasks.filter(t => t.id !== id);
+            S.tasks = (S.tasks || []).filter(t => t.id !== id);
             toast('success', 'Task eliminato');
             renderPage();
         } catch (e) { toast('error', 'Errore', e.message); }
@@ -2842,7 +2847,7 @@
                 status: 'done',
                 completedAt: firebase.firestore.FieldValue.serverTimestamp()
             });
-            const d = S.deadlines.find(x => x.id === id);
+            const d = (S.deadlines || []).find(x => x.id === id);
             if (d) { d.status = 'done'; d.completedAt = new Date(); }
             toast('success', 'Scadenza completata! ✅');
             renderPage();
@@ -2851,7 +2856,7 @@
     }
     
     function editDeadline(id) {
-        const d = S.deadlines.find(x => x.id === id);
+        const d = (S.deadlines || []).find(x => x.id === id);
         if (!d) return;
         openModal('addDeadline');
         setTimeout(() => {
@@ -2868,7 +2873,7 @@
     }
     
     function editTask(id) {
-        const t = S.tasks.find(x => x.id === id);
+        const t = (S.tasks || []).find(x => x.id === id);
         if (!t) return;
         openModal('addTask');
         setTimeout(() => {
@@ -2906,6 +2911,7 @@
         try {
             if (id) {
                 await db.collection('deadlines').doc(id).update(data);
+                if (!S.deadlines) S.deadlines = [];
                 const idx = S.deadlines.findIndex(d => d.id === id);
                 if (idx >= 0) S.deadlines[idx] = { ...S.deadlines[idx], ...data };
                 toast('success', 'Scadenza aggiornata');
@@ -2913,10 +2919,11 @@
                 data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
                 data.createdBy = S.profile.id;
                 const ref = await db.collection('deadlines').add(data);
+                if (!S.deadlines) S.deadlines = [];
                 S.deadlines.push({ id: ref.id, ...data });
                 toast('success', 'Scadenza creata');
             }
-            closeModal('addDeadline');
+            closeModal();
             renderPage();
             buildNav();
         } catch (e) { toast('error', 'Errore', e.message); }
@@ -2942,6 +2949,7 @@
         try {
             if (id) {
                 await db.collection('tasks').doc(id).update(data);
+                if (!S.tasks) S.tasks = [];
                 const idx = S.tasks.findIndex(t => t.id === id);
                 if (idx >= 0) S.tasks[idx] = { ...S.tasks[idx], ...data };
                 toast('success', 'Task aggiornato');
@@ -2949,10 +2957,11 @@
                 data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
                 data.createdBy = S.profile.id;
                 const ref = await db.collection('tasks').add(data);
+                if (!S.tasks) S.tasks = [];
                 S.tasks.push({ id: ref.id, ...data });
                 toast('success', 'Task creato');
             }
-            closeModal('addTask');
+            closeModal();
             renderPage();
             buildNav();
         } catch (e) { toast('error', 'Errore', e.message); }
