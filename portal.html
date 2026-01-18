@@ -1334,7 +1334,7 @@
             const pendingInv = S.invoices.filter(i => i.status === 'pending').length;
             const openMaint = S.maintenance.filter(m => m.status === 'open').length;
             const overduePayments = S.payments.filter(p => p.status === 'pending' && isOverdue(p.dueDate)).length;
-            const urgentDeadlines = S.deadlines.filter(d => d.status !== 'done' && daysUntil(d.date) !== null && daysUntil(d.date) <= 7).length + S.tasks.filter(t => t.status !== 'done' && t.priority === 'urgent').length;
+            const urgentDeadlines = (S.deadlines || []).filter(d => d.status !== 'done' && daysUntil(d.date) !== null && daysUntil(d.date) <= 7).length + (S.tasks || []).filter(t => t.status !== 'done' && t.priority === 'urgent').length;
             
             sb.innerHTML = `
                 <div class="nav-section"><div class="nav-label">Panoramica</div>
@@ -2597,6 +2597,55 @@
             });
             const urgentTasks = pendingTasks.filter(t => t.priority === 'urgent');
             const completedTasks = (S.tasks || []).filter(t => t.status === 'done').length;
+            
+            // SMART PRIORITY - Calculate priority score for all items
+            const calculatePriorityScore = (item, type) => {
+                let score = 0;
+                if (type === 'deadline') {
+                    const days = daysUntil(item.date);
+                    if (days === null) return 0;
+                    if (days < 0) score += 100 + Math.abs(days) * 5; // Overdue: highest priority
+                    else if (days <= 3) score += 80;
+                    else if (days <= 7) score += 60;
+                    else if (days <= 14) score += 40;
+                    else score += 20;
+                    // Type bonus
+                    const typeBonus = { ade_registration: 20, ade_annual: 15, contract_renewal: 15, tax_deadline: 15, permit_expiry: 10 };
+                    score += typeBonus[item.type] || 0;
+                    // Linked contract value bonus
+                    if (item.linkedContractId) {
+                        const contract = (S.contracts || []).find(c => c.id === item.linkedContractId);
+                        if (contract?.rent > 1000) score += 10;
+                    }
+                } else if (type === 'task') {
+                    const prioScore = { urgent: 70, normal: 30, low: 10 };
+                    score += prioScore[item.priority] || 30;
+                    if (item.dueDate) {
+                        const days = daysUntil(item.dueDate);
+                        if (days !== null && days < 0) score += 50;
+                        else if (days !== null && days <= 3) score += 30;
+                        else if (days !== null && days <= 7) score += 15;
+                    }
+                }
+                return score;
+            };
+            
+            // Build Focus Items - Top 5 priorities
+            const focusItems = [
+                ...overdueDeadlines.map(d => ({ ...d, itemType: 'deadline', score: calculatePriorityScore(d, 'deadline') })),
+                ...urgentDeadlines.map(d => ({ ...d, itemType: 'deadline', score: calculatePriorityScore(d, 'deadline') })),
+                ...urgentTasks.map(t => ({ ...t, itemType: 'task', score: calculatePriorityScore(t, 'task') })),
+                ...pendingTasks.filter(t => t.priority !== 'urgent' && t.dueDate && daysUntil(t.dueDate) <= 3).map(t => ({ ...t, itemType: 'task', score: calculatePriorityScore(t, 'task') }))
+            ].sort((a, b) => b.score - a.score).slice(0, 5);
+            
+            // Time blocking suggestion
+            const today = new Date();
+            const dayOfWeek = today.getDay();
+            const timeBlocks = {
+                morning: pendingTasks.filter(t => ['admin', 'finance'].includes(t.category)).slice(0, 2),
+                afternoon: pendingTasks.filter(t => ['clients', 'owners'].includes(t.category)).slice(0, 2),
+                flexible: pendingTasks.filter(t => ['marketing', 'maintenance'].includes(t.category)).slice(0, 2)
+            };
         
         return `<div class="page-header">
                 <div><h1 class="page-title">🎯 Command Center</h1><p class="page-subtitle">Scadenze e task sotto controllo</p></div>
@@ -2605,6 +2654,92 @@
                     <button class="btn" onclick="openModal('addTask')">✅ + Task</button>
                 </div>
             </div>
+            
+            <!-- 🧠 FOCUS MODE - Today's Top Priorities -->
+            ${focusItems.length > 0 ? `
+            <div class="card" style="background:linear-gradient(135deg, rgba(212,175,55,0.1) 0%, rgba(0,0,0,0.9) 100%);border-color:var(--gold);margin-bottom:20px">
+                <div class="card-header" style="border-bottom-color:var(--gold)">
+                    <span class="card-title">🧠 Focus Mode — Priorità di Oggi</span>
+                    <span class="badge gold">${focusItems.length} items</span>
+                </div>
+                <div class="card-body">
+                    <div style="display:grid;gap:12px">
+                        ${focusItems.map((item, idx) => {
+                            if (item.itemType === 'deadline') {
+                                const type = DEADLINE_TYPES[item.type] || DEADLINE_TYPES.other;
+                                const days = daysUntil(item.date);
+                                return `<div style="display:flex;align-items:center;gap:14px;padding:14px;background:var(--bg-elevated);border-radius:10px;border-left:4px solid var(--${days < 0 ? 'red' : days <= 3 ? 'orange' : 'gold'})">
+                                    <div style="font-size:24px;opacity:0.9">${idx + 1}.</div>
+                                    <span style="font-size:20px">${type.icon}</span>
+                                    <div style="flex:1">
+                                        <div style="font-weight:600">${esc(item.title)}</div>
+                                        <div style="font-size:12px;color:var(--text-muted)">${type.label} • ${days < 0 ? '<span style="color:var(--red)">SCADUTO ' + Math.abs(days) + 'gg fa</span>' : days === 0 ? '<span style="color:var(--orange)">OGGI!</span>' : 'tra ' + days + ' giorni'}</div>
+                                    </div>
+                                    <div style="text-align:right">
+                                        <div class="badge ${days < 0 ? 'red' : days <= 3 ? 'orange' : 'gold'}" style="font-size:11px">Score: ${item.score}</div>
+                                    </div>
+                                    <button class="btn btn-xs btn-success" onclick="completeDeadline('${item.id}')">✓</button>
+                                </div>`;
+                            } else {
+                                const cat = TASK_CATEGORIES[item.category] || TASK_CATEGORIES.other;
+                                return `<div style="display:flex;align-items:center;gap:14px;padding:14px;background:var(--bg-elevated);border-radius:10px;border-left:4px solid var(--${item.priority === 'urgent' ? 'red' : 'blue'})">
+                                    <div style="font-size:24px;opacity:0.9">${idx + 1}.</div>
+                                    <span style="font-size:20px">${cat.icon}</span>
+                                    <div style="flex:1">
+                                        <div style="font-weight:600">${esc(item.title)} ${item.priority === 'urgent' ? '<span class="badge red" style="font-size:9px">URGENTE</span>' : ''}</div>
+                                        <div style="font-size:12px;color:var(--text-muted)">${cat.label}${item.dueDate ? ' • Scade: ' + formatDate(item.dueDate) : ''}</div>
+                                    </div>
+                                    <div style="text-align:right">
+                                        <div class="badge blue" style="font-size:11px">Score: ${item.score}</div>
+                                    </div>
+                                    <button class="btn btn-xs btn-success" onclick="completeTask('${item.id}')">✓</button>
+                                </div>`;
+                            }
+                        }).join('')}
+                    </div>
+                </div>
+            </div>
+            ` : `
+            <div class="card" style="background:linear-gradient(135deg, rgba(52,199,89,0.1) 0%, rgba(0,0,0,0.9) 100%);border-color:var(--green);margin-bottom:20px">
+                <div class="card-body" style="text-align:center;padding:30px">
+                    <div style="font-size:48px;margin-bottom:10px">🎉</div>
+                    <div style="font-size:18px;font-weight:600;color:var(--green)">Tutto sotto controllo!</div>
+                    <div style="color:var(--text-muted);margin-top:8px">Nessuna urgenza per oggi</div>
+                </div>
+            </div>
+            `}
+            
+            <!-- ⏰ TIME BLOCKING SUGGESTION -->
+            ${(timeBlocks.morning.length + timeBlocks.afternoon.length + timeBlocks.flexible.length) > 0 ? `
+            <div class="card" style="margin-bottom:20px">
+                <div class="card-header" onclick="this.nextElementSibling.classList.toggle('hidden')" style="cursor:pointer">
+                    <span class="card-title">⏰ Suggerimento Giornata</span>
+                    <span style="color:var(--text-muted);font-size:12px">clicca per espandere</span>
+                </div>
+                <div class="card-body hidden">
+                    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
+                        <div style="background:var(--bg);padding:16px;border-radius:10px">
+                            <div style="font-size:12px;color:var(--gold);font-weight:600;margin-bottom:10px">🌅 MATTINA (9-12)</div>
+                            <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px">Admin & Finance</div>
+                            ${timeBlocks.morning.length ? timeBlocks.morning.map(t => `<div style="padding:8px;background:var(--bg-elevated);border-radius:6px;margin-bottom:6px;font-size:12px">${esc(t.title)}</div>`).join('') : '<div style="color:var(--text-muted);font-size:12px">—</div>'}
+                        </div>
+                        <div style="background:var(--bg);padding:16px;border-radius:10px">
+                            <div style="font-size:12px;color:var(--blue);font-weight:600;margin-bottom:10px">☀️ POMERIGGIO (14-18)</div>
+                            <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px">Clienti & Proprietari</div>
+                            ${timeBlocks.afternoon.length ? timeBlocks.afternoon.map(t => `<div style="padding:8px;background:var(--bg-elevated);border-radius:6px;margin-bottom:6px;font-size:12px">${esc(t.title)}</div>`).join('') : '<div style="color:var(--text-muted);font-size:12px">—</div>'}
+                        </div>
+                        <div style="background:var(--bg);padding:16px;border-radius:10px">
+                            <div style="font-size:12px;color:var(--purple);font-weight:600;margin-bottom:10px">🌙 FLESSIBILE</div>
+                            <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px">Marketing & Manutenzione</div>
+                            ${timeBlocks.flexible.length ? timeBlocks.flexible.map(t => `<div style="padding:8px;background:var(--bg-elevated);border-radius:6px;margin-bottom:6px;font-size:12px">${esc(t.title)}</div>`).join('') : '<div style="color:var(--text-muted);font-size:12px">—</div>'}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            ` : ''}
+            
+            <!-- 📅 QUESTA SETTIMANA -->
+            ${buildWeeklyView(upcomingDeadlines, pendingTasks)}
             
             <!-- ALERT SUMMARY -->
             <div class="stats-grid" style="grid-template-columns: repeat(4, 1fr)">
@@ -2730,10 +2865,76 @@
         }
     }
     
+    // Build weekly calendar view
+    function buildWeeklyView(deadlines, tasks) {
+        const now = new Date();
+        const todayStr = now.toISOString().split('T')[0];
+        const startOfWeek = new Date(now);
+        const dayOfWeek = now.getDay();
+        startOfWeek.setDate(now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1)); // Monday
+        startOfWeek.setHours(0, 0, 0, 0);
+        
+        const weekDays = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
+        const dayItems = [];
+        
+        for (let i = 0; i < 7; i++) {
+            const d = new Date(startOfWeek);
+            d.setDate(startOfWeek.getDate() + i);
+            const key = d.toISOString().split('T')[0];
+            dayItems.push({ key, day: weekDays[i], date: d.getDate(), deadlines: [], tasks: [] });
+        }
+        
+        // Assign deadlines to days
+        deadlines.forEach(dl => {
+            const dlDate = dl.date ? (typeof dl.date === 'string' ? dl.date.split('T')[0] : new Date(dl.date).toISOString().split('T')[0]) : null;
+            if (dlDate) {
+                const dayItem = dayItems.find(di => di.key === dlDate);
+                if (dayItem) dayItem.deadlines.push(dl);
+            }
+        });
+        
+        // Assign tasks to days
+        tasks.forEach(t => {
+            if (!t.dueDate) return;
+            const tDate = typeof t.dueDate === 'string' ? t.dueDate.split('T')[0] : new Date(t.dueDate).toISOString().split('T')[0];
+            const dayItem = dayItems.find(di => di.key === tDate);
+            if (dayItem) dayItem.tasks.push(t);
+        });
+        
+        const totalItems = dayItems.reduce((sum, di) => sum + di.deadlines.length + di.tasks.length, 0);
+        if (totalItems === 0) return '';
+        
+        let html = '<div class="card" style="margin-bottom:20px">';
+        html += '<div class="card-header"><span class="card-title">📅 Questa Settimana</span><span class="badge blue">' + totalItems + ' items</span></div>';
+        html += '<div class="card-body" style="padding:12px"><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px">';
+        
+        dayItems.forEach(di => {
+            const isToday = di.key === todayStr;
+            const hasItems = di.deadlines.length + di.tasks.length > 0;
+            
+            html += '<div style="background:' + (isToday ? 'var(--gold-light)' : 'var(--bg)') + ';border:' + (isToday ? '2px solid var(--gold)' : '1px solid var(--border)') + ';border-radius:8px;padding:8px;min-height:80px">';
+            html += '<div style="font-size:10px;font-weight:600;color:' + (isToday ? 'var(--gold)' : 'var(--text-muted)') + ';margin-bottom:6px;text-align:center">' + di.day + ' ' + di.date + '</div>';
+            
+            di.deadlines.forEach(d => {
+                html += '<div style="font-size:10px;padding:4px;background:var(--orange-light);border-radius:4px;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="' + esc(d.title) + '">📅 ' + esc(d.title.substring(0, 12)) + '</div>';
+            });
+            
+            di.tasks.forEach(t => {
+                html += '<div style="font-size:10px;padding:4px;background:var(--blue-light);border-radius:4px;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="' + esc(t.title) + '">✅ ' + esc(t.title.substring(0, 12)) + '</div>';
+            });
+            
+            if (!hasItems) html += '<div style="font-size:10px;color:var(--text-muted);text-align:center">—</div>';
+            html += '</div>';
+        });
+        
+        html += '</div></div></div>';
+        return html;
+    }
+    
     function renderDeadlineItem(d) {
         const days = daysUntil(d.date);
         const type = DEADLINE_TYPES[d.type] || DEADLINE_TYPES.other;
-        const countdownClass = days < 0 ? 'red' : days <= 7 ? 'orange' : 'blue';
+        const countdownClass = days === null ? 'gray' : days < 0 ? 'red' : days <= 7 ? 'orange' : 'blue';
         const linkedEntity = getDeadlineLinkedEntity(d);
         
         return `<div class="list-item">
@@ -2743,12 +2944,13 @@
                 <div class="list-subtitle">${type.label}${linkedEntity ? ` • ${linkedEntity}` : ''}</div>
             </div>
             <div class="list-meta" style="text-align:right">
-                <div class="badge ${countdownClass}">${formatCountdown(days)}</div>
+                <div class="badge ${countdownClass}">${days !== null ? formatCountdown(days) : 'N/D'}</div>
                 <div style="font-size:11px;color:var(--text-muted);margin-top:4px">${formatDate(d.date)}</div>
             </div>
             <div class="list-actions">
                 <button class="btn btn-xs btn-success" onclick="completeDeadline('${d.id}')" title="Fatto">✓</button>
                 <button class="btn btn-xs btn-secondary" onclick="editDeadline('${d.id}')" title="Modifica">✏️</button>
+                <button class="btn btn-xs btn-secondary" onclick="deleteDeadline('${d.id}')" title="Elimina">🗑️</button>
             </div>
         </div>`;
     }
@@ -2757,12 +2959,13 @@
         const cat = TASK_CATEGORIES[t.category] || TASK_CATEGORIES.other;
         const prioClass = t.priority === 'urgent' ? 'red' : t.priority === 'low' ? 'gray' : 'blue';
         const prioIcon = t.priority === 'urgent' ? '🔥' : t.priority === 'low' ? '📌' : '📋';
+        const linkedClient = t.linkedClientId ? (S.clients || []).find(c => c.id === t.linkedClientId) : null;
         
         return `<div class="list-item">
             <span class="list-icon" style="background:var(--${cat.color}-light)">${cat.icon}</span>
             <div class="list-content">
                 <div class="list-title">${esc(t.title)} ${t.priority === 'urgent' ? '<span class="badge red">URGENTE</span>' : ''}</div>
-                <div class="list-subtitle">${cat.label}${t.dueDate ? ` • Scadenza: ${formatDate(t.dueDate)}` : ''}${t.linkedClientId ? ` • ${S.clients.find(c => c.id === t.linkedClientId)?.name || ''}` : ''}</div>
+                <div class="list-subtitle">${cat.label}${t.dueDate ? ` • Scadenza: ${formatDate(t.dueDate)}` : ''}${linkedClient ? ` • ${esc(linkedClient.name)}` : ''}</div>
             </div>
             <div class="list-meta">
                 <span class="badge ${prioClass}">${prioIcon}</span>
@@ -2770,22 +2973,23 @@
             <div class="list-actions">
                 <button class="btn btn-xs btn-success" onclick="completeTask('${t.id}')" title="Completa">✓</button>
                 <button class="btn btn-xs btn-secondary" onclick="editTask('${t.id}')" title="Modifica">✏️</button>
+                <button class="btn btn-xs btn-secondary" onclick="deleteTask('${t.id}')" title="Elimina">🗑️</button>
             </div>
         </div>`;
     }
     
     function getDeadlineLinkedEntity(d) {
         if (d.linkedContractId) {
-            const c = S.contracts.find(x => x.id === d.linkedContractId);
-            const p = c ? S.properties.find(x => x.id === c.propertyId) : null;
+            const c = (S.contracts || []).find(x => x.id === d.linkedContractId);
+            const p = c ? (S.properties || []).find(x => x.id === c.propertyId) : null;
             return p?.name || 'Contratto';
         }
         if (d.linkedPropertyId) {
-            const p = S.properties.find(x => x.id === d.linkedPropertyId);
+            const p = (S.properties || []).find(x => x.id === d.linkedPropertyId);
             return p?.name || 'Immobile';
         }
         if (d.linkedClientId) {
-            const c = S.clients.find(x => x.id === d.linkedClientId);
+            const c = (S.clients || []).find(x => x.id === d.linkedClientId);
             return c?.name || 'Cliente';
         }
         return null;
@@ -2838,6 +3042,17 @@
             S.tasks = (S.tasks || []).filter(t => t.id !== id);
             toast('success', 'Task eliminato');
             renderPage();
+        } catch (e) { toast('error', 'Errore', e.message); }
+    }
+    
+    async function deleteDeadline(id) {
+        if (!confirm('Eliminare questa scadenza?')) return;
+        try {
+            await db.collection('deadlines').doc(id).delete();
+            S.deadlines = (S.deadlines || []).filter(d => d.id !== id);
+            toast('success', 'Scadenza eliminata');
+            renderPage();
+            buildNav();
         } catch (e) { toast('error', 'Errore', e.message); }
     }
     
@@ -3691,7 +3906,7 @@
         e.preventDefault();
         const data = Object.fromEntries(new FormData(e.target));
         try {
-            await db.collection('contracts').add({
+            const contractData = {
                 propertyId: data.propertyId, 
                 tenantId: data.tenantId,
                 startDate: data.startDate, 
@@ -3701,9 +3916,134 @@
                 notes: data.notes || '',
                 status: 'active', 
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
-            closeModal(); await refresh(); toast('success', 'Contratto creato!');
+            };
+            const ref = await db.collection('contracts').add(contractData);
+            
+            // 🔄 AUTO-GENERATE DEADLINES
+            await generateContractDeadlines(ref.id, contractData);
+            
+            closeModal(); await refresh(); toast('success', 'Contratto creato con scadenze automatiche!');
         } catch (err) { toast('error', 'Errore', err.message); }
+    }
+    
+    // 🔄 AUTO-GENERATE CONTRACT DEADLINES
+    async function generateContractDeadlines(contractId, contract) {
+        const deadlines = [];
+        const startDate = new Date(contract.startDate);
+        const endDate = new Date(contract.endDate);
+        const prop = (S.properties || []).find(p => p.id === contract.propertyId);
+        const propName = prop?.name || 'Immobile';
+        
+        // 1. Registrazione AdE - 30 giorni dalla firma
+        const adeRegDate = new Date(startDate);
+        adeRegDate.setDate(adeRegDate.getDate() + 30);
+        deadlines.push({
+            title: `Registrazione AdE - ${propName}`,
+            type: 'ade_registration',
+            date: adeRegDate.toISOString().split('T')[0],
+            linkedContractId: contractId,
+            linkedPropertyId: contract.propertyId,
+            reminderDays: 7,
+            notes: 'Registrare il contratto all\'Agenzia delle Entrate entro 30 giorni dalla firma',
+            status: 'pending',
+            autoGenerated: true,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            createdBy: S.profile?.id || 'system'
+        });
+        
+        // 2. Rinnovo annuale AdE - ogni anno dalla data di inizio
+        const years = Math.floor((endDate - startDate) / (365 * 24 * 60 * 60 * 1000));
+        for (let i = 1; i <= Math.min(years, 4); i++) {
+            const adeAnnualDate = new Date(startDate);
+            adeAnnualDate.setFullYear(adeAnnualDate.getFullYear() + i);
+            adeAnnualDate.setDate(adeAnnualDate.getDate() - 30); // 30 giorni prima
+            deadlines.push({
+                title: `Rinnovo Annuale AdE (Anno ${i}) - ${propName}`,
+                type: 'ade_annual',
+                date: adeAnnualDate.toISOString().split('T')[0],
+                linkedContractId: contractId,
+                linkedPropertyId: contract.propertyId,
+                reminderDays: 14,
+                notes: `Pagamento imposta di registro annuale - Anno ${i}`,
+                status: 'pending',
+                autoGenerated: true,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                createdBy: S.profile?.id || 'system'
+            });
+        }
+        
+        // 3. Scadenza contratto - 60 giorni prima della fine
+        const contractEndReminder = new Date(endDate);
+        contractEndReminder.setDate(contractEndReminder.getDate() - 60);
+        deadlines.push({
+            title: `Scadenza Contratto - ${propName}`,
+            type: 'contract_renewal',
+            date: contractEndReminder.toISOString().split('T')[0],
+            linkedContractId: contractId,
+            linkedPropertyId: contract.propertyId,
+            reminderDays: 30,
+            notes: 'Verificare intenzione di rinnovo con inquilino e proprietario',
+            status: 'pending',
+            autoGenerated: true,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            createdBy: S.profile?.id || 'system'
+        });
+        
+        // 4. Fine contratto effettiva
+        deadlines.push({
+            title: `Fine Contratto - ${propName}`,
+            type: 'contract_renewal',
+            date: contract.endDate,
+            linkedContractId: contractId,
+            linkedPropertyId: contract.propertyId,
+            reminderDays: 7,
+            notes: 'Data termine contratto - organizzare check-out e riconsegna chiavi',
+            status: 'pending',
+            autoGenerated: true,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            createdBy: S.profile?.id || 'system'
+        });
+        
+        // Save all deadlines to Firebase
+        const batch = db.batch();
+        for (const deadline of deadlines) {
+            const docRef = db.collection('deadlines').doc();
+            batch.set(docRef, deadline);
+            // Also add to local state
+            if (!S.deadlines) S.deadlines = [];
+            S.deadlines.push({ id: docRef.id, ...deadline, createdAt: new Date() });
+        }
+        await batch.commit();
+        
+        console.log(`✅ Generated ${deadlines.length} automatic deadlines for contract`);
+    }
+    
+    // Generate deadlines for existing contract (called from UI)
+    async function generateDeadlinesForContract(contractId) {
+        const contract = (S.contracts || []).find(c => c.id === contractId);
+        if (!contract) return toast('error', 'Contratto non trovato');
+        
+        // Check if deadlines already exist for this contract
+        const existingDeadlines = (S.deadlines || []).filter(d => d.linkedContractId === contractId && d.autoGenerated);
+        if (existingDeadlines.length > 0) {
+            if (!confirm(`Esistono già ${existingDeadlines.length} scadenze automatiche per questo contratto. Vuoi rigenerarle? (le esistenti verranno eliminate)`)) {
+                return;
+            }
+            // Delete existing auto-generated deadlines
+            for (const d of existingDeadlines) {
+                await db.collection('deadlines').doc(d.id).delete();
+            }
+            S.deadlines = (S.deadlines || []).filter(d => !(d.linkedContractId === contractId && d.autoGenerated));
+        }
+        
+        try {
+            await generateContractDeadlines(contractId, contract);
+            closeModal();
+            toast('success', `🎉 Scadenze generate! Vai al Command Center per vederle.`);
+            buildNav();
+        } catch (e) {
+            toast('error', 'Errore', e.message);
+        }
     }
 
     async function savePayment(e) {
@@ -4234,6 +4574,7 @@
             </div>
             <div class="modal-footer" style="flex-wrap:wrap;gap:8px">
                 <button class="btn btn-danger btn-sm" onclick="confirmDelete('contract','${c.id}','Contratto ${p?.name}')">🗑</button>
+                ${c.status === 'active' ? `<button class="btn btn-sm" style="background:var(--purple);color:white" onclick="generateDeadlinesForContract('${c.id}')" title="Genera scadenze automatiche">📅 Genera Scadenze</button>` : ''}
                 ${c.status === 'active' ? `<button class="btn btn-sm" style="background:var(--red);color:white" onclick="const cid='${c.id}';closeModal();setTimeout(()=>openModal('terminateContract',S.contracts.find(x=>x.id===cid)),250)">⛔ Termina</button>` : ''}
                 ${c.status === 'active' ? `<button class="btn btn-sm" style="background:var(--green);color:white" onclick="const cid='${c.id}';closeModal();setTimeout(()=>openModal('renewContract',S.contracts.find(x=>x.id===cid)),250)">🔄 Rinnova</button>` : ''}
                 <button class="btn btn-secondary btn-sm" onclick="downloadContractPDF('${c.id}')">📥 PDF</button>
