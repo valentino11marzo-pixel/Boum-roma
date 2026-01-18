@@ -531,6 +531,7 @@
         user: null, profile: null, page: 'dashboard', lang: 'IT',
         users: [], properties: [], contracts: [], payments: [],
         maintenance: [], documents: [], clients: [], invoices: [], notifications: [],
+        deadlines: [], tasks: [], // Command Center
         userNotifications: [], // Persistent notifications from Firestore
         listings: [], // For adminflats
         lastActivity: Date.now(),
@@ -861,6 +862,20 @@
             } catch (e) { 
                 console.log('Listings collection not found, using empty array');
                 S.listings = []; 
+            }
+            
+            // Load Command Center data (deadlines and tasks)
+            try {
+                const [deadlines, tasks] = await Promise.all([
+                    db.collection('deadlines').get(),
+                    db.collection('tasks').get()
+                ]);
+                S.deadlines = deadlines.docs.map(d => ({ id: d.id, ...d.data() }));
+                S.tasks = tasks.docs.map(d => ({ id: d.id, ...d.data() }));
+            } catch (e) { 
+                console.log('Command Center collections not found');
+                S.deadlines = []; 
+                S.tasks = [];
             }
             
             console.log('All data loaded successfully');
@@ -1319,6 +1334,7 @@
             const pendingInv = S.invoices.filter(i => i.status === 'pending').length;
             const openMaint = S.maintenance.filter(m => m.status === 'open').length;
             const overduePayments = S.payments.filter(p => p.status === 'pending' && isOverdue(p.dueDate)).length;
+            const urgentDeadlines = S.deadlines.filter(d => d.status !== 'done' && daysUntil(d.date) !== null && daysUntil(d.date) <= 7).length + S.tasks.filter(t => t.status !== 'done' && t.priority === 'urgent').length;
             
             sb.innerHTML = `
                 <div class="nav-section"><div class="nav-label">Panoramica</div>
@@ -1338,6 +1354,7 @@
                     <div class="nav-item ${S.page==='documents'?'active':''}" onclick="goTo('documents')"><span class="nav-icon">📁</span> Documenti</div>
                 </div>
                 <div class="nav-section"><div class="nav-label">Admin Tools</div>
+                    <div class="nav-item ${S.page==='command'?'active':''}" onclick="goTo('command')"><span class="nav-icon">🎯</span> Command Center ${urgentDeadlines?`<span class="nav-badge orange">${urgentDeadlines}</span>`:''}</div>
                     <div class="nav-item ${S.page==='adminflats'?'active':''}" onclick="goTo('adminflats')"><span class="nav-icon">🏢</span> AdminFlats</div>
                 </div>
                 <div class="sidebar-footer">
@@ -1407,6 +1424,7 @@
             case 'my-maintenance': m.innerHTML = (isLandlord() || isTenant()) ? myMaintenancePage() : accessDenied(); break;
             case 'my-documents': m.innerHTML = (isLandlord() || isTenant()) ? myDocumentsPage() : accessDenied(); break;
             case 'settings': m.innerHTML = settingsPage(); break;
+            case 'command': m.innerHTML = isAdmin() ? commandPage() : accessDenied(); break;
             case 'adminflats': m.innerHTML = isAdmin() ? adminflatsPage() : accessDenied(); break;
             default: m.innerHTML = r === 'admin' ? adminDashboard() : r === 'landlord' ? landlordDashboard() : tenantDashboard();
         }
@@ -2533,6 +2551,414 @@
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
+    // COMMAND CENTER - Scadenzario + Task Manager
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    const DEADLINE_TYPES = {
+        contract_renewal: { icon: '📋', label: 'Rinnovo Contratto', color: 'orange' },
+        ade_registration: { icon: '🏛️', label: 'Registrazione AdE', color: 'red' },
+        ade_annual: { icon: '📅', label: 'Annualità AdE', color: 'orange' },
+        document_expiry: { icon: '📄', label: 'Scadenza Documento', color: 'blue' },
+        permit_expiry: { icon: '🛂', label: 'Permesso Soggiorno', color: 'purple' },
+        certification: { icon: '✅', label: 'Certificazione', color: 'green' },
+        tax_deadline: { icon: '💰', label: 'Scadenza Fiscale', color: 'red' },
+        other: { icon: '📌', label: 'Altro', color: 'gray' }
+    };
+    
+    const TASK_CATEGORIES = {
+        admin: { icon: '🏛️', label: 'Amministrativo', color: 'blue' },
+        clients: { icon: '👥', label: 'Clienti', color: 'gold' },
+        owners: { icon: '🏠', label: 'Proprietari', color: 'green' },
+        maintenance: { icon: '🔧', label: 'Manutenzione', color: 'orange' },
+        marketing: { icon: '📣', label: 'Marketing', color: 'purple' },
+        finance: { icon: '💳', label: 'Finanza', color: 'cyan' },
+        other: { icon: '📌', label: 'Altro', color: 'gray' }
+    };
+    
+    function commandPage() {
+        const today = new Date();
+        const upcomingDeadlines = S.deadlines.filter(d => d.status !== 'done').sort((a, b) => {
+            const dA = daysUntil(a.date), dB = daysUntil(b.date);
+            return (dA ?? 999) - (dB ?? 999);
+        });
+        const overdueDeadlines = upcomingDeadlines.filter(d => daysUntil(d.date) !== null && daysUntil(d.date) < 0);
+        const urgentDeadlines = upcomingDeadlines.filter(d => {
+            const days = daysUntil(d.date);
+            return days !== null && days >= 0 && days <= 7;
+        });
+        const soonDeadlines = upcomingDeadlines.filter(d => {
+            const days = daysUntil(d.date);
+            return days !== null && days > 7 && days <= 30;
+        });
+        
+        const pendingTasks = S.tasks.filter(t => t.status !== 'done').sort((a, b) => {
+            const prio = { urgent: 0, normal: 1, low: 2 };
+            return (prio[a.priority] || 1) - (prio[b.priority] || 1);
+        });
+        const urgentTasks = pendingTasks.filter(t => t.priority === 'urgent');
+        const completedTasks = S.tasks.filter(t => t.status === 'done').length;
+        
+        return `<div class="page-header">
+                <div><h1 class="page-title">🎯 Command Center</h1><p class="page-subtitle">Scadenze e task sotto controllo</p></div>
+                <div class="page-actions">
+                    <button class="btn btn-secondary" onclick="openModal('addDeadline')">📅 + Scadenza</button>
+                    <button class="btn" onclick="openModal('addTask')">✅ + Task</button>
+                </div>
+            </div>
+            
+            <!-- ALERT SUMMARY -->
+            <div class="stats-grid" style="grid-template-columns: repeat(4, 1fr)">
+                <div class="stat-card ${overdueDeadlines.length ? 'red' : 'green'}">
+                    <div class="stat-icon">${overdueDeadlines.length ? '🚨' : '✅'}</div>
+                    <div class="stat-value">${overdueDeadlines.length}</div>
+                    <div class="stat-label">Scadenze Passate</div>
+                </div>
+                <div class="stat-card ${urgentDeadlines.length ? 'orange' : 'green'}">
+                    <div class="stat-icon">⏰</div>
+                    <div class="stat-value">${urgentDeadlines.length}</div>
+                    <div class="stat-label">Entro 7 giorni</div>
+                </div>
+                <div class="stat-card ${urgentTasks.length ? 'red' : 'blue'}">
+                    <div class="stat-icon">🔥</div>
+                    <div class="stat-value">${urgentTasks.length}</div>
+                    <div class="stat-label">Task Urgenti</div>
+                </div>
+                <div class="stat-card purple">
+                    <div class="stat-icon">📊</div>
+                    <div class="stat-value">${pendingTasks.length}</div>
+                    <div class="stat-label">Task Aperti</div>
+                </div>
+            </div>
+            
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+                <!-- SCADENZARIO -->
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">📅 Scadenzario</span>
+                        <span class="badge ${overdueDeadlines.length ? 'red' : 'green'}">${upcomingDeadlines.length} attive</span>
+                    </div>
+                    <div class="card-body flush" style="max-height:500px;overflow-y:auto">
+                        ${overdueDeadlines.length ? `
+                            <div style="padding:12px 20px;background:var(--red-light);border-bottom:1px solid var(--border)">
+                                <span style="font-weight:600;color:var(--red)">🚨 SCADUTE</span>
+                            </div>
+                            ${overdueDeadlines.map(d => renderDeadlineItem(d)).join('')}
+                        ` : ''}
+                        ${urgentDeadlines.length ? `
+                            <div style="padding:12px 20px;background:var(--orange-light);border-bottom:1px solid var(--border)">
+                                <span style="font-weight:600;color:var(--orange)">⏰ ENTRO 7 GIORNI</span>
+                            </div>
+                            ${urgentDeadlines.map(d => renderDeadlineItem(d)).join('')}
+                        ` : ''}
+                        ${soonDeadlines.length ? `
+                            <div style="padding:12px 20px;background:var(--blue-light);border-bottom:1px solid var(--border)">
+                                <span style="font-weight:600;color:var(--blue)">📆 ENTRO 30 GIORNI</span>
+                            </div>
+                            ${soonDeadlines.map(d => renderDeadlineItem(d)).join('')}
+                        ` : ''}
+                        ${upcomingDeadlines.length === 0 ? `
+                            <div style="padding:40px;text-align:center;color:var(--text-muted)">
+                                <div style="font-size:48px;margin-bottom:12px">🎉</div>
+                                <div>Nessuna scadenza imminente!</div>
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+                
+                <!-- TASK MANAGER -->
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">✅ Task Manager</span>
+                        <span class="badge blue">${pendingTasks.length} aperti</span>
+                    </div>
+                    <div class="card-body flush" style="max-height:500px;overflow-y:auto">
+                        ${pendingTasks.length === 0 ? `
+                            <div style="padding:40px;text-align:center;color:var(--text-muted)">
+                                <div style="font-size:48px;margin-bottom:12px">🎯</div>
+                                <div>Nessun task da fare!</div>
+                            </div>
+                        ` : pendingTasks.map(t => renderTaskItem(t)).join('')}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- QUICK ADD SECTION -->
+            <div class="card" style="margin-top:20px">
+                <div class="card-header">
+                    <span class="card-title">⚡ Quick Add</span>
+                </div>
+                <div class="card-body">
+                    <div style="display:flex;gap:12px;flex-wrap:wrap">
+                        <input type="text" id="quickTaskInput" class="form-input" style="flex:1;min-width:200px;margin:0" placeholder="Descrizione task veloce..." onkeypress="if(event.key==='Enter')quickAddTask()">
+                        <select id="quickTaskCategory" class="form-select" style="width:150px;margin:0">
+                            ${Object.entries(TASK_CATEGORIES).map(([k, v]) => `<option value="${k}">${v.icon} ${v.label}</option>`).join('')}
+                        </select>
+                        <select id="quickTaskPriority" class="form-select" style="width:120px;margin:0">
+                            <option value="normal">Normale</option>
+                            <option value="urgent">🔥 Urgente</option>
+                            <option value="low">Bassa</option>
+                        </select>
+                        <button class="btn" onclick="quickAddTask()">+ Aggiungi</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- COMPLETED TASKS (Collapsible) -->
+            ${completedTasks > 0 ? `
+                <div class="card" style="margin-top:20px">
+                    <div class="card-header" style="cursor:pointer" onclick="this.nextElementSibling.classList.toggle('hidden')">
+                        <span class="card-title">✓ Completati</span>
+                        <span class="badge gray">${completedTasks}</span>
+                    </div>
+                    <div class="card-body flush hidden" style="max-height:300px;overflow-y:auto">
+                        ${S.tasks.filter(t => t.status === 'done').slice(0, 20).map(t => `
+                            <div class="list-item" style="opacity:0.6">
+                                <span class="list-icon" style="background:var(--green-light);color:var(--green)">✓</span>
+                                <div class="list-content">
+                                    <div class="list-title" style="text-decoration:line-through">${esc(t.title)}</div>
+                                    <div class="list-subtitle">${TASK_CATEGORIES[t.category]?.label || 'Altro'} • Completato ${formatDate(t.completedAt)}</div>
+                                </div>
+                                <button class="btn btn-xs btn-secondary" onclick="deleteTask('${t.id}')" title="Elimina">🗑️</button>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            ` : ''}`;
+    }
+    
+    function renderDeadlineItem(d) {
+        const days = daysUntil(d.date);
+        const type = DEADLINE_TYPES[d.type] || DEADLINE_TYPES.other;
+        const countdownClass = days < 0 ? 'red' : days <= 7 ? 'orange' : 'blue';
+        const linkedEntity = getDeadlineLinkedEntity(d);
+        
+        return `<div class="list-item">
+            <span class="list-icon" style="background:var(--${type.color}-light)">${type.icon}</span>
+            <div class="list-content">
+                <div class="list-title">${esc(d.title)}</div>
+                <div class="list-subtitle">${type.label}${linkedEntity ? ` • ${linkedEntity}` : ''}</div>
+            </div>
+            <div class="list-meta" style="text-align:right">
+                <div class="badge ${countdownClass}">${formatCountdown(days)}</div>
+                <div style="font-size:11px;color:var(--text-muted);margin-top:4px">${formatDate(d.date)}</div>
+            </div>
+            <div class="list-actions">
+                <button class="btn btn-xs btn-success" onclick="completeDeadline('${d.id}')" title="Fatto">✓</button>
+                <button class="btn btn-xs btn-secondary" onclick="editDeadline('${d.id}')" title="Modifica">✏️</button>
+            </div>
+        </div>`;
+    }
+    
+    function renderTaskItem(t) {
+        const cat = TASK_CATEGORIES[t.category] || TASK_CATEGORIES.other;
+        const prioClass = t.priority === 'urgent' ? 'red' : t.priority === 'low' ? 'gray' : 'blue';
+        const prioIcon = t.priority === 'urgent' ? '🔥' : t.priority === 'low' ? '📌' : '📋';
+        
+        return `<div class="list-item">
+            <span class="list-icon" style="background:var(--${cat.color}-light)">${cat.icon}</span>
+            <div class="list-content">
+                <div class="list-title">${esc(t.title)} ${t.priority === 'urgent' ? '<span class="badge red">URGENTE</span>' : ''}</div>
+                <div class="list-subtitle">${cat.label}${t.dueDate ? ` • Scadenza: ${formatDate(t.dueDate)}` : ''}${t.linkedClientId ? ` • ${S.clients.find(c => c.id === t.linkedClientId)?.name || ''}` : ''}</div>
+            </div>
+            <div class="list-meta">
+                <span class="badge ${prioClass}">${prioIcon}</span>
+            </div>
+            <div class="list-actions">
+                <button class="btn btn-xs btn-success" onclick="completeTask('${t.id}')" title="Completa">✓</button>
+                <button class="btn btn-xs btn-secondary" onclick="editTask('${t.id}')" title="Modifica">✏️</button>
+            </div>
+        </div>`;
+    }
+    
+    function getDeadlineLinkedEntity(d) {
+        if (d.linkedContractId) {
+            const c = S.contracts.find(x => x.id === d.linkedContractId);
+            const p = c ? S.properties.find(x => x.id === c.propertyId) : null;
+            return p?.name || 'Contratto';
+        }
+        if (d.linkedPropertyId) {
+            const p = S.properties.find(x => x.id === d.linkedPropertyId);
+            return p?.name || 'Immobile';
+        }
+        if (d.linkedClientId) {
+            const c = S.clients.find(x => x.id === d.linkedClientId);
+            return c?.name || 'Cliente';
+        }
+        return null;
+    }
+    
+    async function quickAddTask() {
+        const title = document.getElementById('quickTaskInput').value.trim();
+        if (!title) return toast('error', 'Inserisci descrizione');
+        
+        const category = document.getElementById('quickTaskCategory').value;
+        const priority = document.getElementById('quickTaskPriority').value;
+        
+        try {
+            const task = {
+                title,
+                category,
+                priority,
+                status: 'pending',
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                createdBy: S.profile.id
+            };
+            const ref = await db.collection('tasks').add(task);
+            S.tasks.push({ id: ref.id, ...task, createdAt: new Date() });
+            document.getElementById('quickTaskInput').value = '';
+            toast('success', 'Task aggiunto');
+            renderPage();
+            buildNav();
+        } catch (e) { toast('error', 'Errore', e.message); }
+    }
+    
+    async function completeTask(id) {
+        try {
+            await db.collection('tasks').doc(id).update({
+                status: 'done',
+                completedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            const t = S.tasks.find(x => x.id === id);
+            if (t) { t.status = 'done'; t.completedAt = new Date(); }
+            toast('success', 'Task completato! 🎉');
+            renderPage();
+            buildNav();
+        } catch (e) { toast('error', 'Errore', e.message); }
+    }
+    
+    async function deleteTask(id) {
+        if (!confirm('Eliminare questo task?')) return;
+        try {
+            await db.collection('tasks').doc(id).delete();
+            S.tasks = S.tasks.filter(t => t.id !== id);
+            toast('success', 'Task eliminato');
+            renderPage();
+        } catch (e) { toast('error', 'Errore', e.message); }
+    }
+    
+    async function completeDeadline(id) {
+        try {
+            await db.collection('deadlines').doc(id).update({
+                status: 'done',
+                completedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            const d = S.deadlines.find(x => x.id === id);
+            if (d) { d.status = 'done'; d.completedAt = new Date(); }
+            toast('success', 'Scadenza completata! ✅');
+            renderPage();
+            buildNav();
+        } catch (e) { toast('error', 'Errore', e.message); }
+    }
+    
+    function editDeadline(id) {
+        const d = S.deadlines.find(x => x.id === id);
+        if (!d) return;
+        openModal('addDeadline');
+        setTimeout(() => {
+            document.getElementById('deadlineId').value = id;
+            document.getElementById('deadlineTitle').value = d.title || '';
+            document.getElementById('deadlineType').value = d.type || 'other';
+            document.getElementById('deadlineDate').value = formatDateInput(d.date);
+            document.getElementById('deadlineNotes').value = d.notes || '';
+            document.getElementById('deadlineReminder').value = d.reminderDays || '7';
+            document.getElementById('deadlineLinkedContract').value = d.linkedContractId || '';
+            document.getElementById('deadlineLinkedProperty').value = d.linkedPropertyId || '';
+            document.getElementById('deadlineLinkedClient').value = d.linkedClientId || '';
+        }, 100);
+    }
+    
+    function editTask(id) {
+        const t = S.tasks.find(x => x.id === id);
+        if (!t) return;
+        openModal('addTask');
+        setTimeout(() => {
+            document.getElementById('taskId').value = id;
+            document.getElementById('taskTitle').value = t.title || '';
+            document.getElementById('taskCategory').value = t.category || 'other';
+            document.getElementById('taskPriority').value = t.priority || 'normal';
+            document.getElementById('taskDueDate').value = t.dueDate ? formatDateInput(t.dueDate) : '';
+            document.getElementById('taskNotes').value = t.notes || '';
+            document.getElementById('taskLinkedClient').value = t.linkedClientId || '';
+            if (t.recurring) {
+                document.getElementById('taskRecurring').checked = true;
+                document.getElementById('taskRecurringInterval').value = t.recurringInterval || 'monthly';
+            }
+        }, 100);
+    }
+    
+    async function saveDeadline() {
+        const id = document.getElementById('deadlineId').value;
+        const data = {
+            title: document.getElementById('deadlineTitle').value.trim(),
+            type: document.getElementById('deadlineType').value,
+            date: document.getElementById('deadlineDate').value,
+            notes: document.getElementById('deadlineNotes').value.trim(),
+            reminderDays: parseInt(document.getElementById('deadlineReminder').value) || 7,
+            linkedContractId: document.getElementById('deadlineLinkedContract').value || null,
+            linkedPropertyId: document.getElementById('deadlineLinkedProperty').value || null,
+            linkedClientId: document.getElementById('deadlineLinkedClient').value || null,
+            status: 'pending',
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        
+        if (!data.title || !data.date) return toast('error', 'Compila titolo e data');
+        
+        try {
+            if (id) {
+                await db.collection('deadlines').doc(id).update(data);
+                const idx = S.deadlines.findIndex(d => d.id === id);
+                if (idx >= 0) S.deadlines[idx] = { ...S.deadlines[idx], ...data };
+                toast('success', 'Scadenza aggiornata');
+            } else {
+                data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+                data.createdBy = S.profile.id;
+                const ref = await db.collection('deadlines').add(data);
+                S.deadlines.push({ id: ref.id, ...data });
+                toast('success', 'Scadenza creata');
+            }
+            closeModal('addDeadline');
+            renderPage();
+            buildNav();
+        } catch (e) { toast('error', 'Errore', e.message); }
+    }
+    
+    async function saveTask() {
+        const id = document.getElementById('taskId').value;
+        const data = {
+            title: document.getElementById('taskTitle').value.trim(),
+            category: document.getElementById('taskCategory').value,
+            priority: document.getElementById('taskPriority').value,
+            dueDate: document.getElementById('taskDueDate').value || null,
+            notes: document.getElementById('taskNotes').value.trim(),
+            linkedClientId: document.getElementById('taskLinkedClient').value || null,
+            recurring: document.getElementById('taskRecurring').checked,
+            recurringInterval: document.getElementById('taskRecurring').checked ? document.getElementById('taskRecurringInterval').value : null,
+            status: 'pending',
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        
+        if (!data.title) return toast('error', 'Inserisci titolo');
+        
+        try {
+            if (id) {
+                await db.collection('tasks').doc(id).update(data);
+                const idx = S.tasks.findIndex(t => t.id === id);
+                if (idx >= 0) S.tasks[idx] = { ...S.tasks[idx], ...data };
+                toast('success', 'Task aggiornato');
+            } else {
+                data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+                data.createdBy = S.profile.id;
+                const ref = await db.collection('tasks').add(data);
+                S.tasks.push({ id: ref.id, ...data });
+                toast('success', 'Task creato');
+            }
+            closeModal('addTask');
+            renderPage();
+            buildNav();
+        } catch (e) { toast('error', 'Errore', e.message); }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
     // ADMINFLATS PAGE - Website Listings Management (REAL SYNC)
     // ═══════════════════════════════════════════════════════════════════════════
     function adminflatsPage() {
@@ -2952,6 +3378,53 @@
         if (type === 'editMaintenance') { const m = data; if (!m) return ''; return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">✏️ Modifica Manutenzione</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="updateMaintenance(event,'${m.id}')"><div class="form-group"><label class="form-label">Titolo *</label><input type="text" class="form-input" name="title" value="${m.title || ''}" required></div><div class="form-group"><label class="form-label">Immobile</label><select class="form-select" name="propertyId">${S.properties.map(p => `<option value="${p.id}" ${m.propertyId === p.id ? 'selected' : ''}>${p.name}</option>`).join('')}</select></div><div class="form-row"><div class="form-group"><label class="form-label">Categoria</label><select class="form-select" name="category"><option value="plumbing" ${m.category === 'plumbing' ? 'selected' : ''}>Idraulica</option><option value="electrical" ${m.category === 'electrical' ? 'selected' : ''}>Elettricità</option><option value="heating" ${m.category === 'heating' ? 'selected' : ''}>Riscaldamento</option><option value="appliance" ${m.category === 'appliance' ? 'selected' : ''}>Elettrodomestici</option><option value="other" ${m.category === 'other' ? 'selected' : ''}>Altro</option></select></div><div class="form-group"><label class="form-label">Priorità</label><select class="form-select" name="priority"><option value="low" ${m.priority === 'low' ? 'selected' : ''}>Bassa</option><option value="medium" ${m.priority === 'medium' ? 'selected' : ''}>Media</option><option value="high" ${m.priority === 'high' ? 'selected' : ''}>Alta</option><option value="urgent" ${m.priority === 'urgent' ? 'selected' : ''}>Urgente</option></select></div></div><div class="form-group"><label class="form-label">Stato</label><select class="form-select" name="status"><option value="pending" ${m.status === 'pending' ? 'selected' : ''}>🟡 In Attesa</option><option value="in_progress" ${m.status === 'in_progress' ? 'selected' : ''}>🔵 In Corso</option><option value="resolved" ${m.status === 'resolved' ? 'selected' : ''}>🟢 Risolto</option></select></div><div class="form-group"><label class="form-label">Descrizione</label><textarea class="form-textarea" name="description" rows="3">${m.description || ''}</textarea></div><div class="form-row"><div class="form-group"><label class="form-label">Costo €</label><input type="number" class="form-input" name="cost" value="${m.cost || ''}"></div><div class="form-group"><label class="form-label">Tecnico/Fornitore</label><input type="text" class="form-input" name="technician" value="${m.technician || ''}"></div></div><div class="form-group"><label class="form-label">Note Risoluzione</label><textarea class="form-textarea" name="resolutionNotes" rows="2">${m.resolutionNotes || ''}</textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Salva</button></div></div></div>`; }
 
         if (type === 'addTenantMaintenance') { const myContract = getMyContracts().find(c => c.status === 'active'); const myProp = myContract ? S.properties.find(p => p.id === myContract.propertyId) : null; return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">🔧 Richiedi Manutenzione</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="saveTenantMaintenance(event)"><div class="form-group"><label class="form-label">Immobile</label><input type="text" class="form-input" value="${myProp?.name || 'N/A'}" readonly><input type="hidden" name="propertyId" value="${myProp?.id || ''}"></div><div class="form-group"><label class="form-label">Titolo *</label><input type="text" class="form-input" name="title" required placeholder="Es: Rubinetto perde"></div><div class="form-row"><div class="form-group"><label class="form-label">Categoria</label><select class="form-select" name="category"><option value="plumbing">Idraulica</option><option value="electrical">Elettricità</option><option value="heating">Riscaldamento</option><option value="appliance">Elettrodomestici</option><option value="other">Altro</option></select></div><div class="form-group"><label class="form-label">Urgenza</label><select class="form-select" name="priority"><option value="low">Non urgente</option><option value="medium" selected>Normale</option><option value="high">Urgente</option></select></div></div><div class="form-group"><label class="form-label">Descrizione</label><textarea class="form-textarea" name="description" placeholder="Descrivi il problema in dettaglio..."></textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Invia Richiesta</button></div></div></div>`; }
+
+        // COMMAND CENTER MODALS
+        if (type === 'addDeadline') { 
+            return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">📅 ${data ? 'Modifica' : 'Nuova'} Scadenza</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body">
+                <input type="hidden" id="deadlineId" value="">
+                <div class="form-group"><label class="form-label">Titolo *</label><input type="text" class="form-input" id="deadlineTitle" required placeholder="Es: Rinnovo contratto Via Roma"></div>
+                <div class="form-row">
+                    <div class="form-group"><label class="form-label">Tipo *</label><select class="form-select" id="deadlineType">${Object.entries(DEADLINE_TYPES).map(([k,v]) => `<option value="${k}">${v.icon} ${v.label}</option>`).join('')}</select></div>
+                    <div class="form-group"><label class="form-label">Data Scadenza *</label><input type="date" class="form-input" id="deadlineDate" required></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label class="form-label">Promemoria (giorni prima)</label><select class="form-select" id="deadlineReminder"><option value="3">3 giorni</option><option value="7" selected>7 giorni</option><option value="14">14 giorni</option><option value="30">30 giorni</option></select></div>
+                </div>
+                <div style="background:var(--bg);padding:16px;border-radius:8px;margin:16px 0">
+                    <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:11px;text-transform:uppercase;letter-spacing:1px">🔗 Collega a (opzionale)</h4>
+                    <div class="form-row">
+                        <div class="form-group"><label class="form-label">Contratto</label><select class="form-select" id="deadlineLinkedContract"><option value="">Nessuno</option>${S.contracts.map(c => { const p = S.properties.find(x => x.id === c.propertyId); return `<option value="${c.id}">${p?.name || 'Contratto'}</option>`; }).join('')}</select></div>
+                        <div class="form-group"><label class="form-label">Immobile</label><select class="form-select" id="deadlineLinkedProperty"><option value="">Nessuno</option>${S.properties.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}</select></div>
+                    </div>
+                    <div class="form-group"><label class="form-label">Cliente CRM</label><select class="form-select" id="deadlineLinkedClient"><option value="">Nessuno</option>${S.clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}</select></div>
+                </div>
+                <div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" id="deadlineNotes" rows="2" placeholder="Note aggiuntive..."></textarea></div>
+            </div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="saveDeadline()">💾 Salva</button></div></div></div>`; 
+        }
+
+        if (type === 'addTask') { 
+            return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">✅ ${data ? 'Modifica' : 'Nuovo'} Task</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body">
+                <input type="hidden" id="taskId" value="">
+                <div class="form-group"><label class="form-label">Titolo *</label><input type="text" class="form-input" id="taskTitle" required placeholder="Es: Chiamare idraulico per Via Roma"></div>
+                <div class="form-row">
+                    <div class="form-group"><label class="form-label">Categoria</label><select class="form-select" id="taskCategory">${Object.entries(TASK_CATEGORIES).map(([k,v]) => `<option value="${k}">${v.icon} ${v.label}</option>`).join('')}</select></div>
+                    <div class="form-group"><label class="form-label">Priorità</label><select class="form-select" id="taskPriority"><option value="low">📌 Bassa</option><option value="normal" selected>📋 Normale</option><option value="urgent">🔥 Urgente</option></select></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label class="form-label">Scadenza (opzionale)</label><input type="date" class="form-input" id="taskDueDate"></div>
+                    <div class="form-group"><label class="form-label">Cliente collegato</label><select class="form-select" id="taskLinkedClient"><option value="">Nessuno</option>${S.clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}</select></div>
+                </div>
+                <div style="background:var(--bg);padding:16px;border-radius:8px;margin:16px 0">
+                    <div style="display:flex;align-items:center;gap:12px">
+                        <input type="checkbox" id="taskRecurring" style="width:18px;height:18px">
+                        <label for="taskRecurring" style="font-size:13px">🔄 Task Ricorrente</label>
+                        <select class="form-select" id="taskRecurringInterval" style="width:auto;margin:0"><option value="weekly">Settimanale</option><option value="monthly">Mensile</option><option value="quarterly">Trimestrale</option><option value="yearly">Annuale</option></select>
+                    </div>
+                </div>
+                <div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" id="taskNotes" rows="2" placeholder="Dettagli aggiuntivi..."></textarea></div>
+            </div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="saveTask()">💾 Salva</button></div></div></div>`; 
+        }
 
         if (type === 'confirm') return `<div class="modal-overlay"><div class="modal" style="max-width:400px"><div class="modal-body"><div class="confirm-modal"><div class="confirm-icon">${data.icon || '⚠️'}</div><h3 class="confirm-title">${data.title}</h3><p class="confirm-text">${data.text}</p><div style="display:flex;gap:10px;justify-content:center"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn ${data.danger ? 'btn-danger' : ''}" onclick="${data.action}">${data.btnText || 'Conferma'}</button></div></div></div></div></div>`;
 
@@ -5792,6 +6265,8 @@
     function stageLabel(s) { return PIPELINE_STAGES.find(x => x.id === s)?.name || s; }
     function stageBadgeColor(s) { return { lead: 'gray', contacted: 'blue', qualified: 'green', searching: 'purple', found: 'orange', closing: 'gold', paid: 'green', completed: 'green', lost: 'red' }[s] || 'gray'; }
     function fmtDate(d) { if (!d) return '—'; const dt = d.toDate ? d.toDate() : new Date(d); return isNaN(dt.getTime()) ? '—' : dt.toLocaleDateString('it-IT'); }
+    function formatDate(d) { return fmtDate(d); }
+    function formatDateInput(d) { if (!d) return ''; const dt = d.toDate ? d.toDate() : new Date(d); return isNaN(dt.getTime()) ? '' : dt.toISOString().split('T')[0]; }
     function isThisMonth(d) { if (!d) return false; const dt = d.toDate ? d.toDate() : new Date(d); const now = new Date(); return dt.getMonth() === now.getMonth() && dt.getFullYear() === now.getFullYear(); }
     function numberToWords(n) {
         if (n === 0) return 'zero';
