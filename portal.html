@@ -6273,6 +6273,7 @@
     function docTypeLabel(t) { return { contract: 'Contratto', id: 'Documento ID', receipt: 'Ricevuta', utility: 'Utenza', other: 'Altro' }[t] || t; }
     function stageLabel(s) { return PIPELINE_STAGES.find(x => x.id === s)?.name || s; }
     function stageBadgeColor(s) { return { lead: 'gray', contacted: 'blue', qualified: 'green', searching: 'purple', found: 'orange', closing: 'gold', paid: 'green', completed: 'green', lost: 'red' }[s] || 'gray'; }
+    function esc(str) { if (!str) return ''; return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
     function fmtDate(d) { if (!d) return '—'; const dt = d.toDate ? d.toDate() : new Date(d); return isNaN(dt.getTime()) ? '—' : dt.toLocaleDateString('it-IT'); }
     function formatDate(d) { return fmtDate(d); }
     function formatDateInput(d) { if (!d) return ''; const dt = d.toDate ? d.toDate() : new Date(d); return isNaN(dt.getTime()) ? '' : dt.toISOString().split('T')[0]; }
