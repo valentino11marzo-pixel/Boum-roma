@@ -733,37 +733,45 @@
     
     // Detect Safari desktop
     const isSafariDesktop = /^((?!chrome|android).)*safari/i.test(navigator.userAgent) && !/mobile/i.test(navigator.userAgent);
-    if (isSafariDesktop) console.log('Safari desktop detected');
+    const isSafariMobile = /^((?!chrome|android).)*safari/i.test(navigator.userAgent) && /mobile/i.test(navigator.userAgent);
+    const isSafari = isSafariDesktop || isSafariMobile;
+    if (isSafari) console.log('Safari detected:', isSafariDesktop ? 'desktop' : 'mobile');
     
-    // Set persistence - try LOCAL first, fall back to SESSION for Safari
-    (async () => {
+    // Set persistence - must complete before auth check
+    let persistenceReady = false;
+    async function setupPersistence() {
         try {
-            await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
-            console.log('Persistence set to LOCAL');
-        } catch (e) {
-            console.log('LOCAL persistence failed, trying SESSION:', e.message);
-            try {
+            // Safari often has issues with LOCAL, try SESSION first
+            if (isSafari) {
                 await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
-                console.log('Persistence set to SESSION');
-            } catch (e2) {
-                console.log('SESSION persistence also failed:', e2.message);
+                console.log('Safari: Persistence set to SESSION');
+            } else {
+                await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+                console.log('Persistence set to LOCAL');
             }
+        } catch (e) {
+            console.log('Persistence setup failed:', e.message);
+            // Continue anyway - Firebase will use default
         }
-    })();
+        persistenceReady = true;
+    }
     
     // Track if auth already processed
     let authProcessed = false;
     let authRetryCount = 0;
     const maxAuthRetries = 3;
     
+    // Wait for persistence before processing auth
+    setupPersistence();
+    
     // Auth timeout - longer for Safari
     let authTimeout = setTimeout(() => {
         if (!authProcessed) {
-            console.log('Auth timeout - no response');
+            console.log('Auth timeout - no response, showing login');
             hideLoading();
             showAuth();
         }
-    }, isSafariDesktop ? 20000 : 12000);
+    }, isSafari ? 25000 : 12000);
     
     auth.onAuthStateChanged(async u => {
         // Prevent multiple processing
@@ -795,11 +803,11 @@
             } catch (e) { 
                 console.error('Auth error:', e);
                 // Retry logic for Safari
-                if (isSafariDesktop && authRetryCount < maxAuthRetries) {
+                if (isSafari && authRetryCount < maxAuthRetries) {
                     authRetryCount++;
                     console.log('Retrying auth... attempt', authRetryCount);
                     authProcessed = false;
-                    setTimeout(() => auth.onAuthStateChanged(() => {}), 1000);
+                    setTimeout(() => auth.onAuthStateChanged(() => {}), 1500);
                     return;
                 }
                 showAuthError('Errore di autenticazione: ' + e.message); 
@@ -981,34 +989,47 @@
             const docRef = await db.collection('notifications').add(notifData);
             console.log('Notification created for user:', userId);
             
-            // Send to Make.com webhook for email - only if valid email exists
+            // Send to Make.com webhook for email - STRICT validation
             const recipientEmail = recipient?.email?.trim();
-            if (recipientEmail && recipientEmail.includes('@') && WEBHOOK_URL) {
+            const isValidEmail = recipientEmail && 
+                                 recipientEmail.length > 5 && 
+                                 recipientEmail.includes('@') && 
+                                 recipientEmail.includes('.');
+            
+            if (isValidEmail && WEBHOOK_URL) {
                 try {
+                    const webhookPayload = {
+                        notificationId: docRef.id,
+                        // Send BOTH field names for Brevo compatibility
+                        email: recipientEmail,
+                        recipientEmail: recipientEmail,
+                        name: recipient?.name || 'Cliente',
+                        recipientName: recipient?.name || 'Cliente',
+                        type,
+                        title,
+                        message,
+                        propertyName: data.propertyId ? S.properties.find(p => p.id === data.propertyId)?.name : null,
+                        priority: data.priority || 'normal',
+                        timestamp: new Date().toISOString(),
+                        portalUrl: 'https://boomrome.com/portal.html'
+                    };
+                    
+                    console.log('Sending webhook with email:', recipientEmail);
+                    
                     await fetch(WEBHOOK_URL, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            notificationId: docRef.id,
-                            recipientEmail: recipientEmail,
-                            recipientName: recipient.name || 'Cliente',
-                            type,
-                            title,
-                            message,
-                            propertyName: data.propertyId ? S.properties.find(p => p.id === data.propertyId)?.name : null,
-                            priority: data.priority || 'normal',
-                            timestamp: new Date().toISOString(),
-                            portalUrl: 'https://boomrome.com/portal.html'
-                        })
+                        body: JSON.stringify(webhookPayload)
                     });
+                    
                     // Mark webhook as sent
                     await db.collection('notifications').doc(docRef.id).update({ webhookSent: true, emailSent: true });
-                    console.log('Webhook sent to:', recipientEmail);
+                    console.log('✅ Webhook sent successfully to:', recipientEmail);
                 } catch (webhookErr) {
-                    console.error('Webhook error:', webhookErr);
+                    console.error('❌ Webhook error:', webhookErr);
                 }
             } else {
-                console.log('Skipping webhook - no valid email for user:', userId);
+                console.log('⚠️ Skipping webhook - invalid email for user:', userId, 'email:', recipientEmail);
             }
         } catch (err) {
             console.error('Error creating notification:', err);
@@ -1119,11 +1140,33 @@
     }
     
     async function notifyMaintenanceResolved(maintenanceData) {
-        // Notify the tenant who requested it
-        if (!maintenanceData.userId) return;
+        console.log('🔔 notifyMaintenanceResolved called with:', maintenanceData);
+        
+        // Try to get userId from maintenanceData, or look it up
+        let tenantId = maintenanceData.userId;
+        
+        // If no userId, try to find tenant from the property's active contract
+        if (!tenantId && maintenanceData.propertyId) {
+            const activeContract = S.contracts.find(c => 
+                c.propertyId === maintenanceData.propertyId && 
+                c.status === 'active'
+            );
+            tenantId = activeContract?.tenantId;
+            console.log('📋 Found tenantId from contract:', tenantId);
+        }
+        
+        if (!tenantId) {
+            console.log('⚠️ No tenant found for resolved maintenance notification');
+            return;
+        }
+        
         const property = S.properties.find(p => p.id === maintenanceData.propertyId);
+        const tenant = S.users.find(u => u.id === tenantId);
+        
+        console.log('👤 Tenant for notification:', tenant?.name, tenant?.email);
+        
         await createNotification(
-            maintenanceData.userId,
+            tenantId,
             'maintenance',
             '✅ Manutenzione completata',
             `La richiesta "${maintenanceData.title}" per ${property?.name || 'immobile'} è stata risolta`,
@@ -4620,6 +4663,9 @@
     async function updateMaintStatus(id, status) {
         try {
             const oldMaint = S.maintenance.find(m => m.id === id);
+            console.log('📝 Updating maintenance:', id, 'to status:', status);
+            console.log('📋 Old maintenance data:', oldMaint);
+            
             const updateData = { status, updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
             if (status === 'resolved') {
                 updateData.resolvedAt = firebase.firestore.FieldValue.serverTimestamp();
@@ -4627,19 +4673,20 @@
             await db.collection('maintenance').doc(id).update(updateData);
             
             // Notify tenant if resolved
-            if (status === 'resolved' && oldMaint?.status !== 'resolved' && oldMaint?.userId) {
+            if (status === 'resolved' && oldMaint?.status !== 'resolved') {
+                console.log('🔔 Triggering resolved notification...');
                 await notifyMaintenanceResolved({ 
                     id, 
-                    title: oldMaint.title, 
-                    propertyId: oldMaint.propertyId, 
-                    userId: oldMaint.userId 
+                    title: oldMaint?.title || 'Manutenzione', 
+                    propertyId: oldMaint?.propertyId, 
+                    userId: oldMaint?.userId 
                 });
             }
             
             await refresh(); 
             viewMaintenance(id); 
             toast('success', 'Stato aggiornato');
-        } catch (err) { toast('error', 'Errore', err.message); }
+        } catch (err) { console.error('❌ Error updating maintenance:', err); toast('error', 'Errore', err.message); }
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
