@@ -736,54 +736,16 @@
 
         .hero-title {
             font-family: var(--font-display);
-            font-size: clamp(24px, 5.5vw, 90px);
+            font-size: clamp(28px, 6vw, 80px);
             font-weight: 200;
-            line-height: 1.1;
+            line-height: 1.15;
             letter-spacing: -0.02em;
             text-transform: uppercase;
             margin-bottom: var(--space-lg);
+            animation: fade-in 0.8s var(--ease-out) 0.3s both;
         }
 
-        .hero-title span {
-            display: block;
-            overflow: hidden;
-        }
-
-        .hero-title-line {
-            display: block;
-            animation: slide-up 0.8s var(--ease-out) both;
-        }
-
-        .hero-title span:nth-child(1) .hero-title-line { animation-delay: 0.3s; }
-        .hero-title span:nth-child(2) .hero-title-line { animation-delay: 0.5s; }
-
-        /* Mobile: smaller but still 2 lines */
-        @media (max-width: 480px) {
-            .hero-title {
-                font-size: 7.5vw;
-            }
-        }
-
-        /* Tablet */
-        @media (min-width: 481px) and (max-width: 768px) {
-            .hero-title {
-                font-size: 6vw;
-            }
-        }
-
-        /* Desktop */
-        @media (min-width: 769px) {
-            .hero-title {
-                font-size: clamp(50px, 6vw, 100px);
-            }
-        }
-
-        @keyframes slide-up {
-            from { transform: translateY(100%); }
-            to { transform: translateY(0); }
-        }
-
-        @keyframes fade-up {
+        @keyframes fade-in {
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
         }
@@ -791,6 +753,11 @@
         .hero-title .highlight {
             color: var(--gold);
             font-weight: 300;
+        }
+
+        @keyframes fade-up {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         .hero-subtitle {
@@ -891,16 +858,16 @@
 
         .hero-stat-value {
             font-family: var(--font-display);
-            font-size: 32px;
+            font-size: clamp(24px, 5vw, 28px);
             font-weight: 200;
             color: var(--gold);
             letter-spacing: -0.02em;
         }
 
         .hero-stat-label {
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 500;
-            letter-spacing: 1px;
+            letter-spacing: 0.5px;
             text-transform: uppercase;
             color: var(--text-tertiary);
             margin-top: var(--space-xs);
@@ -2401,8 +2368,8 @@
             </div>
 
             <h1 class="hero-title">
-                <span><span class="hero-title-line">Get your <span class="highlight">Rome</span> apartment</span></span>
-                <span><span class="hero-title-line">in <span class="highlight">days</span>, not weeks.</span></span>
+                GET YOUR <span class="highlight">ROME</span> APARTMENT<br>
+                IN <span class="highlight">DAYS</span>, NOT WEEKS.
             </h1>
 
             <p class="hero-subtitle">
@@ -2683,7 +2650,7 @@
             </div>
 
             <div class="apartments-grid reveal-stagger">
-                <a href="/apartment_angelico.html" class="apartment-card">
+                <a href="/apartments.html" class="apartment-card">
                     <div class="apartment-image" style="background-image: url('https://i.imgur.com/QOAu6k1.jpeg');">
                         <span class="apartment-badge">Video Tour</span>
                     </div>
@@ -2704,7 +2671,7 @@
                     </div>
                 </a>
 
-                <a href="/apartment_pigneto.html" class="apartment-card">
+                <a href="/apartments.html" class="apartment-card">
                     <div class="apartment-image" style="background-image: url('https://i.imgur.com/tJnYADn.jpeg');">
                         <span class="apartment-badge">Bohemian</span>
                     </div>
@@ -2725,7 +2692,7 @@
                     </div>
                 </a>
 
-                <a href="/apartment_navona.html" class="apartment-card">
+                <a href="/apartments.html" class="apartment-card">
                     <div class="apartment-image" style="background-image: url('https://i.imgur.com/8LVxrhs.jpeg');">
                         <span class="apartment-badge">Historic Center</span>
                     </div>
@@ -3092,6 +3059,7 @@
                     <div class="footer-company">
                         <strong>Egidi Immobiliare S.r.l.</strong><br>
                         P.IVA 17322991005<br>
+                        REA RM - 1710623<br>
                         Rome, Italy
                     </div>
                 </div>
