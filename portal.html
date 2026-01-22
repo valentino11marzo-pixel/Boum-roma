@@ -1931,176 +1931,168 @@
     }
 
     function templatesPage() {
-        const clientOpts = (S.clients || []).map(c => '<option value="'+c.id+'">'+c.name+'</option>').join('');
-        const tenantOpts = (S.users || []).filter(u => u.role === 'tenant').map(u => '<option value="user_'+u.id+'">'+u.name+' (Inquilino)</option>').join('');
-        
         return `<div class="page-header">
-                <div><h1 class="page-title">📜 Generatore Documenti</h1><p class="page-subtitle">15 Template Professionali • Compilazione Automatica • PDF Istantaneo</p></div>
+                <div><h1 class="page-title">ðŸ“œ Template & Modulistica</h1><p class="page-subtitle">Documenti professionali bilingue IT/EN</p></div>
                 <div class="page-actions">
                     <div class="lang-selector">
-                        <button class="lang-btn ${S.lang === 'IT' ? 'active' : ''}" onclick="setLang('IT')">🇮🇹 IT</button>
-                        <button class="lang-btn ${S.lang === 'EN' ? 'active' : ''}" onclick="setLang('EN')">🇬🇧 EN</button>
+                        <button class="lang-btn ${S.lang === 'IT' ? 'active' : ''}" onclick="setLang('IT')">ðŸ‡®ðŸ‡¹ IT</button>
+                        <button class="lang-btn ${S.lang === 'EN' ? 'active' : ''}" onclick="setLang('EN')">ðŸ‡¬ðŸ‡§ EN</button>
                     </div>
+                </div>
+            </div>
+            
+            <div class="alert info" style="margin-bottom:20px">
+                <span class="alert-icon">ðŸŒ</span>
+                <div class="alert-content">
+                    <div class="alert-title">Documenti Bilingue</div>
+                    <div class="alert-text">I documenti saranno generati in <strong>${S.lang === 'IT' ? 'Italiano' : 'English'}</strong>. Cambia lingua con il selettore in alto.</div>
                 </div>
             </div>
             
             <!-- Quick Stats -->
             <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:24px">
-                <div class="stat-card gold"><div class="stat-value">15</div><div class="stat-label">Template Totali</div></div>
-                <div class="stat-card blue"><div class="stat-value">${S.clients?.length || 0}</div><div class="stat-label">Clienti CRM</div></div>
-                <div class="stat-card green"><div class="stat-value">${S.properties?.length || 0}</div><div class="stat-label">Immobili</div></div>
-                <div class="stat-card purple"><div class="stat-value">${S.contracts?.length || 0}</div><div class="stat-label">Contratti</div></div>
-            </div>
-
-            <!-- Quick Generate Section -->
-            <div class="card" style="margin-bottom:24px;border:2px solid var(--gold)">
-                <div class="card-header" style="background:linear-gradient(135deg,rgba(212,175,55,0.2),rgba(245,166,35,0.1))">
-                    <h3 class="card-title" style="color:var(--gold)">⚡ Generazione Rapida</h3>
-                    <span class="badge gold">Seleziona → Compila → Genera PDF</span>
-                </div>
-                <div class="card-body">
-                    <div class="form-row" style="align-items:flex-end">
-                        <div class="form-group" style="flex:2">
-                            <label class="form-label">Tipo Documento</label>
-                            <select class="form-select" id="quickDocType" onchange="updateQuickDocPreview()">
-                                <optgroup label="💼 SERVIZI BOOM">
-                                    <option value="pfs">🏠 Property Finding Service (€350)</option>
-                                    <option value="das">📋 Deal Assistance Service (€249)</option>
-                                    <option value="vv">🎥 Virtual Viewing (€89-199)</option>
-                                    <option value="lettera_incarico">📝 Lettera d'Incarico</option>
-                                </optgroup>
-                                <optgroup label="🧾 FATTURAZIONE">
-                                    <option value="ricevuta_pigione">💰 Ricevuta Pigione</option>
-                                    <option value="deposit_receipt">🏦 Ricevuta Deposito</option>
-                                    <option value="ricevuta_provvigione">💼 Ricevuta Provvigione</option>
-                                </optgroup>
-                                <optgroup label="📋 CONTRATTI">
-                                    <option value="rental_transitorio">⏱️ Contratto Transitorio</option>
-                                    <option value="proposta_locazione">📨 Proposta di Locazione</option>
-                                    <option value="mandato_gestione">📜 Mandato di Gestione</option>
-                                    <option value="disdetta">❌ Disdetta Contratto</option>
-                                </optgroup>
-                                <optgroup label="🏠 GESTIONE">
-                                    <option value="handover">🔑 Verbale Consegna</option>
-                                    <option value="inventory">📦 Inventario Arredi</option>
-                                    <option value="rendiconto_annuale">📊 Rendiconto Annuale</option>
-                                    <option value="sollecito_pagamento">⚠️ Sollecito Pagamento</option>
-                                </optgroup>
-                            </select>
-                        </div>
-                        <div class="form-group" style="flex:1">
-                            <label class="form-label">Cliente/Inquilino</label>
-                            <select class="form-select" id="quickClientSelect">
-                                <option value="">-- Seleziona --</option>
-                                ${clientOpts}${tenantOpts}
-                            </select>
-                        </div>
-                        <div class="form-group" style="flex:0 0 auto">
-                            <button class="btn" onclick="openTemplateModal(document.getElementById('quickDocType').value)" style="height:48px;padding:0 24px">
-                                ✨ Genera Documento
-                            </button>
-                        </div>
-                    </div>
-                    <div id="quickDocPreview" style="margin-top:12px;padding:12px;background:var(--bg);border-radius:8px;font-size:12px;color:var(--text-secondary)">
-                        <strong style="color:var(--gold)">Property Finding Service €350</strong> — Contratto di servizio per ricerca appartamento personalizzata.
-                    </div>
-                </div>
+                <div class="stat-card gold"><div class="stat-value">3</div><div class="stat-label">Servizi BOOM</div></div>
+                <div class="stat-card blue"><div class="stat-value">3</div><div class="stat-label">Contratti Locazione</div></div>
+                <div class="stat-card green"><div class="stat-value">5</div><div class="stat-label">Ricevute & Proposte</div></div>
+                <div class="stat-card purple"><div class="stat-value">4</div><div class="stat-label">Gestione</div></div>
             </div>
             
             <div class="grid-2">
                 <!-- SERVIZI BOOM -->
                 <div class="card">
                     <div class="card-header" style="background:var(--gold-light)">
-                        <h3 class="card-title" style="color:var(--gold)">💼 Servizi BOOM</h3>
-                        <span class="badge gold">4 documenti</span>
+                        <h3 class="card-title" style="color:var(--gold)">ðŸ’¼ Servizi BOOM</h3>
                     </div>
                     <div class="card-body">
-                        <div style="display:grid;gap:8px">
+                        <div style="display:grid;gap:10px">
                             <button class="btn btn-block btn-secondary" onclick="openTemplateModal('pfs')">
-                                <span style="flex:1;text-align:left">🏠 Property Finding Service</span>
-                                <span class="badge gold">€350</span>
+                                <span style="flex:1;text-align:left">ðŸ  Property Finding Service</span>
+                                <span class="badge gold">â‚¬350</span>
                             </button>
                             <button class="btn btn-block btn-secondary" onclick="openTemplateModal('das')">
-                                <span style="flex:1;text-align:left">📋 Deal Assistance Service</span>
-                                <span class="badge blue">€249</span>
+                                <span style="flex:1;text-align:left">ðŸ“‹ Deal Assistance Service</span>
+                                <span class="badge blue">â‚¬249</span>
                             </button>
                             <button class="btn btn-block btn-secondary" onclick="openTemplateModal('vv')">
-                                <span style="flex:1;text-align:left">🎥 Virtual Viewing</span>
-                                <span class="badge purple">€89</span>
+                                <span style="flex:1;text-align:left">ðŸŽ¥ Virtual Viewing</span>
+                                <span class="badge purple">â‚¬89</span>
                             </button>
                             <button class="btn btn-block btn-secondary" onclick="openTemplateModal('lettera_incarico')">
-                                <span style="flex:1;text-align:left">📝 Lettera d'Incarico</span>
+                                <span style="flex:1;text-align:left">ðŸ“ Lettera d'Incarico</span>
                             </button>
                         </div>
                     </div>
                 </div>
                 
-                <!-- FATTURAZIONE -->
+                <!-- PROPOSTE -->
                 <div class="card">
-                    <div class="card-header" style="background:var(--orange-light)">
-                        <h3 class="card-title" style="color:var(--orange)">🧾 Fatturazione & Ricevute</h3>
-                        <span class="badge orange">3 documenti</span>
+                    <div class="card-header" style="background:var(--green-light)">
+                        <h3 class="card-title" style="color:var(--green)">ðŸ¤ Proposte & Preventivi</h3>
                     </div>
                     <div class="card-body">
-                        <div style="display:grid;gap:8px">
-                            <button class="btn btn-block btn-secondary" onclick="openTemplateModal('ricevuta_pigione')">
-                                <span style="flex:1;text-align:left">💰 Ricevuta Pigione</span>
+                        <div style="display:grid;gap:10px">
+                            <button class="btn btn-block btn-secondary" onclick="openTemplateModal('proposta_locazione')">
+                                <span style="flex:1;text-align:left">ðŸ“¨ Proposta di Locazione</span>
+                                <span class="badge gray">Inquilinoâ†’Prop.</span>
                             </button>
-                            <button class="btn btn-block btn-secondary" onclick="openTemplateModal('deposit_receipt')">
-                                <span style="flex:1;text-align:left">🏦 Ricevuta Deposito Cauzionale</span>
+                            <button class="btn btn-block btn-secondary" onclick="openTemplateModal('accettazione_proposta')">
+                                <span style="flex:1;text-align:left">âœ… Accettazione Proposta</span>
                             </button>
-                            <button class="btn btn-block btn-secondary" onclick="openTemplateModal('ricevuta_provvigione')">
-                                <span style="flex:1;text-align:left">💼 Ricevuta Provvigione</span>
+                            <button class="btn btn-block btn-secondary" onclick="openTemplateModal('proposal')">
+                                <span style="flex:1;text-align:left">ðŸ“Š Proposta Servizi BOOM</span>
+                            </button>
+                            <button class="btn btn-block btn-secondary" onclick="openTemplateModal('quote')">
+                                <span style="flex:1;text-align:left">ðŸ’° Preventivo</span>
                             </button>
                         </div>
                     </div>
                 </div>
                 
-                <!-- CONTRATTI -->
+                <!-- CONTRATTI LOCAZIONE -->
                 <div class="card">
                     <div class="card-header" style="background:var(--blue-light)">
-                        <h3 class="card-title" style="color:var(--blue)">📋 Contratti & Proposte</h3>
-                        <span class="badge blue">4 documenti</span>
+                        <h3 class="card-title" style="color:var(--blue)">ðŸ“‹ Contratti Locazione</h3>
+                        <span class="badge blue">Canone Concordato</span>
                     </div>
                     <div class="card-body">
-                        <p style="font-size:11px;color:var(--text-muted);margin-bottom:10px">Conformi L. 431/98 e Accordo Territoriale Roma</p>
-                        <div style="display:grid;gap:8px">
+                        <p style="font-size:11px;color:var(--text-muted);margin-bottom:12px">Conformi all'Accordo Territoriale Roma 25/07/2023</p>
+                        <div style="display:grid;gap:10px">
+                            <button class="btn btn-block btn-secondary" onclick="openTemplateModal('rental_4plus4')">
+                                <span style="flex:1;text-align:left">ðŸ¢ Locazione Ordinaria 4+4</span>
+                            </button>
                             <button class="btn btn-block btn-secondary" onclick="openTemplateModal('rental_transitorio')">
-                                <span style="flex:1;text-align:left">⏱️ Contratto Transitorio</span>
+                                <span style="flex:1;text-align:left">â±ï¸ Locazione Transitoria</span>
                                 <span class="badge gray">1-18 mesi</span>
                             </button>
-                            <button class="btn btn-block btn-secondary" onclick="openTemplateModal('proposta_locazione')">
-                                <span style="flex:1;text-align:left">📨 Proposta di Locazione</span>
-                            </button>
-                            <button class="btn btn-block btn-secondary" onclick="openTemplateModal('mandato_gestione')">
-                                <span style="flex:1;text-align:left">📜 Mandato di Gestione</span>
+                            <button class="btn btn-block btn-secondary" onclick="openTemplateModal('rental_studenti')">
+                                <span style="flex:1;text-align:left">ðŸŽ“ Locazione Studenti</span>
+                                <span class="badge gray">6-36 mesi</span>
                             </button>
                             <button class="btn btn-block btn-secondary" onclick="openTemplateModal('disdetta')">
-                                <span style="flex:1;text-align:left">❌ Disdetta Contratto</span>
+                                <span style="flex:1;text-align:left">âŒ Disdetta Contratto</span>
                             </button>
                         </div>
                     </div>
                 </div>
                 
-                <!-- GESTIONE -->
+                <!-- RICEVUTE -->
                 <div class="card">
-                    <div class="card-header" style="background:var(--purple-light)">
-                        <h3 class="card-title" style="color:var(--purple)">🏠 Gestione Immobiliare</h3>
-                        <span class="badge purple">4 documenti</span>
+                    <div class="card-header" style="background:var(--orange-light)">
+                        <h3 class="card-title" style="color:var(--orange)">ðŸ§¾ Ricevute</h3>
                     </div>
                     <div class="card-body">
-                        <div style="display:grid;gap:8px">
-                            <button class="btn btn-block btn-secondary" onclick="openTemplateModal('handover')">
-                                <span style="flex:1;text-align:left">🔑 Verbale Consegna Chiavi</span>
+                        <div style="display:grid;gap:10px">
+                            <button class="btn btn-block btn-secondary" onclick="openTemplateModal('ricevuta_pigione')">
+                                <span style="flex:1;text-align:left">ðŸ’° Ricevuta Pigione/Affitto</span>
                             </button>
-                            <button class="btn btn-block btn-secondary" onclick="openTemplateModal('inventory')">
-                                <span style="flex:1;text-align:left">📦 Inventario Arredi</span>
+                            <button class="btn btn-block btn-secondary" onclick="openTemplateModal('deposit_receipt')">
+                                <span style="flex:1;text-align:left">ðŸ¦ Ricevuta Deposito Cauzionale</span>
+                            </button>
+                            <button class="btn btn-block btn-secondary" onclick="openTemplateModal('ricevuta_provvigione')">
+                                <span style="flex:1;text-align:left">ðŸ’¼ Ricevuta Provvigione</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- GESTIONE IMMOBILIARE -->
+                <div class="card">
+                    <div class="card-header" style="background:var(--purple-light)">
+                        <h3 class="card-title" style="color:var(--purple)">ðŸ  Gestione Immobiliare</h3>
+                    </div>
+                    <div class="card-body">
+                        <div style="display:grid;gap:10px">
+                            <button class="btn btn-block btn-secondary" onclick="openTemplateModal('mandato_gestione')">
+                                <span style="flex:1;text-align:left">ðŸ“œ Mandato di Gestione</span>
                             </button>
                             <button class="btn btn-block btn-secondary" onclick="openTemplateModal('rendiconto_annuale')">
-                                <span style="flex:1;text-align:left">📊 Rendiconto Annuale</span>
+                                <span style="flex:1;text-align:left">ðŸ“Š Rendiconto Annuale</span>
+                            </button>
+                            <button class="btn btn-block btn-secondary" onclick="openTemplateModal('comunicazione_istat')">
+                                <span style="flex:1;text-align:left">ðŸ“ˆ Comunicazione Aumento ISTAT</span>
                             </button>
                             <button class="btn btn-block btn-secondary" onclick="openTemplateModal('sollecito_pagamento')">
-                                <span style="flex:1;text-align:left">⚠️ Sollecito Pagamento</span>
+                                <span style="flex:1;text-align:left">âš ï¸ Sollecito Pagamento</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- VERBALI E INVENTARI -->
+                <div class="card">
+                    <div class="card-header" style="background:var(--cyan-light)">
+                        <h3 class="card-title" style="color:var(--cyan)">ðŸ”‘ Consegne & Inventari</h3>
+                    </div>
+                    <div class="card-body">
+                        <div style="display:grid;gap:10px">
+                            <button class="btn btn-block btn-secondary" onclick="openTemplateModal('handover')">
+                                <span style="flex:1;text-align:left">ðŸ”‘ Verbale Consegna Chiavi</span>
+                            </button>
+                            <button class="btn btn-block btn-secondary" onclick="openTemplateModal('inventory')">
+                                <span style="flex:1;text-align:left">ðŸ“¦ Inventario Arredi</span>
+                            </button>
+                            <button class="btn btn-block btn-secondary" onclick="openTemplateModal('stato_immobile')">
+                                <span style="flex:1;text-align:left">ðŸ  Stato dell'Immobile</span>
                             </button>
                         </div>
                     </div>
@@ -2109,35 +2101,12 @@
             
             <!-- Info Box -->
             <div class="alert info" style="margin-top:24px">
-                <span class="alert-icon">💡</span>
+                <span class="alert-icon">â„¹ï¸</span>
                 <div class="alert-content">
-                    <div class="alert-title">Compilazione Intelligente</div>
-                    <div class="alert-text">Seleziona un cliente dal CRM o un immobile dal database per compilare automaticamente i campi. I dati BOOM (P.IVA, indirizzo, contatti) sono pre-caricati su ogni documento.</div>
+                    <div class="alert-title">Compilazione Automatica</div>
+                    <div class="alert-text">I template si compilano automaticamente con i dati di clienti, immobili e contratti giÃ  presenti nel sistema. Seleziona un record esistente o inserisci manualmente.</div>
                 </div>
             </div>`;
-    }
-    
-    function updateQuickDocPreview() {
-        const type = document.getElementById('quickDocType')?.value;
-        const descriptions = {
-            pfs: '<strong style="color:var(--gold)">Property Finding Service €350</strong> — Contratto di servizio per ricerca appartamento personalizzata.',
-            das: '<strong style="color:var(--blue)">Deal Assistance Service €249</strong> — Assistenza nella chiusura del contratto.',
-            vv: '<strong style="color:var(--purple)">Virtual Viewing €89-199</strong> — Videochiamata guidata per visitare immobili a distanza.',
-            lettera_incarico: '<strong>Lettera d\'Incarico</strong> — Conferma formale dell\'incarico professionale.',
-            ricevuta_pigione: '<strong>Ricevuta Pigione</strong> — Quietanza mensile per canone di locazione.',
-            deposit_receipt: '<strong>Ricevuta Deposito</strong> — Quietanza per deposito cauzionale.',
-            ricevuta_provvigione: '<strong>Ricevuta Provvigione</strong> — Quietanza per commissioni servizi BOOM.',
-            rental_transitorio: '<strong style="color:var(--blue)">Contratto Transitorio</strong> — Locazione transitoria 1-18 mesi.',
-            proposta_locazione: '<strong>Proposta di Locazione</strong> — Proposta irrevocabile con caparra.',
-            mandato_gestione: '<strong>Mandato di Gestione</strong> — Incarico di property management.',
-            disdetta: '<strong style="color:var(--red)">Disdetta Contratto</strong> — Comunicazione di recesso.',
-            handover: '<strong>Verbale Consegna</strong> — Report check-in/check-out.',
-            inventory: '<strong>Inventario Arredi</strong> — Lista dettagliata arredi.',
-            rendiconto_annuale: '<strong>Rendiconto Annuale</strong> — Report finanziario per proprietari.',
-            sollecito_pagamento: '<strong style="color:var(--orange)">Sollecito Pagamento</strong> — Promemoria pagamento.'
-        };
-        const preview = document.getElementById('quickDocPreview');
-        if (preview) preview.innerHTML = descriptions[type] || 'Seleziona un tipo di documento.';
     }
 
     function usersPage() {
