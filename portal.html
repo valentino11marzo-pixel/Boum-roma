@@ -3648,7 +3648,7 @@
                                     <span style="font-size:20px">${type.icon}</span>
                                     <div style="flex:1">
                                         <div style="font-weight:600">${esc(item.title)}</div>
-                                        <div style="font-size:12px;color:var(--text-muted)">${type.label} â€¢ ${days < 0 ? '<span style="color:var(--red)">SCADUTO ' + Math.abs(days) + 'gg fa</span>' : days === 0 ? '<span style="color:var(--orange)">OGGI!</span>' : 'tra ' + days + ' giorni'}</div>
+                                        <div style="font-size:12px;color:var(--text-muted)">${type.label} • ${days < 0 ? '<span style="color:var(--red)">SCADUTO ' + Math.abs(days) + 'gg fa</span>' : days === 0 ? '<span style="color:var(--orange)">OGGI!</span>' : 'tra ' + days + ' giorni'}</div>
                                     </div>
                                     <div style="text-align:right">
                                         <div class="badge ${days < 0 ? 'red' : days <= 3 ? 'orange' : 'gold'}" style="font-size:11px">Score: ${item.score}</div>
@@ -3662,7 +3662,7 @@
                                     <span style="font-size:20px">${cat.icon}</span>
                                     <div style="flex:1">
                                         <div style="font-weight:600">${esc(item.title)} ${item.priority === 'urgent' ? '<span class="badge red" style="font-size:9px">URGENTE</span>' : ''}</div>
-                                        <div style="font-size:12px;color:var(--text-muted)">${cat.label}${item.dueDate ? ' â€¢ Scade: ' + formatDate(item.dueDate) : ''}</div>
+                                        <div style="font-size:12px;color:var(--text-muted)">${cat.label}${item.dueDate ? ' • Scade: ' + formatDate(item.dueDate) : ''}</div>
                                     </div>
                                     <div style="text-align:right">
                                         <div class="badge blue" style="font-size:11px">Score: ${item.score}</div>
@@ -3826,7 +3826,7 @@
                                 <span class="list-icon" style="background:var(--green-light);color:var(--green)">âœ“</span>
                                 <div class="list-content">
                                     <div class="list-title" style="text-decoration:line-through">${esc(t.title)}</div>
-                                    <div class="list-subtitle">${TASK_CATEGORIES[t.category]?.label || 'Altro'} â€¢ Completato ${formatDate(t.completedAt)}</div>
+                                    <div class="list-subtitle">${TASK_CATEGORIES[t.category]?.label || 'Altro'} • Completato ${formatDate(t.completedAt)}</div>
                                 </div>
                                 <button class="btn btn-xs btn-secondary" onclick="deleteTask('${t.id}')" title="Elimina">ðŸ—‘ï¸</button>
                             </div>
@@ -3916,7 +3916,7 @@
             <span class="list-icon" style="background:var(--${type.color}-light)">${type.icon}</span>
             <div class="list-content">
                 <div class="list-title">${esc(d.title)}</div>
-                <div class="list-subtitle">${type.label}${linkedEntity ? ` â€¢ ${linkedEntity}` : ''}</div>
+                <div class="list-subtitle">${type.label}${linkedEntity ? ` • ${linkedEntity}` : ''}</div>
             </div>
             <div class="list-meta" style="text-align:right">
                 <div class="badge ${countdownClass}">${days !== null ? formatCountdown(days) : 'N/D'}</div>
@@ -3940,7 +3940,7 @@
             <span class="list-icon" style="background:var(--${cat.color}-light)">${cat.icon}</span>
             <div class="list-content">
                 <div class="list-title">${esc(t.title)} ${t.priority === 'urgent' ? '<span class="badge red">URGENTE</span>' : ''}</div>
-                <div class="list-subtitle">${cat.label}${t.dueDate ? ` â€¢ Scadenza: ${formatDate(t.dueDate)}` : ''}${linkedClient ? ` â€¢ ${esc(linkedClient.name)}` : ''}</div>
+                <div class="list-subtitle">${cat.label}${t.dueDate ? ` • Scadenza: ${formatDate(t.dueDate)}` : ''}${linkedClient ? ` • ${esc(linkedClient.name)}` : ''}</div>
             </div>
             <div class="list-meta">
                 <span class="badge ${prioClass}">${prioIcon}</span>
@@ -4655,7 +4655,7 @@
                 <div class="image-upload-zone" id="imageUploadZone">
                     <div class="upload-icon">ðŸ“·</div>
                     <div class="upload-text">Trascina un'immagine qui o clicca per selezionare</div>
-                    <div class="upload-hint">JPG, PNG, WebP â€¢ Max 10MB</div>
+                    <div class="upload-hint">JPG, PNG, WebP • Max 10MB</div>
                 </div>
                 <input type="file" id="imageFileInput" accept="image/*" style="display:none">
                 <div class="upload-progress" id="uploadProgress" style="display:none">
@@ -4707,7 +4707,7 @@
                 <div class="image-upload-zone" id="imageUploadZone">
                     <div class="upload-icon">ðŸ“·</div>
                     <div class="upload-text">Trascina una nuova immagine o clicca per cambiare</div>
-                    <div class="upload-hint">JPG, PNG, WebP â€¢ Max 10MB</div>
+                    <div class="upload-hint">JPG, PNG, WebP • Max 10MB</div>
                 </div>
                 <input type="file" id="imageFileInput" accept="image/*" style="display:none">
                 <div class="upload-progress" id="uploadProgress" style="display:none">
@@ -7012,7 +7012,7 @@
             if (data.svc_tenant) services.push('Rapporti con inquilino');
             if (data.svc_condo) services.push('Rapporti condominiali');
             if (data.svc_report) services.push('Rendicontazione periodica');
-            text(services.join(' â€¢ ') || 'Gestione completa');
+            text(services.join(' • ') || 'Gestione completa');
         }
         
         // RENDICONTO ANNUALE
@@ -7186,7 +7186,7 @@
                 lines.forEach(line => {
                     if (!line.trim()) { y += 3; return; }
                     // Check if it's a room header (no dash/bullet at start)
-                    if (line.trim().match(/^[A-Za-zÃ€-Ãº]/i) && !line.trim().startsWith('-') && !line.trim().startsWith('â€¢') && line.includes(':')) {
+                    if (line.trim().match(/^[A-Za-z\u00C0-\u00FF]/i) && !line.trim().startsWith('-') && !line.trim().startsWith('\u2022') && line.includes(':')) {
                         // Room header
                         if (y > 250) { doc.addPage(); y = 30; }
                         doc.setFillColor(240, 240, 240);
@@ -7200,9 +7200,9 @@
                         // Item line
                         if (y > 260) { doc.addPage(); y = 30; }
                         doc.setFont('helvetica', 'normal');
-                        const itemText = line.trim().replace(/^[-â€¢]\s*/, '');
+                        const itemText = line.trim().replace(/^[-\u2022]\s*/, '');
                         if (itemText) {
-                            doc.text('â€¢ ' + itemText, 25, y);
+                            doc.text('\u2022 ' + itemText, 25, y);
                             y += 5;
                         }
                     }
