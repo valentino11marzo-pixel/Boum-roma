@@ -7019,31 +7019,71 @@
             // Caparra section
             y += 3;
             section(isIT ? 'CAPARRA CONFIRMATORIA' : 'EARNEST MONEY DEPOSIT');
-            doc.setFont('helvetica', 'normal');
             doc.setFontSize(8);
-            const caparraText = isIT 
-                ? 'La caparra confirmatoria sarà versata all\'accettazione della proposta e sarà imputata al primo canone di locazione. In caso di mancata conclusione per fatto del Proponente, la caparra sarà trattenuta. In caso di mancata conclusione per fatto del Locatore, la caparra sarà restituita in misura doppia.'
-                : 'The earnest money will be paid upon acceptance and will be credited to the first rent. If the deal fails due to the Proposer, the deposit will be forfeited. If it fails due to the Landlord, double the deposit will be returned.';
-            const caparraLines = doc.splitTextToSize(caparraText, 170);
-            doc.text(caparraLines, 20, y);
-            y += caparraLines.length * 4 + 5;
+            doc.setFont('helvetica', 'normal');
+            field(isIT ? 'Importo caparra / Amount' : 'Amount', `EUR ${data.caparra || '___________'} (${isIT ? 'pari a 1 mensilità' : 'equal to 1 month rent'})`);
             
-            // Validity warning
-            doc.setFillColor(255, 249, 230);
-            doc.rect(20, y - 2, 170, 12, 'F');
+            // Caparra terms box - exact text from template
+            doc.setFillColor(250, 250, 250);
+            doc.rect(20, y - 2, 170, 18, 'F');
             doc.setDrawColor(212, 175, 55);
-            doc.rect(20, y - 2, 170, 12, 'S');
+            doc.setLineWidth(0.5);
+            doc.line(20, y - 2, 20, y + 16);
+            y += 2;
+            doc.setFontSize(8);
+            const caparraTextIT = 'La caparra confirmatoria sarà versata all\'accettazione della proposta e sarà imputata al primo canone di locazione. In caso di mancata conclusione per fatto del Proponente, la caparra sarà trattenuta. In caso di mancata conclusione per fatto del Locatore, la caparra sarà restituita in misura doppia.';
+            const caparraTextEN = 'The earnest money will be paid upon acceptance and will be credited to the first rent. If the deal fails due to the Proposer, the deposit will be forfeited. If it fails due to the Landlord, double the deposit will be returned.';
+            const caparraLines = doc.splitTextToSize(isIT ? caparraTextIT : caparraTextEN, 165);
+            doc.text(caparraLines, 25, y);
+            if (isIT) {
+                y += caparraLines.length * 3.5;
+                doc.setFont('helvetica', 'italic');
+                doc.setTextColor(136, 136, 136);
+                const caparraEnLines = doc.splitTextToSize(caparraTextEN, 165);
+                doc.text(caparraEnLines, 25, y);
+                doc.setTextColor(0);
+            }
+            y += 12;
+            
+            // Validity warning - exact format from template
+            doc.setFillColor(255, 249, 230);
+            doc.rect(20, y - 2, 170, 14, 'F');
+            doc.setDrawColor(212, 175, 55);
+            doc.rect(20, y - 2, 170, 14, 'S');
             doc.setTextColor(212, 175, 55);
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(8);
-            doc.text(isIT ? '⏱ VALIDITÀ PROPOSTA / PROPOSAL VALIDITY:' : '⏱ PROPOSAL VALIDITY:', 25, y + 3);
+            doc.text('⏱ VALIDITÀ PROPOSTA / PROPOSAL VALIDITY:', 25, y + 3);
             doc.setTextColor(0);
             doc.setFont('helvetica', 'normal');
-            const validityText = isIT 
-                ? `La presente proposta è irrevocabile per ${data.validDays || 7} giorni dalla data di sottoscrizione.`
-                : `This proposal is irrevocable for ${data.validDays || 7} days from the date of signing.`;
-            doc.text(validityText, 25, y + 8);
-            y += 15;
+            doc.text(isIT 
+                ? `La presente proposta è irrevocabile per ${data.validDays || '7'} giorni dalla data di sottoscrizione.`
+                : `This proposal is irrevocable for ${data.validDays || '7'} days from the date of signing.`, 25, y + 8);
+            doc.setFont('helvetica', 'italic');
+            doc.setTextColor(136, 136, 136);
+            doc.setFontSize(7);
+            if (isIT) doc.text(`This proposal is irrevocable for ${data.validDays || '7'} days from the date of signing.`, 25, y + 12);
+            doc.setTextColor(0);
+            y += 18;
+            
+            // Declarations section - from template
+            section(isIT ? 'DICHIARAZIONI' : 'DECLARATIONS');
+            doc.setFontSize(8);
+            const declarations = [
+                { it: 'Dichiaro di aver visionato l\'immobile e di accettarlo nello stato in cui si trova.', en: 'I declare to have inspected the property and accept it as is.' },
+                { it: 'Dichiaro di essere in possesso dei requisiti reddituali per sostenere il canone proposto.', en: 'I declare to have the income requirements to support the proposed rent.' },
+                { it: 'Acconsento al trattamento dei dati personali (GDPR).', en: 'I consent to personal data processing (GDPR).' }
+            ];
+            declarations.forEach(d => {
+                doc.setFont('helvetica', 'normal');
+                doc.text('☐', 20, y);
+                doc.text(isIT ? d.it : d.it, 27, y);
+                doc.setFont('helvetica', 'italic');
+                doc.setTextColor(136, 136, 136);
+                doc.text(d.en, 27, y + 4);
+                doc.setTextColor(0);
+                y += 10;
+            });
             
             if (data.notes) {
                 section(isIT ? 'NOTE E CONDIZIONI PARTICOLARI' : 'NOTES AND SPECIAL CONDITIONS');
@@ -7371,36 +7411,54 @@
             y += 5;
             
             section(isIT ? 'LETTURE CONTATORI' : 'METER READINGS');
-            doc.setFillColor(249, 249, 249);
-            doc.rect(20, y - 2, 170, 20, 'F');
-            doc.setDrawColor(212, 175, 55);
-            doc.setLineWidth(0.5);
-            doc.line(20, y - 2, 20, y + 18);
-            y += 3;
-            doc.setFontSize(8);
-            doc.setFont('helvetica', 'normal');
-            doc.text(isIT ? 'Elettricità / Electricity (kWh):' : 'Electricity (kWh):', 25, y);
-            doc.setFont('helvetica', 'bold');
-            doc.text(data.meterElectric || '___________', 80, y);
-            y += 5;
-            doc.setFont('helvetica', 'normal');
-            doc.text(isIT ? 'Gas (mc):' : 'Gas (mc):', 25, y);
-            doc.setFont('helvetica', 'bold');
-            doc.text(data.meterGas || '___________', 80, y);
-            doc.setFont('helvetica', 'normal');
-            doc.text(isIT ? 'Acqua / Water (mc):' : 'Water (mc):', 110, y);
-            doc.setFont('helvetica', 'bold');
-            doc.text(data.meterWater || '___________', 160, y);
-            y += 10;
+            // 2x2 grid of meter readings with gold left border
+            const meters = [
+                { label: 'Elettricità / Electricity (kWh)', value: data.meterElectric },
+                { label: 'Gas (mc)', value: data.meterGas },
+                { label: 'Acqua / Water (mc)', value: data.meterWater },
+                { label: 'Riscaldamento / Heating', value: data.meterHeating }
+            ];
+            doc.setFontSize(7);
+            let meterX = 20;
+            let meterY = y;
+            meters.forEach((m, i) => {
+                if (i === 2) { meterX = 20; meterY += 12; }
+                doc.setFillColor(249, 249, 249);
+                doc.rect(meterX, meterY - 2, 82, 10, 'F');
+                doc.setDrawColor(212, 175, 55);
+                doc.setLineWidth(0.5);
+                doc.line(meterX, meterY - 2, meterX, meterY + 8);
+                doc.setFont('helvetica', 'normal');
+                doc.setTextColor(100);
+                doc.text(m.label, meterX + 3, meterY + 1);
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(0);
+                doc.text(m.value || '_______________', meterX + 3, meterY + 6);
+                meterX += 88;
+            });
+            y = meterY + 15;
             
             section(isIT ? 'CHIAVI CONSEGNATE' : 'KEYS HANDED OVER');
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(8);
-            const keysText = data.keys || (isIT 
-                ? '☐ Portone  ☐ Appartamento  ☐ Cantina  ☐ Cassetta postale  ☐ Telecomando  ☐ Altro'
-                : '☐ Building  ☐ Apartment  ☐ Cellar  ☐ Mailbox  ☐ Remote  ☐ Other');
-            doc.text(keysText, 20, y);
-            y += 8;
+            // Exact format from template
+            const keys = [
+                { label: isIT ? '☐ Portone / Building entrance: n° ____' : '☐ Building entrance: n° ____' },
+                { label: isIT ? '☐ Appartamento / Apartment: n° ____' : '☐ Apartment: n° ____' },
+                { label: isIT ? '☐ Cantina / Cellar: n° ____' : '☐ Cellar: n° ____' },
+                { label: isIT ? '☐ Cassetta postale / Mailbox: n° ____' : '☐ Mailbox: n° ____' },
+                { label: isIT ? '☐ Telecomando / Remote: n° ____' : '☐ Remote: n° ____' },
+                { label: isIT ? '☐ Altro / Other: ____________' : '☐ Other: ____________' }
+            ];
+            let keyX = 20;
+            keys.forEach((k, i) => {
+                if (i === 3) { keyX = 20; y += 6; }
+                doc.setFillColor(245, 245, 245);
+                doc.rect(keyX, y - 2, 55, 5, 'F');
+                doc.text(k.label, keyX + 2, y + 1);
+                keyX += 58;
+            });
+            y += 10;
             
             if (data.notes) {
                 section(isIT ? 'NOTE E OSSERVAZIONI' : 'NOTES AND OBSERVATIONS');
@@ -8019,13 +8077,22 @@
             doc.setTextColor(0);
             y += 28;
             
-            // Final declaration
+            // Final declaration - exact text from template
+            doc.setFillColor(245, 245, 245);
+            doc.rect(20, y - 2, 170, 16, 'F');
             doc.setFontSize(7);
-            doc.setTextColor(80);
-            const finalText = isIT 
-                ? 'Letto, approvato e sottoscritto in duplice originale. Le parti dichiarano di aver letto e compreso ogni clausola del presente contratto.'
-                : 'Read, approved and signed in duplicate. The parties declare to have read and understood every clause of this contract.';
-            doc.text(finalText, 20, y);
+            doc.setTextColor(0);
+            const finalTextIT = 'Letto, approvato e sottoscritto in duplice originale. Le parti dichiarano di aver letto e compreso ogni clausola del presente contratto, approvando specificamente ai sensi degli artt. 1341 e 1342 c.c. le clausole di cui agli articoli 3, 4, 5, 7, 9.';
+            const finalTextEN = 'Read, approved and signed in duplicate. The parties declare to have read and understood every clause of this contract, specifically approving pursuant to articles 1341 and 1342 of the Civil Code the clauses in articles 3, 4, 5, 7, 9.';
+            const finalLines = doc.splitTextToSize(finalTextIT, 165);
+            doc.text(finalLines, 25, y + 2);
+            if (isIT) {
+                doc.setFont('helvetica', 'italic');
+                doc.setTextColor(136, 136, 136);
+                const finalEnLines = doc.splitTextToSize(finalTextEN, 165);
+                doc.text(finalEnLines, 25, y + 9);
+            }
+            doc.setTextColor(0);
         }
         
         // DICHIARAZIONE DI OSPITALITÀ / DECLARATION OF HOSPITALITY
