@@ -1355,6 +1355,7 @@
                 </div>
                 <div class="nav-section"><div class="nav-label">Admin Tools</div>
                     <div class="nav-item ${S.page==='command'?'active':''}" onclick="goTo('command')"><span class="nav-icon">ðŸŽ¯</span> Command Center ${urgentDeadlines?`<span class="nav-badge orange">${urgentDeadlines}</span>`:''}</div>
+                    <div class="nav-item ${S.page==='docgenerator'?'active':''}" onclick="goTo('docgenerator')"><span class="nav-icon">📄</span> Doc Generator</div>
                     <div class="nav-item ${S.page==='adminflats'?'active':''}" onclick="goTo('adminflats')"><span class="nav-icon">ðŸ¢</span> AdminFlats</div>
                 </div>
                 <div class="sidebar-footer">
@@ -1425,6 +1426,7 @@
             case 'my-documents': m.innerHTML = (isLandlord() || isTenant()) ? myDocumentsPage() : accessDenied(); break;
             case 'settings': m.innerHTML = settingsPage(); break;
             case 'command': m.innerHTML = isAdmin() ? commandPage() : accessDenied(); break;
+            case 'docgenerator': m.innerHTML = isAdmin() ? docGeneratorPage() : accessDenied(); break;
             case 'adminflats': m.innerHTML = isAdmin() ? adminflatsPage() : accessDenied(); break;
             default: m.innerHTML = r === 'admin' ? adminDashboard() : r === 'landlord' ? landlordDashboard() : tenantDashboard();
         }
@@ -2108,6 +2110,979 @@
                 </div>
             </div>`;
     }
+
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // DOCUMENT GENERATOR PAGE - Comprehensive Doc Generation
+    // ═══════════════════════════════════════════════════════════════════════════
+    function docGeneratorPage() {
+        const clients = S.clients || [];
+        const properties = S.properties || [];
+        const contracts = S.contracts || [];
+        const users = S.users || [];
+        
+        return `<div class="page-header">
+                <div><h1 class="page-title">📄 Document Generator</h1><p class="page-subtitle">Generazione documenti one-click con auto-fill da CRM</p></div>
+                <div class="page-actions">
+                    <div class="lang-selector">
+                        <button class="lang-btn ${S.lang === 'IT' ? 'active' : ''}" onclick="setLang('IT')">🇮🇹 IT</button>
+                        <button class="lang-btn ${S.lang === 'EN' ? 'active' : ''}" onclick="setLang('EN')">🇬🇧 EN</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Quick Generate Section -->
+            <div class="card" style="background:linear-gradient(135deg, rgba(212,175,55,0.1), rgba(212,175,55,0.05));border-color:var(--gold)">
+                <div class="card-header" style="border-color:rgba(212,175,55,0.3)">
+                    <h3 class="card-title" style="color:var(--gold)">⚡ Quick Generate</h3>
+                    <span class="badge gold">One-Click</span>
+                </div>
+                <div class="card-body">
+                    <div class="form-row" style="margin-bottom:16px">
+                        <div class="form-group">
+                            <label class="form-label">👤 Seleziona Cliente CRM</label>
+                            <select class="form-select" id="quickClientSelect" onchange="updateQuickGenClient()">
+                                <option value="">-- Seleziona Cliente --</option>
+                                ${clients.map(c => '<option value="' + c.id + '">' + c.name + ' (' + c.service + ')</option>').join('')}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">🏠 Seleziona Immobile</label>
+                            <select class="form-select" id="quickPropertySelect" onchange="updateQuickGenProperty()">
+                                <option value="">-- Seleziona Immobile --</option>
+                                ${properties.map(p => '<option value="' + p.id + '">' + p.name + '</option>').join('')}
+                            </select>
+                        </div>
+                    </div>
+                    <div id="quickSelectedInfo" style="display:none;background:var(--bg);padding:12px;border-radius:8px;margin-bottom:16px">
+                        <div style="display:flex;gap:20px;flex-wrap:wrap">
+                            <div id="quickClientInfo"></div>
+                            <div id="quickPropertyInfo"></div>
+                        </div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:10px">
+                        <button class="btn" onclick="quickGenerateDoc('contratto_servizio')" title="Contratto PFS/DAS/VV">
+                            <span>📋</span> Contratto Servizio
+                        </button>
+                        <button class="btn btn-secondary" onclick="quickGenerateDoc('fattura')" title="Fattura per servizio">
+                            <span>🧾</span> Fattura
+                        </button>
+                        <button class="btn btn-secondary" onclick="quickGenerateDoc('ricevuta')" title="Ricevuta pagamento">
+                            <span>💰</span> Ricevuta
+                        </button>
+                        <button class="btn btn-secondary" onclick="quickGenerateDoc('benvenuto')" title="Lettera di benvenuto">
+                            <span>👋</span> Benvenuto
+                        </button>
+                        <button class="btn btn-secondary" onclick="quickGenerateDoc('conferma')" title="Conferma prenotazione">
+                            <span>✅</span> Conferma
+                        </button>
+                        <button class="btn btn-secondary" onclick="quickGenerateDoc('inventario')" title="Inventario immobile">
+                            <span>📦</span> Inventario
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="grid-2">
+                <!-- CONTRATTI -->
+                <div class="card">
+                    <div class="card-header" style="background:var(--blue-light)">
+                        <h3 class="card-title" style="color:var(--blue)">📋 Contratti</h3>
+                    </div>
+                    <div class="card-body">
+                        <div style="display:grid;gap:8px">
+                            <button class="btn btn-block btn-secondary" onclick="openDocGenModal('affitto_4plus4')">
+                                <span style="flex:1;text-align:left">🏢 Contratto Affitto 4+4</span>
+                                <span class="badge blue">Ordinario</span>
+                            </button>
+                            <button class="btn btn-block btn-secondary" onclick="openDocGenModal('sublocazione')">
+                                <span style="flex:1;text-align:left">🔄 Contratto Sublocazione</span>
+                            </button>
+                            <button class="btn btn-block btn-secondary" onclick="openDocGenModal('comodato')">
+                                <span style="flex:1;text-align:left">🤝 Contratto Comodato</span>
+                            </button>
+                            <button class="btn btn-block btn-secondary" onclick="openDocGenModal('transitorio')">
+                                <span style="flex:1;text-align:left">⏱️ Contratto Transitorio</span>
+                                <span class="badge gray">1-18 mesi</span>
+                            </button>
+                            <button class="btn btn-block btn-secondary" onclick="openDocGenModal('studenti')">
+                                <span style="flex:1;text-align:left">🎓 Contratto Studenti</span>
+                                <span class="badge gray">6-36 mesi</span>
+                            </button>
+                            <button class="btn btn-block btn-secondary" onclick="openDocGenModal('boom_pfs')">
+                                <span style="flex:1;text-align:left">🏠 BOOM PFS Contract</span>
+                                <span class="badge gold">€350</span>
+                            </button>
+                            <button class="btn btn-block btn-secondary" onclick="openDocGenModal('boom_das')">
+                                <span style="flex:1;text-align:left">📋 BOOM DAS Contract</span>
+                                <span class="badge blue">€249</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- FINANCIAL -->
+                <div class="card">
+                    <div class="card-header" style="background:var(--green-light)">
+                        <h3 class="card-title" style="color:var(--green)">💰 Documenti Finanziari</h3>
+                    </div>
+                    <div class="card-body">
+                        <div style="display:grid;gap:8px">
+                            <button class="btn btn-block btn-secondary" onclick="openDocGenModal('fattura')">
+                                <span style="flex:1;text-align:left">🧾 Fattura</span>
+                                <span class="badge green">IVA 22%</span>
+                            </button>
+                            <button class="btn btn-block btn-secondary" onclick="openDocGenModal('ricevuta')">
+                                <span style="flex:1;text-align:left">💰 Ricevuta</span>
+                            </button>
+                            <button class="btn btn-block btn-secondary" onclick="openDocGenModal('ricevuta_pigione')">
+                                <span style="flex:1;text-align:left">🏠 Ricevuta Pigione</span>
+                            </button>
+                            <button class="btn btn-block btn-secondary" onclick="openDocGenModal('nota_credito')">
+                                <span style="flex:1;text-align:left">📄 Nota di Credito</span>
+                            </button>
+                            <button class="btn btn-block btn-secondary" onclick="openDocGenModal('deposit_receipt')">
+                                <span style="flex:1;text-align:left">🔒 Ricevuta Deposito</span>
+                            </button>
+                            <button class="btn btn-block btn-secondary" onclick="openDocGenModal('sollecito')">
+                                <span style="flex:1;text-align:left">⚠️ Sollecito Pagamento</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- CLIENT DOCS -->
+                <div class="card">
+                    <div class="card-header" style="background:var(--purple-light)">
+                        <h3 class="card-title" style="color:var(--purple)">👤 Documenti Cliente</h3>
+                    </div>
+                    <div class="card-body">
+                        <div style="display:grid;gap:8px">
+                            <button class="btn btn-block btn-secondary" onclick="openDocGenModal('conferma_prenotazione')">
+                                <span style="flex:1;text-align:left">✅ Conferma Prenotazione</span>
+                            </button>
+                            <button class="btn btn-block btn-secondary" onclick="openDocGenModal('benvenuto')">
+                                <span style="flex:1;text-align:left">👋 Lettera di Benvenuto</span>
+                            </button>
+                            <button class="btn btn-block btn-secondary" onclick="openDocGenModal('dichiarazione_ospitalita')">
+                                <span style="flex:1;text-align:left">📝 Dichiarazione Ospitalità</span>
+                            </button>
+                            <button class="btn btn-block btn-secondary" onclick="openDocGenModal('proposta_locazione')">
+                                <span style="flex:1;text-align:left">📨 Proposta di Locazione</span>
+                            </button>
+                            <button class="btn btn-block btn-secondary" onclick="openDocGenModal('accettazione')">
+                                <span style="flex:1;text-align:left">✓ Accettazione Proposta</span>
+                            </button>
+                            <button class="btn btn-block btn-secondary" onclick="openDocGenModal('disdetta')">
+                                <span style="flex:1;text-align:left">❌ Disdetta Contratto</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- PROPERTY DOCS -->
+                <div class="card">
+                    <div class="card-header" style="background:var(--orange-light)">
+                        <h3 class="card-title" style="color:var(--orange)">🏠 Documenti Immobile</h3>
+                    </div>
+                    <div class="card-body">
+                        <div style="display:grid;gap:8px">
+                            <button class="btn btn-block btn-secondary" onclick="openDocGenModal('inventario')">
+                                <span style="flex:1;text-align:left">📦 Inventario Arredi</span>
+                            </button>
+                            <button class="btn btn-block btn-secondary" onclick="openDocGenModal('verbale_consegna')">
+                                <span style="flex:1;text-align:left">🔑 Verbale Consegna</span>
+                            </button>
+                            <button class="btn btn-block btn-secondary" onclick="openDocGenModal('checklist_ingresso')">
+                                <span style="flex:1;text-align:left">✅ Checklist Ingresso</span>
+                            </button>
+                            <button class="btn btn-block btn-secondary" onclick="openDocGenModal('checklist_uscita')">
+                                <span style="flex:1;text-align:left">📋 Checklist Uscita</span>
+                            </button>
+                            <button class="btn btn-block btn-secondary" onclick="openDocGenModal('stato_immobile')">
+                                <span style="flex:1;text-align:left">🏠 Stato Immobile</span>
+                            </button>
+                            <button class="btn btn-block btn-secondary" onclick="openDocGenModal('mandato_gestione')">
+                                <span style="flex:1;text-align:left">📜 Mandato Gestione</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Recent Generated Docs -->
+            <div class="card" style="margin-top:20px">
+                <div class="card-header">
+                    <h3 class="card-title">🕐 Documenti Recenti</h3>
+                    <span class="badge gray">Ultimi 5</span>
+                </div>
+                <div class="card-body flush" id="recentDocsContainer">
+                    <div class="empty-state" style="padding:30px">
+                        <div class="empty-icon">📄</div>
+                        <div class="empty-text">I documenti generati appariranno qui</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Info Box -->
+            <div class="alert info" style="margin-top:20px">
+                <span class="alert-icon">💡</span>
+                <div class="alert-content">
+                    <div class="alert-title">Compilazione Automatica</div>
+                    <div class="alert-text">Seleziona un cliente dal CRM o un immobile per pre-compilare automaticamente i campi. I documenti saranno generati in <strong>${S.lang === 'IT' ? 'Italiano' : 'English'}</strong>.</div>
+                </div>
+            </div>`;
+    }
+
+    // Quick Generate Functions
+    function updateQuickGenClient() {
+        const clientId = document.getElementById('quickClientSelect')?.value;
+        const infoDiv = document.getElementById('quickSelectedInfo');
+        const clientInfo = document.getElementById('quickClientInfo');
+        
+        if (clientId) {
+            const client = S.clients.find(c => c.id === clientId);
+            if (client) {
+                clientInfo.innerHTML = `
+                    <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">CLIENTE</div>
+                    <div style="font-weight:600">${client.name}</div>
+                    <div style="font-size:12px;color:var(--text-secondary)">${client.email || ''}</div>
+                    <div style="font-size:12px"><span class="badge ${SERVICES[client.service]?.color || 'gold'}">${client.service}</span></div>
+                `;
+                infoDiv.style.display = 'block';
+            }
+        } else {
+            clientInfo.innerHTML = '';
+            if (!document.getElementById('quickPropertySelect')?.value) {
+                infoDiv.style.display = 'none';
+            }
+        }
+    }
+    
+    function updateQuickGenProperty() {
+        const propertyId = document.getElementById('quickPropertySelect')?.value;
+        const infoDiv = document.getElementById('quickSelectedInfo');
+        const propertyInfo = document.getElementById('quickPropertyInfo');
+        
+        if (propertyId) {
+            const property = S.properties.find(p => p.id === propertyId);
+            if (property) {
+                const owner = S.users.find(u => u.id === property.ownerId);
+                propertyInfo.innerHTML = `
+                    <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">IMMOBILE</div>
+                    <div style="font-weight:600">${property.name}</div>
+                    <div style="font-size:12px;color:var(--text-secondary)">${property.address || 'Roma'}</div>
+                    <div style="font-size:12px">€${property.rent || 0}/mese ${owner ? '· ' + owner.name : ''}</div>
+                `;
+                infoDiv.style.display = 'block';
+            }
+        } else {
+            propertyInfo.innerHTML = '';
+            if (!document.getElementById('quickClientSelect')?.value) {
+                infoDiv.style.display = 'none';
+            }
+        }
+    }
+    
+    function quickGenerateDoc(type) {
+        const clientId = document.getElementById('quickClientSelect')?.value;
+        const propertyId = document.getElementById('quickPropertySelect')?.value;
+        
+        // Map quick types to template types
+        const typeMap = {
+            'contratto_servizio': 'pfs',
+            'fattura': 'fattura',
+            'ricevuta': 'ricevuta_pigione',
+            'benvenuto': 'benvenuto',
+            'conferma': 'conferma_prenotazione',
+            'inventario': 'inventory'
+        };
+        
+        const templateType = typeMap[type] || type;
+        
+        // If we have a client, determine the correct service contract type
+        if (clientId && type === 'contratto_servizio') {
+            const client = S.clients.find(c => c.id === clientId);
+            if (client?.service) {
+                openTemplateModal(client.service.toLowerCase(), client);
+                return;
+            }
+        }
+        
+        // Open the template modal with pre-filled data
+        const prefillData = {};
+        if (clientId) {
+            const client = S.clients.find(c => c.id === clientId);
+            if (client) {
+                prefillData.name = client.name;
+                prefillData.email = client.email;
+                prefillData.phone = client.phone;
+                prefillData.budget = client.budget;
+                prefillData.zone = client.zone;
+            }
+        }
+        if (propertyId) {
+            const property = S.properties.find(p => p.id === propertyId);
+            if (property) {
+                prefillData.propertyId = propertyId;
+                prefillData.propertyName = property.name;
+                prefillData.propertyAddress = property.address;
+                prefillData.rent = property.rent;
+            }
+        }
+        
+        openDocGenModal(templateType, prefillData);
+    }
+    
+    function openDocGenModal(type, prefillData = {}) {
+        // Map new doc types to existing template types where possible
+        const typeMap = {
+            'boom_pfs': 'pfs',
+            'boom_das': 'das',
+            'affitto_4plus4': 'rental_4plus4',
+            'transitorio': 'rental_transitorio',
+            'studenti': 'rental_studenti',
+            'fattura': 'fattura_boom',
+            'ricevuta': 'ricevuta_pigione',
+            'inventario': 'inventory',
+            'verbale_consegna': 'handover',
+            'stato_immobile': 'stato_immobile',
+            'mandato_gestione': 'mandato_gestione',
+            'proposta_locazione': 'proposta_locazione',
+            'accettazione': 'accettazione_proposta',
+            'disdetta': 'disdetta',
+            'sollecito': 'sollecito_pagamento',
+            'deposit_receipt': 'deposit_receipt'
+        };
+        
+        const mappedType = typeMap[type] || type;
+        
+        // For types that have existing template modals, use those
+        if (['pfs', 'das', 'vv', 'rental_4plus4', 'rental_transitorio', 'rental_studenti', 
+             'ricevuta_pigione', 'inventory', 'handover', 'stato_immobile', 'mandato_gestione',
+             'proposta_locazione', 'accettazione_proposta', 'disdetta', 'sollecito_pagamento',
+             'deposit_receipt'].includes(mappedType)) {
+            openTemplateModal(mappedType, prefillData);
+            return;
+        }
+        
+        // For new types, show the custom modal
+        showDocGenCustomModal(type, prefillData);
+    }
+    
+    function showDocGenCustomModal(type, prefillData = {}) {
+        const titles = {
+            'sublocazione': '🔄 Contratto di Sublocazione',
+            'comodato': '🤝 Contratto di Comodato',
+            'conferma_prenotazione': '✅ Conferma Prenotazione',
+            'benvenuto': '👋 Lettera di Benvenuto',
+            'dichiarazione_ospitalita': '📝 Dichiarazione di Ospitalità',
+            'checklist_ingresso': '✅ Checklist Ingresso',
+            'checklist_uscita': '📋 Checklist Uscita',
+            'nota_credito': '📄 Nota di Credito',
+            'fattura_boom': '🧾 Fattura BOOM'
+        };
+        
+        let formFields = '';
+        
+        // Build form fields based on document type
+        if (type === 'conferma_prenotazione' || type === 'benvenuto') {
+            formFields = buildClientPropertyForm(prefillData, type);
+        } else if (type === 'dichiarazione_ospitalita') {
+            formFields = buildDichiarazioneForm(prefillData);
+        } else if (type === 'checklist_ingresso' || type === 'checklist_uscita') {
+            formFields = buildChecklistForm(prefillData, type);
+        } else if (type === 'fattura_boom' || type === 'nota_credito') {
+            formFields = buildInvoiceForm(prefillData, type);
+        } else if (type === 'sublocazione' || type === 'comodato') {
+            formFields = buildContractForm(prefillData, type);
+        } else {
+            formFields = buildGenericForm(prefillData);
+        }
+        
+        const modal = `
+            <div class="modal-overlay active" onclick="if(event.target===this)closeModal()">
+                <div class="modal lg">
+                    <div class="modal-header">
+                        <h3 class="modal-title">${titles[type] || type}</h3>
+                        <button class="modal-close" onclick="closeModal()">×</button>
+                    </div>
+                    <form id="docGenForm" onsubmit="generateDocFromForm(event, '${type}')">
+                        <input type="hidden" name="docType" value="${type}">
+                        <div class="modal-body">${formFields}</div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" onclick="closeModal()">Annulla</button>
+                            <button type="submit" class="btn">📄 Genera PDF</button>
+                        </div>
+                    </form>
+                </div>
+            </div>`;
+        
+        document.getElementById('modals').innerHTML = modal;
+    }
+    
+    function buildClientPropertyForm(prefillData, type) {
+        const clients = S.clients || [];
+        const properties = S.properties || [];
+        const isIT = S.lang === 'IT';
+        
+        return `
+            <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
+                <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">👤 ${isIT ? 'CLIENTE' : 'CLIENT'}</h4>
+                <div class="form-group">
+                    <label class="form-label">${isIT ? 'Seleziona Cliente' : 'Select Client'}</label>
+                    <select class="form-select" name="clientId" onchange="fillDocGenClient(this.value)">
+                        <option value="">-- ${isIT ? 'Inserisci manualmente' : 'Enter manually'} --</option>
+                        ${clients.map(c => '<option value="' + c.id + '"' + (prefillData.clientId === c.id ? ' selected' : '') + '>' + c.name + '</option>').join('')}
+                    </select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label class="form-label">${isIT ? 'Nome' : 'Name'} *</label><input type="text" class="form-input" name="clientName" value="${prefillData.name || ''}" required></div>
+                    <div class="form-group"><label class="form-label">Email *</label><input type="email" class="form-input" name="clientEmail" value="${prefillData.email || ''}" required></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label class="form-label">${isIT ? 'Telefono' : 'Phone'}</label><input type="tel" class="form-input" name="clientPhone" value="${prefillData.phone || ''}"></div>
+                    <div class="form-group"><label class="form-label">${isIT ? 'Nazionalità' : 'Nationality'}</label><input type="text" class="form-input" name="nationality"></div>
+                </div>
+            </div>
+            <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
+                <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">🏠 ${isIT ? 'IMMOBILE' : 'PROPERTY'}</h4>
+                <div class="form-group">
+                    <label class="form-label">${isIT ? 'Seleziona Immobile' : 'Select Property'}</label>
+                    <select class="form-select" name="propertyId" onchange="fillDocGenProperty(this.value)">
+                        <option value="">-- ${isIT ? 'Inserisci manualmente' : 'Enter manually'} --</option>
+                        ${properties.map(p => '<option value="' + p.id + '"' + (prefillData.propertyId === p.id ? ' selected' : '') + '>' + p.name + '</option>').join('')}
+                    </select>
+                </div>
+                <div class="form-group"><label class="form-label">${isIT ? 'Indirizzo' : 'Address'} *</label><input type="text" class="form-input" name="propertyAddress" value="${prefillData.propertyAddress || ''}" required></div>
+                <div class="form-row">
+                    <div class="form-group"><label class="form-label">${isIT ? 'Check-in' : 'Check-in'}</label><input type="date" class="form-input" name="checkIn"></div>
+                    <div class="form-group"><label class="form-label">${isIT ? 'Check-out' : 'Check-out'}</label><input type="date" class="form-input" name="checkOut"></div>
+                </div>
+            </div>
+            ${type === 'benvenuto' ? '<div class="form-group"><label class="form-label">' + (isIT ? 'Messaggio Personalizzato' : 'Custom Message') + '</label><textarea class="form-textarea" name="customMessage" placeholder="' + (isIT ? 'Benvenuto a Roma!' : 'Welcome to Rome!') + '"></textarea></div>' : ''}
+        `;
+    }
+    
+    function buildInvoiceForm(prefillData, type) {
+        const clients = S.clients || [];
+        const isIT = S.lang === 'IT';
+        const isNota = type === 'nota_credito';
+        
+        return `
+            <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
+                <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">👤 ${isIT ? 'CLIENTE' : 'CLIENT'}</h4>
+                <div class="form-group">
+                    <label class="form-label">${isIT ? 'Seleziona Cliente' : 'Select Client'}</label>
+                    <select class="form-select" name="clientId" onchange="fillDocGenClient(this.value)">
+                        <option value="">-- ${isIT ? 'Inserisci manualmente' : 'Enter manually'} --</option>
+                        ${clients.map(c => '<option value="' + c.id + '">' + c.name + '</option>').join('')}
+                    </select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label class="form-label">${isIT ? 'Nome/Ragione Sociale' : 'Name/Company'} *</label><input type="text" class="form-input" name="clientName" required></div>
+                    <div class="form-group"><label class="form-label">C.F./P.IVA</label><input type="text" class="form-input" name="clientCF"></div>
+                </div>
+                <div class="form-group"><label class="form-label">${isIT ? 'Indirizzo' : 'Address'}</label><input type="text" class="form-input" name="clientAddress"></div>
+            </div>
+            <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
+                <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">💰 ${isIT ? 'DETTAGLI' : 'DETAILS'}</h4>
+                ${isNota ? '<div class="form-group"><label class="form-label">' + (isIT ? 'Fattura di Riferimento' : 'Reference Invoice') + ' *</label><input type="text" class="form-input" name="refInvoice" required placeholder="FAT-2025-001"></div>' : ''}
+                <div class="form-row">
+                    <div class="form-group"><label class="form-label">${isIT ? 'Descrizione' : 'Description'} *</label><input type="text" class="form-input" name="description" required placeholder="${isIT ? 'Property Finding Service' : 'Property Finding Service'}"></div>
+                    <div class="form-group"><label class="form-label">${isIT ? 'Servizio' : 'Service'}</label>
+                        <select class="form-select" name="service" onchange="updateDocGenAmount(this.value)">
+                            <option value="">-- Seleziona --</option>
+                            <option value="PFS">PFS €350</option>
+                            <option value="DAS">DAS €249</option>
+                            <option value="VV">VV €89</option>
+                            <option value="custom">Custom</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label class="form-label">${isIT ? 'Imponibile' : 'Subtotal'} € *</label><input type="number" class="form-input" name="subtotal" id="docGenSubtotal" required onchange="calcDocGenTotal()"></div>
+                    <div class="form-group"><label class="form-label">IVA %</label><input type="number" class="form-input" name="vatRate" value="22" onchange="calcDocGenTotal()"></div>
+                    <div class="form-group"><label class="form-label">${isIT ? 'Totale' : 'Total'} €</label><input type="number" class="form-input" name="total" id="docGenTotal" readonly></div>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label class="form-label">${isIT ? 'Data' : 'Date'}</label><input type="date" class="form-input" name="date" value="${new Date().toISOString().split('T')[0]}"></div>
+                <div class="form-group"><label class="form-label">${isIT ? 'Numero' : 'Number'}</label><input type="text" class="form-input" name="number" placeholder="${isNota ? 'NC-2025-001' : 'FAT-2025-001'}"></div>
+            </div>
+        `;
+    }
+    
+    function buildChecklistForm(prefillData, type) {
+        const properties = S.properties || [];
+        const users = S.users.filter(u => u.role === 'tenant') || [];
+        const isIT = S.lang === 'IT';
+        const isIngresso = type === 'checklist_ingresso';
+        
+        return `
+            <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
+                <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">🏠 ${isIT ? 'IMMOBILE' : 'PROPERTY'}</h4>
+                <div class="form-group">
+                    <label class="form-label">${isIT ? 'Seleziona Immobile' : 'Select Property'}</label>
+                    <select class="form-select" name="propertyId" onchange="fillDocGenProperty(this.value)">
+                        <option value="">-- ${isIT ? 'Inserisci manualmente' : 'Enter manually'} --</option>
+                        ${properties.map(p => '<option value="' + p.id + '">' + p.name + '</option>').join('')}
+                    </select>
+                </div>
+                <div class="form-group"><label class="form-label">${isIT ? 'Indirizzo' : 'Address'} *</label><input type="text" class="form-input" name="propertyAddress" required></div>
+            </div>
+            <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
+                <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">👤 ${isIT ? 'INQUILINO' : 'TENANT'}</h4>
+                <div class="form-group">
+                    <label class="form-label">${isIT ? 'Seleziona Inquilino' : 'Select Tenant'}</label>
+                    <select class="form-select" name="tenantId" onchange="fillDocGenTenant(this.value)">
+                        <option value="">-- ${isIT ? 'Inserisci manualmente' : 'Enter manually'} --</option>
+                        ${users.map(u => '<option value="' + u.id + '">' + u.name + '</option>').join('')}
+                    </select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label class="form-label">${isIT ? 'Nome' : 'Name'} *</label><input type="text" class="form-input" name="tenantName" required></div>
+                    <div class="form-group"><label class="form-label">${isIT ? 'Data' : 'Date'} *</label><input type="date" class="form-input" name="checkDate" value="${new Date().toISOString().split('T')[0]}" required></div>
+                </div>
+            </div>
+            <div style="background:var(--bg);padding:16px;border-radius:8px">
+                <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">✅ ${isIT ? 'CHECKLIST' : 'CHECKLIST'}</h4>
+                <div style="display:grid;gap:8px">
+                    <label style="display:flex;align-items:center;gap:8px;font-size:13px"><input type="checkbox" name="check_keys" checked> ${isIT ? 'Chiavi consegnate' : 'Keys delivered'}</label>
+                    <label style="display:flex;align-items:center;gap:8px;font-size:13px"><input type="checkbox" name="check_meters" checked> ${isIT ? 'Letture contatori' : 'Meter readings'}</label>
+                    <label style="display:flex;align-items:center;gap:8px;font-size:13px"><input type="checkbox" name="check_inventory" checked> ${isIT ? 'Inventario verificato' : 'Inventory checked'}</label>
+                    <label style="display:flex;align-items:center;gap:8px;font-size:13px"><input type="checkbox" name="check_cleaning"> ${isIT ? 'Pulizia OK' : 'Cleaning OK'}</label>
+                    <label style="display:flex;align-items:center;gap:8px;font-size:13px"><input type="checkbox" name="check_damages"> ${isIT ? 'Nessun danno' : 'No damages'}</label>
+                </div>
+                <div class="form-group" style="margin-top:12px"><label class="form-label">${isIT ? 'Note' : 'Notes'}</label><textarea class="form-textarea" name="notes" placeholder="${isIT ? 'Eventuali annotazioni...' : 'Any notes...'}"></textarea></div>
+            </div>
+        `;
+    }
+    
+    function buildDichiarazioneForm(prefillData) {
+        const users = S.users.filter(u => u.role === 'landlord') || [];
+        const properties = S.properties || [];
+        const isIT = S.lang === 'IT';
+        
+        return `
+            <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
+                <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">🏠 ${isIT ? 'DICHIARANTE (Proprietario/Locatore)' : 'DECLARANT (Owner/Landlord)'}</h4>
+                <div class="form-group">
+                    <label class="form-label">${isIT ? 'Seleziona' : 'Select'}</label>
+                    <select class="form-select" name="landlordId" onchange="fillDocGenLandlord(this.value)">
+                        <option value="">-- ${isIT ? 'Inserisci manualmente' : 'Enter manually'} --</option>
+                        ${users.map(u => '<option value="' + u.id + '">' + u.name + '</option>').join('')}
+                    </select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label class="form-label">${isIT ? 'Nome' : 'Name'} *</label><input type="text" class="form-input" name="landlordName" required></div>
+                    <div class="form-group"><label class="form-label">C.F. *</label><input type="text" class="form-input" name="landlordCF" required></div>
+                </div>
+                <div class="form-group"><label class="form-label">${isIT ? 'Nato/a a' : 'Born in'}</label><input type="text" class="form-input" name="landlordBirthPlace"></div>
+                <div class="form-group"><label class="form-label">${isIT ? 'Residente in' : 'Resident at'}</label><input type="text" class="form-input" name="landlordAddress"></div>
+            </div>
+            <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
+                <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">👤 ${isIT ? 'OSPITE' : 'GUEST'}</h4>
+                <div class="form-row">
+                    <div class="form-group"><label class="form-label">${isIT ? 'Nome' : 'Name'} *</label><input type="text" class="form-input" name="guestName" required></div>
+                    <div class="form-group"><label class="form-label">${isIT ? 'Nazionalità' : 'Nationality'} *</label><input type="text" class="form-input" name="guestNationality" required></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label class="form-label">${isIT ? 'Documento' : 'Document'}</label><input type="text" class="form-input" name="guestDocType" placeholder="${isIT ? 'Passaporto' : 'Passport'}"></div>
+                    <div class="form-group"><label class="form-label">${isIT ? 'Numero Doc.' : 'Doc. Number'}</label><input type="text" class="form-input" name="guestDocNumber"></div>
+                </div>
+            </div>
+            <div style="background:var(--bg);padding:16px;border-radius:8px">
+                <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">🏠 ${isIT ? 'ALLOGGIO' : 'ACCOMMODATION'}</h4>
+                <div class="form-group">
+                    <label class="form-label">${isIT ? 'Seleziona Immobile' : 'Select Property'}</label>
+                    <select class="form-select" name="propertyId" onchange="fillDocGenProperty(this.value)">
+                        <option value="">-- ${isIT ? 'Inserisci manualmente' : 'Enter manually'} --</option>
+                        ${properties.map(p => '<option value="' + p.id + '">' + p.name + '</option>').join('')}
+                    </select>
+                </div>
+                <div class="form-group"><label class="form-label">${isIT ? 'Indirizzo' : 'Address'} *</label><input type="text" class="form-input" name="propertyAddress" required></div>
+                <div class="form-row">
+                    <div class="form-group"><label class="form-label">${isIT ? 'Dal' : 'From'} *</label><input type="date" class="form-input" name="startDate" required></div>
+                    <div class="form-group"><label class="form-label">${isIT ? 'Al' : 'To'} *</label><input type="date" class="form-input" name="endDate" required></div>
+                </div>
+            </div>
+        `;
+    }
+    
+    function buildContractForm(prefillData, type) {
+        const users = S.users || [];
+        const properties = S.properties || [];
+        const isIT = S.lang === 'IT';
+        const isSublocazione = type === 'sublocazione';
+        
+        return `
+            <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
+                <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">${isSublocazione ? '🔄 SUBLOCATORE' : '🤝 COMODANTE'}</h4>
+                <div class="form-row">
+                    <div class="form-group"><label class="form-label">${isIT ? 'Nome' : 'Name'} *</label><input type="text" class="form-input" name="ownerName" required></div>
+                    <div class="form-group"><label class="form-label">C.F. *</label><input type="text" class="form-input" name="ownerCF" required></div>
+                </div>
+                <div class="form-group"><label class="form-label">${isIT ? 'Residente in' : 'Resident at'}</label><input type="text" class="form-input" name="ownerAddress"></div>
+            </div>
+            <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
+                <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">${isSublocazione ? '👤 SUBCONDUTTORE' : '👤 COMODATARIO'}</h4>
+                <div class="form-row">
+                    <div class="form-group"><label class="form-label">${isIT ? 'Nome' : 'Name'} *</label><input type="text" class="form-input" name="tenantName" required></div>
+                    <div class="form-group"><label class="form-label">C.F.</label><input type="text" class="form-input" name="tenantCF"></div>
+                </div>
+                <div class="form-group"><label class="form-label">${isIT ? 'Residente in' : 'Resident at'}</label><input type="text" class="form-input" name="tenantAddress"></div>
+            </div>
+            <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
+                <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">🏠 ${isIT ? 'IMMOBILE' : 'PROPERTY'}</h4>
+                <div class="form-group">
+                    <label class="form-label">${isIT ? 'Seleziona Immobile' : 'Select Property'}</label>
+                    <select class="form-select" name="propertyId" onchange="fillDocGenProperty(this.value)">
+                        <option value="">-- ${isIT ? 'Inserisci manualmente' : 'Enter manually'} --</option>
+                        ${properties.map(p => '<option value="' + p.id + '">' + p.name + '</option>').join('')}
+                    </select>
+                </div>
+                <div class="form-group"><label class="form-label">${isIT ? 'Indirizzo' : 'Address'} *</label><input type="text" class="form-input" name="propertyAddress" required></div>
+            </div>
+            <div style="background:var(--bg);padding:16px;border-radius:8px">
+                <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">📋 ${isIT ? 'CONDIZIONI' : 'TERMS'}</h4>
+                <div class="form-row">
+                    <div class="form-group"><label class="form-label">${isIT ? 'Data Inizio' : 'Start Date'} *</label><input type="date" class="form-input" name="startDate" required></div>
+                    <div class="form-group"><label class="form-label">${isIT ? 'Data Fine' : 'End Date'} *</label><input type="date" class="form-input" name="endDate" required></div>
+                </div>
+                ${isSublocazione ? '<div class="form-row"><div class="form-group"><label class="form-label">' + (isIT ? 'Canone Mensile' : 'Monthly Rent') + ' € *</label><input type="number" class="form-input" name="rent" required></div><div class="form-group"><label class="form-label">' + (isIT ? 'Deposito' : 'Deposit') + ' €</label><input type="number" class="form-input" name="deposit"></div></div>' : ''}
+            </div>
+        `;
+    }
+    
+    function buildGenericForm(prefillData) {
+        return `
+            <div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="name" value="${prefillData.name || ''}" required></div>
+            <div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" name="email" value="${prefillData.email || ''}"></div>
+            <div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes"></textarea></div>
+        `;
+    }
+    
+    // Helper functions for form auto-fill
+    function fillDocGenClient(clientId) {
+        if (!clientId) return;
+        const client = S.clients.find(c => c.id === clientId);
+        if (client) {
+            const form = document.getElementById('docGenForm');
+            if (form) {
+                if (form.clientName) form.clientName.value = client.name || '';
+                if (form.clientEmail) form.clientEmail.value = client.email || '';
+                if (form.clientPhone) form.clientPhone.value = client.phone || '';
+            }
+        }
+    }
+    
+    function fillDocGenProperty(propertyId) {
+        if (!propertyId) return;
+        const property = S.properties.find(p => p.id === propertyId);
+        if (property) {
+            const form = document.getElementById('docGenForm');
+            if (form) {
+                if (form.propertyAddress) form.propertyAddress.value = property.address || property.name;
+                if (form.rent) form.rent.value = property.rent || '';
+            }
+        }
+    }
+    
+    function fillDocGenTenant(tenantId) {
+        if (!tenantId) return;
+        const tenant = S.users.find(u => u.id === tenantId);
+        if (tenant) {
+            const form = document.getElementById('docGenForm');
+            if (form && form.tenantName) form.tenantName.value = tenant.name || '';
+        }
+    }
+    
+    function fillDocGenLandlord(landlordId) {
+        if (!landlordId) return;
+        const landlord = S.users.find(u => u.id === landlordId);
+        if (landlord) {
+            const form = document.getElementById('docGenForm');
+            if (form && form.landlordName) form.landlordName.value = landlord.name || '';
+        }
+    }
+    
+    function updateDocGenAmount(service) {
+        const amounts = { 'PFS': 350, 'DAS': 249, 'VV': 89 };
+        const subtotalField = document.getElementById('docGenSubtotal');
+        if (subtotalField && amounts[service]) {
+            subtotalField.value = amounts[service];
+            calcDocGenTotal();
+        }
+    }
+    
+    function calcDocGenTotal() {
+        const form = document.getElementById('docGenForm');
+        if (!form) return;
+        const subtotal = parseFloat(form.subtotal?.value) || 0;
+        const vatRate = parseFloat(form.vatRate?.value) || 22;
+        const total = subtotal * (1 + vatRate / 100);
+        if (form.total) form.total.value = total.toFixed(2);
+    }
+    
+    function generateDocFromForm(event, type) {
+        event.preventDefault();
+        const formData = Object.fromEntries(new FormData(event.target));
+        
+        // Generate PDF based on type
+        generateCustomDoc(type, formData);
+        closeModal();
+    }
+    
+    function generateCustomDoc(type, data) {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        const isIT = S.lang === 'IT';
+        const today = new Date().toLocaleDateString(isIT ? 'it-IT' : 'en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+        const ref = type.toUpperCase().replace(/_/g, '') + '-' + Date.now().toString(36).slice(-6).toUpperCase();
+        
+        // Title mapping
+        const titles = {
+            'conferma_prenotazione': isIT ? 'CONFERMA PRENOTAZIONE' : 'BOOKING CONFIRMATION',
+            'benvenuto': isIT ? 'LETTERA DI BENVENUTO' : 'WELCOME LETTER',
+            'dichiarazione_ospitalita': isIT ? 'DICHIARAZIONE DI OSPITALITÀ' : 'DECLARATION OF HOSPITALITY',
+            'checklist_ingresso': isIT ? 'CHECKLIST INGRESSO' : 'CHECK-IN CHECKLIST',
+            'checklist_uscita': isIT ? 'CHECKLIST USCITA' : 'CHECK-OUT CHECKLIST',
+            'fattura_boom': isIT ? 'FATTURA' : 'INVOICE',
+            'nota_credito': isIT ? 'NOTA DI CREDITO' : 'CREDIT NOTE',
+            'sublocazione': isIT ? 'CONTRATTO DI SUBLOCAZIONE' : 'SUBLEASE AGREEMENT',
+            'comodato': isIT ? 'CONTRATTO DI COMODATO' : 'LOAN FOR USE AGREEMENT'
+        };
+        
+        // Header
+        doc.setFillColor(10, 10, 10);
+        doc.rect(0, 0, 210, 38, 'F');
+        doc.setFillColor(255, 213, 79);
+        doc.rect(0, 38, 70, 2.5, 'F');
+        doc.setFillColor(245, 166, 35);
+        doc.rect(70, 38, 70, 2.5, 'F');
+        doc.setFillColor(255, 213, 79);
+        doc.rect(140, 38, 70, 2.5, 'F');
+        
+        // Logo
+        if (typeof BOOM_LOGO_B64 !== 'undefined') {
+            doc.addImage(BOOM_LOGO_B64, 'PNG', 16, 7, 24, 24);
+        }
+        
+        // BOOM text
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(22);
+        doc.setTextColor(212, 175, 55);
+        doc.text('BOOM', 46, 21);
+        doc.setFontSize(6);
+        doc.setTextColor(150, 150, 150);
+        doc.text('PROPERTY MANAGEMENT', 46, 28);
+        
+        // Document title
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(9);
+        doc.setTextColor(255, 255, 255);
+        doc.text(titles[type] || type.toUpperCase(), 194, 12, { align: 'right' });
+        
+        // Reference
+        doc.setFillColor(255, 213, 79);
+        doc.roundedRect(155, 16, 39, 8, 4, 4, 'F');
+        doc.setFontSize(7);
+        doc.setTextColor(0, 0, 0);
+        doc.text('Rif: ' + ref, 174.5, 21.5, { align: 'center' });
+        
+        // Date
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+        doc.setTextColor(170, 170, 170);
+        doc.text('Roma, ' + today, 194, 32, { align: 'right' });
+        
+        // Content
+        let y = 55;
+        doc.setTextColor(0, 0, 0);
+        
+        const section = (title) => {
+            doc.setFillColor(245, 245, 245);
+            doc.rect(15, y - 4, 180, 8, 'F');
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(10);
+            doc.setTextColor(212, 175, 55);
+            doc.text(title, 20, y + 1);
+            doc.setTextColor(0, 0, 0);
+            y += 10;
+        };
+        
+        const field = (label, value) => {
+            if (!value) return;
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(9);
+            doc.setTextColor(100, 100, 100);
+            doc.text(label + ':', 20, y);
+            doc.setTextColor(0, 0, 0);
+            doc.setFont('helvetica', 'bold');
+            doc.text(String(value), 55, y);
+            y += 6;
+        };
+        
+        // Generate content based on type
+        if (type === 'conferma_prenotazione' || type === 'benvenuto') {
+            section(isIT ? 'CLIENTE' : 'CLIENT');
+            field(isIT ? 'Nome' : 'Name', data.clientName);
+            field('Email', data.clientEmail);
+            field(isIT ? 'Telefono' : 'Phone', data.clientPhone);
+            y += 5;
+            
+            section(isIT ? 'IMMOBILE' : 'PROPERTY');
+            field(isIT ? 'Indirizzo' : 'Address', data.propertyAddress);
+            field('Check-in', data.checkIn);
+            field('Check-out', data.checkOut);
+            
+            if (type === 'benvenuto' && data.customMessage) {
+                y += 10;
+                doc.setFont('helvetica', 'italic');
+                doc.setFontSize(11);
+                const lines = doc.splitTextToSize(data.customMessage, 170);
+                doc.text(lines, 20, y);
+            }
+        }
+        else if (type === 'fattura_boom' || type === 'nota_credito') {
+            section(isIT ? 'CLIENTE' : 'CLIENT');
+            field(isIT ? 'Nome' : 'Name', data.clientName);
+            field('C.F./P.IVA', data.clientCF);
+            field(isIT ? 'Indirizzo' : 'Address', data.clientAddress);
+            y += 5;
+            
+            section(isIT ? 'DETTAGLI' : 'DETAILS');
+            if (data.refInvoice) field(isIT ? 'Rif. Fattura' : 'Ref. Invoice', data.refInvoice);
+            field(isIT ? 'Descrizione' : 'Description', data.description);
+            y += 5;
+            
+            // Amount box
+            doc.setFillColor(212, 175, 55);
+            doc.rect(20, y, 80, 18, 'F');
+            doc.setTextColor(0);
+            doc.setFontSize(11);
+            doc.setFont('helvetica', 'normal');
+            doc.text(isIT ? 'Imponibile:' : 'Subtotal:', 25, y + 6);
+            doc.text('IVA ' + (data.vatRate || 22) + '%:', 25, y + 12);
+            doc.setFont('helvetica', 'bold');
+            doc.text('EUR ' + data.subtotal, 60, y + 6);
+            doc.text('EUR ' + ((parseFloat(data.subtotal) || 0) * (parseFloat(data.vatRate) || 22) / 100).toFixed(2), 60, y + 12);
+            
+            doc.setFillColor(0);
+            doc.rect(100, y, 80, 18, 'F');
+            doc.setTextColor(255);
+            doc.setFontSize(9);
+            doc.text(isIT ? 'TOTALE' : 'TOTAL', 140, y + 6, { align: 'center' });
+            doc.setFontSize(16);
+            doc.text('EUR ' + data.total, 140, y + 14, { align: 'center' });
+        }
+        else if (type === 'checklist_ingresso' || type === 'checklist_uscita') {
+            section(isIT ? 'IMMOBILE' : 'PROPERTY');
+            field(isIT ? 'Indirizzo' : 'Address', data.propertyAddress);
+            y += 5;
+            
+            section(isIT ? 'INQUILINO' : 'TENANT');
+            field(isIT ? 'Nome' : 'Name', data.tenantName);
+            field(isIT ? 'Data' : 'Date', data.checkDate);
+            y += 5;
+            
+            section('CHECKLIST');
+            const checks = [
+                { key: 'check_keys', label: isIT ? 'Chiavi consegnate' : 'Keys delivered' },
+                { key: 'check_meters', label: isIT ? 'Letture contatori' : 'Meter readings' },
+                { key: 'check_inventory', label: isIT ? 'Inventario verificato' : 'Inventory checked' },
+                { key: 'check_cleaning', label: isIT ? 'Pulizia OK' : 'Cleaning OK' },
+                { key: 'check_damages', label: isIT ? 'Nessun danno' : 'No damages' }
+            ];
+            
+            checks.forEach(check => {
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(10);
+                const checked = data[check.key] === 'on';
+                doc.text(checked ? '☑' : '☐', 20, y);
+                doc.text(check.label, 30, y);
+                y += 6;
+            });
+            
+            if (data.notes) {
+                y += 5;
+                section(isIT ? 'NOTE' : 'NOTES');
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(9);
+                const lines = doc.splitTextToSize(data.notes, 170);
+                doc.text(lines, 20, y);
+            }
+        }
+        else if (type === 'dichiarazione_ospitalita') {
+            section(isIT ? 'DICHIARANTE' : 'DECLARANT');
+            field(isIT ? 'Nome' : 'Name', data.landlordName);
+            field('C.F.', data.landlordCF);
+            field(isIT ? 'Nato/a a' : 'Born in', data.landlordBirthPlace);
+            field(isIT ? 'Residente in' : 'Resident at', data.landlordAddress);
+            y += 5;
+            
+            section(isIT ? 'OSPITE' : 'GUEST');
+            field(isIT ? 'Nome' : 'Name', data.guestName);
+            field(isIT ? 'Nazionalità' : 'Nationality', data.guestNationality);
+            field(isIT ? 'Documento' : 'Document', data.guestDocType + ' ' + data.guestDocNumber);
+            y += 5;
+            
+            section(isIT ? 'ALLOGGIO' : 'ACCOMMODATION');
+            field(isIT ? 'Indirizzo' : 'Address', data.propertyAddress);
+            field(isIT ? 'Periodo' : 'Period', data.startDate + ' - ' + data.endDate);
+            
+            y += 10;
+            doc.setFont('helvetica', 'italic');
+            doc.setFontSize(9);
+            const declaration = isIT 
+                ? 'Il/La sottoscritto/a dichiara di ospitare presso il proprio domicilio la persona sopra indicata per il periodo specificato.'
+                : 'The undersigned declares to host at their residence the person indicated above for the specified period.';
+            const lines = doc.splitTextToSize(declaration, 170);
+            doc.text(lines, 20, y);
+        }
+        else if (type === 'sublocazione' || type === 'comodato') {
+            const isSublocazione = type === 'sublocazione';
+            
+            section(isSublocazione ? (isIT ? 'SUBLOCATORE' : 'SUBLESSOR') : (isIT ? 'COMODANTE' : 'LENDER'));
+            field(isIT ? 'Nome' : 'Name', data.ownerName);
+            field('C.F.', data.ownerCF);
+            field(isIT ? 'Residente in' : 'Resident at', data.ownerAddress);
+            y += 5;
+            
+            section(isSublocazione ? (isIT ? 'SUBCONDUTTORE' : 'SUBLESSEE') : (isIT ? 'COMODATARIO' : 'BORROWER'));
+            field(isIT ? 'Nome' : 'Name', data.tenantName);
+            field('C.F.', data.tenantCF);
+            field(isIT ? 'Residente in' : 'Resident at', data.tenantAddress);
+            y += 5;
+            
+            section(isIT ? 'IMMOBILE' : 'PROPERTY');
+            field(isIT ? 'Indirizzo' : 'Address', data.propertyAddress);
+            y += 5;
+            
+            section(isIT ? 'CONDIZIONI' : 'TERMS');
+            field(isIT ? 'Data Inizio' : 'Start Date', data.startDate);
+            field(isIT ? 'Data Fine' : 'End Date', data.endDate);
+            if (isSublocazione) {
+                field(isIT ? 'Canone Mensile' : 'Monthly Rent', '€' + data.rent);
+                if (data.deposit) field(isIT ? 'Deposito' : 'Deposit', '€' + data.deposit);
+            }
+        }
+        
+        // Footer
+        const pageHeight = doc.internal.pageSize.height;
+        doc.setFillColor(10, 10, 10);
+        doc.rect(0, pageHeight - 20, 210, 20, 'F');
+        doc.setFontSize(7);
+        doc.setTextColor(150, 150, 150);
+        doc.text(COMPANY.legal + ' | P.IVA ' + COMPANY.piva + ' | ' + COMPANY.email + ' | ' + COMPANY.phone, 105, pageHeight - 10, { align: 'center' });
+        
+        // Save
+        const filename = (titles[type] || type).replace(/\s+/g, '_') + '_' + ref + '.pdf';
+        doc.save(filename);
+        toast('success', isIT ? 'Documento generato!' : 'Document generated!', filename);
+    }
+
 
     function usersPage() {
         return `<div class="page-header"><h1 class="page-title">Utenti</h1><div class="page-actions"><button class="btn" onclick="openModal('addUser')">+ Nuovo</button></div></div>
