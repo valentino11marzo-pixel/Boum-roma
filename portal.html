@@ -1437,7 +1437,7 @@
             case 'my-documents': m.innerHTML = (isLandlord() || isTenant()) ? myDocumentsPage() : accessDenied(); break;
             case 'settings': m.innerHTML = settingsPage(); break;
             case 'command': m.innerHTML = isAdmin() ? commandPage() : accessDenied(); break;
-            case 'docgenerator': m.innerHTML = isAdmin() ? docGeneratorPage() : accessDenied(); break;
+            case 'docgenerator': m.innerHTML = isAdmin() ? docGeneratorPage() : accessDenied(); setTimeout(renderRecentDocs, 100); break;
             case 'adminflats': m.innerHTML = isAdmin() ? adminflatsPage() : accessDenied(); break;
             default: m.innerHTML = r === 'admin' ? adminDashboard() : r === 'landlord' ? landlordDashboard() : tenantDashboard();
         }
@@ -2472,13 +2472,13 @@
         if (['pfs', 'das', 'vv', 'rental_4plus4', 'rental_transitorio', 'rental_studenti', 
              'ricevuta_pigione', 'inventory', 'handover', 'stato_immobile', 'mandato_gestione',
              'proposta_locazione', 'accettazione_proposta', 'disdetta', 'sollecito_pagamento',
-             'deposit_receipt'].includes(mappedType)) {
+             'deposit_receipt', 'fattura_boom', 'invoice'].includes(mappedType)) {
             openTemplateModal(mappedType, prefillData);
             return;
         }
         
-        // For new types, show the custom modal
-        showDocGenCustomModal(type, prefillData);
+        // For new types, show the custom modal with MAPPED type
+        showDocGenCustomModal(mappedType, prefillData);
     }
     
     function showDocGenCustomModal(type, prefillData = {}) {
@@ -2852,7 +2852,7 @@
         const today = new Date().toLocaleDateString(isIT ? 'it-IT' : 'en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
         const ref = type.toUpperCase().replace(/_/g, '') + '-' + Date.now().toString(36).slice(-6).toUpperCase();
         
-        // Title mapping
+        // Title mapping (complete)
         const titles = {
             'conferma_prenotazione': isIT ? 'CONFERMA PRENOTAZIONE' : 'BOOKING CONFIRMATION',
             'benvenuto': isIT ? 'LETTERA DI BENVENUTO' : 'WELCOME LETTER',
@@ -2860,6 +2860,8 @@
             'checklist_ingresso': isIT ? 'CHECKLIST INGRESSO' : 'CHECK-IN CHECKLIST',
             'checklist_uscita': isIT ? 'CHECKLIST USCITA' : 'CHECK-OUT CHECKLIST',
             'fattura_boom': isIT ? 'FATTURA' : 'INVOICE',
+            'fattura': isIT ? 'FATTURA' : 'INVOICE',
+            'invoice': isIT ? 'FATTURA' : 'INVOICE',
             'nota_credito': isIT ? 'NOTA DI CREDITO' : 'CREDIT NOTE',
             'sublocazione': isIT ? 'CONTRATTO DI SUBLOCAZIONE' : 'SUBLEASE AGREEMENT',
             'comodato': isIT ? 'CONTRATTO DI COMODATO' : 'LOAN FOR USE AGREEMENT'
@@ -3091,6 +3093,17 @@
         // Save
         const filename = (titles[type] || type).replace(/\s+/g, '_') + '_' + ref + '.pdf';
         doc.save(filename);
+        
+        // Update recent docs history
+        updateRecentDocs({
+            type: type,
+            title: titles[type] || type,
+            client: data.clientName || data.tenantName || '—',
+            filename: filename,
+            ref: ref,
+            date: new Date().toISOString()
+        });
+        
         toast('success', isIT ? 'Documento generato!' : 'Document generated!', filename);
     }
 
@@ -6280,7 +6293,9 @@
             sollecito_pagamento: '⚠️ Sollecito Pagamento',
             handover: '🔑 Verbale Consegna', 
             inventory: '📦 Inventario',
-            stato_immobile: '🏠 Stato dell\'Immobile'
+            stato_immobile: '🏠 Stato dell\'Immobile',
+            fattura_boom: '🧾 Fattura BOOM',
+            invoice: '🧾 Fattura'
         };
         
         let formFields = '';
@@ -6693,6 +6708,63 @@
                 </div>
                 <div class="form-group"><label class="form-label">Note Generali</label><textarea class="form-textarea" name="notes" rows="4"></textarea></div>`;
         }
+        // FATTURA BOOM
+        else if (type === 'fattura_boom' || type === 'invoice') {
+            const clients = S.clients || [];
+            const tenants = S.users.filter(u => u.role === 'tenant');
+            const landlords = S.users.filter(u => u.role === 'landlord');
+            const invoiceNum = 'BOOM-' + new Date().getFullYear() + '-' + String((S.invoices?.length || 0) + 1).padStart(4, '0');
+            formFields = `
+                <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
+                    <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">🧾 DATI FATTURA</h4>
+                    <div class="form-row">
+                        <div class="form-group"><label class="form-label">Numero Fattura</label><input type="text" class="form-input" name="invoiceNumber" value="${invoiceNum}"></div>
+                        <div class="form-group"><label class="form-label">Data Fattura</label><input type="date" class="form-input" name="invoiceDate" value="${new Date().toISOString().split('T')[0]}"></div>
+                    </div>
+                </div>
+                <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
+                    <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">👤 CLIENTE</h4>
+                    <div class="form-group"><label class="form-label">Seleziona</label>
+                        <select class="form-select" name="clientId" onchange="fillClientData(this.value)">
+                            <option value="">-- Inserisci manualmente --</option>
+                            <optgroup label="💼 Clienti CRM">${clients.map(c => `<option value="${c.id}">${c.name} (${c.service || ''})</option>`).join('')}</optgroup>
+                            <optgroup label="🏠 Proprietari">${landlords.map(u => `<option value="${u.id}">${u.name}</option>`).join('')}</optgroup>
+                            <optgroup label="👤 Inquilini">${tenants.map(u => `<option value="${u.id}">${u.name}</option>`).join('')}</optgroup>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label class="form-label">Nome/Ragione Sociale *</label><input type="text" class="form-input" name="clientName" id="tplName" required></div>
+                        <div class="form-group"><label class="form-label">C.F. / P.IVA</label><input type="text" class="form-input" name="clientCF"></div>
+                    </div>
+                    <div class="form-group"><label class="form-label">Indirizzo</label><input type="text" class="form-input" name="clientAddress" placeholder="Via Roma 1, 00100 Roma"></div>
+                </div>
+                <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
+                    <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">💰 DETTAGLIO SERVIZI</h4>
+                    <div class="form-group"><label class="form-label">Descrizione Servizio *</label>
+                        <input type="text" class="form-input" name="serviceDescription" required placeholder="Es: Servizio Property Finding, Gestione immobiliare, Commissione mediazione...">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label class="form-label">Importo Imponibile € *</label><input type="number" class="form-input" name="amount" required placeholder="350"></div>
+                        <div class="form-group"><label class="form-label">Aliquota IVA %</label><input type="number" class="form-input" name="ivaRate" value="22"></div>
+                    </div>
+                </div>
+                <div style="background:var(--bg);padding:16px;border-radius:8px">
+                    <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">💳 PAGAMENTO</h4>
+                    <div class="form-row">
+                        <div class="form-group"><label class="form-label">Modalità</label>
+                            <select class="form-select" name="paymentMethod">
+                                <option value="bonifico">Bonifico Bancario</option>
+                                <option value="contanti">Contanti</option>
+                                <option value="carta">Carta di Credito</option>
+                                <option value="stripe">Stripe</option>
+                            </select>
+                        </div>
+                        <div class="form-group"><label class="form-label">Scadenza</label><input type="date" class="form-input" name="dueDate" value="${new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0]}"></div>
+                    </div>
+                    <div class="form-group"><label class="form-label">IBAN</label><input type="text" class="form-input" name="iban" placeholder="IT__ ____ ____ ____ ____ ____ ___"></div>
+                    <div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes" rows="2"></textarea></div>
+                </div>`;
+        }
         // Default fallback
         else {
             formFields = `
@@ -6752,7 +6824,7 @@
         const isIT = S.lang === 'IT';
         const today = new Date().toLocaleDateString(isIT ? 'it-IT' : 'en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
         
-        // Title mapping (bilingual)
+        // Title mapping (bilingual) - COMPLETE LIST
         const titles = isIT ? { 
             pfs: 'PROPERTY FINDING SERVICE', das: 'DEAL ASSISTANCE SERVICE', vv: 'VIRTUAL VIEWING',
             lettera_incarico: 'LETTERA D\'INCARICO', proposal: 'PROPOSTA SERVIZI', quote: 'PREVENTIVO',
@@ -6762,7 +6834,12 @@
             ricevuta_provvigione: 'RICEVUTA PROVVIGIONE', mandato_gestione: 'MANDATO DI GESTIONE',
             rendiconto_annuale: 'RENDICONTO ANNUALE', comunicazione_istat: 'ADEGUAMENTO ISTAT',
             sollecito_pagamento: 'SOLLECITO DI PAGAMENTO', handover: 'VERBALE CONSEGNA', inventory: 'INVENTARIO ARREDI',
-            stato_immobile: 'STATO DELL\'IMMOBILE'
+            stato_immobile: 'STATO DELL\'IMMOBILE',
+            fattura_boom: 'FATTURA', invoice: 'FATTURA',
+            dichiarazione_ospitalita: 'DICHIARAZIONE DI OSPITALITÀ',
+            checklist_ingresso: 'CHECKLIST INGRESSO', checklist_uscita: 'CHECKLIST USCITA',
+            sublocazione: 'AUTORIZZAZIONE SUBLOCAZIONE',
+            task: 'TASK', shared: 'DOCUMENTO'
         } : {
             pfs: 'PROPERTY FINDING SERVICE', das: 'DEAL ASSISTANCE SERVICE', vv: 'VIRTUAL VIEWING',
             lettera_incarico: 'ENGAGEMENT LETTER', proposal: 'SERVICE PROPOSAL', quote: 'QUOTE',
@@ -6772,7 +6849,12 @@
             ricevuta_provvigione: 'COMMISSION RECEIPT', mandato_gestione: 'MANAGEMENT MANDATE',
             rendiconto_annuale: 'ANNUAL STATEMENT', comunicazione_istat: 'ISTAT ADJUSTMENT',
             sollecito_pagamento: 'PAYMENT REMINDER', handover: 'HANDOVER REPORT', inventory: 'FURNITURE INVENTORY',
-            stato_immobile: 'PROPERTY CONDITION'
+            stato_immobile: 'PROPERTY CONDITION',
+            fattura_boom: 'INVOICE', invoice: 'INVOICE',
+            dichiarazione_ospitalita: 'HOSPITALITY DECLARATION',
+            checklist_ingresso: 'CHECK-IN CHECKLIST', checklist_uscita: 'CHECK-OUT CHECKLIST',
+            sublocazione: 'SUBLEASE AUTHORIZATION',
+            task: 'TASK', shared: 'DOCUMENT'
         };
         
         // Labels (bilingual)
@@ -8336,8 +8418,74 @@
         // Save
         const filename = `BOOM_${(titles[type] || 'DOC').replace(/[^a-zA-Z0-9]/g, '_')}_${(data.clientName || data.landlordName || data.tenantName || 'doc').replace(/[^a-zA-Z0-9]/g, '_')}_${ref}.pdf`;
         doc.save(filename);
+        
+        // Update recent docs history
+        updateRecentDocs({
+            type: type,
+            title: titles[type] || type,
+            client: data.clientName || data.landlordName || data.tenantName || '—',
+            filename: filename,
+            ref: ref,
+            date: new Date().toISOString()
+        });
+        
         closeModal();
         toast('success', 'PDF generato!', filename);
+        
+        // Re-render recent docs if on docgenerator page
+        setTimeout(() => {
+            const container = document.getElementById('recentDocsContainer');
+            if (container) renderRecentDocs();
+        }, 200);
+    }
+    
+    // Recent documents history (localStorage)
+    function updateRecentDocs(docInfo) {
+        let recentDocs = JSON.parse(localStorage.getItem('boomRecentDocs') || '[]');
+        recentDocs.unshift(docInfo);
+        recentDocs = recentDocs.slice(0, 10); // Keep last 10
+        localStorage.setItem('boomRecentDocs', JSON.stringify(recentDocs));
+        renderRecentDocs();
+    }
+    
+    function renderRecentDocs() {
+        const container = document.getElementById('recentDocsContainer');
+        if (!container) return;
+        
+        const recentDocs = JSON.parse(localStorage.getItem('boomRecentDocs') || '[]');
+        
+        if (recentDocs.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state" style="padding:30px">
+                    <div class="empty-icon">📄</div>
+                    <div class="empty-text">I documenti generati appariranno qui</div>
+                </div>`;
+            return;
+        }
+        
+        container.innerHTML = recentDocs.slice(0, 5).map(d => {
+            const timeAgo = getTimeAgo(new Date(d.date));
+            return `
+                <div class="list-item" style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--border-color)">
+                    <div class="doc-icon" style="width:40px;height:40px;background:linear-gradient(135deg,#D4AF37,#F5A623);border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px">📄</div>
+                    <div style="flex:1;min-width:0">
+                        <div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${d.title}</div>
+                        <div style="font-size:11px;color:var(--text-muted)">${d.client} · ${d.ref}</div>
+                    </div>
+                    <div style="text-align:right">
+                        <div style="font-size:11px;color:var(--text-muted)">${timeAgo}</div>
+                    </div>
+                </div>`;
+        }).join('');
+    }
+    
+    function getTimeAgo(date) {
+        const now = new Date();
+        const diff = Math.floor((now - date) / 1000);
+        if (diff < 60) return 'Ora';
+        if (diff < 3600) return Math.floor(diff / 60) + ' min fa';
+        if (diff < 86400) return Math.floor(diff / 3600) + ' ore fa';
+        return Math.floor(diff / 86400) + ' giorni fa';
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
