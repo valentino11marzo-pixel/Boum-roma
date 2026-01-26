@@ -672,6 +672,7 @@
         maintenance: [], documents: [], clients: [], invoices: [], notifications: [],
         deadlines: [], tasks: [], // Command Center
         pfsClients: [], pfsProperties: [], pfsActivities: [], // PFS Pipeline
+        pfsViewings: [], pfsLandlords: [], pfsRevenue: [], // Calendar, Landlords, Revenue
         userNotifications: [], // Persistent notifications from Firestore
         listings: [], // For adminflats
         lastActivity: Date.now(),
@@ -1498,9 +1499,13 @@
             const urgentDeadlines = (S.deadlines || []).filter(d => d.status !== 'done' && daysUntil(d.date) !== null && daysUntil(d.date) <= 7).length + (S.tasks || []).filter(t => t.status !== 'done' && t.priority === 'urgent').length;
             
             const urgentPFS = S.pfsClients ? S.pfsClients.filter(c => c.stage !== 'placed' && calculatePFSPriority(c) >= 70).length : 0;
+            const viewingsToday = S.pfsViewings ? S.pfsViewings.filter(v => v.date === new Date().toISOString().split('T')[0]).length : 0;
             sb.innerHTML = `
                 <div class="nav-section"><div class="nav-label">🎯 Command</div>
                     <div class="nav-item ${S.page==='pfs'?'active':''}" onclick="goTo('pfs')" style="${urgentPFS > 0 ? 'background:var(--red-light);border-left:3px solid var(--red)' : ''}"><span class="nav-icon">🚀</span> PFS Pipeline ${urgentPFS?`<span class="nav-badge">${urgentPFS}</span>`:''}</div>
+                    <div class="nav-item ${S.page==='revenue'?'active':''}" onclick="goTo('revenue')"><span class="nav-icon">💰</span> Revenue</div>
+                    <div class="nav-item ${S.page==='calendar'?'active':''}" onclick="goTo('calendar')"><span class="nav-icon">📅</span> Calendar ${viewingsToday?`<span class="nav-badge gold">${viewingsToday}</span>`:''}</div>
+                    <div class="nav-item ${S.page==='landlords'?'active':''}" onclick="goTo('landlords')"><span class="nav-icon">🏢</span> Landlords</div>
                 </div>
                 <div class="nav-section"><div class="nav-label">Panoramica</div>
                     <div class="nav-item ${S.page==='dashboard'?'active':''}" onclick="goTo('dashboard')"><span class="nav-icon">📊</span> Dashboard</div>
@@ -1576,6 +1581,9 @@
             case 'dashboard': m.innerHTML = r === 'admin' ? adminDashboard() : r === 'landlord' ? landlordDashboard() : tenantDashboard(); break;
             case 'crm': m.innerHTML = isAdmin() ? crmPage() : accessDenied(); break;
             case 'pfs': m.innerHTML = isAdmin() ? pfsPage() : accessDenied(); break;
+            case 'revenue': m.innerHTML = isAdmin() ? revenuePage() : accessDenied(); break;
+            case 'calendar': m.innerHTML = isAdmin() ? calendarPage() : accessDenied(); break;
+            case 'landlords': m.innerHTML = isAdmin() ? landlordsPage() : accessDenied(); break;
             case 'invoices': m.innerHTML = isAdmin() ? invoicesPage() : accessDenied(); break;
             case 'templates': m.innerHTML = isAdmin() ? templatesPage() : accessDenied(); break;
             case 'users': m.innerHTML = isAdmin() ? usersPage() : accessDenied(); break;
@@ -9452,22 +9460,805 @@
     // Load PFS data
     async function loadPFSData() {
         try {
-            const [clients, properties, activities] = await Promise.all([
+            const [clients, properties, activities, viewings, landlords, revenue] = await Promise.all([
                 db.collection('pfsClients').orderBy('createdAt', 'desc').get(),
                 db.collection('pfsProperties').orderBy('createdAt', 'desc').get(),
-                db.collection('pfsActivities').orderBy('timestamp', 'desc').limit(50).get()
+                db.collection('pfsActivities').orderBy('timestamp', 'desc').limit(50).get(),
+                db.collection('pfsViewings').orderBy('date', 'asc').get().catch(() => ({ docs: [] })),
+                db.collection('pfsLandlords').orderBy('name', 'asc').get().catch(() => ({ docs: [] })),
+                db.collection('pfsRevenue').orderBy('date', 'desc').get().catch(() => ({ docs: [] }))
             ]);
             S.pfsClients = clients.docs.map(d => ({ id: d.id, ...d.data() }));
             S.pfsProperties = properties.docs.map(d => ({ id: d.id, ...d.data() }));
             S.pfsActivities = activities.docs.map(d => ({ id: d.id, ...d.data() }));
-            console.log('PFS loaded:', S.pfsClients.length, 'clients,', S.pfsProperties.length, 'properties');
+            S.pfsViewings = viewings.docs.map(d => ({ id: d.id, ...d.data() }));
+            S.pfsLandlords = landlords.docs.map(d => ({ id: d.id, ...d.data() }));
+            S.pfsRevenue = revenue.docs.map(d => ({ id: d.id, ...d.data() }));
+            console.log('PFS loaded:', S.pfsClients.length, 'clients,', S.pfsProperties.length, 'properties,', S.pfsViewings.length, 'viewings,', S.pfsLandlords.length, 'landlords');
         } catch (err) {
             console.error('PFS load error:', err);
             S.pfsClients = []; S.pfsProperties = []; S.pfsActivities = [];
+            S.pfsViewings = []; S.pfsLandlords = []; S.pfsRevenue = [];
         }
     }
     
     console.log('🚀 PFS Command Center loaded');
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // REVENUE DASHBOARD
+    // ═══════════════════════════════════════════════════════════════════════════
+    function revenuePage() {
+        const revenue = S.pfsRevenue || [];
+        const placed = (S.pfsClients || []).filter(c => c.stage === 'placed');
+        
+        // Calculate stats
+        const now = new Date();
+        const thisMonth = now.getMonth();
+        const thisYear = now.getFullYear();
+        
+        const thisMonthRevenue = revenue.filter(r => {
+            const d = new Date(r.date);
+            return d.getMonth() === thisMonth && d.getFullYear() === thisYear;
+        }).reduce((sum, r) => sum + (r.amount || 0), 0);
+        
+        const lastMonthRevenue = revenue.filter(r => {
+            const d = new Date(r.date);
+            const lastMonth = thisMonth === 0 ? 11 : thisMonth - 1;
+            const lastMonthYear = thisMonth === 0 ? thisYear - 1 : thisYear;
+            return d.getMonth() === lastMonth && d.getFullYear() === lastMonthYear;
+        }).reduce((sum, r) => sum + (r.amount || 0), 0);
+        
+        const yearRevenue = revenue.filter(r => new Date(r.date).getFullYear() === thisYear).reduce((sum, r) => sum + (r.amount || 0), 0);
+        
+        const thisMonthPlaced = placed.filter(c => {
+            if (!c.placedDate) return false;
+            const d = new Date(c.placedDate);
+            return d.getMonth() === thisMonth && d.getFullYear() === thisYear;
+        }).length;
+        
+        const totalPlaced = placed.length;
+        const totalLeads = (S.pfsClients || []).length;
+        const conversionRate = totalLeads > 0 ? Math.round((totalPlaced / totalLeads) * 100) : 0;
+        
+        // Average time to place
+        const placedWithDates = placed.filter(c => c.placedDate && c.createdAt);
+        const avgDays = placedWithDates.length > 0 ? Math.round(placedWithDates.reduce((sum, c) => {
+            const created = new Date(c.createdAt?.seconds ? c.createdAt.seconds * 1000 : c.createdAt);
+            const placedD = new Date(c.placedDate?.seconds ? c.placedDate.seconds * 1000 : c.placedDate);
+            return sum + Math.ceil((placedD - created) / (1000*60*60*24));
+        }, 0) / placedWithDates.length) : 0;
+        
+        // Revenue by service
+        const pfsRevenue = revenue.filter(r => r.service === 'PFS').reduce((s, r) => s + (r.amount || 0), 0);
+        const dasRevenue = revenue.filter(r => r.service === 'DAS').reduce((s, r) => s + (r.amount || 0), 0);
+        const commissionRevenue = revenue.filter(r => r.type === 'commission').reduce((s, r) => s + (r.amount || 0), 0);
+        
+        // Revenue by source
+        const sourceStats = {};
+        placed.forEach(c => {
+            const src = c.source || 'unknown';
+            sourceStats[src] = (sourceStats[src] || 0) + 1;
+        });
+        
+        // Monthly data for chart
+        const monthlyData = [];
+        for (let i = 5; i >= 0; i--) {
+            const m = new Date(thisYear, thisMonth - i, 1);
+            const monthRev = revenue.filter(r => {
+                const d = new Date(r.date);
+                return d.getMonth() === m.getMonth() && d.getFullYear() === m.getFullYear();
+            }).reduce((sum, r) => sum + (r.amount || 0), 0);
+            monthlyData.push({ month: m.toLocaleDateString('en-US', { month: 'short' }), revenue: monthRev });
+        }
+        const maxMonthly = Math.max(...monthlyData.map(m => m.revenue), 1);
+        
+        return `
+            <div style="max-width:1400px">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:16px">
+                    <div>
+                        <h1 style="font-size:24px;font-weight:600;margin-bottom:4px">💰 Revenue Dashboard</h1>
+                        <p style="font-size:13px;color:var(--text-muted)">Track your income and conversion metrics</p>
+                    </div>
+                    <div style="display:flex;gap:10px">
+                        <button class="btn btn-secondary btn-sm" onclick="openAddRevenue()">+ Add Revenue</button>
+                        <button class="btn btn-sm" onclick="exportRevenueCSV()">📊 Export CSV</button>
+                    </div>
+                </div>
+                
+                <!-- Main Stats -->
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px">
+                    <div class="stat-card gold" style="cursor:default">
+                        <div class="stat-icon">💰</div>
+                        <div class="stat-value">€${thisMonthRevenue.toLocaleString()}</div>
+                        <div class="stat-label">This Month</div>
+                        ${lastMonthRevenue > 0 ? `<div style="font-size:11px;margin-top:4px;color:${thisMonthRevenue >= lastMonthRevenue ? 'var(--green)' : 'var(--red)'}">${thisMonthRevenue >= lastMonthRevenue ? '↑' : '↓'} vs €${lastMonthRevenue.toLocaleString()} last month</div>` : ''}
+                    </div>
+                    <div class="stat-card blue" style="cursor:default">
+                        <div class="stat-icon">📅</div>
+                        <div class="stat-value">€${yearRevenue.toLocaleString()}</div>
+                        <div class="stat-label">${thisYear} Total</div>
+                    </div>
+                    <div class="stat-card green" style="cursor:default">
+                        <div class="stat-icon">🎯</div>
+                        <div class="stat-value">${conversionRate}%</div>
+                        <div class="stat-label">Conversion Rate</div>
+                        <div style="font-size:11px;margin-top:4px;color:var(--text-muted)">${totalPlaced}/${totalLeads} clients placed</div>
+                    </div>
+                    <div class="stat-card purple" style="cursor:default">
+                        <div class="stat-icon">⏱</div>
+                        <div class="stat-value">${avgDays}</div>
+                        <div class="stat-label">Avg Days to Place</div>
+                    </div>
+                </div>
+                
+                <div style="display:grid;grid-template-columns:2fr 1fr;gap:20px">
+                    <!-- Chart -->
+                    <div class="card">
+                        <div class="card-header"><h3 class="card-title">📈 Monthly Revenue</h3></div>
+                        <div class="card-body">
+                            <div style="display:flex;align-items:flex-end;gap:12px;height:200px;padding-top:20px">
+                                ${monthlyData.map(m => `
+                                    <div style="flex:1;display:flex;flex-direction:column;align-items:center">
+                                        <div style="width:100%;background:${m.revenue > 0 ? 'linear-gradient(180deg, var(--gold), var(--gold-dark))' : 'var(--border)'};border-radius:6px 6px 0 0;height:${Math.max((m.revenue / maxMonthly) * 160, 4)}px;transition:height 0.3s"></div>
+                                        <div style="font-size:10px;color:var(--text-muted);margin-top:8px">${m.month}</div>
+                                        <div style="font-size:11px;font-weight:600;color:var(--gold)">€${m.revenue > 0 ? m.revenue.toLocaleString() : '0'}</div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Breakdown -->
+                    <div class="card">
+                        <div class="card-header"><h3 class="card-title">💼 Revenue Breakdown</h3></div>
+                        <div class="card-body">
+                            <div style="margin-bottom:16px">
+                                <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="font-size:12px">PFS Fees</span><span style="font-weight:600;color:var(--gold)">€${pfsRevenue.toLocaleString()}</span></div>
+                                <div style="height:6px;background:var(--border);border-radius:3px"><div style="height:100%;background:var(--gold);border-radius:3px;width:${yearRevenue > 0 ? (pfsRevenue/yearRevenue)*100 : 0}%"></div></div>
+                            </div>
+                            <div style="margin-bottom:16px">
+                                <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="font-size:12px">DAS Fees</span><span style="font-weight:600;color:var(--blue)">€${dasRevenue.toLocaleString()}</span></div>
+                                <div style="height:6px;background:var(--border);border-radius:3px"><div style="height:100%;background:var(--blue);border-radius:3px;width:${yearRevenue > 0 ? (dasRevenue/yearRevenue)*100 : 0}%"></div></div>
+                            </div>
+                            <div>
+                                <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="font-size:12px">Commissions</span><span style="font-weight:600;color:var(--green)">€${commissionRevenue.toLocaleString()}</span></div>
+                                <div style="height:6px;background:var(--border);border-radius:3px"><div style="height:100%;background:var(--green);border-radius:3px;width:${yearRevenue > 0 ? (commissionRevenue/yearRevenue)*100 : 0}%"></div></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:20px">
+                    <!-- Lead Sources -->
+                    <div class="card">
+                        <div class="card-header"><h3 class="card-title">📍 Lead Sources (Placed Clients)</h3></div>
+                        <div class="card-body">
+                            ${Object.entries(sourceStats).sort((a,b) => b[1] - a[1]).map(([src, count]) => `
+                                <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">
+                                    <span style="font-size:13px;text-transform:capitalize">${src}</span>
+                                    <div style="display:flex;align-items:center;gap:10px">
+                                        <div style="width:100px;height:6px;background:var(--border);border-radius:3px"><div style="height:100%;background:var(--gold);border-radius:3px;width:${totalPlaced > 0 ? (count/totalPlaced)*100 : 0}%"></div></div>
+                                        <span style="font-weight:600;min-width:40px;text-align:right">${count}</span>
+                                    </div>
+                                </div>
+                            `).join('') || '<div style="text-align:center;padding:20px;color:var(--text-muted)">No data yet</div>'}
+                        </div>
+                    </div>
+                    
+                    <!-- Recent Revenue -->
+                    <div class="card">
+                        <div class="card-header"><h3 class="card-title">📋 Recent Revenue</h3></div>
+                        <div class="card-body flush" style="max-height:300px;overflow-y:auto">
+                            ${revenue.slice(0, 10).map(r => `
+                                <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--border)">
+                                    <div style="width:40px;height:40px;background:${r.type === 'commission' ? 'var(--green-light)' : 'var(--gold-light)'};border-radius:8px;display:flex;align-items:center;justify-content:center">${r.type === 'commission' ? '🏠' : '💳'}</div>
+                                    <div style="flex:1">
+                                        <div style="font-weight:600;font-size:13px">${esc(r.clientName || 'Unknown')}</div>
+                                        <div style="font-size:11px;color:var(--text-muted)">${r.service || ''} ${r.type === 'commission' ? '• Commission' : '• Service Fee'}</div>
+                                    </div>
+                                    <div style="text-align:right">
+                                        <div style="font-weight:700;color:var(--green)">+€${(r.amount || 0).toLocaleString()}</div>
+                                        <div style="font-size:10px;color:var(--text-muted)">${r.date ? new Date(r.date).toLocaleDateString() : ''}</div>
+                                    </div>
+                                </div>
+                            `).join('') || '<div style="text-align:center;padding:30px;color:var(--text-muted)">No revenue recorded yet</div>'}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    function openAddRevenue() {
+        document.getElementById('modals').innerHTML = `
+            <div class="modal-overlay active" onclick="closeModal()">
+                <div class="modal" onclick="event.stopPropagation()">
+                    <div class="modal-header"><h3 class="modal-title">💰 Add Revenue</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+                    <div class="modal-body">
+                        <form id="addRevenueForm" onsubmit="saveRevenue(event)">
+                            <div class="form-group">
+                                <label class="form-label">Client</label>
+                                <select class="form-select" name="clientId">
+                                    <option value="">Select client...</option>
+                                    ${(S.pfsClients || []).map(c => `<option value="${c.id}">${esc(c.name)} (${c.service})</option>`).join('')}
+                                </select>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group"><label class="form-label">Amount €</label><input type="number" class="form-input" name="amount" required placeholder="350"></div>
+                                <div class="form-group"><label class="form-label">Date</label><input type="date" class="form-input" name="date" value="${new Date().toISOString().split('T')[0]}"></div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group"><label class="form-label">Type</label><select class="form-select" name="type"><option value="fee">Service Fee</option><option value="commission">Commission</option></select></div>
+                                <div class="form-group"><label class="form-label">Service</label><select class="form-select" name="service"><option value="PFS">PFS</option><option value="DAS">DAS</option><option value="VV">VV</option></select></div>
+                            </div>
+                            <div class="form-group"><label class="form-label">Notes</label><input type="text" class="form-input" name="notes" placeholder="Optional notes..."></div>
+                        </form>
+                    </div>
+                    <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Cancel</button><button class="btn" onclick="document.getElementById('addRevenueForm').requestSubmit()">💾 Save</button></div>
+                </div>
+            </div>
+        `;
+    }
+    
+    async function saveRevenue(e) {
+        e.preventDefault();
+        const f = new FormData(e.target);
+        const clientId = f.get('clientId');
+        const client = S.pfsClients.find(c => c.id === clientId);
+        
+        const rev = {
+            clientId: clientId || '',
+            clientName: client?.name || f.get('notes') || 'Manual entry',
+            amount: parseInt(f.get('amount')) || 0,
+            date: f.get('date') || new Date().toISOString().split('T')[0],
+            type: f.get('type'),
+            service: f.get('service'),
+            notes: f.get('notes') || '',
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        
+        try {
+            const docRef = await db.collection('pfsRevenue').add(rev);
+            S.pfsRevenue.unshift({ ...rev, id: docRef.id });
+            closeModal();
+            toast('success', 'Revenue Added', `€${rev.amount}`);
+            renderPage();
+        } catch (err) { toast('error', 'Error', err.message); }
+    }
+    
+    function exportRevenueCSV() {
+        const revenue = S.pfsRevenue || [];
+        if (revenue.length === 0) { toast('info', 'No Data', 'No revenue to export'); return; }
+        
+        let csv = 'Date,Client,Service,Type,Amount,Notes\\n';
+        revenue.forEach(r => {
+            csv += `${r.date || ''},${(r.clientName || '').replace(/,/g, '')},${r.service || ''},${r.type || ''},${r.amount || 0},${(r.notes || '').replace(/,/g, '')}\\n`;
+        });
+        
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `boom-revenue-${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+        toast('success', 'Exported!');
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // CALENDAR PAGE
+    // ═══════════════════════════════════════════════════════════════════════════
+    function calendarPage() {
+        const viewings = S.pfsViewings || [];
+        const today = new Date().toISOString().split('T')[0];
+        const todayViewings = viewings.filter(v => v.date === today);
+        const upcomingViewings = viewings.filter(v => v.date > today).sort((a, b) => a.date.localeCompare(b.date));
+        const pastViewings = viewings.filter(v => v.date < today).sort((a, b) => b.date.localeCompare(a.date));
+        
+        // Build week view
+        const weekDays = [];
+        const startOfWeek = new Date();
+        startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay() + 1); // Monday
+        for (let i = 0; i < 7; i++) {
+            const d = new Date(startOfWeek);
+            d.setDate(d.getDate() + i);
+            const dateStr = d.toISOString().split('T')[0];
+            weekDays.push({
+                date: dateStr,
+                day: d.toLocaleDateString('en-US', { weekday: 'short' }),
+                num: d.getDate(),
+                isToday: dateStr === today,
+                viewings: viewings.filter(v => v.date === dateStr)
+            });
+        }
+        
+        return `
+            <div style="max-width:1200px">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:16px">
+                    <div>
+                        <h1 style="font-size:24px;font-weight:600;margin-bottom:4px">📅 Viewing Calendar</h1>
+                        <p style="font-size:13px;color:var(--text-muted)">Schedule and track property viewings</p>
+                    </div>
+                    <button class="btn" onclick="openAddViewing()">+ Schedule Viewing</button>
+                </div>
+                
+                <!-- Today Alert -->
+                ${todayViewings.length > 0 ? `
+                <div class="alert warning" style="margin-bottom:20px">
+                    <span class="alert-icon">🏠</span>
+                    <div class="alert-content">
+                        <div class="alert-title">${todayViewings.length} Viewing${todayViewings.length > 1 ? 's' : ''} Today</div>
+                        <div class="alert-text">${todayViewings.map(v => `${v.time} - ${esc(v.clientName)} @ ${esc(v.address || v.propertyName || 'TBD')}`).join(' | ')}</div>
+                    </div>
+                </div>` : ''}
+                
+                <!-- Week View -->
+                <div class="card" style="margin-bottom:20px">
+                    <div class="card-header"><h3 class="card-title">This Week</h3></div>
+                    <div class="card-body">
+                        <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px">
+                            ${weekDays.map(d => `
+                                <div style="background:${d.isToday ? 'var(--gold-light)' : 'var(--bg)'};border:1px solid ${d.isToday ? 'var(--gold)' : 'var(--border)'};border-radius:10px;padding:12px;min-height:120px">
+                                    <div style="text-align:center;margin-bottom:10px">
+                                        <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase">${d.day}</div>
+                                        <div style="font-size:20px;font-weight:${d.isToday ? '700' : '400'};color:${d.isToday ? 'var(--gold)' : 'var(--text)'}">${d.num}</div>
+                                    </div>
+                                    ${d.viewings.length > 0 ? d.viewings.map(v => `
+                                        <div onclick="viewViewing('${v.id}')" style="background:var(--bg-elevated);border-radius:6px;padding:8px;margin-bottom:6px;cursor:pointer;border-left:3px solid var(--gold)">
+                                            <div style="font-size:10px;font-weight:600;color:var(--gold)">${v.time || '?'}</div>
+                                            <div style="font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(v.clientName || 'Client')}</div>
+                                        </div>
+                                    `).join('') : '<div style="font-size:10px;color:var(--text-muted);text-align:center;padding:10px">—</div>'}
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+                    <!-- Upcoming -->
+                    <div class="card">
+                        <div class="card-header"><h3 class="card-title">📆 Upcoming Viewings</h3></div>
+                        <div class="card-body flush" style="max-height:400px;overflow-y:auto">
+                            ${upcomingViewings.length > 0 ? upcomingViewings.slice(0, 10).map(v => `
+                                <div onclick="viewViewing('${v.id}')" style="display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .2s" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background='transparent'">
+                                    <div style="width:48px;height:48px;background:var(--gold-light);border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center">
+                                        <div style="font-size:16px;font-weight:700;color:var(--gold)">${new Date(v.date).getDate()}</div>
+                                        <div style="font-size:9px;color:var(--text-muted)">${new Date(v.date).toLocaleDateString('en-US', { month: 'short' })}</div>
+                                    </div>
+                                    <div style="flex:1">
+                                        <div style="font-weight:600;font-size:13px">${esc(v.clientName || 'Client')}</div>
+                                        <div style="font-size:11px;color:var(--text-muted)">${esc(v.address || v.propertyName || 'Address TBD')}</div>
+                                    </div>
+                                    <div style="text-align:right">
+                                        <div style="font-weight:600;color:var(--gold)">${v.time || '?'}</div>
+                                        <div style="font-size:10px;color:var(--text-muted)">${v.status === 'confirmed' ? '✓ Confirmed' : 'Pending'}</div>
+                                    </div>
+                                </div>
+                            `).join('') : '<div style="text-align:center;padding:40px;color:var(--text-muted)"><div style="font-size:32px;margin-bottom:10px">📅</div>No upcoming viewings</div>'}
+                        </div>
+                    </div>
+                    
+                    <!-- Past -->
+                    <div class="card">
+                        <div class="card-header"><h3 class="card-title">📋 Past Viewings</h3></div>
+                        <div class="card-body flush" style="max-height:400px;overflow-y:auto">
+                            ${pastViewings.length > 0 ? pastViewings.slice(0, 10).map(v => `
+                                <div style="display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--border);opacity:0.7">
+                                    <div style="width:48px;height:48px;background:var(--bg);border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center">
+                                        <div style="font-size:16px;font-weight:700">${new Date(v.date).getDate()}</div>
+                                        <div style="font-size:9px;color:var(--text-muted)">${new Date(v.date).toLocaleDateString('en-US', { month: 'short' })}</div>
+                                    </div>
+                                    <div style="flex:1">
+                                        <div style="font-weight:600;font-size:13px">${esc(v.clientName || 'Client')}</div>
+                                        <div style="font-size:11px;color:var(--text-muted)">${esc(v.address || 'Address')}</div>
+                                    </div>
+                                    <span class="badge ${v.outcome === 'interested' ? 'green' : v.outcome === 'rejected' ? 'red' : 'gray'}">${v.outcome || 'No feedback'}</span>
+                                </div>
+                            `).join('') : '<div style="text-align:center;padding:40px;color:var(--text-muted)">No past viewings</div>'}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    function openAddViewing() {
+        document.getElementById('modals').innerHTML = `
+            <div class="modal-overlay active" onclick="closeModal()">
+                <div class="modal" onclick="event.stopPropagation()">
+                    <div class="modal-header"><h3 class="modal-title">📅 Schedule Viewing</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+                    <div class="modal-body">
+                        <form id="addViewingForm" onsubmit="saveViewing(event)">
+                            <div class="form-group">
+                                <label class="form-label">Client *</label>
+                                <select class="form-select" name="clientId" required>
+                                    <option value="">Select client...</option>
+                                    ${(S.pfsClients || []).filter(c => c.stage !== 'placed').map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group"><label class="form-label">Date *</label><input type="date" class="form-input" name="date" required></div>
+                                <div class="form-group"><label class="form-label">Time *</label><input type="time" class="form-input" name="time" required></div>
+                            </div>
+                            <div class="form-group"><label class="form-label">Property / Address</label><input type="text" class="form-input" name="address" placeholder="Via Roma 123, Trastevere"></div>
+                            <div class="form-group"><label class="form-label">Property Link</label><input type="url" class="form-input" name="propertyLink" placeholder="https://idealista.it/..."></div>
+                            <div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" name="notes" placeholder="Meeting point, landlord contact, etc."></textarea></div>
+                        </form>
+                    </div>
+                    <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Cancel</button><button class="btn" onclick="document.getElementById('addViewingForm').requestSubmit()">📅 Schedule</button></div>
+                </div>
+            </div>
+        `;
+    }
+    
+    async function saveViewing(e) {
+        e.preventDefault();
+        const f = new FormData(e.target);
+        const clientId = f.get('clientId');
+        const client = S.pfsClients.find(c => c.id === clientId);
+        
+        const viewing = {
+            clientId, clientName: client?.name || '',
+            date: f.get('date'), time: f.get('time'),
+            address: f.get('address') || '', propertyLink: f.get('propertyLink') || '',
+            notes: f.get('notes') || '', status: 'pending', outcome: '',
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        
+        try {
+            const docRef = await db.collection('pfsViewings').add(viewing);
+            S.pfsViewings.push({ ...viewing, id: docRef.id });
+            
+            // Update client stage if needed
+            if (client && client.stage === 'sent') {
+                client.stage = 'viewing';
+                await db.collection('pfsClients').doc(clientId).update({ stage: 'viewing' });
+            }
+            
+            closeModal();
+            logPFSActivity(`📅 Scheduled viewing: ${client?.name} on ${viewing.date}`);
+            toast('success', 'Viewing Scheduled');
+            renderPage();
+        } catch (err) { toast('error', 'Error', err.message); }
+    }
+    
+    function viewViewing(id) {
+        const v = S.pfsViewings.find(x => x.id === id);
+        if (!v) return;
+        
+        document.getElementById('modals').innerHTML = `
+            <div class="modal-overlay active" onclick="closeModal()">
+                <div class="modal" onclick="event.stopPropagation()">
+                    <div class="modal-header"><h3 class="modal-title">📅 Viewing Details</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+                    <div class="modal-body">
+                        <div style="background:var(--bg);padding:16px;border-radius:12px;margin-bottom:20px">
+                            <div style="font-size:24px;font-weight:600;margin-bottom:4px">${new Date(v.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</div>
+                            <div style="font-size:18px;color:var(--gold)">${v.time}</div>
+                        </div>
+                        <div style="margin-bottom:16px"><div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">CLIENT</div><div style="font-weight:600">${esc(v.clientName || 'Unknown')}</div></div>
+                        <div style="margin-bottom:16px"><div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">ADDRESS</div><div>${esc(v.address || 'TBD')}</div></div>
+                        ${v.propertyLink ? `<div style="margin-bottom:16px"><a href="${v.propertyLink}" target="_blank" class="btn btn-secondary btn-sm btn-block">🔗 View Property Listing</a></div>` : ''}
+                        ${v.notes ? `<div style="margin-bottom:16px"><div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">NOTES</div><div style="font-size:13px">${esc(v.notes)}</div></div>` : ''}
+                        
+                        <div style="margin-top:24px;padding-top:20px;border-top:1px solid var(--border)">
+                            <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px">OUTCOME</div>
+                            <div style="display:flex;gap:8px">
+                                <button class="btn btn-sm ${v.outcome === 'interested' ? '' : 'btn-secondary'}" onclick="setViewingOutcome('${id}','interested')">👍 Interested</button>
+                                <button class="btn btn-sm ${v.outcome === 'maybe' ? '' : 'btn-secondary'}" onclick="setViewingOutcome('${id}','maybe')">🤔 Maybe</button>
+                                <button class="btn btn-sm ${v.outcome === 'rejected' ? 'btn-danger' : 'btn-secondary'}" onclick="setViewingOutcome('${id}','rejected')">👎 Rejected</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-danger btn-sm" onclick="deleteViewing('${id}')">🗑 Delete</button>
+                        <button class="btn btn-secondary" onclick="closeModal()">Close</button>
+                        ${v.clientId ? `<button class="btn" onclick="closeModal();sendPFSTemplate('${v.clientId}','viewing')">📱 Send Reminder</button>` : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    async function setViewingOutcome(id, outcome) {
+        const v = S.pfsViewings.find(x => x.id === id);
+        if (!v) return;
+        v.outcome = outcome;
+        try {
+            await db.collection('pfsViewings').doc(id).update({ outcome });
+            toast('success', 'Outcome Saved');
+            viewViewing(id); // Refresh modal
+        } catch (err) { toast('error', 'Error', err.message); }
+    }
+    
+    async function deleteViewing(id) {
+        if (!confirm('Delete this viewing?')) return;
+        try {
+            await db.collection('pfsViewings').doc(id).delete();
+            S.pfsViewings = S.pfsViewings.filter(v => v.id !== id);
+            closeModal();
+            toast('success', 'Deleted');
+            renderPage();
+        } catch (err) { toast('error', 'Error', err.message); }
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // LANDLORDS DATABASE
+    // ═══════════════════════════════════════════════════════════════════════════
+    function landlordsPage() {
+        const landlords = S.pfsLandlords || [];
+        const sorted = [...landlords].sort((a, b) => (b.rating || 0) - (a.rating || 0));
+        
+        return `
+            <div style="max-width:1200px">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:16px">
+                    <div>
+                        <h1 style="font-size:24px;font-weight:600;margin-bottom:4px">🏢 Landlord Database</h1>
+                        <p style="font-size:13px;color:var(--text-muted)">Track reliable landlords and their properties</p>
+                    </div>
+                    <button class="btn" onclick="openAddLandlord()">+ Add Landlord</button>
+                </div>
+                
+                <!-- Stats -->
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px">
+                    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center">
+                        <div style="font-size:24px;font-weight:700;color:var(--gold)">${landlords.length}</div>
+                        <div style="font-size:11px;color:var(--text-muted)">Total Landlords</div>
+                    </div>
+                    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center">
+                        <div style="font-size:24px;font-weight:700;color:var(--green)">${landlords.filter(l => l.rating >= 4).length}</div>
+                        <div style="font-size:11px;color:var(--text-muted)">⭐ Top Rated (4+)</div>
+                    </div>
+                    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center">
+                        <div style="font-size:24px;font-weight:700">${landlords.filter(l => l.acceptsForeigners).length}</div>
+                        <div style="font-size:11px;color:var(--text-muted)">Accept Foreigners</div>
+                    </div>
+                    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center">
+                        <div style="font-size:24px;font-weight:700">${landlords.reduce((sum, l) => sum + (l.properties?.length || 0), 0)}</div>
+                        <div style="font-size:11px;color:var(--text-muted)">Total Properties</div>
+                    </div>
+                </div>
+                
+                <!-- Landlords Grid -->
+                <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(350px,1fr));gap:16px">
+                    ${sorted.length > 0 ? sorted.map(l => `
+                        <div class="card" onclick="viewLandlord('${l.id}')" style="cursor:pointer;transition:all .2s" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--border)'">
+                            <div class="card-body">
+                                <div style="display:flex;align-items:flex-start;gap:14px;margin-bottom:14px">
+                                    <div style="width:50px;height:50px;background:${l.rating >= 4 ? 'var(--gold-light)' : 'var(--bg)'};border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px">${l.rating >= 4 ? '⭐' : '🏠'}</div>
+                                    <div style="flex:1">
+                                        <div style="font-size:16px;font-weight:600;margin-bottom:2px">${esc(l.name)}</div>
+                                        <div style="font-size:12px;color:var(--text-muted)">${esc(l.zones?.join(', ') || 'No zones')}</div>
+                                    </div>
+                                    <div style="display:flex;gap:2px">${'⭐'.repeat(l.rating || 0)}${'☆'.repeat(5 - (l.rating || 0))}</div>
+                                </div>
+                                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+                                    ${l.acceptsForeigners ? '<span class="badge green">✓ Foreigners OK</span>' : '<span class="badge red">✗ No Foreigners</span>'}
+                                    ${l.properties?.length ? `<span class="badge gray">${l.properties.length} properties</span>` : ''}
+                                    ${l.responseTime ? `<span class="badge blue">⏱ ${l.responseTime}</span>` : ''}
+                                </div>
+                                <div style="display:flex;gap:8px">
+                                    ${l.phone ? `<a href="tel:${l.phone}" onclick="event.stopPropagation()" class="btn btn-xs btn-secondary">📞 Call</a>` : ''}
+                                    ${l.phone ? `<a href="https://wa.me/${l.phone.replace(/[^0-9+]/g, '')}" target="_blank" onclick="event.stopPropagation()" class="btn btn-xs btn-secondary">💬 WhatsApp</a>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    `).join('') : `
+                        <div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--text-muted)">
+                            <div style="font-size:48px;margin-bottom:16px;opacity:0.5">🏢</div>
+                            <div style="font-size:16px;font-weight:600;margin-bottom:8px">No landlords yet</div>
+                            <div style="font-size:13px;margin-bottom:20px">Start building your landlord network</div>
+                            <button class="btn" onclick="openAddLandlord()">+ Add Landlord</button>
+                        </div>
+                    `}
+                </div>
+            </div>
+        `;
+    }
+    
+    function openAddLandlord() {
+        document.getElementById('modals').innerHTML = `
+            <div class="modal-overlay active" onclick="closeModal()">
+                <div class="modal lg" onclick="event.stopPropagation()">
+                    <div class="modal-header"><h3 class="modal-title">🏢 Add Landlord</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+                    <div class="modal-body">
+                        <form id="addLandlordForm" onsubmit="saveLandlord(event)">
+                            <div class="form-row">
+                                <div class="form-group"><label class="form-label">Name *</label><input type="text" class="form-input" name="name" required placeholder="Mario Rossi"></div>
+                                <div class="form-group"><label class="form-label">Phone</label><input type="tel" class="form-input" name="phone" placeholder="+39 333 123 4567"></div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" name="email" placeholder="mario@email.com"></div>
+                                <div class="form-group"><label class="form-label">Company (if any)</label><input type="text" class="form-input" name="company" placeholder="Immobiliare XYZ"></div>
+                            </div>
+                            <div class="form-group"><label class="form-label">Zones</label><input type="text" class="form-input" name="zones" placeholder="Trastevere, Prati, Centro..."></div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label class="form-label">Rating</label>
+                                    <select class="form-select" name="rating">
+                                        <option value="5">⭐⭐⭐⭐⭐ Excellent</option>
+                                        <option value="4">⭐⭐⭐⭐ Good</option>
+                                        <option value="3" selected>⭐⭐⭐ Average</option>
+                                        <option value="2">⭐⭐ Below Average</option>
+                                        <option value="1">⭐ Poor</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Response Time</label>
+                                    <select class="form-select" name="responseTime">
+                                        <option value="< 1 hour">< 1 hour (fast!)</option>
+                                        <option value="Same day" selected>Same day</option>
+                                        <option value="1-2 days">1-2 days</option>
+                                        <option value="Slow">Slow (3+ days)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Accepts Foreigners?</label>
+                                <select class="form-select" name="acceptsForeigners">
+                                    <option value="true">Yes ✓</option>
+                                    <option value="false">No ✗</option>
+                                    <option value="depends">Depends / Sometimes</option>
+                                </select>
+                            </div>
+                            <div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" name="notes" placeholder="How you met, reliability, quirks, negotiation style..."></textarea></div>
+                        </form>
+                    </div>
+                    <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Cancel</button><button class="btn" onclick="document.getElementById('addLandlordForm').requestSubmit()">💾 Save</button></div>
+                </div>
+            </div>
+        `;
+    }
+    
+    async function saveLandlord(e) {
+        e.preventDefault();
+        const f = new FormData(e.target);
+        
+        const landlord = {
+            name: f.get('name'), phone: f.get('phone') || '', email: f.get('email') || '',
+            company: f.get('company') || '', zones: (f.get('zones') || '').split(',').map(z => z.trim()).filter(z => z),
+            rating: parseInt(f.get('rating')) || 3, responseTime: f.get('responseTime') || '',
+            acceptsForeigners: f.get('acceptsForeigners') === 'true', notes: f.get('notes') || '',
+            properties: [], createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        
+        try {
+            const docRef = await db.collection('pfsLandlords').add(landlord);
+            S.pfsLandlords.push({ ...landlord, id: docRef.id });
+            closeModal();
+            toast('success', 'Landlord Added', landlord.name);
+            renderPage();
+        } catch (err) { toast('error', 'Error', err.message); }
+    }
+    
+    function viewLandlord(id) {
+        const l = S.pfsLandlords.find(x => x.id === id);
+        if (!l) return;
+        
+        document.getElementById('modals').innerHTML = `
+            <div class="modal-overlay active" onclick="closeModal()">
+                <div class="modal lg" onclick="event.stopPropagation()">
+                    <div class="modal-header">
+                        <div class="modal-title" style="display:flex;align-items:center;gap:12px">
+                            <div style="width:48px;height:48px;background:var(--gold-light);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px">${l.rating >= 4 ? '⭐' : '🏠'}</div>
+                            <div>
+                                <div style="font-size:18px">${esc(l.name)}</div>
+                                <div style="font-size:12px;color:var(--text-muted);font-weight:400">${esc(l.company || 'Independent')}</div>
+                            </div>
+                        </div>
+                        <button class="modal-close" onclick="closeModal()">×</button>
+                    </div>
+                    <div class="modal-body">
+                        <div style="display:flex;gap:8px;margin-bottom:20px">
+                            <span class="badge gold">${'⭐'.repeat(l.rating || 0)} ${l.rating || 0}/5</span>
+                            ${l.acceptsForeigners ? '<span class="badge green">✓ Foreigners OK</span>' : '<span class="badge red">✗ No Foreigners</span>'}
+                            ${l.responseTime ? `<span class="badge blue">⏱ ${l.responseTime}</span>` : ''}
+                        </div>
+                        
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+                            <div style="background:var(--bg);padding:14px;border-radius:10px"><div style="font-size:10px;color:var(--text-muted);margin-bottom:4px">PHONE</div><div style="font-weight:600">${esc(l.phone || 'Not provided')}</div></div>
+                            <div style="background:var(--bg);padding:14px;border-radius:10px"><div style="font-size:10px;color:var(--text-muted);margin-bottom:4px">EMAIL</div><div style="font-weight:600">${esc(l.email || 'Not provided')}</div></div>
+                        </div>
+                        
+                        <div style="margin-bottom:20px"><div style="font-size:10px;color:var(--text-muted);margin-bottom:8px">ZONES</div><div style="display:flex;gap:6px;flex-wrap:wrap">${(l.zones || []).map(z => `<span class="badge gray">${esc(z)}</span>`).join('') || '<span style="color:var(--text-muted)">No zones specified</span>'}</div></div>
+                        
+                        ${l.notes ? `<div style="margin-bottom:20px"><div style="font-size:10px;color:var(--text-muted);margin-bottom:8px">NOTES</div><div style="background:var(--bg);padding:14px;border-radius:10px;font-size:13px;line-height:1.6">${esc(l.notes)}</div></div>` : ''}
+                        
+                        <div style="display:flex;gap:10px">
+                            ${l.phone ? `<a href="tel:${l.phone}" class="btn btn-secondary btn-sm" style="flex:1">📞 Call</a>` : ''}
+                            ${l.phone ? `<a href="https://wa.me/${l.phone.replace(/[^0-9+]/g, '')}" target="_blank" class="btn btn-sm" style="flex:1;background:#25D366">💬 WhatsApp</a>` : ''}
+                            ${l.email ? `<a href="mailto:${l.email}" class="btn btn-secondary btn-sm" style="flex:1">📧 Email</a>` : ''}
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-danger btn-sm" onclick="deleteLandlord('${l.id}')">🗑 Delete</button>
+                        <button class="btn btn-secondary" onclick="closeModal()">Close</button>
+                        <button class="btn" onclick="openEditLandlord('${l.id}')">✏️ Edit</button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    async function deleteLandlord(id) {
+        if (!confirm('Delete this landlord?')) return;
+        try {
+            await db.collection('pfsLandlords').doc(id).delete();
+            S.pfsLandlords = S.pfsLandlords.filter(l => l.id !== id);
+            closeModal();
+            toast('success', 'Deleted');
+            renderPage();
+        } catch (err) { toast('error', 'Error', err.message); }
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // AUTO-INVOICE ON PLACEMENT
+    // ═══════════════════════════════════════════════════════════════════════════
+    async function generatePlacementInvoice(clientId) {
+        const client = S.pfsClients.find(c => c.id === clientId);
+        if (!client) return;
+        
+        const svc = SERVICES[client.service];
+        const fee = svc?.price || 350;
+        const commission = 2000; // Default commission estimate
+        
+        // Generate invoice number
+        const invoiceNum = `BOOM-${new Date().getFullYear()}-${String(S.invoices.length + 1).padStart(4, '0')}`;
+        
+        const invoice = {
+            number: invoiceNum,
+            clientId: client.id,
+            clientName: client.name,
+            clientEmail: client.email,
+            service: client.service,
+            items: [
+                { description: `${client.service} Service Fee`, amount: fee },
+                { description: 'Placement Commission', amount: commission }
+            ],
+            subtotal: fee + commission,
+            total: fee + commission,
+            status: 'pending',
+            dueDate: new Date(Date.now() + 7*24*60*60*1000).toISOString().split('T')[0],
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        
+        try {
+            // Save invoice
+            const docRef = await db.collection('invoices').add(invoice);
+            S.invoices.push({ ...invoice, id: docRef.id });
+            
+            // Also record as revenue (fee already paid)
+            await db.collection('pfsRevenue').add({
+                clientId: client.id,
+                clientName: client.name,
+                amount: fee,
+                date: new Date().toISOString().split('T')[0],
+                type: 'fee',
+                service: client.service,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            
+            logPFSActivity(`💰 Invoice generated for ${client.name}: €${invoice.total}`);
+            toast('success', 'Invoice Generated', `${invoiceNum} - €${invoice.total}`);
+            
+            return invoice;
+        } catch (err) {
+            console.error('Error generating invoice:', err);
+            toast('error', 'Invoice Error', err.message);
+        }
+    }
+    
+    // Override stage change to auto-invoice on placement
+    const originalChangePFSStage = changePFSStage;
+    changePFSStage = async function(id, newStage) {
+        await originalChangePFSStage(id, newStage);
+        
+        // If moving to placed, generate invoice and record revenue
+        if (newStage === 'placed') {
+            await generatePlacementInvoice(id);
+        }
+    };
+    
+    console.log('💰 Revenue + 📅 Calendar + 🏢 Landlords loaded');
     </script>
 </body>
 </html>

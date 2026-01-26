@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BOOM Rome — Start Your Search</title>
+    <link rel="icon" type="image/png" href="https://www.boomrome.com/BOOMlogogoldicon512.png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --gold: #D4AF37;
+            --gold-light: rgba(212,175,55,0.15);
+            --green: #34C759;
+            --green-light: rgba(52,199,89,0.12);
+            --red: #FF3B30;
+            --red-light: rgba(255,59,48,0.12);
+            --bg: #000;
+            --bg-card: #0A0A0A;
+            --bg-elevated: #141414;
+            --bg-input: #1A1A1A;
+            --border: rgba(255,255,255,0.08);
+            --text: #FFF;
+            --text-secondary: #999;
+            --text-muted: #666;
+        }
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+        }
+        .container {
+            max-width: 680px;
+            margin: 0 auto;
+            padding: 40px 24px 80px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 48px;
+        }
+        .logo {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 20px;
+        }
+        .title {
+            font-size: 36px;
+            font-weight: 300;
+            letter-spacing: 8px;
+            margin-bottom: 12px;
+        }
+        .subtitle {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 32px;
+        }
+        .welcome-box {
+            background: linear-gradient(135deg, rgba(212,175,55,0.1) 0%, rgba(0,0,0,0) 100%);
+            border: 1px solid var(--gold-light);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 32px;
+        }
+        .welcome-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .welcome-text {
+            font-size: 14px;
+            color: var(--text-secondary);
+            line-height: 1.7;
+        }
+        .form-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 32px;
+            margin-bottom: 24px;
+        }
+        .form-section {
+            margin-bottom: 32px;
+        }
+        .form-section:last-child {
+            margin-bottom: 0;
+        }
+        .section-title {
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--gold);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .section-title::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        @media (max-width: 600px) {
+            .form-row { grid-template-columns: 1fr; }
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+        .form-label .required {
+            color: var(--red);
+        }
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            padding: 14px 18px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            color: var(--text);
+            font-family: inherit;
+            font-size: 15px;
+            transition: all 0.2s;
+        }
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            outline: none;
+            border-color: var(--gold);
+            box-shadow: 0 0 0 3px rgba(212,175,55,0.1);
+        }
+        .form-input::placeholder {
+            color: var(--text-muted);
+        }
+        .form-select {
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23999' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 16px center;
+        }
+        .form-select option {
+            background: var(--bg-card);
+        }
+        .form-textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+        .form-hint {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 6px;
+        }
+        .checkbox-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 10px;
+        }
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 14px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .checkbox-item:hover {
+            border-color: var(--gold);
+        }
+        .checkbox-item input {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--gold);
+        }
+        .checkbox-item label {
+            font-size: 13px;
+            cursor: pointer;
+        }
+        .checkbox-item.checked {
+            background: var(--gold-light);
+            border-color: var(--gold);
+        }
+        .zone-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        .zone-chip {
+            padding: 8px 14px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .zone-chip:hover {
+            border-color: var(--gold);
+        }
+        .zone-chip.selected {
+            background: var(--gold);
+            color: #000;
+            border-color: var(--gold);
+            font-weight: 600;
+        }
+        .budget-display {
+            text-align: center;
+            padding: 20px;
+            background: var(--bg-elevated);
+            border-radius: 12px;
+            margin-bottom: 16px;
+        }
+        .budget-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--gold);
+        }
+        .budget-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+        .range-slider {
+            width: 100%;
+            height: 6px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: var(--border);
+            border-radius: 3px;
+            outline: none;
+        }
+        .range-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 24px;
+            height: 24px;
+            background: var(--gold);
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+        .range-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 8px;
+        }
+        .btn {
+            padding: 16px 32px;
+            background: var(--gold);
+            border: none;
+            border-radius: 12px;
+            color: #000;
+            font-family: inherit;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+        }
+        .btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(212,175,55,0.3);
+        }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .btn.loading {
+            pointer-events: none;
+        }
+        .btn.loading::after {
+            content: '';
+            width: 18px;
+            height: 18px;
+            border: 2px solid transparent;
+            border-top-color: #000;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .success-screen {
+            display: none;
+            text-align: center;
+            padding: 60px 24px;
+        }
+        .success-screen.show {
+            display: block;
+        }
+        .success-icon {
+            font-size: 80px;
+            margin-bottom: 24px;
+        }
+        .success-title {
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+        .success-text {
+            font-size: 15px;
+            color: var(--text-secondary);
+            line-height: 1.7;
+            max-width: 400px;
+            margin: 0 auto 32px;
+        }
+        .success-box {
+            background: var(--gold-light);
+            border: 1px solid var(--gold);
+            border-radius: 12px;
+            padding: 20px;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        .success-box-title {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--gold);
+        }
+        .success-box-text {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        .form-screen {
+            display: block;
+        }
+        .form-screen.hidden {
+            display: none;
+        }
+        .progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            background: var(--gold);
+            transition: width 0.3s ease;
+            z-index: 1000;
+        }
+        .error-msg {
+            background: var(--red-light);
+            color: var(--red);
+            padding: 14px 18px;
+            border-radius: 12px;
+            font-size: 13px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        .error-msg.show {
+            display: block;
+        }
+        .privacy-note {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-align: center;
+            margin-top: 20px;
+            line-height: 1.6;
+        }
+        .privacy-note a {
+            color: var(--gold);
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="progress-bar" id="progressBar" style="width: 0%"></div>
+    
+    <div class="container">
+        <div class="header">
+            <img src="https://www.boomrome.com/BOOMlogogoldicon512.png" alt="BOOM" class="logo">
+            <h1 class="title">BOOM</h1>
+            <p class="subtitle">Property Finding Service</p>
+        </div>
+        
+        <!-- FORM SCREEN -->
+        <div class="form-screen" id="formScreen">
+            <div class="welcome-box">
+                <div class="welcome-title">🎉 Welcome!</div>
+                <div class="welcome-text">
+                    Thank you for choosing BOOM! To find your perfect Rome apartment, I need to know exactly what you're looking for. 
+                    Fill out this form completely — the more details, the better matches I'll find for you.
+                    <br><br>
+                    <strong>⏱ Takes about 3 minutes.</strong>
+                </div>
+            </div>
+            
+            <div class="error-msg" id="errorMsg"></div>
+            
+            <form id="onboardingForm">
+                <!-- SECTION 1: CONTACT INFO -->
+                <div class="form-card">
+                    <div class="form-section">
+                        <div class="section-title">👤 Your Details</div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Full Name <span class="required">*</span></label>
+                                <input type="text" class="form-input" name="name" required placeholder="John Smith">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Email <span class="required">*</span></label>
+                                <input type="email" class="form-input" name="email" required placeholder="john@example.com">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">WhatsApp Number <span class="required">*</span></label>
+                                <input type="tel" class="form-input" name="phone" required placeholder="+1 555 123 4567">
+                                <div class="form-hint">Include country code. This is how we'll communicate.</div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Nationality</label>
+                                <input type="text" class="form-input" name="nationality" placeholder="American">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- SECTION 2: SERVICE & TIMING -->
+                <div class="form-card">
+                    <div class="form-section">
+                        <div class="section-title">📅 Timing & Service</div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Service Purchased <span class="required">*</span></label>
+                                <select class="form-select" name="service" required>
+                                    <option value="">Select service...</option>
+                                    <option value="PFS">🏠 Property Finding Service (€350)</option>
+                                    <option value="DAS">📋 Deal Assistance Service (€249)</option>
+                                    <option value="VV">🎥 Virtual Viewing (€89-199)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Move-in Date <span class="required">*</span></label>
+                                <input type="date" class="form-input" name="moveIn" required>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">How long will you stay? <span class="required">*</span></label>
+                                <select class="form-select" name="duration" required>
+                                    <option value="">Select duration...</option>
+                                    <option value="3-6 months">3-6 months</option>
+                                    <option value="6-12 months">6-12 months</option>
+                                    <option value="12+ months">12+ months</option>
+                                    <option value="Flexible">Flexible / Not sure</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Is your move-in date flexible?</label>
+                                <select class="form-select" name="dateFlexible">
+                                    <option value="no">No, I need this exact date</option>
+                                    <option value="week">± 1 week</option>
+                                    <option value="two-weeks">± 2 weeks</option>
+                                    <option value="month">± 1 month</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- SECTION 3: BUDGET -->
+                <div class="form-card">
+                    <div class="form-section">
+                        <div class="section-title">💰 Budget</div>
+                        <div class="budget-display">
+                            <div class="budget-value">€<span id="budgetValue">1500</span></div>
+                            <div class="budget-label">Maximum monthly rent</div>
+                        </div>
+                        <input type="range" class="range-slider" id="budgetSlider" name="budget" min="800" max="4000" step="50" value="1500">
+                        <div class="range-labels">
+                            <span>€800</span>
+                            <span>€4000+</span>
+                        </div>
+                        <div class="form-hint" style="margin-top: 12px">This should include rent only. Utilities are typically €100-200 extra.</div>
+                        
+                        <div class="form-group" style="margin-top: 20px">
+                            <label class="form-label">Budget flexibility?</label>
+                            <select class="form-select" name="budgetFlex">
+                                <option value="strict">Strict - can't go over</option>
+                                <option value="10">Can stretch 10% for perfect place</option>
+                                <option value="20">Can stretch 20% for perfect place</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- SECTION 4: ZONES -->
+                <div class="form-card">
+                    <div class="form-section">
+                        <div class="section-title">📍 Preferred Zones</div>
+                        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
+                            Select all areas you'd consider. Not sure? I can recommend based on your needs.
+                        </p>
+                        <div class="zone-chips" id="zoneChips">
+                            <div class="zone-chip" data-zone="Trastevere">Trastevere</div>
+                            <div class="zone-chip" data-zone="Centro Storico">Centro Storico</div>
+                            <div class="zone-chip" data-zone="Prati">Prati</div>
+                            <div class="zone-chip" data-zone="Testaccio">Testaccio</div>
+                            <div class="zone-chip" data-zone="San Giovanni">San Giovanni</div>
+                            <div class="zone-chip" data-zone="Pigneto">Pigneto</div>
+                            <div class="zone-chip" data-zone="Monti">Monti</div>
+                            <div class="zone-chip" data-zone="Ostiense">Ostiense</div>
+                            <div class="zone-chip" data-zone="Monteverde">Monteverde</div>
+                            <div class="zone-chip" data-zone="EUR">EUR</div>
+                            <div class="zone-chip" data-zone="Flaminio">Flaminio</div>
+                            <div class="zone-chip" data-zone="Nomentano">Nomentano</div>
+                            <div class="zone-chip" data-zone="Open to suggestions">🤷 Open to suggestions</div>
+                        </div>
+                        <input type="hidden" name="zones" id="zonesInput">
+                    </div>
+                </div>
+                
+                <!-- SECTION 5: APARTMENT REQUIREMENTS -->
+                <div class="form-card">
+                    <div class="form-section">
+                        <div class="section-title">🏠 Apartment Requirements</div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Minimum Size (m²)</label>
+                                <select class="form-select" name="minSize">
+                                    <option value="">No minimum</option>
+                                    <option value="30">30m² (studio)</option>
+                                    <option value="40">40m²</option>
+                                    <option value="50">50m²</option>
+                                    <option value="60">60m²</option>
+                                    <option value="70">70m²+</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Bedrooms</label>
+                                <select class="form-select" name="bedrooms">
+                                    <option value="studio">Studio / Monolocale</option>
+                                    <option value="1">1 bedroom</option>
+                                    <option value="2">2 bedrooms</option>
+                                    <option value="3+">3+ bedrooms</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Who will live there?</label>
+                            <select class="form-select" name="occupants">
+                                <option value="just-me">Just me</option>
+                                <option value="couple">Me + partner</option>
+                                <option value="family">Family with kids</option>
+                                <option value="roommates">With roommates</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- SECTION 6: MUST-HAVES -->
+                <div class="form-card">
+                    <div class="form-section">
+                        <div class="section-title">✅ Must-Haves</div>
+                        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
+                            Select features you absolutely need. Be realistic — more requirements = fewer options.
+                        </p>
+                        <div class="checkbox-group" id="mustHaves">
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="mh1" name="mustHaves" value="Furnished">
+                                <label for="mh1">Furnished</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="mh2" name="mustHaves" value="Washing machine">
+                                <label for="mh2">Washing machine</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="mh3" name="mustHaves" value="Air conditioning">
+                                <label for="mh3">Air conditioning</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="mh4" name="mustHaves" value="Balcony/Terrace">
+                                <label for="mh4">Balcony / Terrace</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="mh5" name="mustHaves" value="Elevator">
+                                <label for="mh5">Elevator</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="mh6" name="mustHaves" value="Natural light">
+                                <label for="mh6">Natural light</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="mh7" name="mustHaves" value="Quiet area">
+                                <label for="mh7">Quiet area</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="mh8" name="mustHaves" value="Pet friendly">
+                                <label for="mh8">Pet friendly 🐕</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="mh9" name="mustHaves" value="Dishwasher">
+                                <label for="mh9">Dishwasher</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="mh10" name="mustHaves" value="Parking">
+                                <label for="mh10">Parking</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- SECTION 7: DEAL-BREAKERS -->
+                <div class="form-card">
+                    <div class="form-section">
+                        <div class="section-title">🚫 Deal-Breakers</div>
+                        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
+                            What would make you reject a place immediately?
+                        </p>
+                        <div class="checkbox-group" id="dealBreakers">
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="db1" name="dealBreakers" value="Ground floor">
+                                <label for="db1">Ground floor</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="db2" name="dealBreakers" value="No elevator 3+ floors">
+                                <label for="db2">No elevator (3+ floors)</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="db3" name="dealBreakers" value="Street noise">
+                                <label for="db3">Street noise</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="db4" name="dealBreakers" value="Dark apartment">
+                                <label for="db4">Dark apartment</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="db5" name="dealBreakers" value="Shared spaces">
+                                <label for="db5">Shared spaces</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="db6" name="dealBreakers" value="Far from metro">
+                                <label for="db6">Far from metro</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- SECTION 8: ADDITIONAL INFO -->
+                <div class="form-card">
+                    <div class="form-section">
+                        <div class="section-title">📝 Additional Info</div>
+                        <div class="form-group">
+                            <label class="form-label">Why are you moving to Rome?</label>
+                            <select class="form-select" name="reason">
+                                <option value="">Select reason...</option>
+                                <option value="work">Work / Remote work</option>
+                                <option value="study">Study / University</option>
+                                <option value="internship">Internship</option>
+                                <option value="relocating">Relocating permanently</option>
+                                <option value="sabbatical">Sabbatical / Extended stay</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Anything else I should know?</label>
+                            <textarea class="form-textarea" name="notes" placeholder="Any specific requirements, concerns, questions, or details that would help me find your perfect place..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">How did you find BOOM?</label>
+                            <select class="form-select" name="source">
+                                <option value="">Select...</option>
+                                <option value="google">Google search</option>
+                                <option value="referral">Friend / Referral</option>
+                                <option value="social">Social media</option>
+                                <option value="reddit">Reddit</option>
+                                <option value="facebook-group">Facebook group</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn" id="submitBtn">
+                    🚀 Submit & Start My Search
+                </button>
+                
+                <p class="privacy-note">
+                    By submitting, you agree to our <a href="https://www.boomrome.com/privacy" target="_blank">Privacy Policy</a>. 
+                    Your information is secure and only used to find your apartment.
+                </p>
+            </form>
+        </div>
+        
+        <!-- SUCCESS SCREEN -->
+        <div class="success-screen" id="successScreen">
+            <div class="success-icon">🎉</div>
+            <h2 class="success-title">You're all set!</h2>
+            <p class="success-text">
+                I've received your profile and I'm starting to search for your perfect Rome apartment right now.
+            </p>
+            <div class="success-box">
+                <div class="success-box-title">📱 What happens next?</div>
+                <div class="success-box-text">
+                    I'll reach out via WhatsApp within 24 hours with your first property options. Keep your phone handy!
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Firebase config
+        const firebaseConfig = {
+            apiKey: "AIzaSyC1iad4VdlM5adtlDgSse4bJzPSvfxHCng",
+            authDomain: "boom-portal.firebaseapp.com",
+            projectId: "boom-portal",
+            storageBucket: "boom-portal.firebasestorage.app",
+            messagingSenderId: "972066257279",
+            appId: "1:972066257279:web:f6cbb3a85bb55e30c6c5da"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        
+        // Elements
+        const form = document.getElementById('onboardingForm');
+        const formScreen = document.getElementById('formScreen');
+        const successScreen = document.getElementById('successScreen');
+        const submitBtn = document.getElementById('submitBtn');
+        const errorMsg = document.getElementById('errorMsg');
+        const progressBar = document.getElementById('progressBar');
+        const budgetSlider = document.getElementById('budgetSlider');
+        const budgetValue = document.getElementById('budgetValue');
+        const zonesInput = document.getElementById('zonesInput');
+        
+        // Selected zones
+        let selectedZones = [];
+        
+        // Budget slider
+        budgetSlider.addEventListener('input', (e) => {
+            budgetValue.textContent = e.target.value;
+            updateProgress();
+        });
+        
+        // Zone chips
+        document.querySelectorAll('.zone-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                const zone = chip.dataset.zone;
+                if (chip.classList.contains('selected')) {
+                    chip.classList.remove('selected');
+                    selectedZones = selectedZones.filter(z => z !== zone);
+                } else {
+                    chip.classList.add('selected');
+                    selectedZones.push(zone);
+                }
+                zonesInput.value = selectedZones.join(',');
+                updateProgress();
+            });
+        });
+        
+        // Checkbox styling
+        document.querySelectorAll('.checkbox-item input').forEach(cb => {
+            cb.addEventListener('change', () => {
+                cb.closest('.checkbox-item').classList.toggle('checked', cb.checked);
+                updateProgress();
+            });
+        });
+        
+        // Progress tracking
+        function updateProgress() {
+            const formData = new FormData(form);
+            let filled = 0;
+            let total = 8; // Number of required sections
+            
+            if (formData.get('name')) filled++;
+            if (formData.get('email')) filled++;
+            if (formData.get('phone')) filled++;
+            if (formData.get('service')) filled++;
+            if (formData.get('moveIn')) filled++;
+            if (formData.get('duration')) filled++;
+            if (formData.get('budget')) filled++;
+            if (selectedZones.length > 0) filled++;
+            
+            const percent = Math.round((filled / total) * 100);
+            progressBar.style.width = percent + '%';
+        }
+        
+        // Form inputs trigger progress
+        form.querySelectorAll('input, select, textarea').forEach(el => {
+            el.addEventListener('change', updateProgress);
+            el.addEventListener('input', updateProgress);
+        });
+        
+        // Form submission
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // Validate
+            if (selectedZones.length === 0) {
+                showError('Please select at least one preferred zone');
+                return;
+            }
+            
+            // Get form data
+            const formData = new FormData(form);
+            
+            // Get must-haves
+            const mustHaves = [];
+            document.querySelectorAll('#mustHaves input:checked').forEach(cb => {
+                mustHaves.push(cb.value);
+            });
+            
+            // Get deal-breakers
+            const dealBreakers = [];
+            document.querySelectorAll('#dealBreakers input:checked').forEach(cb => {
+                dealBreakers.push(cb.value);
+            });
+            
+            // Build client object
+            const client = {
+                // Contact
+                name: formData.get('name'),
+                email: formData.get('email'),
+                phone: formData.get('phone'),
+                nationality: formData.get('nationality') || '',
+                
+                // Service
+                service: formData.get('service'),
+                moveIn: formData.get('moveIn'),
+                duration: formData.get('duration'),
+                dateFlexible: formData.get('dateFlexible') || 'no',
+                
+                // Budget
+                budget: parseInt(formData.get('budget')),
+                budgetFlex: formData.get('budgetFlex') || 'strict',
+                
+                // Location
+                zones: selectedZones,
+                zone: selectedZones.join(', '),
+                
+                // Apartment
+                minSize: parseInt(formData.get('minSize')) || 0,
+                bedrooms: formData.get('bedrooms') || 'studio',
+                occupants: formData.get('occupants') || 'just-me',
+                
+                // Requirements
+                mustHaves: mustHaves,
+                dealBreakers: dealBreakers,
+                
+                // Additional
+                reason: formData.get('reason') || '',
+                notes: formData.get('notes') || '',
+                source: formData.get('source') || '',
+                
+                // System fields
+                stage: 'onboarded',
+                lastContact: new Date().toISOString(),
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                selfOnboarded: true
+            };
+            
+            // Show loading
+            submitBtn.classList.add('loading');
+            submitBtn.disabled = true;
+            hideError();
+            
+            try {
+                // Save to Firebase
+                await db.collection('pfsClients').add(client);
+                
+                // Also log activity
+                await db.collection('pfsActivities').add({
+                    text: `🎉 New self-onboarded client: ${client.name} (${client.service})`,
+                    icon: '🎉',
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                
+                // Send webhook to Make.com for notification (optional)
+                try {
+                    await fetch('https://hook.eu2.make.com/YOUR_WEBHOOK_ID', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            type: 'new_client',
+                            name: client.name,
+                            service: client.service,
+                            budget: client.budget,
+                            zones: client.zones.join(', '),
+                            moveIn: client.moveIn,
+                            phone: client.phone,
+                            email: client.email
+                        })
+                    });
+                } catch (webhookErr) {
+                    console.log('Webhook not configured yet');
+                }
+                
+                // Show success
+                formScreen.classList.add('hidden');
+                successScreen.classList.add('show');
+                progressBar.style.width = '100%';
+                
+                // Scroll to top
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                
+            } catch (err) {
+                console.error('Error:', err);
+                showError('Something went wrong. Please try again or contact us directly.');
+                submitBtn.classList.remove('loading');
+                submitBtn.disabled = false;
+            }
+        });
+        
+        function showError(msg) {
+            errorMsg.textContent = msg;
+            errorMsg.classList.add('show');
+            errorMsg.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        
+        function hideError() {
+            errorMsg.classList.remove('show');
+        }
+        
+        // Set min date to today
+        document.querySelector('input[name="moveIn"]').min = new Date().toISOString().split('T')[0];
+        
+        // Initial progress
+        updateProgress();
+    </script>
+</body>
+</html>
