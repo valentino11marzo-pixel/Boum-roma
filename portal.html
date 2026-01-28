@@ -1458,10 +1458,10 @@
             case 'registrations': 
                 if (!isAdmin()) { m.innerHTML = accessDenied(); break; }
                 loadRegistrations().then(() => { 
-                    document.getElementById('mainContent').innerHTML = registrationsPage(); 
+                    document.getElementById('main').innerHTML = registrationsPage(); 
                 }).catch(err => {
                     console.error('Failed to load registrations:', err);
-                    document.getElementById('mainContent').innerHTML = '<div class="alert error">Errore caricamento registrazioni: ' + err.message + '</div>';
+                    document.getElementById('main').innerHTML = '<div class="alert error">Errore caricamento registrazioni: ' + err.message + '</div>';
                 }); 
                 m.innerHTML = '<div style="padding:40px;text-align:center"><div class="spinner"></div><p style="margin-top:16px;color:var(--text-muted)">Caricamento...</p></div>';
                 break;
@@ -6878,7 +6878,7 @@
             console.log('Registration created successfully');
             closeModal(); 
             await loadRegistrations();
-            document.getElementById('mainContent').innerHTML = registrationsPage();
+            document.getElementById('main').innerHTML = registrationsPage();
             toast('success', 'Registrazione creata!');
         } catch(e) { 
             console.error('Error creating registration:', e);
@@ -6894,7 +6894,7 @@
             await db.collection('contractRegistrationStatus').doc(contractId).delete();
             closeModal();
             await loadRegistrations();
-            document.getElementById('mainContent').innerHTML = registrationsPage();
+            document.getElementById('main').innerHTML = registrationsPage();
             toast('success', 'Eliminato');
         } catch (err) { 
             console.error('Error deleting:', err);
