@@ -1241,7 +1241,7 @@
     async function refresh() { 
         try {
             await loadData(); 
-            loadRegistrations(); // Load contract registrations
+            loadRegistrations();
             renderPage(); 
             buildNav(); 
         } catch (e) {
@@ -6648,438 +6648,6 @@
     }
 
     console.log('ðŸš€ BOOM Portal v5 Pro - Complete Bilingual Edition');
-
-    // ═══════════════════════════════════════════════════════════════════════════
-    // CONTRACT REGISTRATION SYSTEM
-    // ═══════════════════════════════════════════════════════════════════════════
-
-    // Load registrations from Firebase
-    async function loadRegistrations() {
-        try {
-            const [regsSnap, statusSnap] = await Promise.all([
-                db.collection('contractRegistrations').orderBy('submittedAt', 'desc').get(),
-                db.collection('contractRegistrationStatus').get()
-            ]);
-            
-            S.registrations = regsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-            
-            S.registrationStatuses = {};
-            statusSnap.docs.forEach(d => {
-                S.registrationStatuses[d.id] = { id: d.id, ...d.data() };
-            });
-            
-            // Update pending count
-            S.regPending = Object.values(S.registrationStatuses).filter(s => 
-                s.status !== 'completed' && s.status !== 'registered'
-            ).length;
-            
-            buildNav();
-            if (S.page === 'registrations') renderPage();
-        } catch (err) {
-            console.error('Error loading registrations:', err);
-        }
-    }
-
-    // Registrations Page
-    function registrationsPage() {
-        // Group by contractId
-        const grouped = {};
-        S.registrations.forEach(r => {
-            if (!grouped[r.contractId]) grouped[r.contractId] = { landlord: null, tenants: [] };
-            if (r.type === 'landlord') grouped[r.contractId].landlord = r;
-            else grouped[r.contractId].tenants.push(r);
-        });
-
-        const contracts = Object.entries(grouped).map(([id, data]) => {
-            const status = S.registrationStatuses[id] || {};
-            return {
-                id,
-                ...data,
-                status: status.status || 'pending',
-                landlordSubmitted: status.landlordSubmitted || !!data.landlord,
-                tenantSubmitted: status.tenantSubmitted || data.tenants.length > 0,
-                createdAt: status.createdAt || data.landlord?.submittedAt || data.tenants[0]?.submittedAt,
-                propertyAddress: data.landlord?.propertyAddress || status.description || 'In attesa dati'
-            };
-        }).sort((a, b) => {
-            const aTime = a.createdAt?.toDate?.() || new Date(0);
-            const bTime = b.createdAt?.toDate?.() || new Date(0);
-            return bTime - aTime;
-        });
-
-        const statusLabels = { pending: 'In Attesa', pending_tenant: 'Attesa Tenant', pending_landlord: 'Attesa Landlord', ready: 'Pronto RLI', in_progress: 'In Registrazione', registered: 'Registrato', completed: 'Completato' };
-        const statusColors = { pending: 'orange', pending_tenant: 'orange', pending_landlord: 'orange', ready: 'blue', in_progress: 'purple', registered: 'green', completed: 'green' };
-
-        return `
-            <div class="page-header">
-                <h1 class="page-title">📝 Registrazione Contratti</h1>
-                <div class="page-actions">
-                    <button class="btn btn-secondary" onclick="openNewRegistration()">+ Nuova</button>
-                    <button class="btn" onclick="openRLIGuide()">📋 Guida RLI</button>
-                </div>
-            </div>
-
-            <div class="stats-grid" style="margin-bottom:24px">
-                <div class="stat-card" onclick="loadRegistrations()"><div class="stat-icon">📊</div><div class="stat-value">${contracts.length}</div><div class="stat-label">Totale</div></div>
-                <div class="stat-card orange"><div class="stat-icon">⏳</div><div class="stat-value">${contracts.filter(c => c.status.includes('pending')).length}</div><div class="stat-label">In Attesa</div></div>
-                <div class="stat-card blue"><div class="stat-icon">📋</div><div class="stat-value">${contracts.filter(c => c.status === 'ready').length}</div><div class="stat-label">Pronti RLI</div></div>
-                <div class="stat-card green"><div class="stat-icon">✅</div><div class="stat-value">${contracts.filter(c => c.status === 'registered' || c.status === 'completed').length}</div><div class="stat-label">Registrati</div></div>
-            </div>
-
-            <div class="card" style="margin-bottom:24px">
-                <div class="card-body">
-                    <div class="card-title" style="margin-bottom:16px">🔗 Link Form (copia e invia su WhatsApp)</div>
-                    <div class="grid-2">
-                        <div>
-                            <label class="form-label">Form Proprietario 🇮🇹</label>
-                            <div style="display:flex;gap:8px">
-                                <input type="text" class="form-input" value="https://boomrome.com/form-landlord.html" readonly id="landlordFormUrl" style="font-size:11px">
-                                <button class="btn btn-sm" onclick="copyUrl('landlordFormUrl')">📋</button>
-                            </div>
-                        </div>
-                        <div>
-                            <label class="form-label">Form Inquilino 🇬🇧</label>
-                            <div style="display:flex;gap:8px">
-                                <input type="text" class="form-input" value="https://boomrome.com/form-tenant.html" readonly id="tenantFormUrl" style="font-size:11px">
-                                <button class="btn btn-sm" onclick="copyUrl('tenantFormUrl')">📋</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-header">
-                    <span class="card-title">📋 Contratti in Lavorazione</span>
-                    <button class="btn btn-sm btn-secondary" onclick="loadRegistrations()">🔄</button>
-                </div>
-                <div class="card-body flush">
-                    ${contracts.length === 0 ? `
-                        <div class="empty-state">
-                            <div class="empty-icon">📝</div>
-                            <div class="empty-title">Nessuna registrazione</div>
-                            <div class="empty-text">Crea una nuova registrazione e invia i link</div>
-                            <button class="btn" onclick="openNewRegistration()">+ Nuova Registrazione</button>
-                        </div>
-                    ` : contracts.map(c => `
-                        <div class="list-item clickable" onclick="openRegDetail('${c.id}')">
-                            <div class="list-icon" style="font-size:24px">
-                                ${c.status === 'registered' || c.status === 'completed' ? '✅' : c.status === 'ready' ? '📋' : '⏳'}
-                            </div>
-                            <div class="list-content">
-                                <div class="list-title">
-                                    ${esc(c.propertyAddress)}
-                                    <span class="badge ${statusColors[c.status] || 'gray'}">${statusLabels[c.status] || c.status}</span>
-                                </div>
-                                <div class="list-subtitle">
-                                    👤 Landlord: ${c.landlordSubmitted ? `<span style="color:var(--green)">✓ ${c.landlord?.fullName || 'OK'}</span>` : `<span style="color:var(--orange)">⏳</span>`}
-                                    &nbsp;|&nbsp;
-                                    🏠 Tenant: ${c.tenantSubmitted ? `<span style="color:var(--green)">✓ ${c.tenants[0]?.fullName || 'OK'}</span>` : `<span style="color:var(--orange)">⏳</span>`}
-                                </div>
-                            </div>
-                            <div class="list-meta">
-                                <div style="font-size:11px;color:var(--text-muted)">${c.createdAt ? fmtDate(c.createdAt) : ''}</div>
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
-            </div>
-        `;
-    }
-
-    // Open registration detail
-    function openRegDetail(contractId) {
-        const status = S.registrationStatuses[contractId] || {};
-        const docs = S.registrations.filter(r => r.contractId === contractId);
-        const landlord = docs.find(d => d.type === 'landlord');
-        const tenants = docs.filter(d => d.type === 'tenant');
-
-        const html = `
-            <div class="modal-overlay active" onclick="if(event.target===this)closeModal()">
-                <div class="modal xl">
-                    <div class="modal-header">
-                        <h3 class="modal-title">📝 ${landlord?.propertyAddress || contractId}</h3>
-                        <button class="modal-close" onclick="closeModal()">×</button>
-                    </div>
-                    <div class="modal-body" style="max-height:70vh;overflow-y:auto">
-                        <div class="alert info" style="margin-bottom:20px">
-                            <span>🔑</span>
-                            <div><strong>ID:</strong> ${contractId}<br><small>Link: ?contract=${contractId}</small></div>
-                        </div>
-
-                        <div class="form-group">
-                            <label class="form-label">Stato</label>
-                            <select class="form-select" id="regStatus" onchange="updateRegStatus('${contractId}', this.value)">
-                                <option value="pending" ${status.status === 'pending' ? 'selected' : ''}>⏳ In Attesa</option>
-                                <option value="ready" ${status.status === 'ready' ? 'selected' : ''}>📋 Pronto RLI</option>
-                                <option value="in_progress" ${status.status === 'in_progress' ? 'selected' : ''}>🔄 In Registrazione</option>
-                                <option value="registered" ${status.status === 'registered' ? 'selected' : ''}>✅ Registrato</option>
-                            </select>
-                        </div>
-
-                        <div class="info-box" style="margin-bottom:20px">
-                            <div class="info-box-title">👤 PROPRIETARIO ${landlord ? '✅' : '⏳'}</div>
-                            ${landlord ? `
-                                <div class="info-box-row"><span class="info-box-label">Nome</span><span class="info-box-value">${esc(landlord.fullName)}</span></div>
-                                <div class="info-box-row"><span class="info-box-label">C.F.</span><span class="info-box-value" style="font-family:monospace">${esc(landlord.codiceFiscale)}</span></div>
-                                <div class="info-box-row"><span class="info-box-label">Nato</span><span class="info-box-value">${esc(landlord.birthPlace)}, ${landlord.birthDate}</span></div>
-                                <div class="info-box-row"><span class="info-box-label">Residenza</span><span class="info-box-value">${esc(landlord.address)}</span></div>
-                                <div class="info-box-row"><span class="info-box-label">Contatti</span><span class="info-box-value">${esc(landlord.email)} | ${esc(landlord.phone)}</span></div>
-                                <div class="info-box-row"><span class="info-box-label">Doc</span><span class="info-box-value">${landlord.docType} ${esc(landlord.docNumber)}</span></div>
-                                ${landlord.docFileUrl ? `<div class="info-box-row"><span class="info-box-label">File</span><a href="${landlord.docFileUrl}" target="_blank" class="btn btn-xs">📄 Apri</a></div>` : ''}
-                                <div class="info-box-row"><span class="info-box-label">IBAN</span><span class="info-box-value" style="font-family:monospace">${esc(landlord.iban)}</span></div>
-                                <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
-                                    <div class="info-box-title">🏠 CATASTO</div>
-                                    <div class="info-box-row"><span class="info-box-label">Indirizzo</span><span class="info-box-value">${esc(landlord.propertyAddress)}</span></div>
-                                    <div class="info-box-row"><span class="info-box-label">Foglio/Part/Sub</span><span class="info-box-value">${landlord.foglio} / ${landlord.particella} / ${landlord.subalterno}</span></div>
-                                    ${landlord.categoria ? `<div class="info-box-row"><span class="info-box-label">Categoria</span><span class="info-box-value">${landlord.categoria}</span></div>` : ''}
-                                    ${landlord.rendita ? `<div class="info-box-row"><span class="info-box-label">Rendita</span><span class="info-box-value">€${landlord.rendita}</span></div>` : ''}
-                                    ${landlord.visuraFileUrl ? `<div class="info-box-row"><span class="info-box-label">Visura</span><a href="${landlord.visuraFileUrl}" target="_blank" class="btn btn-xs">📄</a></div>` : ''}
-                                </div>
-                            ` : `<p style="color:var(--text-muted);padding:20px 0;text-align:center">In attesa<br><button class="btn btn-sm" style="margin-top:10px" onclick="sendRegReminder('${contractId}','landlord')">📱 Invia Link</button></p>`}
-                        </div>
-
-                        ${tenants.length > 0 ? tenants.map((t, i) => `
-                            <div class="info-box" style="margin-bottom:20px">
-                                <div class="info-box-title">🏠 INQUILINO ${tenants.length > 1 ? i+1 : ''} ✅ <span class="badge ${t.tenantType === 'student' ? 'purple' : 'blue'}">${t.tenantType === 'student' ? '🎓 Studente' : '💼 Worker'}</span></div>
-                                <div class="info-box-row"><span class="info-box-label">Nome</span><span class="info-box-value">${esc(t.fullName)}</span></div>
-                                <div class="info-box-row"><span class="info-box-label">Nazionalità</span><span class="info-box-value">${esc(t.nationality)}</span></div>
-                                <div class="info-box-row"><span class="info-box-label">C.F.</span><span class="info-box-value" style="font-family:monospace">${t.codiceFiscale || '⚠️ Da calcolare'}</span></div>
-                                <div class="info-box-row"><span class="info-box-label">Nato</span><span class="info-box-value">${esc(t.birthPlace)}, ${t.birthDate}</span></div>
-                                <div class="info-box-row"><span class="info-box-label">Residenza</span><span class="info-box-value">${esc(t.homeAddress)}</span></div>
-                                <div class="info-box-row"><span class="info-box-label">Contatti</span><span class="info-box-value">${esc(t.email)} | ${esc(t.phone)}</span></div>
-                                <div class="info-box-row"><span class="info-box-label">Doc</span><span class="info-box-value">${t.docType} ${esc(t.docNumber)} (scade: ${t.docExpiry})</span></div>
-                                ${t.docFileUrl ? `<div class="info-box-row"><span class="info-box-label">File</span><a href="${t.docFileUrl}" target="_blank" class="btn btn-xs">📄</a></div>` : ''}
-                                ${t.tenantType === 'student' && t.universityName ? `
-                                    <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
-                                        <div class="info-box-title">🎓 UNIVERSITÀ</div>
-                                        <div class="info-box-row"><span class="info-box-label">Ateneo</span><span class="info-box-value">${esc(t.universityName)}</span></div>
-                                        ${t.enrollmentFileUrl ? `<div class="info-box-row"><span class="info-box-label">Certificato</span><a href="${t.enrollmentFileUrl}" target="_blank" class="btn btn-xs">📄</a></div>` : ''}
-                                    </div>
-                                ` : ''}
-                            </div>
-                        `).join('') : `
-                            <div class="info-box">
-                                <div class="info-box-title">🏠 INQUILINO ⏳</div>
-                                <p style="color:var(--text-muted);padding:20px 0;text-align:center">In attesa<br><button class="btn btn-sm" style="margin-top:10px" onclick="sendRegReminder('${contractId}','tenant')">📱 Invia Link</button></p>
-                            </div>
-                        `}
-
-                        <div class="form-group" style="margin-top:20px">
-                            <label class="form-label">Note</label>
-                            <textarea class="form-textarea" id="regNotes" placeholder="Note...">${status.notes || ''}</textarea>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button class="btn btn-danger" onclick="deleteReg('${contractId}')">🗑️</button>
-                        <button class="btn btn-secondary" onclick="closeModal()">Chiudi</button>
-                        <button class="btn btn-secondary" onclick="saveRegNotes('${contractId}')">💾 Salva Note</button>
-                        ${landlord && tenants.length > 0 ? `<button class="btn" onclick="copyRLI('${contractId}')">📋 Copia Dati RLI</button>` : ''}
-                    </div>
-                </div>
-            </div>
-        `;
-        document.getElementById('modals').innerHTML = html;
-    }
-
-    // Update status
-    async function updateRegStatus(contractId, status) {
-        try {
-            await db.collection('contractRegistrationStatus').doc(contractId).set({ status, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
-            S.registrationStatuses[contractId] = { ...S.registrationStatuses[contractId], status };
-            toast('success', 'Stato aggiornato');
-            loadRegistrations();
-        } catch (err) { toast('error', 'Errore'); }
-    }
-
-    // Save notes
-    async function saveRegNotes(contractId) {
-        const notes = document.getElementById('regNotes').value;
-        try {
-            await db.collection('contractRegistrationStatus').doc(contractId).set({ notes, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
-            toast('success', 'Note salvate');
-        } catch (err) { toast('error', 'Errore'); }
-    }
-
-    // Copy RLI data
-    function copyRLI(contractId) {
-        const docs = S.registrations.filter(r => r.contractId === contractId);
-        const l = docs.find(d => d.type === 'landlord');
-        const t = docs.find(d => d.type === 'tenant');
-        if (!l || !t) { toast('error', 'Dati incompleti'); return; }
-
-        const text = `
-═══ DATI RLI - ${contractId} ═══
-
-▸ IMMOBILE
-${l.propertyAddress}
-Foglio: ${l.foglio} | Particella: ${l.particella} | Sub: ${l.subalterno}
-${l.categoria ? `Cat: ${l.categoria}` : ''} ${l.rendita ? `| Rendita: €${l.rendita}` : ''}
-
-▸ LOCATORE
-${l.fullName}
-C.F.: ${l.codiceFiscale}
-Nato: ${l.birthPlace}, ${l.birthDate}
-Res: ${l.address}
-Doc: ${l.docType} ${l.docNumber}
-
-▸ CONDUTTORE
-${t.fullName}
-C.F.: ${t.codiceFiscale || 'DA CALCOLARE'}
-Nato: ${t.birthPlace}, ${t.birthDate}
-Nazionalità: ${t.nationality}
-Res. Estera: ${t.homeAddress}
-Doc: ${t.docType} ${t.docNumber} (scade: ${t.docExpiry})
-${t.tenantType === 'student' ? `Università: ${t.universityName}` : ''}
-
-▸ PAGAMENTO
-IBAN: ${l.iban}
-        `.trim();
-
-        navigator.clipboard.writeText(text).then(() => toast('success', 'Copiato!', 'Incolla in RLI Web')).catch(() => {
-            const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
-            toast('success', 'Copiato!');
-        });
-    }
-
-    // Send reminder
-    function sendRegReminder(contractId, type) {
-        const url = type === 'landlord' ? `https://boomrome.com/form-landlord.html?contract=${contractId}` : `https://boomrome.com/form-tenant.html?contract=${contractId}`;
-        const msg = type === 'landlord' ? `Ciao! Per la registrazione del contratto, compila questo form con i tuoi documenti:\n\n${url}\n\nGrazie!` : `Hi! For the contract registration, please fill this form:\n\n${url}\n\nThank you!`;
-        window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
-    }
-
-    // New registration modal
-    function openNewRegistration() {
-        const newId = 'REG_' + Date.now();
-        const html = `
-            <div class="modal-overlay active" onclick="if(event.target===this)closeModal()">
-                <div class="modal">
-                    <div class="modal-header">
-                        <h3 class="modal-title">+ Nuova Registrazione</h3>
-                        <button class="modal-close" onclick="closeModal()">×</button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="alert info"><span>💡</span><span>Crea ID e invia i link a landlord/tenant</span></div>
-                        <div class="form-group">
-                            <label class="form-label">ID Contratto</label>
-                            <input type="text" class="form-input" value="${newId}" readonly id="newContractId">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Descrizione</label>
-                            <input type="text" class="form-input" id="newContractDesc" placeholder="Es: Via Roma 10 - Mario Rossi">
-                        </div>
-                        <hr style="border-color:var(--border);margin:20px 0">
-                        <div class="form-group">
-                            <label class="form-label">🔗 Link Proprietario</label>
-                            <div style="display:flex;gap:8px">
-                                <input type="text" class="form-input" value="https://boomrome.com/form-landlord.html?contract=${newId}" readonly id="newLUrl" style="font-size:11px">
-                                <button class="btn btn-sm" onclick="copyUrl('newLUrl')">📋</button>
-                                <button class="btn btn-sm" onclick="sendWA('newLUrl','landlord')">📱</button>
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">🔗 Link Inquilino</label>
-                            <div style="display:flex;gap:8px">
-                                <input type="text" class="form-input" value="https://boomrome.com/form-tenant.html?contract=${newId}" readonly id="newTUrl" style="font-size:11px">
-                                <button class="btn btn-sm" onclick="copyUrl('newTUrl')">📋</button>
-                                <button class="btn btn-sm" onclick="sendWA('newTUrl','tenant')">📱</button>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button class="btn btn-secondary" onclick="closeModal()">Annulla</button>
-                        <button class="btn" onclick="createNewReg('${newId}')">✓ Crea</button>
-                    </div>
-                </div>
-            </div>
-        `;
-        document.getElementById('modals').innerHTML = html;
-    }
-
-    // Create new registration
-    async function createNewReg(contractId) {
-        const desc = document.getElementById('newContractDesc').value;
-        try {
-            await db.collection('contractRegistrationStatus').doc(contractId).set({
-                status: 'pending', description: desc, landlordSubmitted: false, tenantSubmitted: false,
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
-            closeModal();
-            await loadRegistrations();
-            toast('success', 'Creato!', 'Invia i link');
-        } catch (err) { toast('error', 'Errore'); }
-    }
-
-    // Delete registration
-    async function deleteReg(contractId) {
-        if (!confirm('Eliminare questa registrazione?')) return;
-        try {
-            const docs = S.registrations.filter(r => r.contractId === contractId);
-            for (const doc of docs) await db.collection('contractRegistrations').doc(doc.id).delete();
-            await db.collection('contractRegistrationStatus').doc(contractId).delete();
-            closeModal();
-            await loadRegistrations();
-            toast('success', 'Eliminato');
-        } catch (err) { toast('error', 'Errore'); }
-    }
-
-    // Copy URL helper
-    function copyUrl(id) {
-        const el = document.getElementById(id);
-        el.select();
-        document.execCommand('copy');
-        toast('success', 'Copiato!');
-    }
-
-    // Send WhatsApp
-    function sendWA(id, type) {
-        const url = document.getElementById(id).value;
-        const msg = type === 'landlord' ? `Ciao! Per procedere con la registrazione del contratto, compila questo form:\n\n${url}\n\nGrazie!` : `Hi! To proceed with contract registration, please fill this form:\n\n${url}\n\nThank you!`;
-        window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
-    }
-
-    // RLI Guide
-    function openRLIGuide() {
-        const html = `
-            <div class="modal-overlay active" onclick="if(event.target===this)closeModal()">
-                <div class="modal lg">
-                    <div class="modal-header">
-                        <h3 class="modal-title">📋 Guida RLI Web</h3>
-                        <button class="modal-close" onclick="closeModal()">×</button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="alert info"><span>🔗</span><span>Accedi a <a href="https://telematici.agenziaentrate.gov.it/rli/" target="_blank" style="color:var(--gold);font-weight:600">RLI Web</a> con SPID</span></div>
-                        
-                        <h4 style="color:var(--gold);margin:20px 0 12px">1️⃣ Tipo Contratto</h4>
-                        <p style="color:var(--text-secondary);font-size:13px">• <strong>L2</strong> - Transitorio studenti<br>• <strong>Cedolare secca</strong> (10%)</p>
-                        
-                        <h4 style="color:var(--gold);margin:20px 0 12px">2️⃣ Dati Immobile</h4>
-                        <p style="color:var(--text-secondary);font-size:13px">Comune ROMA (H501), Foglio/Particella/Subalterno dalla visura</p>
-                        
-                        <h4 style="color:var(--gold);margin:20px 0 12px">3️⃣ Locatore</h4>
-                        <p style="color:var(--text-secondary);font-size:13px">CF, anagrafica, residenza, quota 100%</p>
-                        
-                        <h4 style="color:var(--gold);margin:20px 0 12px">4️⃣ Conduttore Straniero</h4>
-                        <p style="color:var(--text-secondary);font-size:13px">CF italiano, nazionalità estera, <strong>residenza estera</strong>, passaporto</p>
-                        
-                        <h4 style="color:var(--gold);margin:20px 0 12px">5️⃣ Allegati</h4>
-                        <p style="color:var(--text-secondary);font-size:13px">PDF contratto firmato</p>
-                        
-                        <h4 style="color:var(--gold);margin:20px 0 12px">6️⃣ Invio</h4>
-                        <p style="color:var(--text-secondary);font-size:13px">Verifica → Invia → <strong>Scarica ricevuta!</strong></p>
-                        
-                        <div class="alert warning" style="margin-top:20px"><span>⚠️</span><span><strong>Cedolare Secca = Zero costi!</strong> Nessuna imposta di registro.</span></div>
-                    </div>
-                    <div class="modal-footer">
-                        <button class="btn" onclick="closeModal()">Ho capito</button>
-                    </div>
-                </div>
-            </div>
-        `;
-        document.getElementById('modals').innerHTML = html;
-    }
-
     
     // Check if opened locally (file://) - this won't work with Firebase
     if (window.location.protocol === 'file:') {
@@ -7101,6 +6669,124 @@ IBAN: ${l.iban}
             showAuthError('Connessione lenta. Ricarica la pagina o verifica la connessione internet.');
         }
     }, 15000);
+
+    // CONTRACT REGISTRATION SYSTEM
+    async function loadRegistrations() {
+        try {
+            const [regsSnap, statusSnap] = await Promise.all([
+                db.collection('contractRegistrations').orderBy('submittedAt', 'desc').get(),
+                db.collection('contractRegistrationStatus').get()
+            ]);
+            S.registrations = regsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+            S.registrationStatuses = {};
+            statusSnap.docs.forEach(d => { S.registrationStatuses[d.id] = { id: d.id, ...d.data() }; });
+            S.regPending = Object.values(S.registrationStatuses).filter(s => s.status !== 'completed' && s.status !== 'registered').length;
+            buildNav();
+        } catch (err) { console.error('Error loading registrations:', err); }
+    }
+
+    function registrationsPage() {
+        const grouped = {};
+        S.registrations.forEach(r => {
+            if (!grouped[r.contractId]) grouped[r.contractId] = { landlord: null, tenants: [] };
+            if (r.type === 'landlord') grouped[r.contractId].landlord = r;
+            else grouped[r.contractId].tenants.push(r);
+        });
+        const contracts = Object.entries(grouped).map(([id, data]) => {
+            const status = S.registrationStatuses[id] || {};
+            return { id, ...data, status: status.status || 'pending', landlordSubmitted: !!data.landlord, tenantSubmitted: data.tenants.length > 0, propertyAddress: data.landlord?.propertyAddress || status.description || 'In attesa dati' };
+        });
+        const statusLabels = { pending: 'In Attesa', ready: 'Pronto RLI', registered: 'Registrato' };
+        const statusColors = { pending: 'orange', ready: 'blue', registered: 'green' };
+        return `
+            <div class="page-header"><h1 class="page-title">📝 Registrazione Contratti</h1>
+                <div class="page-actions"><button class="btn btn-secondary" onclick="openNewRegistration()">+ Nuova</button></div>
+            </div>
+            <div class="card" style="margin-bottom:24px"><div class="card-body">
+                <div class="card-title" style="margin-bottom:16px">🔗 Link Form</div>
+                <div class="grid-2">
+                    <div><label class="form-label">Proprietario</label><div style="display:flex;gap:8px"><input type="text" class="form-input" value="https://boomrome.com/form-landlord.html" readonly id="lUrl" style="font-size:11px"><button class="btn btn-sm" onclick="copyUrl('lUrl')">📋</button></div></div>
+                    <div><label class="form-label">Inquilino</label><div style="display:flex;gap:8px"><input type="text" class="form-input" value="https://boomrome.com/form-tenant.html" readonly id="tUrl" style="font-size:11px"><button class="btn btn-sm" onclick="copyUrl('tUrl')">📋</button></div></div>
+                </div>
+            </div></div>
+            <div class="card"><div class="card-header"><span class="card-title">📋 Contratti</span><button class="btn btn-sm btn-secondary" onclick="loadRegistrations()">🔄</button></div>
+                <div class="card-body flush">
+                    ${contracts.length === 0 ? '<div class="empty-state"><div class="empty-icon">📝</div><div class="empty-title">Nessuna registrazione</div><button class="btn" onclick="openNewRegistration()">+ Nuova</button></div>' : contracts.map(c => `
+                        <div class="list-item clickable" onclick="openRegDetail('${c.id}')">
+                            <div class="list-icon" style="font-size:24px">${c.status === 'registered' ? '✅' : '⏳'}</div>
+                            <div class="list-content">
+                                <div class="list-title">${esc(c.propertyAddress)} <span class="badge ${statusColors[c.status] || 'gray'}">${statusLabels[c.status] || c.status}</span></div>
+                                <div class="list-subtitle">👤 ${c.landlordSubmitted ? '✓' : '⏳'} | 🏠 ${c.tenantSubmitted ? '✓' : '⏳'}</div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>`;
+    }
+
+    function openRegDetail(contractId) {
+        const status = S.registrationStatuses[contractId] || {};
+        const docs = S.registrations.filter(r => r.contractId === contractId);
+        const landlord = docs.find(d => d.type === 'landlord');
+        const tenant = docs.find(d => d.type === 'tenant');
+        document.getElementById('modals').innerHTML = `
+            <div class="modal-overlay active" onclick="if(event.target===this)closeModal()">
+                <div class="modal xl"><div class="modal-header"><h3 class="modal-title">📝 ${landlord?.propertyAddress || contractId}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+                    <div class="modal-body" style="max-height:70vh;overflow-y:auto">
+                        <div class="alert info"><span>🔑</span><span>ID: ${contractId}</span></div>
+                        <div class="info-box" style="margin:20px 0"><div class="info-box-title">👤 PROPRIETARIO ${landlord ? '✅' : '⏳'}</div>
+                            ${landlord ? `<div class="info-box-row"><span class="info-box-label">Nome</span><span class="info-box-value">${esc(landlord.fullName)}</span></div>
+                            <div class="info-box-row"><span class="info-box-label">CF</span><span class="info-box-value">${esc(landlord.codiceFiscale)}</span></div>
+                            <div class="info-box-row"><span class="info-box-label">Indirizzo</span><span class="info-box-value">${esc(landlord.propertyAddress)}</span></div>
+                            <div class="info-box-row"><span class="info-box-label">Foglio/Part/Sub</span><span class="info-box-value">${landlord.foglio}/${landlord.particella}/${landlord.subalterno}</span></div>` : '<p style="text-align:center;color:var(--text-muted);padding:20px">In attesa</p>'}
+                        </div>
+                        <div class="info-box"><div class="info-box-title">🏠 INQUILINO ${tenant ? '✅' : '⏳'}</div>
+                            ${tenant ? `<div class="info-box-row"><span class="info-box-label">Nome</span><span class="info-box-value">${esc(tenant.fullName)}</span></div>
+                            <div class="info-box-row"><span class="info-box-label">Nazionalità</span><span class="info-box-value">${esc(tenant.nationality)}</span></div>
+                            <div class="info-box-row"><span class="info-box-label">CF</span><span class="info-box-value">${tenant.codiceFiscale || '⚠️ Da calcolare'}</span></div>` : '<p style="text-align:center;color:var(--text-muted);padding:20px">In attesa</p>'}
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" onclick="closeModal()">Chiudi</button>
+                        ${landlord && tenant ? `<button class="btn" onclick="copyRLI('${contractId}')">📋 Copia Dati RLI</button>` : ''}
+                    </div>
+                </div>
+            </div>`;
+    }
+
+    function copyRLI(contractId) {
+        const l = S.registrations.find(r => r.contractId === contractId && r.type === 'landlord');
+        const t = S.registrations.find(r => r.contractId === contractId && r.type === 'tenant');
+        if (!l || !t) return toast('error', 'Dati incompleti');
+        const text = `LOCATORE: ${l.fullName}, CF: ${l.codiceFiscale}, ${l.address}\nIMMOBILE: ${l.propertyAddress}, Foglio ${l.foglio}, Part ${l.particella}, Sub ${l.subalterno}\nCONDUTTORE: ${t.fullName}, CF: ${t.codiceFiscale || 'DA CALCOLARE'}, ${t.nationality}, ${t.homeAddress}`;
+        navigator.clipboard.writeText(text).then(() => toast('success', 'Copiato!')).catch(() => toast('error', 'Errore copia'));
+    }
+
+    function openNewRegistration() {
+        const newId = 'REG_' + Date.now();
+        document.getElementById('modals').innerHTML = `
+            <div class="modal-overlay active" onclick="if(event.target===this)closeModal()">
+                <div class="modal"><div class="modal-header"><h3 class="modal-title">+ Nuova Registrazione</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+                    <div class="modal-body">
+                        <div class="form-group"><label class="form-label">ID</label><input type="text" class="form-input" value="${newId}" readonly id="newId"></div>
+                        <div class="form-group"><label class="form-label">Descrizione</label><input type="text" class="form-input" id="newDesc" placeholder="Via Roma 10"></div>
+                        <hr style="border-color:var(--border);margin:20px 0">
+                        <div class="form-group"><label class="form-label">Link Proprietario</label><div style="display:flex;gap:8px"><input type="text" class="form-input" value="https://boomrome.com/form-landlord.html?contract=${newId}" readonly id="newL"><button class="btn btn-sm" onclick="copyUrl('newL')">📋</button></div></div>
+                        <div class="form-group"><label class="form-label">Link Inquilino</label><div style="display:flex;gap:8px"><input type="text" class="form-input" value="https://boomrome.com/form-tenant.html?contract=${newId}" readonly id="newT"><button class="btn btn-sm" onclick="copyUrl('newT')">📋</button></div></div>
+                    </div>
+                    <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="createReg('${newId}')">Crea</button></div>
+                </div>
+            </div>`;
+    }
+
+    async function createReg(id) {
+        const desc = document.getElementById('newDesc').value;
+        await db.collection('contractRegistrationStatus').doc(id).set({ status: 'pending', description: desc, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+        closeModal(); loadRegistrations(); toast('success', 'Creato!');
+    }
+
+    function copyUrl(id) { document.getElementById(id).select(); document.execCommand('copy'); toast('success', 'Copiato!'); }
+
     </script>
 </body>
 </html>
