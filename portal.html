@@ -534,6 +534,7 @@
         deadlines: [], tasks: [], // Command Center
         userNotifications: [], // Persistent notifications from Firestore
         listings: [], // For adminflats
+        registrations: [], registrationStatuses: {}, regPending: 0, // Contract registrations
         lastActivity: Date.now(),
         isOnline: navigator.onLine,
         notifListener: null // Real-time listener reference
@@ -6651,11 +6652,6 @@
     // ═══════════════════════════════════════════════════════════════════════════
     // CONTRACT REGISTRATION SYSTEM
     // ═══════════════════════════════════════════════════════════════════════════
-
-    // State for registrations
-    S.registrations = [];
-    S.registrationStatuses = {};
-    S.regPending = 0;
 
     // Load registrations from Firebase
     async function loadRegistrations() {
