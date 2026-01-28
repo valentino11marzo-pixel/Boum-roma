@@ -2,359 +2,875 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BOOM — Tenant Documents</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#000000">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>BOOM — Tenant Registration</title>
     <link rel="icon" type="image/png" href="https://www.boomrome.com/BOOMlogogoldicon512.png">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
         :root {
-            --gold: #D4AF37; --gold-light: rgba(212,175,55,0.15);
-            --green: #34C759; --green-light: rgba(52,199,89,0.12);
-            --red: #FF3B30; --blue: #007AFF; --blue-light: rgba(0,122,255,0.12);
-            --bg: #000; --bg-card: #0A0A0A; --bg-input: #1A1A1A;
-            --border: rgba(255,255,255,0.08); --text: #FFF; --text-secondary: #999; --text-muted: #666;
+            --gold: #D4AF37;
+            --gold-light: rgba(212, 175, 55, 0.15);
+            --bg: #0a0a0a;
+            --surface: #111111;
+            --surface-2: #1a1a1a;
+            --border: #2a2a2a;
+            --text: #ffffff;
+            --text-secondary: #a0a0a0;
+            --text-muted: #666666;
+            --green: #22c55e;
+            --green-light: rgba(34, 197, 94, 0.15);
+            --red: #ef4444;
+            --red-light: rgba(239, 68, 68, 0.15);
+            --blue: #3b82f6;
+            --radius: 12px;
         }
-        body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 20px; -webkit-font-smoothing: antialiased; }
-        .container { max-width: 600px; margin: 0 auto; }
-        .header { text-align: center; padding: 40px 20px; border-bottom: 1px solid var(--border); margin-bottom: 30px; }
-        .logo { width: 60px; height: 60px; margin: 0 auto 16px; background: linear-gradient(135deg, #FFD54F, #F5A623); border-radius: 50%; }
-        .title { font-size: 28px; font-weight: 300; letter-spacing: 4px; margin-bottom: 8px; }
-        .subtitle { font-size: 13px; color: var(--text-secondary); margin-bottom: 20px; }
-        .badge { display: inline-block; padding: 6px 16px; background: var(--blue-light); color: var(--blue); border-radius: 100px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
-        .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 24px; margin-bottom: 20px; }
-        .card-title { font-size: 14px; font-weight: 600; color: var(--gold); margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
-        .card-title .num { width: 24px; height: 24px; background: var(--gold); color: #000; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; }
-        .form-group { margin-bottom: 18px; }
-        .form-label { display: block; font-size: 11px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 1px; }
-        .form-label .req { color: var(--red); }
-        .form-input, .form-select { width: 100%; padding: 14px 16px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-family: inherit; font-size: 14px; transition: all 0.2s; }
-        .form-input:focus, .form-select:focus { outline: none; border-color: var(--gold); }
-        .form-input::placeholder { color: var(--text-muted); }
-        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-        @media (max-width: 500px) { .form-row { grid-template-columns: 1fr; } }
-        .form-hint { font-size: 11px; color: var(--text-muted); margin-top: 6px; }
-        .file-zone { border: 2px dashed var(--border); border-radius: 12px; padding: 30px 20px; text-align: center; cursor: pointer; transition: all 0.2s; background: var(--bg); }
-        .file-zone:hover, .file-zone.dragover { border-color: var(--gold); background: var(--gold-light); }
-        .file-zone.has-file { border-color: var(--green); background: var(--green-light); }
-        .file-zone-icon { font-size: 32px; margin-bottom: 8px; }
-        .file-zone-text { font-size: 13px; color: var(--text-secondary); }
-        .file-zone-name { font-size: 12px; color: var(--green); margin-top: 8px; font-weight: 500; }
-        .file-input { display: none; }
-        .btn { width: 100%; padding: 16px 24px; background: var(--gold); border: none; border-radius: 12px; color: #000; font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; }
-        .btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(212,175,55,0.3); }
-        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        .progress-bar { display: flex; gap: 8px; margin-bottom: 30px; }
-        .progress-step { flex: 1; height: 4px; background: var(--border); border-radius: 2px; transition: background 0.3s; }
-        .progress-step.done { background: var(--green); }
-        .progress-step.active { background: var(--gold); }
-        .checklist { background: var(--bg); border-radius: 10px; padding: 16px; margin-top: 20px; }
-        .checklist-item { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.5;
+        }
+        
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        @media (min-width: 768px) {
+            .container { padding: 40px 20px; }
+        }
+        
+        /* Header */
+        .header {
+            text-align: center;
+            padding: 30px 0;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 30px;
+        }
+        
+        .logo {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 16px;
+        }
+        
+        .header h1 {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .header p {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+        
+        /* Progress Bar */
+        .progress-container {
+            margin-bottom: 30px;
+        }
+        
+        .progress-steps {
+            display: flex;
+            justify-content: space-between;
+            position: relative;
+            margin-bottom: 10px;
+        }
+        
+        .progress-steps::before {
+            content: '';
+            position: absolute;
+            top: 15px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--border);
+            z-index: 0;
+        }
+        
+        .progress-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .step-number {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--surface);
+            border: 2px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            transition: all 0.3s;
+        }
+        
+        .step-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-align: center;
+        }
+        
+        .progress-step.active .step-number {
+            background: var(--gold);
+            border-color: var(--gold);
+            color: #000;
+        }
+        
+        .progress-step.completed .step-number {
+            background: var(--green);
+            border-color: var(--green);
+            color: #fff;
+        }
+        
+        .progress-step.active .step-label,
+        .progress-step.completed .step-label {
+            color: var(--text);
+        }
+        
+        /* Form Sections */
+        .form-section {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        .form-section.active { display: block; }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .section-subtitle {
+            color: var(--text-secondary);
+            font-size: 14px;
+            margin-bottom: 24px;
+        }
+        
+        /* Form Elements */
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 8px;
+            color: var(--text-secondary);
+        }
+        
+        .form-label .required {
+            color: var(--red);
+        }
+        
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            padding: 14px 16px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            color: var(--text);
+            font-size: 15px;
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+        
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            outline: none;
+            border-color: var(--gold);
+            box-shadow: 0 0 0 3px var(--gold-light);
+        }
+        
+        .form-input.error {
+            border-color: var(--red);
+        }
+        
+        .form-hint {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 6px;
+        }
+        
+        .form-error {
+            font-size: 12px;
+            color: var(--red);
+            margin-top: 6px;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 16px;
+        }
+        
+        @media (min-width: 480px) {
+            .form-row { grid-template-columns: 1fr 1fr; }
+        }
+        
+        /* Type Selection Cards */
+        .type-cards {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .type-card {
+            background: var(--surface);
+            border: 2px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .type-card:hover {
+            border-color: var(--gold);
+        }
+        
+        .type-card.selected {
+            border-color: var(--gold);
+            background: var(--gold-light);
+        }
+        
+        .type-card input { display: none; }
+        
+        .type-icon {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+        
+        .type-label {
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        /* File Upload */
+        .upload-zone {
+            border: 2px dashed var(--border);
+            border-radius: var(--radius);
+            padding: 30px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: var(--surface);
+        }
+        
+        .upload-zone:hover, .upload-zone.dragover {
+            border-color: var(--gold);
+            background: var(--gold-light);
+        }
+        
+        .upload-zone.has-file {
+            border-color: var(--green);
+            background: var(--green-light);
+        }
+        
+        .upload-zone.uploading {
+            pointer-events: none;
+            opacity: 0.6;
+        }
+        
+        .upload-icon {
+            font-size: 40px;
+            margin-bottom: 12px;
+        }
+        
+        .upload-text {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+        
+        .upload-hint {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+        
+        .upload-progress {
+            margin-top: 16px;
+            height: 4px;
+            background: var(--border);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        
+        .upload-progress-bar {
+            height: 100%;
+            background: var(--gold);
+            width: 0%;
+            transition: width 0.3s;
+        }
+        
+        .file-preview {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: var(--surface-2);
+            border-radius: 8px;
+            margin-top: 12px;
+        }
+        
+        .file-preview-icon { font-size: 24px; }
+        
+        .file-preview-info { flex: 1; text-align: left; }
+        
+        .file-preview-name {
+            font-size: 13px;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .file-preview-size {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+        
+        .file-preview-remove {
+            background: none;
+            border: none;
+            color: var(--red);
+            cursor: pointer;
+            padding: 8px;
+            font-size: 18px;
+        }
+        
+        /* Checklist */
+        .checklist {
+            background: var(--surface);
+            border-radius: var(--radius);
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+        
+        .checklist-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .checklist-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border);
+        }
+        
         .checklist-item:last-child { border-bottom: none; }
-        .checklist-icon { width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; }
-        .checklist-icon.pending { background: var(--border); color: var(--text-muted); }
-        .checklist-icon.done { background: var(--green); color: #fff; }
-        .success-screen { display: none; text-align: center; padding: 60px 20px; }
-        .success-screen.active { display: block; }
-        .success-icon { font-size: 64px; margin-bottom: 20px; }
-        .success-title { font-size: 24px; font-weight: 600; margin-bottom: 12px; }
-        .success-text { font-size: 14px; color: var(--text-secondary); line-height: 1.6; }
-        .form-screen { display: block; }
-        .form-screen.hidden { display: none; }
-        .alert { padding: 14px 16px; border-radius: 10px; font-size: 13px; margin-bottom: 20px; display: flex; align-items: flex-start; gap: 10px; }
-        .alert.info { background: var(--blue-light); border: 1px solid rgba(0,122,255,0.3); color: #007AFF; }
-        .loading { display: none; }
-        .loading.active { display: flex; align-items: center; justify-content: center; gap: 10px; }
-        .spinner { width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.8s linear infinite; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .toggle-section { display: none; }
-        .toggle-section.active { display: block; }
-        .radio-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
-        .radio-card { padding: 16px; background: var(--bg); border: 2px solid var(--border); border-radius: 12px; cursor: pointer; text-align: center; transition: all 0.2s; }
-        .radio-card:hover { border-color: var(--gold); }
-        .radio-card.selected { border-color: var(--gold); background: var(--gold-light); }
-        .radio-card input { display: none; }
-        .radio-card-icon { font-size: 24px; margin-bottom: 8px; }
-        .radio-card-label { font-size: 13px; font-weight: 500; }
+        
+        .checklist-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: var(--surface-2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            flex-shrink: 0;
+        }
+        
+        .checklist-icon.done {
+            background: var(--green);
+            color: #fff;
+        }
+        
+        .checklist-label {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+        
+        .checklist-item.done .checklist-label {
+            color: var(--text);
+        }
+        
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 14px 24px;
+            border-radius: var(--radius);
+            font-size: 15px;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+        }
+        
+        .btn-primary {
+            background: var(--gold);
+            color: #000;
+        }
+        
+        .btn-primary:hover {
+            background: #e5c349;
+            transform: translateY(-1px);
+        }
+        
+        .btn-primary:disabled {
+            background: var(--border);
+            color: var(--text-muted);
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn-secondary {
+            background: var(--surface);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+        
+        .btn-secondary:hover {
+            background: var(--surface-2);
+        }
+        
+        .btn-block {
+            width: 100%;
+        }
+        
+        .btn.loading {
+            color: transparent !important;
+            position: relative;
+            pointer-events: none;
+        }
+        
+        .btn.loading::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border: 2px solid transparent;
+            border-top-color: currentColor;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        
+        .btn-primary.loading::after { border-top-color: #000; }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .btn-row {
+            display: flex;
+            gap: 12px;
+            margin-top: 30px;
+        }
+        
+        .btn-row .btn { flex: 1; }
+        
+        /* Success Screen */
+        .success-screen {
+            text-align: center;
+            padding: 60px 20px;
+        }
+        
+        .success-icon {
+            font-size: 80px;
+            margin-bottom: 24px;
+        }
+        
+        .success-title {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+        
+        .success-text {
+            color: var(--text-secondary);
+            font-size: 16px;
+            margin-bottom: 30px;
+        }
+        
+        .success-box {
+            background: var(--surface);
+            border-radius: var(--radius);
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+        
+        .success-box-title {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+        
+        .success-box-value {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--gold);
+        }
+        
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            z-index: 1000;
+            opacity: 0;
+            transition: all 0.3s;
+        }
+        
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+        
+        .toast.error { border-color: var(--red); }
+        .toast.success { border-color: var(--green); }
+        
+        .toast-icon { font-size: 20px; }
+        .toast-message { font-size: 14px; }
+        
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 30px 20px;
+            color: var(--text-muted);
+            font-size: 12px;
+            border-top: 1px solid var(--border);
+            margin-top: 40px;
+        }
+        
+        .footer a {
+            color: var(--gold);
+            text-decoration: none;
+        }
+        
+        /* Conditional sections */
+        .conditional-section {
+            display: none;
+            animation: fadeIn 0.3s;
+        }
+        
+        .conditional-section.active { display: block; }
     </style>
 </head>
 <body>
     <div class="container">
+        <!-- Header -->
         <div class="header">
-            <div class="logo"></div>
-            <h1 class="title">BOOM</h1>
-            <p class="subtitle">Documents for Contract Registration</p>
-            <span class="badge">🏠 Tenant</span>
+            <img src="https://www.boomrome.com/BOOMlogogoldicon512.png" alt="BOOM" class="logo">
+            <h1>Tenant Registration</h1>
+            <p>Complete this form to register your rental contract</p>
         </div>
-
-        <div class="progress-bar">
-            <div class="progress-step active" id="prog1"></div>
-            <div class="progress-step" id="prog2"></div>
-            <div class="progress-step" id="prog3"></div>
+        
+        <!-- Progress -->
+        <div class="progress-container">
+            <div class="progress-steps">
+                <div class="progress-step active" data-step="1">
+                    <div class="step-number">1</div>
+                    <div class="step-label">Type</div>
+                </div>
+                <div class="progress-step" data-step="2">
+                    <div class="step-number">2</div>
+                    <div class="step-label">Personal</div>
+                </div>
+                <div class="progress-step" data-step="3">
+                    <div class="step-number">3</div>
+                    <div class="step-label">Documents</div>
+                </div>
+                <div class="progress-step" data-step="4">
+                    <div class="step-number">4</div>
+                    <div class="step-label">Review</div>
+                </div>
+            </div>
         </div>
-
-        <div class="form-screen" id="formScreen">
-            <form id="tenantForm">
-                <input type="hidden" id="contractId" name="contractId">
-
-                <!-- Tenant Type -->
-                <div class="card">
-                    <div class="card-title"><span class="num">0</span> What type of tenant are you?</div>
-                    <div class="radio-cards">
-                        <label class="radio-card" id="cardStudent">
-                            <input type="radio" name="tenantType" value="student" onchange="toggleTenantType()">
-                            <div class="radio-card-icon">🎓</div>
-                            <div class="radio-card-label">Student</div>
-                        </label>
-                        <label class="radio-card" id="cardWorker">
-                            <input type="radio" name="tenantType" value="worker" onchange="toggleTenantType()">
-                            <div class="radio-card-icon">💼</div>
-                            <div class="radio-card-label">Professional</div>
-                        </label>
-                    </div>
+        
+        <form id="tenantForm" onsubmit="return false;">
+            <!-- Hidden contract ID -->
+            <input type="hidden" id="contractId" name="contractId" value="">
+            
+            <!-- Step 1: Type Selection -->
+            <div class="form-section active" data-section="1">
+                <h2 class="section-title">What type of tenant are you?</h2>
+                <p class="section-subtitle">This helps us collect the right documents</p>
+                
+                <div class="type-cards">
+                    <label class="type-card" id="cardStudent">
+                        <input type="radio" name="tenantType" value="student" onchange="selectType('student')">
+                        <div class="type-icon">🎓</div>
+                        <div class="type-label">Student</div>
+                    </label>
+                    <label class="type-card" id="cardWorker">
+                        <input type="radio" name="tenantType" value="worker" onchange="selectType('worker')">
+                        <div class="type-icon">💼</div>
+                        <div class="type-label">Worker</div>
+                    </label>
                 </div>
-
-                <!-- Personal Data -->
-                <div class="card">
-                    <div class="card-title"><span class="num">1</span> Personal Information</div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label">First Name <span class="req">*</span></label>
-                            <input type="text" class="form-input" id="firstName" name="firstName" required placeholder="John">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Last Name <span class="req">*</span></label>
-                            <input type="text" class="form-input" id="lastName" name="lastName" required placeholder="Smith">
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label">Date of Birth <span class="req">*</span></label>
-                            <input type="date" class="form-input" id="birthDate" name="birthDate" required>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Place of Birth <span class="req">*</span></label>
-                            <input type="text" class="form-input" id="birthPlace" name="birthPlace" required placeholder="London, UK">
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label">Nationality <span class="req">*</span></label>
-                            <input type="text" class="form-input" id="nationality" name="nationality" required placeholder="British">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Codice Fiscale</label>
-                            <input type="text" class="form-input" id="codiceFiscale" name="codiceFiscale" placeholder="If you have one" maxlength="16" style="text-transform: uppercase;">
-                        </div>
-                    </div>
-                    <div class="alert info">
-                        <span>💡</span>
-                        <span>Don't have a Codice Fiscale? No problem! We can help you get one.</span>
+                
+                <button type="button" class="btn btn-primary btn-block" onclick="nextStep()" id="btnStep1" disabled>
+                    Continue →
+                </button>
+            </div>
+            
+            <!-- Step 2: Personal Info -->
+            <div class="form-section" data-section="2">
+                <h2 class="section-title">Personal Information</h2>
+                <p class="section-subtitle">Enter your details as they appear on your passport</p>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">First Name <span class="required">*</span></label>
+                        <input type="text" class="form-input" name="firstName" required placeholder="Mario">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Home Address (in your country) <span class="req">*</span></label>
-                        <input type="text" class="form-input" id="homeAddress" name="homeAddress" required placeholder="123 Main St, London W1A 1AA, UK">
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label">Email <span class="req">*</span></label>
-                            <input type="email" class="form-input" id="email" name="email" required placeholder="john@email.com">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Phone (WhatsApp) <span class="req">*</span></label>
-                            <input type="tel" class="form-input" id="phone" name="phone" required placeholder="+44 7123 456789">
-                        </div>
+                        <label class="form-label">Last Name <span class="required">*</span></label>
+                        <input type="text" class="form-input" name="lastName" required placeholder="Rossi">
                     </div>
                 </div>
-
-                <!-- ID Document -->
-                <div class="card">
-                    <div class="card-title"><span class="num">2</span> Identity Document</div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label">Document Type <span class="req">*</span></label>
-                            <select class="form-select" id="docType" name="docType" required>
-                                <option value="">Select...</option>
-                                <option value="passport">Passport</option>
-                                <option value="national_id">National ID (EU)</option>
-                                <option value="residence_permit">Residence Permit</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Document Number <span class="req">*</span></label>
-                            <input type="text" class="form-input" id="docNumber" name="docNumber" required placeholder="AB1234567">
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label">Issue Date</label>
-                            <input type="date" class="form-input" id="docIssueDate" name="docIssueDate">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Expiry Date <span class="req">*</span></label>
-                            <input type="date" class="form-input" id="docExpiry" name="docExpiry" required>
-                        </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Date of Birth <span class="required">*</span></label>
+                        <input type="date" class="form-input" name="birthDate" required>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Issued By</label>
-                        <input type="text" class="form-input" id="docIssuedBy" name="docIssuedBy" placeholder="HM Passport Office">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Upload Document <span class="req">*</span></label>
-                        <div class="file-zone" id="docZone" onclick="document.getElementById('docFile').click()">
-                            <div class="file-zone-icon">🪪</div>
-                            <div class="file-zone-text">Click or drag your document here</div>
-                            <div class="file-zone-name" id="docFileName"></div>
-                        </div>
-                        <input type="file" class="file-input" id="docFile" accept="image/*,.pdf" onchange="handleFile(this, 'doc')">
-                        <p class="form-hint">JPG, PNG, PDF (max 10MB)</p>
+                        <label class="form-label">Place of Birth <span class="required">*</span></label>
+                        <input type="text" class="form-input" name="birthPlace" required placeholder="Rome, Italy">
                     </div>
                 </div>
-
+                
+                <div class="form-group">
+                    <label class="form-label">Nationality <span class="required">*</span></label>
+                    <input type="text" class="form-input" name="nationality" required placeholder="Italian">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Codice Fiscale (if you have one)</label>
+                    <input type="text" class="form-input" name="codiceFiscale" placeholder="RSSMRA85M01H501Z" maxlength="16" style="text-transform: uppercase">
+                    <p class="form-hint">Italian tax code - we can help you get one if needed</p>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Email <span class="required">*</span></label>
+                        <input type="email" class="form-input" name="email" required placeholder="your@email.com">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Phone <span class="required">*</span></label>
+                        <input type="tel" class="form-input" name="phone" required placeholder="+39 333 123 4567">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Current Address</label>
+                    <input type="text" class="form-input" name="currentAddress" placeholder="Your current address">
+                </div>
+                
                 <!-- Student Section -->
-                <div class="card toggle-section" id="studentSection">
-                    <div class="card-title"><span class="num">3</span> University Enrollment</div>
-                    <div class="alert info">
-                        <span>🎓</span>
-                        <span>For student contracts, Italian law requires proof of enrollment.</span>
+                <div class="conditional-section" id="studentSection">
+                    <div class="form-group">
+                        <label class="form-label">University Name <span class="required">*</span></label>
+                        <input type="text" class="form-input" name="universityName" placeholder="Sapienza University of Rome">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">University Name <span class="req">*</span></label>
-                        <input type="text" class="form-input" id="universityName" name="universityName" placeholder="LUISS / Sapienza / etc.">
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label">Faculty</label>
-                            <input type="text" class="form-input" id="faculty" name="faculty" placeholder="Business">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Program</label>
-                            <input type="text" class="form-input" id="program" name="program" placeholder="Master in Management">
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label">Student ID</label>
-                            <input type="text" class="form-input" id="studentId" name="studentId" placeholder="123456">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Academic Year</label>
-                            <input type="text" class="form-input" id="academicYear" name="academicYear" placeholder="2024/2025">
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Upload Enrollment Certificate <span class="req">*</span></label>
-                        <div class="file-zone" id="enrollmentZone" onclick="document.getElementById('enrollmentFile').click()">
-                            <div class="file-zone-icon">📜</div>
-                            <div class="file-zone-text">Acceptance letter or enrollment certificate</div>
-                            <div class="file-zone-name" id="enrollmentFileName"></div>
-                        </div>
-                        <input type="file" class="file-input" id="enrollmentFile" accept="image/*,.pdf" onchange="handleFile(this, 'enrollment')">
+                        <label class="form-label">Course / Program</label>
+                        <input type="text" class="form-input" name="courseName" placeholder="Master in Architecture">
                     </div>
                 </div>
-
+                
                 <!-- Worker Section -->
-                <div class="card toggle-section" id="workerSection">
-                    <div class="card-title"><span class="num">3</span> Employment (Optional)</div>
+                <div class="conditional-section" id="workerSection">
                     <div class="form-group">
-                        <label class="form-label">Employer</label>
-                        <input type="text" class="form-input" id="employer" name="employer" placeholder="Company Ltd.">
+                        <label class="form-label">Employer / Company <span class="required">*</span></label>
+                        <input type="text" class="form-input" name="employerName" placeholder="Company name">
                     </div>
                     <div class="form-group">
                         <label class="form-label">Job Title</label>
-                        <input type="text" class="form-input" id="jobTitle" name="jobTitle" placeholder="Software Engineer">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Proof of Income (recommended)</label>
-                        <div class="file-zone" id="incomeZone" onclick="document.getElementById('incomeFile').click()">
-                            <div class="file-zone-icon">💰</div>
-                            <div class="file-zone-text">Contract, payslips, or bank statements</div>
-                            <div class="file-zone-name" id="incomeFileName"></div>
-                        </div>
-                        <input type="file" class="file-input" id="incomeFile" accept="image/*,.pdf" onchange="handleFile(this, 'income')">
+                        <input type="text" class="form-input" name="jobTitle" placeholder="Software Engineer">
                     </div>
                 </div>
-
-                <!-- Emergency Contact -->
-                <div class="card">
-                    <div class="card-title"><span class="num">4</span> Emergency Contact (Optional)</div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label">Contact Name</label>
-                            <input type="text" class="form-input" id="emergencyName" name="emergencyName" placeholder="Jane Smith (Mother)">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Contact Phone</label>
-                            <input type="tel" class="form-input" id="emergencyPhone" name="emergencyPhone" placeholder="+44 7123 456789">
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Contact Email</label>
-                        <input type="email" class="form-input" id="emergencyEmail" name="emergencyEmail" placeholder="parent@email.com">
-                    </div>
+                
+                <div class="btn-row">
+                    <button type="button" class="btn btn-secondary" onclick="prevStep()">← Back</button>
+                    <button type="button" class="btn btn-primary" onclick="nextStep()">Continue →</button>
                 </div>
-
+            </div>
+            
+            <!-- Step 3: Documents -->
+            <div class="form-section" data-section="3">
+                <h2 class="section-title">Upload Documents</h2>
+                <p class="section-subtitle">We need these to register your contract</p>
+                
                 <!-- Checklist -->
-                <div class="card">
-                    <div class="card-title">📋 Document Checklist</div>
-                    <div class="checklist">
-                        <div class="checklist-item">
-                            <div class="checklist-icon pending" id="checkPersonal">○</div>
-                            <span>Personal information complete</span>
-                        </div>
-                        <div class="checklist-item">
-                            <div class="checklist-icon pending" id="checkDoc">○</div>
-                            <span>Identity document uploaded</span>
-                        </div>
-                        <div class="checklist-item" id="checkEnrollmentItem" style="display: none;">
-                            <div class="checklist-icon pending" id="checkEnrollment">○</div>
-                            <span>Enrollment certificate</span>
-                        </div>
+                <div class="checklist">
+                    <div class="checklist-title">📋 Document Checklist</div>
+                    <div class="checklist-item" id="checkDoc">
+                        <div class="checklist-icon">1</div>
+                        <div class="checklist-label">Passport or ID Card</div>
+                    </div>
+                    <div class="checklist-item" id="checkEnrollment" style="display: none;">
+                        <div class="checklist-icon">2</div>
+                        <div class="checklist-label">University Enrollment Certificate</div>
+                    </div>
+                    <div class="checklist-item" id="checkIncome" style="display: none;">
+                        <div class="checklist-icon">2</div>
+                        <div class="checklist-label">Proof of Income (payslip or contract)</div>
                     </div>
                 </div>
-
-                <!-- Consent -->
-                <div class="card">
-                    <div class="form-group" style="margin-bottom: 0;">
-                        <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer;">
-                            <input type="checkbox" id="privacyConsent" name="privacyConsent" required style="margin-top: 3px;">
-                            <span style="font-size: 13px; color: var(--text-secondary);">
-                                I consent to BOOM processing my data for contract registration (GDPR compliant).
-                            </span>
-                        </label>
+                
+                <!-- Passport Upload -->
+                <div class="form-group">
+                    <label class="form-label">Passport / ID Card <span class="required">*</span></label>
+                    <div class="upload-zone" id="uploadDoc" onclick="document.getElementById('fileDoc').click()" 
+                         ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'doc')">
+                        <div class="upload-icon">📄</div>
+                        <div class="upload-text">Click or drag file here</div>
+                        <div class="upload-hint">PDF, JPG, PNG — Max 10MB</div>
+                        <div class="upload-progress" style="display: none;">
+                            <div class="upload-progress-bar" id="progressDoc"></div>
+                        </div>
                     </div>
+                    <input type="file" id="fileDoc" accept=".pdf,.jpg,.jpeg,.png" onchange="handleFile(this, 'doc')" style="display: none">
+                    <div id="previewDoc"></div>
                 </div>
-
-                <button type="submit" class="btn" id="submitBtn">
-                    <span id="btnText">Submit Documents</span>
-                    <div class="loading" id="btnLoading">
-                        <div class="spinner"></div>
-                        <span>Uploading...</span>
+                
+                <!-- Enrollment Certificate (Students) -->
+                <div class="form-group conditional-section" id="enrollmentUpload">
+                    <label class="form-label">University Enrollment Certificate <span class="required">*</span></label>
+                    <div class="upload-zone" id="uploadEnrollment" onclick="document.getElementById('fileEnrollment').click()"
+                         ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'enrollment')">
+                        <div class="upload-icon">🎓</div>
+                        <div class="upload-text">Click or drag file here</div>
+                        <div class="upload-hint">PDF, JPG, PNG — Max 10MB</div>
+                        <div class="upload-progress" style="display: none;">
+                            <div class="upload-progress-bar" id="progressEnrollment"></div>
+                        </div>
                     </div>
-                </button>
-            </form>
+                    <input type="file" id="fileEnrollment" accept=".pdf,.jpg,.jpeg,.png" onchange="handleFile(this, 'enrollment')" style="display: none">
+                    <div id="previewEnrollment"></div>
+                </div>
+                
+                <!-- Income Proof (Workers) -->
+                <div class="form-group conditional-section" id="incomeUpload">
+                    <label class="form-label">Proof of Income <span class="required">*</span></label>
+                    <div class="upload-zone" id="uploadIncome" onclick="document.getElementById('fileIncome').click()"
+                         ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'income')">
+                        <div class="upload-icon">💼</div>
+                        <div class="upload-text">Click or drag file here</div>
+                        <div class="upload-hint">Payslip, employment contract, or bank statement</div>
+                        <div class="upload-progress" style="display: none;">
+                            <div class="upload-progress-bar" id="progressIncome"></div>
+                        </div>
+                    </div>
+                    <input type="file" id="fileIncome" accept=".pdf,.jpg,.jpeg,.png" onchange="handleFile(this, 'income')" style="display: none">
+                    <div id="previewIncome"></div>
+                </div>
+                
+                <div class="btn-row">
+                    <button type="button" class="btn btn-secondary" onclick="prevStep()">← Back</button>
+                    <button type="button" class="btn btn-primary" onclick="nextStep()" id="btnStep3">Continue →</button>
+                </div>
+            </div>
+            
+            <!-- Step 4: Review & Submit -->
+            <div class="form-section" data-section="4">
+                <h2 class="section-title">Review & Submit</h2>
+                <p class="section-subtitle">Please verify all information is correct</p>
+                
+                <div id="reviewContent"></div>
+                
+                <div class="form-group" style="margin-top: 24px;">
+                    <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer;">
+                        <input type="checkbox" id="acceptTerms" style="margin-top: 4px; width: 18px; height: 18px; accent-color: var(--gold);">
+                        <span style="font-size: 13px; color: var(--text-secondary);">
+                            I confirm that all information provided is accurate and I authorize BOOM to process my data 
+                            for the purpose of contract registration. 
+                            <a href="https://www.boomrome.com/privacy" target="_blank" style="color: var(--gold);">Privacy Policy</a>
+                        </span>
+                    </label>
+                </div>
+                
+                <div class="btn-row">
+                    <button type="button" class="btn btn-secondary" onclick="prevStep()">← Back</button>
+                    <button type="button" class="btn btn-primary" onclick="submitForm()" id="btnSubmit" disabled>
+                        ✓ Submit Registration
+                    </button>
+                </div>
+            </div>
+        </form>
+        
+        <!-- Success Screen -->
+        <div class="form-section" data-section="success" id="successScreen">
+            <div class="success-screen">
+                <div class="success-icon">🎉</div>
+                <h2 class="success-title">Registration Complete!</h2>
+                <p class="success-text">Thank you for submitting your information. We'll be in touch shortly.</p>
+                
+                <div class="success-box">
+                    <div class="success-box-title">Your Reference Number</div>
+                    <div class="success-box-value" id="successRef">—</div>
+                </div>
+                
+                <a href="https://wa.me/393313251961" class="btn btn-primary btn-block" style="text-decoration: none;">
+                    💬 Message us on WhatsApp
+                </a>
+            </div>
         </div>
-
-        <div class="success-screen" id="successScreen">
-            <div class="success-icon">✅</div>
-            <h2 class="success-title">Documents Submitted!</h2>
-            <p class="success-text">
-                Thank you! We'll contact you on WhatsApp shortly.<br><br>
-                <a href="https://wa.me/393313251961" style="color: #25D366; text-decoration: none; font-weight: 500;">💬 Message us on WhatsApp</a>
+        
+        <!-- Footer -->
+        <div class="footer">
+            <p>BOOM — Egidi Immobiliare S.r.l. | P.IVA 17322991005</p>
+            <p style="margin-top: 10px;">
+                <a href="https://wa.me/393313251961">Need help? WhatsApp us</a>
             </p>
         </div>
-
-        <div style="text-align: center; padding: 40px 20px; color: var(--text-muted); font-size: 11px;">
-            <p>BOOM — Egidi Immobiliare S.r.l. | P.IVA 17322991005</p>
-            <p style="margin-top: 10px;"><a href="https://wa.me/393313251961" style="color: var(--gold); text-decoration: none;">Need help? WhatsApp us</a></p>
-        </div>
     </div>
-
+    
+    <!-- Toast -->
+    <div class="toast" id="toast">
+        <div class="toast-icon" id="toastIcon">ℹ️</div>
+        <div class="toast-message" id="toastMessage">Message</div>
+    </div>
+    
+    <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-storage-compat.js"></script>
     
     <script>
+        // Firebase Config
         const firebaseConfig = {
             apiKey: "AIzaSyAG4_h4BLN7p8p9nf9V42SeZ9HJW7xxhd0",
             authDomain: "boom-property-dashboards.firebaseapp.com",
@@ -364,148 +880,454 @@
             appId: "1:233385163509:web:7e4e8c1d8e9f8a9b8c7d6e"
         };
         
-        firebase.initializeApp(firebaseConfig);
+        // Check Firebase loaded
+        if (typeof firebase === 'undefined') {
+            document.body.innerHTML = '<div style="padding:40px;text-align:center;color:#fff;"><h2>Loading Error</h2><p>Please refresh the page or check your internet connection.</p><button onclick="location.reload()" style="margin-top:20px;padding:12px 24px;background:#D4AF37;color:#000;border:none;border-radius:8px;cursor:pointer;">Refresh</button></div>';
+        } else {
+            firebase.initializeApp(firebaseConfig);
+        }
+        
         const db = firebase.firestore();
         const storage = firebase.storage();
-
-        let uploadedFiles = { doc: null, enrollment: null, income: null };
+        
+        // State
+        let currentStep = 1;
         let tenantType = null;
-
+        let uploadedFiles = { doc: null, enrollment: null, income: null };
+        
+        // Get contract ID from URL
         const urlParams = new URLSearchParams(window.location.search);
         const contractIdFromUrl = urlParams.get('contract');
-        if (contractIdFromUrl) document.getElementById('contractId').value = contractIdFromUrl;
-
-        function toggleTenantType() {
-            const selected = document.querySelector('input[name="tenantType"]:checked');
-            if (!selected) return;
-            tenantType = selected.value;
-            document.getElementById('cardStudent').classList.toggle('selected', tenantType === 'student');
-            document.getElementById('cardWorker').classList.toggle('selected', tenantType === 'worker');
-            document.getElementById('studentSection').classList.toggle('active', tenantType === 'student');
-            document.getElementById('workerSection').classList.toggle('active', tenantType === 'worker');
-            document.getElementById('checkEnrollmentItem').style.display = tenantType === 'student' ? 'flex' : 'none';
-            document.getElementById('universityName').required = tenantType === 'student';
-            updateChecklist();
+        if (contractIdFromUrl) {
+            document.getElementById('contractId').value = contractIdFromUrl;
         }
-
+        
+        // Toast
+        function toast(type, message) {
+            const t = document.getElementById('toast');
+            const icon = document.getElementById('toastIcon');
+            const msg = document.getElementById('toastMessage');
+            
+            icon.textContent = type === 'error' ? '❌' : type === 'success' ? '✅' : 'ℹ️';
+            msg.textContent = message;
+            t.className = 'toast ' + type + ' show';
+            
+            setTimeout(() => t.classList.remove('show'), 4000);
+        }
+        
+        // Type Selection
+        function selectType(type) {
+            tenantType = type;
+            document.getElementById('cardStudent').classList.toggle('selected', type === 'student');
+            document.getElementById('cardWorker').classList.toggle('selected', type === 'worker');
+            document.getElementById('btnStep1').disabled = false;
+            
+            // Toggle conditional sections
+            document.getElementById('studentSection').classList.toggle('active', type === 'student');
+            document.getElementById('workerSection').classList.toggle('active', type === 'worker');
+            document.getElementById('enrollmentUpload').classList.toggle('active', type === 'student');
+            document.getElementById('incomeUpload').classList.toggle('active', type === 'worker');
+            
+            // Update checklist
+            document.getElementById('checkEnrollment').style.display = type === 'student' ? 'flex' : 'none';
+            document.getElementById('checkIncome').style.display = type === 'worker' ? 'flex' : 'none';
+            
+            // Update required fields
+            document.querySelector('[name="universityName"]').required = type === 'student';
+            document.querySelector('[name="employerName"]').required = type === 'worker';
+        }
+        
+        // Navigation
+        function nextStep() {
+            if (currentStep === 2 && !validateStep2()) return;
+            if (currentStep === 3 && !validateStep3()) return;
+            
+            if (currentStep < 4) {
+                currentStep++;
+                updateUI();
+                if (currentStep === 4) buildReview();
+            }
+        }
+        
+        function prevStep() {
+            if (currentStep > 1) {
+                currentStep--;
+                updateUI();
+            }
+        }
+        
+        function updateUI() {
+            // Update sections
+            document.querySelectorAll('.form-section').forEach(s => s.classList.remove('active'));
+            document.querySelector(`[data-section="${currentStep}"]`).classList.add('active');
+            
+            // Update progress
+            document.querySelectorAll('.progress-step').forEach(s => {
+                const step = parseInt(s.dataset.step);
+                s.classList.remove('active', 'completed');
+                if (step === currentStep) s.classList.add('active');
+                if (step < currentStep) s.classList.add('completed');
+            });
+            
+            // Scroll to top
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        
+        // Validation
+        function validateStep2() {
+            const form = document.getElementById('tenantForm');
+            const requiredFields = ['firstName', 'lastName', 'birthDate', 'birthPlace', 'nationality', 'email', 'phone'];
+            
+            if (tenantType === 'student') requiredFields.push('universityName');
+            if (tenantType === 'worker') requiredFields.push('employerName');
+            
+            for (const field of requiredFields) {
+                const input = form.querySelector(`[name="${field}"]`);
+                if (!input.value.trim()) {
+                    input.classList.add('error');
+                    input.focus();
+                    toast('error', 'Please fill in all required fields');
+                    return false;
+                }
+                input.classList.remove('error');
+            }
+            
+            return true;
+        }
+        
+        function validateStep3() {
+            if (!uploadedFiles.doc) {
+                toast('error', 'Please upload your passport or ID');
+                return false;
+            }
+            
+            if (tenantType === 'student' && !uploadedFiles.enrollment) {
+                toast('error', 'Please upload your enrollment certificate');
+                return false;
+            }
+            
+            if (tenantType === 'worker' && !uploadedFiles.income) {
+                toast('error', 'Please upload your proof of income');
+                return false;
+            }
+            
+            return true;
+        }
+        
+        // File Handling
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.currentTarget.classList.add('dragover');
+        }
+        
+        function handleDragLeave(e) {
+            e.currentTarget.classList.remove('dragover');
+        }
+        
+        function handleDrop(e, type) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file) processFile(file, type);
+        }
+        
         function handleFile(input, type) {
             const file = input.files[0];
-            if (!file) return;
-            if (file.size > 10 * 1024 * 1024) { alert('File too large. Max 10MB.'); input.value = ''; return; }
-            uploadedFiles[type] = file;
-            const zone = document.getElementById(type + 'Zone');
-            const nameEl = document.getElementById(type + 'FileName');
-            zone.classList.add('has-file');
-            nameEl.textContent = '✓ ' + file.name;
+            if (file) processFile(file, type);
+        }
+        
+        async function processFile(file, type) {
+            // Validate
+            if (file.size > 10 * 1024 * 1024) {
+                toast('error', 'File too large. Maximum 10MB.');
+                return;
+            }
+            
+            const validTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
+            if (!validTypes.includes(file.type)) {
+                toast('error', 'Invalid file type. Use PDF, JPG, or PNG.');
+                return;
+            }
+            
+            const zone = document.getElementById('upload' + type.charAt(0).toUpperCase() + type.slice(1));
+            const progress = zone.querySelector('.upload-progress');
+            const progressBar = document.getElementById('progress' + type.charAt(0).toUpperCase() + type.slice(1));
+            
+            zone.classList.add('uploading');
+            progress.style.display = 'block';
+            progressBar.style.width = '0%';
+            
+            try {
+                // Generate unique filename
+                const timestamp = Date.now();
+                const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+                const contractId = document.getElementById('contractId').value || 'unknown';
+                const path = `registrations/${contractId}/tenant_${type}_${timestamp}_${safeName}`;
+                
+                // Upload to Firebase Storage
+                const storageRef = storage.ref(path);
+                const uploadTask = storageRef.put(file);
+                
+                uploadTask.on('state_changed', 
+                    (snapshot) => {
+                        const pct = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                        progressBar.style.width = pct + '%';
+                    },
+                    (error) => {
+                        console.error('Upload error:', error);
+                        zone.classList.remove('uploading');
+                        progress.style.display = 'none';
+                        toast('error', 'Upload failed: ' + error.message);
+                    },
+                    async () => {
+                        const downloadURL = await uploadTask.snapshot.ref.getDownloadURL();
+                        
+                        uploadedFiles[type] = {
+                            name: file.name,
+                            size: file.size,
+                            type: file.type,
+                            url: downloadURL,
+                            path: path
+                        };
+                        
+                        zone.classList.remove('uploading');
+                        zone.classList.add('has-file');
+                        progress.style.display = 'none';
+                        
+                        // Show preview
+                        showFilePreview(type, file);
+                        updateChecklist();
+                        
+                        toast('success', 'File uploaded successfully');
+                    }
+                );
+            } catch (error) {
+                console.error('Upload error:', error);
+                zone.classList.remove('uploading');
+                progress.style.display = 'none';
+                toast('error', 'Upload failed. Please try again.');
+            }
+        }
+        
+        function showFilePreview(type, file) {
+            const previewId = 'preview' + type.charAt(0).toUpperCase() + type.slice(1);
+            const preview = document.getElementById(previewId);
+            
+            const sizeKB = (file.size / 1024).toFixed(1);
+            const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+            const sizeStr = file.size > 1024 * 1024 ? sizeMB + ' MB' : sizeKB + ' KB';
+            
+            preview.innerHTML = `
+                <div class="file-preview">
+                    <div class="file-preview-icon">${file.type.includes('pdf') ? '📄' : '🖼️'}</div>
+                    <div class="file-preview-info">
+                        <div class="file-preview-name">${file.name}</div>
+                        <div class="file-preview-size">${sizeStr}</div>
+                    </div>
+                    <button type="button" class="file-preview-remove" onclick="removeFile('${type}')">×</button>
+                </div>
+            `;
+        }
+        
+        function removeFile(type) {
+            uploadedFiles[type] = null;
+            
+            const previewId = 'preview' + type.charAt(0).toUpperCase() + type.slice(1);
+            const zoneId = 'upload' + type.charAt(0).toUpperCase() + type.slice(1);
+            const inputId = 'file' + type.charAt(0).toUpperCase() + type.slice(1);
+            
+            document.getElementById(previewId).innerHTML = '';
+            document.getElementById(zoneId).classList.remove('has-file');
+            document.getElementById(inputId).value = '';
+            
             updateChecklist();
         }
-
-        document.querySelectorAll('.file-zone').forEach(zone => {
-            zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
-            zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
-            zone.addEventListener('drop', e => {
-                e.preventDefault(); zone.classList.remove('dragover');
-                const input = zone.nextElementSibling;
-                if (input && e.dataTransfer.files.length) { input.files = e.dataTransfer.files; input.dispatchEvent(new Event('change')); }
-            });
-        });
-
+        
         function updateChecklist() {
-            const form = document.getElementById('tenantForm');
-            const personalOk = form.firstName.value && form.lastName.value && form.birthDate.value && form.birthPlace.value && form.nationality.value && form.homeAddress.value && form.email.value && form.phone.value;
-            updateCheck('checkPersonal', personalOk);
-            const docOk = form.docType.value && form.docNumber.value && form.docExpiry.value && uploadedFiles.doc;
-            updateCheck('checkDoc', docOk);
-            if (tenantType === 'student') {
-                const enrollmentOk = form.universityName.value && uploadedFiles.enrollment;
-                updateCheck('checkEnrollment', enrollmentOk);
+            // Document
+            const checkDoc = document.getElementById('checkDoc');
+            if (uploadedFiles.doc) {
+                checkDoc.classList.add('done');
+                checkDoc.querySelector('.checklist-icon').textContent = '✓';
+                checkDoc.querySelector('.checklist-icon').classList.add('done');
+            } else {
+                checkDoc.classList.remove('done');
+                checkDoc.querySelector('.checklist-icon').textContent = '1';
+                checkDoc.querySelector('.checklist-icon').classList.remove('done');
             }
-            let steps = [personalOk, docOk];
-            if (tenantType === 'student') steps.push(form.universityName.value && uploadedFiles.enrollment);
-            else if (tenantType === 'worker') steps.push(true);
-            steps.forEach((ok, i) => {
-                const el = document.getElementById('prog' + (i + 1));
-                if (el) { el.classList.remove('done', 'active'); if (ok) el.classList.add('done'); else if (i === steps.findIndex(s => !s)) el.classList.add('active'); }
-            });
-        }
-
-        function updateCheck(id, ok) {
-            const el = document.getElementById(id);
-            if (!el) return;
-            el.classList.toggle('done', ok); el.classList.toggle('pending', !ok);
-            el.textContent = ok ? '✓' : '○';
-        }
-
-        document.getElementById('tenantForm').addEventListener('input', updateChecklist);
-        document.getElementById('tenantForm').addEventListener('change', updateChecklist);
-
-        async function uploadFile(file, path) {
-            const ref = storage.ref(path);
-            await ref.put(file);
-            return await ref.getDownloadURL();
-        }
-
-        document.getElementById('tenantForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            if (!tenantType) { alert('Please select Student or Professional.'); return; }
-            if (tenantType === 'student' && !uploadedFiles.enrollment) { alert('Please upload enrollment certificate.'); return; }
             
-            const btn = document.getElementById('submitBtn');
-            const btnText = document.getElementById('btnText');
-            const btnLoading = document.getElementById('btnLoading');
-            btn.disabled = true; btnText.style.display = 'none'; btnLoading.classList.add('active');
-
-            try {
-                const form = e.target;
-                const timestamp = Date.now();
-                const contractId = form.contractId.value || 'REG_' + timestamp;
-                
-                let docUrl = null, enrollmentUrl = null, incomeUrl = null;
-                if (uploadedFiles.doc) docUrl = await uploadFile(uploadedFiles.doc, `contract-registrations/${contractId}/tenant/doc_${timestamp}`);
-                if (uploadedFiles.enrollment) enrollmentUrl = await uploadFile(uploadedFiles.enrollment, `contract-registrations/${contractId}/tenant/enrollment_${timestamp}`);
-                if (uploadedFiles.income) incomeUrl = await uploadFile(uploadedFiles.income, `contract-registrations/${contractId}/tenant/income_${timestamp}`);
-
-                const data = {
-                    type: 'tenant', tenantType, contractId,
-                    firstName: form.firstName.value.trim(), lastName: form.lastName.value.trim(),
-                    fullName: `${form.firstName.value.trim()} ${form.lastName.value.trim()}`,
-                    birthDate: form.birthDate.value, birthPlace: form.birthPlace.value.trim(),
-                    nationality: form.nationality.value.trim(),
-                    codiceFiscale: form.codiceFiscale.value ? form.codiceFiscale.value.toUpperCase().trim() : null,
-                    homeAddress: form.homeAddress.value.trim(),
-                    email: form.email.value.trim().toLowerCase(), phone: form.phone.value.trim(),
-                    docType: form.docType.value, docNumber: form.docNumber.value.trim(),
-                    docIssueDate: form.docIssueDate.value || null, docExpiry: form.docExpiry.value,
-                    docIssuedBy: form.docIssuedBy.value.trim() || null, docFileUrl: docUrl,
-                    universityName: form.universityName?.value?.trim() || null,
-                    faculty: form.faculty?.value?.trim() || null, program: form.program?.value?.trim() || null,
-                    studentId: form.studentId?.value?.trim() || null, academicYear: form.academicYear?.value?.trim() || null,
-                    enrollmentFileUrl: enrollmentUrl,
-                    employer: form.employer?.value?.trim() || null, jobTitle: form.jobTitle?.value?.trim() || null,
-                    incomeFileUrl: incomeUrl,
-                    emergencyName: form.emergencyName?.value?.trim() || null,
-                    emergencyPhone: form.emergencyPhone?.value?.trim() || null,
-                    emergencyEmail: form.emergencyEmail?.value?.trim() || null,
-                    privacyConsent: form.privacyConsent.checked,
-                    submittedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                    status: 'submitted', source: 'web_form'
-                };
-
-                await db.collection('contractRegistrations').add(data);
-                await db.collection('contractRegistrationStatus').doc(contractId).set({
-                    tenantSubmitted: true, tenantSubmittedAt: firebase.firestore.FieldValue.serverTimestamp(), tenantType
-                }, { merge: true });
-
-                document.getElementById('formScreen').classList.add('hidden');
-                document.getElementById('successScreen').classList.add('active');
-            } catch (error) {
-                console.error('Error:', error);
-                alert('Error submitting. Please try again or WhatsApp us.');
-                btn.disabled = false; btnText.style.display = 'inline'; btnLoading.classList.remove('active');
+            // Enrollment (student)
+            const checkEnrollment = document.getElementById('checkEnrollment');
+            if (uploadedFiles.enrollment) {
+                checkEnrollment.classList.add('done');
+                checkEnrollment.querySelector('.checklist-icon').textContent = '✓';
+                checkEnrollment.querySelector('.checklist-icon').classList.add('done');
+            } else {
+                checkEnrollment.classList.remove('done');
+                checkEnrollment.querySelector('.checklist-icon').textContent = '2';
+                checkEnrollment.querySelector('.checklist-icon').classList.remove('done');
             }
+            
+            // Income (worker)
+            const checkIncome = document.getElementById('checkIncome');
+            if (uploadedFiles.income) {
+                checkIncome.classList.add('done');
+                checkIncome.querySelector('.checklist-icon').textContent = '✓';
+                checkIncome.querySelector('.checklist-icon').classList.add('done');
+            } else {
+                checkIncome.classList.remove('done');
+                checkIncome.querySelector('.checklist-icon').textContent = '2';
+                checkIncome.querySelector('.checklist-icon').classList.remove('done');
+            }
+        }
+        
+        // Review
+        function buildReview() {
+            const form = document.getElementById('tenantForm');
+            const fd = new FormData(form);
+            const data = Object.fromEntries(fd);
+            
+            let html = `
+                <div style="background: var(--surface); border-radius: var(--radius); overflow: hidden;">
+                    <div style="padding: 16px; border-bottom: 1px solid var(--border);">
+                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">TYPE</div>
+                        <div style="font-size: 15px;">${tenantType === 'student' ? '🎓 Student' : '💼 Worker'}</div>
+                    </div>
+                    <div style="padding: 16px; border-bottom: 1px solid var(--border);">
+                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">NAME</div>
+                        <div style="font-size: 15px;">${data.firstName} ${data.lastName}</div>
+                    </div>
+                    <div style="padding: 16px; border-bottom: 1px solid var(--border);">
+                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">BORN</div>
+                        <div style="font-size: 15px;">${data.birthDate} — ${data.birthPlace}</div>
+                    </div>
+                    <div style="padding: 16px; border-bottom: 1px solid var(--border);">
+                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">NATIONALITY</div>
+                        <div style="font-size: 15px;">${data.nationality}</div>
+                    </div>
+                    ${data.codiceFiscale ? `
+                    <div style="padding: 16px; border-bottom: 1px solid var(--border);">
+                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">CODICE FISCALE</div>
+                        <div style="font-size: 15px; font-family: monospace;">${data.codiceFiscale.toUpperCase()}</div>
+                    </div>
+                    ` : ''}
+                    <div style="padding: 16px; border-bottom: 1px solid var(--border);">
+                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">CONTACT</div>
+                        <div style="font-size: 15px;">${data.email}<br>${data.phone}</div>
+                    </div>
+                    ${tenantType === 'student' ? `
+                    <div style="padding: 16px; border-bottom: 1px solid var(--border);">
+                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">UNIVERSITY</div>
+                        <div style="font-size: 15px;">${data.universityName}${data.courseName ? '<br>' + data.courseName : ''}</div>
+                    </div>
+                    ` : ''}
+                    ${tenantType === 'worker' ? `
+                    <div style="padding: 16px; border-bottom: 1px solid var(--border);">
+                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">EMPLOYER</div>
+                        <div style="font-size: 15px;">${data.employerName}${data.jobTitle ? '<br>' + data.jobTitle : ''}</div>
+                    </div>
+                    ` : ''}
+                    <div style="padding: 16px;">
+                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px;">DOCUMENTS</div>
+                        <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                            ${uploadedFiles.doc ? `<span style="background: var(--green-light); color: var(--green); padding: 6px 12px; border-radius: 6px; font-size: 13px;">✓ ID/Passport</span>` : ''}
+                            ${uploadedFiles.enrollment ? `<span style="background: var(--green-light); color: var(--green); padding: 6px 12px; border-radius: 6px; font-size: 13px;">✓ Enrollment</span>` : ''}
+                            ${uploadedFiles.income ? `<span style="background: var(--green-light); color: var(--green); padding: 6px 12px; border-radius: 6px; font-size: 13px;">✓ Income Proof</span>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('reviewContent').innerHTML = html;
+        }
+        
+        // Terms checkbox
+        document.getElementById('acceptTerms').addEventListener('change', function() {
+            document.getElementById('btnSubmit').disabled = !this.checked;
         });
-
-        updateChecklist();
+        
+        // Submit
+        async function submitForm() {
+            const btn = document.getElementById('btnSubmit');
+            btn.classList.add('loading');
+            btn.disabled = true;
+            
+            try {
+                const form = document.getElementById('tenantForm');
+                const fd = new FormData(form);
+                const data = Object.fromEntries(fd);
+                
+                const contractId = data.contractId || 'BOOM-' + Date.now();
+                
+                // Prepare submission data
+                const submission = {
+                    contractId: contractId,
+                    type: 'tenant',
+                    tenantType: tenantType,
+                    
+                    // Personal info
+                    firstName: data.firstName,
+                    lastName: data.lastName,
+                    fullName: `${data.firstName} ${data.lastName}`,
+                    birthDate: data.birthDate,
+                    birthPlace: data.birthPlace,
+                    nationality: data.nationality,
+                    codiceFiscale: data.codiceFiscale ? data.codiceFiscale.toUpperCase() : null,
+                    email: data.email,
+                    phone: data.phone,
+                    currentAddress: data.currentAddress || null,
+                    
+                    // Type-specific
+                    universityName: tenantType === 'student' ? data.universityName : null,
+                    courseName: tenantType === 'student' ? data.courseName : null,
+                    employerName: tenantType === 'worker' ? data.employerName : null,
+                    jobTitle: tenantType === 'worker' ? data.jobTitle : null,
+                    
+                    // Documents
+                    documents: {
+                        idDocument: uploadedFiles.doc,
+                        enrollment: uploadedFiles.enrollment || null,
+                        incomeProof: uploadedFiles.income || null
+                    },
+                    
+                    // Metadata
+                    submittedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    status: 'submitted',
+                    source: 'form-tenant',
+                    userAgent: navigator.userAgent
+                };
+                
+                // Save to Firestore
+                const docRef = await db.collection('contractRegistrations').add(submission);
+                
+                // Update registration status if exists
+                if (contractId && contractId !== 'BOOM-' + Date.now()) {
+                    try {
+                        await db.collection('contractRegistrationStatus').doc(contractId).set({
+                            tenantSubmitted: true,
+                            tenantSubmittedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                            tenantDocId: docRef.id
+                        }, { merge: true });
+                    } catch (e) {
+                        console.log('Status update skipped:', e);
+                    }
+                }
+                
+                // Show success
+                document.querySelectorAll('.form-section').forEach(s => s.classList.remove('active'));
+                document.getElementById('successScreen').classList.add('active');
+                document.getElementById('successRef').textContent = docRef.id.slice(0, 8).toUpperCase();
+                
+                // Update progress to complete
+                document.querySelectorAll('.progress-step').forEach(s => s.classList.add('completed'));
+                
+            } catch (error) {
+                console.error('Submission error:', error);
+                btn.classList.remove('loading');
+                btn.disabled = false;
+                toast('error', 'Submission failed: ' + error.message);
+            }
+        }
     </script>
 </body>
 </html>

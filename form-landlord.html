@@ -2,533 +2,718 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BOOM — Documenti Proprietario</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#000000">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>BOOM — Registrazione Proprietario</title>
     <link rel="icon" type="image/png" href="https://www.boomrome.com/BOOMlogogoldicon512.png">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
         :root {
             --gold: #D4AF37;
-            --gold-light: rgba(212,175,55,0.15);
-            --green: #34C759;
-            --green-light: rgba(52,199,89,0.12);
-            --red: #FF3B30;
-            --red-light: rgba(255,59,48,0.12);
-            --orange: #FF9500;
-            --bg: #000;
-            --bg-card: #0A0A0A;
-            --bg-input: #1A1A1A;
-            --border: rgba(255,255,255,0.08);
-            --text: #FFF;
-            --text-secondary: #999;
-            --text-muted: #666;
+            --gold-light: rgba(212, 175, 55, 0.15);
+            --bg: #0a0a0a;
+            --surface: #111111;
+            --surface-2: #1a1a1a;
+            --border: #2a2a2a;
+            --text: #ffffff;
+            --text-secondary: #a0a0a0;
+            --text-muted: #666666;
+            --green: #22c55e;
+            --green-light: rgba(34, 197, 94, 0.15);
+            --red: #ef4444;
+            --red-light: rgba(239, 68, 68, 0.15);
+            --blue: #3b82f6;
+            --radius: 12px;
         }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
         body {
-            font-family: 'Inter', -apple-system, sans-serif;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
             background: var(--bg);
             color: var(--text);
             min-height: 100vh;
-            padding: 20px;
-            -webkit-font-smoothing: antialiased;
+            line-height: 1.5;
         }
+        
         .container {
             max-width: 600px;
             margin: 0 auto;
+            padding: 20px;
         }
+        
+        @media (min-width: 768px) {
+            .container { padding: 40px 20px; }
+        }
+        
+        /* Header */
         .header {
             text-align: center;
-            padding: 40px 20px;
+            padding: 30px 0;
             border-bottom: 1px solid var(--border);
             margin-bottom: 30px;
         }
+        
         .logo {
-            width: 60px;
-            height: 60px;
-            margin: 0 auto 16px;
-            background: linear-gradient(135deg, #FFD54F, #F5A623);
-            border-radius: 50%;
+            width: 80px;
+            height: 80px;
+            margin-bottom: 16px;
         }
-        .title {
-            font-size: 28px;
-            font-weight: 300;
-            letter-spacing: 4px;
+        
+        .header h1 {
+            font-size: 24px;
+            font-weight: 600;
             margin-bottom: 8px;
         }
-        .subtitle {
-            font-size: 13px;
+        
+        .header p {
             color: var(--text-secondary);
-            margin-bottom: 20px;
-        }
-        .badge {
-            display: inline-block;
-            padding: 6px 16px;
-            background: var(--gold-light);
-            color: var(--gold);
-            border-radius: 100px;
-            font-size: 11px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-        .card {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 24px;
-            margin-bottom: 20px;
-        }
-        .card-title {
             font-size: 14px;
-            font-weight: 600;
-            color: var(--gold);
-            margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
         }
-        .card-title .num {
-            width: 24px;
-            height: 24px;
-            background: var(--gold);
-            color: #000;
+        
+        /* Progress Bar */
+        .progress-container {
+            margin-bottom: 30px;
+        }
+        
+        .progress-steps {
+            display: flex;
+            justify-content: space-between;
+            position: relative;
+            margin-bottom: 10px;
+        }
+        
+        .progress-steps::before {
+            content: '';
+            position: absolute;
+            top: 15px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--border);
+            z-index: 0;
+        }
+        
+        .progress-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .step-number {
+            width: 32px;
+            height: 32px;
             border-radius: 50%;
+            background: var(--surface);
+            border: 2px solid var(--border);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 12px;
-            font-weight: 700;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            transition: all 0.3s;
         }
+        
+        .step-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-align: center;
+        }
+        
+        .progress-step.active .step-number {
+            background: var(--gold);
+            border-color: var(--gold);
+            color: #000;
+        }
+        
+        .progress-step.completed .step-number {
+            background: var(--green);
+            border-color: var(--green);
+            color: #fff;
+        }
+        
+        .progress-step.active .step-label,
+        .progress-step.completed .step-label {
+            color: var(--text);
+        }
+        
+        /* Form Sections */
+        .form-section {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        .form-section.active { display: block; }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .section-subtitle {
+            color: var(--text-secondary);
+            font-size: 14px;
+            margin-bottom: 24px;
+        }
+        
+        /* Form Elements */
         .form-group {
-            margin-bottom: 18px;
+            margin-bottom: 20px;
         }
+        
         .form-label {
             display: block;
-            font-size: 11px;
-            font-weight: 600;
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 8px;
             color: var(--text-secondary);
-            margin-bottom: 6px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
         }
-        .form-label .req {
+        
+        .form-label .required {
             color: var(--red);
         }
-        .form-input, .form-select {
+        
+        .form-input, .form-select, .form-textarea {
             width: 100%;
             padding: 14px 16px;
-            background: var(--bg-input);
+            background: var(--surface);
             border: 1px solid var(--border);
-            border-radius: 10px;
+            border-radius: var(--radius);
             color: var(--text);
+            font-size: 15px;
             font-family: inherit;
-            font-size: 14px;
             transition: all 0.2s;
         }
-        .form-input:focus, .form-select:focus {
+        
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
             outline: none;
             border-color: var(--gold);
+            box-shadow: 0 0 0 3px var(--gold-light);
         }
-        .form-input::placeholder {
-            color: var(--text-muted);
-        }
+        
         .form-input.error {
             border-color: var(--red);
         }
-        .form-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-        }
-        @media (max-width: 500px) {
-            .form-row { grid-template-columns: 1fr; }
-        }
+        
         .form-hint {
-            font-size: 11px;
+            font-size: 12px;
             color: var(--text-muted);
             margin-top: 6px;
         }
-        .file-zone {
+        
+        .form-error {
+            font-size: 12px;
+            color: var(--red);
+            margin-top: 6px;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 16px;
+        }
+        
+        @media (min-width: 480px) {
+            .form-row { grid-template-columns: 1fr 1fr; }
+        }
+        
+        /* Info Box */
+        .info-box {
+            background: var(--gold-light);
+            border: 1px solid var(--gold);
+            border-radius: var(--radius);
+            padding: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .info-box-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .info-box-text {
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+        
+        /* File Upload */
+        .upload-zone {
             border: 2px dashed var(--border);
-            border-radius: 12px;
+            border-radius: var(--radius);
             padding: 30px 20px;
             text-align: center;
             cursor: pointer;
             transition: all 0.2s;
-            background: var(--bg);
+            background: var(--surface);
         }
-        .file-zone:hover, .file-zone.dragover {
+        
+        .upload-zone:hover, .upload-zone.dragover {
             border-color: var(--gold);
             background: var(--gold-light);
         }
-        .file-zone.has-file {
+        
+        .upload-zone.has-file {
             border-color: var(--green);
             background: var(--green-light);
         }
-        .file-zone-icon {
-            font-size: 32px;
-            margin-bottom: 8px;
+        
+        .upload-zone.uploading {
+            pointer-events: none;
+            opacity: 0.6;
         }
-        .file-zone-text {
-            font-size: 13px;
-            color: var(--text-secondary);
+        
+        .upload-icon {
+            font-size: 40px;
+            margin-bottom: 12px;
         }
-        .file-zone-name {
-            font-size: 12px;
-            color: var(--green);
-            margin-top: 8px;
-            font-weight: 500;
-        }
-        .file-input {
-            display: none;
-        }
-        .btn {
-            width: 100%;
-            padding: 16px 24px;
-            background: var(--gold);
-            border: none;
-            border-radius: 12px;
-            color: #000;
-            font-family: inherit;
+        
+        .upload-text {
             font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
         }
-        .btn:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 24px rgba(212,175,55,0.3);
+        
+        .upload-hint {
+            font-size: 12px;
+            color: var(--text-muted);
         }
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-        .progress-bar {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 30px;
-        }
-        .progress-step {
-            flex: 1;
+        
+        .upload-progress {
+            margin-top: 16px;
             height: 4px;
             background: var(--border);
             border-radius: 2px;
-            transition: background 0.3s;
+            overflow: hidden;
         }
-        .progress-step.done {
-            background: var(--green);
-        }
-        .progress-step.active {
+        
+        .upload-progress-bar {
+            height: 100%;
             background: var(--gold);
+            width: 0%;
+            transition: width 0.3s;
         }
+        
+        .file-preview {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: var(--surface-2);
+            border-radius: 8px;
+            margin-top: 12px;
+        }
+        
+        .file-preview-icon { font-size: 24px; }
+        
+        .file-preview-info { flex: 1; text-align: left; }
+        
+        .file-preview-name {
+            font-size: 13px;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .file-preview-size {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+        
+        .file-preview-remove {
+            background: none;
+            border: none;
+            color: var(--red);
+            cursor: pointer;
+            padding: 8px;
+            font-size: 18px;
+        }
+        
+        /* Checklist */
         .checklist {
-            background: var(--bg);
-            border-radius: 10px;
-            padding: 16px;
-            margin-top: 20px;
+            background: var(--surface);
+            border-radius: var(--radius);
+            padding: 20px;
+            margin-bottom: 24px;
         }
+        
+        .checklist-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
         .checklist-item {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
             padding: 10px 0;
             border-bottom: 1px solid var(--border);
-            font-size: 13px;
         }
-        .checklist-item:last-child {
-            border-bottom: none;
-        }
+        
+        .checklist-item:last-child { border-bottom: none; }
+        
         .checklist-icon {
-            width: 20px;
-            height: 20px;
+            width: 24px;
+            height: 24px;
             border-radius: 50%;
+            background: var(--surface-2);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 10px;
+            font-size: 12px;
+            flex-shrink: 0;
         }
-        .checklist-icon.pending {
-            background: var(--border);
-            color: var(--text-muted);
-        }
+        
         .checklist-icon.done {
             background: var(--green);
             color: #fff;
         }
-        .success-screen {
-            display: none;
-            text-align: center;
-            padding: 60px 20px;
-        }
-        .success-screen.active {
-            display: block;
-        }
-        .success-icon {
-            font-size: 64px;
-            margin-bottom: 20px;
-        }
-        .success-title {
-            font-size: 24px;
-            font-weight: 600;
-            margin-bottom: 12px;
-        }
-        .success-text {
+        
+        .checklist-label {
             font-size: 14px;
             color: var(--text-secondary);
-            line-height: 1.6;
         }
-        .form-screen {
-            display: block;
+        
+        .checklist-item.done .checklist-label {
+            color: var(--text);
         }
-        .form-screen.hidden {
-            display: none;
-        }
-        .alert {
-            padding: 14px 16px;
-            border-radius: 10px;
-            font-size: 13px;
-            margin-bottom: 20px;
-            display: flex;
-            align-items: flex-start;
-            gap: 10px;
-        }
-        .alert.info {
-            background: rgba(0,122,255,0.12);
-            border: 1px solid rgba(0,122,255,0.3);
-            color: #007AFF;
-        }
-        .alert.warning {
-            background: var(--gold-light);
-            border: 1px solid rgba(212,175,55,0.3);
-            color: var(--gold);
-        }
-        .loading {
-            display: none;
-        }
-        .loading.active {
-            display: flex;
+        
+        /* Buttons */
+        .btn {
+            display: inline-flex;
             align-items: center;
             justify-content: center;
-            gap: 10px;
+            gap: 8px;
+            padding: 14px 24px;
+            border-radius: var(--radius);
+            font-size: 15px;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
         }
-        .spinner {
+        
+        .btn-primary {
+            background: var(--gold);
+            color: #000;
+        }
+        
+        .btn-primary:hover {
+            background: #e5c349;
+            transform: translateY(-1px);
+        }
+        
+        .btn-primary:disabled {
+            background: var(--border);
+            color: var(--text-muted);
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn-secondary {
+            background: var(--surface);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+        
+        .btn-secondary:hover {
+            background: var(--surface-2);
+        }
+        
+        .btn-block {
+            width: 100%;
+        }
+        
+        .btn.loading {
+            color: transparent !important;
+            position: relative;
+            pointer-events: none;
+        }
+        
+        .btn.loading::after {
+            content: '';
+            position: absolute;
             width: 20px;
             height: 20px;
-            border: 2px solid var(--border);
-            border-top-color: var(--gold);
+            border: 2px solid transparent;
+            border-top-color: currentColor;
             border-radius: 50%;
             animation: spin 0.8s linear infinite;
         }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .whatsapp-link {
-            display: inline-flex;
+        
+        .btn-primary.loading::after { border-top-color: #000; }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .btn-row {
+            display: flex;
+            gap: 12px;
+            margin-top: 30px;
+        }
+        
+        .btn-row .btn { flex: 1; }
+        
+        /* Success Screen */
+        .success-screen {
+            text-align: center;
+            padding: 60px 20px;
+        }
+        
+        .success-icon {
+            font-size: 80px;
+            margin-bottom: 24px;
+        }
+        
+        .success-title {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+        
+        .success-text {
+            color: var(--text-secondary);
+            font-size: 16px;
+            margin-bottom: 30px;
+        }
+        
+        .success-box {
+            background: var(--surface);
+            border-radius: var(--radius);
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+        
+        .success-box-title {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+        
+        .success-box-value {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--gold);
+        }
+        
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 16px 24px;
+            display: flex;
             align-items: center;
-            gap: 8px;
-            color: #25D366;
+            gap: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            z-index: 1000;
+            opacity: 0;
+            transition: all 0.3s;
+            max-width: 90vw;
+        }
+        
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+        
+        .toast.error { border-color: var(--red); }
+        .toast.success { border-color: var(--green); }
+        
+        .toast-icon { font-size: 20px; }
+        .toast-message { font-size: 14px; }
+        
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 30px 20px;
+            color: var(--text-muted);
+            font-size: 12px;
+            border-top: 1px solid var(--border);
+            margin-top: 40px;
+        }
+        
+        .footer a {
+            color: var(--gold);
             text-decoration: none;
-            font-weight: 500;
         }
     </style>
 </head>
 <body>
     <div class="container">
+        <!-- Header -->
         <div class="header">
-            <div class="logo"></div>
-            <h1 class="title">BOOM</h1>
-            <p class="subtitle">Documenti per Registrazione Contratto</p>
-            <span class="badge">👤 Proprietario</span>
+            <img src="https://www.boomrome.com/BOOMlogogoldicon512.png" alt="BOOM" class="logo">
+            <h1>Registrazione Proprietario</h1>
+            <p>Compila questo modulo per registrare il contratto di locazione</p>
         </div>
-
+        
         <!-- Progress -->
-        <div class="progress-bar">
-            <div class="progress-step active" id="prog1"></div>
-            <div class="progress-step" id="prog2"></div>
-            <div class="progress-step" id="prog3"></div>
-            <div class="progress-step" id="prog4"></div>
+        <div class="progress-container">
+            <div class="progress-steps">
+                <div class="progress-step active" data-step="1">
+                    <div class="step-number">1</div>
+                    <div class="step-label">Dati</div>
+                </div>
+                <div class="progress-step" data-step="2">
+                    <div class="step-number">2</div>
+                    <div class="step-label">Immobile</div>
+                </div>
+                <div class="progress-step" data-step="3">
+                    <div class="step-number">3</div>
+                    <div class="step-label">Documenti</div>
+                </div>
+                <div class="progress-step" data-step="4">
+                    <div class="step-number">4</div>
+                    <div class="step-label">Conferma</div>
+                </div>
+            </div>
         </div>
-
-        <!-- Form Screen -->
-        <div class="form-screen" id="formScreen">
-            <form id="landlordForm">
-                <!-- Hidden contract ID field -->
-                <input type="hidden" id="contractId" name="contractId">
-
-                <!-- SECTION 1: Personal Data -->
-                <div class="card">
-                    <div class="card-title"><span class="num">1</span> Dati Anagrafici</div>
-                    
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label">Nome <span class="req">*</span></label>
-                            <input type="text" class="form-input" id="firstName" name="firstName" required placeholder="Mario">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Cognome <span class="req">*</span></label>
-                            <input type="text" class="form-input" id="lastName" name="lastName" required placeholder="Rossi">
-                        </div>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label">Data di Nascita <span class="req">*</span></label>
-                            <input type="date" class="form-input" id="birthDate" name="birthDate" required>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Luogo di Nascita <span class="req">*</span></label>
-                            <input type="text" class="form-input" id="birthPlace" name="birthPlace" required placeholder="Roma (RM)">
-                        </div>
-                    </div>
-
+        
+        <form id="landlordForm" onsubmit="return false;">
+            <!-- Hidden contract ID -->
+            <input type="hidden" id="contractId" name="contractId" value="">
+            
+            <!-- Step 1: Personal Info -->
+            <div class="form-section active" data-section="1">
+                <h2 class="section-title">Dati Personali</h2>
+                <p class="section-subtitle">I tuoi dati come da documento d'identità</p>
+                
+                <div class="form-row">
                     <div class="form-group">
-                        <label class="form-label">Codice Fiscale <span class="req">*</span></label>
-                        <input type="text" class="form-input" id="codiceFiscale" name="codiceFiscale" required 
-                               placeholder="RSSMRA80A01H501Z" maxlength="16" 
-                               pattern="^[A-Z]{6}[0-9]{2}[A-Z][0-9]{2}[A-Z][0-9]{3}[A-Z]$"
-                               style="text-transform: uppercase;">
-                        <p class="form-hint">16 caratteri alfanumerici</p>
+                        <label class="form-label">Nome <span class="required">*</span></label>
+                        <input type="text" class="form-input" name="firstName" required placeholder="Mario">
                     </div>
-
                     <div class="form-group">
-                        <label class="form-label">Indirizzo di Residenza <span class="req">*</span></label>
-                        <input type="text" class="form-input" id="address" name="address" required 
-                               placeholder="Via Roma 1, 00100 Roma (RM)">
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label">Email <span class="req">*</span></label>
-                            <input type="email" class="form-input" id="email" name="email" required placeholder="mario@email.com">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Telefono <span class="req">*</span></label>
-                            <input type="tel" class="form-input" id="phone" name="phone" required placeholder="+39 333 1234567">
-                        </div>
+                        <label class="form-label">Cognome <span class="required">*</span></label>
+                        <input type="text" class="form-input" name="lastName" required placeholder="Rossi">
                     </div>
                 </div>
-
-                <!-- SECTION 2: Document Upload -->
-                <div class="card">
-                    <div class="card-title"><span class="num">2</span> Documento d'Identità</div>
-                    
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label">Tipo Documento <span class="req">*</span></label>
-                            <select class="form-select" id="docType" name="docType" required>
-                                <option value="">Seleziona...</option>
-                                <option value="carta_identita">Carta d'Identità</option>
-                                <option value="passaporto">Passaporto</option>
-                                <option value="patente">Patente di Guida</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Numero Documento <span class="req">*</span></label>
-                            <input type="text" class="form-input" id="docNumber" name="docNumber" required placeholder="CA12345AB">
-                        </div>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label">Rilasciato il</label>
-                            <input type="date" class="form-input" id="docIssueDate" name="docIssueDate">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Scadenza</label>
-                            <input type="date" class="form-input" id="docExpiry" name="docExpiry">
-                        </div>
-                    </div>
-
+                
+                <div class="form-row">
                     <div class="form-group">
-                        <label class="form-label">Carica Documento (Fronte/Retro) <span class="req">*</span></label>
-                        <div class="file-zone" id="docZone" onclick="document.getElementById('docFile').click()">
-                            <div class="file-zone-icon">📄</div>
-                            <div class="file-zone-text">Clicca o trascina il file qui</div>
-                            <div class="file-zone-name" id="docFileName"></div>
-                        </div>
-                        <input type="file" class="file-input" id="docFile" accept="image/*,.pdf" onchange="handleFile(this, 'doc')">
-                        <p class="form-hint">Accetta: JPG, PNG, PDF (max 10MB)</p>
+                        <label class="form-label">Data di Nascita <span class="required">*</span></label>
+                        <input type="date" class="form-input" name="birthDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Luogo di Nascita <span class="required">*</span></label>
+                        <input type="text" class="form-input" name="birthPlace" required placeholder="Roma (RM)">
                     </div>
                 </div>
-
-                <!-- SECTION 3: Property Cadastral Data -->
-                <div class="card">
-                    <div class="card-title"><span class="num">3</span> Dati Catastali Immobile</div>
-                    
-                    <div class="alert info">
-                        <span>💡</span>
-                        <span>Questi dati si trovano nella <strong>Visura Catastale</strong> o nel rogito di acquisto dell'immobile.</span>
-                    </div>
-
+                
+                <div class="form-group">
+                    <label class="form-label">Codice Fiscale <span class="required">*</span></label>
+                    <input type="text" class="form-input" name="codiceFiscale" required placeholder="RSSMRA85M01H501Z" maxlength="16" style="text-transform: uppercase">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Indirizzo di Residenza <span class="required">*</span></label>
+                    <input type="text" class="form-input" name="residenceAddress" required placeholder="Via Roma 123, 00100 Roma">
+                </div>
+                
+                <div class="form-row">
                     <div class="form-group">
-                        <label class="form-label">Indirizzo Immobile da Locare <span class="req">*</span></label>
-                        <input type="text" class="form-input" id="propertyAddress" name="propertyAddress" required 
-                               placeholder="Via dell'Appartamento 10, int. 5, 00100 Roma">
+                        <label class="form-label">Email <span class="required">*</span></label>
+                        <input type="email" class="form-input" name="email" required placeholder="mario@email.com">
                     </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label">Foglio <span class="req">*</span></label>
-                            <input type="text" class="form-input" id="foglio" name="foglio" required placeholder="123">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Particella <span class="req">*</span></label>
-                            <input type="text" class="form-input" id="particella" name="particella" required placeholder="456">
-                        </div>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label">Subalterno <span class="req">*</span></label>
-                            <input type="text" class="form-input" id="subalterno" name="subalterno" required placeholder="78">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Categoria</label>
-                            <select class="form-select" id="categoria" name="categoria">
-                                <option value="">Seleziona...</option>
-                                <option value="A/2">A/2 - Abitazioni civili</option>
-                                <option value="A/3">A/3 - Abitazioni economiche</option>
-                                <option value="A/4">A/4 - Abitazioni popolari</option>
-                                <option value="A/5">A/5 - Abitazioni ultra popolari</option>
-                                <option value="A/7">A/7 - Villini</option>
-                                <option value="A/10">A/10 - Uffici/Studi</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label">Rendita Catastale (€)</label>
-                            <input type="text" class="form-input" id="rendita" name="rendita" placeholder="850,00">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">N° Vani</label>
-                            <input type="text" class="form-input" id="vani" name="vani" placeholder="4,5">
-                        </div>
-                    </div>
-
                     <div class="form-group">
-                        <label class="form-label">Carica Visura Catastale</label>
-                        <div class="file-zone" id="visuraZone" onclick="document.getElementById('visuraFile').click()">
-                            <div class="file-zone-icon">📋</div>
-                            <div class="file-zone-text">Clicca o trascina la visura qui</div>
-                            <div class="file-zone-name" id="visuraFileName"></div>
-                        </div>
-                        <input type="file" class="file-input" id="visuraFile" accept="image/*,.pdf" onchange="handleFile(this, 'visura')">
-                        <p class="form-hint">Se hai la visura, caricala - estraiamo noi i dati mancanti</p>
+                        <label class="form-label">Telefono <span class="required">*</span></label>
+                        <input type="tel" class="form-input" name="phone" required placeholder="+39 333 123 4567">
                     </div>
                 </div>
-
-                <!-- SECTION 4: APE + IBAN + Delega -->
-                <div class="card">
-                    <div class="card-title"><span class="num">4</span> Documenti Aggiuntivi</div>
-
+                
+                <div class="form-group">
+                    <label class="form-label">IBAN (per ricezione affitti)</label>
+                    <input type="text" class="form-input" name="iban" placeholder="IT60X0542811101000000123456">
+                </div>
+                
+                <div class="btn-row">
+                    <button type="button" class="btn btn-primary btn-block" onclick="nextStep()">Continua →</button>
+                </div>
+            </div>
+            
+            <!-- Step 2: Property Info -->
+            <div class="form-section" data-section="2">
+                <h2 class="section-title">Dati Immobile</h2>
+                <p class="section-subtitle">Informazioni catastali dell'immobile da affittare</p>
+                
+                <div class="info-box">
+                    <div class="info-box-title">📋 Dove trovo questi dati?</div>
+                    <div class="info-box-text">
+                        I dati catastali si trovano nella <strong>visura catastale</strong> o nell'<strong>atto di proprietà</strong>. 
+                        Se hai l'APE, trovi lì anche la classe energetica.
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Indirizzo Immobile <span class="required">*</span></label>
+                    <input type="text" class="form-input" name="propertyAddress" required placeholder="Via delle Rose 45, 00100 Roma">
+                </div>
+                
+                <div class="form-row">
                     <div class="form-group">
-                        <label class="form-label">Classe Energetica (APE)</label>
-                        <select class="form-select" id="classeEnergetica" name="classeEnergetica">
-                            <option value="">Se disponibile...</option>
+                        <label class="form-label">Foglio <span class="required">*</span></label>
+                        <input type="text" class="form-input" name="catFoglio" required placeholder="123">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Particella <span class="required">*</span></label>
+                        <input type="text" class="form-input" name="catParticella" required placeholder="456">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Subalterno <span class="required">*</span></label>
+                        <input type="text" class="form-input" name="catSubalterno" required placeholder="7">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Categoria Catastale</label>
+                        <select class="form-select" name="catCategoria">
+                            <option value="">Seleziona...</option>
+                            <option value="A/2">A/2 - Abitazione civile</option>
+                            <option value="A/3">A/3 - Abitazione economica</option>
+                            <option value="A/4">A/4 - Abitazione popolare</option>
+                            <option value="A/5">A/5 - Abitazione ultra popolare</option>
+                            <option value="A/7">A/7 - Villini</option>
+                            <option value="A/10">A/10 - Uffici</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Rendita Catastale €</label>
+                        <input type="text" class="form-input" name="catRendita" placeholder="450,00">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Classe Energetica</label>
+                        <select class="form-select" name="classeEnergetica">
+                            <option value="">Seleziona...</option>
                             <option value="A4">A4</option>
                             <option value="A3">A3</option>
                             <option value="A2">A2</option>
@@ -541,109 +726,159 @@
                             <option value="G">G</option>
                         </select>
                     </div>
-
-                    <div class="form-group">
-                        <label class="form-label">Carica APE (Attestato Prestazione Energetica)</label>
-                        <div class="file-zone" id="apeZone" onclick="document.getElementById('apeFile').click()">
-                            <div class="file-zone-icon">⚡</div>
-                            <div class="file-zone-text">Opzionale - Clicca per caricare</div>
-                            <div class="file-zone-name" id="apeFileName"></div>
-                        </div>
-                        <input type="file" class="file-input" id="apeFile" accept="image/*,.pdf" onchange="handleFile(this, 'ape')">
+                </div>
+                
+                <div class="btn-row">
+                    <button type="button" class="btn btn-secondary" onclick="prevStep()">← Indietro</button>
+                    <button type="button" class="btn btn-primary" onclick="nextStep()">Continua →</button>
+                </div>
+            </div>
+            
+            <!-- Step 3: Documents -->
+            <div class="form-section" data-section="3">
+                <h2 class="section-title">Carica Documenti</h2>
+                <p class="section-subtitle">Documenti necessari per la registrazione</p>
+                
+                <!-- Checklist -->
+                <div class="checklist">
+                    <div class="checklist-title">📋 Documenti Richiesti</div>
+                    <div class="checklist-item" id="checkDoc">
+                        <div class="checklist-icon">1</div>
+                        <div class="checklist-label">Documento d'identità</div>
                     </div>
-
-                    <div class="form-group">
-                        <label class="form-label">IBAN per Ricevere l'Affitto <span class="req">*</span></label>
-                        <input type="text" class="form-input" id="iban" name="iban" required 
-                               placeholder="IT60X0542811101000000123456"
-                               style="text-transform: uppercase;">
-                        <p class="form-hint">27 caratteri - Inizia con IT</p>
+                    <div class="checklist-item" id="checkVisura">
+                        <div class="checklist-icon">2</div>
+                        <div class="checklist-label">Visura Catastale</div>
                     </div>
-
-                    <div class="form-group">
-                        <label class="form-label">Intestatario Conto</label>
-                        <input type="text" class="form-input" id="ibanHolder" name="ibanHolder" placeholder="Mario Rossi">
-                    </div>
-
-                    <div class="alert warning">
-                        <span>✍️</span>
-                        <div>
-                            <strong>Delega per Registrazione</strong><br>
-                            <span style="font-size: 12px;">Autorizzi BOOM (Egidi Immobiliare S.r.l.) a registrare il contratto presso l'Agenzia delle Entrate per tuo conto. La delega sarà generata automaticamente e ti verrà inviata per firma.</span>
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer;">
-                            <input type="checkbox" id="delegaConsent" name="delegaConsent" required style="margin-top: 3px;">
-                            <span style="font-size: 13px; color: var(--text-secondary);">
-                                Autorizzo BOOM a procedere con la registrazione del contratto presso l'Agenzia delle Entrate e accetto di firmare la delega che mi verrà inviata.
-                            </span>
-                        </label>
+                    <div class="checklist-item" id="checkApe">
+                        <div class="checklist-icon">3</div>
+                        <div class="checklist-label">APE (Attestato Prestazione Energetica)</div>
                     </div>
                 </div>
-
-                <!-- Checklist Summary -->
-                <div class="card">
-                    <div class="card-title">📋 Riepilogo Documenti</div>
-                    <div class="checklist">
-                        <div class="checklist-item">
-                            <div class="checklist-icon pending" id="checkPersonal">○</div>
-                            <span>Dati anagrafici completi</span>
-                        </div>
-                        <div class="checklist-item">
-                            <div class="checklist-icon pending" id="checkDoc">○</div>
-                            <span>Documento d'identità</span>
-                        </div>
-                        <div class="checklist-item">
-                            <div class="checklist-icon pending" id="checkCatasto">○</div>
-                            <span>Dati catastali immobile</span>
-                        </div>
-                        <div class="checklist-item">
-                            <div class="checklist-icon pending" id="checkIban">○</div>
-                            <span>IBAN per pagamenti</span>
-                        </div>
-                        <div class="checklist-item">
-                            <div class="checklist-icon pending" id="checkDelega">○</div>
-                            <span>Autorizzazione delega</span>
+                
+                <!-- ID Upload -->
+                <div class="form-group">
+                    <label class="form-label">Documento d'Identità <span class="required">*</span></label>
+                    <div class="upload-zone" id="uploadDoc" onclick="document.getElementById('fileDoc').click()"
+                         ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'doc')">
+                        <div class="upload-icon">📄</div>
+                        <div class="upload-text">Clicca o trascina il file qui</div>
+                        <div class="upload-hint">PDF, JPG, PNG — Max 10MB</div>
+                        <div class="upload-progress" style="display: none;">
+                            <div class="upload-progress-bar" id="progressDoc"></div>
                         </div>
                     </div>
+                    <input type="file" id="fileDoc" accept=".pdf,.jpg,.jpeg,.png" onchange="handleFile(this, 'doc')" style="display: none">
+                    <div id="previewDoc"></div>
                 </div>
-
-                <!-- Submit Button -->
-                <button type="submit" class="btn" id="submitBtn">
-                    <span id="btnText">Invia Documenti</span>
-                    <div class="loading" id="btnLoading">
-                        <div class="spinner"></div>
-                        <span>Invio in corso...</span>
+                
+                <!-- Visura Upload -->
+                <div class="form-group">
+                    <label class="form-label">Visura Catastale <span class="required">*</span></label>
+                    <div class="upload-zone" id="uploadVisura" onclick="document.getElementById('fileVisura').click()"
+                         ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'visura')">
+                        <div class="upload-icon">🏠</div>
+                        <div class="upload-text">Clicca o trascina il file qui</div>
+                        <div class="upload-hint">PDF, JPG, PNG — Max 10MB</div>
+                        <div class="upload-progress" style="display: none;">
+                            <div class="upload-progress-bar" id="progressVisura"></div>
+                        </div>
                     </div>
-                </button>
-            </form>
-        </div>
-
+                    <input type="file" id="fileVisura" accept=".pdf,.jpg,.jpeg,.png" onchange="handleFile(this, 'visura')" style="display: none">
+                    <div id="previewVisura"></div>
+                </div>
+                
+                <!-- APE Upload -->
+                <div class="form-group">
+                    <label class="form-label">APE - Attestato Prestazione Energetica</label>
+                    <div class="upload-zone" id="uploadApe" onclick="document.getElementById('fileApe').click()"
+                         ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'ape')">
+                        <div class="upload-icon">⚡</div>
+                        <div class="upload-text">Clicca o trascina il file qui</div>
+                        <div class="upload-hint">PDF, JPG, PNG — Max 10MB (opzionale)</div>
+                        <div class="upload-progress" style="display: none;">
+                            <div class="upload-progress-bar" id="progressApe"></div>
+                        </div>
+                    </div>
+                    <input type="file" id="fileApe" accept=".pdf,.jpg,.jpeg,.png" onchange="handleFile(this, 'ape')" style="display: none">
+                    <div id="previewApe"></div>
+                </div>
+                
+                <div class="btn-row">
+                    <button type="button" class="btn btn-secondary" onclick="prevStep()">← Indietro</button>
+                    <button type="button" class="btn btn-primary" onclick="nextStep()" id="btnStep3">Continua →</button>
+                </div>
+            </div>
+            
+            <!-- Step 4: Review & Submit -->
+            <div class="form-section" data-section="4">
+                <h2 class="section-title">Riepilogo e Conferma</h2>
+                <p class="section-subtitle">Verifica che tutti i dati siano corretti</p>
+                
+                <div id="reviewContent"></div>
+                
+                <div class="form-group" style="margin-top: 24px;">
+                    <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer;">
+                        <input type="checkbox" id="acceptTerms" style="margin-top: 4px; width: 18px; height: 18px; accent-color: var(--gold);">
+                        <span style="font-size: 13px; color: var(--text-secondary);">
+                            Confermo che tutte le informazioni fornite sono corrette e autorizzo BOOM a trattare i miei dati 
+                            per la registrazione del contratto. 
+                            <a href="https://www.boomrome.com/privacy" target="_blank" style="color: var(--gold);">Privacy Policy</a>
+                        </span>
+                    </label>
+                </div>
+                
+                <div class="form-group">
+                    <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer;">
+                        <input type="checkbox" id="acceptDelega" style="margin-top: 4px; width: 18px; height: 18px; accent-color: var(--gold);">
+                        <span style="font-size: 13px; color: var(--text-secondary);">
+                            Delego BOOM — Egidi Immobiliare S.r.l. alla registrazione telematica del contratto presso l'Agenzia delle Entrate.
+                        </span>
+                    </label>
+                </div>
+                
+                <div class="btn-row">
+                    <button type="button" class="btn btn-secondary" onclick="prevStep()">← Indietro</button>
+                    <button type="button" class="btn btn-primary" onclick="submitForm()" id="btnSubmit" disabled>
+                        ✓ Invia Registrazione
+                    </button>
+                </div>
+            </div>
+        </form>
+        
         <!-- Success Screen -->
-        <div class="success-screen" id="successScreen">
-            <div class="success-icon">✅</div>
-            <h2 class="success-title">Documenti Inviati!</h2>
-            <p class="success-text">
-                Grazie! Abbiamo ricevuto tutti i tuoi documenti.<br><br>
-                Ti contatteremo su WhatsApp per confermare la ricezione e procedere con i prossimi passi.<br><br>
-                <a href="https://wa.me/393313251961" class="whatsapp-link">
-                    💬 Contattaci su WhatsApp
+        <div class="form-section" data-section="success" id="successScreen">
+            <div class="success-screen">
+                <div class="success-icon">🎉</div>
+                <h2 class="success-title">Registrazione Completata!</h2>
+                <p class="success-text">Grazie per aver inviato i tuoi dati. Ti contatteremo a breve.</p>
+                
+                <div class="success-box">
+                    <div class="success-box-title">Numero di Riferimento</div>
+                    <div class="success-box-value" id="successRef">—</div>
+                </div>
+                
+                <a href="https://wa.me/393313251961" class="btn btn-primary btn-block" style="text-decoration: none;">
+                    💬 Scrivici su WhatsApp
                 </a>
-            </p>
+            </div>
         </div>
-
+        
         <!-- Footer -->
-        <div style="text-align: center; padding: 40px 20px; color: var(--text-muted); font-size: 11px;">
-            <p>BOOM — Egidi Immobiliare S.r.l.</p>
-            <p>P.IVA 17322991005 | Roma, Italia</p>
+        <div class="footer">
+            <p>BOOM — Egidi Immobiliare S.r.l. | P.IVA 17322991005</p>
             <p style="margin-top: 10px;">
-                <a href="https://wa.me/393313251961" style="color: var(--gold); text-decoration: none;">Serve aiuto? Scrivici su WhatsApp</a>
+                <a href="https://wa.me/393313251961">Hai bisogno di aiuto? Scrivici su WhatsApp</a>
             </p>
         </div>
     </div>
-
+    
+    <!-- Toast -->
+    <div class="toast" id="toast">
+        <div class="toast-icon" id="toastIcon">ℹ️</div>
+        <div class="toast-message" id="toastMessage">Messaggio</div>
+    </div>
+    
     <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
@@ -660,253 +895,434 @@
             appId: "1:233385163509:web:7e4e8c1d8e9f8a9b8c7d6e"
         };
         
-        firebase.initializeApp(firebaseConfig);
+        // Check Firebase loaded
+        if (typeof firebase === 'undefined') {
+            document.body.innerHTML = '<div style="padding:40px;text-align:center;color:#fff;"><h2>Errore Caricamento</h2><p>Ricarica la pagina o controlla la connessione internet.</p><button onclick="location.reload()" style="margin-top:20px;padding:12px 24px;background:#D4AF37;color:#000;border:none;border-radius:8px;cursor:pointer;">Ricarica</button></div>';
+        } else {
+            firebase.initializeApp(firebaseConfig);
+        }
+        
         const db = firebase.firestore();
         const storage = firebase.storage();
-
-        // File storage
-        let uploadedFiles = {
-            doc: null,
-            visura: null,
-            ape: null
-        };
-
-        // Get contract ID from URL if present
+        
+        // State
+        let currentStep = 1;
+        let uploadedFiles = { doc: null, visura: null, ape: null };
+        
+        // Get contract ID from URL
         const urlParams = new URLSearchParams(window.location.search);
         const contractIdFromUrl = urlParams.get('contract');
         if (contractIdFromUrl) {
             document.getElementById('contractId').value = contractIdFromUrl;
         }
-
-        // Handle file selection
+        
+        // Toast
+        function toast(type, message) {
+            const t = document.getElementById('toast');
+            const icon = document.getElementById('toastIcon');
+            const msg = document.getElementById('toastMessage');
+            
+            icon.textContent = type === 'error' ? '❌' : type === 'success' ? '✅' : 'ℹ️';
+            msg.textContent = message;
+            t.className = 'toast ' + type + ' show';
+            
+            setTimeout(() => t.classList.remove('show'), 4000);
+        }
+        
+        // Navigation
+        function nextStep() {
+            if (currentStep === 1 && !validateStep1()) return;
+            if (currentStep === 2 && !validateStep2()) return;
+            if (currentStep === 3 && !validateStep3()) return;
+            
+            if (currentStep < 4) {
+                currentStep++;
+                updateUI();
+                if (currentStep === 4) buildReview();
+            }
+        }
+        
+        function prevStep() {
+            if (currentStep > 1) {
+                currentStep--;
+                updateUI();
+            }
+        }
+        
+        function updateUI() {
+            // Update sections
+            document.querySelectorAll('.form-section').forEach(s => s.classList.remove('active'));
+            document.querySelector(`[data-section="${currentStep}"]`).classList.add('active');
+            
+            // Update progress
+            document.querySelectorAll('.progress-step').forEach(s => {
+                const step = parseInt(s.dataset.step);
+                s.classList.remove('active', 'completed');
+                if (step === currentStep) s.classList.add('active');
+                if (step < currentStep) s.classList.add('completed');
+            });
+            
+            // Scroll to top
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        
+        // Validation
+        function validateStep1() {
+            const form = document.getElementById('landlordForm');
+            const requiredFields = ['firstName', 'lastName', 'birthDate', 'birthPlace', 'codiceFiscale', 'residenceAddress', 'email', 'phone'];
+            
+            for (const field of requiredFields) {
+                const input = form.querySelector(`[name="${field}"]`);
+                if (!input.value.trim()) {
+                    input.classList.add('error');
+                    input.focus();
+                    toast('error', 'Compila tutti i campi obbligatori');
+                    return false;
+                }
+                input.classList.remove('error');
+            }
+            
+            return true;
+        }
+        
+        function validateStep2() {
+            const form = document.getElementById('landlordForm');
+            const requiredFields = ['propertyAddress', 'catFoglio', 'catParticella', 'catSubalterno'];
+            
+            for (const field of requiredFields) {
+                const input = form.querySelector(`[name="${field}"]`);
+                if (!input.value.trim()) {
+                    input.classList.add('error');
+                    input.focus();
+                    toast('error', 'Compila tutti i campi catastali obbligatori');
+                    return false;
+                }
+                input.classList.remove('error');
+            }
+            
+            return true;
+        }
+        
+        function validateStep3() {
+            if (!uploadedFiles.doc) {
+                toast('error', 'Carica il documento d\'identità');
+                return false;
+            }
+            
+            if (!uploadedFiles.visura) {
+                toast('error', 'Carica la visura catastale');
+                return false;
+            }
+            
+            return true;
+        }
+        
+        // File Handling
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.currentTarget.classList.add('dragover');
+        }
+        
+        function handleDragLeave(e) {
+            e.currentTarget.classList.remove('dragover');
+        }
+        
+        function handleDrop(e, type) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file) processFile(file, type);
+        }
+        
         function handleFile(input, type) {
             const file = input.files[0];
-            if (!file) return;
-
-            // Check file size (max 10MB)
+            if (file) processFile(file, type);
+        }
+        
+        async function processFile(file, type) {
+            // Validate
             if (file.size > 10 * 1024 * 1024) {
-                alert('File troppo grande. Massimo 10MB.');
-                input.value = '';
+                toast('error', 'File troppo grande. Massimo 10MB.');
                 return;
             }
-
-            uploadedFiles[type] = file;
             
-            const zone = document.getElementById(type + 'Zone');
-            const nameEl = document.getElementById(type + 'FileName');
+            const validTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
+            if (!validTypes.includes(file.type)) {
+                toast('error', 'Formato non valido. Usa PDF, JPG o PNG.');
+                return;
+            }
             
-            zone.classList.add('has-file');
-            nameEl.textContent = '✓ ' + file.name;
+            const zoneId = 'upload' + type.charAt(0).toUpperCase() + type.slice(1);
+            const zone = document.getElementById(zoneId);
+            const progress = zone.querySelector('.upload-progress');
+            const progressBar = document.getElementById('progress' + type.charAt(0).toUpperCase() + type.slice(1));
+            
+            zone.classList.add('uploading');
+            progress.style.display = 'block';
+            progressBar.style.width = '0%';
+            
+            try {
+                // Generate unique filename
+                const timestamp = Date.now();
+                const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+                const contractId = document.getElementById('contractId').value || 'unknown';
+                const path = `registrations/${contractId}/landlord_${type}_${timestamp}_${safeName}`;
+                
+                // Upload to Firebase Storage
+                const storageRef = storage.ref(path);
+                const uploadTask = storageRef.put(file);
+                
+                uploadTask.on('state_changed', 
+                    (snapshot) => {
+                        const pct = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                        progressBar.style.width = pct + '%';
+                    },
+                    (error) => {
+                        console.error('Upload error:', error);
+                        zone.classList.remove('uploading');
+                        progress.style.display = 'none';
+                        toast('error', 'Upload fallito: ' + error.message);
+                    },
+                    async () => {
+                        const downloadURL = await uploadTask.snapshot.ref.getDownloadURL();
+                        
+                        uploadedFiles[type] = {
+                            name: file.name,
+                            size: file.size,
+                            type: file.type,
+                            url: downloadURL,
+                            path: path
+                        };
+                        
+                        zone.classList.remove('uploading');
+                        zone.classList.add('has-file');
+                        progress.style.display = 'none';
+                        
+                        // Show preview
+                        showFilePreview(type, file);
+                        updateChecklist();
+                        
+                        toast('success', 'File caricato con successo');
+                    }
+                );
+            } catch (error) {
+                console.error('Upload error:', error);
+                zone.classList.remove('uploading');
+                progress.style.display = 'none';
+                toast('error', 'Upload fallito. Riprova.');
+            }
+        }
+        
+        function showFilePreview(type, file) {
+            const previewId = 'preview' + type.charAt(0).toUpperCase() + type.slice(1);
+            const preview = document.getElementById(previewId);
+            
+            const sizeKB = (file.size / 1024).toFixed(1);
+            const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+            const sizeStr = file.size > 1024 * 1024 ? sizeMB + ' MB' : sizeKB + ' KB';
+            
+            preview.innerHTML = `
+                <div class="file-preview">
+                    <div class="file-preview-icon">${file.type.includes('pdf') ? '📄' : '🖼️'}</div>
+                    <div class="file-preview-info">
+                        <div class="file-preview-name">${file.name}</div>
+                        <div class="file-preview-size">${sizeStr}</div>
+                    </div>
+                    <button type="button" class="file-preview-remove" onclick="removeFile('${type}')">×</button>
+                </div>
+            `;
+        }
+        
+        function removeFile(type) {
+            uploadedFiles[type] = null;
+            
+            const previewId = 'preview' + type.charAt(0).toUpperCase() + type.slice(1);
+            const zoneId = 'upload' + type.charAt(0).toUpperCase() + type.slice(1);
+            const inputId = 'file' + type.charAt(0).toUpperCase() + type.slice(1);
+            
+            document.getElementById(previewId).innerHTML = '';
+            document.getElementById(zoneId).classList.remove('has-file');
+            document.getElementById(inputId).value = '';
             
             updateChecklist();
         }
-
-        // Drag and drop
-        document.querySelectorAll('.file-zone').forEach(zone => {
-            zone.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                zone.classList.add('dragover');
-            });
-            zone.addEventListener('dragleave', () => {
-                zone.classList.remove('dragover');
-            });
-            zone.addEventListener('drop', (e) => {
-                e.preventDefault();
-                zone.classList.remove('dragover');
-                const input = zone.querySelector('input[type="file"]') || zone.nextElementSibling;
-                if (input && e.dataTransfer.files.length) {
-                    input.files = e.dataTransfer.files;
-                    input.dispatchEvent(new Event('change'));
-                }
-            });
-        });
-
-        // Update checklist
+        
         function updateChecklist() {
-            const form = document.getElementById('landlordForm');
+            const checks = [
+                { id: 'checkDoc', file: 'doc', num: '1' },
+                { id: 'checkVisura', file: 'visura', num: '2' },
+                { id: 'checkApe', file: 'ape', num: '3' }
+            ];
             
-            // Personal data
-            const personalOk = form.firstName.value && form.lastName.value && 
-                              form.birthDate.value && form.birthPlace.value && 
-                              form.codiceFiscale.value && form.address.value &&
-                              form.email.value && form.phone.value;
-            updateCheck('checkPersonal', personalOk);
-            
-            // Document
-            const docOk = form.docType.value && form.docNumber.value && uploadedFiles.doc;
-            updateCheck('checkDoc', docOk);
-            
-            // Catasto
-            const catastoOk = form.propertyAddress.value && form.foglio.value && 
-                             form.particella.value && form.subalterno.value;
-            updateCheck('checkCatasto', catastoOk);
-            
-            // IBAN
-            const ibanOk = form.iban.value && form.iban.value.length >= 15;
-            updateCheck('checkIban', ibanOk);
-            
-            // Delega
-            const delegaOk = form.delegaConsent.checked;
-            updateCheck('checkDelega', delegaOk);
-
-            // Update progress bar
-            const steps = [personalOk, docOk, catastoOk, ibanOk && delegaOk];
-            steps.forEach((ok, i) => {
-                const el = document.getElementById('prog' + (i + 1));
-                el.classList.remove('done', 'active');
-                if (ok) el.classList.add('done');
-                else if (i === steps.findIndex(s => !s)) el.classList.add('active');
+            checks.forEach(check => {
+                const el = document.getElementById(check.id);
+                const icon = el.querySelector('.checklist-icon');
+                if (uploadedFiles[check.file]) {
+                    el.classList.add('done');
+                    icon.textContent = '✓';
+                    icon.classList.add('done');
+                } else {
+                    el.classList.remove('done');
+                    icon.textContent = check.num;
+                    icon.classList.remove('done');
+                }
             });
         }
-
-        function updateCheck(id, ok) {
-            const el = document.getElementById(id);
-            if (ok) {
-                el.classList.remove('pending');
-                el.classList.add('done');
-                el.textContent = '✓';
-            } else {
-                el.classList.remove('done');
-                el.classList.add('pending');
-                el.textContent = '○';
-            }
-        }
-
-        // Listen for form changes
-        document.getElementById('landlordForm').addEventListener('input', updateChecklist);
-        document.getElementById('landlordForm').addEventListener('change', updateChecklist);
-
-        // Upload file to Firebase Storage
-        async function uploadFile(file, path) {
-            const ref = storage.ref(path);
-            await ref.put(file);
-            return await ref.getDownloadURL();
-        }
-
-        // Form submission
-        document.getElementById('landlordForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
+        
+        // Review
+        function buildReview() {
+            const form = document.getElementById('landlordForm');
+            const fd = new FormData(form);
+            const data = Object.fromEntries(fd);
             
-            const btn = document.getElementById('submitBtn');
-            const btnText = document.getElementById('btnText');
-            const btnLoading = document.getElementById('btnLoading');
+            let html = `
+                <div style="background: var(--surface); border-radius: var(--radius); overflow: hidden;">
+                    <div style="padding: 16px; border-bottom: 1px solid var(--border);">
+                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">PROPRIETARIO</div>
+                        <div style="font-size: 15px;">${data.firstName} ${data.lastName}</div>
+                    </div>
+                    <div style="padding: 16px; border-bottom: 1px solid var(--border);">
+                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">NATO/A</div>
+                        <div style="font-size: 15px;">${data.birthDate} — ${data.birthPlace}</div>
+                    </div>
+                    <div style="padding: 16px; border-bottom: 1px solid var(--border);">
+                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">CODICE FISCALE</div>
+                        <div style="font-size: 15px; font-family: monospace;">${data.codiceFiscale.toUpperCase()}</div>
+                    </div>
+                    <div style="padding: 16px; border-bottom: 1px solid var(--border);">
+                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">RESIDENZA</div>
+                        <div style="font-size: 15px;">${data.residenceAddress}</div>
+                    </div>
+                    <div style="padding: 16px; border-bottom: 1px solid var(--border);">
+                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">CONTATTI</div>
+                        <div style="font-size: 15px;">${data.email}<br>${data.phone}</div>
+                    </div>
+                    <div style="padding: 16px; border-bottom: 1px solid var(--border); background: var(--surface-2);">
+                        <div style="font-size: 12px; color: var(--gold); margin-bottom: 4px;">🏠 IMMOBILE</div>
+                        <div style="font-size: 15px;">${data.propertyAddress}</div>
+                    </div>
+                    <div style="padding: 16px; border-bottom: 1px solid var(--border);">
+                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">DATI CATASTALI</div>
+                        <div style="font-size: 15px;">Foglio ${data.catFoglio} — Particella ${data.catParticella} — Sub ${data.catSubalterno}</div>
+                    </div>
+                    ${data.catCategoria ? `
+                    <div style="padding: 16px; border-bottom: 1px solid var(--border);">
+                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">CATEGORIA / CLASSE ENERGETICA</div>
+                        <div style="font-size: 15px;">${data.catCategoria || '—'} ${data.classeEnergetica ? '| Classe ' + data.classeEnergetica : ''}</div>
+                    </div>
+                    ` : ''}
+                    <div style="padding: 16px;">
+                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px;">DOCUMENTI</div>
+                        <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                            ${uploadedFiles.doc ? `<span style="background: var(--green-light); color: var(--green); padding: 6px 12px; border-radius: 6px; font-size: 13px;">✓ Documento</span>` : ''}
+                            ${uploadedFiles.visura ? `<span style="background: var(--green-light); color: var(--green); padding: 6px 12px; border-radius: 6px; font-size: 13px;">✓ Visura</span>` : ''}
+                            ${uploadedFiles.ape ? `<span style="background: var(--green-light); color: var(--green); padding: 6px 12px; border-radius: 6px; font-size: 13px;">✓ APE</span>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
             
+            document.getElementById('reviewContent').innerHTML = html;
+        }
+        
+        // Terms checkboxes
+        function updateSubmitButton() {
+            const terms = document.getElementById('acceptTerms').checked;
+            const delega = document.getElementById('acceptDelega').checked;
+            document.getElementById('btnSubmit').disabled = !(terms && delega);
+        }
+        
+        document.getElementById('acceptTerms').addEventListener('change', updateSubmitButton);
+        document.getElementById('acceptDelega').addEventListener('change', updateSubmitButton);
+        
+        // Submit
+        async function submitForm() {
+            const btn = document.getElementById('btnSubmit');
+            btn.classList.add('loading');
             btn.disabled = true;
-            btnText.style.display = 'none';
-            btnLoading.classList.add('active');
-
+            
             try {
-                const form = e.target;
-                const timestamp = Date.now();
-                const contractId = form.contractId.value || 'REG_' + timestamp;
+                const form = document.getElementById('landlordForm');
+                const fd = new FormData(form);
+                const data = Object.fromEntries(fd);
                 
-                // Upload files
-                let docUrl = null, visuraUrl = null, apeUrl = null;
+                const contractId = data.contractId || 'BOOM-' + Date.now();
                 
-                if (uploadedFiles.doc) {
-                    docUrl = await uploadFile(
-                        uploadedFiles.doc, 
-                        `contract-registrations/${contractId}/landlord/documento_${timestamp}`
-                    );
-                }
-                if (uploadedFiles.visura) {
-                    visuraUrl = await uploadFile(
-                        uploadedFiles.visura, 
-                        `contract-registrations/${contractId}/landlord/visura_${timestamp}`
-                    );
-                }
-                if (uploadedFiles.ape) {
-                    apeUrl = await uploadFile(
-                        uploadedFiles.ape, 
-                        `contract-registrations/${contractId}/landlord/ape_${timestamp}`
-                    );
-                }
-
-                // Save to Firestore
-                const data = {
-                    type: 'landlord',
+                // Prepare submission data
+                const submission = {
                     contractId: contractId,
+                    type: 'landlord',
                     
-                    // Personal data
-                    firstName: form.firstName.value.trim(),
-                    lastName: form.lastName.value.trim(),
-                    fullName: `${form.firstName.value.trim()} ${form.lastName.value.trim()}`,
-                    birthDate: form.birthDate.value,
-                    birthPlace: form.birthPlace.value.trim(),
-                    codiceFiscale: form.codiceFiscale.value.toUpperCase().trim(),
-                    address: form.address.value.trim(),
-                    email: form.email.value.trim().toLowerCase(),
-                    phone: form.phone.value.trim(),
+                    // Personal info
+                    firstName: data.firstName,
+                    lastName: data.lastName,
+                    fullName: `${data.firstName} ${data.lastName}`,
+                    birthDate: data.birthDate,
+                    birthPlace: data.birthPlace,
+                    codiceFiscale: data.codiceFiscale.toUpperCase(),
+                    residenceAddress: data.residenceAddress,
+                    email: data.email,
+                    phone: data.phone,
+                    iban: data.iban || null,
                     
-                    // Document
-                    docType: form.docType.value,
-                    docNumber: form.docNumber.value.trim(),
-                    docIssueDate: form.docIssueDate.value || null,
-                    docExpiry: form.docExpiry.value || null,
-                    docFileUrl: docUrl,
+                    // Property info
+                    propertyAddress: data.propertyAddress,
+                    catFoglio: data.catFoglio,
+                    catParticella: data.catParticella,
+                    catSubalterno: data.catSubalterno,
+                    catCategoria: data.catCategoria || null,
+                    catRendita: data.catRendita || null,
+                    classeEnergetica: data.classeEnergetica || null,
                     
-                    // Property/Cadastral
-                    propertyAddress: form.propertyAddress.value.trim(),
-                    foglio: form.foglio.value.trim(),
-                    particella: form.particella.value.trim(),
-                    subalterno: form.subalterno.value.trim(),
-                    categoria: form.categoria.value || null,
-                    rendita: form.rendita.value.trim() || null,
-                    vani: form.vani.value.trim() || null,
-                    visuraFileUrl: visuraUrl,
-                    
-                    // APE
-                    classeEnergetica: form.classeEnergetica.value || null,
-                    apeFileUrl: apeUrl,
-                    
-                    // IBAN
-                    iban: form.iban.value.toUpperCase().replace(/\s/g, ''),
-                    ibanHolder: form.ibanHolder.value.trim() || form.firstName.value + ' ' + form.lastName.value,
+                    // Documents
+                    documents: {
+                        idDocument: uploadedFiles.doc,
+                        visura: uploadedFiles.visura,
+                        ape: uploadedFiles.ape || null
+                    },
                     
                     // Consent
-                    delegaConsent: form.delegaConsent.checked,
+                    acceptedTerms: true,
+                    acceptedDelega: true,
                     
-                    // Meta
+                    // Metadata
                     submittedAt: firebase.firestore.FieldValue.serverTimestamp(),
                     status: 'submitted',
-                    source: 'web_form'
+                    source: 'form-landlord',
+                    userAgent: navigator.userAgent
                 };
-
-                await db.collection('contractRegistrations').add(data);
-
-                // Also update the contract registration status if exists
-                if (contractId.startsWith('REG_')) {
-                    // This is a new registration, create a master record
-                    await db.collection('contractRegistrationStatus').doc(contractId).set({
-                        landlordSubmitted: true,
-                        landlordSubmittedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                        tenantSubmitted: false,
-                        status: 'pending_tenant',
-                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                    }, { merge: true });
-                } else {
-                    // Update existing
-                    await db.collection('contractRegistrationStatus').doc(contractId).set({
-                        landlordSubmitted: true,
-                        landlordSubmittedAt: firebase.firestore.FieldValue.serverTimestamp()
-                    }, { merge: true });
+                
+                // Save to Firestore
+                const docRef = await db.collection('contractRegistrations').add(submission);
+                
+                // Update registration status if exists
+                if (contractId && contractId !== 'BOOM-' + Date.now()) {
+                    try {
+                        await db.collection('contractRegistrationStatus').doc(contractId).set({
+                            landlordSubmitted: true,
+                            landlordSubmittedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                            landlordDocId: docRef.id
+                        }, { merge: true });
+                    } catch (e) {
+                        console.log('Status update skipped:', e);
+                    }
                 }
-
+                
                 // Show success
-                document.getElementById('formScreen').classList.add('hidden');
+                document.querySelectorAll('.form-section').forEach(s => s.classList.remove('active'));
                 document.getElementById('successScreen').classList.add('active');
-
+                document.getElementById('successRef').textContent = docRef.id.slice(0, 8).toUpperCase();
+                
+                // Update progress to complete
+                document.querySelectorAll('.progress-step').forEach(s => s.classList.add('completed'));
+                
             } catch (error) {
-                console.error('Error:', error);
-                alert('Errore durante l\'invio. Riprova o contattaci su WhatsApp.');
+                console.error('Submission error:', error);
+                btn.classList.remove('loading');
                 btn.disabled = false;
-                btnText.style.display = 'inline';
-                btnLoading.classList.remove('active');
+                toast('error', 'Invio fallito: ' + error.message);
             }
-        });
-
-        // Initial checklist update
-        updateChecklist();
+        }
     </script>
 </body>
 </html>
