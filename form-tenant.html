@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#000000">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <title>BOOM — Tenant Registration</title>
-    <link rel="icon" type="image/png" href="https://www.boomrome.com/BOOMlogogoldicon512.png">
+    <link rel="icon" type="image/png" href="BOOMlogogoldicon512.png">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -26,9 +26,7 @@
             --blue: #3b82f6;
             --radius: 12px;
         }
-        
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
             background: var(--bg);
@@ -36,841 +34,252 @@
             min-height: 100vh;
             line-height: 1.5;
         }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        @media (min-width: 768px) { .container { padding: 40px 20px; } }
         
-        .container {
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 20px;
+        .header { text-align: center; padding: 30px 0; border-bottom: 1px solid var(--border); margin-bottom: 30px; }
+        .logo { width: 80px; height: 80px; margin-bottom: 16px; border-radius: 12px; object-fit: contain; }
+        .logo-fallback {
+            width: 80px; height: 80px; margin: 0 auto 16px; border-radius: 12px;
+            background: linear-gradient(135deg, var(--gold), #b8960c);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 32px; font-weight: 700; color: #000;
         }
+        .header h1 { font-size: 24px; font-weight: 600; margin-bottom: 8px; }
+        .header p { color: var(--text-secondary); font-size: 14px; }
         
-        @media (min-width: 768px) {
-            .container { padding: 40px 20px; }
-        }
+        .progress-container { margin-bottom: 30px; }
+        .progress-steps { display: flex; justify-content: space-between; position: relative; }
+        .progress-steps::before { content: ''; position: absolute; top: 15px; left: 0; right: 0; height: 2px; background: var(--border); z-index: 0; }
+        .progress-step { display: flex; flex-direction: column; align-items: center; position: relative; z-index: 1; }
+        .step-number { width: 32px; height: 32px; border-radius: 50%; background: var(--surface); border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; margin-bottom: 8px; transition: all 0.3s; }
+        .step-label { font-size: 11px; color: var(--text-muted); text-align: center; }
+        .progress-step.active .step-number { background: var(--gold); border-color: var(--gold); color: #000; }
+        .progress-step.completed .step-number { background: var(--green); border-color: var(--green); color: #fff; }
+        .progress-step.active .step-label, .progress-step.completed .step-label { color: var(--text); }
         
-        /* Header */
-        .header {
-            text-align: center;
-            padding: 30px 0;
-            border-bottom: 1px solid var(--border);
-            margin-bottom: 30px;
-        }
-        
-        .logo {
-            width: 80px;
-            height: 80px;
-            margin-bottom: 16px;
-        }
-        
-        .header h1 {
-            font-size: 24px;
-            font-weight: 600;
-            margin-bottom: 8px;
-        }
-        
-        .header p {
-            color: var(--text-secondary);
-            font-size: 14px;
-        }
-        
-        /* Progress Bar */
-        .progress-container {
-            margin-bottom: 30px;
-        }
-        
-        .progress-steps {
-            display: flex;
-            justify-content: space-between;
-            position: relative;
-            margin-bottom: 10px;
-        }
-        
-        .progress-steps::before {
-            content: '';
-            position: absolute;
-            top: 15px;
-            left: 0;
-            right: 0;
-            height: 2px;
-            background: var(--border);
-            z-index: 0;
-        }
-        
-        .progress-step {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            position: relative;
-            z-index: 1;
-        }
-        
-        .step-number {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            background: var(--surface);
-            border: 2px solid var(--border);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 14px;
-            font-weight: 600;
-            margin-bottom: 8px;
-            transition: all 0.3s;
-        }
-        
-        .step-label {
-            font-size: 11px;
-            color: var(--text-muted);
-            text-align: center;
-        }
-        
-        .progress-step.active .step-number {
-            background: var(--gold);
-            border-color: var(--gold);
-            color: #000;
-        }
-        
-        .progress-step.completed .step-number {
-            background: var(--green);
-            border-color: var(--green);
-            color: #fff;
-        }
-        
-        .progress-step.active .step-label,
-        .progress-step.completed .step-label {
-            color: var(--text);
-        }
-        
-        /* Form Sections */
-        .form-section {
-            display: none;
-            animation: fadeIn 0.3s ease;
-        }
-        
+        .form-section { display: none; animation: fadeIn 0.3s ease; }
         .form-section.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .section-title { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
+        .section-subtitle { color: var(--text-secondary); font-size: 14px; margin-bottom: 24px; }
         
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+        .form-group { margin-bottom: 20px; }
+        .form-label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 8px; color: var(--text-secondary); }
+        .form-label .required { color: var(--red); }
+        .form-input, .form-select, .form-textarea { width: 100%; padding: 14px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); font-size: 15px; font-family: inherit; transition: all 0.2s; }
+        .form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px var(--gold-light); }
+        .form-input.error { border-color: var(--red); }
+        .form-hint { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
+        .form-row { display: grid; grid-template-columns: 1fr; gap: 16px; }
+        @media (min-width: 480px) { .form-row { grid-template-columns: 1fr 1fr; } }
         
-        .section-title {
-            font-size: 18px;
-            font-weight: 600;
-            margin-bottom: 8px;
-        }
-        
-        .section-subtitle {
-            color: var(--text-secondary);
-            font-size: 14px;
-            margin-bottom: 24px;
-        }
-        
-        /* Form Elements */
-        .form-group {
-            margin-bottom: 20px;
-        }
-        
-        .form-label {
-            display: block;
-            font-size: 13px;
-            font-weight: 500;
-            margin-bottom: 8px;
-            color: var(--text-secondary);
-        }
-        
-        .form-label .required {
-            color: var(--red);
-        }
-        
-        .form-input, .form-select, .form-textarea {
-            width: 100%;
-            padding: 14px 16px;
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: var(--radius);
-            color: var(--text);
-            font-size: 15px;
-            font-family: inherit;
-            transition: all 0.2s;
-        }
-        
-        .form-input:focus, .form-select:focus, .form-textarea:focus {
-            outline: none;
-            border-color: var(--gold);
-            box-shadow: 0 0 0 3px var(--gold-light);
-        }
-        
-        .form-input.error {
-            border-color: var(--red);
-        }
-        
-        .form-hint {
-            font-size: 12px;
-            color: var(--text-muted);
-            margin-top: 6px;
-        }
-        
-        .form-error {
-            font-size: 12px;
-            color: var(--red);
-            margin-top: 6px;
-        }
-        
-        .form-row {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 16px;
-        }
-        
-        @media (min-width: 480px) {
-            .form-row { grid-template-columns: 1fr 1fr; }
-        }
-        
-        /* Type Selection Cards */
-        .type-cards {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 16px;
-            margin-bottom: 24px;
-        }
-        
-        .type-card {
-            background: var(--surface);
-            border: 2px solid var(--border);
-            border-radius: var(--radius);
-            padding: 20px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        
-        .type-card:hover {
-            border-color: var(--gold);
-        }
-        
-        .type-card.selected {
-            border-color: var(--gold);
-            background: var(--gold-light);
-        }
-        
+        .type-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+        .type-card { background: var(--surface); border: 2px solid var(--border); border-radius: var(--radius); padding: 20px; text-align: center; cursor: pointer; transition: all 0.2s; }
+        .type-card:hover { border-color: var(--gold); }
+        .type-card.selected { border-color: var(--gold); background: var(--gold-light); }
         .type-card input { display: none; }
+        .type-icon { font-size: 32px; margin-bottom: 8px; }
+        .type-label { font-weight: 600; font-size: 14px; }
         
-        .type-icon {
-            font-size: 32px;
-            margin-bottom: 8px;
-        }
-        
-        .type-label {
-            font-weight: 600;
-            font-size: 14px;
-        }
-        
-        /* File Upload */
-        .upload-zone {
-            border: 2px dashed var(--border);
-            border-radius: var(--radius);
-            padding: 30px 20px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.2s;
-            background: var(--surface);
-        }
-        
-        .upload-zone:hover, .upload-zone.dragover {
-            border-color: var(--gold);
-            background: var(--gold-light);
-        }
-        
-        .upload-zone.has-file {
-            border-color: var(--green);
-            background: var(--green-light);
-        }
-        
-        .upload-zone.uploading {
-            pointer-events: none;
-            opacity: 0.6;
-        }
-        
-        .upload-icon {
-            font-size: 40px;
-            margin-bottom: 12px;
-        }
-        
-        .upload-text {
-            font-size: 14px;
-            color: var(--text-secondary);
-            margin-bottom: 4px;
-        }
-        
-        .upload-hint {
-            font-size: 12px;
-            color: var(--text-muted);
-        }
-        
-        .upload-progress {
-            margin-top: 16px;
-            height: 4px;
-            background: var(--border);
-            border-radius: 2px;
-            overflow: hidden;
-        }
-        
-        .upload-progress-bar {
-            height: 100%;
-            background: var(--gold);
-            width: 0%;
-            transition: width 0.3s;
-        }
-        
-        .file-preview {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px;
-            background: var(--surface-2);
-            border-radius: 8px;
-            margin-top: 12px;
-        }
-        
+        .upload-zone { border: 2px dashed var(--border); border-radius: var(--radius); padding: 30px 20px; text-align: center; cursor: pointer; transition: all 0.2s; background: var(--surface); }
+        .upload-zone:hover, .upload-zone.dragover { border-color: var(--gold); background: var(--gold-light); }
+        .upload-zone.has-file { border-color: var(--green); background: var(--green-light); }
+        .upload-zone.uploading { pointer-events: none; opacity: 0.6; }
+        .upload-icon { font-size: 40px; margin-bottom: 12px; }
+        .upload-text { font-size: 14px; color: var(--text-secondary); margin-bottom: 4px; }
+        .upload-hint { font-size: 12px; color: var(--text-muted); }
+        .upload-progress { margin-top: 16px; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+        .upload-progress-bar { height: 100%; background: var(--gold); width: 0%; transition: width 0.3s; }
+        .file-preview { display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--surface-2); border-radius: 8px; margin-top: 12px; }
         .file-preview-icon { font-size: 24px; }
-        
         .file-preview-info { flex: 1; text-align: left; }
+        .file-preview-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .file-preview-size { font-size: 11px; color: var(--text-muted); }
+        .file-preview-remove { background: none; border: none; color: var(--red); cursor: pointer; padding: 8px; font-size: 18px; }
         
-        .file-preview-name {
-            font-size: 13px;
-            font-weight: 500;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        
-        .file-preview-size {
-            font-size: 11px;
-            color: var(--text-muted);
-        }
-        
-        .file-preview-remove {
-            background: none;
-            border: none;
-            color: var(--red);
-            cursor: pointer;
-            padding: 8px;
-            font-size: 18px;
-        }
-        
-        /* Checklist */
-        .checklist {
-            background: var(--surface);
-            border-radius: var(--radius);
-            padding: 20px;
-            margin-bottom: 24px;
-        }
-        
-        .checklist-title {
-            font-size: 14px;
-            font-weight: 600;
-            margin-bottom: 16px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .checklist-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 10px 0;
-            border-bottom: 1px solid var(--border);
-        }
-        
+        .checklist { background: var(--surface); border-radius: var(--radius); padding: 20px; margin-bottom: 24px; }
+        .checklist-title { font-size: 14px; font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+        .checklist-item { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
         .checklist-item:last-child { border-bottom: none; }
+        .checklist-icon { width: 24px; height: 24px; border-radius: 50%; background: var(--surface-2); display: flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0; }
+        .checklist-icon.done { background: var(--green); color: #fff; }
+        .checklist-label { font-size: 14px; color: var(--text-secondary); }
+        .checklist-item.done .checklist-label { color: var(--text); }
         
-        .checklist-icon {
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            background: var(--surface-2);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-            flex-shrink: 0;
-        }
-        
-        .checklist-icon.done {
-            background: var(--green);
-            color: #fff;
-        }
-        
-        .checklist-label {
-            font-size: 14px;
-            color: var(--text-secondary);
-        }
-        
-        .checklist-item.done .checklist-label {
-            color: var(--text);
-        }
-        
-        /* Buttons */
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            padding: 14px 24px;
-            border-radius: var(--radius);
-            font-size: 15px;
-            font-weight: 600;
-            font-family: inherit;
-            cursor: pointer;
-            transition: all 0.2s;
-            border: none;
-        }
-        
-        .btn-primary {
-            background: var(--gold);
-            color: #000;
-        }
-        
-        .btn-primary:hover {
-            background: #e5c349;
-            transform: translateY(-1px);
-        }
-        
-        .btn-primary:disabled {
-            background: var(--border);
-            color: var(--text-muted);
-            cursor: not-allowed;
-            transform: none;
-        }
-        
-        .btn-secondary {
-            background: var(--surface);
-            color: var(--text);
-            border: 1px solid var(--border);
-        }
-        
-        .btn-secondary:hover {
-            background: var(--surface-2);
-        }
-        
-        .btn-block {
-            width: 100%;
-        }
-        
-        .btn.loading {
-            color: transparent !important;
-            position: relative;
-            pointer-events: none;
-        }
-        
-        .btn.loading::after {
-            content: '';
-            position: absolute;
-            width: 20px;
-            height: 20px;
-            border: 2px solid transparent;
-            border-top-color: currentColor;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-        }
-        
+        .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 14px 24px; border-radius: var(--radius); font-size: 15px; font-weight: 600; font-family: inherit; cursor: pointer; transition: all 0.2s; border: none; }
+        .btn-primary { background: var(--gold); color: #000; }
+        .btn-primary:hover { background: #e5c349; transform: translateY(-1px); }
+        .btn-primary:disabled { background: var(--border); color: var(--text-muted); cursor: not-allowed; transform: none; }
+        .btn-secondary { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+        .btn-secondary:hover { background: var(--surface-2); }
+        .btn-block { width: 100%; }
+        .btn.loading { color: transparent !important; position: relative; pointer-events: none; }
+        .btn.loading::after { content: ''; position: absolute; width: 20px; height: 20px; border: 2px solid transparent; border-top-color: currentColor; border-radius: 50%; animation: spin 0.8s linear infinite; }
         .btn-primary.loading::after { border-top-color: #000; }
-        
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-        
-        .btn-row {
-            display: flex;
-            gap: 12px;
-            margin-top: 30px;
-        }
-        
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .btn-row { display: flex; gap: 12px; margin-top: 30px; }
         .btn-row .btn { flex: 1; }
         
-        /* Success Screen */
-        .success-screen {
-            text-align: center;
-            padding: 60px 20px;
-        }
+        .success-screen { text-align: center; padding: 60px 20px; }
+        .success-icon { font-size: 80px; margin-bottom: 24px; }
+        .success-title { font-size: 28px; font-weight: 700; margin-bottom: 12px; }
+        .success-text { color: var(--text-secondary); font-size: 16px; margin-bottom: 30px; }
+        .success-box { background: var(--surface); border-radius: var(--radius); padding: 20px; margin-bottom: 24px; }
+        .success-box-title { font-size: 13px; color: var(--text-muted); margin-bottom: 8px; }
+        .success-box-value { font-size: 18px; font-weight: 600; color: var(--gold); }
         
-        .success-icon {
-            font-size: 80px;
-            margin-bottom: 24px;
-        }
-        
-        .success-title {
-            font-size: 28px;
-            font-weight: 700;
-            margin-bottom: 12px;
-        }
-        
-        .success-text {
-            color: var(--text-secondary);
-            font-size: 16px;
-            margin-bottom: 30px;
-        }
-        
-        .success-box {
-            background: var(--surface);
-            border-radius: var(--radius);
-            padding: 20px;
-            margin-bottom: 24px;
-        }
-        
-        .success-box-title {
-            font-size: 13px;
-            color: var(--text-muted);
-            margin-bottom: 8px;
-        }
-        
-        .success-box-value {
-            font-size: 18px;
-            font-weight: 600;
-            color: var(--gold);
-        }
-        
-        /* Toast */
-        .toast {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%) translateY(100px);
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: var(--radius);
-            padding: 16px 24px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
-            z-index: 1000;
-            opacity: 0;
-            transition: all 0.3s;
-        }
-        
-        .toast.show {
-            transform: translateX(-50%) translateY(0);
-            opacity: 1;
-        }
-        
+        .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(100px); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 24px; display: flex; align-items: center; gap: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); z-index: 1000; opacity: 0; transition: all 0.3s; max-width: 90vw; }
+        .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
         .toast.error { border-color: var(--red); }
         .toast.success { border-color: var(--green); }
-        
         .toast-icon { font-size: 20px; }
         .toast-message { font-size: 14px; }
         
-        /* Footer */
-        .footer {
-            text-align: center;
-            padding: 30px 20px;
-            color: var(--text-muted);
-            font-size: 12px;
-            border-top: 1px solid var(--border);
-            margin-top: 40px;
-        }
+        .footer { text-align: center; padding: 30px 20px; color: var(--text-muted); font-size: 12px; border-top: 1px solid var(--border); margin-top: 40px; }
+        .footer a { color: var(--gold); text-decoration: none; }
         
-        .footer a {
-            color: var(--gold);
-            text-decoration: none;
-        }
-        
-        /* Conditional sections */
-        .conditional-section {
-            display: none;
-            animation: fadeIn 0.3s;
-        }
-        
+        .conditional-section { display: none; animation: fadeIn 0.3s; }
         .conditional-section.active { display: block; }
     </style>
 </head>
 <body>
     <div class="container">
-        <!-- Header -->
         <div class="header">
-            <img src="https://www.boomrome.com/BOOMlogogoldicon512.png" alt="BOOM" class="logo">
+            <div class="logo-fallback" id="logoFallback">B</div>
+            <img src="BOOMlogogoldicon512.png" alt="BOOM" class="logo" id="logoImg" style="display:none;" onload="this.style.display='block';document.getElementById('logoFallback').style.display='none';">
             <h1>Tenant Registration</h1>
             <p>Complete this form to register your rental contract</p>
         </div>
         
-        <!-- Progress -->
         <div class="progress-container">
             <div class="progress-steps">
-                <div class="progress-step active" data-step="1">
-                    <div class="step-number">1</div>
-                    <div class="step-label">Type</div>
-                </div>
-                <div class="progress-step" data-step="2">
-                    <div class="step-number">2</div>
-                    <div class="step-label">Personal</div>
-                </div>
-                <div class="progress-step" data-step="3">
-                    <div class="step-number">3</div>
-                    <div class="step-label">Documents</div>
-                </div>
-                <div class="progress-step" data-step="4">
-                    <div class="step-number">4</div>
-                    <div class="step-label">Review</div>
-                </div>
+                <div class="progress-step active" data-step="1"><div class="step-number">1</div><div class="step-label">Type</div></div>
+                <div class="progress-step" data-step="2"><div class="step-number">2</div><div class="step-label">Personal</div></div>
+                <div class="progress-step" data-step="3"><div class="step-number">3</div><div class="step-label">Documents</div></div>
+                <div class="progress-step" data-step="4"><div class="step-number">4</div><div class="step-label">Review</div></div>
             </div>
         </div>
         
         <form id="tenantForm" onsubmit="return false;">
-            <!-- Hidden contract ID -->
             <input type="hidden" id="contractId" name="contractId" value="">
             
-            <!-- Step 1: Type Selection -->
+            <!-- Step 1 -->
             <div class="form-section active" data-section="1">
                 <h2 class="section-title">What type of tenant are you?</h2>
                 <p class="section-subtitle">This helps us collect the right documents</p>
-                
                 <div class="type-cards">
-                    <label class="type-card" id="cardStudent">
-                        <input type="radio" name="tenantType" value="student" onchange="selectType('student')">
-                        <div class="type-icon">🎓</div>
-                        <div class="type-label">Student</div>
-                    </label>
-                    <label class="type-card" id="cardWorker">
-                        <input type="radio" name="tenantType" value="worker" onchange="selectType('worker')">
-                        <div class="type-icon">💼</div>
-                        <div class="type-label">Worker</div>
-                    </label>
+                    <label class="type-card" id="cardStudent"><input type="radio" name="tenantType" value="student" onchange="selectType('student')"><div class="type-icon">🎓</div><div class="type-label">Student</div></label>
+                    <label class="type-card" id="cardWorker"><input type="radio" name="tenantType" value="worker" onchange="selectType('worker')"><div class="type-icon">💼</div><div class="type-label">Worker</div></label>
                 </div>
-                
-                <button type="button" class="btn btn-primary btn-block" onclick="nextStep()" id="btnStep1" disabled>
-                    Continue →
-                </button>
+                <button type="button" class="btn btn-primary btn-block" onclick="nextStep()" id="btnStep1" disabled>Continue →</button>
             </div>
             
-            <!-- Step 2: Personal Info -->
+            <!-- Step 2 -->
             <div class="form-section" data-section="2">
                 <h2 class="section-title">Personal Information</h2>
                 <p class="section-subtitle">Enter your details as they appear on your passport</p>
-                
                 <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">First Name <span class="required">*</span></label>
-                        <input type="text" class="form-input" name="firstName" required placeholder="Mario">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Last Name <span class="required">*</span></label>
-                        <input type="text" class="form-input" name="lastName" required placeholder="Rossi">
-                    </div>
+                    <div class="form-group"><label class="form-label">First Name <span class="required">*</span></label><input type="text" class="form-input" name="firstName" required placeholder="Mario"></div>
+                    <div class="form-group"><label class="form-label">Last Name <span class="required">*</span></label><input type="text" class="form-input" name="lastName" required placeholder="Rossi"></div>
                 </div>
-                
                 <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">Date of Birth <span class="required">*</span></label>
-                        <input type="date" class="form-input" name="birthDate" required>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Place of Birth <span class="required">*</span></label>
-                        <input type="text" class="form-input" name="birthPlace" required placeholder="Rome, Italy">
-                    </div>
+                    <div class="form-group"><label class="form-label">Date of Birth <span class="required">*</span></label><input type="date" class="form-input" name="birthDate" required></div>
+                    <div class="form-group"><label class="form-label">Place of Birth <span class="required">*</span></label><input type="text" class="form-input" name="birthPlace" required placeholder="Rome, Italy"></div>
                 </div>
-                
-                <div class="form-group">
-                    <label class="form-label">Nationality <span class="required">*</span></label>
-                    <input type="text" class="form-input" name="nationality" required placeholder="Italian">
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-label">Codice Fiscale (if you have one)</label>
-                    <input type="text" class="form-input" name="codiceFiscale" placeholder="RSSMRA85M01H501Z" maxlength="16" style="text-transform: uppercase">
-                    <p class="form-hint">Italian tax code - we can help you get one if needed</p>
-                </div>
-                
+                <div class="form-group"><label class="form-label">Nationality <span class="required">*</span></label><input type="text" class="form-input" name="nationality" required placeholder="Italian"></div>
+                <div class="form-group"><label class="form-label">Codice Fiscale (if you have one)</label><input type="text" class="form-input" name="codiceFiscale" placeholder="RSSMRA85M01H501Z" maxlength="16" style="text-transform: uppercase"><p class="form-hint">Italian tax code - we can help you get one if needed</p></div>
                 <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">Email <span class="required">*</span></label>
-                        <input type="email" class="form-input" name="email" required placeholder="your@email.com">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Phone <span class="required">*</span></label>
-                        <input type="tel" class="form-input" name="phone" required placeholder="+39 333 123 4567">
-                    </div>
+                    <div class="form-group"><label class="form-label">Email <span class="required">*</span></label><input type="email" class="form-input" name="email" required placeholder="your@email.com"></div>
+                    <div class="form-group"><label class="form-label">Phone <span class="required">*</span></label><input type="tel" class="form-input" name="phone" required placeholder="+39 333 123 4567"></div>
                 </div>
-                
-                <div class="form-group">
-                    <label class="form-label">Current Address</label>
-                    <input type="text" class="form-input" name="currentAddress" placeholder="Your current address">
-                </div>
-                
-                <!-- Student Section -->
+                <div class="form-group"><label class="form-label">Current Address</label><input type="text" class="form-input" name="currentAddress" placeholder="Your current address"></div>
                 <div class="conditional-section" id="studentSection">
-                    <div class="form-group">
-                        <label class="form-label">University Name <span class="required">*</span></label>
-                        <input type="text" class="form-input" name="universityName" placeholder="Sapienza University of Rome">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Course / Program</label>
-                        <input type="text" class="form-input" name="courseName" placeholder="Master in Architecture">
-                    </div>
+                    <div class="form-group"><label class="form-label">University Name <span class="required">*</span></label><input type="text" class="form-input" name="universityName" placeholder="Sapienza University of Rome"></div>
+                    <div class="form-group"><label class="form-label">Course / Program</label><input type="text" class="form-input" name="courseName" placeholder="Master in Architecture"></div>
                 </div>
-                
-                <!-- Worker Section -->
                 <div class="conditional-section" id="workerSection">
-                    <div class="form-group">
-                        <label class="form-label">Employer / Company <span class="required">*</span></label>
-                        <input type="text" class="form-input" name="employerName" placeholder="Company name">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Job Title</label>
-                        <input type="text" class="form-input" name="jobTitle" placeholder="Software Engineer">
-                    </div>
+                    <div class="form-group"><label class="form-label">Employer / Company <span class="required">*</span></label><input type="text" class="form-input" name="employerName" placeholder="Company name"></div>
+                    <div class="form-group"><label class="form-label">Job Title</label><input type="text" class="form-input" name="jobTitle" placeholder="Software Engineer"></div>
                 </div>
-                
-                <div class="btn-row">
-                    <button type="button" class="btn btn-secondary" onclick="prevStep()">← Back</button>
-                    <button type="button" class="btn btn-primary" onclick="nextStep()">Continue →</button>
-                </div>
+                <div class="btn-row"><button type="button" class="btn btn-secondary" onclick="prevStep()">← Back</button><button type="button" class="btn btn-primary" onclick="nextStep()">Continue →</button></div>
             </div>
             
-            <!-- Step 3: Documents -->
+            <!-- Step 3 -->
             <div class="form-section" data-section="3">
                 <h2 class="section-title">Upload Documents</h2>
                 <p class="section-subtitle">We need these to register your contract</p>
-                
-                <!-- Checklist -->
                 <div class="checklist">
                     <div class="checklist-title">📋 Document Checklist</div>
-                    <div class="checklist-item" id="checkDoc">
-                        <div class="checklist-icon">1</div>
-                        <div class="checklist-label">Passport or ID Card</div>
-                    </div>
-                    <div class="checklist-item" id="checkEnrollment" style="display: none;">
-                        <div class="checklist-icon">2</div>
-                        <div class="checklist-label">University Enrollment Certificate</div>
-                    </div>
-                    <div class="checklist-item" id="checkIncome" style="display: none;">
-                        <div class="checklist-icon">2</div>
-                        <div class="checklist-label">Proof of Income (payslip or contract)</div>
-                    </div>
+                    <div class="checklist-item" id="checkDoc"><div class="checklist-icon">1</div><div class="checklist-label">Passport or ID Card</div></div>
+                    <div class="checklist-item" id="checkEnrollment" style="display: none;"><div class="checklist-icon">2</div><div class="checklist-label">University Enrollment Certificate</div></div>
+                    <div class="checklist-item" id="checkIncome" style="display: none;"><div class="checklist-icon">2</div><div class="checklist-label">Proof of Income</div></div>
                 </div>
-                
-                <!-- Passport Upload -->
                 <div class="form-group">
                     <label class="form-label">Passport / ID Card <span class="required">*</span></label>
-                    <div class="upload-zone" id="uploadDoc" onclick="document.getElementById('fileDoc').click()" 
-                         ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'doc')">
-                        <div class="upload-icon">📄</div>
-                        <div class="upload-text">Click or drag file here</div>
-                        <div class="upload-hint">PDF, JPG, PNG — Max 10MB</div>
-                        <div class="upload-progress" style="display: none;">
-                            <div class="upload-progress-bar" id="progressDoc"></div>
-                        </div>
+                    <div class="upload-zone" id="uploadDoc" onclick="document.getElementById('fileDoc').click()" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'doc')">
+                        <div class="upload-icon">📄</div><div class="upload-text">Click or drag file here</div><div class="upload-hint">PDF, JPG, PNG — Max 10MB</div>
+                        <div class="upload-progress" style="display: none;"><div class="upload-progress-bar" id="progressDoc"></div></div>
                     </div>
-                    <input type="file" id="fileDoc" accept=".pdf,.jpg,.jpeg,.png" onchange="handleFile(this, 'doc')" style="display: none">
-                    <div id="previewDoc"></div>
+                    <input type="file" id="fileDoc" accept=".pdf,.jpg,.jpeg,.png" onchange="handleFile(this, 'doc')" style="display: none"><div id="previewDoc"></div>
                 </div>
-                
-                <!-- Enrollment Certificate (Students) -->
                 <div class="form-group conditional-section" id="enrollmentUpload">
                     <label class="form-label">University Enrollment Certificate <span class="required">*</span></label>
-                    <div class="upload-zone" id="uploadEnrollment" onclick="document.getElementById('fileEnrollment').click()"
-                         ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'enrollment')">
-                        <div class="upload-icon">🎓</div>
-                        <div class="upload-text">Click or drag file here</div>
-                        <div class="upload-hint">PDF, JPG, PNG — Max 10MB</div>
-                        <div class="upload-progress" style="display: none;">
-                            <div class="upload-progress-bar" id="progressEnrollment"></div>
-                        </div>
+                    <div class="upload-zone" id="uploadEnrollment" onclick="document.getElementById('fileEnrollment').click()" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'enrollment')">
+                        <div class="upload-icon">🎓</div><div class="upload-text">Click or drag file here</div><div class="upload-hint">PDF, JPG, PNG — Max 10MB</div>
+                        <div class="upload-progress" style="display: none;"><div class="upload-progress-bar" id="progressEnrollment"></div></div>
                     </div>
-                    <input type="file" id="fileEnrollment" accept=".pdf,.jpg,.jpeg,.png" onchange="handleFile(this, 'enrollment')" style="display: none">
-                    <div id="previewEnrollment"></div>
+                    <input type="file" id="fileEnrollment" accept=".pdf,.jpg,.jpeg,.png" onchange="handleFile(this, 'enrollment')" style="display: none"><div id="previewEnrollment"></div>
                 </div>
-                
-                <!-- Income Proof (Workers) -->
                 <div class="form-group conditional-section" id="incomeUpload">
                     <label class="form-label">Proof of Income <span class="required">*</span></label>
-                    <div class="upload-zone" id="uploadIncome" onclick="document.getElementById('fileIncome').click()"
-                         ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'income')">
-                        <div class="upload-icon">💼</div>
-                        <div class="upload-text">Click or drag file here</div>
-                        <div class="upload-hint">Payslip, employment contract, or bank statement</div>
-                        <div class="upload-progress" style="display: none;">
-                            <div class="upload-progress-bar" id="progressIncome"></div>
-                        </div>
+                    <div class="upload-zone" id="uploadIncome" onclick="document.getElementById('fileIncome').click()" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'income')">
+                        <div class="upload-icon">💼</div><div class="upload-text">Click or drag file here</div><div class="upload-hint">Payslip, employment contract, or bank statement</div>
+                        <div class="upload-progress" style="display: none;"><div class="upload-progress-bar" id="progressIncome"></div></div>
                     </div>
-                    <input type="file" id="fileIncome" accept=".pdf,.jpg,.jpeg,.png" onchange="handleFile(this, 'income')" style="display: none">
-                    <div id="previewIncome"></div>
+                    <input type="file" id="fileIncome" accept=".pdf,.jpg,.jpeg,.png" onchange="handleFile(this, 'income')" style="display: none"><div id="previewIncome"></div>
                 </div>
-                
-                <div class="btn-row">
-                    <button type="button" class="btn btn-secondary" onclick="prevStep()">← Back</button>
-                    <button type="button" class="btn btn-primary" onclick="nextStep()" id="btnStep3">Continue →</button>
-                </div>
+                <div class="btn-row"><button type="button" class="btn btn-secondary" onclick="prevStep()">← Back</button><button type="button" class="btn btn-primary" onclick="nextStep()" id="btnStep3">Continue →</button></div>
             </div>
             
-            <!-- Step 4: Review & Submit -->
+            <!-- Step 4 -->
             <div class="form-section" data-section="4">
                 <h2 class="section-title">Review & Submit</h2>
                 <p class="section-subtitle">Please verify all information is correct</p>
-                
                 <div id="reviewContent"></div>
-                
                 <div class="form-group" style="margin-top: 24px;">
                     <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer;">
                         <input type="checkbox" id="acceptTerms" style="margin-top: 4px; width: 18px; height: 18px; accent-color: var(--gold);">
-                        <span style="font-size: 13px; color: var(--text-secondary);">
-                            I confirm that all information provided is accurate and I authorize BOOM to process my data 
-                            for the purpose of contract registration. 
-                            <a href="https://www.boomrome.com/privacy" target="_blank" style="color: var(--gold);">Privacy Policy</a>
-                        </span>
+                        <span style="font-size: 13px; color: var(--text-secondary);">I confirm that all information provided is accurate and I authorize BOOM to process my data for the purpose of contract registration. <a href="https://www.boomrome.com/privacy" target="_blank" style="color: var(--gold);">Privacy Policy</a></span>
                     </label>
                 </div>
-                
-                <div class="btn-row">
-                    <button type="button" class="btn btn-secondary" onclick="prevStep()">← Back</button>
-                    <button type="button" class="btn btn-primary" onclick="submitForm()" id="btnSubmit" disabled>
-                        ✓ Submit Registration
-                    </button>
-                </div>
+                <div class="btn-row"><button type="button" class="btn btn-secondary" onclick="prevStep()">← Back</button><button type="button" class="btn btn-primary" onclick="submitForm()" id="btnSubmit" disabled>✓ Submit Registration</button></div>
             </div>
         </form>
         
-        <!-- Success Screen -->
         <div class="form-section" data-section="success" id="successScreen">
             <div class="success-screen">
                 <div class="success-icon">🎉</div>
                 <h2 class="success-title">Registration Complete!</h2>
                 <p class="success-text">Thank you for submitting your information. We'll be in touch shortly.</p>
-                
-                <div class="success-box">
-                    <div class="success-box-title">Your Reference Number</div>
-                    <div class="success-box-value" id="successRef">—</div>
-                </div>
-                
-                <a href="https://wa.me/393313251961" class="btn btn-primary btn-block" style="text-decoration: none;">
-                    💬 Message us on WhatsApp
-                </a>
+                <div class="success-box"><div class="success-box-title">Your Reference Number</div><div class="success-box-value" id="successRef">—</div></div>
+                <a href="https://wa.me/393313251961" class="btn btn-primary btn-block" style="text-decoration: none;">💬 Message us on WhatsApp</a>
             </div>
         </div>
         
-        <!-- Footer -->
         <div class="footer">
             <p>BOOM — Egidi Immobiliare S.r.l. | P.IVA 17322991005</p>
-            <p style="margin-top: 10px;">
-                <a href="https://wa.me/393313251961">Need help? WhatsApp us</a>
-            </p>
+            <p style="margin-top: 10px;"><a href="https://wa.me/393313251961">Need help? WhatsApp us</a></p>
         </div>
     </div>
     
-    <!-- Toast -->
-    <div class="toast" id="toast">
-        <div class="toast-icon" id="toastIcon">ℹ️</div>
-        <div class="toast-message" id="toastMessage">Message</div>
-    </div>
+    <div class="toast" id="toast"><div class="toast-icon" id="toastIcon">ℹ️</div><div class="toast-message" id="toastMessage">Message</div></div>
     
-    <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-storage-compat.js"></script>
     
     <script>
-        // Firebase Config
         const firebaseConfig = {
             apiKey: "AIzaSyAG4_h4BLN7p8p9nf9V42SeZ9HJW7xxhd0",
             authDomain: "boom-property-dashboards.firebaseapp.com",
@@ -880,9 +289,8 @@
             appId: "1:233385163509:web:7e4e8c1d8e9f8a9b8c7d6e"
         };
         
-        // Check Firebase loaded
         if (typeof firebase === 'undefined') {
-            document.body.innerHTML = '<div style="padding:40px;text-align:center;color:#fff;"><h2>Loading Error</h2><p>Please refresh the page or check your internet connection.</p><button onclick="location.reload()" style="margin-top:20px;padding:12px 24px;background:#D4AF37;color:#000;border:none;border-radius:8px;cursor:pointer;">Refresh</button></div>';
+            document.body.innerHTML = '<div style="padding:40px;text-align:center;color:#fff;background:#0a0a0a;min-height:100vh;"><h2 style="color:#D4AF37;">Loading Error</h2><p style="margin:20px 0;">Please refresh the page or check your internet connection.</p><button onclick="location.reload()" style="padding:12px 24px;background:#D4AF37;color:#000;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Refresh Page</button></div>';
         } else {
             firebase.initializeApp(firebaseConfig);
         }
@@ -890,166 +298,89 @@
         const db = firebase.firestore();
         const storage = firebase.storage();
         
-        // State
         let currentStep = 1;
         let tenantType = null;
         let uploadedFiles = { doc: null, enrollment: null, income: null };
         
-        // Get contract ID from URL
         const urlParams = new URLSearchParams(window.location.search);
         const contractIdFromUrl = urlParams.get('contract');
-        if (contractIdFromUrl) {
-            document.getElementById('contractId').value = contractIdFromUrl;
-        }
+        if (contractIdFromUrl) document.getElementById('contractId').value = contractIdFromUrl;
         
-        // Toast
         function toast(type, message) {
             const t = document.getElementById('toast');
-            const icon = document.getElementById('toastIcon');
-            const msg = document.getElementById('toastMessage');
-            
-            icon.textContent = type === 'error' ? '❌' : type === 'success' ? '✅' : 'ℹ️';
-            msg.textContent = message;
+            document.getElementById('toastIcon').textContent = type === 'error' ? '❌' : type === 'success' ? '✅' : 'ℹ️';
+            document.getElementById('toastMessage').textContent = message;
             t.className = 'toast ' + type + ' show';
-            
             setTimeout(() => t.classList.remove('show'), 4000);
         }
         
-        // Type Selection
         function selectType(type) {
             tenantType = type;
             document.getElementById('cardStudent').classList.toggle('selected', type === 'student');
             document.getElementById('cardWorker').classList.toggle('selected', type === 'worker');
             document.getElementById('btnStep1').disabled = false;
-            
-            // Toggle conditional sections
             document.getElementById('studentSection').classList.toggle('active', type === 'student');
             document.getElementById('workerSection').classList.toggle('active', type === 'worker');
             document.getElementById('enrollmentUpload').classList.toggle('active', type === 'student');
             document.getElementById('incomeUpload').classList.toggle('active', type === 'worker');
-            
-            // Update checklist
             document.getElementById('checkEnrollment').style.display = type === 'student' ? 'flex' : 'none';
             document.getElementById('checkIncome').style.display = type === 'worker' ? 'flex' : 'none';
-            
-            // Update required fields
             document.querySelector('[name="universityName"]').required = type === 'student';
             document.querySelector('[name="employerName"]').required = type === 'worker';
         }
         
-        // Navigation
         function nextStep() {
             if (currentStep === 2 && !validateStep2()) return;
             if (currentStep === 3 && !validateStep3()) return;
-            
-            if (currentStep < 4) {
-                currentStep++;
-                updateUI();
-                if (currentStep === 4) buildReview();
-            }
+            if (currentStep < 4) { currentStep++; updateUI(); if (currentStep === 4) buildReview(); }
         }
         
-        function prevStep() {
-            if (currentStep > 1) {
-                currentStep--;
-                updateUI();
-            }
-        }
+        function prevStep() { if (currentStep > 1) { currentStep--; updateUI(); } }
         
         function updateUI() {
-            // Update sections
             document.querySelectorAll('.form-section').forEach(s => s.classList.remove('active'));
             document.querySelector(`[data-section="${currentStep}"]`).classList.add('active');
-            
-            // Update progress
             document.querySelectorAll('.progress-step').forEach(s => {
                 const step = parseInt(s.dataset.step);
                 s.classList.remove('active', 'completed');
                 if (step === currentStep) s.classList.add('active');
                 if (step < currentStep) s.classList.add('completed');
             });
-            
-            // Scroll to top
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
         
-        // Validation
         function validateStep2() {
             const form = document.getElementById('tenantForm');
             const requiredFields = ['firstName', 'lastName', 'birthDate', 'birthPlace', 'nationality', 'email', 'phone'];
-            
             if (tenantType === 'student') requiredFields.push('universityName');
             if (tenantType === 'worker') requiredFields.push('employerName');
-            
             for (const field of requiredFields) {
                 const input = form.querySelector(`[name="${field}"]`);
-                if (!input.value.trim()) {
-                    input.classList.add('error');
-                    input.focus();
-                    toast('error', 'Please fill in all required fields');
-                    return false;
-                }
+                if (!input.value.trim()) { input.classList.add('error'); input.focus(); toast('error', 'Please fill in all required fields'); return false; }
                 input.classList.remove('error');
             }
-            
             return true;
         }
         
         function validateStep3() {
-            if (!uploadedFiles.doc) {
-                toast('error', 'Please upload your passport or ID');
-                return false;
-            }
-            
-            if (tenantType === 'student' && !uploadedFiles.enrollment) {
-                toast('error', 'Please upload your enrollment certificate');
-                return false;
-            }
-            
-            if (tenantType === 'worker' && !uploadedFiles.income) {
-                toast('error', 'Please upload your proof of income');
-                return false;
-            }
-            
+            if (!uploadedFiles.doc) { toast('error', 'Please upload your passport or ID'); return false; }
+            if (tenantType === 'student' && !uploadedFiles.enrollment) { toast('error', 'Please upload your enrollment certificate'); return false; }
+            if (tenantType === 'worker' && !uploadedFiles.income) { toast('error', 'Please upload your proof of income'); return false; }
             return true;
         }
         
-        // File Handling
-        function handleDragOver(e) {
-            e.preventDefault();
-            e.currentTarget.classList.add('dragover');
-        }
-        
-        function handleDragLeave(e) {
-            e.currentTarget.classList.remove('dragover');
-        }
-        
-        function handleDrop(e, type) {
-            e.preventDefault();
-            e.currentTarget.classList.remove('dragover');
-            const file = e.dataTransfer.files[0];
-            if (file) processFile(file, type);
-        }
-        
-        function handleFile(input, type) {
-            const file = input.files[0];
-            if (file) processFile(file, type);
-        }
+        function handleDragOver(e) { e.preventDefault(); e.currentTarget.classList.add('dragover'); }
+        function handleDragLeave(e) { e.currentTarget.classList.remove('dragover'); }
+        function handleDrop(e, type) { e.preventDefault(); e.currentTarget.classList.remove('dragover'); const file = e.dataTransfer.files[0]; if (file) processFile(file, type); }
+        function handleFile(input, type) { const file = input.files[0]; if (file) processFile(file, type); }
         
         async function processFile(file, type) {
-            // Validate
-            if (file.size > 10 * 1024 * 1024) {
-                toast('error', 'File too large. Maximum 10MB.');
-                return;
-            }
-            
+            if (file.size > 10 * 1024 * 1024) { toast('error', 'File too large. Maximum 10MB.'); return; }
             const validTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
-            if (!validTypes.includes(file.type)) {
-                toast('error', 'Invalid file type. Use PDF, JPG, or PNG.');
-                return;
-            }
+            if (!validTypes.includes(file.type)) { toast('error', 'Invalid file type. Use PDF, JPG, or PNG.'); return; }
             
-            const zone = document.getElementById('upload' + type.charAt(0).toUpperCase() + type.slice(1));
+            const zoneId = 'upload' + type.charAt(0).toUpperCase() + type.slice(1);
+            const zone = document.getElementById(zoneId);
             const progress = zone.querySelector('.upload-progress');
             const progressBar = document.getElementById('progress' + type.charAt(0).toUpperCase() + type.slice(1));
             
@@ -1058,51 +389,37 @@
             progressBar.style.width = '0%';
             
             try {
-                // Generate unique filename
                 const timestamp = Date.now();
                 const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
                 const contractId = document.getElementById('contractId').value || 'unknown';
                 const path = `registrations/${contractId}/tenant_${type}_${timestamp}_${safeName}`;
                 
-                // Upload to Firebase Storage
                 const storageRef = storage.ref(path);
                 const uploadTask = storageRef.put(file);
                 
                 uploadTask.on('state_changed', 
-                    (snapshot) => {
-                        const pct = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-                        progressBar.style.width = pct + '%';
-                    },
+                    (snapshot) => { progressBar.style.width = (snapshot.bytesTransferred / snapshot.totalBytes * 100) + '%'; },
                     (error) => {
-                        console.error('Upload error:', error);
                         zone.classList.remove('uploading');
                         progress.style.display = 'none';
-                        toast('error', 'Upload failed: ' + error.message);
+                        if (error.code === 'storage/unauthorized') {
+                            toast('error', 'Storage not configured. Contact BOOM support.');
+                        } else {
+                            toast('error', 'Upload failed: ' + (error.message || 'Unknown error'));
+                        }
                     },
                     async () => {
                         const downloadURL = await uploadTask.snapshot.ref.getDownloadURL();
-                        
-                        uploadedFiles[type] = {
-                            name: file.name,
-                            size: file.size,
-                            type: file.type,
-                            url: downloadURL,
-                            path: path
-                        };
-                        
+                        uploadedFiles[type] = { name: file.name, size: file.size, type: file.type, url: downloadURL, path: path };
                         zone.classList.remove('uploading');
                         zone.classList.add('has-file');
                         progress.style.display = 'none';
-                        
-                        // Show preview
                         showFilePreview(type, file);
                         updateChecklist();
-                        
                         toast('success', 'File uploaded successfully');
                     }
                 );
             } catch (error) {
-                console.error('Upload error:', error);
                 zone.classList.remove('uploading');
                 progress.style.display = 'none';
                 toast('error', 'Upload failed. Please try again.');
@@ -1111,142 +428,47 @@
         
         function showFilePreview(type, file) {
             const previewId = 'preview' + type.charAt(0).toUpperCase() + type.slice(1);
-            const preview = document.getElementById(previewId);
-            
-            const sizeKB = (file.size / 1024).toFixed(1);
-            const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
-            const sizeStr = file.size > 1024 * 1024 ? sizeMB + ' MB' : sizeKB + ' KB';
-            
-            preview.innerHTML = `
-                <div class="file-preview">
-                    <div class="file-preview-icon">${file.type.includes('pdf') ? '📄' : '🖼️'}</div>
-                    <div class="file-preview-info">
-                        <div class="file-preview-name">${file.name}</div>
-                        <div class="file-preview-size">${sizeStr}</div>
-                    </div>
-                    <button type="button" class="file-preview-remove" onclick="removeFile('${type}')">×</button>
-                </div>
-            `;
+            const sizeStr = file.size > 1024 * 1024 ? (file.size / (1024 * 1024)).toFixed(2) + ' MB' : (file.size / 1024).toFixed(1) + ' KB';
+            document.getElementById(previewId).innerHTML = `<div class="file-preview"><div class="file-preview-icon">${file.type.includes('pdf') ? '📄' : '🖼️'}</div><div class="file-preview-info"><div class="file-preview-name">${file.name}</div><div class="file-preview-size">${sizeStr}</div></div><button type="button" class="file-preview-remove" onclick="removeFile('${type}')">×</button></div>`;
         }
         
         function removeFile(type) {
             uploadedFiles[type] = null;
-            
-            const previewId = 'preview' + type.charAt(0).toUpperCase() + type.slice(1);
-            const zoneId = 'upload' + type.charAt(0).toUpperCase() + type.slice(1);
-            const inputId = 'file' + type.charAt(0).toUpperCase() + type.slice(1);
-            
-            document.getElementById(previewId).innerHTML = '';
-            document.getElementById(zoneId).classList.remove('has-file');
-            document.getElementById(inputId).value = '';
-            
+            document.getElementById('preview' + type.charAt(0).toUpperCase() + type.slice(1)).innerHTML = '';
+            document.getElementById('upload' + type.charAt(0).toUpperCase() + type.slice(1)).classList.remove('has-file');
+            document.getElementById('file' + type.charAt(0).toUpperCase() + type.slice(1)).value = '';
             updateChecklist();
         }
         
         function updateChecklist() {
-            // Document
-            const checkDoc = document.getElementById('checkDoc');
-            if (uploadedFiles.doc) {
-                checkDoc.classList.add('done');
-                checkDoc.querySelector('.checklist-icon').textContent = '✓';
-                checkDoc.querySelector('.checklist-icon').classList.add('done');
-            } else {
-                checkDoc.classList.remove('done');
-                checkDoc.querySelector('.checklist-icon').textContent = '1';
-                checkDoc.querySelector('.checklist-icon').classList.remove('done');
-            }
-            
-            // Enrollment (student)
-            const checkEnrollment = document.getElementById('checkEnrollment');
-            if (uploadedFiles.enrollment) {
-                checkEnrollment.classList.add('done');
-                checkEnrollment.querySelector('.checklist-icon').textContent = '✓';
-                checkEnrollment.querySelector('.checklist-icon').classList.add('done');
-            } else {
-                checkEnrollment.classList.remove('done');
-                checkEnrollment.querySelector('.checklist-icon').textContent = '2';
-                checkEnrollment.querySelector('.checklist-icon').classList.remove('done');
-            }
-            
-            // Income (worker)
-            const checkIncome = document.getElementById('checkIncome');
-            if (uploadedFiles.income) {
-                checkIncome.classList.add('done');
-                checkIncome.querySelector('.checklist-icon').textContent = '✓';
-                checkIncome.querySelector('.checklist-icon').classList.add('done');
-            } else {
-                checkIncome.classList.remove('done');
-                checkIncome.querySelector('.checklist-icon').textContent = '2';
-                checkIncome.querySelector('.checklist-icon').classList.remove('done');
-            }
+            const checks = [{ id: 'checkDoc', file: 'doc', num: '1' }, { id: 'checkEnrollment', file: 'enrollment', num: '2' }, { id: 'checkIncome', file: 'income', num: '2' }];
+            checks.forEach(c => {
+                const el = document.getElementById(c.id);
+                const icon = el.querySelector('.checklist-icon');
+                if (uploadedFiles[c.file]) { el.classList.add('done'); icon.textContent = '✓'; icon.classList.add('done'); }
+                else { el.classList.remove('done'); icon.textContent = c.num; icon.classList.remove('done'); }
+            });
         }
         
-        // Review
         function buildReview() {
             const form = document.getElementById('tenantForm');
-            const fd = new FormData(form);
-            const data = Object.fromEntries(fd);
-            
-            let html = `
+            const data = Object.fromEntries(new FormData(form));
+            document.getElementById('reviewContent').innerHTML = `
                 <div style="background: var(--surface); border-radius: var(--radius); overflow: hidden;">
-                    <div style="padding: 16px; border-bottom: 1px solid var(--border);">
-                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">TYPE</div>
-                        <div style="font-size: 15px;">${tenantType === 'student' ? '🎓 Student' : '💼 Worker'}</div>
-                    </div>
-                    <div style="padding: 16px; border-bottom: 1px solid var(--border);">
-                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">NAME</div>
-                        <div style="font-size: 15px;">${data.firstName} ${data.lastName}</div>
-                    </div>
-                    <div style="padding: 16px; border-bottom: 1px solid var(--border);">
-                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">BORN</div>
-                        <div style="font-size: 15px;">${data.birthDate} — ${data.birthPlace}</div>
-                    </div>
-                    <div style="padding: 16px; border-bottom: 1px solid var(--border);">
-                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">NATIONALITY</div>
-                        <div style="font-size: 15px;">${data.nationality}</div>
-                    </div>
-                    ${data.codiceFiscale ? `
-                    <div style="padding: 16px; border-bottom: 1px solid var(--border);">
-                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">CODICE FISCALE</div>
-                        <div style="font-size: 15px; font-family: monospace;">${data.codiceFiscale.toUpperCase()}</div>
-                    </div>
-                    ` : ''}
-                    <div style="padding: 16px; border-bottom: 1px solid var(--border);">
-                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">CONTACT</div>
-                        <div style="font-size: 15px;">${data.email}<br>${data.phone}</div>
-                    </div>
-                    ${tenantType === 'student' ? `
-                    <div style="padding: 16px; border-bottom: 1px solid var(--border);">
-                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">UNIVERSITY</div>
-                        <div style="font-size: 15px;">${data.universityName}${data.courseName ? '<br>' + data.courseName : ''}</div>
-                    </div>
-                    ` : ''}
-                    ${tenantType === 'worker' ? `
-                    <div style="padding: 16px; border-bottom: 1px solid var(--border);">
-                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">EMPLOYER</div>
-                        <div style="font-size: 15px;">${data.employerName}${data.jobTitle ? '<br>' + data.jobTitle : ''}</div>
-                    </div>
-                    ` : ''}
-                    <div style="padding: 16px;">
-                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px;">DOCUMENTS</div>
-                        <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-                            ${uploadedFiles.doc ? `<span style="background: var(--green-light); color: var(--green); padding: 6px 12px; border-radius: 6px; font-size: 13px;">✓ ID/Passport</span>` : ''}
-                            ${uploadedFiles.enrollment ? `<span style="background: var(--green-light); color: var(--green); padding: 6px 12px; border-radius: 6px; font-size: 13px;">✓ Enrollment</span>` : ''}
-                            ${uploadedFiles.income ? `<span style="background: var(--green-light); color: var(--green); padding: 6px 12px; border-radius: 6px; font-size: 13px;">✓ Income Proof</span>` : ''}
-                        </div>
-                    </div>
-                </div>
-            `;
-            
-            document.getElementById('reviewContent').innerHTML = html;
+                    <div style="padding: 16px; border-bottom: 1px solid var(--border);"><div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">TYPE</div><div style="font-size: 15px;">${tenantType === 'student' ? '🎓 Student' : '💼 Worker'}</div></div>
+                    <div style="padding: 16px; border-bottom: 1px solid var(--border);"><div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">NAME</div><div style="font-size: 15px;">${data.firstName} ${data.lastName}</div></div>
+                    <div style="padding: 16px; border-bottom: 1px solid var(--border);"><div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">BORN</div><div style="font-size: 15px;">${data.birthDate} — ${data.birthPlace}</div></div>
+                    <div style="padding: 16px; border-bottom: 1px solid var(--border);"><div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">NATIONALITY</div><div style="font-size: 15px;">${data.nationality}</div></div>
+                    ${data.codiceFiscale ? `<div style="padding: 16px; border-bottom: 1px solid var(--border);"><div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">CODICE FISCALE</div><div style="font-size: 15px; font-family: monospace;">${data.codiceFiscale.toUpperCase()}</div></div>` : ''}
+                    <div style="padding: 16px; border-bottom: 1px solid var(--border);"><div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">CONTACT</div><div style="font-size: 15px;">${data.email}<br>${data.phone}</div></div>
+                    ${tenantType === 'student' ? `<div style="padding: 16px; border-bottom: 1px solid var(--border);"><div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">UNIVERSITY</div><div style="font-size: 15px;">${data.universityName}${data.courseName ? '<br>' + data.courseName : ''}</div></div>` : ''}
+                    ${tenantType === 'worker' ? `<div style="padding: 16px; border-bottom: 1px solid var(--border);"><div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">EMPLOYER</div><div style="font-size: 15px;">${data.employerName}${data.jobTitle ? '<br>' + data.jobTitle : ''}</div></div>` : ''}
+                    <div style="padding: 16px;"><div style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px;">DOCUMENTS</div><div style="display: flex; flex-wrap: wrap; gap: 8px;">${uploadedFiles.doc ? '<span style="background: var(--green-light); color: var(--green); padding: 6px 12px; border-radius: 6px; font-size: 13px;">✓ ID/Passport</span>' : ''}${uploadedFiles.enrollment ? '<span style="background: var(--green-light); color: var(--green); padding: 6px 12px; border-radius: 6px; font-size: 13px;">✓ Enrollment</span>' : ''}${uploadedFiles.income ? '<span style="background: var(--green-light); color: var(--green); padding: 6px 12px; border-radius: 6px; font-size: 13px;">✓ Income Proof</span>' : ''}</div></div>
+                </div>`;
         }
         
-        // Terms checkbox
-        document.getElementById('acceptTerms').addEventListener('change', function() {
-            document.getElementById('btnSubmit').disabled = !this.checked;
-        });
+        document.getElementById('acceptTerms').addEventListener('change', function() { document.getElementById('btnSubmit').disabled = !this.checked; });
         
-        // Submit
         async function submitForm() {
             const btn = document.getElementById('btnSubmit');
             btn.classList.add('loading');
@@ -1254,75 +476,39 @@
             
             try {
                 const form = document.getElementById('tenantForm');
-                const fd = new FormData(form);
-                const data = Object.fromEntries(fd);
-                
+                const data = Object.fromEntries(new FormData(form));
                 const contractId = data.contractId || 'BOOM-' + Date.now();
                 
-                // Prepare submission data
                 const submission = {
-                    contractId: contractId,
-                    type: 'tenant',
-                    tenantType: tenantType,
-                    
-                    // Personal info
-                    firstName: data.firstName,
-                    lastName: data.lastName,
-                    fullName: `${data.firstName} ${data.lastName}`,
-                    birthDate: data.birthDate,
-                    birthPlace: data.birthPlace,
-                    nationality: data.nationality,
+                    contractId, type: 'tenant', tenantType,
+                    firstName: data.firstName, lastName: data.lastName, fullName: `${data.firstName} ${data.lastName}`,
+                    birthDate: data.birthDate, birthPlace: data.birthPlace, nationality: data.nationality,
                     codiceFiscale: data.codiceFiscale ? data.codiceFiscale.toUpperCase() : null,
-                    email: data.email,
-                    phone: data.phone,
-                    currentAddress: data.currentAddress || null,
-                    
-                    // Type-specific
+                    email: data.email, phone: data.phone, currentAddress: data.currentAddress || null,
                     universityName: tenantType === 'student' ? data.universityName : null,
                     courseName: tenantType === 'student' ? data.courseName : null,
                     employerName: tenantType === 'worker' ? data.employerName : null,
                     jobTitle: tenantType === 'worker' ? data.jobTitle : null,
-                    
-                    // Documents
-                    documents: {
-                        idDocument: uploadedFiles.doc,
-                        enrollment: uploadedFiles.enrollment || null,
-                        incomeProof: uploadedFiles.income || null
-                    },
-                    
-                    // Metadata
+                    documents: { idDocument: uploadedFiles.doc, enrollment: uploadedFiles.enrollment || null, incomeProof: uploadedFiles.income || null },
                     submittedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                    status: 'submitted',
-                    source: 'form-tenant',
-                    userAgent: navigator.userAgent
+                    status: 'submitted', source: 'form-tenant', userAgent: navigator.userAgent
                 };
                 
-                // Save to Firestore
                 const docRef = await db.collection('contractRegistrations').add(submission);
                 
-                // Update registration status if exists
-                if (contractId && contractId !== 'BOOM-' + Date.now()) {
+                if (contractId && !contractId.startsWith('BOOM-')) {
                     try {
                         await db.collection('contractRegistrationStatus').doc(contractId).set({
-                            tenantSubmitted: true,
-                            tenantSubmittedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                            tenantDocId: docRef.id
+                            tenantSubmitted: true, tenantSubmittedAt: firebase.firestore.FieldValue.serverTimestamp(), tenantDocId: docRef.id
                         }, { merge: true });
-                    } catch (e) {
-                        console.log('Status update skipped:', e);
-                    }
+                    } catch (e) { console.log('Status update skipped'); }
                 }
                 
-                // Show success
                 document.querySelectorAll('.form-section').forEach(s => s.classList.remove('active'));
                 document.getElementById('successScreen').classList.add('active');
                 document.getElementById('successRef').textContent = docRef.id.slice(0, 8).toUpperCase();
-                
-                // Update progress to complete
                 document.querySelectorAll('.progress-step').forEach(s => s.classList.add('completed'));
-                
             } catch (error) {
-                console.error('Submission error:', error);
                 btn.classList.remove('loading');
                 btn.disabled = false;
                 toast('error', 'Submission failed: ' + error.message);
