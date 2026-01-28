@@ -534,6 +534,7 @@
         deadlines: [], tasks: [], // Command Center
         userNotifications: [], // Persistent notifications from Firestore
         listings: [], // For adminflats
+        registrations: [], registrationStatuses: {}, regPending: 0,
         lastActivity: Date.now(),
         isOnline: navigator.onLine,
         notifListener: null // Real-time listener reference
@@ -1240,6 +1241,7 @@
     async function refresh() { 
         try {
             await loadData(); 
+            loadRegistrations();
             renderPage(); 
             buildNav(); 
         } catch (e) {
@@ -1356,6 +1358,7 @@
                 <div class="nav-section"><div class="nav-label">Admin Tools</div>
                     <div class="nav-item ${S.page==='command'?'active':''}" onclick="goTo('command')"><span class="nav-icon">ðŸŽ¯</span> Command Center ${urgentDeadlines?`<span class="nav-badge orange">${urgentDeadlines}</span>`:''}</div>
                     <div class="nav-item ${S.page==='adminflats'?'active':''}" onclick="goTo('adminflats')"><span class="nav-icon">ðŸ¢</span> AdminFlats</div>
+                    <div class="nav-item ${S.page==='registrations'?'active':''}" onclick="goTo('registrations')"><span class="nav-icon">📝</span> Registrazioni ${S.regPending?`<span class="nav-badge orange">${S.regPending}</span>`:''}</div>
                 </div>
                 <div class="sidebar-footer">
                     <div class="nav-item" onclick="goTo('settings')"><span class="nav-icon">âš™ï¸</span> Impostazioni</div>
@@ -1426,6 +1429,7 @@
             case 'settings': m.innerHTML = settingsPage(); break;
             case 'command': m.innerHTML = isAdmin() ? commandPage() : accessDenied(); break;
             case 'adminflats': m.innerHTML = isAdmin() ? adminflatsPage() : accessDenied(); break;
+            case 'registrations': m.innerHTML = isAdmin() ? registrationsPage() : accessDenied(); break;
             default: m.innerHTML = r === 'admin' ? adminDashboard() : r === 'landlord' ? landlordDashboard() : tenantDashboard();
         }
     }
@@ -6211,7 +6215,7 @@
                 lines.forEach(line => {
                     if (!line.trim()) { y += 3; return; }
                     // Check if it's a room header (no dash/bullet at start)
-                    if (line.trim().match(/^[A-Za-zÃ€-Ãº]/i) && !line.trim().startsWith('-') && !line.trim().startsWith('â€¢') && line.includes(':')) {
+                    if (line.trim().match(/^[A-Za-z]/i) && !line.trim().startsWith('-') && !line.trim().startsWith('â€¢') && line.includes(':')) {
                         // Room header
                         if (y > 250) { doc.addPage(); y = 30; }
                         doc.setFillColor(240, 240, 240);
@@ -6665,6 +6669,156 @@
             showAuthError('Connessione lenta. Ricarica la pagina o verifica la connessione internet.');
         }
     }, 15000);
+
+    // CONTRACT REGISTRATION SYSTEM
+    async function loadRegistrations() {
+        try {
+            const [regsSnap, statusSnap] = await Promise.all([
+                db.collection('contractRegistrations').orderBy('submittedAt', 'desc').get(),
+                db.collection('contractRegistrationStatus').get()
+            ]);
+            S.registrations = regsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+            S.registrationStatuses = {};
+            statusSnap.docs.forEach(d => { S.registrationStatuses[d.id] = { id: d.id, ...d.data() }; });
+            S.regPending = Object.values(S.registrationStatuses).filter(s => s.status !== 'completed' && s.status !== 'registered').length;
+            buildNav();
+        } catch (err) { console.error('Error loading registrations:', err); }
+    }
+
+    function registrationsPage() {
+        const grouped = {};
+        S.registrations.forEach(r => {
+            if (!grouped[r.contractId]) grouped[r.contractId] = { landlord: null, tenants: [] };
+            if (r.type === 'landlord') grouped[r.contractId].landlord = r;
+            else grouped[r.contractId].tenants.push(r);
+        });
+        const contracts = Object.entries(grouped).map(([id, data]) => {
+            const status = S.registrationStatuses[id] || {};
+            return { id, ...data, status: status.status || 'pending', landlordSubmitted: !!data.landlord, tenantSubmitted: data.tenants.length > 0, propertyAddress: data.landlord?.propertyAddress || status.description || 'In attesa dati' };
+        });
+        const statusLabels = { pending: 'In Attesa', ready: 'Pronto RLI', registered: 'Registrato' };
+        const statusColors = { pending: 'orange', ready: 'blue', registered: 'green' };
+        return `
+            <div class="page-header"><h1 class="page-title">Registrazione Contratti</h1>
+                <div class="page-actions"><button class="btn btn-secondary" onclick="openNewRegistration()">+ Nuova</button></div>
+            </div>
+            <div class="card" style="margin-bottom:24px"><div class="card-body">
+                <div class="card-title" style="margin-bottom:16px">Link Form</div>
+                <div class="grid-2">
+                    <div><label class="form-label">Proprietario</label><div style="display:flex;gap:8px"><input type="text" class="form-input" value="https://boomrome.com/form-landlord.html" readonly id="lUrl" style="font-size:11px"><button class="btn btn-sm" onclick="copyRegUrl('lUrl')">Copia</button></div></div>
+                    <div><label class="form-label">Inquilino</label><div style="display:flex;gap:8px"><input type="text" class="form-input" value="https://boomrome.com/form-tenant.html" readonly id="tUrl" style="font-size:11px"><button class="btn btn-sm" onclick="copyRegUrl('tUrl')">Copia</button></div></div>
+                </div>
+            </div></div>
+            <div class="card"><div class="card-header"><span class="card-title">Contratti</span><button class="btn btn-sm btn-secondary" onclick="loadRegistrations()">Aggiorna</button></div>
+                <div class="card-body flush">
+                    ${contracts.length === 0 ? '<div class="empty-state"><div class="empty-icon">-</div><div class="empty-title">Nessuna registrazione</div><button class="btn" onclick="openNewRegistration()">+ Nuova</button></div>' : contracts.map(c => `
+                        <div class="list-item clickable" onclick="openRegDetail('${c.id}')">
+                            <div class="list-icon" style="font-size:24px">${c.status === 'registered' ? 'OK' : '...'}</div>
+                            <div class="list-content">
+                                <div class="list-title">${esc(c.propertyAddress)} <span class="badge ${statusColors[c.status] || 'gray'}">${statusLabels[c.status] || c.status}</span></div>
+                                <div class="list-subtitle">Landlord: ${c.landlordSubmitted ? 'OK' : 'attesa'} | Tenant: ${c.tenantSubmitted ? 'OK' : 'attesa'}</div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>`;
+    }
+
+    function openRegDetail(contractId) {
+        const status = S.registrationStatuses[contractId] || {};
+        const docs = S.registrations.filter(r => r.contractId === contractId);
+        const landlord = docs.find(d => d.type === 'landlord');
+        const tenant = docs.find(d => d.type === 'tenant');
+        document.getElementById('modals').innerHTML = `
+            <div class="modal-overlay active" onclick="if(event.target===this)closeModal()">
+                <div class="modal xl"><div class="modal-header"><h3 class="modal-title">${landlord?.propertyAddress || contractId}</h3><button class="modal-close" onclick="closeModal()">x</button></div>
+                    <div class="modal-body" style="max-height:70vh;overflow-y:auto">
+                        <div class="alert info"><span>ID:</span><span>${contractId}</span></div>
+                        <div class="info-box" style="margin:20px 0"><div class="info-box-title">PROPRIETARIO ${landlord ? 'OK' : 'attesa'}</div>
+                            ${landlord ? `<div class="info-box-row"><span class="info-box-label">Nome</span><span class="info-box-value">${esc(landlord.fullName)}</span></div>
+                            <div class="info-box-row"><span class="info-box-label">CF</span><span class="info-box-value">${esc(landlord.codiceFiscale)}</span></div>
+                            <div class="info-box-row"><span class="info-box-label">Indirizzo</span><span class="info-box-value">${esc(landlord.propertyAddress)}</span></div>
+                            <div class="info-box-row"><span class="info-box-label">Foglio/Part/Sub</span><span class="info-box-value">${landlord.foglio}/${landlord.particella}/${landlord.subalterno}</span></div>
+                            <div class="info-box-row"><span class="info-box-label">IBAN</span><span class="info-box-value">${esc(landlord.iban)}</span></div>` : '<p style="text-align:center;color:var(--text-muted);padding:20px">In attesa</p>'}
+                        </div>
+                        <div class="info-box"><div class="info-box-title">INQUILINO ${tenant ? 'OK' : 'attesa'}</div>
+                            ${tenant ? `<div class="info-box-row"><span class="info-box-label">Nome</span><span class="info-box-value">${esc(tenant.fullName)}</span></div>
+                            <div class="info-box-row"><span class="info-box-label">Nazionalita</span><span class="info-box-value">${esc(tenant.nationality)}</span></div>
+                            <div class="info-box-row"><span class="info-box-label">CF</span><span class="info-box-value">${tenant.codiceFiscale || 'Da calcolare'}</span></div>
+                            <div class="info-box-row"><span class="info-box-label">Residenza</span><span class="info-box-value">${esc(tenant.homeAddress)}</span></div>` : '<p style="text-align:center;color:var(--text-muted);padding:20px">In attesa</p>'}
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-danger" onclick="deleteReg('${contractId}')">Elimina</button>
+                        <button class="btn btn-secondary" onclick="closeModal()">Chiudi</button>
+                        ${landlord && tenant ? `<button class="btn" onclick="copyRLI('${contractId}')">Copia Dati RLI</button>` : ''}
+                    </div>
+                </div>
+            </div>`;
+    }
+
+    function copyRLI(contractId) {
+        const l = S.registrations.find(r => r.contractId === contractId && r.type === 'landlord');
+        const t = S.registrations.find(r => r.contractId === contractId && r.type === 'tenant');
+        if (!l || !t) return toast('error', 'Dati incompleti');
+        const text = `LOCATORE: ${l.fullName}\nCF: ${l.codiceFiscale}\nResidenza: ${l.address}\n\nIMMOBILE: ${l.propertyAddress}\nFoglio: ${l.foglio} Particella: ${l.particella} Sub: ${l.subalterno}\n\nCONDUTTORE: ${t.fullName}\nCF: ${t.codiceFiscale || 'DA CALCOLARE'}\nNazionalita: ${t.nationality}\nResidenza estera: ${t.homeAddress}\n\nIBAN: ${l.iban}`;
+        navigator.clipboard.writeText(text).then(() => toast('success', 'Copiato!')).catch(() => toast('error', 'Errore copia'));
+    }
+
+    function openNewRegistration() {
+        const newId = 'REG_' + Date.now();
+        document.getElementById('modals').innerHTML = `
+            <div class="modal-overlay active" onclick="if(event.target===this)closeModal()">
+                <div class="modal"><div class="modal-header"><h3 class="modal-title">Nuova Registrazione</h3><button class="modal-close" onclick="closeModal()">x</button></div>
+                    <div class="modal-body">
+                        <div class="form-group"><label class="form-label">ID</label><input type="text" class="form-input" value="${newId}" readonly id="newRegId"></div>
+                        <div class="form-group"><label class="form-label">Descrizione</label><input type="text" class="form-input" id="newRegDesc" placeholder="Via Roma 10 - Nome Cliente"></div>
+                        <hr style="border-color:var(--border);margin:20px 0">
+                        <div class="form-group"><label class="form-label">Link Proprietario</label><div style="display:flex;gap:8px"><input type="text" class="form-input" value="https://boomrome.com/form-landlord.html?contract=${newId}" readonly id="newRegL"><button class="btn btn-sm" onclick="copyRegUrl('newRegL')">Copia</button><button class="btn btn-sm" onclick="sendWA('newRegL','landlord')">WhatsApp</button></div></div>
+                        <div class="form-group"><label class="form-label">Link Inquilino</label><div style="display:flex;gap:8px"><input type="text" class="form-input" value="https://boomrome.com/form-tenant.html?contract=${newId}" readonly id="newRegT"><button class="btn btn-sm" onclick="copyRegUrl('newRegT')">Copia</button><button class="btn btn-sm" onclick="sendWA('newRegT','tenant')">WhatsApp</button></div></div>
+                    </div>
+                    <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="createReg('${newId}')">Crea</button></div>
+                </div>
+            </div>`;
+    }
+
+    async function createReg(id) {
+        const desc = document.getElementById('newRegDesc').value;
+        try {
+            await db.collection('contractRegistrationStatus').doc(id).set({ status: 'pending', description: desc, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+            closeModal(); 
+            await loadRegistrations(); 
+            toast('success', 'Registrazione creata!');
+        } catch(e) { toast('error', 'Errore'); }
+    }
+
+    async function deleteReg(contractId) {
+        if (!confirm('Eliminare questa registrazione?')) return;
+        try {
+            const docs = S.registrations.filter(r => r.contractId === contractId);
+            for (const doc of docs) await db.collection('contractRegistrations').doc(doc.id).delete();
+            await db.collection('contractRegistrationStatus').doc(contractId).delete();
+            closeModal();
+            await loadRegistrations();
+            toast('success', 'Eliminato');
+        } catch (err) { toast('error', 'Errore'); }
+    }
+
+    function copyRegUrl(id) { 
+        const el = document.getElementById(id);
+        el.select(); 
+        document.execCommand('copy'); 
+        toast('success', 'Link copiato!'); 
+    }
+
+    function sendWA(id, type) {
+        const url = document.getElementById(id).value;
+        const msg = type === 'landlord' 
+            ? 'Ciao! Per la registrazione del contratto, compila questo form con i tuoi dati e documenti:\n\n' + url + '\n\nGrazie!'
+            : 'Hi! For the contract registration, please fill this form with your data and documents:\n\n' + url + '\n\nThank you!';
+        window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
+    }
+
     </script>
 </body>
 </html>
