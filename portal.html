@@ -1262,7 +1262,7 @@
     async function refresh() { 
         try {
             await loadData(); 
-            loadRegistrations();
+            await loadRegistrations();
             renderPage(); 
             buildNav(); 
         } catch (e) {
@@ -1455,7 +1455,7 @@
             case 'settings': m.innerHTML = settingsPage(); break;
             case 'command': m.innerHTML = isAdmin() ? commandPage() : accessDenied(); break;
             case 'adminflats': m.innerHTML = isAdmin() ? adminflatsPage() : accessDenied(); break;
-            case 'registrations': m.innerHTML = isAdmin() ? registrationsPage() : accessDenied(); break;
+            case 'registrations': loadRegistrations().then(() => { document.getElementById('mainContent').innerHTML = isAdmin() ? registrationsPage() : accessDenied(); }); return;
             case 'pfs-pipeline': m.innerHTML = isAdmin() ? pfsPipelinePage() : accessDenied(); break;
             case 'landlords': m.innerHTML = isAdmin() ? landlordDatabasePage() : accessDenied(); break;
             default: m.innerHTML = r === 'admin' ? adminDashboard() : r === 'landlord' ? landlordDashboard() : tenantDashboard();
@@ -6701,29 +6701,75 @@
     // CONTRACT REGISTRATION SYSTEM
     async function loadRegistrations() {
         try {
+            console.log('Loading registrations...');
             const [regsSnap, statusSnap] = await Promise.all([
-                db.collection('contractRegistrations').orderBy('submittedAt', 'desc').get(),
+                db.collection('contractRegistrations').get(),
                 db.collection('contractRegistrationStatus').get()
             ]);
+            console.log('Registrations loaded:', regsSnap.docs.length, 'docs');
+            console.log('Statuses loaded:', statusSnap.docs.length, 'docs');
+            
             S.registrations = regsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+            // Sort by submittedAt client-side (no index required)
+            S.registrations.sort((a, b) => {
+                const aTime = a.submittedAt?.toDate?.() || new Date(0);
+                const bTime = b.submittedAt?.toDate?.() || new Date(0);
+                return bTime - aTime;
+            });
+            
             S.registrationStatuses = {};
             statusSnap.docs.forEach(d => { S.registrationStatuses[d.id] = { id: d.id, ...d.data() }; });
             S.regPending = Object.values(S.registrationStatuses).filter(s => s.status !== 'completed' && s.status !== 'registered').length;
+            
+            console.log('S.registrations:', S.registrations);
+            console.log('S.registrationStatuses:', S.registrationStatuses);
             buildNav();
-        } catch (err) { console.error('Error loading registrations:', err); }
+        } catch (err) { 
+            console.error('Error loading registrations:', err);
+            toast('error', 'Errore caricamento registrazioni: ' + err.message);
+        }
     }
 
     function registrationsPage() {
+        console.log('Building registrations page...');
+        console.log('S.registrations:', S.registrations);
+        console.log('S.registrationStatuses:', S.registrationStatuses);
+        
+        // Group form submissions by contractId
         const grouped = {};
         S.registrations.forEach(r => {
             if (!grouped[r.contractId]) grouped[r.contractId] = { landlord: null, tenants: [] };
             if (r.type === 'landlord') grouped[r.contractId].landlord = r;
             else grouped[r.contractId].tenants.push(r);
         });
+        
+        // Also add registrations that only exist in status (created from portal)
+        Object.keys(S.registrationStatuses).forEach(id => {
+            if (!grouped[id]) grouped[id] = { landlord: null, tenants: [] };
+        });
+        
         const contracts = Object.entries(grouped).map(([id, data]) => {
             const status = S.registrationStatuses[id] || {};
-            return { id, ...data, status: status.status || 'pending', landlordSubmitted: !!data.landlord, tenantSubmitted: data.tenants.length > 0, propertyAddress: data.landlord?.propertyAddress || status.description || 'In attesa dati' };
+            return { 
+                id, 
+                ...data, 
+                status: status.status || 'pending', 
+                landlordSubmitted: !!data.landlord, 
+                tenantSubmitted: data.tenants.length > 0, 
+                propertyAddress: data.landlord?.propertyAddress || status.description || 'In attesa dati',
+                createdAt: status.createdAt
+            };
         });
+        
+        // Sort by createdAt (most recent first)
+        contracts.sort((a, b) => {
+            const aTime = a.createdAt?.toDate?.() || new Date(0);
+            const bTime = b.createdAt?.toDate?.() || new Date(0);
+            return bTime - aTime;
+        });
+        
+        console.log('Contracts to display:', contracts);
+        
         const statusLabels = { pending: 'In Attesa', ready: 'Pronto RLI', registered: 'Registrato' };
         const statusColors = { pending: 'orange', ready: 'blue', registered: 'green' };
         return `
@@ -6737,14 +6783,14 @@
                     <div><label class="form-label">Inquilino</label><div style="display:flex;gap:8px"><input type="text" class="form-input" value="https://boomrome.com/form-tenant.html" readonly id="tUrl" style="font-size:11px"><button class="btn btn-sm" onclick="copyRegUrl('tUrl')">Copia</button></div></div>
                 </div>
             </div></div>
-            <div class="card"><div class="card-header"><span class="card-title">Contratti</span><button class="btn btn-sm btn-secondary" onclick="loadRegistrations()">Aggiorna</button></div>
+            <div class="card"><div class="card-header"><span class="card-title">Contratti (${contracts.length})</span><button class="btn btn-sm btn-secondary" onclick="goTo('registrations')">🔄 Aggiorna</button></div>
                 <div class="card-body flush">
-                    ${contracts.length === 0 ? '<div class="empty-state"><div class="empty-icon">-</div><div class="empty-title">Nessuna registrazione</div><button class="btn" onclick="openNewRegistration()">+ Nuova</button></div>' : contracts.map(c => `
+                    ${contracts.length === 0 ? '<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">Nessuna registrazione</div><p class="empty-text">Crea una nuova registrazione per iniziare</p><button class="btn" onclick="openNewRegistration()">+ Nuova Registrazione</button></div>' : contracts.map(c => `
                         <div class="list-item clickable" onclick="openRegDetail('${c.id}')">
-                            <div class="list-icon" style="font-size:24px">${c.status === 'registered' ? 'OK' : '...'}</div>
+                            <div class="list-icon" style="font-size:24px">${c.status === 'registered' ? '✅' : c.landlordSubmitted && c.tenantSubmitted ? '📝' : '⏳'}</div>
                             <div class="list-content">
                                 <div class="list-title">${esc(c.propertyAddress)} <span class="badge ${statusColors[c.status] || 'gray'}">${statusLabels[c.status] || c.status}</span></div>
-                                <div class="list-subtitle">Landlord: ${c.landlordSubmitted ? 'OK' : 'attesa'} | Tenant: ${c.tenantSubmitted ? 'OK' : 'attesa'}</div>
+                                <div class="list-subtitle">Proprietario: ${c.landlordSubmitted ? '✓' : 'attesa'} | Inquilino: ${c.tenantSubmitted ? '✓' : 'attesa'}</div>
                             </div>
                         </div>
                     `).join('')}
@@ -6813,11 +6859,21 @@
     async function createReg(id) {
         const desc = document.getElementById('newRegDesc').value;
         try {
-            await db.collection('contractRegistrationStatus').doc(id).set({ status: 'pending', description: desc, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+            console.log('Creating registration:', id, desc);
+            await db.collection('contractRegistrationStatus').doc(id).set({ 
+                status: 'pending', 
+                description: desc, 
+                createdAt: firebase.firestore.FieldValue.serverTimestamp() 
+            });
+            console.log('Registration created successfully');
             closeModal(); 
-            await loadRegistrations(); 
+            await loadRegistrations();
+            document.getElementById('mainContent').innerHTML = registrationsPage();
             toast('success', 'Registrazione creata!');
-        } catch(e) { toast('error', 'Errore'); }
+        } catch(e) { 
+            console.error('Error creating registration:', e);
+            toast('error', 'Errore: ' + e.message); 
+        }
     }
 
     async function deleteReg(contractId) {
@@ -6828,8 +6884,12 @@
             await db.collection('contractRegistrationStatus').doc(contractId).delete();
             closeModal();
             await loadRegistrations();
+            document.getElementById('mainContent').innerHTML = registrationsPage();
             toast('success', 'Eliminato');
-        } catch (err) { toast('error', 'Errore'); }
+        } catch (err) { 
+            console.error('Error deleting:', err);
+            toast('error', 'Errore: ' + err.message); 
+        }
     }
 
     function copyRegUrl(id) { 
