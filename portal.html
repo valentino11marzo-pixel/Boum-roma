@@ -1455,7 +1455,16 @@
             case 'settings': m.innerHTML = settingsPage(); break;
             case 'command': m.innerHTML = isAdmin() ? commandPage() : accessDenied(); break;
             case 'adminflats': m.innerHTML = isAdmin() ? adminflatsPage() : accessDenied(); break;
-            case 'registrations': loadRegistrations().then(() => { document.getElementById('mainContent').innerHTML = isAdmin() ? registrationsPage() : accessDenied(); }); return;
+            case 'registrations': 
+                if (!isAdmin()) { m.innerHTML = accessDenied(); break; }
+                loadRegistrations().then(() => { 
+                    document.getElementById('mainContent').innerHTML = registrationsPage(); 
+                }).catch(err => {
+                    console.error('Failed to load registrations:', err);
+                    document.getElementById('mainContent').innerHTML = '<div class="alert error">Errore caricamento registrazioni: ' + err.message + '</div>';
+                }); 
+                m.innerHTML = '<div style="padding:40px;text-align:center"><div class="spinner"></div><p style="margin-top:16px;color:var(--text-muted)">Caricamento...</p></div>';
+                break;
             case 'pfs-pipeline': m.innerHTML = isAdmin() ? pfsPipelinePage() : accessDenied(); break;
             case 'landlords': m.innerHTML = isAdmin() ? landlordDatabasePage() : accessDenied(); break;
             default: m.innerHTML = r === 'admin' ? adminDashboard() : r === 'landlord' ? landlordDashboard() : tenantDashboard();
@@ -6700,8 +6709,8 @@
 
     // CONTRACT REGISTRATION SYSTEM
     async function loadRegistrations() {
+        console.log('Loading registrations...');
         try {
-            console.log('Loading registrations...');
             const [regsSnap, statusSnap] = await Promise.all([
                 db.collection('contractRegistrations').get(),
                 db.collection('contractRegistrationStatus').get()
@@ -6710,7 +6719,6 @@
             console.log('Statuses loaded:', statusSnap.docs.length, 'docs');
             
             S.registrations = regsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-            // Sort by submittedAt client-side (no index required)
             S.registrations.sort((a, b) => {
                 const aTime = a.submittedAt?.toDate?.() || new Date(0);
                 const bTime = b.submittedAt?.toDate?.() || new Date(0);
@@ -6724,9 +6732,11 @@
             console.log('S.registrations:', S.registrations);
             console.log('S.registrationStatuses:', S.registrationStatuses);
             buildNav();
+            return true;
         } catch (err) { 
             console.error('Error loading registrations:', err);
             toast('error', 'Errore caricamento registrazioni: ' + err.message);
+            throw err;
         }
     }
 
