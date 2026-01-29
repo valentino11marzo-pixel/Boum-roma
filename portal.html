@@ -1442,7 +1442,7 @@
     }
 
     function hideLoading() { document.getElementById('loading').classList.add('hidden'); }
-    function showAuth() { hideLoading(); document.getElementById('authScreen').classList.remove('hidden'); }
+    function showAuth() { window.location.href = 'login.html'; }
     function showApp() { hideLoading(); document.getElementById('authScreen').classList.add('hidden'); document.getElementById('app').classList.add('active'); setupApp(); }
     function showAuthError(m) { const e = document.getElementById('authError'); e.textContent = m; e.classList.add('show'); document.getElementById('authInfo').classList.remove('show'); }
     function showAuthInfo(m) { const e = document.getElementById('authInfo'); e.textContent = m; e.classList.add('show'); document.getElementById('authError').classList.remove('show'); }
@@ -1480,11 +1480,7 @@
             } catch (e) {
                 console.error('Logout error:', e);
             }
-            // Reset state and show login
-            S = { user: null, profile: null, properties: [], contracts: [], payments: [], maintenance: [], documents: [], users: [], clients: [], invoices: [], listings: [], notifications: [], userNotifications: [], deadlines: [], tasks: [], pfsClients: [], pfsProperties: [], pfsActivities: [], landlords: [] };
-            document.getElementById('app').classList.remove('active');
-            authProcessed = false;
-            showAuth();
+            window.location.href = 'login.html';
         }
     }
     function authErr(c) { return { 'auth/user-not-found': 'Utente non trovato', 'auth/wrong-password': 'Password errata', 'auth/invalid-email': 'Email non valida', 'auth/email-already-in-use': 'Email già registrata', 'auth/weak-password': 'Password troppo debole', 'auth/invalid-credential': 'Credenziali non valide' }[c] || 'Errore: ' + c; }
@@ -8822,22 +8818,6 @@ IBAN: ${l.iban || '-'}`;
     function boomSaveAndAdd() { boomSaveProperty(); }
     function boomManualEntry() { boomCardState.step = 2; renderBoomCardModal(); }
     function boomEditCard() { boomCardState.step = 2; renderBoomCardModal(); }
-
-            pdf.addImage(imgData, 'JPEG', 10, 10, pdfWidth - 20, pdfHeight - 10);
-
-            // Footer
-            pdf.setFontSize(8);
-            pdf.setTextColor(212, 175, 55);
-            pdf.text('BOOM Rome - boomrome.com - +39 331 325 1961', pdfWidth / 2, pdfHeight + 5, { align: 'center' });
-
-            pdf.save(`BOOM-${boomCardState.data?.zone || 'property'}-${Date.now()}.pdf`);
-            toast('success', '✅ PDF scaricato!');
-
-        } catch (err) {
-            console.error('PDF error:', err);
-            toast('error', 'Errore PDF: ' + err.message);
-        }
-    }
 
     // ==========================================
     // POINTS OF INTEREST (POI) DATABASE
