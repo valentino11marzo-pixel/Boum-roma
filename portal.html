@@ -338,6 +338,90 @@
 .boom-poi-item:last-child { border-bottom: none; }
 .boom-poi-name { font-size: 13px; font-weight: 500; }
 .boom-poi-dist { display: flex; align-items: center; gap: 8px; }
+
+/* BOOM Card Generator PRO Styles */
+.boom-step-indicator { display: flex; justify-content: center; gap: 8px; margin-bottom: 24px; }
+.boom-step { padding: 8px 16px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 20px; font-size: 12px; color: var(--text-muted); }
+.boom-step.active { background: var(--gold); color: #000; border-color: var(--gold); font-weight: 600; }
+.boom-step.done { background: var(--green-light); color: var(--green); border-color: var(--green); }
+
+.boom-input-section { max-width: 500px; margin: 0 auto; }
+.boom-divider { display: flex; align-items: center; gap: 16px; margin: 24px 0; color: var(--text-muted); font-size: 12px; }
+.boom-divider::before, .boom-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+.boom-form-section { background: var(--bg-elevated); border-radius: 16px; padding: 20px; margin-bottom: 20px; }
+.boom-form-section h4 { color: var(--gold); font-size: 14px; margin-bottom: 16px; }
+
+.boom-images-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 12px; }
+.boom-image-item { position: relative; aspect-ratio: 1; border-radius: 12px; overflow: hidden; }
+.boom-image-item img { width: 100%; height: 100%; object-fit: cover; }
+.boom-image-remove { position: absolute; top: 4px; right: 4px; width: 24px; height: 24px; background: var(--red); border: none; border-radius: 50%; color: #fff; font-size: 16px; cursor: pointer; }
+.boom-image-num { position: absolute; bottom: 4px; left: 4px; background: var(--gold); color: #000; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; }
+.boom-image-add { aspect-ratio: 1; border: 2px dashed var(--border); border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; }
+.boom-image-add:hover { border-color: var(--gold); background: var(--gold-light); }
+.boom-image-add span { font-size: 32px; color: var(--text-muted); }
+.boom-image-add small { font-size: 10px; color: var(--text-muted); margin-top: 4px; }
+
+/* Carousel */
+.boom-carousel-container { margin-bottom: 24px; }
+.boom-carousel { position: relative; display: flex; align-items: center; justify-content: center; gap: 16px; }
+.boom-carousel-btn { width: 40px; height: 40px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 50%; color: var(--text); font-size: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+.boom-carousel-btn:hover { background: var(--gold); color: #000; border-color: var(--gold); }
+.boom-carousel-slides { width: 400px; height: 500px; position: relative; }
+.boom-slide { position: absolute; inset: 0; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+.boom-slide.active { opacity: 1; pointer-events: auto; }
+.boom-carousel-dots { display: flex; justify-content: center; gap: 8px; margin-top: 16px; }
+.boom-dot { width: 10px; height: 10px; background: var(--border); border-radius: 50%; cursor: pointer; transition: all 0.2s; }
+.boom-dot.active { background: var(--gold); transform: scale(1.2); }
+
+/* Card Slides */
+.boom-card-cover, .boom-card-photo, .boom-card-info, .boom-card-map { width: 100%; height: 100%; border-radius: 20px; overflow: hidden; }
+.boom-card-cover { background-size: cover; background-position: center; position: relative; }
+.boom-card-overlay { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0.7) 0%, transparent 30%, transparent 50%, rgba(0,0,0,0.9) 100%); display: flex; flex-direction: column; justify-content: space-between; padding: 20px; }
+.boom-brand-header { display: flex; align-items: center; gap: 10px; }
+.boom-brand-header.dark { background: linear-gradient(135deg, #D4AF37, #B8960C); padding: 16px 20px; margin: -20px -20px 0 -20px; }
+.boom-brand-logo { width: 36px; height: 36px; border-radius: 50%; }
+.boom-brand-text { font-size: 20px; font-weight: 700; letter-spacing: 3px; color: #fff; }
+.boom-brand-header.dark .boom-brand-text { color: #000; }
+.boom-cover-content { text-align: center; }
+.boom-cover-price { font-size: 42px; font-weight: 800; color: #D4AF37; text-shadow: 0 2px 10px rgba(0,0,0,0.5); }
+.boom-cover-price span { font-size: 18px; opacity: 0.8; }
+.boom-cover-address { font-size: 18px; font-weight: 600; color: #fff; margin: 8px 0; text-shadow: 0 2px 8px rgba(0,0,0,0.5); }
+.boom-cover-zone { font-size: 14px; color: rgba(255,255,255,0.8); }
+
+.boom-card-photo { background-size: cover; background-position: center; position: relative; }
+.boom-photo-overlay { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0.5) 0%, transparent 20%, transparent 80%, rgba(0,0,0,0.3) 100%); display: flex; justify-content: space-between; align-items: flex-start; padding: 16px; }
+.boom-brand-mini { background: #D4AF37; color: #000; font-size: 10px; font-weight: 700; letter-spacing: 2px; padding: 6px 12px; border-radius: 4px; }
+.boom-photo-num { background: rgba(0,0,0,0.5); color: #fff; font-size: 12px; padding: 4px 10px; border-radius: 4px; }
+
+.boom-card-info { background: #0a0a0a; display: flex; flex-direction: column; }
+.boom-info-content { flex: 1; padding: 20px; display: flex; flex-direction: column; }
+.boom-info-price { font-size: 36px; font-weight: 800; color: #D4AF37; margin-bottom: 8px; }
+.boom-info-price span { font-size: 16px; opacity: 0.8; }
+.boom-info-address { font-size: 16px; font-weight: 600; color: #fff; margin-bottom: 16px; }
+.boom-info-features { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+.boom-info-feature { font-size: 14px; color: #ccc; }
+.boom-info-poi { font-size: 12px; color: #888; margin-bottom: 16px; line-height: 1.8; }
+.boom-info-contact { margin-top: auto; padding-top: 16px; border-top: 1px solid #333; display: flex; justify-content: space-between; font-size: 12px; color: #D4AF37; }
+
+.boom-card-map { background: #0a0a0a; display: flex; flex-direction: column; }
+.boom-map-frame { flex: 1; }
+.boom-map-frame iframe { width: 100%; height: 100%; }
+.boom-map-info { padding: 16px 20px; }
+.boom-map-address { font-size: 14px; font-weight: 600; color: #fff; margin-bottom: 8px; }
+.boom-map-distances { font-size: 12px; color: #D4AF37; display: flex; gap: 16px; }
+
+.boom-export-section { background: var(--bg-elevated); border-radius: 16px; padding: 20px; }
+.boom-export-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.boom-export-btn { display: flex; flex-direction: column; align-items: center; padding: 20px; height: auto; }
+.boom-export-icon { font-size: 32px; margin-bottom: 8px; }
+.boom-export-text { font-size: 14px; font-weight: 600; }
+.boom-export-sub { font-size: 11px; opacity: 0.7; margin-top: 4px; }
+
+@media (max-width: 500px) {
+    .boom-carousel-slides { width: 300px; height: 380px; }
+    .boom-images-grid { grid-template-columns: repeat(3, 1fr); }
+}
 .form-error { color: var(--red); font-size: 11px; margin-top: -10px; margin-bottom: 10px; }
 
 /* Image Upload Zone */
@@ -8041,17 +8125,19 @@ IBAN: ${l.iban || '-'}`;
         const z = PRE_ZONES[zone];
         if (!z) return null;
 
-        // Immobiliare.it - URL corretti per zona Roma
+        // Immobiliare.it - URL structure: /affitto-case/roma-[zona]/
         if (portal === 'immobiliare') {
             const immoZone = z.immobiliare || zone;
-            // Immobiliare usa: /affitto-case/roma-[zona]/ oppure ricerca per zona
-            return `https://www.immobiliare.it/affitto-case/roma/?criterio=dataModifica&ordine=desc&prezzoMinimo=${preState.minBudget}&prezzoMassimo=${preState.maxBudget}&locali=1,2,3&zona=${encodeURIComponent(z.name)}`;
+            // Direct zone URL works better than search params
+            return `https://www.immobiliare.it/affitto-case/roma-${immoZone}/?criterio=dataModifica&ordine=desc&prezzoMinimo=${preState.minBudget}&prezzoMassimo=${preState.maxBudget}`;
         }
 
-        // Idealista.it - usa il path dalla config
+        // Idealista.it - URL structure: /affitto-case/[path]/
         if (portal === 'idealista') {
-            const ideaPath = z.idealista || `roma/${zone}`;
-            return `https://www.idealista.it/affitto-case/${ideaPath}/?ordine=pubblicazione-desc&prezzo-max=${preState.maxBudget}&prezzo-min=${preState.minBudget}`;
+            const ideaPath = z.idealista;
+            if (!ideaPath) return null;
+            // Idealista uses specific paths like "roma/trieste-salario/salario"
+            return `https://www.idealista.it/affitto-case/${ideaPath}/?ordine=pubblicacion-desc`;
         }
 
         return null;
@@ -8085,116 +8171,334 @@ IBAN: ${l.iban || '-'}`;
         toast('info', `⚡ Aperti ${maxOpen} portali ${portal === 'immobiliare' ? 'Immobiliare' : 'Idealista'}`);
     }
 
-    // BOOM Card Generator State
-    let boomCardState = { loading: false, data: null, error: null };
+    // ==========================================
+    // BOOM CARD GENERATOR - PROFESSIONAL VERSION
+    // ==========================================
 
-    // Open BOOM Card Generator Modal
+    let boomCardState = {
+        loading: false,
+        step: 1, // 1=input, 2=edit, 3=preview
+        data: null,
+        images: [], // Multiple images support
+        error: null,
+        carouselIndex: 0
+    };
+
+    // CORS Proxy for fetching external URLs
+    const CORS_PROXIES = [
+        'https://api.allorigins.win/raw?url=',
+        'https://corsproxy.io/?'
+    ];
+
     function preOpenBoomCardGenerator() {
-        boomCardState = { loading: false, data: null, error: null };
+        boomCardState = { loading: false, step: 1, data: null, images: [], error: null, carouselIndex: 0 };
         renderBoomCardModal();
     }
 
     function renderBoomCardModal() {
-        const previewHtml = boomCardState.data ? generateBoomCardHtml(boomCardState.data) : '';
+        const { step, loading, data, images, error } = boomCardState;
+
+        let content = '';
+
+        // STEP 1: URL Input
+        if (step === 1) {
+            content = `
+                <div class="boom-step-indicator">
+                    <div class="boom-step active">1. Link</div>
+                    <div class="boom-step">2. Dati</div>
+                    <div class="boom-step">3. Export</div>
+                </div>
+
+                <div class="boom-input-section">
+                    <h3 style="color:var(--gold);margin-bottom:16px;text-align:center">📎 Incolla il Link dell'Annuncio</h3>
+                    <div class="boom-url-input">
+                        <input type="url" id="boomUrlInput" placeholder="https://www.immobiliare.it/annunci/..." />
+                        <button onclick="boomFetchListing()" ${loading ? 'disabled' : ''}>
+                            ${loading ? '⏳' : '🔍'} Analizza
+                        </button>
+                    </div>
+
+                    ${loading ? `
+                        <div class="boom-loading">
+                            <div class="boom-loading-spinner"></div>
+                            <div class="boom-loading-text">Scaricando dati dall'annuncio...</div>
+                        </div>
+                    ` : ''}
+
+                    ${error ? `
+                        <div class="alert danger" style="margin-top:16px">
+                            <div class="alert-content">
+                                <div class="alert-title">⚠️ ${error}</div>
+                                <div style="margin-top:8px;font-size:12px">Prova con inserimento manuale</div>
+                            </div>
+                        </div>
+                    ` : ''}
+
+                    <div class="boom-divider"><span>oppure</span></div>
+
+                    <button class="btn btn-secondary" onclick="boomCardState.step=2;renderBoomCardModal()" style="width:100%">
+                        ✏️ Inserimento Manuale Completo
+                    </button>
+                </div>`;
+        }
+
+        // STEP 2: Data Entry / Edit
+        else if (step === 2) {
+            const zones = Object.entries(PRE_ZONES).sort((a,b) => a[1].name.localeCompare(b[1].name));
+            const d = data || {};
+
+            content = `
+                <div class="boom-step-indicator">
+                    <div class="boom-step done">✓ Link</div>
+                    <div class="boom-step active">2. Dati</div>
+                    <div class="boom-step">3. Export</div>
+                </div>
+
+                <form id="boomDataForm" onsubmit="boomProceedToPreview(event)">
+                    <!-- Property Info -->
+                    <div class="boom-form-section">
+                        <h4>🏠 Info Immobile</h4>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Indirizzo Completo *</label>
+                                <input type="text" class="form-input" name="address" value="${esc(d.address || '')}" required placeholder="Via Roma 123, Salario">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Zona *</label>
+                                <select class="form-select" name="zone" required>
+                                    <option value="">Seleziona zona...</option>
+                                    ${zones.map(([k,v]) => `<option value="${k}" ${d.zone === k ? 'selected' : ''}>${v.name}</option>`).join('')}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Prezzo €/mese *</label>
+                                <input type="number" class="form-input" name="price" value="${d.price || ''}" required placeholder="850">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Camere *</label>
+                                <input type="number" class="form-input" name="bedrooms" value="${d.bedrooms || 2}" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Bagni</label>
+                                <input type="number" class="form-input" name="bathrooms" value="${d.bathrooms || 1}">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Mq</label>
+                                <input type="number" class="form-input" name="size" value="${d.size || ''}" placeholder="65">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Piano</label>
+                                <input type="text" class="form-input" name="floor" value="${d.floor || ''}" placeholder="3° con ascensore">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Disponibilità</label>
+                                <input type="text" class="form-input" name="availability" value="${d.availability || ''}" placeholder="Da subito">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Images -->
+                    <div class="boom-form-section">
+                        <h4>📸 Immagini (max 5 per carosello WhatsApp)</h4>
+                        <div class="boom-images-grid" id="boomImagesGrid">
+                            ${boomCardState.images.map((img, i) => `
+                                <div class="boom-image-item">
+                                    <img src="${img}" alt="Foto ${i+1}">
+                                    <button type="button" class="boom-image-remove" onclick="boomRemoveImage(${i})">×</button>
+                                    <span class="boom-image-num">${i+1}</span>
+                                </div>
+                            `).join('')}
+                            ${boomCardState.images.length < 5 ? `
+                                <div class="boom-image-add" onclick="document.getElementById('boomImageInput').click()">
+                                    <span>+</span>
+                                    <small>Aggiungi foto</small>
+                                </div>
+                            ` : ''}
+                        </div>
+                        <input type="file" id="boomImageInput" accept="image/*" multiple style="display:none" onchange="boomHandleImageUpload(event)">
+                        <div style="margin-top:12px">
+                            <input type="text" class="form-input" id="boomImageUrl" placeholder="Oppure incolla URL immagine..." style="margin-bottom:8px">
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="boomAddImageUrl()">+ Aggiungi da URL</button>
+                        </div>
+                    </div>
+
+                    <!-- Source URL -->
+                    <div class="boom-form-section">
+                        <h4>🔗 Link Annuncio Originale</h4>
+                        <input type="url" class="form-input" name="sourceUrl" value="${esc(d.sourceUrl || '')}" placeholder="https://www.immobiliare.it/...">
+                    </div>
+
+                    <div class="modal-footer" style="padding:0;border:none;margin-top:24px">
+                        <button type="button" class="btn btn-secondary" onclick="boomCardState.step=1;renderBoomCardModal()">← Indietro</button>
+                        <button type="submit" class="btn">Anteprima Carosello →</button>
+                    </div>
+                </form>`;
+        }
+
+        // STEP 3: Preview & Export
+        else if (step === 3) {
+            const d = data;
+            const zone = PRE_ZONES[d.zone];
+            const coords = ZONE_COORDINATES[d.zone] || { lat: 41.9028, lng: 12.4964 };
+            const distances = getPOIDistances(coords.lat, coords.lng);
+            const nearestUni = distances.universities[0];
+            const nearestMetro = distances.metro[0];
+
+            content = `
+                <div class="boom-step-indicator">
+                    <div class="boom-step done">✓ Link</div>
+                    <div class="boom-step done">✓ Dati</div>
+                    <div class="boom-step active">3. Export</div>
+                </div>
+
+                <div class="boom-carousel-container">
+                    <h4 style="text-align:center;color:var(--gold);margin-bottom:16px">📱 Anteprima Carosello WhatsApp (${images.length + 2} slides)</h4>
+
+                    <div class="boom-carousel">
+                        <button class="boom-carousel-btn prev" onclick="boomCarouselPrev()">‹</button>
+
+                        <div class="boom-carousel-slides" id="boomCarouselSlides">
+                            <!-- Slide 1: Cover -->
+                            <div class="boom-slide ${boomCardState.carouselIndex === 0 ? 'active' : ''}" id="boomSlide0">
+                                <div class="boom-card-cover" style="background-image: url('${images[0] || ''}')">
+                                    <div class="boom-card-overlay">
+                                        <div class="boom-brand-header">
+                                            <img src="https://www.boomrome.com/BOOMlogogoldicon512.png" class="boom-brand-logo">
+                                            <span class="boom-brand-text">BOOM</span>
+                                        </div>
+                                        <div class="boom-cover-content">
+                                            <div class="boom-cover-price">€${d.price}<span>/mese</span></div>
+                                            <div class="boom-cover-address">${esc(d.address)}</div>
+                                            <div class="boom-cover-zone">📍 ${zone?.name || d.zone}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Slides 2-N: Photos -->
+                            ${images.slice(1).map((img, i) => `
+                                <div class="boom-slide ${boomCardState.carouselIndex === i+1 ? 'active' : ''}" id="boomSlide${i+1}">
+                                    <div class="boom-card-photo" style="background-image: url('${img}')">
+                                        <div class="boom-photo-overlay">
+                                            <div class="boom-brand-mini">BOOM</div>
+                                            <div class="boom-photo-num">${i+2}/${images.length + 2}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            `).join('')}
+
+                            <!-- Last Slide: Info Card -->
+                            <div class="boom-slide ${boomCardState.carouselIndex === images.length ? 'active' : ''}" id="boomSlide${images.length}">
+                                <div class="boom-card-info">
+                                    <div class="boom-brand-header dark">
+                                        <img src="https://www.boomrome.com/BOOMlogogoldicon512.png" class="boom-brand-logo">
+                                        <span class="boom-brand-text">BOOM</span>
+                                    </div>
+                                    <div class="boom-info-content">
+                                        <div class="boom-info-price">€${d.price}<span>/mese</span></div>
+                                        <div class="boom-info-address">${esc(d.address)}</div>
+                                        <div class="boom-info-features">
+                                            <div class="boom-info-feature">🛏️ ${d.bedrooms} camere</div>
+                                            <div class="boom-info-feature">🚿 ${d.bathrooms} bagno</div>
+                                            ${d.size ? `<div class="boom-info-feature">📐 ${d.size} m²</div>` : ''}
+                                            ${d.floor ? `<div class="boom-info-feature">🏢 ${d.floor}</div>` : ''}
+                                        </div>
+                                        <div class="boom-info-poi">
+                                            ${nearestUni ? `<div>🎓 ${nearestUni.name}: ${nearestUni.walkTime} min</div>` : ''}
+                                            ${nearestMetro ? `<div>🚇 ${nearestMetro.name} (${nearestMetro.line}): ${nearestMetro.walkTime} min</div>` : ''}
+                                        </div>
+                                        <div class="boom-info-contact">
+                                            <div>📱 +39 331 325 1961</div>
+                                            <div>🌐 boomrome.com</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Map Slide -->
+                            <div class="boom-slide ${boomCardState.carouselIndex === images.length + 1 ? 'active' : ''}" id="boomSlide${images.length + 1}">
+                                <div class="boom-card-map">
+                                    <div class="boom-brand-header dark">
+                                        <img src="https://www.boomrome.com/BOOMlogogoldicon512.png" class="boom-brand-logo">
+                                        <span class="boom-brand-text">BOOM</span>
+                                    </div>
+                                    <div class="boom-map-frame">
+                                        <iframe src="https://maps.google.com/maps?q=${coords.lat},${coords.lng}&z=15&output=embed" width="100%" height="250" frameborder="0"></iframe>
+                                    </div>
+                                    <div class="boom-map-info">
+                                        <div class="boom-map-address">📍 ${zone?.name || d.zone}, Roma</div>
+                                        <div class="boom-map-distances">
+                                            ${nearestUni ? `<span>🎓 ${nearestUni.walkTime}min</span>` : ''}
+                                            ${nearestMetro ? `<span>🚇 ${nearestMetro.walkTime}min</span>` : ''}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button class="boom-carousel-btn next" onclick="boomCarouselNext()">›</button>
+                    </div>
+
+                    <div class="boom-carousel-dots">
+                        ${Array(images.length + 2).fill(0).map((_, i) => `
+                            <span class="boom-dot ${boomCardState.carouselIndex === i ? 'active' : ''}" onclick="boomCarouselGo(${i})"></span>
+                        `).join('')}
+                    </div>
+                </div>
+
+                <div class="boom-export-section">
+                    <h4 style="color:var(--gold);margin-bottom:16px;text-align:center">📤 Esporta per WhatsApp</h4>
+                    <div class="boom-export-buttons">
+                        <button class="btn boom-export-btn" onclick="boomExportCarousel()">
+                            <span class="boom-export-icon">📱</span>
+                            <span class="boom-export-text">Scarica Carosello</span>
+                            <span class="boom-export-sub">${images.length + 2} immagini JPG</span>
+                        </button>
+                        <button class="btn btn-secondary boom-export-btn" onclick="boomExportSingleCard()">
+                            <span class="boom-export-icon">🖼️</span>
+                            <span class="boom-export-text">Card Singola</span>
+                            <span class="boom-export-sub">1 immagine completa</span>
+                        </button>
+                    </div>
+                </div>`;
+        }
 
         document.getElementById('modals').innerHTML = `
             <div class="modal-overlay active" onclick="if(event.target===this)closeModal()">
                 <div class="modal xl">
-                    <div class="modal-header" style="background:linear-gradient(90deg,var(--gold),var(--gold-dark))">
+                    <div class="modal-header" style="background:linear-gradient(135deg,var(--gold),var(--gold-dark))">
                         <h3 class="modal-title" style="color:#000;display:flex;align-items:center;gap:12px">
-                            <span style="font-size:24px">✨</span> BOOM Card Generator
+                            <span style="font-size:24px">✨</span> BOOM Card Generator PRO
                         </h3>
                         <button class="modal-close" onclick="closeModal()" style="background:#000;border-color:#000;color:var(--gold)">×</button>
                     </div>
-                    <div class="modal-body" style="background:var(--bg)">
-                        <div class="boom-url-input">
-                            <input type="url" id="boomUrlInput" placeholder="Incolla link Immobiliare.it o Idealista..."
-                                   value="${boomCardState.data?.sourceUrl || ''}" />
-                            <button onclick="parseBoomUrl()">✨ Genera</button>
-                        </div>
-
-                        ${boomCardState.loading ? `
-                            <div class="boom-loading">
-                                <div class="boom-loading-spinner"></div>
-                                <div class="boom-loading-text">Analizzando annuncio...</div>
-                            </div>
-                        ` : ''}
-
-                        ${boomCardState.error ? `
-                            <div class="alert danger">
-                                <div class="alert-icon">⚠️</div>
-                                <div class="alert-content">
-                                    <div class="alert-title">Errore</div>
-                                    <div>${boomCardState.error}</div>
-                                </div>
-                            </div>
-                        ` : ''}
-
-                        ${!boomCardState.loading && !boomCardState.data ? `
-                            <div class="empty-state">
-                                <div class="empty-icon">🔗</div>
-                                <div class="empty-title">Incolla un link</div>
-                                <div class="empty-text">Supporta Immobiliare.it e Idealista.it</div>
-                                <div style="margin-top:20px;display:flex;gap:12px;justify-content:center">
-                                    <button class="btn btn-secondary btn-sm" onclick="boomManualEntry()">✏️ Inserimento Manuale</button>
-                                </div>
-                            </div>
-                        ` : ''}
-
-                        ${previewHtml ? `
-                            <div style="margin-top:16px">
-                                <div style="text-align:center;margin-bottom:12px;font-size:12px;color:var(--text-muted)">ANTEPRIMA</div>
-                                <div id="boomCardExportArea">${previewHtml}</div>
-                            </div>
-                        ` : ''}
+                    <div class="modal-body" style="background:var(--bg);max-height:75vh;overflow-y:auto">
+                        ${content}
                     </div>
-                    ${boomCardState.data ? `
-                        <div class="modal-footer" style="background:var(--bg);flex-wrap:wrap;gap:8px">
-                            <div style="display:flex;gap:8px">
-                                <button class="btn btn-secondary" onclick="boomEditCard()">✏️ Modifica</button>
-                            </div>
-                            <div style="display:flex;gap:8px;margin-left:auto">
-                                <button class="btn" style="background:#25D366" onclick="boomExportJPG()">📲 JPG WhatsApp</button>
-                                <button class="btn btn-secondary" onclick="boomExportPDF()">📄 PDF</button>
-                                <button class="btn" onclick="boomSaveAndAdd()">💾 Salva</button>
-                            </div>
+                    ${step === 3 ? `
+                        <div class="modal-footer" style="background:var(--bg)">
+                            <button class="btn btn-secondary" onclick="boomCardState.step=2;renderBoomCardModal()">← Modifica</button>
+                            <button class="btn" onclick="boomSaveProperty()">💾 Salva in Tracker</button>
                         </div>
                     ` : ''}
                 </div>
             </div>`;
     }
 
-    // Generate BOOM Card HTML
-    function generateBoomCardHtml(data) {
-        const zone = PRE_ZONES[data.zone];
-        return `
-            <div class="boom-card-preview">
-                <div class="boom-card-header">
-                    <div class="boom-card-logo">B</div>
-                    <div class="boom-card-brand">BOOM</div>
-                </div>
-                ${data.imageUrl ? `<img src="${data.imageUrl}" class="boom-card-img" alt="Property" onerror="this.style.display='none'">` : '<div class="boom-card-img" style="display:flex;align-items:center;justify-content:center;font-size:48px;color:var(--text-muted)">🏠</div>'}
-                <div class="boom-card-body">
-                    <div class="boom-card-price">€${data.price || '?'}/mese</div>
-                    <div class="boom-card-address">${esc(data.address || 'Indirizzo')}</div>
-                    <div class="boom-card-zone">📍 ${zone?.name || data.zone || 'Roma'}</div>
-                    <div class="boom-card-features">
-                        <div class="boom-card-feature"><span class="boom-card-feature-icon">🛏️</span> ${data.bedrooms || '?'} camere</div>
-                        ${data.size ? `<div class="boom-card-feature"><span class="boom-card-feature-icon">📐</span> ${data.size} m²</div>` : ''}
-                        ${data.bathrooms ? `<div class="boom-card-feature"><span class="boom-card-feature-icon">🚿</span> ${data.bathrooms} bagni</div>` : ''}
-                    </div>
-                </div>
-                <div class="boom-card-footer">
-                    <div class="boom-card-contact">📱 +39 331 325 1961</div>
-                    <div class="boom-card-qr">BOOMROME.COM</div>
-                </div>
-            </div>`;
-    }
+    // Fetch listing data from URL using CORS proxy
+    async function boomFetchListing() {
+        const urlInput = document.getElementById('boomUrlInput');
+        const url = urlInput?.value?.trim();
 
-    // Parse URL and extract data
-    async function parseBoomUrl() {
-        const url = document.getElementById('boomUrlInput')?.value?.trim();
-        if (!url) { toast('error', 'Inserisci un URL'); return; }
+        if (!url) {
+            boomCardState.error = 'Inserisci un URL';
+            renderBoomCardModal();
+            return;
+        }
 
         // Detect portal
         let portal = null;
@@ -8202,111 +8506,139 @@ IBAN: ${l.iban || '-'}`;
         else if (url.includes('idealista.it')) portal = 'idealista';
 
         if (!portal) {
-            boomCardState.error = 'URL non valido. Usa Immobiliare.it o Idealista.it';
+            boomCardState.error = 'URL non supportato. Usa Immobiliare.it o Idealista.it';
             renderBoomCardModal();
             return;
         }
 
-        boomCardState = { loading: true, data: null, error: null };
+        boomCardState.loading = true;
+        boomCardState.error = null;
         renderBoomCardModal();
 
-        // Extract data from URL patterns
         try {
-            const data = await extractListingData(url, portal);
-            boomCardState = { loading: false, data, error: null };
-        } catch (err) {
-            boomCardState = { loading: false, data: null, error: err.message };
-        }
+            // Try to fetch via CORS proxy
+            let html = null;
+            for (const proxy of CORS_PROXIES) {
+                try {
+                    const resp = await fetch(proxy + encodeURIComponent(url), { timeout: 10000 });
+                    if (resp.ok) {
+                        html = await resp.text();
+                        break;
+                    }
+                } catch (e) { continue; }
+            }
 
-        renderBoomCardModal();
-    }
+            if (!html) {
+                throw new Error('Impossibile scaricare la pagina. Usa inserimento manuale.');
+            }
 
-    // Extract listing data (simulated - in reality would need backend/scraping)
-    async function extractListingData(url, portal) {
-        // Simulate network delay
-        await new Promise(r => setTimeout(r, 800));
+            // Parse HTML
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
 
-        // Try to extract zone from URL
-        let zone = '';
-        let address = '';
-        let price = 0;
+            // Extract data based on portal
+            let data = { sourceUrl: url, portal };
+            let images = [];
 
-        // Parse Immobiliare.it URL format: /annunci/12345678/
-        if (portal === 'immobiliare') {
-            const match = url.match(/\/affitto-case\/roma\/([^\/]+)/i);
-            if (match) zone = match[1].toLowerCase().replace(/-/g, '-');
+            if (portal === 'immobiliare') {
+                // Immobiliare.it parsing
+                data.price = parseInt(doc.querySelector('[class*="price"]')?.textContent?.replace(/[^\d]/g, '')) || 0;
+                data.address = doc.querySelector('[class*="title"]')?.textContent?.trim() || '';
 
-            // Try to find zone in our database
-            for (const [slug, data] of Object.entries(PRE_ZONES)) {
-                if (url.toLowerCase().includes(slug) || url.toLowerCase().includes(data.name.toLowerCase())) {
-                    zone = slug;
+                // Try Open Graph
+                data.address = data.address || doc.querySelector('meta[property="og:title"]')?.content || '';
+                const ogImage = doc.querySelector('meta[property="og:image"]')?.content;
+                if (ogImage) images.push(ogImage);
+
+                // Find more images
+                doc.querySelectorAll('img[src*="pwm.im"]').forEach(img => {
+                    if (img.src && !images.includes(img.src) && images.length < 5) {
+                        images.push(img.src);
+                    }
+                });
+
+                // Extract details
+                const detailText = doc.body?.textContent || '';
+                const roomMatch = detailText.match(/(\d+)\s*(?:local|camere|stanz)/i);
+                const sizeMatch = detailText.match(/(\d+)\s*m²/);
+                const bathMatch = detailText.match(/(\d+)\s*bagn/i);
+
+                data.bedrooms = roomMatch ? parseInt(roomMatch[1]) : 2;
+                data.size = sizeMatch ? parseInt(sizeMatch[1]) : null;
+                data.bathrooms = bathMatch ? parseInt(bathMatch[1]) : 1;
+            }
+
+            else if (portal === 'idealista') {
+                // Idealista parsing
+                data.price = parseInt(doc.querySelector('[class*="price"]')?.textContent?.replace(/[^\d]/g, '')) || 0;
+                data.address = doc.querySelector('[class*="title"]')?.textContent?.trim() || '';
+
+                const ogImage = doc.querySelector('meta[property="og:image"]')?.content;
+                if (ogImage) images.push(ogImage);
+
+                doc.querySelectorAll('img[src*="img3.idealista"]').forEach(img => {
+                    if (img.src && !images.includes(img.src) && images.length < 5) {
+                        images.push(img.src);
+                    }
+                });
+
+                data.bedrooms = 2;
+                data.bathrooms = 1;
+            }
+
+            // Try to detect zone from address
+            for (const [slug, zoneData] of Object.entries(PRE_ZONES)) {
+                if (data.address.toLowerCase().includes(zoneData.name.toLowerCase()) ||
+                    url.toLowerCase().includes(slug)) {
+                    data.zone = slug;
                     break;
                 }
             }
-        }
 
-        // Parse Idealista URL
-        if (portal === 'idealista') {
-            const match = url.match(/\/affitto-case\/([^\/]+)/i);
-            if (match) zone = match[1].split('/').pop()?.toLowerCase();
-        }
+            boomCardState.loading = false;
+            boomCardState.data = data;
+            boomCardState.images = images;
+            boomCardState.step = 2; // Go to edit step
+            renderBoomCardModal();
 
-        // Find best matching zone
-        const zoneData = PRE_ZONES[zone];
-        if (zoneData) {
-            price = zoneData.avgPrice;
-            address = `Via ${zoneData.name}`;
+        } catch (err) {
+            boomCardState.loading = false;
+            boomCardState.error = err.message;
+            renderBoomCardModal();
         }
-
-        return {
-            sourceUrl: url,
-            portal,
-            zone: zone || 'centro',
-            address: address || 'Indirizzo da verificare',
-            price: price || 850,
-            bedrooms: 2,
-            bathrooms: 1,
-            size: 65,
-            imageUrl: '', // Would need actual scraping
-            notes: `Importato da ${portal}`
-        };
     }
 
-    // Manual entry form
-    function boomManualEntry() {
-        const zones = Object.entries(PRE_ZONES).sort((a,b) => a[1].name.localeCompare(b[1].name));
-
-        document.getElementById('modals').innerHTML = `
-            <div class="modal-overlay active" onclick="if(event.target===this)closeModal()">
-                <div class="modal lg">
-                    <div class="modal-header" style="background:linear-gradient(90deg,var(--gold),var(--gold-dark))">
-                        <h3 class="modal-title" style="color:#000">✏️ Crea BOOM Card Manualmente</h3>
-                        <button class="modal-close" onclick="closeModal()" style="background:#000;border-color:#000;color:var(--gold)">×</button>
-                    </div>
-                    <div class="modal-body">
-                        <form id="boomManualForm" onsubmit="boomSubmitManual(event)">
-                            <div class="form-row">
-                                <div class="form-group"><label class="form-label">Indirizzo *</label><input type="text" class="form-input" name="address" required placeholder="Via Roma 123"></div>
-                                <div class="form-group"><label class="form-label">Zona *</label><select class="form-select" name="zone" required><option value="">--</option>${zones.map(([k,v]) => `<option value="${k}">${v.name}</option>`).join('')}</select></div>
-                            </div>
-                            <div class="form-row">
-                                <div class="form-group"><label class="form-label">Prezzo €/mese *</label><input type="number" class="form-input" name="price" required></div>
-                                <div class="form-group"><label class="form-label">Camere</label><input type="number" class="form-input" name="bedrooms" value="2"></div>
-                                <div class="form-group"><label class="form-label">Mq</label><input type="number" class="form-input" name="size"></div>
-                            </div>
-                            <div class="form-group"><label class="form-label">🔗 URL Annuncio</label><input type="url" class="form-input" name="sourceUrl" placeholder="https://..."></div>
-                            <div class="form-group"><label class="form-label">🖼️ URL Immagine</label><input type="url" class="form-input" name="imageUrl" placeholder="https://..."></div>
-                            <div class="modal-footer" style="padding:0;border:none;margin-top:24px">
-                                <button type="button" class="btn btn-secondary" onclick="preOpenBoomCardGenerator()">← Indietro</button>
-                                <button type="submit" class="btn">✨ Genera Card</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>`;
+    // Image handling
+    function boomHandleImageUpload(event) {
+        const files = event.target.files;
+        for (const file of files) {
+            if (boomCardState.images.length >= 5) break;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                boomCardState.images.push(e.target.result);
+                renderBoomCardModal();
+            };
+            reader.readAsDataURL(file);
+        }
     }
 
-    function boomSubmitManual(e) {
+    function boomAddImageUrl() {
+        const input = document.getElementById('boomImageUrl');
+        const url = input?.value?.trim();
+        if (url && boomCardState.images.length < 5) {
+            boomCardState.images.push(url);
+            input.value = '';
+            renderBoomCardModal();
+        }
+    }
+
+    function boomRemoveImage(index) {
+        boomCardState.images.splice(index, 1);
+        renderBoomCardModal();
+    }
+
+    // Form submission
+    function boomProceedToPreview(e) {
         e.preventDefault();
         const fd = new FormData(e.target);
         boomCardState.data = {
@@ -8314,123 +8646,178 @@ IBAN: ${l.iban || '-'}`;
             zone: fd.get('zone'),
             price: parseInt(fd.get('price')) || 0,
             bedrooms: parseInt(fd.get('bedrooms')) || 2,
+            bathrooms: parseInt(fd.get('bathrooms')) || 1,
             size: parseInt(fd.get('size')) || null,
+            floor: fd.get('floor'),
+            availability: fd.get('availability'),
             sourceUrl: fd.get('sourceUrl'),
-            imageUrl: fd.get('imageUrl'),
-            portal: 'manual'
+            portal: boomCardState.data?.portal || 'manual'
         };
+
+        // Ensure at least 1 placeholder image if none
+        if (boomCardState.images.length === 0) {
+            boomCardState.images.push(''); // Will show placeholder
+        }
+
+        boomCardState.step = 3;
+        boomCardState.carouselIndex = 0;
         renderBoomCardModal();
     }
 
-    function boomEditCard() {
-        if (!boomCardState.data) return;
-        boomManualEntry();
-        setTimeout(() => {
-            const form = document.getElementById('boomManualForm');
-            if (form && boomCardState.data) {
-                form.address.value = boomCardState.data.address || '';
-                form.zone.value = boomCardState.data.zone || '';
-                form.price.value = boomCardState.data.price || '';
-                form.bedrooms.value = boomCardState.data.bedrooms || 2;
-                form.size.value = boomCardState.data.size || '';
-                form.sourceUrl.value = boomCardState.data.sourceUrl || '';
-                form.imageUrl.value = boomCardState.data.imageUrl || '';
-            }
-        }, 50);
+    // Carousel navigation
+    function boomCarouselPrev() {
+        const total = boomCardState.images.length + 2;
+        boomCardState.carouselIndex = (boomCardState.carouselIndex - 1 + total) % total;
+        renderBoomCardModal();
     }
 
-    function boomCopyCard() {
-        if (!boomCardState.data) return;
-        const html = generateBoomCardHtml(boomCardState.data);
-        navigator.clipboard.writeText(html).then(() => {
-            toast('success', '📋 HTML copiato!');
-        }).catch(() => {
-            toast('error', 'Errore copia');
-        });
+    function boomCarouselNext() {
+        const total = boomCardState.images.length + 2;
+        boomCardState.carouselIndex = (boomCardState.carouselIndex + 1) % total;
+        renderBoomCardModal();
     }
 
-    async function boomSaveAndAdd() {
-        if (!boomCardState.data) return;
-        const data = boomCardState.data;
-        await preSaveProperty({
-            address: data.address,
-            zone: data.zone,
-            price: data.price,
-            bedrooms: data.bedrooms,
-            size: data.size,
-            sourceUrl: data.sourceUrl,
-            imageUrl: data.imageUrl,
-            notes: data.notes || ''
-        });
-        closeModal();
-        renderPage();
+    function boomCarouselGo(index) {
+        boomCardState.carouselIndex = index;
+        renderBoomCardModal();
     }
 
-    // Export BOOM Card as JPG for WhatsApp
-    async function boomExportJPG() {
-        const element = document.getElementById('boomCardExportArea');
-        if (!element) { toast('error', 'Card non trovata'); return; }
-
-        toast('info', '📸 Generando immagine...');
+    // Export carousel as multiple images
+    async function boomExportCarousel() {
+        const totalSlides = boomCardState.images.length + 2;
+        toast('info', `📸 Generando ${totalSlides} immagini...`);
 
         try {
-            // Use html2canvas to capture the card
-            const canvas = await html2canvas(element.querySelector('.boom-card-preview'), {
-                backgroundColor: '#000000',
-                scale: 2, // High quality
-                useCORS: true,
-                allowTaint: true,
-                logging: false
-            });
+            for (let i = 0; i < totalSlides; i++) {
+                boomCardState.carouselIndex = i;
+                renderBoomCardModal();
 
-            // Convert to blob and download
-            canvas.toBlob((blob) => {
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `BOOM-${boomCardState.data?.zone || 'property'}-${Date.now()}.jpg`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-                toast('success', '✅ JPG scaricato! Pronto per WhatsApp');
-            }, 'image/jpeg', 0.95);
+                // Wait for render
+                await new Promise(r => setTimeout(r, 300));
 
+                const slide = document.getElementById(`boomSlide${i}`);
+                if (!slide) continue;
+
+                const canvas = await html2canvas(slide.firstElementChild, {
+                    backgroundColor: '#000000',
+                    scale: 2,
+                    useCORS: true,
+                    allowTaint: true,
+                    width: 400,
+                    height: 500
+                });
+
+                canvas.toBlob((blob) => {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `BOOM-${boomCardState.data?.zone || 'property'}-${i+1}.jpg`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                }, 'image/jpeg', 0.95);
+
+                await new Promise(r => setTimeout(r, 500));
+            }
+
+            toast('success', `✅ ${totalSlides} immagini scaricate!`);
         } catch (err) {
-            console.error('Export error:', err);
-            toast('error', 'Errore export: ' + err.message);
+            toast('error', 'Errore: ' + err.message);
         }
     }
 
-    // Export BOOM Card as PDF
-    async function boomExportPDF() {
-        const element = document.getElementById('boomCardExportArea');
-        if (!element) { toast('error', 'Card non trovata'); return; }
+    // Export single comprehensive card
+    async function boomExportSingleCard() {
+        toast('info', '📸 Generando card singola...');
 
-        toast('info', '📄 Generando PDF...');
+        // Create a single comprehensive card
+        const d = boomCardState.data;
+        const zone = PRE_ZONES[d.zone];
+        const coords = ZONE_COORDINATES[d.zone] || { lat: 41.9028, lng: 12.4964 };
+        const distances = getPOIDistances(coords.lat, coords.lng);
+        const img = boomCardState.images[0] || '';
+
+        const cardDiv = document.createElement('div');
+        cardDiv.innerHTML = `
+            <div style="width:400px;background:#000;border-radius:20px;overflow:hidden;font-family:Inter,sans-serif">
+                <div style="height:60px;background:linear-gradient(135deg,#D4AF37,#B8960C);display:flex;align-items:center;padding:0 20px;gap:12px">
+                    <img src="https://www.boomrome.com/BOOMlogogoldicon512.png" style="width:36px;height:36px;border-radius:50%">
+                    <span style="color:#000;font-weight:700;font-size:20px;letter-spacing:3px">BOOM</span>
+                </div>
+                ${img ? `<div style="height:200px;background:url('${img}') center/cover"></div>` : '<div style="height:200px;background:#111;display:flex;align-items:center;justify-content:center;font-size:48px">🏠</div>'}
+                <div style="padding:20px">
+                    <div style="font-size:28px;font-weight:800;color:#D4AF37">€${d.price}<span style="font-size:14px;opacity:0.8">/mese</span></div>
+                    <div style="font-size:16px;font-weight:600;color:#fff;margin:8px 0">${d.address}</div>
+                    <div style="font-size:13px;color:#999;margin-bottom:16px">📍 ${zone?.name || d.zone}</div>
+                    <div style="display:flex;gap:16px;font-size:13px;color:#fff;margin-bottom:16px">
+                        <span>🛏️ ${d.bedrooms} cam</span>
+                        <span>🚿 ${d.bathrooms} bagno</span>
+                        ${d.size ? `<span>📐 ${d.size}m²</span>` : ''}
+                    </div>
+                    <div style="font-size:11px;color:#666;margin-bottom:16px">
+                        🎓 ${distances.universities[0]?.name || 'Università'}: ${distances.universities[0]?.walkTime || '?'} min |
+                        🚇 ${distances.metro[0]?.name || 'Metro'}: ${distances.metro[0]?.walkTime || '?'} min
+                    </div>
+                    <div style="border-top:1px solid #333;padding-top:12px;display:flex;justify-content:space-between;font-size:11px;color:#D4AF37">
+                        <span>📱 +39 331 325 1961</span>
+                        <span>boomrome.com</span>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(cardDiv);
 
         try {
-            const canvas = await html2canvas(element.querySelector('.boom-card-preview'), {
+            const canvas = await html2canvas(cardDiv.firstElementChild, {
                 backgroundColor: '#000000',
                 scale: 2,
                 useCORS: true,
                 allowTaint: true
             });
 
-            const { jsPDF } = window.jspdf;
-            const pdf = new jsPDF({
-                orientation: 'portrait',
-                unit: 'mm',
-                format: 'a5'
-            });
+            canvas.toBlob((blob) => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `BOOM-${d.zone || 'property'}-card.jpg`;
+                a.click();
+                URL.revokeObjectURL(url);
+                toast('success', '✅ Card scaricata!');
+            }, 'image/jpeg', 0.95);
+        } catch (err) {
+            toast('error', 'Errore: ' + err.message);
+        }
 
-            const imgData = canvas.toDataURL('image/jpeg', 0.95);
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+        document.body.removeChild(cardDiv);
+    }
 
-            // Add BOOM branding
-            pdf.setFillColor(0, 0, 0);
-            pdf.rect(0, 0, pdfWidth, pdfHeight + 20, 'F');
+    // Save to property tracker
+    async function boomSaveProperty() {
+        const d = boomCardState.data;
+        await preSaveProperty({
+            address: d.address,
+            zone: d.zone,
+            price: d.price,
+            bedrooms: d.bedrooms,
+            bathrooms: d.bathrooms,
+            size: d.size,
+            floor: d.floor,
+            sourceUrl: d.sourceUrl,
+            imageUrl: boomCardState.images[0] || '',
+            images: boomCardState.images
+        });
+        closeModal();
+        renderPage();
+    }
+
+    // LEGACY: Keep old export functions for compatibility
+    async function boomExportJPG() { await boomExportSingleCard(); }
+    async function boomExportPDF() {
+        toast('info', '📄 Usa "Scarica Carosello" per le immagini WhatsApp');
+        await boomExportCarousel();
+    }
+    function boomSaveAndAdd() { boomSaveProperty(); }
+    function boomManualEntry() { boomCardState.step = 2; renderBoomCardModal(); }
+    function boomEditCard() { boomCardState.step = 2; renderBoomCardModal(); }
 
             pdf.addImage(imgData, 'JPEG', 10, 10, pdfWidth - 20, pdfHeight - 10);
 
