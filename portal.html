@@ -1523,7 +1523,7 @@
         const r = S.profile.role;
         
         if (r === 'admin') {
-            const activeClients = S.clients.filter(c => !['completed', 'lost'].includes(c.stage)).length;
+            const activeClients = (S.clients || []).filter(c => !['completed', 'lost'].includes(c.stage)).length;
             const pendingInv = S.invoices.filter(i => i.status === 'pending').length;
             const openMaint = S.maintenance.filter(m => m.status === 'open').length;
             const overduePayments = S.payments.filter(p => p.status === 'pending' && isOverdue(p.dueDate)).length;
@@ -1662,8 +1662,8 @@
         if (!q || q.length < 2) return;
         // Quick search implementation
         const results = [];
-        S.clients.filter(c => (c.name || '').toLowerCase().includes(q.toLowerCase()) || c.email?.toLowerCase().includes(q.toLowerCase())).forEach(c => results.push({ type: 'client', item: c }));
-        S.properties.filter(p => (p.name || '').toLowerCase().includes(q.toLowerCase())).forEach(p => results.push({ type: 'property', item: p }));
+        (S.clients || []).filter(c => (c.name || '').toLowerCase().includes(q.toLowerCase()) || c.email?.toLowerCase().includes(q.toLowerCase())).forEach(c => results.push({ type: 'client', item: c }));
+        (S.properties || []).filter(p => (p.name || '').toLowerCase().includes(q.toLowerCase())).forEach(p => results.push({ type: 'property', item: p }));
         if (results.length > 0) {
             // Show first result
             const r = results[0];
@@ -1673,19 +1673,11 @@
         }
     }
 
-    function showNotifications() {
-        if (S.notifications.length === 0) {
-            toast('info', 'Nessuna notifica');
-            return;
-        }
-        openModal('notifications');
-    }
-
     // ═══════════════════════════════════════════════════════════════════════════
     // DASHBOARDS
     // ═══════════════════════════════════════════════════════════════════════════
     function adminDashboard() {
-        const activeClients = S.clients.filter(c => !['completed', 'lost'].includes(c.stage));
+        const activeClients = (S.clients || []).filter(c => !['completed', 'lost'].includes(c.stage));
         const paidInvoices = S.invoices.filter(i => i.status === 'paid');
         const thisMonthRev = paidInvoices.filter(i => isThisMonth(i.paidDate)).reduce((s, i) => s + (i.amount || 0), 0);
         const pipeline = activeClients.reduce((s, c) => s + (SERVICES[c.service]?.price || 0), 0);
@@ -7163,80 +7155,179 @@ IBAN: ${l.iban || '-'}`;
 
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // PFS PIPELINE SYSTEM - COMPLETE IMPLEMENTATION  
+    // PFS PIPELINE 2.0 - ULTRA-PROFESSIONAL SALES COMMAND CENTER
+    // Revenue Optimization · Smart Automation · Performance Analytics
     // ═══════════════════════════════════════════════════════════════════════════
 
     const PFS_STAGES = [
-        { id: 'lead', name: 'Lead', icon: '📥', color: 'gray' },
-        { id: 'onboarded', name: 'Onboarded', icon: '✅', color: 'blue' },
-        { id: 'searching', name: 'Searching', icon: '🔍', color: 'purple' },
-        { id: 'sent', name: 'Options Sent', icon: '📨', color: 'orange' },
-        { id: 'viewing', name: 'Viewings', icon: '🏠', color: 'cyan' },
-        { id: 'negotiating', name: 'Negotiating', icon: '🤝', color: 'gold' },
-        { id: 'closing', name: 'Closing', icon: '📝', color: 'green' },
-        { id: 'placed', name: 'Placed', icon: '🎉', color: 'green' }
+        { id: 'lead', name: 'Lead', icon: '📥', color: 'gray', sla: 24, nextStage: 'qualified', actions: ['qualify', 'contact'], description: 'New incoming lead' },
+        { id: 'qualified', name: 'Qualified', icon: '✓', color: 'blue', sla: 48, nextStage: 'onboarded', actions: ['payment', 'follow-up'], description: 'Lead qualified, awaiting payment' },
+        { id: 'onboarded', name: 'Onboarded', icon: '🚀', color: 'purple', sla: 24, nextStage: 'searching', actions: ['requirements', 'zones'], description: 'Payment received, gathering requirements' },
+        { id: 'searching', name: 'Searching', icon: '🔍', color: 'cyan', sla: 72, nextStage: 'sent', actions: ['search', 'shortlist'], description: 'Actively searching properties' },
+        { id: 'sent', name: 'Options Sent', icon: '📨', color: 'orange', sla: 48, nextStage: 'viewing', actions: ['follow-up', 'feedback'], description: 'Options sent, awaiting feedback' },
+        { id: 'viewing', name: 'Viewings', icon: '🏠', color: 'gold', sla: 72, nextStage: 'negotiating', actions: ['schedule', 'confirm'], description: 'Scheduling/conducting viewings' },
+        { id: 'negotiating', name: 'Negotiating', icon: '🤝', color: 'purple', sla: 96, nextStage: 'closing', actions: ['negotiate', 'offer'], description: 'Active negotiation with landlord' },
+        { id: 'closing', name: 'Closing', icon: '📝', color: 'green', sla: 120, nextStage: 'placed', actions: ['contract', 'documents'], description: 'Contract preparation and signing' },
+        { id: 'placed', name: 'Placed ✓', icon: '🎉', color: 'green', sla: 0, nextStage: null, actions: ['celebrate', 'review'], description: 'Successfully placed!' }
     ];
 
     const PFS_SERVICES = {
-        PFS: { name: 'Property Finding', price: 350, color: 'gold', commission: 2000 },
-        DAS: { name: 'Deal Assistance', price: 249, color: 'blue', commission: 1500 },
-        VV: { name: 'Virtual Viewing', price: 89, color: 'purple', commission: 0 }
+        PFS: { name: 'Property Finding Service', shortName: 'PFS', price: 350, commission: 400, color: 'gold', icon: '🏆', avgDays: 14, description: 'Full search + viewings + negotiation' },
+        DAS: { name: 'Deal Assistance Service', shortName: 'DAS', price: 249, commission: 300, color: 'blue', icon: '🤝', avgDays: 7, description: 'Viewings + negotiation support' },
+        VV: { name: 'Virtual Viewing', shortName: 'VV', price: 89, commission: 0, color: 'purple', icon: '📹', avgDays: 3, description: 'Video viewing of properties' },
+        RELOCATION: { name: 'Full Relocation', shortName: 'RELO', price: 990, commission: 800, color: 'cyan', icon: '✈️', avgDays: 30, description: 'Complete relocation package' }
     };
 
     const PFS_TEMPLATES = {
-        onboarding: { title: '📋 Onboarding', text: 'Hey {name}! 🎉\n\nPayment received — we are on the hunt for your Rome apartment.\n\nPlease send me:\n• Exact move-in date\n• Max budget\n• Preferred zones\n• Must-haves\n• Deal-breakers\n\nValentino - BOOM' },
-        options: { title: '📨 Options', text: 'Hey {name}!\n\nGot some solid options for you! 🏠\n\nLet me know:\n✅ Which ones interest you\n❌ What is missing\n\nValentino - BOOM' },
-        followup: { title: '📞 Follow-up', text: 'Hey {name}!\n\nJust checking in — how did things go?\n\nLet me know!\nValentino - BOOM' },
-        viewing: { title: '🏠 Viewing', text: 'Hey {name}!\n\nViewing confirmed! 🎉\n\n📍 Address: [address]\n📅 Date: [date]\n⏰ Time: [time]\n\nSee you soon!\nValentino - BOOM' },
-        closing: { title: '📝 Closing', text: 'Hey {name}!\n\nGreat news — landlord approved! 🎉\n\nNext steps coming soon.\n\nValentino - BOOM' },
-        placed: { title: '🎉 Congrats!', text: 'Hey {name}!\n\nDONE! 🎉🏠 Keys are yours. Welcome home!\n\nEnjoy Rome!\nValentino - BOOM' }
+        welcome: { title: '👋 Welcome', icon: '👋', text: 'Hey {name}! 👋\n\nThanks for reaching out to BOOM! I\'m Valentino and I\'ll be helping you find your perfect Rome apartment.\n\nQuick questions:\n📅 When do you need to move in?\n💰 What\'s your monthly budget?\n📍 Any preferred neighborhoods?\n\nLet\'s find you a home! 🏠\nValentino - BOOM' },
+        onboarding: { title: '📋 Onboarding', icon: '🚀', text: 'Hey {name}! 🎉\n\nPayment received — let\'s get you that dream apartment!\n\nTo start the search, I need:\n• Exact move-in date\n• Budget range (min-max)\n• Top 3 preferred zones\n• Must-haves (balcony, furnished, etc.)\n• Deal-breakers\n• Lease duration preference\n\nThe more details, the better matches! 🎯\nValentino - BOOM' },
+        options: { title: '📨 Options Ready', icon: '📨', text: 'Hey {name}! 🏠\n\nI\'ve found {count} solid options for you!\n\n[LINKS HERE]\n\nLet me know:\n✅ Which ones interest you (even slightly!)\n❌ What\'s missing or wrong\n🤔 Any questions\n\nI can get more details or schedule viewings for the ones you like!\nValentino - BOOM' },
+        followup: { title: '📞 Follow-up', icon: '📞', text: 'Hey {name}!\n\nJust checking in — any thoughts on the options I sent?\n\nI can:\n• Find more like [X]\n• Schedule viewings\n• Get more details/photos\n\nLet me know how to help! 🙌\nValentino - BOOM' },
+        viewingConfirm: { title: '🏠 Viewing Confirmed', icon: '🏠', text: 'Hey {name}! 🎉\n\nViewing confirmed!\n\n📍 {address}\n📅 {date}\n⏰ {time}\n\n💡 Tips:\n• Bring ID\n• Check water pressure\n• Test appliances\n• Ask about utilities\n\nI\'ll be there with you!\nValentino - BOOM' },
+        viewingReminder: { title: '⏰ Reminder', icon: '⏰', text: 'Hey {name}!\n\nJust a reminder — viewing tomorrow!\n\n📍 {address}\n⏰ {time}\n\nSee you there! 👋\nValentino - BOOM' },
+        negotiating: { title: '🤝 Negotiation Update', icon: '🤝', text: 'Hey {name}!\n\nUpdate on {address}:\n\n[STATUS]\n\nI\'m pushing for the best deal. Will keep you posted!\nValentino - BOOM' },
+        approved: { title: '✅ Approved!', icon: '✅', text: 'Hey {name}! 🎉🎉🎉\n\nAMAZING NEWS — you\'re approved!\n\n📍 {address}\n💰 €{price}/month\n\nNext steps:\n1. Contract review\n2. Deposit payment\n3. Move-in date confirmation\n\nWe\'re so close! 🏠\nValentino - BOOM' },
+        closing: { title: '📝 Contract Ready', icon: '📝', text: 'Hey {name}!\n\nContract is ready for signing! 📝\n\nPlease bring:\n• Valid ID/Passport\n• Codice Fiscale\n• Deposit (€{deposit})\n• First month rent (€{price})\n\n📍 Meeting: {location}\n📅 Date: {date}\n⏰ Time: {time}\n\nAlmost there! 🎉\nValentino - BOOM' },
+        placed: { title: '🎉 Welcome Home!', icon: '🎉', text: 'Hey {name}! 🎉🏠🎊\n\nCONGRATULATIONS! You\'re officially a Roman! 🇮🇹\n\nEnjoy your new home at {address}!\n\nQuick tips:\n• Save landlord contact\n• Note utility meter readings\n• Join local groups\n\nNeed anything? I\'m always here! 🙌\n\nWelcome to Rome!\nValentino - BOOM' },
+        review: { title: '⭐ Review Request', icon: '⭐', text: 'Hey {name}!\n\nSo happy we found you the perfect place! 🏠\n\nWould you mind leaving us a quick review? It helps other people like you find us!\n\n⭐ Google: [LINK]\n⭐ TrustPilot: [LINK]\n\nThanks so much! Enjoy Rome! 🇮🇹\nValentino - BOOM' }
     };
 
-    let pfsDraggedClient = null;
-    let pfsView = 'kanban';
+    // Task templates per stage
+    const PFS_STAGE_TASKS = {
+        lead: ['Send welcome message', 'Qualify budget & timeline', 'Send service info', 'Schedule call if needed'],
+        qualified: ['Follow up on payment', 'Answer questions', 'Send payment link', 'Confirm service selection'],
+        onboarded: ['Gather all requirements', 'Confirm budget range', 'Map preferred zones', 'Note must-haves/deal-breakers'],
+        searching: ['Search Immobiliare', 'Search Idealista', 'Check landlord database', 'Shortlist 5-10 options'],
+        sent: ['Send options via WhatsApp', 'Follow up after 24h', 'Get feedback', 'Refine search if needed'],
+        viewing: ['Schedule viewing times', 'Confirm with landlord', 'Send viewing details', 'Prepare client questions'],
+        negotiating: ['Submit offer', 'Negotiate terms', 'Get landlord approval', 'Confirm final price'],
+        closing: ['Prepare contract', 'Schedule signing', 'Collect deposit', 'Arrange key handover'],
+        placed: ['Congratulate client', 'Request review', 'Add to success stories', 'Update landlord rating']
+    };
 
+    // PFS State Management
+    let pfsDraggedClient = null;
+    let pfsState = {
+        view: 'command',  // command | kanban | list | analytics | clients
+        filter: 'all',     // all | urgent | today | overdue
+        serviceFilter: 'all', // all | PFS | DAS | VV | RELOCATION
+        sortBy: 'priority', // priority | moveIn | lastContact | created
+        searchQuery: '',
+        selectedClient: null,
+        showCompleted: false
+    };
+
+    // Advanced Priority Calculation with multiple factors
     function calculatePFSPriority(client) {
-        if (!client) return 0;
+        if (!client || client.stage === 'placed') return 0;
         let score = 0;
         const now = new Date();
+        const factors = {};
+
+        // 1. Move-in urgency (0-35 points)
         if (client.moveIn) {
             const daysUntil = Math.ceil((new Date(client.moveIn) - now) / (1000*60*60*24));
-            if (daysUntil <= 0) score += 40;
-            else if (daysUntil <= 7) score += 35;
-            else if (daysUntil <= 14) score += 25;
-            else if (daysUntil <= 30) score += 15;
-            else score += 5;
+            if (daysUntil <= 0) { score += 35; factors.moveIn = 'OVERDUE'; }
+            else if (daysUntil <= 3) { score += 32; factors.moveIn = '3 days'; }
+            else if (daysUntil <= 7) { score += 28; factors.moveIn = '1 week'; }
+            else if (daysUntil <= 14) { score += 20; factors.moveIn = '2 weeks'; }
+            else if (daysUntil <= 30) { score += 12; factors.moveIn = '1 month'; }
+            else { score += 5; factors.moveIn = 'ok'; }
         }
+
+        // 2. Contact recency (0-25 points)
         if (client.lastContact) {
             const daysSince = Math.floor((now - new Date(client.lastContact)) / (1000*60*60*24));
-            if (daysSince >= 5) score += 30;
-            else if (daysSince >= 3) score += 20;
-            else if (daysSince >= 2) score += 10;
-        } else { score += 25; }
-        const stageScores = { lead: 5, onboarded: 15, searching: 20, sent: 18, viewing: 15, negotiating: 20, closing: 10, placed: 0 };
-        score += stageScores[client.stage] || 0;
-        if (client.service === 'PFS') score += 10;
-        else if (client.service === 'DAS') score += 7;
-        else score += 3;
-        return Math.min(score, 100);
+            if (daysSince >= 7) { score += 25; factors.contact = 'stale'; }
+            else if (daysSince >= 5) { score += 20; factors.contact = 'cold'; }
+            else if (daysSince >= 3) { score += 12; factors.contact = 'warm'; }
+            else if (daysSince >= 1) { score += 5; factors.contact = 'recent'; }
+            else { factors.contact = 'today'; }
+        } else { score += 20; factors.contact = 'never'; }
+
+        // 3. SLA breach risk (0-20 points)
+        const stage = PFS_STAGES.find(s => s.id === client.stage);
+        if (stage && stage.sla && client.stageEnteredAt) {
+            const hoursInStage = (now - new Date(client.stageEnteredAt)) / (1000*60*60);
+            const slaPercent = hoursInStage / stage.sla;
+            if (slaPercent >= 1.5) { score += 20; factors.sla = 'breach'; }
+            else if (slaPercent >= 1) { score += 15; factors.sla = 'breached'; }
+            else if (slaPercent >= 0.75) { score += 10; factors.sla = 'at risk'; }
+            else if (slaPercent >= 0.5) { score += 5; factors.sla = 'ok'; }
+        }
+
+        // 4. Revenue value (0-15 points)
+        const service = PFS_SERVICES[client.service];
+        if (service) {
+            const totalValue = service.price + (service.commission || 0);
+            if (totalValue >= 1000) { score += 15; factors.value = 'high'; }
+            else if (totalValue >= 500) { score += 10; factors.value = 'medium'; }
+            else { score += 5; factors.value = 'standard'; }
+        }
+
+        // 5. Stage progress weight (0-5 points)
+        const stageIndex = PFS_STAGES.findIndex(s => s.id === client.stage);
+        if (stageIndex >= 4) score += 5; // Later stages = more invested
+        else if (stageIndex >= 2) score += 3;
+
+        client._priorityFactors = factors;
+        return Math.min(Math.round(score), 100);
     }
 
     function getPriorityLevel(score) {
-        if (score >= 70) return 'urgent';
-        if (score >= 50) return 'high';
-        if (score >= 30) return 'medium';
-        return 'low';
+        if (score >= 75) return { level: 'critical', color: '#FF3B30', label: 'CRITICAL', bg: 'var(--red-light)' };
+        if (score >= 55) return { level: 'urgent', color: '#FF9500', label: 'URGENT', bg: 'var(--orange-light)' };
+        if (score >= 35) return { level: 'high', color: '#D4AF37', label: 'HIGH', bg: 'var(--gold-light)' };
+        if (score >= 20) return { level: 'medium', color: '#007AFF', label: 'MEDIUM', bg: 'var(--blue-light)' };
+        return { level: 'low', color: '#8E8E93', label: 'LOW', bg: 'var(--bg-elevated)' };
     }
 
     function getNextAction(client) {
-        const actions = { lead: '📞 Call to qualify', onboarded: '🔍 Start searching', searching: '📨 Send options', sent: '⏳ Await feedback', viewing: '🏠 Schedule viewing', negotiating: '🤝 Close deal', closing: '📝 Finalize contract', placed: '🎉 Collect commission' };
-        return actions[client.stage] || 'Review client';
+        const stage = PFS_STAGES.find(s => s.id === client.stage);
+        if (!stage) return { text: 'Review client', icon: '👀' };
+
+        const actions = {
+            lead: { text: 'Qualify & send info', icon: '📞' },
+            qualified: { text: 'Get payment', icon: '💳' },
+            onboarded: { text: 'Gather requirements', icon: '📋' },
+            searching: { text: 'Find properties', icon: '🔍' },
+            sent: { text: 'Get feedback', icon: '💬' },
+            viewing: { text: 'Schedule viewing', icon: '🏠' },
+            negotiating: { text: 'Close the deal', icon: '🤝' },
+            closing: { text: 'Sign contract', icon: '📝' },
+            placed: { text: 'Request review', icon: '⭐' }
+        };
+        return actions[client.stage] || { text: 'Review', icon: '👀' };
     }
 
-    function setPFSView(view) { pfsView = view; renderPage(); }
+    function getDaysInStage(client) {
+        if (!client.stageEnteredAt) return null;
+        const entered = new Date(client.stageEnteredAt);
+        return Math.floor((new Date() - entered) / (1000*60*60*24));
+    }
 
-    async function logPFSActivity(message) {
-        const activity = { message, timestamp: firebase.firestore.FieldValue.serverTimestamp(), user: S.profile?.name || 'System' };
+    function getSLAStatus(client) {
+        const stage = PFS_STAGES.find(s => s.id === client.stage);
+        if (!stage || !stage.sla || !client.stageEnteredAt) return null;
+        const hoursInStage = (new Date() - new Date(client.stageEnteredAt)) / (1000*60*60);
+        const percent = hoursInStage / stage.sla;
+        if (percent >= 1) return { status: 'breached', percent: Math.round(percent * 100), color: 'var(--red)' };
+        if (percent >= 0.75) return { status: 'at-risk', percent: Math.round(percent * 100), color: 'var(--orange)' };
+        return { status: 'ok', percent: Math.round(percent * 100), color: 'var(--green)' };
+    }
+
+    function setPFSView(view) { pfsState.view = view; renderPage(); }
+    function setPFSFilter(filter) { pfsState.filter = filter; renderPage(); }
+    function setPFSServiceFilter(service) { pfsState.serviceFilter = service; renderPage(); }
+    function setPFSSort(sortBy) { pfsState.sortBy = sortBy; renderPage(); }
+
+    async function logPFSActivity(message, type = 'info') {
+        const activity = {
+            message,
+            type,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+            user: S.profile?.name || 'System'
+        };
         try {
             await db.collection('pfsActivities').add(activity);
             if (!S.pfsActivities) S.pfsActivities = [];
@@ -7251,51 +7342,700 @@ IBAN: ${l.iban || '-'}`;
         if (seconds < 60) return 'just now';
         if (seconds < 3600) return Math.floor(seconds / 60) + 'm ago';
         if (seconds < 86400) return Math.floor(seconds / 3600) + 'h ago';
-        return Math.floor(seconds / 86400) + 'd ago';
+        const days = Math.floor(seconds / 86400);
+        if (days === 1) return 'yesterday';
+        if (days < 7) return days + 'd ago';
+        return fmtDate(date);
     }
 
-    function pfsPipelinePage() {
+    // Calculate comprehensive pipeline analytics
+    function getPFSAnalytics() {
         const clients = S.pfsClients || [];
-        const activeClients = clients.filter(c => c.stage !== 'placed');
-        const urgentClients = clients.filter(c => calculatePFSPriority(c) >= 70);
-        const placedThisMonth = clients.filter(c => c.stage === 'placed' && isThisMonth(c.placedDate));
-        const pipelineValue = activeClients.reduce((sum, c) => sum + (PFS_SERVICES[c.service]?.price || 0), 0);
-        return '<div class="page-header"><div><h1 class="page-title">🚀 PFS Pipeline</h1><p class="page-subtitle">Drag clients between stages</p></div><div class="page-actions"><div style="display:flex;gap:4px;margin-right:12px"><button class="tab '+(pfsView==='kanban'?'active':'')+'" onclick="setPFSView(\'kanban\')">Kanban</button><button class="tab '+(pfsView==='list'?'active':'')+'" onclick="setPFSView(\'list\')">List</button><button class="tab '+(pfsView==='properties'?'active':'')+'" onclick="setPFSView(\'properties\')">Properties</button></div><button class="btn" onclick="openPFSAddClient()">+ New Client</button></div></div><div class="stats-grid" style="grid-template-columns:repeat(5,1fr)"><div class="stat-card gold"><div class="stat-icon">👥</div><div class="stat-value">'+activeClients.length+'</div><div class="stat-label">Active Clients</div></div><div class="stat-card '+(urgentClients.length > 0 ? 'red' : 'green')+'"><div class="stat-icon">🔥</div><div class="stat-value">'+urgentClients.length+'</div><div class="stat-label">Urgent</div></div><div class="stat-card blue"><div class="stat-icon">🏠</div><div class="stat-value">'+(S.pfsProperties || []).length+'</div><div class="stat-label">Properties</div></div><div class="stat-card purple"><div class="stat-icon">💰</div><div class="stat-value">€'+pipelineValue.toLocaleString()+'</div><div class="stat-label">Pipeline Value</div></div><div class="stat-card green"><div class="stat-icon">🎉</div><div class="stat-value">'+placedThisMonth.length+'</div><div class="stat-label">Placed This Month</div></div></div>'+(urgentClients.length > 0 ? '<div class="card" style="border-color:var(--red);margin-bottom:20px"><div class="card-header" style="background:var(--red-light)"><h3 class="card-title" style="color:var(--red)">🔥 Urgent Attention Required</h3></div><div class="card-body flush">'+urgentClients.slice(0, 5).map(function(c) { return '<div class="list-item clickable" onclick="openPFSClientDetail(\''+c.id+'\')"><div class="avatar" style="background:var(--red)">'+(c.name?.charAt(0) || '?')+'</div><div class="list-content"><div class="list-title">'+esc(c.name)+' <span class="badge '+(PFS_SERVICES[c.service]?.color || 'gray')+'">'+c.service+'</span></div><div class="list-subtitle">'+getNextAction(c)+'</div></div></div>'; }).join('')+'</div></div>' : '')+'<div id="pfsContent">'+(pfsView === 'kanban' ? renderPFSKanban() : pfsView === 'list' ? renderPFSList() : renderPFSProperties())+'</div><div class="card mt-24"><div class="card-header"><h3 class="card-title">📋 Recent Activity</h3></div><div class="card-body flush" style="max-height:300px;overflow-y:auto">'+(S.pfsActivities || []).slice(0, 15).map(function(a) { return '<div class="list-item" style="padding:10px 16px"><div class="list-content"><div class="list-title" style="font-size:13px">'+esc(a.message)+'</div><div class="list-subtitle">'+timeAgo(a.timestamp)+'</div></div></div>'; }).join('') + '</div></div>';
+        const now = new Date();
+        const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+
+        const active = clients.filter(c => c.stage !== 'placed');
+        const urgent = active.filter(c => calculatePFSPriority(c) >= 55);
+        const critical = active.filter(c => calculatePFSPriority(c) >= 75);
+        const placedThisMonth = clients.filter(c => c.stage === 'placed' && c.placedDate && new Date(c.placedDate) >= thisMonth);
+        const placedLastMonth = clients.filter(c => c.stage === 'placed' && c.placedDate && new Date(c.placedDate) >= lastMonth && new Date(c.placedDate) < thisMonth);
+
+        // Revenue calculations
+        const pipelineRevenue = active.reduce((sum, c) => sum + (PFS_SERVICES[c.service]?.price || 0), 0);
+        const pipelineCommission = active.reduce((sum, c) => sum + (PFS_SERVICES[c.service]?.commission || 0), 0);
+        const earnedThisMonth = placedThisMonth.reduce((sum, c) => sum + (PFS_SERVICES[c.service]?.price || 0) + (PFS_SERVICES[c.service]?.commission || 0), 0);
+
+        // Stage distribution
+        const stageDistribution = {};
+        PFS_STAGES.forEach(s => {
+            stageDistribution[s.id] = clients.filter(c => c.stage === s.id).length;
+        });
+
+        // Conversion funnel
+        const stages = ['lead', 'qualified', 'onboarded', 'searching', 'sent', 'viewing', 'negotiating', 'closing', 'placed'];
+        const funnel = stages.map((stageId, i) => {
+            const count = clients.filter(c => stages.indexOf(c.stage) >= i).length;
+            return { stage: stageId, count, percent: clients.length ? Math.round(count / clients.length * 100) : 0 };
+        });
+
+        // SLA health
+        const slaBreaches = active.filter(c => {
+            const sla = getSLAStatus(c);
+            return sla && sla.status === 'breached';
+        }).length;
+
+        const atRisk = active.filter(c => {
+            const sla = getSLAStatus(c);
+            return sla && sla.status === 'at-risk';
+        }).length;
+
+        // Service breakdown
+        const byService = {};
+        Object.keys(PFS_SERVICES).forEach(s => {
+            byService[s] = {
+                active: active.filter(c => c.service === s).length,
+                placed: placedThisMonth.filter(c => c.service === s).length,
+                revenue: active.filter(c => c.service === s).reduce((sum, c) => sum + (PFS_SERVICES[c.service]?.price || 0), 0)
+            };
+        });
+
+        return {
+            total: clients.length,
+            active: active.length,
+            urgent: urgent.length,
+            critical: critical.length,
+            placedThisMonth: placedThisMonth.length,
+            placedLastMonth: placedLastMonth.length,
+            pipelineRevenue,
+            pipelineCommission,
+            totalPipelineValue: pipelineRevenue + pipelineCommission,
+            earnedThisMonth,
+            stageDistribution,
+            funnel,
+            slaBreaches,
+            atRisk,
+            byService,
+            healthScore: Math.max(0, 100 - (slaBreaches * 15) - (atRisk * 5) - (critical.length * 10))
+        };
     }
 
-    function renderPFSKanban() {
-        var clients = S.pfsClients || [];
-        return '<div class="pipeline-board" style="display:flex;gap:12px;overflow-x:auto;padding-bottom:12px">'+PFS_STAGES.map(function(stage) {
-            var stageClients = clients.filter(function(c) { return c.stage === stage.id; });
-            var stageValue = stageClients.reduce(function(sum, c) { return sum + (PFS_SERVICES[c.service]?.price || 0); }, 0);
-            return '<div class="pipeline-column" data-stage="'+stage.id+'" style="min-width:260px;max-width:260px;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;display:flex;flex-direction:column" ondragover="handlePFSDragOver(event)" ondragleave="handlePFSDragLeave(event)" ondrop="handlePFSDrop(event, \''+stage.id+'\')"><div style="padding:14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between"><div><span style="font-size:16px;margin-right:6px">'+stage.icon+'</span><span style="font-weight:600;font-size:13px">'+stage.name+'</span><span class="badge '+stage.color+'" style="margin-left:6px">'+stageClients.length+'</span></div>'+(stageValue > 0 ? '<span style="font-size:11px;color:var(--gold)">€'+stageValue+'</span>' : '')+'</div><div style="padding:8px;flex:1;overflow-y:auto;max-height:500px">'+(stageClients.map(function(c) { return renderPFSClientCard(c); }).join('') || '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:12px">Drop clients here</div>')+'</div></div>';
-        }).join('')+'</div>';
+    // Main PFS Pipeline Page - Command Center View
+    function pfsPipelinePage() {
+        const { view } = pfsState;
+
+        return `
+            <div class="page-header">
+                <div>
+                    <h1 class="page-title" style="display:flex;align-items:center;gap:12px">
+                        🚀 PFS Command Center
+                        <span class="badge gold" style="font-size:10px">PRO</span>
+                    </h1>
+                    <p class="page-subtitle">Sales Pipeline · Revenue Tracking · Client Management</p>
+                </div>
+                <div class="page-actions">
+                    <button class="btn" onclick="openPFSAddClient()">+ New Client</button>
+                </div>
+            </div>
+
+            <!-- View Tabs -->
+            <div class="tabs" style="margin-bottom:20px">
+                <div class="tab ${view === 'command' ? 'active' : ''}" onclick="setPFSView('command')">📊 Command Center</div>
+                <div class="tab ${view === 'kanban' ? 'active' : ''}" onclick="setPFSView('kanban')">📋 Kanban</div>
+                <div class="tab ${view === 'list' ? 'active' : ''}" onclick="setPFSView('list')">📃 List</div>
+                <div class="tab ${view === 'analytics' ? 'active' : ''}" onclick="setPFSView('analytics')">📈 Analytics</div>
+            </div>
+
+            ${view === 'command' ? renderPFSCommandCenter() : ''}
+            ${view === 'kanban' ? renderPFSKanbanPro() : ''}
+            ${view === 'list' ? renderPFSListPro() : ''}
+            ${view === 'analytics' ? renderPFSAnalytics() : ''}
+        `;
     }
 
-    function renderPFSClientCard(client) {
-        var priority = calculatePFSPriority(client);
-        var level = getPriorityLevel(priority);
-        var daysUntil = client.moveIn ? Math.ceil((new Date(client.moveIn) - new Date()) / (1000*60*60*24)) : null;
-        var colors = { urgent: 'var(--red)', high: 'var(--orange)', medium: 'var(--gold)', low: 'var(--text-muted)' };
-        return '<div class="pipeline-card" draggable="true" ondragstart="handlePFSDragStart(event, \''+client.id+'\')" ondragend="handlePFSDragEnd(event)" onclick="openPFSClientDetail(\''+client.id+'\')" style="cursor:pointer;position:relative;border-left:3px solid '+colors[level]+'"><div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><div class="pipeline-card-service '+(client.service?.toLowerCase() || 'pfs')+'">'+(client.service || 'PFS')+'</div><span style="font-size:10px;color:'+colors[level]+';font-weight:600">'+priority+'pt</span></div><div class="pipeline-card-name">'+esc(client.name || 'Unknown')+'</div><div class="pipeline-card-meta">'+(client.zone ? '📍 '+esc(client.zone) : '')+(client.budget ? ' • €'+client.budget : '')+'</div>'+(daysUntil !== null ? '<div style="font-size:10px;margin-top:4px;color:'+(daysUntil <= 7 ? 'var(--red)' : 'var(--text-muted)')+'">Move-in: '+(daysUntil <= 0 ? 'OVERDUE' : daysUntil + 'd')+'</div>' : '')+'<div style="display:flex;gap:4px;margin-top:8px"><button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();openPFSWhatsApp(\''+client.id+'\')" title="WhatsApp">💬</button><button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();logPFSContact(\''+client.id+'\')" title="Log Contact">📞</button></div></div>';
+    // Command Center Dashboard
+    function renderPFSCommandCenter() {
+        const analytics = getPFSAnalytics();
+        const clients = S.pfsClients || [];
+        const active = clients.filter(c => c.stage !== 'placed');
+        const urgent = active.filter(c => calculatePFSPriority(c) >= 55).sort((a,b) => calculatePFSPriority(b) - calculatePFSPriority(a));
+        const todayTasks = getTodayPFSTasks();
+
+        return `
+            <!-- Health Score Banner -->
+            <div style="background:linear-gradient(135deg, ${analytics.healthScore >= 70 ? 'rgba(52,199,89,0.15)' : analytics.healthScore >= 40 ? 'rgba(255,149,0,0.15)' : 'rgba(255,59,48,0.15)'}, transparent);border:1px solid ${analytics.healthScore >= 70 ? 'var(--green)' : analytics.healthScore >= 40 ? 'var(--orange)' : 'var(--red)'};border-radius:16px;padding:20px 24px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:center">
+                <div>
+                    <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">PIPELINE HEALTH</div>
+                    <div style="font-size:32px;font-weight:800;color:${analytics.healthScore >= 70 ? 'var(--green)' : analytics.healthScore >= 40 ? 'var(--orange)' : 'var(--red)'}">${analytics.healthScore}%</div>
+                </div>
+                <div style="text-align:right">
+                    ${analytics.slaBreaches > 0 ? `<div style="color:var(--red);font-size:13px;font-weight:600">⚠️ ${analytics.slaBreaches} SLA Breach${analytics.slaBreaches > 1 ? 'es' : ''}</div>` : ''}
+                    ${analytics.atRisk > 0 ? `<div style="color:var(--orange);font-size:13px">⏳ ${analytics.atRisk} At Risk</div>` : ''}
+                    ${analytics.healthScore === 100 ? `<div style="color:var(--green);font-size:13px">✨ All systems optimal!</div>` : ''}
+                </div>
+            </div>
+
+            <!-- Key Metrics -->
+            <div class="stats-grid" style="grid-template-columns:repeat(6,1fr);margin-bottom:24px">
+                <div class="stat-card gold" onclick="setPFSView('kanban')" style="cursor:pointer">
+                    <div class="stat-icon">👥</div>
+                    <div class="stat-value">${analytics.active}</div>
+                    <div class="stat-label">Active Clients</div>
+                </div>
+                <div class="stat-card ${analytics.critical > 0 ? 'red' : 'green'}">
+                    <div class="stat-icon">🔥</div>
+                    <div class="stat-value">${analytics.urgent}</div>
+                    <div class="stat-label">Need Attention</div>
+                </div>
+                <div class="stat-card purple">
+                    <div class="stat-icon">💰</div>
+                    <div class="stat-value">€${analytics.totalPipelineValue.toLocaleString()}</div>
+                    <div class="stat-label">Pipeline Value</div>
+                </div>
+                <div class="stat-card blue">
+                    <div class="stat-icon">💵</div>
+                    <div class="stat-value">€${analytics.earnedThisMonth.toLocaleString()}</div>
+                    <div class="stat-label">Earned This Month</div>
+                </div>
+                <div class="stat-card green">
+                    <div class="stat-icon">🎉</div>
+                    <div class="stat-value">${analytics.placedThisMonth}</div>
+                    <div class="stat-label">Placed This Month</div>
+                </div>
+                <div class="stat-card cyan">
+                    <div class="stat-icon">📊</div>
+                    <div class="stat-value">${analytics.placedThisMonth > analytics.placedLastMonth ? '↑' : analytics.placedThisMonth < analytics.placedLastMonth ? '↓' : '→'}</div>
+                    <div class="stat-label">vs Last Month</div>
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <!-- Urgent Actions -->
+                <div class="card" style="${urgent.length > 0 ? 'border-color:var(--orange)' : ''}">
+                    <div class="card-header">
+                        <h3 class="card-title">🔥 Priority Queue</h3>
+                        <span class="badge ${urgent.length > 0 ? 'orange' : 'green'}">${urgent.length}</span>
+                    </div>
+                    <div class="card-body flush" style="max-height:400px;overflow-y:auto">
+                        ${urgent.length === 0 ? `
+                            <div class="empty-state" style="padding:30px">
+                                <div class="empty-icon">✨</div>
+                                <div class="empty-title">All Clear!</div>
+                                <div class="empty-text">No urgent clients right now</div>
+                            </div>
+                        ` : urgent.slice(0, 8).map(c => renderPFSPriorityItem(c)).join('')}
+                    </div>
+                </div>
+
+                <!-- Today's Tasks -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">📋 Today's Tasks</h3>
+                        <span class="badge blue">${todayTasks.length}</span>
+                    </div>
+                    <div class="card-body flush" style="max-height:400px;overflow-y:auto">
+                        ${todayTasks.length === 0 ? `
+                            <div class="empty-state" style="padding:30px">
+                                <div class="empty-icon">📝</div>
+                                <div class="empty-title">No Tasks Today</div>
+                                <div class="empty-text">Great job staying on top!</div>
+                            </div>
+                        ` : todayTasks.slice(0, 8).map(t => `
+                            <div class="list-item clickable" onclick="openPFSClientDetail('${t.clientId}')">
+                                <div style="width:32px;height:32px;border-radius:8px;background:var(--${t.priority === 'high' ? 'red' : t.priority === 'medium' ? 'orange' : 'blue'}-light);display:flex;align-items:center;justify-content:center;font-size:14px">${t.icon}</div>
+                                <div class="list-content">
+                                    <div class="list-title" style="font-size:13px">${esc(t.task)}</div>
+                                    <div class="list-subtitle">${esc(t.clientName)}</div>
+                                </div>
+                                <button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();completePFSTask('${t.id}')">✓</button>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stage Overview Mini -->
+            <div class="card mt-24">
+                <div class="card-header">
+                    <h3 class="card-title">📊 Pipeline Overview</h3>
+                    <button class="btn btn-xs btn-secondary" onclick="setPFSView('kanban')">View Kanban →</button>
+                </div>
+                <div class="card-body">
+                    <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:8px">
+                        ${PFS_STAGES.filter(s => s.id !== 'placed').map(stage => {
+                            const count = analytics.stageDistribution[stage.id] || 0;
+                            return `
+                                <div style="flex:1;min-width:100px;background:var(--bg-elevated);border-radius:12px;padding:16px;text-align:center;border:1px solid var(--border)">
+                                    <div style="font-size:20px;margin-bottom:4px">${stage.icon}</div>
+                                    <div style="font-size:24px;font-weight:700;color:var(--${stage.color})">${count}</div>
+                                    <div style="font-size:11px;color:var(--text-muted)">${stage.name}</div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="card mt-24">
+                <div class="card-header">
+                    <h3 class="card-title">📋 Recent Activity</h3>
+                </div>
+                <div class="card-body flush" style="max-height:250px;overflow-y:auto">
+                    ${(S.pfsActivities || []).slice(0, 12).map(a => `
+                        <div class="list-item" style="padding:10px 16px">
+                            <div class="list-content">
+                                <div class="list-title" style="font-size:13px">${esc(a.message)}</div>
+                                <div class="list-subtitle">${timeAgo(a.timestamp)} · ${esc(a.user || 'System')}</div>
+                            </div>
+                        </div>
+                    `).join('') || '<div class="empty-state" style="padding:20px"><div class="empty-text">No recent activity</div></div>'}
+                </div>
+            </div>
+        `;
     }
 
-    function renderPFSList() {
-        var clients = S.pfsClients || [];
-        var sorted = clients.slice().sort(function(a, b) { return calculatePFSPriority(b) - calculatePFSPriority(a); });
-        return '<div class="card"><div class="card-body flush"><table class="crm-table"><thead><tr><th>Client</th><th>Service</th><th>Stage</th><th>Budget</th><th>Move-in</th><th>Priority</th><th>Actions</th></tr></thead><tbody>'+sorted.map(function(c) {
-            var priority = calculatePFSPriority(c);
-            var level = getPriorityLevel(priority);
-            var stage = PFS_STAGES.find(function(s) { return s.id === c.stage; });
-            return '<tr onclick="openPFSClientDetail(\''+c.id+'\')"><td><div style="display:flex;align-items:center;gap:10px"><div class="avatar" style="width:32px;height:32px;font-size:12px">'+(c.name?.charAt(0) || '?')+'</div><div><div style="font-weight:500">'+esc(c.name)+'</div><div style="font-size:11px;color:var(--text-muted)">'+esc(c.email || '')+'</div></div></div></td><td><span class="badge '+(PFS_SERVICES[c.service]?.color || 'gray')+'">'+c.service+'</span></td><td><span class="badge '+(stage?.color || 'gray')+'">'+(stage?.icon || '')+' '+(stage?.name || c.stage)+'</span></td><td>€'+(c.budget || '-')+'</td><td>'+(c.moveIn ? fmtDate(c.moveIn) : '-')+'</td><td><span class="badge '+(level === 'urgent' ? 'red' : level === 'high' ? 'orange' : level === 'medium' ? 'gold' : 'gray')+'">'+priority+'pt</span></td><td onclick="event.stopPropagation()"><button class="btn btn-xs btn-secondary" onclick="openPFSWhatsApp(\''+c.id+'\')">💬</button></td></tr>';
-        }).join('') + '</tbody></table></div></div>';
+    function renderPFSPriorityItem(client) {
+        const priority = calculatePFSPriority(client);
+        const pLevel = getPriorityLevel(priority);
+        const nextAction = getNextAction(client);
+        const sla = getSLAStatus(client);
+        const daysUntil = client.moveIn ? Math.ceil((new Date(client.moveIn) - new Date()) / (1000*60*60*24)) : null;
+
+        return `
+            <div class="list-item clickable" onclick="openPFSClientDetail('${client.id}')" style="border-left:3px solid ${pLevel.color}">
+                <div class="avatar" style="background:${pLevel.bg};color:${pLevel.color};font-size:14px;font-weight:700">${priority}</div>
+                <div class="list-content">
+                    <div class="list-title">
+                        ${esc(client.name)}
+                        <span class="badge ${PFS_SERVICES[client.service]?.color || 'gray'}">${client.service}</span>
+                        ${sla?.status === 'breached' ? '<span class="badge red">SLA!</span>' : ''}
+                    </div>
+                    <div class="list-subtitle">
+                        ${nextAction.icon} ${nextAction.text}
+                        ${daysUntil !== null ? ` · Move-in: ${daysUntil <= 0 ? '<span style="color:var(--red)">OVERDUE</span>' : daysUntil + 'd'}` : ''}
+                    </div>
+                </div>
+                <div class="list-actions">
+                    <button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();openPFSWhatsApp('${client.id}')" title="WhatsApp">💬</button>
+                    <button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();quickAdvanceStage('${client.id}')" title="Advance">→</button>
+                </div>
+            </div>
+        `;
     }
 
-    function renderPFSProperties() {
-        var properties = S.pfsProperties || [];
-        return '<div class="page-actions" style="margin-bottom:16px"><button class="btn" onclick="openPFSAddProperty()">+ Add Property</button></div><div class="grid-3">'+properties.map(function(p) {
-            return '<div class="card" onclick="openPFSPropertyDetail(\''+p.id+'\')" style="cursor:pointer"><div class="card-body"><div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:12px"><div><h3 style="font-size:16px;font-weight:600;margin-bottom:4px">'+esc(p.address || 'Property')+'</h3><div style="font-size:13px;color:var(--text-secondary)">'+esc(p.zone || '')+'</div></div><span class="badge gold">€'+(p.price || 0)+'/m</span></div><div style="display:flex;gap:12px;font-size:12px;color:var(--text-muted)"><span>🛏️ '+(p.bedrooms || 0)+'</span><span>📐 '+(p.size || 0)+'m²</span>'+(p.available ? '<span style="color:var(--green)">✓ Available</span>' : '<span style="color:var(--red)">✗ Taken</span>')+'</div></div></div>';
-        }).join('') + '</div>';
+    function getTodayPFSTasks() {
+        const clients = (S.pfsClients || []).filter(c => c.stage !== 'placed');
+        const tasks = [];
+
+        clients.forEach(c => {
+            const priority = calculatePFSPriority(c);
+            const stage = PFS_STAGES.find(s => s.id === c.stage);
+            const sla = getSLAStatus(c);
+            const nextAction = getNextAction(c);
+
+            // Add task based on stage and priority
+            if (priority >= 55 || (sla && sla.status !== 'ok')) {
+                tasks.push({
+                    id: c.id + '_action',
+                    clientId: c.id,
+                    clientName: c.name,
+                    task: nextAction.text,
+                    icon: nextAction.icon,
+                    priority: priority >= 75 ? 'high' : priority >= 55 ? 'medium' : 'low'
+                });
+            }
+        });
+
+        return tasks.sort((a, b) => {
+            const order = { high: 0, medium: 1, low: 2 };
+            return order[a.priority] - order[b.priority];
+        });
+    }
+
+    function completePFSTask(taskId) {
+        toast('success', 'Task completed!');
+        // In real implementation, this would update task status
+    }
+
+    async function quickAdvanceStage(clientId) {
+        const client = (S.pfsClients || []).find(c => c.id === clientId);
+        if (!client) return;
+
+        const currentIndex = PFS_STAGES.findIndex(s => s.id === client.stage);
+        if (currentIndex >= PFS_STAGES.length - 1) return;
+
+        const nextStage = PFS_STAGES[currentIndex + 1];
+        await changePFSStage(clientId, nextStage.id);
+    }
+
+    // Pro Kanban Board with enhanced features
+    function renderPFSKanbanPro() {
+        const clients = S.pfsClients || [];
+        const { serviceFilter } = pfsState;
+
+        // Filter clients
+        let filtered = clients;
+        if (serviceFilter !== 'all') {
+            filtered = clients.filter(c => c.service === serviceFilter);
+        }
+
+        return `
+            <!-- Filters -->
+            <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
+                <span style="font-size:12px;color:var(--text-muted)">Filter:</span>
+                <button class="btn btn-xs ${serviceFilter === 'all' ? '' : 'btn-secondary'}" onclick="setPFSServiceFilter('all')">All</button>
+                ${Object.entries(PFS_SERVICES).map(([key, svc]) => `
+                    <button class="btn btn-xs ${serviceFilter === key ? '' : 'btn-secondary'}" onclick="setPFSServiceFilter('${key}')">${svc.icon} ${key}</button>
+                `).join('')}
+            </div>
+
+            <!-- Kanban Board -->
+            <div style="display:flex;gap:12px;overflow-x:auto;padding-bottom:16px">
+                ${PFS_STAGES.map(stage => {
+                    const stageClients = filtered.filter(c => c.stage === stage.id);
+                    const stageValue = stageClients.reduce((sum, c) => sum + (PFS_SERVICES[c.service]?.price || 0), 0);
+                    const slaBreaches = stageClients.filter(c => getSLAStatus(c)?.status === 'breached').length;
+
+                    return `
+                        <div class="pipeline-column" data-stage="${stage.id}"
+                             style="min-width:280px;max-width:280px;background:var(--bg-card);border:1px solid var(--border);border-radius:14px;display:flex;flex-direction:column${slaBreaches > 0 ? ';border-color:var(--red)' : ''}"
+                             ondragover="handlePFSDragOver(event)"
+                             ondragleave="handlePFSDragLeave(event)"
+                             ondrop="handlePFSDrop(event, '${stage.id}')">
+                            <!-- Column Header -->
+                            <div style="padding:14px 16px;border-bottom:1px solid var(--border);background:var(--bg-elevated);border-radius:13px 13px 0 0">
+                                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+                                    <div style="display:flex;align-items:center;gap:8px">
+                                        <span style="font-size:18px">${stage.icon}</span>
+                                        <span style="font-weight:600;font-size:13px">${stage.name}</span>
+                                    </div>
+                                    <span class="badge ${stage.color}">${stageClients.length}</span>
+                                </div>
+                                <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-muted)">
+                                    ${stageValue > 0 ? `<span>€${stageValue.toLocaleString()}</span>` : '<span></span>'}
+                                    ${slaBreaches > 0 ? `<span style="color:var(--red)">${slaBreaches} SLA!</span>` : stage.sla ? `<span>SLA: ${stage.sla}h</span>` : ''}
+                                </div>
+                            </div>
+                            <!-- Cards -->
+                            <div style="padding:8px;flex:1;overflow-y:auto;max-height:55vh">
+                                ${stageClients.length === 0 ? `
+                                    <div style="text-align:center;padding:30px 16px;color:var(--text-muted);font-size:12px;border:2px dashed var(--border);border-radius:10px;margin:4px">
+                                        Drop clients here
+                                    </div>
+                                ` : stageClients.sort((a,b) => calculatePFSPriority(b) - calculatePFSPriority(a)).map(c => renderPFSClientCardPro(c)).join('')}
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        `;
+    }
+
+    function renderPFSClientCardPro(client) {
+        const priority = calculatePFSPriority(client);
+        const pLevel = getPriorityLevel(priority);
+        const sla = getSLAStatus(client);
+        const daysUntil = client.moveIn ? Math.ceil((new Date(client.moveIn) - new Date()) / (1000*60*60*24)) : null;
+        const service = PFS_SERVICES[client.service];
+
+        return `
+            <div class="pipeline-card" draggable="true"
+                 ondragstart="handlePFSDragStart(event, '${client.id}')"
+                 ondragend="handlePFSDragEnd(event)"
+                 onclick="openPFSClientDetail('${client.id}')"
+                 style="cursor:pointer;position:relative;border-left:4px solid ${pLevel.color};margin-bottom:8px;background:var(--bg-card);border-radius:10px;padding:12px;border:1px solid var(--border);transition:all 0.2s"
+                 onmouseover="this.style.borderColor='var(--gold)'"
+                 onmouseout="this.style.borderColor='var(--border)'">
+                <!-- Header -->
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <span style="font-size:14px">${service?.icon || '📋'}</span>
+                        <span class="badge ${service?.color || 'gray'}" style="font-size:9px">${client.service}</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:4px">
+                        ${sla?.status === 'breached' ? '<span style="font-size:10px;color:var(--red)">⚠️</span>' : ''}
+                        <span style="font-size:10px;padding:2px 6px;border-radius:4px;background:${pLevel.bg};color:${pLevel.color};font-weight:600">${priority}</span>
+                    </div>
+                </div>
+                <!-- Name -->
+                <div style="font-weight:600;font-size:14px;margin-bottom:4px">${esc(client.name || 'Unknown')}</div>
+                <!-- Meta -->
+                <div style="font-size:11px;color:var(--text-secondary);margin-bottom:8px">
+                    ${client.zone ? '📍 ' + esc(client.zone) : ''}
+                    ${client.budget ? ' · €' + client.budget : ''}
+                </div>
+                <!-- Move-in & SLA -->
+                <div style="display:flex;justify-content:space-between;align-items:center;font-size:10px">
+                    ${daysUntil !== null ? `
+                        <span style="color:${daysUntil <= 3 ? 'var(--red)' : daysUntil <= 7 ? 'var(--orange)' : 'var(--text-muted)'}">
+                            📅 ${daysUntil <= 0 ? 'OVERDUE!' : daysUntil + 'd to move-in'}
+                        </span>
+                    ` : '<span></span>'}
+                    ${sla ? `
+                        <span style="color:${sla.color}">${sla.percent}% SLA</span>
+                    ` : ''}
+                </div>
+                <!-- Quick Actions -->
+                <div style="display:flex;gap:4px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+                    <button class="btn btn-xs btn-secondary" style="flex:1" onclick="event.stopPropagation();openPFSWhatsApp('${client.id}')" title="WhatsApp">💬</button>
+                    <button class="btn btn-xs btn-secondary" style="flex:1" onclick="event.stopPropagation();logPFSContact('${client.id}')" title="Log Contact">📞</button>
+                    <button class="btn btn-xs btn-secondary" style="flex:1" onclick="event.stopPropagation();openPFSQuickTemplate('${client.id}')" title="Template">📝</button>
+                </div>
+            </div>
+        `;
+    }
+
+    // Pro List View with sorting and filtering
+    function renderPFSListPro() {
+        const clients = S.pfsClients || [];
+        const { serviceFilter, sortBy, showCompleted } = pfsState;
+
+        let filtered = clients.filter(c => showCompleted || c.stage !== 'placed');
+        if (serviceFilter !== 'all') filtered = filtered.filter(c => c.service === serviceFilter);
+
+        // Sort
+        filtered.sort((a, b) => {
+            switch (sortBy) {
+                case 'priority': return calculatePFSPriority(b) - calculatePFSPriority(a);
+                case 'moveIn': return (new Date(a.moveIn || '2099-01-01')) - (new Date(b.moveIn || '2099-01-01'));
+                case 'lastContact': return (new Date(b.lastContact || 0)) - (new Date(a.lastContact || 0));
+                case 'created': return (new Date(b.createdAt || 0)) - (new Date(a.createdAt || 0));
+                default: return 0;
+            }
+        });
+
+        return `
+            <!-- Controls -->
+            <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;align-items:center;justify-content:space-between">
+                <div style="display:flex;gap:8px;align-items:center">
+                    <span style="font-size:12px;color:var(--text-muted)">Filter:</span>
+                    <button class="btn btn-xs ${serviceFilter === 'all' ? '' : 'btn-secondary'}" onclick="setPFSServiceFilter('all')">All (${clients.filter(c => showCompleted || c.stage !== 'placed').length})</button>
+                    ${Object.entries(PFS_SERVICES).map(([key, svc]) => `
+                        <button class="btn btn-xs ${serviceFilter === key ? '' : 'btn-secondary'}" onclick="setPFSServiceFilter('${key}')">${svc.icon} ${key}</button>
+                    `).join('')}
+                </div>
+                <div style="display:flex;gap:8px;align-items:center">
+                    <span style="font-size:12px;color:var(--text-muted)">Sort:</span>
+                    <select class="form-select" style="width:auto;padding:6px 12px;font-size:12px" onchange="setPFSSort(this.value)">
+                        <option value="priority" ${sortBy === 'priority' ? 'selected' : ''}>Priority</option>
+                        <option value="moveIn" ${sortBy === 'moveIn' ? 'selected' : ''}>Move-in Date</option>
+                        <option value="lastContact" ${sortBy === 'lastContact' ? 'selected' : ''}>Last Contact</option>
+                        <option value="created" ${sortBy === 'created' ? 'selected' : ''}>Created</option>
+                    </select>
+                    <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text-muted);cursor:pointer">
+                        <input type="checkbox" ${showCompleted ? 'checked' : ''} onchange="pfsState.showCompleted=this.checked;renderPage()"> Show Placed
+                    </label>
+                </div>
+            </div>
+
+            <!-- Table -->
+            <div class="card">
+                <div class="card-body flush">
+                    <table class="crm-table">
+                        <thead>
+                            <tr>
+                                <th style="width:40px">P</th>
+                                <th>Client</th>
+                                <th>Service</th>
+                                <th>Stage</th>
+                                <th>Budget</th>
+                                <th>Move-in</th>
+                                <th>Last Contact</th>
+                                <th>SLA</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${filtered.map(c => {
+                                const priority = calculatePFSPriority(c);
+                                const pLevel = getPriorityLevel(priority);
+                                const stage = PFS_STAGES.find(s => s.id === c.stage);
+                                const sla = getSLAStatus(c);
+                                const service = PFS_SERVICES[c.service];
+                                const lastContactDays = c.lastContact ? Math.floor((new Date() - new Date(c.lastContact)) / (1000*60*60*24)) : null;
+                                const daysUntil = c.moveIn ? Math.ceil((new Date(c.moveIn) - new Date()) / (1000*60*60*24)) : null;
+
+                                return `
+                                    <tr onclick="openPFSClientDetail('${c.id}')" style="cursor:pointer">
+                                        <td>
+                                            <div style="width:28px;height:28px;border-radius:6px;background:${pLevel.bg};color:${pLevel.color};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700">${priority}</div>
+                                        </td>
+                                        <td>
+                                            <div style="display:flex;align-items:center;gap:10px">
+                                                <div class="avatar" style="width:32px;height:32px;font-size:12px">${c.name?.charAt(0) || '?'}</div>
+                                                <div>
+                                                    <div style="font-weight:500">${esc(c.name)}</div>
+                                                    <div style="font-size:11px;color:var(--text-muted)">${esc(c.zone || c.email || '')}</div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td><span class="badge ${service?.color || 'gray'}">${service?.icon || ''} ${c.service}</span></td>
+                                        <td><span class="badge ${stage?.color || 'gray'}">${stage?.icon || ''} ${stage?.name || c.stage}</span></td>
+                                        <td>€${c.budget || '-'}</td>
+                                        <td style="color:${daysUntil !== null && daysUntil <= 7 ? 'var(--red)' : 'inherit'}">${daysUntil !== null ? (daysUntil <= 0 ? 'OVERDUE' : daysUntil + 'd') : '-'}</td>
+                                        <td style="color:${lastContactDays !== null && lastContactDays >= 3 ? 'var(--orange)' : 'inherit'}">${lastContactDays !== null ? lastContactDays + 'd ago' : 'Never'}</td>
+                                        <td>${sla ? `<span style="color:${sla.color}">${sla.percent}%</span>` : '-'}</td>
+                                        <td onclick="event.stopPropagation()">
+                                            <div style="display:flex;gap:4px">
+                                                <button class="btn btn-xs btn-secondary" onclick="openPFSWhatsApp('${c.id}')">💬</button>
+                                                <button class="btn btn-xs btn-secondary" onclick="openPFSQuickTemplate('${c.id}')">📝</button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                    ${filtered.length === 0 ? '<div class="empty-state" style="padding:40px"><div class="empty-icon">📋</div><div class="empty-title">No Clients</div><div class="empty-text">Add your first client to get started</div></div>' : ''}
+                </div>
+            </div>
+        `;
+    }
+
+    // Analytics Dashboard
+    function renderPFSAnalytics() {
+        const analytics = getPFSAnalytics();
+        const clients = S.pfsClients || [];
+
+        return `
+            <!-- Revenue Overview -->
+            <div class="card mb-24">
+                <div class="card-header">
+                    <h3 class="card-title">💰 Revenue Overview</h3>
+                </div>
+                <div class="card-body">
+                    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:20px">
+                        <div style="text-align:center;padding:20px;background:var(--bg-elevated);border-radius:12px">
+                            <div style="font-size:32px;font-weight:800;color:var(--gold)">€${analytics.pipelineRevenue.toLocaleString()}</div>
+                            <div style="font-size:12px;color:var(--text-muted)">Service Fees Pipeline</div>
+                        </div>
+                        <div style="text-align:center;padding:20px;background:var(--bg-elevated);border-radius:12px">
+                            <div style="font-size:32px;font-weight:800;color:var(--purple)">€${analytics.pipelineCommission.toLocaleString()}</div>
+                            <div style="font-size:12px;color:var(--text-muted)">Commissions Pipeline</div>
+                        </div>
+                        <div style="text-align:center;padding:20px;background:var(--bg-elevated);border-radius:12px">
+                            <div style="font-size:32px;font-weight:800;color:var(--cyan)">€${analytics.totalPipelineValue.toLocaleString()}</div>
+                            <div style="font-size:12px;color:var(--text-muted)">Total Pipeline Value</div>
+                        </div>
+                        <div style="text-align:center;padding:20px;background:var(--green-light);border-radius:12px">
+                            <div style="font-size:32px;font-weight:800;color:var(--green)">€${analytics.earnedThisMonth.toLocaleString()}</div>
+                            <div style="font-size:12px;color:var(--text-muted)">Earned This Month</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Conversion Funnel -->
+            <div class="card mb-24">
+                <div class="card-header">
+                    <h3 class="card-title">📊 Conversion Funnel</h3>
+                </div>
+                <div class="card-body">
+                    <div style="display:flex;flex-direction:column;gap:8px">
+                        ${analytics.funnel.map((f, i) => {
+                            const stage = PFS_STAGES.find(s => s.id === f.stage);
+                            const width = Math.max(f.percent, 10);
+                            return `
+                                <div style="display:flex;align-items:center;gap:12px">
+                                    <div style="width:120px;font-size:12px;color:var(--text-muted)">${stage?.icon || ''} ${stage?.name || f.stage}</div>
+                                    <div style="flex:1;height:32px;background:var(--bg-elevated);border-radius:8px;overflow:hidden;position:relative">
+                                        <div style="height:100%;width:${width}%;background:var(--${stage?.color || 'gray'});opacity:0.3;transition:width 0.3s"></div>
+                                        <div style="position:absolute;inset:0;display:flex;align-items:center;padding:0 12px;font-size:12px;font-weight:600">
+                                            ${f.count} clients (${f.percent}%)
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Service Breakdown -->
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">📦 By Service</h3>
+                    </div>
+                    <div class="card-body flush">
+                        ${Object.entries(analytics.byService).map(([key, data]) => {
+                            const svc = PFS_SERVICES[key];
+                            return `
+                                <div class="list-item">
+                                    <div style="width:40px;height:40px;border-radius:10px;background:var(--${svc?.color || 'gray'}-light);display:flex;align-items:center;justify-content:center;font-size:18px">${svc?.icon || '📋'}</div>
+                                    <div class="list-content">
+                                        <div class="list-title">${svc?.name || key}</div>
+                                        <div class="list-subtitle">${data.active} active · ${data.placed} placed this month</div>
+                                    </div>
+                                    <div class="list-meta">
+                                        <div class="list-value" style="color:var(--gold)">€${data.revenue.toLocaleString()}</div>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">📈 Performance</h3>
+                    </div>
+                    <div class="card-body">
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+                            <div style="text-align:center;padding:16px;background:var(--bg-elevated);border-radius:10px">
+                                <div style="font-size:28px;font-weight:700;color:var(--green)">${analytics.placedThisMonth}</div>
+                                <div style="font-size:11px;color:var(--text-muted)">Placed This Month</div>
+                            </div>
+                            <div style="text-align:center;padding:16px;background:var(--bg-elevated);border-radius:10px">
+                                <div style="font-size:28px;font-weight:700;color:var(--text-muted)">${analytics.placedLastMonth}</div>
+                                <div style="font-size:11px;color:var(--text-muted)">Placed Last Month</div>
+                            </div>
+                            <div style="text-align:center;padding:16px;background:var(--bg-elevated);border-radius:10px">
+                                <div style="font-size:28px;font-weight:700;color:var(--${analytics.slaBreaches === 0 ? 'green' : 'red'})">${analytics.slaBreaches}</div>
+                                <div style="font-size:11px;color:var(--text-muted)">SLA Breaches</div>
+                            </div>
+                            <div style="text-align:center;padding:16px;background:var(--bg-elevated);border-radius:10px">
+                                <div style="font-size:28px;font-weight:700;color:var(--${analytics.healthScore >= 70 ? 'green' : analytics.healthScore >= 40 ? 'orange' : 'red'})">${analytics.healthScore}%</div>
+                                <div style="font-size:11px;color:var(--text-muted)">Health Score</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    // Quick Template Sender Modal
+    function openPFSQuickTemplate(clientId) {
+        const c = S.pfsClients.find(x => x.id === clientId);
+        if (!c) return;
+
+        const templates = Object.entries(PFS_TEMPLATES);
+
+        document.getElementById('modals').innerHTML = `
+            <div class="modal-overlay active" onclick="if(event.target===this)closeModal()">
+                <div class="modal" onclick="event.stopPropagation()">
+                    <div class="modal-header">
+                        <h3 class="modal-title">📝 Send Template to ${esc(c.name)}</h3>
+                        <button class="modal-close" onclick="closeModal()">×</button>
+                    </div>
+                    <div class="modal-body">
+                        <div style="display:grid;gap:8px">
+                            ${templates.map(([key, tmpl]) => `
+                                <button class="btn btn-secondary" style="justify-content:flex-start;text-align:left;padding:14px 16px" onclick="sendPFSTemplate('${clientId}', '${key}');closeModal()">
+                                    <span style="font-size:18px;margin-right:8px">${tmpl.icon}</span>
+                                    <div>
+                                        <div style="font-weight:600">${tmpl.title}</div>
+                                        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">${tmpl.text.substring(0, 50)}...</div>
+                                    </div>
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
     }
 
     function handlePFSDragStart(e, clientId) { pfsDraggedClient = clientId; e.target.style.opacity = '0.5'; }
@@ -7307,32 +8047,40 @@ IBAN: ${l.iban || '-'}`;
         e.preventDefault();
         e.currentTarget.style.background = 'var(--bg-card)';
         if (!pfsDraggedClient) return;
-        var client = S.pfsClients.find(function(c) { return c.id === pfsDraggedClient; });
+        const client = (S.pfsClients || []).find(c => c.id === pfsDraggedClient);
         if (!client || client.stage === newStage) return;
-        var oldStage = client.stage;
+        const oldStage = client.stage;
         client.stage = newStage;
+        client.stageEnteredAt = new Date().toISOString();
         try {
-            var updateData = { stage: newStage, lastUpdated: firebase.firestore.FieldValue.serverTimestamp() };
+            const updateData = {
+                stage: newStage,
+                stageEnteredAt: firebase.firestore.FieldValue.serverTimestamp(),
+                lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+            };
             if (newStage === 'placed') updateData.placedDate = firebase.firestore.FieldValue.serverTimestamp();
             await db.collection('pfsClients').doc(pfsDraggedClient).update(updateData);
-            var oldName = PFS_STAGES.find(function(s) { return s.id === oldStage; })?.name || oldStage;
-            var newName = PFS_STAGES.find(function(s) { return s.id === newStage; })?.name || newStage;
-            await logPFSActivity('📍 Moved ' + client.name + ' from ' + oldName + ' to ' + newName);
-            toast('success', 'Stage Updated', client.name + ' → ' + newName);
+            const oldName = PFS_STAGES.find(s => s.id === oldStage)?.name || oldStage;
+            const newName = PFS_STAGES.find(s => s.id === newStage)?.name || newStage;
+            await logPFSActivity(`📍 ${client.name}: ${oldName} → ${newName}`, 'stage');
+            toast('success', 'Stage Updated', `${client.name} → ${newName}`);
             renderPage();
-        } catch (err) { client.stage = oldStage; toast('error', 'Error', err.message); }
+        } catch (err) {
+            client.stage = oldStage;
+            toast('error', 'Error', err.message);
+        }
         pfsDraggedClient = null;
     }
 
     function openPFSWhatsApp(id) {
-        var c = S.pfsClients.find(function(x) { return x.id === id; });
+        var c = (S.pfsClients || []).find(function(x) { return x.id === id; });
         if (!c || !c.phone) { toast('error', 'No Phone', 'Add phone number first'); return; }
         window.open('https://wa.me/' + c.phone.replace(/[^0-9+]/g, ''), '_blank');
         logPFSActivity('💬 WhatsApp: ' + c.name);
     }
 
     async function logPFSContact(id) {
-        var c = S.pfsClients.find(function(x) { return x.id === id; });
+        var c = (S.pfsClients || []).find(function(x) { return x.id === id; });
         if (!c) return;
         c.lastContact = new Date().toISOString();
         try {
@@ -7344,7 +8092,7 @@ IBAN: ${l.iban || '-'}`;
     }
 
     function sendPFSTemplate(id, templateKey) {
-        var c = S.pfsClients.find(function(x) { return x.id === id; });
+        var c = (S.pfsClients || []).find(function(x) { return x.id === id; });
         var template = PFS_TEMPLATES[templateKey];
         if (!c || !template) return;
         var text = template.text.replace(/{name}/g, c.name?.split(' ')[0] || 'there');
@@ -7354,45 +8102,333 @@ IBAN: ${l.iban || '-'}`;
     }
 
     function openPFSAddClient() {
-        document.getElementById('modals').innerHTML = '<div class="modal-overlay active" onclick="if(event.target===this)closeModal()"><div class="modal" onclick="event.stopPropagation()"><div class="modal-header"><h3 class="modal-title">➕ Add New Client</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="pfsClientForm" onsubmit="savePFSClient(event)"><div class="form-row"><div class="form-group"><label class="form-label">Name *</label><input type="text" class="form-input" name="name" required placeholder="John Smith"></div><div class="form-group"><label class="form-label">Service *</label><select class="form-select" name="service" required><option value="PFS">Property Finding (€350)</option><option value="DAS">Deal Assistance (€249)</option><option value="VV">Virtual Viewing (€89)</option></select></div></div><div class="form-row"><div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" name="email" placeholder="john@example.com"></div><div class="form-group"><label class="form-label">Phone (WhatsApp)</label><input type="text" class="form-input" name="phone" placeholder="+39 333 1234567"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Budget (€/month)</label><input type="number" class="form-input" name="budget" placeholder="1500"></div><div class="form-group"><label class="form-label">Move-in Date</label><input type="date" class="form-input" name="moveIn"></div></div><div class="form-group"><label class="form-label">Preferred Zones</label><input type="text" class="form-input" name="zone" placeholder="Trastevere, Testaccio, Prati"></div><div class="form-row"><div class="form-group"><label class="form-label">Stage</label><select class="form-select" name="stage">' + PFS_STAGES.map(function(s) { return '<option value="' + s.id + '">' + s.icon + ' ' + s.name + '</option>'; }).join('') + '</select></div><div class="form-group"><label class="form-label">Source</label><select class="form-select" name="source"><option value="website">Website</option><option value="referral">Referral</option><option value="instagram">Instagram</option><option value="google">Google</option><option value="other">Other</option></select></div></div><div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" name="notes" rows="3" placeholder="Requirements, deal-breakers, etc."></textarea></div><div class="modal-footer" style="padding:0;border:none;margin-top:20px"><button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button><button type="submit" class="btn">Add Client</button></div></form></div></div></div>';
+        const serviceOptions = Object.entries(PFS_SERVICES).map(([key, svc]) =>
+            `<option value="${key}">${svc.icon} ${svc.name} (€${svc.price})</option>`
+        ).join('');
+
+        const stageOptions = PFS_STAGES.map(s =>
+            `<option value="${s.id}">${s.icon} ${s.name}</option>`
+        ).join('');
+
+        document.getElementById('modals').innerHTML = `
+            <div class="modal-overlay active" onclick="if(event.target===this)closeModal()">
+                <div class="modal lg" onclick="event.stopPropagation()">
+                    <div class="modal-header">
+                        <h3 class="modal-title">➕ New PFS Client</h3>
+                        <button class="modal-close" onclick="closeModal()">×</button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="pfsClientForm" onsubmit="savePFSClient(event)">
+                            <!-- Basic Info -->
+                            <div class="section-box">
+                                <div class="section-title">👤 Client Information</div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label class="form-label">Full Name *</label>
+                                        <input type="text" class="form-input" name="name" required placeholder="John Smith">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Service Package *</label>
+                                        <select class="form-select" name="service" required>${serviceOptions}</select>
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label class="form-label">Email</label>
+                                        <input type="email" class="form-input" name="email" placeholder="john@example.com">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">WhatsApp Phone *</label>
+                                        <input type="text" class="form-input" name="phone" required placeholder="+39 333 1234567">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Search Criteria -->
+                            <div class="section-box">
+                                <div class="section-title">🔍 Search Criteria</div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label class="form-label">Min Budget (€/month)</label>
+                                        <input type="number" class="form-input" name="minBudget" placeholder="800">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Max Budget (€/month) *</label>
+                                        <input type="number" class="form-input" name="budget" required placeholder="1500">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Move-in Date *</label>
+                                        <input type="date" class="form-input" name="moveIn" required>
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label class="form-label">Preferred Zones</label>
+                                        <input type="text" class="form-input" name="zone" placeholder="Trastevere, Testaccio, Prati...">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Bedrooms</label>
+                                        <select class="form-select" name="bedrooms">
+                                            <option value="">Any</option>
+                                            <option value="1">1 bedroom</option>
+                                            <option value="2">2 bedrooms</option>
+                                            <option value="3">3+ bedrooms</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Must-Haves</label>
+                                    <input type="text" class="form-input" name="mustHaves" placeholder="Balcony, furnished, AC, washing machine...">
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Deal-Breakers</label>
+                                    <input type="text" class="form-input" name="dealBreakers" placeholder="Ground floor, no pets, shared bathroom...">
+                                </div>
+                            </div>
+
+                            <!-- Status -->
+                            <div class="section-box">
+                                <div class="section-title">📊 Status</div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label class="form-label">Starting Stage</label>
+                                        <select class="form-select" name="stage">${stageOptions}</select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Lead Source</label>
+                                        <select class="form-select" name="source">
+                                            <option value="website">🌐 Website</option>
+                                            <option value="instagram">📸 Instagram</option>
+                                            <option value="referral">👥 Referral</option>
+                                            <option value="google">🔍 Google</option>
+                                            <option value="tiktok">🎵 TikTok</option>
+                                            <option value="word-of-mouth">💬 Word of Mouth</option>
+                                            <option value="other">📌 Other</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Notes</label>
+                                    <textarea class="form-textarea" name="notes" rows="3" placeholder="Any additional requirements, preferences, or notes..."></textarea>
+                                </div>
+                            </div>
+
+                            <div class="modal-footer" style="padding:0;border:none;margin-top:20px">
+                                <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                                <button type="submit" class="btn">🚀 Add Client</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        `;
     }
 
     async function savePFSClient(e) {
         e.preventDefault();
-        var form = new FormData(e.target);
-        var client = { name: form.get('name'), email: form.get('email') || '', phone: form.get('phone') || '', service: form.get('service'), budget: parseInt(form.get('budget')) || 0, zone: form.get('zone') || '', moveIn: form.get('moveIn') || '', stage: form.get('stage') || 'lead', source: form.get('source') || 'website', notes: form.get('notes') || '', lastContact: null, createdAt: firebase.firestore.FieldValue.serverTimestamp() };
+        const form = new FormData(e.target);
+        const stage = form.get('stage') || 'lead';
+
+        const client = {
+            name: form.get('name'),
+            email: form.get('email') || '',
+            phone: form.get('phone') || '',
+            service: form.get('service'),
+            minBudget: parseInt(form.get('minBudget')) || 0,
+            budget: parseInt(form.get('budget')) || 0,
+            zone: form.get('zone') || '',
+            bedrooms: form.get('bedrooms') || '',
+            mustHaves: form.get('mustHaves') || '',
+            dealBreakers: form.get('dealBreakers') || '',
+            moveIn: form.get('moveIn') || '',
+            stage: stage,
+            stageEnteredAt: new Date().toISOString(),
+            source: form.get('source') || 'website',
+            notes: form.get('notes') || '',
+            lastContact: null,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+
         try {
-            var docRef = await db.collection('pfsClients').add(client);
+            const docRef = await db.collection('pfsClients').add(client);
             if (!S.pfsClients) S.pfsClients = [];
-            S.pfsClients.push(Object.assign({}, client, { id: docRef.id, createdAt: new Date() }));
-            await logPFSActivity('➕ Added new client: ' + client.name + ' (' + client.service + ')');
-            closeModal(); toast('success', 'Client Added', client.name + ' is now in the pipeline'); renderPage();
-        } catch (err) { toast('error', 'Error', err.message); }
+            S.pfsClients.push({ ...client, id: docRef.id, createdAt: new Date() });
+
+            const svc = PFS_SERVICES[client.service];
+            await logPFSActivity(`➕ New client: ${client.name} (${svc?.name || client.service}) - €${client.budget}/mo, move-in ${client.moveIn}`, 'success');
+
+            closeModal();
+            toast('success', 'Client Added!', `${client.name} is now in the pipeline`);
+            renderPage();
+        } catch (err) {
+            toast('error', 'Error', err.message);
+        }
     }
 
     function openPFSClientDetail(id) {
-        var c = S.pfsClients.find(function(x) { return x.id === id; });
+        const c = (S.pfsClients || []).find(x => x.id === id);
         if (!c) return;
-        var priority = calculatePFSPriority(c);
-        var level = getPriorityLevel(priority);
-        var stage = PFS_STAGES.find(function(s) { return s.id === c.stage; });
-        var daysSinceContact = c.lastContact ? Math.floor((new Date() - new Date(c.lastContact)) / (1000*60*60*24)) : null;
-        document.getElementById('modals').innerHTML = '<div class="modal-overlay active" onclick="if(event.target===this)closeModal()"><div class="modal lg" onclick="event.stopPropagation()"><div class="modal-header"><div style="display:flex;align-items:center;gap:12px"><div class="avatar lg">' + (c.name?.charAt(0) || '?') + '</div><div><h3 class="modal-title">' + esc(c.name) + '</h3><div style="display:flex;gap:8px;margin-top:4px"><span class="badge ' + (PFS_SERVICES[c.service]?.color || 'gray') + '">' + c.service + '</span><span class="badge ' + (stage?.color || 'gray') + '">' + (stage?.icon || '') + ' ' + (stage?.name || c.stage) + '</span><span class="badge ' + (level === 'urgent' ? 'red' : level === 'high' ? 'orange' : 'gray') + '">Priority: ' + priority + 'pt</span></div></div></div><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><div class="detail-grid"><div><div class="detail-label">Email</div><div class="detail-value">' + (esc(c.email) || '-') + '</div></div><div><div class="detail-label">Phone</div><div class="detail-value">' + (esc(c.phone) || '-') + '</div></div><div><div class="detail-label">Budget</div><div class="detail-value">€' + (c.budget || '-') + '/month</div></div><div><div class="detail-label">Move-in</div><div class="detail-value">' + (c.moveIn ? fmtDate(c.moveIn) : '-') + '</div></div><div><div class="detail-label">Zones</div><div class="detail-value">' + (esc(c.zone) || '-') + '</div></div><div><div class="detail-label">Source</div><div class="detail-value">' + (esc(c.source) || '-') + '</div></div><div><div class="detail-label">Last Contact</div><div class="detail-value">' + (daysSinceContact !== null ? daysSinceContact + ' days ago' : 'Never') + '</div></div><div><div class="detail-label">Next Action</div><div class="detail-value">' + getNextAction(c) + '</div></div></div>' + (c.notes ? '<div class="info-box mt-16"><div class="info-box-title">📝 Notes</div><p style="white-space:pre-wrap">' + esc(c.notes) + '</p></div>' : '') + '<div class="info-box mt-16"><div class="info-box-title">⚡ Quick Actions</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button class="btn btn-sm" onclick="openPFSWhatsApp(\'' + id + '\')">💬 WhatsApp</button><button class="btn btn-sm btn-secondary" onclick="logPFSContact(\'' + id + '\');closeModal()">📞 Log Contact</button><button class="btn btn-sm btn-secondary" onclick="openPFSStageChange(\'' + id + '\')">📍 Change Stage</button></div></div><div class="info-box mt-16"><div class="info-box-title">📝 Send Template</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">' + Object.keys(PFS_TEMPLATES).map(function(key) { return '<button class="btn btn-xs btn-secondary" onclick="sendPFSTemplate(\'' + id + '\',\'' + key + '\')">' + PFS_TEMPLATES[key].title + '</button>'; }).join('') + '</div></div></div><div class="modal-footer"><button class="btn btn-danger" onclick="deletePFSClient(\'' + id + '\')">Delete</button><button class="btn btn-secondary" onclick="closeModal()">Close</button></div></div></div>';
+
+        const priority = calculatePFSPriority(c);
+        const pLevel = getPriorityLevel(priority);
+        const stage = PFS_STAGES.find(s => s.id === c.stage);
+        const service = PFS_SERVICES[c.service];
+        const sla = getSLAStatus(c);
+        const nextAction = getNextAction(c);
+        const daysInStage = getDaysInStage(c);
+
+        const daysSinceContact = c.lastContact ? Math.floor((new Date() - new Date(c.lastContact)) / (1000*60*60*24)) : null;
+        const daysUntilMoveIn = c.moveIn ? Math.ceil((new Date(c.moveIn) - new Date()) / (1000*60*60*24)) : null;
+        const tasks = PFS_STAGE_TASKS[c.stage] || [];
+
+        document.getElementById('modals').innerHTML = `
+            <div class="modal-overlay active" onclick="if(event.target===this)closeModal()">
+                <div class="modal xl" onclick="event.stopPropagation()">
+                    <div class="modal-header" style="background:linear-gradient(135deg, ${pLevel.bg}, var(--bg-card))">
+                        <div style="display:flex;align-items:center;gap:16px">
+                            <div class="avatar xl" style="background:${pLevel.bg};color:${pLevel.color};border:2px solid ${pLevel.color}">${c.name?.charAt(0) || '?'}</div>
+                            <div>
+                                <h3 class="modal-title" style="font-size:22px">${esc(c.name)}</h3>
+                                <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+                                    <span class="badge ${service?.color || 'gray'}">${service?.icon || ''} ${c.service}</span>
+                                    <span class="badge ${stage?.color || 'gray'}">${stage?.icon || ''} ${stage?.name || c.stage}</span>
+                                    <span class="badge" style="background:${pLevel.bg};color:${pLevel.color}">${pLevel.label} · ${priority}pt</span>
+                                    ${sla?.status === 'breached' ? '<span class="badge red">⚠️ SLA BREACH</span>' : ''}
+                                </div>
+                            </div>
+                        </div>
+                        <button class="modal-close" onclick="closeModal()">×</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="grid-2" style="gap:20px">
+                            <!-- Left Column -->
+                            <div>
+                                <!-- Quick Actions -->
+                                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:20px">
+                                    <button class="btn btn-sm" style="flex-direction:column;padding:12px" onclick="openPFSWhatsApp('${id}')">
+                                        <span style="font-size:20px">💬</span>
+                                        <span style="font-size:10px;margin-top:4px">WhatsApp</span>
+                                    </button>
+                                    <button class="btn btn-sm btn-secondary" style="flex-direction:column;padding:12px" onclick="logPFSContact('${id}')">
+                                        <span style="font-size:20px">📞</span>
+                                        <span style="font-size:10px;margin-top:4px">Log Call</span>
+                                    </button>
+                                    <button class="btn btn-sm btn-secondary" style="flex-direction:column;padding:12px" onclick="openPFSQuickTemplate('${id}')">
+                                        <span style="font-size:20px">📝</span>
+                                        <span style="font-size:10px;margin-top:4px">Template</span>
+                                    </button>
+                                    <button class="btn btn-sm btn-secondary" style="flex-direction:column;padding:12px" onclick="openPFSStageChange('${id}')">
+                                        <span style="font-size:20px">→</span>
+                                        <span style="font-size:10px;margin-top:4px">Stage</span>
+                                    </button>
+                                </div>
+
+                                <!-- Contact Info -->
+                                <div class="info-box">
+                                    <div class="info-box-title">📱 Contact</div>
+                                    <div class="info-box-row"><span class="info-box-label">Phone</span><span class="info-box-value">${esc(c.phone) || '-'}</span></div>
+                                    <div class="info-box-row"><span class="info-box-label">Email</span><span class="info-box-value">${esc(c.email) || '-'}</span></div>
+                                    <div class="info-box-row"><span class="info-box-label">Last Contact</span><span class="info-box-value" style="color:${daysSinceContact >= 3 ? 'var(--orange)' : 'inherit'}">${daysSinceContact !== null ? daysSinceContact + ' days ago' : 'Never contacted'}</span></div>
+                                </div>
+
+                                <!-- Search Criteria -->
+                                <div class="info-box mt-16">
+                                    <div class="info-box-title">🔍 Search Criteria</div>
+                                    <div class="info-box-row"><span class="info-box-label">Budget</span><span class="info-box-value">€${c.minBudget || 0} - €${c.budget || '?'}/mo</span></div>
+                                    <div class="info-box-row"><span class="info-box-label">Move-in</span><span class="info-box-value" style="color:${daysUntilMoveIn !== null && daysUntilMoveIn <= 7 ? 'var(--red)' : 'inherit'}">${c.moveIn ? fmtDate(c.moveIn) + (daysUntilMoveIn !== null ? ` (${daysUntilMoveIn <= 0 ? 'OVERDUE' : daysUntilMoveIn + 'd'})` : '') : '-'}</span></div>
+                                    <div class="info-box-row"><span class="info-box-label">Zones</span><span class="info-box-value">${esc(c.zone) || 'Any'}</span></div>
+                                    <div class="info-box-row"><span class="info-box-label">Bedrooms</span><span class="info-box-value">${c.bedrooms || 'Any'}</span></div>
+                                    ${c.mustHaves ? `<div class="info-box-row"><span class="info-box-label">Must-Haves</span><span class="info-box-value" style="color:var(--green)">${esc(c.mustHaves)}</span></div>` : ''}
+                                    ${c.dealBreakers ? `<div class="info-box-row"><span class="info-box-label">Deal-Breakers</span><span class="info-box-value" style="color:var(--red)">${esc(c.dealBreakers)}</span></div>` : ''}
+                                </div>
+                            </div>
+
+                            <!-- Right Column -->
+                            <div>
+                                <!-- Status Card -->
+                                <div style="background:var(--bg-elevated);border-radius:12px;padding:16px;margin-bottom:16px">
+                                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                                        <span style="font-size:12px;color:var(--text-muted)">Current Stage</span>
+                                        <span style="font-size:11px;color:var(--text-muted)">${daysInStage !== null ? daysInStage + 'd in stage' : ''}</span>
+                                    </div>
+                                    <div style="font-size:24px;margin-bottom:8px">${stage?.icon || ''} ${stage?.name || c.stage}</div>
+                                    ${sla ? `
+                                        <div style="background:var(--bg-card);border-radius:8px;padding:8px 12px;margin-top:12px">
+                                            <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px">
+                                                <span>SLA Progress</span>
+                                                <span style="color:${sla.color}">${sla.percent}%</span>
+                                            </div>
+                                            <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden">
+                                                <div style="height:100%;width:${Math.min(sla.percent, 100)}%;background:${sla.color};border-radius:3px"></div>
+                                            </div>
+                                        </div>
+                                    ` : ''}
+                                    <div style="margin-top:12px;font-size:13px">
+                                        <strong>Next Action:</strong> ${nextAction.icon} ${nextAction.text}
+                                    </div>
+                                </div>
+
+                                <!-- Stage Tasks -->
+                                <div class="info-box">
+                                    <div class="info-box-title">📋 Stage Checklist</div>
+                                    <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">
+                                        ${tasks.map((task, i) => `
+                                            <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer">
+                                                <input type="checkbox" style="cursor:pointer"> ${task}
+                                            </label>
+                                        `).join('')}
+                                    </div>
+                                </div>
+
+                                <!-- Notes -->
+                                ${c.notes ? `
+                                    <div class="info-box mt-16">
+                                        <div class="info-box-title">📝 Notes</div>
+                                        <p style="white-space:pre-wrap;font-size:13px;line-height:1.6;margin-top:8px">${esc(c.notes)}</p>
+                                    </div>
+                                ` : ''}
+
+                                <!-- Meta Info -->
+                                <div style="font-size:11px;color:var(--text-muted);margin-top:16px;display:flex;justify-content:space-between">
+                                    <span>Source: ${esc(c.source || 'Unknown')}</span>
+                                    <span>Created: ${c.createdAt ? timeAgo(c.createdAt) : 'Unknown'}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-danger" onclick="deletePFSClient('${id}')">🗑️ Delete</button>
+                        <button class="btn btn-secondary" onclick="openPFSEditClient('${id}')">✏️ Edit</button>
+                        <button class="btn" onclick="quickAdvanceStage('${id}');closeModal()">→ Advance Stage</button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function openPFSEditClient(id) {
+        // For now, show a message. Full edit would be a separate modal
+        toast('info', 'Edit coming soon', 'Use delete and re-add for now');
     }
 
     function openPFSStageChange(id) {
-        var c = S.pfsClients.find(function(x) { return x.id === id; });
+        var c = (S.pfsClients || []).find(function(x) { return x.id === id; });
         if (!c) return;
         document.getElementById('modals').innerHTML = '<div class="modal-overlay active" onclick="if(event.target===this)closeModal()"><div class="modal" onclick="event.stopPropagation()"><div class="modal-header"><h3 class="modal-title">📍 Change Stage</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><p style="margin-bottom:16px">Select new stage for <strong>' + esc(c.name) + '</strong>:</p><div style="display:grid;gap:8px">' + PFS_STAGES.map(function(s) { return '<button class="btn btn-sm ' + (c.stage === s.id ? '' : 'btn-secondary') + '" onclick="changePFSStage(\'' + id + '\',\'' + s.id + '\')" ' + (c.stage === s.id ? 'disabled' : '') + '>' + s.icon + ' ' + s.name + (c.stage === s.id ? ' (current)' : '') + '</button>'; }).join('') + '</div></div></div></div>';
     }
 
     async function changePFSStage(id, newStage) {
-        var c = S.pfsClients.find(function(x) { return x.id === id; });
+        const c = (S.pfsClients || []).find(x => x.id === id);
         if (!c || c.stage === newStage) return;
-        var oldStage = c.stage;
+        const oldStage = c.stage;
         c.stage = newStage;
+        c.stageEnteredAt = new Date().toISOString();
         try {
-            var updateData = { stage: newStage, lastUpdated: firebase.firestore.FieldValue.serverTimestamp() };
+            const updateData = {
+                stage: newStage,
+                stageEnteredAt: firebase.firestore.FieldValue.serverTimestamp(),
+                lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+            };
             if (newStage === 'placed') updateData.placedDate = firebase.firestore.FieldValue.serverTimestamp();
             await db.collection('pfsClients').doc(id).update(updateData);
             var oldName = PFS_STAGES.find(function(s) { return s.id === oldStage; })?.name || oldStage;
@@ -7404,10 +8440,10 @@ IBAN: ${l.iban || '-'}`;
 
     async function deletePFSClient(id) {
         if (!confirm('Delete this client? This cannot be undone.')) return;
-        var c = S.pfsClients.find(function(x) { return x.id === id; });
+        var c = (S.pfsClients || []).find(function(x) { return x.id === id; });
         try {
             await db.collection('pfsClients').doc(id).delete();
-            S.pfsClients = S.pfsClients.filter(function(x) { return x.id !== id; });
+            S.pfsClients = (S.pfsClients || []).filter(function(x) { return x.id !== id; });
             await logPFSActivity('🗑️ Deleted client: ' + (c?.name || 'Unknown'));
             closeModal(); toast('success', 'Client Deleted'); renderPage();
         } catch (err) { toast('error', 'Error', err.message); }
