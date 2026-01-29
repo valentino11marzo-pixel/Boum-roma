@@ -1384,6 +1384,7 @@
                 </div>
                 <div class="nav-section"><div class="nav-label">PFS & Sales</div>
                     <div class="nav-item ${S.page==='pfs-pipeline'?'active':''}" onclick="goTo('pfs-pipeline')"><span class="nav-icon">🚀</span> PFS Pipeline ${urgentPFS?`<span class="nav-badge">${urgentPFS}</span>`:''}</div>
+                    <div class="nav-item ${S.page==='zone-intel'?'active':''}" onclick="goTo('zone-intel')"><span class="nav-icon">🎯</span> Zone Intelligence</div>
                     <div class="nav-item ${S.page==='landlords'?'active':''}" onclick="goTo('landlords')"><span class="nav-icon">🏘️</span> Landlord DB</div>
                 </div>
                 <div class="sidebar-footer">
@@ -1466,6 +1467,7 @@
                 m.innerHTML = '<div style="padding:40px;text-align:center"><div class="spinner"></div><p style="margin-top:16px;color:var(--text-muted)">Caricamento...</p></div>';
                 break;
             case 'pfs-pipeline': m.innerHTML = isAdmin() ? pfsPipelinePage() : accessDenied(); break;
+            case 'zone-intel': m.innerHTML = isAdmin() ? zoneIntelPage() : accessDenied(); break;
             case 'landlords': m.innerHTML = isAdmin() ? landlordDatabasePage() : accessDenied(); break;
             default: m.innerHTML = r === 'admin' ? adminDashboard() : r === 'landlord' ? landlordDashboard() : tenantDashboard();
         }
@@ -7295,6 +7297,192 @@ IBAN: ${l.iban || '-'}`;
             S.landlords = S.landlords.filter(function(x) { return x.id !== id; });
             closeModal(); toast('success', 'Deleted'); renderPage();
         } catch (err) { toast('error', 'Error', err.message); }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════════════════
+    // ZONE INTELLIGENCE V2 - PROPERTY SEARCH, ANALYTICS & SHORTLIST
+    // ═══════════════════════════════════════════════════════════════════════════════════════
+
+    const ZI_UNIVERSITIES = [
+        { id: 'sapienza', name: 'Sapienza', icon: '🏛️', zones: ['san-lorenzo', 'termini', 'tiburtina', 'bologna', 'policlinico'] },
+        { id: 'luiss', name: 'LUISS', icon: '🎓', zones: ['parioli', 'flaminio', 'trieste', 'salario'] },
+        { id: 'rufa', name: 'RUFA', icon: '🎨', zones: ['ostiense', 'testaccio', 'trastevere', 'garbatella'] },
+        { id: 'naba', name: 'NABA', icon: '✨', zones: ['ostiense', 'testaccio', 'trastevere', 'piramide'] },
+        { id: 'roma-tre', name: 'Roma Tre', icon: '📚', zones: ['ostiense', 'san-paolo', 'garbatella', 'marconi'] },
+        { id: 'tor-vergata', name: 'Tor Vergata', icon: '🔬', zones: ['tuscolana', 'cinecitta', 'anagnina'] },
+        { id: 'lumsa', name: 'LUMSA', icon: '⛪', zones: ['prati', 'vaticano', 'centro', 'borgo'] },
+        { id: 'john-cabot', name: 'John Cabot', icon: '🇺🇸', zones: ['trastevere', 'testaccio', 'centro'] }
+    ];
+
+    const ZI_ZONES = {
+        'san-lorenzo': { name: 'San Lorenzo', tier: 'primary', time: '5 min', idealista: 'roma/nomentano-tiburtino/tiburtino-san-lorenzo', avgPrice: 720, trend: 3.2 },
+        'termini': { name: 'Termini', tier: 'primary', time: '8 min', idealista: 'roma/centro-storico/esquilino', avgPrice: 850, trend: 2.1 },
+        'tiburtina': { name: 'Tiburtina', tier: 'secondary', time: '10 min', idealista: 'roma/nomentano-tiburtino/tiburtina', avgPrice: 680, trend: -1.5 },
+        'bologna': { name: 'Bologna', tier: 'secondary', time: '12 min', idealista: 'roma/nomentano-tiburtino/nomentano', avgPrice: 780, trend: 4.0 },
+        'policlinico': { name: 'Policlinico', tier: 'primary', time: '5 min', idealista: 'roma/nomentano-tiburtino/nomentano', avgPrice: 750, trend: 2.8 },
+        'parioli': { name: 'Parioli', tier: 'primary', time: '5 min', idealista: 'roma/parioli-flaminio/parioli', avgPrice: 1450, trend: 1.2 },
+        'flaminio': { name: 'Flaminio', tier: 'primary', time: '10 min', idealista: 'roma/parioli-flaminio/flaminio', avgPrice: 1200, trend: 3.5 },
+        'trieste': { name: 'Trieste', tier: 'secondary', time: '12 min', idealista: 'roma/trieste-salario/trieste', avgPrice: 1100, trend: 2.0 },
+        'salario': { name: 'Salario', tier: 'secondary', time: '15 min', idealista: 'roma/trieste-salario/salario', avgPrice: 950, trend: 1.8 },
+        'ostiense': { name: 'Ostiense', tier: 'primary', time: '5 min', idealista: 'roma/ostiense-marconi/ostiense', avgPrice: 800, trend: 6.5 },
+        'testaccio': { name: 'Testaccio', tier: 'primary', time: '10 min', idealista: 'roma/ostiense-marconi/testaccio', avgPrice: 920, trend: 4.2 },
+        'trastevere': { name: 'Trastevere', tier: 'primary', time: '15 min', idealista: 'roma/trastevere-monteverde/trastevere', avgPrice: 1050, trend: 3.8 },
+        'garbatella': { name: 'Garbatella', tier: 'secondary', time: '10 min', idealista: 'roma/ostiense-marconi/garbatella', avgPrice: 750, trend: 5.1 },
+        'piramide': { name: 'Piramide', tier: 'primary', time: '8 min', idealista: 'roma/ostiense-marconi/ostiense', avgPrice: 850, trend: 4.0 },
+        'san-paolo': { name: 'San Paolo', tier: 'secondary', time: '12 min', idealista: 'roma/ostiense-marconi/san-paolo', avgPrice: 700, trend: 2.5 },
+        'marconi': { name: 'Marconi', tier: 'tertiary', time: '15 min', idealista: 'roma/ostiense-marconi/marconi', avgPrice: 650, trend: 1.0 },
+        'centro': { name: 'Centro Storico', tier: 'primary', time: '10 min', idealista: 'roma/centro-storico/centro-storico', avgPrice: 1300, trend: 2.2 },
+        'prati': { name: 'Prati', tier: 'primary', time: '10 min', idealista: 'roma/prati/prati', avgPrice: 1150, trend: 1.5 },
+        'vaticano': { name: 'Vaticano', tier: 'secondary', time: '12 min', idealista: 'roma/prati/borgo', avgPrice: 1000, trend: 0.8 },
+        'borgo': { name: 'Borgo', tier: 'secondary', time: '10 min', idealista: 'roma/prati/borgo', avgPrice: 1050, trend: 1.2 },
+        'tuscolana': { name: 'Tuscolana', tier: 'secondary', time: '15 min', idealista: 'roma/appio-tuscolano/tuscolano', avgPrice: 720, trend: 2.0 },
+        'cinecitta': { name: 'Cinecittà', tier: 'secondary', time: '20 min', idealista: 'roma/appio-tuscolano/cinecitta', avgPrice: 600, trend: 3.5 },
+        'anagnina': { name: 'Anagnina', tier: 'tertiary', time: '25 min', idealista: 'roma/appio-tuscolano/morena-cinecitta-est', avgPrice: 550, trend: 4.0 }
+    };
+
+    let ziState = {
+        selectedClient: null,
+        selectedUni: null,
+        minBudget: 500,
+        maxBudget: 1200,
+        currentTab: 'search',
+        shortlist: []
+    };
+
+    function buildZIImmobiliareUrl(zoneSlug) {
+        var params = new URLSearchParams();
+        params.append('criterio', 'data');
+        params.append('ordine', 'desc');
+        params.append('prezzoMinimo', ziState.minBudget);
+        params.append('prezzoMassimo', ziState.maxBudget);
+        params.append('idTipologia', '4');
+        return 'https://www.immobiliare.it/affitto-case/roma/' + zoneSlug + '/?' + params.toString();
+    }
+
+    function buildZIIdealistaUrl(zoneSlug) {
+        var zone = ZI_ZONES[zoneSlug];
+        return zone && zone.idealista ? 'https://www.idealista.it/affitto-case/' + zone.idealista + '/?ordine=pubblicazione-desc' : null;
+    }
+
+    function ziSwitchTab(tab) { ziState.currentTab = tab; renderPage(); }
+
+    function ziSelectClient(clientId) {
+        if (!clientId) { ziState.selectedClient = null; renderPage(); return; }
+        var client = (S.pfsClients || []).find(function(c) { return c.id === clientId; });
+        if (client) {
+            ziState.selectedClient = client;
+            if (client.university) ziState.selectedUni = client.university;
+            if (client.budget) {
+                var margin = Math.round(client.budget * 0.2);
+                ziState.minBudget = Math.max(300, client.budget - margin);
+                ziState.maxBudget = client.budget + margin;
+            }
+            renderPage();
+        }
+    }
+
+    function ziSelectUni(uniId) { ziState.selectedUni = uniId; renderPage(); }
+    function ziSetBudget(min, max) { ziState.minBudget = min; ziState.maxBudget = max; renderPage(); }
+    function ziReset() { ziState = { selectedClient: null, selectedUni: null, minBudget: 500, maxBudget: 1200, currentTab: 'search', shortlist: [] }; renderPage(); }
+
+    function ziOpenAllImmo() {
+        var uni = ZI_UNIVERSITIES.find(function(u) { return u.id === ziState.selectedUni; });
+        if (uni) uni.zones.slice(0, 5).forEach(function(s, i) { setTimeout(function() { window.open(buildZIImmobiliareUrl(s), '_blank'); }, i * 300); });
+    }
+
+    function ziOpenAllIdealista() {
+        var uni = ZI_UNIVERSITIES.find(function(u) { return u.id === ziState.selectedUni; });
+        if (uni) uni.zones.slice(0, 5).forEach(function(s, i) { var url = buildZIIdealistaUrl(s); if (url) setTimeout(function() { window.open(url, '_blank'); }, i * 300); });
+    }
+
+    function ziGenerateBrief() {
+        var name = ziState.selectedClient ? ziState.selectedClient.name : (document.getElementById('ziClientName') ? document.getElementById('ziClientName').value : '[Client]');
+        var uni = ziState.selectedUni ? ZI_UNIVERSITIES.find(function(u) { return u.id === ziState.selectedUni; }) : null;
+        if (!uni) return 'Select client and university...';
+        var zones = uni.zones.map(function(s) { return ZI_ZONES[s]; }).filter(function(z) { return z && z.tier === 'primary'; }).slice(0, 3);
+        var links = uni.zones.slice(0, 3).map(function(s) { return '📌 ' + ZI_ZONES[s].name + ': ' + buildZIImmobiliareUrl(s); });
+        return '🏠 *BOOM Property Search*\n\nHi ' + name.split(' ')[0] + '! 👋\n\nI found options near ' + uni.name + '.\n\n📍 *Main Areas:*\n' + zones.map(function(z) { return '• ' + z.name + ' (avg €' + z.avgPrice + ')'; }).join('\n') + '\n\n💰 *Budget:* €' + ziState.minBudget + ' - €' + ziState.maxBudget + '/month\n🏠 *Type:* Private listings only\n\n' + links.join('\n\n') + '\n\nLet me know which interest you! 🔑\n\n_BOOM Rome PFS_\n📞 +39 331 325 1961';
+    }
+
+    function ziCopyBrief() { navigator.clipboard.writeText(ziGenerateBrief()); toast('success', 'Brief copied!'); }
+
+    function ziSendWhatsApp() {
+        var phone = ziState.selectedClient && ziState.selectedClient.phone ? ziState.selectedClient.phone.replace(/[^0-9+]/g, '') : '';
+        var url = phone ? 'https://wa.me/' + phone + '?text=' + encodeURIComponent(ziGenerateBrief()) : 'https://wa.me/?text=' + encodeURIComponent(ziGenerateBrief());
+        window.open(url, '_blank');
+    }
+
+    function ziAddToShortlist(e) {
+        e.preventDefault();
+        var form = new FormData(e.target);
+        var prop = { id: Date.now(), price: parseInt(form.get('price')) || 0, zone: form.get('zone') || '', address: form.get('address') || '', bedrooms: parseInt(form.get('bedrooms')) || 1, size: parseInt(form.get('size')) || 0, link: form.get('link') || '', notes: form.get('notes') || '' };
+        ziState.shortlist.push(prop);
+        e.target.reset();
+        toast('success', 'Added to shortlist!');
+        renderPage();
+    }
+
+    function ziRemoveFromShortlist(id) { ziState.shortlist = ziState.shortlist.filter(function(p) { return p.id !== id; }); renderPage(); }
+
+    function ziGenerateShortlistBrief() {
+        var name = ziState.selectedClient ? ziState.selectedClient.name : (document.getElementById('ziClientName') ? document.getElementById('ziClientName').value : '[Client]');
+        if (ziState.shortlist.length === 0) return 'Add properties to generate shortlist...';
+        var props = ziState.shortlist.map(function(p, i) { return '*' + (i + 1) + '. ' + (p.address || p.zone) + '*\n📍 ' + p.zone + '\n💰 €' + p.price + '/month\n🛏️ ' + p.bedrooms + ' bedroom' + (p.bedrooms > 1 ? 's' : '') + (p.size ? ' · ' + p.size + 'm²' : '') + (p.link ? '\n🔗 ' + p.link : '') + (p.notes ? '\n📝 ' + p.notes : ''); }).join('\n\n');
+        return '🏠 *BOOM Property Shortlist*\n\nHi ' + name.split(' ')[0] + '! 👋\n\nHere are my top ' + ziState.shortlist.length + ' picks for you:\n\n' + props + '\n\nLet me know which ones you\'d like to visit! 🔑\n\n_BOOM Rome PFS_\n📞 +39 331 325 1961';
+    }
+
+    function ziCopyShortlistBrief() { navigator.clipboard.writeText(ziGenerateShortlistBrief()); toast('success', 'Shortlist copied!'); }
+
+    function ziSendShortlistWhatsApp() {
+        var phone = ziState.selectedClient && ziState.selectedClient.phone ? ziState.selectedClient.phone.replace(/[^0-9+]/g, '') : '';
+        var url = phone ? 'https://wa.me/' + phone + '?text=' + encodeURIComponent(ziGenerateShortlistBrief()) : 'https://wa.me/?text=' + encodeURIComponent(ziGenerateShortlistBrief());
+        window.open(url, '_blank');
+    }
+
+    function ziOpenQuickLandlord() {
+        document.getElementById('modals').innerHTML = '<div class="modal-overlay active" onclick="if(event.target===this)closeModal()"><div class="modal" onclick="event.stopPropagation()"><div class="modal-header"><h3 class="modal-title">👤 Quick Save Landlord</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="ziLandlordForm" onsubmit="ziSaveQuickLandlord(event)"><div class="form-row"><div class="form-group"><label class="form-label">Name *</label><input type="text" class="form-input" name="name" required placeholder="Mario Rossi"></div><div class="form-group"><label class="form-label">Phone *</label><input type="text" class="form-input" name="phone" required placeholder="+39 333 1234567"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Zone</label><input type="text" class="form-input" name="zones" placeholder="Trastevere"></div><div class="form-group"><label class="form-label">Properties</label><input type="number" class="form-input" name="propertyCount" value="1" min="1"></div></div><div class="form-group"><label class="form-label">Notes (listing URL, price, etc.)</label><textarea class="form-textarea" name="notes" rows="3" placeholder="Found on Immobiliare, €900/mo apartment..."></textarea></div><div class="modal-footer" style="padding:0;border:none;margin-top:20px"><button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button><button type="submit" class="btn">💾 Save to Landlord DB</button></div></form></div></div></div>';
+    }
+
+    async function ziSaveQuickLandlord(e) {
+        e.preventDefault();
+        var form = new FormData(e.target);
+        var landlord = { name: form.get('name'), phone: form.get('phone') || '', email: '', zones: form.get('zones') || '', propertyCount: parseInt(form.get('propertyCount')) || 1, rating: 3, notes: form.get('notes') || '', dealsCompleted: 0, createdAt: firebase.firestore.FieldValue.serverTimestamp() };
+        try {
+            var docRef = await db.collection('landlords').add(landlord);
+            if (!S.landlords) S.landlords = [];
+            S.landlords.push(Object.assign({}, landlord, { id: docRef.id }));
+            closeModal();
+            toast('success', 'Landlord Saved', landlord.name + ' added to database');
+        } catch (err) { toast('error', 'Error', err.message); }
+    }
+
+    function zoneIntelPage() {
+        var clients = (S.pfsClients || []).filter(function(c) { return !['placed', 'lost', 'completed'].includes(c.stage); });
+        var uni = ziState.selectedUni ? ZI_UNIVERSITIES.find(function(u) { return u.id === ziState.selectedUni; }) : null;
+        var zones = uni ? uni.zones.map(function(s) { return Object.assign({ slug: s }, ZI_ZONES[s]); }).filter(function(z) { return z.name; }).sort(function(a, b) { return ({ primary: 0, secondary: 1, tertiary: 2 }[a.tier] || 2) - ({ primary: 0, secondary: 1, tertiary: 2 }[b.tier] || 2); }) : [];
+        var clientName = ziState.selectedClient ? ziState.selectedClient.name.split(' ')[0] : '-';
+        var allZones = Object.entries(ZI_ZONES).map(function(e) { return Object.assign({ slug: e[0] }, e[1]); }).sort(function(a, b) { return b.avgPrice - a.avgPrice; });
+        var maxPrice = Math.max.apply(null, allZones.map(function(z) { return z.avgPrice; }));
+        var tabContent = '';
+
+        if (ziState.currentTab === 'search') {
+            tabContent = '<div class="grid-2"><div>' +
+                '<div class="card"><div class="card-header"><h3 class="card-title">👤 Client</h3></div><div class="card-body"><div class="form-group"><label class="form-label">From PFS Pipeline</label><select class="form-select" onchange="ziSelectClient(this.value)"><option value="">-- Select --</option>' + clients.map(function(c) { return '<option value="' + c.id + '"' + (ziState.selectedClient && ziState.selectedClient.id === c.id ? ' selected' : '') + '>' + esc(c.name) + ' · ' + c.service + ' · €' + (c.budget || '?') + '</option>'; }).join('') + '</select></div><div class="form-group" style="margin-bottom:0"><label class="form-label">Or Enter Name</label><input type="text" class="form-input" id="ziClientName" placeholder="Client name..." value="' + (ziState.selectedClient ? esc(ziState.selectedClient.name) : '') + '"></div></div></div>' +
+                '<div class="card"><div class="card-header"><h3 class="card-title">🎓 University</h3></div><div class="card-body" style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px">' + ZI_UNIVERSITIES.map(function(u) { return '<div class="pipeline-card" onclick="ziSelectUni(\'' + u.id + '\')" style="text-align:center;padding:12px;' + (ziState.selectedUni === u.id ? 'border-color:var(--gold);background:var(--gold-light)' : '') + '"><div style="font-size:20px;margin-bottom:4px">' + u.icon + '</div><div style="font-size:11px;font-weight:600">' + u.name + '</div></div>'; }).join('') + '</div></div>' +
+                '<div class="card"><div class="card-header"><h3 class="card-title">⚙️ Filters</h3></div><div class="card-body"><div class="form-group"><label class="form-label">Budget</label><div style="display:flex;gap:8px"><button class="btn btn-sm ' + (ziState.minBudget === 400 ? '' : 'btn-secondary') + '" onclick="ziSetBudget(400,700)">Erasmus</button><button class="btn btn-sm ' + (ziState.minBudget === 500 && ziState.maxBudget === 1200 ? '' : 'btn-secondary') + '" onclick="ziSetBudget(500,1200)">Standard</button><button class="btn btn-sm ' + (ziState.minBudget === 800 ? '' : 'btn-secondary') + '" onclick="ziSetBudget(800,2000)">Premium</button></div></div></div></div>' +
+                '<div class="card"><div class="card-header"><h3 class="card-title">📤 Brief</h3></div><div class="card-body"><div style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:16px;font-size:12px;white-space:pre-wrap;max-height:250px;overflow-y:auto">' + esc(ziGenerateBrief()) + '</div><div style="display:flex;gap:10px;margin-top:16px"><button class="btn" onclick="ziCopyBrief()" style="flex:1">📋 Copy</button><button class="btn" onclick="ziSendWhatsApp()" style="flex:1;background:#25D366">💬 WhatsApp</button></div></div></div>' +
+                '</div><div>' +
+                '<div class="card"><div class="card-header"><h3 class="card-title">📍 Zones</h3><div style="display:flex;gap:8px"><button class="btn btn-sm btn-secondary" onclick="ziOpenAllImmo()">All Immo</button><button class="btn btn-sm btn-secondary" onclick="ziOpenAllIdealista()">All Idealista</button></div></div><div class="card-body flush">' + (zones.length === 0 ? '<div class="empty-state" style="padding:40px"><div class="empty-icon">🎓</div><div class="empty-text">Select university</div></div>' : zones.map(function(z) { return '<div class="list-item" style="flex-wrap:wrap;gap:12px;border-left:3px solid ' + (z.tier === 'primary' ? 'var(--gold)' : z.tier === 'secondary' ? 'var(--blue)' : 'var(--text-muted)') + '"><div class="list-content" style="min-width:140px"><div class="list-title">' + z.name + '</div><div class="list-subtitle">🚶 ' + z.time + ' · €' + z.avgPrice + ' avg · <span class="badge ' + (z.trend >= 0 ? 'green' : 'blue') + '">' + (z.trend >= 0 ? '+' : '') + z.trend + '%</span></div></div><div style="display:flex;gap:6px"><a href="' + buildZIImmobiliareUrl(z.slug) + '" target="_blank" class="btn btn-xs btn-secondary" style="color:#FF5733">🏠 Immo</a>' + (buildZIIdealistaUrl(z.slug) ? '<a href="' + buildZIIdealistaUrl(z.slug) + '" target="_blank" class="btn btn-xs btn-secondary" style="color:#92D050">🏡 Idealista</a>' : '') + '</div></div>'; }).join('')) + '</div></div></div></div>';
+        } else if (ziState.currentTab === 'analytics') {
+            var hotZones = allZones.filter(function(z) { return z.trend > 3; }).sort(function(a, b) { return b.trend - a.trend; });
+            tabContent = '<div class="stats-grid" style="grid-template-columns:repeat(4,1fr)"><div class="stat-card gold"><div class="stat-icon">💰</div><div class="stat-value">€875</div><div class="stat-label">Avg Rome</div></div><div class="stat-card green"><div class="stat-icon">📉</div><div class="stat-value">€550</div><div class="stat-label">Cheapest</div></div><div class="stat-card blue"><div class="stat-icon">📈</div><div class="stat-value">€1,450</div><div class="stat-label">Priciest</div></div><div class="stat-card purple"><div class="stat-icon">🔥</div><div class="stat-value">+6.5%</div><div class="stat-label">Fastest Rise</div></div></div><div class="grid-2"><div class="card"><div class="card-header"><h3 class="card-title">📊 Price by Zone</h3></div><div class="card-body">' + allZones.slice(0, 10).map(function(z) { return '<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px"><div style="width:90px;font-size:11px;text-align:right;color:var(--text-secondary)">' + z.name + '</div><div style="flex:1;height:20px;background:var(--bg-elevated);border-radius:4px;overflow:hidden;position:relative"><div style="height:100%;width:' + (z.avgPrice / maxPrice * 100) + '%;background:linear-gradient(90deg,var(--gold),var(--gold-dark));border-radius:4px"></div><span style="position:absolute;right:8px;top:2px;font-size:10px;font-weight:600">€' + z.avgPrice + '</span></div></div>'; }).join('') + '</div></div><div class="card"><div class="card-header"><h3 class="card-title">🔥 Hot Zones</h3></div><div class="card-body flush">' + hotZones.slice(0, 6).map(function(z) { return '<div class="list-item"><div class="list-content"><div class="list-title">' + z.name + '</div><div class="list-subtitle">€' + z.avgPrice + '/mo avg</div></div><span class="badge green">+' + z.trend + '%</span></div>'; }).join('') + '</div></div></div><div class="card"><div class="card-header"><h3 class="card-title">💡 Insights</h3></div><div class="card-body"><div class="grid-3"><div style="background:var(--bg-elevated);padding:16px;border-radius:12px"><div style="font-size:24px;margin-bottom:8px">💰</div><div style="font-weight:600;margin-bottom:4px">Best Value</div><div style="color:var(--text-secondary);font-size:12px">Anagnina at €550/mo - great for Erasmus</div></div><div style="background:var(--bg-elevated);padding:16px;border-radius:12px"><div style="font-size:24px;margin-bottom:8px">📈</div><div style="font-weight:600;margin-bottom:4px">Rising Fast</div><div style="color:var(--text-secondary);font-size:12px">Ostiense +6.5% - act fast on deals</div></div><div style="background:var(--bg-elevated);padding:16px;border-radius:12px"><div style="font-size:24px;margin-bottom:8px">⭐</div><div style="font-weight:600;margin-bottom:4px">Premium</div><div style="color:var(--text-secondary);font-size:12px">Parioli €1,450/mo - LUISS area</div></div></div></div></div>';
+        } else if (ziState.currentTab === 'shortlist') {
+            var avgPrice = ziState.shortlist.length ? Math.round(ziState.shortlist.reduce(function(s, p) { return s + p.price; }, 0) / ziState.shortlist.length) : 0;
+            tabContent = '<div class="stats-grid" style="grid-template-columns:repeat(4,1fr)"><div class="stat-card gold"><div class="stat-icon">📋</div><div class="stat-value">' + ziState.shortlist.length + '</div><div class="stat-label">Properties</div></div><div class="stat-card green"><div class="stat-icon">👤</div><div class="stat-value">' + clientName + '</div><div class="stat-label">Client</div></div><div class="stat-card blue"><div class="stat-icon">💰</div><div class="stat-value">€' + avgPrice + '</div><div class="stat-label">Avg Price</div></div><div class="stat-card purple"><div class="stat-icon">✓</div><div class="stat-value">Ready</div><div class="stat-label">Status</div></div></div><div class="grid-2"><div><div class="card"><div class="card-header"><h3 class="card-title">➕ Add Property</h3></div><div class="card-body"><form onsubmit="ziAddToShortlist(event)"><div class="form-row"><div class="form-group"><label class="form-label">Price €/mo *</label><input type="number" class="form-input" name="price" required placeholder="900"></div><div class="form-group"><label class="form-label">Zone *</label><input type="text" class="form-input" name="zone" required placeholder="Trastevere"></div></div><div class="form-group"><label class="form-label">Address</label><input type="text" class="form-input" name="address" placeholder="Via Roma 123"></div><div class="form-row"><div class="form-group"><label class="form-label">Beds</label><input type="number" class="form-input" name="bedrooms" value="1"></div><div class="form-group"><label class="form-label">Size m²</label><input type="number" class="form-input" name="size" placeholder="45"></div></div><div class="form-group"><label class="form-label">Link</label><input type="url" class="form-input" name="link" placeholder="https://..."></div><div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" name="notes" rows="2" placeholder="Features, landlord..."></textarea></div><div style="display:flex;gap:10px"><button type="submit" class="btn" style="flex:1">➕ Add</button><button type="button" class="btn btn-secondary" onclick="ziOpenQuickLandlord()">👤 Save Landlord</button></div></form></div></div></div><div><div class="card"><div class="card-header"><h3 class="card-title">📋 Shortlist</h3></div><div class="card-body flush">' + (ziState.shortlist.length === 0 ? '<div class="empty-state" style="padding:40px"><div class="empty-icon">📋</div><div class="empty-text">Add properties</div></div>' : ziState.shortlist.map(function(p, i) { return '<div class="list-item" style="position:relative"><span style="position:absolute;left:8px;top:8px;width:20px;height:20px;background:var(--gold);color:#000;font-size:10px;font-weight:700;border-radius:4px;display:flex;align-items:center;justify-content:center">' + (i + 1) + '</span><div class="list-content" style="margin-left:24px"><div class="list-title">' + esc(p.address || p.zone) + '</div><div class="list-subtitle">📍 ' + esc(p.zone) + ' · €' + p.price + ' · ' + p.bedrooms + ' bed</div></div><button class="btn btn-xs btn-danger" onclick="ziRemoveFromShortlist(' + p.id + ')">×</button></div>'; }).join('')) + '</div></div><div class="card"><div class="card-header"><h3 class="card-title">📤 Shortlist Brief</h3></div><div class="card-body"><div style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:16px;font-size:12px;white-space:pre-wrap;max-height:200px;overflow-y:auto">' + esc(ziGenerateShortlistBrief()) + '</div><div style="display:flex;gap:10px;margin-top:16px"><button class="btn" onclick="ziCopyShortlistBrief()" style="flex:1">📋 Copy</button><button class="btn" onclick="ziSendShortlistWhatsApp()" style="flex:1;background:#25D366">💬 WhatsApp</button></div></div></div></div></div>';
+        }
+
+        return '<div class="page-header"><div><h1 class="page-title">🎯 Zone Intelligence</h1><p class="page-subtitle">Property search, analytics & shortlist</p></div><button class="btn btn-secondary" onclick="ziReset()">🔄 Reset</button></div>' +
+            '<div class="tabs" style="margin-bottom:24px"><div class="tab ' + (ziState.currentTab === 'search' ? 'active' : '') + '" onclick="ziSwitchTab(\'search\')">🔍 Search</div><div class="tab ' + (ziState.currentTab === 'analytics' ? 'active' : '') + '" onclick="ziSwitchTab(\'analytics\')">📊 Analytics</div><div class="tab ' + (ziState.currentTab === 'shortlist' ? 'active' : '') + '" onclick="ziSwitchTab(\'shortlist\')">📋 Shortlist</div></div>' + tabContent;
     }
 
     </script>
