@@ -12,6 +12,7 @@
     <link rel="apple-touch-icon" href="https://www.boomrome.com/BOOMlogogoldicon512.png">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         *{margin:0;padding:0;box-sizing:border-box}
         :root{--gold:#D4AF37;--gold-light:rgba(212,175,55,0.15);--gold-dark:#B8960C;--green:#34C759;--green-light:rgba(52,199,89,0.12);--red:#FF3B30;--red-light:rgba(255,59,48,0.12);--orange:#FF9500;--orange-light:rgba(255,149,0,0.12);--blue:#007AFF;--blue-light:rgba(0,122,255,0.12);--purple:#AF52DE;--purple-light:rgba(175,82,222,0.12);--cyan:#00C7BE;--cyan-light:rgba(0,199,190,0.12);--bg:#000;--bg-card:#0A0A0A;--bg-elevated:#141414;--bg-input:#1A1A1A;--border:rgba(255,255,255,0.08);--text:#FFF;--text-secondary:#999;--text-muted:#666}
@@ -319,6 +320,24 @@
     .boom-dashboard-hero { flex-direction: column; gap: 16px; text-align: center; }
     .boom-hero-title { font-size: 22px; }
 }
+
+/* BOOM Property Detail Modal */
+.boom-property-header { position: relative; margin: -24px -24px 0 -24px; height: 200px; overflow: hidden; background: linear-gradient(135deg, var(--bg-elevated), var(--bg)); }
+.boom-property-img { width: 100%; height: 100%; object-fit: cover; }
+.boom-property-price-tag { position: absolute; bottom: 16px; right: 16px; background: linear-gradient(135deg, var(--gold), var(--gold-dark)); color: #000; padding: 12px 20px; border-radius: 12px; font-size: 24px; font-weight: 800; box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
+.boom-property-price-tag span { font-size: 12px; font-weight: 500; opacity: 0.8; }
+
+/* BOOM Map Container */
+.boom-map-container { margin-top: 16px; background: var(--bg-elevated); border-radius: 14px; overflow: hidden; border: 1px solid var(--border); }
+.boom-map-link { display: block; padding: 12px; text-align: center; color: var(--gold); font-size: 12px; font-weight: 600; text-decoration: none; transition: background 0.2s; }
+.boom-map-link:hover { background: var(--gold-light); }
+
+/* BOOM POI Section */
+.boom-poi-section { margin-top: 24px; padding: 20px; background: var(--bg-elevated); border-radius: 16px; border: 1px solid var(--border); }
+.boom-poi-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.boom-poi-item:last-child { border-bottom: none; }
+.boom-poi-name { font-size: 13px; font-weight: 500; }
+.boom-poi-dist { display: flex; align-items: center; gap: 8px; }
 .form-error { color: var(--red); font-size: 11px; margin-top: -10px; margin-bottom: 10px; }
 
 /* Image Upload Zone */
@@ -7844,38 +7863,146 @@ IBAN: ${l.iban || '-'}`;
         const zone = PRE_ZONES[p.zone];
         const landlord = p.landlordId ? (S.landlords || []).find(l => l.id === p.landlordId) : null;
 
+        // Get coordinates for the zone
+        const coords = ZONE_COORDINATES[p.zone] || { lat: 41.9028, lng: 12.4964 }; // Default to Rome center
+        const distances = getPOIDistances(coords.lat, coords.lng);
+
+        // Generate POI HTML
+        const nearestUni = distances.universities.slice(0, 3);
+        const nearestMetro = distances.metro.slice(0, 3);
+
         document.getElementById('modals').innerHTML = `
             <div class="modal-overlay active" onclick="if(event.target===this)closeModal()">
-                <div class="modal xl"><div class="modal-header"><h3 class="modal-title">${esc(p.address || p.zone)}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
-                <div class="modal-body">
-                    <div class="grid-2">
-                        <div class="info-box">
-                            <div class="info-box-title">📋 Dettagli</div>
-                            <div class="info-box-row"><span class="info-box-label">Zona</span><span class="info-box-value">${zone?.name || p.zone}</span></div>
-                            <div class="info-box-row"><span class="info-box-label">Prezzo</span><span class="info-box-value">€${p.price}/mese</span></div>
-                            <div class="info-box-row"><span class="info-box-label">Camere</span><span class="info-box-value">${p.bedrooms || 1}</span></div>
-                            ${p.size ? `<div class="info-box-row"><span class="info-box-label">Mq</span><span class="info-box-value">${p.size}</span></div>` : ''}
-                            <div class="info-box-row"><span class="info-box-label">Status</span><span class="info-box-value"><span class="badge ${status.color}">${status.icon} ${status.name}</span></span></div>
-                        </div>
+                <div class="modal xl"><div class="modal-header" style="background:linear-gradient(90deg,var(--gold),var(--gold-dark))">
+                    <h3 class="modal-title" style="color:#000">${esc(p.address || p.zone)}</h3>
+                    <button class="modal-close" onclick="closeModal()" style="background:#000;border-color:#000;color:var(--gold)">×</button>
+                </div>
+                <div class="modal-body" style="background:var(--bg)">
+                    <!-- Property Header -->
+                    <div class="boom-property-header">
+                        ${p.imageUrl ? `<img src="${p.imageUrl}" class="boom-property-img" alt="Property">` : ''}
+                        <div class="boom-property-price-tag">€${p.price}<span>/mese</span></div>
+                    </div>
+
+                    <div class="grid-2" style="margin-top:20px">
+                        <!-- Left Column: Details -->
                         <div>
-                            ${zone ? `<div class="info-box"><div class="info-box-title">📍 Zona</div>
-                                <div class="info-box-row"><span class="info-box-label">Tier</span><span class="info-box-value"><span class="badge ${zone.tier === 'primary' ? 'gold' : 'blue'}">${zone.tier}</span></span></div>
-                                <div class="info-box-row"><span class="info-box-label">Media</span><span class="info-box-value">€${zone.avgPrice}</span></div>
-                                <div class="info-box-row"><span class="info-box-label">Trend</span><span class="info-box-value"><span class="badge ${zone.trend >= 0 ? 'green' : 'red'}">${zone.trend >= 0 ? '+' : ''}${zone.trend}%</span></span></div>
-                            </div>` : ''}
+                            <div class="info-box">
+                                <div class="info-box-title">📋 Dettagli Immobile</div>
+                                <div class="info-box-row"><span class="info-box-label">Zona</span><span class="info-box-value">${zone?.name || p.zone}</span></div>
+                                <div class="info-box-row"><span class="info-box-label">Prezzo</span><span class="info-box-value" style="color:var(--gold);font-weight:700">€${p.price}/mese</span></div>
+                                <div class="info-box-row"><span class="info-box-label">Camere</span><span class="info-box-value">🛏️ ${p.bedrooms || 1}</span></div>
+                                ${p.size ? `<div class="info-box-row"><span class="info-box-label">Superficie</span><span class="info-box-value">📐 ${p.size} m²</span></div>` : ''}
+                                <div class="info-box-row"><span class="info-box-label">Status</span><span class="info-box-value"><span class="badge ${status.color}">${status.icon} ${status.name}</span></span></div>
+                            </div>
+
                             ${landlord ? `<div class="info-box" style="margin-top:16px"><div class="info-box-title">👤 Proprietario</div>
                                 <div class="info-box-row"><span class="info-box-label">Nome</span><span class="info-box-value">${esc(landlord.name)}</span></div>
-                                ${landlord.phone ? `<button class="btn" style="width:100%;margin-top:8px;background:#25D366" onclick="preSendWA('${landlord.phone}',preWALandlord(preState.properties.find(x=>x.id==='${id}')))">💬 WhatsApp</button>` : ''}
+                                ${landlord.phone ? `<button class="btn" style="width:100%;margin-top:8px;background:#25D366" onclick="preSendWA('${landlord.phone}',preWALandlord(preState.properties.find(x=>x.id==='${id}')))">💬 WhatsApp Proprietario</button>` : ''}
                             </div>` : ''}
                         </div>
+
+                        <!-- Right Column: Zone & Map -->
+                        <div>
+                            ${zone ? `<div class="info-box"><div class="info-box-title">📍 Info Zona</div>
+                                <div class="info-box-row"><span class="info-box-label">Tier</span><span class="info-box-value"><span class="badge ${zone.tier === 'premium' ? 'gold' : zone.tier === 'primary' ? 'blue' : 'gray'}">${zone.tier}</span></span></div>
+                                <div class="info-box-row"><span class="info-box-label">Media Zona</span><span class="info-box-value">€${zone.avgPrice}/mese</span></div>
+                                <div class="info-box-row"><span class="info-box-label">Trend</span><span class="info-box-value"><span class="badge ${zone.trend >= 0 ? 'green' : 'red'}">${zone.trend >= 0 ? '📈 +' : '📉 '}${zone.trend}%</span></span></div>
+                                <div class="info-box-row"><span class="info-box-label">Vibe</span><span class="info-box-value">${zone.vibe || '-'}</span></div>
+                            </div>` : ''}
+
+                            <!-- Mini Map -->
+                            <div class="boom-map-container">
+                                <iframe
+                                    src="https://maps.google.com/maps?q=${coords.lat},${coords.lng}&z=15&output=embed"
+                                    width="100%" height="180" style="border:0;border-radius:12px" loading="lazy">
+                                </iframe>
+                                <a href="https://www.google.com/maps/search/?api=1&query=${coords.lat},${coords.lng}" target="_blank" class="boom-map-link">
+                                    🗺️ Apri in Google Maps
+                                </a>
+                            </div>
+                        </div>
                     </div>
+
+                    <!-- POI Distances Section -->
+                    <div class="boom-poi-section">
+                        <h4 style="color:var(--gold);margin-bottom:16px;font-size:14px">📍 Distanze dai Punti d'Interesse</h4>
+                        <div class="grid-2">
+                            <!-- Universities -->
+                            <div class="info-box">
+                                <div class="info-box-title">🎓 Università Vicine</div>
+                                ${nearestUni.map(u => `
+                                    <div class="boom-poi-item">
+                                        <span class="boom-poi-name">${u.icon} ${u.name}</span>
+                                        <span class="boom-poi-dist">
+                                            <span class="badge ${u.walkTime <= 15 ? 'green' : u.walkTime <= 30 ? 'orange' : 'gray'}">
+                                                🚶 ${u.walkTime} min
+                                            </span>
+                                            <span style="font-size:10px;color:var(--text-muted)">${u.distance.toFixed(1)} km</span>
+                                        </span>
+                                    </div>
+                                `).join('')}
+                            </div>
+
+                            <!-- Metro -->
+                            <div class="info-box">
+                                <div class="info-box-title">🚇 Metro Vicine</div>
+                                ${nearestMetro.map(m => `
+                                    <div class="boom-poi-item">
+                                        <span class="boom-poi-name">${m.icon} ${m.name} <span style="font-size:10px;color:var(--text-muted)">(${m.line})</span></span>
+                                        <span class="boom-poi-dist">
+                                            <span class="badge ${m.walkTime <= 10 ? 'green' : m.walkTime <= 20 ? 'orange' : 'gray'}">
+                                                🚶 ${m.walkTime} min
+                                            </span>
+                                        </span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+
+                    ${p.sourceUrl ? `
+                        <div style="margin-top:20px;padding:16px;background:var(--bg-elevated);border-radius:12px">
+                            <a href="${p.sourceUrl}" target="_blank" class="btn btn-secondary" style="width:100%">
+                                🔗 Vedi Annuncio Originale
+                            </a>
+                        </div>
+                    ` : ''}
                 </div>
-                <div class="modal-footer">
+                <div class="modal-footer" style="background:var(--bg)">
                     <button class="btn btn-danger" onclick="preDeleteProperty('${id}')">🗑️</button>
-                    <button class="btn btn-secondary" onclick="closeModal()">Chiudi</button>
-                    <button class="btn" onclick="preOpenStatus('${id}')">📋 Status</button>
+                    <div style="display:flex;gap:8px;margin-left:auto">
+                        <button class="btn btn-secondary" onclick="preGeneratePropertyCard('${id}')">✨ BOOM Card</button>
+                        <button class="btn btn-secondary" onclick="preOpenStatus('${id}')">📋 Status</button>
+                        <button class="btn" onclick="preShareProperty('${id}')">📤 Condividi</button>
+                    </div>
                 </div></div>
             </div>`;
+    }
+
+    // Generate BOOM Card from existing property
+    function preGeneratePropertyCard(id) {
+        const p = preState.properties.find(x => x.id === id);
+        if (!p) return;
+        boomCardState.data = {
+            address: p.address,
+            zone: p.zone,
+            price: p.price,
+            bedrooms: p.bedrooms,
+            size: p.size,
+            sourceUrl: p.sourceUrl,
+            imageUrl: p.imageUrl
+        };
+        renderBoomCardModal();
+    }
+
+    // Share property via WhatsApp
+    function preShareProperty(id) {
+        const p = preState.properties.find(x => x.id === id);
+        if (!p) return;
+        const zone = PRE_ZONES[p.zone];
+        const msg = `🏠 *BOOM Property*\n\n📍 ${p.address || zone?.name || p.zone}\n💰 €${p.price}/mese\n🛏️ ${p.bedrooms || 1} camere${p.size ? `\n📐 ${p.size} m²` : ''}\n\n${p.sourceUrl ? `🔗 ${p.sourceUrl}\n\n` : ''}_BOOM Rome - boomrome.com_`;
+        window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
     }
 
     function preOpenStatus(id) {
@@ -7913,8 +8040,20 @@ IBAN: ${l.iban || '-'}`;
     function preBuildSearchUrl(portal, zone) {
         const z = PRE_ZONES[zone];
         if (!z) return null;
-        if (portal === 'immobiliare') return `https://www.immobiliare.it/affitto-case/roma/${zone}/?prezzoMinimo=${preState.minBudget}&prezzoMassimo=${preState.maxBudget}&criterio=data&ordine=desc`;
-        if (portal === 'idealista') return `https://www.idealista.it/affitto-case/${z.idealista}/con-prezzo_${preState.minBudget}-${preState.maxBudget}/?ordine=pubblicazione-desc`;
+
+        // Immobiliare.it - URL corretti per zona Roma
+        if (portal === 'immobiliare') {
+            const immoZone = z.immobiliare || zone;
+            // Immobiliare usa: /affitto-case/roma-[zona]/ oppure ricerca per zona
+            return `https://www.immobiliare.it/affitto-case/roma/?criterio=dataModifica&ordine=desc&prezzoMinimo=${preState.minBudget}&prezzoMassimo=${preState.maxBudget}&locali=1,2,3&zona=${encodeURIComponent(z.name)}`;
+        }
+
+        // Idealista.it - usa il path dalla config
+        if (portal === 'idealista') {
+            const ideaPath = z.idealista || `roma/${zone}`;
+            return `https://www.idealista.it/affitto-case/${ideaPath}/?ordine=pubblicazione-desc&prezzo-max=${preState.maxBudget}&prezzo-min=${preState.minBudget}`;
+        }
+
         return null;
     }
 
@@ -8005,15 +8144,20 @@ IBAN: ${l.iban || '-'}`;
                         ${previewHtml ? `
                             <div style="margin-top:16px">
                                 <div style="text-align:center;margin-bottom:12px;font-size:12px;color:var(--text-muted)">ANTEPRIMA</div>
-                                ${previewHtml}
+                                <div id="boomCardExportArea">${previewHtml}</div>
                             </div>
                         ` : ''}
                     </div>
                     ${boomCardState.data ? `
-                        <div class="modal-footer" style="background:var(--bg)">
-                            <button class="btn btn-secondary" onclick="boomEditCard()">✏️ Modifica</button>
-                            <button class="btn btn-secondary" onclick="boomCopyCard()">📋 Copia HTML</button>
-                            <button class="btn" onclick="boomSaveAndAdd()">💾 Salva & Aggiungi</button>
+                        <div class="modal-footer" style="background:var(--bg);flex-wrap:wrap;gap:8px">
+                            <div style="display:flex;gap:8px">
+                                <button class="btn btn-secondary" onclick="boomEditCard()">✏️ Modifica</button>
+                            </div>
+                            <div style="display:flex;gap:8px;margin-left:auto">
+                                <button class="btn" style="background:#25D366" onclick="boomExportJPG()">📲 JPG WhatsApp</button>
+                                <button class="btn btn-secondary" onclick="boomExportPDF()">📄 PDF</button>
+                                <button class="btn" onclick="boomSaveAndAdd()">💾 Salva</button>
+                            </div>
                         </div>
                     ` : ''}
                 </div>
@@ -8220,6 +8364,187 @@ IBAN: ${l.iban || '-'}`;
         });
         closeModal();
         renderPage();
+    }
+
+    // Export BOOM Card as JPG for WhatsApp
+    async function boomExportJPG() {
+        const element = document.getElementById('boomCardExportArea');
+        if (!element) { toast('error', 'Card non trovata'); return; }
+
+        toast('info', '📸 Generando immagine...');
+
+        try {
+            // Use html2canvas to capture the card
+            const canvas = await html2canvas(element.querySelector('.boom-card-preview'), {
+                backgroundColor: '#000000',
+                scale: 2, // High quality
+                useCORS: true,
+                allowTaint: true,
+                logging: false
+            });
+
+            // Convert to blob and download
+            canvas.toBlob((blob) => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `BOOM-${boomCardState.data?.zone || 'property'}-${Date.now()}.jpg`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                toast('success', '✅ JPG scaricato! Pronto per WhatsApp');
+            }, 'image/jpeg', 0.95);
+
+        } catch (err) {
+            console.error('Export error:', err);
+            toast('error', 'Errore export: ' + err.message);
+        }
+    }
+
+    // Export BOOM Card as PDF
+    async function boomExportPDF() {
+        const element = document.getElementById('boomCardExportArea');
+        if (!element) { toast('error', 'Card non trovata'); return; }
+
+        toast('info', '📄 Generando PDF...');
+
+        try {
+            const canvas = await html2canvas(element.querySelector('.boom-card-preview'), {
+                backgroundColor: '#000000',
+                scale: 2,
+                useCORS: true,
+                allowTaint: true
+            });
+
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: 'a5'
+            });
+
+            const imgData = canvas.toDataURL('image/jpeg', 0.95);
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+            // Add BOOM branding
+            pdf.setFillColor(0, 0, 0);
+            pdf.rect(0, 0, pdfWidth, pdfHeight + 20, 'F');
+
+            pdf.addImage(imgData, 'JPEG', 10, 10, pdfWidth - 20, pdfHeight - 10);
+
+            // Footer
+            pdf.setFontSize(8);
+            pdf.setTextColor(212, 175, 55);
+            pdf.text('BOOM Rome - boomrome.com - +39 331 325 1961', pdfWidth / 2, pdfHeight + 5, { align: 'center' });
+
+            pdf.save(`BOOM-${boomCardState.data?.zone || 'property'}-${Date.now()}.pdf`);
+            toast('success', '✅ PDF scaricato!');
+
+        } catch (err) {
+            console.error('PDF error:', err);
+            toast('error', 'Errore PDF: ' + err.message);
+        }
+    }
+
+    // ==========================================
+    // POINTS OF INTEREST (POI) DATABASE
+    // ==========================================
+    const POI_DATABASE = {
+        universities: [
+            { id: 'sapienza', name: 'Sapienza', lat: 41.9019, lng: 12.5147, icon: '🎓' },
+            { id: 'luiss', name: 'LUISS', lat: 41.9244, lng: 12.4946, icon: '🎓' },
+            { id: 'lumsa', name: 'LUMSA', lat: 41.9028, lng: 12.4650, icon: '🎓' },
+            { id: 'roma-tre', name: 'Roma Tre', lat: 41.8668, lng: 12.4783, icon: '🎓' },
+            { id: 'tor-vergata', name: 'Tor Vergata', lat: 41.8512, lng: 12.6036, icon: '🎓' },
+            { id: 'john-cabot', name: 'John Cabot', lat: 41.8871, lng: 12.4688, icon: '🎓' }
+        ],
+        metro: [
+            { id: 'termini', name: 'Termini', lat: 41.9009, lng: 12.5016, line: 'A/B', icon: '🚇' },
+            { id: 'tiburtina', name: 'Tiburtina', lat: 41.9103, lng: 12.5300, line: 'B', icon: '🚇' },
+            { id: 'bologna', name: 'Bologna', lat: 41.9116, lng: 12.5122, line: 'B', icon: '🚇' },
+            { id: 'policlinico', name: 'Policlinico', lat: 41.9068, lng: 12.5087, line: 'B', icon: '🚇' },
+            { id: 'san-giovanni', name: 'San Giovanni', lat: 41.8854, lng: 12.5103, line: 'A/C', icon: '🚇' },
+            { id: 'piramide', name: 'Piramide', lat: 41.8759, lng: 12.4818, line: 'B', icon: '🚇' },
+            { id: 'flaminio', name: 'Flaminio', lat: 41.9128, lng: 12.4767, line: 'A', icon: '🚇' },
+            { id: 'ottaviano', name: 'Ottaviano', lat: 41.9077, lng: 12.4532, line: 'A', icon: '🚇' },
+            { id: 'spagna', name: 'Spagna', lat: 41.9064, lng: 12.4827, line: 'A', icon: '🚇' }
+        ],
+        landmarks: [
+            { id: 'colosseo', name: 'Colosseo', lat: 41.8902, lng: 12.4922, icon: '🏛️' },
+            { id: 'vaticano', name: 'Vaticano', lat: 41.9029, lng: 12.4534, icon: '⛪' },
+            { id: 'trevi', name: 'Fontana Trevi', lat: 41.9009, lng: 12.4833, icon: '⛲' },
+            { id: 'pantheon', name: 'Pantheon', lat: 41.8986, lng: 12.4768, icon: '🏛️' }
+        ]
+    };
+
+    // Calculate distance between two coordinates (Haversine formula)
+    function calculateDistance(lat1, lng1, lat2, lng2) {
+        const R = 6371; // Earth's radius in km
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLng = (lng2 - lng1) * Math.PI / 180;
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                  Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                  Math.sin(dLng/2) * Math.sin(dLng/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        return R * c;
+    }
+
+    // Get POI distances for a property
+    function getPOIDistances(propertyLat, propertyLng) {
+        const distances = { universities: [], metro: [], landmarks: [] };
+
+        for (const [category, pois] of Object.entries(POI_DATABASE)) {
+            for (const poi of pois) {
+                const dist = calculateDistance(propertyLat, propertyLng, poi.lat, poi.lng);
+                distances[category].push({
+                    ...poi,
+                    distance: dist,
+                    walkTime: Math.round(dist * 12) // ~12 min/km walking
+                });
+            }
+            distances[category].sort((a, b) => a.distance - b.distance);
+        }
+
+        return distances;
+    }
+
+    // Zone coordinates (approx center of each zone)
+    const ZONE_COORDINATES = {
+        'salario': { lat: 41.9180, lng: 12.5050 },
+        'trieste': { lat: 41.9200, lng: 12.5120 },
+        'sallustiano': { lat: 41.9060, lng: 12.4950 },
+        'parioli': { lat: 41.9280, lng: 12.4900 },
+        'conca-doro': { lat: 41.9400, lng: 12.5200 },
+        'sempione': { lat: 41.9420, lng: 12.5150 },
+        'sacco-pastore': { lat: 41.9350, lng: 12.5250 },
+        'san-lorenzo': { lat: 41.8980, lng: 12.5200 },
+        'bologna': { lat: 41.9120, lng: 12.5100 },
+        'ostiense': { lat: 41.8700, lng: 12.4850 },
+        'testaccio': { lat: 41.8760, lng: 12.4750 },
+        'trastevere': { lat: 41.8870, lng: 12.4680 },
+        'prati': { lat: 41.9080, lng: 12.4600 },
+        'monti': { lat: 41.8950, lng: 12.4920 },
+        're-di-roma': { lat: 41.8820, lng: 12.5100 },
+        'san-giovanni': { lat: 41.8850, lng: 12.5080 },
+        'porta-pia': { lat: 41.9100, lng: 12.5000 },
+        'nomentano': { lat: 41.9150, lng: 12.5080 },
+        'garbatella': { lat: 41.8620, lng: 12.4850 },
+        'cola-di-rienzo': { lat: 41.9100, lng: 12.4650 },
+        'flaminio': { lat: 41.9130, lng: 12.4750 },
+        'centro': { lat: 41.8950, lng: 12.4800 },
+        'termini': { lat: 41.9010, lng: 12.5010 }
+    };
+
+    // Generate Google Maps embed URL
+    function generateGoogleMapsEmbed(lat, lng, zoom = 15) {
+        return `https://www.google.com/maps/embed/v1/place?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8&q=${lat},${lng}&zoom=${zoom}`;
+    }
+
+    // Generate Google Maps directions URL
+    function generateGoogleMapsDirections(fromLat, fromLng, toLat, toLng) {
+        return `https://www.google.com/maps/dir/${fromLat},${fromLng}/${toLat},${toLng}`;
     }
 
     // Main Page Renderer
