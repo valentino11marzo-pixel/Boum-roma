@@ -921,18 +921,35 @@
         
         const db = firebase.firestore();
         const storage = firebase.storage();
-        
+
+        // Escape HTML per prevenire XSS
+        function esc(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = String(text);
+            return div.innerHTML;
+        }
+
         // State
         let currentStep = 1;
         let uploadedFiles = { doc: null, visura: null, ape: null };
+        let isSubmitting = false;
         
+        // Gestione offline
+        window.addEventListener('offline', () => {
+            toast('warning', 'Connessione persa. Alcune funzioni potrebbero non funzionare.');
+        });
+        window.addEventListener('online', () => {
+            toast('success', 'Connessione ripristinata');
+        });
+
         // Get contract ID from URL
         const urlParams = new URLSearchParams(window.location.search);
         const contractIdFromUrl = urlParams.get('contract');
-        if (contractIdFromUrl) {
+        if (contractIdFromUrl && /^[a-zA-Z0-9\-_]{5,60}$/.test(contractIdFromUrl)) {
             document.getElementById('contractId').value = contractIdFromUrl;
         }
-        
+
         // Toast
         function toast(type, message) {
             const t = document.getElementById('toast');
@@ -987,7 +1004,7 @@
         function validateStep1() {
             const form = document.getElementById('landlordForm');
             const requiredFields = ['firstName', 'lastName', 'birthDate', 'birthPlace', 'codiceFiscale', 'residenceAddress', 'email', 'phone'];
-            
+
             for (const field of requiredFields) {
                 const input = form.querySelector(`[name="${field}"]`);
                 if (!input.value.trim()) {
@@ -998,7 +1015,35 @@
                 }
                 input.classList.remove('error');
             }
-            
+
+            // Validazione Codice Fiscale
+            const cf = form.querySelector('[name="codiceFiscale"]').value.toUpperCase();
+            const cfRegex = /^[A-Z]{6}[0-9]{2}[A-Z][0-9]{2}[A-Z][0-9]{3}[A-Z]$/;
+            if (!cfRegex.test(cf)) {
+                form.querySelector('[name="codiceFiscale"]').classList.add('error');
+                toast('error', 'Codice Fiscale non valido');
+                return false;
+            }
+
+            // Validazione Email
+            const email = form.querySelector('[name="email"]').value;
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                form.querySelector('[name="email"]').classList.add('error');
+                toast('error', 'Email non valida');
+                return false;
+            }
+
+            // Validazione data di nascita (età minima 18 anni)
+            const birthDate = new Date(form.querySelector('[name="birthDate"]').value);
+            const today = new Date();
+            const age = today.getFullYear() - birthDate.getFullYear();
+            if (birthDate > today || age < 18) {
+                form.querySelector('[name="birthDate"]').classList.add('error');
+                toast('error', 'Devi avere almeno 18 anni');
+                return false;
+            }
+
             return true;
         }
         
@@ -1089,7 +1134,7 @@
                 const storageRef = storage.ref(path);
                 const uploadTask = storageRef.put(file);
                 
-                uploadTask.on('state_changed', 
+                uploadTask.on('state_changed',
                     (snapshot) => {
                         const pct = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
                         progressBar.style.width = pct + '%';
@@ -1098,7 +1143,11 @@
                         console.error('Upload error:', error);
                         zone.classList.remove('uploading');
                         progress.style.display = 'none';
-                        toast('error', 'Upload fallito: ' + error.message);
+                        let errorMsg = 'Upload fallito. Riprova.';
+                        if (error.code === 'storage/unauthorized') errorMsg = 'Sessione scaduta. Ricarica la pagina.';
+                        else if (error.code === 'storage/canceled') errorMsg = 'Upload annullato.';
+                        else if (error.code === 'storage/retry-limit-exceeded') errorMsg = 'Connessione instabile. Riprova.';
+                        toast('error', errorMsg);
                     },
                     async () => {
                         const downloadURL = await uploadTask.snapshot.ref.getDownloadURL();
@@ -1191,41 +1240,41 @@
             const form = document.getElementById('landlordForm');
             const fd = new FormData(form);
             const data = Object.fromEntries(fd);
-            
+
             let html = `
                 <div style="background: var(--surface); border-radius: var(--radius); overflow: hidden;">
                     <div style="padding: 16px; border-bottom: 1px solid var(--border);">
                         <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">PROPRIETARIO</div>
-                        <div style="font-size: 15px;">${data.firstName} ${data.lastName}</div>
+                        <div style="font-size: 15px;">${esc(data.firstName)} ${esc(data.lastName)}</div>
                     </div>
                     <div style="padding: 16px; border-bottom: 1px solid var(--border);">
                         <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">NATO/A</div>
-                        <div style="font-size: 15px;">${data.birthDate} — ${data.birthPlace}</div>
+                        <div style="font-size: 15px;">${esc(data.birthDate)} — ${esc(data.birthPlace)}</div>
                     </div>
                     <div style="padding: 16px; border-bottom: 1px solid var(--border);">
                         <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">CODICE FISCALE</div>
-                        <div style="font-size: 15px; font-family: monospace;">${data.codiceFiscale.toUpperCase()}</div>
+                        <div style="font-size: 15px; font-family: monospace;">${esc(data.codiceFiscale.toUpperCase())}</div>
                     </div>
                     <div style="padding: 16px; border-bottom: 1px solid var(--border);">
                         <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">RESIDENZA</div>
-                        <div style="font-size: 15px;">${data.residenceAddress}</div>
+                        <div style="font-size: 15px;">${esc(data.residenceAddress)}</div>
                     </div>
                     <div style="padding: 16px; border-bottom: 1px solid var(--border);">
                         <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">CONTATTI</div>
-                        <div style="font-size: 15px;">${data.email}<br>${data.phone}</div>
+                        <div style="font-size: 15px;">${esc(data.email)}<br>${esc(data.phone)}</div>
                     </div>
                     <div style="padding: 16px; border-bottom: 1px solid var(--border); background: var(--surface-2);">
                         <div style="font-size: 12px; color: var(--gold); margin-bottom: 4px;">🏠 IMMOBILE</div>
-                        <div style="font-size: 15px;">${data.propertyAddress}</div>
+                        <div style="font-size: 15px;">${esc(data.propertyAddress)}</div>
                     </div>
                     <div style="padding: 16px; border-bottom: 1px solid var(--border);">
                         <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">DATI CATASTALI</div>
-                        <div style="font-size: 15px;">Foglio ${data.catFoglio} — Particella ${data.catParticella} — Sub ${data.catSubalterno}</div>
+                        <div style="font-size: 15px;">Foglio ${esc(data.catFoglio)} — Particella ${esc(data.catParticella)} — Sub ${esc(data.catSubalterno)}</div>
                     </div>
                     ${data.catCategoria ? `
                     <div style="padding: 16px; border-bottom: 1px solid var(--border);">
                         <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">CATEGORIA / CLASSE ENERGETICA</div>
-                        <div style="font-size: 15px;">${data.catCategoria || '—'} ${data.classeEnergetica ? '| Classe ' + data.classeEnergetica : ''}</div>
+                        <div style="font-size: 15px;">${esc(data.catCategoria) || '—'} ${data.classeEnergetica ? '| Classe ' + esc(data.classeEnergetica) : ''}</div>
                     </div>
                     ` : ''}
                     <div style="padding: 16px;">
@@ -1254,10 +1303,13 @@
         
         // Submit
         async function submitForm() {
+            if (isSubmitting) return;
+            isSubmitting = true;
+
             const btn = document.getElementById('btnSubmit');
             btn.classList.add('loading');
             btn.disabled = true;
-            
+
             try {
                 const form = document.getElementById('landlordForm');
                 const fd = new FormData(form);
@@ -1338,6 +1390,8 @@
                 btn.classList.remove('loading');
                 btn.disabled = false;
                 toast('error', 'Invio fallito: ' + error.message);
+            } finally {
+                isSubmitting = false;
             }
         }
     </script>

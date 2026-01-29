@@ -297,15 +297,33 @@
         
         const db = firebase.firestore();
         const storage = firebase.storage();
-        
+
+        // Escape HTML per prevenire XSS
+        function esc(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = String(text);
+            return div.innerHTML;
+        }
+
         let currentStep = 1;
         let tenantType = null;
         let uploadedFiles = { doc: null, enrollment: null, income: null };
-        
+        let isSubmitting = false;
+
         const urlParams = new URLSearchParams(window.location.search);
         const contractIdFromUrl = urlParams.get('contract');
-        if (contractIdFromUrl) document.getElementById('contractId').value = contractIdFromUrl;
-        
+        if (contractIdFromUrl && /^[a-zA-Z0-9\-_]{5,60}$/.test(contractIdFromUrl)) {
+            document.getElementById('contractId').value = contractIdFromUrl;
+        }
+
+        window.addEventListener('offline', () => {
+            toast('warning', 'Connessione persa');
+        });
+        window.addEventListener('online', () => {
+            toast('success', 'Connessione ripristinata');
+        });
+
         function toast(type, message) {
             const t = document.getElementById('toast');
             document.getElementById('toastIcon').textContent = type === 'error' ? '❌' : type === 'success' ? '✅' : 'ℹ️';
@@ -359,6 +377,22 @@
                 if (!input.value.trim()) { input.classList.add('error'); input.focus(); toast('error', 'Please fill in all required fields'); return false; }
                 input.classList.remove('error');
             }
+
+            const email = form.querySelector('[name="email"]').value;
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                toast('error', 'Email non valida');
+                return false;
+            }
+
+            const birthDate = new Date(form.querySelector('[name="birthDate"]').value);
+            const today = new Date();
+            const age = today.getFullYear() - birthDate.getFullYear();
+            if (birthDate > today || age < 16) {
+                toast('error', 'Data di nascita non valida');
+                return false;
+            }
+
             return true;
         }
         
@@ -397,16 +431,15 @@
                 const storageRef = storage.ref(path);
                 const uploadTask = storageRef.put(file);
                 
-                uploadTask.on('state_changed', 
+                uploadTask.on('state_changed',
                     (snapshot) => { progressBar.style.width = (snapshot.bytesTransferred / snapshot.totalBytes * 100) + '%'; },
                     (error) => {
                         zone.classList.remove('uploading');
                         progress.style.display = 'none';
-                        if (error.code === 'storage/unauthorized') {
-                            toast('error', 'Storage not configured. Contact BOOM support.');
-                        } else {
-                            toast('error', 'Upload failed: ' + (error.message || 'Unknown error'));
-                        }
+                        let errorMsg = 'Upload fallito. Riprova.';
+                        if (error.code === 'storage/unauthorized') errorMsg = 'Sessione scaduta. Ricarica la pagina.';
+                        else if (error.code === 'storage/canceled') errorMsg = 'Upload annullato.';
+                        toast('error', errorMsg);
                     },
                     async () => {
                         const downloadURL = await uploadTask.snapshot.ref.getDownloadURL();
@@ -456,13 +489,13 @@
             document.getElementById('reviewContent').innerHTML = `
                 <div style="background: var(--surface); border-radius: var(--radius); overflow: hidden;">
                     <div style="padding: 16px; border-bottom: 1px solid var(--border);"><div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">TYPE</div><div style="font-size: 15px;">${tenantType === 'student' ? '🎓 Student' : '💼 Worker'}</div></div>
-                    <div style="padding: 16px; border-bottom: 1px solid var(--border);"><div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">NAME</div><div style="font-size: 15px;">${data.firstName} ${data.lastName}</div></div>
-                    <div style="padding: 16px; border-bottom: 1px solid var(--border);"><div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">BORN</div><div style="font-size: 15px;">${data.birthDate} — ${data.birthPlace}</div></div>
-                    <div style="padding: 16px; border-bottom: 1px solid var(--border);"><div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">NATIONALITY</div><div style="font-size: 15px;">${data.nationality}</div></div>
-                    ${data.codiceFiscale ? `<div style="padding: 16px; border-bottom: 1px solid var(--border);"><div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">CODICE FISCALE</div><div style="font-size: 15px; font-family: monospace;">${data.codiceFiscale.toUpperCase()}</div></div>` : ''}
-                    <div style="padding: 16px; border-bottom: 1px solid var(--border);"><div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">CONTACT</div><div style="font-size: 15px;">${data.email}<br>${data.phone}</div></div>
-                    ${tenantType === 'student' ? `<div style="padding: 16px; border-bottom: 1px solid var(--border);"><div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">UNIVERSITY</div><div style="font-size: 15px;">${data.universityName}${data.courseName ? '<br>' + data.courseName : ''}</div></div>` : ''}
-                    ${tenantType === 'worker' ? `<div style="padding: 16px; border-bottom: 1px solid var(--border);"><div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">EMPLOYER</div><div style="font-size: 15px;">${data.employerName}${data.jobTitle ? '<br>' + data.jobTitle : ''}</div></div>` : ''}
+                    <div style="padding: 16px; border-bottom: 1px solid var(--border);"><div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">NAME</div><div style="font-size: 15px;">${esc(data.firstName)} ${esc(data.lastName)}</div></div>
+                    <div style="padding: 16px; border-bottom: 1px solid var(--border);"><div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">BORN</div><div style="font-size: 15px;">${esc(data.birthDate)} — ${esc(data.birthPlace)}</div></div>
+                    <div style="padding: 16px; border-bottom: 1px solid var(--border);"><div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">NATIONALITY</div><div style="font-size: 15px;">${esc(data.nationality)}</div></div>
+                    ${data.codiceFiscale ? `<div style="padding: 16px; border-bottom: 1px solid var(--border);"><div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">CODICE FISCALE</div><div style="font-size: 15px; font-family: monospace;">${esc(data.codiceFiscale.toUpperCase())}</div></div>` : ''}
+                    <div style="padding: 16px; border-bottom: 1px solid var(--border);"><div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">CONTACT</div><div style="font-size: 15px;">${esc(data.email)}<br>${esc(data.phone)}</div></div>
+                    ${tenantType === 'student' ? `<div style="padding: 16px; border-bottom: 1px solid var(--border);"><div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">UNIVERSITY</div><div style="font-size: 15px;">${esc(data.universityName)}${data.courseName ? '<br>' + esc(data.courseName) : ''}</div></div>` : ''}
+                    ${tenantType === 'worker' ? `<div style="padding: 16px; border-bottom: 1px solid var(--border);"><div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">EMPLOYER</div><div style="font-size: 15px;">${esc(data.employerName)}${data.jobTitle ? '<br>' + esc(data.jobTitle) : ''}</div></div>` : ''}
                     <div style="padding: 16px;"><div style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px;">DOCUMENTS</div><div style="display: flex; flex-wrap: wrap; gap: 8px;">${uploadedFiles.doc ? '<span style="background: var(--green-light); color: var(--green); padding: 6px 12px; border-radius: 6px; font-size: 13px;">✓ ID/Passport</span>' : ''}${uploadedFiles.enrollment ? '<span style="background: var(--green-light); color: var(--green); padding: 6px 12px; border-radius: 6px; font-size: 13px;">✓ Enrollment</span>' : ''}${uploadedFiles.income ? '<span style="background: var(--green-light); color: var(--green); padding: 6px 12px; border-radius: 6px; font-size: 13px;">✓ Income Proof</span>' : ''}</div></div>
                 </div>`;
         }
@@ -470,10 +503,13 @@
         document.getElementById('acceptTerms').addEventListener('change', function() { document.getElementById('btnSubmit').disabled = !this.checked; });
         
         async function submitForm() {
+            if (isSubmitting) return;
+            isSubmitting = true;
+
             const btn = document.getElementById('btnSubmit');
             btn.classList.add('loading');
             btn.disabled = true;
-            
+
             try {
                 const form = document.getElementById('tenantForm');
                 const data = Object.fromEntries(new FormData(form));
@@ -512,6 +548,8 @@
                 btn.classList.remove('loading');
                 btn.disabled = false;
                 toast('error', 'Submission failed: ' + error.message);
+            } finally {
+                isSubmitting = false;
             }
         }
     </script>
