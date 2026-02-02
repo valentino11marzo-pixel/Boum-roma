@@ -10893,8 +10893,10 @@ IBAN: ${l.iban || '-'}`;
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // CASAFARI INTEGRATION - Zone IDs discovered via browser automation
+    // CASAFARI INTEGRATION - Complete Filter System
     // ═══════════════════════════════════════════════════════════════════════════
+
+    // Zone IDs discovered via browser automation
     const CASAFARI_ZONE_IDS = {
         'trastevere': 542426,
         'testaccio': 542407,
@@ -10909,39 +10911,180 @@ IBAN: ${l.iban || '-'}`;
         'flaminio': 542411,
         'nomentano': 542421,
         'centro-storico': 542405,
-        'garbatella': 542412
+        'garbatella': 542412,
+        'roma-provincia': 200595,
+        'roma-comune': 200594
     };
 
-    // Build Casafari search URL with zone IDs
-    function preBuildCasafariUrl(config, zoneSlug) {
+    // Current Casafari filter state
+    let casafariFilters = {
+        zones: [],
+        priceMin: 400,
+        priceMax: 1500,
+        roomsMin: 0,
+        roomsMax: 0,
+        bathMin: 0,
+        bathMax: 0,
+        areaMin: 0,
+        areaMax: 0,
+        daysMax: 30,
+        furnished: 0,
+        privateOnly: false,
+        newOnly: false
+    };
+
+    // Build complete Casafari URL with ALL filters
+    function preBuildCasafariUrl(filters) {
+        const f = filters || casafariFilters;
         const baseUrl = 'https://it.casafari.com/metasearch';
+
         const params = new URLSearchParams({
             saleType: 'rent',
-            priceMin: config.minPrice || preState.minBudget || 500,
-            priceMax: config.maxPrice || preState.maxBudget || 1500,
+            priceMin: f.priceMin || 400,
+            priceMax: f.priceMax || 1500,
             sort: 'sort-by-days-low-to-high',
             page: 1,
-            devType: 'old'
+            devType: 'old',
+            type: 'search'
         });
 
-        if (zoneSlug && CASAFARI_ZONE_IDS[zoneSlug]) {
-            params.set('locations', CASAFARI_ZONE_IDS[zoneSlug]);
+        // Zone/Location
+        if (f.zones && f.zones.length > 0) {
+            const zoneIds = f.zones.map(z => CASAFARI_ZONE_IDS[z]).filter(Boolean);
+            if (zoneIds.length > 0) {
+                params.set('locations', zoneIds.join(','));
+            }
+        } else {
+            params.set('locations', CASAFARI_ZONE_IDS['roma-provincia']);
         }
+
+        // Rooms
+        if (f.roomsMin > 0) params.set('roomsMin', f.roomsMin);
+        if (f.roomsMax > 0) params.set('roomsMax', f.roomsMax);
+
+        // Bathrooms
+        if (f.bathMin > 0) params.set('bathMin', f.bathMin);
+        if (f.bathMax > 0) params.set('bathMax', f.bathMax);
+
+        // Area (sqm)
+        if (f.areaMin > 0) params.set('totalAreaMin', f.areaMin);
+        if (f.areaMax > 0) params.set('totalAreaMax', f.areaMax);
+
+        // Days on market (new listings)
+        if (f.daysMax > 0 && f.daysMax < 365) {
+            params.set('daysOnTheMarketMax', f.daysMax);
+        }
+
+        // Furnished: 0=all, 1=furnished, 2=unfurnished
+        if (f.furnished > 0) params.set('furniture', f.furnished);
+
+        // Private sellers only
+        if (f.privateOnly) params.set('privateSellers', 'true');
+
         return baseUrl + '?' + params.toString();
     }
 
-    // Open Casafari search in new tab
+    // Open Casafari with current filters
     function preOpenCasafari(zone) {
-        const config = { minPrice: preState.minBudget || 500, maxPrice: preState.maxBudget || 1500 };
-        const url = preBuildCasafariUrl(config, zone);
+        let filters = { ...casafariFilters };
+        if (zone) {
+            filters.zones = [zone];
+        }
+        const url = preBuildCasafariUrl(filters);
         window.open(url, '_blank');
-        showToast('🔍 Apertura Casafari' + (zone ? ' - ' + (PRE_ZONES[zone]?.name || zone) : '') + '...', 'info');
+        const zoneName = zone ? (PRE_ZONES[zone]?.name || zone) : 'Roma';
+        showToast('🔍 Casafari: ' + zoneName + ' (€' + filters.priceMin + '-€' + filters.priceMax + ')', 'info');
+    }
+
+    // Open Casafari for a specific PFS client
+    function preOpenCasafariForClient(clientId) {
+        const client = (S.pfsClients || []).find(c => c.id === clientId);
+        if (!client) return;
+
+        // Build filters from client preferences
+        const uni = ZI_UNIVERSITIES.find(u => u.id === client.university);
+        const filters = {
+            zones: uni ? uni.zones.slice(0, 3) : [],
+            priceMin: Math.max(300, (client.budget || 1000) - 200),
+            priceMax: client.budget || 1200,
+            roomsMin: client.rooms || 0,
+            roomsMax: client.rooms ? client.rooms + 1 : 0,
+            bathMin: 0,
+            bathMax: 0,
+            areaMin: client.minArea || 0,
+            areaMax: 0,
+            daysMax: 14,
+            furnished: client.furnished ? 1 : 0,
+            privateOnly: false
+        };
+
+        const url = preBuildCasafariUrl(filters);
+        window.open(url, '_blank');
+        showToast('🔍 Casafari per ' + (client.name?.split(' ')[0] || 'cliente'), 'success');
     }
 
     // Open Casafari Alerts page
     function preOpenCasafariAlerts() {
         window.open('https://it.casafari.com/account/alerts', '_blank');
         showToast('🔔 Apertura Alert Casafari...', 'info');
+    }
+
+    // Update a specific Casafari filter
+    function preSetCasafariFilter(key, value) {
+        casafariFilters[key] = value;
+        renderPage();
+    }
+
+    // Toggle zone in Casafari filters
+    function preToggleCasafariZone(zone) {
+        const idx = casafariFilters.zones.indexOf(zone);
+        if (idx === -1) {
+            casafariFilters.zones.push(zone);
+        } else {
+            casafariFilters.zones.splice(idx, 1);
+        }
+        renderPage();
+    }
+
+    // Reset Casafari filters to defaults
+    function preResetCasafariFilters() {
+        casafariFilters = {
+            zones: [],
+            priceMin: 400,
+            priceMax: 1500,
+            roomsMin: 0,
+            roomsMax: 0,
+            bathMin: 0,
+            bathMax: 0,
+            areaMin: 0,
+            areaMax: 0,
+            daysMax: 30,
+            furnished: 0,
+            privateOnly: false,
+            newOnly: false
+        };
+        renderPage();
+        showToast('🔄 Filtri resettati', 'info');
+    }
+
+    // Quick presets for common PFS searches
+    function preCasafariPreset(preset) {
+        switch(preset) {
+            case 'student-budget':
+                casafariFilters = { ...casafariFilters, priceMin: 400, priceMax: 800, roomsMin: 1, roomsMax: 2, furnished: 1, daysMax: 14 };
+                break;
+            case 'student-comfort':
+                casafariFilters = { ...casafariFilters, priceMin: 700, priceMax: 1200, roomsMin: 1, roomsMax: 3, furnished: 1, daysMax: 14 };
+                break;
+            case 'professional':
+                casafariFilters = { ...casafariFilters, priceMin: 1000, priceMax: 1800, roomsMin: 2, roomsMax: 4, areaMin: 50, daysMax: 30 };
+                break;
+            case 'new-listings':
+                casafariFilters = { ...casafariFilters, daysMax: 3 };
+                break;
+        }
+        renderPage();
+        showToast('⚡ Preset applicato', 'success');
     }
 
     function preBuildSearchUrl(portal, zone) {
@@ -11960,82 +12103,169 @@ IBAN: ${l.iban || '-'}`;
                 </div>`;
         }
 
-        // CASAFARI TAB
+        // CASAFARI TAB - Complete Filter System
         else if (preState.currentTab === 'casafari') {
-            const zones = Object.entries(PRE_ZONES).slice(0, 12);
+            const zones = Object.entries(PRE_ZONES).slice(0, 14);
+            const f = casafariFilters;
+            const pfsClients = (S.pfsClients || []).filter(c => !['placed', 'lost'].includes(c.stage));
+
             content = `
-                <div style="background:linear-gradient(135deg, rgba(212,175,55,0.15) 0%, rgba(0,122,255,0.1) 100%);border-radius:16px;padding:32px;margin-bottom:24px;border:1px solid var(--gold)">
+                <!-- Hero Section -->
+                <div style="background:linear-gradient(135deg, rgba(212,175,55,0.15) 0%, rgba(0,122,255,0.1) 100%);border-radius:16px;padding:28px;margin-bottom:24px;border:1px solid var(--gold)">
                     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px">
                         <div>
-                            <h2 style="font-size:28px;margin-bottom:8px">🏠 CASAFARI Integration</h2>
-                            <p style="color:var(--text-secondary)">12,000+ proprietà · Alert automatici · Powered by AI</p>
+                            <h2 style="font-size:26px;margin-bottom:6px">🏠 CASAFARI Search Builder</h2>
+                            <p style="color:var(--text-secondary);font-size:13px">Configura i filtri → Cerca su Casafari → Crea Alert con un click</p>
                         </div>
-                        <div style="display:flex;gap:12px;flex-wrap:wrap">
-                            <button class="btn" onclick="preOpenCasafari()" style="background:linear-gradient(135deg,#1a1a1a,#333)">
-                                🔍 Apri Casafari
-                            </button>
-                            <button class="btn btn-secondary" onclick="preOpenCasafariAlerts()" style="border-color:var(--orange);color:var(--orange)">
-                                🔔 I Miei Alert
-                            </button>
+                        <div style="display:flex;gap:10px;flex-wrap:wrap">
+                            <button class="btn" onclick="preOpenCasafari()">🔍 CERCA ORA</button>
+                            <button class="btn btn-secondary" onclick="preOpenCasafariAlerts()" style="border-color:var(--orange);color:var(--orange)">🔔 I Miei Alert</button>
+                            <button class="btn btn-secondary" onclick="preResetCasafariFilters()">↺ Reset</button>
                         </div>
                     </div>
                 </div>
 
                 <div class="grid-2">
+                    <!-- FILTERS PANEL -->
                     <div class="card">
-                        <div class="card-header"><h3 class="card-title">🎯 Quick Search per Zona</h3></div>
+                        <div class="card-header"><h3 class="card-title">⚙️ Filtri Ricerca</h3></div>
                         <div class="card-body">
-                            <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px">Clicca su una zona per aprire Casafari con i filtri preimpostati (€${preState.minBudget || 500} - €${preState.maxBudget || 1500})</p>
-                            <div style="display:flex;flex-wrap:wrap;gap:8px">
-                                ${zones.map(([slug, z]) => `<button class="btn btn-sm btn-secondary" onclick="preOpenCasafari('${slug}')">${z.name}</button>`).join('')}
+                            <!-- Quick Presets -->
+                            <div style="margin-bottom:20px">
+                                <label class="form-label">⚡ Preset Rapidi</label>
+                                <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px">
+                                    <button class="btn btn-xs btn-secondary" onclick="preCasafariPreset('student-budget')">🎓 Studente Budget</button>
+                                    <button class="btn btn-xs btn-secondary" onclick="preCasafariPreset('student-comfort')">🎓 Studente Comfort</button>
+                                    <button class="btn btn-xs btn-secondary" onclick="preCasafariPreset('professional')">💼 Professional</button>
+                                    <button class="btn btn-xs btn-secondary" onclick="preCasafariPreset('new-listings')">🆕 Solo Nuovi (3gg)</button>
+                                </div>
+                            </div>
+
+                            <!-- Price Range -->
+                            <div style="margin-bottom:16px">
+                                <label class="form-label">💰 Budget (€/mese)</label>
+                                <div style="display:flex;gap:10px;margin-top:6px">
+                                    <input type="number" class="form-input" value="${f.priceMin}" onchange="preSetCasafariFilter('priceMin', +this.value)" placeholder="Min" style="margin:0">
+                                    <span style="padding:8px;color:var(--text-muted)">-</span>
+                                    <input type="number" class="form-input" value="${f.priceMax}" onchange="preSetCasafariFilter('priceMax', +this.value)" placeholder="Max" style="margin:0">
+                                </div>
+                            </div>
+
+                            <!-- Rooms & Baths -->
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+                                <div>
+                                    <label class="form-label">🛏️ Camere (min)</label>
+                                    <select class="form-select" onchange="preSetCasafariFilter('roomsMin', +this.value)" style="margin:0">
+                                        <option value="0" ${f.roomsMin === 0 ? 'selected' : ''}>Qualsiasi</option>
+                                        <option value="1" ${f.roomsMin === 1 ? 'selected' : ''}>1+</option>
+                                        <option value="2" ${f.roomsMin === 2 ? 'selected' : ''}>2+</option>
+                                        <option value="3" ${f.roomsMin === 3 ? 'selected' : ''}>3+</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="form-label">🚿 Bagni (min)</label>
+                                    <select class="form-select" onchange="preSetCasafariFilter('bathMin', +this.value)" style="margin:0">
+                                        <option value="0" ${f.bathMin === 0 ? 'selected' : ''}>Qualsiasi</option>
+                                        <option value="1" ${f.bathMin === 1 ? 'selected' : ''}>1+</option>
+                                        <option value="2" ${f.bathMin === 2 ? 'selected' : ''}>2+</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Area -->
+                            <div style="margin-bottom:16px">
+                                <label class="form-label">📐 Superficie minima (mq)</label>
+                                <select class="form-select" onchange="preSetCasafariFilter('areaMin', +this.value)" style="margin:0">
+                                    <option value="0" ${f.areaMin === 0 ? 'selected' : ''}>Qualsiasi</option>
+                                    <option value="30" ${f.areaMin === 30 ? 'selected' : ''}>30+ mq</option>
+                                    <option value="50" ${f.areaMin === 50 ? 'selected' : ''}>50+ mq</option>
+                                    <option value="70" ${f.areaMin === 70 ? 'selected' : ''}>70+ mq</option>
+                                    <option value="100" ${f.areaMin === 100 ? 'selected' : ''}>100+ mq</option>
+                                </select>
+                            </div>
+
+                            <!-- Days on Market -->
+                            <div style="margin-bottom:16px">
+                                <label class="form-label">📅 Pubblicato negli ultimi</label>
+                                <select class="form-select" onchange="preSetCasafariFilter('daysMax', +this.value)" style="margin:0">
+                                    <option value="3" ${f.daysMax === 3 ? 'selected' : ''}>3 giorni</option>
+                                    <option value="7" ${f.daysMax === 7 ? 'selected' : ''}>7 giorni</option>
+                                    <option value="14" ${f.daysMax === 14 ? 'selected' : ''}>14 giorni</option>
+                                    <option value="30" ${f.daysMax === 30 ? 'selected' : ''}>30 giorni</option>
+                                    <option value="90" ${f.daysMax === 90 ? 'selected' : ''}>90 giorni</option>
+                                    <option value="365" ${f.daysMax === 365 ? 'selected' : ''}>Tutti</option>
+                                </select>
+                            </div>
+
+                            <!-- Furnished -->
+                            <div style="margin-bottom:16px">
+                                <label class="form-label">🪑 Arredamento</label>
+                                <div style="display:flex;gap:8px;margin-top:6px">
+                                    <button class="btn btn-sm ${f.furnished === 0 ? '' : 'btn-secondary'}" onclick="preSetCasafariFilter('furnished', 0)">Tutti</button>
+                                    <button class="btn btn-sm ${f.furnished === 1 ? '' : 'btn-secondary'}" onclick="preSetCasafariFilter('furnished', 1)">Arredato</button>
+                                    <button class="btn btn-sm ${f.furnished === 2 ? '' : 'btn-secondary'}" onclick="preSetCasafariFilter('furnished', 2)">Non arredato</button>
+                                </div>
+                            </div>
+
+                            <!-- Private Only -->
+                            <div>
+                                <label class="form-label">👤 Tipologia</label>
+                                <div style="display:flex;gap:8px;margin-top:6px">
+                                    <button class="btn btn-sm ${!f.privateOnly ? '' : 'btn-secondary'}" onclick="preSetCasafariFilter('privateOnly', false)">Tutti</button>
+                                    <button class="btn btn-sm ${f.privateOnly ? '' : 'btn-secondary'}" onclick="preSetCasafariFilter('privateOnly', true)">Solo Privati</button>
+                                </div>
                             </div>
                         </div>
                     </div>
 
+                    <!-- ZONES PANEL -->
                     <div class="card">
-                        <div class="card-header"><h3 class="card-title">📊 Casafari Stats</h3></div>
+                        <div class="card-header"><h3 class="card-title">📍 Zone (${f.zones.length || 'Tutta Roma'})</h3></div>
                         <div class="card-body">
-                            <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px">
-                                <div style="padding:16px;background:var(--bg-elevated);border-radius:12px;text-align:center">
-                                    <div style="font-size:28px;font-weight:700;color:var(--gold)">12K+</div>
-                                    <div style="font-size:11px;color:var(--text-secondary)">Proprietà</div>
-                                </div>
-                                <div style="padding:16px;background:var(--bg-elevated);border-radius:12px;text-align:center">
-                                    <div style="font-size:28px;font-weight:700;color:var(--blue)">61</div>
-                                    <div style="font-size:11px;color:var(--text-secondary)">Alert Attivi</div>
-                                </div>
-                                <div style="padding:16px;background:var(--bg-elevated);border-radius:12px;text-align:center">
-                                    <div style="font-size:28px;font-weight:700;color:var(--green)">24/7</div>
-                                    <div style="font-size:11px;color:var(--text-secondary)">Monitoraggio</div>
-                                </div>
-                                <div style="padding:16px;background:var(--bg-elevated);border-radius:12px;text-align:center">
-                                    <div style="font-size:28px;font-weight:700;color:var(--orange)">14</div>
-                                    <div style="font-size:11px;color:var(--text-secondary)">Zone Mappate</div>
-                                </div>
+                            <p style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">Seleziona le zone da cercare. Lascia vuoto per tutta Roma.</p>
+                            <div style="display:flex;flex-wrap:wrap;gap:8px">
+                                ${zones.map(([slug, z]) => `<button class="btn btn-sm ${f.zones.includes(slug) ? '' : 'btn-secondary'}" onclick="preToggleCasafariZone('${slug}')" style="${f.zones.includes(slug) ? '' : 'opacity:0.7'}">${z.name}</button>`).join('')}
                             </div>
+                            ${f.zones.length > 0 ? `<div style="margin-top:12px;padding:10px;background:var(--bg-elevated);border-radius:8px;font-size:12px"><strong>Selezionate:</strong> ${f.zones.map(z => PRE_ZONES[z]?.name || z).join(', ')}</div>` : ''}
                         </div>
                     </div>
                 </div>
 
+                <!-- PFS CLIENTS QUICK SEARCH -->
+                ${pfsClients.length > 0 ? `
                 <div class="card" style="margin-top:24px">
-                    <div class="card-header"><h3 class="card-title">✅ Claude AI - Capacità Confermate</h3></div>
+                    <div class="card-header"><h3 class="card-title">👥 Cerca per Cliente PFS</h3></div>
                     <div class="card-body">
-                        <div style="padding:16px;background:linear-gradient(135deg,rgba(52,199,89,0.1),rgba(0,122,255,0.1));border-radius:12px;border:1px solid rgba(52,199,89,0.2)">
-                            <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
-                                <span style="font-size:32px">🤖</span>
-                                <div>
-                                    <div style="font-weight:600;font-size:16px">Claude può gestire Casafari autonomamente!</div>
-                                    <div style="font-size:13px;color:var(--text-secondary)">Testato e verificato con successo</div>
-                                </div>
-                            </div>
-                            <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:16px">
-                                <div style="padding:8px 12px;background:var(--bg-elevated);border-radius:8px;font-size:12px">✅ Creare nuovi alert</div>
-                                <div style="padding:8px 12px;background:var(--bg-elevated);border-radius:8px;font-size:12px">✅ Visualizzare statistiche</div>
-                                <div style="padding:8px 12px;background:var(--bg-elevated);border-radius:8px;font-size:12px">✅ Modificare parametri</div>
-                                <div style="padding:8px 12px;background:var(--bg-elevated);border-radius:8px;font-size:12px">✅ Monitorare annunci</div>
-                                <div style="padding:8px 12px;background:var(--bg-elevated);border-radius:8px;font-size:12px">✅ Navigare per zone</div>
-                                <div style="padding:8px 12px;background:var(--bg-elevated);border-radius:8px;font-size:12px">✅ Email giornaliere</div>
-                            </div>
+                        <p style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">Clicca su un cliente per aprire Casafari con i suoi criteri di ricerca.</p>
+                        <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(200px, 1fr));gap:12px">
+                            ${pfsClients.slice(0, 8).map(c => {
+                                const uni = ZI_UNIVERSITIES.find(u => u.id === c.university);
+                                return `<div style="padding:12px;background:var(--bg-elevated);border-radius:10px;cursor:pointer;transition:all .2s" onclick="preOpenCasafariForClient('${c.id}')" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='transparent'">
+                                    <div style="font-weight:600;font-size:14px;margin-bottom:4px">${esc(c.name?.split(' ')[0] || 'Cliente')}</div>
+                                    <div style="font-size:11px;color:var(--text-secondary)">€${c.budget || '?'}/mo · ${c.rooms || '?'} cam · ${uni?.name || '?'}</div>
+                                </div>`;
+                            }).join('')}
+                        </div>
+                    </div>
+                </div>` : ''}
+
+                <!-- CURRENT SEARCH PREVIEW -->
+                <div class="card" style="margin-top:24px;border-color:var(--gold)">
+                    <div class="card-header" style="background:var(--gold-light)"><h3 class="card-title" style="color:var(--gold)">🔍 Riepilogo Ricerca</h3></div>
+                    <div class="card-body">
+                        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px">
+                            <span class="badge gold">€${f.priceMin}-€${f.priceMax}</span>
+                            ${f.roomsMin > 0 ? `<span class="badge blue">${f.roomsMin}+ camere</span>` : ''}
+                            ${f.bathMin > 0 ? `<span class="badge blue">${f.bathMin}+ bagni</span>` : ''}
+                            ${f.areaMin > 0 ? `<span class="badge blue">${f.areaMin}+ mq</span>` : ''}
+                            <span class="badge orange">Ultimi ${f.daysMax} gg</span>
+                            ${f.furnished === 1 ? '<span class="badge green">Arredato</span>' : f.furnished === 2 ? '<span class="badge">Non arredato</span>' : ''}
+                            ${f.privateOnly ? '<span class="badge purple">Solo Privati</span>' : ''}
+                            ${f.zones.length > 0 ? f.zones.map(z => `<span class="badge">${PRE_ZONES[z]?.name || z}</span>`).join('') : '<span class="badge gray">Tutta Roma</span>'}
+                        </div>
+                        <div style="display:flex;gap:12px;flex-wrap:wrap">
+                            <button class="btn" onclick="preOpenCasafari()" style="flex:1;min-width:200px">🔍 APRI CASAFARI CON QUESTI FILTRI</button>
+                            <button class="btn btn-secondary" onclick="preOpenCasafariAlerts()" style="border-color:var(--orange);color:var(--orange)">🔔 Gestisci Alert</button>
                         </div>
                     </div>
                 </div>`;
