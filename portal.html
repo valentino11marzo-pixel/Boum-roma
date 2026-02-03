@@ -10896,72 +10896,6 @@ IBAN: ${l.iban || '-'}`;
         renderPage();
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    // CASAFARI INTEGRATION - Complete Filter System
-    // ═══════════════════════════════════════════════════════════════════════════
-    const CASAFARI_ZONE_IDS = {
-        'trastevere': 542426, 'testaccio': 542407, 'san-lorenzo': 542430, 'pigneto': 542425,
-        'ostiense': 542422, 'prati': 542428, 'monteverde': 542418, 'trieste': 542433,
-        'monti': 542417, 'esquilino': 542410, 'flaminio': 542411, 'nomentano': 542421,
-        'centro-storico': 542405, 'garbatella': 542412, 'roma-provincia': 200595
-    };
-
-    let casafariFilters = {
-        zones: [], priceMin: 400, priceMax: 1500, roomsMin: 0, roomsMax: 0,
-        bathMin: 0, areaMin: 0, daysMax: 30, furnished: 0, privateOnly: false
-    };
-
-    function preBuildCasafariUrl(filters) {
-        const f = filters || casafariFilters;
-        const params = new URLSearchParams({
-            saleType: 'rent', priceMin: f.priceMin || 400, priceMax: f.priceMax || 1500,
-            sort: 'sort-by-days-low-to-high', page: 1, devType: 'old', type: 'search'
-        });
-        if (f.zones && f.zones.length > 0) {
-            const zoneIds = f.zones.map(z => CASAFARI_ZONE_IDS[z]).filter(Boolean);
-            if (zoneIds.length > 0) params.set('locations', zoneIds.join(','));
-        } else { params.set('locations', CASAFARI_ZONE_IDS['roma-provincia']); }
-        if (f.roomsMin > 0) params.set('roomsMin', f.roomsMin);
-        if (f.bathMin > 0) params.set('bathMin', f.bathMin);
-        if (f.areaMin > 0) params.set('totalAreaMin', f.areaMin);
-        if (f.daysMax > 0 && f.daysMax < 365) params.set('daysOnTheMarketMax', f.daysMax);
-        if (f.furnished > 0) params.set('furniture', f.furnished);
-        if (f.privateOnly) params.set('privateSellers', 'true');
-        return 'https://it.casafari.com/metasearch?' + params.toString();
-    }
-
-    function preOpenCasafari(zone) {
-        let filters = { ...casafariFilters };
-        if (zone) filters.zones = [zone];
-        window.open(preBuildCasafariUrl(filters), '_blank');
-        showToast('🔍 Casafari: ' + (zone ? (PRE_ZONES[zone]?.name || zone) : 'Roma'), 'info');
-    }
-
-    function preOpenCasafariForClient(clientId) {
-        const client = (S.pfsClients || []).find(c => c.id === clientId);
-        if (!client) return;
-        const uni = ZI_UNIVERSITIES.find(u => u.id === client.university);
-        const filters = {
-            zones: uni ? uni.zones.slice(0, 3) : [], priceMin: Math.max(300, (client.budget || 1000) - 200),
-            priceMax: client.budget || 1200, roomsMin: client.rooms || 0, bathMin: 0,
-            areaMin: client.minArea || 0, daysMax: 14, furnished: client.furnished ? 1 : 0, privateOnly: false
-        };
-        window.open(preBuildCasafariUrl(filters), '_blank');
-        showToast('🔍 Casafari per ' + (client.name?.split(' ')[0] || 'cliente'), 'success');
-    }
-
-    function preOpenCasafariAlerts() { window.open('https://it.casafari.com/account/alerts', '_blank'); showToast('🔔 Alert Casafari', 'info'); }
-    function preSetCasafariFilter(key, value) { casafariFilters[key] = value; renderPage(); }
-    function preToggleCasafariZone(zone) { const i = casafariFilters.zones.indexOf(zone); i === -1 ? casafariFilters.zones.push(zone) : casafariFilters.zones.splice(i, 1); renderPage(); }
-    function preResetCasafariFilters() { casafariFilters = { zones: [], priceMin: 400, priceMax: 1500, roomsMin: 0, roomsMax: 0, bathMin: 0, areaMin: 0, daysMax: 30, furnished: 0, privateOnly: false }; renderPage(); showToast('🔄 Filtri resettati', 'info'); }
-    function preCasafariPreset(p) {
-        if (p === 'student-budget') casafariFilters = { ...casafariFilters, priceMin: 400, priceMax: 800, roomsMin: 1, furnished: 1, daysMax: 14 };
-        else if (p === 'student-comfort') casafariFilters = { ...casafariFilters, priceMin: 700, priceMax: 1200, roomsMin: 1, furnished: 1, daysMax: 14 };
-        else if (p === 'professional') casafariFilters = { ...casafariFilters, priceMin: 1000, priceMax: 1800, roomsMin: 2, areaMin: 50, daysMax: 30 };
-        else if (p === 'new-listings') casafariFilters = { ...casafariFilters, daysMax: 3 };
-        renderPage(); showToast('⚡ Preset applicato', 'success');
-    }
-
     function preBuildSearchUrl(portal, zone) {
         const z = PRE_ZONES[zone];
         if (!z) return null;
@@ -11978,76 +11912,10 @@ IBAN: ${l.iban || '-'}`;
                 </div>`;
         }
 
-        // CASAFARI TAB
-        else if (preState.currentTab === 'casafari') {
-            const zones = Object.entries(PRE_ZONES).slice(0, 14);
-            const f = casafariFilters;
-            const pfsClients = (S.pfsClients || []).filter(c => !['placed', 'lost'].includes(c.stage));
-            content = `
-                <div style="background:linear-gradient(135deg,rgba(212,175,55,0.15),rgba(0,122,255,0.1));border-radius:16px;padding:28px;margin-bottom:24px;border:1px solid var(--gold)">
-                    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px">
-                        <div><h2 style="font-size:26px;margin-bottom:6px">🏠 CASAFARI Search</h2><p style="color:var(--text-secondary);font-size:13px">Configura filtri e cerca su Casafari</p></div>
-                        <div style="display:flex;gap:10px;flex-wrap:wrap">
-                            <button class="btn" onclick="preOpenCasafari()">🔍 CERCA</button>
-                            <button class="btn btn-secondary" onclick="preOpenCasafariAlerts()" style="border-color:var(--orange);color:var(--orange)">🔔 Alert</button>
-                            <button class="btn btn-secondary" onclick="preResetCasafariFilters()">↺</button>
-                        </div>
-                    </div>
-                </div>
-                <div class="grid-2">
-                    <div class="card"><div class="card-header"><h3 class="card-title">⚙️ Filtri</h3></div><div class="card-body">
-                        <div style="margin-bottom:16px"><label class="form-label">⚡ Preset</label><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">
-                            <button class="btn btn-xs btn-secondary" onclick="preCasafariPreset('student-budget')">🎓 Budget</button>
-                            <button class="btn btn-xs btn-secondary" onclick="preCasafariPreset('student-comfort')">🎓 Comfort</button>
-                            <button class="btn btn-xs btn-secondary" onclick="preCasafariPreset('professional')">💼 Pro</button>
-                            <button class="btn btn-xs btn-secondary" onclick="preCasafariPreset('new-listings')">🆕 Nuovi</button>
-                        </div></div>
-                        <div style="margin-bottom:16px"><label class="form-label">💰 Budget</label><div style="display:flex;gap:8px;margin-top:6px">
-                            <input type="number" class="form-input" value="${f.priceMin}" onchange="preSetCasafariFilter('priceMin',+this.value)" style="margin:0">
-                            <input type="number" class="form-input" value="${f.priceMax}" onchange="preSetCasafariFilter('priceMax',+this.value)" style="margin:0">
-                        </div></div>
-                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
-                            <div><label class="form-label">🛏️ Camere</label><select class="form-select" onchange="preSetCasafariFilter('roomsMin',+this.value)" style="margin:0">
-                                <option value="0" ${f.roomsMin===0?'selected':''}>Tutte</option><option value="1" ${f.roomsMin===1?'selected':''}>1+</option><option value="2" ${f.roomsMin===2?'selected':''}>2+</option><option value="3" ${f.roomsMin===3?'selected':''}>3+</option>
-                            </select></div>
-                            <div><label class="form-label">📐 Mq min</label><select class="form-select" onchange="preSetCasafariFilter('areaMin',+this.value)" style="margin:0">
-                                <option value="0" ${f.areaMin===0?'selected':''}>Tutti</option><option value="30" ${f.areaMin===30?'selected':''}>30+</option><option value="50" ${f.areaMin===50?'selected':''}>50+</option><option value="70" ${f.areaMin===70?'selected':''}>70+</option>
-                            </select></div>
-                        </div>
-                        <div style="margin-bottom:16px"><label class="form-label">📅 Ultimi</label><select class="form-select" onchange="preSetCasafariFilter('daysMax',+this.value)" style="margin:0">
-                            <option value="3" ${f.daysMax===3?'selected':''}>3 gg</option><option value="7" ${f.daysMax===7?'selected':''}>7 gg</option><option value="14" ${f.daysMax===14?'selected':''}>14 gg</option><option value="30" ${f.daysMax===30?'selected':''}>30 gg</option><option value="365" ${f.daysMax===365?'selected':''}>Tutti</option>
-                        </select></div>
-                        <div style="margin-bottom:16px"><label class="form-label">🪑 Arredato</label><div style="display:flex;gap:6px;margin-top:6px">
-                            <button class="btn btn-xs ${f.furnished===0?'':'btn-secondary'}" onclick="preSetCasafariFilter('furnished',0)">Tutti</button>
-                            <button class="btn btn-xs ${f.furnished===1?'':'btn-secondary'}" onclick="preSetCasafariFilter('furnished',1)">Sì</button>
-                            <button class="btn btn-xs ${f.furnished===2?'':'btn-secondary'}" onclick="preSetCasafariFilter('furnished',2)">No</button>
-                        </div></div>
-                    </div></div>
-                    <div class="card"><div class="card-header"><h3 class="card-title">📍 Zone (${f.zones.length||'Tutte'})</h3></div><div class="card-body">
-                        <div style="display:flex;flex-wrap:wrap;gap:6px">${zones.map(([slug,z])=>`<button class="btn btn-xs ${f.zones.includes(slug)?'':'btn-secondary'}" onclick="preToggleCasafariZone('${slug}')" style="${f.zones.includes(slug)?'':'opacity:0.7'}">${z.name}</button>`).join('')}</div>
-                    </div></div>
-                </div>
-                ${pfsClients.length ? `<div class="card" style="margin-top:20px"><div class="card-header"><h3 class="card-title">👥 Cerca per Cliente</h3></div><div class="card-body">
-                    <div style="display:flex;flex-wrap:wrap;gap:10px">${pfsClients.slice(0,6).map(c=>`<button class="btn btn-sm btn-secondary" onclick="preOpenCasafariForClient('${c.id}')">${esc(c.name?.split(' ')[0]||'?')} €${c.budget||'?'}</button>`).join('')}</div>
-                </div></div>` : ''}
-                <div class="card" style="margin-top:20px;border-color:var(--gold)"><div class="card-header" style="background:var(--gold-light)"><h3 class="card-title" style="color:var(--gold)">🔍 Riepilogo</h3></div><div class="card-body">
-                    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px">
-                        <span class="badge gold">€${f.priceMin}-€${f.priceMax}</span>
-                        ${f.roomsMin?`<span class="badge blue">${f.roomsMin}+ cam</span>`:''}
-                        ${f.areaMin?`<span class="badge blue">${f.areaMin}+ mq</span>`:''}
-                        <span class="badge orange">${f.daysMax} gg</span>
-                        ${f.furnished===1?'<span class="badge green">Arredato</span>':f.furnished===2?'<span class="badge">Non arr.</span>':''}
-                        ${f.zones.length?f.zones.map(z=>`<span class="badge">${PRE_ZONES[z]?.name||z}</span>`).join(''):'<span class="badge gray">Tutta Roma</span>'}
-                    </div>
-                    <button class="btn" onclick="preOpenCasafari()" style="width:100%">🔍 APRI CASAFARI CON QUESTI FILTRI</button>
-                </div></div>`;
-        }
-
         return `
             <div class="page-header"><div><h1 class="page-title">🏠 Property Research Engine</h1><p class="page-subtitle">Smart matching · Tracker · Analytics</p></div><button class="btn btn-secondary" onclick="preReset()">🔄</button></div>
             <div class="tabs" style="margin-bottom:24px">
                 <div class="tab ${preState.currentTab === 'dashboard' ? 'active' : ''}" onclick="preState.currentTab='dashboard';renderPage()">📊 Dashboard</div>
-                <div class="tab ${preState.currentTab === 'casafari' ? 'active' : ''}" onclick="preState.currentTab='casafari';renderPage()">🏠 Casafari <span class="nav-badge gold">NEW</span></div>
                 <div class="tab ${preState.currentTab === 'search' ? 'active' : ''}" onclick="preState.currentTab='search';renderPage()">🔍 Cerca</div>
                 <div class="tab ${preState.currentTab === 'properties' ? 'active' : ''}" onclick="preState.currentTab='properties';renderPage()">🏠 Immobili <span class="nav-badge">${active.length}</span></div>
                 <div class="tab ${preState.currentTab === 'matching' ? 'active' : ''}" onclick="preState.currentTab='matching';renderPage()">🎯 Matching</div>
@@ -12060,20 +11928,11 @@ IBAN: ${l.iban || '-'}`;
     // CLIENT PORTAL INTEGRATION
     // ==========================================
 
-    // Cloudinary Configuration (free tier - 25GB)
-    const CLOUDINARY_CONFIG = {
-        cloudName: 'boom-rome', // You'll set this up
-        uploadPreset: 'boom_properties', // Unsigned preset for client uploads
-        folder: 'properties'
-    };
-
-    // Telegram Bot Configuration
     const TELEGRAM_BOT = {
-        token: '7819865804:AAGJOgYNuuQg81pU9l-od2rKJGC4YN9LNXQ', // Your existing bot
-        chatId: '7498056455' // Your chat ID
+        token: '7819865804:AAGJOgYNuuQg81pU9l-od2rKJGC4YN9LNXQ',
+        chatId: '7498056455'
     };
 
-    // Generate unique access code for client
     function generateClientAccessCode(clientName) {
         const prefix = 'BOOM';
         const initials = clientName.split(' ').map(n => n.charAt(0).toUpperCase()).join('').substring(0, 2);
@@ -12081,64 +11940,24 @@ IBAN: ${l.iban || '-'}`;
         return `${prefix}-${initials}${random}`;
     }
 
-    // Send Telegram notification
-    async function sendTelegramNotification(message, silent = false) {
+    async function sendTelegramNotification(message) {
         try {
-            const url = `https://api.telegram.org/bot${TELEGRAM_BOT.token}/sendMessage`;
-            await fetch(url, {
+            await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT.token}/sendMessage`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    chat_id: TELEGRAM_BOT.chatId,
-                    text: message,
-                    parse_mode: 'HTML',
-                    disable_notification: silent
-                })
+                body: JSON.stringify({ chat_id: TELEGRAM_BOT.chatId, text: message, parse_mode: 'HTML' })
             });
-        } catch (err) {
-            console.error('Telegram notification failed:', err);
-        }
+        } catch (err) { console.error('Telegram failed:', err); }
     }
 
-    // Upload image to Cloudinary (returns URL)
-    async function uploadToCloudinary(file) {
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('upload_preset', CLOUDINARY_CONFIG.uploadPreset);
-        formData.append('folder', CLOUDINARY_CONFIG.folder);
-
-        try {
-            const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CONFIG.cloudName}/image/upload`, {
-                method: 'POST',
-                body: formData
-            });
-            const data = await res.json();
-            return data.secure_url;
-        } catch (err) {
-            console.error('Cloudinary upload failed:', err);
-            // Fallback: return data URL
-            return await fileToDataUrl(file);
-        }
-    }
-
-    function fileToDataUrl(file) {
-        return new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result);
-            reader.readAsDataURL(file);
-        });
-    }
-
-    // Open Client Portal Management for a PFS client
     function openClientPortalManager(clientId) {
         const client = (S.pfsClients || []).find(c => c.id === clientId);
         if (!client) return;
 
-        // Generate access code if not exists
         const accessCode = client.portalAccessCode || generateClientAccessCode(client.name);
         const portalEnabled = client.portalEnabled || false;
         const portalProperties = client.portalProperties || [];
-        const portalStage = client.portalStage || mapPFSStageToPortalStage(client.stage);
+        const portalStage = client.portalStage || 'searching';
 
         document.getElementById('modals').innerHTML = `
             <div class="modal-overlay active" onclick="if(event.target===this)closeModal()">
@@ -12149,7 +11968,7 @@ IBAN: ${l.iban || '-'}`;
                             <div>
                                 <h3 class="modal-title">🌐 Client Portal: ${esc(client.name)}</h3>
                                 <div style="display:flex;gap:8px;margin-top:8px">
-                                    <span class="badge ${portalEnabled ? 'green' : 'gray'}">${portalEnabled ? '✓ Portal Active' : '○ Portal Inactive'}</span>
+                                    <span class="badge ${portalEnabled ? 'green' : 'gray'}">${portalEnabled ? '✓ Active' : '○ Inactive'}</span>
                                     <span class="badge gold">${portalProperties.length} properties</span>
                                 </div>
                             </div>
@@ -12157,359 +11976,147 @@ IBAN: ${l.iban || '-'}`;
                         <button class="modal-close" onclick="closeModal()">×</button>
                     </div>
                     <div class="modal-body">
-                        <!-- Access Code Section -->
                         <div class="section-box" style="border-color:var(--gold)">
                             <div class="section-title">🔐 Access Code</div>
                             <div style="display:flex;align-items:center;gap:16px;margin-top:12px">
                                 <code style="font-size:24px;letter-spacing:4px;color:var(--gold);background:var(--bg-input);padding:12px 24px;border-radius:12px;flex:1;text-align:center">${accessCode}</code>
-                                <button class="btn btn-sm" onclick="copyToClipboard('${accessCode}');toast('success','Copied!')">📋</button>
-                                <button class="btn btn-sm btn-secondary" onclick="regenerateAccessCode('${clientId}')">🔄</button>
+                                <button class="btn btn-sm" onclick="navigator.clipboard.writeText('${accessCode}');toast('success','Copied!')">📋</button>
                             </div>
                             <div style="margin-top:16px;display:flex;gap:12px">
                                 <button class="btn ${portalEnabled ? 'btn-danger' : ''}" onclick="toggleClientPortal('${clientId}', ${!portalEnabled})" style="flex:1">
-                                    ${portalEnabled ? '🔒 Disable Portal' : '✓ Enable Portal'}
+                                    ${portalEnabled ? '🔒 Disable' : '✓ Enable Portal'}
                                 </button>
                                 <button class="btn btn-secondary" onclick="sendPortalLinkToClient('${clientId}')" ${!portalEnabled ? 'disabled' : ''} style="flex:1">
-                                    📱 Send Link to Client
+                                    📱 Send to Client
                                 </button>
                             </div>
-                            ${portalEnabled ? `<div style="margin-top:12px;padding:12px;background:var(--green-light);border-radius:8px;font-size:12px;color:var(--green)">
-                                ✓ Client can access at: <a href="https://www.boomrome.com/client-portal" target="_blank" style="color:var(--gold)">boomrome.com/client-portal</a>
-                            </div>` : ''}
                         </div>
 
-                        <!-- Portal Stage -->
                         <div class="section-box">
-                            <div class="section-title">📊 Client Portal Stage</div>
+                            <div class="section-title">📊 Portal Stage</div>
                             <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
                                 ${['searching', 'options', 'viewing', 'closing', 'completed'].map(stage => `
                                     <button class="btn btn-sm ${portalStage === stage ? '' : 'btn-secondary'}" onclick="updateClientPortalStage('${clientId}', '${stage}')">
-                                        ${stage === 'searching' ? '🔍' : stage === 'options' ? '🏠' : stage === 'viewing' ? '📅' : stage === 'closing' ? '📝' : '🎉'}
-                                        ${stage.charAt(0).toUpperCase() + stage.slice(1)}
+                                        ${stage === 'searching' ? '🔍' : stage === 'options' ? '🏠' : stage === 'viewing' ? '📅' : stage === 'closing' ? '📝' : '🎉'} ${stage}
                                     </button>
                                 `).join('')}
                             </div>
                         </div>
 
-                        <!-- Properties for Client -->
                         <div class="section-box">
                             <div style="display:flex;justify-content:space-between;align-items:center">
                                 <div class="section-title">🏠 Properties (${portalProperties.length})</div>
-                                <button class="btn btn-sm" onclick="openAddPropertyForClient('${clientId}')">➕ Add Property</button>
+                                <button class="btn btn-sm" onclick="openAddPropertyForClient('${clientId}')">➕ Add</button>
                             </div>
-                            <div id="clientPropertiesList" style="margin-top:16px">
-                                ${portalProperties.length === 0 ? `
-                                    <div style="text-align:center;padding:40px;color:var(--text-muted)">
-                                        <div style="font-size:48px;margin-bottom:12px">🏠</div>
-                                        <div>No properties added yet</div>
-                                        <div style="font-size:12px;margin-top:8px">Add properties from Casafari or manually</div>
-                                    </div>
-                                ` : portalProperties.map((p, idx) => `
-                                    <div class="info-box" style="margin-bottom:12px;position:relative">
-                                        <div style="display:flex;gap:16px">
-                                            ${p.images?.[0] ? `<img src="${p.images[0]}" style="width:100px;height:80px;object-fit:cover;border-radius:8px">` : '<div style="width:100px;height:80px;background:var(--bg-input);border-radius:8px;display:flex;align-items:center;justify-content:center">🏠</div>'}
+                            <div style="margin-top:16px">
+                                ${portalProperties.length === 0 ? '<div style="text-align:center;padding:30px;color:var(--text-muted)">No properties yet</div>' :
+                                portalProperties.map((p, idx) => `
+                                    <div class="info-box" style="margin-bottom:12px">
+                                        <div style="display:flex;gap:12px;align-items:center">
+                                            ${p.images?.[0] ? `<img src="${p.images[0]}" style="width:60px;height:60px;object-fit:cover;border-radius:8px">` : '<div style="width:60px;height:60px;background:var(--bg-input);border-radius:8px;display:flex;align-items:center;justify-content:center">🏠</div>'}
                                             <div style="flex:1">
-                                                <div style="font-weight:600;font-size:18px;color:var(--gold)">€${p.price}/mo</div>
-                                                <div style="font-size:13px;color:var(--text-secondary)">${esc(p.address || 'No address')}</div>
-                                                <div style="display:flex;gap:8px;margin-top:8px">
+                                                <div style="font-weight:600;color:var(--gold)">€${p.price}/mo</div>
+                                                <div style="font-size:12px;color:var(--text-secondary)">${esc(p.address || 'No address')}</div>
+                                                <div style="display:flex;gap:4px;margin-top:4px">
                                                     <span class="badge">${p.rooms || 1} bed</span>
-                                                    <span class="badge">${p.sqm || '?'}m²</span>
-                                                    <span class="badge ${p.match >= 90 ? 'green' : 'blue'}">${p.match || 85}% match</span>
-                                                    ${p.new ? '<span class="badge gold">NEW</span>' : ''}
+                                                    <span class="badge ${p.match >= 90 ? 'green' : ''}">${p.match || 85}%</span>
+                                                    ${p.clientLiked ? '<span class="badge green">♥ Liked</span>' : ''}
+                                                    ${p.clientRejected ? '<span class="badge red">✕ Rejected</span>' : ''}
                                                 </div>
                                             </div>
-                                            <div style="display:flex;flex-direction:column;gap:4px">
-                                                <button class="btn btn-xs btn-secondary" onclick="editClientProperty('${clientId}', ${idx})">✏️</button>
-                                                <button class="btn btn-xs btn-danger" onclick="removeClientProperty('${clientId}', ${idx})">🗑️</button>
-                                            </div>
+                                            <button class="btn btn-xs btn-danger" onclick="removeClientProperty('${clientId}', ${idx})">🗑️</button>
                                         </div>
-                                        ${p.clientLiked ? '<div style="position:absolute;top:8px;right:8px;color:var(--green)">♥ Liked</div>' : ''}
-                                        ${p.clientRejected ? '<div style="position:absolute;top:8px;right:8px;color:var(--red)">✕ Rejected</div>' : ''}
                                     </div>
                                 `).join('')}
                             </div>
                         </div>
-
-                        <!-- Client Activity -->
-                        <div class="section-box">
-                            <div class="section-title">📱 Client Activity</div>
-                            <div id="clientActivityLog" style="margin-top:12px;max-height:200px;overflow-y:auto">
-                                ${(client.portalActivity || []).slice(0, 10).map(a => `
-                                    <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
-                                        <span>${a.action}</span>
-                                        <span style="font-size:11px;color:var(--text-muted)">${formatTimeAgo(a.timestamp)}</span>
-                                    </div>
-                                `).join('') || '<div style="color:var(--text-muted);text-align:center;padding:20px">No activity yet</div>'}
-                            </div>
-                        </div>
                     </div>
                 </div>
-            </div>
-        `;
+            </div>`;
     }
 
-    // Map PFS pipeline stage to portal stage
-    function mapPFSStageToPortalStage(pfsStage) {
-        const map = {
-            'lead': 'searching',
-            'searching': 'searching',
-            'options': 'options',
-            'viewing': 'viewing',
-            'closing': 'closing',
-            'placed': 'completed'
-        };
-        return map[pfsStage] || 'searching';
-    }
-
-    // Toggle client portal on/off
     async function toggleClientPortal(clientId, enabled) {
-        try {
-            const client = (S.pfsClients || []).find(c => c.id === clientId);
-            if (!client) return;
+        const client = (S.pfsClients || []).find(c => c.id === clientId);
+        if (!client) return;
 
-            // Generate access code if enabling for first time
-            let accessCode = client.portalAccessCode;
-            if (enabled && !accessCode) {
-                accessCode = generateClientAccessCode(client.name);
-            }
+        let accessCode = client.portalAccessCode;
+        if (enabled && !accessCode) accessCode = generateClientAccessCode(client.name);
 
-            await db.collection('pfsClients').doc(clientId).update({
-                portalEnabled: enabled,
-                portalAccessCode: accessCode,
-                portalStage: client.portalStage || mapPFSStageToPortalStage(client.stage),
-                portalUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
+        await db.collection('pfsClients').doc(clientId).update({
+            portalEnabled: enabled,
+            portalAccessCode: accessCode,
+            portalStage: client.portalStage || 'searching',
+            portalUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
 
-            // Update local state
-            client.portalEnabled = enabled;
-            client.portalAccessCode = accessCode;
+        client.portalEnabled = enabled;
+        client.portalAccessCode = accessCode;
 
-            if (enabled) {
-                await sendTelegramNotification(`🌐 <b>Portal Enabled</b>\n👤 ${client.name}\n🔐 Code: <code>${accessCode}</code>`);
-                toast('success', 'Portal Enabled', `Access code: ${accessCode}`);
-            } else {
-                toast('info', 'Portal Disabled');
-            }
-
-            openClientPortalManager(clientId);
-        } catch (err) {
-            toast('error', 'Error', err.message);
+        if (enabled) {
+            await sendTelegramNotification(`🌐 <b>Portal Enabled</b>\n👤 ${client.name}\n🔐 Code: <code>${accessCode}</code>`);
+            toast('success', 'Portal Enabled', accessCode);
+        } else {
+            toast('info', 'Portal Disabled');
         }
+        openClientPortalManager(clientId);
     }
 
-    // Regenerate access code
-    async function regenerateAccessCode(clientId) {
-        try {
-            const client = (S.pfsClients || []).find(c => c.id === clientId);
-            if (!client) return;
-
-            const newCode = generateClientAccessCode(client.name);
-
-            await db.collection('pfsClients').doc(clientId).update({
-                portalAccessCode: newCode,
-                portalUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
-
-            client.portalAccessCode = newCode;
-            toast('success', 'New Code Generated', newCode);
-            openClientPortalManager(clientId);
-        } catch (err) {
-            toast('error', 'Error', err.message);
-        }
-    }
-
-    // Update client portal stage
     async function updateClientPortalStage(clientId, stage) {
-        try {
-            await db.collection('pfsClients').doc(clientId).update({
-                portalStage: stage,
-                portalUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
-
-            const client = (S.pfsClients || []).find(c => c.id === clientId);
-            if (client) client.portalStage = stage;
-
-            toast('success', 'Stage Updated', stage);
-            openClientPortalManager(clientId);
-        } catch (err) {
-            toast('error', 'Error', err.message);
-        }
+        await db.collection('pfsClients').doc(clientId).update({
+            portalStage: stage,
+            portalUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        const client = (S.pfsClients || []).find(c => c.id === clientId);
+        if (client) client.portalStage = stage;
+        toast('success', 'Stage Updated');
+        openClientPortalManager(clientId);
     }
 
-    // Send portal link to client via WhatsApp
     function sendPortalLinkToClient(clientId) {
         const client = (S.pfsClients || []).find(c => c.id === clientId);
-        if (!client || !client.phone) {
-            toast('error', 'No Phone', 'Add phone number first');
-            return;
-        }
+        if (!client?.phone) { toast('error', 'No phone number'); return; }
 
-        const message = `🏠 *BOOM Property Search*
+        const msg = `🏠 *BOOM Property Search*
 
-Hi ${client.name?.split(' ')[0] || 'there'}! 👋
+Hi ${client.name?.split(' ')[0]}! 👋
 
-Your personalized property search portal is ready!
+Your property portal is ready!
 
-🔗 *Portal:* https://www.boomrome.com/client-portal
-🔐 *Your Code:* ${client.portalAccessCode}
+🔗 *Portal:* https://www.boomrome.com/client-portal.html
+🔐 *Code:* ${client.portalAccessCode}
 
-You can:
-✓ View properties we've selected for you
-✓ Like or pass on each option
-✓ Track your search progress
-✓ Contact us instantly
+Questions? Reply here! 💬`;
 
-Questions? Just reply here! 💬`;
-
-        const phone = client.phone.replace(/[^0-9+]/g, '');
-        window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
-
-        // Log activity
-        logPFSActivity(`📱 Sent portal link to ${client.name}`);
+        window.open(`https://wa.me/${client.phone.replace(/[^0-9+]/g, '')}?text=${encodeURIComponent(msg)}`, '_blank');
     }
 
-    // Send WhatsApp notification when new property is added
-    function sendPropertyWhatsAppNotification(client, property) {
-        if (!client.phone) return;
-
-        const message = `🏠 *New Property Alert!*
-
-Hey ${client.name?.split(' ')[0] || 'there'}! 👋
-
-Great news! I just added a new property option for you:
-
-💰 *€${property.price}/month*
-📍 ${property.address}
-🎯 ${property.match}% match with your criteria
-${property.rooms ? `🛏️ ${property.rooms} bedroom${property.rooms > 1 ? 's' : ''}` : ''}
-${property.sqm ? `📐 ${property.sqm}m²` : ''}
-
-👉 *Check it out now:*
-https://www.boomrome.com/client-portal
-🔐 Code: ${client.portalAccessCode || 'Check your previous message'}
-
-Swipe right if you like it! ❤️`;
-
-        const phone = client.phone.replace(/[^0-9+]/g, '');
-        window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
-
-        logPFSActivity(`📱 Sent property notification to ${client.name}: ${property.address}`);
-    }
-
-    // Open add property modal for client
     function openAddPropertyForClient(clientId) {
         const client = (S.pfsClients || []).find(c => c.id === clientId);
         if (!client) return;
 
         document.getElementById('modals').innerHTML = `
             <div class="modal-overlay active" onclick="if(event.target===this)closeModal()">
-                <div class="modal lg" onclick="event.stopPropagation()">
+                <div class="modal lg">
                     <div class="modal-header">
                         <h3 class="modal-title">➕ Add Property for ${esc(client.name)}</h3>
                         <button class="modal-close" onclick="closeModal()">×</button>
                     </div>
                     <div class="modal-body">
-                        <form id="addPropertyForm" onsubmit="savePropertyForClient(event, '${clientId}')">
-                            <!-- Images Upload -->
-                            <div class="section-box">
-                                <div class="section-title">📸 Images</div>
-                                <div id="propertyImagesPreview" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px"></div>
-                                <div style="display:flex;gap:12px">
-                                    <label class="btn btn-secondary" style="flex:1;cursor:pointer">
-                                        📷 Upload Images
-                                        <input type="file" id="propertyImages" accept="image/*" multiple hidden onchange="previewPropertyImages(this)">
-                                    </label>
-                                    <div style="flex:1">
-                                        <input type="text" class="form-input" id="propertyImageUrl" placeholder="Or paste image URL..." style="margin:0" onchange="addImageUrlToPreview(this.value)">
-                                    </div>
-                                </div>
-                                <p style="font-size:11px;color:var(--text-muted);margin-top:8px">💡 Tip: Right-click images on Casafari → Copy Image Address → Paste above</p>
+                        <form onsubmit="savePropertyForClient(event, '${clientId}')">
+                            <div class="form-group">
+                                <label class="form-label">Image URLs (one per line - paste from Casafari)</label>
+                                <textarea class="form-textarea" name="imageUrls" rows="3" placeholder="https://image1.jpg&#10;https://image2.jpg&#10;https://image3.jpg"></textarea>
                             </div>
-
-                            <!-- Property Details -->
-                            <div class="section-box">
-                                <div class="section-title">🏠 Property Details</div>
-                                <div class="form-row">
-                                    <div class="form-group">
-                                        <label class="form-label">Price (€/month) *</label>
-                                        <input type="number" class="form-input" name="price" required placeholder="850">
-                                    </div>
-                                    <div class="form-group">
-                                        <label class="form-label">Match Score (%)</label>
-                                        <input type="number" class="form-input" name="match" placeholder="95" min="0" max="100" value="85">
-                                    </div>
-                                </div>
-                                <div class="form-group">
-                                    <label class="form-label">Address *</label>
-                                    <input type="text" class="form-input" name="address" required placeholder="Via del Corso 45, Trastevere">
-                                </div>
-                                <div class="form-row">
-                                    <div class="form-group">
-                                        <label class="form-label">Bedrooms</label>
-                                        <select class="form-select" name="rooms">
-                                            <option value="1">1 bedroom</option>
-                                            <option value="2">2 bedrooms</option>
-                                            <option value="3">3+ bedrooms</option>
-                                        </select>
-                                    </div>
-                                    <div class="form-group">
-                                        <label class="form-label">Bathrooms</label>
-                                        <select class="form-select" name="baths">
-                                            <option value="1">1 bathroom</option>
-                                            <option value="2">2 bathrooms</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="form-row">
-                                    <div class="form-group">
-                                        <label class="form-label">Size (m²)</label>
-                                        <input type="number" class="form-input" name="sqm" placeholder="45">
-                                    </div>
-                                    <div class="form-group">
-                                        <label class="form-label">Floor</label>
-                                        <input type="number" class="form-input" name="floor" placeholder="3">
-                                    </div>
-                                </div>
+                            <div class="form-row">
+                                <div class="form-group"><label class="form-label">Price €/mo *</label><input type="number" class="form-input" name="price" required></div>
+                                <div class="form-group"><label class="form-label">Match %</label><input type="number" class="form-input" name="match" value="85"></div>
                             </div>
-
-                            <!-- Features -->
-                            <div class="section-box">
-                                <div class="section-title">✨ Features</div>
-                                <div style="display:flex;flex-wrap:wrap;gap:8px" id="featureButtons">
-                                    ${['Furnished', 'Balcony', 'AC', 'Washing Machine', 'Dishwasher', 'Elevator', 'Terrace', 'Parking', 'Pets OK', 'Bills Included'].map(f => `
-                                        <button type="button" class="btn btn-xs btn-secondary feature-btn" onclick="toggleFeature(this, '${f}')" data-feature="${f}">${f}</button>
-                                    `).join('')}
-                                </div>
-                                <input type="hidden" name="features" id="selectedFeatures" value="">
+                            <div class="form-group"><label class="form-label">Address *</label><input type="text" class="form-input" name="address" required></div>
+                            <div class="form-row">
+                                <div class="form-group"><label class="form-label">Bedrooms</label><input type="number" class="form-input" name="rooms" value="1"></div>
+                                <div class="form-group"><label class="form-label">m²</label><input type="number" class="form-input" name="sqm"></div>
                             </div>
-
-                            <!-- Extra Info -->
-                            <div class="section-box">
-                                <div class="section-title">📝 Extra</div>
-                                <div class="form-group">
-                                    <label class="form-label">Description</label>
-                                    <textarea class="form-textarea" name="description" rows="2" placeholder="Beautiful bright apartment in the heart of Trastevere..."></textarea>
-                                </div>
-                                <div class="form-group">
-                                    <label class="form-label">Source URL (Casafari/Idealista link)</label>
-                                    <input type="url" class="form-input" name="sourceUrl" placeholder="https://casafari.com/...">
-                                </div>
-                                <div class="form-row">
-                                    <div class="form-group">
-                                        <label class="form-label">Available From</label>
-                                        <input type="date" class="form-input" name="available">
-                                    </div>
-                                    <div class="form-group" style="display:flex;align-items:center;gap:12px;padding-top:24px">
-                                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
-                                            <input type="checkbox" name="isNew" checked> Mark as NEW
-                                        </label>
-                                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
-                                            <input type="checkbox" name="isHot"> Mark as HOT 🔥
-                                        </label>
-                                    </div>
-                                </div>
-                            </div>
-
+                            <div class="form-group"><label class="form-label">Description</label><textarea class="form-textarea" name="description" rows="2"></textarea></div>
                             <div style="display:flex;gap:12px;margin-top:20px">
                                 <button type="button" class="btn btn-secondary" onclick="openClientPortalManager('${clientId}')">Cancel</button>
                                 <button type="submit" class="btn" style="flex:1">✓ Add Property</button>
@@ -12517,228 +12124,76 @@ Swipe right if you like it! ❤️`;
                         </form>
                     </div>
                 </div>
-            </div>
-        `;
+            </div>`;
     }
 
-    let pendingImageUrls = [];
-
-    function previewPropertyImages(input) {
-        const preview = document.getElementById('propertyImagesPreview');
-        Array.from(input.files).forEach(file => {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                pendingImageUrls.push({ type: 'file', file, preview: e.target.result });
-                renderImagePreviews();
-            };
-            reader.readAsDataURL(file);
-        });
-    }
-
-    function addImageUrlToPreview(url) {
-        if (!url) return;
-        pendingImageUrls.push({ type: 'url', url });
-        document.getElementById('propertyImageUrl').value = '';
-        renderImagePreviews();
-    }
-
-    function renderImagePreviews() {
-        const preview = document.getElementById('propertyImagesPreview');
-        preview.innerHTML = pendingImageUrls.map((img, idx) => `
-            <div style="position:relative;width:80px;height:80px">
-                <img src="${img.type === 'url' ? img.url : img.preview}" style="width:100%;height:100%;object-fit:cover;border-radius:8px">
-                <button type="button" onclick="removeImagePreview(${idx})" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;background:var(--red);border:none;border-radius:50%;color:#fff;font-size:12px;cursor:pointer">×</button>
-                ${idx === 0 ? '<span style="position:absolute;bottom:4px;left:4px;font-size:9px;background:var(--gold);color:#000;padding:2px 6px;border-radius:4px">MAIN</span>' : ''}
-            </div>
-        `).join('');
-    }
-
-    function removeImagePreview(idx) {
-        pendingImageUrls.splice(idx, 1);
-        renderImagePreviews();
-    }
-
-    function toggleFeature(btn, feature) {
-        btn.classList.toggle('btn-secondary');
-        updateSelectedFeatures();
-    }
-
-    function updateSelectedFeatures() {
-        const selected = Array.from(document.querySelectorAll('.feature-btn:not(.btn-secondary)')).map(b => b.dataset.feature);
-        document.getElementById('selectedFeatures').value = selected.join(',');
-    }
-
-    // Save property for client
     async function savePropertyForClient(e, clientId) {
         e.preventDefault();
         const form = new FormData(e.target);
 
-        try {
-            // Upload images
-            const imageUrls = [];
-            for (const img of pendingImageUrls) {
-                if (img.type === 'url') {
-                    imageUrls.push(img.url);
-                } else {
-                    // For files, try Cloudinary or fallback to data URL
-                    const url = await uploadToCloudinary(img.file);
-                    imageUrls.push(url);
-                }
-            }
+        // Parse multiple image URLs (one per line)
+        const imageUrls = (form.get('imageUrls') || '').split('\n').map(u => u.trim()).filter(u => u.startsWith('http'));
 
-            const property = {
-                id: 'prop_' + Date.now(),
-                price: parseInt(form.get('price')) || 0,
-                address: form.get('address') || '',
-                rooms: parseInt(form.get('rooms')) || 1,
-                baths: parseInt(form.get('baths')) || 1,
-                sqm: parseInt(form.get('sqm')) || null,
-                floor: parseInt(form.get('floor')) || null,
-                match: parseInt(form.get('match')) || 85,
-                images: imageUrls,
-                features: form.get('features')?.split(',').filter(f => f) || [],
-                description: form.get('description') || '',
-                sourceUrl: form.get('sourceUrl') || '',
-                available: form.get('available') || '',
-                new: form.get('isNew') === 'on',
-                hot: form.get('isHot') === 'on',
-                addedAt: new Date().toISOString(),
-                clientLiked: false,
-                clientRejected: false
-            };
+        const property = {
+            id: 'prop_' + Date.now(),
+            price: parseInt(form.get('price')) || 0,
+            address: form.get('address') || '',
+            rooms: parseInt(form.get('rooms')) || 1,
+            baths: 1,
+            sqm: parseInt(form.get('sqm')) || 0,
+            match: parseInt(form.get('match')) || 85,
+            images: imageUrls.length > 0 ? imageUrls : ['https://via.placeholder.com/400x300?text=No+Image'],
+            description: form.get('description') || '',
+            isNew: true,
+            addedAt: new Date().toISOString()
+        };
 
-            const client = (S.pfsClients || []).find(c => c.id === clientId);
-            if (!client) throw new Error('Client not found');
-
-            const portalProperties = client.portalProperties || [];
-            portalProperties.push(property);
-
-            await db.collection('pfsClients').doc(clientId).update({
-                portalProperties,
-                portalUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
-
-            client.portalProperties = portalProperties;
-            pendingImageUrls = [];
-
-            // Send Telegram notification
-            await sendTelegramNotification(`🏠 <b>New Property Added</b>\n👤 For: ${client.name}\n💰 €${property.price}/mo\n📍 ${property.address}\n🎯 ${property.match}% match`);
-
-            // Ask to send WhatsApp notification to client
-            const sendWA = confirm(`Property added! Send WhatsApp notification to ${client.name}?`);
-            if (sendWA && client.phone) {
-                sendPropertyWhatsAppNotification(client, property);
-            }
-
-            toast('success', 'Property Added!', `${property.address}`);
-            openClientPortalManager(clientId);
-        } catch (err) {
-            toast('error', 'Error', err.message);
-        }
-    }
-
-    // Remove property from client portal
-    async function removeClientProperty(clientId, propertyIndex) {
-        if (!confirm('Remove this property?')) return;
-
-        try {
-            const client = (S.pfsClients || []).find(c => c.id === clientId);
-            if (!client) return;
-
-            const portalProperties = [...(client.portalProperties || [])];
-            portalProperties.splice(propertyIndex, 1);
-
-            await db.collection('pfsClients').doc(clientId).update({
-                portalProperties,
-                portalUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
-
-            client.portalProperties = portalProperties;
-            toast('success', 'Property Removed');
-            openClientPortalManager(clientId);
-        } catch (err) {
-            toast('error', 'Error', err.message);
-        }
-    }
-
-    // Edit client property (simple version)
-    function editClientProperty(clientId, propertyIndex) {
         const client = (S.pfsClients || []).find(c => c.id === clientId);
         if (!client) return;
 
-        const property = client.portalProperties?.[propertyIndex];
-        if (!property) return;
+        const portalProperties = client.portalProperties || [];
+        portalProperties.push(property);
 
-        // For now, just toggle new/hot status
-        const newMatch = prompt('Update match score (0-100):', property.match);
-        if (newMatch !== null) {
-            property.match = parseInt(newMatch) || property.match;
-            db.collection('pfsClients').doc(clientId).update({
-                portalProperties: client.portalProperties,
-                portalUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
-            }).then(() => {
-                toast('success', 'Updated');
-                openClientPortalManager(clientId);
-            });
+        await db.collection('pfsClients').doc(clientId).update({
+            portalProperties,
+            portalUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        client.portalProperties = portalProperties;
+
+        await sendTelegramNotification(`🏠 <b>Property Added</b>\n👤 ${client.name}\n💰 €${property.price}/mo\n📍 ${property.address}`);
+
+        if (client.phone && confirm(`Send WhatsApp to ${client.name}?`)) {
+            const msg = `🏠 *New Property!*
+
+Hey ${client.name?.split(' ')[0]}! 👋
+
+New option for you:
+💰 *€${property.price}/mo*
+📍 ${property.address}
+🎯 ${property.match}% match
+
+Check it: https://www.boomrome.com/client-portal.html`;
+            window.open(`https://wa.me/${client.phone.replace(/[^0-9+]/g, '')}?text=${encodeURIComponent(msg)}`, '_blank');
         }
+
+        toast('success', 'Property Added!');
+        openClientPortalManager(clientId);
     }
 
-    // Format time ago
-    function formatTimeAgo(timestamp) {
-        if (!timestamp) return 'Unknown';
-        const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-        const seconds = Math.floor((new Date() - date) / 1000);
-        if (seconds < 60) return 'Just now';
-        if (seconds < 3600) return Math.floor(seconds / 60) + 'm ago';
-        if (seconds < 86400) return Math.floor(seconds / 3600) + 'h ago';
-        return Math.floor(seconds / 86400) + 'd ago';
+    async function removeClientProperty(clientId, idx) {
+        if (!confirm('Remove?')) return;
+        const client = (S.pfsClients || []).find(c => c.id === clientId);
+        if (!client) return;
+
+        const portalProperties = [...(client.portalProperties || [])];
+        portalProperties.splice(idx, 1);
+
+        await db.collection('pfsClients').doc(clientId).update({ portalProperties });
+        client.portalProperties = portalProperties;
+        toast('success', 'Removed');
+        openClientPortalManager(clientId);
     }
-
-    // Copy to clipboard helper
-    function copyToClipboard(text) {
-        navigator.clipboard.writeText(text);
-    }
-
-    // Listen for client portal activity (real-time)
-    function setupClientPortalListener() {
-        // Listen for changes to pfsClients where client has interacted with portal
-        db.collection('pfsClients')
-            .where('portalEnabled', '==', true)
-            .onSnapshot(snapshot => {
-                snapshot.docChanges().forEach(change => {
-                    if (change.type === 'modified') {
-                        const data = change.doc.data();
-                        const lastActivity = data.portalActivity?.[0];
-
-                        // Check if this is a new client action
-                        if (lastActivity && !lastActivity.notified) {
-                            const actionType = lastActivity.type;
-                            if (actionType === 'like' || actionType === 'reject') {
-                                sendTelegramNotification(
-                                    `${actionType === 'like' ? '💚' : '❌'} <b>Client ${actionType === 'like' ? 'LIKED' : 'REJECTED'}</b>\n` +
-                                    `👤 ${data.name}\n` +
-                                    `🏠 ${lastActivity.propertyAddress || 'Property'}\n` +
-                                    `💰 €${lastActivity.propertyPrice || '?'}/mo`
-                                );
-
-                                // Mark as notified
-                                db.collection('pfsClients').doc(change.doc.id).update({
-                                    [`portalActivity.0.notified`]: true
-                                });
-                            }
-                        }
-                    }
-                });
-            });
-    }
-
-    // Initialize listener when app loads
-    if (typeof db !== 'undefined') {
-        setupClientPortalListener();
-    }
-
-    // Add Portal button to PFS client detail modal - this patches the existing function
-    const originalOpenPFSClientDetail = typeof openPFSClientDetail !== 'undefined' ? openPFSClientDetail : null;
 
     console.log('✅ Client Portal Integration loaded');
 
