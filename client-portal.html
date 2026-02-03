@@ -1,0 +1,1645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#000000">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>BOOM — Your Property Search</title>
+    <link rel="icon" href="https://www.boomrome.com/BOOMlogogoldicon512.png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --gold: #D4AF37;
+            --gold-light: rgba(212, 175, 55, 0.15);
+            --gold-glow: rgba(212, 175, 55, 0.5);
+            --bg: #000;
+            --bg-card: #0A0A0A;
+            --bg-elevated: #111;
+            --border: rgba(255,255,255,0.08);
+            --text: #FFF;
+            --text-secondary: #888;
+            --text-muted: #555;
+            --green: #00D26A;
+            --green-light: rgba(0, 210, 106, 0.15);
+            --green-glow: rgba(0, 210, 106, 0.5);
+            --red: #FF3B30;
+            --red-light: rgba(255, 59, 48, 0.15);
+            --blue: #0A84FF;
+            --blue-light: rgba(10, 132, 255, 0.15);
+            --purple: #BF5AF2;
+            --purple-light: rgba(191, 90, 242, 0.15);
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            min-height: 100dvh;
+            -webkit-font-smoothing: antialiased;
+            overflow-x: hidden;
+            overscroll-behavior: none;
+        }
+
+        /* Premium grain texture */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+            opacity: 0.025;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* Glow effects */
+        .glow-gold { box-shadow: 0 0 40px var(--gold-glow), 0 0 80px rgba(212, 175, 55, 0.2); }
+        .glow-green { box-shadow: 0 0 40px var(--green-glow), 0 0 80px rgba(0, 210, 106, 0.2); }
+
+        /* Loading Screen - Premium */
+        .loading {
+            position: fixed;
+            inset: 0;
+            background: var(--bg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 32px;
+            z-index: 9999;
+            transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.6s;
+        }
+        .loading.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+        .loading-ring {
+            width: 80px;
+            height: 80px;
+            position: relative;
+        }
+        .loading-ring::before, .loading-ring::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            border: 3px solid transparent;
+        }
+        .loading-ring::before {
+            border-top-color: var(--gold);
+            animation: spin 1s linear infinite;
+        }
+        .loading-ring::after {
+            border-right-color: var(--gold);
+            opacity: 0.3;
+            animation: spin 1.5s linear infinite reverse;
+        }
+        .loading-text {
+            font-size: 12px;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            color: var(--gold);
+            opacity: 0.8;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Auth Screen */
+        .auth {
+            min-height: 100vh;
+            min-height: 100dvh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            position: relative;
+        }
+        .auth.hidden { display: none; }
+        .auth::before {
+            content: '';
+            position: absolute;
+            top: 20%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, var(--gold-glow) 0%, transparent 70%);
+            opacity: 0.3;
+            pointer-events: none;
+        }
+        .auth-container {
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+            position: relative;
+            z-index: 1;
+        }
+        .auth-logo {
+            width: 100px;
+            height: 100px;
+            background: linear-gradient(135deg, var(--gold), #B8960C);
+            border-radius: 50%;
+            margin: 0 auto 40px;
+            box-shadow: 0 0 60px var(--gold-glow), 0 20px 40px rgba(0,0,0,0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: breathe 4s ease-in-out infinite;
+        }
+        @keyframes breathe {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 60px var(--gold-glow); }
+            50% { transform: scale(1.05); box-shadow: 0 0 80px var(--gold-glow); }
+        }
+        .auth-logo img { width: 60px; height: 60px; object-fit: contain; }
+        .auth-title {
+            font-size: 14px;
+            letter-spacing: 8px;
+            text-transform: uppercase;
+            color: var(--gold);
+            margin-bottom: 12px;
+            font-weight: 300;
+        }
+        .auth-subtitle {
+            font-size: 32px;
+            font-weight: 200;
+            margin-bottom: 48px;
+            line-height: 1.3;
+            background: linear-gradient(180deg, #fff 0%, #888 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .auth-input {
+            width: 100%;
+            padding: 20px 24px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            color: var(--text);
+            font-size: 20px;
+            font-family: inherit;
+            text-align: center;
+            letter-spacing: 6px;
+            text-transform: uppercase;
+            margin-bottom: 16px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .auth-input:focus {
+            outline: none;
+            border-color: var(--gold);
+            box-shadow: 0 0 0 4px var(--gold-light), 0 0 40px var(--gold-glow);
+            background: rgba(212, 175, 55, 0.05);
+        }
+        .auth-input::placeholder { color: var(--text-muted); letter-spacing: 0; text-transform: none; font-size: 16px; }
+        .auth-btn {
+            width: 100%;
+            padding: 20px 32px;
+            background: linear-gradient(135deg, var(--gold), #B8960C);
+            border: none;
+            border-radius: 16px;
+            color: #000;
+            font-size: 14px;
+            font-weight: 700;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            position: relative;
+            overflow: hidden;
+        }
+        .auth-btn::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, transparent 0%, rgba(255,255,255,0.2) 50%, transparent 100%);
+            transform: translateX(-100%);
+            transition: transform 0.5s;
+        }
+        .auth-btn:hover::before { transform: translateX(100%); }
+        .auth-btn:hover { transform: translateY(-3px); box-shadow: 0 20px 40px var(--gold-glow); }
+        .auth-btn:active { transform: scale(0.98) translateY(0); }
+        .auth-error {
+            margin-top: 20px;
+            padding: 16px;
+            background: var(--red-light);
+            border: 1px solid rgba(255, 59, 48, 0.3);
+            border-radius: 12px;
+            color: var(--red);
+            font-size: 14px;
+            display: none;
+            animation: shake 0.5s ease-in-out;
+        }
+        .auth-error.show { display: block; }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-10px); }
+            40%, 80% { transform: translateX(10px); }
+        }
+        .auth-help { margin-top: 40px; font-size: 13px; color: var(--text-muted); }
+        .auth-help a { color: var(--gold); text-decoration: none; font-weight: 500; }
+
+        /* App Container */
+        .app { display: none; position: relative; z-index: 1; }
+        .app.active { display: block; }
+
+        /* Header */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 72px;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            z-index: 100;
+        }
+        .header-logo { display: flex; align-items: center; gap: 12px; }
+        .header-logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--gold), #B8960C);
+            border-radius: 50%;
+            box-shadow: 0 0 20px var(--gold-glow);
+        }
+        .header-logo-text { font-size: 14px; letter-spacing: 4px; font-weight: 300; }
+        .header-right { display: flex; align-items: center; gap: 12px; }
+        .header-notif {
+            width: 44px;
+            height: 44px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+        .header-notif:active { transform: scale(0.95); }
+        .header-notif-badge {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            min-width: 20px;
+            height: 20px;
+            background: var(--red);
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 6px;
+            animation: pop 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+        @keyframes pop {
+            0% { transform: scale(0); }
+            100% { transform: scale(1); }
+        }
+        .header-avatar {
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, var(--gold), #B8960C);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 16px;
+            color: #000;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .header-avatar:active { transform: scale(0.95); }
+
+        /* Main Content */
+        .main {
+            padding: 88px 20px 100px;
+            max-width: 500px;
+            margin: 0 auto;
+            min-height: 100vh;
+            min-height: 100dvh;
+        }
+
+        /* Status Hero - Ultra Premium */
+        .status-hero {
+            text-align: center;
+            padding: 40px 20px 48px;
+            margin-bottom: 32px;
+            position: relative;
+        }
+        .status-icon {
+            font-size: 80px;
+            margin-bottom: 24px;
+            display: inline-block;
+            filter: drop-shadow(0 10px 20px rgba(0,0,0,0.3));
+            animation: float 4s ease-in-out infinite;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0) rotate(-2deg); }
+            50% { transform: translateY(-15px) rotate(2deg); }
+        }
+        .status-title {
+            font-size: 36px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            line-height: 1.1;
+            background: linear-gradient(135deg, #fff 0%, #ccc 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .status-subtitle {
+            font-size: 15px;
+            color: var(--text-secondary);
+            max-width: 320px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+        .status-update {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 24px;
+            padding: 12px 24px;
+            background: var(--green-light);
+            border: 1px solid rgba(0, 210, 106, 0.2);
+            border-radius: 100px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--green);
+        }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--green);
+            border-radius: 50%;
+            animation: pulse-dot 2s infinite;
+        }
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.2); }
+        }
+
+        /* Progress Steps - Ultra Satisfying */
+        .progress {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 48px;
+            position: relative;
+            padding: 0 8px;
+        }
+        .progress-track {
+            position: absolute;
+            top: 24px;
+            left: 40px;
+            right: 40px;
+            height: 4px;
+            background: var(--border);
+            border-radius: 2px;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--green), var(--gold));
+            border-radius: 2px;
+            transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 0 20px var(--green-glow);
+        }
+        .progress-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            position: relative;
+            z-index: 1;
+        }
+        .progress-dot {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: var(--bg-card);
+            border: 3px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: 700;
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .progress-step.completed .progress-dot {
+            background: var(--green);
+            border-color: var(--green);
+            color: #000;
+            box-shadow: 0 0 20px var(--green-glow);
+        }
+        .progress-step.active .progress-dot {
+            background: var(--gold);
+            border-color: var(--gold);
+            color: #000;
+            box-shadow: 0 0 30px var(--gold-glow);
+            animation: active-pulse 2s infinite;
+        }
+        @keyframes active-pulse {
+            0%, 100% { box-shadow: 0 0 20px var(--gold-glow); }
+            50% { box-shadow: 0 0 40px var(--gold-glow); }
+        }
+        .progress-label {
+            font-size: 10px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+            transition: color 0.3s;
+        }
+        .progress-step.completed .progress-label,
+        .progress-step.active .progress-label { color: var(--text-secondary); }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 32px;
+        }
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 20px 12px;
+            text-align: center;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .stat-card:active { transform: scale(0.97); }
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 4px;
+            background: linear-gradient(135deg, #fff 0%, #888 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .stat-value.gold {
+            background: linear-gradient(135deg, var(--gold) 0%, #FFE082 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .stat-value.green {
+            background: linear-gradient(135deg, var(--green) 0%, #69F0AE 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .stat-label {
+            font-size: 10px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        /* Section */
+        .section { margin-bottom: 32px; }
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+        .section-title {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+        .section-badge {
+            padding: 6px 14px;
+            background: var(--gold-light);
+            color: var(--gold);
+            border-radius: 100px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        /* Property Card Stack - TINDER ULTRA */
+        .property-stack {
+            position: relative;
+            height: 520px;
+            margin-bottom: 20px;
+            perspective: 1000px;
+        }
+        .property-card {
+            position: absolute;
+            width: 100%;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 28px;
+            overflow: hidden;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s;
+            cursor: grab;
+            user-select: none;
+            will-change: transform;
+            -webkit-user-select: none;
+            touch-action: pan-y;
+        }
+        .property-card:active { cursor: grabbing; }
+        .property-card.dragging { transition: none; }
+        .property-card.liked {
+            transform: translateX(120%) rotate(15deg) !important;
+            opacity: 0;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .property-card.rejected {
+            transform: translateX(-120%) rotate(-15deg) !important;
+            opacity: 0;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .property-card.superliked {
+            transform: translateY(-120%) scale(0.8) !important;
+            opacity: 0;
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .property-image {
+            height: 300px;
+            background: linear-gradient(135deg, #1a1a1a, #0a0a0a);
+            position: relative;
+            overflow: hidden;
+        }
+        .property-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .property-card:hover .property-image img { transform: scale(1.05); }
+        .property-image-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.3) 40%, transparent 70%);
+        }
+        .property-badges {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            right: 16px;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .property-badge {
+            padding: 10px 16px;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(10px);
+            border-radius: 100px;
+            font-size: 13px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .property-badge.match { background: var(--green); color: #000; }
+        .property-badge.new { background: var(--gold); color: #000; }
+        .property-badge.hot { background: var(--red); color: #fff; animation: hot-pulse 1s infinite; }
+        @keyframes hot-pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        /* Swipe Feedback Stamps */
+        .swipe-stamp {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%) rotate(-15deg);
+            padding: 20px 32px;
+            border-radius: 12px;
+            font-size: 32px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            opacity: 0;
+            transition: opacity 0.15s;
+            pointer-events: none;
+        }
+        .swipe-stamp.like {
+            right: 30px;
+            border: 4px solid var(--green);
+            color: var(--green);
+            transform: translateY(-50%) rotate(15deg);
+        }
+        .swipe-stamp.nope {
+            left: 30px;
+            border: 4px solid var(--red);
+            color: var(--red);
+        }
+        .property-card.swiping-right .swipe-stamp.like { opacity: 1; }
+        .property-card.swiping-left .swipe-stamp.nope { opacity: 1; }
+
+        .property-content { padding: 24px; }
+        .property-price {
+            font-size: 36px;
+            font-weight: 800;
+            margin-bottom: 4px;
+            background: linear-gradient(135deg, #fff 0%, #ccc 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .property-price span { font-size: 16px; font-weight: 400; opacity: 0.6; }
+        .property-address {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .property-features {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .property-feature {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            color: var(--text-secondary);
+            padding: 10px 14px;
+            background: var(--bg-elevated);
+            border-radius: 12px;
+            font-weight: 500;
+        }
+
+        /* Swipe Action Buttons */
+        .swipe-actions {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 16px;
+            padding: 0 20px;
+        }
+        .swipe-btn {
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+        .swipe-btn::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at center, rgba(255,255,255,0.3) 0%, transparent 70%);
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .swipe-btn:active::after { opacity: 1; }
+        .swipe-btn:active { transform: scale(0.9); }
+        .swipe-btn.small { width: 52px; height: 52px; font-size: 22px; }
+        .swipe-btn.large { width: 72px; height: 72px; font-size: 32px; }
+        .swipe-btn.reject {
+            background: var(--bg-card);
+            border: 3px solid var(--red);
+            color: var(--red);
+        }
+        .swipe-btn.reject:hover { background: var(--red); color: #fff; box-shadow: 0 10px 30px rgba(255, 59, 48, 0.4); }
+        .swipe-btn.info {
+            background: var(--bg-card);
+            border: 3px solid var(--blue);
+            color: var(--blue);
+        }
+        .swipe-btn.info:hover { background: var(--blue); color: #fff; }
+        .swipe-btn.superlike {
+            background: var(--bg-card);
+            border: 3px solid var(--purple);
+            color: var(--purple);
+        }
+        .swipe-btn.superlike:hover { background: var(--purple); color: #fff; box-shadow: 0 10px 30px rgba(191, 90, 242, 0.4); }
+        .swipe-btn.like {
+            background: var(--bg-card);
+            border: 3px solid var(--green);
+            color: var(--green);
+        }
+        .swipe-btn.like:hover { background: var(--green); color: #000; box-shadow: 0 10px 30px rgba(0, 210, 106, 0.4); }
+
+        /* Contact Card */
+        .contact-card {
+            background: linear-gradient(135deg, var(--gold-light) 0%, transparent 100%);
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            border-radius: 24px;
+            padding: 24px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .contact-avatar {
+            width: 56px;
+            height: 56px;
+            background: var(--gold);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            box-shadow: 0 0 30px var(--gold-glow);
+        }
+        .contact-info { flex: 1; }
+        .contact-name { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+        .contact-role { font-size: 13px; color: var(--text-secondary); }
+        .contact-btn {
+            padding: 14px 28px;
+            background: var(--gold);
+            color: #000;
+            border: none;
+            border-radius: 14px;
+            font-size: 14px;
+            font-weight: 700;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .contact-btn:hover { transform: scale(1.05); box-shadow: 0 10px 30px var(--gold-glow); }
+        .contact-btn:active { transform: scale(0.98); }
+
+        /* Bottom Nav */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 80px;
+            background: rgba(0,0,0,0.9);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-top: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            padding-bottom: env(safe-area-inset-bottom);
+            z-index: 100;
+        }
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            padding: 12px 24px;
+            color: var(--text-muted);
+            transition: all 0.2s;
+            cursor: pointer;
+            position: relative;
+            border-radius: 16px;
+        }
+        .nav-item:active { transform: scale(0.95); }
+        .nav-item.active { color: var(--gold); }
+        .nav-item.active::before {
+            content: '';
+            position: absolute;
+            top: 8px;
+            width: 4px;
+            height: 4px;
+            background: var(--gold);
+            border-radius: 50%;
+        }
+        .nav-item-icon { font-size: 24px; }
+        .nav-item-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
+        .nav-item-badge {
+            position: absolute;
+            top: 4px;
+            right: 16px;
+            width: 10px;
+            height: 10px;
+            background: var(--red);
+            border-radius: 50%;
+            animation: pulse-dot 2s infinite;
+        }
+
+        /* Toast - Ultra Premium */
+        .toast {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            padding: 16px 28px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: 100px;
+            font-size: 14px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            z-index: 1001;
+            opacity: 0;
+            transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+        }
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+        .toast.success { border-color: var(--green); }
+        .toast.success .toast-icon { color: var(--green); }
+
+        /* New Property Alert - FULL SCREEN */
+        .new-property-alert {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.95);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            z-index: 2000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            padding: 40px;
+            text-align: center;
+            animation: fadeIn 0.3s ease-out;
+        }
+        .new-property-alert.show { display: flex; }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .alert-icon {
+            font-size: 80px;
+            margin-bottom: 24px;
+            animation: bounce-in 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+        @keyframes bounce-in {
+            0% { transform: scale(0); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+        .alert-title {
+            font-size: 32px;
+            font-weight: 800;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, var(--gold) 0%, #FFE082 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .alert-subtitle {
+            font-size: 16px;
+            color: var(--text-secondary);
+            margin-bottom: 40px;
+        }
+        .alert-btn {
+            padding: 18px 48px;
+            background: var(--gold);
+            color: #000;
+            border: none;
+            border-radius: 16px;
+            font-size: 16px;
+            font-weight: 700;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .alert-btn:hover { transform: scale(1.05); box-shadow: 0 10px 40px var(--gold-glow); }
+
+        /* Confetti Canvas */
+        #confetti {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 3000;
+        }
+
+        /* Animations */
+        .animate-in { animation: slideUp 0.6s ease-out forwards; }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .delay-1 { animation-delay: 0.1s; opacity: 0; }
+        .delay-2 { animation-delay: 0.2s; opacity: 0; }
+        .delay-3 { animation-delay: 0.3s; opacity: 0; }
+
+        /* Empty State */
+        .empty {
+            text-align: center;
+            padding: 60px 24px;
+        }
+        .empty-icon { font-size: 64px; margin-bottom: 20px; opacity: 0.5; }
+        .empty-title { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+        .empty-text { font-size: 14px; color: var(--text-muted); max-width: 280px; margin: 0 auto; line-height: 1.6; }
+
+        /* Timeline */
+        .timeline { padding-left: 32px; position: relative; }
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 7px;
+            top: 8px;
+            bottom: 8px;
+            width: 2px;
+            background: var(--border);
+        }
+        .timeline-item { position: relative; padding-bottom: 28px; }
+        .timeline-item:last-child { padding-bottom: 0; }
+        .timeline-dot {
+            position: absolute;
+            left: -32px;
+            top: 4px;
+            width: 16px;
+            height: 16px;
+            background: var(--bg-card);
+            border: 2px solid var(--border);
+            border-radius: 50%;
+            transition: all 0.3s;
+        }
+        .timeline-item.completed .timeline-dot { background: var(--green); border-color: var(--green); }
+        .timeline-item.active .timeline-dot { background: var(--gold); border-color: var(--gold); box-shadow: 0 0 15px var(--gold-glow); }
+        .timeline-date { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+        .timeline-title { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+        .timeline-desc { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
+
+        /* Card */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 24px;
+            margin-bottom: 16px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Confetti Canvas -->
+    <canvas id="confetti"></canvas>
+
+    <!-- Loading -->
+    <div class="loading" id="loading">
+        <div class="loading-ring"></div>
+        <div class="loading-text">Loading</div>
+    </div>
+
+    <!-- New Property Alert -->
+    <div class="new-property-alert" id="newPropertyAlert">
+        <div class="alert-icon">🏠</div>
+        <div class="alert-title">New Property!</div>
+        <div class="alert-subtitle">Your agent just added a new option for you</div>
+        <button class="alert-btn" onclick="dismissAlert()">View Now →</button>
+    </div>
+
+    <!-- Auth Screen -->
+    <div class="auth" id="authScreen">
+        <div class="auth-container">
+            <div class="auth-logo">
+                <img src="https://www.boomrome.com/BOOMlogogoldicon512.png" alt="BOOM" onerror="this.style.display='none'">
+            </div>
+            <div class="auth-title">BOOM Rome</div>
+            <div class="auth-subtitle">Your property<br>search awaits</div>
+            <input type="text" class="auth-input" id="accessCode" placeholder="Enter access code" maxlength="12" autocomplete="off">
+            <button class="auth-btn" onclick="handleLogin()">Continue</button>
+            <div class="auth-error" id="authError">Invalid access code. Please try again.</div>
+            <div class="auth-help">
+                Don't have a code? <a href="https://wa.me/393313251961">Contact us</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div class="app" id="app">
+        <header class="header">
+            <div class="header-logo">
+                <div class="header-logo-icon"></div>
+                <div class="header-logo-text">BOOM</div>
+            </div>
+            <div class="header-right">
+                <div class="header-notif" onclick="showNotifications()">
+                    🔔
+                    <div class="header-notif-badge" id="notifBadge" style="display:none;">0</div>
+                </div>
+                <div class="header-avatar" id="userAvatar" onclick="showTab('contact')">?</div>
+            </div>
+        </header>
+
+        <main class="main" id="mainContent"></main>
+
+        <nav class="bottom-nav">
+            <div class="nav-item active" onclick="showTab('home')" data-tab="home">
+                <span class="nav-item-icon">🏠</span>
+                <span class="nav-item-label">Home</span>
+            </div>
+            <div class="nav-item" onclick="showTab('properties')" data-tab="properties">
+                <span class="nav-item-icon">🔑</span>
+                <span class="nav-item-label">Properties</span>
+                <div class="nav-item-badge" id="propBadge" style="display:none;"></div>
+            </div>
+            <div class="nav-item" onclick="showTab('timeline')" data-tab="timeline">
+                <span class="nav-item-icon">📊</span>
+                <span class="nav-item-label">Progress</span>
+            </div>
+            <div class="nav-item" onclick="showTab('contact')" data-tab="contact">
+                <span class="nav-item-icon">💬</span>
+                <span class="nav-item-label">Contact</span>
+            </div>
+        </nav>
+    </div>
+
+    <div class="toast" id="toast">
+        <span class="toast-icon">✓</span>
+        <span class="toast-text">Success!</span>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+
+    <script>
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyDfJwJdwGfjW-gsBtiQ9F7fx3RZKh_n3gM",
+            authDomain: "boom-property-dashboards.firebaseapp.com",
+            projectId: "boom-property-dashboards",
+            storageBucket: "boom-property-dashboards.firebasestorage.app",
+            messagingSenderId: "1094825806577",
+            appId: "1:1094825806577:web:6a8e0d98c15a73c88fd91a"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        let unsubscribeListener = null;
+
+        // Audio Context for sounds
+        let audioCtx = null;
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        // Play satisfying sounds
+        function playSound(type) {
+            initAudio();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            if (type === 'like') {
+                osc.frequency.setValueAtTime(523.25, audioCtx.currentTime); // C5
+                osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.1); // E5
+                osc.frequency.setValueAtTime(783.99, audioCtx.currentTime + 0.2); // G5
+                gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.4);
+            } else if (type === 'reject') {
+                osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+                osc.frequency.setValueAtTime(200, audioCtx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.2);
+            } else if (type === 'pop') {
+                osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.1);
+            } else if (type === 'success') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+                osc.frequency.setValueAtTime(1108.73, audioCtx.currentTime + 0.15);
+                gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.3);
+            }
+        }
+
+        // Haptic feedback
+        function haptic(type = 'light') {
+            if ('vibrate' in navigator) {
+                if (type === 'light') navigator.vibrate(10);
+                else if (type === 'medium') navigator.vibrate(20);
+                else if (type === 'heavy') navigator.vibrate([30, 50, 30]);
+                else if (type === 'success') navigator.vibrate([10, 30, 10, 30, 10]);
+            }
+        }
+
+        // Confetti
+        const confettiCanvas = document.getElementById('confetti');
+        const confettiCtx = confettiCanvas.getContext('2d');
+        let confettiParticles = [];
+
+        function resizeConfetti() {
+            confettiCanvas.width = window.innerWidth;
+            confettiCanvas.height = window.innerHeight;
+        }
+        resizeConfetti();
+        window.addEventListener('resize', resizeConfetti);
+
+        function createConfetti(x, y, count = 50) {
+            const colors = ['#D4AF37', '#00D26A', '#FF3B30', '#0A84FF', '#BF5AF2', '#FFE082'];
+            for (let i = 0; i < count; i++) {
+                confettiParticles.push({
+                    x, y,
+                    vx: (Math.random() - 0.5) * 20,
+                    vy: Math.random() * -15 - 5,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    size: Math.random() * 8 + 4,
+                    rotation: Math.random() * 360,
+                    rotationSpeed: (Math.random() - 0.5) * 10,
+                    gravity: 0.3,
+                    friction: 0.99,
+                    opacity: 1
+                });
+            }
+            animateConfetti();
+        }
+
+        function animateConfetti() {
+            if (confettiParticles.length === 0) return;
+
+            confettiCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+
+            confettiParticles = confettiParticles.filter(p => {
+                p.vy += p.gravity;
+                p.vx *= p.friction;
+                p.x += p.vx;
+                p.y += p.vy;
+                p.rotation += p.rotationSpeed;
+                p.opacity -= 0.01;
+
+                if (p.opacity <= 0 || p.y > confettiCanvas.height) return false;
+
+                confettiCtx.save();
+                confettiCtx.translate(p.x, p.y);
+                confettiCtx.rotate(p.rotation * Math.PI / 180);
+                confettiCtx.globalAlpha = p.opacity;
+                confettiCtx.fillStyle = p.color;
+                confettiCtx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+                confettiCtx.restore();
+
+                return true;
+            });
+
+            if (confettiParticles.length > 0) {
+                requestAnimationFrame(animateConfetti);
+            }
+        }
+
+        // Demo client data
+        const DEMO_CLIENT = {
+            id: 'demo123',
+            name: 'Marco Rossi',
+            code: 'BOOM2024',
+            status: 'options',
+            stage: 2,
+            budget: { min: 600, max: 900 },
+            zones: ['Prati', 'Trastevere'],
+            stats: { daysSearching: 12, propertiesReviewed: 47, matchScore: 95 },
+            properties: [
+                { id: 'p1', address: 'Via del Corso 45, Trastevere', price: 850, sqm: 45, rooms: 1, baths: 1, floor: 3, match: 95, new: true, hot: false, images: ['https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800'], features: ['Furnished', 'Balcony', 'AC'], description: 'Beautiful bright apartment' },
+                { id: 'p2', address: 'Viale Trastevere 112', price: 780, sqm: 38, rooms: 1, baths: 1, floor: 2, match: 88, new: false, hot: true, images: ['https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800'], features: ['Furnished'], description: 'Cozy apartment' },
+                { id: 'p3', address: 'Via Cola di Rienzo 88, Prati', price: 920, sqm: 52, rooms: 2, baths: 1, floor: 4, match: 82, new: true, hot: false, images: ['https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800'], features: ['Terrace'], description: 'Spacious two-room' }
+            ],
+            liked: [],
+            rejected: [],
+            timeline: [
+                { date: 'Jan 28', title: 'Search started', desc: 'We began searching', completed: true },
+                { date: 'Jan 30', title: '47 properties analyzed', desc: 'Filtered by criteria', completed: true },
+                { date: 'Feb 1', title: '3 options selected', desc: 'Matching properties', active: true },
+                { date: 'Next', title: 'Schedule viewing', desc: 'Arrange visits', pending: true },
+                { date: 'Next', title: 'Contract signing', desc: 'Finalize lease', pending: true }
+            ]
+        };
+
+        let currentClient = null;
+        let currentTab = 'home';
+        let currentPropertyIndex = 0;
+
+        const STATUS_CONFIG = {
+            searching: { icon: '🔍', title: 'Searching for you', subtitle: 'Our team is analyzing the best options', update: 'Actively searching' },
+            options: { icon: '🏠', title: 'Options found!', subtitle: 'We\'ve selected properties for you', update: 'New properties available' },
+            viewing: { icon: '📅', title: 'Viewing scheduled', subtitle: 'Get ready to visit your new home', update: 'Viewing confirmed' },
+            closing: { icon: '📝', title: 'Almost there!', subtitle: 'Finalizing the contract details', update: 'Contract in progress' },
+            completed: { icon: '🎉', title: 'Congratulations!', subtitle: 'Welcome to your new home', update: 'Search complete' }
+        };
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                document.getElementById('loading').classList.add('hidden');
+                const savedCode = localStorage.getItem('boom_client_code');
+                if (savedCode) loginWithCode(savedCode, true);
+            }, 1000);
+        });
+
+        function handleLogin() {
+            const code = document.getElementById('accessCode').value.trim().toUpperCase();
+            if (code.length >= 4) {
+                playSound('pop');
+                haptic('light');
+                loginWithCode(code, false);
+            }
+        }
+
+        async function loginWithCode(code, silent = false) {
+            try {
+                const snapshot = await db.collection('pfsClients')
+                    .where('portalAccessCode', '==', code)
+                    .where('portalEnabled', '==', true)
+                    .limit(1)
+                    .get();
+
+                if (!snapshot.empty) {
+                    const doc = snapshot.docs[0];
+                    currentClient = mapFirestoreToClient(doc.id, doc.data(), code);
+                    setupRealtimeListener(doc.id);
+                    logClientActivity(doc.id, 'login', 'Logged into portal');
+                    localStorage.setItem('boom_client_code', code);
+                    localStorage.setItem('boom_client_id', doc.id);
+                    showApp();
+                    playSound('success');
+                    haptic('success');
+                } else {
+                    const validCodes = ['BOOM2024', 'BOOM-MR2024', 'DEMO', 'TEST'];
+                    if (validCodes.includes(code) || code.startsWith('BOOM')) {
+                        currentClient = { ...DEMO_CLIENT, code };
+                        localStorage.setItem('boom_client_code', code);
+                        showApp();
+                        playSound('success');
+                        haptic('success');
+                    } else if (!silent) {
+                        showAuthError();
+                    }
+                }
+            } catch (err) {
+                console.error('Login error:', err);
+                if (code.startsWith('BOOM')) {
+                    currentClient = { ...DEMO_CLIENT, code };
+                    localStorage.setItem('boom_client_code', code);
+                    showApp();
+                } else if (!silent) {
+                    showAuthError();
+                }
+            }
+        }
+
+        function mapFirestoreToClient(id, data, code) {
+            const portalStage = data.portalStage || 'searching';
+            const stageMap = { searching: 1, options: 2, viewing: 3, closing: 4, completed: 5 };
+            return {
+                id, name: data.name || 'Guest', code,
+                status: portalStage, stage: stageMap[portalStage] || 1,
+                budget: { min: data.minBudget || 0, max: data.budget || 0 },
+                zones: data.zone ? data.zone.split(',').map(z => z.trim()) : [],
+                phone: data.phone || '',
+                moveIn: data.moveIn || '',
+                stats: {
+                    daysSearching: data.createdAt ? Math.floor((Date.now() - data.createdAt.toDate?.().getTime?.()) / 86400000) : 0,
+                    propertiesReviewed: (data.portalProperties || []).length,
+                    matchScore: Math.round((data.portalProperties || []).reduce((s, p) => s + (p.match || 0), 0) / Math.max(1, (data.portalProperties || []).length))
+                },
+                properties: (data.portalProperties || []).map(p => ({ ...p, id: p.id || 'p_' + Math.random().toString(36).substr(2, 9), images: p.images || [], features: p.features || [] })),
+                liked: (data.portalProperties || []).filter(p => p.clientLiked).map(p => p.id),
+                rejected: (data.portalProperties || []).filter(p => p.clientRejected).map(p => p.id),
+                timeline: generateTimeline(data)
+            };
+        }
+
+        function generateTimeline(data) {
+            const timeline = [];
+            const created = data.createdAt?.toDate?.() || new Date();
+            timeline.push({ date: formatDate(created), title: 'Search started', desc: 'We began searching for your ideal apartment', completed: true });
+            const propCount = (data.portalProperties || []).length;
+            if (propCount > 0) timeline.push({ date: formatDate(new Date()), title: `${propCount} options selected`, desc: 'Properties matching your criteria', active: data.portalStage === 'options', completed: ['viewing', 'closing', 'completed'].includes(data.portalStage) });
+            if (['viewing', 'closing', 'completed'].includes(data.portalStage)) timeline.push({ date: 'In progress', title: 'Viewing scheduled', desc: 'Apartment visits arranged', active: data.portalStage === 'viewing', completed: ['closing', 'completed'].includes(data.portalStage) });
+            else timeline.push({ date: 'Next', title: 'Schedule viewing', desc: 'We\'ll arrange apartment visits', pending: true });
+            timeline.push({ date: data.portalStage === 'completed' ? 'Done!' : 'Next', title: 'Contract signing', desc: 'Finalize and sign the lease', active: data.portalStage === 'closing', completed: data.portalStage === 'completed', pending: !['closing', 'completed'].includes(data.portalStage) });
+            return timeline;
+        }
+
+        function formatDate(date) {
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            return `${months[date.getMonth()]} ${date.getDate()}`;
+        }
+
+        function setupRealtimeListener(clientId) {
+            if (unsubscribeListener) unsubscribeListener();
+            unsubscribeListener = db.collection('pfsClients').doc(clientId)
+                .onSnapshot(doc => {
+                    if (doc.exists && currentClient) {
+                        const data = doc.data();
+                        const oldCount = currentClient.properties.length;
+                        currentClient = mapFirestoreToClient(doc.id, data, currentClient.code);
+                        const newCount = currentClient.properties.length;
+
+                        if (newCount > oldCount) {
+                            // NEW PROPERTY ADDED!
+                            showNewPropertyAlert();
+                            playSound('success');
+                            haptic('heavy');
+                        }
+                        renderTab();
+                    }
+                });
+        }
+
+        function showNewPropertyAlert() {
+            document.getElementById('newPropertyAlert').classList.add('show');
+            createConfetti(window.innerWidth / 2, window.innerHeight / 2, 100);
+        }
+
+        function dismissAlert() {
+            document.getElementById('newPropertyAlert').classList.remove('show');
+            showTab('properties');
+        }
+
+        async function logClientActivity(clientId, type, description, extra = {}) {
+            try {
+                await db.collection('pfsClients').doc(clientId).update({
+                    portalActivity: firebase.firestore.FieldValue.arrayUnion({ type, action: description, timestamp: new Date().toISOString(), notified: false, ...extra }),
+                    portalLastActive: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            } catch (err) { console.error('Failed to log activity:', err); }
+        }
+
+        function showApp() {
+            document.getElementById('authScreen').classList.add('hidden');
+            document.getElementById('app').classList.add('active');
+            document.getElementById('userAvatar').textContent = currentClient.name.charAt(0);
+            const newProps = (currentClient.properties || []).filter(p => p.new).length;
+            if (newProps > 0) document.getElementById('propBadge').style.display = 'block';
+            renderTab();
+        }
+
+        function showAuthError() {
+            haptic('heavy');
+            document.getElementById('authError').classList.add('show');
+            document.getElementById('accessCode').style.borderColor = 'var(--red)';
+            setTimeout(() => { document.getElementById('authError').classList.remove('show'); document.getElementById('accessCode').style.borderColor = ''; }, 3000);
+        }
+
+        function showTab(tab) {
+            playSound('pop');
+            haptic('light');
+            currentTab = tab;
+            document.querySelectorAll('.nav-item').forEach(item => item.classList.toggle('active', item.dataset.tab === tab));
+            renderTab();
+        }
+
+        function renderTab() {
+            const main = document.getElementById('mainContent');
+            const c = currentClient;
+            const status = STATUS_CONFIG[c.status] || STATUS_CONFIG.searching;
+            const progressWidth = ((c.stage - 1) / 4) * 100;
+            const availableProperties = c.properties.filter(p => !c.liked.includes(p.id) && !c.rejected.includes(p.id));
+
+            if (currentTab === 'home') {
+                main.innerHTML = `
+                    <div class="status-hero animate-in">
+                        <div class="status-icon">${status.icon}</div>
+                        <h1 class="status-title">${status.title}</h1>
+                        <p class="status-subtitle">${status.subtitle}</p>
+                        <div class="status-update"><span class="status-dot"></span>${status.update}</div>
+                    </div>
+                    <div class="progress animate-in delay-1">
+                        <div class="progress-track"><div class="progress-fill" style="width:${progressWidth}%"></div></div>
+                        ${[1,2,3,4,5].map(n => `<div class="progress-step ${c.stage > n ? 'completed' : ''} ${c.stage === n ? 'active' : ''}"><div class="progress-dot">${c.stage > n ? '✓' : n}</div><div class="progress-label">${['Search','Options','Viewing','Contract','Done!'][n-1]}</div></div>`).join('')}
+                    </div>
+                    <div class="stats-grid animate-in delay-2">
+                        <div class="stat-card"><div class="stat-value">${c.stats.daysSearching}</div><div class="stat-label">Days</div></div>
+                        <div class="stat-card"><div class="stat-value">${c.stats.propertiesReviewed}</div><div class="stat-label">Reviewed</div></div>
+                        <div class="stat-card"><div class="stat-value gold">${c.stats.matchScore}%</div><div class="stat-label">Match</div></div>
+                    </div>
+                    ${availableProperties.length > 0 ? `
+                    <div class="section animate-in delay-3">
+                        <div class="section-header"><h2 class="section-title">Your options</h2><span class="section-badge">${availableProperties.length} new</span></div>
+                        <div class="card" style="cursor:pointer" onclick="showTab('properties');haptic('light')">
+                            <div style="display:flex;gap:16px;align-items:center">
+                                <img src="${availableProperties[0].images[0] || ''}" style="width:80px;height:80px;object-fit:cover;border-radius:16px">
+                                <div style="flex:1">
+                                    <div style="font-size:24px;font-weight:700">€${availableProperties[0].price}<span style="font-size:14px;font-weight:400;color:var(--text-secondary)">/mo</span></div>
+                                    <div style="font-size:13px;color:var(--text-secondary)">${availableProperties[0].address}</div>
+                                </div>
+                                <div style="font-size:24px">→</div>
+                            </div>
+                        </div>
+                    </div>` : ''}
+                    <div class="section animate-in delay-3"><div class="section-header"><h2 class="section-title">Your agent</h2></div>
+                        <div class="contact-card"><div class="contact-avatar">👤</div><div class="contact-info"><div class="contact-name">BOOM Team</div><div class="contact-role">Property Finding Service</div></div><button class="contact-btn" onclick="openWhatsApp()">Chat</button></div>
+                    </div>`;
+            } else if (currentTab === 'properties') {
+                if (availableProperties.length > 0) {
+                    const p = availableProperties[0];
+                    main.innerHTML = `
+                        <div class="section animate-in">
+                            <div class="section-header"><h2 class="section-title">Swipe to choose</h2><span class="section-badge">${availableProperties.length} left</span></div>
+                            <div class="property-stack" id="propertyStack">
+                                ${availableProperties.slice(0, 3).reverse().map((prop, i) => `
+                                    <div class="property-card" data-id="${prop.id}" style="transform:scale(${1-(2-i)*0.04}) translateY(${(2-i)*12}px);z-index:${i+1}">
+                                        <div class="property-image">
+                                            <img src="${prop.images[0] || ''}" alt="">
+                                            <div class="property-image-overlay"></div>
+                                            <div class="property-badges">
+                                                ${prop.new ? '<div class="property-badge new">✨ New</div>' : ''}
+                                                ${prop.hot ? '<div class="property-badge hot">🔥 Hot</div>' : ''}
+                                                <div class="property-badge match">🎯 ${prop.match || 85}%</div>
+                                            </div>
+                                            <div class="swipe-stamp like">LIKE</div>
+                                            <div class="swipe-stamp nope">NOPE</div>
+                                        </div>
+                                        <div class="property-content">
+                                            <div class="property-price">€${prop.price}<span>/mo</span></div>
+                                            <div class="property-address">📍 ${prop.address}</div>
+                                            <div class="property-features">
+                                                <div class="property-feature">🛏 ${prop.rooms || 1} bed</div>
+                                                <div class="property-feature">🚿 ${prop.baths || 1} bath</div>
+                                                <div class="property-feature">📐 ${prop.sqm || '?'}m²</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                            <div class="swipe-actions">
+                                <button class="swipe-btn small reject" onclick="rejectProperty('${p.id}')">✕</button>
+                                <button class="swipe-btn large like" onclick="likeProperty('${p.id}')">♥</button>
+                                <button class="swipe-btn small superlike" onclick="superlikeProperty('${p.id}')">⭐</button>
+                            </div>
+                        </div>
+                        ${c.liked.length > 0 ? `<div class="section" style="margin-top:40px"><div class="section-header"><h2 class="section-title">Liked (${c.liked.length})</h2></div>
+                            ${c.properties.filter(prop => c.liked.includes(prop.id)).map(prop => `
+                                <div class="card" style="padding:16px;margin-bottom:12px"><div style="display:flex;gap:12px;align-items:center">
+                                    <img src="${prop.images[0] || ''}" style="width:60px;height:60px;object-fit:cover;border-radius:12px">
+                                    <div style="flex:1"><div style="font-weight:600">€${prop.price}/mo</div><div style="font-size:12px;color:var(--text-secondary)">${prop.address}</div></div>
+                                    <div style="color:var(--green);font-size:24px">♥</div>
+                                </div></div>
+                            `).join('')}
+                        </div>` : ''}`;
+                    initSwipeGestures();
+                } else {
+                    main.innerHTML = `<div class="empty animate-in"><div class="empty-icon">🎉</div><div class="empty-title">All caught up!</div><div class="empty-text">You've reviewed all available properties. We'll notify you when new ones arrive.</div></div>
+                        ${c.liked.length > 0 ? `<div class="section"><div class="section-header"><h2 class="section-title">Your liked properties</h2></div>
+                            ${c.properties.filter(prop => c.liked.includes(prop.id)).map(prop => `
+                                <div class="card" style="padding:16px;margin-bottom:12px"><div style="display:flex;gap:12px;align-items:center">
+                                    <img src="${prop.images[0] || ''}" style="width:60px;height:60px;object-fit:cover;border-radius:12px">
+                                    <div style="flex:1"><div style="font-weight:600">€${prop.price}/mo</div><div style="font-size:12px;color:var(--text-secondary)">${prop.address}</div></div>
+                                    <div style="color:var(--green);font-size:24px">♥</div>
+                                </div></div>
+                            `).join('')}
+                        </div>` : ''}`;
+                }
+            } else if (currentTab === 'timeline') {
+                main.innerHTML = `
+                    <div class="status-hero animate-in" style="padding:24px"><h1 class="status-title" style="font-size:28px">Your journey</h1><p class="status-subtitle">Track every step of your property search</p></div>
+                    <div class="stats-grid animate-in delay-1">
+                        <div class="stat-card"><div class="stat-value">${c.stats.daysSearching}</div><div class="stat-label">Days active</div></div>
+                        <div class="stat-card"><div class="stat-value green">${c.liked.length}</div><div class="stat-label">Liked</div></div>
+                        <div class="stat-card"><div class="stat-value">${c.rejected.length}</div><div class="stat-label">Passed</div></div>
+                    </div>
+                    <div class="section animate-in delay-2"><div class="section-header"><h2 class="section-title">Timeline</h2></div>
+                        <div class="timeline">${c.timeline.map(t => `<div class="timeline-item ${t.completed?'completed':''} ${t.active?'active':''}"><div class="timeline-dot"></div><div class="timeline-date">${t.date}</div><div class="timeline-title">${t.title}</div><div class="timeline-desc">${t.desc}</div></div>`).join('')}</div>
+                    </div>`;
+            } else if (currentTab === 'contact') {
+                main.innerHTML = `
+                    <div class="section animate-in"><div class="section-header"><h2 class="section-title">Your agent</h2></div>
+                        <div class="contact-card" style="margin-bottom:24px"><div class="contact-avatar">👤</div><div class="contact-info"><div class="contact-name">BOOM Team</div><div class="contact-role">Property Finding Service</div></div><button class="contact-btn" onclick="openWhatsApp()">WhatsApp</button></div>
+                    </div>
+                    <div class="card animate-in delay-1"><h3 style="font-size:14px;margin-bottom:20px">📋 Your search criteria</h3>
+                        <div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text-secondary)">Budget</span><span>€${c.budget.min || 0} - €${c.budget.max || '?'}/mo</span></div>
+                        <div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text-secondary)">Zones</span><span>${c.zones.join(', ') || 'Any'}</span></div>
+                        <div style="display:flex;justify-content:space-between;padding:12px 0"><span style="color:var(--text-secondary)">Move-in</span><span>${c.moveIn || 'Flexible'}</span></div>
+                    </div>
+                    <div class="card animate-in delay-2"><h3 style="font-size:14px;margin-bottom:16px">🔒 Your access code</h3>
+                        <div style="display:flex;justify-content:space-between;align-items:center">
+                            <code style="font-size:18px;letter-spacing:2px;color:var(--gold)">${c.code}</code>
+                            <button onclick="logout()" style="padding:10px 20px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:12px;color:var(--text-secondary);font-size:13px;cursor:pointer">Logout</button>
+                        </div>
+                    </div>`;
+            }
+        }
+
+        function initSwipeGestures() {
+            const stack = document.getElementById('propertyStack');
+            if (!stack) return;
+            const cards = stack.querySelectorAll('.property-card');
+            if (cards.length === 0) return;
+            const topCard = cards[cards.length - 1];
+            let startX = 0, currentX = 0, isDragging = false;
+
+            const start = (e) => {
+                isDragging = true;
+                startX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+                topCard.classList.add('dragging');
+            };
+            const move = (e) => {
+                if (!isDragging) return;
+                currentX = (e.type.includes('mouse') ? e.clientX : e.touches[0].clientX) - startX;
+                const rotation = currentX * 0.08;
+                topCard.style.transform = `translateX(${currentX}px) rotate(${rotation}deg)`;
+                if (currentX > 60) { topCard.classList.add('swiping-right'); topCard.classList.remove('swiping-left'); }
+                else if (currentX < -60) { topCard.classList.add('swiping-left'); topCard.classList.remove('swiping-right'); }
+                else { topCard.classList.remove('swiping-right', 'swiping-left'); }
+            };
+            const end = () => {
+                if (!isDragging) return;
+                isDragging = false;
+                topCard.classList.remove('dragging');
+                const id = topCard.dataset.id;
+                if (currentX > 100) likeProperty(id);
+                else if (currentX < -100) rejectProperty(id);
+                else { topCard.style.transform = ''; topCard.classList.remove('swiping-right', 'swiping-left'); }
+            };
+
+            topCard.addEventListener('mousedown', start);
+            topCard.addEventListener('touchstart', start, { passive: true });
+            document.addEventListener('mousemove', move);
+            document.addEventListener('touchmove', move, { passive: true });
+            document.addEventListener('mouseup', end);
+            document.addEventListener('touchend', end);
+        }
+
+        async function likeProperty(id) {
+            const card = document.querySelector(`.property-card[data-id="${id}"]`);
+            if (card) card.classList.add('liked');
+            currentClient.liked.push(id);
+
+            playSound('like');
+            haptic('success');
+            createConfetti(window.innerWidth / 2, window.innerHeight / 2, 30);
+            showToast('Added to liked! ♥', 'success');
+
+            const property = currentClient.properties.find(p => p.id === id);
+            await syncPropertyAction(id, 'like', property);
+            setTimeout(() => renderTab(), 400);
+        }
+
+        async function superlikeProperty(id) {
+            const card = document.querySelector(`.property-card[data-id="${id}"]`);
+            if (card) card.classList.add('superliked');
+            currentClient.liked.unshift(id);
+
+            playSound('success');
+            haptic('heavy');
+            createConfetti(window.innerWidth / 2, 100, 80);
+            showToast('⭐ Super liked!', 'success');
+
+            const property = currentClient.properties.find(p => p.id === id);
+            await syncPropertyAction(id, 'superlike', property);
+            setTimeout(() => renderTab(), 500);
+        }
+
+        async function rejectProperty(id) {
+            const card = document.querySelector(`.property-card[data-id="${id}"]`);
+            if (card) card.classList.add('rejected');
+            currentClient.rejected.push(id);
+
+            playSound('reject');
+            haptic('medium');
+
+            const property = currentClient.properties.find(p => p.id === id);
+            await syncPropertyAction(id, 'reject', property);
+            setTimeout(() => renderTab(), 400);
+        }
+
+        async function syncPropertyAction(propertyId, action, property) {
+            const clientId = localStorage.getItem('boom_client_id');
+            if (!clientId) return;
+            try {
+                const doc = await db.collection('pfsClients').doc(clientId).get();
+                if (!doc.exists) return;
+                const data = doc.data();
+                const updatedProperties = (data.portalProperties || []).map(p => p.id === propertyId ? { ...p, clientLiked: action !== 'reject', clientRejected: action === 'reject', clientSuperLiked: action === 'superlike', clientActionAt: new Date().toISOString() } : p);
+                const activity = { type: action, action: `${action === 'reject' ? 'Rejected' : action === 'superlike' ? 'SUPER LIKED' : 'Liked'}: ${property?.address || 'Property'}`, propertyId, propertyAddress: property?.address, propertyPrice: property?.price, timestamp: new Date().toISOString(), notified: false };
+                await db.collection('pfsClients').doc(clientId).update({ portalProperties: updatedProperties, portalActivity: firebase.firestore.FieldValue.arrayUnion(activity), portalLastActive: firebase.firestore.FieldValue.serverTimestamp() });
+            } catch (err) { console.error('Sync failed:', err); }
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            toast.querySelector('.toast-text').textContent = message;
+            toast.className = `toast show ${type}`;
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        function showNotifications() { showToast('Notifications coming soon!'); }
+        function openWhatsApp() { window.open('https://wa.me/393313251961?text=Hi! I have a question about my property search (' + currentClient.code + ')', '_blank'); }
+        function logout() { localStorage.removeItem('boom_client_code'); localStorage.removeItem('boom_client_id'); location.reload(); }
+
+        document.getElementById('accessCode').addEventListener('keypress', (e) => { if (e.key === 'Enter') handleLogin(); });
+    </script>
+</body>
+</html>
