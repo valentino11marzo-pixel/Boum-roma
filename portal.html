@@ -13,6 +13,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <style>
         *{margin:0;padding:0;box-sizing:border-box}
         :root{--gold:#D4AF37;--gold-light:rgba(212,175,55,0.15);--gold-dark:#B8960C;--green:#34C759;--green-light:rgba(52,199,89,0.12);--red:#FF3B30;--red-light:rgba(255,59,48,0.12);--orange:#FF9500;--orange-light:rgba(255,149,0,0.12);--blue:#007AFF;--blue-light:rgba(0,122,255,0.12);--purple:#AF52DE;--purple-light:rgba(175,82,222,0.12);--cyan:#00C7BE;--cyan-light:rgba(0,199,190,0.12);--bg:#000;--bg-card:#0A0A0A;--bg-elevated:#141414;--bg-input:#1A1A1A;--border:rgba(255,255,255,0.08);--text:#FFF;--text-secondary:#999;--text-muted:#666}
@@ -7440,6 +7441,7 @@ Valentyne - BOOM Rome`
                     <div><label class="form-label">Inquilino</label><div style="display:flex;gap:8px"><input type="text" class="form-input" value="https://boomrome.com/form-tenant.html" readonly id="tUrl" style="font-size:11px"><button class="btn btn-sm" onclick="copyRegUrl('tUrl')">Copia</button></div></div>
                 </div>
             </div></div>
+            ${adeConverterCard()}
             <div class="card"><div class="card-header"><span class="card-title">Contratti (${contracts.length})</span><button class="btn btn-sm btn-secondary" onclick="goTo('registrations')">🔄 Aggiorna</button></div>
                 <div class="card-body flush">
                     ${contracts.length === 0 ? '<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">Nessuna registrazione</div><p class="empty-text">Crea una nuova registrazione per iniziare</p><button class="btn" onclick="openNewRegistration()">+ Nuova Registrazione</button></div>' : contracts.map(c => `
@@ -12283,6 +12285,159 @@ IBAN: ${l.iban || '-'}`;
             </div>
             ${content}`;
     }
+
+    // ========================================
+    // ADE DOCUMENT CONVERTER
+    // ========================================
+    const adeState = { files: [], processing: false };
+    const ADE_LIMITS = { maxSingleFile: 5 * 1024 * 1024, maxTotal: 20 * 1024 * 1024, maxFiles: 10 };
+
+    function adeConverterCard() {
+        const totalSize = adeState.files.reduce((sum, f) => sum + f.size, 0);
+        const sizeWarning = totalSize > ADE_LIMITS.maxTotal;
+        const anyFileWarning = adeState.files.some(f => f.size > ADE_LIMITS.maxSingleFile);
+        
+        return `
+            <div class="card" style="margin-bottom:24px;border-color:${sizeWarning || anyFileWarning ? 'var(--orange)' : 'var(--border)'}">
+                <div class="card-header" style="display:flex;justify-content:space-between;align-items:center">
+                    <h3 class="card-title">📄 Prepara Documenti AdE</h3>
+                    <div style="display:flex;gap:8px;align-items:center">
+                        <span style="font-size:11px;color:var(--text-secondary)">Max: 5MB/file · 20MB tot</span>
+                        ${adeState.files.length > 0 ? `<button class="btn btn-sm btn-secondary" onclick="adeClearAll()">Svuota</button>` : ''}
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="adeDropZone" ondrop="adeHandleDrop(event)" ondragover="adeDragOver(event)" ondragleave="adeDragLeave(event)" onclick="document.getElementById('adeFileInput').click()" style="border:2px dashed var(--border);border-radius:12px;padding:32px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:16px">
+                        <div style="font-size:32px;margin-bottom:8px">📎</div>
+                        <div style="font-weight:500;margin-bottom:4px">Trascina PDF, JPG, PNG qui</div>
+                        <div style="font-size:12px;color:var(--text-secondary)">oppure clicca per selezionare</div>
+                        <input type="file" id="adeFileInput" multiple accept=".pdf,.jpg,.jpeg,.png" style="display:none" onchange="adeHandleFiles(this.files)">
+                    </div>
+                    ${adeState.files.length > 0 ? `
+                    <div style="margin-bottom:16px">
+                        ${adeState.files.map((f, i) => {
+                            const sizeMB = (f.size / 1024 / 1024).toFixed(2);
+                            const sizeKB = (f.size / 1024).toFixed(0);
+                            const isOverSize = f.size > ADE_LIMITS.maxSingleFile;
+                            const sizeDisplay = f.size > 1024 * 1024 ? sizeMB + ' MB' : sizeKB + ' KB';
+                            return `<div class="list-item" style="padding:12px;${isOverSize ? 'border-left:3px solid var(--orange)' : ''}">
+                                <div style="display:flex;align-items:center;gap:12px;flex:1">
+                                    <span style="font-size:20px">${f.type.includes('pdf') ? '📄' : '🖼️'}</span>
+                                    <div style="flex:1;min-width:0">
+                                        <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(f.name)}</div>
+                                        <div style="font-size:11px;color:${isOverSize ? 'var(--orange)' : 'var(--text-secondary)'}">${sizeDisplay}${isOverSize ? ' ⚠️ Supera 5MB!' : ''}</div>
+                                    </div>
+                                </div>
+                                <div style="display:flex;gap:6px">
+                                    ${i > 0 ? `<button class="btn btn-xs btn-secondary" onclick="adeMoveFile(${i},-1)">↑</button>` : ''}
+                                    ${i < adeState.files.length - 1 ? `<button class="btn btn-xs btn-secondary" onclick="adeMoveFile(${i},1)">↓</button>` : ''}
+                                    <button class="btn btn-xs btn-secondary" onclick="adeRemoveFile(${i})" style="color:var(--red)">✕</button>
+                                </div>
+                            </div>`;
+                        }).join('')}
+                    </div>
+                    <div style="padding:12px;background:var(--bg-elevated);border-radius:8px;margin-bottom:16px">
+                        <div style="display:flex;justify-content:space-between;align-items:center">
+                            <span style="font-size:13px">${adeState.files.length} file</span>
+                            <span style="font-size:13px;font-weight:600;color:${sizeWarning ? 'var(--orange)' : 'var(--text)'}">${(totalSize / 1024 / 1024).toFixed(2)} MB / 20 MB</span>
+                        </div>
+                        <div style="height:4px;background:var(--border);border-radius:2px;margin-top:8px;overflow:hidden">
+                            <div style="height:100%;background:${sizeWarning ? 'var(--orange)' : 'var(--gold)'};width:${Math.min(100, (totalSize / ADE_LIMITS.maxTotal) * 100)}%;transition:width .3s"></div>
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:12px;flex-wrap:wrap">
+                        <button class="btn" onclick="adeMergeDownload()" ${adeState.processing ? 'disabled' : ''} style="flex:1;min-width:200px">
+                            ${adeState.processing ? '<span class="spinner" style="width:16px;height:16px;border-width:2px;margin-right:8px"></span>' : ''}
+                            ${adeState.files.length > 1 ? '📦 Unisci e Scarica PDF' : '📥 Scarica PDF'}
+                        </button>
+                        ${adeState.files.length > 1 ? `<button class="btn btn-secondary" onclick="adeDownloadSeparate()" ${adeState.processing ? 'disabled' : ''}>📄 Separati</button>` : ''}
+                    </div>
+                    ` : `<div style="text-align:center;color:var(--text-secondary);padding:12px">
+                        <p style="font-size:13px">Carica documenti per prepararli all'upload su Agenzia delle Entrate</p>
+                        <p style="font-size:11px;margin-top:8px">• Immagini → PDF A4 • Unisci più documenti</p>
+                    </div>`}
+                </div>
+            </div>`;
+    }
+
+    function adeDragOver(e) { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--gold)'; e.currentTarget.style.background = 'var(--gold-light)'; }
+    function adeDragLeave(e) { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.background = 'transparent'; }
+    function adeHandleDrop(e) { e.preventDefault(); adeDragLeave(e); adeProcessFiles(Array.from(e.dataTransfer.files)); }
+    function adeHandleFiles(fl) { adeProcessFiles(Array.from(fl)); }
+    
+    function adeProcessFiles(files) {
+        const valid = files.filter(f => ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'].includes(f.type));
+        if (valid.length !== files.length) toast('warning', 'Solo PDF, JPG, PNG');
+        if (adeState.files.length + valid.length > ADE_LIMITS.maxFiles) { toast('warning', `Max ${ADE_LIMITS.maxFiles} file`); return; }
+        valid.forEach(file => {
+            const reader = new FileReader();
+            reader.onload = (e) => { adeState.files.push({ name: file.name, type: file.type, size: file.size, data: e.target.result }); adeRefresh(); };
+            reader.readAsArrayBuffer(file);
+        });
+    }
+
+    function adeRemoveFile(i) { adeState.files.splice(i, 1); adeRefresh(); }
+    function adeMoveFile(i, d) { const n = i + d; if (n < 0 || n >= adeState.files.length) return; [adeState.files[i], adeState.files[n]] = [adeState.files[n], adeState.files[i]]; adeRefresh(); }
+    function adeClearAll() { adeState.files = []; adeRefresh(); }
+    function adeRefresh() { if (S.page === 'registrations') document.getElementById('main').innerHTML = registrationsPage(); }
+
+    async function adeMergeDownload() {
+        if (adeState.files.length === 0) return;
+        adeState.processing = true; adeRefresh();
+        try {
+            const { PDFDocument } = PDFLib;
+            const merged = await PDFDocument.create();
+            merged.setTitle('Documenti Contratto'); merged.setCreator('BOOM Portal'); merged.setProducer('BOOM - boomrome.com');
+            
+            for (const file of adeState.files) {
+                if (file.type === 'application/pdf') {
+                    const pdf = await PDFDocument.load(file.data);
+                    const pages = await merged.copyPages(pdf, pdf.getPageIndices());
+                    pages.forEach(p => merged.addPage(p));
+                } else {
+                    const page = merged.addPage([595.28, 841.89]);
+                    const img = file.type === 'image/png' ? await merged.embedPng(file.data) : await merged.embedJpg(file.data);
+                    const scale = Math.min(555.28 / img.width, 801.89 / img.height);
+                    page.drawImage(img, { x: (595.28 - img.width * scale) / 2, y: (841.89 - img.height * scale) / 2, width: img.width * scale, height: img.height * scale });
+                }
+            }
+            
+            const blob = new Blob([await merged.save()], { type: 'application/pdf' });
+            const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+            a.download = adeState.files.length > 1 ? 'documenti-contratto.pdf' : adeState.files[0].name.replace(/\.[^.]+$/, '.pdf');
+            a.click(); URL.revokeObjectURL(a.href);
+            toast('success', 'PDF scaricato!');
+        } catch (err) { console.error('AdE error:', err); toast('error', 'Errore: ' + err.message); }
+        finally { adeState.processing = false; adeRefresh(); }
+    }
+
+    async function adeDownloadSeparate() {
+        if (adeState.files.length === 0) return;
+        adeState.processing = true; adeRefresh();
+        try {
+            const { PDFDocument } = PDFLib;
+            for (const file of adeState.files) {
+                let bytes;
+                if (file.type === 'application/pdf') { bytes = file.data; }
+                else {
+                    const pdf = await PDFDocument.create();
+                    const page = pdf.addPage([595.28, 841.89]);
+                    const img = file.type === 'image/png' ? await pdf.embedPng(file.data) : await pdf.embedJpg(file.data);
+                    const scale = Math.min(555.28 / img.width, 801.89 / img.height);
+                    page.drawImage(img, { x: (595.28 - img.width * scale) / 2, y: (841.89 - img.height * scale) / 2, width: img.width * scale, height: img.height * scale });
+                    bytes = await pdf.save();
+                }
+                const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+                a.download = file.name.replace(/\.[^.]+$/, '.pdf'); a.click(); URL.revokeObjectURL(a.href);
+                await new Promise(r => setTimeout(r, 300));
+            }
+            toast('success', `${adeState.files.length} file scaricati!`);
+        } catch (err) { console.error('AdE error:', err); toast('error', 'Errore: ' + err.message); }
+        finally { adeState.processing = false; adeRefresh(); }
+    }
+    // ========================================
+    // END ADE DOCUMENT CONVERTER
+    // ========================================
 
     </script>
 </body>
