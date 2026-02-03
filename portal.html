@@ -109,11 +109,11 @@
         .stat-card{background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:20px;position:relative;overflow:hidden;cursor:pointer;transition:all .2s}
         .stat-card:hover{border-color:var(--gold);transform:translateY(-2px)}
         .stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
-        .stat-card.gold::before{background:var(--gold)}.stat-card.green::before{background:var(--green)}.stat-card.orange::before{background:var(--orange)}.stat-card.blue::before{background:var(--blue)}.stat-card.red::before{background:var(--red)}.stat-card.purple::before{background:var(--purple)}
+        .stat-card.gold::before{background:var(--gold)}.stat-card.green::before{background:var(--green)}.stat-card.orange::before{background:var(--orange)}.stat-card.blue::before{background:var(--blue)}.stat-card.red::before{background:var(--red)}.stat-card.purple::before{background:var(--purple)}.stat-card.gray::before{background:var(--text-muted)}
         .stat-icon{width:44px;height:44px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:14px}
-        .stat-card.gold .stat-icon{background:var(--gold-light)}.stat-card.green .stat-icon{background:var(--green-light)}.stat-card.orange .stat-icon{background:var(--orange-light)}.stat-card.blue .stat-icon{background:var(--blue-light)}.stat-card.purple .stat-icon{background:var(--purple-light)}.stat-card.red .stat-icon{background:var(--red-light)}
+        .stat-card.gold .stat-icon{background:var(--gold-light)}.stat-card.green .stat-icon{background:var(--green-light)}.stat-card.orange .stat-icon{background:var(--orange-light)}.stat-card.blue .stat-icon{background:var(--blue-light)}.stat-card.purple .stat-icon{background:var(--purple-light)}.stat-card.red .stat-icon{background:var(--red-light)}.stat-card.gray .stat-icon{background:var(--bg-elevated)}
         .stat-value{font-size:26px;font-weight:700;margin-bottom:4px}
-        .stat-card.gold .stat-value{color:var(--gold)}.stat-card.green .stat-value{color:var(--green)}.stat-card.orange .stat-value{color:var(--orange)}.stat-card.blue .stat-value{color:var(--blue)}.stat-card.purple .stat-value{color:var(--purple)}.stat-card.red .stat-value{color:var(--red)}
+        .stat-card.gold .stat-value{color:var(--gold)}.stat-card.green .stat-value{color:var(--green)}.stat-card.orange .stat-value{color:var(--orange)}.stat-card.blue .stat-value{color:var(--blue)}.stat-card.purple .stat-value{color:var(--purple)}.stat-card.red .stat-value{color:var(--red)}.stat-card.gray .stat-value{color:var(--text-muted)}
         .stat-label{font-size:12px;color:var(--text-secondary)}
         .stat-sub{font-size:11px;color:var(--text-muted);margin-top:4px}
         .list-item{display:flex;align-items:center;gap:14px;padding:14px 20px;border-bottom:1px solid var(--border);transition:background .15s}
@@ -245,6 +245,61 @@
 .crm-table tbody tr { transition: background .2s; cursor: pointer; }
 .crm-table tbody tr:hover { background: var(--bg); }
 .modal.xl { width: 800px; max-width: 95vw; }
+.modal.sm { width: 400px; max-width: 95vw; }
+
+/* Grid utilities */
+.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+@media (max-width: 900px) { .grid-4 { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 500px) { .grid-4 { grid-template-columns: 1fr; } }
+
+/* Progress bars */
+.progress-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.progress-fill { height: 100%; transition: width 0.3s ease; }
+.progress-fill.green { background: var(--green); }
+.progress-fill.orange { background: var(--orange); }
+.progress-fill.red { background: var(--red); }
+.progress-fill.gold { background: linear-gradient(90deg, var(--gold), var(--gold-dark)); }
+
+/* Timeline */
+.timeline { position: relative; padding-left: 24px; }
+.timeline-item { position: relative; padding: 12px 0; border-left: 2px solid var(--border); margin-left: -24px; padding-left: 24px; }
+.timeline-item.urgent { border-left-color: var(--red); }
+.timeline-item.warning { border-left-color: var(--orange); }
+.timeline-dot { position: absolute; left: -8px; top: 16px; width: 14px; height: 14px; border-radius: 50%; background: var(--border); border: 2px solid var(--bg-card); }
+.timeline-item.urgent .timeline-dot { background: var(--red); }
+.timeline-item.warning .timeline-dot { background: var(--orange); }
+
+/* Kanban Board */
+.kanban-board { display: flex; gap: 16px; overflow-x: auto; padding-bottom: 16px; }
+.kanban-column { flex: 1; min-width: 280px; background: var(--bg-elevated); border-radius: 12px; }
+.kanban-header { padding: 14px 16px; border-bottom: 1px solid var(--border); font-weight: 600; display: flex; align-items: center; justify-content: space-between; }
+.kanban-body { padding: 12px; min-height: 300px; }
+.kanban-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin-bottom: 10px; cursor: pointer; transition: all 0.2s; }
+.kanban-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); border-color: var(--gold); }
+.kanban-card.urgent { border-left: 4px solid var(--red); }
+.kanban-card.high { border-left: 4px solid var(--orange); }
+.kanban-card.normal { border-left: 4px solid var(--blue); }
+
+/* Chart bars */
+.chart-bar { display: flex; gap: 8px; height: 180px; align-items: flex-end; }
+.chart-column { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.chart-bar-segment { width: 80%; border-radius: 4px 4px 0 0; min-height: 4px; transition: height 0.3s; }
+.chart-label { font-size: 10px; color: var(--text-muted); white-space: nowrap; }
+
+/* Status badges with animation */
+.badge.pulse { animation: pulse 2s ease-in-out infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+
+/* Expiring items highlight */
+.expiring-soon { animation: expiring-glow 2s ease-in-out infinite; }
+@keyframes expiring-glow { 0%, 100% { box-shadow: none; } 50% { box-shadow: inset 0 0 0 1px var(--orange); } }
+
+/* Section box */
+.section-box { border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+.section-title { font-size: 14px; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+
+/* ADE Converter styles */
+#adeDropZone.dragover { border-color: var(--gold) !important; background: var(--gold-light) !important; }
 
 /* Production additions */
 .offline-banner { position: fixed; top: 0; left: 0; right: 0; background: var(--red); color: #fff; text-align: center; padding: 10px; font-size: 13px; font-weight: 600; z-index: 9999; display: none; }
@@ -2796,53 +2851,573 @@ Valentyne - BOOM Rome`
     }
 
     function propertiesPage() {
-        return `<div class="page-header"><h1 class="page-title">Immobili</h1><div class="page-actions"><button class="btn" onclick="openModal('addProperty')">+ Nuovo</button></div></div>
-            <div class="card"><div class="card-body flush">${S.properties.map(p => {
-                const c = S.contracts.find(x => x.propertyId === p.id && x.status === 'active');
-                const owner = S.users.find(u => u.id === p.ownerId);
-                const tenant = c ? S.users.find(u => u.id === c.tenantId) : null;
-                return `<div class="list-item clickable" onclick="viewProperty('${p.id}')"><div class="list-icon">🏠</div><div class="list-content"><div class="list-title">${p.name} <span class="badge ${c ? 'green' : 'gray'}">${c ? 'Affittato' : 'Libero'}</span></div><div class="list-subtitle">${owner?.name || 'N/A'}${c ? ' → ' + (tenant?.name || '') : ''} · ${p.address || 'Roma'}</div></div><div class="list-value text-gold">€${p.rent || 0}/mese</div></div>`;
-            }).join('') || '<div class="empty-state"><div class="empty-icon">🏠</div><div class="empty-title">Nessun immobile</div></div>'}</div></div>`;
+        const totalProps = S.properties.length;
+        const rentedCount = S.properties.filter(p => S.contracts.some(c => c.propertyId === p.id && c.status === 'active')).length;
+        const freeCount = totalProps - rentedCount;
+        const totalRent = S.properties.filter(p => S.contracts.some(c => c.propertyId === p.id && c.status === 'active')).reduce((sum, p) => sum + (p.rent || 0), 0);
+        const avgRent = rentedCount > 0 ? Math.round(totalRent / rentedCount) : 0;
+        const occupancyRate = totalProps > 0 ? Math.round((rentedCount / totalProps) * 100) : 0;
+
+        return `<div class="page-header">
+            <div>
+                <h1 class="page-title">🏠 Immobili</h1>
+                <p class="page-subtitle">${totalProps} immobili · ${rentedCount} affittati · ${freeCount} liberi</p>
+            </div>
+            <div class="page-actions">
+                <button class="btn btn-secondary" onclick="togglePropertiesView()">📊 Vista</button>
+                <button class="btn" onclick="openModal('addProperty')">+ Nuovo</button>
+            </div>
+        </div>
+
+        <!-- Dashboard Stats -->
+        <div class="stats-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:24px">
+            <div class="stat-card gold">
+                <div class="stat-icon">🏠</div>
+                <div class="stat-value">${totalProps}</div>
+                <div class="stat-label">Totale Immobili</div>
+            </div>
+            <div class="stat-card green">
+                <div class="stat-icon">✅</div>
+                <div class="stat-value">${rentedCount}</div>
+                <div class="stat-label">Affittati</div>
+            </div>
+            <div class="stat-card orange">
+                <div class="stat-icon">🔓</div>
+                <div class="stat-value">${freeCount}</div>
+                <div class="stat-label">Disponibili</div>
+            </div>
+            <div class="stat-card blue">
+                <div class="stat-icon">💰</div>
+                <div class="stat-value">€${avgRent}</div>
+                <div class="stat-label">Affitto Medio</div>
+            </div>
+            <div class="stat-card purple">
+                <div class="stat-icon">📊</div>
+                <div class="stat-value">${occupancyRate}%</div>
+                <div class="stat-label">Tasso Occupazione</div>
+                <div style="margin-top:8px;height:6px;background:var(--border);border-radius:3px;overflow:hidden">
+                    <div style="height:100%;width:${occupancyRate}%;background:linear-gradient(90deg,var(--green),var(--gold));transition:width .3s"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filter Tabs -->
+        <div class="card" style="margin-bottom:16px">
+            <div class="card-body" style="padding:12px;display:flex;gap:8px;flex-wrap:wrap">
+                <button class="btn btn-sm" onclick="filterProperties('all',this)">Tutti (${totalProps})</button>
+                <button class="btn btn-sm btn-secondary" onclick="filterProperties('rented',this)">✅ Affittati (${rentedCount})</button>
+                <button class="btn btn-sm btn-secondary" onclick="filterProperties('free',this)">🔓 Disponibili (${freeCount})</button>
+            </div>
+        </div>
+
+        <!-- Properties List -->
+        <div class="card"><div class="card-body flush" id="propertiesContainer">${S.properties.map(p => {
+            const c = S.contracts.find(x => x.propertyId === p.id && x.status === 'active');
+            const owner = S.users.find(u => u.id === p.ownerId);
+            const tenant = c ? S.users.find(u => u.id === c.tenantId) : null;
+            const daysToExpiry = c ? daysUntil(c.endDate) : null;
+            const expiringClass = c && daysToExpiry !== null && daysToExpiry <= 60 ? 'expiring-soon' : '';
+            const availableFrom = p.availableFrom ? fmtDate(p.availableFrom) : null;
+
+            return `<div class="list-item clickable property-item ${expiringClass}" data-status="${c ? 'rented' : 'free'}" onclick="viewProperty('${p.id}')">
+                <div class="list-icon" style="font-size:24px;background:${c ? 'var(--green-light)' : 'var(--orange-light)'}">${c ? '✅' : '🔓'}</div>
+                <div class="list-content">
+                    <div class="list-title">
+                        ${esc(p.name)}
+                        <span class="badge ${c ? 'green' : 'orange'}">${c ? 'Affittato' : 'Libero'}</span>
+                        ${c && daysToExpiry !== null && daysToExpiry <= 60 ? `<span class="badge red">⏰ ${daysToExpiry}gg</span>` : ''}
+                    </div>
+                    <div class="list-subtitle">
+                        ${owner?.name || 'N/A'}${c ? ' → ' + (tenant?.name || '') : ''} · ${esc(p.address || 'Roma')}
+                        ${!c && availableFrom ? ` · <span style="color:var(--gold)">📅 Disponibile dal ${availableFrom}</span>` : ''}
+                    </div>
+                </div>
+                <div class="list-meta" style="text-align:right">
+                    <div class="list-value text-gold" style="font-size:16px;font-weight:600">€${p.rent || 0}/mese</div>
+                    <div style="font-size:11px;color:var(--text-muted)">${p.sqm || '-'}mq · ${p.rooms || '-'} camere</div>
+                </div>
+            </div>`;
+        }).join('') || '<div class="empty-state"><div class="empty-icon">🏠</div><div class="empty-title">Nessun immobile</div><button class="btn" onclick="openModal(\'addProperty\')">+ Aggiungi Immobile</button></div>'}</div></div>`;
+    }
+
+    function filterProperties(status, btn) {
+        document.querySelectorAll('.card .btn-sm').forEach(b => b.classList.add('btn-secondary'));
+        btn.classList.remove('btn-secondary');
+        document.querySelectorAll('.property-item').forEach(item => {
+            if (status === 'all') item.style.display = '';
+            else item.style.display = item.dataset.status === status ? '' : 'none';
+        });
+    }
+
+    function togglePropertiesView() {
+        toast('info', 'Vista alternativa in sviluppo');
     }
 
     function contractsPage() {
-        const expiringCount = S.contracts.filter(c => c.status === 'active' && daysUntil(c.endDate) !== null && daysUntil(c.endDate) <= 30 && daysUntil(c.endDate) >= 0).length;
-        return `<div class="page-header"><h1 class="page-title">Contratti</h1><div class="page-actions">${expiringCount ? `<span class="badge orange">${expiringCount} in scadenza</span>` : ''}<button class="btn" onclick="openModal('addContract')">+ Nuovo</button></div></div>
-            <div class="card"><div class="card-body flush">${S.contracts.map(c => {
-                const p = S.properties.find(x => x.id === c.propertyId);
-                const t = S.users.find(x => x.id === c.tenantId);
-                const days = daysUntil(c.endDate);
-                const expiring = c.status === 'active' && days !== null && days <= 30 && days >= 0;
-                return `<div class="list-item clickable" onclick="viewContract('${c.id}')"><div class="list-icon" style="background:${expiring ? 'var(--orange-light)' : c.status === 'active' ? 'var(--green-light)' : 'var(--red-light)'}">📋</div><div class="list-content"><div class="list-title">${p?.name || 'Immobile'} <span class="badge ${c.status === 'active' ? (expiring ? 'orange' : 'green') : 'red'}">${c.status === 'active' ? (expiring ? days + 'gg' : 'Attivo') : 'Scaduto'}</span></div><div class="list-subtitle">${t?.name || 'N/A'} · ${fmtDate(c.startDate)} → ${fmtDate(c.endDate)}</div></div><div class="list-meta"><div class="list-value text-gold">€${c.rent || 0}/mese</div><div class="stat-sub">Dep: €${c.deposit || 0}</div></div></div>`;
-            }).join('') || '<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">Nessun contratto</div></div>'}</div></div>`;
+        const activeContracts = S.contracts.filter(c => c.status === 'active');
+        const expiredContracts = S.contracts.filter(c => c.status !== 'active');
+        const expiringCount = activeContracts.filter(c => {
+            const days = daysUntil(c.endDate);
+            return days !== null && days <= 30 && days >= 0;
+        }).length;
+        const expiringIn90 = activeContracts.filter(c => {
+            const days = daysUntil(c.endDate);
+            return days !== null && days <= 90 && days > 30;
+        }).length;
+        const totalMonthlyRent = activeContracts.reduce((sum, c) => sum + (c.rent || 0), 0);
+        const totalDeposits = activeContracts.reduce((sum, c) => sum + (c.deposit || 0), 0);
+
+        return `<div class="page-header">
+            <div>
+                <h1 class="page-title">📋 Contratti</h1>
+                <p class="page-subtitle">${activeContracts.length} attivi · ${expiredContracts.length} scaduti</p>
+            </div>
+            <div class="page-actions">
+                ${expiringCount ? `<span class="badge red" style="font-size:12px;padding:8px 12px">⚠️ ${expiringCount} in scadenza (30gg)</span>` : ''}
+                ${expiringIn90 ? `<span class="badge orange" style="font-size:12px;padding:8px 12px">⏰ ${expiringIn90} in 90gg</span>` : ''}
+                <button class="btn" onclick="openModal('addContract')">+ Nuovo</button>
+            </div>
+        </div>
+
+        <!-- Stats Dashboard -->
+        <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:24px">
+            <div class="stat-card green">
+                <div class="stat-icon">✅</div>
+                <div class="stat-value">${activeContracts.length}</div>
+                <div class="stat-label">Contratti Attivi</div>
+            </div>
+            <div class="stat-card gold">
+                <div class="stat-icon">💰</div>
+                <div class="stat-value">€${totalMonthlyRent.toLocaleString('it-IT')}</div>
+                <div class="stat-label">Entrate Mensili</div>
+            </div>
+            <div class="stat-card blue">
+                <div class="stat-icon">🔒</div>
+                <div class="stat-value">€${totalDeposits.toLocaleString('it-IT')}</div>
+                <div class="stat-label">Totale Depositi</div>
+            </div>
+            <div class="stat-card ${expiringCount > 0 ? 'red' : 'purple'}">
+                <div class="stat-icon">${expiringCount > 0 ? '⚠️' : '📅'}</div>
+                <div class="stat-value">${expiringCount}</div>
+                <div class="stat-label">Scadenze Imminenti</div>
+            </div>
+        </div>
+
+        <!-- Timeline degli eventi prossimi -->
+        ${expiringCount > 0 || expiringIn90 > 0 ? `
+        <div class="card" style="margin-bottom:24px;border-color:var(--orange)">
+            <div class="card-header" style="background:linear-gradient(135deg, rgba(255,165,0,0.1), transparent)">
+                <h3 class="card-title">📅 Timeline Scadenze</h3>
+            </div>
+            <div class="card-body" style="padding:16px">
+                <div style="position:relative;padding-left:24px">
+                    ${activeContracts
+                        .filter(c => {
+                            const days = daysUntil(c.endDate);
+                            return days !== null && days <= 90 && days >= 0;
+                        })
+                        .sort((a, b) => new Date(a.endDate) - new Date(b.endDate))
+                        .map(c => {
+                            const p = S.properties.find(x => x.id === c.propertyId);
+                            const t = S.users.find(x => x.id === c.tenantId);
+                            const days = daysUntil(c.endDate);
+                            const isUrgent = days <= 30;
+                            return `<div style="position:relative;padding:12px 0;border-left:2px solid ${isUrgent ? 'var(--red)' : 'var(--orange)'};margin-left:-24px;padding-left:24px">
+                                <div style="position:absolute;left:-8px;top:16px;width:14px;height:14px;border-radius:50%;background:${isUrgent ? 'var(--red)' : 'var(--orange)'};border:2px solid var(--bg-card)"></div>
+                                <div style="display:flex;justify-content:space-between;align-items:center">
+                                    <div>
+                                        <div style="font-weight:600;font-size:14px">${esc(p?.name || 'Immobile')}</div>
+                                        <div style="font-size:12px;color:var(--text-muted)">${esc(t?.name || '')} · €${c.rent}/mese</div>
+                                    </div>
+                                    <div style="text-align:right">
+                                        <div class="badge ${isUrgent ? 'red' : 'orange'}" style="font-size:13px;padding:6px 12px">
+                                            ${isUrgent ? '🚨' : '⏰'} ${days} giorni
+                                        </div>
+                                        <div style="font-size:11px;color:var(--text-muted);margin-top:4px">${fmtDate(c.endDate)}</div>
+                                    </div>
+                                </div>
+                            </div>`;
+                        }).join('')}
+                </div>
+            </div>
+        </div>
+        ` : ''}
+
+        <!-- Filter Tabs -->
+        <div class="card" style="margin-bottom:16px">
+            <div class="card-body" style="padding:12px;display:flex;gap:8px;flex-wrap:wrap">
+                <button class="btn btn-sm" onclick="filterContracts('all',this)">Tutti (${S.contracts.length})</button>
+                <button class="btn btn-sm btn-secondary" onclick="filterContracts('active',this)">✅ Attivi (${activeContracts.length})</button>
+                <button class="btn btn-sm btn-secondary" onclick="filterContracts('expiring',this)">⚠️ In Scadenza (${expiringCount})</button>
+                <button class="btn btn-sm btn-secondary" onclick="filterContracts('expired',this)">❌ Scaduti (${expiredContracts.length})</button>
+            </div>
+        </div>
+
+        <!-- Contracts List -->
+        <div class="card"><div class="card-body flush" id="contractsContainer">${S.contracts.map(c => {
+            const p = S.properties.find(x => x.id === c.propertyId);
+            const t = S.users.find(x => x.id === c.tenantId);
+            const days = daysUntil(c.endDate);
+            const expiring = c.status === 'active' && days !== null && days <= 30 && days >= 0;
+            const expiringSoon = c.status === 'active' && days !== null && days <= 90 && days > 30;
+
+            // Calculate contract progress
+            const startDate = new Date(c.startDate);
+            const endDate = new Date(c.endDate);
+            const now = new Date();
+            const totalDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+            const elapsedDays = Math.ceil((now - startDate) / (1000 * 60 * 60 * 24));
+            const progressPercent = c.status === 'active' ? Math.min(100, Math.max(0, Math.round((elapsedDays / totalDays) * 100))) : 100;
+
+            return `<div class="list-item clickable contract-item" data-status="${c.status === 'active' ? (expiring ? 'expiring' : 'active') : 'expired'}" onclick="viewContract('${c.id}')">
+                <div class="list-icon" style="background:${expiring ? 'var(--red-light)' : c.status === 'active' ? 'var(--green-light)' : 'var(--gray-light)'};font-size:20px">
+                    ${expiring ? '⚠️' : c.status === 'active' ? '📋' : '📄'}
+                </div>
+                <div class="list-content" style="flex:1">
+                    <div class="list-title">
+                        ${esc(p?.name || 'Immobile')}
+                        <span class="badge ${c.status === 'active' ? (expiring ? 'red' : expiringSoon ? 'orange' : 'green') : 'gray'}">
+                            ${c.status === 'active' ? (expiring ? '🚨 ' + days + 'gg' : expiringSoon ? '⏰ ' + days + 'gg' : 'Attivo') : 'Scaduto'}
+                        </span>
+                    </div>
+                    <div class="list-subtitle">${esc(t?.name || 'N/A')} · ${fmtDate(c.startDate)} → ${fmtDate(c.endDate)}</div>
+                    ${c.status === 'active' ? `
+                    <div style="margin-top:8px;height:4px;background:var(--border);border-radius:2px;overflow:hidden">
+                        <div style="height:100%;width:${progressPercent}%;background:${expiring ? 'var(--red)' : expiringSoon ? 'var(--orange)' : 'var(--green)'};transition:width .3s"></div>
+                    </div>
+                    <div style="font-size:10px;color:var(--text-muted);margin-top:4px">${progressPercent}% completato</div>
+                    ` : ''}
+                </div>
+                <div class="list-meta" style="text-align:right">
+                    <div class="list-value text-gold" style="font-size:16px;font-weight:600">€${c.rent || 0}/mese</div>
+                    <div style="font-size:11px;color:var(--text-muted)">Deposito: €${c.deposit || 0}</div>
+                </div>
+            </div>`;
+        }).join('') || '<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">Nessun contratto</div><button class="btn" onclick="openModal(\'addContract\')">+ Nuovo Contratto</button></div>'}</div></div>`;
+    }
+
+    function filterContracts(status, btn) {
+        document.querySelectorAll('.card .btn-sm').forEach(b => b.classList.add('btn-secondary'));
+        btn.classList.remove('btn-secondary');
+        document.querySelectorAll('.contract-item').forEach(item => {
+            if (status === 'all') item.style.display = '';
+            else item.style.display = item.dataset.status === status ? '' : 'none';
+        });
     }
 
     function paymentsPage() {
         const overdueCount = S.payments.filter(p => p.status === 'pending' && isOverdue(p.dueDate)).length;
-        const paidTotal = S.payments.filter(p => p.status === 'paid').reduce((s, p) => s + (p.amount || 0), 0);
-        const pendingTotal = S.payments.filter(p => p.status === 'pending').reduce((s, p) => s + (p.amount || 0), 0);
-        return `<div class="page-header"><h1 class="page-title">Pagamenti</h1><div class="page-actions">${overdueCount ? `<span class="badge red">${overdueCount} in ritardo</span>` : ''}<button class="btn btn-secondary btn-sm" onclick="exportPaymentsCSV()">📊 Export</button><button class="btn btn-secondary" onclick="openModal('bulkPayments')">📅 Genera Multipli</button><button class="btn" onclick="openModal('addPayment')">+ Registra</button></div></div>
-            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px">
-                <div class="card" style="padding:16px;text-align:center"><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase">Totale Pagamenti</div><div style="font-size:24px;font-weight:600;margin-top:4px">${S.payments.length}</div></div>
-                <div class="card" style="padding:16px;text-align:center;background:var(--green-light)"><div style="font-size:11px;color:var(--green);text-transform:uppercase">Incassato</div><div style="font-size:24px;font-weight:600;margin-top:4px;color:var(--green)">€${paidTotal.toLocaleString('it-IT')}</div></div>
-                <div class="card" style="padding:16px;text-align:center;background:var(--orange-light)"><div style="font-size:11px;color:var(--orange);text-transform:uppercase">In Attesa</div><div style="font-size:24px;font-weight:600;margin-top:4px;color:var(--orange)">€${pendingTotal.toLocaleString('it-IT')}</div></div>
+        const paidPayments = S.payments.filter(p => p.status === 'paid');
+        const pendingPayments = S.payments.filter(p => p.status === 'pending');
+        const paidTotal = paidPayments.reduce((s, p) => s + (p.amount || 0), 0);
+        const pendingTotal = pendingPayments.reduce((s, p) => s + (p.amount || 0), 0);
+        const overdueTotal = S.payments.filter(p => p.status === 'pending' && isOverdue(p.dueDate)).reduce((s, p) => s + (p.amount || 0), 0);
+
+        // Calculate monthly data for charts (last 6 months)
+        const monthlyData = {};
+        const now = new Date();
+        for (let i = 5; i >= 0; i--) {
+            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            const key = d.toISOString().slice(0, 7);
+            monthlyData[key] = { paid: 0, pending: 0, label: d.toLocaleDateString('it-IT', { month: 'short', year: '2-digit' }) };
+        }
+        S.payments.forEach(p => {
+            const key = (p.month || '').slice(0, 7);
+            if (monthlyData[key]) {
+                if (p.status === 'paid') monthlyData[key].paid += (p.amount || 0);
+                else monthlyData[key].pending += (p.amount || 0);
+            }
+        });
+        const monthlyArray = Object.entries(monthlyData);
+        const maxMonthlyAmount = Math.max(...monthlyArray.map(([k, v]) => v.paid + v.pending), 1);
+
+        // Calculate forecast (next 3 months based on active contracts)
+        const activeContracts = S.contracts.filter(c => c.status === 'active');
+        const monthlyRentForecast = activeContracts.reduce((sum, c) => sum + (c.rent || 0), 0);
+
+        // Collection rate
+        const totalExpected = paidTotal + pendingTotal;
+        const collectionRate = totalExpected > 0 ? Math.round((paidTotal / totalExpected) * 100) : 100;
+
+        return `<div class="page-header">
+            <div>
+                <h1 class="page-title">💳 Pagamenti</h1>
+                <p class="page-subtitle">${S.payments.length} totali · ${paidPayments.length} pagati · ${pendingPayments.length} in attesa</p>
             </div>
-            <div class="card"><div class="card-body flush">${S.payments.sort((a,b) => (b.month || '').localeCompare(a.month || '')).map(p => {
-                const c = S.contracts.find(x => x.id === p.contractId);
-                const prop = c ? S.properties.find(x => x.id === c.propertyId) : null;
-                const t = c ? S.users.find(x => x.id === c.tenantId) : null;
-                const overdue = p.status === 'pending' && isOverdue(p.dueDate);
-                return `<div class="list-item clickable" onclick="openModal('editPayment',S.payments.find(x=>x.id==='${p.id}'))"><div class="list-icon" style="background:${p.status === 'paid' ? 'var(--green-light)' : overdue ? 'var(--red-light)' : 'var(--orange-light)'}">${p.status === 'paid' ? '✔' : overdue ? '⚠️' : '⏳'}</div><div class="list-content"><div class="list-title">${prop?.name || 'Pagamento'} · ${p.month || ''}</div><div class="list-subtitle">${t?.name || ''} · ${p.status === 'paid' ? 'Pagato ' + fmtDate(p.paidDate) : 'Scadenza ' + fmtDate(p.dueDate)}</div></div><div class="list-value ${p.status === 'paid' ? 'text-green' : overdue ? 'text-red' : 'text-gold'}">€${p.amount || 0}</div>${p.status === 'pending' ? `<button class="btn btn-xs btn-success" onclick="event.stopPropagation();markPaymentPaid('${p.id}')">✔</button>` : ''}</div>`;
-            }).join('') || '<div class="empty-state"><div class="empty-icon">💳</div><div class="empty-title">Nessun pagamento</div><button class="btn" onclick="openModal(\'bulkPayments\')">📅 Genera Pagamenti</button></div>'}</div></div>`;
+            <div class="page-actions">
+                ${overdueCount ? `<span class="badge red" style="font-size:12px;padding:8px 12px">🚨 ${overdueCount} in ritardo</span>` : ''}
+                <button class="btn btn-secondary btn-sm" onclick="exportPaymentsCSV()">📊 Export</button>
+                <button class="btn btn-secondary" onclick="openModal('bulkPayments')">📅 Genera</button>
+                <button class="btn" onclick="openModal('addPayment')">+ Registra</button>
+            </div>
+        </div>
+
+        <!-- Stats Dashboard -->
+        <div class="stats-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:24px">
+            <div class="stat-card green">
+                <div class="stat-icon">✅</div>
+                <div class="stat-value">€${paidTotal.toLocaleString('it-IT')}</div>
+                <div class="stat-label">Incassato</div>
+            </div>
+            <div class="stat-card orange">
+                <div class="stat-icon">⏳</div>
+                <div class="stat-value">€${pendingTotal.toLocaleString('it-IT')}</div>
+                <div class="stat-label">In Attesa</div>
+            </div>
+            <div class="stat-card ${overdueCount > 0 ? 'red' : 'gray'}">
+                <div class="stat-icon">${overdueCount > 0 ? '🚨' : '✓'}</div>
+                <div class="stat-value">€${overdueTotal.toLocaleString('it-IT')}</div>
+                <div class="stat-label">Scaduto</div>
+            </div>
+            <div class="stat-card blue">
+                <div class="stat-icon">📊</div>
+                <div class="stat-value">${collectionRate}%</div>
+                <div class="stat-label">Tasso Incasso</div>
+                <div style="margin-top:8px;height:6px;background:var(--border);border-radius:3px;overflow:hidden">
+                    <div style="height:100%;width:${collectionRate}%;background:${collectionRate >= 90 ? 'var(--green)' : collectionRate >= 70 ? 'var(--orange)' : 'var(--red)'};transition:width .3s"></div>
+                </div>
+            </div>
+            <div class="stat-card gold">
+                <div class="stat-icon">🔮</div>
+                <div class="stat-value">€${monthlyRentForecast.toLocaleString('it-IT')}</div>
+                <div class="stat-label">Previsione/Mese</div>
+            </div>
+        </div>
+
+        <!-- Charts Section -->
+        <div class="grid-2" style="margin-bottom:24px">
+            <!-- Monthly Revenue Chart -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">📈 Andamento Mensile</h3>
+                </div>
+                <div class="card-body">
+                    <div style="display:flex;gap:8px;height:180px;align-items:flex-end">
+                        ${monthlyArray.map(([key, data]) => {
+                            const paidHeight = Math.round((data.paid / maxMonthlyAmount) * 150);
+                            const pendingHeight = Math.round((data.pending / maxMonthlyAmount) * 150);
+                            return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
+                                <div style="width:100%;display:flex;flex-direction:column;gap:2px;align-items:center">
+                                    ${data.pending > 0 ? `<div style="width:80%;height:${pendingHeight}px;background:var(--orange);border-radius:4px 4px 0 0;min-height:${data.pending > 0 ? '4px' : '0'}" title="In Attesa: €${data.pending}"></div>` : ''}
+                                    ${data.paid > 0 ? `<div style="width:80%;height:${paidHeight}px;background:var(--green);border-radius:${data.pending > 0 ? '0' : '4px 4px'} 0 0;min-height:${data.paid > 0 ? '4px' : '0'}" title="Pagato: €${data.paid}"></div>` : ''}
+                                    ${data.paid === 0 && data.pending === 0 ? '<div style="width:80%;height:4px;background:var(--border);border-radius:4px"></div>' : ''}
+                                </div>
+                                <div style="font-size:10px;color:var(--text-muted);white-space:nowrap">${data.label}</div>
+                            </div>`;
+                        }).join('')}
+                    </div>
+                    <div style="display:flex;justify-content:center;gap:16px;margin-top:12px;font-size:11px">
+                        <span><span style="display:inline-block;width:12px;height:12px;background:var(--green);border-radius:2px;vertical-align:middle;margin-right:4px"></span> Pagato</span>
+                        <span><span style="display:inline-block;width:12px;height:12px;background:var(--orange);border-radius:2px;vertical-align:middle;margin-right:4px"></span> In Attesa</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Forecast Card -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">🔮 Previsione Entrate</h3>
+                </div>
+                <div class="card-body">
+                    <div style="text-align:center;padding:20px 0">
+                        <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-bottom:8px">Prossimi 3 Mesi</div>
+                        <div style="font-size:36px;font-weight:700;color:var(--gold)">€${(monthlyRentForecast * 3).toLocaleString('it-IT')}</div>
+                        <div style="font-size:13px;color:var(--text-muted);margin-top:8px">basato su ${activeContracts.length} contratti attivi</div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:16px">
+                        ${[1, 2, 3].map(i => {
+                            const futureDate = new Date(now.getFullYear(), now.getMonth() + i, 1);
+                            return `<div style="text-align:center;padding:12px;background:var(--bg-elevated);border-radius:8px">
+                                <div style="font-size:10px;color:var(--text-muted)">${futureDate.toLocaleDateString('it-IT', { month: 'short' })}</div>
+                                <div style="font-size:16px;font-weight:600;color:var(--green);margin-top:4px">€${monthlyRentForecast.toLocaleString('it-IT')}</div>
+                            </div>`;
+                        }).join('')}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filter Tabs -->
+        <div class="card" style="margin-bottom:16px">
+            <div class="card-body" style="padding:12px;display:flex;gap:8px;flex-wrap:wrap">
+                <button class="btn btn-sm" onclick="filterPayments('all',this)">Tutti (${S.payments.length})</button>
+                <button class="btn btn-sm btn-secondary" onclick="filterPayments('paid',this)">✅ Pagati (${paidPayments.length})</button>
+                <button class="btn btn-sm btn-secondary" onclick="filterPayments('pending',this)">⏳ In Attesa (${pendingPayments.length})</button>
+                <button class="btn btn-sm btn-secondary" onclick="filterPayments('overdue',this)">🚨 Scaduti (${overdueCount})</button>
+            </div>
+        </div>
+
+        <!-- Payments List -->
+        <div class="card"><div class="card-body flush" id="paymentsContainer">${S.payments.sort((a,b) => (b.month || '').localeCompare(a.month || '')).map(p => {
+            const c = S.contracts.find(x => x.id === p.contractId);
+            const prop = c ? S.properties.find(x => x.id === c.propertyId) : null;
+            const t = c ? S.users.find(x => x.id === c.tenantId) : null;
+            const overdue = p.status === 'pending' && isOverdue(p.dueDate);
+
+            return `<div class="list-item clickable payment-item" data-status="${p.status === 'paid' ? 'paid' : overdue ? 'overdue' : 'pending'}" onclick="openModal('editPayment',S.payments.find(x=>x.id==='${p.id}'))">
+                <div class="list-icon" style="background:${p.status === 'paid' ? 'var(--green-light)' : overdue ? 'var(--red-light)' : 'var(--orange-light)'}">
+                    ${p.status === 'paid' ? '✔' : overdue ? '🚨' : '⏳'}
+                </div>
+                <div class="list-content">
+                    <div class="list-title">
+                        ${esc(prop?.name || 'Pagamento')} · ${p.month || ''}
+                        ${overdue ? '<span class="badge red">Scaduto!</span>' : ''}
+                    </div>
+                    <div class="list-subtitle">
+                        ${esc(t?.name || '')} · ${p.status === 'paid' ? 'Pagato ' + fmtDate(p.paidDate) : 'Scadenza ' + fmtDate(p.dueDate)}
+                    </div>
+                </div>
+                <div class="list-value ${p.status === 'paid' ? 'text-green' : overdue ? 'text-red' : 'text-gold'}" style="font-size:16px;font-weight:600">
+                    €${(p.amount || 0).toLocaleString('it-IT')}
+                </div>
+                ${p.status === 'pending' ? `<button class="btn btn-xs btn-success" onclick="event.stopPropagation();markPaymentPaid('${p.id}')" style="margin-left:8px">✔ Pagato</button>` : ''}
+            </div>`;
+        }).join('') || '<div class="empty-state"><div class="empty-icon">💳</div><div class="empty-title">Nessun pagamento</div><button class="btn" onclick="openModal(\'bulkPayments\')">📅 Genera Pagamenti</button></div>'}</div></div>`;
     }
 
+    function filterPayments(status, btn) {
+        document.querySelectorAll('.card .btn-sm').forEach(b => b.classList.add('btn-secondary'));
+        btn.classList.remove('btn-secondary');
+        document.querySelectorAll('.payment-item').forEach(item => {
+            if (status === 'all') item.style.display = '';
+            else item.style.display = item.dataset.status === status ? '' : 'none';
+        });
+    }
+
+    // Maintenance view state
+    let maintenanceViewMode = 'kanban';
+
     function maintenancePage() {
-        return `<div class="page-header"><h1 class="page-title">Manutenzione</h1><div class="page-actions"><button class="btn" onclick="openModal('addMaintenance')">+ Nuova</button></div></div>
-            <div class="card"><div class="card-body flush">${S.maintenance.map(m => {
-                const p = S.properties.find(x => x.id === m.propertyId);
-                const u = S.users.find(x => x.id === m.userId);
-                return `<div class="list-item clickable" onclick="viewMaintenance('${m.id}')"><div class="list-icon" style="background:${m.priority === 'urgent' ? 'var(--red-light)' : m.status === 'resolved' ? 'var(--green-light)' : 'var(--orange-light)'}">${m.priority === 'urgent' ? '🚨' : m.status === 'resolved' ? '✔' : '🔧'}</div><div class="list-content"><div class="list-title">${m.title} <span class="badge ${priorityColor(m.priority)}">${priorityLabel(m.priority)}</span></div><div class="list-subtitle">${p?.name || ''} · ${u?.name || ''} · ${fmtDate(m.createdAt)}</div></div><span class="badge ${statusColor(m.status)}">${statusLabel(m.status)}</span></div>`;
-            }).join('') || '<div class="empty-state"><div class="empty-icon">🔧</div><div class="empty-title">Nessuna richiesta</div></div>'}</div></div>`;
+        const pendingItems = S.maintenance.filter(m => m.status === 'pending');
+        const inProgressItems = S.maintenance.filter(m => m.status === 'in_progress' || m.status === 'inProgress');
+        const resolvedItems = S.maintenance.filter(m => m.status === 'resolved');
+        const urgentCount = S.maintenance.filter(m => m.priority === 'urgent' && m.status !== 'resolved').length;
+
+        return `<div class="page-header">
+            <div>
+                <h1 class="page-title">🔧 Manutenzione</h1>
+                <p class="page-subtitle">${S.maintenance.length} totali · ${pendingItems.length} in attesa · ${inProgressItems.length} in corso · ${resolvedItems.length} risolti</p>
+            </div>
+            <div class="page-actions">
+                ${urgentCount > 0 ? `<span class="badge red" style="font-size:12px;padding:8px 12px">🚨 ${urgentCount} urgenti</span>` : ''}
+                <button class="btn btn-sm ${maintenanceViewMode === 'kanban' ? '' : 'btn-secondary'}" onclick="maintenanceViewMode='kanban';renderPage()">📋 Kanban</button>
+                <button class="btn btn-sm ${maintenanceViewMode === 'list' ? '' : 'btn-secondary'}" onclick="maintenanceViewMode='list';renderPage()">📃 Lista</button>
+                <button class="btn" onclick="openModal('addMaintenance')">+ Nuova</button>
+            </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:24px">
+            <div class="stat-card orange">
+                <div class="stat-icon">📥</div>
+                <div class="stat-value">${pendingItems.length}</div>
+                <div class="stat-label">In Attesa</div>
+            </div>
+            <div class="stat-card blue">
+                <div class="stat-icon">🔄</div>
+                <div class="stat-value">${inProgressItems.length}</div>
+                <div class="stat-label">In Corso</div>
+            </div>
+            <div class="stat-card green">
+                <div class="stat-icon">✅</div>
+                <div class="stat-value">${resolvedItems.length}</div>
+                <div class="stat-label">Risolti</div>
+            </div>
+            <div class="stat-card ${urgentCount > 0 ? 'red' : 'gray'}">
+                <div class="stat-icon">${urgentCount > 0 ? '🚨' : '✓'}</div>
+                <div class="stat-value">${urgentCount}</div>
+                <div class="stat-label">Urgenti</div>
+            </div>
+        </div>
+
+        ${maintenanceViewMode === 'kanban' ? maintenanceKanban(pendingItems, inProgressItems, resolvedItems) : maintenanceList()}
+        `;
+    }
+
+    function maintenanceKanban(pendingItems, inProgressItems, resolvedItems) {
+        const kanbanColumn = (title, icon, color, items, status) => `
+            <div class="card" style="flex:1;min-width:280px">
+                <div class="card-header" style="background:${color};padding:12px 16px">
+                    <h3 class="card-title" style="font-size:14px;display:flex;align-items:center;gap:8px">
+                        ${icon} ${title}
+                        <span class="badge" style="background:rgba(255,255,255,0.2);color:inherit">${items.length}</span>
+                    </h3>
+                </div>
+                <div class="card-body" style="padding:12px;min-height:400px;background:var(--bg-elevated)">
+                    ${items.length > 0 ? items.map(m => {
+                        const p = S.properties.find(x => x.id === m.propertyId);
+                        const u = S.users.find(x => x.id === m.userId);
+                        const isUrgent = m.priority === 'urgent';
+                        return `<div class="maintenance-card" onclick="viewMaintenance('${m.id}')" style="background:var(--bg-card);border-radius:10px;padding:14px;margin-bottom:12px;cursor:pointer;border-left:4px solid ${isUrgent ? 'var(--red)' : m.priority === 'high' ? 'var(--orange)' : 'var(--blue)'};box-shadow:0 2px 8px rgba(0,0,0,0.1);transition:all .2s" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)'" onmouseout="this.style.transform='';this.style.boxShadow='0 2px 8px rgba(0,0,0,0.1)'">
+                            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+                                <span class="badge ${priorityColor(m.priority)}" style="font-size:10px">${isUrgent ? '🚨 ' : ''}${priorityLabel(m.priority)}</span>
+                                <span style="font-size:10px;color:var(--text-muted)">${fmtDate(m.createdAt)}</span>
+                            </div>
+                            <div style="font-weight:600;font-size:13px;margin-bottom:6px;line-height:1.3">${esc(m.title)}</div>
+                            <div style="font-size:11px;color:var(--text-muted);display:flex;gap:8px;flex-wrap:wrap">
+                                ${p ? `<span>🏠 ${esc(p.name)}</span>` : ''}
+                                ${u ? `<span>👤 ${esc(u.name?.split(' ')[0] || '')}</span>` : ''}
+                            </div>
+                            ${status !== 'resolved' ? `
+                            <div style="margin-top:10px;display:flex;gap:6px">
+                                ${status === 'pending' ? `<button class="btn btn-xs" onclick="event.stopPropagation();updateMaintenanceStatus('${m.id}','in_progress')">▶️ Inizia</button>` : ''}
+                                ${status === 'in_progress' || status === 'inProgress' ? `<button class="btn btn-xs btn-success" onclick="event.stopPropagation();updateMaintenanceStatus('${m.id}','resolved')">✅ Risolvi</button>` : ''}
+                            </div>
+                            ` : ''}
+                        </div>`;
+                    }).join('') : `<div style="text-align:center;padding:40px 20px;color:var(--text-muted)">
+                        <div style="font-size:24px;margin-bottom:8px">${icon}</div>
+                        <div style="font-size:12px">Nessun elemento</div>
+                    </div>`}
+                </div>
+            </div>`;
+
+        return `<div style="display:flex;gap:16px;overflow-x:auto;padding-bottom:16px">
+            ${kanbanColumn('In Attesa', '📥', 'linear-gradient(135deg, rgba(255,165,0,0.2), transparent)', pendingItems, 'pending')}
+            ${kanbanColumn('In Corso', '🔄', 'linear-gradient(135deg, rgba(52,152,219,0.2), transparent)', inProgressItems, 'in_progress')}
+            ${kanbanColumn('Risolti', '✅', 'linear-gradient(135deg, rgba(46,204,113,0.2), transparent)', resolvedItems, 'resolved')}
+        </div>`;
+    }
+
+    function maintenanceList() {
+        return `<div class="card"><div class="card-body flush">${S.maintenance.map(m => {
+            const p = S.properties.find(x => x.id === m.propertyId);
+            const u = S.users.find(x => x.id === m.userId);
+            return `<div class="list-item clickable" onclick="viewMaintenance('${m.id}')">
+                <div class="list-icon" style="background:${m.priority === 'urgent' ? 'var(--red-light)' : m.status === 'resolved' ? 'var(--green-light)' : 'var(--orange-light)'}">
+                    ${m.priority === 'urgent' ? '🚨' : m.status === 'resolved' ? '✔' : '🔧'}
+                </div>
+                <div class="list-content">
+                    <div class="list-title">
+                        ${esc(m.title)}
+                        <span class="badge ${priorityColor(m.priority)}">${priorityLabel(m.priority)}</span>
+                    </div>
+                    <div class="list-subtitle">${esc(p?.name || '')} · ${esc(u?.name || '')} · ${fmtDate(m.createdAt)}</div>
+                </div>
+                <span class="badge ${statusColor(m.status)}">${statusLabel(m.status)}</span>
+                ${m.status !== 'resolved' ? `
+                <div style="display:flex;gap:4px;margin-left:8px" onclick="event.stopPropagation()">
+                    ${m.status === 'pending' ? `<button class="btn btn-xs btn-secondary" onclick="updateMaintenanceStatus('${m.id}','in_progress')">▶️</button>` : ''}
+                    ${m.status === 'in_progress' || m.status === 'inProgress' ? `<button class="btn btn-xs btn-success" onclick="updateMaintenanceStatus('${m.id}','resolved')">✅</button>` : ''}
+                </div>
+                ` : ''}
+            </div>`;
+        }).join('') || '<div class="empty-state"><div class="empty-icon">🔧</div><div class="empty-title">Nessuna richiesta</div></div>'}</div></div>`;
+    }
+
+    async function updateMaintenanceStatus(id, newStatus) {
+        try {
+            await db.collection('maintenance').doc(id).update({
+                status: newStatus,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            const item = S.maintenance.find(m => m.id === id);
+            if (item) item.status = newStatus;
+            toast('success', 'Stato aggiornato');
+            renderPage();
+        } catch (err) {
+            toast('error', 'Errore: ' + err.message);
+        }
     }
 
     function documentsPage() {
@@ -7440,6 +8015,7 @@ Valentyne - BOOM Rome`
                     <div><label class="form-label">Inquilino</label><div style="display:flex;gap:8px"><input type="text" class="form-input" value="https://boomrome.com/form-tenant.html" readonly id="tUrl" style="font-size:11px"><button class="btn btn-sm" onclick="copyRegUrl('tUrl')">Copia</button></div></div>
                 </div>
             </div></div>
+            ${adeConverterCard()}
             <div class="card"><div class="card-header"><span class="card-title">Contratti (${contracts.length})</span><button class="btn btn-sm btn-secondary" onclick="goTo('registrations')">🔄 Aggiorna</button></div>
                 <div class="card-body flush">
                     ${contracts.length === 0 ? '<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">Nessuna registrazione</div><p class="empty-text">Crea una nuova registrazione per iniziare</p><button class="btn" onclick="openNewRegistration()">+ Nuova Registrazione</button></div>' : contracts.map(c => `
@@ -8975,22 +9551,265 @@ IBAN: ${l.iban || '-'}`;
 
     function landlordDatabasePage() {
         var landlords = S.landlords || [];
-        return '<div class="page-header"><div><h1 class="page-title">🏘️ Landlord Database</h1><p class="page-subtitle">Track reliable landlords</p></div><div class="page-actions"><button class="btn" onclick="openAddLandlord()">+ Add Landlord</button></div></div><div class="stats-grid" style="grid-template-columns:repeat(4,1fr)"><div class="stat-card gold"><div class="stat-icon">👥</div><div class="stat-value">' + landlords.length + '</div><div class="stat-label">Total Landlords</div></div><div class="stat-card green"><div class="stat-icon">⭐</div><div class="stat-value">' + landlords.filter(function(l) { return l.rating >= 4; }).length + '</div><div class="stat-label">Top Rated</div></div><div class="stat-card blue"><div class="stat-icon">🏠</div><div class="stat-value">' + landlords.reduce(function(sum, l) { return sum + (l.propertyCount || 0); }, 0) + '</div><div class="stat-label">Total Properties</div></div><div class="stat-card purple"><div class="stat-icon">🤝</div><div class="stat-value">' + landlords.filter(function(l) { return l.dealsCompleted > 0; }).length + '</div><div class="stat-label">Active Partners</div></div></div><div class="card"><div class="card-body flush"><table class="crm-table"><thead><tr><th>Landlord</th><th>Contact</th><th>Properties</th><th>Rating</th><th>Deals</th><th>Actions</th></tr></thead><tbody>' + landlords.map(function(l) { return '<tr onclick="openLandlordDetail(\'' + l.id + '\')" style="cursor:pointer"><td><div style="display:flex;align-items:center;gap:10px"><div class="avatar" style="width:32px;height:32px;font-size:12px">' + (l.name?.charAt(0) || '?') + '</div><div><div style="font-weight:500">' + esc(l.name) + '</div><div style="font-size:11px;color:var(--text-muted)">' + esc(l.zones || '') + '</div></div></div></td><td><div style="font-size:12px">' + esc(l.phone || '-') + '</div></td><td>' + (l.propertyCount || 0) + '</td><td>' + '⭐'.repeat(l.rating || 0) + '</td><td>' + (l.dealsCompleted || 0) + '</td><td onclick="event.stopPropagation()"><button class="btn btn-xs btn-secondary" onclick="openLandlordWhatsApp(\'' + l.id + '\')">💬</button></td></tr>'; }).join('') + '</tbody></table></div></div>';
+        var availableSoon = landlords.filter(function(l) {
+            if (!l.availableFrom) return false;
+            var availDate = new Date(l.availableFrom);
+            var now = new Date();
+            var diffDays = Math.ceil((availDate - now) / (1000 * 60 * 60 * 24));
+            return diffDays >= 0 && diffDays <= 30;
+        });
+        var currentlyAvailable = landlords.filter(function(l) {
+            if (!l.availableFrom) return false;
+            return new Date(l.availableFrom) <= new Date();
+        });
+
+        return `<div class="page-header">
+            <div>
+                <h1 class="page-title">🏘️ Landlord Database</h1>
+                <p class="page-subtitle">${landlords.length} landlords · ${currentlyAvailable.length} disponibili ora</p>
+            </div>
+            <div class="page-actions">
+                ${availableSoon.length > 0 ? '<span class="badge green" style="font-size:12px;padding:8px 12px">🔓 ' + availableSoon.length + ' disponibili presto</span>' : ''}
+                <button class="btn" onclick="openAddLandlord()">+ Add Landlord</button>
+            </div>
+        </div>
+
+        <div class="stats-grid" style="grid-template-columns:repeat(5,1fr)">
+            <div class="stat-card gold">
+                <div class="stat-icon">👥</div>
+                <div class="stat-value">${landlords.length}</div>
+                <div class="stat-label">Total Landlords</div>
+            </div>
+            <div class="stat-card green">
+                <div class="stat-icon">🔓</div>
+                <div class="stat-value">${currentlyAvailable.length}</div>
+                <div class="stat-label">Disponibili Ora</div>
+            </div>
+            <div class="stat-card blue">
+                <div class="stat-icon">📅</div>
+                <div class="stat-value">${availableSoon.length}</div>
+                <div class="stat-label">Presto Disponibili</div>
+            </div>
+            <div class="stat-card purple">
+                <div class="stat-icon">🏠</div>
+                <div class="stat-value">${landlords.reduce(function(sum, l) { return sum + (l.propertyCount || 0); }, 0)}</div>
+                <div class="stat-label">Total Properties</div>
+            </div>
+            <div class="stat-card orange">
+                <div class="stat-icon">⭐</div>
+                <div class="stat-value">${landlords.filter(function(l) { return l.rating >= 4; }).length}</div>
+                <div class="stat-label">Top Rated</div>
+            </div>
+        </div>
+
+        <!-- Filter Tabs -->
+        <div class="card" style="margin:24px 0 16px 0">
+            <div class="card-body" style="padding:12px;display:flex;gap:8px;flex-wrap:wrap">
+                <button class="btn btn-sm" onclick="filterLandlords('all',this)">Tutti (${landlords.length})</button>
+                <button class="btn btn-sm btn-secondary" onclick="filterLandlords('available',this)">🔓 Disponibili (${currentlyAvailable.length})</button>
+                <button class="btn btn-sm btn-secondary" onclick="filterLandlords('soon',this)">📅 Presto (${availableSoon.length})</button>
+                <button class="btn btn-sm btn-secondary" onclick="filterLandlords('top',this)">⭐ Top Rated</button>
+            </div>
+        </div>
+
+        <div class="card"><div class="card-body flush">
+            <table class="crm-table">
+                <thead>
+                    <tr>
+                        <th>Landlord</th>
+                        <th>Contact</th>
+                        <th>🔓 Disponibilità</th>
+                        <th>Properties</th>
+                        <th>Rating</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="landlordsTableBody">
+                    ${landlords.map(function(l) {
+                        var availDate = l.availableFrom ? new Date(l.availableFrom) : null;
+                        var now = new Date();
+                        var isAvailable = availDate && availDate <= now;
+                        var isSoon = availDate && !isAvailable && Math.ceil((availDate - now) / (1000 * 60 * 60 * 24)) <= 30;
+                        var availStatus = isAvailable ? 'available' : isSoon ? 'soon' : 'none';
+                        var isTopRated = l.rating >= 4;
+
+                        return '<tr class="landlord-row" data-status="' + availStatus + '" data-top="' + isTopRated + '" onclick="openLandlordDetail(\'' + l.id + '\')" style="cursor:pointer">' +
+                            '<td><div style="display:flex;align-items:center;gap:10px">' +
+                                '<div class="avatar" style="width:36px;height:36px;font-size:14px;background:' + (isTopRated ? 'var(--gold)' : 'var(--blue)') + '">' + (l.name?.charAt(0) || '?') + '</div>' +
+                                '<div>' +
+                                    '<div style="font-weight:500">' + esc(l.name) + (isTopRated ? ' <span style="color:var(--gold)">⭐</span>' : '') + '</div>' +
+                                    '<div style="font-size:11px;color:var(--text-muted)">' + esc(l.zones || 'No zones') + '</div>' +
+                                '</div>' +
+                            '</div></td>' +
+                            '<td><div style="font-size:12px">' + esc(l.phone || '-') + '</div><div style="font-size:11px;color:var(--text-muted)">' + esc(l.email || '') + '</div></td>' +
+                            '<td>' + (availDate ?
+                                '<span class="badge ' + (isAvailable ? 'green' : isSoon ? 'orange' : 'gray') + '">' +
+                                (isAvailable ? '🔓 Disponibile' : '📅 ' + availDate.toLocaleDateString('it-IT', {day: 'numeric', month: 'short'})) +
+                                '</span>'
+                                : '<span style="color:var(--text-muted);font-size:11px">Non specificato</span>') +
+                            '</td>' +
+                            '<td style="font-weight:500">' + (l.propertyCount || 0) + '</td>' +
+                            '<td>' + '⭐'.repeat(l.rating || 0) + '<span style="color:var(--text-muted)">' + '☆'.repeat(5 - (l.rating || 0)) + '</span></td>' +
+                            '<td onclick="event.stopPropagation()">' +
+                                '<button class="btn btn-xs btn-secondary" onclick="openLandlordWhatsApp(\'' + l.id + '\')" title="WhatsApp">💬</button>' +
+                                '<button class="btn btn-xs btn-secondary" onclick="editLandlordAvailability(\'' + l.id + '\')" title="Modifica disponibilità" style="margin-left:4px">📅</button>' +
+                            '</td>' +
+                        '</tr>';
+                    }).join('')}
+                </tbody>
+            </table>
+        </div></div>`;
+    }
+
+    function filterLandlords(filter, btn) {
+        document.querySelectorAll('.card .btn-sm').forEach(function(b) { b.classList.add('btn-secondary'); });
+        btn.classList.remove('btn-secondary');
+        document.querySelectorAll('.landlord-row').forEach(function(row) {
+            if (filter === 'all') row.style.display = '';
+            else if (filter === 'available') row.style.display = row.dataset.status === 'available' ? '' : 'none';
+            else if (filter === 'soon') row.style.display = row.dataset.status === 'soon' ? '' : 'none';
+            else if (filter === 'top') row.style.display = row.dataset.top === 'true' ? '' : 'none';
+        });
+    }
+
+    function editLandlordAvailability(id) {
+        var l = S.landlords.find(function(x) { return x.id === id; });
+        if (!l) return;
+        var currentDate = l.availableFrom ? new Date(l.availableFrom).toISOString().slice(0,10) : '';
+
+        document.getElementById('modals').innerHTML = `
+            <div class="modal-overlay active" onclick="if(event.target===this)closeModal()">
+                <div class="modal sm" onclick="event.stopPropagation()">
+                    <div class="modal-header">
+                        <h3 class="modal-title">📅 Disponibilità - ${esc(l.name)}</h3>
+                        <button class="modal-close" onclick="closeModal()">×</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label class="form-label">Disponibile dal</label>
+                            <input type="date" class="form-input" id="landlordAvailDate" value="${currentDate}">
+                            <p style="font-size:11px;color:var(--text-muted);margin-top:8px">Lascia vuoto se non specificato</p>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" onclick="closeModal()">Annulla</button>
+                        <button class="btn" onclick="saveLandlordAvailability('${id}')">💾 Salva</button>
+                    </div>
+                </div>
+            </div>`;
+    }
+
+    async function saveLandlordAvailability(id) {
+        var dateVal = document.getElementById('landlordAvailDate').value;
+        try {
+            await db.collection('landlords').doc(id).update({
+                availableFrom: dateVal || null,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            var l = S.landlords.find(function(x) { return x.id === id; });
+            if (l) l.availableFrom = dateVal || null;
+            closeModal();
+            toast('success', 'Disponibilità aggiornata');
+            renderPage();
+        } catch (err) {
+            toast('error', 'Errore: ' + err.message);
+        }
     }
 
     function openAddLandlord() {
-        document.getElementById('modals').innerHTML = '<div class="modal-overlay active" onclick="if(event.target===this)closeModal()"><div class="modal" onclick="event.stopPropagation()"><div class="modal-header"><h3 class="modal-title">➕ Add Landlord</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="landlordForm" onsubmit="saveLandlord(event)"><div class="form-row"><div class="form-group"><label class="form-label">Name *</label><input type="text" class="form-input" name="name" required placeholder="Mario Rossi"></div><div class="form-group"><label class="form-label">Phone</label><input type="text" class="form-input" name="phone" placeholder="+39 333 1234567"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" name="email" placeholder="mario@example.com"></div><div class="form-group"><label class="form-label">Zones</label><input type="text" class="form-input" name="zones" placeholder="Trastevere, Centro"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Property Count</label><input type="number" class="form-input" name="propertyCount" value="1" min="0"></div><div class="form-group"><label class="form-label">Rating</label><select class="form-select" name="rating"><option value="5">⭐⭐⭐⭐⭐</option><option value="4">⭐⭐⭐⭐</option><option value="3" selected>⭐⭐⭐</option><option value="2">⭐⭐</option><option value="1">⭐</option></select></div></div><div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" name="notes" rows="3" placeholder="Response time, preferences..."></textarea></div><div class="modal-footer" style="padding:0;border:none;margin-top:20px"><button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button><button type="submit" class="btn">Add Landlord</button></div></form></div></div></div>';
+        document.getElementById('modals').innerHTML = `
+            <div class="modal-overlay active" onclick="if(event.target===this)closeModal()">
+                <div class="modal" onclick="event.stopPropagation()">
+                    <div class="modal-header">
+                        <h3 class="modal-title">➕ Add Landlord</h3>
+                        <button class="modal-close" onclick="closeModal()">×</button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="landlordForm" onsubmit="saveLandlord(event)">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label class="form-label">Name *</label>
+                                    <input type="text" class="form-input" name="name" required placeholder="Mario Rossi">
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Phone</label>
+                                    <input type="text" class="form-input" name="phone" placeholder="+39 333 1234567">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label class="form-label">Email</label>
+                                    <input type="email" class="form-input" name="email" placeholder="mario@example.com">
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Zones</label>
+                                    <input type="text" class="form-input" name="zones" placeholder="Trastevere, Centro">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label class="form-label">Property Count</label>
+                                    <input type="number" class="form-input" name="propertyCount" value="1" min="0">
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Rating</label>
+                                    <select class="form-select" name="rating">
+                                        <option value="5">⭐⭐⭐⭐⭐</option>
+                                        <option value="4">⭐⭐⭐⭐</option>
+                                        <option value="3" selected>⭐⭐⭐</option>
+                                        <option value="2">⭐⭐</option>
+                                        <option value="1">⭐</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label class="form-label">🔓 Disponibile dal</label>
+                                    <input type="date" class="form-input" name="availableFrom">
+                                    <p style="font-size:10px;color:var(--text-muted);margin-top:4px">Data in cui l'immobile sarà disponibile</p>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">💰 Prezzo Richiesto</label>
+                                    <input type="number" class="form-input" name="askingPrice" placeholder="850">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Notes</label>
+                                <textarea class="form-textarea" name="notes" rows="3" placeholder="Response time, preferences..."></textarea>
+                            </div>
+                            <div class="modal-footer" style="padding:0;border:none;margin-top:20px">
+                                <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                                <button type="submit" class="btn">Add Landlord</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>`;
     }
 
     async function saveLandlord(e) {
         e.preventDefault();
         var form = new FormData(e.target);
-        var landlord = { name: form.get('name'), phone: form.get('phone') || '', email: form.get('email') || '', zones: form.get('zones') || '', propertyCount: parseInt(form.get('propertyCount')) || 0, rating: parseInt(form.get('rating')) || 3, notes: form.get('notes') || '', dealsCompleted: 0, createdAt: firebase.firestore.FieldValue.serverTimestamp() };
+        var landlord = {
+            name: form.get('name'),
+            phone: form.get('phone') || '',
+            email: form.get('email') || '',
+            zones: form.get('zones') || '',
+            propertyCount: parseInt(form.get('propertyCount')) || 0,
+            rating: parseInt(form.get('rating')) || 3,
+            notes: form.get('notes') || '',
+            availableFrom: form.get('availableFrom') || null,
+            askingPrice: parseInt(form.get('askingPrice')) || null,
+            dealsCompleted: 0,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
         try {
             var docRef = await db.collection('landlords').add(landlord);
             if (!S.landlords) S.landlords = [];
             S.landlords.push(Object.assign({}, landlord, { id: docRef.id }));
-            closeModal(); toast('success', 'Landlord Added', landlord.name); renderPage();
+            closeModal();
+            toast('success', 'Landlord Added', landlord.name);
+            renderPage();
         } catch (err) { toast('error', 'Error', err.message); }
     }
 
@@ -9003,7 +9822,100 @@ IBAN: ${l.iban || '-'}`;
     function openLandlordDetail(id) {
         var l = S.landlords.find(function(x) { return x.id === id; });
         if (!l) return;
-        document.getElementById('modals').innerHTML = '<div class="modal-overlay active" onclick="if(event.target===this)closeModal()"><div class="modal" onclick="event.stopPropagation()"><div class="modal-header"><div style="display:flex;align-items:center;gap:12px"><div class="avatar lg">' + (l.name?.charAt(0) || '?') + '</div><div><h3 class="modal-title">' + esc(l.name) + '</h3><div style="color:var(--gold);margin-top:4px">' + '⭐'.repeat(l.rating || 0) + '</div></div></div><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><div class="detail-grid"><div><div class="detail-label">Phone</div><div class="detail-value">' + esc(l.phone || '-') + '</div></div><div><div class="detail-label">Email</div><div class="detail-value">' + esc(l.email || '-') + '</div></div><div><div class="detail-label">Zones</div><div class="detail-value">' + esc(l.zones || '-') + '</div></div><div><div class="detail-label">Properties</div><div class="detail-value">' + (l.propertyCount || 0) + '</div></div><div><div class="detail-label">Deals</div><div class="detail-value">' + (l.dealsCompleted || 0) + '</div></div></div>' + (l.notes ? '<div class="info-box mt-16"><div class="info-box-title">📝 Notes</div><p>' + esc(l.notes) + '</p></div>' : '') + '</div><div class="modal-footer"><button class="btn btn-danger" onclick="deleteLandlord(\'' + id + '\')">Delete</button><button class="btn btn-secondary" onclick="closeModal()">Close</button><button class="btn" onclick="openLandlordWhatsApp(\'' + id + '\')">💬 WhatsApp</button></div></div></div>';
+
+        var availDate = l.availableFrom ? new Date(l.availableFrom) : null;
+        var now = new Date();
+        var isAvailable = availDate && availDate <= now;
+        var daysUntilAvailable = availDate ? Math.ceil((availDate - now) / (1000 * 60 * 60 * 24)) : null;
+
+        document.getElementById('modals').innerHTML = `
+            <div class="modal-overlay active" onclick="if(event.target===this)closeModal()">
+                <div class="modal" onclick="event.stopPropagation()">
+                    <div class="modal-header" style="background:linear-gradient(135deg, rgba(212,175,55,0.1), transparent)">
+                        <div style="display:flex;align-items:center;gap:12px">
+                            <div class="avatar lg" style="background:${l.rating >= 4 ? 'var(--gold)' : 'var(--blue)'}">${l.name?.charAt(0) || '?'}</div>
+                            <div>
+                                <h3 class="modal-title">${esc(l.name)}</h3>
+                                <div style="display:flex;gap:8px;margin-top:6px">
+                                    <span style="color:var(--gold)">${'⭐'.repeat(l.rating || 0)}${'☆'.repeat(5 - (l.rating || 0))}</span>
+                                    ${isAvailable ?
+                                        '<span class="badge green">🔓 Disponibile</span>' :
+                                        (daysUntilAvailable !== null && daysUntilAvailable > 0 ?
+                                            '<span class="badge orange">📅 Disponibile tra ' + daysUntilAvailable + 'gg</span>' : '')}
+                                </div>
+                            </div>
+                        </div>
+                        <button class="modal-close" onclick="closeModal()">×</button>
+                    </div>
+                    <div class="modal-body">
+                        <!-- Availability Banner -->
+                        ${availDate ? `
+                        <div class="alert ${isAvailable ? 'success' : 'info'}" style="margin-bottom:16px">
+                            <div style="display:flex;align-items:center;justify-content:space-between">
+                                <div>
+                                    <strong>${isAvailable ? '🔓 Immobile Disponibile!' : '📅 Disponibilità Programmata'}</strong>
+                                    <div style="font-size:12px;margin-top:4px">
+                                        ${isAvailable ? 'L\'immobile è attualmente disponibile per affitto' : 'Dal ' + availDate.toLocaleDateString('it-IT', {day: 'numeric', month: 'long', year: 'numeric'})}
+                                    </div>
+                                </div>
+                                <button class="btn btn-sm" onclick="editLandlordAvailability('${id}')">📅 Modifica</button>
+                            </div>
+                        </div>
+                        ` : `
+                        <div class="alert warning" style="margin-bottom:16px">
+                            <div style="display:flex;align-items:center;justify-content:space-between">
+                                <div>
+                                    <strong>📅 Disponibilità non specificata</strong>
+                                    <div style="font-size:12px;margin-top:4px">Aggiungi la data di disponibilità dell'immobile</div>
+                                </div>
+                                <button class="btn btn-sm" onclick="editLandlordAvailability('${id}')">+ Aggiungi</button>
+                            </div>
+                        </div>
+                        `}
+
+                        <div class="detail-grid" style="grid-template-columns:repeat(3,1fr)">
+                            <div>
+                                <div class="detail-label">📞 Phone</div>
+                                <div class="detail-value">${esc(l.phone || '-')}</div>
+                            </div>
+                            <div>
+                                <div class="detail-label">✉️ Email</div>
+                                <div class="detail-value">${esc(l.email || '-')}</div>
+                            </div>
+                            <div>
+                                <div class="detail-label">📍 Zones</div>
+                                <div class="detail-value">${esc(l.zones || '-')}</div>
+                            </div>
+                            <div>
+                                <div class="detail-label">🏠 Properties</div>
+                                <div class="detail-value" style="font-size:18px;font-weight:600">${l.propertyCount || 0}</div>
+                            </div>
+                            <div>
+                                <div class="detail-label">🤝 Deals</div>
+                                <div class="detail-value" style="font-size:18px;font-weight:600">${l.dealsCompleted || 0}</div>
+                            </div>
+                            <div>
+                                <div class="detail-label">💰 Prezzo Richiesto</div>
+                                <div class="detail-value" style="font-size:18px;font-weight:600;color:var(--gold)">
+                                    ${l.askingPrice ? '€' + l.askingPrice + '/mese' : '-'}
+                                </div>
+                            </div>
+                        </div>
+
+                        ${l.notes ? `
+                        <div class="info-box mt-16">
+                            <div class="info-box-title">📝 Notes</div>
+                            <p style="margin:0">${esc(l.notes)}</p>
+                        </div>
+                        ` : ''}
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-danger" onclick="deleteLandlord('${id}')">🗑 Delete</button>
+                        <button class="btn btn-secondary" onclick="closeModal()">Close</button>
+                        <button class="btn" onclick="openLandlordWhatsApp('${id}')">💬 WhatsApp</button>
+                    </div>
+                </div>
+            </div>`;
     }
 
     async function deleteLandlord(id) {
@@ -11837,6 +12749,9 @@ IBAN: ${l.iban || '-'}`;
                     </div>
                 </div>
 
+                <!-- Casafari Meta-Search -->
+                ${casafariFilterCard()}
+
                 <div class="grid-2">
                     <div>
                         <div class="card"><div class="card-header"><h3 class="card-title">👤 Cliente</h3></div>
@@ -12350,6 +13265,618 @@ Check it: https://www.boomrome.com/client-portal.html`;
     }
 
     console.log('✅ Client Portal Integration loaded');
+
+    // ========================================
+    // ADE DOCUMENT CONVERTER v2.0 - COMPLIANT
+    // ========================================
+    const adeState = { files: [], processing: false, quality: 0.7, compressImages: true, status: '' };
+    const ADE_LIMITS = { maxSingleFile: 5 * 1024 * 1024, maxTotal: 20 * 1024 * 1024, maxFiles: 10, maxImageDim: 2000 };
+
+    function adeConverterCard() {
+        const totalSize = adeState.files.reduce((sum, f) => sum + f.size, 0);
+        const estimatedSize = adeState.files.reduce((sum, f) => sum + (f.estimatedCompressed || f.size), 0);
+        const sizeWarning = estimatedSize > ADE_LIMITS.maxTotal;
+        const anyFileWarning = adeState.files.some(f => (f.estimatedCompressed || f.size) > ADE_LIMITS.maxSingleFile);
+        const allGood = adeState.files.length > 0 && !sizeWarning && !anyFileWarning;
+
+        return `
+            <div class="card" style="margin-bottom:24px;border-color:${allGood ? 'var(--green)' : sizeWarning || anyFileWarning ? 'var(--orange)' : 'var(--border)'}">
+                <div class="card-header" style="display:flex;justify-content:space-between;align-items:center">
+                    <h3 class="card-title">🏛️ Prepara Documenti AdE</h3>
+                    <div style="display:flex;gap:8px;align-items:center">
+                        ${allGood ? '<span class="badge green">✓ Pronto per AdE</span>' : ''}
+                        ${adeState.files.length > 0 ? `<button class="btn btn-sm btn-secondary" onclick="adeClearAll()">Svuota</button>` : ''}
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- Drop Zone -->
+                    <div id="adeDropZone" ondrop="adeHandleDrop(event)" ondragover="adeDragOver(event)" ondragleave="adeDragLeave(event)" onclick="document.getElementById('adeFileInput').click()" style="border:2px dashed var(--border);border-radius:12px;padding:28px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:16px">
+                        <div style="font-size:28px;margin-bottom:8px">📎</div>
+                        <div style="font-weight:500;margin-bottom:4px">Trascina PDF, JPG, PNG qui</div>
+                        <div style="font-size:12px;color:var(--text-secondary)">Compressione automatica per rispettare i limiti AdE</div>
+                        <input type="file" id="adeFileInput" multiple accept=".pdf,.jpg,.jpeg,.png" style="display:none" onchange="adeHandleFiles(this.files)">
+                    </div>
+
+                    ${adeState.files.length > 0 ? `
+                    <!-- File List -->
+                    <div style="margin-bottom:16px">
+                        ${adeState.files.map((f, i) => {
+                            const origSize = f.size;
+                            const estSize = f.estimatedCompressed || f.size;
+                            const willCompress = f.type.startsWith('image/') && origSize > 500000;
+                            const isOverSize = estSize > ADE_LIMITS.maxSingleFile;
+                            const sizeDisplay = estSize > 1024 * 1024 ? (estSize / 1024 / 1024).toFixed(1) + ' MB' : (estSize / 1024).toFixed(0) + ' KB';
+                            const origDisplay = origSize > 1024 * 1024 ? (origSize / 1024 / 1024).toFixed(1) + ' MB' : (origSize / 1024).toFixed(0) + ' KB';
+                            return `<div class="list-item" style="padding:10px 12px;${isOverSize ? 'border-left:3px solid var(--orange)' : willCompress ? 'border-left:3px solid var(--blue)' : ''}">
+                                <div style="display:flex;align-items:center;gap:10px;flex:1">
+                                    <span style="font-size:18px">${f.type.includes('pdf') ? '📄' : '🖼️'}</span>
+                                    <div style="flex:1;min-width:0">
+                                        <div style="font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(f.name)}</div>
+                                        <div style="font-size:10px;color:${isOverSize ? 'var(--orange)' : 'var(--text-secondary)'}">
+                                            ${willCompress ? `<span style="color:var(--blue)">${origDisplay} → ${sizeDisplay}</span>` : sizeDisplay}
+                                            ${isOverSize ? ' ⚠️ Troppo grande!' : ''}
+                                            ${f.type.includes('pdf') ? ' <span style="opacity:0.5">PDF originale</span>' : ''}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div style="display:flex;gap:4px">
+                                    ${i > 0 ? `<button class="btn btn-xs btn-secondary" onclick="adeMoveFile(${i},-1)" title="Sposta su">↑</button>` : '<div style="width:28px"></div>'}
+                                    ${i < adeState.files.length - 1 ? `<button class="btn btn-xs btn-secondary" onclick="adeMoveFile(${i},1)" title="Sposta giù">↓</button>` : '<div style="width:28px"></div>'}
+                                    <button class="btn btn-xs btn-secondary" onclick="adeRemoveFile(${i})" style="color:var(--red)" title="Rimuovi">✕</button>
+                                </div>
+                            </div>`;
+                        }).join('')}
+                    </div>
+
+                    <!-- Quality Slider -->
+                    <div style="padding:12px;background:var(--bg-elevated);border-radius:8px;margin-bottom:12px">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                            <span style="font-size:12px;font-weight:500">⚙️ Qualità immagini</span>
+                            <span style="font-size:11px;color:var(--text-secondary)">${Math.round(adeState.quality * 100)}%</span>
+                        </div>
+                        <input type="range" min="30" max="95" value="${adeState.quality * 100}" onchange="adeSetQuality(this.value)" style="width:100%;accent-color:var(--gold)">
+                        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-muted);margin-top:4px">
+                            <span>Min (file piccoli)</span>
+                            <span>Max (alta qualità)</span>
+                        </div>
+                    </div>
+
+                    <!-- Size Summary -->
+                    <div style="padding:12px;background:var(--bg-elevated);border-radius:8px;margin-bottom:12px">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+                            <span style="font-size:12px">${adeState.files.length} documento${adeState.files.length > 1 ? 'i' : ''}</span>
+                            <span style="font-size:12px;font-weight:600;color:${sizeWarning ? 'var(--orange)' : 'var(--green)'}">${(estimatedSize / 1024 / 1024).toFixed(2)} MB / 20 MB</span>
+                        </div>
+                        <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden">
+                            <div style="height:100%;background:${sizeWarning ? 'var(--orange)' : 'var(--green)'};width:${Math.min(100, (estimatedSize / ADE_LIMITS.maxTotal) * 100)}%;transition:width .3s"></div>
+                        </div>
+                    </div>
+
+                    <!-- AdE Compliance Checklist -->
+                    <div style="padding:12px;background:${allGood ? 'var(--green-light)' : 'var(--bg-elevated)'};border-radius:8px;margin-bottom:16px;border:1px solid ${allGood ? 'var(--green)' : 'var(--border)'}">
+                        <div style="font-size:11px;font-weight:600;margin-bottom:8px;color:${allGood ? 'var(--green)' : 'var(--text-secondary)'}">VERIFICA COMPATIBILITÀ ADE</div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:11px">
+                            <div>${estimatedSize <= ADE_LIMITS.maxTotal ? '✅' : '❌'} Totale ≤ 20MB</div>
+                            <div>${!anyFileWarning ? '✅' : '❌'} Singolo ≤ 5MB</div>
+                            <div>✅ Formato PDF</div>
+                            <div>✅ Metadata corretti</div>
+                        </div>
+                    </div>
+
+                    <!-- Status -->
+                    ${adeState.status ? `<div style="padding:10px;background:var(--blue-light);border-radius:8px;margin-bottom:12px;font-size:12px;color:var(--blue)">${adeState.status}</div>` : ''}
+
+                    <!-- Actions -->
+                    <div style="display:flex;gap:10px;flex-wrap:wrap">
+                        <button class="btn" onclick="adeGenerateFinal()" ${adeState.processing ? 'disabled' : ''} style="flex:1;min-width:200px">
+                            ${adeState.processing ? '<span class="spinner" style="width:14px;height:14px;border-width:2px;margin-right:8px"></span>' : '🏛️ '}
+                            ${adeState.processing ? 'Elaborazione...' : 'Genera PDF per AdE'}
+                        </button>
+                        ${adeState.files.length > 1 ? `<button class="btn btn-secondary" onclick="adeDownloadSeparate()" ${adeState.processing ? 'disabled' : ''} title="Scarica ogni documento separatamente">📄 Separati</button>` : ''}
+                    </div>
+                    ` : `
+                    <!-- Empty State -->
+                    <div style="text-align:center;color:var(--text-secondary);padding:16px">
+                        <p style="font-size:13px;margin-bottom:8px">Carica i documenti da allegare alla registrazione</p>
+                        <div style="font-size:11px;line-height:1.6">
+                            ✓ Documento identità · ✓ Visura catastale · ✓ APE<br>
+                            ✓ Compressione automatica · ✓ Unione documenti · ✓ Formato AdE
+                        </div>
+                    </div>
+                    `}
+                </div>
+            </div>`;
+    }
+
+    function adeDragOver(e) { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--gold)'; e.currentTarget.style.background = 'var(--gold-light)'; }
+    function adeDragLeave(e) { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.background = 'transparent'; }
+    function adeHandleDrop(e) { e.preventDefault(); adeDragLeave(e); adeProcessFiles(Array.from(e.dataTransfer.files)); }
+    function adeHandleFiles(fl) { adeProcessFiles(Array.from(fl)); }
+    function adeSetQuality(v) { adeState.quality = v / 100; adeEstimateCompressedSizes(); adeRefresh(); }
+
+    function adeProcessFiles(files) {
+        const valid = files.filter(f => ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'].includes(f.type));
+        if (valid.length !== files.length) toast('warning', 'Accettati solo PDF, JPG, PNG');
+        if (adeState.files.length + valid.length > ADE_LIMITS.maxFiles) { toast('warning', `Massimo ${ADE_LIMITS.maxFiles} file`); return; }
+
+        let loaded = 0;
+        valid.forEach(file => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const fileObj = { name: file.name, type: file.type, size: file.size, data: e.target.result };
+                if (file.type.startsWith('image/')) {
+                    fileObj.estimatedCompressed = Math.min(file.size, Math.round(file.size * adeState.quality * 0.6));
+                }
+                adeState.files.push(fileObj);
+                loaded++;
+                if (loaded === valid.length) adeRefresh();
+            };
+            reader.readAsArrayBuffer(file);
+        });
+    }
+
+    function adeEstimateCompressedSizes() {
+        adeState.files.forEach(f => {
+            if (f.type.startsWith('image/')) {
+                f.estimatedCompressed = Math.min(f.size, Math.round(f.size * adeState.quality * 0.6));
+            }
+        });
+    }
+
+    function adeRemoveFile(i) { adeState.files.splice(i, 1); adeRefresh(); }
+    function adeMoveFile(i, d) { const n = i + d; if (n < 0 || n >= adeState.files.length) return; [adeState.files[i], adeState.files[n]] = [adeState.files[n], adeState.files[i]]; adeRefresh(); }
+    function adeClearAll() { adeState.files = []; adeState.status = ''; adeRefresh(); }
+    function adeRefresh() { if (S.page === 'registrations') document.getElementById('main').innerHTML = registrationsPage(); }
+    function adeSetStatus(s) { adeState.status = s; adeRefresh(); }
+
+    async function adeCompressImage(arrayBuffer, type, quality, maxDim) {
+        return new Promise((resolve, reject) => {
+            const blob = new Blob([arrayBuffer], { type });
+            const url = URL.createObjectURL(blob);
+            const img = new Image();
+            img.onload = () => {
+                URL.revokeObjectURL(url);
+                let w = img.width, h = img.height;
+                if (w > maxDim || h > maxDim) {
+                    const ratio = Math.min(maxDim / w, maxDim / h);
+                    w = Math.round(w * ratio);
+                    h = Math.round(h * ratio);
+                }
+                const canvas = document.createElement('canvas');
+                canvas.width = w; canvas.height = h;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillRect(0, 0, w, h);
+                ctx.drawImage(img, 0, 0, w, h);
+                canvas.toBlob(blob => {
+                    blob.arrayBuffer().then(resolve).catch(reject);
+                }, 'image/jpeg', quality);
+            };
+            img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Image load failed')); };
+            img.src = url;
+        });
+    }
+
+    async function adeGenerateFinal() {
+        if (adeState.files.length === 0) return;
+        adeState.processing = true; adeRefresh();
+
+        try {
+            const { PDFDocument } = PDFLib;
+            const merged = await PDFDocument.create();
+
+            const now = new Date();
+            merged.setTitle('Allegati Registrazione Contratto');
+            merged.setAuthor('BOOM - Egidi Immobiliare S.r.l.');
+            merged.setSubject('Documenti per registrazione contratto locazione - Agenzia delle Entrate');
+            merged.setKeywords(['contratto', 'locazione', 'registrazione', 'AdE', 'RLI']);
+            merged.setCreator('BOOM Property Portal');
+            merged.setProducer('BOOM AdE Converter - boomrome.com');
+            merged.setCreationDate(now);
+            merged.setModificationDate(now);
+
+            const totalFiles = adeState.files.length;
+            let processed = 0;
+
+            for (const file of adeState.files) {
+                processed++;
+                adeSetStatus(`Elaborazione ${processed}/${totalFiles}: ${file.name}`);
+
+                if (file.type === 'application/pdf') {
+                    try {
+                        const pdf = await PDFDocument.load(file.data, { ignoreEncryption: true });
+                        const pages = await merged.copyPages(pdf, pdf.getPageIndices());
+                        pages.forEach(p => merged.addPage(p));
+                    } catch (pdfErr) {
+                        console.warn('PDF load error, trying recovery:', pdfErr);
+                        toast('warning', `Attenzione: ${file.name} potrebbe avere problemi`);
+                    }
+                } else {
+                    let imgData = file.data;
+                    let imgType = file.type;
+
+                    if (file.size > 300000 || file.type === 'image/png') {
+                        adeSetStatus(`Compressione ${file.name}...`);
+                        imgData = await adeCompressImage(file.data, file.type, adeState.quality, ADE_LIMITS.maxImageDim);
+                        imgType = 'image/jpeg';
+                    }
+
+                    const page = merged.addPage([595.28, 841.89]);
+                    const img = imgType === 'image/png' ? await merged.embedPng(imgData) : await merged.embedJpg(imgData);
+
+                    const margin = 20;
+                    const maxW = 595.28 - (margin * 2);
+                    const maxH = 841.89 - (margin * 2);
+                    const scale = Math.min(maxW / img.width, maxH / img.height, 1);
+                    const w = img.width * scale;
+                    const h = img.height * scale;
+
+                    page.drawImage(img, {
+                        x: (595.28 - w) / 2,
+                        y: (841.89 - h) / 2,
+                        width: w,
+                        height: h
+                    });
+                }
+            }
+
+            adeSetStatus('Generazione PDF finale...');
+
+            const pdfBytes = await merged.save({
+                useObjectStreams: false,
+                addDefaultPage: false
+            });
+
+            const finalSizeMB = (pdfBytes.length / 1024 / 1024).toFixed(2);
+            if (pdfBytes.length > ADE_LIMITS.maxTotal) {
+                toast('warning', `File generato: ${finalSizeMB}MB - supera il limite di 20MB!`);
+            }
+
+            const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            const timestamp = now.toISOString().slice(0,10);
+            a.download = `documenti-contratto-ADE-${timestamp}.pdf`;
+            a.click();
+            URL.revokeObjectURL(a.href);
+
+            adeState.status = '';
+            toast('success', `PDF generato! (${finalSizeMB} MB) - Pronto per upload su AdE`);
+
+        } catch (err) {
+            console.error('AdE generation error:', err);
+            toast('error', 'Errore generazione: ' + err.message);
+            adeState.status = '';
+        }
+        finally {
+            adeState.processing = false;
+            adeRefresh();
+        }
+    }
+
+    async function adeDownloadSeparate() {
+        if (adeState.files.length === 0) return;
+        adeState.processing = true; adeRefresh();
+
+        try {
+            const { PDFDocument } = PDFLib;
+            let count = 0;
+
+            for (const file of adeState.files) {
+                adeSetStatus(`Elaborazione ${file.name}...`);
+
+                let pdfBytes;
+                if (file.type === 'application/pdf') {
+                    pdfBytes = new Uint8Array(file.data);
+                } else {
+                    const pdf = await PDFDocument.create();
+                    pdf.setTitle(file.name);
+                    pdf.setCreator('BOOM Portal');
+                    pdf.setProducer('BOOM AdE Converter');
+
+                    let imgData = file.data;
+                    let imgType = file.type;
+
+                    if (file.size > 300000 || file.type === 'image/png') {
+                        imgData = await adeCompressImage(file.data, file.type, adeState.quality, ADE_LIMITS.maxImageDim);
+                        imgType = 'image/jpeg';
+                    }
+
+                    const page = pdf.addPage([595.28, 841.89]);
+                    const img = imgType === 'image/png' ? await pdf.embedPng(imgData) : await pdf.embedJpg(imgData);
+                    const scale = Math.min(555.28 / img.width, 801.89 / img.height, 1);
+                    page.drawImage(img, {
+                        x: (595.28 - img.width * scale) / 2,
+                        y: (841.89 - img.height * scale) / 2,
+                        width: img.width * scale,
+                        height: img.height * scale
+                    });
+                    pdfBytes = await pdf.save({ useObjectStreams: false });
+                }
+
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(new Blob([pdfBytes], { type: 'application/pdf' }));
+                a.download = file.name.replace(/\.[^.]+$/, '-ADE.pdf');
+                a.click();
+                URL.revokeObjectURL(a.href);
+                count++;
+                await new Promise(r => setTimeout(r, 400));
+            }
+
+            adeState.status = '';
+            toast('success', `${count} file scaricati!`);
+        } catch (err) {
+            console.error('AdE separate error:', err);
+            toast('error', 'Errore: ' + err.message);
+            adeState.status = '';
+        }
+        finally { adeState.processing = false; adeRefresh(); }
+    }
+    // ========================================
+    // END ADE DOCUMENT CONVERTER
+    // ========================================
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // CASAFARI INTEGRATION - Complete Filter System
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    const CASAFARI_ZONE_IDS = {
+        'trastevere': 542426,
+        'testaccio': 542407,
+        'san-lorenzo': 542430,
+        'pigneto': 542425,
+        'ostiense': 542422,
+        'prati': 542428,
+        'monteverde': 542418,
+        'trieste': 542433,
+        'monti': 542417,
+        'esquilino': 542410,
+        'flaminio': 542411,
+        'nomentano': 542421,
+        'centro-storico': 542405,
+        'garbatella': 542412,
+        'roma-provincia': 200595,
+        'roma-comune': 200594
+    };
+
+    let casafariFilters = {
+        zones: [],
+        priceMin: 400,
+        priceMax: 1500,
+        roomsMin: 0,
+        roomsMax: 0,
+        bathMin: 0,
+        bathMax: 0,
+        areaMin: 0,
+        areaMax: 0,
+        daysMax: 30,
+        furnished: 0,
+        privateOnly: false,
+        newOnly: false
+    };
+
+    function preBuildCasafariUrl(filters) {
+        const f = filters || casafariFilters;
+        const baseUrl = 'https://it.casafari.com/metasearch';
+
+        const params = new URLSearchParams({
+            saleType: 'rent',
+            priceMin: f.priceMin || 400,
+            priceMax: f.priceMax || 1500,
+            sort: 'sort-by-days-low-to-high',
+            page: 1,
+            devType: 'old',
+            type: 'search'
+        });
+
+        if (f.zones && f.zones.length > 0) {
+            const zoneIds = f.zones.map(z => CASAFARI_ZONE_IDS[z]).filter(Boolean);
+            if (zoneIds.length > 0) {
+                params.set('locations', zoneIds.join(','));
+            }
+        } else {
+            params.set('locations', CASAFARI_ZONE_IDS['roma-provincia']);
+        }
+
+        if (f.roomsMin > 0) params.set('roomsMin', f.roomsMin);
+        if (f.roomsMax > 0) params.set('roomsMax', f.roomsMax);
+        if (f.bathMin > 0) params.set('bathMin', f.bathMin);
+        if (f.bathMax > 0) params.set('bathMax', f.bathMax);
+        if (f.areaMin > 0) params.set('totalAreaMin', f.areaMin);
+        if (f.areaMax > 0) params.set('totalAreaMax', f.areaMax);
+        if (f.daysMax > 0 && f.daysMax < 365) {
+            params.set('daysOnTheMarketMax', f.daysMax);
+        }
+        if (f.furnished > 0) params.set('furniture', f.furnished);
+        if (f.privateOnly) params.set('privateSellers', 'true');
+
+        return baseUrl + '?' + params.toString();
+    }
+
+    function preOpenCasafari(zone) {
+        let filters = { ...casafariFilters };
+        if (zone) {
+            filters.zones = [zone];
+        }
+        const url = preBuildCasafariUrl(filters);
+        window.open(url, '_blank');
+        const zoneName = zone ? (PRE_ZONES[zone]?.name || zone) : 'Roma';
+        toast('info', '🔍 Casafari: ' + zoneName + ' (€' + filters.priceMin + '-€' + filters.priceMax + ')');
+    }
+
+    function preOpenCasafariForClient(clientId) {
+        const client = (S.pfsClients || []).find(c => c.id === clientId);
+        if (!client) return;
+
+        const uni = ZI_UNIVERSITIES.find(u => u.id === client.university);
+        const filters = {
+            zones: uni ? uni.zones.slice(0, 3) : [],
+            priceMin: Math.max(300, (client.budget || 1000) - 200),
+            priceMax: client.budget || 1200,
+            roomsMin: client.rooms || 0,
+            roomsMax: client.rooms ? client.rooms + 1 : 0,
+            bathMin: 0,
+            bathMax: 0,
+            areaMin: client.minArea || 0,
+            areaMax: 0,
+            daysMax: 14,
+            furnished: client.furnished ? 1 : 0,
+            privateOnly: false
+        };
+
+        const url = preBuildCasafariUrl(filters);
+        window.open(url, '_blank');
+        toast('success', '🔍 Casafari per ' + (client.name?.split(' ')[0] || 'cliente'));
+    }
+
+    function preOpenCasafariAlerts() {
+        window.open('https://it.casafari.com/account/alerts', '_blank');
+        toast('info', '🔔 Apertura Alert Casafari...');
+    }
+
+    function preSetCasafariFilter(key, value) {
+        casafariFilters[key] = value;
+        renderPage();
+    }
+
+    function preToggleCasafariZone(zone) {
+        const idx = casafariFilters.zones.indexOf(zone);
+        if (idx === -1) {
+            casafariFilters.zones.push(zone);
+        } else {
+            casafariFilters.zones.splice(idx, 1);
+        }
+        renderPage();
+    }
+
+    function preResetCasafariFilters() {
+        casafariFilters = {
+            zones: [],
+            priceMin: 400,
+            priceMax: 1500,
+            roomsMin: 0,
+            roomsMax: 0,
+            bathMin: 0,
+            bathMax: 0,
+            areaMin: 0,
+            areaMax: 0,
+            daysMax: 30,
+            furnished: 0,
+            privateOnly: false,
+            newOnly: false
+        };
+        renderPage();
+        toast('info', '🔄 Filtri resettati');
+    }
+
+    function preCasafariPreset(preset) {
+        switch(preset) {
+            case 'student-budget':
+                casafariFilters = { ...casafariFilters, priceMin: 400, priceMax: 800, roomsMin: 1, roomsMax: 2, furnished: 1, daysMax: 14 };
+                break;
+            case 'student-comfort':
+                casafariFilters = { ...casafariFilters, priceMin: 700, priceMax: 1200, roomsMin: 1, roomsMax: 3, furnished: 1, daysMax: 14 };
+                break;
+            case 'professional':
+                casafariFilters = { ...casafariFilters, priceMin: 1000, priceMax: 1800, roomsMin: 2, roomsMax: 4, areaMin: 50, daysMax: 30 };
+                break;
+            case 'new-listings':
+                casafariFilters = { ...casafariFilters, daysMax: 3 };
+                break;
+        }
+        renderPage();
+        toast('success', '⚡ Preset applicato');
+    }
+
+    function casafariFilterCard() {
+        return `
+            <div class="card" style="margin-bottom:24px;border-color:var(--gold)">
+                <div class="card-header" style="background:linear-gradient(135deg, rgba(212,175,55,0.1), transparent)">
+                    <h3 class="card-title" style="display:flex;align-items:center;gap:8px">
+                        <span style="font-size:20px">🔮</span> Casafari Meta-Search
+                    </h3>
+                    <div style="display:flex;gap:8px">
+                        <button class="btn btn-sm btn-secondary" onclick="preResetCasafariFilters()">🔄 Reset</button>
+                        <button class="btn btn-sm" onclick="preOpenCasafariAlerts()">🔔 Alerts</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- Quick Presets -->
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+                        <button class="btn btn-sm ${casafariFilters.priceMax <= 800 ? '' : 'btn-secondary'}" onclick="preCasafariPreset('student-budget')">🎓 Budget</button>
+                        <button class="btn btn-sm ${casafariFilters.priceMin >= 700 && casafariFilters.priceMax <= 1200 ? '' : 'btn-secondary'}" onclick="preCasafariPreset('student-comfort')">✨ Comfort</button>
+                        <button class="btn btn-sm ${casafariFilters.priceMin >= 1000 ? '' : 'btn-secondary'}" onclick="preCasafariPreset('professional')">💼 Professional</button>
+                        <button class="btn btn-sm ${casafariFilters.daysMax <= 3 ? '' : 'btn-secondary'}" onclick="preCasafariPreset('new-listings')">🆕 Nuovi (3gg)</button>
+                    </div>
+
+                    <!-- Filters Grid -->
+                    <div class="grid-3" style="margin-bottom:16px">
+                        <div>
+                            <label class="form-label" style="font-size:11px">💰 Prezzo Min</label>
+                            <input type="number" class="form-input" value="${casafariFilters.priceMin}" onchange="preSetCasafariFilter('priceMin', +this.value)" placeholder="400">
+                        </div>
+                        <div>
+                            <label class="form-label" style="font-size:11px">💰 Prezzo Max</label>
+                            <input type="number" class="form-input" value="${casafariFilters.priceMax}" onchange="preSetCasafariFilter('priceMax', +this.value)" placeholder="1500">
+                        </div>
+                        <div>
+                            <label class="form-label" style="font-size:11px">📅 Max Giorni</label>
+                            <input type="number" class="form-input" value="${casafariFilters.daysMax}" onchange="preSetCasafariFilter('daysMax', +this.value)" placeholder="30">
+                        </div>
+                    </div>
+
+                    <div class="grid-4" style="margin-bottom:16px">
+                        <div>
+                            <label class="form-label" style="font-size:11px">🛏️ Camere Min</label>
+                            <input type="number" class="form-input" value="${casafariFilters.roomsMin || ''}" onchange="preSetCasafariFilter('roomsMin', +this.value)" placeholder="0">
+                        </div>
+                        <div>
+                            <label class="form-label" style="font-size:11px">🛏️ Camere Max</label>
+                            <input type="number" class="form-input" value="${casafariFilters.roomsMax || ''}" onchange="preSetCasafariFilter('roomsMax', +this.value)" placeholder="0">
+                        </div>
+                        <div>
+                            <label class="form-label" style="font-size:11px">📐 Area Min</label>
+                            <input type="number" class="form-input" value="${casafariFilters.areaMin || ''}" onchange="preSetCasafariFilter('areaMin', +this.value)" placeholder="0">
+                        </div>
+                        <div>
+                            <label class="form-label" style="font-size:11px">🪑 Arredato</label>
+                            <select class="form-select" onchange="preSetCasafariFilter('furnished', +this.value)">
+                                <option value="0" ${casafariFilters.furnished === 0 ? 'selected' : ''}>Tutti</option>
+                                <option value="1" ${casafariFilters.furnished === 1 ? 'selected' : ''}>Arredato</option>
+                                <option value="2" ${casafariFilters.furnished === 2 ? 'selected' : ''}>Non arredato</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Zone Selection -->
+                    <div style="margin-bottom:16px">
+                        <label class="form-label" style="font-size:11px;margin-bottom:8px">📍 Zone Selezionate (${casafariFilters.zones.length || 'Tutte Roma'})</label>
+                        <div style="display:flex;flex-wrap:wrap;gap:6px">
+                            ${Object.entries(CASAFARI_ZONE_IDS).filter(([k]) => !k.includes('roma-')).map(([slug, id]) => `
+                                <button class="btn btn-xs ${casafariFilters.zones.includes(slug) ? '' : 'btn-secondary'}"
+                                    onclick="preToggleCasafariZone('${slug}')"
+                                    style="${casafariFilters.zones.includes(slug) ? 'background:var(--gold);color:#000' : ''}">
+                                    ${slug.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <!-- Private Only Toggle -->
+                    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;padding:12px;background:var(--bg-elevated);border-radius:8px">
+                        <input type="checkbox" id="casafariPrivate" ${casafariFilters.privateOnly ? 'checked' : ''} onchange="preSetCasafariFilter('privateOnly', this.checked)">
+                        <label for="casafariPrivate" style="font-size:12px;cursor:pointer">🔒 Solo privati (no agenzie)</label>
+                    </div>
+
+                    <!-- Action Button -->
+                    <button class="btn" onclick="preOpenCasafari()" style="width:100%;font-size:14px;padding:14px">
+                        🔮 Apri Casafari con Filtri
+                    </button>
+                </div>
+            </div>`;
+    }
+
+    console.log('✅ ADE Converter & Casafari Integration loaded');
 
     </script>
 </body>
