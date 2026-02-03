@@ -12110,9 +12110,13 @@ Questions? Reply here! 💬`;
         window.open(`https://wa.me/${client.phone.replace(/[^0-9+]/g, '')}?text=${encodeURIComponent(msg)}`, '_blank');
     }
 
+    // Property images temporary storage
+    let propertyImages = [];
+
     function openAddPropertyForClient(clientId) {
         const client = (S.pfsClients || []).find(c => c.id === clientId);
         if (!client) return;
+        propertyImages = [];
 
         document.getElementById('modals').innerHTML = `
             <div class="modal-overlay active" onclick="if(event.target===this)closeModal()">
@@ -12122,10 +12126,20 @@ Questions? Reply here! 💬`;
                         <button class="modal-close" onclick="closeModal()">×</button>
                     </div>
                     <div class="modal-body">
-                        <form onsubmit="savePropertyForClient(event, '${clientId}')">
+                        <form id="addPropertyForm" onsubmit="savePropertyForClient(event, '${clientId}')">
                             <div class="form-group">
-                                <label class="form-label">Image URLs (one per line - paste from Casafari)</label>
-                                <textarea class="form-textarea" name="imageUrls" rows="3" placeholder="https://image1.jpg&#10;https://image2.jpg&#10;https://image3.jpg"></textarea>
+                                <label class="form-label">📷 Images (drag & drop or click)</label>
+                                <div id="dropZone" style="border:2px dashed var(--border);border-radius:12px;padding:32px;text-align:center;cursor:pointer;transition:all 0.2s;background:var(--bg-card)"
+                                     ondragover="event.preventDefault();this.style.borderColor='var(--gold)';this.style.background='rgba(212,175,55,0.1)'"
+                                     ondragleave="this.style.borderColor='var(--border)';this.style.background='var(--bg-card)'"
+                                     ondrop="handleImageDrop(event)"
+                                     onclick="document.getElementById('imageInput').click()">
+                                    <div style="font-size:32px;margin-bottom:8px">📁</div>
+                                    <div style="color:var(--text-secondary)">Drop images here or click to browse</div>
+                                    <div style="font-size:11px;color:var(--text-muted);margin-top:4px">JPG, PNG, WebP • Max 5MB each</div>
+                                </div>
+                                <input type="file" id="imageInput" accept="image/*" multiple style="display:none" onchange="handleImageSelect(event)">
+                                <div id="imagePreview" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px"></div>
                             </div>
                             <div class="form-row">
                                 <div class="form-group"><label class="form-label">Price €/mo *</label><input type="number" class="form-input" name="price" required></div>
@@ -12137,9 +12151,15 @@ Questions? Reply here! 💬`;
                                 <div class="form-group"><label class="form-label">m²</label><input type="number" class="form-input" name="sqm"></div>
                             </div>
                             <div class="form-group"><label class="form-label">Description</label><textarea class="form-textarea" name="description" rows="2"></textarea></div>
+                            <div id="uploadProgress" style="display:none;margin-top:12px">
+                                <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden">
+                                    <div id="uploadBar" style="height:100%;width:0%;background:var(--gold);transition:width 0.3s"></div>
+                                </div>
+                                <div id="uploadStatus" style="font-size:12px;color:var(--text-secondary);margin-top:4px">Uploading...</div>
+                            </div>
                             <div style="display:flex;gap:12px;margin-top:20px">
                                 <button type="button" class="btn btn-secondary" onclick="openClientPortalManager('${clientId}')">Cancel</button>
-                                <button type="submit" class="btn" style="flex:1">✓ Add Property</button>
+                                <button type="submit" class="btn" style="flex:1" id="submitPropertyBtn">✓ Add Property</button>
                             </div>
                         </form>
                     </div>
@@ -12147,12 +12167,108 @@ Questions? Reply here! 💬`;
             </div>`;
     }
 
+    function handleImageDrop(e) {
+        e.preventDefault();
+        e.target.style.borderColor = 'var(--border)';
+        e.target.style.background = 'var(--bg-card)';
+        const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+        addImagesToPreview(files);
+    }
+
+    function handleImageSelect(e) {
+        const files = Array.from(e.target.files);
+        addImagesToPreview(files);
+    }
+
+    function addImagesToPreview(files) {
+        files.forEach(file => {
+            if (file.size > 5 * 1024 * 1024) {
+                toast('error', 'File too large', file.name + ' exceeds 5MB');
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const id = 'img_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                propertyImages.push({ id, file, preview: e.target.result });
+                renderImagePreviews();
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    function renderImagePreviews() {
+        const container = document.getElementById('imagePreview');
+        if (!container) return;
+        container.innerHTML = propertyImages.map((img, idx) => `
+            <div style="position:relative;width:80px;height:80px;border-radius:8px;overflow:hidden;border:2px solid ${idx === 0 ? 'var(--gold)' : 'var(--border)'}">
+                <img src="${img.preview}" style="width:100%;height:100%;object-fit:cover">
+                <button type="button" onclick="removePropertyImage('${img.id}')" style="position:absolute;top:2px;right:2px;width:20px;height:20px;border-radius:50%;background:rgba(0,0,0,0.7);border:none;color:#fff;cursor:pointer;font-size:12px">×</button>
+                ${idx === 0 ? '<div style="position:absolute;bottom:0;left:0;right:0;background:var(--gold);color:#000;font-size:9px;text-align:center;padding:2px">COVER</div>' : ''}
+            </div>
+        `).join('');
+    }
+
+    function removePropertyImage(id) {
+        propertyImages = propertyImages.filter(img => img.id !== id);
+        renderImagePreviews();
+    }
+
+    async function uploadPropertyImages(clientId) {
+        if (propertyImages.length === 0) return [];
+
+        const urls = [];
+        const progressBar = document.getElementById('uploadBar');
+        const statusEl = document.getElementById('uploadStatus');
+        document.getElementById('uploadProgress').style.display = 'block';
+
+        for (let i = 0; i < propertyImages.length; i++) {
+            const img = propertyImages[i];
+            const percent = Math.round((i / propertyImages.length) * 100);
+            if (progressBar) progressBar.style.width = percent + '%';
+            if (statusEl) statusEl.textContent = `Uploading ${i + 1}/${propertyImages.length}...`;
+
+            try {
+                const fileName = `portal/${clientId}/${Date.now()}_${img.file.name}`;
+                const ref = storage.ref(fileName);
+                await ref.put(img.file);
+                const url = await ref.getDownloadURL();
+                urls.push(url);
+            } catch (err) {
+                console.error('Upload failed:', err);
+                toast('error', 'Upload failed', img.file.name);
+            }
+        }
+
+        if (progressBar) progressBar.style.width = '100%';
+        if (statusEl) statusEl.textContent = 'Upload complete!';
+
+        return urls;
+    }
+
     async function savePropertyForClient(e, clientId) {
         e.preventDefault();
         const form = new FormData(e.target);
+        const submitBtn = document.getElementById('submitPropertyBtn');
 
-        // Parse multiple image URLs (one per line)
-        const imageUrls = (form.get('imageUrls') || '').split('\n').map(u => u.trim()).filter(u => u.startsWith('http'));
+        // Disable button during upload
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.textContent = '⏳ Uploading...';
+        }
+
+        // Upload images to Firebase Storage
+        let imageUrls = [];
+        try {
+            imageUrls = await uploadPropertyImages(clientId);
+        } catch (err) {
+            console.error('Image upload error:', err);
+            toast('error', 'Image upload failed');
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = '✓ Add Property';
+            }
+            return;
+        }
 
         const property = {
             id: 'prop_' + Date.now(),
