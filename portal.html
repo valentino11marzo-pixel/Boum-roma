@@ -579,6 +579,7 @@
             <div class="header-center" id="searchContainer"></div>
             <div class="header-right">
                 <span class="header-badge" id="headerBadge">Admin</span>
+                <button class="notif-btn" onclick="openQuickReminder()" title="Crea Reminder">⏰</button>
                 <button class="notif-btn" onclick="showNotifications()" id="notifBtn">🔔</button>
                 <div class="user-menu" onclick="goTo('settings')">
                     <div class="user-avatar" id="headerAvatar">VR</div>
@@ -1624,7 +1625,7 @@ Valentyne - BOOM Rome`
         try {
             // Get recipient user data
             const recipient = S.users.find(u => u.id === userId);
-            
+
             const notifData = {
                 userId,
                 type, // 'maintenance', 'payment', 'contract', 'document', 'system'
@@ -1634,12 +1635,23 @@ Valentyne - BOOM Rome`
                 read: false,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                 emailSent: false,
-                webhookSent: false
+                webhookSent: false,
+                telegramSent: false
             };
-            
+
             const docRef = await db.collection('notifications').add(notifData);
             console.log('Notification created for user:', userId);
-            
+
+            // Send Telegram notification to admin
+            try {
+                const telegramMsg = `${title}\n\n${message}${data.propertyId ? '\n🏠 ' + (S.properties.find(p => p.id === data.propertyId)?.name || '') : ''}`;
+                await sendTelegramToAdmin(telegramMsg);
+                await db.collection('notifications').doc(docRef.id).update({ telegramSent: true });
+                console.log('Telegram notification sent');
+            } catch (telegramErr) {
+                console.error('Telegram error:', telegramErr);
+            }
+
             // Send to Make.com webhook for email - only if valid email exists
             const recipientEmail = recipient?.email?.trim();
             if (recipientEmail && recipientEmail.includes('@') && WEBHOOK_URL) {
@@ -1671,6 +1683,38 @@ Valentyne - BOOM Rome`
             }
         } catch (err) {
             console.error('Error creating notification:', err);
+        }
+    }
+
+    // Unified Telegram notification function for admin
+    async function sendTelegramToAdmin(message) {
+        const token = BOOM_CONFIG.telegram.botToken;
+        const chatId = BOOM_CONFIG.telegram.adminChatId;
+
+        if (!token || !chatId) {
+            console.log('Telegram not configured');
+            return false;
+        }
+
+        try {
+            const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    chat_id: chatId,
+                    text: message,
+                    parse_mode: 'HTML'
+                })
+            });
+            const result = await response.json();
+            if (!result.ok) {
+                console.error('Telegram API error:', result);
+                return false;
+            }
+            return true;
+        } catch (err) {
+            console.error('Telegram send error:', err);
+            return false;
         }
     }
     
@@ -1896,6 +1940,167 @@ Valentyne - BOOM Rome`
         return date.toDateString() === today.toDateString();
     }
 
+    // ═══════════════════════════════════════════════════════════════════════════
+    // REMINDER SYSTEM - Create and execute reminders
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    // Create a reminder that will send a Telegram notification at the specified time
+    async function createReminder(reminderData) {
+        try {
+            const reminder = {
+                title: reminderData.title || 'Promemoria',
+                message: reminderData.message || '',
+                scheduledFor: reminderData.scheduledFor, // ISO date string or Firestore timestamp
+                relatedTo: reminderData.relatedTo || null, // { type: 'client'|'property'|'contract', id: '...' }
+                executed: false,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                createdBy: S.profile?.id || 'admin'
+            };
+
+            const docRef = await db.collection('reminders').add(reminder);
+            toast('success', '⏰ Reminder creato!', `Riceverai notifica il ${new Date(reminderData.scheduledFor).toLocaleDateString('it-IT')}`);
+
+            // Send confirmation to Telegram
+            await sendTelegramToAdmin(`⏰ <b>Reminder Programmato</b>\n\n📝 ${reminder.title}\n📅 ${new Date(reminderData.scheduledFor).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}\n\n${reminder.message}`);
+
+            return docRef.id;
+        } catch (err) {
+            console.error('Error creating reminder:', err);
+            toast('error', 'Errore', err.message);
+            return null;
+        }
+    }
+
+    // Check and execute due reminders
+    async function checkReminders() {
+        if (!isAdmin()) return;
+
+        try {
+            const now = new Date();
+            const remindersSnap = await db.collection('reminders')
+                .where('executed', '==', false)
+                .get();
+
+            for (const doc of remindersSnap.docs) {
+                const reminder = doc.data();
+                const scheduledDate = reminder.scheduledFor?.toDate ? reminder.scheduledFor.toDate() : new Date(reminder.scheduledFor);
+
+                // If reminder is due (past or within 5 minutes)
+                if (scheduledDate <= new Date(now.getTime() + 5 * 60 * 1000)) {
+                    console.log('Executing reminder:', reminder.title);
+
+                    // Send Telegram notification
+                    let telegramMsg = `🔔 <b>REMINDER</b>\n\n${reminder.title}`;
+                    if (reminder.message) telegramMsg += `\n\n${reminder.message}`;
+
+                    // Add related info
+                    if (reminder.relatedTo) {
+                        if (reminder.relatedTo.type === 'client') {
+                            const client = (S.pfsClients || []).find(c => c.id === reminder.relatedTo.id);
+                            if (client) telegramMsg += `\n\n👤 Cliente: ${client.name}`;
+                        } else if (reminder.relatedTo.type === 'property') {
+                            const prop = S.properties.find(p => p.id === reminder.relatedTo.id);
+                            if (prop) telegramMsg += `\n\n🏠 Immobile: ${prop.name}`;
+                        }
+                    }
+
+                    await sendTelegramToAdmin(telegramMsg);
+
+                    // Mark as executed
+                    await db.collection('reminders').doc(doc.id).update({
+                        executed: true,
+                        executedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+
+                    console.log('Reminder executed:', doc.id);
+                }
+            }
+        } catch (err) {
+            console.error('Error checking reminders:', err);
+        }
+    }
+
+    // Quick reminder creation modal
+    function openQuickReminder(context = {}) {
+        const now = new Date();
+        const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+        const defaultDate = tomorrow.toISOString().slice(0, 16);
+
+        document.getElementById('modals').innerHTML = `
+            <div class="modal-overlay active" onclick="if(event.target===this)closeModal()">
+                <div class="modal" onclick="event.stopPropagation()">
+                    <div class="modal-header">
+                        <h3 class="modal-title">⏰ Crea Reminder</h3>
+                        <button class="modal-close" onclick="closeModal()">×</button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="reminderForm" onsubmit="saveQuickReminder(event, ${JSON.stringify(context).replace(/"/g, '&quot;')})">
+                            <div class="form-group">
+                                <label class="form-label">Titolo *</label>
+                                <input type="text" class="form-input" name="title" required placeholder="es. Chiamare cliente, Controllare documento...">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Messaggio/Note</label>
+                                <textarea class="form-textarea" name="message" rows="3" placeholder="Dettagli aggiuntivi..."></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">📅 Quando</label>
+                                <input type="datetime-local" class="form-input" name="scheduledFor" value="${defaultDate}" required>
+                            </div>
+                            <div style="display:flex;gap:8px;margin-top:8px">
+                                <button type="button" class="btn btn-sm btn-secondary" onclick="setReminderTime(1)">+1h</button>
+                                <button type="button" class="btn btn-sm btn-secondary" onclick="setReminderTime(3)">+3h</button>
+                                <button type="button" class="btn btn-sm btn-secondary" onclick="setReminderTime(24)">Domani</button>
+                                <button type="button" class="btn btn-sm btn-secondary" onclick="setReminderTime(48)">+2gg</button>
+                                <button type="button" class="btn btn-sm btn-secondary" onclick="setReminderTime(168)">+1 sett</button>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" onclick="closeModal()">Annulla</button>
+                        <button class="btn" onclick="document.getElementById('reminderForm').requestSubmit()">⏰ Crea Reminder</button>
+                    </div>
+                </div>
+            </div>`;
+    }
+
+    function setReminderTime(hours) {
+        const input = document.querySelector('input[name="scheduledFor"]');
+        const futureDate = new Date(Date.now() + hours * 60 * 60 * 1000);
+        input.value = futureDate.toISOString().slice(0, 16);
+    }
+
+    async function saveQuickReminder(e, context = {}) {
+        e.preventDefault();
+        const form = new FormData(e.target);
+
+        await createReminder({
+            title: form.get('title'),
+            message: form.get('message') || '',
+            scheduledFor: new Date(form.get('scheduledFor')).toISOString(),
+            relatedTo: context.relatedTo || null
+        });
+
+        closeModal();
+    }
+
+    // Start reminder check interval (every 5 minutes)
+    let reminderCheckInterval = null;
+    function startReminderChecker() {
+        if (reminderCheckInterval) clearInterval(reminderCheckInterval);
+        // Check immediately and then every 5 minutes
+        checkReminders();
+        reminderCheckInterval = setInterval(checkReminders, 5 * 60 * 1000);
+        console.log('Reminder checker started');
+    }
+
+    function stopReminderChecker() {
+        if (reminderCheckInterval) {
+            clearInterval(reminderCheckInterval);
+            reminderCheckInterval = null;
+        }
+    }
+
     async function refresh() { 
         try {
             await loadData(); 
@@ -1942,6 +2147,7 @@ Valentyne - BOOM Rome`
         if (confirm('Vuoi uscire?')) {
             stopSessionCheck();
             stopNotificationListener();
+            stopReminderChecker();
             try {
                 await auth.signOut();
             } catch (e) {
@@ -1965,13 +2171,18 @@ Valentyne - BOOM Rome`
         
         // Start notification listener
         startNotificationListener();
-        
+
         // Check scheduled notifications (admin only, once per session)
         if (isAdmin() && !window.scheduledNotifChecked) {
             window.scheduledNotifChecked = true;
             setTimeout(() => checkScheduledNotifications(), 5000);
         }
-        
+
+        // Start reminder checker (admin only)
+        if (isAdmin()) {
+            startReminderChecker();
+        }
+
         // Search bar for admin only
         if (isAdmin()) {
             document.getElementById('searchContainer').innerHTML = `
@@ -12863,11 +13074,6 @@ IBAN: ${l.iban || '-'}`;
     // CLIENT PORTAL INTEGRATION
     // ==========================================
 
-    const TELEGRAM_BOT = {
-        token: '7819865804:AAGJOgYNuuQg81pU9l-od2rKJGC4YN9LNXQ',
-        chatId: '7498056455'
-    };
-
     function generateClientAccessCode(clientName) {
         const prefix = 'BOOM';
         const initials = clientName.split(' ').map(n => n.charAt(0).toUpperCase()).join('').substring(0, 2);
@@ -12875,14 +13081,9 @@ IBAN: ${l.iban || '-'}`;
         return `${prefix}-${initials}${random}`;
     }
 
+    // Use the unified sendTelegramToAdmin function for all Telegram notifications
     async function sendTelegramNotification(message) {
-        try {
-            await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT.token}/sendMessage`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ chat_id: TELEGRAM_BOT.chatId, text: message, parse_mode: 'HTML' })
-            });
-        } catch (err) { console.error('Telegram failed:', err); }
+        return await sendTelegramToAdmin(message);
     }
 
     function openClientPortalManager(clientId) {
