@@ -182,7 +182,7 @@
     </div>
     <div class="auth" id="authScreen">
         <div class="auth-container">
-            <img class="auth-logo" src="https://www.boomrome.com/BOOMlogogoldicon512.png" alt="BOOM" style="width:80px;height:80px;border-radius:50%;object-fit:cover;">
+            <img class="auth-logo" src="boom-logo.svg" alt="BOOM" style="width:100px;height:100px;">
             <div class="auth-title">BOOM ROME</div>
             <div class="auth-subtitle">Your property<br>search awaits</div>
             <input type="text" class="auth-input" id="accessCode" placeholder="Enter code" maxlength="12">
@@ -193,7 +193,7 @@
     </div>
     <div class="app" id="app">
         <header class="header">
-            <div class="header-logo"><img src="https://www.boomrome.com/BOOMlogogoldicon512.png" alt="BOOM" style="width:32px;height:32px;border-radius:50%;object-fit:cover;"><div class="header-logo-text">BOOM</div></div>
+            <div class="header-logo"><img src="boom-logo.svg" alt="BOOM" style="width:36px;height:36px;"><div class="header-logo-text">BOOM</div></div>
             <div class="header-avatar" id="userAvatar">?</div>
         </header>
         <main class="main" id="mainContent"></main>
@@ -219,20 +219,37 @@
         const db = firebase.firestore();
         let unsubscribe = null;
 
-        // Audio & Haptics
-        let audioCtx = null;
+        // Audio & Haptics (Safari-compatible)
+        var audioCtx = null;
         function playSound(type) {
-            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.connect(gain); gain.connect(audioCtx.destination);
-            if (type === 'like') { osc.frequency.setValueAtTime(523, audioCtx.currentTime); osc.frequency.setValueAtTime(659, audioCtx.currentTime + 0.1); osc.frequency.setValueAtTime(784, audioCtx.currentTime + 0.2); }
-            else { osc.frequency.setValueAtTime(300, audioCtx.currentTime); osc.frequency.setValueAtTime(200, audioCtx.currentTime + 0.1); }
-            gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
-            osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+            try {
+                if (!audioCtx) {
+                    var AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                    if (AudioContextClass) audioCtx = new AudioContextClass();
+                }
+                if (!audioCtx) return;
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                var osc = audioCtx.createOscillator();
+                var gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                if (type === 'like') {
+                    osc.frequency.setValueAtTime(523, audioCtx.currentTime);
+                    osc.frequency.setValueAtTime(659, audioCtx.currentTime + 0.1);
+                    osc.frequency.setValueAtTime(784, audioCtx.currentTime + 0.2);
+                } else {
+                    osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+                    osc.frequency.setValueAtTime(200, audioCtx.currentTime + 0.1);
+                }
+                gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.3);
+            } catch(e) {
+                console.log('Audio not available');
+            }
         }
-        function haptic() { if ('vibrate' in navigator) navigator.vibrate(10); }
+        function haptic() { try { if ('vibrate' in navigator) navigator.vibrate(10); } catch(e) {} }
 
         // Confetti
         const canvas = document.getElementById('confetti');
@@ -259,8 +276,16 @@
 
         let client = null, tab = 'home';
 
-        document.addEventListener('DOMContentLoaded', () => {
-            setTimeout(() => { document.getElementById('loading').classList.add('hidden'); const code = localStorage.getItem('boom_code'); if (code) login(code, true); }, 800);
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(function() {
+                document.getElementById('loading').classList.add('hidden');
+                try {
+                    var code = localStorage.getItem('boom_code');
+                    if (code) login(code, true);
+                } catch(e) {
+                    console.error('Auto-login error:', e);
+                }
+            }, 800);
         });
 
         function handleLogin() { const code = document.getElementById('accessCode').value.trim().toUpperCase(); if (code.length >= 4) login(code); }
@@ -306,12 +331,17 @@
 
         function setupListener(id) {
             if (unsubscribe) unsubscribe();
-            unsubscribe = db.collection('pfsClients').doc(id).onSnapshot(doc => {
+            unsubscribe = db.collection('pfsClients').doc(id).onSnapshot(function(doc) {
                 if (doc.exists && client) {
-                    const oldCount = client.properties.length;
+                    var oldCount = client.properties.length;
                     client = mapClient(doc.id, doc.data(), client.code);
-                    if (client.properties.length > oldCount) { document.getElementById('newPropertyAlert').classList.add('show'); playSound('like'); createConfetti(window.innerWidth/2, window.innerHeight/2, 60); }
+                    if (client.properties.length > oldCount) {
+                        document.getElementById('newPropertyAlert').classList.add('show');
+                        playSound('like');
+                        createConfetti(window.innerWidth/2, window.innerHeight/2, 60);
+                    }
                     render();
+                    if (tab === 'properties') startCarouselsAfterRender();
                 }
             });
         }
@@ -527,18 +557,30 @@
             carouselIntervals = {};
         }
 
-        // Override render to start auto-slide
-        const originalRender = render;
-        render = function() {
+        // Start carousels after render (Safari-compatible)
+        function startCarouselsAfterRender() {
             stopAllCarousels();
-            originalRender();
-            // Start auto-slide for visible cards
-            setTimeout(() => {
-                document.querySelectorAll('.property-card').forEach(card => {
-                    const propId = card.dataset.id;
-                    startCarouselAuto(propId);
-                });
+            setTimeout(function() {
+                var cards = document.querySelectorAll('.property-card');
+                for (var i = 0; i < cards.length; i++) {
+                    var propId = cards[i].dataset.id;
+                    if (propId) startCarouselAuto(propId);
+                }
             }, 500);
+        }
+
+        // Hook into tab changes to restart carousels
+        var originalShowTab = showTab;
+        showTab = function(t) {
+            originalShowTab(t);
+            if (t === 'properties') startCarouselsAfterRender();
+        };
+
+        // Start on initial render
+        var originalShowApp = showApp;
+        showApp = function() {
+            originalShowApp();
+            startCarouselsAfterRender();
         };
     </script>
 </body>

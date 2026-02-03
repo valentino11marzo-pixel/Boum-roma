@@ -8641,6 +8641,22 @@ IBAN: ${l.iban || '-'}`;
                                         </select>
                                     </div>
                                 </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label class="form-label">🎓 Where will they study/work?</label>
+                                        <input type="text" class="form-input" name="workStudyLocation" placeholder="Sapienza, LUISS, Vatican, Termini area...">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">💳 Payment Preference</label>
+                                        <select class="form-select" name="paymentPreference">
+                                            <option value="monthly">📅 Monthly</option>
+                                            <option value="quarterly">📆 Quarterly (3 months advance)</option>
+                                            <option value="semester">📆 Semester (6 months advance)</option>
+                                            <option value="full">💰 Full Year Upfront</option>
+                                            <option value="flexible">🤝 Flexible / Negotiable</option>
+                                        </select>
+                                    </div>
+                                </div>
                                 <div class="form-group">
                                     <label class="form-label">Must-Haves</label>
                                     <input type="text" class="form-input" name="mustHaves" placeholder="Balcony, furnished, AC, washing machine...">
@@ -8703,6 +8719,8 @@ IBAN: ${l.iban || '-'}`;
             budget: parseInt(form.get('budget')) || 0,
             zone: form.get('zone') || '',
             bedrooms: form.get('bedrooms') || '',
+            workStudyLocation: form.get('workStudyLocation') || '',
+            paymentPreference: form.get('paymentPreference') || 'monthly',
             mustHaves: form.get('mustHaves') || '',
             dealBreakers: form.get('dealBreakers') || '',
             moveIn: form.get('moveIn') || '',
@@ -8807,6 +8825,8 @@ IBAN: ${l.iban || '-'}`;
                                     <div class="info-box-row"><span class="info-box-label">Move-in</span><span class="info-box-value" style="color:${daysUntilMoveIn !== null && daysUntilMoveIn <= 7 ? 'var(--red)' : 'inherit'}">${c.moveIn ? fmtDate(c.moveIn) + (daysUntilMoveIn !== null ? ` (${daysUntilMoveIn <= 0 ? 'OVERDUE' : daysUntilMoveIn + 'd'})` : '') : '-'}</span></div>
                                     <div class="info-box-row"><span class="info-box-label">Zones</span><span class="info-box-value">${esc(c.zone) || 'Any'}</span></div>
                                     <div class="info-box-row"><span class="info-box-label">Bedrooms</span><span class="info-box-value">${c.bedrooms || 'Any'}</span></div>
+                                    ${c.workStudyLocation ? `<div class="info-box-row"><span class="info-box-label">🎓 Study/Work</span><span class="info-box-value" style="color:var(--blue)">${esc(c.workStudyLocation)}</span></div>` : ''}
+                                    <div class="info-box-row"><span class="info-box-label">💳 Payment</span><span class="info-box-value" style="color:${(c.paymentPreference || c.advancePayment) === 'full' || (c.paymentPreference || c.advancePayment) === 'semester' ? 'var(--green)' : (c.paymentPreference || c.advancePayment) === 'quarterly' ? 'var(--blue)' : 'inherit'}">${{'monthly':'📅 Monthly','quarterly':'📆 Quarterly (3mo)','semester':'📆 Semester (6mo)','full':'💰 Full Year','flexible':'🤝 Flexible'}[c.paymentPreference || c.advancePayment] || '📅 Monthly'}</span></div>
                                     ${c.mustHaves ? `<div class="info-box-row"><span class="info-box-label">Must-Haves</span><span class="info-box-value" style="color:var(--green)">${esc(c.mustHaves)}</span></div>` : ''}
                                     ${c.dealBreakers ? `<div class="info-box-row"><span class="info-box-label">Deal-Breakers</span><span class="info-box-value" style="color:var(--red)">${esc(c.dealBreakers)}</span></div>` : ''}
                                 </div>
@@ -12151,8 +12171,26 @@ Questions? Reply here! 💬`;
         const client = (S.pfsClients || []).find(c => c.id === clientId);
         if (!client) return;
 
-        const portalProperties = client.portalProperties || [];
-        portalProperties.push(property);
+        const existingProps = client.portalProperties || [];
+        existingProps.push(property);
+
+        // Sanitize ALL properties to remove undefined values
+        const portalProperties = existingProps.map(p => ({
+            id: p.id || 'prop_' + Date.now(),
+            price: parseInt(p.price) || 0,
+            address: p.address || '',
+            rooms: parseInt(p.rooms) || 1,
+            baths: parseInt(p.baths) || 1,
+            sqm: parseInt(p.sqm) || 0,
+            match: parseInt(p.match) || 85,
+            images: Array.isArray(p.images) && p.images.length > 0 ? p.images : ['https://via.placeholder.com/400x300?text=No+Image'],
+            description: p.description || '',
+            isNew: p.isNew === true || p.new === true,
+            addedAt: p.addedAt || new Date().toISOString(),
+            clientLiked: p.clientLiked === true,
+            clientRejected: p.clientRejected === true,
+            clientActionAt: p.clientActionAt || ''
+        }));
 
         await db.collection('pfsClients').doc(clientId).update({
             portalProperties,

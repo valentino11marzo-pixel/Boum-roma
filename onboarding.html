@@ -893,7 +893,7 @@
         <div class="logo-section">
             <div class="logo-wrapper">
                 <div class="logo-glow"></div>
-                <img src="https://www.boomrome.com/BOOMlogogoldicon512.png" alt="BOOM Rome" class="logo">
+                <img src="boom-logo.svg" alt="BOOM Rome" class="logo">
             </div>
             <div class="brand">BOOM</div>
             <div class="tagline">MID-TERM RENTALS • ROME</div>
@@ -1048,6 +1048,31 @@
             <div class="step-content" id="step3">
                 <h2 class="step-title">Almost there!</h2>
                 <p class="step-subtitle">A few more details to help us serve you better.</p>
+
+                <div class="form-group">
+                    <div class="input-wrapper">
+                        <input type="text" class="form-input" id="workStudyLocation" placeholder=" ">
+                        <label class="form-label">🎓 Where will you study or work?</label>
+                    </div>
+                    <p style="font-size: 11px; color: var(--text-muted); margin-top: 6px;">e.g. Sapienza, LUISS, Vatican, Termini area, remote work...</p>
+                </div>
+
+                <div class="form-group">
+                    <label style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; display: block;">
+                        💳 Would you be open to paying rent in advance?
+                        <span class="tooltip">
+                            <span class="tooltip-icon">?</span>
+                            <span class="tooltip-text">Advance payment can help secure better apartments!</span>
+                        </span>
+                    </label>
+                    <select class="form-select" id="advancePayment">
+                        <option value="monthly">Monthly only - I prefer to pay month by month</option>
+                        <option value="quarterly">Quarterly - I could pay 3 months in advance</option>
+                        <option value="semester">Semester - I could pay 6 months in advance</option>
+                        <option value="full">Full stay - I could pay the entire period upfront</option>
+                    </select>
+                    <p style="font-size: 11px; color: var(--green); margin-top: 6px;">💡 Paying in advance often gives you priority access to the best apartments!</p>
+                </div>
 
                 <div class="form-group">
                     <label style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; display: block;">How did you find us?</label>
@@ -1371,6 +1396,8 @@
                 const duration = parseInt(document.getElementById('duration').value) || 6;
                 const checkIn = document.getElementById('checkIn').value;
                 const guests = document.getElementById('guests').value;
+                const workStudyLocation = document.getElementById('workStudyLocation').value.trim();
+                const advancePayment = document.getElementById('advancePayment').value;
                 const source = document.getElementById('source').value;
                 const notes = document.getElementById('notes').value.trim();
 
@@ -1391,6 +1418,8 @@
                     checkIn: checkIn || null,
                     guests,
                     zones: selectedZones,
+                    workStudyLocation,
+                    advancePayment,
                     referralSource: source,
                     notes
                 };
@@ -1408,6 +1437,9 @@
                     durationMonths: duration,
                     checkIn: checkIn || null,
                     guests,
+                    workStudyLocation,
+                    advancePayment,
+                    paymentPreference: advancePayment,
                     notes,
                     source: source || 'onboarding',
                     service: 'PFS',
