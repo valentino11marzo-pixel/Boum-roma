@@ -7088,17 +7088,7 @@ Valentyne - BOOM Rome`
                     <div class="form-row"><div class="form-group"><label class="form-label">Variazione % *</label><input type="number" class="form-input" name="istatPercent" id="istatPercent" step="0.1" value="5.4" required oninput="calculateIstatIncrease()"></div><div class="form-group"><label class="form-label">Aumento € (calcolato)</label><input type="number" class="form-input" name="increaseAmount" id="istatIncreaseAmount" readonly></div></div>
                     <div class="form-row"><div class="form-group"><label class="form-label">Nuovo Canone € *</label><input type="number" class="form-input" name="newRent" id="istatNewRent" required></div><div class="form-group"><label class="form-label">Decorrenza *</label><input type="date" class="form-input" name="effectiveDate" required></div></div>
                     <div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes"></textarea></div>
-                </div>
-                <script>
-                function calculateIstatIncrease() {
-                    const current = parseFloat(document.getElementById('istatCurrentRent')?.value) || 0;
-                    const percent = parseFloat(document.getElementById('istatPercent')?.value) || 0;
-                    const increase = Math.round(current * percent / 100);
-                    const newRent = current + increase;
-                    const incEl = document.getElementById('istatIncreaseAmount'); if (incEl) incEl.value = increase;
-                    const newEl = document.getElementById('istatNewRent'); if (newEl && !newEl.dataset.manual) newEl.value = newRent;
-                }
-                </script>`;
+                </div>`;
         }
         // Sollecito Pagamento
         else if (type === 'sollecito_pagamento') {
@@ -7132,44 +7122,30 @@ Valentyne - BOOM Rome`
             const tenants = S.users.filter(u => u.role === 'tenant');
             formFields = `
                 <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
-                    <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">👤 MITTENTE</h4>
-                    <div class="form-group"><label class="form-label">Chi invia la disdetta? *</label><select class="form-select" name="senderType" onchange="toggleDisdettaFields(this.value)"><option value="tenant">Conduttore (Inquilino)</option><option value="landlord">Locatore (Proprietario)</option></select></div>
-                    <div id="disdettaSenderFields">
-                        <div class="form-group"><label class="form-label">Seleziona Inquilino</label><select class="form-select" id="disdettaTenantSelect" onchange="fillUserData(this.value,'tenant')"><option value="">-- Inserisci --</option>${tenants.map(u => `<option value="${u.id}">${u.name}</option>`).join('')}</select></div>
-                    </div>
-                    <div class="form-row"><div class="form-group"><label class="form-label">Nome Mittente *</label><input type="text" class="form-input" name="tenantName" id="tplTenantName" required></div><div class="form-group"><label class="form-label">C.F.</label><input type="text" class="form-input" name="tenantCF" id="tplTenantCF"></div></div>
+                    <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">⚙️ TIPO DISDETTA</h4>
+                    <div class="form-group"><label class="form-label">Chi invia la disdetta? *</label><select class="form-select" name="senderType"><option value="tenant">Conduttore (Inquilino)</option><option value="landlord">Locatore (Proprietario)</option></select></div>
                 </div>
                 <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
-                    <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">👤 DESTINATARIO</h4>
-                    <div class="form-group" id="disdettaRecipientSelect"><label class="form-label">Seleziona Proprietario</label><select class="form-select" onchange="fillUserData(this.value,'landlord')"><option value="">-- Inserisci --</option>${landlords.map(u => `<option value="${u.id}">${u.name}</option>`).join('')}</select></div>
-                    <div class="form-row"><div class="form-group"><label class="form-label">Nome Destinatario *</label><input type="text" class="form-input" name="landlordName" id="tplLandlordName" required></div></div>
+                    <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">👤 INQUILINO</h4>
+                    <div class="form-group"><label class="form-label">Seleziona</label><select class="form-select" onchange="fillUserData(this.value,'tenant')"><option value="">-- Inserisci --</option>${tenants.map(u => `<option value="${u.id}">${u.name}</option>`).join('')}</select></div>
+                    <div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="tenantName" id="tplTenantName" required></div><div class="form-group"><label class="form-label">C.F.</label><input type="text" class="form-input" name="tenantCF" id="tplTenantCF"></div></div>
                 </div>
                 <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
-                    <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">📋 CONTRATTO</h4>
-                    <div class="form-group"><label class="form-label">Seleziona Immobile</label><select class="form-select" name="propertyId" onchange="fillPropertyData(this.value)"><option value="">-- Inserisci --</option>${S.properties.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}</select></div>
-                    <div class="form-group"><label class="form-label">Indirizzo Immobile *</label><input type="text" class="form-input" name="propertyAddress" id="tplPropertyAddress" required></div>
-                    <div class="form-row"><div class="form-group"><label class="form-label">Data Contratto</label><input type="date" class="form-input" name="contractDate"></div><div class="form-group"><label class="form-label">Scadenza Contratto</label><input type="date" class="form-input" name="contractEnd"></div></div>
+                    <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">👤 PROPRIETARIO</h4>
+                    <div class="form-group"><label class="form-label">Seleziona</label><select class="form-select" onchange="fillUserData(this.value,'landlord')"><option value="">-- Inserisci --</option>${landlords.map(u => `<option value="${u.id}">${u.name}</option>`).join('')}</select></div>
+                    <div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="landlordName" id="tplLandlordName" required></div></div>
+                </div>
+                <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
+                    <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">🏠 IMMOBILE</h4>
+                    <div class="form-group"><label class="form-label">Seleziona</label><select class="form-select" name="propertyId" onchange="fillPropertyData(this.value)"><option value="">-- Inserisci --</option>${S.properties.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}</select></div>
+                    <div class="form-group"><label class="form-label">Indirizzo *</label><input type="text" class="form-input" name="propertyAddress" id="tplPropertyAddress" required></div>
                 </div>
                 <div style="background:var(--bg);padding:16px;border-radius:8px">
                     <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">❌ DISDETTA</h4>
-                    <div class="form-row"><div class="form-group"><label class="form-label">Data Comunicazione</label><input type="date" class="form-input" name="date" value="${new Date().toISOString().split('T')[0]}"></div><div class="form-group"><label class="form-label">Data Effetto Rilascio *</label><input type="date" class="form-input" name="terminationDate" required></div></div>
+                    <div class="form-row"><div class="form-group"><label class="form-label">Data Comunicazione</label><input type="date" class="form-input" name="date" value="${new Date().toISOString().split('T')[0]}"></div><div class="form-group"><label class="form-label">Data Rilascio *</label><input type="date" class="form-input" name="terminationDate" required></div></div>
                     <div class="form-group"><label class="form-label">Motivazione</label><textarea class="form-textarea" name="reason" placeholder="es. Gravi motivi, trasferimento lavorativo, scadenza naturale..."></textarea></div>
-                    <div class="form-group"><label class="form-label">Note Aggiuntive</label><textarea class="form-textarea" name="notes"></textarea></div>
-                </div>
-                <script>
-                function toggleDisdettaFields(type) {
-                    // Swap labels and selects based on sender type
-                    const tenantSelect = document.getElementById('disdettaTenantSelect');
-                    const recipientSelect = document.getElementById('disdettaRecipientSelect');
-                    if (type === 'landlord') {
-                        if (tenantSelect) tenantSelect.innerHTML = '<label class="form-label">Seleziona Proprietario</label><select class="form-select" onchange="fillUserData(this.value,\\'landlord\\')"><option value="">-- Inserisci --</option>${landlords.map(u => `<option value="${u.id}">${u.name.replace(/'/g, "\\'")}</option>`).join('')}</select>';
-                        if (recipientSelect) recipientSelect.innerHTML = '<label class="form-label">Seleziona Inquilino</label><select class="form-select" onchange="fillUserData(this.value,\\'tenant\\')"><option value="">-- Inserisci --</option>${tenants.map(u => `<option value="${u.id}">${u.name.replace(/'/g, "\\'")}</option>`).join('')}</select>';
-                    } else {
-                        if (tenantSelect) tenantSelect.innerHTML = '<label class="form-label">Seleziona Inquilino</label><select class="form-select" onchange="fillUserData(this.value,\\'tenant\\')"><option value="">-- Inserisci --</option>${tenants.map(u => `<option value="${u.id}">${u.name.replace(/'/g, "\\'")}</option>`).join('')}</select>';
-                        if (recipientSelect) recipientSelect.innerHTML = '<label class="form-label">Seleziona Proprietario</label><select class="form-select" onchange="fillUserData(this.value,\\'landlord\\')"><option value="">-- Inserisci --</option>${landlords.map(u => `<option value="${u.id}">${u.name.replace(/'/g, "\\'")}</option>`).join('')}</select>';
-                    }
-                }
-                </script>`;
+                    <div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes"></textarea></div>
+                </div>`;
         }
         // Ricevuta Provvigione
         else if (type === 'ricevuta_provvigione') {
@@ -7315,6 +7291,16 @@ Valentyne - BOOM Rome`
         cfInputs.forEach(inp => { if (!inp.value) inp.value = c.cf || c.codiceFiscale || ''; });
         const addrInputs = document.querySelectorAll('input[name="clientAddress"]');
         addrInputs.forEach(inp => { if (!inp.value) inp.value = c.address || ''; });
+    }
+
+    // Helper for ISTAT calculation in comunicazione_istat form
+    function calculateIstatIncrease() {
+        const current = parseFloat(document.getElementById('istatCurrentRent')?.value) || 0;
+        const percent = parseFloat(document.getElementById('istatPercent')?.value) || 0;
+        const increase = Math.round(current * percent / 100);
+        const newRent = current + increase;
+        const incEl = document.getElementById('istatIncreaseAmount'); if (incEl) incEl.value = increase;
+        const newEl = document.getElementById('istatNewRent'); if (newEl && !newEl.dataset.manual) newEl.value = newRent;
     }
 
     function generateTemplatePDF() {
