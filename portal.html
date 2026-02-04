@@ -13,6 +13,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
     <style>
         *{margin:0;padding:0;box-sizing:border-box}
         :root{--gold:#D4AF37;--gold-light:rgba(212,175,55,0.15);--gold-dark:#B8960C;--green:#34C759;--green-light:rgba(52,199,89,0.12);--red:#FF3B30;--red-light:rgba(255,59,48,0.12);--orange:#FF9500;--orange-light:rgba(255,149,0,0.12);--blue:#007AFF;--blue-light:rgba(0,122,255,0.12);--purple:#AF52DE;--purple-light:rgba(175,82,222,0.12);--cyan:#00C7BE;--cyan-light:rgba(0,199,190,0.12);--bg:#000;--bg-card:#0A0A0A;--bg-elevated:#141414;--bg-input:#1A1A1A;--border:rgba(255,255,255,0.08);--text:#FFF;--text-secondary:#999;--text-muted:#666}
@@ -6828,21 +6829,28 @@ Valentyne - BOOM Rome`
         // Receipts
         else if (['deposit_receipt', 'payment_receipt'].includes(type)) {
             const tenants = S.users.filter(u => u.role === 'tenant');
+            const landlords = S.users.filter(u => u.role === 'landlord');
             formFields = `
                 <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
-                    <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">👤 RICEVENTE</h4>
-                    <div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="receiverName" value="${COMPANY.legal}" required></div><div class="form-group"><label class="form-label">C.F./P.IVA</label><input type="text" class="form-input" name="receiverCF" value="${COMPANY.piva}"></div></div>
+                    <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">👤 RICEVENTE (Proprietario)</h4>
+                    <div class="form-group"><label class="form-label">Seleziona</label><select class="form-select" name="receiverId" onchange="fillUserData(this.value,'landlord')"><option value="">-- BOOM/Inserisci --</option>${landlords.map(u => `<option value="${u.id}">${u.name}</option>`).join('')}</select></div>
+                    <div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="receiverName" id="tplLandlordName" value="${COMPANY.legal}" required></div><div class="form-group"><label class="form-label">C.F./P.IVA</label><input type="text" class="form-input" name="receiverCF" id="tplLandlordCF" value="${COMPANY.piva}"></div></div>
                 </div>
                 <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
-                    <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">👤 PAGANTE</h4>
+                    <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">👤 PAGANTE (Inquilino)</h4>
                     <div class="form-group"><label class="form-label">Seleziona</label><select class="form-select" name="payerId" onchange="fillUserData(this.value,'tenant')"><option value="">-- Inserisci --</option>${tenants.map(u => `<option value="${u.id}">${u.name}</option>`).join('')}</select></div>
                     <div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="payerName" id="tplTenantName" required></div><div class="form-group"><label class="form-label">C.F.</label><input type="text" class="form-input" name="payerCF" id="tplTenantCF"></div></div>
+                </div>
+                <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
+                    <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">🏠 IMMOBILE</h4>
+                    <div class="form-group"><label class="form-label">Seleziona</label><select class="form-select" name="propertyId" onchange="fillPropertyData(this.value)"><option value="">-- Seleziona --</option>${S.properties.map(p => `<option value="${p.id}">${p.name} - ${p.address || 'Roma'}</option>`).join('')}</select></div>
+                    <div class="form-group"><label class="form-label">Indirizzo *</label><input type="text" class="form-input" name="propertyAddress" id="tplPropertyAddress" required></div>
                 </div>
                 <div style="background:var(--bg);padding:16px;border-radius:8px">
                     <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">💰 PAGAMENTO</h4>
                     <div class="form-row"><div class="form-group"><label class="form-label">Importo € *</label><input type="number" class="form-input" name="amount" required></div><div class="form-group"><label class="form-label">Data *</label><input type="date" class="form-input" name="paymentDate" value="${new Date().toISOString().split('T')[0]}" required></div></div>
                     ${type === 'payment_receipt' ? `<div class="form-group"><label class="form-label">Periodo</label><input type="text" class="form-input" name="period" placeholder="es. Gennaio 2025"></div>` : ''}
-                    <div class="form-group"><label class="form-label">Immobile</label><select class="form-select" name="propertyId" onchange="fillPropertyData(this.value)"><option value="">-- Seleziona --</option>${S.properties.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}</select></div>
+                    <div class="form-group"><label class="form-label">Modalità Pagamento</label><select class="form-select" name="paymentMethod"><option value="bonifico">Bonifico Bancario</option><option value="contanti">Contanti</option><option value="assegno">Assegno</option></select></div>
                     <div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes"></textarea></div>
                 </div>`;
         }
@@ -6904,8 +6912,8 @@ Valentyne - BOOM Rome`
                 <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
                     <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">👤 PROPONENTE (Inquilino)</h4>
                     <div class="form-group"><label class="form-label">Seleziona</label><select class="form-select" name="tenantId" onchange="fillUserData(this.value,'tenant')"><option value="">-- Inserisci --</option>${tenants.map(u => `<option value="${u.id}">${u.name}</option>`).join('')}</select></div>
-                    <div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="clientName" id="tplTenantName" required></div><div class="form-group"><label class="form-label">C.F.</label><input type="text" class="form-input" name="tenantCF"></div></div>
-                    <div class="form-row"><div class="form-group"><label class="form-label">Email *</label><input type="email" class="form-input" name="tenantEmail" required></div><div class="form-group"><label class="form-label">Telefono</label><input type="tel" class="form-input" name="tenantPhone"></div></div>
+                    <div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="tenantName" id="tplTenantName" required></div><div class="form-group"><label class="form-label">C.F.</label><input type="text" class="form-input" name="tenantCF" id="tplTenantCF"></div></div>
+                    <div class="form-row"><div class="form-group"><label class="form-label">Email *</label><input type="email" class="form-input" name="tenantEmail" id="tplTenantEmail" required></div><div class="form-group"><label class="form-label">Telefono</label><input type="tel" class="form-input" name="tenantPhone" id="tplTenantPhone"></div></div>
                 </div>
                 <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
                     <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">👤 DESTINATARIO (Proprietario)</h4>
@@ -6928,11 +6936,12 @@ Valentyne - BOOM Rome`
         // Accettazione Proposta
         else if (type === 'accettazione_proposta') {
             const landlords = S.users.filter(u => u.role === 'landlord');
+            const tenants = S.users.filter(u => u.role === 'tenant');
             formFields = `
                 <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
                     <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">👤 ACCETTANTE (Proprietario)</h4>
                     <div class="form-group"><label class="form-label">Seleziona</label><select class="form-select" name="landlordId" onchange="fillUserData(this.value,'landlord')"><option value="">-- Inserisci --</option>${landlords.map(u => `<option value="${u.id}">${u.name}</option>`).join('')}</select></div>
-                    <div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="clientName" id="tplLandlordName" required></div><div class="form-group"><label class="form-label">C.F.</label><input type="text" class="form-input" name="landlordCF"></div></div>
+                    <div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="landlordName" id="tplLandlordName" required></div><div class="form-group"><label class="form-label">C.F.</label><input type="text" class="form-input" name="landlordCF" id="tplLandlordCF"></div></div>
                 </div>
                 <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
                     <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">📨 RIFERIMENTO PROPOSTA</h4>
@@ -6956,12 +6965,12 @@ Valentyne - BOOM Rome`
                 <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
                     <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">👤 RICEVENTE (Proprietario)</h4>
                     <div class="form-group"><label class="form-label">Seleziona</label><select class="form-select" name="landlordId" onchange="fillUserData(this.value,'landlord')"><option value="">-- Inserisci --</option>${landlords.map(u => `<option value="${u.id}">${u.name}</option>`).join('')}</select></div>
-                    <div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="clientName" id="tplLandlordName" required></div><div class="form-group"><label class="form-label">C.F./P.IVA</label><input type="text" class="form-input" name="landlordCF"></div></div>
+                    <div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="landlordName" id="tplLandlordName" required></div><div class="form-group"><label class="form-label">C.F./P.IVA</label><input type="text" class="form-input" name="landlordCF" id="tplLandlordCF"></div></div>
                 </div>
                 <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
                     <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">👤 PAGANTE (Inquilino)</h4>
                     <div class="form-group"><label class="form-label">Seleziona</label><select class="form-select" name="tenantId" onchange="fillUserData(this.value,'tenant')"><option value="">-- Inserisci --</option>${tenants.map(u => `<option value="${u.id}">${u.name}</option>`).join('')}</select></div>
-                    <div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="tenantName" id="tplTenantName" required></div><div class="form-group"><label class="form-label">C.F.</label><input type="text" class="form-input" name="tenantCF"></div></div>
+                    <div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="tenantName" id="tplTenantName" required></div><div class="form-group"><label class="form-label">C.F.</label><input type="text" class="form-input" name="tenantCF" id="tplTenantCF"></div></div>
                 </div>
                 <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
                     <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">🏠 IMMOBILE</h4>
@@ -6982,9 +6991,9 @@ Valentyne - BOOM Rome`
                 <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
                     <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">👤 MANDANTE (Proprietario)</h4>
                     <div class="form-group"><label class="form-label">Seleziona</label><select class="form-select" name="landlordId" onchange="fillUserData(this.value,'landlord')"><option value="">-- Inserisci --</option>${landlords.map(u => `<option value="${u.id}">${u.name}</option>`).join('')}</select></div>
-                    <div class="form-row"><div class="form-group"><label class="form-label">Nome/Ragione Sociale *</label><input type="text" class="form-input" name="clientName" id="tplLandlordName" required></div><div class="form-group"><label class="form-label">C.F./P.IVA *</label><input type="text" class="form-input" name="landlordCF" required></div></div>
-                    <div class="form-group"><label class="form-label">Indirizzo Residenza *</label><input type="text" class="form-input" name="landlordAddress" required></div>
-                    <div class="form-row"><div class="form-group"><label class="form-label">Email *</label><input type="email" class="form-input" name="landlordEmail" required></div><div class="form-group"><label class="form-label">Telefono</label><input type="tel" class="form-input" name="landlordPhone"></div></div>
+                    <div class="form-row"><div class="form-group"><label class="form-label">Nome/Ragione Sociale *</label><input type="text" class="form-input" name="landlordName" id="tplLandlordName" required></div><div class="form-group"><label class="form-label">C.F./P.IVA *</label><input type="text" class="form-input" name="landlordCF" id="tplLandlordCF" required></div></div>
+                    <div class="form-group"><label class="form-label">Indirizzo Residenza *</label><input type="text" class="form-input" name="landlordAddress" id="tplLandlordAddress" required></div>
+                    <div class="form-row"><div class="form-group"><label class="form-label">Email *</label><input type="email" class="form-input" name="landlordEmail" id="tplLandlordEmail" required></div><div class="form-group"><label class="form-label">Telefono</label><input type="tel" class="form-input" name="landlordPhone" id="tplLandlordPhone"></div></div>
                 </div>
                 <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
                     <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">🏠 IMMOBILE DA GESTIRE</h4>
@@ -7017,7 +7026,7 @@ Valentyne - BOOM Rome`
                 <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
                     <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">👤 PROPRIETARIO</h4>
                     <div class="form-group"><label class="form-label">Seleziona</label><select class="form-select" name="landlordId" onchange="fillUserData(this.value,'landlord')"><option value="">-- Inserisci --</option>${landlords.map(u => `<option value="${u.id}">${u.name}</option>`).join('')}</select></div>
-                    <div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="clientName" id="tplLandlordName" required></div><div class="form-group"><label class="form-label">C.F.</label><input type="text" class="form-input" name="landlordCF"></div></div>
+                    <div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="landlordName" id="tplLandlordName" required></div><div class="form-group"><label class="form-label">C.F.</label><input type="text" class="form-input" name="landlordCF" id="tplLandlordCF"></div></div>
                 </div>
                 <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
                     <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">🏠 IMMOBILE</h4>
@@ -7071,23 +7080,39 @@ Valentyne - BOOM Rome`
                 <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
                     <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">👤 DESTINATARIO (Inquilino)</h4>
                     <div class="form-group"><label class="form-label">Seleziona</label><select class="form-select" name="tenantId" onchange="fillUserData(this.value,'tenant')"><option value="">-- Inserisci --</option>${tenants.map(u => `<option value="${u.id}">${u.name}</option>`).join('')}</select></div>
-                    <div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="clientName" id="tplTenantName" required></div><div class="form-group"><label class="form-label">Indirizzo Immobile *</label><input type="text" class="form-input" name="propertyAddress" required></div></div>
+                    <div class="form-row"><div class="form-group"><label class="form-label">Nome Inquilino *</label><input type="text" class="form-input" name="tenantName" id="tplTenantName" required></div><div class="form-group"><label class="form-label">Indirizzo Immobile *</label><input type="text" class="form-input" name="propertyAddress" required></div></div>
                 </div>
                 <div style="background:var(--bg);padding:16px;border-radius:8px">
                     <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">📈 ADEGUAMENTO ISTAT</h4>
-                    <div class="form-row"><div class="form-group"><label class="form-label">Canone Attuale € *</label><input type="number" class="form-input" name="currentRent" required></div><div class="form-group"><label class="form-label">Indice ISTAT % *</label><input type="number" class="form-input" name="istatIndex" step="0.1" value="5.4" required></div></div>
-                    <div class="form-row"><div class="form-group"><label class="form-label">Nuovo Canone € *</label><input type="number" class="form-input" name="newRent" required></div><div class="form-group"><label class="form-label">Decorrenza *</label><input type="date" class="form-input" name="effectiveDate" required></div></div>
+                    <div class="form-row"><div class="form-group"><label class="form-label">Canone Attuale € *</label><input type="number" class="form-input" name="currentRent" id="istatCurrentRent" required oninput="calculateIstatIncrease()"></div><div class="form-group"><label class="form-label">Indice ISTAT</label><input type="text" class="form-input" name="istatIndex" id="istatIndex" value="FOI" placeholder="es. FOI Febbraio 2025"></div></div>
+                    <div class="form-row"><div class="form-group"><label class="form-label">Variazione % *</label><input type="number" class="form-input" name="istatPercent" id="istatPercent" step="0.1" value="5.4" required oninput="calculateIstatIncrease()"></div><div class="form-group"><label class="form-label">Aumento € (calcolato)</label><input type="number" class="form-input" name="increaseAmount" id="istatIncreaseAmount" readonly></div></div>
+                    <div class="form-row"><div class="form-group"><label class="form-label">Nuovo Canone € *</label><input type="number" class="form-input" name="newRent" id="istatNewRent" required></div><div class="form-group"><label class="form-label">Decorrenza *</label><input type="date" class="form-input" name="effectiveDate" required></div></div>
                     <div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes"></textarea></div>
-                </div>`;
+                </div>
+                <script>
+                function calculateIstatIncrease() {
+                    const current = parseFloat(document.getElementById('istatCurrentRent')?.value) || 0;
+                    const percent = parseFloat(document.getElementById('istatPercent')?.value) || 0;
+                    const increase = Math.round(current * percent / 100);
+                    const newRent = current + increase;
+                    const incEl = document.getElementById('istatIncreaseAmount'); if (incEl) incEl.value = increase;
+                    const newEl = document.getElementById('istatNewRent'); if (newEl && !newEl.dataset.manual) newEl.value = newRent;
+                }
+                </script>`;
         }
         // Sollecito Pagamento
         else if (type === 'sollecito_pagamento') {
             const tenants = S.users.filter(u => u.role === 'tenant');
             formFields = `
                 <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
-                    <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">👤 DESTINATARIO</h4>
+                    <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">👤 DESTINATARIO (Inquilino)</h4>
                     <div class="form-group"><label class="form-label">Seleziona</label><select class="form-select" name="tenantId" onchange="fillUserData(this.value,'tenant')"><option value="">-- Inserisci --</option>${tenants.map(u => `<option value="${u.id}">${u.name}</option>`).join('')}</select></div>
-                    <div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="clientName" id="tplTenantName" required></div><div class="form-group"><label class="form-label">Indirizzo Immobile *</label><input type="text" class="form-input" name="propertyAddress" required></div></div>
+                    <div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="tenantName" id="tplTenantName" required></div><div class="form-group"><label class="form-label">C.F.</label><input type="text" class="form-input" name="tenantCF" id="tplTenantCF"></div></div>
+                </div>
+                <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
+                    <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">🏠 IMMOBILE</h4>
+                    <div class="form-group"><label class="form-label">Seleziona</label><select class="form-select" name="propertyId" onchange="fillPropertyData(this.value)"><option value="">-- Inserisci --</option>${S.properties.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}</select></div>
+                    <div class="form-group"><label class="form-label">Indirizzo Immobile *</label><input type="text" class="form-input" name="propertyAddress" id="tplPropertyAddress" required></div>
                 </div>
                 <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
                     <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">💰 IMPORTO DOVUTO</h4>
@@ -7103,30 +7128,56 @@ Valentyne - BOOM Rome`
         }
         // Disdetta Contratto
         else if (type === 'disdetta') {
+            const landlords = S.users.filter(u => u.role === 'landlord');
+            const tenants = S.users.filter(u => u.role === 'tenant');
             formFields = `
                 <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
                     <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">👤 MITTENTE</h4>
-                    <div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="clientName" required></div><div class="form-group"><label class="form-label">C.F.</label><input type="text" class="form-input" name="senderCF"></div></div>
-                    <div class="form-group"><label class="form-label">Qualità</label><select class="form-select" name="senderRole"><option value="conduttore">Conduttore (Inquilino)</option><option value="locatore">Locatore (Proprietario)</option></select></div>
+                    <div class="form-group"><label class="form-label">Chi invia la disdetta? *</label><select class="form-select" name="senderType" onchange="toggleDisdettaFields(this.value)"><option value="tenant">Conduttore (Inquilino)</option><option value="landlord">Locatore (Proprietario)</option></select></div>
+                    <div id="disdettaSenderFields">
+                        <div class="form-group"><label class="form-label">Seleziona Inquilino</label><select class="form-select" id="disdettaTenantSelect" onchange="fillUserData(this.value,'tenant')"><option value="">-- Inserisci --</option>${tenants.map(u => `<option value="${u.id}">${u.name}</option>`).join('')}</select></div>
+                    </div>
+                    <div class="form-row"><div class="form-group"><label class="form-label">Nome Mittente *</label><input type="text" class="form-input" name="tenantName" id="tplTenantName" required></div><div class="form-group"><label class="form-label">C.F.</label><input type="text" class="form-input" name="tenantCF" id="tplTenantCF"></div></div>
+                </div>
+                <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
+                    <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">👤 DESTINATARIO</h4>
+                    <div class="form-group" id="disdettaRecipientSelect"><label class="form-label">Seleziona Proprietario</label><select class="form-select" onchange="fillUserData(this.value,'landlord')"><option value="">-- Inserisci --</option>${landlords.map(u => `<option value="${u.id}">${u.name}</option>`).join('')}</select></div>
+                    <div class="form-row"><div class="form-group"><label class="form-label">Nome Destinatario *</label><input type="text" class="form-input" name="landlordName" id="tplLandlordName" required></div></div>
                 </div>
                 <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
                     <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">📋 CONTRATTO</h4>
-                    <div class="form-group"><label class="form-label">Indirizzo Immobile *</label><input type="text" class="form-input" name="propertyAddress" required></div>
+                    <div class="form-group"><label class="form-label">Seleziona Immobile</label><select class="form-select" name="propertyId" onchange="fillPropertyData(this.value)"><option value="">-- Inserisci --</option>${S.properties.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}</select></div>
+                    <div class="form-group"><label class="form-label">Indirizzo Immobile *</label><input type="text" class="form-input" name="propertyAddress" id="tplPropertyAddress" required></div>
                     <div class="form-row"><div class="form-group"><label class="form-label">Data Contratto</label><input type="date" class="form-input" name="contractDate"></div><div class="form-group"><label class="form-label">Scadenza Contratto</label><input type="date" class="form-input" name="contractEnd"></div></div>
                 </div>
                 <div style="background:var(--bg);padding:16px;border-radius:8px">
                     <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">❌ DISDETTA</h4>
-                    <div class="form-row"><div class="form-group"><label class="form-label">Data Rilascio *</label><input type="date" class="form-input" name="releaseDate" required></div><div class="form-group"><label class="form-label">Preavviso (mesi)</label><input type="number" class="form-input" name="noticePeriod" value="6"></div></div>
-                    <div class="form-group"><label class="form-label">Motivazione</label><textarea class="form-textarea" name="reason" placeholder="es. Gravi motivi, trasferimento lavorativo..."></textarea></div>
-                </div>`;
+                    <div class="form-row"><div class="form-group"><label class="form-label">Data Comunicazione</label><input type="date" class="form-input" name="date" value="${new Date().toISOString().split('T')[0]}"></div><div class="form-group"><label class="form-label">Data Effetto Rilascio *</label><input type="date" class="form-input" name="terminationDate" required></div></div>
+                    <div class="form-group"><label class="form-label">Motivazione</label><textarea class="form-textarea" name="reason" placeholder="es. Gravi motivi, trasferimento lavorativo, scadenza naturale..."></textarea></div>
+                    <div class="form-group"><label class="form-label">Note Aggiuntive</label><textarea class="form-textarea" name="notes"></textarea></div>
+                </div>
+                <script>
+                function toggleDisdettaFields(type) {
+                    // Swap labels and selects based on sender type
+                    const tenantSelect = document.getElementById('disdettaTenantSelect');
+                    const recipientSelect = document.getElementById('disdettaRecipientSelect');
+                    if (type === 'landlord') {
+                        if (tenantSelect) tenantSelect.innerHTML = '<label class="form-label">Seleziona Proprietario</label><select class="form-select" onchange="fillUserData(this.value,\\'landlord\\')"><option value="">-- Inserisci --</option>${landlords.map(u => `<option value="${u.id}">${u.name.replace(/'/g, "\\'")}</option>`).join('')}</select>';
+                        if (recipientSelect) recipientSelect.innerHTML = '<label class="form-label">Seleziona Inquilino</label><select class="form-select" onchange="fillUserData(this.value,\\'tenant\\')"><option value="">-- Inserisci --</option>${tenants.map(u => `<option value="${u.id}">${u.name.replace(/'/g, "\\'")}</option>`).join('')}</select>';
+                    } else {
+                        if (tenantSelect) tenantSelect.innerHTML = '<label class="form-label">Seleziona Inquilino</label><select class="form-select" onchange="fillUserData(this.value,\\'tenant\\')"><option value="">-- Inserisci --</option>${tenants.map(u => `<option value="${u.id}">${u.name.replace(/'/g, "\\'")}</option>`).join('')}</select>';
+                        if (recipientSelect) recipientSelect.innerHTML = '<label class="form-label">Seleziona Proprietario</label><select class="form-select" onchange="fillUserData(this.value,\\'landlord\\')"><option value="">-- Inserisci --</option>${landlords.map(u => `<option value="${u.id}">${u.name.replace(/'/g, "\\'")}</option>`).join('')}</select>';
+                    }
+                }
+                </script>`;
         }
         // Ricevuta Provvigione
         else if (type === 'ricevuta_provvigione') {
             formFields = `
                 <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
-                    <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">👤 CLIENTE</h4>
+                    <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">👤 PAGANTE (Cliente)</h4>
                     <div class="form-group"><label class="form-label">Seleziona</label><select class="form-select" name="clientId" onchange="fillClientData(this.value)"><option value="">-- Inserisci --</option>${S.clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}</select></div>
-                    <div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="clientName" id="tplName" required></div><div class="form-group"><label class="form-label">C.F./P.IVA</label><input type="text" class="form-input" name="clientCF"></div></div>
+                    <div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="payerName" id="tplName" required></div><div class="form-group"><label class="form-label">C.F./P.IVA</label><input type="text" class="form-input" name="payerCF"></div></div>
                 </div>
                 <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
                     <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">💼 SERVIZIO PRESTATO</h4>
@@ -7193,9 +7244,39 @@ Valentyne - BOOM Rome`
     function fillUserData(id, type) {
         const u = S.users.find(x => x.id === id); if (!u) return;
         if (type === 'landlord') {
-            const el = document.getElementById('tplLandlordName'); if (el) el.value = u.name;
+            const el = document.getElementById('tplLandlordName'); if (el) el.value = u.name || '';
+            const cf = document.getElementById('tplLandlordCF'); if (cf) cf.value = u.cf || u.codiceFiscale || '';
+            const addr = document.getElementById('tplLandlordAddress'); if (addr) addr.value = u.address || '';
+            const email = document.getElementById('tplLandlordEmail'); if (email) email.value = u.email || '';
+            const phone = document.getElementById('tplLandlordPhone'); if (phone) phone.value = u.phone || '';
+            // Also fill name fields for forms that use name="landlordName" directly
+            const nameInputs = document.querySelectorAll('input[name="landlordName"]');
+            nameInputs.forEach(inp => { if (!inp.value) inp.value = u.name || ''; });
+            const cfInputs = document.querySelectorAll('input[name="landlordCF"]');
+            cfInputs.forEach(inp => { if (!inp.value) inp.value = u.cf || u.codiceFiscale || ''; });
+            const addrInputs = document.querySelectorAll('input[name="landlordAddress"]');
+            addrInputs.forEach(inp => { if (!inp.value) inp.value = u.address || ''; });
+            const emailInputs = document.querySelectorAll('input[name="landlordEmail"]');
+            emailInputs.forEach(inp => { if (!inp.value) inp.value = u.email || ''; });
+            const phoneInputs = document.querySelectorAll('input[name="landlordPhone"]');
+            phoneInputs.forEach(inp => { if (!inp.value) inp.value = u.phone || ''; });
         } else {
-            const el = document.getElementById('tplTenantName'); if (el) el.value = u.name;
+            const el = document.getElementById('tplTenantName'); if (el) el.value = u.name || '';
+            const cf = document.getElementById('tplTenantCF'); if (cf) cf.value = u.cf || u.codiceFiscale || '';
+            const addr = document.getElementById('tplTenantAddress'); if (addr) addr.value = u.address || '';
+            const email = document.getElementById('tplTenantEmail'); if (email) email.value = u.email || '';
+            const phone = document.getElementById('tplTenantPhone'); if (phone) phone.value = u.phone || '';
+            // Also fill name fields for forms that use name="tenantName" directly
+            const nameInputs = document.querySelectorAll('input[name="tenantName"]');
+            nameInputs.forEach(inp => { if (!inp.value) inp.value = u.name || ''; });
+            const cfInputs = document.querySelectorAll('input[name="tenantCF"]');
+            cfInputs.forEach(inp => { if (!inp.value) inp.value = u.cf || u.codiceFiscale || ''; });
+            const addrInputs = document.querySelectorAll('input[name="tenantAddress"]');
+            addrInputs.forEach(inp => { if (!inp.value) inp.value = u.address || ''; });
+            const emailInputs = document.querySelectorAll('input[name="tenantEmail"]');
+            emailInputs.forEach(inp => { if (!inp.value) inp.value = u.email || ''; });
+            const phoneInputs = document.querySelectorAll('input[name="tenantPhone"]');
+            phoneInputs.forEach(inp => { if (!inp.value) inp.value = u.phone || ''; });
         }
     }
     
@@ -7204,6 +7285,15 @@ Valentyne - BOOM Rome`
         const addr = document.getElementById('tplPropertyAddress'); if (addr) addr.value = p.address || '';
         const rent = document.getElementById('tplRent'); if (rent) rent.value = p.rent || '';
         const dep = document.getElementById('tplDeposit'); if (dep) dep.value = (p.rent || 0) * 3;
+        // Also fill by name attribute for forms without IDs
+        const addrInputs = document.querySelectorAll('input[name="propertyAddress"]');
+        addrInputs.forEach(inp => { if (!inp.value) inp.value = p.address || ''; });
+        const rentInputs = document.querySelectorAll('input[name="rent"], input[name="amount"], input[name="currentRent"]');
+        rentInputs.forEach(inp => { if (!inp.value) inp.value = p.rent || ''; });
+        const depositInputs = document.querySelectorAll('input[name="deposit"]');
+        depositInputs.forEach(inp => { if (!inp.value) inp.value = (p.rent || 0) * 3; });
+        const cadastralInputs = document.querySelectorAll('input[name="cadastral"]');
+        cadastralInputs.forEach(inp => { if (!inp.value) inp.value = p.cadastral || p.datiCatastali || ''; });
     }
     
     function fillClientData(id) {
@@ -7214,6 +7304,17 @@ Valentyne - BOOM Rome`
         const budget = document.getElementById('tplBudget'); if (budget) budget.value = c.budget || '';
         const zone = document.getElementById('tplZone'); if (zone) zone.value = c.zone || '';
         const duration = document.getElementById('tplDuration'); if (duration) duration.value = c.duration || '';
+        // Also fill by name attribute for forms without IDs
+        const nameInputs = document.querySelectorAll('input[name="clientName"], input[name="payerName"]');
+        nameInputs.forEach(inp => { if (!inp.value) inp.value = c.name || ''; });
+        const emailInputs = document.querySelectorAll('input[name="clientEmail"]');
+        emailInputs.forEach(inp => { if (!inp.value) inp.value = c.email || ''; });
+        const phoneInputs = document.querySelectorAll('input[name="clientPhone"]');
+        phoneInputs.forEach(inp => { if (!inp.value) inp.value = c.phone || ''; });
+        const cfInputs = document.querySelectorAll('input[name="clientCF"], input[name="payerCF"]');
+        cfInputs.forEach(inp => { if (!inp.value) inp.value = c.cf || c.codiceFiscale || ''; });
+        const addrInputs = document.querySelectorAll('input[name="clientAddress"]');
+        addrInputs.forEach(inp => { if (!inp.value) inp.value = c.address || ''; });
     }
 
     function generateTemplatePDF() {
@@ -7409,7 +7510,7 @@ Valentyne - BOOM Rome`
         // RICEVUTA PIGIONE
         else if (type === 'ricevuta_pigione') {
             section(L.receiver);
-            field(L.name, data.clientName || data.landlordName);
+            field(L.name, data.landlordName || data.clientName);
             if (data.landlordCF) field(L.cf + '/P.IVA', data.landlordCF);
             y += 5;
             
@@ -7445,7 +7546,7 @@ Valentyne - BOOM Rome`
         // PROPOSTA DI LOCAZIONE
         else if (type === 'proposta_locazione') {
             section('PROPONENTE');
-            field('Nome', data.clientName || data.tenantName);
+            field('Nome', data.tenantName || data.clientName);
             if (data.tenantCF) field('Codice Fiscale', data.tenantCF);
             fieldRow('Email', data.tenantEmail, 'Telefono', data.tenantPhone || '—');
             y += 5;
@@ -7473,7 +7574,7 @@ Valentyne - BOOM Rome`
         // MANDATO DI GESTIONE
         else if (type === 'mandato_gestione') {
             section('MANDANTE (Proprietario)');
-            field('Nome', data.clientName || data.landlordName);
+            field('Nome', data.landlordName || data.clientName);
             field('C.F./P.IVA', data.landlordCF);
             field('Indirizzo', data.landlordAddress);
             fieldRow('Email', data.landlordEmail, 'Telefono', data.landlordPhone || '—');
@@ -7510,7 +7611,7 @@ Valentyne - BOOM Rome`
         // RENDICONTO ANNUALE
         else if (type === 'rendiconto_annuale') {
             section('PROPRIETARIO');
-            field('Nome', data.clientName || data.landlordName);
+            field('Nome', data.landlordName || data.clientName);
             if (data.landlordCF) field('Codice Fiscale', data.landlordCF);
             y += 5;
             
@@ -7560,10 +7661,11 @@ Valentyne - BOOM Rome`
             y += 15;
             
             section('DESTINATARIO');
-            field('Nome', data.clientName || data.tenantName);
+            field('Nome', data.tenantName || data.clientName);
+            if (data.tenantCF) field('C.F.', data.tenantCF);
             field('Immobile', data.propertyAddress);
             y += 5;
-            
+
             section('IMPORTO DOVUTO');
             doc.setFillColor(255, 240, 240);
             doc.rect(20, y - 2, 170, 15, 'F');
@@ -7869,10 +7971,10 @@ Valentyne - BOOM Rome`
             field(isIT ? 'Ragione Sociale' : 'Company', COMPANY.legal);
             fieldRow('P.IVA', COMPANY.piva, isIT ? 'Telefono' : 'Phone', COMPANY.phone);
             y += 5;
-            
+
             section(isIT ? 'PAGANTE' : 'PAYER');
             field(isIT ? 'Nome' : 'Name', data.payerName || data.clientName);
-            if (data.payerCF) field('C.F.', data.payerCF);
+            if (data.payerCF || data.clientCF) field('C.F.', data.payerCF || data.clientCF);
             y += 5;
             
             section(isIT ? 'PROVVIGIONE' : 'COMMISSION');
