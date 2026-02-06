@@ -3,355 +3,481 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Available Apartments - BOOM Rome</title>
-    <meta name="description" content="Browse verified apartments in Rome. Video-verified, ready for immediate move-in. No catfish photos.">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;900&family=Oswald:wght@200;300;400;500&display=swap" rel="stylesheet">
+    <title>Apartments in Rome — BOOM</title>
+    <meta name="description" content="Browse video-verified apartments for rent in Rome. Updated daily. No hidden fees. Move in within 48 hours.">
+    <link rel="icon" type="image/png" href="https://www.boomrome.com/BOOMlogogoldicon512.png">
+    <link rel="apple-touch-icon" href="https://www.boomrome.com/BOOMlogogoldicon512.png">
+    <!-- Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-EYCD59RDVJ"></script>
+    <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-EYCD59RDVJ');</script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&display=swap" rel="stylesheet">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-font-smoothing: antialiased; }
-        :root { --gold: #FFD700; --cyan: #00CED1; --green: #00FF88; --orange: #FF6B35; --red: #FF3B3B; --pure-black: #000000; --dark-surface: #111111; --text-primary: #FFFFFF; --text-fade: #666666; --text-secondary: #999999; }
-        ::selection { background: var(--gold); color: var(--pure-black); }
-        body { font-family: 'Inter', -apple-system, sans-serif; background: var(--pure-black); color: var(--text-primary); font-weight: 200; letter-spacing: 0.02em; line-height: 1.6; }
+        *{margin:0;padding:0;box-sizing:border-box}
+        :root{--gold:#FFD700;--pure-black:#000;--dark-void:#0A0A0A;--text-primary:#fff;--text-secondary:rgba(255,255,255,0.7);--text-fade:rgba(255,255,255,0.4)}
+        body{font-family:'Inter',-apple-system,sans-serif;background:var(--pure-black);color:var(--text-primary);font-weight:300;line-height:1.6;-webkit-font-smoothing:antialiased}
+        a{text-decoration:none;color:inherit}
 
-        nav { position: fixed; width: 100%; top: 0; z-index: 100; padding: 20px 50px; background: rgba(0,0,0,0.98); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(255, 215, 0, 0.1); }
-        .nav-container { max-width: 1400px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
-        .logo { display: flex; align-items: center; gap: 14px; text-decoration: none; color: white; transition: transform 0.3s ease; }
-        .logo:hover { transform: scale(1.03); }
-        .logo-svg { width: 80px; height: 80px; filter: drop-shadow(0 0 20px rgba(255, 215, 0, 0.5)); transition: filter 0.3s ease; }
-        .logo:hover .logo-svg { filter: drop-shadow(0 0 35px rgba(255, 215, 0, 0.8)); }
-        .logo-text { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 32px; font-weight: 300; letter-spacing: 4px; text-transform: uppercase; }
-        .nav-links { display: flex; gap: 40px; align-items: center; }
-        .nav-link { color: var(--text-secondary); text-decoration: none; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; transition: color 0.3s; font-weight: 400; position: relative; }
-        .nav-link::after { content: ''; position: absolute; bottom: -5px; left: 0; width: 0; height: 1px; background: var(--gold); transition: width 0.3s ease; }
-        .nav-link:hover { color: var(--text-primary); }
-        .nav-link:hover::after { width: 100%; }
-        .nav-link.active { color: var(--gold); }
-        .nav-cta { padding: 12px 30px; background: transparent; border: 1px solid var(--gold); color: var(--gold); text-decoration: none; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; transition: all 0.3s; font-weight: 500; }
-        .nav-cta:hover { background: var(--gold); color: var(--pure-black); transform: translateY(-2px); box-shadow: 0 8px 20px rgba(255, 215, 0, 0.35); }
-
-        .hamburger { display: none; flex-direction: column; gap: 5px; cursor: pointer; z-index: 1001; padding: 10px; }
-        .hamburger span { width: 26px; height: 2px; background: var(--gold); transition: all 0.3s ease; }
-        .hamburger.active span:nth-child(1) { transform: rotate(45deg) translate(7px, 7px); }
-        .hamburger.active span:nth-child(2) { opacity: 0; }
-        .hamburger.active span:nth-child(3) { transform: rotate(-45deg) translate(7px, -7px); }
-        .mobile-menu { position: fixed; top: 0; right: -100%; width: 320px; height: 100vh; background: rgba(0, 0, 0, 0.98); backdrop-filter: blur(30px); z-index: 1000; padding: 120px 40px 40px; transition: right 0.4s cubic-bezier(0.4, 0, 0.2, 1); border-left: 1px solid rgba(255, 215, 0, 0.15); }
-        .mobile-menu.active { right: 0; }
-        .mobile-menu-links { display: flex; flex-direction: column; gap: 25px; }
-        .mobile-menu-link { color: var(--text-secondary); text-decoration: none; font-size: 16px; text-transform: uppercase; letter-spacing: 2px; transition: all 0.3s; padding: 12px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
-        .mobile-menu-link:hover { color: var(--gold); padding-left: 12px; }
-        .mobile-menu-cta { margin-top: 40px; padding: 18px; background: var(--gold); color: var(--pure-black); text-align: center; text-decoration: none; font-size: 13px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; display: block; }
-
-        .apartments-hero { padding: 150px 50px 80px; text-align: center; background: linear-gradient(135deg, rgba(255, 215, 0, 0.03), transparent); }
-        .hero-tag { display: inline-block; padding: 8px 20px; background: var(--green); color: var(--pure-black); font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 30px; }
-        .hero-title { font-size: clamp(50px, 10vw, 100px); font-weight: 100; line-height: 0.9; letter-spacing: -0.03em; text-transform: uppercase; margin-bottom: 20px; font-family: 'Oswald', sans-serif; }
-        .gold-accent { color: var(--gold); font-weight: 300; }
-        .hero-subtitle { font-size: 18px; color: var(--text-secondary); max-width: 600px; margin: 0 auto 40px; }
-
-        .stats-bar { padding: 20px 50px; background: var(--dark-surface); border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
-        .stats-container { max-width: 1400px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
-        .results-count { font-size: 14px; color: var(--text-secondary); }
-        .results-count strong { color: var(--gold); font-weight: 500; }
-        .toggle-waitlist { padding: 10px 20px; background: transparent; border: 1px solid rgba(255, 255, 255, 0.2); color: var(--text-secondary); cursor: pointer; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; transition: all 0.3s; font-family: inherit; }
-        .toggle-waitlist:hover { border-color: var(--gold); color: var(--gold); }
-
-        .apartments-section { padding: 60px 50px 100px; }
-        .apartments-container { max-width: 1400px; margin: 0 auto; }
-        .apartments-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 30px; }
-        .apartment-card { background: var(--dark-surface); border-radius: 12px; overflow: hidden; transition: all 0.3s; border: 1px solid rgba(255, 255, 255, 0.05); text-decoration: none; color: inherit; display: block; }
-        .apartment-card:hover { transform: translateY(-8px); border-color: var(--gold); box-shadow: 0 20px 40px rgba(255, 215, 0, 0.1); }
-        .apartment-card.waitlist { opacity: 0.8; }
-        .apartment-image { height: 240px; position: relative; overflow: hidden; background-size: cover; background-position: center; }
-        .apartment-image::before { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(0,0,0,0.3), rgba(0,0,0,0.1)); }
-        .apartment-badge { position: absolute; top: 20px; left: 20px; padding: 8px 16px; background: rgba(0, 0, 0, 0.9); backdrop-filter: blur(10px); color: var(--gold); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; border-radius: 20px; z-index: 2; }
-        .apartment-status { position: absolute; top: 20px; right: 20px; padding: 8px 16px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; border-radius: 20px; z-index: 2; }
-        .apartment-status.available { background: var(--green); color: var(--pure-black); }
-        .apartment-status.waitlist { background: var(--orange); color: var(--pure-black); }
-        .video-badge { position: absolute; bottom: 20px; left: 20px; padding: 6px 12px; background: rgba(255, 0, 0, 0.9); color: white; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; border-radius: 4px; z-index: 2; }
-        .apartment-info { padding: 30px; }
-        .apartment-price { display: flex; align-items: baseline; gap: 8px; margin-bottom: 15px; }
-        .price-amount { font-size: 36px; font-weight: 300; color: var(--gold); font-family: 'Oswald', sans-serif; letter-spacing: -1px; }
-        .price-period { font-size: 14px; color: var(--text-secondary); }
-        .apartment-title { font-size: 22px; font-weight: 400; text-transform: uppercase; margin-bottom: 10px; letter-spacing: -0.5px; }
-        .apartment-address { font-size: 13px; color: var(--text-secondary); margin-bottom: 20px; }
-        .apartment-features { display: flex; gap: 15px; margin-bottom: 25px; flex-wrap: wrap; }
-        .feature { font-size: 12px; color: var(--text-fade); }
-        .apartment-highlights { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
-        .highlight-tag { padding: 5px 12px; background: rgba(255, 215, 0, 0.1); border: 1px solid rgba(255, 215, 0, 0.3); color: var(--gold); font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 1px; border-radius: 4px; }
-        .apartment-cta { display: inline-flex; align-items: center; gap: 8px; color: var(--cyan); font-size: 13px; font-weight: 500; text-transform: uppercase; letter-spacing: 1px; transition: all 0.3s; }
-        .apartment-card:hover .apartment-cta { gap: 12px; }
-
-        .upsell-section { padding: 100px 50px; background: var(--dark-surface); border-top: 1px solid rgba(255, 255, 255, 0.05); border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
-        .upsell-container { max-width: 1400px; margin: 0 auto; }
-        .upsell-header { text-align: center; margin-bottom: 60px; }
-        .upsell-eyebrow { font-size: 11px; text-transform: uppercase; letter-spacing: 3px; color: var(--gold); margin-bottom: 20px; }
-        .upsell-title { font-size: clamp(32px, 5vw, 48px); font-weight: 200; line-height: 1.2; }
-        .upsell-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 25px; }
-        .upsell-card { background: var(--pure-black); border: 1px solid rgba(255, 255, 255, 0.1); padding: 40px 30px; transition: all 0.3s; text-decoration: none; color: inherit; display: block; }
-        .upsell-card:hover { border-color: var(--gold); transform: translateY(-5px); }
-        .upsell-icon { font-size: 48px; margin-bottom: 25px; }
-        .upsell-card-title { font-size: 24px; font-weight: 400; margin-bottom: 15px; text-transform: uppercase; letter-spacing: -0.5px; }
-        .upsell-card-desc { font-size: 14px; color: var(--text-secondary); line-height: 1.7; margin-bottom: 25px; }
-        .upsell-price { display: flex; align-items: baseline; gap: 8px; margin-bottom: 25px; }
-        .upsell-price-amount { font-size: 32px; font-weight: 300; color: var(--gold); font-family: 'Oswald', sans-serif; }
-        .upsell-price-label { font-size: 12px; color: var(--text-secondary); }
-        .upsell-features { list-style: none; margin-bottom: 30px; }
-        .upsell-features li { font-size: 13px; color: var(--text-secondary); padding: 8px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.05); display: flex; align-items: center; gap: 10px; }
-        .upsell-features li::before { content: '✓'; color: var(--green); font-weight: bold; }
-        .upsell-cta { display: inline-flex; align-items: center; gap: 10px; color: var(--cyan); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 2px; transition: gap 0.3s; }
-        .upsell-card:hover .upsell-cta { gap: 15px; }
-
-        footer { padding: 80px 50px 40px; border-top: 1px solid rgba(255, 255, 255, 0.1); }
-        .footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 60px; max-width: 1400px; margin: 0 auto 60px; }
-        .footer-logo { display: flex; align-items: center; gap: 15px; margin-bottom: 20px; }
-        .footer-logo h3 { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 36px; font-weight: 300; letter-spacing: 4px; text-transform: uppercase; }
-        .footer-brand p { font-size: 12px; color: var(--text-fade); line-height: 1.8; }
-        .footer-links h4 { font-size: 10px; text-transform: uppercase; letter-spacing: 3px; margin-bottom: 20px; color: var(--gold); }
-        .footer-links ul { list-style: none; }
-        .footer-links a { color: var(--text-fade); text-decoration: none; font-size: 12px; display: block; padding: 5px 0; transition: color 0.3s; }
-        .footer-links a:hover { color: var(--text-primary); }
-        .footer-bottom { display: flex; justify-content: space-between; padding-top: 40px; border-top: 1px solid rgba(255, 255, 255, 0.1); font-size: 10px; text-transform: uppercase; letter-spacing: 2px; color: var(--text-fade); max-width: 1400px; margin: 0 auto; }
-
-        .loading-spinner { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 80px 20px; grid-column: 1 / -1; }
-        .spinner { width: 40px; height: 40px; border: 3px solid rgba(255,215,0,0.2); border-top-color: var(--gold); border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 15px; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-
-        @media (max-width: 1024px) { .upsell-grid { grid-template-columns: 1fr; } }
-        @media (max-width: 768px) {
-            nav { padding: 15px 20px; }
-            .nav-links { display: none; }
-            .hamburger { display: flex; }
-            .logo-text { font-size: 24px; letter-spacing: 3px; }
-            .apartments-hero { padding: 120px 20px 60px; }
-            .stats-bar { padding: 15px 20px; }
-            .stats-container { flex-direction: column; gap: 15px; }
-            .apartments-section { padding: 40px 20px; }
-            .apartments-grid { grid-template-columns: 1fr; }
-            .upsell-section { padding: 60px 20px; }
-            .upsell-card { padding: 30px; }
-            .upsell-grid { grid-template-columns: 1fr; }
-            .footer-grid { grid-template-columns: 1fr; gap: 40px; padding: 0 20px; }
-            footer { padding: 60px 20px 30px; }
-            .footer-bottom { flex-direction: column; gap: 10px; text-align: center; }
+        /* NAV */
+        nav{position:fixed;width:100%;top:0;z-index:100;padding:20px 50px;background:rgba(0,0,0,0.98);backdrop-filter:blur(20px);border-bottom:1px solid rgba(255,215,0,0.1)}
+        .nav-container{max-width:1400px;margin:0 auto;display:flex;justify-content:space-between;align-items:center}
+        .logo{display:flex;align-items:center;gap:15px;text-decoration:none;color:#fff}
+        .logo-svg{width:80px;height:80px;filter:drop-shadow(0 0 20px rgba(255,215,0,0.5));transition:filter .3s}
+        .logo:hover .logo-svg{filter:drop-shadow(0 0 35px rgba(255,215,0,0.8))}
+        .logo-text{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:32px;font-weight:300;letter-spacing:4px;text-transform:uppercase}
+        .nav-links{display:flex;gap:30px;align-items:center}
+        .nav-links a{color:rgba(255,255,255,0.6);text-decoration:none;font-size:13px;font-weight:300;text-transform:uppercase;letter-spacing:1px;transition:color .3s}
+        .nav-links a:hover,.nav-links a.active{color:var(--gold)}
+        .wa-link{color:#25D366!important}
+        .hamburger{display:none;flex-direction:column;gap:5px;cursor:pointer;padding:10px;z-index:101}
+        .hamburger span{display:block;width:24px;height:2px;background:#fff;transition:.3s}
+        @media(max-width:768px){
+            nav{padding:15px 20px}
+            .nav-links{display:none}
+            .hamburger{display:flex}
+            .logo-svg{width:50px;height:50px}
+            .logo-text{font-size:22px;letter-spacing:3px}
         }
+        .mobile-menu{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.98);z-index:99;display:none;flex-direction:column;justify-content:center;align-items:center;gap:28px}
+        .mobile-menu.open{display:flex}
+        .mobile-menu a{color:rgba(255,255,255,0.6);font-size:18px;font-weight:300;text-transform:uppercase;letter-spacing:2px;transition:color .3s}
+        .mobile-menu a:hover{color:var(--gold)}
+        .wa-mob{color:#25D366!important;border:1px solid #25D366;padding:12px 28px;border-radius:30px;margin-top:10px}
+
+        /* PAGE */
+        .page{max-width:1400px;margin:0 auto;padding:140px 40px 80px}
+        @media(max-width:768px){.page{padding:120px 20px 60px}}
+
+        .page-header{text-align:center;margin-bottom:50px}
+        .page-tag{display:inline-block;font-size:11px;text-transform:uppercase;letter-spacing:3px;color:var(--gold);margin-bottom:12px}
+        .page-title{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:clamp(32px,5vw,56px);font-weight:200;line-height:1.1;margin-bottom:16px}
+        .page-subtitle{font-size:16px;color:var(--text-secondary);max-width:600px;margin:0 auto}
+
+        /* FILTERS */
+        .filters{display:flex;justify-content:center;gap:12px;margin-bottom:40px;flex-wrap:wrap}
+        .filter-btn{padding:10px 24px;border-radius:30px;border:1px solid rgba(255,255,255,0.1);background:transparent;color:var(--text-secondary);font-family:inherit;font-size:13px;font-weight:400;cursor:pointer;transition:all .3s}
+        .filter-btn:hover{border-color:rgba(255,215,0,0.3);color:var(--text-primary)}
+        .filter-btn.active{background:var(--gold);color:#000;border-color:var(--gold);font-weight:600}
+        .filter-count{margin-left:6px;opacity:.6}
+
+        /* GRID */
+        .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:24px}
+        @media(max-width:768px){.grid{grid-template-columns:1fr;gap:20px}}
+
+        /* CARD */
+        .card{background:var(--dark-void);border:1px solid rgba(255,255,255,0.06);border-radius:20px;overflow:hidden;transition:all .4s;cursor:pointer;display:flex;flex-direction:column}
+        .card:hover{transform:translateY(-4px);border-color:rgba(255,215,0,0.15);box-shadow:0 20px 60px rgba(0,0,0,0.5)}
+        .card-img{width:100%;height:220px;background-size:cover;background-position:center;background-color:#111;position:relative}
+        .card-badges{position:absolute;top:14px;left:14px;display:flex;gap:8px;flex-wrap:wrap}
+        .badge{padding:5px 12px;border-radius:20px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;backdrop-filter:blur(10px)}
+        .badge-available{background:rgba(0,255,136,0.15);color:#00FF88;border:1px solid rgba(0,255,136,0.2)}
+        .badge-waitlist{background:rgba(255,149,0,0.15);color:#FF9500;border:1px solid rgba(255,149,0,0.2)}
+        .badge-verified{background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.7);border:1px solid rgba(255,255,255,0.1)}
+        .badge-video{background:rgba(255,59,48,0.15);color:#FF3B30;border:1px solid rgba(255,59,48,0.2)}
+        .card-body{padding:22px 24px 24px;flex:1;display:flex;flex-direction:column}
+        .card-zone{font-size:11px;text-transform:uppercase;letter-spacing:2px;color:var(--gold);margin-bottom:6px}
+        .card-name{font-size:20px;font-weight:400;margin-bottom:10px;color:#fff}
+        .card-specs{display:flex;gap:16px;font-size:13px;color:var(--text-secondary);margin-bottom:16px;flex-wrap:wrap}
+        .card-specs span{display:flex;align-items:center;gap:5px}
+        .card-tags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+        .card-tag{padding:4px 10px;border-radius:6px;font-size:10px;background:rgba(255,255,255,0.04);color:var(--text-fade);border:1px solid rgba(255,255,255,0.04)}
+        .card-bottom{display:flex;justify-content:space-between;align-items:center;margin-top:auto;padding-top:16px;border-top:1px solid rgba(255,255,255,0.06)}
+        .card-price{font-size:24px;font-weight:200;color:var(--gold)}
+        .card-price small{font-size:12px;color:var(--text-fade);font-weight:300}
+        .card-cta{padding:10px 20px;border-radius:10px;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;background:rgba(255,255,255,0.06);color:var(--text-secondary);transition:all .3s;border:1px solid rgba(255,255,255,0.06)}
+        .card:hover .card-cta{background:var(--gold);color:#000;border-color:var(--gold)}
+        .card-avail{font-size:11px;color:var(--text-fade);margin-top:8px}
+
+        /* LOADING / EMPTY */
+        .loading-state{text-align:center;padding:80px 20px}
+        .spinner{width:40px;height:40px;border:3px solid rgba(255,255,255,0.1);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 20px}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        .empty-state{text-align:center;padding:80px 20px}
+        .empty-state h3{font-size:24px;font-weight:200;margin-bottom:12px}
+        .empty-state p{color:var(--text-secondary);margin-bottom:24px}
+
+        /* UPSELL SECTION */
+        .upsell-section{margin-top:80px}
+        .upsell-header{text-align:center;margin-bottom:48px}
+        .upsell-tag{display:inline-block;padding:8px 20px;background:var(--gold);color:#000;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:20px}
+        .upsell-title{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:clamp(26px,4vw,44px);font-weight:200;margin-bottom:12px}
+        .upsell-subtitle{font-size:15px;color:var(--text-secondary);max-width:520px;margin:0 auto;line-height:1.6}
+
+        .notify-banner{background:linear-gradient(135deg,rgba(255,215,0,0.05) 0%,rgba(0,206,209,0.04) 100%);border:1px solid rgba(255,215,0,0.12);border-radius:20px;padding:32px 36px;margin-bottom:32px;display:flex;align-items:center;gap:28px;transition:border-color .3s}
+        .notify-banner:hover{border-color:rgba(255,215,0,0.25)}
+        .notify-icon{width:56px;height:56px;background:rgba(255,215,0,0.08);border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0}
+        .notify-text{flex:1}
+        .notify-text h3{font-size:17px;font-weight:500;margin-bottom:4px}
+        .notify-text p{font-size:13px;color:var(--text-secondary);line-height:1.5}
+        .notify-actions{display:flex;gap:10px;flex-shrink:0}
+        .notify-actions .nbtn{padding:12px 24px;border-radius:10px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:all .3s;text-decoration:none;display:inline-flex;align-items:center;gap:8px;white-space:nowrap;border:none}
+        .nbtn-primary{background:var(--gold);color:#000}
+        .nbtn-primary:hover{box-shadow:0 6px 24px rgba(255,215,0,0.25);transform:translateY(-1px)}
+        .nbtn-wa{background:#25D366;color:#fff}
+        .nbtn-wa:hover{box-shadow:0 6px 24px rgba(37,211,102,0.25);transform:translateY(-1px)}
+        @media(max-width:900px){.notify-banner{flex-direction:column;text-align:center;gap:18px;padding:28px 24px}.notify-actions{width:100%;flex-direction:column}.notify-actions .nbtn{justify-content:center}}
+
+        .services-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+        @media(max-width:1024px){.services-grid{grid-template-columns:1fr}}
+        .svc-card{position:relative;background:var(--dark-void);border:1px solid rgba(255,255,255,0.05);border-radius:20px;overflow:hidden;transition:all .4s;display:flex;flex-direction:column}
+        .svc-card:hover{transform:translateY(-5px);box-shadow:0 20px 50px rgba(0,0,0,0.4)}
+        .svc-card.featured{border-color:rgba(255,215,0,0.15)}
+        .svc-card.featured:hover{border-color:rgba(255,215,0,0.35)}
+        .svc-popular{position:absolute;top:0;left:0;right:0;padding:6px;text-align:center;background:var(--gold);color:#000;font-size:10px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase}
+        .svc-top{padding:32px 28px 0;flex:1}
+        .svc-card.featured .svc-top{padding-top:44px}
+        .svc-badge{display:inline-flex;padding:6px 14px;border-radius:8px;font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin-bottom:14px}
+        .svc-badge-pfs{background:rgba(255,215,0,0.1);color:var(--gold)}
+        .svc-badge-das{background:rgba(0,206,209,0.1);color:#00CED1}
+        .svc-badge-vv{background:rgba(255,107,107,0.1);color:#FF6B6B}
+        .svc-card h3{font-size:20px;font-weight:400;margin-bottom:6px}
+        .svc-card .desc{font-size:13px;color:var(--text-secondary);line-height:1.6;margin-bottom:18px}
+        .svc-price{display:flex;align-items:baseline;gap:8px;margin-bottom:18px}
+        .svc-price strong{font-size:28px;font-weight:200;color:var(--gold)}
+        .svc-price span{font-size:12px;color:var(--text-fade)}
+        .svc-features{list-style:none;padding:0;margin:0}
+        .svc-features li{display:flex;gap:10px;padding:5px 0;font-size:13px;color:var(--text-secondary)}
+        .svc-features li::before{content:'✓';color:var(--gold);font-weight:700;flex-shrink:0}
+        .svc-bottom{padding:20px 28px;border-top:1px solid rgba(255,255,255,0.04);margin-top:auto}
+        .svc-cta{display:block;text-align:center;padding:14px;border-radius:12px;font-size:14px;font-weight:600;text-decoration:none;transition:all .3s}
+        .svc-cta-gold{background:var(--gold);color:#000}
+        .svc-cta-gold:hover{box-shadow:0 8px 30px rgba(255,215,0,0.3)}
+        .svc-cta-outline{background:transparent;border:1px solid rgba(255,255,255,0.1);color:var(--text-secondary)}
+        .svc-cta-outline:hover{border-color:var(--gold);color:var(--gold)}
+
+        /* FOOTER */
+        footer{background:var(--dark-void);border-top:1px solid rgba(255,255,255,0.05);padding:60px 40px 30px}
+        .footer-content{max-width:1400px;margin:0 auto;display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:40px}
+        @media(max-width:768px){.footer-content{grid-template-columns:1fr;gap:30px}footer{padding:40px 20px 20px}}
+        .footer-brand h3{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:24px;font-weight:300;letter-spacing:4px;margin-bottom:12px}
+        .footer-brand p{font-size:13px;color:var(--text-fade);line-height:1.8}
+        .footer-col h4{font-size:11px;text-transform:uppercase;letter-spacing:2px;color:var(--text-secondary);margin-bottom:16px}
+        .footer-col a{display:block;font-size:13px;color:var(--text-fade);margin-bottom:10px;transition:color .3s}
+        .footer-col a:hover{color:var(--gold)}
+        .footer-bottom{max-width:1400px;margin:30px auto 0;padding-top:20px;border-top:1px solid rgba(255,255,255,0.05);text-align:center;font-size:12px;color:var(--text-fade)}
     </style>
 </head>
 <body>
+
+    <!-- NAV -->
     <nav>
         <div class="nav-container">
             <a href="/" class="logo">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" class="logo-svg">
-                    <defs><linearGradient id="goldGradNav" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#FFD54F"/><stop offset="100%" stop-color="#F5A623"/></linearGradient></defs>
-                    <g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#goldGradNav)"><path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z m610 -144 c743 -103 1436 -459 1919 -985 338 -367 562 -751 704 -1205 276 -879 132 -1858 -388 -2640 -242 -364 -493 -615 -900 -900 l-70 -49 109 104 c413 396 679 919 767 1505 33 217 33 558 0 765 -75 476 -257 896 -549 1265 -127 161 -363 380 -549 511 -300 211 -689 363 -1079 420 -172 26 -604 26 -764 0 -296 -47 -545 -128 -808 -262 -236 -122 -440 -271 -632 -464 -486 -485 -749 -1121 -751 -1815 -1 -611 170 -1148 515 -1608 100 -134 286 -335 382 -413 33 -27 -8 -2 -91 55 -513 351 -904 805 -1143 1331 -71 156 -136 336 -168 465 -9 33 -19 76 -24 95 -5 19 -20 100 -34 180 -59 343 -60 740 0 1070 81 456 229 826 479 1200 246 368 558 669 949 917 386 245 881 418 1321 462 61 6 124 13 140 15 73 10 556 -4 665 -19z m-60 -1329 c105 -16 258 -49 335 -72 82 -26 197 -66 240 -84 149 -65 190 -84 266 -126 677 -379 1129 -1049 1246 -1849 27 -182 24 -517 -5 -695 -75 -458 -225 -813 -500 -1179 -116 -154 -340 -369 -527 -506 -44 -32 -87 -63 -95 -69 -8 -6 35 39 96 99 178 177 283 321 397 550 161 322 231 676 205 1045 -32 467 -223 902 -542 1237 -239 251 -521 426 -873 542 -79 26 -273 67 -383 81 -108 13 -349 13 -465 0 -276 -32 -597 -145 -834 -293 -224 -140 -466 -378 -613 -602 -307 -470 -407 -1055 -273 -1599 80 -327 217 -589 454 -871 71 -84 73 -88 31 -56 -293 225 -547 535 -718 877 -34 68 -65 143 -122 294 -42 112 -101 383 -120 555 -14 127 -14 401 0 534 51 482 223 912 516 1288 269 344 654 620 1085 778 160 59 400 115 574 134 121 13 508 5 625 -13z m-30 -1165 c401 -81 721 -242 992 -499 643 -612 769 -1607 300 -2367 -118 -190 -291 -386 -463 -524 -137 -111 -148 -113 -49 -12 110 112 206 248 275 386 67 137 98 222 132 367 24 103 26 132 27 323 0 182 -3 224 -22 310 -47 211 -126 394 -245 569 -126 186 -358 387 -564 490 -384 191 -823 225 -1218 95 -482 -160 -854 -541 -1004 -1029 -117 -379 -81 -810 96 -1165 37 -72 130 -215 166 -252 17 -18 26 -33 20 -33 -6 0 -61 52 -121 116 -259 272 -424 575 -511 934 -111 459 -18 1006 245 1430 298 483 791 797 1379 880 110 16 448 4 565 -19z m-239 -911 c360 -28 680 -171 925 -415 194 -193 317 -415 382 -688 24 -102 26 -130 26 -312 0 -191 -1 -205 -30 -320 -53 -205 -132 -372 -251 -535 -58 -79 -263 -288 -323 -330 -31 -22 -29 -18 18 35 195 220 312 519 312 795 0 325 -121 614 -350 841 -369 364 -926 453 -1385 222 -336 -170 -578 -499 -636 -865 -19 -126 -7 -371 25 -490 44 -162 97 -284 173 -398 9 -14 -4 -5 -30 20 -26 24 -45 51 -42 58 2 7 1 11 -4 7 -11 -6 -58 51 -118 140 -109 163 -183 347 -219 545 -23 127 -23 351 -1 489 55 335 248 677 492 871 261 208 530 311 881 338 11 1 81 -3 155 -8z m29 -714 c459 -74 823 -428 895 -869 58 -358 -60 -696 -345 -987 l-34 -35 22 35 c115 182 179 403 168 575 -14 235 -104 433 -268 591 -137 134 -287 209 -472 239 -115 19 -187 19 -303 0 -337 -55 -612 -302 -704 -635 -32 -113 -34 -325 -5 -440 23 -92 70 -213 98 -254 l21 -31 -31 29 c-39 36 -120 152 -155 221 -35 71 -81 215 -102 319 -25 130 -17 357 17 476 102 354 357 618 706 730 152 49 331 62 492 36z m-73 -567 c178 -24 327 -101 454 -236 137 -143 199 -303 201 -513 1 -162 -42 -309 -135 -453 -52 -82 -73 -97 -38 -28 51 99 67 290 36 412 -57 219 -251 413 -466 464 -75 17 -236 20 -311 4 -213 -44 -422 -247 -473 -460 -31 -133 -13 -325 41 -431 35 -70 8 -47 -52 43 -58 88 -90 167 -114 286 -25 121 -25 220 -1 331 33 146 84 243 186 351 171 183 413 266 672 230z m15 -470 c80 -17 186 -76 248 -139 106 -107 158 -248 147 -398 -6 -92 -25 -152 -79 -250 -45 -82 -60 -91 -27 -17 18 41 21 62 17 149 -4 89 -8 108 -35 162 -43 82 -126 165 -209 205 -58 29 -80 34 -158 37 -112 5 -184 -12 -259 -62 -182 -121 -251 -323 -171 -506 l24 -55 -25 30 c-36 44 -92 162 -104 223 -39 189 14 369 146 492 105 99 204 139 345 139 48 1 111 -4 140 -10z"/></g>
-                </svg>
+                <img src="https://www.boomrome.com/BOOMlogogoldicon512.png" alt="BOOM" class="logo-svg">
                 <span class="logo-text">BOOM</span>
             </a>
             <div class="nav-links">
-                <a href="/apartments.html" class="nav-link active">Apartments</a>
-                <a href="/property-finding.html" class="nav-link">Property Finding</a>
-                <a href="/concierge.html" class="nav-link">Concierge</a>
-                <a href="/how-it-works.html" class="nav-link">How It Works</a>
-                <a href="https://wa.me/393313251961" class="nav-cta" target="_blank">WhatsApp</a>
+                <a href="/apartments.html" class="active">Apartments</a>
+                <a href="/property-finding.html">Property Finding</a>
+                <a href="/deal-assistance.html">Deal Assistance</a>
+                <a href="/virtual-viewing.html">Virtual Viewing</a>
+                <a href="/concierge.html">Concierge</a>
+                <a href="/about.html">About</a>
+                <a href="https://wa.me/393313251961" class="wa-link">WhatsApp</a>
             </div>
             <div class="hamburger" id="hamburger"><span></span><span></span><span></span></div>
         </div>
     </nav>
 
     <div class="mobile-menu" id="mobileMenu">
-        <div class="mobile-menu-links">
-            <a href="/" class="mobile-menu-link">Home</a>
-            <a href="/apartments.html" class="mobile-menu-link">Apartments</a>
-            <a href="/property-finding.html" class="mobile-menu-link">Property Finding</a>
-            <a href="/concierge.html" class="mobile-menu-link">Concierge</a>
-            <a href="/how-it-works.html" class="mobile-menu-link">How It Works</a>
-            <a href="/about.html" class="mobile-menu-link">About</a>
-        </div>
-        <a href="https://wa.me/393313251961" target="_blank" class="mobile-menu-cta">WhatsApp Us</a>
+        <a href="/">Home</a>
+        <a href="/apartments.html">Apartments</a>
+        <a href="/property-finding.html">Property Finding</a>
+        <a href="/deal-assistance.html">Deal Assistance</a>
+        <a href="/virtual-viewing.html">Virtual Viewing</a>
+        <a href="/concierge.html">Concierge</a>
+        <a href="/about.html">About</a>
+        <a href="/login.html">Login</a>
+        <a href="https://wa.me/393313251961" class="wa-mob">WhatsApp Us</a>
     </div>
 
-    <section class="apartments-hero">
-        <span class="hero-tag" id="heroTag">Loading...</span>
-        <h1 class="hero-title">Your next apartment.<br><span class="gold-accent">Video verified.</span></h1>
-        <p class="hero-subtitle">All apartments are real, verified, and ready for immediate move-in. No catfish photos. No surprises.</p>
-    </section>
-
-    <section class="stats-bar">
-        <div class="stats-container">
-            <div class="results-count" id="resultsCount">Loading apartments...</div>
-            <button class="toggle-waitlist" onclick="toggleWaitlist()">Show/Hide Waitlist</button>
+    <div class="page">
+        <div class="page-header">
+            <div class="page-tag">Available Now</div>
+            <h1 class="page-title">Apartments in Rome</h1>
+            <p class="page-subtitle">All verified. All real. All ready. Updated daily from our portfolio.</p>
         </div>
-    </section>
 
-    <section class="apartments-section">
-        <div class="apartments-container">
-            <div class="apartments-grid" id="apartmentsGrid">
-                <div class="loading-spinner">
-                    <div class="spinner"></div>
-                    <span style="color: var(--text-secondary);">Loading apartments...</span>
-                </div>
+        <div class="filters" id="filters">
+            <button class="filter-btn active" data-filter="all">All</button>
+            <button class="filter-btn" data-filter="available">Available</button>
+            <button class="filter-btn" data-filter="waitlist">Coming Soon</button>
+        </div>
+
+        <div id="listingsContainer">
+            <div class="loading-state" id="loadingState">
+                <div class="spinner"></div>
+                <p style="color:var(--text-secondary)">Loading apartments…</p>
             </div>
         </div>
-    </section>
 
-    <section class="upsell-section">
-        <div class="upsell-container">
+        <!-- UPSELL SECTION -->
+        <div class="upsell-section">
             <div class="upsell-header">
-                <p class="upsell-eyebrow">Can't find what you're looking for?</p>
-                <h2 class="upsell-title">We'll help you get it</h2>
+                <span class="upsell-tag">How Can We Help</span>
+                <h2 class="upsell-title">Not finding what you need?</h2>
+                <p class="upsell-subtitle">Whether you need us to find, verify, or negotiate — we've got the right service for every stage of your search.</p>
             </div>
-            <div class="upsell-grid">
-                <a href="/property-finding.html" class="upsell-card">
-                    <div class="upsell-icon">🔍</div>
-                    <h3 class="upsell-card-title">Property Finding</h3>
-                    <p class="upsell-card-desc">Tell us exactly what you need. We search the entire Rome market – including off-market properties – and deliver 5 curated options within 24 hours.</p>
-                    <div class="upsell-price"><span class="upsell-price-amount">€350</span><span class="upsell-price-label">fixed fee</span></div>
-                    <ul class="upsell-features"><li>Custom search based on your requirements</li><li>Access to off-market properties</li><li>5 curated options in 24 hours</li><li>Video tours of all properties</li><li>Full negotiation support</li></ul>
-                    <span class="upsell-cta">Learn More →</span>
-                </a>
-                <a href="/deal-assistance.html" class="upsell-card">
-                    <div class="upsell-icon">🤝</div>
-                    <h3 class="upsell-card-title">Deal Assistance</h3>
-                    <p class="upsell-card-desc">Found a place but need help closing the deal? We handle landlord communication, contract review, and negotiation to secure the best terms.</p>
-                    <div class="upsell-price"><span class="upsell-price-amount">€249</span><span class="upsell-price-label">fixed fee</span></div>
-                    <ul class="upsell-features"><li>Direct landlord communication</li><li>Contract review & translation</li><li>Price & terms negotiation</li><li>Document preparation</li><li>Move-in coordination</li></ul>
-                    <span class="upsell-cta">Learn More →</span>
-                </a>
-                <a href="/virtual-viewing.html" class="upsell-card">
-                    <div class="upsell-icon">📹</div>
-                    <h3 class="upsell-card-title">Virtual Viewing</h3>
-                    <p class="upsell-card-desc">Can't visit in person? We go see the apartment for you with a live video call, showing every corner and answering your questions in real-time.</p>
-                    <div class="upsell-price"><span class="upsell-price-amount">€89-199</span><span class="upsell-price-label">per viewing</span></div>
-                    <ul class="upsell-features"><li>Live video walkthrough</li><li>Real-time Q&A with our expert</li><li>Neighborhood tour included</li><li>Detailed written report</li><li>Recording sent after</li></ul>
-                    <span class="upsell-cta">Learn More →</span>
-                </a>
-            </div>
-        </div>
-    </section>
 
-    <footer>
-        <div class="footer-grid">
-            <div class="footer-brand">
-                <div class="footer-logo">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" style="width: 50px; height: 50px; opacity: 0.9;">
-                        <defs><linearGradient id="goldGradFoot" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#FFD54F"/><stop offset="100%" stop-color="#F5A623"/></linearGradient></defs>
-                        <g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#goldGradFoot)"><path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z m610 -144 c743 -103 1436 -459 1919 -985 338 -367 562 -751 704 -1205 276 -879 132 -1858 -388 -2640 -242 -364 -493 -615 -900 -900 l-70 -49 109 104 c413 396 679 919 767 1505 33 217 33 558 0 765 -75 476 -257 896 -549 1265 -127 161 -363 380 -549 511 -300 211 -689 363 -1079 420 -172 26 -604 26 -764 0 -296 -47 -545 -128 -808 -262 -236 -122 -440 -271 -632 -464 -486 -485 -749 -1121 -751 -1815 -1 -611 170 -1148 515 -1608 100 -134 286 -335 382 -413 33 -27 -8 -2 -91 55 -513 351 -904 805 -1143 1331 -71 156 -136 336 -168 465 -9 33 -19 76 -24 95 -5 19 -20 100 -34 180 -59 343 -60 740 0 1070 81 456 229 826 479 1200 246 368 558 669 949 917 386 245 881 418 1321 462 61 6 124 13 140 15 73 10 556 -4 665 -19z"/></g>
-                    </svg>
-                    <h3>BOOM</h3>
+            <div class="notify-banner">
+                <div class="notify-icon">🔔</div>
+                <div class="notify-text">
+                    <h3>Get Notified When We Find a Match</h3>
+                    <p>Tell us your requirements — budget, zone, move-in date — and we'll reach out when something fits. No commitment, no spam.</p>
                 </div>
-                <p>Built in Rome, for Rome.<br><br><strong>Egidi Immobiliare S.r.l.</strong><br>P.IVA 17322991005</p>
+                <div class="notify-actions">
+                    <a href="https://wa.me/393313251961?text=Hi%20BOOM%2C%20I%27m%20looking%20for%20an%20apartment%20in%20Rome.%20Here%20are%20my%20requirements%3A%0A%0ABudget%3A%20%0AZone%3A%20%0AMove-in%3A%20%0ABedrooms%3A%20" class="nbtn nbtn-wa" target="_blank">💬 WhatsApp Us</a>
+                    <a href="/property-finding.html#onboarding" class="nbtn nbtn-primary">📋 Fill the Form</a>
+                </div>
             </div>
-            <div class="footer-links"><h4>Services</h4><ul><li><a href="/apartments.html">Apartments</a></li><li><a href="/property-finding.html">Property Finding</a></li><li><a href="/concierge.html">Concierge</a></li><li><a href="/how-it-works.html">How It Works</a></li></ul></div>
-            <div class="footer-links"><h4>Company</h4><ul><li><a href="/about.html">About</a></li><li><a href="/owners.html">For Owners</a></li><li><a href="/contact.html">Contact</a></li></ul></div>
-            <div class="footer-links"><h4>Legal</h4><ul><li><a href="/terms.html">Terms</a></li><li><a href="/privacy.html">Privacy</a></li></ul></div>
+
+            <div class="services-grid">
+                <div class="svc-card featured">
+                    <div class="svc-popular">Most Popular</div>
+                    <div class="svc-top">
+                        <span class="svc-badge svc-badge-pfs">🔍 Full Search</span>
+                        <h3>Property Finding</h3>
+                        <p class="desc">We search the entire Rome market for you — portals, off-market, landlord network. Curated shortlist within 10 days.</p>
+                        <div class="svc-price"><strong>€350</strong><span>upfront · deducted from agency fee</span></div>
+                        <ul class="svc-features">
+                            <li>Dedicated agent searching for you</li>
+                            <li>Access to off-market properties</li>
+                            <li>Curated shortlist in 10 days</li>
+                            <li>Video tour of every option</li>
+                            <li>Full refund if we don't deliver</li>
+                        </ul>
+                    </div>
+                    <div class="svc-bottom"><a href="/property-finding.html" class="svc-cta svc-cta-gold">Start Property Finding →</a></div>
+                </div>
+
+                <div class="svc-card">
+                    <div class="svc-top">
+                        <span class="svc-badge svc-badge-das">🤝 Contract Help</span>
+                        <h3>Deal Assistance</h3>
+                        <p class="desc">Found a place yourself? We review the contract, verify the landlord, negotiate terms, and protect you from scams.</p>
+                        <div class="svc-price"><strong>€249</strong><span>fixed fee · no surprises</span></div>
+                        <ul class="svc-features">
+                            <li>Contract review &amp; translation</li>
+                            <li>Landlord &amp; property verification</li>
+                            <li>Price &amp; terms negotiation</li>
+                            <li>Red flag identification</li>
+                            <li>Deposit protection advice</li>
+                        </ul>
+                    </div>
+                    <div class="svc-bottom"><a href="/deal-assistance.html" class="svc-cta svc-cta-outline">Learn More →</a></div>
+                </div>
+
+                <div class="svc-card">
+                    <div class="svc-top">
+                        <span class="svc-badge svc-badge-vv">📹 Remote Viewing</span>
+                        <h3>Virtual Viewing</h3>
+                        <p class="desc">Can't visit in person? We go for you — live HD video walkthrough with real-time Q&amp;A and an honest assessment report.</p>
+                        <div class="svc-price"><strong>€89</strong><span>per viewing · from abroad</span></div>
+                        <ul class="svc-features">
+                            <li>Live HD video walkthrough</li>
+                            <li>Real-time Q&amp;A with our agent</li>
+                            <li>Neighborhood &amp; building check</li>
+                            <li>Detailed written report</li>
+                            <li>Honest go / no-go recommendation</li>
+                        </ul>
+                    </div>
+                    <div class="svc-bottom"><a href="/virtual-viewing.html" class="svc-cta svc-cta-outline">Learn More →</a></div>
+                </div>
+            </div>
         </div>
-        <div class="footer-bottom"><span>© 2025 BOOM — Rome, Italy</span><span>Status: Operational</span></div>
+    </div>
+
+    <!-- FOOTER -->
+    <footer>
+        <div class="footer-content">
+            <div class="footer-brand">
+                <h3>BOOM</h3>
+                <p>Built in Rome, for Rome. If we can make Rome's rental market work, we can make it work anywhere.</p>
+                <p style="margin-top:12px"><strong>Egidi Immobiliare S.r.l.</strong><br>P.IVA 17322991005<br>REA RM - 1710623<br>Rome, Italy</p>
+            </div>
+            <div class="footer-col">
+                <h4>Services</h4>
+                <a href="/apartments.html">Apartments</a>
+                <a href="/property-finding.html">Property Finding</a>
+                <a href="/deal-assistance.html">Deal Assistance</a>
+                <a href="/virtual-viewing.html">Virtual Viewing</a>
+                <a href="/concierge.html">Concierge</a>
+            </div>
+            <div class="footer-col">
+                <h4>Company</h4>
+                <a href="/about.html">About</a>
+                <a href="/how-it-works.html">How It Works</a>
+                <a href="/owners.html">For Owners</a>
+                <a href="/blog.html">Blog</a>
+                <a href="/faq.html">FAQ</a>
+                <a href="/contact.html">Contact</a>
+            </div>
+            <div class="footer-col">
+                <h4>Legal</h4>
+                <a href="/terms.html">Terms</a>
+                <a href="/privacy.html">Privacy</a>
+                <a href="/login.html">Login</a>
+            </div>
+        </div>
+        <div class="footer-bottom">© 2025 BOOM — All Rights Reserved</div>
     </footer>
 
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <!-- FIREBASE -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
     <script>
-        // ═══════════════════════════════════════════════════════════════════════════
-        // BOOM APARTMENTS - FIREBASE WITH FALLBACK
-        // ═══════════════════════════════════════════════════════════════════════════
-        
-        let FLATS = [];
-        let dataSource = 'loading';
-        
-        // Hardcoded fallback (always works)
-        const FALLBACK_FLATS = [
-            { id: 'marconi', file: 'apartment-marconi.html', name: 'Marconi Shared', address: 'Via Federico Guarducci, Marconi', price: 750, type: 'Shared Room', beds: '1 Room in 3BR', size: '110m²', floor: '7th Floor', image: 'https://i.imgur.com/s2es0MN.jpeg', tags: ['All Inclusive', 'Balcony', 'AC'], status: 'available', availableDate: 'Feb 1' },
-            { id: 'levico', file: 'apartment_levico.html', name: 'Levico', address: 'Via Levico, Trieste/Coppedè', price: 1200, type: 'Garden Floor', beds: '1 Bedroom', size: '40m²', floor: 'Ground Floor', image: 'https://i.imgur.com/Ne0ROPe.jpeg', tags: ['All Inclusive', 'Garden', 'WiFi'], status: 'available', availableDate: 'Feb 1' },
-            { id: 'piemonte', file: 'apartment_piemonte.html', name: 'Piemonte Attic', address: 'Via Piemonte, Vittorio Veneto', price: 1300, type: 'Attic', beds: '1 Bedroom', size: '55m²', floor: '5th Floor', image: 'https://i.imgur.com/Smv5uPX.jpeg', tags: ['Renovated', 'AC', 'Central'], status: 'available', availableDate: 'Jan 1' },
-            { id: 'pigneto', file: 'apartment_pigneto.html', name: 'Pigneto Terrace', address: 'Via Ascoli Piceno, Pigneto', price: 1700, type: 'Bohemian', beds: '2 Bedrooms', size: '80m²', floor: '2nd Floor', image: 'https://i.imgur.com/tJnYADn.jpeg', tags: ['All Inclusive', 'Terrace', 'Balcony'], status: 'available', availableDate: 'Apr 1' },
-            { id: 'navona', file: 'apartment_navona.html', name: 'Coronari Classic', address: 'Via dei Coronari, Piazza Navona', price: 2000, type: 'Historic', beds: '1 Bedroom', size: '70m²', floor: '1st Floor', image: 'https://i.imgur.com/8LVxrhs.jpeg', tags: ['Historic Center', 'Elevator', 'Fireplace'], status: 'available', availableDate: 'Mar 1' },
-            { id: 'angelico', file: 'apartment_angelico.html', name: 'Angelico Loft', address: 'Viale Angelico, Mazzini', price: 2000, type: 'Loft Style', beds: '1BR + Loft', size: '65m²', floor: '2nd Floor', image: 'https://i.imgur.com/CI4n46J.jpeg', tags: ['All Inclusive', 'Modern', 'Sep 2026'], status: 'waitlist', availableDate: 'Sep 2026' },
-            { id: 'ripetta', file: 'apartment_ripetta.html', name: 'Ripetta Terrace', address: 'Passeggiata di Ripetta, Centro', price: 2300, type: 'Premium Terrace', beds: '1 Bedroom', size: '100m²', floor: '1st Floor', image: 'https://i.imgur.com/hxai5bz.jpeg', tags: ['Panoramic Terrace', 'River View', 'Sep 2026'], status: 'waitlist', availableDate: 'Sep 2026' }
-        ];
-        
-        function renderApartments() {
-            const grid = document.getElementById('apartmentsGrid');
-            const available = FLATS.filter(f => f.status === 'available').length;
-            const waitlist = FLATS.filter(f => f.status === 'waitlist').length;
-            
-            document.getElementById('heroTag').textContent = `${available} Available Now · ${waitlist} Coming Soon`;
-            document.getElementById('resultsCount').innerHTML = `Showing <strong>${FLATS.length} apartments</strong> in Rome`;
-            
-            FLATS.sort((a, b) => a.price - b.price);
-            
-            grid.innerHTML = FLATS.map(flat => {
-                const tags = Array.isArray(flat.tags) ? flat.tags : [];
-                return `
-                <a href="/${flat.file}" class="apartment-card ${flat.status === 'waitlist' ? 'waitlist' : ''}" ${flat.status === 'waitlist' ? 'data-waitlist="true"' : ''}>
-                    <div class="apartment-image" style="background-image: url('${flat.image}');">
-                        <div class="apartment-badge">${flat.type}</div>
-                        <div class="apartment-status ${flat.status}">${flat.status === 'available' ? `Available ${flat.availableDate}` : `Waitlist · ${flat.availableDate}`}</div>
-                        ${flat.videoUrl ? '<div class="video-badge">▶ Video Tour</div>' : ''}
-                    </div>
-                    <div class="apartment-info">
-                        <div class="apartment-price"><span class="price-amount">€${flat.price.toLocaleString()}</span><span class="price-period">/month</span></div>
-                        <h3 class="apartment-title">${flat.name}</h3>
-                        <p class="apartment-address">${flat.address}</p>
-                        <div class="apartment-features"><span class="feature">🛏️ ${flat.beds}</span><span class="feature">📐 ${flat.size}</span><span class="feature">🏢 ${flat.floor}</span></div>
-                        <div class="apartment-highlights">${tags.map(tag => `<span class="highlight-tag">${tag}</span>`).join('')}</div>
-                        <span class="apartment-cta">View Details →</span>
-                    </div>
-                </a>
-            `}).join('');
-            
-            console.log(`✓ Loaded ${FLATS.length} apartments from ${dataSource}`);
-        }
-        
-        function toggleWaitlist() {
-            document.querySelectorAll('.apartment-card[data-waitlist="true"]').forEach(card => {
-                card.style.display = card.style.display === 'none' ? 'block' : 'none';
-            });
-        }
-        
-        async function loadFlats() {
-            // Try Firebase first
-            if (typeof firebase !== 'undefined') {
-                try {
-                    firebase.initializeApp({
-                        apiKey: "AIzaSyDDb8UeSc8RhO_VxQrhLrupu1aPD4rwRso",
-                        authDomain: "boom-property-dashboards.firebaseapp.com",
-                        projectId: "boom-property-dashboards"
-                    });
-                    
-                    const db = firebase.firestore();
-                    const snapshot = await db.collection('listings')
-                        .where('status', 'in', ['available', 'waitlist'])
-                        .get();
-                    
-                    if (!snapshot.empty) {
-                        FLATS = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                        dataSource = 'Firebase';
-                        renderApartments();
-                        
-                        // Listen for real-time updates
-                        db.collection('listings').where('status', 'in', ['available', 'waitlist'])
-                            .onSnapshot(snap => {
-                                FLATS = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                                renderApartments();
-                            });
-                        return;
-                    }
-                } catch (e) {
-                    console.log('Firebase error:', e.message);
-                }
-            }
-            
-            // Fallback to hardcoded
-            console.log('Using fallback data');
-            FLATS = FALLBACK_FLATS;
-            dataSource = 'fallback';
-            renderApartments();
-        }
-        
-        document.getElementById('hamburger').addEventListener('click', () => {
-            document.getElementById('hamburger').classList.toggle('active');
-            document.getElementById('mobileMenu').classList.toggle('active');
+    // Same Firebase project as portal.html (boom-property-dashboards)
+    firebase.initializeApp({
+        apiKey:"AIzaSyDDb8UeSc8RhO_VxQrhLrupu1aPD4rwRso",
+        authDomain:"boom-property-dashboards.firebaseapp.com",
+        projectId:"boom-property-dashboards",
+        storageBucket:"boom-property-dashboards.firebasestorage.app",
+        messagingSenderId:"937269017440",
+        appId:"1:937269017440:web:41c1a0b1e1633c2f373c05"
+    });
+    const db = firebase.firestore();
+
+    let allListings = [];
+    let currentFilter = 'all';
+
+    // Hamburger
+    document.getElementById('hamburger').addEventListener('click', () => {
+        document.getElementById('mobileMenu').classList.toggle('open');
+    });
+    document.querySelectorAll('.mobile-menu a').forEach(a => {
+        a.addEventListener('click', () => document.getElementById('mobileMenu').classList.remove('open'));
+    });
+
+    // Filters
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentFilter = btn.dataset.filter;
+            renderListings();
         });
+    });
+
+    // Load listings from Firebase
+    async function loadListings() {
+        try {
+            const snapshot = await db.collection('listings').get();
+            allListings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            
+            // Update filter counts
+            const available = allListings.filter(l => l.status === 'available').length;
+            const waitlist = allListings.filter(l => l.status === 'waitlist').length;
+            const visible = available + waitlist;
+            
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                const f = btn.dataset.filter;
+                let count = 0;
+                if (f === 'all') count = visible;
+                else if (f === 'available') count = available;
+                else if (f === 'waitlist') count = waitlist;
+                // Add count badge
+                const existing = btn.querySelector('.filter-count');
+                if (existing) existing.remove();
+                if (count > 0) {
+                    const span = document.createElement('span');
+                    span.className = 'filter-count';
+                    span.textContent = count;
+                    btn.appendChild(span);
+                }
+            });
+
+            renderListings();
+        } catch (err) {
+            console.error('Error loading listings:', err);
+            document.getElementById('listingsContainer').innerHTML = `
+                <div class="empty-state">
+                    <h3>Connection Error</h3>
+                    <p>Could not load apartments. Please refresh the page.</p>
+                </div>`;
+        }
+    }
+
+    function renderListings() {
+        const container = document.getElementById('listingsContainer');
         
-        loadFlats();
+        // Filter: hide rented, show available + waitlist
+        let filtered = allListings.filter(l => l.status === 'available' || l.status === 'waitlist');
+        
+        if (currentFilter === 'available') {
+            filtered = filtered.filter(l => l.status === 'available');
+        } else if (currentFilter === 'waitlist') {
+            filtered = filtered.filter(l => l.status === 'waitlist');
+        }
+
+        // Sort: available first, then by price ascending
+        filtered.sort((a, b) => {
+            if (a.status === 'available' && b.status !== 'available') return -1;
+            if (a.status !== 'available' && b.status === 'available') return 1;
+            return (a.price || 0) - (b.price || 0);
+        });
+
+        if (filtered.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <h3>No apartments available right now</h3>
+                    <p>New listings are added frequently. Try our Property Finding Service and we'll search for you.</p>
+                    <a href="/property-finding.html" style="display:inline-block;margin-top:16px;padding:14px 32px;background:var(--gold);color:#000;border-radius:12px;font-weight:600;font-size:14px">Start Property Finding →</a>
+                </div>`;
+            return;
+        }
+
+        container.innerHTML = `<div class="grid">${filtered.map(l => cardHTML(l)).join('')}</div>`;
+    }
+
+    function cardHTML(l) {
+        const imgUrl = l.image || 'https://via.placeholder.com/400x220/111111/333333?text=Photo+Coming+Soon';
+        const beds = l.beds || (l.bedrooms ? (l.bedrooms === 0 ? 'Studio' : l.bedrooms + ' Bed') : '');
+        const sqm = l.size || (l.sqm ? l.sqm + 'm²' : '');
+        const price = l.price ? `€${Number(l.price).toLocaleString()}` : '—';
+        
+        // Determine link: use l.file if set, otherwise apartment-detail.html?id=
+        let link = l.file || `apartment-detail.html?id=${l.id}`;
+        if (link && !link.startsWith('http') && !link.startsWith('/')) link = '/' + link;
+        
+        const statusBadge = l.status === 'available' 
+            ? '<span class="badge badge-available">Available</span>' 
+            : '<span class="badge badge-waitlist">Coming Soon</span>';
+        
+        const verifiedBadge = '<span class="badge badge-verified">✓ Verified</span>';
+        const videoBadge = l.videoUrl ? '<span class="badge badge-video">▶ Video</span>' : '';
+        
+        // Tags (max 3)
+        const tags = Array.isArray(l.tags) ? l.tags.slice(0, 3) : [];
+        const tagsHTML = tags.length ? `<div class="card-tags">${tags.map(t => `<span class="card-tag">${t}</span>`).join('')}</div>` : '';
+        
+        // Specs
+        const specs = [];
+        if (beds) specs.push(`<span>🛏️ ${beds}</span>`);
+        if (sqm) specs.push(`<span>📐 ${sqm}</span>`);
+        if (l.floor) specs.push(`<span>🏢 ${l.floor}</span>`);
+        if (l.type) specs.push(`<span>${l.type}</span>`);
+        
+        const availDate = l.availableDate ? `<div class="card-avail">Available: ${l.availableDate}</div>` : '';
+
+        return `<a href="${link}" class="card">
+            <div class="card-img" style="background-image:url('${imgUrl}')">
+                <div class="card-badges">${statusBadge}${verifiedBadge}${videoBadge}</div>
+            </div>
+            <div class="card-body">
+                ${l.zone ? `<div class="card-zone">${l.zone}</div>` : ''}
+                <div class="card-name">${l.name || 'Apartment'}</div>
+                ${specs.length ? `<div class="card-specs">${specs.join('')}</div>` : ''}
+                ${tagsHTML}
+                <div class="card-bottom">
+                    <div class="card-price">${price} <small>/month</small></div>
+                    <div class="card-cta">View Details</div>
+                </div>
+                ${availDate}
+            </div>
+        </a>`;
+    }
+
+    // Init
+    loadListings();
     </script>
 </body>
 </html>

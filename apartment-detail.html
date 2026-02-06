@@ -197,20 +197,53 @@
 
         /* ===== UPSELL ===== */
         .upsell-section{max-width:1400px;margin:0 auto;padding:0 50px 100px}
-        .upsell-header{text-align:center;margin-bottom:50px}
+        .upsell-header{text-align:center;margin-bottom:48px}
         .upsell-tag{display:inline-block;padding:8px 20px;background:var(--gold);color:#000;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:20px}
         .upsell-title{font-size:clamp(28px,4vw,48px);font-weight:100;text-transform:uppercase;letter-spacing:-1px}
-        .upsell-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
-        .upsell-card{padding:36px;background:var(--dark-void);border:1px solid rgba(255,255,255,0.05);border-radius:16px;transition:all .3s}
-        .upsell-card:hover{transform:translateY(-5px);border-color:rgba(255,215,0,0.3)}
-        .upsell-card-icon{font-size:32px;margin-bottom:16px}
-        .upsell-card-title{font-size:20px;font-weight:500;margin-bottom:4px}
-        .upsell-card-price{font-size:14px;color:var(--gold);margin-bottom:16px}
-        .upsell-card-features{list-style:none;margin-bottom:24px}
-        .upsell-card-features li{padding:6px 0;font-size:13px;color:var(--text-secondary);display:flex;align-items:center;gap:8px}
-        .upsell-card-features li::before{content:'✓';color:var(--gold);font-weight:700;flex-shrink:0}
-        .upsell-card-btn{display:inline-block;padding:12px 28px;border:1px solid rgba(255,255,255,0.15);border-radius:10px;color:var(--text-primary);text-decoration:none;font-size:13px;font-weight:500;transition:all .3s}
-        .upsell-card-btn:hover{border-color:var(--gold);color:var(--gold)}
+        .upsell-subtitle{font-size:15px;color:var(--text-secondary);max-width:520px;margin:14px auto 0;line-height:1.6}
+
+        /* Notify banner */
+        .notify-banner{background:linear-gradient(135deg,rgba(255,215,0,0.05) 0%,rgba(0,206,209,0.04) 100%);border:1px solid rgba(255,215,0,0.12);border-radius:20px;padding:32px 36px;margin-bottom:32px;display:flex;align-items:center;gap:28px;transition:border-color .3s}
+        .notify-banner:hover{border-color:rgba(255,215,0,0.25)}
+        .notify-icon{width:56px;height:56px;background:rgba(255,215,0,0.08);border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0}
+        .notify-text{flex:1}
+        .notify-text h3{font-size:17px;font-weight:500;margin-bottom:4px}
+        .notify-text p{font-size:13px;color:var(--text-secondary);line-height:1.5}
+        .notify-actions{display:flex;gap:10px;flex-shrink:0}
+        .notify-actions .nbtn{padding:12px 24px;border-radius:10px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:all .3s;text-decoration:none;display:inline-flex;align-items:center;gap:8px;white-space:nowrap;border:none}
+        .nbtn-primary{background:var(--gold);color:#000}
+        .nbtn-primary:hover{box-shadow:0 6px 24px rgba(255,215,0,0.25);transform:translateY(-1px)}
+        .nbtn-wa{background:#25D366;color:#fff}
+        .nbtn-wa:hover{box-shadow:0 6px 24px rgba(37,211,102,0.25);transform:translateY(-1px)}
+        @media(max-width:900px){.notify-banner{flex-direction:column;text-align:center;gap:18px;padding:28px 24px}.notify-actions{width:100%;flex-direction:column}.notify-actions .nbtn{justify-content:center}}
+
+        /* Service cards */
+        .upsell-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+        .upsell-card{position:relative;padding:0;background:var(--dark-void);border:1px solid rgba(255,255,255,0.05);border-radius:20px;overflow:hidden;transition:all .4s;display:flex;flex-direction:column}
+        .upsell-card:hover{transform:translateY(-6px);box-shadow:0 24px 60px rgba(0,0,0,0.5)}
+        .upsell-card.featured{border-color:rgba(255,215,0,0.15)}
+        .upsell-card.featured:hover{border-color:rgba(255,215,0,0.35)}
+        .upsell-card-popular{position:absolute;top:0;left:0;right:0;padding:6px;text-align:center;background:var(--gold);color:#000;font-size:10px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase}
+        .upsell-card-top{padding:32px 28px 0;flex:1}
+        .upsell-card.featured .upsell-card-top{padding-top:44px}
+        .upsell-card-badge{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:8px;font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin-bottom:16px}
+        .badge-pfs{background:rgba(255,215,0,0.1);color:var(--gold)}
+        .badge-das{background:rgba(0,206,209,0.1);color:#00CED1}
+        .badge-vv{background:rgba(255,107,107,0.1);color:#FF6B6B}
+        .upsell-card-title{font-size:22px;font-weight:400;margin-bottom:6px}
+        .upsell-card-desc{font-size:13px;color:var(--text-secondary);line-height:1.6;margin-bottom:20px}
+        .upsell-card-price-row{display:flex;align-items:baseline;gap:8px;margin-bottom:20px}
+        .upsell-card-price-val{font-size:32px;font-weight:200;color:var(--gold)}
+        .upsell-card-price-unit{font-size:13px;color:var(--text-fade)}
+        .upsell-card-features{list-style:none;margin:0 0 24px;padding:0}
+        .upsell-card-features li{display:flex;align-items:flex-start;gap:10px;padding:6px 0;font-size:13px;color:var(--text-secondary);line-height:1.4}
+        .upsell-card-features li .ck{color:var(--gold);font-weight:700;font-size:11px;margin-top:2px;flex-shrink:0}
+        .upsell-card-bottom{padding:20px 28px;border-top:1px solid rgba(255,255,255,0.04);margin-top:auto}
+        .upsell-card-cta{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:14px;border-radius:12px;font-size:14px;font-weight:600;text-decoration:none;transition:all .3s;border:none;cursor:pointer;font-family:inherit}
+        .cta-gold{background:var(--gold);color:#000}
+        .cta-gold:hover{box-shadow:0 8px 30px rgba(255,215,0,0.3);transform:translateY(-1px)}
+        .cta-outline{background:transparent;border:1px solid rgba(255,255,255,0.1);color:var(--text-secondary)}
+        .cta-outline:hover{border-color:var(--gold);color:var(--gold)}
 
         /* ===== MOBILE CTA ===== */
         .mobile-cta{display:none;position:fixed;bottom:0;left:0;right:0;padding:16px 20px;background:rgba(0,0,0,0.95);backdrop-filter:blur(20px);border-top:1px solid rgba(255,215,0,0.15);z-index:90;align-items:center;justify-content:space-between;gap:16px}
@@ -236,6 +269,7 @@
             .apt-sidebar{position:static}
             .mobile-cta{display:flex}
             .upsell-grid{grid-template-columns:1fr}
+            .upsell-card.featured{order:-1}
         }
         @media(max-width:768px){
             nav{padding:15px 20px}
@@ -398,48 +432,94 @@
             </div>
         <div class="upsell-section">
             <div class="upsell-header">
-                <span class="upsell-tag">More Services</span>
+                <span class="upsell-tag">How Can We Help</span>
                 <h2 class="upsell-title">Not exactly what you're looking for?</h2>
+                <p class="upsell-subtitle">Whether you need us to find, verify, or negotiate — we've got the service for every stage of your Rome apartment search.</p>
             </div>
+
+            <!-- NOTIFY / ONBOARDING BANNER -->
+            <div class="notify-banner">
+                <div class="notify-icon">🔔</div>
+                <div class="notify-text">
+                    <h3>Get Notified When We Find a Match</h3>
+                    <p>Fill out a quick form with your requirements — budget, zone, move-in date. We'll reach out as soon as something fits. No commitment, no spam.</p>
+                </div>
+                <div class="notify-actions">
+                    <a href="https://wa.me/393313251961?text=Hi%20BOOM%2C%20I%27m%20looking%20for%20an%20apartment%20in%20Rome.%20Here%20are%20my%20requirements%3A%0A%0ABudget%3A%20%0AZone%3A%20%0AMove-in%3A%20%0ABedrooms%3A%20" class="nbtn nbtn-wa" target="_blank">💬 WhatsApp Us</a>
+                    <a href="/property-finding.html#onboarding" class="nbtn nbtn-primary">📋 Fill the Form</a>
+                </div>
+            </div>
+
+            <!-- SERVICE CARDS -->
             <div class="upsell-grid">
-                <div class="upsell-card">
-                    <div class="upsell-card-icon">🔍</div>
-                    <div class="upsell-card-title">Property Finding</div>
-                    <div class="upsell-card-price">€350 upfront*</div>
-                    <ul class="upsell-card-features">
-                        <li>Dedicated agent searching for you</li>
-                        <li>Access to off-market properties</li>
-                        <li>Curated options within 10 days</li>
-                        <li>Video tours of all properties</li>
-                        <li>Full refund if we don't deliver</li>
-                    </ul>
-                    <a href="/property-finding.html" class="upsell-card-btn">Learn More →</a>
+                <!-- PFS - Featured -->
+                <div class="upsell-card featured">
+                    <div class="upsell-card-popular">Most Popular</div>
+                    <div class="upsell-card-top">
+                        <span class="upsell-card-badge badge-pfs">🔍 Full Search</span>
+                        <div class="upsell-card-title">Property Finding</div>
+                        <div class="upsell-card-desc">We search the entire Rome market for you — portals, off-market, landlord network. Curated shortlist within 10 days.</div>
+                        <div class="upsell-card-price-row">
+                            <span class="upsell-card-price-val">€350</span>
+                            <span class="upsell-card-price-unit">upfront · deducted from agency fee</span>
+                        </div>
+                        <ul class="upsell-card-features">
+                            <li><span class="ck">✓</span> Dedicated agent searching for you</li>
+                            <li><span class="ck">✓</span> Access to off-market properties</li>
+                            <li><span class="ck">✓</span> Curated shortlist in 10 days</li>
+                            <li><span class="ck">✓</span> Video tour of every option</li>
+                            <li><span class="ck">✓</span> Full refund if we don't deliver</li>
+                        </ul>
+                    </div>
+                    <div class="upsell-card-bottom">
+                        <a href="/property-finding.html" class="upsell-card-cta cta-gold">Start Property Finding →</a>
+                    </div>
                 </div>
+
+                <!-- DAS -->
                 <div class="upsell-card">
-                    <div class="upsell-card-icon">🤝</div>
-                    <div class="upsell-card-title">Deal Assistance</div>
-                    <div class="upsell-card-price">€249 fixed fee</div>
-                    <ul class="upsell-card-features">
-                        <li>Contract review &amp; translation</li>
-                        <li>Price negotiation on your behalf</li>
-                        <li>Landlord verification</li>
-                        <li>Red flag identification</li>
-                        <li>Deposit protection advice</li>
-                    </ul>
-                    <a href="/deal-assistance.html" class="upsell-card-btn">Learn More →</a>
+                    <div class="upsell-card-top">
+                        <span class="upsell-card-badge badge-das">🤝 Contract Help</span>
+                        <div class="upsell-card-title">Deal Assistance</div>
+                        <div class="upsell-card-desc">Found a place yourself? We review the contract, verify the landlord, negotiate terms, and protect you from scams.</div>
+                        <div class="upsell-card-price-row">
+                            <span class="upsell-card-price-val">€249</span>
+                            <span class="upsell-card-price-unit">fixed fee · no surprises</span>
+                        </div>
+                        <ul class="upsell-card-features">
+                            <li><span class="ck">✓</span> Contract review &amp; translation</li>
+                            <li><span class="ck">✓</span> Landlord &amp; property verification</li>
+                            <li><span class="ck">✓</span> Price &amp; terms negotiation</li>
+                            <li><span class="ck">✓</span> Red flag identification</li>
+                            <li><span class="ck">✓</span> Deposit protection advice</li>
+                        </ul>
+                    </div>
+                    <div class="upsell-card-bottom">
+                        <a href="/deal-assistance.html" class="upsell-card-cta cta-outline">Learn More →</a>
+                    </div>
                 </div>
+
+                <!-- VV -->
                 <div class="upsell-card">
-                    <div class="upsell-card-icon">📹</div>
-                    <div class="upsell-card-title">Virtual Viewing</div>
-                    <div class="upsell-card-price">From €89 per viewing</div>
-                    <ul class="upsell-card-features">
-                        <li>Live HD video walkthrough</li>
-                        <li>Real-time Q&amp;A with agent</li>
-                        <li>Neighborhood assessment</li>
-                        <li>Detailed written report</li>
-                        <li>Honest recommendation</li>
-                    </ul>
-                    <a href="/virtual-viewing.html" class="upsell-card-btn">Learn More →</a>
+                    <div class="upsell-card-top">
+                        <span class="upsell-card-badge badge-vv">📹 Remote Viewing</span>
+                        <div class="upsell-card-title">Virtual Viewing</div>
+                        <div class="upsell-card-desc">Can't visit in person? We go for you — live HD video walkthrough with real-time Q&amp;A and an honest assessment report.</div>
+                        <div class="upsell-card-price-row">
+                            <span class="upsell-card-price-val">€89</span>
+                            <span class="upsell-card-price-unit">per viewing · from abroad</span>
+                        </div>
+                        <ul class="upsell-card-features">
+                            <li><span class="ck">✓</span> Live HD video walkthrough</li>
+                            <li><span class="ck">✓</span> Real-time Q&amp;A with our agent</li>
+                            <li><span class="ck">✓</span> Neighborhood &amp; building check</li>
+                            <li><span class="ck">✓</span> Detailed written report</li>
+                            <li><span class="ck">✓</span> Honest go / no-go recommendation</li>
+                        </ul>
+                    </div>
+                    <div class="upsell-card-bottom">
+                        <a href="/virtual-viewing.html" class="upsell-card-cta cta-outline">Learn More →</a>
+                    </div>
                 </div>
             </div>
         </div>
@@ -469,7 +549,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
     <script>
-    firebase.initializeApp({apiKey:"AIzaSyApmGX9mFlplGCsZAOLwOWLfNy2sWyselY",authDomain:"boom-property-dashboards.firebaseapp.com",projectId:"boom-property-dashboards",storageBucket:"boom-property-dashboards.firebasestorage.app",messagingSenderId:"744722251498",appId:"1:744722251498:web:efd4e8a0a89e06a3e97680"});
+    firebase.initializeApp({apiKey:"AIzaSyDDb8UeSc8RhO_VxQrhLrupu1aPD4rwRso",authDomain:"boom-property-dashboards.firebaseapp.com",projectId:"boom-property-dashboards",storageBucket:"boom-property-dashboards.firebasestorage.app",messagingSenderId:"937269017440",appId:"1:937269017440:web:41c1a0b1e1633c2f373c05"});
     const db=firebase.firestore();
     let aptAddress='',currentSlide=0,totalSlides=0;
 
