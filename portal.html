@@ -3276,12 +3276,11 @@
                 </div>
             </div>
             
-            <div class="card" style="margin-top:20px">
 
             <div class="card" style="margin-top:20px">
                 <div class="card-header"><h3 class="card-title">🎬 Video Showcase — Website</h3><span class="badge gold" id="videoBadge">Caricamento...</span></div>
                 <div class="card-body">
-                    <p style="color:var(--text-secondary);font-size:13px;margin-bottom:16px">Il video viene mostrato nella sezione "See BOOM in 30 seconds" su apartments.html. Incolla qualsiasi URL YouTube.</p>
+                    <p style="color:var(--text-secondary);font-size:13px;margin-bottom:16px">Il video viene mostrato nella sezione "See BOOM in 30 seconds" su apartments.html.</p>
                     <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
                         <div style="flex:1;min-width:280px">
                             <label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:6px">YouTube URL</label>
@@ -3303,6 +3302,7 @@
                 </div>
             </div>
 
+            <div class="card" style="margin-top:20px">
                 <div class="card-header"><h3 class="card-title">â„¹ï¸ Guida Rapida</h3></div>
                 <div class="card-body">
                     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px;font-size:13px">
@@ -3326,170 +3326,6 @@
                 </div>
             </div>`;
     }
-
-    // ═══════════════════════════════════════════════════════════════════════════
-    // VIDEO SHOWCASE SETTINGS — Firestore settings/video
-    // ═══════════════════════════════════════════════════════════════════════════
-    function extractYouTubeId(url) {
-        if (!url) return null;
-        const m = url.match(/(?:shorts\/|watch\?v=|embed\/|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
-        return m ? m[1] : null;
-    }
-
-    async function loadVideoSettings() {
-        try {
-            const doc = await db.collection('settings').doc('video').get();
-            const input = document.getElementById('videoUrlInput');
-            const badge = document.getElementById('videoBadge');
-            if (!input || !badge) return;
-            if (doc.exists && doc.data().url) {
-                input.value = doc.data().url;
-                badge.textContent = 'Attivo';
-                badge.className = 'badge green';
-                showVideoPreview(doc.data().url);
-            } else {
-                badge.textContent = 'Non impostato';
-                badge.className = 'badge gray';
-            }
-        } catch (e) { console.log('Video settings load error:', e); }
-    }
-
-    function showVideoPreview(url) {
-        const vid = extractYouTubeId(url);
-        const box = document.getElementById('videoPreviewBox');
-        if (!vid || !box) return;
-        document.getElementById('videoThumbPreview').src = 'https://img.youtube.com/vi/' + vid + '/hqdefault.jpg';
-        document.getElementById('videoIdDisplay').textContent = 'ID: ' + vid;
-        document.getElementById('videoLink').href = 'https://www.youtube.com/shorts/' + vid;
-        box.style.display = 'block';
-    }
-
-    async function saveVideoUrl() {
-        const url = document.getElementById('videoUrlInput').value.trim();
-        if (!url) return toast('warning', 'URL mancante', 'Incolla un URL YouTube');
-        const vid = extractYouTubeId(url);
-        if (!vid) return toast('error', 'URL non valido', 'Inserisci un URL YouTube valido (shorts, watch, embed)');
-        try {
-            await db.collection('settings').doc('video').set({
-                url: url, youtubeId: vid,
-                updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                updatedBy: S.user?.email || 'admin'
-            }, { merge: true });
-            document.getElementById('videoBadge').textContent = 'Attivo';
-            document.getElementById('videoBadge').className = 'badge green';
-            showVideoPreview(url);
-            toast('success', 'Video salvato', 'Il video è ora visibile su apartments.html');
-        } catch (e) { toast('error', 'Errore', e.message); }
-    }
-
-    async function testStorage() {
-        const btn = document.getElementById('testStorageBtn');
-        const badge = document.getElementById('storageBadge');
-        const result = document.getElementById('storageTestResult');
-        btn.disabled = true;
-        btn.textContent = '⏳ Testing...';
-        result.style.display = 'block';
-        result.innerHTML = '<small style="color:var(--text-secondary)">Testing Firebase Storage...</small>';
-        
-        const logs = [];
-        function log(msg, type) {
-            const color = type === 'ok' ? 'var(--green)' : type === 'err' ? 'var(--red)' : type === 'warn' ? 'var(--orange)' : 'var(--text-secondary)';
-            logs.push('<div style="color:' + color + ';font-size:12px;padding:2px 0">' + msg + '</div>');
-            result.innerHTML = logs.join('');
-        }
-        
-        try {
-            // 1. Check SDK
-            log('✓ Firebase Storage SDK caricato', 'ok');
-            log('  Bucket: ' + (storage.app.options.storageBucket || 'NON IMPOSTATO'), 'info');
-            
-            // 2. Check auth
-            const user = auth.currentUser;
-            if (user) {
-                log('✓ Autenticato come: ' + user.email, 'ok');
-            } else {
-                log('✗ NON AUTENTICATO — il caricamento richiede login', 'err');
-                throw new Error('Not authenticated');
-            }
-            
-            // 3. Try to upload a tiny test file
-            log('⏳ Caricamento file di test (1 byte)...', 'info');
-            const testData = new Uint8Array([0x00]);
-            const testBlob = new Blob([testData], { type: 'application/octet-stream' });
-            const testPath = '_test/upload_test_' + Date.now();
-            const testRef = storage.ref(testPath);
-            
-            await testRef.put(testBlob);
-            log('✓ Upload riuscito!', 'ok');
-            
-            // 4. Get download URL
-            const url = await testRef.getDownloadURL();
-            log('✓ Download URL ottenuto: ' + url.substring(0, 60) + '...', 'ok');
-            
-            // 5. Cleanup test file
-            await testRef.delete();
-            log('✓ File di test eliminato', 'ok');
-            
-            log('', 'info');
-            log('🎉 STORAGE FUNZIONA! Il drag & drop dovrebbe funzionare.', 'ok');
-            log('Se il drag & drop non funziona, prova a: 1) ricaricare la pagina, 2) usare il click (non drag)', 'info');
-            
-            badge.textContent = 'Funzionante';
-            badge.className = 'badge green';
-            
-        } catch (e) {
-            console.error('[Storage Test]', e);
-            log('', 'info');
-            
-            if (e.code === 'storage/unauthorized' || e.code === 'storage/retry-limit-exceeded') {
-                log('✗ STORAGE RULES NON CORRETTE', 'err');
-                log('', 'info');
-                log('Vai su Firebase Console:', 'warn');
-                log('1. firebase.google.com → Il tuo progetto', 'info');
-                log('2. Menu sinistro → Storage (NON Firestore!)', 'warn');
-                log('3. Tab "Rules" in alto', 'info');
-                log('4. Sostituisci con:', 'info');
-                log('<pre style="background:var(--bg);padding:10px;border-radius:6px;margin:6px 0;font-size:11px;color:var(--gold)">rules_version = \\\'2\\\';\nservice firebase.storage {\n  match /b/{bucket}/o {\n    match /{allPaths=**} {\n      allow read: if true;\n      allow write: if request.auth != null;\n    }\n  }\n}</pre>', 'info');
-                log('5. Clicca "Publish"', 'info');
-                badge.textContent = 'Rules errate';
-                badge.className = 'badge red';
-            } else if (e.code === 'storage/bucket-not-found' || e.code === 'storage/unknown') {
-                log('✗ FIREBASE STORAGE NON ATTIVATO', 'err');
-                log('', 'info');
-                log('Vai su Firebase Console:', 'warn');
-                log('1. firebase.google.com → Il tuo progetto', 'info');
-                log('2. Menu sinistro → "Storage"', 'warn');
-                log('3. Clicca "Get started" per attivarlo', 'warn');
-                log('4. Seleziona "Start in production mode"', 'info');
-                log('5. Poi imposta le Rules come sopra', 'info');
-                badge.textContent = 'Non attivato';
-                badge.className = 'badge red';
-            } else if (e.message === 'Not authenticated') {
-                badge.textContent = 'Non autenticato';
-                badge.className = 'badge red';
-            } else {
-                log('✗ Errore: ' + (e.code || '') + ' ' + e.message, 'err');
-                badge.textContent = 'Errore';
-                badge.className = 'badge red';
-            }
-        }
-        
-        btn.disabled = false;
-        btn.textContent = '🧪 Testa di Nuovo';
-    }
-
-    async function clearVideoUrl() {
-        if (!confirm('Rimuovere il video dalla pagina apartments?')) return;
-        try {
-            await db.collection('settings').doc('video').delete();
-            document.getElementById('videoUrlInput').value = '';
-            document.getElementById('videoPreviewBox').style.display = 'none';
-            document.getElementById('videoBadge').textContent = 'Non impostato';
-            document.getElementById('videoBadge').className = 'badge gray';
-            toast('success', 'Video rimosso', 'La sezione video non sarà più visibile');
-        } catch (e) { toast('error', 'Errore', e.message); }
-    }
-
 
     async function saveListing(e) {
         e.preventDefault();
@@ -3595,6 +3431,73 @@
         } catch (err) { toast('error', 'Errore', err.message); }
     }
 
+    // ═══════════════════════════════════════════════════════════════════════════
+    // VIDEO SHOWCASE SETTINGS
+    // ═══════════════════════════════════════════════════════════════════════════
+    function extractYouTubeId(url) {
+        if (!url) return null;
+        var m = url.match(/(?:shorts\/|watch\?v=|embed\/|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+        return m ? m[1] : null;
+    }
+
+    async function loadVideoSettings() {
+        try {
+            var doc = await db.collection('settings').doc('video').get();
+            var input = document.getElementById('videoUrlInput');
+            var badge = document.getElementById('videoBadge');
+            if (!input || !badge) return;
+            if (doc.exists && doc.data().url) {
+                input.value = doc.data().url;
+                badge.textContent = 'Attivo';
+                badge.className = 'badge green';
+                showVideoPreview(doc.data().url);
+            } else {
+                badge.textContent = 'Non impostato';
+                badge.className = 'badge gray';
+            }
+        } catch (e) { console.log('Video settings load error:', e); }
+    }
+
+    function showVideoPreview(url) {
+        var vid = extractYouTubeId(url);
+        var box = document.getElementById('videoPreviewBox');
+        if (!vid || !box) return;
+        document.getElementById('videoThumbPreview').src = 'https://img.youtube.com/vi/' + vid + '/hqdefault.jpg';
+        document.getElementById('videoIdDisplay').textContent = 'ID: ' + vid;
+        document.getElementById('videoLink').href = 'https://www.youtube.com/shorts/' + vid;
+        box.style.display = 'block';
+    }
+
+    async function saveVideoUrl() {
+        var url = document.getElementById('videoUrlInput').value.trim();
+        if (!url) return toast('warning', 'URL mancante', 'Incolla un URL YouTube');
+        var vid = extractYouTubeId(url);
+        if (!vid) return toast('error', 'URL non valido', 'Inserisci un URL YouTube valido');
+        try {
+            await db.collection('settings').doc('video').set({
+                url: url, youtubeId: vid,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                updatedBy: S.user ? S.user.email : 'admin'
+            }, { merge: true });
+            document.getElementById('videoBadge').textContent = 'Attivo';
+            document.getElementById('videoBadge').className = 'badge green';
+            showVideoPreview(url);
+            toast('success', 'Video salvato', 'Visibile su apartments.html');
+        } catch (e) { toast('error', 'Errore', e.message); }
+    }
+
+    async function clearVideoUrl() {
+        if (!confirm('Rimuovere il video dalla pagina apartments?')) return;
+        try {
+            await db.collection('settings').doc('video').delete();
+            document.getElementById('videoUrlInput').value = '';
+            document.getElementById('videoPreviewBox').style.display = 'none';
+            document.getElementById('videoBadge').textContent = 'Non impostato';
+            document.getElementById('videoBadge').className = 'badge gray';
+            toast('success', 'Video rimosso');
+        } catch (e) { toast('error', 'Errore', e.message); }
+    }
+
     // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     // IMAGE UPLOAD SYSTEM
     // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
@@ -3606,36 +3509,30 @@
         const input = document.getElementById('imageFileInput');
         if (!zone || !input) return;
 
-        console.log('[BOOM Upload] initImageUpload — storage bucket:', storage?.app?.options?.storageBucket);
-
         // Click to select file
-        zone.addEventListener('click', (e) => {
-            if (zone.classList.contains('uploading')) return;
-            input.click();
-        });
+        zone.addEventListener('click', () => input.click());
 
         // Drag & drop
-        zone.addEventListener('dragover', (e) => { e.preventDefault(); e.stopPropagation(); zone.classList.add('dragover'); });
-        zone.addEventListener('dragleave', (e) => { e.preventDefault(); zone.classList.remove('dragover'); });
+        zone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            zone.classList.add('dragover');
+        });
+        zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
         zone.addEventListener('drop', (e) => {
             e.preventDefault();
-            e.stopPropagation();
             zone.classList.remove('dragover');
-            const files = e.dataTransfer?.files;
-            console.log('[BOOM Upload] Drop event, files:', files?.length);
-            if (files && files.length > 0) handleImageSelect(files[0]);
+            const files = e.dataTransfer.files;
+            if (files.length > 0) handleImageSelect(files[0]);
         });
 
         // File input change
         input.addEventListener('change', (e) => {
-            console.log('[BOOM Upload] File input change, files:', e.target.files?.length);
             if (e.target.files.length > 0) handleImageSelect(e.target.files[0]);
         });
     }
 
     async function handleImageSelect(file) {
-        console.log('[BOOM Upload] handleImageSelect:', file.name, file.type, (file.size/1024).toFixed(0) + 'KB');
-        
+        // Validate file
         if (!file.type.startsWith('image/')) {
             return toast('error', 'File non valido', 'Seleziona un\'immagine (JPG, PNG, WebP)');
         }
@@ -3650,6 +3547,7 @@
         const progressText = document.getElementById('progressText');
         const urlInput = document.getElementById('listingImageUrl');
 
+        // Show uploading state
         zone.classList.add('uploading');
         progress.style.display = 'block';
         progressBar.style.width = '0%';
@@ -3657,87 +3555,39 @@
         uploadingImage = true;
 
         try {
-            // Verify Storage is available
-            if (!storage || typeof storage.ref !== 'function') {
-                throw new Error('Firebase Storage SDK non caricato. Ricarica la pagina.');
-            }
-
-            // Check auth state
-            const user = auth.currentUser;
-            console.log('[BOOM Upload] Auth state:', user ? user.email : 'NOT AUTHENTICATED');
-            if (!user) {
-                throw new Error('Devi essere loggato per caricare immagini. Ricarica la pagina.');
-            }
-
+            // Create unique filename
             const timestamp = Date.now();
             const safeName = file.name.replace(/[^a-zA-Z0-9.]/g, '_');
             const path = `listings/${timestamp}_${safeName}`;
             
-            console.log('[BOOM Upload] Uploading to path:', path);
-            console.log('[BOOM Upload] Storage bucket:', storage.app.options.storageBucket);
-            
+            // Upload to Firebase Storage
             const ref = storage.ref(path);
-            const uploadTask = ref.put(file, { contentType: file.type });
+            const uploadTask = ref.put(file);
 
+            // Monitor progress
             uploadTask.on('state_changed', 
                 (snapshot) => {
                     const pct = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
                     progressBar.style.width = pct + '%';
                     progressText.textContent = `Caricamento: ${pct}%`;
-                    console.log('[BOOM Upload] Progress:', pct + '%');
                 },
                 (error) => {
-                    console.error('[BOOM Upload] ERRORE:', error.code, error.message, error);
-                    let msg = '';
-                    let hint = '';
-                    
-                    switch(error.code) {
-                        case 'storage/unauthorized':
-                            msg = 'Non autorizzato';
-                            hint = 'Vai su Firebase Console → Storage → Rules e aggiungi: allow read, write: if request.auth != null;';
-                            break;
-                        case 'storage/canceled':
-                            msg = 'Upload annullato';
-                            break;
-                        case 'storage/unknown':
-                            msg = 'Errore sconosciuto';
-                            hint = 'Verifica che Firebase Storage sia ATTIVATO nella Console (Storage → Get started). Non basta Firestore!';
-                            break;
-                        case 'storage/bucket-not-found':
-                            msg = 'Bucket non trovato';
-                            hint = 'Il bucket "' + storage.app.options.storageBucket + '" non esiste. Attiva Storage nella Firebase Console.';
-                            break;
-                        case 'storage/quota-exceeded':
-                            msg = 'Quota superata';
-                            hint = 'Piano gratuito: 5GB storage, 1GB/giorno download';
-                            break;
-                        case 'storage/retry-limit-exceeded':
-                            msg = 'Timeout connessione';
-                            hint = 'Controlla la connessione internet o riprova tra poco.';
-                            break;
-                        default:
-                            msg = error.message || 'Errore upload';
-                            hint = 'Codice: ' + error.code;
-                    }
-                    
-                    // Show detailed error
-                    progressText.innerHTML = '<span style="color:var(--red)">❌ ' + msg + '</span>';
-                    if (hint) {
-                        progressText.innerHTML += '<br><small style="color:var(--text-secondary)">' + hint + '</small>';
-                    }
-                    
-                    toast('error', msg, hint);
+                    console.error('[Upload Error]', error.code, error.message);
+                    let msg = error.message;
+                    if (error.code === 'storage/unauthorized') msg = 'Non autorizzato — controlla Firebase Storage Rules (non Firestore!)';
+                    else if (error.code === 'storage/unknown' || error.code === 'storage/bucket-not-found') msg = 'Storage non attivato — vai su Firebase Console > Storage > Get started';
+                    else if (error.code === 'storage/retry-limit-exceeded') msg = 'Timeout — controlla connessione internet';
+                    toast('error', 'Upload fallito', msg);
                     zone.classList.remove('uploading');
+                    progress.style.display = 'none';
                     uploadingImage = false;
-                    
-                    // Highlight URL fallback
-                    const urlField = document.querySelector('input[name="imageUrl"]');
-                    if (urlField) { urlField.style.borderColor = 'var(--gold)'; urlField.placeholder = '⭐ Incolla URL immagine qui come alternativa'; }
                 },
                 async () => {
+                    // Upload complete - get URL
                     const url = await uploadTask.snapshot.ref.getDownloadURL();
                     listingImageUrl = url;
                     
+                    // Update UI
                     progressBar.style.width = '100%';
                     progressText.textContent = 'âœ“ Caricamento completato!';
                     
@@ -3942,8 +3792,8 @@
             </div>
             <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
                 <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">🖼️ Gallery & Video</h4>
-                <div class="form-group"><label class="form-label">Gallery URLs (separate con virgola)</label><input type="text" class="form-input" name="gallery" placeholder="https://i.imgur.com/1.jpg, https://i.imgur.com/2.jpg, ..."></div>
-                <div class="form-group" style="margin-bottom:0"><label class="form-label">🎬 Video Tour (YouTube URL)</label><input type="url" class="form-input" name="videoUrl" placeholder="https://youtube.com/shorts/... o https://www.youtube.com/watch?v=..."></div>
+                <div class="form-group"><label class="form-label">Gallery URLs (separate con virgola)</label><input type="text" class="form-input" name="gallery" placeholder="https://i.imgur.com/1.jpg, https://i.imgur.com/2.jpg"></div>
+                <div class="form-group" style="margin-bottom:0"><label class="form-label">🎬 Video Tour (YouTube URL)</label><input type="url" class="form-input" name="videoUrl" placeholder="https://youtube.com/shorts/..."></div>
             </div>
             <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
                 <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">ðŸ”— Link</h4>
