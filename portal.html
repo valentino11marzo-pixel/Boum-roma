@@ -3449,15 +3449,7 @@
                 log('2. Menu sinistro → Storage (NON Firestore!)', 'warn');
                 log('3. Tab "Rules" in alto', 'info');
                 log('4. Sostituisci con:', 'info');
-                log('<pre style="background:var(--bg);padding:10px;border-radius:6px;margin:6px 0;font-size:11px;color:var(--gold)">rules_version = '2';
-service firebase.storage {
-  match /b/{bucket}/o {
-    match /{allPaths=**} {
-      allow read: if true;
-      allow write: if request.auth != null;
-    }
-  }
-}</pre>', 'info');
+                log('<pre style="background:var(--bg);padding:10px;border-radius:6px;margin:6px 0;font-size:11px;color:var(--gold)">rules_version = \\\'2\\\';\nservice firebase.storage {\n  match /b/{bucket}/o {\n    match /{allPaths=**} {\n      allow read: if true;\n      allow write: if request.auth != null;\n    }\n  }\n}</pre>', 'info');
                 log('5. Clicca "Publish"', 'info');
                 badge.textContent = 'Rules errate';
                 badge.className = 'badge red';
