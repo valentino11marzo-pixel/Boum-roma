@@ -116,6 +116,66 @@
         .nbtn-wa:hover{box-shadow:0 6px 24px rgba(37,211,102,0.25);transform:translateY(-1px)}
         @media(max-width:900px){.notify-banner{flex-direction:column;text-align:center;gap:18px;padding:28px 24px}.notify-actions{width:100%;flex-direction:column}.notify-actions .nbtn{justify-content:center}}
 
+        /* VIDEO — LIVING PHONE (Ultra Premium) */
+        .video-showcase{display:flex;align-items:center;gap:48px;margin-bottom:40px;padding:40px;background:linear-gradient(135deg,rgba(255,215,0,0.03) 0%,rgba(0,0,0,0.2) 50%,rgba(255,215,0,0.02) 100%);border:1px solid rgba(255,215,0,0.06);border-radius:24px;position:relative;overflow:hidden;opacity:0;transform:translateY(20px);transition:opacity .8s ease,transform .8s ease}
+        .video-showcase.visible{opacity:1;transform:translateY(0)}
+        .video-showcase::before{content:'';position:absolute;top:-50%;right:-20%;width:400px;height:400px;background:radial-gradient(circle,rgba(255,215,0,0.04) 0%,transparent 70%);pointer-events:none;animation:ambientDrift 12s infinite ease-in-out}
+        @keyframes ambientDrift{0%,100%{transform:translate(0,0)}25%{transform:translate(-20px,15px)}50%{transform:translate(10px,-10px)}75%{transform:translate(-10px,-20px)}}
+        .video-copy{flex:1;z-index:1}
+        .video-copy .vc-tag{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;background:rgba(255,215,0,0.08);border:1px solid rgba(255,215,0,0.12);border-radius:20px;font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--gold);margin-bottom:16px}
+        .video-copy .vc-tag .pulse{width:6px;height:6px;background:var(--gold);border-radius:50%;animation:livePulse 2s infinite}
+        @keyframes livePulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.8)}}
+        .video-copy h3{font-size:22px;font-weight:300;margin-bottom:8px;line-height:1.3}
+        .video-copy h3 strong{font-weight:500;color:var(--gold)}
+        .video-copy p{font-size:14px;color:var(--text-secondary);line-height:1.6;max-width:380px;margin-bottom:20px}
+        .video-copy .vc-stats{display:flex;gap:24px}
+        .video-copy .vc-stat{font-size:11px;color:var(--text-fade);display:flex;align-items:center;gap:5px}
+        .video-copy .vc-stat span{color:var(--gold);font-weight:600;font-size:13px}
+        .video-device{position:relative;flex-shrink:0;cursor:pointer}
+        .video-device:hover .vd-glow{opacity:.9;transform:scale(1.15)}
+        .video-device:hover .vd-frame{border-color:rgba(255,215,0,0.25);transform:translateY(-6px) scale(1.02)}
+        /* Glow — breathing gold aura */
+        .vd-glow{position:absolute;inset:-35px;background:radial-gradient(ellipse,rgba(255,215,0,0.12) 0%,rgba(255,215,0,0.04) 40%,transparent 70%);border-radius:50%;opacity:.3;transition:all .8s cubic-bezier(.25,.46,.45,.94);filter:blur(25px);animation:glowBreath 4s infinite ease-in-out;pointer-events:none}
+        .video-device.playing .vd-glow{opacity:.7;animation:glowBreathPlaying 3s infinite ease-in-out}
+        @keyframes glowBreath{0%,100%{opacity:.3;transform:scale(1)}50%{opacity:.5;transform:scale(1.04)}}
+        @keyframes glowBreathPlaying{0%,100%{opacity:.5;transform:scale(1)}50%{opacity:.75;transform:scale(1.08)}}
+        /* Phone frame */
+        .vd-frame{width:160px;height:284px;border-radius:24px;border:2px solid rgba(255,255,255,0.08);background:#000;overflow:hidden;position:relative;box-shadow:0 12px 50px rgba(0,0,0,0.5),0 0 0 1px rgba(255,255,255,0.03);transition:all .5s cubic-bezier(.25,.46,.45,.94)}
+        .video-device.playing .vd-frame{border-color:rgba(255,215,0,0.12);box-shadow:0 16px 60px rgba(0,0,0,0.5),0 0 40px rgba(255,215,0,0.06)}
+        .vd-notch{position:absolute;top:8px;left:50%;transform:translateX(-50%);width:44px;height:5px;background:rgba(255,255,255,0.08);border-radius:10px;z-index:3}
+        .vd-screen{width:100%;height:100%;position:relative;overflow:hidden}
+        /* Shimmer loading effect */
+        .vd-screen::after{content:'';position:absolute;inset:0;background:linear-gradient(110deg,transparent 25%,rgba(255,255,255,0.03) 37%,transparent 50%);background-size:200% 100%;z-index:1;animation:shimmer 2.5s infinite;pointer-events:none}
+        .video-device.playing .vd-screen::after{opacity:0;transition:opacity .6s}
+        @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+        .vd-screen img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0;transition:opacity 1.2s cubic-bezier(.25,.46,.45,.94)}
+        .vd-screen iframe{width:100%;height:100%;border:none;position:absolute;inset:0;opacity:0;transition:opacity 1s cubic-bezier(.25,.46,.45,.94) .3s}
+        .video-device.playing .vd-screen iframe{opacity:1}
+        /* Play button */
+        .vd-play{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:2;background:rgba(0,0,0,0.15);transition:all .6s cubic-bezier(.25,.46,.45,.94)}
+        .vd-play.hidden{opacity:0;pointer-events:none;transform:scale(.8)}
+        .vd-play-ring{width:52px;height:52px;border-radius:50%;border:2px solid rgba(255,215,0,0.5);display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.3);backdrop-filter:blur(8px);transition:all .4s cubic-bezier(.25,.46,.45,.94);animation:ringPulse 3s infinite ease-in-out}
+        @keyframes ringPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,215,0,0.2)}50%{box-shadow:0 0 0 12px rgba(255,215,0,0)}}
+        .video-device:hover .vd-play-ring{border-color:rgba(255,215,0,0.9);background:rgba(255,215,0,0.15);transform:scale(1.1)}
+        .vd-play-ring::after{content:'';width:0;height:0;border-left:18px solid rgba(255,215,0,0.9);border-top:11px solid transparent;border-bottom:11px solid transparent;margin-left:4px}
+        /* Bottom bar */
+        .vd-bar{position:absolute;bottom:0;left:0;right:0;padding:10px 14px;background:linear-gradient(transparent,rgba(0,0,0,0.85));z-index:2;display:flex;align-items:center;gap:8px;opacity:.8;transition:opacity .4s}
+        .video-device.playing .vd-bar{opacity:1}
+        .vd-bar-dot{width:5px;height:5px;background:#FF0000;border-radius:50%;transition:all .3s}
+        .video-device.playing .vd-bar-dot{animation:recDot 1.5s infinite}
+        @keyframes recDot{0%,100%{opacity:1}50%{opacity:.3}}
+        .vd-bar span{font-size:9px;color:rgba(255,255,255,0.7);letter-spacing:.5px;text-transform:uppercase}
+        /* Cinema Modal */
+        .video-modal{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0);display:none;align-items:center;justify-content:center;backdrop-filter:blur(0px);transition:background .4s ease,backdrop-filter .4s ease}
+        .video-modal.open{display:flex;background:rgba(0,0,0,0.95);backdrop-filter:blur(16px)}
+        .video-modal-frame{width:min(380px,88vw);aspect-ratio:9/16;border-radius:20px;overflow:hidden;position:relative;box-shadow:0 0 120px rgba(255,215,0,0.08),0 40px 100px rgba(0,0,0,0.7);transform:scale(.9);opacity:0;transition:all .4s cubic-bezier(.16,1,.3,1)}
+        .video-modal.open .video-modal-frame{transform:scale(1);opacity:1}
+        .video-modal-frame iframe{width:100%;height:100%;border:none}
+        .video-modal-close{position:absolute;top:16px;right:16px;width:36px;height:36px;background:rgba(0,0,0,0.5);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.1);border-radius:50%;color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .3s;z-index:10}
+        .video-modal-close:hover{background:rgba(255,215,0,0.2);border-color:rgba(255,215,0,0.3);transform:scale(1.1)}
+        @media(max-width:900px){.video-showcase{flex-direction:column;text-align:center;gap:28px;padding:28px 24px}.video-copy p{max-width:none}.video-copy .vc-stats{justify-content:center}.vd-frame{width:140px;height:248px}}
+        .video-showcase.hidden{display:none}
+
         .services-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
         @media(max-width:1024px){.services-grid{grid-template-columns:1fr}}
         .svc-card{position:relative;background:var(--dark-void);border:1px solid rgba(255,255,255,0.05);border-radius:20px;overflow:hidden;transition:all .4s;display:flex;flex-direction:column}
@@ -237,6 +297,39 @@
                 <div class="notify-actions">
                     <a href="https://wa.me/393313251961?text=Hi%20BOOM%2C%20I%27m%20looking%20for%20an%20apartment%20in%20Rome.%20Here%20are%20my%20requirements%3A%0A%0ABudget%3A%20%0AZone%3A%20%0AMove-in%3A%20%0ABedrooms%3A%20" class="nbtn nbtn-wa" target="_blank">💬 WhatsApp Us</a>
                     <a href="https://boom-property-dashboards.web.app/onboarding.html" class="nbtn nbtn-primary">📋 Fill the Form</a>
+                </div>
+            </div>
+
+            <!-- VIDEO SHOWCASE — Living Phone, Firestore-powered -->
+            <div class="video-showcase" id="videoShowcase">
+                <div class="video-copy">
+                    <div class="vc-tag"><span class="pulse"></span> Watch</div>
+                    <h3>See how <strong>BOOM</strong> works<br>in 30 seconds</h3>
+                    <p>Real footage. Real apartments. Real team on the ground in Rome — not stock photos and algorithms.</p>
+                    <div class="vc-stats">
+                        <div class="vc-stat"><span>48h</span> move-in</div>
+                        <div class="vc-stat"><span>98%</span> success</div>
+                        <div class="vc-stat"><span>500+</span> placed</div>
+                    </div>
+                </div>
+                <div class="video-device" id="videoDevice" onclick="openCinema()">
+                    <div class="vd-glow"></div>
+                    <div class="vd-frame">
+                        <div class="vd-notch"></div>
+                        <div class="vd-screen" id="vdScreen">
+                            <img id="vdThumb" alt="BOOM Rome">
+                            <div class="vd-play" id="vdPlay"><div class="vd-play-ring"></div></div>
+                            <div class="vd-bar"><div class="vd-bar-dot"></div><span>BOOM Rome</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cinema Modal -->
+            <div class="video-modal" id="videoModal" onclick="closeCinema(event)">
+                <div class="video-modal-frame">
+                    <button class="video-modal-close" onclick="closeCinema(event)">✕</button>
+                    <div id="cinemaContainer"></div>
                 </div>
             </div>
 
@@ -488,6 +581,126 @@
 
     // Init
     loadListings();
+    </script>
+
+    <!-- Video — Firestore-powered, autoplay on scroll, cinema on click -->
+    <script>
+    let boomVideoId = 'xb1OON-bhK4'; // fallback
+    let inlinePlayer = null;
+
+    // Load video ID from Firestore settings
+    function loadVideoSetting() {
+        if (typeof db === 'undefined') { initVideo(boomVideoId); return; }
+        db.collection('settings').doc('video').get().then(doc => {
+            if (doc.exists && doc.data().youtubeId) {
+                boomVideoId = doc.data().youtubeId;
+                initVideo(boomVideoId);
+            } else if (doc.exists && doc.data().url) {
+                const url = doc.data().url;
+                const m = url.match(/(?:shorts\/|watch\?v=|embed\/|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+                if (m) { boomVideoId = m[1]; initVideo(boomVideoId); }
+                else { document.getElementById('videoShowcase').classList.add('hidden'); }
+            } else {
+                document.getElementById('videoShowcase').classList.add('hidden');
+            }
+        }).catch(() => initVideo(boomVideoId));
+    }
+
+    function initVideo(vid) {
+        const showcase = document.getElementById('videoShowcase');
+        const device = document.getElementById('videoDevice');
+        if (!vid) { showcase.classList.add('hidden'); return; }
+
+        // Set thumbnail with maxres quality
+        const thumb = document.getElementById('vdThumb');
+        const maxres = new Image();
+        maxres.onload = () => { thumb.src = maxres.src; };
+        maxres.onerror = () => { thumb.src = 'https://img.youtube.com/vi/' + vid + '/hqdefault.jpg'; };
+        maxres.src = 'https://img.youtube.com/vi/' + vid + '/maxresdefault.jpg';
+
+        // Entrance animation — fade in when showcase enters viewport
+        const entranceObs = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    showcase.classList.add('visible');
+                    entranceObs.disconnect();
+                }
+            });
+        }, { threshold: 0.15 });
+        entranceObs.observe(showcase);
+
+        // Autoplay muted in phone when 30% visible
+        const playObs = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting && !inlinePlayer) {
+                    // Small delay for smooth sequencing after entrance animation
+                    setTimeout(() => {
+                        const screen = document.getElementById('vdScreen');
+                        const iframe = document.createElement('iframe');
+                        iframe.src = 'https://www.youtube.com/embed/' + vid + '?autoplay=1&mute=1&loop=1&playlist=' + vid + '&controls=0&showinfo=0&rel=0&playsinline=1&modestbranding=1&iv_load_policy=3';
+                        iframe.allow = 'autoplay;encrypted-media';
+                        iframe.loading = 'lazy';
+                        screen.insertBefore(iframe, screen.querySelector('.vd-play'));
+                        inlinePlayer = iframe;
+
+                        // Smooth transition: fade iframe in, fade thumbnail out, activate playing state
+                        iframe.onload = () => {
+                            // Wait a beat for YouTube to actually start rendering
+                            setTimeout(() => {
+                                device.classList.add('playing');
+                                thumb.style.opacity = '0';
+                                document.getElementById('vdPlay').classList.add('hidden');
+                            }, 800);
+                        };
+                    }, 600);
+                    playObs.disconnect();
+                }
+            });
+        }, { threshold: 0.3 });
+        playObs.observe(showcase);
+    }
+
+    function openCinema() {
+        const m = document.getElementById('videoModal');
+        const c = document.getElementById('cinemaContainer');
+        m.style.display = 'flex';
+        // Force reflow for animation
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                m.classList.add('open');
+            });
+        });
+        c.innerHTML = '<iframe src="https://www.youtube.com/embed/' + boomVideoId + '?autoplay=1&rel=0&modestbranding=1&playsinline=1" allow="autoplay;encrypted-media;fullscreen" allowfullscreen></iframe>';
+        document.body.style.overflow = 'hidden';
+        if (inlinePlayer) inlinePlayer.src = '';
+    }
+
+    function closeCinema(e) {
+        if (e && e.target.closest('.video-modal-frame') && !e.target.closest('.video-modal-close')) return;
+        const m = document.getElementById('videoModal');
+        m.classList.remove('open');
+        // Wait for exit animation, then cleanup
+        setTimeout(() => {
+            document.getElementById('cinemaContainer').innerHTML = '';
+            m.style.display = 'none';
+            document.body.style.overflow = '';
+            // Resume inline silently
+            if (inlinePlayer) {
+                inlinePlayer.src = 'https://www.youtube.com/embed/' + boomVideoId + '?autoplay=1&mute=1&loop=1&playlist=' + boomVideoId + '&controls=0&showinfo=0&rel=0&playsinline=1&modestbranding=1&iv_load_policy=3';
+            }
+        }, 400);
+    }
+
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeCinema(e); });
+
+    // Init after Firebase is ready
+    if (typeof db !== 'undefined') {
+        loadVideoSetting();
+    } else {
+        window.addEventListener('load', () => {
+            setTimeout(loadVideoSetting, 500);
+        });
+    }
     </script>
 </body>
 </html>
