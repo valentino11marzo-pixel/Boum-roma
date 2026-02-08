@@ -6240,7 +6240,7 @@
                 lines.forEach(line => {
                     if (!line.trim()) { y += 3; return; }
                     // Check if it's a room header (no dash/bullet at start)
-                    if (line.trim().match(/^[A-Za-zÃ€-Ãº]/i) && !line.trim().startsWith('-') && !line.trim().startsWith('â€¢') && line.includes(':')) {
+                    if (line.trim().match(/^[A-Za-z]/i) && !line.trim().startsWith('-') && !line.trim().startsWith('â€¢') && line.includes(':')) {
                         // Room header
                         if (y > 250) { doc.addPage(); y = 30; }
                         doc.setFillColor(240, 240, 240);
