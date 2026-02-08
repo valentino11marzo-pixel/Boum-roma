@@ -3276,29 +3276,25 @@
                 </div>
             </div>
             
+            <div class="card" style="margin-top:20px">
+                <div class="card-header"><h3 class="card-title">Video Showcase</h3><span class="badge gray" id="videoBadge">Non impostato</span></div>
+                <div class="card-body">
+                    <p style="color:var(--text-secondary);font-size:13px;margin-bottom:12px">Gestisci il video YouTube mostrato su apartments page.</p>
+                    <div style="display:flex;gap:8px;align-items:end;margin-bottom:12px">
+                        <div class="form-group" style="flex:1;margin-bottom:0"><label class="form-label">YouTube URL</label><input type="url" class="form-input" id="videoUrlInput" placeholder="https://youtube.com/shorts/..."></div>
+                        <button class="btn" onclick="saveVideoUrl()" style="white-space:nowrap">Salva</button>
+                        <button class="btn btn-secondary" onclick="clearVideoUrl()">Rimuovi</button>
+                    </div>
+                    <div id="videoPreview" style="display:none;padding:12px;background:var(--bg);border-radius:8px"></div>
+                </div>
+            </div>
 
             <div class="card" style="margin-top:20px">
-                <div class="card-header"><h3 class="card-title">🎬 Video Showcase — Website</h3><span class="badge gold" id="videoBadge">Caricamento...</span></div>
+                <div class="card-header"><h3 class="card-title">Storage Test</h3><span class="badge gray" id="storageBadge">Non testato</span></div>
                 <div class="card-body">
-                    <p style="color:var(--text-secondary);font-size:13px;margin-bottom:16px">Il video viene mostrato nella sezione "See BOOM in 30 seconds" su apartments.html.</p>
-                    <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
-                        <div style="flex:1;min-width:280px">
-                            <label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:6px">YouTube URL</label>
-                            <input type="text" class="form-input" id="videoUrlInput" placeholder="https://youtube.com/shorts/xb1OON-bhK4" style="margin-bottom:0">
-                        </div>
-                        <button class="btn" onclick="saveVideoUrl()" style="white-space:nowrap">💾 Salva Video</button>
-                        <button class="btn btn-secondary" onclick="clearVideoUrl()" style="white-space:nowrap">🗑️ Rimuovi</button>
-                    </div>
-                    <div id="videoPreviewBox" style="margin-top:16px;display:none">
-                        <div style="display:flex;gap:16px;align-items:center;padding:16px;background:var(--bg-input);border-radius:12px;border:1px solid var(--border)">
-                            <img id="videoThumbPreview" style="width:80px;height:142px;object-fit:cover;border-radius:8px;border:1px solid var(--border)">
-                            <div>
-                                <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Anteprima attiva</div>
-                                <div id="videoIdDisplay" style="font-size:13px;color:var(--gold);font-family:monospace"></div>
-                                <a id="videoLink" href="#" target="_blank" style="font-size:12px;color:var(--text-secondary);text-decoration:underline;margin-top:4px;display:inline-block">Apri su YouTube ↗</a>
-                            </div>
-                        </div>
-                    </div>
+                    <p style="color:var(--text-secondary);font-size:13px;margin-bottom:12px">Verifica che Firebase Storage funzioni per il caricamento foto.</p>
+                    <button class="btn btn-secondary" onclick="testStorage()" id="testStorageBtn">Testa Storage</button>
+                    <div id="storageTestResult" style="margin-top:12px;display:none;font-size:12px"></div>
                 </div>
             </div>
 
@@ -3325,6 +3321,113 @@
                     </div>
                 </div>
             </div>`;
+    }
+
+
+    // ═══════ VIDEO SHOWCASE SETTINGS ═══════
+    function extractYouTubeId(url) {
+        if (!url) return null;
+        var m = url.match(/(?:shorts\/|watch\?v=|embed\/|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+        return m ? m[1] : null;
+    }
+
+    async function loadVideoSettings() {
+        try {
+            var doc = await db.collection('settings').doc('video').get();
+            var input = document.getElementById('videoUrlInput');
+            var badge = document.getElementById('videoBadge');
+            var preview = document.getElementById('videoPreview');
+            if (doc.exists && doc.data().url) {
+                if (input) input.value = doc.data().url;
+                if (badge) { badge.textContent = 'Attivo'; badge.className = 'badge green'; }
+                var vid = doc.data().youtubeId || extractYouTubeId(doc.data().url);
+                if (preview && vid) {
+                    preview.style.display = 'flex';
+                    preview.style.gap = '12px';
+                    preview.style.alignItems = 'center';
+                    preview.innerHTML = '<img src="https://img.youtube.com/vi/' + vid + '/mqdefault.jpg" style="width:80px;border-radius:6px"><div><div style="font-size:12px;font-weight:600">ID: ' + vid + '</div><a href="https://youtube.com/shorts/' + vid + '" target="_blank" style="font-size:11px;color:var(--gold)">Apri su YouTube</a></div>';
+                }
+            } else {
+                if (badge) { badge.textContent = 'Non impostato'; badge.className = 'badge gray'; }
+            }
+        } catch(e) { console.log('Video settings load error:', e); }
+    }
+
+    async function saveVideoUrl() {
+        var input = document.getElementById('videoUrlInput');
+        var url = input ? input.value.trim() : '';
+        if (!url) return toast('error', 'Inserisci un URL YouTube');
+        var vid = extractYouTubeId(url);
+        if (!vid) return toast('error', 'URL YouTube non valido');
+        try {
+            await db.collection('settings').doc('video').set({
+                url: url, youtubeId: vid,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                updatedBy: S.profile ? S.profile.id : 'admin'
+            });
+            toast('success', 'Video salvato!');
+            loadVideoSettings();
+        } catch(e) { toast('error', 'Errore', e.message); }
+    }
+
+    async function clearVideoUrl() {
+        try {
+            await db.collection('settings').doc('video').delete();
+            var badge = document.getElementById('videoBadge');
+            var preview = document.getElementById('videoPreview');
+            var input = document.getElementById('videoUrlInput');
+            if (badge) { badge.textContent = 'Non impostato'; badge.className = 'badge gray'; }
+            if (preview) { preview.style.display = 'none'; preview.innerHTML = ''; }
+            if (input) input.value = '';
+            toast('success', 'Video rimosso');
+        } catch(e) { toast('error', 'Errore', e.message); }
+    }
+
+    async function testStorage() {
+        var btn = document.getElementById('testStorageBtn');
+        var badge = document.getElementById('storageBadge');
+        var result = document.getElementById('storageTestResult');
+        btn.disabled = true;
+        btn.textContent = 'Testing...';
+        result.style.display = 'block';
+        result.innerHTML = '';
+        var logs = [];
+        function log(msg, color) {
+            logs.push('<div style="color:' + (color || 'var(--text-secondary)') + '">' + msg + '</div>');
+            result.innerHTML = logs.join('');
+        }
+        try {
+            log('SDK caricato, bucket: ' + (storage.app.options.storageBucket || 'N/A'));
+            var user = auth.currentUser;
+            if (!user) { log('NON AUTENTICATO', 'var(--red)'); throw new Error('no auth'); }
+            log('Autenticato: ' + user.email);
+            log('Upload test file...');
+            var testRef = storage.ref('_test/test_' + Date.now());
+            await testRef.put(new Blob([new Uint8Array([0])], {type:'application/octet-stream'}));
+            log('Upload OK!', 'var(--green)');
+            var url = await testRef.getDownloadURL();
+            log('Download URL OK', 'var(--green)');
+            await testRef.delete();
+            log('Cleanup OK', 'var(--green)');
+            log('STORAGE FUNZIONA!', 'var(--green)');
+            badge.textContent = 'OK'; badge.className = 'badge green';
+        } catch(e) {
+            console.error('Storage test:', e);
+            if (e.code === 'storage/unauthorized') {
+                log('ERRORE: Storage Rules non permettono la scrittura.', 'var(--red)');
+                log('Vai su Firebase Console > Storage > Rules', 'var(--orange)');
+                badge.textContent = 'Rules errate'; badge.className = 'badge red';
+            } else if (e.code === 'storage/unknown' || e.code === 'storage/bucket-not-found') {
+                log('ERRORE: Firebase Storage non attivato.', 'var(--red)');
+                log('Vai su Firebase Console > Storage > Get started', 'var(--orange)');
+                badge.textContent = 'Non attivato'; badge.className = 'badge red';
+            } else if (e.message !== 'no auth') {
+                log('Errore: ' + (e.code || '') + ' ' + e.message, 'var(--red)');
+                badge.textContent = 'Errore'; badge.className = 'badge red';
+            }
+        }
+        btn.disabled = false;
+        btn.textContent = 'Testa Storage';
     }
 
     async function saveListing(e) {
@@ -3365,7 +3468,7 @@
             availableDate: data.availableDate || '',
             description: data.description || '',
             file: data.file || '',
-            gallery: data.gallery ? data.gallery.split(',').map(u => u.trim()).filter(u => u) : [],
+            gallery: data.gallery ? data.gallery.split(',').map(function(u){return u.trim()}).filter(function(u){return u}) : [],
             videoUrl: data.videoUrl || '',
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         };
@@ -3429,73 +3532,6 @@
             await refresh();
             toast('success', 'Listing duplicato!', 'Modifica i dettagli');
         } catch (err) { toast('error', 'Errore', err.message); }
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════════
-    // VIDEO SHOWCASE SETTINGS
-    // ═══════════════════════════════════════════════════════════════════════════
-    function extractYouTubeId(url) {
-        if (!url) return null;
-        var m = url.match(/(?:shorts\/|watch\?v=|embed\/|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
-        return m ? m[1] : null;
-    }
-
-    async function loadVideoSettings() {
-        try {
-            var doc = await db.collection('settings').doc('video').get();
-            var input = document.getElementById('videoUrlInput');
-            var badge = document.getElementById('videoBadge');
-            if (!input || !badge) return;
-            if (doc.exists && doc.data().url) {
-                input.value = doc.data().url;
-                badge.textContent = 'Attivo';
-                badge.className = 'badge green';
-                showVideoPreview(doc.data().url);
-            } else {
-                badge.textContent = 'Non impostato';
-                badge.className = 'badge gray';
-            }
-        } catch (e) { console.log('Video settings load error:', e); }
-    }
-
-    function showVideoPreview(url) {
-        var vid = extractYouTubeId(url);
-        var box = document.getElementById('videoPreviewBox');
-        if (!vid || !box) return;
-        document.getElementById('videoThumbPreview').src = 'https://img.youtube.com/vi/' + vid + '/hqdefault.jpg';
-        document.getElementById('videoIdDisplay').textContent = 'ID: ' + vid;
-        document.getElementById('videoLink').href = 'https://www.youtube.com/shorts/' + vid;
-        box.style.display = 'block';
-    }
-
-    async function saveVideoUrl() {
-        var url = document.getElementById('videoUrlInput').value.trim();
-        if (!url) return toast('warning', 'URL mancante', 'Incolla un URL YouTube');
-        var vid = extractYouTubeId(url);
-        if (!vid) return toast('error', 'URL non valido', 'Inserisci un URL YouTube valido');
-        try {
-            await db.collection('settings').doc('video').set({
-                url: url, youtubeId: vid,
-                updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                updatedBy: S.user ? S.user.email : 'admin'
-            }, { merge: true });
-            document.getElementById('videoBadge').textContent = 'Attivo';
-            document.getElementById('videoBadge').className = 'badge green';
-            showVideoPreview(url);
-            toast('success', 'Video salvato', 'Visibile su apartments.html');
-        } catch (e) { toast('error', 'Errore', e.message); }
-    }
-
-    async function clearVideoUrl() {
-        if (!confirm('Rimuovere il video dalla pagina apartments?')) return;
-        try {
-            await db.collection('settings').doc('video').delete();
-            document.getElementById('videoUrlInput').value = '';
-            document.getElementById('videoPreviewBox').style.display = 'none';
-            document.getElementById('videoBadge').textContent = 'Non impostato';
-            document.getElementById('videoBadge').className = 'badge gray';
-            toast('success', 'Video rimosso');
-        } catch (e) { toast('error', 'Errore', e.message); }
     }
 
     // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
@@ -3572,11 +3608,10 @@
                     progressText.textContent = `Caricamento: ${pct}%`;
                 },
                 (error) => {
-                    console.error('[Upload Error]', error.code, error.message);
-                    let msg = error.message;
-                    if (error.code === 'storage/unauthorized') msg = 'Non autorizzato — controlla Firebase Storage Rules (non Firestore!)';
-                    else if (error.code === 'storage/unknown' || error.code === 'storage/bucket-not-found') msg = 'Storage non attivato — vai su Firebase Console > Storage > Get started';
-                    else if (error.code === 'storage/retry-limit-exceeded') msg = 'Timeout — controlla connessione internet';
+                    console.error('Upload error:', error.code, error.message);
+                    var msg = error.message;
+                    if (error.code === 'storage/unauthorized') msg = 'Non autorizzato. Controlla Firebase Storage Rules.';
+                    else if (error.code === 'storage/unknown') msg = 'Storage non raggiungibile. Attiva Storage nella Firebase Console.';
                     toast('error', 'Upload fallito', msg);
                     zone.classList.remove('uploading');
                     progress.style.display = 'none';
@@ -3791,9 +3826,9 @@
                 <div class="form-group" style="margin-top:12px;margin-bottom:0"><label class="form-label">Oppure incolla URL immagine</label><input type="url" class="form-input" name="imageUrl" placeholder="https://i.imgur.com/..." onchange="if(this.value){document.getElementById('listingImageUrl').value=this.value}"></div>
             </div>
             <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
-                <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">🖼️ Gallery & Video</h4>
-                <div class="form-group"><label class="form-label">Gallery URLs (separate con virgola)</label><input type="text" class="form-input" name="gallery" placeholder="https://i.imgur.com/1.jpg, https://i.imgur.com/2.jpg"></div>
-                <div class="form-group" style="margin-bottom:0"><label class="form-label">🎬 Video Tour (YouTube URL)</label><input type="url" class="form-input" name="videoUrl" placeholder="https://youtube.com/shorts/..."></div>
+                <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">Gallery & Video</h4>
+                <div class="form-group"><label class="form-label">Gallery URLs (separate con virgola)</label><input type="text" class="form-input" name="gallery" placeholder="url1, url2, url3"></div>
+                <div class="form-group" style="margin-bottom:0"><label class="form-label">Video Tour (YouTube URL)</label><input type="url" class="form-input" name="videoUrl" placeholder="https://youtube.com/shorts/..."></div>
             </div>
             <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
                 <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">ðŸ”— Link</h4>
@@ -3848,9 +3883,9 @@
                 <div class="form-group" style="margin-top:12px;margin-bottom:0"><label class="form-label">Oppure incolla URL immagine</label><input type="url" class="form-input" name="imageUrl" value="${data.image || ''}" placeholder="https://i.imgur.com/..." onchange="if(this.value){document.getElementById('listingImageUrl').value=this.value}"></div>
             </div>
             <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
-                <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">🖼️ Gallery & Video</h4>
+                <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">Gallery & Video</h4>
                 <div class="form-group"><label class="form-label">Gallery URLs (separate con virgola)</label><input type="text" class="form-input" name="gallery" value="${Array.isArray(data.gallery) ? data.gallery.join(', ') : (data.gallery || '')}"></div>
-                <div class="form-group" style="margin-bottom:0"><label class="form-label">🎬 Video Tour (YouTube URL)</label><input type="url" class="form-input" name="videoUrl" value="${data.videoUrl || ''}"></div>
+                <div class="form-group" style="margin-bottom:0"><label class="form-label">Video Tour (YouTube URL)</label><input type="url" class="form-input" name="videoUrl" value="${data.videoUrl || ''}" placeholder="https://youtube.com/shorts/..."></div>
             </div>
             <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
                 <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">ðŸ”— Link</h4>
