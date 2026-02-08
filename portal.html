@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <meta name="description" content="BOOM Property Management Portal - Gestione immobili, contratti e pagamenti">
     <meta name="theme-color" content="#000000">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -371,6 +374,17 @@
     <div id="modals"></div>
 
     <script>
+        // GLOBAL SAFETY: if ANYTHING crashes, force show login after 8 seconds
+        window._boomSafetyTimeout = setTimeout(function() {
+            var loading = document.getElementById('loading');
+            if (loading && !loading.classList.contains('hidden')) {
+                console.error('BOOM SAFETY: Script crash detected — forcing login redirect');
+                window.location.href = 'login.html';
+            }
+        }, 8000);
+    </script>
+
+    <script>
         // Track script loading
         window.firebaseScriptsLoaded = 0;
         window.firebaseScriptsTotal = 4;
@@ -470,9 +484,24 @@
         console.error('Firebase init failed:', err);
     }
     
-    const auth = firebase.auth();
-    const db = firebase.firestore();
-    const storage = firebase.storage();
+    let auth, db, storage;
+    try {
+        auth = firebase.auth();
+        db = firebase.firestore();
+    } catch(initErr) {
+        console.error('Firebase auth/db init failed:', initErr);
+        document.getElementById('loading').innerHTML = '<div style="color:#f44;text-align:center;padding:40px"><h2>Errore Firebase</h2><p>' + initErr.message + '</p><button onclick="location.reload()" style="margin-top:20px;padding:12px 30px;background:#FFD700;color:#000;border:none;font-weight:600;cursor:pointer;border-radius:8px">Riprova</button></div>';
+        throw initErr;
+    }
+    try {
+        storage = firebase.storage();
+    } catch(storageErr) {
+        console.warn('Firebase Storage non disponibile:', storageErr.message);
+        storage = null;
+    }
+    
+    // Show version marker on loading screen to confirm this file is deployed
+    (function(){ var el = document.getElementById('loading'); if(el) { var v = document.createElement('div'); v.style.cssText = 'position:fixed;bottom:10px;left:50%;transform:translateX(-50%);font-size:10px;color:#333;z-index:99999'; v.textContent = 'v8.FEB.2026'; el.appendChild(v); }})();
     
     // Enable offline persistence
     db.enablePersistence({ synchronizeTabs: true }).catch(err => {
@@ -1250,7 +1279,7 @@
 
     function hideLoading() { document.getElementById('loading').classList.add('hidden'); }
     function showAuth() { window.location.href = 'login.html'; }
-    function showApp() { hideLoading(); document.getElementById('authScreen').classList.add('hidden'); document.getElementById('app').classList.add('active'); setupApp(); }
+    function showApp() { clearTimeout(window._boomSafetyTimeout); hideLoading(); document.getElementById('authScreen').classList.add('hidden'); document.getElementById('app').classList.add('active'); setupApp(); }
     function showAuthError(m) { const e = document.getElementById('authError'); e.textContent = m; e.classList.add('show'); document.getElementById('authInfo').classList.remove('show'); }
     function showAuthInfo(m) { const e = document.getElementById('authInfo'); e.textContent = m; e.classList.add('show'); document.getElementById('authError').classList.remove('show'); }
 
