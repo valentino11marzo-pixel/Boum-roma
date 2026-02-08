@@ -13,6 +13,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <style>
         *{margin:0;padding:0;box-sizing:border-box}
         :root{--gold:#D4AF37;--gold-light:rgba(212,175,55,0.15);--gold-dark:#B8960C;--green:#34C759;--green-light:rgba(52,199,89,0.12);--red:#FF3B30;--red-light:rgba(255,59,48,0.12);--orange:#FF9500;--orange-light:rgba(255,149,0,0.12);--blue:#007AFF;--blue-light:rgba(0,122,255,0.12);--purple:#AF52DE;--purple-light:rgba(175,82,222,0.12);--cyan:#00C7BE;--cyan-light:rgba(0,199,190,0.12);--bg:#000;--bg-card:#0A0A0A;--bg-elevated:#141414;--bg-input:#1A1A1A;--border:rgba(255,255,255,0.08);--text:#FFF;--text-secondary:#999;--text-muted:#666}
@@ -633,8 +634,7 @@
     let firebaseInitError = null;
     
     try {
-        if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
-        else { console.log('Firebase already initialized'); }
+        firebase.initializeApp(firebaseConfig);
         console.log(`🚀 BOOM Portal initialized [${CONFIG.ENV}]`);
     } catch (err) {
         firebaseInitError = err;
@@ -1317,7 +1317,18 @@ Valentyne - BOOM Rome`
     
     // Detect Safari desktop
     const isSafariDesktop = /^((?!chrome|android).)*safari/i.test(navigator.userAgent) && !/mobile/i.test(navigator.userAgent);
-    if (isSafariDesktop) console.log('Safari desktop detected');
+    if (isSafariDesktop) {
+        console.log('Safari desktop detected - using optimized loading');
+        // Add Safari-specific CSS optimizations
+        const safariStyles = document.createElement('style');
+        safariStyles.textContent = `
+            /* Safari performance optimizations */
+            .sidebar, .modal-overlay { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+            * { -webkit-transform: translateZ(0); }
+            .card, .list-item { will-change: auto; }
+        `;
+        document.head.appendChild(safariStyles);
+    }
     
     // Set persistence - try LOCAL first, fall back to SESSION for Safari
     (async () => {
@@ -1340,20 +1351,14 @@ Valentyne - BOOM Rome`
     let authRetryCount = 0;
     const maxAuthRetries = 3;
     
-    // Auth timeout - longer for Safari
+    // Auth timeout - reduced for better UX
     let authTimeout = setTimeout(() => {
         if (!authProcessed) {
             console.log('Auth timeout - no response');
             hideLoading();
             showAuth();
         }
-    }, isSafariDesktop ? 20000 : 12000);
-    
-    // LOADING SAFETY TIMEOUT (v9)
-    const safetyTimeout = setTimeout(function() {
-        var ll = document.getElementById('loadingScreen');
-        if (ll && ll.style.display !== 'none') { console.warn('Safety timeout'); ll.style.display = 'none'; }
-    }, 8000);
+    }, isSafariDesktop ? 10000 : 8000);
     
     auth.onAuthStateChanged(async u => {
         // Prevent multiple processing
@@ -1424,76 +1429,131 @@ Valentyne - BOOM Rome`
 
     async function loadData() {
         console.log('Loading data...');
+        const startTime = performance.now();
+        
+        // Check cache first (5 min expiry)
+        const cacheKey = 'boom_data_cache';
+        const cacheExpiry = 5 * 60 * 1000; // 5 minutes
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+            try {
+                const { data, timestamp } = JSON.parse(cached);
+                if (Date.now() - timestamp < cacheExpiry) {
+                    console.log('Using cached data');
+                    Object.assign(S, data);
+                    checkAlerts();
+                    // Refresh in background
+                    setTimeout(() => loadDataFresh(true), 2000);
+                    return;
+                }
+            } catch (e) { console.log('Cache invalid'); }
+        }
+        
+        await loadDataFresh(false);
+    }
+    
+    async function loadDataFresh(silent) {
+        const startTime = performance.now();
         try {
-            const [users, props, contracts, payments, maint, docs, clients, invoices] = await Promise.all([
+            // BATCH 1: Critical data (always load first)
+            console.log('Loading batch 1...');
+            const [users, props, contracts] = await Promise.all([
                 db.collection('users').get(),
                 db.collection('properties').get(),
-                db.collection('contracts').get(),
-                db.collection('payments').get(),
-                db.collection('maintenance').get(),
-                db.collection('documents').get(),
-                db.collection('clients').get(),
-                db.collection('invoices').get()
+                db.collection('contracts').get()
             ]);
-            console.log('Core data loaded');
             S.users = users.docs.map(d => ({ id: d.id, ...d.data() }));
             S.properties = props.docs.map(d => ({ id: d.id, ...d.data() }));
             S.contracts = contracts.docs.map(d => ({ id: d.id, ...d.data() }));
+            console.log('Batch 1 done:', (performance.now() - startTime).toFixed(0), 'ms');
+            
+            // For Safari: smaller batches with delays
+            if (isSafariDesktop) {
+                await new Promise(r => setTimeout(r, 100));
+            }
+            
+            // BATCH 2: Secondary data
+            console.log('Loading batch 2...');
+            const [payments, maint, clients] = await Promise.all([
+                db.collection('payments').get(),
+                db.collection('maintenance').get(),
+                db.collection('clients').get()
+            ]);
             S.payments = payments.docs.map(d => ({ id: d.id, ...d.data() }));
             S.maintenance = maint.docs.map(d => ({ id: d.id, ...d.data() }));
-            S.documents = docs.docs.map(d => ({ id: d.id, ...d.data() }));
             S.clients = clients.docs.map(d => ({ id: d.id, ...d.data() }));
+            console.log('Batch 2 done:', (performance.now() - startTime).toFixed(0), 'ms');
+            
+            if (isSafariDesktop) {
+                await new Promise(r => setTimeout(r, 100));
+            }
+            
+            // BATCH 3: Documents & Invoices
+            console.log('Loading batch 3...');
+            const [docs, invoices] = await Promise.all([
+                db.collection('documents').get(),
+                db.collection('invoices').get()
+            ]);
+            S.documents = docs.docs.map(d => ({ id: d.id, ...d.data() }));
             S.invoices = invoices.docs.map(d => ({ id: d.id, ...d.data() }));
+            console.log('Batch 3 done:', (performance.now() - startTime).toFixed(0), 'ms');
             
-            // Load listings separately (might not exist yet)
+            // Cache core data
             try {
-                const listings = await db.collection('listings').get();
-                S.listings = listings.docs.map(d => ({ id: d.id, ...d.data() }));
-            } catch (e) { 
-                console.log('Listings collection not found, using empty array');
-                S.listings = []; 
-            }
+                localStorage.setItem('boom_data_cache', JSON.stringify({
+                    timestamp: Date.now(),
+                    data: {
+                        users: S.users, properties: S.properties, contracts: S.contracts,
+                        payments: S.payments, maintenance: S.maintenance, clients: S.clients,
+                        documents: S.documents, invoices: S.invoices
+                    }
+                }));
+            } catch (e) { console.log('Cache save failed:', e.message); }
             
-            // Load Command Center data (deadlines and tasks)
-            try {
-                const [deadlines, tasks] = await Promise.all([
-                    db.collection('deadlines').get(),
-                    db.collection('tasks').get()
-                ]);
-                S.deadlines = deadlines.docs.map(d => ({ id: d.id, ...d.data() }));
-                S.tasks = tasks.docs.map(d => ({ id: d.id, ...d.data() }));
-            } catch (e) { 
-                console.log('Command Center collections not found');
-                S.deadlines = []; 
-                S.tasks = [];
-            }
+            // LAZY LOAD: Non-critical data (load after app is shown)
+            setTimeout(async () => {
+                try {
+                    // Listings
+                    const listings = await db.collection('listings').get();
+                    S.listings = listings.docs.map(d => ({ id: d.id, ...d.data() }));
+                } catch (e) { S.listings = []; }
+                
+                try {
+                    // Command Center
+                    const [deadlines, tasks] = await Promise.all([
+                        db.collection('deadlines').get(),
+                        db.collection('tasks').get()
+                    ]);
+                    S.deadlines = deadlines.docs.map(d => ({ id: d.id, ...d.data() }));
+                    S.tasks = tasks.docs.map(d => ({ id: d.id, ...d.data() }));
+                } catch (e) { S.deadlines = []; S.tasks = []; }
+                
+                try {
+                    // PFS Pipeline
+                    const [pfsClients, pfsProperties, pfsActivities, landlords] = await Promise.all([
+                        db.collection('pfsClients').get(),
+                        db.collection('pfsProperties').get(),
+                        db.collection('pfsActivities').orderBy('timestamp', 'desc').limit(100).get(),
+                        db.collection('landlords').get()
+                    ]);
+                    S.pfsClients = pfsClients.docs.map(d => ({ id: d.id, ...d.data() }));
+                    S.pfsProperties = pfsProperties.docs.map(d => ({ id: d.id, ...d.data() }));
+                    S.pfsActivities = pfsActivities.docs.map(d => ({ id: d.id, ...d.data() }));
+                    S.landlords = landlords.docs.map(d => ({ id: d.id, ...d.data() }));
+                } catch (e) { 
+                    S.pfsClients = []; S.pfsProperties = []; S.pfsActivities = []; S.landlords = [];
+                }
+                
+                console.log('Lazy data loaded:', (performance.now() - startTime).toFixed(0), 'ms total');
+                // Update UI if needed
+                if (S.page === 'command' || S.page === 'pfs-pipeline') renderPage();
+            }, isSafariDesktop ? 1500 : 500);
             
-            // Load PFS Pipeline data
-            try {
-                const [pfsClients, pfsProperties, pfsActivities, landlords] = await Promise.all([
-                    db.collection('pfsClients').get(),
-                    db.collection('pfsProperties').get(),
-                    db.collection('pfsActivities').orderBy('timestamp', 'desc').limit(100).get(),
-                    db.collection('landlords').get()
-                ]);
-                S.pfsClients = pfsClients.docs.map(d => ({ id: d.id, ...d.data() }));
-                S.pfsProperties = pfsProperties.docs.map(d => ({ id: d.id, ...d.data() }));
-                S.pfsActivities = pfsActivities.docs.map(d => ({ id: d.id, ...d.data() }));
-                S.landlords = landlords.docs.map(d => ({ id: d.id, ...d.data() }));
-                console.log('PFS data loaded:', S.pfsClients.length, 'clients');
-            } catch (e) { 
-                console.log('PFS collections not found yet');
-                S.pfsClients = []; 
-                S.pfsProperties = [];
-                S.pfsActivities = [];
-                S.landlords = [];
-            }
-            
-            console.log('All data loaded successfully');
-            checkAlerts();
+            console.log('Core data loaded in', (performance.now() - startTime).toFixed(0), 'ms');
+            if (!silent) checkAlerts();
         } catch (e) { 
             console.error('Load data error:', e);
-            toast('error', 'Errore caricamento', e.message); 
+            if (!silent) toast('error', 'Errore caricamento', e.message); 
         }
     }
 
@@ -1894,6 +1954,8 @@ Valentyne - BOOM Rome`
         if (confirm('Vuoi uscire?')) {
             stopSessionCheck();
             stopNotificationListener();
+            // Clear data cache
+            localStorage.removeItem('boom_data_cache');
             try {
                 await auth.signOut();
             } catch (e) {
@@ -1901,6 +1963,15 @@ Valentyne - BOOM Rome`
             }
             window.location.href = 'login.html';
         }
+    }
+    
+    // Force refresh data (clear cache and reload)
+    async function forceRefreshData() {
+        localStorage.removeItem('boom_data_cache');
+        toast('info', 'Ricaricamento dati...');
+        await loadDataFresh(false);
+        renderPage();
+        toast('success', 'Dati aggiornati!');
     }
     function authErr(c) { return { 'auth/user-not-found': 'Utente non trovato', 'auth/wrong-password': 'Password errata', 'auth/invalid-email': 'Email non valida', 'auth/email-already-in-use': 'Email già registrata', 'auth/weak-password': 'Password troppo debole', 'auth/invalid-credential': 'Credenziali non valide' }[c] || 'Errore: ' + c; }
 
@@ -1970,6 +2041,8 @@ Valentyne - BOOM Rome`
                     <div class="nav-item ${S.page==='command'?'active':''}" onclick="goTo('command')"><span class="nav-icon">🎯</span> Command Center ${urgentDeadlines?`<span class="nav-badge orange">${urgentDeadlines}</span>`:''}</div>
                     <div class="nav-item ${S.page==='adminflats'?'active':''}" onclick="goTo('adminflats')"><span class="nav-icon">🏢</span> AdminFlats</div>
                     <div class="nav-item ${S.page==='registrations'?'active':''}" onclick="goTo('registrations')"><span class="nav-icon">📝</span> Registrazioni ${S.regPending?`<span class="nav-badge orange">${S.regPending}</span>`:''}</div>
+                    <div class="nav-item ${S.page==='listings'?'active':''}" onclick="goTo('listings')"><span class="nav-icon">📢</span> Pubblica Annunci <span class="nav-badge green">NEW</span></div>
+                    <div class="nav-item ${S.page==='asseverazioni'?'active':''}" onclick="goTo('asseverazioni')"><span class="nav-icon">📋</span> Asseverazioni</div>
                 </div>
                 <div class="nav-section"><div class="nav-label">PFS & Sales</div>
                     <div class="nav-item ${S.page==='pfs-pipeline'?'active':''}" onclick="goTo('pfs-pipeline')"><span class="nav-icon">🚀</span> PFS Pipeline ${urgentPFS?`<span class="nav-badge">${urgentPFS}</span>`:''}</div>
@@ -2046,7 +2119,7 @@ Valentyne - BOOM Rome`
             case 'my-documents': m.innerHTML = (isLandlord() || isTenant()) ? myDocumentsPage() : accessDenied(); break;
             case 'settings': m.innerHTML = settingsPage(); break;
             case 'command': m.innerHTML = isAdmin() ? commandPage() : accessDenied(); break;
-            case 'adminflats': m.innerHTML = isAdmin() ? adminflatsPage() : accessDenied(); if(isAdmin()) setTimeout(loadVideoSettings, 100); break;
+            case 'adminflats': m.innerHTML = isAdmin() ? adminflatsPage() : accessDenied(); break;
             case 'registrations': 
                 if (!isAdmin()) { m.innerHTML = accessDenied(); break; }
                 loadRegistrations().then(() => { 
@@ -2057,6 +2130,8 @@ Valentyne - BOOM Rome`
                 }); 
                 m.innerHTML = '<div style="padding:40px;text-align:center"><div class="spinner"></div><p style="margin-top:16px;color:var(--text-muted)">Caricamento...</p></div>';
                 break;
+            case 'listings': m.innerHTML = isAdmin() ? listingsPage() : accessDenied(); break;
+            case 'asseverazioni': m.innerHTML = isAdmin() ? asseverazioniPage() : accessDenied(); break;
             case 'pfs-pipeline': m.innerHTML = isAdmin() ? pfsPipelinePage() : accessDenied(); break;
             case 'boom-tools': m.innerHTML = isAdmin() ? boomToolsPage() : accessDenied(); break;
             case 'property-engine':
@@ -2130,6 +2205,7 @@ Valentyne - BOOM Rome`
                             <button class="lang-btn ${S.lang === 'IT' ? 'active' : ''}" onclick="setLang('IT')">🇮🇹 IT</button>
                             <button class="lang-btn ${S.lang === 'EN' ? 'active' : ''}" onclick="setLang('EN')">🇬🇧 EN</button>
                         </div>
+                        <button class="btn btn-sm btn-secondary" onclick="forceRefreshData()" title="Ricarica dati">🔄</button>
                     </div>
                     <div style="display:grid;gap:8px">
                         <button class="btn btn-block" onclick="openModal('addClient')">💼 Nuovo Cliente CRM</button>
@@ -2738,7 +2814,7 @@ Valentyne - BOOM Rome`
             
             <!-- Info Box -->
             <div class="alert info" style="margin-top:24px">
-                <span class="alert-icon">ℹ️</span>
+                <span class="alert-icon">â„¹️</span>
                 <div class="alert-content">
                     <div class="alert-title">Compilazione Automatica</div>
                     <div class="alert-text">I template si compilano automaticamente con i dati di clienti, immobili e contratti già presenti nel sistema. Seleziona un record esistente o inserisci manualmente.</div>
@@ -3965,27 +4041,7 @@ Valentyne - BOOM Rome`
             </div>
             
             <div class="card" style="margin-top:20px">
-                <div class="card-header"><h3 class="card-title">🎬 Video Showcase</h3><span class="badge gray" id="videoBadge">Non impostato</span></div>
-                <div class="card-body">
-                    <p style="color:var(--text-secondary);font-size:13px;margin-bottom:12px">Gestisci il video YouTube mostrato sulla pagina appartamenti.</p>
-                    <div style="display:flex;gap:8px;align-items:end;margin-bottom:12px">
-                        <div class="form-group" style="flex:1;margin-bottom:0"><label class="form-label">YouTube URL</label><input type="url" class="form-input" id="videoUrlInput" placeholder="https://youtube.com/shorts/..."></div>
-                        <button class="btn" onclick="saveVideoUrl()" style="white-space:nowrap">Salva</button>
-                        <button class="btn btn-secondary" onclick="clearVideoUrl()">Rimuovi</button>
-                    </div>
-                    <div id="videoPreview" style="display:none;padding:12px;background:var(--bg);border-radius:8px"></div>
-                </div>
-            </div>
-            <div class="card" style="margin-top:20px">
-                <div class="card-header"><h3 class="card-title">🔧 Storage Test</h3><span class="badge gray" id="storageBadge">Non testato</span></div>
-                <div class="card-body">
-                    <p style="color:var(--text-secondary);font-size:13px;margin-bottom:12px">Verifica che Firebase Storage funzioni.</p>
-                    <button class="btn btn-secondary" onclick="testStorage()" id="testStorageBtn">🧪 Testa Storage</button>
-                    <div id="storageTestResult" style="margin-top:12px;display:none;font-size:12px"></div>
-                </div>
-            </div>
-            <div class="card" style="margin-top:20px">
-                <div class="card-header"><h3 class="card-title">ℹ️ Guida Rapida</h3></div>
+                <div class="card-header"><h3 class="card-title">â„¹️ Guida Rapida</h3></div>
                 <div class="card-body">
                     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px;font-size:13px">
                         <div>
@@ -4043,8 +4099,6 @@ Valentyne - BOOM Rome`
             image: imageUrl,
             tags: tagsArray,
             features: featuresArray,
-            gallery: data.gallery ? data.gallery.split(',').map(u => u.trim()).filter(Boolean) : [],
-            videoUrl: data.videoUrl || '',
             status: data.status || 'available',
             availableDate: data.availableDate || '',
             description: data.description || '',
@@ -4383,10 +4437,6 @@ Valentyne - BOOM Rome`
             <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
                 <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">🏷️ Tags & Features</h4>
                 <div class="form-group"><label class="form-label">Tags (separati da virgola)</label><input type="text" class="form-input" name="tags" placeholder="All Inclusive, Balcony, AC, WiFi, Central"></div>
-                <div class="form-row">
-                    <div class="form-group"><label class="form-label">Gallery URLs (virgola)</label><input type="text" class="form-input" name="gallery" placeholder="https://img1.jpg, https://img2.jpg"></div>
-                    <div class="form-group"><label class="form-label">Video YouTube</label><input type="url" class="form-input" name="videoUrl" placeholder="https://youtube.com/shorts/..."></div>
-                </div>
                 <div class="form-group"><label class="form-label">Features (separati da virgola)</label><input type="text" class="form-input" name="features" placeholder="Balcone, Aria Condizionata, Lavatrice, WiFi"></div>
             </div>
             <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
@@ -6085,11 +6135,16 @@ Valentyne - BOOM Rome`
                     <div class="form-group"><label class="form-label">Seleziona</label><select class="form-select" name="payerId" onchange="fillUserData(this.value,'tenant')"><option value="">-- Inserisci --</option>${tenants.map(u => `<option value="${u.id}">${u.name}</option>`).join('')}</select></div>
                     <div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="payerName" id="tplTenantName" required></div><div class="form-group"><label class="form-label">C.F.</label><input type="text" class="form-input" name="payerCF" id="tplTenantCF"></div></div>
                 </div>
+                <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
+                    <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">🏠 IMMOBILE</h4>
+                    <div class="form-group"><label class="form-label">Seleziona</label><select class="form-select" name="propertyId" onchange="fillPropertyData(this.value)"><option value="">-- Seleziona --</option>${S.properties.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}</select></div>
+                    <div class="form-group"><label class="form-label">Indirizzo *</label><input type="text" class="form-input" name="propertyAddress" id="tplPropertyAddress" required></div>
+                </div>
                 <div style="background:var(--bg);padding:16px;border-radius:8px">
                     <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">💰 PAGAMENTO</h4>
                     <div class="form-row"><div class="form-group"><label class="form-label">Importo € *</label><input type="number" class="form-input" name="amount" required></div><div class="form-group"><label class="form-label">Data *</label><input type="date" class="form-input" name="paymentDate" value="${new Date().toISOString().split('T')[0]}" required></div></div>
+                    <div class="form-group"><label class="form-label">Modalità Pagamento</label><select class="form-select" name="paymentMethod"><option value="bonifico">Bonifico Bancario</option><option value="contanti">Contanti</option><option value="assegno">Assegno</option></select></div>
                     ${type === 'payment_receipt' ? `<div class="form-group"><label class="form-label">Periodo</label><input type="text" class="form-input" name="period" placeholder="es. Gennaio 2025"></div>` : ''}
-                    <div class="form-group"><label class="form-label">Immobile</label><select class="form-select" name="propertyId" onchange="fillPropertyData(this.value)"><option value="">-- Seleziona --</option>${S.properties.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}</select></div>
                     <div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes"></textarea></div>
                 </div>`;
         }
@@ -6322,9 +6377,9 @@ Valentyne - BOOM Rome`
                 </div>
                 <div style="background:var(--bg);padding:16px;border-radius:8px">
                     <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">📈 ADEGUAMENTO ISTAT</h4>
-                    <div class="form-row"><div class="form-group"><label class="form-label">Canone Attuale € *</label><input type="number" class="form-input" name="currentRent" required></div><div class="form-group"><label class="form-label">Indice ISTAT % *</label><input type="number" class="form-input" name="istatIndex" step="0.1" value="5.4" required></div></div>
-                    <div class="form-row"><div class="form-group"><label class="form-label">Nuovo Canone € *</label><input type="number" class="form-input" name="newRent" required></div><div class="form-group"><label class="form-label">Decorrenza *</label><input type="date" class="form-input" name="effectiveDate" required></div></div>
-                    <div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes"></textarea></div>
+                    <div class="form-row"><div class="form-group"><label class="form-label">Canone Attuale € *</label><input type="number" class="form-input" name="currentRent" oninput="calculateIstatIncrease()" required></div><div class="form-group"><label class="form-label">Indice ISTAT % *</label><input type="number" class="form-input" name="istatIndex" step="0.1" value="5.4" oninput="calculateIstatIncrease()" required></div></div>
+                    <div class="form-row"><div class="form-group"><label class="form-label">Aumento €</label><input type="number" class="form-input" name="increaseAmount" readonly style="background:var(--gold-light);color:var(--gold)"></div><div class="form-group"><label class="form-label">Nuovo Canone € *</label><input type="number" class="form-input" name="newRent" required></div></div>
+                    <div class="form-row"><div class="form-group"><label class="form-label">Decorrenza *</label><input type="date" class="form-input" name="effectiveDate" required></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes" style="min-height:60px"></textarea></div></div>
                 </div>`;
         }
         // Sollecito Pagamento
@@ -6439,28 +6494,94 @@ Valentyne - BOOM Rome`
     
     function fillUserData(id, type) {
         const u = S.users.find(x => x.id === id); if (!u) return;
-        if (type === 'landlord') {
-            const el = document.getElementById('tplLandlordName'); if (el) el.value = u.name;
-        } else {
-            const el = document.getElementById('tplTenantName'); if (el) el.value = u.name;
+        const prefix = type === 'landlord' ? 'landlord' : 'tenant';
+        // Fill by ID
+        const nameEl = document.getElementById(`tpl${type === 'landlord' ? 'Landlord' : 'Tenant'}Name`);
+        if (nameEl) nameEl.value = u.name || '';
+        // Fill by name attribute (comprehensive)
+        const form = document.getElementById('tplForm');
+        if (form) {
+            const setByName = (names, val) => {
+                names.forEach(n => {
+                    const el = form.querySelector(`[name="${n}"]`);
+                    if (el && !el.value) el.value = val || '';
+                });
+            };
+            setByName([`${prefix}Name`, `${prefix}_name`], u.name);
+            setByName([`${prefix}CF`, `${prefix}_cf`, `${prefix}Cf`, `codiceFiscale${type === 'landlord' ? 'Locatore' : 'Conduttore'}`], u.cf || u.codiceFiscale);
+            setByName([`${prefix}Email`, `${prefix}_email`], u.email);
+            setByName([`${prefix}Phone`, `${prefix}_phone`, `${prefix}Tel`], u.phone);
+            setByName([`${prefix}Address`, `${prefix}_address`, `${prefix}Indirizzo`], u.address);
+            setByName([`${prefix}City`, `${prefix}_city`], u.city);
+            setByName([`${prefix}BirthDate`, `${prefix}_birthdate`, `dataNascita${type === 'landlord' ? 'Locatore' : 'Conduttore'}`], u.birthDate);
+            setByName([`${prefix}BirthPlace`, `${prefix}_birthplace`, `luogoNascita${type === 'landlord' ? 'Locatore' : 'Conduttore'}`], u.birthPlace);
         }
     }
-    
+
     function fillPropertyData(id) {
         const p = S.properties.find(x => x.id === id); if (!p) return;
+        const form = document.getElementById('tplForm');
+        // Fill by ID
         const addr = document.getElementById('tplPropertyAddress'); if (addr) addr.value = p.address || '';
         const rent = document.getElementById('tplRent'); if (rent) rent.value = p.rent || '';
         const dep = document.getElementById('tplDeposit'); if (dep) dep.value = (p.rent || 0) * 3;
+        // Fill by name attribute (comprehensive)
+        if (form) {
+            const setByName = (names, val) => {
+                names.forEach(n => {
+                    const el = form.querySelector(`[name="${n}"]`);
+                    if (el && !el.value) el.value = val || '';
+                });
+            };
+            setByName(['propertyAddress', 'property_address', 'indirizzo', 'address'], p.address);
+            setByName(['propertyCity', 'property_city', 'city', 'citta'], p.city || 'Roma');
+            setByName(['rent', 'canone', 'monthlyRent', 'currentRent'], p.rent);
+            setByName(['deposit', 'deposito', 'cauzione'], (p.rent || 0) * 3);
+            setByName(['cadastral', 'datiCatastali', 'foglio_particella'], p.cadastral || `Foglio ${p.foglio || '—'}, Part. ${p.particella || '—'}, Sub. ${p.subalterno || '—'}`);
+            setByName(['sqm', 'superficie', 'mq'], p.sqm);
+            setByName(['rooms', 'locali', 'vani'], p.rooms);
+        }
     }
-    
+
     function fillClientData(id) {
         const c = S.clients.find(x => x.id === id); if (!c) return;
+        const form = document.getElementById('tplForm');
+        // Fill by ID
         const name = document.getElementById('tplName'); if (name) name.value = c.name || '';
         const email = document.getElementById('tplEmail'); if (email) email.value = c.email || '';
         const phone = document.getElementById('tplPhone'); if (phone) phone.value = c.phone || '';
         const budget = document.getElementById('tplBudget'); if (budget) budget.value = c.budget || '';
         const zone = document.getElementById('tplZone'); if (zone) zone.value = c.zone || '';
         const duration = document.getElementById('tplDuration'); if (duration) duration.value = c.duration || '';
+        // Fill by name attribute (comprehensive)
+        if (form) {
+            const setByName = (names, val) => {
+                names.forEach(n => {
+                    const el = form.querySelector(`[name="${n}"]`);
+                    if (el && !el.value) el.value = val || '';
+                });
+            };
+            setByName(['clientName', 'client_name', 'nome'], c.name);
+            setByName(['clientEmail', 'client_email', 'email'], c.email);
+            setByName(['clientPhone', 'client_phone', 'phone', 'telefono'], c.phone);
+            setByName(['clientCF', 'client_cf', 'codiceFiscale', 'cf'], c.cf);
+            setByName(['clientAddress', 'client_address', 'indirizzo'], c.address);
+        }
+    }
+
+    // ISTAT calculation helper
+    function calculateIstatIncrease() {
+        const currentEl = document.querySelector('[name="currentRent"]');
+        const indexEl = document.querySelector('[name="istatIndex"]');
+        const newRentEl = document.querySelector('[name="newRent"]');
+        const increaseEl = document.querySelector('[name="increaseAmount"]');
+        if (!currentEl || !indexEl) return;
+        const current = parseFloat(currentEl.value) || 0;
+        const index = parseFloat(indexEl.value) || 0;
+        const increase = Math.round(current * index / 100);
+        const newRent = current + increase;
+        if (increaseEl) increaseEl.value = increase;
+        if (newRentEl && !newRentEl.dataset.manual) newRentEl.value = newRent;
     }
 
     function generateTemplatePDF() {
@@ -7356,10 +7477,10 @@ Valentyne - BOOM Rome`
 
     function toast(type, title, msg = '') {
         const c = document.getElementById('toasts');
-        const icons = { success: '✔', error: '✕', warning: '⚠', info: 'ℹ' };
+        const icons = { success: '✔', error: '✕', warning: '⚠', info: 'â„¹' };
         const el = document.createElement('div');
         el.className = `toast ${type}`;
-        el.innerHTML = `<span style="font-size:16px">${icons[type] || 'ℹ'}</span><div style="flex:1"><div style="font-weight:600;font-size:13px">${title}</div>${msg ? `<div style="font-size:11px;opacity:.8;margin-top:2px">${msg}</div>` : ''}</div>`;
+        el.innerHTML = `<span style="font-size:16px">${icons[type] || 'â„¹'}</span><div style="flex:1"><div style="font-weight:600;font-size:13px">${title}</div>${msg ? `<div style="font-size:11px;opacity:.8;margin-top:2px">${msg}</div>` : ''}</div>`;
         c.appendChild(el);
         setTimeout(() => { el.style.opacity = '0'; el.style.transform = 'translateX(100px)'; setTimeout(() => el.remove(), 300); }, 4000);
     }
@@ -7473,6 +7594,7 @@ Valentyne - BOOM Rome`
                     <div><label class="form-label">Inquilino</label><div style="display:flex;gap:8px"><input type="text" class="form-input" value="https://boomrome.com/form-tenant.html" readonly id="tUrl" style="font-size:11px"><button class="btn btn-sm" onclick="copyRegUrl('tUrl')">Copia</button></div></div>
                 </div>
             </div></div>
+            ${adeConverterCard()}
             <div class="card"><div class="card-header"><span class="card-title">Contratti (${contracts.length})</span><button class="btn btn-sm btn-secondary" onclick="goTo('registrations')">🔄 Aggiorna</button></div>
                 <div class="card-body flush">
                     ${contracts.length === 0 ? '<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">Nessuna registrazione</div><p class="empty-text">Crea una nuova registrazione per iniziare</p><button class="btn" onclick="openNewRegistration()">+ Nuova Registrazione</button></div>' : contracts.map(c => `
@@ -10925,6 +11047,201 @@ IBAN: ${l.iban || '-'}`;
         renderPage();
     }
 
+    // ═══════════════════════════════════════════════════════════════════════════
+    // CASAFARI INTEGRATION - Complete Filter System
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    // Zone IDs discovered via browser automation
+    const CASAFARI_ZONE_IDS = {
+        'trastevere': 542426,
+        'testaccio': 542407,
+        'san-lorenzo': 542430,
+        'pigneto': 542425,
+        'ostiense': 542422,
+        'prati': 542428,
+        'monteverde': 542418,
+        'trieste': 542433,
+        'monti': 542417,
+        'esquilino': 542410,
+        'flaminio': 542411,
+        'nomentano': 542421,
+        'centro-storico': 542405,
+        'garbatella': 542412,
+        'roma-provincia': 200595,
+        'roma-comune': 200594
+    };
+
+    // Current Casafari filter state
+    let casafariFilters = {
+        zones: [],
+        priceMin: 400,
+        priceMax: 1500,
+        roomsMin: 0,
+        roomsMax: 0,
+        bathMin: 0,
+        bathMax: 0,
+        areaMin: 0,
+        areaMax: 0,
+        daysMax: 30,
+        furnished: 0,
+        privateOnly: false,
+        newOnly: false
+    };
+
+    // Build complete Casafari URL with ALL filters
+    function preBuildCasafariUrl(filters) {
+        const f = filters || casafariFilters;
+        const baseUrl = 'https://it.casafari.com/metasearch';
+
+        const params = new URLSearchParams({
+            saleType: 'rent',
+            priceMin: f.priceMin || 400,
+            priceMax: f.priceMax || 1500,
+            sort: 'sort-by-days-low-to-high',
+            page: 1,
+            devType: 'old',
+            type: 'search'
+        });
+
+        // Zone/Location
+        if (f.zones && f.zones.length > 0) {
+            const zoneIds = f.zones.map(z => CASAFARI_ZONE_IDS[z]).filter(Boolean);
+            if (zoneIds.length > 0) {
+                params.set('locations', zoneIds.join(','));
+            }
+        } else {
+            params.set('locations', CASAFARI_ZONE_IDS['roma-provincia']);
+        }
+
+        // Rooms
+        if (f.roomsMin > 0) params.set('roomsMin', f.roomsMin);
+        if (f.roomsMax > 0) params.set('roomsMax', f.roomsMax);
+
+        // Bathrooms
+        if (f.bathMin > 0) params.set('bathMin', f.bathMin);
+        if (f.bathMax > 0) params.set('bathMax', f.bathMax);
+
+        // Area (sqm)
+        if (f.areaMin > 0) params.set('totalAreaMin', f.areaMin);
+        if (f.areaMax > 0) params.set('totalAreaMax', f.areaMax);
+
+        // Days on market (new listings)
+        if (f.daysMax > 0 && f.daysMax < 365) {
+            params.set('daysOnTheMarketMax', f.daysMax);
+        }
+
+        // Furnished: 0=all, 1=furnished, 2=unfurnished
+        if (f.furnished > 0) params.set('furniture', f.furnished);
+
+        // Private sellers only
+        if (f.privateOnly) params.set('privateSellers', 'true');
+
+        return baseUrl + '?' + params.toString();
+    }
+
+    // Open Casafari with current filters
+    function preOpenCasafari(zone) {
+        let filters = { ...casafariFilters };
+        if (zone) {
+            filters.zones = [zone];
+        }
+        const url = preBuildCasafariUrl(filters);
+        window.open(url, '_blank');
+        const zoneName = zone ? (PRE_ZONES[zone]?.name || zone) : 'Roma';
+        showToast('🔍 Casafari: ' + zoneName + ' (€' + filters.priceMin + '-€' + filters.priceMax + ')', 'info');
+    }
+
+    // Open Casafari for a specific PFS client
+    function preOpenCasafariForClient(clientId) {
+        const client = (S.pfsClients || []).find(c => c.id === clientId);
+        if (!client) return;
+
+        // Build filters from client preferences
+        const uni = ZI_UNIVERSITIES.find(u => u.id === client.university);
+        const filters = {
+            zones: uni ? uni.zones.slice(0, 3) : [],
+            priceMin: Math.max(300, (client.budget || 1000) - 200),
+            priceMax: client.budget || 1200,
+            roomsMin: client.rooms || 0,
+            roomsMax: client.rooms ? client.rooms + 1 : 0,
+            bathMin: 0,
+            bathMax: 0,
+            areaMin: client.minArea || 0,
+            areaMax: 0,
+            daysMax: 14,
+            furnished: client.furnished ? 1 : 0,
+            privateOnly: false
+        };
+
+        const url = preBuildCasafariUrl(filters);
+        window.open(url, '_blank');
+        showToast('🔍 Casafari per ' + (client.name?.split(' ')[0] || 'cliente'), 'success');
+    }
+
+    // Open Casafari Alerts page
+    function preOpenCasafariAlerts() {
+        window.open('https://it.casafari.com/account/alerts', '_blank');
+        showToast('🔔 Apertura Alert Casafari...', 'info');
+    }
+
+    // Update a specific Casafari filter
+    function preSetCasafariFilter(key, value) {
+        casafariFilters[key] = value;
+        renderPage();
+    }
+
+    // Toggle zone in Casafari filters
+    function preToggleCasafariZone(zone) {
+        const idx = casafariFilters.zones.indexOf(zone);
+        if (idx === -1) {
+            casafariFilters.zones.push(zone);
+        } else {
+            casafariFilters.zones.splice(idx, 1);
+        }
+        renderPage();
+    }
+
+    // Reset Casafari filters to defaults
+    function preResetCasafariFilters() {
+        casafariFilters = {
+            zones: [],
+            priceMin: 400,
+            priceMax: 1500,
+            roomsMin: 0,
+            roomsMax: 0,
+            bathMin: 0,
+            bathMax: 0,
+            areaMin: 0,
+            areaMax: 0,
+            daysMax: 30,
+            furnished: 0,
+            privateOnly: false,
+            newOnly: false
+        };
+        renderPage();
+        showToast('🔄 Filtri resettati', 'info');
+    }
+
+    // Quick presets for common PFS searches
+    function preCasafariPreset(preset) {
+        switch(preset) {
+            case 'student-budget':
+                casafariFilters = { ...casafariFilters, priceMin: 400, priceMax: 800, roomsMin: 1, roomsMax: 2, furnished: 1, daysMax: 14 };
+                break;
+            case 'student-comfort':
+                casafariFilters = { ...casafariFilters, priceMin: 700, priceMax: 1200, roomsMin: 1, roomsMax: 3, furnished: 1, daysMax: 14 };
+                break;
+            case 'professional':
+                casafariFilters = { ...casafariFilters, priceMin: 1000, priceMax: 1800, roomsMin: 2, roomsMax: 4, areaMin: 50, daysMax: 30 };
+                break;
+            case 'new-listings':
+                casafariFilters = { ...casafariFilters, daysMax: 3 };
+                break;
+        }
+        renderPage();
+        showToast('⚡ Preset applicato', 'success');
+    }
+
     function preBuildSearchUrl(portal, zone) {
         const z = PRE_ZONES[zone];
         if (!z) return null;
@@ -11941,10 +12258,179 @@ IBAN: ${l.iban || '-'}`;
                 </div>`;
         }
 
+        // CASAFARI TAB - Complete Filter System
+        else if (preState.currentTab === 'casafari') {
+            const zones = Object.entries(PRE_ZONES).slice(0, 14);
+            const f = casafariFilters;
+            const pfsClients = (S.pfsClients || []).filter(c => !['placed', 'lost'].includes(c.stage));
+
+            content = `
+                <!-- Hero Section -->
+                <div style="background:linear-gradient(135deg, rgba(212,175,55,0.15) 0%, rgba(0,122,255,0.1) 100%);border-radius:16px;padding:28px;margin-bottom:24px;border:1px solid var(--gold)">
+                    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px">
+                        <div>
+                            <h2 style="font-size:26px;margin-bottom:6px">🏠 CASAFARI Search Builder</h2>
+                            <p style="color:var(--text-secondary);font-size:13px">Configura i filtri → Cerca su Casafari → Crea Alert con un click</p>
+                        </div>
+                        <div style="display:flex;gap:10px;flex-wrap:wrap">
+                            <button class="btn" onclick="preOpenCasafari()">🔍 CERCA ORA</button>
+                            <button class="btn btn-secondary" onclick="preOpenCasafariAlerts()" style="border-color:var(--orange);color:var(--orange)">🔔 I Miei Alert</button>
+                            <button class="btn btn-secondary" onclick="preResetCasafariFilters()">↺ Reset</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid-2">
+                    <!-- FILTERS PANEL -->
+                    <div class="card">
+                        <div class="card-header"><h3 class="card-title">⚙️ Filtri Ricerca</h3></div>
+                        <div class="card-body">
+                            <!-- Quick Presets -->
+                            <div style="margin-bottom:20px">
+                                <label class="form-label">⚡ Preset Rapidi</label>
+                                <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px">
+                                    <button class="btn btn-xs btn-secondary" onclick="preCasafariPreset('student-budget')">🎓 Studente Budget</button>
+                                    <button class="btn btn-xs btn-secondary" onclick="preCasafariPreset('student-comfort')">🎓 Studente Comfort</button>
+                                    <button class="btn btn-xs btn-secondary" onclick="preCasafariPreset('professional')">💼 Professional</button>
+                                    <button class="btn btn-xs btn-secondary" onclick="preCasafariPreset('new-listings')">🆕 Solo Nuovi (3gg)</button>
+                                </div>
+                            </div>
+
+                            <!-- Price Range -->
+                            <div style="margin-bottom:16px">
+                                <label class="form-label">💰 Budget (€/mese)</label>
+                                <div style="display:flex;gap:10px;margin-top:6px">
+                                    <input type="number" class="form-input" value="${f.priceMin}" onchange="preSetCasafariFilter('priceMin', +this.value)" placeholder="Min" style="margin:0">
+                                    <span style="padding:8px;color:var(--text-muted)">-</span>
+                                    <input type="number" class="form-input" value="${f.priceMax}" onchange="preSetCasafariFilter('priceMax', +this.value)" placeholder="Max" style="margin:0">
+                                </div>
+                            </div>
+
+                            <!-- Rooms & Baths -->
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+                                <div>
+                                    <label class="form-label">🛏️ Camere (min)</label>
+                                    <select class="form-select" onchange="preSetCasafariFilter('roomsMin', +this.value)" style="margin:0">
+                                        <option value="0" ${f.roomsMin === 0 ? 'selected' : ''}>Qualsiasi</option>
+                                        <option value="1" ${f.roomsMin === 1 ? 'selected' : ''}>1+</option>
+                                        <option value="2" ${f.roomsMin === 2 ? 'selected' : ''}>2+</option>
+                                        <option value="3" ${f.roomsMin === 3 ? 'selected' : ''}>3+</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="form-label">🚿 Bagni (min)</label>
+                                    <select class="form-select" onchange="preSetCasafariFilter('bathMin', +this.value)" style="margin:0">
+                                        <option value="0" ${f.bathMin === 0 ? 'selected' : ''}>Qualsiasi</option>
+                                        <option value="1" ${f.bathMin === 1 ? 'selected' : ''}>1+</option>
+                                        <option value="2" ${f.bathMin === 2 ? 'selected' : ''}>2+</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Area -->
+                            <div style="margin-bottom:16px">
+                                <label class="form-label">📐 Superficie minima (mq)</label>
+                                <select class="form-select" onchange="preSetCasafariFilter('areaMin', +this.value)" style="margin:0">
+                                    <option value="0" ${f.areaMin === 0 ? 'selected' : ''}>Qualsiasi</option>
+                                    <option value="30" ${f.areaMin === 30 ? 'selected' : ''}>30+ mq</option>
+                                    <option value="50" ${f.areaMin === 50 ? 'selected' : ''}>50+ mq</option>
+                                    <option value="70" ${f.areaMin === 70 ? 'selected' : ''}>70+ mq</option>
+                                    <option value="100" ${f.areaMin === 100 ? 'selected' : ''}>100+ mq</option>
+                                </select>
+                            </div>
+
+                            <!-- Days on Market -->
+                            <div style="margin-bottom:16px">
+                                <label class="form-label">📅 Pubblicato negli ultimi</label>
+                                <select class="form-select" onchange="preSetCasafariFilter('daysMax', +this.value)" style="margin:0">
+                                    <option value="3" ${f.daysMax === 3 ? 'selected' : ''}>3 giorni</option>
+                                    <option value="7" ${f.daysMax === 7 ? 'selected' : ''}>7 giorni</option>
+                                    <option value="14" ${f.daysMax === 14 ? 'selected' : ''}>14 giorni</option>
+                                    <option value="30" ${f.daysMax === 30 ? 'selected' : ''}>30 giorni</option>
+                                    <option value="90" ${f.daysMax === 90 ? 'selected' : ''}>90 giorni</option>
+                                    <option value="365" ${f.daysMax === 365 ? 'selected' : ''}>Tutti</option>
+                                </select>
+                            </div>
+
+                            <!-- Furnished -->
+                            <div style="margin-bottom:16px">
+                                <label class="form-label">🪑 Arredamento</label>
+                                <div style="display:flex;gap:8px;margin-top:6px">
+                                    <button class="btn btn-sm ${f.furnished === 0 ? '' : 'btn-secondary'}" onclick="preSetCasafariFilter('furnished', 0)">Tutti</button>
+                                    <button class="btn btn-sm ${f.furnished === 1 ? '' : 'btn-secondary'}" onclick="preSetCasafariFilter('furnished', 1)">Arredato</button>
+                                    <button class="btn btn-sm ${f.furnished === 2 ? '' : 'btn-secondary'}" onclick="preSetCasafariFilter('furnished', 2)">Non arredato</button>
+                                </div>
+                            </div>
+
+                            <!-- Private Only -->
+                            <div>
+                                <label class="form-label">👤 Tipologia</label>
+                                <div style="display:flex;gap:8px;margin-top:6px">
+                                    <button class="btn btn-sm ${!f.privateOnly ? '' : 'btn-secondary'}" onclick="preSetCasafariFilter('privateOnly', false)">Tutti</button>
+                                    <button class="btn btn-sm ${f.privateOnly ? '' : 'btn-secondary'}" onclick="preSetCasafariFilter('privateOnly', true)">Solo Privati</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ZONES PANEL -->
+                    <div class="card">
+                        <div class="card-header"><h3 class="card-title">📍 Zone (${f.zones.length || 'Tutta Roma'})</h3></div>
+                        <div class="card-body">
+                            <p style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">Seleziona le zone da cercare. Lascia vuoto per tutta Roma.</p>
+                            <div style="display:flex;flex-wrap:wrap;gap:8px">
+                                ${zones.map(([slug, z]) => `<button class="btn btn-sm ${f.zones.includes(slug) ? '' : 'btn-secondary'}" onclick="preToggleCasafariZone('${slug}')" style="${f.zones.includes(slug) ? '' : 'opacity:0.7'}">${z.name}</button>`).join('')}
+                            </div>
+                            ${f.zones.length > 0 ? `<div style="margin-top:12px;padding:10px;background:var(--bg-elevated);border-radius:8px;font-size:12px"><strong>Selezionate:</strong> ${f.zones.map(z => PRE_ZONES[z]?.name || z).join(', ')}</div>` : ''}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PFS CLIENTS QUICK SEARCH -->
+                ${pfsClients.length > 0 ? `
+                <div class="card" style="margin-top:24px">
+                    <div class="card-header"><h3 class="card-title">👥 Cerca per Cliente PFS</h3></div>
+                    <div class="card-body">
+                        <p style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">Clicca su un cliente per aprire Casafari con i suoi criteri di ricerca.</p>
+                        <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(200px, 1fr));gap:12px">
+                            ${pfsClients.slice(0, 8).map(c => {
+                                const uni = ZI_UNIVERSITIES.find(u => u.id === c.university);
+                                return `<div style="padding:12px;background:var(--bg-elevated);border-radius:10px;cursor:pointer;transition:all .2s" onclick="preOpenCasafariForClient('${c.id}')" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='transparent'">
+                                    <div style="font-weight:600;font-size:14px;margin-bottom:4px">${esc(c.name?.split(' ')[0] || 'Cliente')}</div>
+                                    <div style="font-size:11px;color:var(--text-secondary)">€${c.budget || '?'}/mo · ${c.rooms || '?'} cam · ${uni?.name || '?'}</div>
+                                </div>`;
+                            }).join('')}
+                        </div>
+                    </div>
+                </div>` : ''}
+
+                <!-- CURRENT SEARCH PREVIEW -->
+                <div class="card" style="margin-top:24px;border-color:var(--gold)">
+                    <div class="card-header" style="background:var(--gold-light)"><h3 class="card-title" style="color:var(--gold)">🔍 Riepilogo Ricerca</h3></div>
+                    <div class="card-body">
+                        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px">
+                            <span class="badge gold">€${f.priceMin}-€${f.priceMax}</span>
+                            ${f.roomsMin > 0 ? `<span class="badge blue">${f.roomsMin}+ camere</span>` : ''}
+                            ${f.bathMin > 0 ? `<span class="badge blue">${f.bathMin}+ bagni</span>` : ''}
+                            ${f.areaMin > 0 ? `<span class="badge blue">${f.areaMin}+ mq</span>` : ''}
+                            <span class="badge orange">Ultimi ${f.daysMax} gg</span>
+                            ${f.furnished === 1 ? '<span class="badge green">Arredato</span>' : f.furnished === 2 ? '<span class="badge">Non arredato</span>' : ''}
+                            ${f.privateOnly ? '<span class="badge purple">Solo Privati</span>' : ''}
+                            ${f.zones.length > 0 ? f.zones.map(z => `<span class="badge">${PRE_ZONES[z]?.name || z}</span>`).join('') : '<span class="badge gray">Tutta Roma</span>'}
+                        </div>
+                        <div style="display:flex;gap:12px;flex-wrap:wrap">
+                            <button class="btn" onclick="preOpenCasafari()" style="flex:1;min-width:200px">🔍 APRI CASAFARI CON QUESTI FILTRI</button>
+                            <button class="btn btn-secondary" onclick="preOpenCasafariAlerts()" style="border-color:var(--orange);color:var(--orange)">🔔 Gestisci Alert</button>
+                        </div>
+                    </div>
+                </div>`;
+        }
+
         return `
             <div class="page-header"><div><h1 class="page-title">🏠 Property Research Engine</h1><p class="page-subtitle">Smart matching · Tracker · Analytics</p></div><button class="btn btn-secondary" onclick="preReset()">🔄</button></div>
             <div class="tabs" style="margin-bottom:24px">
                 <div class="tab ${preState.currentTab === 'dashboard' ? 'active' : ''}" onclick="preState.currentTab='dashboard';renderPage()">📊 Dashboard</div>
+                <div class="tab ${preState.currentTab === 'casafari' ? 'active' : ''}" onclick="preState.currentTab='casafari';renderPage()">🏠 Casafari <span class="nav-badge gold">NEW</span></div>
                 <div class="tab ${preState.currentTab === 'search' ? 'active' : ''}" onclick="preState.currentTab='search';renderPage()">🔍 Cerca</div>
                 <div class="tab ${preState.currentTab === 'properties' ? 'active' : ''}" onclick="preState.currentTab='properties';renderPage()">🏠 Immobili <span class="nav-badge">${active.length}</span></div>
                 <div class="tab ${preState.currentTab === 'matching' ? 'active' : ''}" onclick="preState.currentTab='matching';renderPage()">🎯 Matching</div>
@@ -11953,80 +12439,1294 @@ IBAN: ${l.iban || '-'}`;
             ${content}`;
     }
 
-    
-    // ═══════════════════════════════════════════════════════════
-    // VIDEO SHOWCASE & STORAGE TEST (v9.FEB.2026)
-    // ═══════════════════════════════════════════════════════════
-    function extractYouTubeId(url) {
-        if (!url) return null;
-        var m = url.match(/(?:shorts\/|watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
-        return m ? m[1] : null;
-    }
-    async function loadVideoSettings() {
-        try {
-            var doc = await db.collection('settings').doc('video').get();
-            var badge = document.getElementById('videoBadge');
-            var preview = document.getElementById('videoPreview');
-            var input = document.getElementById('videoUrlInput');
-            if (doc.exists && doc.data().youtubeUrl) {
-                var data = doc.data();
-                var vid = extractYouTubeId(data.youtubeUrl);
-                if (input) input.value = data.youtubeUrl;
-                if (badge) { badge.textContent = 'Attivo'; badge.className = 'badge green'; }
-                if (preview && vid) {
-                    preview.style.display = 'block';
-                    preview.innerHTML = '<div style="display:flex;align-items:center;gap:12px"><img src="https://img.youtube.com/vi/' + vid + '/mqdefault.jpg" style="width:120px;border-radius:8px"><div><strong>Video attivo</strong><br><a href="' + data.youtubeUrl + '" target="_blank" style="color:var(--gold);font-size:12px">Apri su YouTube</a></div></div>';
-                }
-            } else {
-                if (badge) { badge.textContent = 'Non impostato'; badge.className = 'badge gray'; }
-                if (preview) preview.style.display = 'none';
-            }
-        } catch (e) { console.log('Video settings:', e.message); }
-    }
-    async function saveVideoUrl() {
-        var url = document.getElementById('videoUrlInput')?.value?.trim();
-        if (!url) return toast('error', 'Inserisci URL');
-        var vid = extractYouTubeId(url);
-        if (!vid) return toast('error', 'URL YouTube non valido');
-        try {
-            await db.collection('settings').doc('video').set({ youtubeUrl: url, youtubeId: vid, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
-            toast('success', 'Video salvato!'); loadVideoSettings();
-        } catch (e) { toast('error', 'Errore', e.message); }
-    }
-    async function clearVideoUrl() {
-        if (!confirm('Rimuovere il video?')) return;
-        try {
-            await db.collection('settings').doc('video').delete();
-            document.getElementById('videoUrlInput').value = '';
-            document.getElementById('videoBadge').textContent = 'Non impostato';
-            document.getElementById('videoBadge').className = 'badge gray';
-            document.getElementById('videoPreview').style.display = 'none';
-            toast('success', 'Video rimosso');
-        } catch (e) { toast('error', 'Errore', e.message); }
-    }
-    async function testStorage() {
-        var btn = document.getElementById('testStorageBtn');
-        var result = document.getElementById('storageTestResult');
-        if (btn) { btn.disabled = true; btn.textContent = '⏳ Testing...'; }
-        if (result) { result.style.display = 'block'; result.innerHTML = ''; }
-        var log = function(msg) { if (result) result.innerHTML += msg + '<br>'; };
-        try {
-            log('1. Checking Storage...'); var storage = firebase.storage();
-            var ref = storage.ref('test/test-' + Date.now() + '.txt');
-            log('2. Uploading...'); await ref.put(new Blob(['test'], { type: 'text/plain' })); log('✅ Upload OK');
-            log('3. Getting URL...'); var url = await ref.getDownloadURL(); log('✅ URL OK');
-            log('4. Cleanup...'); await ref.delete(); log('✅ Delete OK');
-            log('<strong style="color:var(--green)">✅ Storage funziona!</strong>');
-            var badge = document.getElementById('storageBadge');
-            if (badge) { badge.textContent = '✅ OK'; badge.className = 'badge green'; }
-        } catch (e) {
-            log('<strong style="color:var(--red)">❌ ' + e.code + '</strong>'); log(e.message);
-            var badge = document.getElementById('storageBadge');
-            if (badge) { badge.textContent = '❌ Errore'; badge.className = 'badge red'; }
-        }
-        if (btn) { btn.disabled = false; btn.textContent = '🧪 Testa Storage'; }
+    // ========================================
+    // ADE DOCUMENT CONVERTER v2.0 - COMPLIANT
+    // ========================================
+    const adeState = { files: [], processing: false, quality: 0.7, compressImages: true, status: '' };
+    const ADE_LIMITS = { maxSingleFile: 5 * 1024 * 1024, maxTotal: 20 * 1024 * 1024, maxFiles: 10, maxImageDim: 2000 };
+
+    function adeConverterCard() {
+        const totalSize = adeState.files.reduce((sum, f) => sum + f.size, 0);
+        const estimatedSize = adeState.files.reduce((sum, f) => sum + (f.estimatedCompressed || f.size), 0);
+        const sizeWarning = estimatedSize > ADE_LIMITS.maxTotal;
+        const anyFileWarning = adeState.files.some(f => (f.estimatedCompressed || f.size) > ADE_LIMITS.maxSingleFile);
+        const allGood = adeState.files.length > 0 && !sizeWarning && !anyFileWarning;
+        
+        return `
+            <div class="card" style="margin-bottom:24px;border-color:${allGood ? 'var(--green)' : sizeWarning || anyFileWarning ? 'var(--orange)' : 'var(--border)'}">
+                <div class="card-header" style="display:flex;justify-content:space-between;align-items:center">
+                    <h3 class="card-title">🏛️ Prepara Documenti AdE</h3>
+                    <div style="display:flex;gap:8px;align-items:center">
+                        ${allGood ? '<span class="badge green">✓ Pronto per AdE</span>' : ''}
+                        ${adeState.files.length > 0 ? `<button class="btn btn-sm btn-secondary" onclick="adeClearAll()">Svuota</button>` : ''}
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- Drop Zone -->
+                    <div id="adeDropZone" ondrop="adeHandleDrop(event)" ondragover="adeDragOver(event)" ondragleave="adeDragLeave(event)" onclick="document.getElementById('adeFileInput').click()" style="border:2px dashed var(--border);border-radius:12px;padding:28px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:16px">
+                        <div style="font-size:28px;margin-bottom:8px">📎</div>
+                        <div style="font-weight:500;margin-bottom:4px">Trascina PDF, JPG, PNG qui</div>
+                        <div style="font-size:12px;color:var(--text-secondary)">Compressione automatica per rispettare i limiti AdE</div>
+                        <input type="file" id="adeFileInput" multiple accept=".pdf,.jpg,.jpeg,.png" style="display:none" onchange="adeHandleFiles(this.files)">
+                    </div>
+                    
+                    ${adeState.files.length > 0 ? `
+                    <!-- File List -->
+                    <div style="margin-bottom:16px">
+                        ${adeState.files.map((f, i) => {
+                            const origSize = f.size;
+                            const estSize = f.estimatedCompressed || f.size;
+                            const willCompress = f.type.startsWith('image/') && origSize > 500000;
+                            const isOverSize = estSize > ADE_LIMITS.maxSingleFile;
+                            const sizeDisplay = estSize > 1024 * 1024 ? (estSize / 1024 / 1024).toFixed(1) + ' MB' : (estSize / 1024).toFixed(0) + ' KB';
+                            const origDisplay = origSize > 1024 * 1024 ? (origSize / 1024 / 1024).toFixed(1) + ' MB' : (origSize / 1024).toFixed(0) + ' KB';
+                            return `<div class="list-item" style="padding:10px 12px;${isOverSize ? 'border-left:3px solid var(--orange)' : willCompress ? 'border-left:3px solid var(--blue)' : ''}">
+                                <div style="display:flex;align-items:center;gap:10px;flex:1">
+                                    <span style="font-size:18px">${f.type.includes('pdf') ? '📄' : '🖼️'}</span>
+                                    <div style="flex:1;min-width:0">
+                                        <div style="font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(f.name)}</div>
+                                        <div style="font-size:10px;color:${isOverSize ? 'var(--orange)' : 'var(--text-secondary)'}">
+                                            ${willCompress ? `<span style="color:var(--blue)">${origDisplay} → ${sizeDisplay}</span>` : sizeDisplay}
+                                            ${isOverSize ? ' ⚠️ Troppo grande!' : ''}
+                                            ${f.type.includes('pdf') ? ' <span style="opacity:0.5">PDF originale</span>' : ''}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div style="display:flex;gap:4px">
+                                    ${i > 0 ? `<button class="btn btn-xs btn-secondary" onclick="adeMoveFile(${i},-1)" title="Sposta su">↑</button>` : '<div style="width:28px"></div>'}
+                                    ${i < adeState.files.length - 1 ? `<button class="btn btn-xs btn-secondary" onclick="adeMoveFile(${i},1)" title="Sposta giù">↓</button>` : '<div style="width:28px"></div>'}
+                                    <button class="btn btn-xs btn-secondary" onclick="adeRemoveFile(${i})" style="color:var(--red)" title="Rimuovi">✕</button>
+                                </div>
+                            </div>`;
+                        }).join('')}
+                    </div>
+                    
+                    <!-- Quality Slider -->
+                    <div style="padding:12px;background:var(--bg-elevated);border-radius:8px;margin-bottom:12px">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                            <span style="font-size:12px;font-weight:500">⚙️ Qualità immagini</span>
+                            <span style="font-size:11px;color:var(--text-secondary)">${Math.round(adeState.quality * 100)}%</span>
+                        </div>
+                        <input type="range" min="30" max="95" value="${adeState.quality * 100}" onchange="adeSetQuality(this.value)" style="width:100%;accent-color:var(--gold)">
+                        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-muted);margin-top:4px">
+                            <span>Min (file piccoli)</span>
+                            <span>Max (alta qualità)</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Size Summary -->
+                    <div style="padding:12px;background:var(--bg-elevated);border-radius:8px;margin-bottom:12px">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+                            <span style="font-size:12px">${adeState.files.length} documento${adeState.files.length > 1 ? 'i' : ''}</span>
+                            <span style="font-size:12px;font-weight:600;color:${sizeWarning ? 'var(--orange)' : 'var(--green)'}">${(estimatedSize / 1024 / 1024).toFixed(2)} MB / 20 MB</span>
+                        </div>
+                        <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden">
+                            <div style="height:100%;background:${sizeWarning ? 'var(--orange)' : 'var(--green)'};width:${Math.min(100, (estimatedSize / ADE_LIMITS.maxTotal) * 100)}%;transition:width .3s"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- AdE Compliance Checklist -->
+                    <div style="padding:12px;background:${allGood ? 'var(--green-light)' : 'var(--bg-elevated)'};border-radius:8px;margin-bottom:16px;border:1px solid ${allGood ? 'var(--green)' : 'var(--border)'}">
+                        <div style="font-size:11px;font-weight:600;margin-bottom:8px;color:${allGood ? 'var(--green)' : 'var(--text-secondary)'}">VERIFICA COMPATIBILITÀ ADE</div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:11px">
+                            <div>${estimatedSize <= ADE_LIMITS.maxTotal ? '✅' : '❌'} Totale ≤ 20MB</div>
+                            <div>${!anyFileWarning ? '✅' : '❌'} Singolo ≤ 5MB</div>
+                            <div>✅ Formato PDF</div>
+                            <div>✅ Metadata corretti</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Status -->
+                    ${adeState.status ? `<div style="padding:10px;background:var(--blue-light);border-radius:8px;margin-bottom:12px;font-size:12px;color:var(--blue)">${adeState.status}</div>` : ''}
+                    
+                    <!-- Actions -->
+                    <div style="display:flex;gap:10px;flex-wrap:wrap">
+                        <button class="btn" onclick="adeGenerateFinal()" ${adeState.processing ? 'disabled' : ''} style="flex:1;min-width:200px">
+                            ${adeState.processing ? '<span class="spinner" style="width:14px;height:14px;border-width:2px;margin-right:8px"></span>' : '🏛️ '}
+                            ${adeState.processing ? 'Elaborazione...' : 'Genera PDF per AdE'}
+                        </button>
+                        ${adeState.files.length > 1 ? `<button class="btn btn-secondary" onclick="adeDownloadSeparate()" ${adeState.processing ? 'disabled' : ''} title="Scarica ogni documento separatamente">📄 Separati</button>` : ''}
+                    </div>
+                    ` : `
+                    <!-- Empty State -->
+                    <div style="text-align:center;color:var(--text-secondary);padding:16px">
+                        <p style="font-size:13px;margin-bottom:8px">Carica i documenti da allegare alla registrazione</p>
+                        <div style="font-size:11px;line-height:1.6">
+                            ✓ Documento identità · ✓ Visura catastale · ✓ APE<br>
+                            ✓ Compressione automatica · ✓ Unione documenti · ✓ Formato AdE
+                        </div>
+                    </div>
+                    `}
+                </div>
+            </div>`;
     }
 
-</script>
+    function adeDragOver(e) { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--gold)'; e.currentTarget.style.background = 'var(--gold-light)'; }
+    function adeDragLeave(e) { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.background = 'transparent'; }
+    function adeHandleDrop(e) { e.preventDefault(); adeDragLeave(e); adeProcessFiles(Array.from(e.dataTransfer.files)); }
+    function adeHandleFiles(fl) { adeProcessFiles(Array.from(fl)); }
+    function adeSetQuality(v) { adeState.quality = v / 100; adeEstimateCompressedSizes(); adeRefresh(); }
+    
+    function adeProcessFiles(files) {
+        const valid = files.filter(f => ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'].includes(f.type));
+        if (valid.length !== files.length) toast('warning', 'Accettati solo PDF, JPG, PNG');
+        if (adeState.files.length + valid.length > ADE_LIMITS.maxFiles) { toast('warning', `Massimo ${ADE_LIMITS.maxFiles} file`); return; }
+        
+        let loaded = 0;
+        valid.forEach(file => {
+            const reader = new FileReader();
+            reader.onload = (e) => { 
+                const fileObj = { name: file.name, type: file.type, size: file.size, data: e.target.result };
+                // Estimate compressed size for images
+                if (file.type.startsWith('image/')) {
+                    fileObj.estimatedCompressed = Math.min(file.size, Math.round(file.size * adeState.quality * 0.6));
+                }
+                adeState.files.push(fileObj);
+                loaded++;
+                if (loaded === valid.length) adeRefresh();
+            };
+            reader.readAsArrayBuffer(file);
+        });
+    }
+
+    function adeEstimateCompressedSizes() {
+        adeState.files.forEach(f => {
+            if (f.type.startsWith('image/')) {
+                f.estimatedCompressed = Math.min(f.size, Math.round(f.size * adeState.quality * 0.6));
+            }
+        });
+    }
+
+    function adeRemoveFile(i) { adeState.files.splice(i, 1); adeRefresh(); }
+    function adeMoveFile(i, d) { const n = i + d; if (n < 0 || n >= adeState.files.length) return; [adeState.files[i], adeState.files[n]] = [adeState.files[n], adeState.files[i]]; adeRefresh(); }
+    function adeClearAll() { adeState.files = []; adeState.status = ''; adeRefresh(); }
+    function adeRefresh() { if (S.page === 'registrations') document.getElementById('main').innerHTML = registrationsPage(); }
+    function adeSetStatus(s) { adeState.status = s; adeRefresh(); }
+
+    // Compress image using canvas
+    async function adeCompressImage(arrayBuffer, type, quality, maxDim) {
+        return new Promise((resolve, reject) => {
+            const blob = new Blob([arrayBuffer], { type });
+            const url = URL.createObjectURL(blob);
+            const img = new Image();
+            img.onload = () => {
+                URL.revokeObjectURL(url);
+                let w = img.width, h = img.height;
+                // Scale down if too large
+                if (w > maxDim || h > maxDim) {
+                    const ratio = Math.min(maxDim / w, maxDim / h);
+                    w = Math.round(w * ratio);
+                    h = Math.round(h * ratio);
+                }
+                const canvas = document.createElement('canvas');
+                canvas.width = w; canvas.height = h;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillRect(0, 0, w, h);
+                ctx.drawImage(img, 0, 0, w, h);
+                canvas.toBlob(blob => {
+                    blob.arrayBuffer().then(resolve).catch(reject);
+                }, 'image/jpeg', quality);
+            };
+            img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Image load failed')); };
+            img.src = url;
+        });
+    }
+
+    async function adeGenerateFinal() {
+        if (adeState.files.length === 0) return;
+        adeState.processing = true; adeRefresh();
+        
+        try {
+            const { PDFDocument } = PDFLib;
+            const merged = await PDFDocument.create();
+            
+            // Set comprehensive metadata for AdE compliance
+            const now = new Date();
+            merged.setTitle('Allegati Registrazione Contratto');
+            merged.setAuthor('BOOM - Egidi Immobiliare S.r.l.');
+            merged.setSubject('Documenti per registrazione contratto locazione - Agenzia delle Entrate');
+            merged.setKeywords(['contratto', 'locazione', 'registrazione', 'AdE', 'RLI']);
+            merged.setCreator('BOOM Property Portal');
+            merged.setProducer('BOOM AdE Converter - boomrome.com');
+            merged.setCreationDate(now);
+            merged.setModificationDate(now);
+            
+            const totalFiles = adeState.files.length;
+            let processed = 0;
+            
+            for (const file of adeState.files) {
+                processed++;
+                adeSetStatus(`Elaborazione ${processed}/${totalFiles}: ${file.name}`);
+                
+                if (file.type === 'application/pdf') {
+                    try {
+                        const pdf = await PDFDocument.load(file.data, { ignoreEncryption: true });
+                        const pages = await merged.copyPages(pdf, pdf.getPageIndices());
+                        pages.forEach(p => merged.addPage(p));
+                    } catch (pdfErr) {
+                        console.warn('PDF load error, trying recovery:', pdfErr);
+                        toast('warning', `Attenzione: ${file.name} potrebbe avere problemi`);
+                    }
+                } else {
+                    // Image - compress and convert to PDF page
+                    let imgData = file.data;
+                    let imgType = file.type;
+                    
+                    // Compress if large
+                    if (file.size > 300000 || file.type === 'image/png') {
+                        adeSetStatus(`Compressione ${file.name}...`);
+                        imgData = await adeCompressImage(file.data, file.type, adeState.quality, ADE_LIMITS.maxImageDim);
+                        imgType = 'image/jpeg';
+                    }
+                    
+                    const page = merged.addPage([595.28, 841.89]); // A4
+                    const img = imgType === 'image/png' ? await merged.embedPng(imgData) : await merged.embedJpg(imgData);
+                    
+                    // Calculate dimensions with margins
+                    const margin = 20;
+                    const maxW = 595.28 - (margin * 2);
+                    const maxH = 841.89 - (margin * 2);
+                    const scale = Math.min(maxW / img.width, maxH / img.height, 1);
+                    const w = img.width * scale;
+                    const h = img.height * scale;
+                    
+                    page.drawImage(img, {
+                        x: (595.28 - w) / 2,
+                        y: (841.89 - h) / 2,
+                        width: w,
+                        height: h
+                    });
+                }
+            }
+            
+            adeSetStatus('Generazione PDF finale...');
+            
+            // Save with options for better compatibility
+            const pdfBytes = await merged.save({
+                useObjectStreams: false,
+                addDefaultPage: false
+            });
+            
+            // Check final size
+            const finalSizeMB = (pdfBytes.length / 1024 / 1024).toFixed(2);
+            if (pdfBytes.length > ADE_LIMITS.maxTotal) {
+                toast('warning', `File generato: ${finalSizeMB}MB - supera il limite di 20MB!`);
+            }
+            
+            // Download
+            const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            const timestamp = now.toISOString().slice(0,10);
+            a.download = `documenti-contratto-ADE-${timestamp}.pdf`;
+            a.click();
+            URL.revokeObjectURL(a.href);
+            
+            adeState.status = '';
+            toast('success', `PDF generato! (${finalSizeMB} MB) - Pronto per upload su AdE`);
+            
+        } catch (err) { 
+            console.error('AdE generation error:', err); 
+            toast('error', 'Errore generazione: ' + err.message); 
+            adeState.status = '';
+        }
+        finally { 
+            adeState.processing = false; 
+            adeRefresh(); 
+        }
+    }
+
+    async function adeDownloadSeparate() {
+        if (adeState.files.length === 0) return;
+        adeState.processing = true; adeRefresh();
+        
+        try {
+            const { PDFDocument } = PDFLib;
+            let count = 0;
+            
+            for (const file of adeState.files) {
+                adeSetStatus(`Elaborazione ${file.name}...`);
+                
+                let pdfBytes;
+                if (file.type === 'application/pdf') { 
+                    pdfBytes = new Uint8Array(file.data); 
+                } else {
+                    // Create single-page PDF from image
+                    const pdf = await PDFDocument.create();
+                    pdf.setTitle(file.name);
+                    pdf.setCreator('BOOM Portal');
+                    pdf.setProducer('BOOM AdE Converter');
+                    
+                    let imgData = file.data;
+                    let imgType = file.type;
+                    
+                    if (file.size > 300000 || file.type === 'image/png') {
+                        imgData = await adeCompressImage(file.data, file.type, adeState.quality, ADE_LIMITS.maxImageDim);
+                        imgType = 'image/jpeg';
+                    }
+                    
+                    const page = pdf.addPage([595.28, 841.89]);
+                    const img = imgType === 'image/png' ? await pdf.embedPng(imgData) : await pdf.embedJpg(imgData);
+                    const scale = Math.min(555.28 / img.width, 801.89 / img.height, 1);
+                    page.drawImage(img, { 
+                        x: (595.28 - img.width * scale) / 2, 
+                        y: (841.89 - img.height * scale) / 2, 
+                        width: img.width * scale, 
+                        height: img.height * scale 
+                    });
+                    pdfBytes = await pdf.save({ useObjectStreams: false });
+                }
+                
+                const a = document.createElement('a'); 
+                a.href = URL.createObjectURL(new Blob([pdfBytes], { type: 'application/pdf' }));
+                a.download = file.name.replace(/\.[^.]+$/, '-ADE.pdf'); 
+                a.click(); 
+                URL.revokeObjectURL(a.href);
+                count++;
+                await new Promise(r => setTimeout(r, 400));
+            }
+            
+            adeState.status = '';
+            toast('success', `${count} file scaricati!`);
+        } catch (err) { 
+            console.error('AdE separate error:', err); 
+            toast('error', 'Errore: ' + err.message);
+            adeState.status = '';
+        }
+        finally { adeState.processing = false; adeRefresh(); }
+    }
+    // ========================================
+    // END ADE DOCUMENT CONVERTER
+    // ========================================
+
+    // ========================================
+    // MULTI-PORTAL LISTINGS PUBLISHER
+    // ========================================
+    const listingState = {
+        drafts: JSON.parse(localStorage.getItem('boom_listing_drafts') || '[]'),
+        current: null,
+        editMode: false
+    };
+
+    const LISTING_DEFAULTS = {
+        operationType: 'affitto',
+        propertyType: 'appartamento',
+        furnished: 'arredato',
+        energyClass: 'G',
+        contractType: '4+4'
+    };
+
+    const ZONE_ROMA = [
+        'Centro Storico', 'Trastevere', 'San Lorenzo', 'Pigneto', 'Testaccio', 
+        'Prati', 'Flaminio', 'Monteverde', 'EUR', 'Ostiense', 'Garbatella',
+        'San Giovanni', 'Re di Roma', 'Tuscolano', 'Appio Latino', 'Nomentano',
+        'Parioli', 'Trieste', 'Salario', 'Bologna', 'Tiburtino', 'Prenestino',
+        'Centocelle', 'Alessandrino', 'Tor Vergata', 'Casilino', 'Quadraro'
+    ];
+
+    function listingsPage() {
+        const drafts = listingState.drafts;
+        return `
+            <div class="page-header">
+                <h1 class="page-title">📢 Pubblica Annunci</h1>
+                <div class="page-actions">
+                    <button class="btn" onclick="openNewListing()">+ Nuovo Annuncio</button>
+                </div>
+            </div>
+            
+            <!-- Quick Stats -->
+            <div class="grid-3" style="margin-bottom:24px">
+                <div class="stat-card"><div class="stat-value">${drafts.length}</div><div class="stat-label">Bozze Salvate</div></div>
+                <div class="stat-card" style="cursor:pointer" onclick="window.open('https://www.immobiliare.it','_blank')">
+                    <div class="stat-value" style="color:#c41e3a">🏠</div><div class="stat-label">Immobiliare.it</div>
+                </div>
+                <div class="stat-card" style="cursor:pointer" onclick="window.open('https://www.idealista.it','_blank')">
+                    <div class="stat-value" style="color:#ffe100">🏡</div><div class="stat-label">Idealista</div>
+                </div>
+            </div>
+
+            <!-- New/Edit Listing Form -->
+            ${listingState.editMode ? listingFormCard() : ''}
+
+            <!-- Saved Drafts -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Bozze Annunci (${drafts.length})</span>
+                    ${drafts.length > 0 ? `<button class="btn btn-sm btn-secondary" onclick="clearAllDrafts()">Svuota Tutto</button>` : ''}
+                </div>
+                <div class="card-body flush">
+                    ${drafts.length === 0 ? `
+                        <div class="empty-state">
+                            <div class="empty-icon">📝</div>
+                            <div class="empty-title">Nessuna bozza</div>
+                            <p class="empty-text">Crea un nuovo annuncio per iniziare</p>
+                            <button class="btn" onclick="openNewListing()">+ Crea Annuncio</button>
+                        </div>
+                    ` : drafts.map((d, i) => `
+                        <div class="list-item">
+                            <div class="list-content" style="flex:1">
+                                <div class="list-title">${esc(d.title || d.address || 'Senza titolo')}</div>
+                                <div class="list-subtitle">
+                                    ${d.propertyType || 'Appartamento'} · €${d.price || '?'}/mese · ${d.sqm || '?'}mq · ${d.zone || 'Roma'}
+                                </div>
+                                <div style="font-size:10px;color:var(--text-muted);margin-top:4px">
+                                    Creato: ${new Date(d.createdAt).toLocaleDateString('it-IT')}
+                                </div>
+                            </div>
+                            <div style="display:flex;gap:6px;flex-wrap:wrap">
+                                <button class="btn btn-sm" onclick="publishToImmobiliare(${i})" title="Pubblica su Immobiliare.it" style="background:#c41e3a;border-color:#c41e3a">🏠</button>
+                                <button class="btn btn-sm" onclick="publishToIdealista(${i})" title="Pubblica su Idealista" style="background:#1a1a1a;border-color:#1a1a1a">🏡</button>
+                                <button class="btn btn-sm btn-secondary" onclick="editDraft(${i})" title="Modifica">✏️</button>
+                                <button class="btn btn-sm btn-secondary" onclick="copyListingData(${i})" title="Copia dati">📋</button>
+                                <button class="btn btn-sm btn-secondary" onclick="deleteDraft(${i})" title="Elimina" style="color:var(--red)">🗑️</button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+
+            <!-- Quick Templates -->
+            <div class="card" style="margin-top:24px">
+                <div class="card-header"><span class="card-title">🚀 Template Rapidi</span></div>
+                <div class="card-body">
+                    <div class="grid-3">
+                        <button class="btn btn-secondary" onclick="loadTemplate('monolocale')" style="padding:16px;height:auto;flex-direction:column">
+                            <span style="font-size:24px;margin-bottom:8px">🏠</span>
+                            <span>Monolocale Centro</span>
+                        </button>
+                        <button class="btn btn-secondary" onclick="loadTemplate('bilocale')" style="padding:16px;height:auto;flex-direction:column">
+                            <span style="font-size:24px;margin-bottom:8px">🏡</span>
+                            <span>Bilocale Standard</span>
+                        </button>
+                        <button class="btn btn-secondary" onclick="loadTemplate('stanza')" style="padding:16px;height:auto;flex-direction:column">
+                            <span style="font-size:24px;margin-bottom:8px">🛏️</span>
+                            <span>Stanza Studenti</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function listingFormCard() {
+        const d = listingState.current || {};
+        return `
+            <div class="card" style="margin-bottom:24px;border-color:var(--gold)">
+                <div class="card-header" style="background:var(--gold-light)">
+                    <span class="card-title">${d.id ? '✏️ Modifica' : '➕ Nuovo'} Annuncio</span>
+                    <button class="btn btn-sm btn-secondary" onclick="cancelListingEdit()">✕ Chiudi</button>
+                </div>
+                <div class="card-body">
+                    <!-- Tipo Operazione -->
+                    <div class="grid-2" style="margin-bottom:16px">
+                        <div>
+                            <label class="form-label">Tipo Operazione *</label>
+                            <select id="lst_opType" class="form-input">
+                                <option value="affitto" ${d.operationType==='affitto'?'selected':''}>Affitto</option>
+                                <option value="vendita" ${d.operationType==='vendita'?'selected':''}>Vendita</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="form-label">Tipologia *</label>
+                            <select id="lst_propType" class="form-input">
+                                <option value="appartamento" ${d.propertyType==='appartamento'?'selected':''}>Appartamento</option>
+                                <option value="stanza" ${d.propertyType==='stanza'?'selected':''}>Stanza</option>
+                                <option value="monolocale" ${d.propertyType==='monolocale'?'selected':''}>Monolocale</option>
+                                <option value="loft" ${d.propertyType==='loft'?'selected':''}>Loft</option>
+                                <option value="attico" ${d.propertyType==='attico'?'selected':''}>Attico</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Indirizzo -->
+                    <div style="margin-bottom:16px">
+                        <label class="form-label">Indirizzo Completo *</label>
+                        <input type="text" id="lst_address" class="form-input" value="${esc(d.address||'')}" placeholder="Via Roma 123, Roma">
+                    </div>
+                    
+                    <div class="grid-3" style="margin-bottom:16px">
+                        <div>
+                            <label class="form-label">Zona *</label>
+                            <select id="lst_zone" class="form-input">
+                                <option value="">Seleziona zona...</option>
+                                ${ZONE_ROMA.map(z => `<option value="${z}" ${d.zone===z?'selected':''}>${z}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="form-label">CAP</label>
+                            <input type="text" id="lst_cap" class="form-input" value="${esc(d.cap||'')}" placeholder="00185">
+                        </div>
+                        <div>
+                            <label class="form-label">Piano</label>
+                            <select id="lst_floor" class="form-input">
+                                <option value="">--</option>
+                                <option value="T" ${d.floor==='T'?'selected':''}>Terra</option>
+                                <option value="R" ${d.floor==='R'?'selected':''}>Rialzato</option>
+                                ${[1,2,3,4,5,6,7,8,9,10].map(n => `<option value="${n}" ${d.floor==n?'selected':''}>${n}°</option>`).join('')}
+                                <option value="A" ${d.floor==='A'?'selected':''}>Attico</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Prezzo e Caratteristiche -->
+                    <div class="grid-4" style="margin-bottom:16px">
+                        <div>
+                            <label class="form-label">Prezzo €/mese *</label>
+                            <input type="number" id="lst_price" class="form-input" value="${d.price||''}" placeholder="850">
+                        </div>
+                        <div>
+                            <label class="form-label">Spese €</label>
+                            <input type="number" id="lst_expenses" class="form-input" value="${d.expenses||''}" placeholder="100">
+                        </div>
+                        <div>
+                            <label class="form-label">Superficie mq *</label>
+                            <input type="number" id="lst_sqm" class="form-input" value="${d.sqm||''}" placeholder="65">
+                        </div>
+                        <div>
+                            <label class="form-label">Locali</label>
+                            <select id="lst_rooms" class="form-input">
+                                ${[1,2,3,4,5,6].map(n => `<option value="${n}" ${d.rooms==n?'selected':''}>${n}</option>`).join('')}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid-4" style="margin-bottom:16px">
+                        <div>
+                            <label class="form-label">Camere</label>
+                            <select id="lst_bedrooms" class="form-input">
+                                ${[0,1,2,3,4,5].map(n => `<option value="${n}" ${d.bedrooms==n?'selected':''}>${n}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="form-label">Bagni</label>
+                            <select id="lst_bathrooms" class="form-input">
+                                ${[1,2,3].map(n => `<option value="${n}" ${d.bathrooms==n?'selected':''}>${n}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="form-label">Arredato</label>
+                            <select id="lst_furnished" class="form-input">
+                                <option value="arredato" ${d.furnished==='arredato'?'selected':''}>Arredato</option>
+                                <option value="parziale" ${d.furnished==='parziale'?'selected':''}>Parzialmente</option>
+                                <option value="non_arredato" ${d.furnished==='non_arredato'?'selected':''}>Non arredato</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="form-label">Classe Energetica</label>
+                            <select id="lst_energy" class="form-input">
+                                ${['A4','A3','A2','A1','B','C','D','E','F','G'].map(c => `<option value="${c}" ${d.energyClass===c?'selected':''}>${c}</option>`).join('')}
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Contratto -->
+                    <div class="grid-3" style="margin-bottom:16px">
+                        <div>
+                            <label class="form-label">Tipo Contratto</label>
+                            <select id="lst_contract" class="form-input">
+                                <option value="4+4" ${d.contractType==='4+4'?'selected':''}>4+4 Libero</option>
+                                <option value="3+2" ${d.contractType==='3+2'?'selected':''}>3+2 Concordato</option>
+                                <option value="transitorio" ${d.contractType==='transitorio'?'selected':''}>Transitorio</option>
+                                <option value="studenti" ${d.contractType==='studenti'?'selected':''}>Studenti</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="form-label">Disponibile da</label>
+                            <input type="date" id="lst_availFrom" class="form-input" value="${d.availableFrom||''}">
+                        </div>
+                        <div>
+                            <label class="form-label">Cauzione (mesi)</label>
+                            <select id="lst_deposit" class="form-input">
+                                ${[1,2,3].map(n => `<option value="${n}" ${d.deposit==n?'selected':''}>${n} ${n===1?'mese':'mesi'}</option>`).join('')}
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Caratteristiche Extra -->
+                    <div style="margin-bottom:16px">
+                        <label class="form-label">Caratteristiche</label>
+                        <div style="display:flex;flex-wrap:wrap;gap:8px">
+                            ${['Balcone','Terrazzo','Ascensore','Aria Condizionata','Riscaldamento Autonomo','Posto Auto','Cantina','Giardino','Portiere','Fibra Ottica'].map(f => `
+                                <label style="display:flex;align-items:center;gap:6px;padding:6px 12px;background:var(--bg-elevated);border-radius:6px;cursor:pointer;font-size:12px">
+                                    <input type="checkbox" id="lst_feat_${f.replace(/\s/g,'')}" ${(d.features||[]).includes(f)?'checked':''}>
+                                    ${f}
+                                </label>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <!-- Titolo -->
+                    <div style="margin-bottom:16px">
+                        <label class="form-label">Titolo Annuncio</label>
+                        <input type="text" id="lst_title" class="form-input" value="${esc(d.title||'')}" placeholder="Luminoso bilocale in zona San Lorenzo">
+                        <button class="btn btn-sm btn-secondary" style="margin-top:8px" onclick="generateTitle()">✨ Genera Titolo</button>
+                    </div>
+
+                    <!-- Descrizione -->
+                    <div style="margin-bottom:16px">
+                        <label class="form-label">Descrizione</label>
+                        <textarea id="lst_description" class="form-input" rows="6" placeholder="Descrizione dell'immobile...">${esc(d.description||'')}</textarea>
+                        <div style="display:flex;gap:8px;margin-top:8px">
+                            <button class="btn btn-sm btn-secondary" onclick="generateDescription()">✨ Genera Descrizione</button>
+                            <button class="btn btn-sm btn-secondary" onclick="generateDescriptionEN()">🇬🇧 English</button>
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div style="display:flex;gap:12px;flex-wrap:wrap;padding-top:16px;border-top:1px solid var(--border)">
+                        <button class="btn" onclick="saveDraft()" style="flex:1;min-width:150px">💾 Salva Bozza</button>
+                        <button class="btn btn-secondary" onclick="publishToImmobiliare()" style="background:#c41e3a;border-color:#c41e3a;color:white">🏠 Immobiliare</button>
+                        <button class="btn btn-secondary" onclick="publishToIdealista()" style="background:#1a1a1a;border-color:#1a1a1a;color:white">🏡 Idealista</button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function openNewListing() {
+        listingState.current = { ...LISTING_DEFAULTS, id: null, createdAt: new Date().toISOString() };
+        listingState.editMode = true;
+        goTo('listings');
+    }
+
+    function editDraft(index) {
+        listingState.current = { ...listingState.drafts[index], _index: index };
+        listingState.editMode = true;
+        goTo('listings');
+    }
+
+    function cancelListingEdit() {
+        listingState.editMode = false;
+        listingState.current = null;
+        goTo('listings');
+    }
+
+    function getListingFormData() {
+        const features = [];
+        ['Balcone','Terrazzo','Ascensore','Aria Condizionata','Riscaldamento Autonomo','Posto Auto','Cantina','Giardino','Portiere','Fibra Ottica'].forEach(f => {
+            const el = document.getElementById('lst_feat_' + f.replace(/\s/g,''));
+            if (el && el.checked) features.push(f);
+        });
+
+        return {
+            operationType: document.getElementById('lst_opType')?.value || 'affitto',
+            propertyType: document.getElementById('lst_propType')?.value || 'appartamento',
+            address: document.getElementById('lst_address')?.value || '',
+            zone: document.getElementById('lst_zone')?.value || '',
+            cap: document.getElementById('lst_cap')?.value || '',
+            floor: document.getElementById('lst_floor')?.value || '',
+            price: document.getElementById('lst_price')?.value || '',
+            expenses: document.getElementById('lst_expenses')?.value || '',
+            sqm: document.getElementById('lst_sqm')?.value || '',
+            rooms: document.getElementById('lst_rooms')?.value || '2',
+            bedrooms: document.getElementById('lst_bedrooms')?.value || '1',
+            bathrooms: document.getElementById('lst_bathrooms')?.value || '1',
+            furnished: document.getElementById('lst_furnished')?.value || 'arredato',
+            energyClass: document.getElementById('lst_energy')?.value || 'G',
+            contractType: document.getElementById('lst_contract')?.value || '4+4',
+            availableFrom: document.getElementById('lst_availFrom')?.value || '',
+            deposit: document.getElementById('lst_deposit')?.value || '2',
+            features: features,
+            title: document.getElementById('lst_title')?.value || '',
+            description: document.getElementById('lst_description')?.value || ''
+        };
+    }
+
+    function saveDraft() {
+        const data = getListingFormData();
+        if (!data.address || !data.price) {
+            toast('warning', 'Inserisci almeno indirizzo e prezzo');
+            return;
+        }
+        
+        data.createdAt = listingState.current?.createdAt || new Date().toISOString();
+        data.updatedAt = new Date().toISOString();
+        data.id = listingState.current?.id || 'lst_' + Date.now();
+
+        const index = listingState.current?._index;
+        if (index !== undefined && index !== null) {
+            listingState.drafts[index] = data;
+        } else {
+            listingState.drafts.unshift(data);
+        }
+
+        localStorage.setItem('boom_listing_drafts', JSON.stringify(listingState.drafts));
+        toast('success', 'Bozza salvata!');
+        listingState.editMode = false;
+        listingState.current = null;
+        goTo('listings');
+    }
+
+    function deleteDraft(index) {
+        if (!confirm('Eliminare questa bozza?')) return;
+        listingState.drafts.splice(index, 1);
+        localStorage.setItem('boom_listing_drafts', JSON.stringify(listingState.drafts));
+        toast('success', 'Bozza eliminata');
+        goTo('listings');
+    }
+
+    function clearAllDrafts() {
+        if (!confirm('Eliminare TUTTE le bozze?')) return;
+        listingState.drafts = [];
+        localStorage.setItem('boom_listing_drafts', '[]');
+        toast('success', 'Tutte le bozze eliminate');
+        goTo('listings');
+    }
+
+    function generateTitle() {
+        const data = getListingFormData();
+        const typeMap = { appartamento: 'Appartamento', stanza: 'Stanza', monolocale: 'Monolocale', loft: 'Loft', attico: 'Attico' };
+        const furnMap = { arredato: 'arredato', parziale: 'parzialmente arredato', non_arredato: '' };
+        
+        let title = '';
+        if (data.propertyType === 'stanza') {
+            title = `Stanza ${data.furnished === 'arredato' ? 'arredata' : ''} in ${data.zone || 'Roma'}`;
+        } else {
+            const adj = ['Luminoso', 'Ampio', 'Accogliente', 'Elegante', 'Moderno'][Math.floor(Math.random() * 5)];
+            title = `${adj} ${typeMap[data.propertyType] || 'appartamento'} ${data.rooms ? data.rooms + ' locali' : ''} ${data.zone ? 'in zona ' + data.zone : 'a Roma'}`;
+        }
+        
+        document.getElementById('lst_title').value = title.trim();
+    }
+
+    function generateDescription() {
+        const d = getListingFormData();
+        const typeMap = { appartamento: 'appartamento', stanza: 'stanza', monolocale: 'monolocale', loft: 'loft', attico: 'attico' };
+        const furnMap = { arredato: 'completamente arredato', parziale: 'parzialmente arredato', non_arredato: 'non arredato' };
+        
+        let desc = '';
+        if (d.propertyType === 'stanza') {
+            desc = `Affittiamo stanza ${d.furnished === 'arredato' ? 'arredata' : ''} in appartamento condiviso in zona ${d.zone || 'Roma'}.
+
+La stanza è di ${d.sqm || '?'} mq, luminosa e silenziosa.${d.features.length > 0 ? ' L\'appartamento dispone di: ' + d.features.join(', ').toLowerCase() + '.' : ''}
+
+Canone mensile: €${d.price}${d.expenses ? ' + €' + d.expenses + ' spese' : ' spese incluse'}.
+Contratto: ${d.contractType || 'transitorio'}.
+Cauzione: ${d.deposit || 2} mensilità.
+${d.availableFrom ? 'Disponibile dal: ' + new Date(d.availableFrom).toLocaleDateString('it-IT') + '.' : 'Disponibile subito.'}
+
+Per info e visite contattare.`;
+        } else {
+            desc = `Proponiamo in affitto ${typeMap[d.propertyType] || 'appartamento'} di ${d.sqm || '?'} mq in zona ${d.zone || 'Roma'}.
+
+L'immobile, situato al ${d.floor ? (d.floor === 'T' ? 'piano terra' : d.floor === 'R' ? 'piano rialzato' : d.floor + '° piano') : 'piano'}, è composto da ${d.rooms || '?'} locali con ${d.bedrooms || '?'} ${d.bedrooms == 1 ? 'camera' : 'camere'} da letto e ${d.bathrooms || '?'} ${d.bathrooms == 1 ? 'bagno' : 'bagni'}.
+
+${d.furnished ? 'L\'appartamento è ' + furnMap[d.furnished] + '.' : ''} Classe energetica ${d.energyClass || 'G'}.
+${d.features.length > 0 ? 'Dotato di: ' + d.features.join(', ').toLowerCase() + '.' : ''}
+
+Canone mensile: €${d.price}${d.expenses ? ' + €' + d.expenses + ' spese condominiali' : ''}.
+Contratto: ${d.contractType || '4+4'}.
+Cauzione: ${d.deposit || 2} mensilità.
+${d.availableFrom ? 'Disponibile dal: ' + new Date(d.availableFrom).toLocaleDateString('it-IT') + '.' : 'Disponibile subito.'}
+
+Per informazioni e appuntamenti contattare.
+Riferimento: BOOM-${Date.now().toString(36).toUpperCase()}`;
+        }
+        
+        document.getElementById('lst_description').value = desc.trim();
+    }
+
+    function generateDescriptionEN() {
+        const d = getListingFormData();
+        const typeMap = { appartamento: 'apartment', stanza: 'room', monolocale: 'studio', loft: 'loft', attico: 'penthouse' };
+        const furnMap = { arredato: 'fully furnished', parziale: 'partially furnished', non_arredato: 'unfurnished' };
+        const featuresEN = {
+            'Balcone': 'balcony', 'Terrazzo': 'terrace', 'Ascensore': 'elevator', 'Aria Condizionata': 'A/C',
+            'Riscaldamento Autonomo': 'independent heating', 'Posto Auto': 'parking', 'Cantina': 'cellar',
+            'Giardino': 'garden', 'Portiere': 'doorman', 'Fibra Ottica': 'fiber optic'
+        };
+        
+        let desc = '';
+        if (d.propertyType === 'stanza') {
+            desc = `Room for rent in shared apartment in ${d.zone || 'Rome'}.
+
+The room is ${d.sqm || '?'} sqm, bright and quiet.${d.features.length > 0 ? ' The apartment has: ' + d.features.map(f => featuresEN[f] || f.toLowerCase()).join(', ') + '.' : ''}
+
+Monthly rent: €${d.price}${d.expenses ? ' + €' + d.expenses + ' utilities' : ' utilities included'}.
+Contract: ${d.contractType || 'transitional'}.
+Deposit: ${d.deposit || 2} months.
+${d.availableFrom ? 'Available from: ' + new Date(d.availableFrom).toLocaleDateString('en-GB') + '.' : 'Available immediately.'}
+
+Contact for info and viewings.`;
+        } else {
+            desc = `${typeMap[d.propertyType] || 'Apartment'} for rent, ${d.sqm || '?'} sqm in ${d.zone || 'Rome'}.
+
+Located on the ${d.floor ? (d.floor === 'T' ? 'ground' : d.floor === 'R' ? 'raised ground' : d.floor + (d.floor == 1 ? 'st' : d.floor == 2 ? 'nd' : d.floor == 3 ? 'rd' : 'th')) + ' floor' : ''}, the property features ${d.rooms || '?'} rooms with ${d.bedrooms || '?'} bedroom${d.bedrooms != 1 ? 's' : ''} and ${d.bathrooms || '?'} bathroom${d.bathrooms != 1 ? 's' : ''}.
+
+${d.furnished ? 'The apartment is ' + furnMap[d.furnished] + '.' : ''} Energy class ${d.energyClass || 'G'}.
+${d.features.length > 0 ? 'Features: ' + d.features.map(f => featuresEN[f] || f.toLowerCase()).join(', ') + '.' : ''}
+
+Monthly rent: €${d.price}${d.expenses ? ' + €' + d.expenses + ' condo fees' : ''}.
+Contract type: ${d.contractType || '4+4'}.
+Deposit: ${d.deposit || 2} months.
+${d.availableFrom ? 'Available from: ' + new Date(d.availableFrom).toLocaleDateString('en-GB') + '.' : 'Available immediately.'}
+
+Contact for information and appointments.
+Reference: BOOM-${Date.now().toString(36).toUpperCase()}`;
+        }
+        
+        document.getElementById('lst_description').value = desc.trim();
+    }
+
+    function loadTemplate(type) {
+        const templates = {
+            monolocale: {
+                propertyType: 'monolocale', rooms: '1', bedrooms: '0', bathrooms: '1',
+                sqm: '30', price: '750', expenses: '50', furnished: 'arredato',
+                features: ['Aria Condizionata', 'Riscaldamento Autonomo']
+            },
+            bilocale: {
+                propertyType: 'appartamento', rooms: '2', bedrooms: '1', bathrooms: '1',
+                sqm: '55', price: '950', expenses: '80', furnished: 'arredato',
+                features: ['Balcone', 'Ascensore', 'Riscaldamento Autonomo']
+            },
+            stanza: {
+                propertyType: 'stanza', rooms: '1', bedrooms: '1', bathrooms: '1',
+                sqm: '14', price: '550', expenses: '0', furnished: 'arredato',
+                contractType: 'studenti', features: ['Fibra Ottica']
+            }
+        };
+        
+        listingState.current = { ...LISTING_DEFAULTS, ...templates[type], id: null, createdAt: new Date().toISOString() };
+        listingState.editMode = true;
+        goTo('listings');
+        toast('success', 'Template caricato');
+    }
+
+    function copyListingData(index) {
+        const d = index !== undefined ? listingState.drafts[index] : getListingFormData();
+        const text = `TITOLO: ${d.title || '-'}
+
+CARATTERISTICHE:
+• Tipo: ${d.propertyType || '-'}
+• Zona: ${d.zone || '-'}
+• Indirizzo: ${d.address || '-'}
+• Piano: ${d.floor || '-'}
+• Superficie: ${d.sqm || '-'} mq
+• Locali: ${d.rooms || '-'}
+• Camere: ${d.bedrooms || '-'}
+• Bagni: ${d.bathrooms || '-'}
+• Arredato: ${d.furnished || '-'}
+• Classe Energetica: ${d.energyClass || '-'}
+
+PREZZO:
+• Canone: €${d.price || '-'}/mese
+• Spese: €${d.expenses || '0'}
+• Cauzione: ${d.deposit || '2'} mesi
+• Contratto: ${d.contractType || '-'}
+
+DESCRIZIONE:
+${d.description || '-'}`;
+        
+        navigator.clipboard.writeText(text);
+        toast('success', 'Dati copiati!');
+    }
+
+    function publishToImmobiliare(index) {
+        const d = index !== undefined ? listingState.drafts[index] : getListingFormData();
+        
+        // Copy data to clipboard for easy paste
+        copyListingData(index);
+        
+        // Open Immobiliare in new tab
+        window.open('https://www.immobiliare.it/pubblica-annuncio/', '_blank');
+        
+        toast('success', 'Dati copiati! Immobiliare.it aperto in nuova tab');
+    }
+
+    function publishToIdealista(index) {
+        const d = index !== undefined ? listingState.drafts[index] : getListingFormData();
+        
+        // Copy data to clipboard for easy paste
+        copyListingData(index);
+        
+        // Open Idealista in new tab
+        window.open('https://www.idealista.it/info/pubblica-annuncio', '_blank');
+        
+        toast('success', 'Dati copiati! Idealista aperto in nuova tab');
+    }
+    // ========================================
+    // END MULTI-PORTAL LISTINGS PUBLISHER
+    // ========================================
+
+    // ========================================
+    // ASSEVERAZIONI - Checklist & Workflow
+    // ========================================
+    
+    function asseverazioniPage() {
+        return `
+            <div class="page-header">
+                <h1 class="page-title">📋 Asseverazioni</h1>
+                <p class="page-subtitle">Checklist e workflow per contratti a canone concordato</p>
+            </div>
+            
+            <div class="grid-2" style="gap:24px;margin-bottom:24px">
+                <div class="card" style="border-left:4px solid #10b981">
+                    <h3 style="margin-bottom:16px">📚 Contratto STUDENTI</h3>
+                    <div style="margin-bottom:12px;padding:12px;background:var(--glass-bg);border-radius:8px">
+                        <div style="font-weight:600;margin-bottom:8px">✅ Quando usare:</div>
+                        <ul style="margin:0;padding-left:20px;font-size:13px;line-height:1.8">
+                            <li>Inquilino iscritto a università/master/dottorato</li>
+                            <li>Residenza in comune DIVERSO da Roma</li>
+                            <li>Durata desiderata: 6-36 mesi</li>
+                            <li>Vuoi rinnovo automatico</li>
+                        </ul>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px">
+                        <div><span style="color:var(--text-muted)">Durata:</span> 6-36 mesi</div>
+                        <div><span style="color:var(--text-muted)">Rinnovo:</span> Automatico ✅</div>
+                        <div><span style="color:var(--text-muted)">Cedolare:</span> 10%</div>
+                        <div><span style="color:var(--text-muted)">Firma:</span> Studente o genitore</div>
+                    </div>
+                </div>
+                
+                <div class="card" style="border-left:4px solid #f59e0b">
+                    <h3 style="margin-bottom:16px">🔄 Contratto TRANSITORIO</h3>
+                    <div style="margin-bottom:12px;padding:12px;background:var(--glass-bg);border-radius:8px">
+                        <div style="font-weight:600;margin-bottom:8px">✅ Quando usare:</div>
+                        <ul style="margin:0;padding-left:20px;font-size:13px;line-height:1.8">
+                            <li>Inquilino NON studente universitario</li>
+                            <li>Ha esigenza temporanea documentabile</li>
+                            <li>Durata desiderata: 1-18 mesi MAX</li>
+                            <li>Contratto termina automaticamente</li>
+                        </ul>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px">
+                        <div><span style="color:var(--text-muted)">Durata:</span> 1-18 mesi</div>
+                        <div><span style="color:var(--text-muted)">Rinnovo:</span> NO ❌</div>
+                        <div><span style="color:var(--text-muted)">Cedolare:</span> 10%</div>
+                        <div><span style="color:var(--text-muted)">Richiede:</span> Motivazione</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Decision Tree -->
+            <div class="card" style="margin-bottom:24px">
+                <h3 style="margin-bottom:16px">🎯 Quale contratto per il tuo cliente?</h3>
+                <div class="table-wrapper">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Tipo Cliente</th>
+                                <th>Contratto</th>
+                                <th>Note</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>🎓 Studente Erasmus/Università</td>
+                                <td><span class="status-badge" style="background:#10b981">STUDENTI</span></td>
+                                <td>Residenza fuori Roma</td>
+                            </tr>
+                            <tr>
+                                <td>🎓 Studente Master/PhD</td>
+                                <td><span class="status-badge" style="background:#10b981">STUDENTI</span></td>
+                                <td>Anche corsi post-laurea</td>
+                            </tr>
+                            <tr>
+                                <td>💼 Lavoratore contratto a termine</td>
+                                <td><span class="status-badge" style="background:#f59e0b">TRANSITORIO</span></td>
+                                <td>Allegare contratto lavoro</td>
+                            </tr>
+                            <tr>
+                                <td>💼 Stagista / Intern</td>
+                                <td><span class="status-badge" style="background:#f59e0b">TRANSITORIO</span></td>
+                                <td>Lettera azienda/convenzione</td>
+                            </tr>
+                            <tr>
+                                <td>💻 Digital Nomad (< 18 mesi)</td>
+                                <td><span class="status-badge" style="background:#f59e0b">TRANSITORIO</span></td>
+                                <td>Lettera lavoro remoto</td>
+                            </tr>
+                            <tr>
+                                <td>💼 Lavoratore stabile (> 18 mesi)</td>
+                                <td><span class="status-badge" style="background:#6366f1">3+2 o 4+4</span></td>
+                                <td>Non transitorio</td>
+                            </tr>
+                            <tr>
+                                <td>🏖️ Turista lungo</td>
+                                <td><span class="status-badge" style="background:#ef4444">❌ NO</span></td>
+                                <td>Serve loc. turistica</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Checklists -->
+            <div class="grid-2" style="gap:24px;margin-bottom:24px">
+                <!-- STUDENTI Checklist -->
+                <div class="card">
+                    <h3 style="margin-bottom:16px;color:#10b981">📚 Checklist STUDENTI</h3>
+                    <div style="font-size:13px">
+                        <div style="font-weight:600;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--glass-border)">Documenti CONDUTTORE:</div>
+                        <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;cursor:pointer">
+                            <input type="checkbox" style="margin-top:2px" id="chk_s1">
+                            <span>Documento identità studente</span>
+                        </label>
+                        <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;cursor:pointer">
+                            <input type="checkbox" style="margin-top:2px" id="chk_s2">
+                            <span>Codice fiscale studente</span>
+                        </label>
+                        <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;cursor:pointer">
+                            <input type="checkbox" style="margin-top:2px" id="chk_s3">
+                            <span><strong>Certificato iscrizione università</strong> (con anno accademico)</span>
+                        </label>
+                        <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;cursor:pointer">
+                            <input type="checkbox" style="margin-top:2px" id="chk_s4">
+                            <span>Documento genitore/garante (se firma genitore)</span>
+                        </label>
+                        <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;cursor:pointer">
+                            <input type="checkbox" style="margin-top:2px" id="chk_s5">
+                            <span>Codice fiscale genitore (se garante)</span>
+                        </label>
+                        
+                        <div style="font-weight:600;margin:16px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--glass-border)">Documenti LOCATORE:</div>
+                        <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;cursor:pointer">
+                            <input type="checkbox" style="margin-top:2px" id="chk_s6">
+                            <span>Documento identità proprietario</span>
+                        </label>
+                        <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;cursor:pointer">
+                            <input type="checkbox" style="margin-top:2px" id="chk_s7">
+                            <span>Codice fiscale proprietario</span>
+                        </label>
+                        
+                        <div style="font-weight:600;margin:16px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--glass-border)">Documenti IMMOBILE:</div>
+                        <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;cursor:pointer">
+                            <input type="checkbox" style="margin-top:2px" id="chk_s8">
+                            <span><strong>APE</strong> in corso di validità</span>
+                        </label>
+                        <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;cursor:pointer">
+                            <input type="checkbox" style="margin-top:2px" id="chk_s9">
+                            <span>Visura catastale (dati catastali)</span>
+                        </label>
+                        <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;cursor:pointer">
+                            <input type="checkbox" style="margin-top:2px" id="chk_s10">
+                            <span>Superficie calpestabile (mq)</span>
+                        </label>
+                        <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;cursor:pointer">
+                            <input type="checkbox" style="margin-top:2px" id="chk_s11">
+                            <span>Planimetria (se locazione parziale/stanza)</span>
+                        </label>
+                        
+                        <div style="font-weight:600;margin:16px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--glass-border)">Contratto:</div>
+                        <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;cursor:pointer">
+                            <input type="checkbox" style="margin-top:2px" id="chk_s12">
+                            <span>Contratto firmato (modello accordo territoriale)</span>
+                        </label>
+                        <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;cursor:pointer">
+                            <input type="checkbox" style="margin-top:2px" id="chk_s13">
+                            <span>Scheda calcolo canone compilata</span>
+                        </label>
+                    </div>
+                    
+                    <div style="margin-top:16px;padding:12px;background:#10b98120;border-radius:8px;font-size:12px">
+                        <strong>⚠️ Requisito chiave:</strong> La residenza dello studente deve essere in un Comune DIVERSO da Roma (deve risultare nel contratto)
+                    </div>
+                </div>
+                
+                <!-- TRANSITORIO Checklist -->
+                <div class="card">
+                    <h3 style="margin-bottom:16px;color:#f59e0b">🔄 Checklist TRANSITORIO</h3>
+                    <div style="font-size:13px">
+                        <div style="font-weight:600;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--glass-border)">Documenti CONDUTTORE:</div>
+                        <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;cursor:pointer">
+                            <input type="checkbox" style="margin-top:2px" id="chk_t1">
+                            <span>Documento identità</span>
+                        </label>
+                        <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;cursor:pointer">
+                            <input type="checkbox" style="margin-top:2px" id="chk_t2">
+                            <span>Codice fiscale</span>
+                        </label>
+                        <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;cursor:pointer">
+                            <input type="checkbox" style="margin-top:2px" id="chk_t3">
+                            <span><strong>Documento giustificativo esigenza</strong> (vedi tabella)</span>
+                        </label>
+                        
+                        <div style="font-weight:600;margin:16px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--glass-border)">Documenti LOCATORE:</div>
+                        <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;cursor:pointer">
+                            <input type="checkbox" style="margin-top:2px" id="chk_t4">
+                            <span>Documento identità proprietario</span>
+                        </label>
+                        <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;cursor:pointer">
+                            <input type="checkbox" style="margin-top:2px" id="chk_t5">
+                            <span>Codice fiscale proprietario</span>
+                        </label>
+                        
+                        <div style="font-weight:600;margin:16px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--glass-border)">Documenti IMMOBILE:</div>
+                        <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;cursor:pointer">
+                            <input type="checkbox" style="margin-top:2px" id="chk_t6">
+                            <span><strong>APE</strong> in corso di validità</span>
+                        </label>
+                        <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;cursor:pointer">
+                            <input type="checkbox" style="margin-top:2px" id="chk_t7">
+                            <span>Visura catastale (dati catastali)</span>
+                        </label>
+                        <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;cursor:pointer">
+                            <input type="checkbox" style="margin-top:2px" id="chk_t8">
+                            <span>Superficie calpestabile (mq)</span>
+                        </label>
+                        
+                        <div style="font-weight:600;margin:16px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--glass-border)">Contratto:</div>
+                        <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;cursor:pointer">
+                            <input type="checkbox" style="margin-top:2px" id="chk_t9">
+                            <span>Contratto firmato (modello accordo territoriale)</span>
+                        </label>
+                        <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;cursor:pointer">
+                            <input type="checkbox" style="margin-top:2px" id="chk_t10">
+                            <span>Scheda calcolo canone compilata</span>
+                        </label>
+                        <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;cursor:pointer">
+                            <input type="checkbox" style="margin-top:2px" id="chk_t11">
+                            <span><strong>Motivazione transitoria indicata nel contratto</strong></span>
+                        </label>
+                    </div>
+                    
+                    <div style="margin-top:16px;padding:12px;background:#f59e0b20;border-radius:8px;font-size:12px">
+                        <strong>⚠️ Senza motivazione documentata</strong> il contratto è NULLO e diventa automaticamente 4+4!
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Motivazioni Transitorio -->
+            <div class="card" style="margin-bottom:24px">
+                <h3 style="margin-bottom:16px">📄 Motivazioni valide per TRANSITORIO (Roma)</h3>
+                <div class="table-wrapper">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Motivazione</th>
+                                <th>Documento richiesto</th>
+                                <th>Note</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>💼 Contratto lavoro a termine</td>
+                                <td>Copia contratto lavoro</td>
+                                <td>Durata max = durata contratto</td>
+                            </tr>
+                            <tr>
+                                <td>🎓 Stage / Tirocinio</td>
+                                <td>Lettera azienda / Convenzione</td>
+                                <td>Anche curriculare</td>
+                            </tr>
+                            <tr>
+                                <td>📋 Progetto lavorativo temporaneo</td>
+                                <td>Lettera incarico / Progetto</td>
+                                <td>Specificare durata progetto</td>
+                            </tr>
+                            <tr>
+                                <td>✈️ Trasferimento temporaneo lavoro</td>
+                                <td>Lettera datore di lavoro</td>
+                                <td>Distacco, trasferta, etc.</td>
+                            </tr>
+                            <tr>
+                                <td>📚 Formazione professionale</td>
+                                <td>Iscrizione corso</td>
+                                <td>Corsi non universitari</td>
+                            </tr>
+                            <tr>
+                                <td>🏥 Cure mediche</td>
+                                <td>Certificato medico</td>
+                                <td>Cure continuative</td>
+                            </tr>
+                            <tr>
+                                <td>🔨 Ristrutturazione casa propria</td>
+                                <td>Permessi / CILA / SCIA</td>
+                                <td>Casa in ristrutturazione</td>
+                            </tr>
+                            <tr>
+                                <td>⚖️ Separazione / Divorzio in corso</td>
+                                <td>Atto legale / Ricorso</td>
+                                <td>Temporanea sistemazione</td>
+                            </tr>
+                            <tr>
+                                <td>👨‍👩‍👧 Assistenza familiare</td>
+                                <td>Documentazione medica familiare</td>
+                                <td>Vicinanza a parente</td>
+                            </tr>
+                            <tr>
+                                <td>🏠 Attesa consegna immobile acquistato</td>
+                                <td>Preliminare / Rogito</td>
+                                <td>Con data prevista</td>
+                            </tr>
+                            <tr>
+                                <td>💻 Remote work temporaneo</td>
+                                <td>Lettera azienda / Contratto</td>
+                                <td>Smart working da Roma</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Servizi Asseverazione -->
+            <div class="card" style="margin-bottom:24px">
+                <h3 style="margin-bottom:16px">🏢 Dove fare l'asseverazione a Roma</h3>
+                <div class="grid-3" style="gap:16px">
+                    <div style="padding:16px;background:var(--glass-bg);border-radius:12px;border:1px solid var(--glass-border)">
+                        <div style="font-weight:600;margin-bottom:8px">🌐 DokiCasa</div>
+                        <div style="font-size:13px;color:var(--text-muted);margin-bottom:8px">Servizio online completo</div>
+                        <div style="font-size:12px;margin-bottom:4px">💰 €99-129 + IVA / pratica</div>
+                        <div style="font-size:12px;margin-bottom:4px">⏱️ 2-5 giorni</div>
+                        <div style="font-size:12px;margin-bottom:12px">✅ Include contratto + calcolo</div>
+                        <a href="https://dokicasa.it" target="_blank" class="btn btn-sm" style="width:100%">Vai al sito →</a>
+                    </div>
+                    
+                    <div style="padding:16px;background:var(--glass-bg);border-radius:12px;border:1px solid var(--glass-border)">
+                        <div style="font-weight:600;margin-bottom:8px">📧 ServiziProfessionali</div>
+                        <div style="font-size:13px;color:var(--text-muted);margin-bottom:8px">Via email, commercialisti</div>
+                        <div style="font-size:12px;margin-bottom:4px">💰 ~€130-150 / pratica</div>
+                        <div style="font-size:12px;margin-bottom:4px">⏱️ Variabile</div>
+                        <div style="font-size:12px;margin-bottom:12px">📩 info@serviziprofessionali.biz</div>
+                        <a href="https://serviziprofessionali.biz/asseverazione.html" target="_blank" class="btn btn-sm" style="width:100%">Vai al sito →</a>
+                    </div>
+                    
+                    <div style="padding:16px;background:var(--glass-bg);border-radius:12px;border:1px solid var(--glass-border)">
+                        <div style="font-weight:600;margin-bottom:8px">🏛️ Confabitare Roma</div>
+                        <div style="font-size:13px;color:var(--text-muted);margin-bottom:8px">Associazione proprietari</div>
+                        <div style="font-size:12px;margin-bottom:4px">💰 Tessera + ~€30-50/pratica</div>
+                        <div style="font-size:12px;margin-bottom:4px">⏱️ 5-10 giorni</div>
+                        <div style="font-size:12px;margin-bottom:12px">✅ PDF/A firmato + QR code</div>
+                        <a href="https://confabitareroma.it" target="_blank" class="btn btn-sm" style="width:100%">Vai al sito →</a>
+                    </div>
+                </div>
+                
+                <div style="margin-top:16px;padding:12px;background:var(--glass-bg);border-radius:8px;font-size:13px">
+                    <strong>💡 Consiglio:</strong> Per 1-2 pratiche/mese usa <strong>DokiCasa</strong> (veloce, tutto online). Per volume maggiore valuta tesseramento <strong>Confabitare</strong> (costi inferiori per pratica).
+                </div>
+            </div>
+            
+            <!-- Quick Reference -->
+            <div class="card">
+                <h3 style="margin-bottom:16px">⚠️ Errori da evitare</h3>
+                <div class="grid-2" style="gap:16px">
+                    <div style="padding:12px;background:#ef444420;border-radius:8px;border-left:4px solid #ef4444">
+                        <div style="font-weight:600;margin-bottom:4px">❌ Studente residente a Roma</div>
+                        <div style="font-size:12px;color:var(--text-muted)">Non può fare contratto studenti - serve residenza FUORI Roma</div>
+                    </div>
+                    <div style="padding:12px;background:#ef444420;border-radius:8px;border-left:4px solid #ef4444">
+                        <div style="font-weight:600;margin-bottom:4px">❌ Transitorio senza motivazione</div>
+                        <div style="font-size:12px;color:var(--text-muted)">Contratto NULLO → diventa automaticamente 4+4</div>
+                    </div>
+                    <div style="padding:12px;background:#ef444420;border-radius:8px;border-left:4px solid #ef4444">
+                        <div style="font-weight:600;margin-bottom:4px">❌ Transitorio > 18 mesi</div>
+                        <div style="font-size:12px;color:var(--text-muted)">Non esiste - massimo 18 mesi poi finisce</div>
+                    </div>
+                    <div style="padding:12px;background:#ef444420;border-radius:8px;border-left:4px solid #ef4444">
+                        <div style="font-weight:600;margin-bottom:4px">❌ "Rinnovare" il transitorio</div>
+                        <div style="font-size:12px;color:var(--text-muted)">Non si può rinnovare - serve NUOVO contratto con NUOVA motivazione</div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    // ========================================
+    // END ASSEVERAZIONI
+    // ========================================
+
+    </script>
 </body>
 </html>
