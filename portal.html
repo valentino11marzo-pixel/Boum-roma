@@ -3,9 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <meta http-equiv="Pragma" content="no-cache">
-    <meta http-equiv="Expires" content="0">
     <meta name="description" content="BOOM Property Management Portal - Gestione immobili, contratti e pagamenti">
     <meta name="theme-color" content="#000000">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -318,7 +315,7 @@
     <!-- Offline Banner -->
     <div class="offline-banner" id="offlineBanner">âš ï¸ Connessione assente - ModalitÃ  offline</div>
     
-    <div class="loading" id="loading"><div class="spinner"></div><div style="color:var(--text-muted);font-size:14px" id="loadingText">Caricamento...</div><div id="loadingLog" style="margin-top:16px;font-size:11px;color:var(--text-muted);max-width:320px;text-align:left;display:none"></div></div>
+    <div class="loading" id="loading"><div class="spinner"></div><div style="color:var(--text-muted);font-size:14px">Caricamento...</div></div>
     <div class="auth hidden" id="authScreen">
         <div class="auth-card">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" class="auth-logo" style="width:72px;height:72px;margin:0 auto 20px;display:block;filter:drop-shadow(0 0 30px rgba(212,175,55,0.5))">
@@ -778,33 +775,16 @@
         if (u) {
             authProcessed = true;
             S.user = u;
-            
-            // Show green success message
-            showAuthInfo('✓ Accesso riuscito! Caricamento dati...');
-            bootLog('✓ Login OK', 'ok');
-            
             try {
-                console.log('[BOOT] 1/4 Loading user profile...');
-                bootLog('Caricamento profilo...', 'info');
                 const doc = await db.collection('users').doc(u.uid).get();
                 if (doc.exists) {
                     S.profile = { id: u.uid, ...doc.data() };
-                    console.log('[BOOT] 2/4 Profile loaded:', S.profile.name);
-                    bootLog('✓ Profilo: ' + S.profile.name, 'ok');
                     await db.collection('users').doc(u.uid).update({ lastLogin: firebase.firestore.FieldValue.serverTimestamp() }).catch(() => {});
-                    
-                    console.log('[BOOT] 3/4 Loading collections...');
-                    bootLog('Caricamento dati...', 'info');
-                    showAuthInfo('✓ Profilo caricato. Caricamento dati...');
                     await loadData();
-                    
-                    console.log('[BOOT] 4/4 Showing app...');
-                    bootLog('✓ Tutto caricato!', 'ok');
                     showApp();
                     startSessionCheck();
                 } else {
-                    console.log('[BOOT] Creating new user document...');
-                    showAuthInfo('Creazione profilo...');
+                    console.log('Creating new user document...');
                     await db.collection('users').doc(u.uid).set({
                         name: u.displayName || u.email.split('@')[0],
                         email: u.email, role: 'admin', phone: '',
@@ -813,12 +793,11 @@
                     location.reload();
                 }
             } catch (e) { 
-                console.error('[BOOT] Auth error:', e);
-                bootLog('\u2717 Errore: ' + e.message, 'err');
+                console.error('Auth error:', e);
                 // Retry logic for Safari
                 if (isSafariDesktop && authRetryCount < maxAuthRetries) {
                     authRetryCount++;
-                    console.log('[BOOT] Retrying auth... attempt', authRetryCount);
+                    console.log('Retrying auth... attempt', authRetryCount);
                     authProcessed = false;
                     setTimeout(() => auth.onAuthStateChanged(() => {}), 1000);
                     return;
@@ -854,77 +833,55 @@
     }
 
     async function loadData() {
-        console.log('[LOAD] Starting data load...');
-        
-        // Timeout safety: if loadData takes more than 20 seconds, something is wrong
-        var loadTimeout = setTimeout(function() {
-            console.error('[LOAD] TIMEOUT — loadData took more than 20 seconds');
-            toast('error', 'Caricamento lento', 'Alcune collezioni Firestore non rispondono. Controlla le Firestore Rules nella Firebase Console.');
-            // Force show app even with partial data
-            showApp();
-        }, 20000);
-        
+        console.log('Loading data...');
         try {
-            // Load each collection individually to identify failures
-            var collections = ['users','properties','contracts','payments','maintenance','documents','clients','invoices'];
-            var results = {};
-            
-            for (var i = 0; i < collections.length; i++) {
-                var name = collections[i];
-                try {
-                    console.log('[LOAD] ' + (i+1) + '/' + collections.length + ' Loading ' + name + '...');
-                    results[name] = await db.collection(name).get();
-                    console.log('[LOAD] ' + name + ' OK (' + results[name].docs.length + ' docs)');
-                    bootLog('✓ ' + name, 'ok');
-                } catch(colErr) {
-                    console.error('[LOAD] FAILED: ' + name + ' —', colErr.code, colErr.message);
-                    results[name] = { docs: [] };
-                    toast('warning', 'Errore: ' + name, colErr.code === 'permission-denied' ? 'Controlla Firestore Rules' : colErr.message);
-                }
-            }
-            
-            S.users = results.users.docs.map(function(d){ return Object.assign({id: d.id}, d.data()); });
-            S.properties = results.properties.docs.map(function(d){ return Object.assign({id: d.id}, d.data()); });
-            S.contracts = results.contracts.docs.map(function(d){ return Object.assign({id: d.id}, d.data()); });
-            S.payments = results.payments.docs.map(function(d){ return Object.assign({id: d.id}, d.data()); });
-            S.maintenance = results.maintenance.docs.map(function(d){ return Object.assign({id: d.id}, d.data()); });
-            S.documents = results.documents.docs.map(function(d){ return Object.assign({id: d.id}, d.data()); });
-            S.clients = results.clients.docs.map(function(d){ return Object.assign({id: d.id}, d.data()); });
-            S.invoices = results.invoices.docs.map(function(d){ return Object.assign({id: d.id}, d.data()); });
+            const [users, props, contracts, payments, maint, docs, clients, invoices] = await Promise.all([
+                db.collection('users').get(),
+                db.collection('properties').get(),
+                db.collection('contracts').get(),
+                db.collection('payments').get(),
+                db.collection('maintenance').get(),
+                db.collection('documents').get(),
+                db.collection('clients').get(),
+                db.collection('invoices').get()
+            ]);
+            console.log('Core data loaded');
+            S.users = users.docs.map(d => ({ id: d.id, ...d.data() }));
+            S.properties = props.docs.map(d => ({ id: d.id, ...d.data() }));
+            S.contracts = contracts.docs.map(d => ({ id: d.id, ...d.data() }));
+            S.payments = payments.docs.map(d => ({ id: d.id, ...d.data() }));
+            S.maintenance = maint.docs.map(d => ({ id: d.id, ...d.data() }));
+            S.documents = docs.docs.map(d => ({ id: d.id, ...d.data() }));
+            S.clients = clients.docs.map(d => ({ id: d.id, ...d.data() }));
+            S.invoices = invoices.docs.map(d => ({ id: d.id, ...d.data() }));
             
             // Load listings separately (might not exist yet)
             try {
-                console.log('[LOAD] Loading listings...');
                 const listings = await db.collection('listings').get();
                 S.listings = listings.docs.map(d => ({ id: d.id, ...d.data() }));
-                console.log('[LOAD] listings OK (' + S.listings.length + ')');
             } catch (e) { 
-                console.log('[LOAD] Listings not found, using empty array');
+                console.log('Listings collection not found, using empty array');
                 S.listings = []; 
             }
             
             // Load Command Center data (deadlines and tasks)
             try {
-                console.log('[LOAD] Loading deadlines + tasks...');
                 const [deadlines, tasks] = await Promise.all([
                     db.collection('deadlines').get(),
                     db.collection('tasks').get()
                 ]);
                 S.deadlines = deadlines.docs.map(d => ({ id: d.id, ...d.data() }));
                 S.tasks = tasks.docs.map(d => ({ id: d.id, ...d.data() }));
-                console.log('[LOAD] deadlines + tasks OK');
             } catch (e) { 
-                console.log('[LOAD] Command Center collections not found');
+                console.log('Command Center collections not found');
                 S.deadlines = []; 
                 S.tasks = [];
             }
             
-            clearTimeout(loadTimeout);
-            console.log('[LOAD] All data loaded successfully');
+            console.log('All data loaded successfully');
             checkAlerts();
         } catch (e) { 
-            clearTimeout(loadTimeout);
-            console.error('[LOAD] Fatal error:', e);
+            console.error('Load data error:', e);
             toast('error', 'Errore caricamento', e.message); 
         }
     }
@@ -1294,12 +1251,6 @@
     function hideLoading() { document.getElementById('loading').classList.add('hidden'); }
     function showAuth() { window.location.href = 'login.html'; }
     function showApp() { hideLoading(); document.getElementById('authScreen').classList.add('hidden'); document.getElementById('app').classList.add('active'); setupApp(); }
-    function bootLog(msg, type) {
-        var el = document.getElementById('loadingLog');
-        var txt = document.getElementById('loadingText');
-        if (el) { el.style.display = 'block'; var c = type === 'ok' ? '#4CAF50' : type === 'err' ? '#f44336' : type === 'warn' ? '#FF9800' : '#888'; el.innerHTML += '<div style="color:' + c + '">' + msg + '</div>'; }
-        if (txt && type !== 'err') txt.textContent = msg;
-    }
     function showAuthError(m) { const e = document.getElementById('authError'); e.textContent = m; e.classList.add('show'); document.getElementById('authInfo').classList.remove('show'); }
     function showAuthInfo(m) { const e = document.getElementById('authInfo'); e.textContent = m; e.classList.add('show'); document.getElementById('authError').classList.remove('show'); }
 
@@ -6693,7 +6644,6 @@
     }
 
     console.log('ðŸš€ BOOM Portal v5 Pro - Complete Bilingual Edition');
-    console.log('BUILD: DIAGNOSTIC v2026-02-08 — File aggiornato');
     
     // Check if opened locally (file://) - this won't work with Firebase
     if (window.location.protocol === 'file:') {
