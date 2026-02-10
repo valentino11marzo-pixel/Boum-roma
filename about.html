@@ -3,894 +3,677 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>About BOOM - Our Story</title>
-    
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;900&family=Oswald:wght@200;300;400;500&display=swap" rel="stylesheet">
-    
+    <title>About BOOM – Built in Rome, For You</title>
+    <meta name="description" content="BOOM was born from frustration with Rome's broken rental market. 6+ years of local expertise, 500+ happy tenants, and a mission to make renting in Rome actually work.">
+
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-EYCD59RDVJ"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-EYCD59RDVJ');
+    </script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/png" sizes="512x512" href="/BOOMlogogoldicon512.png">
+    <link rel="apple-touch-icon" href="/BOOMlogogoldicon512.png">
+    <meta property="og:title" content="About BOOM – Built in Rome, For You">
+    <meta property="og:description" content="6+ years navigating Rome's chaotic rental market. We built what we wished existed.">
+    <meta property="og:image" content="/BOOMsocialprofile.png">
+    <meta property="og:type" content="website">
+
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            -webkit-font-smoothing: antialiased;
-        }
-
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
         :root {
-            --gold: #FFD700;
-            --cyan: #00CED1;
-            --green: #00FF88;
-            --pure-black: #000000;
-            --dark-void: #0A0A0A;
-            --dark-surface: #111111;
-            --text-primary: #FFFFFF;
-            --text-fade: #666666;
-            --text-secondary: #999999;
-        }
-
-        body {
-            font-family: 'Inter', -apple-system, sans-serif;
-            background: var(--pure-black);
-            color: var(--text-primary);
-            font-weight: 200;
-            line-height: 1.6;
-        }
-
-        /* Nav */
-        nav {
-            position: fixed;
-            width: 100%;
-            top: 0;
-            z-index: 100;
-            padding: 20px 50px;
-            background: rgba(0,0,0,0.98);
-            backdrop-filter: blur(20px);
-            border-bottom: 1px solid rgba(255, 215, 0, 0.1);
-        }
-
-        .nav-container {
-            max-width: 1400px;
-            margin: 0 auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .logo {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            text-decoration: none;
-            color: white;
-        }
-
-        .logo-circle {
-            width: 40px;
-            height: 40px;
-            background: linear-gradient(135deg, #FFD700, #FFA500);
-            border-radius: 50%;
-            box-shadow: 0 0 30px rgba(255, 215, 0, 0.5);
-            animation: glow 3s infinite;
-        }
-
-        @keyframes glow {
-            0%, 100% { box-shadow: 0 0 30px rgba(255, 215, 0, 0.5); }
-            50% { box-shadow: 0 0 50px rgba(255, 215, 0, 0.8); }
-        }
-
-        .logo-text {
-            font-family: 'Oswald', sans-serif;
-            font-size: 32px;
-            font-weight: 300;
-            letter-spacing: -2px;
-            text-transform: uppercase;
-        }
-
-        .hamburger {
-            display: none;
-            flex-direction: column;
-            gap: 5px;
-            cursor: pointer;
-            padding: 10px;
-        }
-
-        .hamburger span {
-            width: 25px;
-            height: 2px;
-            background: var(--gold);
-            transition: all 0.3s;
-        }
-
-        /* Hero */
-        .hero {
-            min-height: 80vh;
-            display: flex;
-            align-items: center;
-            padding: 150px 50px 80px;
-            background: radial-gradient(circle at center, rgba(255, 215, 0, 0.08), transparent);
-        }
-
-        .hero-content {
-            max-width: 900px;
-            margin: 0 auto;
-        }
-
-        .hero-tag {
-            display: inline-block;
-            padding: 8px 20px;
-            background: var(--gold);
-            color: var(--pure-black);
-            font-size: 10px;
-            font-weight: 700;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            margin-bottom: 30px;
-        }
-
-        h1 {
-            font-size: clamp(50px, 10vw, 120px);
-            font-weight: 100;
-            line-height: 0.9;
-            letter-spacing: -0.03em;
-            text-transform: uppercase;
-            margin-bottom: 30px;
-        }
-
-        .gold-accent {
-            color: var(--gold);
-            font-weight: 300;
-        }
-
-        .hero-subtitle {
-            font-size: 24px;
-            color: var(--text-secondary);
-            line-height: 1.6;
-        }
-
-        /* Story Section */
-        .story-section {
-            padding: 100px 50px;
-            background: var(--dark-void);
-        }
-
-        .story-container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        /* Story Grid with Image */
-        .story-grid {
-            display: grid;
-            grid-template-columns: 400px 1fr;
-            gap: 60px;
-            margin-bottom: 60px;
-            align-items: start;
-        }
-
-        .story-image {
-            width: 100%;
-            aspect-ratio: 3/4;
-            object-fit: cover;
-            border-radius: 20px;
-            border: 1px solid rgba(255, 215, 0, 0.2);
-            position: sticky;
-            top: 120px;
-        }
-
-        .story-intro {
-            font-size: 20px;
-            color: var(--gold);
-            font-weight: 300;
-            margin-bottom: 30px;
-            line-height: 1.8;
-        }
-
-        .story-content {
-            font-size: 18px;
-            line-height: 2;
-            color: var(--text-secondary);
-        }
-
-        .story-content p {
-            margin-bottom: 30px;
-        }
-
-        .story-content strong {
-            color: var(--text-primary);
-            font-weight: 500;
-        }
-
-        /* Full Width Content */
-        .story-full-width {
-            max-width: 800px;
-            margin: 0 auto;
-        }
-
-        .quote-block {
-            padding: 40px;
-            margin: 60px 0;
-            background: rgba(255, 215, 0, 0.05);
-            border-left: 4px solid var(--gold);
-        }
-
-        .quote-text {
-            font-size: 24px;
-            font-weight: 300;
-            line-height: 1.6;
-            color: var(--text-primary);
-            font-style: italic;
-            margin-bottom: 20px;
-        }
-
-        .quote-author {
-            font-size: 14px;
-            color: var(--gold);
-            text-transform: uppercase;
-            letter-spacing: 2px;
-        }
-
-        /* Mission Section */
-        .mission-section {
-            padding: 100px 50px;
-            background: var(--pure-black);
-        }
-
-        .mission-container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        .section-header {
-            text-align: center;
-            margin-bottom: 80px;
-        }
-
-        .section-tag {
-            display: inline-block;
-            padding: 8px 20px;
-            background: var(--cyan);
-            color: var(--pure-black);
-            font-size: 10px;
-            font-weight: 700;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            margin-bottom: 20px;
-        }
-
-        .section-title {
-            font-size: clamp(36px, 6vw, 64px);
-            font-weight: 100;
-            text-transform: uppercase;
-            letter-spacing: -2px;
-            margin-bottom: 20px;
-        }
-
-        .section-subtitle {
-            font-size: 18px;
-            color: var(--text-secondary);
-        }
-
-        .mission-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 40px;
-        }
-
-        .mission-card {
-            padding: 40px;
-            background: var(--dark-void);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            border-radius: 12px;
-            transition: all 0.3s;
-        }
-
-        .mission-card:hover {
-            transform: translateY(-5px);
-            border-color: var(--gold);
-        }
-
-        .mission-number {
-            display: inline-flex;
-            width: 50px;
-            height: 50px;
-            background: var(--gold);
-            color: var(--pure-black);
-            border-radius: 50%;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-            font-weight: 700;
-            margin-bottom: 25px;
-        }
-
-        .mission-title {
-            font-size: 22px;
-            font-weight: 400;
-            text-transform: uppercase;
-            margin-bottom: 15px;
-            letter-spacing: -0.5px;
-        }
-
-        .mission-description {
-            font-size: 15px;
-            color: var(--text-secondary);
-            line-height: 1.7;
-        }
-
-        /* Values Section */
-        .values-section {
-            padding: 100px 50px;
-            background: var(--dark-surface);
-        }
-
-        .values-container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        .values-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 2px;
-            background: var(--text-fade);
-            padding: 2px;
-        }
-
-        .value-card {
-            padding: 50px 40px;
-            background: var(--pure-black);
-            text-align: center;
-        }
-
-        .value-icon {
-            font-size: 48px;
-            margin-bottom: 20px;
-        }
-
-        .value-title {
-            font-size: 24px;
-            font-weight: 400;
-            text-transform: uppercase;
-            margin-bottom: 15px;
-            color: var(--gold);
-        }
-
-        .value-description {
-            font-size: 14px;
-            color: var(--text-secondary);
-            line-height: 1.7;
-        }
-
-        /* Stats Section */
-        .stats-section {
-            padding: 100px 50px;
-            background: var(--pure-black);
-        }
-
-        .stats-container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 40px;
-            margin-top: 60px;
-        }
-
-        .stat-card {
-            text-align: center;
-            padding: 40px 20px;
-            background: var(--dark-void);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            border-radius: 12px;
-        }
-
-        .stat-number {
-            font-size: 72px;
-            font-weight: 100;
-            color: var(--gold);
-            font-family: 'Oswald', sans-serif;
-            letter-spacing: -3px;
-            margin-bottom: 10px;
-        }
-
-        .stat-label {
-            font-size: 14px;
-            color: var(--text-secondary);
-            text-transform: uppercase;
-            letter-spacing: 2px;
-        }
-
-        /* CTA Section */
-        .cta-section {
-            padding: 120px 50px;
-            text-align: center;
-            background: linear-gradient(135deg, rgba(255, 215, 0, 0.03), transparent);
-        }
-
-        .cta-title {
-            font-size: clamp(40px, 8vw, 80px);
-            font-weight: 100;
-            text-transform: uppercase;
-            line-height: 0.9;
-            margin-bottom: 30px;
-        }
-
-        .cta-subtitle {
-            font-size: 20px;
-            color: var(--text-secondary);
-            margin-bottom: 50px;
-        }
-
-        .cta-buttons {
-            display: flex;
-            gap: 20px;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-
-        .btn-primary {
-            padding: 20px 60px;
-            background: var(--gold);
-            color: var(--pure-black);
-            text-decoration: none;
-            font-size: 12px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 3px;
-            transition: all 0.3s;
-        }
-
-        .btn-primary:hover {
-            transform: scaleX(1.05);
-        }
-
-        .btn-ghost {
-            padding: 18px 58px;
-            background: transparent;
-            border: 1px solid var(--text-fade);
-            color: var(--text-primary);
-            text-decoration: none;
-            font-size: 12px;
-            font-weight: 500;
-            text-transform: uppercase;
-            letter-spacing: 3px;
-            transition: all 0.3s;
-        }
-
-        .btn-ghost:hover {
-            border-color: var(--gold);
-        }
-
-        /* Footer */
-        footer {
-            padding: 80px 50px 40px;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .footer-grid {
-            display: grid;
-            grid-template-columns: 2fr 1fr 1fr 1fr;
-            gap: 60px;
-            margin-bottom: 60px;
-            max-width: 1400px;
-            margin: 0 auto 60px;
-        }
-
-        .footer-brand h3 {
-            font-family: 'Oswald', sans-serif;
-            font-size: 48px;
-            font-weight: 300;
-            letter-spacing: -3px;
-            margin-bottom: 20px;
-        }
-
-        .footer-brand p {
-            font-size: 12px;
-            color: var(--text-fade);
-            line-height: 1.8;
-            font-weight: 300;
-        }
-
-        .footer-links h4 {
-            font-size: 10px;
-            text-transform: uppercase;
-            letter-spacing: 3px;
-            margin-bottom: 20px;
-            color: var(--gold);
-        }
-
-        .footer-links ul {
-            list-style: none;
-        }
-
-        .footer-links a {
-            color: var(--text-fade);
-            text-decoration: none;
-            font-size: 12px;
-            display: block;
-            padding: 5px 0;
-            transition: color 0.3s;
-            font-weight: 300;
-        }
-
-        .footer-links a:hover {
-            color: var(--text-primary);
-        }
-
-        .footer-bottom {
-            display: flex;
-            justify-content: space-between;
-            padding-top: 40px;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-            font-size: 10px;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            color: var(--text-fade);
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-
-        /* Mobile */
-        @media (max-width: 1024px) {
-            .story-grid {
-                grid-template-columns: 1fr;
-                gap: 40px;
-            }
-
-            .story-image {
-                position: relative;
-                top: 0;
-                max-width: 400px;
-                margin: 0 auto;
-            }
-        }
-
-        @media (max-width: 768px) {
-            nav {
-                padding: 15px 20px;
-            }
-
-            .hamburger {
-                display: flex;
-            }
-
-            .hero {
-                padding: 120px 20px 60px;
-            }
-
-            .story-section,
-            .mission-section,
-            .values-section,
-            .stats-section,
-            .cta-section {
-                padding: 60px 20px;
-            }
-
-            .mission-grid,
-            .values-grid,
-            .stats-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .values-grid {
-                gap: 0;
-            }
-
-            .footer-grid {
-                grid-template-columns: 1fr;
-                gap: 40px;
-            }
-
-            .footer-bottom {
-                flex-direction: column;
-                gap: 10px;
-                text-align: center;
-            }
-        }
+            --gold-top:#FFD54F;--gold-bot:#F5A623;--gold:#F5C33B;--gold-dim:#C4982A;
+            --black:#000000;--bg:#0A0A0A;--surface:#111111;--white:#F5F5F7;
+            --g1:#E8E8ED;--g2:#BBBBC3;--g3:#86868B;--g4:#6E6E73;
+            --g5:#48484A;--g6:#2C2C2E;--g7:#1C1C1E;
+        }
+        html{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;scroll-behavior:smooth}
+        body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Helvetica Neue',Helvetica,Arial,sans-serif;background:var(--black);color:var(--white);font-weight:400;line-height:1.5;overflow-x:hidden}
+        ::selection{background:var(--gold);color:var(--black)}
+        a{color:inherit;text-decoration:none}img{display:block;max-width:100%}
+        .gold-grad{background:linear-gradient(180deg,var(--gold-top),var(--gold-bot));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .gold{color:var(--gold)}
+        body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;opacity:.02;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");background-size:128px 128px}
+        .boom-logo-svg{display:block}
+
+        /* NAV */
+        nav{position:fixed;width:100%;top:0;z-index:1000;padding:0 clamp(24px,4vw,48px);height:52px;display:flex;align-items:center;background:transparent;transition:background .5s,backdrop-filter .5s,border-color .5s;border-bottom:.5px solid transparent}
+        nav.scrolled{background:rgba(0,0,0,.82);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);border-bottom-color:rgba(255,255,255,.08)}
+        .nav-inner{max-width:1080px;margin:0 auto;width:100%;display:flex;justify-content:space-between;align-items:center}
+        .logo{display:flex;align-items:center;gap:10px;transition:opacity .3s}.logo:hover{opacity:.7}
+        .logo .boom-logo-svg{width:28px;height:28px}
+        .logo-word{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:16px;font-weight:300;letter-spacing:4px;text-transform:uppercase}
+        .nav-links{display:flex;gap:22px;align-items:center}
+        .nav-links a{color:var(--g3);font-size:12px;font-weight:400;transition:color .3s}
+        .nav-links a:hover,.nav-links a.active{color:var(--white)}
+        .nav-cta{color:var(--gold)!important;font-weight:500!important}
+        .hamburger{display:none;width:18px;height:14px;position:relative;cursor:pointer;z-index:1001}
+        .hamburger span{position:absolute;left:0;width:100%;height:1px;background:var(--g2);transition:all .3s}
+        .hamburger span:nth-child(1){top:0}.hamburger span:nth-child(2){top:50%}.hamburger span:nth-child(3){bottom:0}
+        .hamburger.active span:nth-child(1){top:50%;transform:rotate(45deg)}.hamburger.active span:nth-child(2){opacity:0}.hamburger.active span:nth-child(3){bottom:50%;transform:rotate(-45deg)}
+        .mobile-menu{position:fixed;inset:0;background:rgba(0,0,0,.97);backdrop-filter:blur(40px);z-index:999;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:20px;opacity:0;pointer-events:none;transition:opacity .4s}
+        .mobile-menu.active{opacity:1;pointer-events:all}
+        .mobile-menu a{color:var(--g4);font-size:20px;font-weight:300;letter-spacing:.02em;transition:color .3s;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif}
+        .mobile-menu a:hover{color:var(--white)}
+
+        /* HERO */
+        .hero{position:relative;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:0 24px;overflow:hidden}
+        .hero::before{content:'';position:absolute;top:50%;left:50%;width:800px;height:800px;transform:translate(-50%,-50%);background:radial-gradient(circle,rgba(245,166,35,.04) 0%,transparent 65%);pointer-events:none}
+        .hero-content{position:relative;z-index:2;max-width:880px}
+        .hero-logo{width:72px;height:72px;margin:0 auto 36px;opacity:0;transform:scale(.8);animation:logoIn 1s .1s cubic-bezier(.22,1,.36,1) forwards;filter:drop-shadow(0 0 30px rgba(245,166,35,.2))}
+        @keyframes logoIn{to{opacity:1;transform:scale(1)}}
+        .hero-label{font-size:12px;font-weight:500;color:var(--gold);letter-spacing:.14em;text-transform:uppercase;margin-bottom:24px;opacity:0;transform:translateY(10px);animation:fadeUp .8s .3s forwards}
+        .hero h1{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:clamp(48px,8.5vw,96px);font-weight:200;letter-spacing:-.03em;line-height:1.04}
+        .hero h1 .line{display:block;overflow:hidden}
+        .hero h1 .line span{display:block;opacity:0;transform:translateY(105%);animation:lineUp 1s cubic-bezier(.22,1,.36,1) forwards}
+        .hero h1 .line:nth-child(1) span{animation-delay:.4s}.hero h1 .line:nth-child(2) span{animation-delay:.55s}
+        @keyframes lineUp{to{opacity:1;transform:translateY(0)}}@keyframes fadeUp{to{opacity:1;transform:translateY(0)}}
+        .hero-sub{font-size:clamp(16px,2vw,20px);font-weight:300;color:var(--g3);line-height:1.7;max-width:520px;margin:32px auto 0;opacity:0;transform:translateY(14px);animation:fadeUp .9s .8s forwards}
+        .scroll-hint{position:absolute;bottom:40px;left:50%;transform:translateX(-50%);opacity:0;animation:fadeUp .8s 1.2s forwards}
+        .scroll-hint-inner{display:flex;flex-direction:column;align-items:center;gap:8px}
+        .scroll-hint-text{font-size:10px;color:var(--g5);letter-spacing:.15em;text-transform:uppercase;font-weight:500}
+        .scroll-hint svg{width:16px;height:16px;color:var(--g5);animation:bob 2.5s ease-in-out infinite}
+        @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(5px)}}
+
+        /* SCROLL STORY */
+        .story{position:relative;background:var(--black)}.story-space{height:350vh;position:relative}
+        .story-pin{position:sticky;top:0;min-height:100vh;min-height:100dvh;display:flex;align-items:center;justify-content:center;text-align:center;padding:0 clamp(24px,6vw,80px)}
+        .story-inner{max-width:780px}
+        .story-text{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:clamp(26px,4.5vw,50px);font-weight:300;letter-spacing:-.02em;line-height:1.3;color:var(--g6)}
+        .story-text .w{display:inline;transition:color .35s ease}.story-text .w.lit{color:var(--g1)}.story-text .w.gold-w.lit{color:var(--gold)}
+        .story-stats{margin-top:56px;display:flex;gap:40px;justify-content:center;flex-wrap:wrap;opacity:0;transform:translateY(16px);transition:opacity .8s .2s,transform .8s .2s cubic-bezier(.22,1,.36,1)}
+        .story-stats.vis{opacity:1;transform:none}
+        .story-stat{text-align:center}
+        .story-stat-val{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:26px;font-weight:200;color:var(--gold)}
+        .story-stat-label{font-size:10px;color:var(--g5);letter-spacing:.1em;text-transform:uppercase;margin-top:6px;font-weight:500}
+
+        /* DIVIDER */
+        .divider{display:flex;justify-content:center;padding:0 24px;background:var(--black)}
+        .divider-line{width:100%;max-width:600px;height:.5px;background:linear-gradient(90deg,transparent,var(--gold-dim),transparent);opacity:.3}
+
+        /* ANSWER */
+        .answer{background:var(--black);text-align:center;padding:clamp(120px,14vw,200px) clamp(24px,6vw,48px)}
+        .answer-inner{max-width:860px;margin:0 auto}
+        .answer-big{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:clamp(44px,7.5vw,88px);font-weight:200;letter-spacing:-.03em;line-height:1;margin-bottom:44px}
+        .answer-body{font-size:clamp(16px,1.8vw,20px);font-weight:300;color:var(--g3);line-height:1.85;max-width:580px;margin:0 auto}
+        .answer-body strong{color:var(--g1);font-weight:500}
+
+        /* HYBRID SECTION */
+        .hybrid{background:var(--bg);padding:clamp(120px,14vw,200px) clamp(24px,5vw,48px);overflow:hidden}
+        .hybrid-inner{max-width:1120px;margin:0 auto}
+        .hybrid-head{text-align:center;margin-bottom:clamp(72px,9vw,110px)}
+        .hybrid-label{font-size:12px;font-weight:500;color:var(--gold);letter-spacing:.14em;text-transform:uppercase;margin-bottom:16px}
+        .hybrid-title{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:clamp(30px,4.5vw,52px);font-weight:200;letter-spacing:-.02em;line-height:1.15;color:var(--g1);max-width:700px;margin:0 auto}
+        .hybrid-subtitle{font-size:clamp(15px,1.6vw,18px);color:var(--g4);font-weight:300;line-height:1.7;max-width:540px;margin:20px auto 0}
+        .hybrid-grid{display:grid;grid-template-columns:1fr 1fr;gap:clamp(48px,6vw,80px);align-items:center}
+
+        /* Portal mockup */
+        .portal-mockup{position:relative;border-radius:20px;overflow:hidden;background:var(--surface);border:1px solid rgba(255,255,255,.06);box-shadow:0 40px 100px rgba(0,0,0,.6),0 0 0 .5px rgba(255,255,255,.04)}
+        .portal-titlebar{padding:14px 18px;display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.02);border-bottom:.5px solid rgba(255,255,255,.06)}
+        .portal-dot{width:8px;height:8px;border-radius:50%}.portal-dot.red{background:#FF5F57}.portal-dot.yellow{background:#FEBC2E}.portal-dot.green{background:#28C840}
+        .portal-url{flex:1;text-align:center;font-size:10px;color:var(--g5);letter-spacing:.02em}
+        .portal-screen{padding:20px}
+        .portal-nav-mock{display:flex;align-items:center;justify-content:space-between;padding-bottom:16px;margin-bottom:16px;border-bottom:.5px solid rgba(255,255,255,.04)}
+        .portal-nav-logo{display:flex;align-items:center;gap:6px}
+        .portal-nav-logo .boom-logo-svg{width:16px;height:16px}
+        .portal-nav-logo span{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:10px;font-weight:300;letter-spacing:3px;text-transform:uppercase;color:var(--g2)}
+        .portal-nav-tabs{display:flex;gap:12px}
+        .portal-nav-tabs span{font-size:9px;color:var(--g5);padding:4px 8px;border-radius:4px;letter-spacing:.03em}
+        .portal-nav-tabs span.act{background:rgba(245,166,35,.1);color:var(--gold)}
+        .portal-greeting{font-size:14px;font-weight:300;color:var(--g2);margin-bottom:16px}
+        .portal-greeting strong{color:var(--white);font-weight:500}
+        .portal-cards{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+        .portal-card{background:rgba(255,255,255,.02);border:.5px solid rgba(255,255,255,.06);border-radius:10px;padding:14px}
+        .pc-label{font-size:9px;color:var(--g5);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
+        .pc-val{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:20px;font-weight:200}
+        .pc-val.gold-t{color:var(--gold)}.pc-val.green-t{color:#30D158}
+        .pc-sub{font-size:9px;color:var(--g5);margin-top:3px}
+        .portal-progress{margin-bottom:14px}
+        .pp-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+        .pp-header span:first-child{font-size:10px;color:var(--g3);font-weight:500}
+        .pp-header span:last-child{font-size:10px;color:var(--gold);font-weight:500}
+        .pp-bar{height:4px;background:rgba(255,255,255,.04);border-radius:2px;overflow:hidden}
+        .pp-fill{height:100%;width:0;background:linear-gradient(90deg,var(--gold-bot),var(--gold-top));border-radius:2px;transition:width 1.8s cubic-bezier(.22,1,.36,1)}
+        .pp-fill.animated{width:72%}
+        .portal-feed{}
+        .pf-title{font-size:9px;color:var(--g5);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}
+        .pf-item{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:.5px solid rgba(255,255,255,.03)}
+        .pf-item:last-child{border-bottom:none}
+        .pf-icon{width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0}
+        .pf-icon.gold-bg{background:rgba(245,166,35,.12)}.pf-icon.green-bg{background:rgba(48,209,88,.12)}.pf-icon.blue-bg{background:rgba(0,122,255,.12)}
+        .pf-text{font-size:11px;color:var(--g3);font-weight:300}.pf-text strong{color:var(--g1);font-weight:500}
+        .pf-time{font-size:9px;color:var(--g5);margin-left:auto;white-space:nowrap}
+        .portal-glow{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:400px;height:400px;border-radius:50%;background:radial-gradient(circle,rgba(245,166,35,.06),transparent 70%);pointer-events:none;z-index:-1}
+
+        /* Features side */
+        .hybrid-features{}
+        .hf-item{padding:28px 0;border-bottom:.5px solid rgba(255,255,255,.04)}
+        .hf-item:first-child{padding-top:0}.hf-item:last-child{border-bottom:none}
+        .hf-tag{display:inline-block;font-size:9px;font-weight:600;color:var(--gold);letter-spacing:.1em;text-transform:uppercase;padding:4px 8px;border-radius:4px;background:rgba(245,166,35,.08);margin-bottom:12px}
+        .hf-title{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:20px;font-weight:400;color:var(--white);letter-spacing:-.01em;margin-bottom:8px}
+        .hf-desc{font-size:14px;color:var(--g4);line-height:1.75;font-weight:300}
+
+        /* Comparison */
+        .hybrid-compare{margin-top:clamp(72px,9vw,110px);display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--g6);border-radius:16px;overflow:hidden}
+        .hc-col{background:var(--bg);padding:clamp(28px,3vw,40px)}
+        .hc-label{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;margin-bottom:20px}
+        .hc-label.old{color:var(--g5)}.hc-label.boom-l{color:var(--gold)}
+        .hc-list{list-style:none}
+        .hc-list li{font-size:14px;font-weight:300;color:var(--g4);line-height:1.6;padding:8px 0;display:flex;align-items:center;gap:10px}
+        .hc-list li::before{content:'';width:5px;height:5px;border-radius:50%;flex-shrink:0}
+        .hc-col:first-child .hc-list li::before{background:var(--g6)}
+        .hc-col:last-child .hc-list li{color:var(--g2)}
+        .hc-col:last-child .hc-list li::before{background:var(--gold);box-shadow:0 0 6px rgba(245,166,35,.3)}
+
+        /* PRINCIPLES */
+        .principles{background:var(--black);padding:clamp(100px,12vw,160px) clamp(24px,5vw,48px)}
+        .principles-inner{max-width:1120px;margin:0 auto}
+        .principles-head{text-align:center;margin-bottom:clamp(64px,8vw,100px)}
+        .principles-label{font-size:12px;font-weight:500;color:var(--gold);letter-spacing:.14em;text-transform:uppercase;margin-bottom:16px}
+        .principles-title{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:clamp(30px,4.2vw,48px);font-weight:200;letter-spacing:-.02em;line-height:1.2;color:var(--g1)}
+        .p-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--g6);border-radius:20px;overflow:hidden}
+        .p-card{background:var(--black);padding:clamp(32px,3.5vw,48px);transition:background .5s}.p-card:hover{background:var(--g7)}
+        .p-num{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;font-weight:300;color:var(--gold-dim);letter-spacing:.08em;margin-bottom:20px}
+        .p-card h3{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:clamp(17px,1.7vw,21px);font-weight:400;letter-spacing:-.01em;margin-bottom:12px;line-height:1.3}
+        .p-card p{font-size:14px;color:var(--g4);line-height:1.8;font-weight:300}
+
+        /* STATS */
+        .stats{background:var(--bg);border-top:.5px solid rgba(255,255,255,.04);border-bottom:.5px solid rgba(255,255,255,.04);padding:clamp(72px,9vw,120px) clamp(24px,5vw,48px)}
+        .stats-inner{max-width:960px;margin:0 auto}
+        .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);text-align:center}
+        .stat{padding:24px 12px;position:relative}
+        .stat:not(:last-child)::after{content:'';position:absolute;right:0;top:20%;height:60%;width:.5px;background:rgba(255,255,255,.06)}
+        .stat-val{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:clamp(40px,5vw,64px);font-weight:200;letter-spacing:-.03em;line-height:1;margin-bottom:10px}
+        .stat-lab{font-size:10px;color:var(--g5);letter-spacing:.1em;text-transform:uppercase;font-weight:500}
+
+        /* TIMELINE */
+        .timeline{background:var(--black);padding:clamp(100px,12vw,160px) clamp(24px,5vw,48px)}
+        .timeline-inner{max-width:680px;margin:0 auto}
+        .timeline-head{text-align:center;margin-bottom:clamp(56px,7vw,80px)}
+        .timeline-label{font-size:12px;font-weight:500;color:var(--gold);letter-spacing:.14em;text-transform:uppercase;margin-bottom:16px}
+        .timeline-title{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:clamp(28px,3.8vw,42px);font-weight:200;letter-spacing:-.02em;color:var(--g1)}
+        .tl-items{position:relative}
+        .tl-items::before{content:'';position:absolute;left:0;top:0;bottom:0;width:.5px;background:linear-gradient(180deg,transparent,var(--g6) 10%,var(--g6) 90%,transparent)}
+        .tl-item{padding-left:36px;padding-bottom:48px;position:relative}.tl-item:last-child{padding-bottom:0}
+        .tl-dot{position:absolute;left:-3.5px;top:4px;width:7px;height:7px;border-radius:50%;background:var(--gold);box-shadow:0 0 12px rgba(245,166,35,.3)}
+        .tl-year{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:12px;font-weight:300;color:var(--gold-dim);letter-spacing:.08em;margin-bottom:8px}
+        .tl-event{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:18px;font-weight:400;color:var(--g1);margin-bottom:6px}
+        .tl-desc{font-size:14px;color:var(--g4);line-height:1.7;font-weight:300}
+
+        /* FOUNDER */
+        .founder{background:var(--bg);text-align:center;padding:clamp(120px,14vw,200px) clamp(24px,6vw,48px);position:relative;overflow:hidden}
+        .oculus{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:600px;height:600px;border-radius:50%;background:radial-gradient(circle,rgba(245,166,35,.03),transparent 70%);pointer-events:none}
+        .founder-inner{max-width:680px;margin:0 auto;position:relative;z-index:1}
+        .founder-avatar{width:80px;height:80px;border-radius:50%;background:linear-gradient(145deg,var(--gold-top),var(--gold-bot));margin:0 auto 18px;display:flex;align-items:center;justify-content:center;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:28px;font-weight:300;color:var(--black);box-shadow:0 0 40px rgba(245,166,35,.15)}
+        .founder-name{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:16px;font-weight:400;margin-bottom:3px}
+        .founder-role{font-size:11px;color:var(--gold-dim);font-weight:500;letter-spacing:.1em;text-transform:uppercase;margin-bottom:52px}
+        .founder-quote{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:clamp(22px,3vw,32px);font-weight:200;line-height:1.55;letter-spacing:-.01em;color:var(--g3)}
+        .founder-quote .em{color:var(--white);font-weight:400}
+
+        /* CTA */
+        .cta{background:var(--black);text-align:center;padding:clamp(120px,14vw,200px) 24px;border-top:.5px solid rgba(255,255,255,.04)}
+        .cta-inner{position:relative;z-index:1}
+        .cta h2{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:clamp(42px,7.5vw,84px);font-weight:200;letter-spacing:-.03em;line-height:1.05;margin-bottom:20px}
+        .cta p{font-size:16px;color:var(--g4);font-weight:300;margin-bottom:48px}
+        .cta-btns{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+        .btn{display:inline-flex;align-items:center;justify-content:center;padding:16px 36px;border-radius:980px;font-size:15px;font-weight:500;transition:all .4s cubic-bezier(.22,1,.36,1)}
+        .btn-gold{background:linear-gradient(180deg,var(--gold-top),var(--gold-bot));color:var(--black)}
+        .btn-gold:hover{transform:scale(1.04);box-shadow:0 8px 40px rgba(245,166,35,.25)}
+        .btn-outline{border:1px solid var(--g5);color:var(--g2)}
+        .btn-outline:hover{border-color:var(--gold);color:var(--gold);transform:scale(1.04)}
+
+        /* FOOTER */
+        footer{padding:56px clamp(24px,4vw,48px) 28px;background:var(--bg);border-top:.5px solid rgba(255,255,255,.04)}
+        .f-grid{max-width:1080px;margin:0 auto 44px;display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:48px}
+        .f-brand p{font-size:12px;color:var(--g5);line-height:1.8}.f-brand strong{color:var(--g4);font-weight:500}
+        .f-links h4{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--g4);margin-bottom:14px}
+        .f-links ul{list-style:none}.f-links li{margin-bottom:9px}.f-links a{color:var(--g5);font-size:12px;transition:color .3s}.f-links a:hover{color:var(--gold)}
+        .f-bottom{max-width:1080px;margin:0 auto;padding-top:20px;border-top:.5px solid rgba(255,255,255,.04);display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--g5)}
+        .f-status{display:flex;align-items:center;gap:6px}
+        .f-status::before{content:'';width:5px;height:5px;border-radius:50%;background:#30D158;box-shadow:0 0 6px rgba(48,209,88,.4)}
+
+        /* ROME SKYLINE DIVIDER */
+        .rome-skyline{display:flex;justify-content:center;padding:0 24px;overflow:hidden}
+        .rome-skyline svg{width:100%;max-width:900px;height:auto;opacity:.07;display:block}
+
+        /* PORTAL TABS */
+        .portal-tabs{display:flex;gap:0;margin-bottom:clamp(48px,6vw,72px);justify-content:center}
+        .portal-tab{padding:14px 28px;font-size:13px;font-weight:500;color:var(--g5);cursor:pointer;border-bottom:2px solid transparent;transition:all .3s;letter-spacing:.02em;user-select:none}
+        .portal-tab:hover{color:var(--g3)}
+        .portal-tab.active{color:var(--gold);border-bottom-color:var(--gold)}
+        .portal-view{display:none}.portal-view.active{display:grid}
+
+        /* TENANT PORTAL */
+        .tenant-section{background:var(--black);padding:clamp(100px,12vw,160px) clamp(24px,5vw,48px);position:relative;overflow:hidden}
+        .tenant-inner{max-width:1120px;margin:0 auto}
+        .tenant-head{text-align:center;margin-bottom:clamp(56px,7vw,80px)}
+        .tenant-head-label{font-size:12px;font-weight:500;color:var(--gold);letter-spacing:.14em;text-transform:uppercase;margin-bottom:16px}
+        .tenant-head-title{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:clamp(30px,4.5vw,52px);font-weight:200;letter-spacing:-.02em;line-height:1.15;color:var(--g1);max-width:720px;margin:0 auto}
+        .tenant-head-sub{font-size:clamp(15px,1.6vw,18px);color:var(--g4);font-weight:300;line-height:1.7;max-width:520px;margin:20px auto 0}
+
+        .tenant-grid{display:grid;grid-template-columns:1fr 1fr;gap:clamp(48px,6vw,80px);align-items:center}
+
+        /* Tenant portal mockup */
+        .tp-screen{padding:20px}
+        .tp-greeting{font-size:14px;font-weight:300;color:var(--g2);margin-bottom:16px}
+        .tp-greeting strong{color:var(--white);font-weight:500}
+        .tp-status-bar{display:flex;gap:10px;margin-bottom:16px}
+        .tp-status-pill{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:20px;font-size:10px;font-weight:500;letter-spacing:.03em}
+        .tp-pill-green{background:rgba(48,209,88,.1);color:#30D158}
+        .tp-pill-gold{background:rgba(245,166,35,.1);color:var(--gold)}
+        .tp-pill-dot{width:5px;height:5px;border-radius:50%;background:currentColor}
+
+        .tp-cards{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+
+        /* Rent calendar mini widget */
+        .tp-calendar{background:rgba(255,255,255,.02);border:.5px solid rgba(255,255,255,.06);border-radius:10px;padding:14px;margin-bottom:14px}
+        .tp-cal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+        .tp-cal-title{font-size:10px;color:var(--g3);font-weight:500}
+        .tp-cal-badge{font-size:9px;color:#30D158;font-weight:600;background:rgba(48,209,88,.1);padding:3px 8px;border-radius:10px}
+        .tp-cal-row{display:flex;gap:4px}
+        .tp-cal-day{flex:1;text-align:center;padding:6px 0;font-size:9px;border-radius:4px;color:var(--g5)}
+        .tp-cal-day.paid{background:rgba(48,209,88,.08);color:#30D158}
+        .tp-cal-day.current{background:rgba(245,166,35,.12);color:var(--gold);font-weight:600}
+        .tp-cal-day.future{color:var(--g6)}
+
+        /* Maintenance widget */
+        .tp-maintenance{background:rgba(255,255,255,.02);border:.5px solid rgba(255,255,255,.06);border-radius:10px;padding:14px}
+        .tp-maint-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+        .tp-maint-title{font-size:10px;color:var(--g3);font-weight:500}
+        .tp-maint-btn{font-size:9px;color:var(--gold);font-weight:600;background:rgba(245,166,35,.1);padding:3px 8px;border-radius:10px;cursor:pointer}
+        .tp-maint-item{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:.5px solid rgba(255,255,255,.03)}
+        .tp-maint-item:last-child{border-bottom:none}
+        .tp-maint-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+        .tp-maint-dot.resolved{background:#30D158}.tp-maint-dot.pending{background:var(--gold)}
+        .tp-maint-text{font-size:10px;color:var(--g3);font-weight:300}.tp-maint-text strong{color:var(--g1);font-weight:500}
+        .tp-maint-time{font-size:8px;color:var(--g5);margin-left:auto;white-space:nowrap}
+
+        /* Tenant features */
+        .tenant-features{}
+        .tf-item{display:flex;gap:16px;padding:24px 0;border-bottom:.5px solid rgba(255,255,255,.04);align-items:flex-start}
+        .tf-item:first-child{padding-top:0}.tf-item:last-child{border-bottom:none}
+        .tf-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;background:rgba(255,255,255,.03);border:.5px solid rgba(255,255,255,.06)}
+        .tf-content{}
+        .tf-title{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:16px;font-weight:400;color:var(--white);margin-bottom:4px}
+        .tf-desc{font-size:13px;color:var(--g4);line-height:1.7;font-weight:300}
+
+        /* ROME ARCH ACCENT - subtle arch shape behind section heads */
+        .arch-accent{position:relative}
+        .arch-accent::before{content:'';position:absolute;top:-40px;left:50%;transform:translateX(-50%);width:160px;height:80px;border-radius:80px 80px 0 0;border:0.5px solid rgba(245,166,35,.06);border-bottom:none;pointer-events:none}
+
+        /* REVEALS */
+        .r{opacity:0;transform:translateY(24px);transition:opacity .9s cubic-bezier(.22,1,.36,1),transform .9s cubic-bezier(.22,1,.36,1)}
+        .r.v{opacity:1;transform:none}
+        [data-d="1"]{transition-delay:.08s}[data-d="2"]{transition-delay:.16s}[data-d="3"]{transition-delay:.24s}[data-d="4"]{transition-delay:.32s}[data-d="5"]{transition-delay:.4s}
+
+        /* RESPONSIVE */
+        @media(max-width:1024px){.p-grid{grid-template-columns:repeat(2,1fr)}.stats-grid{grid-template-columns:repeat(2,1fr)}.stat:nth-child(2)::after{display:none}.f-grid{grid-template-columns:1fr 1fr;gap:32px}.hybrid-grid{grid-template-columns:1fr;gap:56px}.hybrid-compare{grid-template-columns:1fr}.tenant-grid{grid-template-columns:1fr;gap:56px}}
+        @media(max-width:768px){.nav-links{display:none}.hamburger{display:block}.p-grid{grid-template-columns:1fr;border-radius:14px}.stats-grid{grid-template-columns:1fr 1fr}.stat::after{display:none!important}.cta-btns{flex-direction:column;align-items:center}.btn{width:100%;max-width:280px}.f-grid{grid-template-columns:1fr;gap:28px}.f-bottom{flex-direction:column;gap:6px;text-align:center}.story-stats{flex-direction:column;align-items:center;gap:24px}.hero-logo{width:56px;height:56px}.portal-cards{grid-template-columns:1fr}.tp-cards{grid-template-columns:1fr}.tp-status-bar{flex-wrap:wrap}.portal-tab{padding:12px 18px;font-size:12px}}
+        @media(max-width:480px){.story-text{font-size:22px}}
     </style>
 </head>
 <body>
-    <!-- Nav -->
-    <nav>
-        <div class="nav-container">
-            <a href="/" class="logo">
-                <div class="logo-circle"></div>
-                <span class="logo-text">BOOM</span>
-            </a>
 
-            <div class="hamburger" id="hamburger">
-                <span></span>
-                <span></span>
-                <span></span>
-            </div>
+    <nav id="nav"><div class="nav-inner">
+        <a href="/" class="logo">
+            <svg class="boom-logo-svg" viewBox="0 0 1024 1024" fill="none"><defs><linearGradient id="navG" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#FFD54F"/><stop offset="100%" stop-color="#F5A623"/></linearGradient></defs><g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#navG)"><path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z m610 -144 c743 -103 1436 -459 1919 -985 338 -367 562 -751 704 -1205 276 -879 132 -1858 -388 -2640 -242 -364 -493 -615 -900 -900 l-70 -49 109 104 c413 396 679 919 767 1505 33 217 33 558 0 765 -75 476 -257 896 -549 1265 -127 161 -363 380 -549 511 -300 211 -689 363 -1079 420 -172 26 -604 26 -764 0 -296 -47 -545 -128 -808 -262 -236 -122 -440 -271 -632 -464 -486 -485 -749 -1121 -751 -1815 -1 -611 170 -1148 515 -1608 100 -134 286 -335 382 -413 33 -27 -8 -2 -91 55 -513 351 -904 805 -1143 1331 -71 156 -136 336 -168 465 -9 33 -19 76 -24 95 -5 19 -20 100 -34 180 -59 343 -60 740 0 1070 81 456 229 826 479 1200 246 368 558 669 949 917 386 245 881 418 1321 462 61 6 124 13 140 15 73 10 556 -4 665 -19z m-60 -1329 c105 -16 258 -49 335 -72 82 -26 197 -66 240 -84 149 -65 190 -84 266 -126 677 -379 1129 -1049 1246 -1849 27 -182 24 -517 -5 -695 -75 -458 -225 -813 -500 -1179 -116 -154 -340 -369 -527 -506 -44 -32 -87 -63 -95 -69 -8 -6 35 39 96 99 178 177 283 321 397 550 161 322 231 676 205 1045 -32 467 -223 902 -542 1237 -239 251 -521 426 -873 542 -79 26 -273 67 -383 81 -108 13 -349 13 -465 0 -276 -32 -597 -145 -834 -293 -224 -140 -466 -378 -613 -602 -307 -470 -407 -1055 -273 -1599 80 -327 217 -589 454 -871 71 -84 73 -88 31 -56 -293 225 -547 535 -718 877 -34 68 -65 143 -122 294 -42 112 -101 383 -120 555 -14 127 -14 401 0 534 51 482 223 912 516 1288 269 344 654 620 1085 778 160 59 400 115 574 134 121 13 508 5 625 -13z m-30 -1165 c401 -81 721 -242 992 -499 643 -612 769 -1607 300 -2367 -118 -190 -291 -386 -463 -524 -137 -111 -148 -113 -49 -12 110 112 206 248 275 386 67 137 98 222 132 367 24 103 26 132 27 323 0 182 -3 224 -22 310 -47 211 -126 394 -245 569 -126 186 -358 387 -564 490 -384 191 -823 225 -1218 95 -482 -160 -854 -541 -1004 -1029 -117 -379 -81 -810 96 -1165 37 -72 130 -215 166 -252 17 -18 26 -33 20 -33 -6 0 -61 52 -121 116 -259 272 -424 575 -511 934 -111 459 -18 1006 245 1430 298 483 791 797 1379 880 110 16 448 4 565 -19z m-239 -911 c360 -28 680 -171 925 -415 194 -193 317 -415 382 -688 24 -102 26 -130 26 -312 0 -191 -1 -205 -30 -320 -53 -205 -132 -372 -251 -535 -58 -79 -263 -288 -323 -330 -31 -22 -29 -18 18 35 195 220 312 519 312 795 0 325 -121 614 -350 841 -369 364 -926 453 -1385 222 -336 -170 -578 -499 -636 -865 -19 -126 -7 -371 25 -490 44 -162 97 -284 173 -398 9 -14 -4 -5 -30 20 -26 24 -45 51 -42 58 2 7 1 11 -4 7 -11 -6 -58 51 -118 140 -109 163 -183 347 -219 545 -23 127 -23 351 -1 489 55 335 248 677 492 871 261 208 530 311 881 338 11 1 81 -3 155 -8z m29 -714 c459 -74 823 -428 895 -869 58 -358 -60 -696 -345 -987 l-34 -35 22 35 c115 182 179 403 168 575 -14 235 -104 433 -268 591 -137 134 -287 209 -472 239 -115 19 -187 19 -303 0 -337 -55 -612 -302 -704 -635 -32 -113 -34 -325 -5 -440 23 -92 70 -213 98 -254 l21 -31 -31 29 c-39 36 -120 152 -155 221 -35 71 -81 215 -102 319 -25 130 -17 357 17 476 102 354 357 618 706 730 152 49 331 62 492 36z m-73 -567 c178 -24 327 -101 454 -236 137 -143 199 -303 201 -513 1 -162 -42 -309 -135 -453 -52 -82 -73 -97 -38 -28 51 99 67 290 36 412 -57 219 -251 413 -466 464 -75 17 -236 20 -311 4 -213 -44 -422 -247 -473 -460 -31 -133 -13 -325 41 -431 35 -70 8 -47 -52 43 -58 88 -90 167 -114 286 -25 121 -25 220 -1 331 33 146 84 243 186 351 171 183 413 266 672 230z m15 -470 c80 -17 186 -76 248 -139 106 -107 158 -248 147 -398 -6 -92 -25 -152 -79 -250 -45 -82 -60 -91 -27 -17 18 41 21 62 17 149 -4 89 -8 108 -35 162 -43 82 -126 165 -209 205 -58 29 -80 34 -158 37 -112 5 -184 -12 -259 -62 -182 -121 -251 -323 -171 -506 l24 -55 -25 30 c-36 44 -92 162 -104 223 -39 189 14 369 146 492 105 99 204 139 345 139 48 1 111 -4 140 -10z"/></g></svg>
+            <span class="logo-word">BOOM</span>
+        </a>
+        <div class="nav-links">
+            <a href="/apartments.html">Apartments</a><a href="/property-finding.html">Property Finding</a><a href="/deal-assistance.html">Deal Assistance</a><a href="/virtual-viewing.html">Virtual Viewing</a><a href="/concierge.html">Concierge</a><a href="/about.html" class="active">About</a><a href="https://wa.me/393313251961" class="nav-cta" target="_blank" rel="noopener">WhatsApp</a>
         </div>
-    </nav>
+        <div class="hamburger" id="hamburger" onclick="toggleMenu()"><span></span><span></span><span></span></div>
+    </div></nav>
 
-    <!-- Hero -->
-    <section class="hero">
+    <div class="mobile-menu" id="mobileMenu">
+        <a href="/" onclick="toggleMenu()">Home</a><a href="/apartments.html" onclick="toggleMenu()">Apartments</a><a href="/property-finding.html" onclick="toggleMenu()">Property Finding</a><a href="/deal-assistance.html" onclick="toggleMenu()">Deal Assistance</a><a href="/virtual-viewing.html" onclick="toggleMenu()">Virtual Viewing</a><a href="/concierge.html" onclick="toggleMenu()">Concierge</a><a href="/about.html" onclick="toggleMenu()">About</a><a href="https://wa.me/393313251961" target="_blank" rel="noopener" onclick="toggleMenu()" style="color:var(--gold)">WhatsApp</a>
+    </div>
+
+    <!-- HERO -->
+    <section class="hero" id="hero">
         <div class="hero-content">
-            <span class="hero-tag">Our Story</span>
-            <h1>
-                Built in <span class="gold-accent">Rome</span>,<br>
-                for Rome
-            </h1>
-            <p class="hero-subtitle">
-                If we can make Rome's rental market work, we can make it work anywhere. This is the hardest market in Europe. And we're fixing it.
-            </p>
+            <svg class="hero-logo boom-logo-svg" viewBox="0 0 1024 1024" fill="none"><defs><linearGradient id="heroG" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#FFD54F"/><stop offset="100%" stop-color="#F5A623"/></linearGradient></defs><g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#heroG)"><path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z m610 -144 c743 -103 1436 -459 1919 -985 338 -367 562 -751 704 -1205 276 -879 132 -1858 -388 -2640 -242 -364 -493 -615 -900 -900 l-70 -49 109 104 c413 396 679 919 767 1505 33 217 33 558 0 765 -75 476 -257 896 -549 1265 -127 161 -363 380 -549 511 -300 211 -689 363 -1079 420 -172 26 -604 26 -764 0 -296 -47 -545 -128 -808 -262 -236 -122 -440 -271 -632 -464 -486 -485 -749 -1121 -751 -1815 -1 -611 170 -1148 515 -1608 100 -134 286 -335 382 -413 33 -27 -8 -2 -91 55 -513 351 -904 805 -1143 1331 -71 156 -136 336 -168 465 -9 33 -19 76 -24 95 -5 19 -20 100 -34 180 -59 343 -60 740 0 1070 81 456 229 826 479 1200 246 368 558 669 949 917 386 245 881 418 1321 462 61 6 124 13 140 15 73 10 556 -4 665 -19z m-60 -1329 c105 -16 258 -49 335 -72 82 -26 197 -66 240 -84 149 -65 190 -84 266 -126 677 -379 1129 -1049 1246 -1849 27 -182 24 -517 -5 -695 -75 -458 -225 -813 -500 -1179 -116 -154 -340 -369 -527 -506 -44 -32 -87 -63 -95 -69 -8 -6 35 39 96 99 178 177 283 321 397 550 161 322 231 676 205 1045 -32 467 -223 902 -542 1237 -239 251 -521 426 -873 542 -79 26 -273 67 -383 81 -108 13 -349 13 -465 0 -276 -32 -597 -145 -834 -293 -224 -140 -466 -378 -613 -602 -307 -470 -407 -1055 -273 -1599 80 -327 217 -589 454 -871 71 -84 73 -88 31 -56 -293 225 -547 535 -718 877 -34 68 -65 143 -122 294 -42 112 -101 383 -120 555 -14 127 -14 401 0 534 51 482 223 912 516 1288 269 344 654 620 1085 778 160 59 400 115 574 134 121 13 508 5 625 -13z m-30 -1165 c401 -81 721 -242 992 -499 643 -612 769 -1607 300 -2367 -118 -190 -291 -386 -463 -524 -137 -111 -148 -113 -49 -12 110 112 206 248 275 386 67 137 98 222 132 367 24 103 26 132 27 323 0 182 -3 224 -22 310 -47 211 -126 394 -245 569 -126 186 -358 387 -564 490 -384 191 -823 225 -1218 95 -482 -160 -854 -541 -1004 -1029 -117 -379 -81 -810 96 -1165 37 -72 130 -215 166 -252 17 -18 26 -33 20 -33 -6 0 -61 52 -121 116 -259 272 -424 575 -511 934 -111 459 -18 1006 245 1430 298 483 791 797 1379 880 110 16 448 4 565 -19z m-239 -911 c360 -28 680 -171 925 -415 194 -193 317 -415 382 -688 24 -102 26 -130 26 -312 0 -191 -1 -205 -30 -320 -53 -205 -132 -372 -251 -535 -58 -79 -263 -288 -323 -330 -31 -22 -29 -18 18 35 195 220 312 519 312 795 0 325 -121 614 -350 841 -369 364 -926 453 -1385 222 -336 -170 -578 -499 -636 -865 -19 -126 -7 -371 25 -490 44 -162 97 -284 173 -398 9 -14 -4 -5 -30 20 -26 24 -45 51 -42 58 2 7 1 11 -4 7 -11 -6 -58 51 -118 140 -109 163 -183 347 -219 545 -23 127 -23 351 -1 489 55 335 248 677 492 871 261 208 530 311 881 338 11 1 81 -3 155 -8z m29 -714 c459 -74 823 -428 895 -869 58 -358 -60 -696 -345 -987 l-34 -35 22 35 c115 182 179 403 168 575 -14 235 -104 433 -268 591 -137 134 -287 209 -472 239 -115 19 -187 19 -303 0 -337 -55 -612 -302 -704 -635 -32 -113 -34 -325 -5 -440 23 -92 70 -213 98 -254 l21 -31 -31 29 c-39 36 -120 152 -155 221 -35 71 -81 215 -102 319 -25 130 -17 357 17 476 102 354 357 618 706 730 152 49 331 62 492 36z m-73 -567 c178 -24 327 -101 454 -236 137 -143 199 -303 201 -513 1 -162 -42 -309 -135 -453 -52 -82 -73 -97 -38 -28 51 99 67 290 36 412 -57 219 -251 413 -466 464 -75 17 -236 20 -311 4 -213 -44 -422 -247 -473 -460 -31 -133 -13 -325 41 -431 35 -70 8 -47 -52 43 -58 88 -90 167 -114 286 -25 121 -25 220 -1 331 33 146 84 243 186 351 171 183 413 266 672 230z m15 -470 c80 -17 186 -76 248 -139 106 -107 158 -248 147 -398 -6 -92 -25 -152 -79 -250 -45 -82 -60 -91 -27 -17 18 41 21 62 17 149 -4 89 -8 108 -35 162 -43 82 -126 165 -209 205 -58 29 -80 34 -158 37 -112 5 -184 -12 -259 -62 -182 -121 -251 -323 -171 -506 l24 -55 -25 30 c-36 44 -92 162 -104 223 -39 189 14 369 146 492 105 99 204 139 345 139 48 1 111 -4 140 -10z"/></g></svg>
+            <p class="hero-label">About BOOM</p>
+            <h1><span class="line"><span>Built in Rome.</span></span><span class="line"><span class="gold-grad">For you.</span></span></h1>
+            <p class="hero-sub">We watched people get scammed, ghosted, and exploited by Rome's rental market. So we built the service we wished existed.</p>
         </div>
+        <div class="scroll-hint"><div class="scroll-hint-inner"><span class="scroll-hint-text">Scroll</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg></div></div>
     </section>
 
-    <!-- Story -->
-    <section class="story-section">
-        <div class="story-container">
-            <!-- Grid with Image -->
-            <div class="story-grid">
-                <img src="https://i.imgur.com/C9Xk7zT.jpeg" alt="Valentino - Founder of BOOM" class="story-image">
-                
-                <div>
-                    <p class="story-intro">
-                        I'm Valentino. 24 years old. Born and raised in Rome. And I'm fucking tired of watching people get screwed by this city's rental market.
-                    </p>
+    <!-- SCROLL STORY -->
+    <section class="story" id="storySection"><div class="story-space"><div class="story-pin"><div class="story-inner">
+        <p class="story-text" id="storyText"><span class="w">Every</span> <span class="w">year,</span> <span class="w">thousands</span> <span class="w">arrive</span> <span class="w">in</span> <span class="w">Rome</span> <span class="w">excited</span> <span class="w">about</span> <span class="w">a</span> <span class="w">new</span> <span class="w">chapter.</span> <span class="w">They</span> <span class="w">get</span> <span class="w">hit</span> <span class="w">with</span> <span class="w gold-w">fake</span> <span class="w gold-w">listings.</span> <span class="w gold-w">Hidden</span> <span class="w gold-w">fees.</span> <span class="w gold-w">Contracts</span> <span class="w gold-w">they</span> <span class="w gold-w">can't</span> <span class="w gold-w">read.</span> <span class="w">And</span> <span class="w">agents</span> <span class="w">who</span> <span class="w gold-w">vanish</span> <span class="w">the</span> <span class="w">moment</span> <span class="w">the</span> <span class="w">deposit</span> <span class="w">clears.</span></p>
+        <div class="story-stats" id="storyStats">
+            <div class="story-stat"><div class="story-stat-val">45+ days</div><div class="story-stat-label">Average search</div></div>
+            <div class="story-stat"><div class="story-stat-val">&euro;8,000+</div><div class="story-stat-label">Hidden costs</div></div>
+            <div class="story-stat"><div class="story-stat-val">70%</div><div class="story-stat-label">Fake photos</div></div>
+        </div>
+    </div></div></div></section>
 
-                    <div class="story-content">
-                        <p>
-                            <strong>Here's the truth:</strong> Rome has the most chaotic, frustrating, borderline-criminal rental market in Europe. I've watched hundreds of internationals arrive with dreams and leave with trauma. Scammed by fake agents. Trapped by impossible deposits. Living in apartments that look nothing like the photos.
-                        </p>
+    <div class="divider"><div class="divider-line"></div></div>
 
-                        <p>
-                            I grew up here. I know every neighborhood. I've seen every scam. I've watched my international friends waste months searching, lose thousands in fees, and get treated like ATMs by landlords who vanish the moment something breaks.
-                        </p>
+    <!-- ANSWER -->
+    <section class="answer"><div class="answer-inner">
+        <h2 class="answer-big r">So we built <span class="gold-grad">BOOM.</span></h2>
+        <p class="answer-body r" data-d="1">With 6+ years navigating Rome's streets, we created a service that treats you like a person, not a transaction. <strong>Video-verified apartments. Transparent pricing. Real humans who answer when you call.</strong> Contracts you can understand. And a promise &mdash; we don't disappear after you sign.</p>
+    </div></section>
+
+    <!-- HYBRID SECTION -->
+    <section class="hybrid" id="hybridSection"><div class="hybrid-inner">
+        <div class="hybrid-head">
+            <p class="hybrid-label r">How We're Different</p>
+            <h2 class="hybrid-title r" data-d="1">A real agency with a<br>tech company's brain.</h2>
+            <p class="hybrid-subtitle r" data-d="2">We're not a listing platform. We're not a traditional agency. We built our own private management portal to give you speed, transparency, and control that no one else in Rome offers.</p>
+        </div>
+
+        <div class="hybrid-grid">
+            <div class="r" style="position:relative">
+                <div class="portal-glow"></div>
+                <div class="portal-mockup">
+                    <div class="portal-titlebar">
+                        <div class="portal-dot red"></div><div class="portal-dot yellow"></div><div class="portal-dot green"></div>
+                        <div class="portal-url">portal.boomrome.com</div>
+                    </div>
+                    <div class="portal-screen">
+                        <div class="portal-nav-mock">
+                            <div class="portal-nav-logo">
+                                <svg class="boom-logo-svg" viewBox="0 0 1024 1024" fill="none"><defs><linearGradient id="pG" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#FFD54F"/><stop offset="100%" stop-color="#F5A623"/></linearGradient></defs><g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#pG)"><path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z"/></g></svg>
+                                <span>BOOM</span>
+                            </div>
+                            <div class="portal-nav-tabs"><span class="act">Dashboard</span><span>Properties</span><span>Contracts</span></div>
+                        </div>
+                        <div class="portal-greeting">Welcome back, <strong>Sarah</strong></div>
+                        <div class="portal-cards">
+                            <div class="portal-card"><div class="pc-label">Search Status</div><div class="pc-val green-t">Active</div><div class="pc-sub">3 matches found today</div></div>
+                            <div class="portal-card"><div class="pc-label">Time to Close</div><div class="pc-val gold-t">12 days</div><div class="pc-sub">Avg: 21 days</div></div>
+                        </div>
+                        <div class="portal-progress" id="portalProgress">
+                            <div class="pp-header"><span>Your Journey</span><span>72%</span></div>
+                            <div class="pp-bar"><div class="pp-fill" id="ppFill"></div></div>
+                        </div>
+                        <div class="portal-feed">
+                            <div class="pf-title">Recent Activity</div>
+                            <div class="pf-item"><div class="pf-icon gold-bg">&#9889;</div><div class="pf-text"><strong>New match</strong> in Trastevere &mdash; 2BR, &euro;1,200/mo</div><div class="pf-time">2m ago</div></div>
+                            <div class="pf-item"><div class="pf-icon green-bg">&#10003;</div><div class="pf-text"><strong>Video tour</strong> scheduled for Via Giulia flat</div><div class="pf-time">1h ago</div></div>
+                            <div class="pf-item"><div class="pf-icon blue-bg">&#9998;</div><div class="pf-text"><strong>Contract draft</strong> ready for your review</div><div class="pf-time">3h ago</div></div>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Full Width Content -->
-            <div class="story-full-width">
-                <div class="story-content">
-                    <p>
-                        <strong>So I built BOOM.</strong> Not because I thought "hey, real estate sounds fun." But because I was genuinely pissed off. Pissed off at agencies charging €5,000 in fake fees. Pissed off at landlords who think a 1m² balcony facing a dumpster is a "sunny terrace." Pissed off at a system designed to exploit people who don't speak Italian and don't understand local laws.
-                    </p>
+            <div class="hybrid-features">
+                <div class="hf-item r"><div class="hf-tag">Platform</div><div class="hf-title">Your own private portal</div><div class="hf-desc">Every client gets access to a private dashboard. Track your search progress, view matched properties, review contracts, and communicate with your agent &mdash; all in one place, 24/7.</div></div>
+                <div class="hf-item r" data-d="1"><div class="hf-tag">Intelligence</div><div class="hf-title">AI-powered property matching</div><div class="hf-desc">Our system monitors the entire Rome rental market in real-time. When a property matches your criteria, you know about it before it hits the public listings.</div></div>
+                <div class="hf-item r" data-d="2"><div class="hf-tag">Human</div><div class="hf-title">A real Roman on speed dial</div><div class="hf-desc">Technology finds the apartments. But a real person negotiates your rent, reads the Italian contracts, meets the landlord face-to-face, and makes sure you're never taken advantage of.</div></div>
+                <div class="hf-item r" data-d="3"><div class="hf-tag">Automation</div><div class="hf-title">Payments, contracts, zero paperwork</div><div class="hf-desc">Digital contracts, automated payment processing, instant receipts. We eliminated the bureaucratic nightmare so you can focus on actually living in Rome.</div></div>
+            </div>
+        </div>
 
-                    <p>
-                        <strong>BOOM is what I wish existed when my friends moved here.</strong> Video-verified apartments so you know exactly what you're getting. One transparent fee so there are no surprises. English contracts that actually make sense. 24/7 support because emergencies don't happen 9-5. Real human beings who actually answer when shit breaks.
-                    </p>
+        <div class="hybrid-compare">
+            <div class="hc-col r"><div class="hc-label old">Traditional Agency</div><ul class="hc-list"><li>Call during office hours only</li><li>Paper contracts in Italian</li><li>No visibility on search progress</li><li>Hidden commission structures</li><li>Disappear after signing</li></ul></div>
+            <div class="hc-col r" data-d="1"><div class="hc-label boom-l">BOOM</div><ul class="hc-list"><li>24/7 WhatsApp + private portal</li><li>Digital contracts in English</li><li>Real-time dashboard tracking</li><li>One transparent fee, upfront</li><li>Your partner for the entire stay</li></ul></div>
+        </div>
+    </div></section>
+
+    <!-- ROME SKYLINE DIVIDER -->
+    <div class="rome-skyline">
+        <svg viewBox="0 0 1200 80" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMax meet">
+            <!-- Roman Pine (left cluster) -->
+            <line x1="120" y1="80" x2="120" y2="38" stroke="#F5A623" stroke-width="0.6"/>
+            <ellipse cx="120" cy="32" rx="8" ry="14" stroke="#F5A623" stroke-width="0.5" fill="none"/>
+            <line x1="155" y1="80" x2="155" y2="42" stroke="#F5A623" stroke-width="0.5"/>
+            <ellipse cx="155" cy="36" rx="6" ry="11" stroke="#F5A623" stroke-width="0.5" fill="none"/>
+            <!-- Ancient column -->
+            <rect x="240" y="50" width="4" height="30" stroke="#F5A623" stroke-width="0.5" fill="none"/>
+            <rect x="238" y="48" width="8" height="3" stroke="#F5A623" stroke-width="0.4" fill="none"/>
+            <rect x="248" y="55" width="4" height="25" stroke="#F5A623" stroke-width="0.5" fill="none"/>
+            <rect x="246" y="53" width="8" height="3" stroke="#F5A623" stroke-width="0.4" fill="none"/>
+            <!-- Colosseum arch silhouette -->
+            <path d="M360 80 L360 50 Q360 38 370 38 L380 38 Q390 38 390 50 L390 80" stroke="#F5A623" stroke-width="0.5" fill="none"/>
+            <path d="M390 80 L390 50 Q390 38 400 38 L410 38 Q420 38 420 50 L420 80" stroke="#F5A623" stroke-width="0.5" fill="none"/>
+            <path d="M420 80 L420 50 Q420 38 430 38 L440 38 Q450 38 450 50 L450 80" stroke="#F5A623" stroke-width="0.5" fill="none"/>
+            <line x1="355" y1="36" x2="455" y2="36" stroke="#F5A623" stroke-width="0.4"/>
+            <!-- St. Peter's dome -->
+            <path d="M550 80 L550 46 L556 46 L556 32 Q570 8 584 32 L584 46 L590 46 L590 80" stroke="#F5A623" stroke-width="0.6" fill="none"/>
+            <line x1="570" y1="8" x2="570" y2="0" stroke="#F5A623" stroke-width="0.5"/>
+            <line x1="567" y1="2" x2="573" y2="2" stroke="#F5A623" stroke-width="0.4"/>
+            <!-- Dome lantern -->
+            <ellipse cx="570" cy="18" rx="5" ry="3" stroke="#F5A623" stroke-width="0.3" fill="none"/>
+            <!-- Pantheon -->
+            <path d="M680 80 L680 48 Q710 20 740 48 L740 80" stroke="#F5A623" stroke-width="0.5" fill="none"/>
+            <rect x="690" y="48" width="4" height="32" stroke="#F5A623" stroke-width="0.3" fill="none"/>
+            <rect x="706" y="48" width="4" height="32" stroke="#F5A623" stroke-width="0.3" fill="none"/>
+            <rect x="722" y="48" width="4" height="32" stroke="#F5A623" stroke-width="0.3" fill="none"/>
+            <!-- Oculus circle -->
+            <circle cx="710" cy="38" r="4" stroke="#F5A623" stroke-width="0.3" fill="none"/>
+            <!-- Bell tower -->
+            <rect x="830" y="35" width="16" height="45" stroke="#F5A623" stroke-width="0.5" fill="none"/>
+            <path d="M828 35 L838 22 L848 35" stroke="#F5A623" stroke-width="0.5" fill="none"/>
+            <rect x="834" y="42" width="8" height="10" rx="4" stroke="#F5A623" stroke-width="0.3" fill="none"/>
+            <!-- Pine (right) -->
+            <line x1="960" y1="80" x2="960" y2="35" stroke="#F5A623" stroke-width="0.6"/>
+            <ellipse cx="960" cy="28" rx="9" ry="15" stroke="#F5A623" stroke-width="0.5" fill="none"/>
+            <!-- Rooftops -->
+            <path d="M1020 80 L1020 55 L1035 45 L1050 55 L1050 80" stroke="#F5A623" stroke-width="0.4" fill="none"/>
+            <path d="M1050 80 L1050 50 L1070 40 L1090 50 L1090 80" stroke="#F5A623" stroke-width="0.4" fill="none"/>
+            <!-- Horizon line -->
+            <line x1="0" y1="80" x2="1200" y2="80" stroke="#F5A623" stroke-width="0.3" opacity="0.5"/>
+        </svg>
+    </div>
+
+    <!-- TENANT PORTAL SECTION -->
+    <section class="tenant-section">
+        <div class="tenant-inner">
+            <div class="tenant-head">
+                <p class="tenant-head-label r">After You Move In</p>
+                <h2 class="tenant-head-title r" data-d="1">Your home in Rome,<br>managed from your pocket.</h2>
+                <p class="tenant-head-sub r" data-d="2">Every BOOM tenant gets access to a private Tenant Portal. Rent, maintenance, documents, emergencies &mdash; everything in one place.</p>
+            </div>
+
+            <div class="tenant-grid">
+                <!-- Tenant features (left) -->
+                <div class="tenant-features">
+                    <div class="tf-item r">
+                        <div class="tf-icon">&#127968;</div>
+                        <div class="tf-content"><div class="tf-title">One-tap rent payments</div><div class="tf-desc">Pay rent online in seconds. Automatic receipts, payment history, and reminders so you never miss a due date.</div></div>
+                    </div>
+                    <div class="tf-item r" data-d="1">
+                        <div class="tf-icon">&#128295;</div>
+                        <div class="tf-content"><div class="tf-title">Instant maintenance requests</div><div class="tf-desc">Something broken? Submit a request with photos, track the status in real-time, and get resolution without chasing anyone.</div></div>
+                    </div>
+                    <div class="tf-item r" data-d="2">
+                        <div class="tf-icon">&#128196;</div>
+                        <div class="tf-content"><div class="tf-title">All documents, always available</div><div class="tf-desc">Your contract, receipts, inventory check, utility guides &mdash; all stored securely and accessible anytime.</div></div>
+                    </div>
+                    <div class="tf-item r" data-d="3">
+                        <div class="tf-icon">&#127384;</div>
+                        <div class="tf-content"><div class="tf-title">Emergency support</div><div class="tf-desc">Locked out at 2 AM? Pipe burst on Sunday? One tap connects you to our emergency line. We handle it.</div></div>
+                    </div>
+                    <div class="tf-item r" data-d="4">
+                        <div class="tf-icon">&#128276;</div>
+                        <div class="tf-content"><div class="tf-title">Check-out made easy</div><div class="tf-desc">When it's time to leave, the portal walks you through every step. Deposit return, utility transfers, key handover &mdash; zero stress.</div></div>
+                    </div>
                 </div>
 
-                <div class="quote-block">
-                    <p class="quote-text">
-                        "If it works in Rome, it works anywhere. This is the hardest rental market in Europe. And if we can make it simple here, we can make it simple everywhere."
-                    </p>
-                    <div class="quote-author">— Valentino, Founder</div>
-                </div>
+                <!-- Tenant Portal mockup (right) -->
+                <div class="r" data-d="1" style="position:relative">
+                    <div class="portal-glow"></div>
+                    <div class="portal-mockup">
+                        <div class="portal-titlebar">
+                            <div class="portal-dot red"></div><div class="portal-dot yellow"></div><div class="portal-dot green"></div>
+                            <div class="portal-url">tenant.boomrome.com</div>
+                        </div>
+                        <div class="tp-screen">
+                            <div class="portal-nav-mock">
+                                <div class="portal-nav-logo">
+                                    <svg class="boom-logo-svg" viewBox="0 0 1024 1024" fill="none"><defs><linearGradient id="tG" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#FFD54F"/><stop offset="100%" stop-color="#F5A623"/></linearGradient></defs><g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#tG)"><path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z"/></g></svg>
+                                    <span>BOOM</span>
+                                </div>
+                                <div class="portal-nav-tabs"><span>Dashboard</span><span class="act">My Home</span><span>Docs</span></div>
+                            </div>
 
-                <div class="story-content">
-                    <p>
-                        <strong>We're not trying to be the biggest.</strong> We're trying to be the best. Every apartment video-verified. Every landlord vetted. Every contract fair. Every fee transparent. Every promise kept.
-                    </p>
+                            <div class="tp-greeting">Hi <strong>Sarah</strong> &mdash; Via Giulia 42, Apt 3</div>
 
-                    <p>
-                        We started in Rome because it's home. Because if we can fix Rome's broken rental market, we can fix any market. And because frankly, nobody else is doing this shit right.
-                    </p>
+                            <div class="tp-status-bar">
+                                <div class="tp-status-pill tp-pill-green"><span class="tp-pill-dot"></span>Rent paid</div>
+                                <div class="tp-status-pill tp-pill-gold"><span class="tp-pill-dot"></span>1 open request</div>
+                            </div>
 
-                    <p>
-                        <strong>This is BOOM.</strong> Get your apartment in days, not weeks. No bullshit. No hidden fees. No catfish photos. Just honest service in Europe's most dishonest rental market.
-                    </p>
+                            <div class="tp-cards">
+                                <div class="portal-card">
+                                    <div class="pc-label">Next Payment</div>
+                                    <div class="pc-val gold-t">&euro;1,200</div>
+                                    <div class="pc-sub">Due Mar 1 &middot; Auto-pay on</div>
+                                </div>
+                                <div class="portal-card">
+                                    <div class="pc-label">Lease Remaining</div>
+                                    <div class="pc-val" style="color:var(--g2)">8 mo</div>
+                                    <div class="pc-sub">Expires Oct 2025</div>
+                                </div>
+                            </div>
+
+                            <div class="tp-calendar">
+                                <div class="tp-cal-header">
+                                    <div class="tp-cal-title">Payment History</div>
+                                    <div class="tp-cal-badge">All paid &#10003;</div>
+                                </div>
+                                <div class="tp-cal-row">
+                                    <div class="tp-cal-day paid">Oct</div>
+                                    <div class="tp-cal-day paid">Nov</div>
+                                    <div class="tp-cal-day paid">Dec</div>
+                                    <div class="tp-cal-day paid">Jan</div>
+                                    <div class="tp-cal-day current">Feb</div>
+                                    <div class="tp-cal-day future">Mar</div>
+                                    <div class="tp-cal-day future">Apr</div>
+                                </div>
+                            </div>
+
+                            <div class="tp-maintenance">
+                                <div class="tp-maint-header">
+                                    <div class="tp-maint-title">Maintenance</div>
+                                    <div class="tp-maint-btn">+ New request</div>
+                                </div>
+                                <div class="tp-maint-item">
+                                    <div class="tp-maint-dot pending"></div>
+                                    <div class="tp-maint-text"><strong>Kitchen faucet</strong> &mdash; dripping</div>
+                                    <div class="tp-maint-time">Plumber Tue</div>
+                                </div>
+                                <div class="tp-maint-item">
+                                    <div class="tp-maint-dot resolved"></div>
+                                    <div class="tp-maint-text"><strong>Heater</strong> &mdash; not starting</div>
+                                    <div class="tp-maint-time">Resolved</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- Mission -->
-    <section class="mission-section">
-        <div class="mission-container">
-            <div class="section-header">
-                <span class="section-tag">Our Mission</span>
-                <h2 class="section-title">What We Stand For</h2>
-                <p class="section-subtitle">The principles that guide everything we do</p>
-            </div>
-
-            <div class="mission-grid">
-                <div class="mission-card">
-                    <div class="mission-number">1</div>
-                    <h3 class="mission-title">Radical Transparency</h3>
-                    <p class="mission-description">
-                        One service fee. That's it. No hidden charges, no surprise bills, no fake maintenance fees. You know exactly what you're paying from day one.
-                    </p>
-                </div>
-
-                <div class="mission-card">
-                    <div class="mission-number">2</div>
-                    <h3 class="mission-title">Video Verification</h3>
-                    <p class="mission-description">
-                        Every single apartment is video-verified before listing. No catfish photos from 2015. What you see is exactly what you get.
-                    </p>
-                </div>
-
-                <div class="mission-card">
-                    <div class="mission-number">3</div>
-                    <h3 class="mission-title">Speed Without Compromise</h3>
-                    <p class="mission-description">
-                        48 hours from approval to keys. But we never rush the verification process. Fast service, never sloppy service.
-                    </p>
-                </div>
-
-                <div class="mission-card">
-                    <div class="mission-number">4</div>
-                    <h3 class="mission-title">Always Available</h3>
-                    <p class="mission-description">
-                        24/7 WhatsApp support. Average response time: 2 minutes. Because emergencies don't wait for office hours.
-                    </p>
-                </div>
-
-                <div class="mission-card">
-                    <div class="mission-number">5</div>
-                    <h3 class="mission-title">English Everything</h3>
-                    <p class="mission-description">
-                        Contracts, communication, support - all in English. No "sorry, no speak English" when you have a problem.
-                    </p>
-                </div>
-
-                <div class="mission-card">
-                    <div class="mission-number">6</div>
-                    <h3 class="mission-title">Long-Term Partnership</h3>
-                    <p class="mission-description">
-                        We don't disappear after you sign. We're your Rome partner for as long as you're here. Support from day one to move-out.
-                    </p>
-                </div>
-            </div>
+    <!-- PRINCIPLES -->
+    <section class="principles"><div class="principles-inner">
+        <div class="principles-head arch-accent"><p class="principles-label r">Our Principles</p><h2 class="principles-title r" data-d="1">How we operate. Every day,<br>every client, no exceptions.</h2></div>
+        <div class="p-grid">
+            <div class="p-card r"><div class="p-num">01</div><h3>Radical Transparency</h3><p>One service fee. No hidden charges, no surprise bills, no fake maintenance costs. You know what you're paying from the start.</p></div>
+            <div class="p-card r" data-d="1"><div class="p-num">02</div><h3>Video Verification</h3><p>Every apartment is video-verified before listing. No catfish photos. What you see is exactly what you get.</p></div>
+            <div class="p-card r" data-d="2"><div class="p-num">03</div><h3>Speed, Not Shortcuts</h3><p>48 hours from approval to keys. But we never rush verification. Fast service, never sloppy service.</p></div>
+            <div class="p-card r" data-d="3"><div class="p-num">04</div><h3>Always Available</h3><p>24/7 WhatsApp support. 2-minute average response. Emergencies don't wait for office hours.</p></div>
+            <div class="p-card r" data-d="4"><div class="p-num">05</div><h3>English Everything</h3><p>Contracts, communication, emergencies &mdash; all in English. No barriers when you need help most.</p></div>
+            <div class="p-card r" data-d="5"><div class="p-num">06</div><h3>Long-Term Partner</h3><p>We don't disappear after you sign. We're your Rome partner for as long as you're here.</p></div>
         </div>
-    </section>
+    </div></section>
 
-    <!-- Values -->
-    <section class="values-section">
-        <div class="values-container">
-            <div class="section-header">
-                <span class="section-tag">Core Values</span>
-                <h2 class="section-title">How We Operate</h2>
-            </div>
+    <!-- STATS -->
+    <section class="stats"><div class="stats-inner"><div class="stats-grid">
+        <div class="stat r"><div class="stat-val" data-count="6" data-suffix="+">0</div><div class="stat-lab">Years in Rome</div></div>
+        <div class="stat r" data-d="1"><div class="stat-val" data-count="500" data-suffix="+">0</div><div class="stat-lab">Happy Tenants</div></div>
+        <div class="stat r" data-d="2"><div class="stat-val" data-count="48" data-suffix="h">0</div><div class="stat-lab">Move-in Time</div></div>
+        <div class="stat r" data-d="3"><div class="stat-val" data-count="98" data-suffix="%">0</div><div class="stat-lab">Success Rate</div></div>
+    </div></div></section>
 
-            <div class="values-grid">
-                <div class="value-card">
-                    <div class="value-icon">🎯</div>
-                    <h3 class="value-title">Honest</h3>
-                    <p class="value-description">
-                        We tell you the truth even when it's not what you want to hear. No overselling, no fake promises.
-                    </p>
-                </div>
-
-                <div class="value-card">
-                    <div class="value-icon">⚡</div>
-                    <h3 class="value-title">Fast</h3>
-                    <p class="value-description">
-                        Time is money. Especially when you're burning cash on hotels. We move fast without cutting corners.
-                    </p>
-                </div>
-
-                <div class="value-card">
-                    <div class="value-icon">🔒</div>
-                    <h3 class="value-title">Reliable</h3>
-                    <p class="value-description">
-                        We do what we say we'll do. Every time. No excuses, no ghosting, no disappearing after signing.
-                    </p>
-                </div>
-
-                <div class="value-card">
-                    <div class="value-icon">💡</div>
-                    <h3 class="value-title">Smart</h3>
-                    <p class="value-description">
-                        We use technology to make things simple. But we never hide behind it. Real humans, always available.
-                    </p>
-                </div>
-            </div>
+    <!-- TIMELINE -->
+    <section class="timeline"><div class="timeline-inner">
+        <div class="timeline-head"><p class="timeline-label r">Our Journey</p><h2 class="timeline-title r" data-d="1">Built from experience,<br>not a business plan.</h2></div>
+        <div class="tl-items">
+            <div class="tl-item r"><div class="tl-dot"></div><div class="tl-year">2019</div><div class="tl-event">First apartment, first lesson</div><div class="tl-desc">Valentino starts helping international friends navigate Rome's rental chaos. Word spreads fast.</div></div>
+            <div class="tl-item r" data-d="1"><div class="tl-dot"></div><div class="tl-year">2021</div><div class="tl-event">From favors to a system</div><div class="tl-desc">What started as helping friends becomes a structured service. Relationships with trusted landlords grow organically.</div></div>
+            <div class="tl-item r" data-d="2"><div class="tl-dot"></div><div class="tl-year">2023</div><div class="tl-event">BOOM is born</div><div class="tl-desc">Egidi Immobiliare S.r.l. is registered. A proper company for a proper mission: make renting in Rome actually work.</div></div>
+            <div class="tl-item r" data-d="3"><div class="tl-dot"></div><div class="tl-year">2025</div><div class="tl-event">500+ happy tenants and counting</div><div class="tl-desc">Private portal launched. AI matching deployed. A growing network of trusted owners. And a reputation built on keeping every single promise.</div></div>
         </div>
-    </section>
+    </div></section>
 
-    <!-- Stats -->
-    <section class="stats-section">
-        <div class="stats-container">
-            <div class="section-header">
-                <span class="section-tag">By The Numbers</span>
-                <h2 class="section-title">BOOM In Numbers</h2>
-            </div>
+    <!-- FOUNDER -->
+    <section class="founder"><div class="oculus"></div><div class="founder-inner arch-accent">
+        <div class="founder-avatar r">V</div>
+        <div class="founder-name r" data-d="1">Valentino</div>
+        <div class="founder-role r" data-d="2">Founder & CEO</div>
+        <p class="founder-quote r" data-d="3">"We're not trying to be the biggest. We're trying to be <span class="em">the best.</span> Every apartment verified. Every landlord vetted. Every contract fair. Every fee transparent. <span class="em">Every promise kept.</span>"</p>
+    </div></section>
 
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-number">48H</div>
-                    <div class="stat-label">Average Move-in Time</div>
-                </div>
-
-                <div class="stat-card">
-                    <div class="stat-number">98%</div>
-                    <div class="stat-label">Success Rate</div>
-                </div>
-
-                <div class="stat-card">
-                    <div class="stat-number">2MIN</div>
-                    <div class="stat-label">Avg Response Time</div>
-                </div>
-
-                <div class="stat-card">
-                    <div class="stat-number">100%</div>
-                    <div class="stat-label">Video Verified</div>
-                </div>
-            </div>
-        </div>
-    </section>
+    <!-- ROME SKYLINE DIVIDER 2 -->
+    <div class="rome-skyline" style="background:var(--bg);padding-top:0;padding-bottom:0">
+        <svg viewBox="0 0 1200 60" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMax meet">
+            <!-- Simplified skyline echo -->
+            <line x1="200" y1="60" x2="200" y2="28" stroke="#F5A623" stroke-width="0.5"/>
+            <ellipse cx="200" cy="22" rx="7" ry="12" stroke="#F5A623" stroke-width="0.4" fill="none"/>
+            <path d="M400 60 L400 38 Q400 28 408 28 L416 28 Q424 28 424 38 L424 60" stroke="#F5A623" stroke-width="0.4" fill="none"/>
+            <path d="M424 60 L424 38 Q424 28 432 28 L440 28 Q448 28 448 38 L448 60" stroke="#F5A623" stroke-width="0.4" fill="none"/>
+            <path d="M560 60 L560 38 L564 38 L564 28 Q572 10 580 28 L580 38 L584 38 L584 60" stroke="#F5A623" stroke-width="0.5" fill="none"/>
+            <line x1="572" y1="10" x2="572" y2="4" stroke="#F5A623" stroke-width="0.4"/>
+            <path d="M720 60 L720 40 Q740 22 760 40 L760 60" stroke="#F5A623" stroke-width="0.4" fill="none"/>
+            <line x1="920" y1="60" x2="920" y2="25" stroke="#F5A623" stroke-width="0.5"/>
+            <ellipse cx="920" cy="18" rx="8" ry="13" stroke="#F5A623" stroke-width="0.4" fill="none"/>
+            <line x1="0" y1="60" x2="1200" y2="60" stroke="#F5A623" stroke-width="0.2" opacity="0.4"/>
+        </svg>
+    </div>
 
     <!-- CTA -->
-    <section class="cta-section">
-        <h2 class="cta-title">
-            Ready to experience<br>
-            <span class="gold-accent">Rome done right?</span>
-        </h2>
-        <p class="cta-subtitle">Stop fighting the system. Let us handle it.</p>
-        
-        <div class="cta-buttons">
-            <a href="/apartments.html" class="btn-primary">See Apartments</a>
-            <a href="/contact.html" class="btn-ghost">Get In Touch</a>
-        </div>
-    </section>
+    <section class="cta"><div class="cta-inner">
+        <h2 class="r">Ready for <span class="gold-grad">Rome?</span></h2>
+        <p class="r" data-d="1">Stop fighting the system. Let us handle it.</p>
+        <div class="cta-btns r" data-d="2"><a href="/apartments.html" class="btn btn-gold">View Apartments</a><a href="https://wa.me/393313251961" class="btn btn-outline" target="_blank" rel="noopener">WhatsApp Us</a></div>
+    </div></section>
 
-    <!-- Footer -->
-    <footer>
-        <div class="footer-grid">
-            <div class="footer-brand">
-                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
-                    <div style="width: 40px; height: 40px; background: linear-gradient(135deg, #FFD700, #FFA500); border-radius: 50%; opacity: 0.9;"></div>
-                    <h3>BOOM</h3>
-                </div>
-                <p>
-                    Built in Rome, for Rome.<br><br>
-                    <strong>Egidi Immobiliare S.r.l.</strong><br>
-                    P.IVA 17322991005
-                </p>
+    <!-- FOOTER -->
+    <footer><div class="f-grid">
+        <div class="f-brand">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+                <svg width="22" height="22" viewBox="0 0 1024 1024" fill="none"><defs><linearGradient id="fG" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#FFD54F"/><stop offset="100%" stop-color="#F5A623"/></linearGradient></defs><g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#fG)"><path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z m610 -144 c743 -103 1436 -459 1919 -985 338 -367 562 -751 704 -1205 276 -879 132 -1858 -388 -2640 -242 -364 -493 -615 -900 -900 l-70 -49 109 104 c413 396 679 919 767 1505 33 217 33 558 0 765 -75 476 -257 896 -549 1265 -127 161 -363 380 -549 511 -300 211 -689 363 -1079 420 -172 26 -604 26 -764 0 -296 -47 -545 -128 -808 -262 -236 -122 -440 -271 -632 -464 -486 -485 -749 -1121 -751 -1815 -1 -611 170 -1148 515 -1608 100 -134 286 -335 382 -413 33 -27 -8 -2 -91 55 -513 351 -904 805 -1143 1331 -71 156 -136 336 -168 465 -9 33 -19 76 -24 95 -5 19 -20 100 -34 180 -59 343 -60 740 0 1070 81 456 229 826 479 1200 246 368 558 669 949 917 386 245 881 418 1321 462 61 6 124 13 140 15 73 10 556 -4 665 -19z"/></g></svg>
+                <span style="font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:14px;font-weight:300;letter-spacing:4px;text-transform:uppercase">BOOM</span>
             </div>
-            
-            <div class="footer-links">
-                <h4>System</h4>
-                <ul>
-                    <li><a href="/apartments.html">Apartments</a></li>
-                    <li><a href="/property-finding.html">Property Finding</a></li>
-                    <li><a href="/how-it-works.html">How It Works</a></li>
-                    <li><a href="/concierge.html">Concierge</a></li>
-                </ul>
-            </div>
-            
-            <div class="footer-links">
-                <h4>Company</h4>
-                <ul>
-                    <li><a href="/about.html">Why BOOM</a></li>
-                    <li><a href="/owners.html">For Owners</a></li>
-                    <li><a href="/faq.html">FAQ</a></li>
-                    <li><a href="/contact.html">Contact</a></li>
-                </ul>
-            </div>
-            
-            <div class="footer-links">
-                <h4>Legal</h4>
-                <ul>
-                    <li><a href="/terms.html">Terms</a></li>
-                    <li><a href="/privacy.html">Privacy</a></li>
-                    <li><a href="/login.html">Login</a></li>
-                </ul>
-            </div>
+            <p>Built in Rome, for Rome.<br><br><strong>Egidi Immobiliare S.r.l.</strong><br>P.IVA 17322991005<br>REA RM - 1710623<br>Rome, Italy</p>
         </div>
-        
-        <div class="footer-bottom">
-            <span>© 2025 BOOM — Rome, Italy</span>
-            <span>Status: Operational</span>
-        </div>
-    </footer>
+        <div class="f-links"><h4>Services</h4><ul><li><a href="/apartments.html">Apartments</a></li><li><a href="/property-finding.html">Property Finding</a></li><li><a href="/deal-assistance.html">Deal Assistance</a></li><li><a href="/virtual-viewing.html">Virtual Viewing</a></li><li><a href="/concierge.html">Concierge</a></li></ul></div>
+        <div class="f-links"><h4>Company</h4><ul><li><a href="/about.html">About</a></li><li><a href="/how-it-works.html">How It Works</a></li><li><a href="/owners.html">For Owners</a></li><li><a href="/blog.html">Blog</a></li><li><a href="/faq.html">FAQ</a></li><li><a href="/contact.html">Contact</a></li></ul></div>
+        <div class="f-links"><h4>Legal</h4><ul><li><a href="/terms.html">Terms</a></li><li><a href="/privacy.html">Privacy</a></li><li><a href="/login.html">Login</a></li></ul></div>
+    </div><div class="f-bottom"><span>&copy; 2025 BOOM &mdash; All Rights Reserved</span><span style="color:var(--g6);letter-spacing:.08em;font-size:10px">41.9028° N, 12.4964° E</span><span class="f-status">Operational</span></div></footer>
 
     <script>
-        const hamburger = document.getElementById('hamburger');
-        if (hamburger) {
-            hamburger.addEventListener('click', () => {
-                hamburger.classList.toggle('active');
-            });
-        }
+    (function(){
+        'use strict';
+        const nav=document.getElementById('nav');
+        window.toggleMenu=function(){document.getElementById('hamburger').classList.toggle('active');const m=document.getElementById('mobileMenu');m.classList.toggle('active');document.body.style.overflow=m.classList.contains('active')?'hidden':''};
+        window.addEventListener('resize',()=>{if(window.innerWidth>768){document.getElementById('mobileMenu').classList.remove('active');document.getElementById('hamburger').classList.remove('active');document.body.style.overflow=''}});
+        const obs=new IntersectionObserver(e=>{e.forEach(e=>{if(e.isIntersecting){e.target.classList.add('v');obs.unobserve(e.target)}})},{threshold:.12,rootMargin:'0px 0px -40px 0px'});
+        document.querySelectorAll('.r').forEach(el=>obs.observe(el));
+        function ease(t){return 1-Math.pow(1-t,4)}
+        const cObs=new IntersectionObserver(e=>{e.forEach(e=>{if(!e.isIntersecting)return;const el=e.target,target=+el.dataset.count,suffix=el.dataset.suffix||'',dur=1800,start=performance.now();(function tick(now){const p=Math.min((now-start)/dur,1);el.textContent=Math.round(ease(p)*target)+suffix;if(p<1)requestAnimationFrame(tick)})(start);cObs.unobserve(el)})},{threshold:.5});
+        document.querySelectorAll('.stat-val[data-count]').forEach(el=>cObs.observe(el));
+        const storySection=document.getElementById('storySection'),words=document.querySelectorAll('#storyText .w'),storyStats=document.getElementById('storyStats'),totalWords=words.length;
+        const ppFill=document.getElementById('ppFill');
+        const ppObs=new IntersectionObserver(e=>{e.forEach(e=>{if(e.isIntersecting){ppFill.classList.add('animated');ppObs.unobserve(e.target)}})},{threshold:.3});
+        ppObs.observe(document.getElementById('portalProgress'));
+        const heroContent=document.querySelector('.hero-content');
+        function onScroll(){const s=window.scrollY,h=window.innerHeight;nav.classList.toggle('scrolled',s>60);if(s<h){const r=s/h;heroContent.style.opacity=1-r*1.5;heroContent.style.transform='translateY('+(s*.1)+'px) scale('+(1-r*.03)+')'}if(storySection){const top=storySection.offsetTop,height=storySection.offsetHeight,scrollable=height-h,progress=Math.max(0,Math.min(1,(s-top)/scrollable)),count=Math.floor(progress*totalWords*1.15);words.forEach((w,i)=>w.classList.toggle('lit',i<count));storyStats.classList.toggle('vis',progress>.82)}}
+        window.addEventListener('scroll',onScroll,{passive:true});onScroll();
+    })();
     </script>
 </body>
 </html>
