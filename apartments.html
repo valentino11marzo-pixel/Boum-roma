@@ -437,10 +437,10 @@
             renderListings();
         });
     });
-    // Load listings from Firebase - CHANGED FROM 'listings' TO 'properties'
+    // Load listings from Firebase - using 'listings' collection (same as Admin Flats)
     async function loadListings() {
         try {
-            const snapshot = await db.collection('properties').get();
+            const snapshot = await db.collection('listings').get();
             allListings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
             // DEBUG: Log all properties and their status

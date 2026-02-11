@@ -572,7 +572,7 @@
     });
 
     async function loadApartment(id){
-        try{const doc=await db.collection('properties').doc(id).get();if(!doc.exists){showError();return}renderApartment(doc.data(),id)}
+        try{const doc=await db.collection('listings').doc(id).get();if(!doc.exists){showError();return}renderApartment(doc.data(),id)}
         catch(e){console.error('Error:',e);showError()}
     }
 
