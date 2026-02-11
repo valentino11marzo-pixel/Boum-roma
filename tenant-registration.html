@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Your Account | BOOM Rome</title>
+    <link rel="icon" type="image/png" href="https://www.boomrome.com/BOOMlogogoldicon512.png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --gold: #D4AF37;
+            --gold-dark: #B8960C;
+            --gold-light: rgba(212,175,55,0.15);
+            --gold-glow: rgba(212,175,55,0.4);
+            --green: #34C759;
+            --green-light: rgba(52,199,89,0.15);
+            --red: #FF3B30;
+            --red-light: rgba(255,59,48,0.1);
+            --bg: #000;
+            --bg-card: rgba(10,10,10,0.95);
+            --bg-input: rgba(30,30,30,0.8);
+            --border: rgba(255,255,255,0.08);
+            --border-focus: rgba(212,175,55,0.5);
+            --text: #FFF;
+            --text-secondary: rgba(255,255,255,0.7);
+            --text-muted: rgba(255,255,255,0.4);
+        }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Animated Background */
+        .bg-animation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        .bg-gradient {
+            position: absolute;
+            width: 150%;
+            height: 150%;
+            top: -25%;
+            left: -25%;
+            background:
+                radial-gradient(ellipse at 20% 20%, rgba(212,175,55,0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(212,175,55,0.05) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 50%, rgba(30,30,30,1) 0%, transparent 70%);
+            animation: bgFloat 20s ease-in-out infinite;
+        }
+
+        @keyframes bgFloat {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            33% { transform: translate(2%, 2%) rotate(1deg); }
+            66% { transform: translate(-1%, 1%) rotate(-1deg); }
+        }
+
+        .floating-orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.3;
+            animation: orbFloat 15s ease-in-out infinite;
+        }
+
+        .orb-1 {
+            width: 400px;
+            height: 400px;
+            background: var(--gold);
+            top: 10%;
+            right: -10%;
+        }
+
+        .orb-2 {
+            width: 300px;
+            height: 300px;
+            background: var(--gold-dark);
+            bottom: 20%;
+            left: -5%;
+            animation-delay: -5s;
+        }
+
+        @keyframes orbFloat {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(30px, -30px) scale(1.1); }
+        }
+
+        /* Container */
+        .container {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 40px 24px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        /* Logo Section */
+        .logo-section {
+            text-align: center;
+            padding: 20px 0 40px;
+            animation: fadeInDown 0.8s ease-out;
+        }
+
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .logo-wrapper {
+            position: relative;
+            display: inline-block;
+            margin-bottom: 20px;
+        }
+
+        .logo {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            position: relative;
+            z-index: 2;
+        }
+
+        .logo-glow {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 110px;
+            height: 110px;
+            background: radial-gradient(circle, var(--gold-glow) 0%, transparent 70%);
+            border-radius: 50%;
+            animation: glowPulse 3s ease-in-out infinite;
+        }
+
+        @keyframes glowPulse {
+            0%, 100% { opacity: 0.5; transform: translate(-50%, -50%) scale(1); }
+            50% { opacity: 0.8; transform: translate(-50%, -50%) scale(1.1); }
+        }
+
+        .brand {
+            font-size: 32px;
+            font-weight: 300;
+            letter-spacing: 10px;
+            color: var(--gold);
+            text-shadow: 0 0 40px rgba(212,175,55,0.3);
+        }
+
+        .tagline {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 8px;
+            letter-spacing: 3px;
+            font-weight: 300;
+        }
+
+        /* Card */
+        .card {
+            background: var(--bg-card);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border);
+            border-radius: 28px;
+            padding: 40px;
+            position: relative;
+            overflow: hidden;
+            animation: cardSlideUp 0.6s ease-out 0.3s both;
+        }
+
+        @keyframes cardSlideUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--gold), var(--gold-dark), var(--gold));
+            background-size: 200% 100%;
+            animation: shimmer 3s ease-in-out infinite;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+
+        .card-title {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            text-align: center;
+            background: linear-gradient(135deg, #fff, var(--text-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .card-subtitle {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 32px;
+            text-align: center;
+            line-height: 1.6;
+        }
+
+        /* Welcome Badge */
+        .welcome-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--green-light);
+            border: 1px solid rgba(52,199,89,0.3);
+            padding: 10px 16px;
+            border-radius: 100px;
+            font-size: 13px;
+            color: var(--green);
+            margin-bottom: 24px;
+            width: 100%;
+            justify-content: center;
+        }
+
+        .welcome-badge svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        /* Form Elements */
+        .form-group {
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .input-wrapper {
+            position: relative;
+        }
+
+        .form-label {
+            position: absolute;
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 15px;
+            color: var(--text-muted);
+            pointer-events: none;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            background: transparent;
+            padding: 0 4px;
+        }
+
+        .form-label.floating,
+        .form-input:focus ~ .form-label,
+        .form-input:not(:placeholder-shown) ~ .form-label {
+            top: 0;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--gold);
+            background: var(--bg-card);
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 18px 20px;
+            background: var(--bg-input);
+            border: 2px solid var(--border);
+            border-radius: 14px;
+            color: var(--text);
+            font-family: inherit;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            outline: none;
+        }
+
+        .form-input::placeholder { color: transparent; }
+
+        .form-input:hover {
+            border-color: rgba(255,255,255,0.15);
+            background: rgba(40,40,40,0.8);
+        }
+
+        .form-input:focus {
+            border-color: var(--gold);
+            background: rgba(212,175,55,0.05);
+            box-shadow: 0 0 0 4px rgba(212,175,55,0.1);
+        }
+
+        .form-input.valid {
+            border-color: var(--green);
+        }
+
+        .form-input.invalid {
+            border-color: var(--red);
+            animation: shake 0.4s ease;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-8px); }
+            75% { transform: translateX(8px); }
+        }
+
+        .input-icon {
+            position: absolute;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 18px;
+            opacity: 0;
+            transition: all 0.3s;
+        }
+
+        .form-input.valid ~ .input-icon,
+        .form-input.invalid ~ .input-icon {
+            opacity: 1;
+        }
+
+        .form-input.valid ~ .input-icon { color: var(--green); }
+        .form-input.invalid ~ .input-icon { color: var(--red); }
+
+        /* Password Strength */
+        .password-strength {
+            margin-top: 10px;
+        }
+
+        .strength-bar {
+            height: 4px;
+            background: var(--border);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .strength-fill {
+            height: 100%;
+            width: 0;
+            transition: all 0.3s;
+            border-radius: 2px;
+        }
+
+        .strength-fill.weak { width: 33%; background: var(--red); }
+        .strength-fill.medium { width: 66%; background: #FFA500; }
+        .strength-fill.strong { width: 100%; background: var(--green); }
+
+        .strength-text {
+            font-size: 11px;
+            margin-top: 6px;
+            color: var(--text-muted);
+        }
+
+        /* Password Toggle */
+        .password-toggle {
+            position: absolute;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 4px;
+            transition: color 0.2s;
+        }
+
+        .password-toggle:hover {
+            color: var(--text);
+        }
+
+        /* Alert */
+        .alert {
+            padding: 14px 18px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            display: none;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+            animation: alertSlide 0.4s ease;
+        }
+
+        @keyframes alertSlide {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .alert.error {
+            background: var(--red-light);
+            border: 1px solid rgba(255,59,48,0.3);
+            color: var(--red);
+        }
+
+        .alert.success {
+            background: var(--green-light);
+            border: 1px solid rgba(52,199,89,0.3);
+            color: var(--green);
+        }
+
+        .alert.show { display: flex; }
+
+        /* Button */
+        .btn {
+            width: 100%;
+            padding: 18px 28px;
+            border: none;
+            border-radius: 14px;
+            font-family: inherit;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            letter-spacing: 0.5px;
+            position: relative;
+            overflow: hidden;
+            margin-top: 24px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--gold), var(--gold-dark));
+            color: #000;
+        }
+
+        .btn-primary::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn-primary:hover::before {
+            left: 100%;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 40px var(--gold-glow);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        /* Spinner */
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(0,0,0,0.2);
+            border-top-color: #000;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            display: inline-block;
+            margin-right: 10px;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Success Screen */
+        .success-screen {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .success-screen.show {
+            display: block;
+            animation: successPop 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes successPop {
+            0% { opacity: 0; transform: scale(0.8); }
+            50% { transform: scale(1.05); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+
+        .success-circle {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--green), #2DAE4E);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 24px;
+            animation: circlePulse 2s ease-in-out infinite;
+        }
+
+        @keyframes circlePulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(52,199,89,0.4); }
+            50% { box-shadow: 0 0 0 20px rgba(52,199,89,0); }
+        }
+
+        .success-check {
+            font-size: 42px;
+            color: #fff;
+        }
+
+        .success-title {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            color: var(--green);
+        }
+
+        .success-text {
+            color: var(--text-secondary);
+            margin-bottom: 28px;
+            line-height: 1.7;
+            font-size: 15px;
+        }
+
+        .credentials-box {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 24px;
+            text-align: left;
+        }
+
+        .credentials-box h4 {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+        }
+
+        .credential-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .credential-item:last-child {
+            border-bottom: none;
+        }
+
+        .credential-label {
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+
+        .credential-value {
+            color: var(--text);
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .btn-portal {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            background: linear-gradient(135deg, var(--gold), var(--gold-dark));
+            color: #000;
+            padding: 16px 32px;
+            border-radius: 14px;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 15px;
+            transition: all 0.3s;
+        }
+
+        .btn-portal:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 40px var(--gold-glow);
+        }
+
+        /* Terms */
+        .terms-text {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-align: center;
+            margin-top: 20px;
+            line-height: 1.6;
+        }
+
+        .terms-text a {
+            color: var(--gold);
+            text-decoration: none;
+        }
+
+        /* Responsive */
+        @media (max-width: 500px) {
+            .container { padding: 24px 16px; }
+            .card { padding: 28px 20px; }
+            .card-title { font-size: 20px; }
+            .brand { font-size: 26px; letter-spacing: 8px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-animation">
+        <div class="bg-gradient"></div>
+        <div class="floating-orb orb-1"></div>
+        <div class="floating-orb orb-2"></div>
+    </div>
+
+    <div class="container">
+        <div class="logo-section">
+            <div class="logo-wrapper">
+                <div class="logo-glow"></div>
+                <img src="https://www.boomrome.com/BOOMlogogoldicon512.png" alt="BOOM Rome" class="logo">
+            </div>
+            <div class="brand">BOOM</div>
+            <div class="tagline">TENANT PORTAL</div>
+        </div>
+
+        <div class="card">
+            <!-- Registration Form -->
+            <div id="registrationForm">
+                <div class="welcome-badge">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                        <polyline points="22 4 12 14.01 9 11.01"/>
+                    </svg>
+                    Welcome! Your contract has been confirmed
+                </div>
+
+                <h2 class="card-title">Create Your Account</h2>
+                <p class="card-subtitle">Set up your credentials to access your tenant portal and manage your rental.</p>
+
+                <div class="alert error" id="errorAlert">
+                    <span>⚠️</span>
+                    <span id="errorText"></span>
+                </div>
+
+                <div class="form-group">
+                    <div class="input-wrapper">
+                        <input type="text" class="form-input" id="fullName" placeholder=" " required>
+                        <label class="form-label">Full Name</label>
+                        <span class="input-icon" id="nameIcon"></span>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <div class="input-wrapper">
+                        <input type="email" class="form-input" id="email" placeholder=" " required>
+                        <label class="form-label">Email Address</label>
+                        <span class="input-icon" id="emailIcon"></span>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <div class="input-wrapper">
+                        <input type="tel" class="form-input" id="phone" placeholder=" " required>
+                        <label class="form-label">Phone Number</label>
+                        <span class="input-icon" id="phoneIcon"></span>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <div class="input-wrapper">
+                        <input type="password" class="form-input" id="password" placeholder=" " required>
+                        <label class="form-label">Create Password</label>
+                        <button type="button" class="password-toggle" onclick="togglePassword('password')">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                <circle cx="12" cy="12" r="3"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="password-strength">
+                        <div class="strength-bar">
+                            <div class="strength-fill" id="strengthFill"></div>
+                        </div>
+                        <div class="strength-text" id="strengthText">Use at least 8 characters</div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <div class="input-wrapper">
+                        <input type="password" class="form-input" id="confirmPassword" placeholder=" " required>
+                        <label class="form-label">Confirm Password</label>
+                        <button type="button" class="password-toggle" onclick="togglePassword('confirmPassword')">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                <circle cx="12" cy="12" r="3"/>
+                            </svg>
+                        </button>
+                        <span class="input-icon" id="confirmIcon"></span>
+                    </div>
+                </div>
+
+                <button type="button" class="btn btn-primary" id="submitBtn" onclick="createAccount()">
+                    Create Account
+                </button>
+
+                <p class="terms-text">
+                    By creating an account, you agree to our<br>
+                    <a href="https://www.boomrome.com/terms" target="_blank">Terms of Service</a> &
+                    <a href="https://www.boomrome.com/privacy" target="_blank">Privacy Policy</a>
+                </p>
+            </div>
+
+            <!-- Success Screen -->
+            <div class="success-screen" id="successScreen">
+                <div class="success-circle">
+                    <span class="success-check">✓</span>
+                </div>
+                <h2 class="success-title">Account Created!</h2>
+                <p class="success-text">
+                    Your tenant account is ready. Save your credentials below and access your portal to view your rental details, payments, and more.
+                </p>
+
+                <div class="credentials-box">
+                    <h4>Your Login Credentials</h4>
+                    <div class="credential-item">
+                        <span class="credential-label">Email</span>
+                        <span class="credential-value" id="savedEmail">-</span>
+                    </div>
+                    <div class="credential-item">
+                        <span class="credential-label">Password</span>
+                        <span class="credential-value">••••••••</span>
+                    </div>
+                </div>
+
+                <a href="https://boom-property-dashboards.web.app/" class="btn-portal">
+                    Access Tenant Portal
+                    <span>→</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+    <script>
+        // Firebase Config
+        const firebaseConfig = {
+            apiKey: "AIzaSyDUuGKLoGMnmYPxMq8HYzLVe7B8E0keJLM",
+            authDomain: "boom-property-dashboards.firebaseapp.com",
+            projectId: "boom-property-dashboards",
+            storageBucket: "boom-property-dashboards.appspot.com",
+            messagingSenderId: "937269017440",
+            appId: "1:937269017440:web:41c1a0b1e1633c2f373c05"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        // Password toggle
+        function togglePassword(fieldId) {
+            const field = document.getElementById(fieldId);
+            field.type = field.type === 'password' ? 'text' : 'password';
+        }
+
+        // Real-time validation
+        document.addEventListener('DOMContentLoaded', () => {
+            // Name validation
+            const nameInput = document.getElementById('fullName');
+            const nameIcon = document.getElementById('nameIcon');
+            nameInput.addEventListener('input', () => {
+                const valid = nameInput.value.trim().length >= 2;
+                nameInput.classList.toggle('valid', valid && nameInput.value);
+                nameInput.classList.toggle('invalid', !valid && nameInput.value);
+                nameIcon.textContent = valid ? '✓' : '✗';
+            });
+
+            // Email validation
+            const emailInput = document.getElementById('email');
+            const emailIcon = document.getElementById('emailIcon');
+            emailInput.addEventListener('input', () => {
+                const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailInput.value);
+                emailInput.classList.toggle('valid', valid);
+                emailInput.classList.toggle('invalid', !valid && emailInput.value);
+                emailIcon.textContent = valid ? '✓' : '✗';
+            });
+
+            // Phone validation
+            const phoneInput = document.getElementById('phone');
+            const phoneIcon = document.getElementById('phoneIcon');
+            phoneInput.addEventListener('input', () => {
+                const valid = phoneInput.value.length >= 8;
+                phoneInput.classList.toggle('valid', valid);
+                phoneInput.classList.toggle('invalid', !valid && phoneInput.value);
+                phoneIcon.textContent = valid ? '✓' : '✗';
+            });
+
+            // Password strength
+            const passwordInput = document.getElementById('password');
+            const strengthFill = document.getElementById('strengthFill');
+            const strengthText = document.getElementById('strengthText');
+
+            passwordInput.addEventListener('input', () => {
+                const password = passwordInput.value;
+                let strength = 0;
+                let text = '';
+
+                if (password.length >= 8) strength++;
+                if (/[A-Z]/.test(password)) strength++;
+                if (/[0-9]/.test(password)) strength++;
+                if (/[^A-Za-z0-9]/.test(password)) strength++;
+
+                strengthFill.className = 'strength-fill';
+                if (password.length === 0) {
+                    text = 'Use at least 8 characters';
+                } else if (strength <= 1) {
+                    strengthFill.classList.add('weak');
+                    text = 'Weak - add numbers or symbols';
+                } else if (strength <= 2) {
+                    strengthFill.classList.add('medium');
+                    text = 'Medium - add more variety';
+                } else {
+                    strengthFill.classList.add('strong');
+                    text = 'Strong password!';
+                }
+                strengthText.textContent = text;
+            });
+
+            // Confirm password
+            const confirmInput = document.getElementById('confirmPassword');
+            const confirmIcon = document.getElementById('confirmIcon');
+            confirmInput.addEventListener('input', () => {
+                const match = confirmInput.value === passwordInput.value && confirmInput.value.length > 0;
+                confirmInput.classList.toggle('valid', match);
+                confirmInput.classList.toggle('invalid', !match && confirmInput.value);
+                confirmIcon.textContent = match ? '✓' : '✗';
+            });
+        });
+
+        // Show/Hide error
+        function showError(message) {
+            const alert = document.getElementById('errorAlert');
+            document.getElementById('errorText').textContent = message;
+            alert.classList.add('show');
+        }
+
+        function hideError() {
+            document.getElementById('errorAlert').classList.remove('show');
+        }
+
+        // Create account
+        async function createAccount() {
+            hideError();
+
+            const fullName = document.getElementById('fullName').value.trim();
+            const email = document.getElementById('email').value.trim().toLowerCase();
+            const phone = document.getElementById('phone').value.trim();
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+
+            // Validation
+            if (!fullName || fullName.length < 2) {
+                showError('Please enter your full name');
+                return;
+            }
+
+            if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                showError('Please enter a valid email address');
+                return;
+            }
+
+            if (!phone || phone.length < 8) {
+                showError('Please enter a valid phone number');
+                return;
+            }
+
+            if (password.length < 8) {
+                showError('Password must be at least 8 characters');
+                return;
+            }
+
+            if (password !== confirmPassword) {
+                showError('Passwords do not match');
+                return;
+            }
+
+            const btn = document.getElementById('submitBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span> Creating account...';
+
+            try {
+                // Create Firebase Auth user
+                const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+                const user = userCredential.user;
+
+                // Update display name
+                await user.updateProfile({ displayName: fullName });
+
+                // Parse name
+                const nameParts = fullName.split(' ');
+                const firstName = nameParts[0];
+                const lastName = nameParts.slice(1).join(' ') || '';
+
+                // Create user document in Firestore
+                await db.collection('users').doc(user.uid).set({
+                    uid: user.uid,
+                    name: fullName,
+                    firstName: firstName,
+                    lastName: lastName,
+                    email: email,
+                    phone: phone,
+                    role: 'tenant',
+                    status: 'active',
+                    source: 'tenant-registration',
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    lastLogin: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                // Check if there's an existing pfsClient with this email and link it
+                const pfsQuery = await db.collection('pfsClients')
+                    .where('email', '==', email)
+                    .limit(1)
+                    .get();
+
+                if (!pfsQuery.empty) {
+                    const pfsDoc = pfsQuery.docs[0];
+                    await pfsDoc.ref.update({
+                        userId: user.uid,
+                        stage: 'tenant',
+                        hasAccount: true,
+                        accountCreatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                }
+
+                // Show success
+                document.getElementById('registrationForm').style.display = 'none';
+                document.getElementById('savedEmail').textContent = email;
+                document.getElementById('successScreen').classList.add('show');
+
+            } catch (error) {
+                console.error('Registration error:', error);
+
+                let message = 'Something went wrong. Please try again.';
+                if (error.code === 'auth/email-already-in-use') {
+                    message = 'This email is already registered. Try logging in instead.';
+                } else if (error.code === 'auth/weak-password') {
+                    message = 'Password is too weak. Use at least 8 characters.';
+                } else if (error.code === 'auth/invalid-email') {
+                    message = 'Invalid email address format.';
+                }
+
+                showError(message);
+                btn.disabled = false;
+                btn.innerHTML = 'Create Account';
+            }
+        }
+    </script>
+</body>
+</html>
