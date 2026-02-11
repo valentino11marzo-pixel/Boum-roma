@@ -443,13 +443,6 @@
             const snapshot = await db.collection('listings').get();
             allListings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-            // DEBUG: Log all properties and their status
-            console.log('=== FIRESTORE DATA ===');
-            console.log('Total properties loaded:', allListings.length);
-            allListings.forEach((l, i) => {
-                console.log(`[${i}] ${l.name || 'NO NAME'} | status="${l.status}" | availabilityStatus="${l.availabilityStatus}" | getStatus="${getStatus(l)}"`);
-            });
-
             // Update filter counts
             const available = allListings.filter(l => {
                 const status = getStatus(l);
@@ -497,12 +490,8 @@
         // Show ALL properties except explicitly rented ones
         let filtered = allListings.filter(l => {
             const status = getStatus(l);
-            const keep = status !== 'rented' && status !== 'affittato' && status !== 'off_market';
-            if (!keep) console.log(`FILTERED OUT (rented/off_market): ${l.name} status="${status}"`);
-            return keep;
+            return status !== 'rented' && status !== 'affittato' && status !== 'off_market';
         });
-
-        console.log(`=== RENDER: filter="${currentFilter}" | before filter: ${filtered.length} ===`);
 
         if (currentFilter === 'available') {
             filtered = filtered.filter(l => {
@@ -515,8 +504,6 @@
                 return status === 'waitlist' || status === 'negotiation' || status === 'coming soon' || status === 'in trattativa';
             });
         }
-
-        console.log(`After filter: ${filtered.length} properties to render`);
         // Sort: available first, then by price ascending
         filtered.sort((a, b) => {
             const aStatus = getStatus(a);
@@ -546,11 +533,8 @@
         const price = l.price || l.rent;
         const priceDisplay = price ? `€${Number(price).toLocaleString()}` : '—';
 
-        // Determine link - use file if exists, otherwise apartment-detail.html
-        let link = l.file || `apartment-detail.html?id=${l.id}`;
-        if (link && !link.startsWith('http') && !link.startsWith('/')) {
-            link = '/' + link;
-        }
+        // ALWAYS use dynamic apartment-detail.html (ignore old static file field)
+        const link = `/apartment-detail.html?id=${l.id}`;
 
         // Status badge - use global getStatus helper
         const status = getStatus(l);
