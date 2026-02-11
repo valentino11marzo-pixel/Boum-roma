@@ -657,7 +657,8 @@
     function buildMedia(d){
         const sec=document.getElementById('mediaSection');
         const imgs=d.images||(d.image?[d.image]:[]);
-        const vUrl=d.videoUrl,hasV=!!vUrl,vId=hasV?exYT(vUrl):null;
+        // Check both videoUrl and youtubeUrl (portal uses youtubeUrl)
+        const vUrl=d.videoUrl||d.youtubeUrl,hasV=!!vUrl,vId=hasV?exYT(vUrl):null;
 
         if(!imgs.length&&!hasV){sec.innerHTML='<div class="media-placeholder"><span>📷</span><p>Photos coming soon</p></div>';return}
         if(imgs.length===1&&!hasV){sec.innerHTML=`<img src="${imgs[0]}" alt="Apartment photo" class="single-hero-img" loading="lazy">`;return}

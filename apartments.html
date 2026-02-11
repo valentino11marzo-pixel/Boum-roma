@@ -436,19 +436,24 @@
             const snapshot = await db.collection('properties').get();
             allListings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-            // Update filter counts - include Italian status values
+            // Update filter counts - check BOTH status AND availabilityStatus fields
+            const getStatus = (l) => {
+                const s1 = (l.status || '').toString().toLowerCase().trim();
+                const s2 = (l.availabilityStatus || '').toString().toLowerCase().trim();
+                return s1 || s2 || '';
+            };
             const available = allListings.filter(l => {
-                const status = (l.status || l.availabilityStatus || l.availability || '').toString().toLowerCase();
+                const status = getStatus(l);
                 return status === 'available' || status === 'disponibile' || status === 'active' || status === 'free' || status === '';
             }).length;
             const waitlist = allListings.filter(l => {
-                const status = (l.status || l.availabilityStatus || l.availability || '').toString().toLowerCase();
+                const status = getStatus(l);
                 return status === 'waitlist' || status === 'negotiation' || status === 'coming soon' || status === 'in trattativa';
             }).length;
             // Count ALL visible (non-rented) properties
             const allVisible = allListings.filter(l => {
-                const status = (l.status || l.availabilityStatus || '').toLowerCase();
-                return status !== 'rented' && status !== 'affittato';
+                const status = getStatus(l);
+                return status !== 'rented' && status !== 'affittato' && status !== 'off_market';
             }).length;
 
             document.querySelectorAll('.filter-btn').forEach(btn => {
