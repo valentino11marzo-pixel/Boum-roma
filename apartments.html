@@ -436,19 +436,19 @@
             const snapshot = await db.collection('properties').get();
             allListings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-            // Update filter counts
+            // Update filter counts - include Italian status values
             const available = allListings.filter(l => {
-                const status = (l.status || l.availabilityStatus || '').toLowerCase();
-                return status === 'available' || status === '';
+                const status = (l.status || l.availabilityStatus || l.availability || '').toString().toLowerCase();
+                return status === 'available' || status === 'disponibile' || status === 'active' || status === 'free' || status === '';
             }).length;
             const waitlist = allListings.filter(l => {
-                const status = (l.status || l.availabilityStatus || '').toLowerCase();
-                return status === 'waitlist' || status === 'negotiation' || status === 'coming soon';
+                const status = (l.status || l.availabilityStatus || l.availability || '').toString().toLowerCase();
+                return status === 'waitlist' || status === 'negotiation' || status === 'coming soon' || status === 'in trattativa';
             }).length;
             // Count ALL visible (non-rented) properties
             const allVisible = allListings.filter(l => {
                 const status = (l.status || l.availabilityStatus || '').toLowerCase();
-                return status !== 'rented' && status !== 'occupied';
+                return status !== 'rented' && status !== 'affittato';
             }).length;
 
             document.querySelectorAll('.filter-btn').forEach(btn => {
@@ -483,25 +483,26 @@
         // Show ALL properties except explicitly rented ones
         let filtered = allListings.filter(l => {
             const status = (l.status || l.availabilityStatus || '').toLowerCase();
-            // Hide only if explicitly rented/occupied
-            return status !== 'rented' && status !== 'occupied';
+            // Hide only if explicitly rented/affittato
+            return status !== 'rented' && status !== 'affittato';
         });
 
         if (currentFilter === 'available') {
             filtered = filtered.filter(l => {
-                const status = (l.status || l.availabilityStatus || '').toLowerCase();
-                return status === 'available' || status === '';
+                const status = (l.status || l.availabilityStatus || l.availability || '').toString().toLowerCase();
+                // Include Italian "disponibile" and English "available"
+                return status === 'available' || status === 'disponibile' || status === 'active' || status === 'free' || status === '';
             });
         } else if (currentFilter === 'waitlist') {
             filtered = filtered.filter(l => {
-                const status = (l.status || l.availabilityStatus || '').toLowerCase();
-                return status === 'waitlist' || status === 'negotiation' || status === 'coming soon';
+                const status = (l.status || l.availabilityStatus || l.availability || '').toString().toLowerCase();
+                return status === 'waitlist' || status === 'negotiation' || status === 'coming soon' || status === 'in trattativa';
             });
         }
         // Sort: available first, then by price ascending
         filtered.sort((a, b) => {
-            const aAvail = a.status === 'available' || a.availabilityStatus === 'available';
-            const bAvail = b.status === 'available' || b.availabilityStatus === 'available';
+            const aAvail = a.status === 'available' || a.availabilityStatus === 'available' || a.status === 'disponibile' || a.availabilityStatus === 'disponibile';
+            const bAvail = b.status === 'available' || b.availabilityStatus === 'available' || b.status === 'disponibile' || b.availabilityStatus === 'disponibile';
             if (aAvail && !bAvail) return -1;
             if (!aAvail && bAvail) return 1;
             return (a.price || a.rent || 0) - (b.price || b.rent || 0);
@@ -525,12 +526,15 @@
         const price = l.price || l.rent;
         const priceDisplay = price ? `€${Number(price).toLocaleString()}` : '—';
 
-        // Determine link
+        // Determine link - use file if exists, otherwise apartment-detail.html
         let link = l.file || `apartment-detail.html?id=${l.id}`;
-        if (link && !link.startsWith('http') && !link.startsWith('/')) link = '/' + link;
+        if (link && !link.startsWith('http') && !link.startsWith('/')) {
+            link = '/' + link;
+        }
 
-        // Status badge
-        const isAvailable = l.status === 'available' || l.availabilityStatus === 'available';
+        // Status badge - check multiple field names, include Italian values
+        const status = (l.status || l.availabilityStatus || l.availability || '').toString().toLowerCase();
+        const isAvailable = status === 'available' || status === 'disponibile' || status === 'active' || status === 'free' || status === '';
         const statusBadge = isAvailable
             ? '<span class="badge badge-available">Available</span>'
             : '<span class="badge badge-waitlist">Coming Soon</span>';
