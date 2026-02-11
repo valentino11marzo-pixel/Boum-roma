@@ -437,14 +437,24 @@
             allListings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
             // Update filter counts
-            const available = allListings.filter(l => l.status === 'available' || l.availabilityStatus === 'available').length;
-            const waitlist = allListings.filter(l => l.status === 'waitlist' || l.availabilityStatus === 'negotiation').length;
-            const visible = available + waitlist;
+            const available = allListings.filter(l => {
+                const status = (l.status || l.availabilityStatus || '').toLowerCase();
+                return status === 'available' || status === '';
+            }).length;
+            const waitlist = allListings.filter(l => {
+                const status = (l.status || l.availabilityStatus || '').toLowerCase();
+                return status === 'waitlist' || status === 'negotiation' || status === 'coming soon';
+            }).length;
+            // Count ALL visible (non-rented) properties
+            const allVisible = allListings.filter(l => {
+                const status = (l.status || l.availabilityStatus || '').toLowerCase();
+                return status !== 'rented' && status !== 'occupied';
+            }).length;
 
             document.querySelectorAll('.filter-btn').forEach(btn => {
                 const f = btn.dataset.filter;
                 let count = 0;
-                if (f === 'all') count = visible;
+                if (f === 'all') count = allVisible;
                 else if (f === 'available') count = available;
                 else if (f === 'waitlist') count = waitlist;
                 // Add count badge
@@ -470,18 +480,23 @@
     function renderListings() {
         const container = document.getElementById('listingsContainer');
 
-        // Filter: hide rented, show available + waitlist/negotiation
-        let filtered = allListings.filter(l =>
-            l.status === 'available' ||
-            l.status === 'waitlist' ||
-            l.availabilityStatus === 'available' ||
-            l.availabilityStatus === 'negotiation'
-        );
+        // Show ALL properties except explicitly rented ones
+        let filtered = allListings.filter(l => {
+            const status = (l.status || l.availabilityStatus || '').toLowerCase();
+            // Hide only if explicitly rented/occupied
+            return status !== 'rented' && status !== 'occupied';
+        });
 
         if (currentFilter === 'available') {
-            filtered = filtered.filter(l => l.status === 'available' || l.availabilityStatus === 'available');
+            filtered = filtered.filter(l => {
+                const status = (l.status || l.availabilityStatus || '').toLowerCase();
+                return status === 'available' || status === '';
+            });
         } else if (currentFilter === 'waitlist') {
-            filtered = filtered.filter(l => l.status === 'waitlist' || l.availabilityStatus === 'negotiation');
+            filtered = filtered.filter(l => {
+                const status = (l.status || l.availabilityStatus || '').toLowerCase();
+                return status === 'waitlist' || status === 'negotiation' || status === 'coming soon';
+            });
         }
         // Sort: available first, then by price ascending
         filtered.sort((a, b) => {
