@@ -414,6 +414,13 @@
     const db = firebase.firestore();
     let allListings = [];
     let currentFilter = 'all';
+
+    // Helper function to get status from either field
+    function getStatus(l) {
+        const s1 = (l.status || '').toString().toLowerCase().trim();
+        const s2 = (l.availabilityStatus || '').toString().toLowerCase().trim();
+        return s1 || s2 || '';
+    }
     // Hamburger
     document.getElementById('hamburger').addEventListener('click', () => {
         document.getElementById('mobileMenu').classList.toggle('open');
@@ -436,12 +443,7 @@
             const snapshot = await db.collection('properties').get();
             allListings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-            // Update filter counts - check BOTH status AND availabilityStatus fields
-            const getStatus = (l) => {
-                const s1 = (l.status || '').toString().toLowerCase().trim();
-                const s2 = (l.availabilityStatus || '').toString().toLowerCase().trim();
-                return s1 || s2 || '';
-            };
+            // Update filter counts
             const available = allListings.filter(l => {
                 const status = getStatus(l);
                 return status === 'available' || status === 'disponibile' || status === 'active' || status === 'free' || status === '';
@@ -487,27 +489,27 @@
 
         // Show ALL properties except explicitly rented ones
         let filtered = allListings.filter(l => {
-            const status = (l.status || l.availabilityStatus || '').toLowerCase();
-            // Hide only if explicitly rented/affittato
-            return status !== 'rented' && status !== 'affittato';
+            const status = getStatus(l);
+            return status !== 'rented' && status !== 'affittato' && status !== 'off_market';
         });
 
         if (currentFilter === 'available') {
             filtered = filtered.filter(l => {
-                const status = (l.status || l.availabilityStatus || l.availability || '').toString().toLowerCase();
-                // Include Italian "disponibile" and English "available"
+                const status = getStatus(l);
                 return status === 'available' || status === 'disponibile' || status === 'active' || status === 'free' || status === '';
             });
         } else if (currentFilter === 'waitlist') {
             filtered = filtered.filter(l => {
-                const status = (l.status || l.availabilityStatus || l.availability || '').toString().toLowerCase();
+                const status = getStatus(l);
                 return status === 'waitlist' || status === 'negotiation' || status === 'coming soon' || status === 'in trattativa';
             });
         }
         // Sort: available first, then by price ascending
         filtered.sort((a, b) => {
-            const aAvail = a.status === 'available' || a.availabilityStatus === 'available' || a.status === 'disponibile' || a.availabilityStatus === 'disponibile';
-            const bAvail = b.status === 'available' || b.availabilityStatus === 'available' || b.status === 'disponibile' || b.availabilityStatus === 'disponibile';
+            const aStatus = getStatus(a);
+            const bStatus = getStatus(b);
+            const aAvail = aStatus === 'available' || aStatus === 'disponibile' || aStatus === '' || aStatus === 'active';
+            const bAvail = bStatus === 'available' || bStatus === 'disponibile' || bStatus === '' || bStatus === 'active';
             if (aAvail && !bAvail) return -1;
             if (!aAvail && bAvail) return 1;
             return (a.price || a.rent || 0) - (b.price || b.rent || 0);
@@ -537,15 +539,15 @@
             link = '/' + link;
         }
 
-        // Status badge - check multiple field names, include Italian values
-        const status = (l.status || l.availabilityStatus || l.availability || '').toString().toLowerCase();
+        // Status badge - use global getStatus helper
+        const status = getStatus(l);
         const isAvailable = status === 'available' || status === 'disponibile' || status === 'active' || status === 'free' || status === '';
         const statusBadge = isAvailable
             ? '<span class="badge badge-available">Available</span>'
             : '<span class="badge badge-waitlist">Coming Soon</span>';
 
         const verifiedBadge = '<span class="badge badge-verified">✓ Verified</span>';
-        const videoBadge = l.videoUrl ? '<span class="badge badge-video">▶ Video</span>' : '';
+        const videoBadge = (l.videoUrl || l.youtubeUrl) ? '<span class="badge badge-video">▶ Video</span>' : '';
 
         // Tags (max 3)
         const tags = Array.isArray(l.tags) ? l.tags.slice(0, 3) : [];

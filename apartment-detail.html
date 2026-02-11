@@ -594,7 +594,7 @@
         const sm={'available':{c:'badge-available',t:'● Available'},'disponibile':{c:'badge-available',t:'● Available'},'active':{c:'badge-available',t:'● Available'},'waitlist':{c:'badge-waitlist',t:'◐ Coming Soon'},'negotiation':{c:'badge-waitlist',t:'◐ Coming Soon'},'rented':{c:'badge-rented',t:'● Rented'},'affittato':{c:'badge-rented',t:'● Rented'}};
         const si=sm[st]||sm['available'];
         bEl.innerHTML=`<span class="badge ${si.c}">${si.t}</span><span class="badge badge-verified">✓ Verified</span>`;
-        if(d.videoUrl)bEl.innerHTML+='<span class="badge badge-video">▶ Video Tour</span>';
+        if(d.videoUrl||d.youtubeUrl)bEl.innerHTML+='<span class="badge badge-video">▶ Video Tour</span>';
 
         document.getElementById('aptName').textContent=name;
         aptAddress=d.address||'Rome, Italy';
