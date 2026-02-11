@@ -443,6 +443,13 @@
             const snapshot = await db.collection('properties').get();
             allListings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
+            // DEBUG: Log all properties and their status
+            console.log('=== FIRESTORE DATA ===');
+            console.log('Total properties loaded:', allListings.length);
+            allListings.forEach((l, i) => {
+                console.log(`[${i}] ${l.name || 'NO NAME'} | status="${l.status}" | availabilityStatus="${l.availabilityStatus}" | getStatus="${getStatus(l)}"`);
+            });
+
             // Update filter counts
             const available = allListings.filter(l => {
                 const status = getStatus(l);
@@ -490,8 +497,12 @@
         // Show ALL properties except explicitly rented ones
         let filtered = allListings.filter(l => {
             const status = getStatus(l);
-            return status !== 'rented' && status !== 'affittato' && status !== 'off_market';
+            const keep = status !== 'rented' && status !== 'affittato' && status !== 'off_market';
+            if (!keep) console.log(`FILTERED OUT (rented/off_market): ${l.name} status="${status}"`);
+            return keep;
         });
+
+        console.log(`=== RENDER: filter="${currentFilter}" | before filter: ${filtered.length} ===`);
 
         if (currentFilter === 'available') {
             filtered = filtered.filter(l => {
@@ -504,6 +515,8 @@
                 return status === 'waitlist' || status === 'negotiation' || status === 'coming soon' || status === 'in trattativa';
             });
         }
+
+        console.log(`After filter: ${filtered.length} properties to render`);
         // Sort: available first, then by price ascending
         filtered.sort((a, b) => {
             const aStatus = getStatus(a);
