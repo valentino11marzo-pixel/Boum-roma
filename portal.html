@@ -66,7 +66,8 @@
         .header-badge.admin{background:var(--purple-light);color:var(--purple)}
         .header-badge.landlord{background:var(--gold-light);color:var(--gold)}
         .header-badge.tenant{background:var(--blue-light);color:var(--blue)}
-        .notif-btn{position:relative;width:40px;height:40px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+        .notif-btn,.reminder-btn{position:relative;width:40px;height:40px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+        .reminder-btn .reminder-badge{position:absolute;top:-4px;right:-4px;min-width:18px;height:18px;background:var(--gold);color:#000;font-size:10px;font-weight:700;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 4px}
         .notif-btn .badge,.notif-btn .notif-badge{position:absolute;top:-4px;right:-4px;min-width:18px;height:18px;background:var(--red);color:#fff;font-size:10px;font-weight:700;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 4px}
         .notif-pulse{animation:notifPulse 0.5s ease-in-out 3}
         @keyframes notifPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.2)}}
@@ -525,6 +526,7 @@
             <div class="header-center" id="searchContainer"></div>
             <div class="header-right">
                 <span class="header-badge" id="headerBadge">Admin</span>
+                <button class="reminder-btn" onclick="showReminders()" id="reminderBtn" title="Promemoria">📋</button>
                 <button class="notif-btn" onclick="showNotifications()" id="notifBtn">🔔</button>
                 <div class="user-menu" onclick="goTo('settings')">
                     <div class="user-avatar" id="headerAvatar">VR</div>
@@ -667,6 +669,16 @@
         website: 'www.boomrome.com',
         // ⚠️ UPDATE WITH YOUR REAL IBAN
         iban: 'IT00X0000000000000000000000'
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // STRIPE CONFIGURATION - Update these values!
+    // ═══════════════════════════════════════════════════════════════════════════
+    const STRIPE_CONFIG = {
+        // ⚠️ REPLACE WITH YOUR FIREBASE FUNCTION URL
+        checkoutEndpoint: 'https://us-central1-boom-property-dashboards.cloudfunctions.net/createCheckoutSession',
+        // Set to true when ready to accept real payments
+        enabled: true
     };
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -1117,6 +1129,7 @@ Valentyne - BOOM Rome`
         deadlines: [], tasks: [], // Command Center
         userNotifications: [], // Persistent notifications from Firestore
         listings: [], // For adminflats
+        rules: [], ruleExecutions: [], // Rules Engine
         registrations: [], registrationStatuses: {}, regPending: 0,
         lastActivity: Date.now(),
         isOnline: navigator.onLine,
@@ -1490,12 +1503,16 @@ Valentyne - BOOM Rome`
             
             // BATCH 3: Documents & Invoices
             console.log('Loading batch 3...');
-            const [docs, invoices] = await Promise.all([
+            const [docs, invoices, rules, ruleExecs] = await Promise.all([
                 db.collection('documents').get(),
-                db.collection('invoices').get()
+                db.collection('invoices').get(),
+                db.collection('rules').get(),
+                db.collection('ruleExecutions').orderBy('executedAt', 'desc').limit(50).get()
             ]);
             S.documents = docs.docs.map(d => ({ id: d.id, ...d.data() }));
             S.invoices = invoices.docs.map(d => ({ id: d.id, ...d.data() }));
+            S.rules = rules.docs.map(d => ({ id: d.id, ...d.data() }));
+            S.ruleExecutions = ruleExecs.docs.map(d => ({ id: d.id, ...d.data() }));
             console.log('Batch 3 done:', (performance.now() - startTime).toFixed(0), 'ms');
             
             // Cache core data
@@ -1505,7 +1522,7 @@ Valentyne - BOOM Rome`
                     data: {
                         users: S.users, properties: S.properties, contracts: S.contracts,
                         payments: S.payments, maintenance: S.maintenance, clients: S.clients,
-                        documents: S.documents, invoices: S.invoices
+                        documents: S.documents, invoices: S.invoices, rules: S.rules, ruleExecutions: S.ruleExecutions
                     }
                 }));
             } catch (e) { console.log('Cache save failed:', e.message); }
@@ -1579,6 +1596,7 @@ Valentyne - BOOM Rome`
             S.notifications.push({ type: 'danger', title: 'Manutenzione urgente', text: m.title, id: m.id });
         });
         updateNotifBadge();
+        updateReminderBadge();
     }
 
     function updateNotifBadge() {
@@ -1608,6 +1626,7 @@ Valentyne - BOOM Rome`
             .onSnapshot(snapshot => {
                 S.userNotifications = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 updateNotifBadge();
+                updateReminderBadge();
                 // Play sound for new unread notifications
                 const newUnread = S.userNotifications.filter(n => !n.read && isRecent(n.createdAt, 30));
                 if (newUnread.length > 0 && document.hidden === false) {
@@ -1761,7 +1780,115 @@ Valentyne - BOOM Rome`
             </div>` : ''}
         </div></div>`;
     }
-    
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // REMINDER SYSTEM - Aggregated alerts & reminders
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    function getReminders() {
+        const reminders = [];
+        const today = new Date();
+
+        // 1. Overdue payments
+        S.payments.filter(p => p.status === 'pending' && isOverdue(p.dueDate)).forEach(p => {
+            const contract = S.contracts.find(c => c.id === p.contractId);
+            const prop = S.properties.find(x => x.id === contract?.propertyId);
+            const tenant = S.users.find(u => u.id === contract?.tenantId);
+            reminders.push({ type: 'payment_overdue', priority: 'high', icon: '💳', color: 'red', title: 'Pagamento in ritardo', text: `${prop?.name || 'Immobile'} - ${tenant?.name || 'Inquilino'} · €${p.amount} (${p.month})`, action: `goTo('payments')`, date: p.dueDate });
+        });
+
+        // 2. Payments due within 7 days
+        S.payments.filter(p => p.status === 'pending' && !isOverdue(p.dueDate) && daysUntil(p.dueDate) <= 7).forEach(p => {
+            const contract = S.contracts.find(c => c.id === p.contractId);
+            const prop = S.properties.find(x => x.id === contract?.propertyId);
+            reminders.push({ type: 'payment_due', priority: 'medium', icon: '⏳', color: 'orange', title: 'Pagamento in scadenza', text: `${prop?.name || 'Immobile'} · €${p.amount} - scade ${fmtDate(p.dueDate)}`, action: `goTo('payments')`, date: p.dueDate });
+        });
+
+        // 3. Contracts expiring within 60 days
+        S.contracts.filter(c => c.status === 'active' && daysUntil(c.endDate) !== null && daysUntil(c.endDate) <= 60 && daysUntil(c.endDate) >= 0).forEach(c => {
+            const prop = S.properties.find(x => x.id === c.propertyId);
+            const days = daysUntil(c.endDate);
+            reminders.push({ type: 'contract_expiring', priority: days <= 30 ? 'high' : 'medium', icon: '📋', color: days <= 30 ? 'red' : 'orange', title: 'Contratto in scadenza', text: `${prop?.name || 'Immobile'} - scade tra ${days} giorni (${fmtDate(c.endDate)})`, action: `viewContract('${c.id}')`, date: c.endDate });
+        });
+
+        // 4. Open urgent maintenances
+        S.maintenance.filter(m => m.status !== 'resolved' && m.priority === 'urgent').forEach(m => {
+            const prop = S.properties.find(x => x.id === m.propertyId);
+            reminders.push({ type: 'maintenance_urgent', priority: 'high', icon: '🔧', color: 'red', title: 'Manutenzione urgente', text: `${prop?.name || 'Immobile'}: ${m.title}`, action: `viewMaintenance('${m.id}')`, date: m.createdAt });
+        });
+
+        // 5. Pending invoices > 30 days
+        S.invoices.filter(i => i.status === 'pending' && daysSince(i.createdAt) > 30).forEach(i => {
+            const client = S.clients.find(c => c.id === i.clientId);
+            reminders.push({ type: 'invoice_overdue', priority: 'medium', icon: '🧾', color: 'orange', title: 'Fattura da incassare', text: `${i.number} - ${client?.name || 'Cliente'} · €${i.amount}`, action: `viewInvoice('${i.id}')`, date: i.createdAt });
+        });
+
+        // 6. CRM clients in hot stage for > 7 days without action
+        S.clients.filter(c => c.stage === 'hot' && daysSince(c.updatedAt || c.createdAt) > 7).forEach(c => {
+            reminders.push({ type: 'crm_followup', priority: 'medium', icon: '🔥', color: 'gold', title: 'Follow-up cliente', text: `${c.name} (${c.service}) - nessuna azione da ${daysSince(c.updatedAt || c.createdAt)} giorni`, action: `viewClient('${c.id}')`, date: c.updatedAt || c.createdAt });
+        });
+
+        // 7. Properties available (liberi) for > 30 days
+        S.properties.filter(p => {
+            const hasActiveContract = S.contracts.some(c => c.propertyId === p.id && c.status === 'active');
+            return !hasActiveContract && p.availableSince && daysSince(p.availableSince) > 30;
+        }).forEach(p => {
+            reminders.push({ type: 'property_vacant', priority: 'low', icon: '🏠', color: 'blue', title: 'Immobile sfitto', text: `${p.name} - libero da ${daysSince(p.availableSince)} giorni`, action: `viewProperty('${p.id}')`, date: p.availableSince });
+        });
+
+        // Sort by priority
+        const priorityOrder = { high: 0, medium: 1, low: 2 };
+        return reminders.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
+    }
+
+    function daysSince(date) {
+        if (!date) return 0;
+        const d = date?.toDate ? date.toDate() : new Date(date);
+        return Math.floor((new Date() - d) / (1000 * 60 * 60 * 24));
+    }
+
+    function updateReminderBadge() {
+        const btn = document.getElementById('reminderBtn');
+        if (!btn) return;
+        const reminders = getReminders();
+        const highPriority = reminders.filter(r => r.priority === 'high').length;
+        const total = reminders.length;
+        if (total > 0) {
+            btn.innerHTML = `📋<span class="reminder-badge" style="${highPriority > 0 ? 'background:var(--red)' : ''}">${total > 9 ? '9+' : total}</span>`;
+        } else {
+            btn.innerHTML = '📋';
+        }
+    }
+
+    function showReminders() {
+        const reminders = getReminders();
+        const highCount = reminders.filter(r => r.priority === 'high').length;
+        const mediumCount = reminders.filter(r => r.priority === 'medium').length;
+
+        document.getElementById('modals').innerHTML = `<div class="modal-overlay active"><div class="modal lg">
+            <div class="modal-header">
+                <h3 class="modal-title">📋 Promemoria ${reminders.length > 0 ? `<span class="badge ${highCount > 0 ? 'red' : 'gold'}">${reminders.length}</span>` : ''}</h3>
+                <button class="modal-close" onclick="closeModal()">×</button>
+            </div>
+            <div class="modal-body" style="max-height:60vh;overflow-y:auto;padding:0">
+                ${highCount > 0 ? `<div style="padding:12px 20px;background:rgba(239,68,68,0.1);border-bottom:1px solid var(--border)"><span style="color:var(--red);font-weight:600">⚠️ ${highCount} urgenti</span> · ${mediumCount} da verificare</div>` : ''}
+                ${reminders.length > 0 ? reminders.map(r => `
+                    <div class="reminder-item" style="padding:14px 20px;border-bottom:1px solid var(--border);display:flex;gap:12px;align-items:center;cursor:pointer;transition:background .2s" onclick="${r.action};closeModal()" onmouseover="this.style.background='var(--surface)'" onmouseout="this.style.background='transparent'">
+                        <div style="width:40px;height:40px;border-radius:10px;background:var(--${r.color}-light);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px">${r.icon}</div>
+                        <div style="flex:1;min-width:0">
+                            <div style="font-weight:500;margin-bottom:2px;display:flex;align-items:center;gap:8px">${r.title} ${r.priority === 'high' ? '<span class="badge red" style="font-size:9px">URGENTE</span>' : ''}</div>
+                            <div style="font-size:13px;color:var(--text-muted)">${r.text}</div>
+                        </div>
+                        <div style="color:var(--text-dim);font-size:20px">→</div>
+                    </div>
+                `).join('') : '<div class="empty-state" style="padding:40px"><div class="empty-icon">✅</div><div class="empty-title">Tutto a posto!</div><div class="empty-subtitle">Nessun promemoria attivo</div></div>'}
+            </div>
+            <div class="modal-footer" style="justify-content:center">
+                <button class="btn" onclick="closeModal()">Chiudi</button>
+            </div>
+        </div></div>`;
+    }
+
     // ═══════════════════════════════════════════════════════════════════════════
     // NOTIFICATION TRIGGERS - Called on specific events
     // ═══════════════════════════════════════════════════════════════════════════
@@ -1985,7 +2112,10 @@ Valentyne - BOOM Rome`
         document.getElementById('headerAvatar').textContent = initials(S.profile.name);
         document.getElementById('headerName').textContent = S.profile.name;
         document.getElementById('headerRole').textContent = roleLabel(S.profile.role);
-        
+
+        // Check Stripe payment return
+        checkStripeReturn();
+
         // Start notification listener
         startNotificationListener();
         
@@ -2043,6 +2173,7 @@ Valentyne - BOOM Rome`
                     <div class="nav-item ${S.page==='registrations'?'active':''}" onclick="goTo('registrations')"><span class="nav-icon">📝</span> Registrazioni ${S.regPending?`<span class="nav-badge orange">${S.regPending}</span>`:''}</div>
                     <div class="nav-item ${S.page==='listings'?'active':''}" onclick="goTo('listings')"><span class="nav-icon">📢</span> Pubblica Annunci <span class="nav-badge green">NEW</span></div>
                     <div class="nav-item ${S.page==='asseverazioni'?'active':''}" onclick="goTo('asseverazioni')"><span class="nav-icon">📋</span> Asseverazioni</div>
+                    <div class="nav-item ${S.page==='rules'?'active':''}" onclick="goTo('rules')"><span class="nav-icon">⚡</span> Regole & Automazioni <span class="nav-badge gold">AI</span></div>
                 </div>
                 <div class="nav-section"><div class="nav-label">PFS & Sales</div>
                     <div class="nav-item ${S.page==='pfs-pipeline'?'active':''}" onclick="goTo('pfs-pipeline')"><span class="nav-icon">🚀</span> PFS Pipeline ${urgentPFS?`<span class="nav-badge">${urgentPFS}</span>`:''}</div>
@@ -2110,6 +2241,7 @@ Valentyne - BOOM Rome`
             case 'contracts': m.innerHTML = isAdmin() ? contractsPage() : accessDenied(); break;
             case 'payments': m.innerHTML = isAdmin() ? paymentsPage() : accessDenied(); break;
             case 'maintenance': m.innerHTML = isAdmin() ? maintenancePage() : accessDenied(); break;
+            case 'rules': m.innerHTML = isAdmin() ? rulesPage() : accessDenied(); break;
             case 'documents': m.innerHTML = isAdmin() ? documentsPage() : accessDenied(); break;
             case 'my-properties': m.innerHTML = isLandlord() ? myPropertiesPage() : accessDenied(); break;
             case 'my-contracts': m.innerHTML = isLandlord() ? myContractsPage() : accessDenied(); break;
@@ -2173,48 +2305,485 @@ Valentyne - BOOM Rome`
     // DASHBOARDS
     // ═══════════════════════════════════════════════════════════════════════════
     function adminDashboard() {
+        // === COMPREHENSIVE DATA CALCULATIONS ===
         const activeClients = (S.clients || []).filter(c => !['completed', 'lost'].includes(c.stage));
         const paidInvoices = S.invoices.filter(i => i.status === 'paid');
         const thisMonthRev = paidInvoices.filter(i => isThisMonth(i.paidDate)).reduce((s, i) => s + (i.amount || 0), 0);
+        const lastMonthRev = paidInvoices.filter(i => isLastMonth(i.paidDate)).reduce((s, i) => s + (i.amount || 0), 0);
+        const revGrowth = lastMonthRev > 0 ? Math.round(((thisMonthRev - lastMonthRev) / lastMonthRev) * 100) : 0;
         const pipeline = activeClients.reduce((s, c) => s + (SERVICES[c.service]?.price || 0), 0);
-        const pendingInv = S.invoices.filter(i => i.status === 'pending').reduce((s, i) => s + (i.amount || 0), 0);
-        const openMaint = S.maintenance.filter(m => m.status === 'open').length;
+        const pendingInv = S.invoices.filter(i => i.status === 'pending');
+        const pendingInvTotal = pendingInv.reduce((s, i) => s + (i.amount || 0), 0);
+        const openMaint = S.maintenance.filter(m => m.status !== 'resolved');
+        const urgentMaint = openMaint.filter(m => m.priority === 'urgent');
         const overduePayments = S.payments.filter(p => p.status === 'pending' && isOverdue(p.dueDate));
+        const overdueTotal = overduePayments.reduce((s, p) => s + (p.amount || 0), 0);
 
-        let alerts = '';
+        // Property metrics
+        const totalProperties = S.properties.length;
+        const rentedProperties = S.properties.filter(p => S.contracts.some(c => c.propertyId === p.id && c.status === 'active')).length;
+        const occupancyRate = totalProperties > 0 ? Math.round((rentedProperties / totalProperties) * 100) : 0;
+        const availableProps = S.properties.filter(p => p.availabilityStatus === 'available' || !p.availabilityStatus).length;
+        const inNegotiation = S.properties.filter(p => p.availabilityStatus === 'negotiation').length;
+
+        // Rent collection
+        const thisMonthPayments = S.payments.filter(p => isThisMonth(p.dueDate));
+        const paidThisMonth = thisMonthPayments.filter(p => p.status === 'paid').reduce((s, p) => s + (p.amount || 0), 0);
+        const expectedThisMonth = thisMonthPayments.reduce((s, p) => s + (p.amount || 0), 0);
+        const collectionRate = expectedThisMonth > 0 ? Math.round((paidThisMonth / expectedThisMonth) * 100) : 100;
+
+        // Annual revenue
+        const yearStart = new Date(new Date().getFullYear(), 0, 1);
+        const yearRevenue = paidInvoices.filter(i => {
+            const d = i.paidDate?.toDate ? i.paidDate.toDate() : new Date(i.paidDate);
+            return d >= yearStart;
+        }).reduce((s, i) => s + (i.amount || 0), 0);
+        const rentRevenue = S.payments.filter(p => p.status === 'paid').reduce((s, p) => s + (p.amount || 0), 0);
+
+        // Contracts
+        const activeContracts = S.contracts.filter(c => c.status === 'active');
+        const expiringContracts = activeContracts.filter(c => {
+            const d = daysUntil(c.endDate);
+            return d !== null && d <= 60 && d >= 0;
+        });
+        const pendingSignatures = S.contracts.filter(c => !c.landlordSignature || !c.tenantSignature);
+
+        // Rules engine status
+        const activeRules = (S.rules || []).filter(r => r.enabled).length;
+        const reminderCount = getReminders().length;
+
+        // Get tenants with bad payment scores
+        const tenants = S.users.filter(u => u.role === 'tenant');
+
+        // Recent activity
+        const recentPayments = S.payments.filter(p => p.status === 'paid' && daysSince(p.paidDate) <= 7).slice(0, 3);
+        const recentMaint = S.maintenance.filter(m => daysSince(m.createdAt) <= 7).slice(0, 3);
+
+        // === BUILD CRITICAL ALERTS ===
+        let criticalAlerts = '';
+
         if (overduePayments.length > 0) {
-            alerts += `<div class="alert danger"><span class="alert-icon">⚠️</span><div class="alert-content"><div class="alert-title">${overduePayments.length} Pagamenti in Ritardo</div><div class="alert-text">Ci sono affitti non pagati che richiedono attenzione.</div></div><button class="btn btn-sm btn-danger" onclick="goTo('payments')">Gestisci</button></div>`;
+            criticalAlerts += `<div class="alert danger" style="margin-bottom:10px">
+                <span class="alert-icon">🚨</span>
+                <div class="alert-content">
+                    <div class="alert-title">${overduePayments.length} Pagamenti in Ritardo</div>
+                    <div class="alert-text">€${overdueTotal.toLocaleString('it-IT')} da recuperare · ${overduePayments.filter(p => daysSinceDue(p.dueDate) > 15).length} oltre 15gg</div>
+                </div>
+                <button class="btn btn-sm btn-danger" onclick="goTo('payments')">Gestisci →</button>
+            </div>`;
+        }
+
+        if (pendingSignatures.length > 0) {
+            criticalAlerts += `<div class="alert warning" style="margin-bottom:10px">
+                <span class="alert-icon">✍️</span>
+                <div class="alert-content">
+                    <div class="alert-title">${pendingSignatures.length} Contratti da Firmare</div>
+                    <div class="alert-text">Contratti in attesa di firma digitale</div>
+                </div>
+                <button class="btn btn-sm" onclick="goTo('contracts')">Vedi →</button>
+            </div>`;
+        }
+
+        if (urgentMaint.length > 0) {
+            criticalAlerts += `<div class="alert danger" style="margin-bottom:10px">
+                <span class="alert-icon">🔧</span>
+                <div class="alert-content">
+                    <div class="alert-title">${urgentMaint.length} Manutenzioni Urgenti</div>
+                    <div class="alert-text">Richiedono attenzione immediata</div>
+                </div>
+                <button class="btn btn-sm btn-danger" onclick="goTo('maintenance')">Gestisci →</button>
+            </div>`;
         }
 
         return `
-            <div class="welcome-card"><h1 class="welcome-title">👁 Ciao ${S.profile.name.split(' ')[0]}</h1><p class="welcome-text">Pannello Amministratore · ${new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })}</p></div>
-            ${alerts}
-            <div class="stats-grid">
-                <div class="stat-card gold" onclick="goTo('invoices')"><div class="stat-icon">💰</div><div class="stat-value">€${thisMonthRev.toLocaleString('it-IT')}</div><div class="stat-label">Fatturato Mese</div></div>
-                <div class="stat-card blue" onclick="goTo('crm')"><div class="stat-icon">📈</div><div class="stat-value">€${pipeline.toLocaleString('it-IT')}</div><div class="stat-label">Pipeline (${activeClients.length})</div></div>
-                <div class="stat-card orange" onclick="goTo('invoices')"><div class="stat-icon">⏳</div><div class="stat-value">€${pendingInv.toLocaleString('it-IT')}</div><div class="stat-label">Da Incassare</div></div>
-                <div class="stat-card ${openMaint > 0 ? 'red' : 'green'}" onclick="goTo('maintenance')"><div class="stat-icon">${openMaint > 0 ? '⚠️' : '✔'}</div><div class="stat-value">${openMaint}</div><div class="stat-label">Manutenzioni</div></div>
+            <!-- HEADER PREMIUM -->
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;flex-wrap:wrap;gap:16px">
+                <div>
+                    <h1 style="font-size:28px;font-weight:300;margin-bottom:6px">
+                        <span style="color:var(--gold)">●</span> Dashboard
+                    </h1>
+                    <p style="color:var(--text-secondary);font-size:13px">
+                        ${new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} ·
+                        <span style="color:var(--green)">●</span> Sistema Online
+                    </p>
+                </div>
+                <div style="display:flex;gap:8px;align-items:center">
+                    <div class="lang-selector">
+                        <button class="lang-btn ${S.lang === 'IT' ? 'active' : ''}" onclick="setLang('IT')">🇮🇹</button>
+                        <button class="lang-btn ${S.lang === 'EN' ? 'active' : ''}" onclick="setLang('EN')">🇬🇧</button>
+                    </div>
+                    <button class="btn btn-sm btn-secondary" onclick="forceRefreshData()" title="Ricarica">🔄</button>
+                    <button class="btn btn-sm" onclick="goTo('rules')">⚡ ${activeRules} Regole</button>
+                </div>
             </div>
-            <div class="grid-2">
-                <div class="card"><div class="card-header"><h3 class="card-title">💼 Clienti CRM</h3><button class="btn btn-sm" onclick="goTo('crm')">Vedi</button></div><div class="card-body flush">
-                    ${activeClients.slice(0, 4).map(c => `<div class="list-item clickable" onclick="viewClient('${c.id}')"><div class="avatar ${c.service === 'DAS' ? 'blue' : c.service === 'VV' ? 'purple' : ''}">${initials(c.name)}</div><div class="list-content"><div class="list-title">${c.name}</div><div class="list-subtitle">${stageLabel(c.stage)}</div></div><span class="badge ${SERVICES[c.service]?.color}">${c.service}</span></div>`).join('') || '<div class="empty-state" style="padding:30px"><div class="empty-text">Nessun cliente</div></div>'}
-                </div></div>
-                <div class="card"><div class="card-header"><h3 class="card-title">🚀 Azioni Rapide</h3></div><div class="card-body">
-                    <div style="display:flex;gap:8px;margin-bottom:12px;justify-content:center">
-                        <div class="lang-selector">
-                            <button class="lang-btn ${S.lang === 'IT' ? 'active' : ''}" onclick="setLang('IT')">🇮🇹 IT</button>
-                            <button class="lang-btn ${S.lang === 'EN' ? 'active' : ''}" onclick="setLang('EN')">🇬🇧 EN</button>
+
+            <!-- CRITICAL ALERTS -->
+            ${criticalAlerts}
+
+            <!-- MAIN KPI CARDS - Premium Design -->
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px">
+                <!-- Revenue Card -->
+                <div class="card" style="padding:20px;background:linear-gradient(135deg,rgba(212,175,55,0.15),rgba(212,175,55,0.02));border-color:rgba(212,175,55,0.3);cursor:pointer" onclick="goTo('invoices')">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+                        <span style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px">Fatturato Mese</span>
+                        <span style="font-size:20px">💰</span>
+                    </div>
+                    <div style="font-size:32px;font-weight:700;color:var(--gold);margin-bottom:4px">€${thisMonthRev.toLocaleString('it-IT')}</div>
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <span class="badge ${revGrowth >= 0 ? 'green' : 'red'}" style="font-size:10px">${revGrowth >= 0 ? '↑' : '↓'} ${Math.abs(revGrowth)}%</span>
+                        <span style="font-size:11px;color:var(--text-muted)">vs mese scorso</span>
+                    </div>
+                </div>
+
+                <!-- Collection Rate -->
+                <div class="card" style="padding:20px;cursor:pointer" onclick="goTo('payments')">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+                        <span style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px">Affitti Incassati</span>
+                        <span style="font-size:20px">💳</span>
+                    </div>
+                    <div style="font-size:32px;font-weight:700;color:var(--${collectionRate >= 80 ? 'green' : collectionRate >= 50 ? 'orange' : 'red'});margin-bottom:8px">${collectionRate}%</div>
+                    <div style="background:var(--bg-elevated);border-radius:4px;height:6px;overflow:hidden">
+                        <div style="background:var(--${collectionRate >= 80 ? 'green' : collectionRate >= 50 ? 'orange' : 'red'});height:100%;width:${collectionRate}%;transition:width .5s"></div>
+                    </div>
+                    <div style="font-size:11px;color:var(--text-muted);margin-top:6px">€${paidThisMonth.toLocaleString('it-IT')} / €${expectedThisMonth.toLocaleString('it-IT')}</div>
+                </div>
+
+                <!-- Occupancy -->
+                <div class="card" style="padding:20px;cursor:pointer" onclick="goTo('properties')">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+                        <span style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px">Occupazione</span>
+                        <span style="font-size:20px">🏠</span>
+                    </div>
+                    <div style="font-size:32px;font-weight:700;color:var(--${occupancyRate >= 80 ? 'green' : occupancyRate >= 50 ? 'orange' : 'red'});margin-bottom:8px">${occupancyRate}%</div>
+                    <div style="display:flex;gap:12px">
+                        <span style="font-size:11px"><span style="color:var(--green)">●</span> ${rentedProperties} affittati</span>
+                        <span style="font-size:11px"><span style="color:var(--text-muted)">●</span> ${availableProps} liberi</span>
+                    </div>
+                </div>
+
+                <!-- Pipeline -->
+                <div class="card" style="padding:20px;cursor:pointer" onclick="goTo('crm')">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+                        <span style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px">Pipeline CRM</span>
+                        <span style="font-size:20px">📈</span>
+                    </div>
+                    <div style="font-size:32px;font-weight:700;color:var(--blue);margin-bottom:4px">€${pipeline.toLocaleString('it-IT')}</div>
+                    <div style="font-size:11px;color:var(--text-muted)">${activeClients.length} clienti attivi · ${activeClients.filter(c => c.stage === 'negotiation').length} in negoziazione</div>
+                </div>
+            </div>
+
+            <!-- SECONDARY METRICS ROW -->
+            <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:24px">
+                <div class="card" style="padding:14px;text-align:center;cursor:pointer" onclick="goTo('properties')">
+                    <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">🟢 Disponibili</div>
+                    <div style="font-size:22px;font-weight:700;color:var(--green)">${availableProps}</div>
+                </div>
+                <div class="card" style="padding:14px;text-align:center;cursor:pointer" onclick="goTo('properties')">
+                    <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">🟡 Trattativa</div>
+                    <div style="font-size:22px;font-weight:700;color:var(--orange)">${inNegotiation}</div>
+                </div>
+                <div class="card" style="padding:14px;text-align:center;cursor:pointer" onclick="goTo('contracts')">
+                    <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">📋 Scadenza 60g</div>
+                    <div style="font-size:22px;font-weight:700;color:var(--blue)">${expiringContracts.length}</div>
+                </div>
+                <div class="card" style="padding:14px;text-align:center;cursor:pointer" onclick="goTo('maintenance')">
+                    <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">🔧 Manutenzioni</div>
+                    <div style="font-size:22px;font-weight:700;color:var(--${openMaint.length > 0 ? 'orange' : 'green'})">${openMaint.length}</div>
+                </div>
+                <div class="card" style="padding:14px;text-align:center;cursor:pointer" onclick="goTo('invoices')">
+                    <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">⏳ Fatture Pending</div>
+                    <div style="font-size:22px;font-weight:700;color:var(--orange)">${pendingInv.length}</div>
+                </div>
+                <div class="card" style="padding:14px;text-align:center;cursor:pointer" onclick="showReminders()">
+                    <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">🔔 Promemoria</div>
+                    <div style="font-size:22px;font-weight:700;color:var(--${reminderCount > 0 ? 'red' : 'green'})">${reminderCount}</div>
+                </div>
+            </div>
+
+            <!-- MAIN CONTENT GRID -->
+            <div style="display:grid;grid-template-columns:2fr 1fr;gap:20px">
+                <!-- LEFT COLUMN -->
+                <div>
+                    <!-- Quick Invoice Creation -->
+                    <div class="card" style="margin-bottom:20px;background:linear-gradient(135deg,rgba(0,122,255,0.08),transparent)">
+                        <div class="card-header" style="border-bottom:none;padding-bottom:0">
+                            <h3 class="card-title">⚡ Fattura Rapida</h3>
                         </div>
-                        <button class="btn btn-sm btn-secondary" onclick="forceRefreshData()" title="Ricarica dati">🔄</button>
+                        <div class="card-body" style="padding-top:12px">
+                            <div style="display:flex;gap:10px;flex-wrap:wrap">
+                                <button class="btn" onclick="openQuickInvoiceModal('DAS')">💼 DAS €${SERVICES.DAS?.price || 150}</button>
+                                <button class="btn btn-secondary" onclick="openQuickInvoiceModal('VV')">🔑 VV €${SERVICES.VV?.price || 80}</button>
+                                <button class="btn btn-secondary" onclick="openQuickInvoiceModal('PM')">🏠 PM €${SERVICES.PM?.price || 100}</button>
+                                <button class="btn btn-secondary" onclick="openQuickInvoiceModal('custom')">✏️ Personalizzata</button>
+                            </div>
+                        </div>
                     </div>
-                    <div style="display:grid;gap:8px">
-                        <button class="btn btn-block" onclick="openModal('addClient')">💼 Nuovo Cliente CRM</button>
-                        <button class="btn btn-secondary btn-block" onclick="openModal('addInvoice')">🧾 Crea Fattura</button>
-                        <button class="btn btn-secondary btn-block" onclick="goTo('templates')">📜 Template</button>
-                        <button class="btn btn-secondary btn-block" onclick="goTo('adminflats')">🏢 AdminFlats</button>
+
+                    <!-- Clients Pipeline -->
+                    <div class="card" style="margin-bottom:20px">
+                        <div class="card-header">
+                            <h3 class="card-title">💼 Pipeline Clienti</h3>
+                            <button class="btn btn-sm" onclick="goTo('crm')">Vedi Tutto →</button>
+                        </div>
+                        <div class="card-body flush">
+                            ${activeClients.slice(0, 5).map(c => {
+                                const daysSinceCreated = daysSince(c.createdAt);
+                                return `<div class="list-item clickable" onclick="viewClient('${c.id}')" style="padding:14px 16px">
+                                    <div class="avatar ${c.service === 'DAS' ? 'blue' : c.service === 'VV' ? 'purple' : ''}">${initials(c.name)}</div>
+                                    <div class="list-content" style="flex:1">
+                                        <div class="list-title" style="display:flex;align-items:center;gap:8px">
+                                            ${c.name}
+                                            <span class="badge ${SERVICES[c.service]?.color}" style="font-size:10px">${c.service}</span>
+                                        </div>
+                                        <div class="list-subtitle">${stageLabel(c.stage)} · ${daysSinceCreated}g fa</div>
+                                    </div>
+                                    <div style="text-align:right">
+                                        <div style="font-weight:600;color:var(--gold)">€${SERVICES[c.service]?.price || 0}</div>
+                                        <div style="font-size:10px;color:var(--text-muted)">${c.stage === 'negotiation' ? '🔥 Hot' : ''}</div>
+                                    </div>
+                                </div>`;
+                            }).join('') || '<div class="empty-state" style="padding:40px"><div class="empty-icon">💼</div><div class="empty-text">Nessun cliente attivo</div><button class="btn btn-sm" onclick="openModal(\'addClient\')">+ Aggiungi</button></div>'}
+                        </div>
                     </div>
-                </div></div>
+
+                    <!-- Recent Activity -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">📊 Attività Recente</h3>
+                        </div>
+                        <div class="card-body flush">
+                            ${[...recentPayments.map(p => {
+                                const tenant = S.users.find(u => u.id === p.tenantId);
+                                return { type: 'payment', date: p.paidDate, html: `<div class="list-item" style="padding:12px 16px">
+                                    <div class="list-icon" style="background:var(--green-light)">💰</div>
+                                    <div class="list-content"><div class="list-title">Pagamento ricevuto</div><div class="list-subtitle">${tenant?.name || 'Inquilino'} · €${p.amount}</div></div>
+                                    <div style="font-size:11px;color:var(--text-muted)">${fmtDate(p.paidDate)}</div>
+                                </div>` };
+                            }), ...recentMaint.map(m => {
+                                const prop = S.properties.find(p => p.id === m.propertyId);
+                                return { type: 'maint', date: m.createdAt, html: `<div class="list-item" style="padding:12px 16px">
+                                    <div class="list-icon" style="background:var(--orange-light)">🔧</div>
+                                    <div class="list-content"><div class="list-title">${m.title}</div><div class="list-subtitle">${prop?.name || 'Immobile'}</div></div>
+                                    <span class="badge ${m.status === 'resolved' ? 'green' : m.priority === 'urgent' ? 'red' : 'orange'}">${m.status === 'resolved' ? '✓' : m.priority === 'urgent' ? '!' : '◐'}</span>
+                                </div>` };
+                            })].sort((a, b) => {
+                                const da = a.date?.toDate ? a.date.toDate() : new Date(a.date);
+                                const db = b.date?.toDate ? b.date.toDate() : new Date(b.date);
+                                return db - da;
+                            }).slice(0, 5).map(x => x.html).join('') || '<div class="empty-state" style="padding:30px"><div class="empty-text">Nessuna attività recente</div></div>'}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- RIGHT COLUMN -->
+                <div>
+                    <!-- Quick Actions Premium -->
+                    <div class="card" style="margin-bottom:20px">
+                        <div class="card-header" style="border-bottom:none;padding-bottom:8px">
+                            <h3 class="card-title">⚡ Azioni Rapide</h3>
+                        </div>
+                        <div class="card-body" style="padding-top:0">
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                                <button class="btn btn-block" onclick="openModal('addClient')">💼 Cliente</button>
+                                <button class="btn btn-block" onclick="openModal('addProperty')">🏠 Immobile</button>
+                                <button class="btn btn-secondary btn-block" onclick="openModal('addContract')">📋 Contratto</button>
+                                <button class="btn btn-secondary btn-block" onclick="openModal('addPayment')">💳 Pagamento</button>
+                                <button class="btn btn-secondary btn-block" onclick="openModal('addMaintenance')">🔧 Manutenzione</button>
+                                <button class="btn btn-secondary btn-block" onclick="goTo('templates')">📜 Template</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Financial Summary -->
+                    <div class="card" style="margin-bottom:20px">
+                        <div class="card-header">
+                            <h3 class="card-title">📊 Riepilogo Finanziario</h3>
+                        </div>
+                        <div class="card-body">
+                            <div style="margin-bottom:16px">
+                                <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+                                    <span style="font-size:12px;color:var(--text-muted)">Fatturato Anno</span>
+                                    <span style="font-weight:600;color:var(--gold)">€${yearRevenue.toLocaleString('it-IT')}</span>
+                                </div>
+                                <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+                                    <span style="font-size:12px;color:var(--text-muted)">Affitti Incassati</span>
+                                    <span style="font-weight:600;color:var(--green)">€${rentRevenue.toLocaleString('it-IT')}</span>
+                                </div>
+                                <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+                                    <span style="font-size:12px;color:var(--text-muted)">Fatture Pending</span>
+                                    <span style="font-weight:600;color:var(--orange)">€${pendingInvTotal.toLocaleString('it-IT')}</span>
+                                </div>
+                                <div style="display:flex;justify-content:space-between">
+                                    <span style="font-size:12px;color:var(--text-muted)">Affitti in Ritardo</span>
+                                    <span style="font-weight:600;color:var(--red)">€${overdueTotal.toLocaleString('it-IT')}</span>
+                                </div>
+                            </div>
+                            <div style="border-top:1px solid var(--border);padding-top:12px">
+                                <div style="display:flex;justify-content:space-between;align-items:center">
+                                    <span style="font-size:13px;font-weight:600">Totale Atteso</span>
+                                    <span style="font-size:18px;font-weight:700;color:var(--gold)">€${(yearRevenue + rentRevenue + pendingInvTotal + overdueTotal).toLocaleString('it-IT')}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- System Status -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">🖥️ Sistema</h3>
+                        </div>
+                        <div class="card-body">
+                            <div style="display:flex;flex-direction:column;gap:10px">
+                                <div style="display:flex;justify-content:space-between;align-items:center">
+                                    <span style="font-size:12px">Regole Automazione</span>
+                                    <span class="badge gold">${activeRules} attive</span>
+                                </div>
+                                <div style="display:flex;justify-content:space-between;align-items:center">
+                                    <span style="font-size:12px">Contratti Attivi</span>
+                                    <span class="badge green">${activeContracts.length}</span>
+                                </div>
+                                <div style="display:flex;justify-content:space-between;align-items:center">
+                                    <span style="font-size:12px">Utenti Sistema</span>
+                                    <span class="badge blue">${S.users.length}</span>
+                                </div>
+                                <div style="display:flex;justify-content:space-between;align-items:center">
+                                    <span style="font-size:12px">Immobili Gestiti</span>
+                                    <span class="badge">${totalProperties}</span>
+                                </div>
+                            </div>
+                            <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border);display:grid;grid-template-columns:1fr 1fr;gap:6px">
+                                <button class="btn btn-xs btn-secondary btn-block" onclick="goTo('adminflats')">🏢 AdminFlats</button>
+                                <button class="btn btn-xs btn-secondary btn-block" onclick="goTo('command')">🎯 Command</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>`;
+    }
+
+    // Helper for last month check
+    function isLastMonth(date) {
+        if (!date) return false;
+        const d = date.toDate ? date.toDate() : new Date(date);
+        const now = new Date();
+        const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+        return d >= lastMonth && d <= lastMonthEnd;
+    }
+
+    // Quick Invoice Modal
+    function openQuickInvoiceModal(type) {
+        const clients = S.clients.filter(c => !['completed', 'lost'].includes(c.stage));
+        const servicePrice = type !== 'custom' ? (SERVICES[type]?.price || 0) : '';
+        const serviceName = type !== 'custom' ? (SERVICES[type]?.name || type) : '';
+
+        S.modal = { type: 'quickInvoice', service: type };
+        document.getElementById('modalOverlay').innerHTML = `
+            <div class="modal" style="max-width:480px">
+                <div class="modal-header">
+                    <h2>⚡ Fattura Rapida ${type !== 'custom' ? '- ' + type : ''}</h2>
+                    <button class="modal-close" onclick="closeModal()">×</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="form-label">Cliente</label>
+                        <select class="form-select" id="qiClient" onchange="prefillQuickInvoice()">
+                            <option value="">Seleziona cliente o scrivi nome...</option>
+                            ${clients.map(c => `<option value="${c.id}" data-email="${c.email}" data-service="${c.service}">${c.name} - ${c.service}</option>`).join('')}
+                            <option value="new">➕ Nuovo cliente...</option>
+                        </select>
+                    </div>
+                    <div id="qiNewClientFields" style="display:none">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Nome Cliente</label>
+                                <input type="text" class="form-input" id="qiNewName" placeholder="Mario Rossi">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Email</label>
+                                <input type="email" class="form-input" id="qiNewEmail" placeholder="mario@email.com">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Descrizione</label>
+                            <input type="text" class="form-input" id="qiDescription" value="${serviceName}" placeholder="Servizio...">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Importo €</label>
+                            <input type="number" class="form-input" id="qiAmount" value="${servicePrice}" placeholder="150">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Note (opzionale)</label>
+                        <textarea class="form-textarea" id="qiNotes" rows="2" placeholder="Note aggiuntive..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="closeModal()">Annulla</button>
+                    <button class="btn" onclick="createQuickInvoice()">Crea Fattura →</button>
+                </div>
+            </div>`;
+        document.getElementById('modalOverlay').classList.add('open');
+    }
+
+    function prefillQuickInvoice() {
+        const sel = document.getElementById('qiClient');
+        const newFields = document.getElementById('qiNewClientFields');
+        if (sel.value === 'new') {
+            newFields.style.display = 'block';
+        } else {
+            newFields.style.display = 'none';
+        }
+    }
+
+    async function createQuickInvoice() {
+        const clientId = document.getElementById('qiClient').value;
+        const description = document.getElementById('qiDescription').value;
+        const amount = parseFloat(document.getElementById('qiAmount').value);
+        const notes = document.getElementById('qiNotes').value;
+
+        if (!description || !amount) {
+            toast('error', 'Inserisci descrizione e importo');
+            return;
+        }
+
+        let clientName = '', clientEmail = '';
+
+        if (clientId === 'new') {
+            clientName = document.getElementById('qiNewName').value;
+            clientEmail = document.getElementById('qiNewEmail').value;
+            if (!clientName) {
+                toast('error', 'Inserisci nome cliente');
+                return;
+            }
+        } else if (clientId) {
+            const client = S.clients.find(c => c.id === clientId);
+            clientName = client?.name || '';
+            clientEmail = client?.email || '';
+        }
+
+        try {
+            const invoiceData = {
+                clientId: clientId && clientId !== 'new' ? clientId : null,
+                clientName,
+                clientEmail,
+                description,
+                amount,
+                notes,
+                status: 'pending',
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                createdBy: S.user.uid
+            };
+
+            await db.collection('invoices').add(invoiceData);
+            toast('success', `Fattura €${amount} creata!`);
+            closeModal();
+            goTo('invoices');
+        } catch (err) {
+            toast('error', 'Errore: ' + err.message);
+        }
     }
 
     function landlordDashboard() {
@@ -2828,43 +3397,108 @@ Valentyne - BOOM Rome`
         const landlords = S.users.filter(u => u.role === 'landlord');
         const admins = S.users.filter(u => u.role === 'admin');
 
-        return `<div class="page-header"><h1 class="page-title">Utenti</h1><div class="page-actions"><button class="btn" onclick="openModal('addUser')">+ Nuovo</button></div></div>
+        // Calculate stats
+        const tenantsWithOverdue = tenants.filter(t => {
+            const contract = S.contracts.find(c => c.tenantId === t.id && c.status === 'active');
+            return contract && S.payments.some(p => p.contractId === contract.id && p.status === 'pending' && isOverdue(p.dueDate));
+        });
+        const tenantsActive = tenants.filter(t => S.contracts.some(c => c.tenantId === t.id && c.status === 'active'));
 
-            <!-- Onboarding Link Card -->
-            <div class="card" style="margin-bottom: 24px; border: 2px solid var(--gold);">
-                <div class="card-body" style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
-                    <div style="flex: 1; min-width: 200px;">
-                        <div style="font-weight: 600; margin-bottom: 4px;">🔗 Link Onboarding Clienti</div>
-                        <div style="font-size: 13px; color: var(--text-secondary);">Condividi questo link con nuovi clienti per la registrazione automatica</div>
+        // User payment score calculator
+        const getPaymentScore = (userId) => {
+            const contract = S.contracts.find(c => c.tenantId === userId && c.status === 'active');
+            if (!contract) return null;
+            const payments = S.payments.filter(p => p.contractId === contract.id);
+            if (payments.length === 0) return null;
+            const onTime = payments.filter(p => p.status === 'paid' && !p.paidLate).length;
+            return Math.round((onTime / payments.length) * 100);
+        };
+
+        // User row generator
+        const userRow = (u) => {
+            const contract = S.contracts.find(c => c.tenantId === u.id && c.status === 'active');
+            const property = contract ? S.properties.find(p => p.id === contract.propertyId) : null;
+            const ownedProps = S.properties.filter(p => p.ownerId === u.id);
+            const overduePayments = contract ? S.payments.filter(p => p.contractId === contract.id && p.status === 'pending' && isOverdue(p.dueDate)) : [];
+            const score = u.role === 'tenant' ? getPaymentScore(u.id) : null;
+            const roleConfig = { tenant: { icon: '👤', color: 'blue', label: 'Inquilino' }, landlord: { icon: '🏠', color: 'gold', label: 'Proprietario' }, admin: { icon: '👁', color: 'purple', label: 'Admin' } };
+            const r = roleConfig[u.role] || roleConfig.tenant;
+
+            let extraInfo = '';
+            if (u.role === 'tenant' && property) {
+                extraInfo = `<span style="background:var(--bg);padding:2px 8px;border-radius:4px;font-size:11px;margin-left:8px">🏠 ${property.name} · €${contract.rent}/m</span>`;
+            } else if (u.role === 'landlord' && ownedProps.length > 0) {
+                extraInfo = `<span style="background:var(--bg);padding:2px 8px;border-radius:4px;font-size:11px;margin-left:8px">🏢 ${ownedProps.length} immobili</span>`;
+            }
+
+            return `<div class="list-item clickable user-item" data-role="${u.role}" data-overdue="${overduePayments.length > 0}" onclick="viewUser('${u.id}')" style="padding:14px 16px">
+                <div class="avatar ${r.color}" style="width:44px;height:44px">${initials(u.name)}</div>
+                <div class="list-content" style="min-width:0">
+                    <div class="list-title" style="display:flex;align-items:center;flex-wrap:wrap;gap:6px">
+                        ${u.name}
+                        ${u.id === S.profile.id ? '<span class="badge gray" style="font-size:9px">Tu</span>' : ''}
+                        ${overduePayments.length > 0 ? '<span class="badge red" style="font-size:9px">⚠️ RITARDO</span>' : ''}
+                        ${extraInfo}
                     </div>
-                    <div style="display: flex; align-items: center; gap: 8px; background: var(--bg-card); padding: 8px 12px; border-radius: 8px; flex: 1; min-width: 250px;">
-                        <input type="text" id="onboardingLink" value="${onboardingUrl}" readonly style="flex: 1; background: transparent; border: none; color: var(--gold); font-family: monospace; font-size: 13px; outline: none;">
-                        <button onclick="copyOnboardingLink()" class="btn btn-sm" style="white-space: nowrap;">📋 Copia</button>
+                    <div class="list-subtitle" style="display:flex;align-items:center;gap:8px;margin-top:4px">
+                        <span>${u.email || 'No email'}</span>
+                        ${u.phone ? `<span>· ${u.phone}</span>` : ''}
+                        ${score !== null ? `<span style="margin-left:auto;font-size:11px;padding:2px 8px;border-radius:4px;background:${score >= 80 ? 'var(--green-light)' : score >= 50 ? 'var(--orange-light)' : 'var(--red-light)'};color:${score >= 80 ? 'var(--green)' : score >= 50 ? 'var(--orange)' : 'var(--red)'}">Affidabilità ${score}%</span>` : ''}
+                    </div>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px">
+                    ${u.phone ? `<a href="https://wa.me/${u.phone.replace(/[^0-9]/g,'')}" target="_blank" class="btn btn-xs btn-secondary" onclick="event.stopPropagation()" title="WhatsApp">💬</a>` : ''}
+                    <span class="badge ${r.color}">${r.icon} ${r.label}</span>
+                </div>
+            </div>`;
+        };
+
+        return `<div class="page-header">
+                <div><h1 class="page-title">👥 Utenti</h1><p class="page-subtitle">${S.users.length} utenti ${tenantsWithOverdue.length > 0 ? `· <span style="color:var(--red)">⚠️ ${tenantsWithOverdue.length} in ritardo</span>` : ''}</p></div>
+                <div class="page-actions"><button class="btn" onclick="openModal('addUser')">+ Nuovo</button></div>
+            </div>
+
+            <!-- Onboarding Link -->
+            <div class="card" style="margin-bottom:16px;border:2px solid var(--gold)">
+                <div class="card-body" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:12px 16px">
+                    <div style="flex:1;min-width:180px"><div style="font-weight:600;font-size:13px">🔗 Link Onboarding</div><div style="font-size:11px;color:var(--text-muted)">Condividi per registrazione automatica</div></div>
+                    <div style="display:flex;align-items:center;gap:8px;background:var(--bg);padding:8px 12px;border-radius:8px;flex:1;min-width:200px">
+                        <input type="text" id="onboardingLink" value="${onboardingUrl}" readonly style="flex:1;background:transparent;border:none;color:var(--gold);font-family:monospace;font-size:11px;outline:none">
+                        <button onclick="copyOnboardingLink()" class="btn btn-sm">📋</button>
                     </div>
                 </div>
             </div>
 
-            <!-- Stats Row -->
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; margin-bottom: 24px;">
-                <div class="card"><div class="card-body" style="text-align: center; padding: 16px;">
-                    <div style="font-size: 28px; font-weight: 700; color: var(--gold);">${S.users.length}</div>
-                    <div style="font-size: 12px; color: var(--text-secondary);">Totale</div>
-                </div></div>
-                <div class="card"><div class="card-body" style="text-align: center; padding: 16px;">
-                    <div style="font-size: 28px; font-weight: 700; color: #3b82f6;">${tenants.length}</div>
-                    <div style="font-size: 12px; color: var(--text-secondary);">Inquilini</div>
-                </div></div>
-                <div class="card"><div class="card-body" style="text-align: center; padding: 16px;">
-                    <div style="font-size: 28px; font-weight: 700; color: var(--gold);">${landlords.length}</div>
-                    <div style="font-size: 12px; color: var(--text-secondary);">Proprietari</div>
-                </div></div>
-                <div class="card"><div class="card-body" style="text-align: center; padding: 16px;">
-                    <div style="font-size: 28px; font-weight: 700; color: #a855f7;">${admins.length}</div>
-                    <div style="font-size: 12px; color: var(--text-secondary);">Admin</div>
-                </div></div>
+            <!-- Stats -->
+            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px">
+                <div class="card" style="padding:12px;text-align:center;cursor:pointer" onclick="filterUsers('all')"><div style="font-size:22px;font-weight:700;color:var(--gold)">${S.users.length}</div><div style="font-size:10px;color:var(--text-muted)">Totale</div></div>
+                <div class="card" style="padding:12px;text-align:center;cursor:pointer" onclick="filterUsers('tenant')"><div style="font-size:22px;font-weight:700;color:var(--blue)">${tenants.length}</div><div style="font-size:10px;color:var(--text-muted)">👤 Inquilini</div></div>
+                <div class="card" style="padding:12px;text-align:center;cursor:pointer" onclick="filterUsers('landlord')"><div style="font-size:22px;font-weight:700;color:var(--gold)">${landlords.length}</div><div style="font-size:10px;color:var(--text-muted)">🏠 Proprietari</div></div>
+                <div class="card" style="padding:12px;text-align:center;cursor:pointer" onclick="filterUsers('admin')"><div style="font-size:22px;font-weight:700;color:var(--purple)">${admins.length}</div><div style="font-size:10px;color:var(--text-muted)">👁 Admin</div></div>
+                <div class="card" style="padding:12px;text-align:center;cursor:pointer;${tenantsWithOverdue.length > 0 ? 'background:var(--red-light)' : ''}" onclick="filterUsers('overdue')"><div style="font-size:22px;font-weight:700;color:var(--red)">${tenantsWithOverdue.length}</div><div style="font-size:10px;color:var(--text-muted)">⚠️ Ritardo</div></div>
             </div>
 
-            <div class="card"><div class="card-body flush">${S.users.map(u => `<div class="list-item clickable" onclick="viewUser('${u.id}')"><div class="avatar ${u.role === 'admin' ? 'purple' : u.role === 'landlord' ? '' : 'blue'}">${initials(u.name)}</div><div class="list-content"><div class="list-title">${u.name} ${u.id === S.profile.id ? '<span class="badge gray">Tu</span>' : ''}</div><div class="list-subtitle">${u.email}${u.phone ? ' · ' + u.phone : ''}</div></div><span class="badge ${u.role === 'admin' ? 'purple' : u.role === 'landlord' ? 'gold' : 'blue'}">${roleLabel(u.role)}</span></div>`).join('') || '<div class="empty-state"><div class="empty-icon">👥</div><div class="empty-title">Nessun utente</div></div>'}</div></div>`;
+            <!-- Filter Tabs -->
+            <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap">
+                <button class="btn btn-sm user-filter active" onclick="filterUsers('all')">Tutti</button>
+                <button class="btn btn-sm btn-secondary user-filter" onclick="filterUsers('tenant')">👤 Inquilini</button>
+                <button class="btn btn-sm btn-secondary user-filter" onclick="filterUsers('landlord')">🏠 Proprietari</button>
+                <button class="btn btn-sm btn-secondary user-filter" onclick="filterUsers('admin')">👁 Admin</button>
+                ${tenantsWithOverdue.length > 0 ? `<button class="btn btn-sm btn-danger user-filter" onclick="filterUsers('overdue')">⚠️ In Ritardo (${tenantsWithOverdue.length})</button>` : ''}
+            </div>
+
+            <div class="card"><div class="card-body flush" id="usersContainer">${S.users.map(u => userRow(u)).join('') || '<div class="empty-state"><div class="empty-icon">👥</div><div class="empty-title">Nessun utente</div></div>'}</div></div>`;
+    }
+
+    function filterUsers(filter) {
+        document.querySelectorAll('.user-filter').forEach(b => { b.classList.remove('active'); b.classList.add('btn-secondary'); });
+        event.target.classList.add('active'); event.target.classList.remove('btn-secondary');
+        document.querySelectorAll('.user-item').forEach(item => {
+            const role = item.dataset.role;
+            const overdue = item.dataset.overdue === 'true';
+            let show = filter === 'all' || role === filter || (filter === 'overdue' && overdue);
+            item.style.display = show ? '' : 'none';
+        });
     }
 
     function copyOnboardingLink() {
@@ -2879,53 +3513,1181 @@ Valentyne - BOOM Rome`
     }
 
     function propertiesPage() {
-        return `<div class="page-header"><h1 class="page-title">Immobili</h1><div class="page-actions"><button class="btn" onclick="openModal('addProperty')">+ Nuovo</button></div></div>
+        const availStats = { available: S.properties.filter(p => p.availabilityStatus === 'available' || !p.availabilityStatus).length, negotiation: S.properties.filter(p => p.availabilityStatus === 'negotiation').length, rented: S.properties.filter(p => p.availabilityStatus === 'rented').length };
+        const availBadge = (status) => { const badges = { available: { color: 'green', icon: '🟢', text: 'Disponibile' }, negotiation: { color: 'orange', icon: '🟡', text: 'Trattativa' }, rented: { color: 'red', icon: '🔴', text: 'Affittato' }, off_market: { color: 'gray', icon: '⚫', text: 'Fuori Mercato' } }; return badges[status] || badges.available; };
+        return `<div class="page-header"><h1 class="page-title">Immobili</h1><div class="page-actions"><span class="badge green" style="margin-right:4px">${availStats.available} 🟢</span><span class="badge orange" style="margin-right:4px">${availStats.negotiation} 🟡</span><span class="badge red" style="margin-right:8px">${availStats.rented} 🔴</span><button class="btn" onclick="openModal('addProperty')">+ Nuovo</button></div></div>
             <div class="card"><div class="card-body flush">${S.properties.map(p => {
                 const c = S.contracts.find(x => x.propertyId === p.id && x.status === 'active');
                 const owner = S.users.find(u => u.id === p.ownerId);
                 const tenant = c ? S.users.find(u => u.id === c.tenantId) : null;
-                return `<div class="list-item clickable" onclick="viewProperty('${p.id}')"><div class="list-icon">🏠</div><div class="list-content"><div class="list-title">${p.name} <span class="badge ${c ? 'green' : 'gray'}">${c ? 'Affittato' : 'Libero'}</span></div><div class="list-subtitle">${owner?.name || 'N/A'}${c ? ' → ' + (tenant?.name || '') : ''} · ${p.address || 'Roma'}</div></div><div class="list-value text-gold">€${p.rent || 0}/mese</div></div>`;
+                const avail = availBadge(p.availabilityStatus);
+                const hasVideo = p.youtubeUrl ? '📺' : '';
+                return `<div class="list-item clickable" onclick="viewProperty('${p.id}')"><div class="list-icon">🏠</div><div class="list-content"><div class="list-title">${p.name} <span class="badge ${avail.color}">${avail.icon} ${avail.text}</span> ${hasVideo}</div><div class="list-subtitle">${owner?.name || 'N/A'}${c ? ' → ' + (tenant?.name || '') : ''} · ${p.address || 'Roma'}</div></div><div class="list-value text-gold">€${p.rent || 0}/mese</div></div>`;
             }).join('') || '<div class="empty-state"><div class="empty-icon">🏠</div><div class="empty-title">Nessun immobile</div></div>'}</div></div>`;
     }
 
     function contractsPage() {
-        const expiringCount = S.contracts.filter(c => c.status === 'active' && daysUntil(c.endDate) !== null && daysUntil(c.endDate) <= 30 && daysUntil(c.endDate) >= 0).length;
-        return `<div class="page-header"><h1 class="page-title">Contratti</h1><div class="page-actions">${expiringCount ? `<span class="badge orange">${expiringCount} in scadenza</span>` : ''}<button class="btn" onclick="openModal('addContract')">+ Nuovo</button></div></div>
-            <div class="card"><div class="card-body flush">${S.contracts.map(c => {
-                const p = S.properties.find(x => x.id === c.propertyId);
-                const t = S.users.find(x => x.id === c.tenantId);
-                const days = daysUntil(c.endDate);
-                const expiring = c.status === 'active' && days !== null && days <= 30 && days >= 0;
-                return `<div class="list-item clickable" onclick="viewContract('${c.id}')"><div class="list-icon" style="background:${expiring ? 'var(--orange-light)' : c.status === 'active' ? 'var(--green-light)' : 'var(--red-light)'}">📋</div><div class="list-content"><div class="list-title">${p?.name || 'Immobile'} <span class="badge ${c.status === 'active' ? (expiring ? 'orange' : 'green') : 'red'}">${c.status === 'active' ? (expiring ? days + 'gg' : 'Attivo') : 'Scaduto'}</span></div><div class="list-subtitle">${t?.name || 'N/A'} · ${fmtDate(c.startDate)} → ${fmtDate(c.endDate)}</div></div><div class="list-meta"><div class="list-value text-gold">€${c.rent || 0}/mese</div><div class="stat-sub">Dep: €${c.deposit || 0}</div></div></div>`;
-            }).join('') || '<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">Nessun contratto</div></div>'}</div></div>`;
+        const active = S.contracts.filter(c => c.status === 'active');
+        const expired = S.contracts.filter(c => c.status !== 'active');
+        const expiring30 = active.filter(c => { const d = daysUntil(c.endDate); return d !== null && d >= 0 && d <= 30; });
+        const expiring60 = active.filter(c => { const d = daysUntil(c.endDate); return d !== null && d > 30 && d <= 60; });
+        const monthlyRent = active.reduce((s, c) => s + (c.rent || 0), 0);
+
+        const contractRow = (c) => {
+            const p = S.properties.find(x => x.id === c.propertyId);
+            const t = S.users.find(x => x.id === c.tenantId);
+            const l = p ? S.users.find(x => x.id === p.ownerId) : null;
+            const days = daysUntil(c.endDate);
+            const isExpiring30 = c.status === 'active' && days !== null && days >= 0 && days <= 30;
+            const isExpiring60 = c.status === 'active' && days !== null && days > 30 && days <= 60;
+            const payments = S.payments.filter(x => x.contractId === c.id);
+            const paidCount = payments.filter(x => x.status === 'paid').length;
+            const pendingCount = payments.filter(x => x.status === 'pending').length;
+            const overdueCount = payments.filter(x => x.status === 'pending' && isOverdue(x.dueDate)).length;
+
+            let statusConfig = { color: 'green', bg: 'green-light', icon: '✓', text: 'Attivo' };
+            if (c.status !== 'active') statusConfig = { color: 'gray', bg: 'bg-elevated', icon: '✗', text: 'Scaduto' };
+            else if (isExpiring30) statusConfig = { color: 'red', bg: 'red-light', icon: '⚠️', text: `${days}gg rimasti` };
+            else if (isExpiring60) statusConfig = { color: 'orange', bg: 'orange-light', icon: '⏰', text: `${days}gg rimasti` };
+
+            return `<div class="list-item clickable contract-item" data-status="${c.status}" data-expiring30="${isExpiring30}" data-expiring60="${isExpiring60}" onclick="viewContract('${c.id}')" style="padding:14px 16px">
+                <div class="list-icon" style="background:var(--${statusConfig.bg});font-size:18px">${statusConfig.icon}</div>
+                <div class="list-content" style="flex:1;min-width:0">
+                    <div class="list-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                        <span style="font-weight:600">${p?.name || 'Immobile'}</span>
+                        <span class="badge ${statusConfig.color}">${statusConfig.text}</span>
+                        ${overdueCount > 0 ? `<span class="badge red" style="font-size:9px">⚠️ ${overdueCount} pagamenti in ritardo</span>` : ''}
+                    </div>
+                    <div class="list-subtitle" style="margin-top:4px">
+                        <span>👤 ${t?.name || 'N/A'}</span>
+                        <span style="margin-left:8px">🏠 ${l?.name || ''}</span>
+                        <span style="margin-left:8px">📅 ${fmtDate(c.startDate)} → ${fmtDate(c.endDate)}</span>
+                    </div>
+                    <div style="display:flex;gap:12px;margin-top:8px;font-size:11px">
+                        <span style="padding:4px 8px;background:var(--bg);border-radius:4px">💳 ${paidCount} pagati</span>
+                        ${pendingCount > 0 ? `<span style="padding:4px 8px;background:var(--orange-light);border-radius:4px;color:var(--orange)">${pendingCount} in attesa</span>` : ''}
+                        ${c.deposit ? `<span style="padding:4px 8px;background:var(--blue-light);border-radius:4px;color:var(--blue)">Deposito €${c.deposit}</span>` : ''}
+                    </div>
+                </div>
+                <div style="text-align:right">
+                    <div class="text-gold" style="font-size:18px;font-weight:600">€${c.rent || 0}</div>
+                    <div style="font-size:11px;color:var(--text-muted)">/mese</div>
+                </div>
+            </div>`;
+        };
+
+        return `<div class="page-header">
+                <div><h1 class="page-title">📋 Contratti</h1><p class="page-subtitle">${active.length} attivi · €${monthlyRent.toLocaleString('it-IT')}/mese</p></div>
+                <div class="page-actions">
+                    ${expiring30.length > 0 ? `<span class="badge red">${expiring30.length} urgenti</span>` : ''}
+                    ${expiring60.length > 0 ? `<span class="badge orange">${expiring60.length} in scadenza</span>` : ''}
+                    <button class="btn btn-secondary" onclick="goTo('templates')">📜 Template</button>
+                    <button class="btn" onclick="openModal('addContract')">+ Nuovo</button>
+                </div>
+            </div>
+
+            <!-- Stats -->
+            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px">
+                <div class="card" style="padding:14px;text-align:center;cursor:pointer" onclick="filterContracts('all')">
+                    <div style="font-size:22px;font-weight:700;color:var(--gold)">${S.contracts.length}</div>
+                    <div style="font-size:10px;color:var(--text-muted)">Totale</div>
+                </div>
+                <div class="card" style="padding:14px;text-align:center;cursor:pointer" onclick="filterContracts('active')">
+                    <div style="font-size:22px;font-weight:700;color:var(--green)">${active.length}</div>
+                    <div style="font-size:10px;color:var(--text-muted)">✓ Attivi</div>
+                </div>
+                <div class="card" style="padding:14px;text-align:center;cursor:pointer;${expiring30.length > 0 ? 'background:var(--red-light)' : ''}" onclick="filterContracts('expiring30')">
+                    <div style="font-size:22px;font-weight:700;color:var(--red)">${expiring30.length}</div>
+                    <div style="font-size:10px;color:var(--text-muted)">⚠️ <30gg</div>
+                </div>
+                <div class="card" style="padding:14px;text-align:center;cursor:pointer;${expiring60.length > 0 ? 'background:var(--orange-light)' : ''}" onclick="filterContracts('expiring60')">
+                    <div style="font-size:22px;font-weight:700;color:var(--orange)">${expiring60.length}</div>
+                    <div style="font-size:10px;color:var(--text-muted)">⏰ 30-60gg</div>
+                </div>
+                <div class="card" style="padding:14px;text-align:center;cursor:pointer" onclick="filterContracts('expired')">
+                    <div style="font-size:22px;font-weight:700;color:var(--text-muted)">${expired.length}</div>
+                    <div style="font-size:10px;color:var(--text-muted)">Scaduti</div>
+                </div>
+            </div>
+
+            <!-- Filter Tabs -->
+            <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap">
+                <button class="btn btn-sm contract-filter active" onclick="filterContracts('all')">Tutti</button>
+                <button class="btn btn-sm btn-secondary contract-filter" onclick="filterContracts('active')">✓ Attivi</button>
+                ${expiring30.length > 0 ? `<button class="btn btn-sm btn-danger contract-filter" onclick="filterContracts('expiring30')">⚠️ Urgenti (${expiring30.length})</button>` : ''}
+                ${expiring60.length > 0 ? `<button class="btn btn-sm btn-warning contract-filter" onclick="filterContracts('expiring60')">⏰ In Scadenza (${expiring60.length})</button>` : ''}
+                <button class="btn btn-sm btn-secondary contract-filter" onclick="filterContracts('expired')">Scaduti</button>
+            </div>
+
+            <div class="card"><div class="card-body flush" id="contractsContainer">${S.contracts.sort((a,b) => {
+                const da = daysUntil(a.endDate) ?? 9999;
+                const db = daysUntil(b.endDate) ?? 9999;
+                if (a.status === 'active' && b.status !== 'active') return -1;
+                if (a.status !== 'active' && b.status === 'active') return 1;
+                return da - db;
+            }).map(c => contractRow(c)).join('') || '<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">Nessun contratto</div></div>'}</div></div>`;
+    }
+
+    function filterContracts(filter) {
+        document.querySelectorAll('.contract-filter').forEach(b => { b.classList.remove('active'); b.classList.add('btn-secondary'); });
+        event.target.classList.add('active'); event.target.classList.remove('btn-secondary');
+        document.querySelectorAll('.contract-item').forEach(item => {
+            const status = item.dataset.status;
+            const exp30 = item.dataset.expiring30 === 'true';
+            const exp60 = item.dataset.expiring60 === 'true';
+            let show = filter === 'all';
+            if (filter === 'active') show = status === 'active';
+            if (filter === 'expiring30') show = exp30;
+            if (filter === 'expiring60') show = exp60;
+            if (filter === 'expired') show = status !== 'active';
+            item.style.display = show ? '' : 'none';
+        });
     }
 
     function paymentsPage() {
-        const overdueCount = S.payments.filter(p => p.status === 'pending' && isOverdue(p.dueDate)).length;
-        const paidTotal = S.payments.filter(p => p.status === 'paid').reduce((s, p) => s + (p.amount || 0), 0);
-        const pendingTotal = S.payments.filter(p => p.status === 'pending').reduce((s, p) => s + (p.amount || 0), 0);
-        return `<div class="page-header"><h1 class="page-title">Pagamenti</h1><div class="page-actions">${overdueCount ? `<span class="badge red">${overdueCount} in ritardo</span>` : ''}<button class="btn btn-secondary btn-sm" onclick="exportPaymentsCSV()">📊 Export</button><button class="btn btn-secondary" onclick="openModal('bulkPayments')">📅 Genera Multipli</button><button class="btn" onclick="openModal('addPayment')">+ Registra</button></div></div>
-            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px">
-                <div class="card" style="padding:16px;text-align:center"><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase">Totale Pagamenti</div><div style="font-size:24px;font-weight:600;margin-top:4px">${S.payments.length}</div></div>
-                <div class="card" style="padding:16px;text-align:center;background:var(--green-light)"><div style="font-size:11px;color:var(--green);text-transform:uppercase">Incassato</div><div style="font-size:24px;font-weight:600;margin-top:4px;color:var(--green)">€${paidTotal.toLocaleString('it-IT')}</div></div>
-                <div class="card" style="padding:16px;text-align:center;background:var(--orange-light)"><div style="font-size:11px;color:var(--orange);text-transform:uppercase">In Attesa</div><div style="font-size:24px;font-weight:600;margin-top:4px;color:var(--orange)">€${pendingTotal.toLocaleString('it-IT')}</div></div>
+        // Calculate payment stats
+        const paid = S.payments.filter(p => p.status === 'paid');
+        const pending = S.payments.filter(p => p.status === 'pending');
+        const overdue = pending.filter(p => isOverdue(p.dueDate));
+        const dueSoon = pending.filter(p => { const d = daysUntil(p.dueDate); return d !== null && d >= 0 && d <= 5; });
+        const paidTotal = paid.reduce((s, p) => s + (p.amount || 0), 0);
+        const pendingTotal = pending.reduce((s, p) => s + (p.amount || 0), 0);
+        const overdueTotal = overdue.reduce((s, p) => s + (p.amount || 0), 0);
+        const stripePaid = paid.filter(p => p.stripeSessionId);
+        const stripeTotal = stripePaid.reduce((s, p) => s + (p.amount || 0), 0);
+
+        // Collection rate this month
+        const thisMonth = S.payments.filter(p => isThisMonth(p.dueDate));
+        const thisMonthPaid = thisMonth.filter(p => p.status === 'paid');
+        const collectionRate = thisMonth.length > 0 ? Math.round((thisMonthPaid.length / thisMonth.length) * 100) : 100;
+
+        // Payment row generator with reminder tracking
+        const paymentRow = (p) => {
+            const c = S.contracts.find(x => x.id === p.contractId);
+            const prop = c ? S.properties.find(x => x.id === c.propertyId) : null;
+            const t = c ? S.users.find(x => x.id === c.tenantId) : null;
+            const isOverdueNow = p.status === 'pending' && isOverdue(p.dueDate);
+            const daysToDue = daysUntil(p.dueDate);
+            const isDueSoon = p.status === 'pending' && !isOverdueNow && daysToDue !== null && daysToDue <= 5;
+            const daysLate = isOverdueNow ? daysSince(p.dueDate) : 0;
+
+            // Reminder escalation level
+            let reminderLevel = 0;
+            let reminderText = '';
+            if (isOverdueNow) {
+                if (daysLate >= 30) { reminderLevel = 4; reminderText = '🚨 Diffida'; }
+                else if (daysLate >= 15) { reminderLevel = 3; reminderText = '⚠️ 2° Sollecito'; }
+                else if (daysLate >= 5) { reminderLevel = 2; reminderText = '📧 1° Sollecito'; }
+                else { reminderLevel = 1; reminderText = '⏰ In Ritardo'; }
+            } else if (isDueSoon) {
+                reminderLevel = 0; reminderText = `⏳ ${daysToDue}gg`;
+            }
+
+            const payMethod = p.stripeSessionId ? '<span class="badge blue" style="font-size:9px;padding:2px 6px">💳 Stripe</span>' : (p.status === 'paid' ? '<span class="badge" style="font-size:9px;padding:2px 6px;background:var(--bg-elevated)">Manuale</span>' : '');
+
+            let statusConfig = { color: 'green', bg: 'green-light', icon: '✔' };
+            if (isOverdueNow) statusConfig = { color: 'red', bg: 'red-light', icon: '⚠️' };
+            else if (isDueSoon) statusConfig = { color: 'orange', bg: 'orange-light', icon: '⏰' };
+            else if (p.status === 'pending') statusConfig = { color: 'gold', bg: 'gold-light', icon: '⏳' };
+
+            return `<div class="list-item clickable payment-item" data-status="${p.status}" data-overdue="${isOverdueNow}" data-duesoon="${isDueSoon}" onclick="openModal('editPayment',S.payments.find(x=>x.id==='${p.id}'))" style="padding:14px 16px">
+                <div class="list-icon" style="background:var(--${statusConfig.bg});font-size:16px">${statusConfig.icon}</div>
+                <div class="list-content" style="flex:1;min-width:0">
+                    <div class="list-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                        <span style="font-weight:600">${prop?.name || 'Pagamento'}</span>
+                        <span class="badge gray" style="font-size:10px">${p.month || ''}</span>
+                        ${payMethod}
+                        ${isOverdueNow ? `<span class="badge red" style="font-size:9px">${reminderText} (${daysLate}gg)</span>` : ''}
+                        ${isDueSoon ? `<span class="badge orange" style="font-size:9px">${reminderText}</span>` : ''}
+                        ${p.remindersSent ? `<span style="font-size:10px;color:var(--text-muted)">📧${p.remindersSent}</span>` : ''}
+                    </div>
+                    <div class="list-subtitle" style="margin-top:4px;display:flex;align-items:center;gap:8px">
+                        <span>👤 ${t?.name || 'N/A'}</span>
+                        ${t?.phone ? `<a href="https://wa.me/${t.phone.replace(/[^0-9]/g,'')}" target="_blank" onclick="event.stopPropagation()" style="font-size:11px;color:var(--green)">💬 WhatsApp</a>` : ''}
+                        <span>· ${p.status === 'paid' ? '✓ Pagato ' + fmtDate(p.paidDate) : 'Scadenza ' + fmtDate(p.dueDate)}</span>
+                    </div>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px">
+                    <div style="text-align:right">
+                        <div class="${p.status === 'paid' ? 'text-green' : isOverdueNow ? 'text-red' : 'text-gold'}" style="font-size:18px;font-weight:600">€${p.amount || 0}</div>
+                    </div>
+                    ${p.status === 'pending' ? `
+                        <div style="display:flex;flex-direction:column;gap:4px">
+                            <button class="btn btn-xs btn-success" onclick="event.stopPropagation();markPaymentPaid('${p.id}')" title="Segna pagato">✔</button>
+                            ${isOverdueNow ? `<button class="btn btn-xs btn-danger" onclick="event.stopPropagation();sendPaymentReminder('${p.id}')" title="Invia sollecito">📧</button>` : ''}
+                        </div>
+                    ` : ''}
+                    ${p.stripeSessionId ? `<button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();window.open('https://dashboard.stripe.com/payments/${p.stripePaymentIntent}','_blank')" title="Vedi su Stripe">🔗</button>` : ''}
+                </div>
+            </div>`;
+        };
+
+        return `<div class="page-header">
+                <div><h1 class="page-title">💳 Pagamenti</h1><p class="page-subtitle">${S.payments.length} totali · Tasso incasso mese: ${collectionRate}%</p></div>
+                <div class="page-actions">
+                    ${overdue.length > 0 ? `<span class="badge red">${overdue.length} in ritardo</span>` : ''}
+                    <button class="btn btn-secondary btn-sm" onclick="window.open('https://dashboard.stripe.com/payments','_blank')">💳 Stripe</button>
+                    <button class="btn btn-secondary btn-sm" onclick="exportPaymentsCSV()">📊 Export</button>
+                    <button class="btn btn-secondary" onclick="openModal('bulkPayments')">📅 Genera</button>
+                    <button class="btn" onclick="openModal('addPayment')">+ Registra</button>
+                </div>
             </div>
-            <div class="card"><div class="card-body flush">${S.payments.sort((a,b) => (b.month || '').localeCompare(a.month || '')).map(p => {
-                const c = S.contracts.find(x => x.id === p.contractId);
-                const prop = c ? S.properties.find(x => x.id === c.propertyId) : null;
-                const t = c ? S.users.find(x => x.id === c.tenantId) : null;
-                const overdue = p.status === 'pending' && isOverdue(p.dueDate);
-                return `<div class="list-item clickable" onclick="openModal('editPayment',S.payments.find(x=>x.id==='${p.id}'))"><div class="list-icon" style="background:${p.status === 'paid' ? 'var(--green-light)' : overdue ? 'var(--red-light)' : 'var(--orange-light)'}">${p.status === 'paid' ? '✔' : overdue ? '⚠️' : '⏳'}</div><div class="list-content"><div class="list-title">${prop?.name || 'Pagamento'} · ${p.month || ''}</div><div class="list-subtitle">${t?.name || ''} · ${p.status === 'paid' ? 'Pagato ' + fmtDate(p.paidDate) : 'Scadenza ' + fmtDate(p.dueDate)}</div></div><div class="list-value ${p.status === 'paid' ? 'text-green' : overdue ? 'text-red' : 'text-gold'}">€${p.amount || 0}</div>${p.status === 'pending' ? `<button class="btn btn-xs btn-success" onclick="event.stopPropagation();markPaymentPaid('${p.id}')">✔</button>` : ''}</div>`;
-            }).join('') || '<div class="empty-state"><div class="empty-icon">💳</div><div class="empty-title">Nessun pagamento</div><button class="btn" onclick="openModal(\'bulkPayments\')">📅 Genera Pagamenti</button></div>'}</div></div>`;
+
+            ${overdue.length > 0 ? `<div class="alert danger" style="margin-bottom:16px">
+                <span class="alert-icon">⚠️</span>
+                <div class="alert-content">
+                    <div class="alert-title">${overdue.length} Pagamenti in Ritardo · €${overdueTotal.toLocaleString('it-IT')}</div>
+                    <div class="alert-text">Alcuni inquilini hanno pagamenti scaduti. Considera di inviare solleciti.</div>
+                </div>
+                <button class="btn btn-sm btn-danger" onclick="sendBulkReminders()">📧 Invia Solleciti</button>
+            </div>` : ''}
+
+            <!-- Stats Grid -->
+            <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:16px">
+                <div class="card" style="padding:12px;text-align:center;cursor:pointer" onclick="filterPayments('all')">
+                    <div style="font-size:20px;font-weight:700;color:var(--gold)">${S.payments.length}</div>
+                    <div style="font-size:10px;color:var(--text-muted)">Totale</div>
+                </div>
+                <div class="card" style="padding:12px;text-align:center;cursor:pointer;background:var(--green-light)" onclick="filterPayments('paid')">
+                    <div style="font-size:20px;font-weight:700;color:var(--green)">€${(paidTotal/1000).toFixed(1)}k</div>
+                    <div style="font-size:10px;color:var(--green)">${paid.length} Incassati</div>
+                </div>
+                <div class="card" style="padding:12px;text-align:center;cursor:pointer;background:var(--blue-light)" onclick="filterPayments('stripe')">
+                    <div style="font-size:20px;font-weight:700;color:var(--blue)">${stripePaid.length}</div>
+                    <div style="font-size:10px;color:var(--blue)">💳 Stripe</div>
+                </div>
+                <div class="card" style="padding:12px;text-align:center;cursor:pointer" onclick="filterPayments('pending')">
+                    <div style="font-size:20px;font-weight:700;color:var(--orange)">${pending.length}</div>
+                    <div style="font-size:10px;color:var(--text-muted)">⏳ In Attesa</div>
+                </div>
+                <div class="card" style="padding:12px;text-align:center;cursor:pointer;${dueSoon.length > 0 ? 'background:var(--orange-light)' : ''}" onclick="filterPayments('duesoon')">
+                    <div style="font-size:20px;font-weight:700;color:var(--orange)">${dueSoon.length}</div>
+                    <div style="font-size:10px;color:var(--text-muted)">⏰ Prossimi 5gg</div>
+                </div>
+                <div class="card" style="padding:12px;text-align:center;cursor:pointer;${overdue.length > 0 ? 'background:var(--red-light)' : ''}" onclick="filterPayments('overdue')">
+                    <div style="font-size:20px;font-weight:700;color:var(--red)">${overdue.length}</div>
+                    <div style="font-size:10px;color:var(--text-muted)">⚠️ Ritardo</div>
+                </div>
+            </div>
+
+            <!-- Filter Tabs -->
+            <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap">
+                <button class="btn btn-sm payment-filter active" onclick="filterPayments('all')">Tutti</button>
+                <button class="btn btn-sm btn-secondary payment-filter" onclick="filterPayments('paid')">✓ Pagati</button>
+                <button class="btn btn-sm btn-secondary payment-filter" onclick="filterPayments('pending')">⏳ In Attesa</button>
+                ${dueSoon.length > 0 ? `<button class="btn btn-sm btn-warning payment-filter" onclick="filterPayments('duesoon')">⏰ Prossimi (${dueSoon.length})</button>` : ''}
+                ${overdue.length > 0 ? `<button class="btn btn-sm btn-danger payment-filter" onclick="filterPayments('overdue')">⚠️ In Ritardo (${overdue.length})</button>` : ''}
+            </div>
+
+            <div class="card"><div class="card-body flush" id="paymentsContainer">${S.payments.sort((a,b) => {
+                // Sort: overdue first, then pending soon, then by date
+                const aOverdue = a.status === 'pending' && isOverdue(a.dueDate);
+                const bOverdue = b.status === 'pending' && isOverdue(b.dueDate);
+                if (aOverdue && !bOverdue) return -1;
+                if (!aOverdue && bOverdue) return 1;
+                if (a.status === 'pending' && b.status === 'paid') return -1;
+                if (a.status === 'paid' && b.status === 'pending') return 1;
+                return (b.month || '').localeCompare(a.month || '');
+            }).map(p => paymentRow(p)).join('') || '<div class="empty-state"><div class="empty-icon">💳</div><div class="empty-title">Nessun pagamento</div><button class="btn" onclick="openModal(\'bulkPayments\')">📅 Genera Pagamenti</button></div>'}</div></div>`;
+    }
+
+    function filterPayments(filter) {
+        document.querySelectorAll('.payment-filter').forEach(b => { b.classList.remove('active'); b.classList.add('btn-secondary'); });
+        event.target.classList.add('active'); event.target.classList.remove('btn-secondary');
+        document.querySelectorAll('.payment-item').forEach(item => {
+            const status = item.dataset.status;
+            const overdue = item.dataset.overdue === 'true';
+            const duesoon = item.dataset.duesoon === 'true';
+            let show = filter === 'all';
+            if (filter === 'paid') show = status === 'paid';
+            if (filter === 'pending') show = status === 'pending';
+            if (filter === 'overdue') show = overdue;
+            if (filter === 'duesoon') show = duesoon;
+            item.style.display = show ? '' : 'none';
+        });
+    }
+
+    async function sendPaymentReminder(paymentId) {
+        const p = S.payments.find(x => x.id === paymentId);
+        if (!p) return;
+        const c = S.contracts.find(x => x.id === p.contractId);
+        const t = c ? S.users.find(x => x.id === c.tenantId) : null;
+        const prop = c ? S.properties.find(x => x.id === c.propertyId) : null;
+        if (!t) return toast('error', 'Inquilino non trovato');
+
+        if (!confirm(`Inviare sollecito a ${t.name} per €${p.amount} (${p.month})?`)) return;
+
+        // Update reminder count
+        const remindersSent = (p.remindersSent || 0) + 1;
+        await db.collection('payments').doc(paymentId).update({
+            remindersSent,
+            lastReminderDate: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        // Create notification
+        await createNotification(t.id, 'payment', '⏰ Promemoria Pagamento',
+            `Pagamento di €${p.amount} per ${prop?.name || 'immobile'} (${p.month}) è in ritardo.`,
+            { paymentId, amount: p.amount });
+
+        // TODO: Integrate with email/SMS service
+        toast('success', `Sollecito #${remindersSent} inviato a ${t.name}`);
+        goTo('payments');
+    }
+
+    async function sendBulkReminders() {
+        const overdue = S.payments.filter(p => p.status === 'pending' && isOverdue(p.dueDate));
+        if (!confirm(`Inviare solleciti a ${overdue.length} pagamenti in ritardo?`)) return;
+
+        let sent = 0;
+        for (const p of overdue) {
+            const c = S.contracts.find(x => x.id === p.contractId);
+            const t = c ? S.users.find(x => x.id === c.tenantId) : null;
+            if (!t) continue;
+
+            const remindersSent = (p.remindersSent || 0) + 1;
+            await db.collection('payments').doc(p.id).update({
+                remindersSent,
+                lastReminderDate: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            sent++;
+        }
+        toast('success', `${sent} solleciti inviati`);
+        goTo('payments');
     }
 
     function maintenancePage() {
-        return `<div class="page-header"><h1 class="page-title">Manutenzione</h1><div class="page-actions"><button class="btn" onclick="openModal('addMaintenance')">+ Nuova</button></div></div>
-            <div class="card"><div class="card-body flush">${S.maintenance.map(m => {
-                const p = S.properties.find(x => x.id === m.propertyId);
-                const u = S.users.find(x => x.id === m.userId);
-                return `<div class="list-item clickable" onclick="viewMaintenance('${m.id}')"><div class="list-icon" style="background:${m.priority === 'urgent' ? 'var(--red-light)' : m.status === 'resolved' ? 'var(--green-light)' : 'var(--orange-light)'}">${m.priority === 'urgent' ? '🚨' : m.status === 'resolved' ? '✔' : '🔧'}</div><div class="list-content"><div class="list-title">${m.title} <span class="badge ${priorityColor(m.priority)}">${priorityLabel(m.priority)}</span></div><div class="list-subtitle">${p?.name || ''} · ${u?.name || ''} · ${fmtDate(m.createdAt)}</div></div><span class="badge ${statusColor(m.status)}">${statusLabel(m.status)}</span></div>`;
-            }).join('') || '<div class="empty-state"><div class="empty-icon">🔧</div><div class="empty-title">Nessuna richiesta</div></div>'}</div></div>`;
+        // Calculate stats
+        const open = S.maintenance.filter(m => m.status === 'open');
+        const inProgress = S.maintenance.filter(m => m.status === 'in_progress');
+        const resolved = S.maintenance.filter(m => m.status === 'resolved');
+        const urgent = S.maintenance.filter(m => m.priority === 'urgent' && m.status !== 'resolved');
+        const oldOpen = open.filter(m => daysSince(m.createdAt) > 7);
+
+        // Maintenance row generator
+        const maintenanceRow = (m) => {
+            const p = S.properties.find(x => x.id === m.propertyId);
+            const u = S.users.find(x => x.id === m.userId);
+            const owner = p ? S.users.find(x => x.id === p.ownerId) : null;
+            const ageInDays = daysSince(m.createdAt);
+            const isOld = ageInDays > 7 && m.status !== 'resolved';
+
+            const statusConfig = {
+                open: { color: 'orange', bg: 'orange-light', icon: '📋', text: 'Aperta' },
+                in_progress: { color: 'blue', bg: 'blue-light', icon: '🔧', text: 'In Corso' },
+                resolved: { color: 'green', bg: 'green-light', icon: '✔', text: 'Risolta' }
+            };
+            const priorityConfig = {
+                low: { color: 'gray', icon: '🔵', text: 'Bassa' },
+                normal: { color: 'blue', icon: '🟡', text: 'Normale' },
+                urgent: { color: 'red', icon: '🔴', text: 'Urgente' }
+            };
+            const s = statusConfig[m.status] || statusConfig.open;
+            const pr = priorityConfig[m.priority] || priorityConfig.normal;
+
+            return `<div class="list-item clickable maintenance-item" data-status="${m.status}" data-priority="${m.priority}" onclick="viewMaintenance('${m.id}')" style="padding:14px 16px;${m.priority === 'urgent' && m.status !== 'resolved' ? 'border-left:3px solid var(--red)' : ''}">
+                <div class="list-icon" style="background:var(--${s.bg});font-size:16px">${m.priority === 'urgent' && m.status !== 'resolved' ? '🚨' : s.icon}</div>
+                <div class="list-content" style="flex:1;min-width:0">
+                    <div class="list-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                        <span style="font-weight:600">${m.title}</span>
+                        <span class="badge ${pr.color}" style="font-size:9px">${pr.icon} ${pr.text}</span>
+                        <span class="badge ${s.color}">${s.text}</span>
+                        ${isOld ? `<span class="badge red" style="font-size:9px">⏰ ${ageInDays}gg</span>` : ''}
+                    </div>
+                    <div class="list-subtitle" style="margin-top:4px">
+                        <span>🏠 ${p?.name || 'N/A'}</span>
+                        <span style="margin-left:8px">👤 ${u?.name || 'N/A'}</span>
+                        <span style="margin-left:8px">📅 ${fmtDate(m.createdAt)}</span>
+                    </div>
+                    ${m.description ? `<div style="font-size:12px;color:var(--text-muted);margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:400px">${m.description}</div>` : ''}
+                </div>
+                <div style="display:flex;align-items:center;gap:6px">
+                    ${m.status === 'open' ? `<button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();updateMaintenanceStatus('${m.id}','in_progress')" title="Inizia lavoro">▶️</button>` : ''}
+                    ${m.status === 'in_progress' ? `<button class="btn btn-xs btn-success" onclick="event.stopPropagation();updateMaintenanceStatus('${m.id}','resolved')" title="Segna completata">✔</button>` : ''}
+                    ${owner?.phone ? `<a href="https://wa.me/${owner.phone.replace(/[^0-9]/g,'')}" target="_blank" onclick="event.stopPropagation()" class="btn btn-xs btn-secondary" title="Contatta proprietario">💬</a>` : ''}
+                </div>
+            </div>`;
+        };
+
+        return `<div class="page-header">
+                <div><h1 class="page-title">🔧 Manutenzione</h1><p class="page-subtitle">${open.length + inProgress.length} attive · ${resolved.length} risolte</p></div>
+                <div class="page-actions">
+                    ${urgent.length > 0 ? `<span class="badge red">${urgent.length} urgenti</span>` : ''}
+                    <button class="btn" onclick="openModal('addMaintenance')">+ Nuova</button>
+                </div>
+            </div>
+
+            ${urgent.length > 0 ? `<div class="alert danger" style="margin-bottom:16px">
+                <span class="alert-icon">🚨</span>
+                <div class="alert-content">
+                    <div class="alert-title">${urgent.length} Manutenzioni Urgenti</div>
+                    <div class="alert-text">Ci sono richieste urgenti che richiedono attenzione immediata.</div>
+                </div>
+            </div>` : ''}
+
+            <!-- Stats Grid -->
+            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px">
+                <div class="card" style="padding:12px;text-align:center;cursor:pointer" onclick="filterMaintenance('all')">
+                    <div style="font-size:22px;font-weight:700;color:var(--gold)">${S.maintenance.length}</div>
+                    <div style="font-size:10px;color:var(--text-muted)">Totale</div>
+                </div>
+                <div class="card" style="padding:12px;text-align:center;cursor:pointer" onclick="filterMaintenance('open')">
+                    <div style="font-size:22px;font-weight:700;color:var(--orange)">${open.length}</div>
+                    <div style="font-size:10px;color:var(--text-muted)">📋 Aperte</div>
+                </div>
+                <div class="card" style="padding:12px;text-align:center;cursor:pointer" onclick="filterMaintenance('in_progress')">
+                    <div style="font-size:22px;font-weight:700;color:var(--blue)">${inProgress.length}</div>
+                    <div style="font-size:10px;color:var(--text-muted)">🔧 In Corso</div>
+                </div>
+                <div class="card" style="padding:12px;text-align:center;cursor:pointer;${urgent.length > 0 ? 'background:var(--red-light)' : ''}" onclick="filterMaintenance('urgent')">
+                    <div style="font-size:22px;font-weight:700;color:var(--red)">${urgent.length}</div>
+                    <div style="font-size:10px;color:var(--text-muted)">🚨 Urgenti</div>
+                </div>
+                <div class="card" style="padding:12px;text-align:center;cursor:pointer" onclick="filterMaintenance('resolved')">
+                    <div style="font-size:22px;font-weight:700;color:var(--green)">${resolved.length}</div>
+                    <div style="font-size:10px;color:var(--text-muted)">✔ Risolte</div>
+                </div>
+            </div>
+
+            <!-- Filter Tabs -->
+            <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap">
+                <button class="btn btn-sm maintenance-filter active" onclick="filterMaintenance('all')">Tutti</button>
+                <button class="btn btn-sm btn-secondary maintenance-filter" onclick="filterMaintenance('open')">📋 Aperte</button>
+                <button class="btn btn-sm btn-secondary maintenance-filter" onclick="filterMaintenance('in_progress')">🔧 In Corso</button>
+                ${urgent.length > 0 ? `<button class="btn btn-sm btn-danger maintenance-filter" onclick="filterMaintenance('urgent')">🚨 Urgenti (${urgent.length})</button>` : ''}
+                <button class="btn btn-sm btn-secondary maintenance-filter" onclick="filterMaintenance('resolved')">✔ Risolte</button>
+            </div>
+
+            <div class="card"><div class="card-body flush" id="maintenanceContainer">${S.maintenance.sort((a,b) => {
+                // Sort: urgent first, then open, then in_progress, then resolved
+                const priorityOrder = { urgent: 0, normal: 1, low: 2 };
+                const statusOrder = { open: 0, in_progress: 1, resolved: 2 };
+                if (a.status !== 'resolved' && b.status === 'resolved') return -1;
+                if (a.status === 'resolved' && b.status !== 'resolved') return 1;
+                if ((priorityOrder[a.priority] || 1) !== (priorityOrder[b.priority] || 1)) return (priorityOrder[a.priority] || 1) - (priorityOrder[b.priority] || 1);
+                return (statusOrder[a.status] || 0) - (statusOrder[b.status] || 0);
+            }).map(m => maintenanceRow(m)).join('') || '<div class="empty-state"><div class="empty-icon">🔧</div><div class="empty-title">Nessuna richiesta</div><div class="empty-subtitle">Tutto funziona perfettamente!</div></div>'}</div></div>`;
+    }
+
+    function filterMaintenance(filter) {
+        document.querySelectorAll('.maintenance-filter').forEach(b => { b.classList.remove('active'); b.classList.add('btn-secondary'); });
+        event.target.classList.add('active'); event.target.classList.remove('btn-secondary');
+        document.querySelectorAll('.maintenance-item').forEach(item => {
+            const status = item.dataset.status;
+            const priority = item.dataset.priority;
+            let show = filter === 'all';
+            if (filter === 'open') show = status === 'open';
+            if (filter === 'in_progress') show = status === 'in_progress';
+            if (filter === 'resolved') show = status === 'resolved';
+            if (filter === 'urgent') show = priority === 'urgent' && status !== 'resolved';
+            item.style.display = show ? '' : 'none';
+        });
+    }
+
+    async function updateMaintenanceStatus(id, newStatus) {
+        try {
+            await db.collection('maintenance').doc(id).update({
+                status: newStatus,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                ...(newStatus === 'resolved' ? { resolvedAt: firebase.firestore.FieldValue.serverTimestamp() } : {})
+            });
+            toast('success', `Stato aggiornato: ${statusLabel(newStatus)}`);
+
+            // Notify requester if resolved
+            if (newStatus === 'resolved') {
+                const m = S.maintenance.find(x => x.id === id);
+                if (m?.userId) {
+                    await notifyMaintenanceResolved(m);
+                }
+            }
+            goTo('maintenance');
+        } catch (err) {
+            toast('error', 'Errore: ' + err.message);
+        }
+    }
+
+    // ============================================
+    // RULES ENGINE - Sistema di Automazioni BOOM
+    // ============================================
+
+    // Definizioni dei trigger disponibili
+    const RULE_TRIGGERS = {
+        'payment_late_5': {
+            icon: '💳', name: 'Pagamento in ritardo (5 giorni)',
+            description: 'Si attiva quando un pagamento è in ritardo da 5 giorni',
+            category: 'payments'
+        },
+        'payment_late_15': {
+            icon: '⚠️', name: 'Pagamento in ritardo (15 giorni)',
+            description: 'Escalation - pagamento in ritardo da 15 giorni',
+            category: 'payments'
+        },
+        'payment_late_30': {
+            icon: '🚨', name: 'Pagamento in ritardo (30 giorni)',
+            description: 'Critico - pagamento in ritardo da 30 giorni',
+            category: 'payments'
+        },
+        'payment_due_soon': {
+            icon: '📅', name: 'Pagamento in scadenza (3 giorni)',
+            description: 'Reminder preventivo per pagamenti in scadenza',
+            category: 'payments'
+        },
+        'contract_expiring_60': {
+            icon: '📋', name: 'Contratto in scadenza (60 giorni)',
+            description: 'Avviso anticipato per rinnovo contratto',
+            category: 'contracts'
+        },
+        'contract_expiring_30': {
+            icon: '📋', name: 'Contratto in scadenza (30 giorni)',
+            description: 'Urgente: contratto in scadenza tra 30 giorni',
+            category: 'contracts'
+        },
+        'contract_expired': {
+            icon: '🔴', name: 'Contratto scaduto',
+            description: 'Il contratto è già scaduto',
+            category: 'contracts'
+        },
+        'maintenance_new': {
+            icon: '🔧', name: 'Nuova manutenzione',
+            description: 'Quando viene creata una nuova richiesta',
+            category: 'maintenance'
+        },
+        'maintenance_urgent': {
+            icon: '🚨', name: 'Manutenzione urgente',
+            description: 'Quando una richiesta è marcata come urgente',
+            category: 'maintenance'
+        },
+        'maintenance_old': {
+            icon: '⏰', name: 'Manutenzione vecchia (7+ giorni)',
+            description: 'Ticket aperto da più di 7 giorni',
+            category: 'maintenance'
+        },
+        'new_tenant': {
+            icon: '👤', name: 'Nuovo inquilino',
+            description: 'Quando viene aggiunto un nuovo inquilino',
+            category: 'users'
+        },
+        'tenant_bad_score': {
+            icon: '📉', name: 'Inquilino a rischio',
+            description: 'Inquilino con punteggio pagamenti < 70%',
+            category: 'users'
+        }
+    };
+
+    // Definizioni delle azioni disponibili
+    const RULE_ACTIONS = {
+        'notify_telegram': {
+            icon: '📱', name: 'Notifica Telegram',
+            description: 'Invia notifica al canale Telegram BOOM',
+            requiresTarget: false
+        },
+        'notify_tenant': {
+            icon: '👤', name: 'Notifica Inquilino',
+            description: 'Invia notifica all\'inquilino via email/WhatsApp',
+            requiresTarget: true
+        },
+        'notify_landlord': {
+            icon: '🏠', name: 'Notifica Proprietario',
+            description: 'Invia notifica al proprietario',
+            requiresTarget: true
+        },
+        'notify_admin': {
+            icon: '👑', name: 'Notifica Admin',
+            description: 'Invia notifica agli admin',
+            requiresTarget: false
+        },
+        'create_task': {
+            icon: '✅', name: 'Crea Task',
+            description: 'Crea un task nel sistema',
+            requiresTarget: false
+        },
+        'send_reminder': {
+            icon: '🔔', name: 'Invia Reminder',
+            description: 'Invia reminder automatico',
+            requiresTarget: true
+        },
+        'escalate': {
+            icon: '📈', name: 'Escalation',
+            description: 'Escalation al livello superiore',
+            requiresTarget: false
+        },
+        'generate_report': {
+            icon: '📊', name: 'Genera Report',
+            description: 'Genera un report automatico',
+            requiresTarget: false
+        }
+    };
+
+    function rulesPage() {
+        // Get rules from S.rules or empty array
+        const rules = S.rules || [];
+        const activeRules = rules.filter(r => r.enabled);
+        const disabledRules = rules.filter(r => !r.enabled);
+
+        // Calculate stats from last 30 days
+        const ruleExecutions = S.ruleExecutions || [];
+        const last30Days = ruleExecutions.filter(e => daysSince(e.executedAt) <= 30);
+        const todayExecutions = ruleExecutions.filter(e => daysSince(e.executedAt) === 0);
+
+        // Group by category
+        const paymentRules = rules.filter(r => RULE_TRIGGERS[r.trigger]?.category === 'payments');
+        const contractRules = rules.filter(r => RULE_TRIGGERS[r.trigger]?.category === 'contracts');
+        const maintenanceRules = rules.filter(r => RULE_TRIGGERS[r.trigger]?.category === 'maintenance');
+        const userRules = rules.filter(r => RULE_TRIGGERS[r.trigger]?.category === 'users');
+
+        const ruleCard = (rule) => {
+            const trigger = RULE_TRIGGERS[rule.trigger] || { icon: '⚡', name: rule.trigger };
+            const action = RULE_ACTIONS[rule.action] || { icon: '▶️', name: rule.action };
+
+            return `<div class="card rule-card ${rule.enabled ? '' : 'disabled'}" style="padding:16px;margin-bottom:12px;${!rule.enabled ? 'opacity:0.6' : ''}">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
+                    <div style="flex:1">
+                        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+                            <span style="font-size:24px">${trigger.icon}</span>
+                            <div>
+                                <div style="font-weight:600;font-size:15px">${rule.name}</div>
+                                <div style="font-size:11px;color:var(--text-muted)">${rule.description || trigger.description}</div>
+                            </div>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px">
+                            <span class="badge gold" style="font-size:10px">🎯 ${trigger.name}</span>
+                            <span style="color:var(--text-muted)">→</span>
+                            <span class="badge blue" style="font-size:10px">${action.icon} ${action.name}</span>
+                            ${rule.enabled ? `<span class="badge green">✓ Attiva</span>` : `<span class="badge" style="background:var(--bg-elevated)">⏸ Disattivata</span>`}
+                        </div>
+                        ${rule.lastExecuted ? `<div style="font-size:11px;color:var(--text-muted);margin-top:8px">Ultima esecuzione: ${fmtDate(rule.lastExecuted)}</div>` : ''}
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:6px">
+                        <button class="btn btn-xs ${rule.enabled ? 'btn-secondary' : 'btn-success'}" onclick="toggleRule('${rule.id}')" title="${rule.enabled ? 'Disattiva' : 'Attiva'}">
+                            ${rule.enabled ? '⏸' : '▶️'}
+                        </button>
+                        <button class="btn btn-xs btn-secondary" onclick="editRule('${rule.id}')" title="Modifica">✏️</button>
+                        <button class="btn btn-xs btn-secondary" onclick="testRule('${rule.id}')" title="Testa">🧪</button>
+                        <button class="btn btn-xs btn-danger" onclick="confirmDelete('rule','${rule.id}','${rule.name}')" title="Elimina">🗑</button>
+                    </div>
+                </div>
+            </div>`;
+        };
+
+        return `<div class="page-header">
+                <div>
+                    <h1 class="page-title">⚡ Regole & Automazioni <span class="badge gold" style="font-size:12px;vertical-align:middle">AI</span></h1>
+                    <p class="page-subtitle">${activeRules.length} regole attive · ${todayExecutions.length} esecuzioni oggi</p>
+                </div>
+                <div class="page-actions">
+                    <button class="btn btn-secondary" onclick="runAllRules()">🔄 Esegui Ora</button>
+                    <button class="btn" onclick="openRuleModal()">+ Nuova Regola</button>
+                </div>
+            </div>
+
+            <!-- Alert: Sistema intelligente -->
+            <div class="alert info" style="margin-bottom:20px">
+                <span class="alert-icon">🤖</span>
+                <div class="alert-content">
+                    <div class="alert-title">Sistema di Automazioni Intelligente</div>
+                    <div class="alert-text">Le regole vengono eseguite automaticamente ogni giorno alle 9:00 e alle 18:00. Puoi anche eseguirle manualmente o testarle singolarmente.</div>
+                </div>
+            </div>
+
+            <!-- Stats Dashboard -->
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px">
+                <div class="card" style="padding:16px;text-align:center">
+                    <div style="font-size:28px;font-weight:700;color:var(--gold)">${rules.length}</div>
+                    <div style="font-size:11px;color:var(--text-muted)">Regole Totali</div>
+                </div>
+                <div class="card" style="padding:16px;text-align:center">
+                    <div style="font-size:28px;font-weight:700;color:var(--green)">${activeRules.length}</div>
+                    <div style="font-size:11px;color:var(--text-muted)">✓ Attive</div>
+                </div>
+                <div class="card" style="padding:16px;text-align:center">
+                    <div style="font-size:28px;font-weight:700;color:var(--blue)">${todayExecutions.length}</div>
+                    <div style="font-size:11px;color:var(--text-muted)">Oggi</div>
+                </div>
+                <div class="card" style="padding:16px;text-align:center">
+                    <div style="font-size:28px;font-weight:700;color:var(--purple)">${last30Days.length}</div>
+                    <div style="font-size:11px;color:var(--text-muted)">Ultimi 30gg</div>
+                </div>
+            </div>
+
+            <!-- Quick Rules Templates -->
+            ${rules.length === 0 ? `
+            <div class="card" style="padding:24px;margin-bottom:24px;background:linear-gradient(135deg, rgba(212,175,55,0.1), rgba(212,175,55,0.02))">
+                <h3 style="margin-bottom:16px;display:flex;align-items:center;gap:8px">🚀 Inizia con le Regole Preconfigurate</h3>
+                <p style="color:var(--text-secondary);margin-bottom:20px">Attiva queste regole comuni per iniziare subito:</p>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px">
+                    <div class="card" style="padding:14px;cursor:pointer;transition:all .2s" onclick="createQuickRule('payment_reminder')">
+                        <div style="display:flex;align-items:center;gap:10px">
+                            <span style="font-size:24px">💳</span>
+                            <div>
+                                <div style="font-weight:600">Reminder Pagamenti</div>
+                                <div style="font-size:11px;color:var(--text-muted)">Notifica inquilini 3 giorni prima della scadenza</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card" style="padding:14px;cursor:pointer;transition:all .2s" onclick="createQuickRule('late_payment')">
+                        <div style="display:flex;align-items:center;gap:10px">
+                            <span style="font-size:24px">⚠️</span>
+                            <div>
+                                <div style="font-weight:600">Pagamento in Ritardo</div>
+                                <div style="font-size:11px;color:var(--text-muted)">Alert dopo 5, 15 e 30 giorni di ritardo</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card" style="padding:14px;cursor:pointer;transition:all .2s" onclick="createQuickRule('contract_renewal')">
+                        <div style="display:flex;align-items:center;gap:10px">
+                            <span style="font-size:24px">📋</span>
+                            <div>
+                                <div style="font-weight:600">Rinnovo Contratti</div>
+                                <div style="font-size:11px;color:var(--text-muted)">Avviso 60 e 30 giorni prima della scadenza</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card" style="padding:14px;cursor:pointer;transition:all .2s" onclick="createQuickRule('maintenance_alert')">
+                        <div style="display:flex;align-items:center;gap:10px">
+                            <span style="font-size:24px">🔧</span>
+                            <div>
+                                <div style="font-weight:600">Alert Manutenzioni</div>
+                                <div style="font-size:11px;color:var(--text-muted)">Notifica urgenti e ticket vecchi</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>` : ''}
+
+            <!-- Rules by Category -->
+            ${rules.length > 0 ? `
+            <!-- Category Tabs -->
+            <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+                <button class="btn btn-sm rules-filter active" onclick="filterRules('all')">Tutte (${rules.length})</button>
+                <button class="btn btn-sm btn-secondary rules-filter" onclick="filterRules('payments')">💳 Pagamenti (${paymentRules.length})</button>
+                <button class="btn btn-sm btn-secondary rules-filter" onclick="filterRules('contracts')">📋 Contratti (${contractRules.length})</button>
+                <button class="btn btn-sm btn-secondary rules-filter" onclick="filterRules('maintenance')">🔧 Manutenzione (${maintenanceRules.length})</button>
+                <button class="btn btn-sm btn-secondary rules-filter" onclick="filterRules('users')">👤 Utenti (${userRules.length})</button>
+            </div>
+
+            <div id="rulesContainer">
+                ${rules.map(r => `<div class="rule-item" data-category="${RULE_TRIGGERS[r.trigger]?.category || 'other'}">${ruleCard(r)}</div>`).join('')}
+            </div>
+            ` : ''}
+
+            <!-- Recent Executions -->
+            ${ruleExecutions.length > 0 ? `
+            <div class="card" style="margin-top:24px">
+                <div class="card-header">
+                    <h3>📜 Ultime Esecuzioni</h3>
+                </div>
+                <div class="card-body flush">
+                    ${ruleExecutions.slice(0, 10).map(e => {
+                        const rule = rules.find(r => r.id === e.ruleId);
+                        return `<div class="list-item">
+                            <div class="list-icon" style="background:var(--${e.success ? 'green' : 'red'}-light)">${e.success ? '✓' : '✗'}</div>
+                            <div class="list-content">
+                                <div class="list-title">${rule?.name || 'Regola eliminata'}</div>
+                                <div class="list-subtitle">${fmtDate(e.executedAt)} · ${e.affectedItems || 0} elementi processati</div>
+                            </div>
+                        </div>`;
+                    }).join('')}
+                </div>
+            </div>` : ''}
+        `;
+    }
+
+    function filterRules(category) {
+        document.querySelectorAll('.rules-filter').forEach(b => { b.classList.remove('active'); b.classList.add('btn-secondary'); });
+        event.target.classList.add('active'); event.target.classList.remove('btn-secondary');
+        document.querySelectorAll('.rule-item').forEach(item => {
+            item.style.display = (category === 'all' || item.dataset.category === category) ? '' : 'none';
+        });
+    }
+
+    function openRuleModal(ruleId = null) {
+        const rule = ruleId ? (S.rules || []).find(r => r.id === ruleId) : null;
+        const isEdit = !!rule;
+
+        const triggerOptions = Object.entries(RULE_TRIGGERS).map(([key, t]) =>
+            `<option value="${key}" ${rule?.trigger === key ? 'selected' : ''}>${t.icon} ${t.name}</option>`
+        ).join('');
+
+        const actionOptions = Object.entries(RULE_ACTIONS).map(([key, a]) =>
+            `<option value="${key}" ${rule?.action === key ? 'selected' : ''}>${a.icon} ${a.name}</option>`
+        ).join('');
+
+        S.modal = { type: 'rule', editId: ruleId };
+        document.getElementById('modalOverlay').innerHTML = `
+            <div class="modal" style="max-width:500px">
+                <div class="modal-header">
+                    <h2>${isEdit ? '✏️ Modifica' : '⚡ Nuova'} Regola</h2>
+                    <button class="modal-close" onclick="closeModal()">×</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="form-label">Nome Regola</label>
+                        <input type="text" class="form-input" id="ruleName" value="${rule?.name || ''}" placeholder="es. Reminder pagamenti">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Descrizione (opzionale)</label>
+                        <input type="text" class="form-input" id="ruleDescription" value="${rule?.description || ''}" placeholder="Descrivi cosa fa questa regola">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">🎯 Quando (Trigger)</label>
+                            <select class="form-select" id="ruleTrigger" onchange="updateTriggerInfo()">
+                                <option value="">Seleziona trigger...</option>
+                                <optgroup label="💳 Pagamenti">${Object.entries(RULE_TRIGGERS).filter(([k,t]) => t.category === 'payments').map(([k,t]) => `<option value="${k}" ${rule?.trigger === k ? 'selected' : ''}>${t.icon} ${t.name}</option>`).join('')}</optgroup>
+                                <optgroup label="📋 Contratti">${Object.entries(RULE_TRIGGERS).filter(([k,t]) => t.category === 'contracts').map(([k,t]) => `<option value="${k}" ${rule?.trigger === k ? 'selected' : ''}>${t.icon} ${t.name}</option>`).join('')}</optgroup>
+                                <optgroup label="🔧 Manutenzione">${Object.entries(RULE_TRIGGERS).filter(([k,t]) => t.category === 'maintenance').map(([k,t]) => `<option value="${k}" ${rule?.trigger === k ? 'selected' : ''}>${t.icon} ${t.name}</option>`).join('')}</optgroup>
+                                <optgroup label="👤 Utenti">${Object.entries(RULE_TRIGGERS).filter(([k,t]) => t.category === 'users').map(([k,t]) => `<option value="${k}" ${rule?.trigger === k ? 'selected' : ''}>${t.icon} ${t.name}</option>`).join('')}</optgroup>
+                            </select>
+                            <div id="triggerInfo" style="font-size:11px;color:var(--text-muted);margin-top:4px"></div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">▶️ Azione</label>
+                            <select class="form-select" id="ruleAction" onchange="updateActionInfo()">
+                                <option value="">Seleziona azione...</option>
+                                ${actionOptions}
+                            </select>
+                            <div id="actionInfo" style="font-size:11px;color:var(--text-muted);margin-top:4px"></div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                            <input type="checkbox" id="ruleEnabled" ${rule?.enabled !== false ? 'checked' : ''}>
+                            <span>Regola attiva</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="closeModal()">Annulla</button>
+                    <button class="btn" onclick="saveRule()">${isEdit ? 'Salva Modifiche' : 'Crea Regola'}</button>
+                </div>
+            </div>`;
+        document.getElementById('modalOverlay').classList.add('open');
+        updateTriggerInfo();
+        updateActionInfo();
+    }
+
+    function updateTriggerInfo() {
+        const trigger = document.getElementById('ruleTrigger')?.value;
+        const info = document.getElementById('triggerInfo');
+        if (info && trigger && RULE_TRIGGERS[trigger]) {
+            info.textContent = RULE_TRIGGERS[trigger].description;
+        } else if (info) {
+            info.textContent = '';
+        }
+    }
+
+    function updateActionInfo() {
+        const action = document.getElementById('ruleAction')?.value;
+        const info = document.getElementById('actionInfo');
+        if (info && action && RULE_ACTIONS[action]) {
+            info.textContent = RULE_ACTIONS[action].description;
+        } else if (info) {
+            info.textContent = '';
+        }
+    }
+
+    async function saveRule() {
+        const name = document.getElementById('ruleName').value.trim();
+        const description = document.getElementById('ruleDescription').value.trim();
+        const trigger = document.getElementById('ruleTrigger').value;
+        const action = document.getElementById('ruleAction').value;
+        const enabled = document.getElementById('ruleEnabled').checked;
+
+        if (!name || !trigger || !action) {
+            toast('error', 'Compila tutti i campi obbligatori');
+            return;
+        }
+
+        try {
+            const ruleData = {
+                name,
+                description,
+                trigger,
+                action,
+                enabled,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+
+            if (S.modal.editId) {
+                await db.collection('rules').doc(S.modal.editId).update(ruleData);
+                toast('success', 'Regola aggiornata!');
+            } else {
+                ruleData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+                ruleData.createdBy = S.user.uid;
+                await db.collection('rules').add(ruleData);
+                toast('success', 'Regola creata!');
+            }
+            closeModal();
+            goTo('rules');
+        } catch (err) {
+            toast('error', 'Errore: ' + err.message);
+        }
+    }
+
+    function editRule(ruleId) {
+        openRuleModal(ruleId);
+    }
+
+    async function toggleRule(ruleId) {
+        const rule = (S.rules || []).find(r => r.id === ruleId);
+        if (!rule) return;
+
+        try {
+            await db.collection('rules').doc(ruleId).update({
+                enabled: !rule.enabled,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            toast('success', rule.enabled ? 'Regola disattivata' : 'Regola attivata');
+            goTo('rules');
+        } catch (err) {
+            toast('error', 'Errore: ' + err.message);
+        }
+    }
+
+    async function testRule(ruleId) {
+        const rule = (S.rules || []).find(r => r.id === ruleId);
+        if (!rule) return;
+
+        toast('info', `🧪 Testing regola: ${rule.name}...`);
+
+        try {
+            const result = await executeRule(rule, true);
+            if (result.affected > 0) {
+                toast('success', `✓ Test completato: ${result.affected} elementi trovati. ${result.message || ''}`);
+            } else {
+                toast('info', `Test completato: nessun elemento corrisponde al trigger.`);
+            }
+        } catch (err) {
+            toast('error', 'Errore test: ' + err.message);
+        }
+    }
+
+    async function executeRule(rule, testMode = false) {
+        const trigger = rule.trigger;
+        let affectedItems = [];
+
+        // Evaluate trigger conditions
+        switch (trigger) {
+            case 'payment_late_5':
+                affectedItems = S.payments.filter(p => p.status === 'pending' && daysSinceDue(p.dueDate) >= 5 && daysSinceDue(p.dueDate) < 15);
+                break;
+            case 'payment_late_15':
+                affectedItems = S.payments.filter(p => p.status === 'pending' && daysSinceDue(p.dueDate) >= 15 && daysSinceDue(p.dueDate) < 30);
+                break;
+            case 'payment_late_30':
+                affectedItems = S.payments.filter(p => p.status === 'pending' && daysSinceDue(p.dueDate) >= 30);
+                break;
+            case 'payment_due_soon':
+                affectedItems = S.payments.filter(p => p.status === 'pending' && daysUntilDue(p.dueDate) <= 3 && daysUntilDue(p.dueDate) >= 0);
+                break;
+            case 'contract_expiring_60':
+                affectedItems = S.contracts.filter(c => c.status === 'active' && daysUntil(c.endDate) <= 60 && daysUntil(c.endDate) > 30);
+                break;
+            case 'contract_expiring_30':
+                affectedItems = S.contracts.filter(c => c.status === 'active' && daysUntil(c.endDate) <= 30 && daysUntil(c.endDate) > 0);
+                break;
+            case 'contract_expired':
+                affectedItems = S.contracts.filter(c => c.status === 'active' && daysUntil(c.endDate) < 0);
+                break;
+            case 'maintenance_new':
+                affectedItems = S.maintenance.filter(m => m.status === 'open' && daysSince(m.createdAt) === 0);
+                break;
+            case 'maintenance_urgent':
+                affectedItems = S.maintenance.filter(m => m.priority === 'urgent' && m.status !== 'resolved');
+                break;
+            case 'maintenance_old':
+                affectedItems = S.maintenance.filter(m => m.status === 'open' && daysSince(m.createdAt) >= 7);
+                break;
+            case 'tenant_bad_score':
+                const tenants = S.users.filter(u => u.role === 'tenant');
+                for (const t of tenants) {
+                    const score = await getPaymentScore(t.id);
+                    if (score < 70) affectedItems.push(t);
+                }
+                break;
+        }
+
+        if (testMode) {
+            return { affected: affectedItems.length, items: affectedItems };
+        }
+
+        // Execute action if not test mode
+        if (affectedItems.length > 0) {
+            await executeAction(rule.action, affectedItems, rule);
+
+            // Log execution
+            await db.collection('ruleExecutions').add({
+                ruleId: rule.id,
+                ruleName: rule.name,
+                trigger: rule.trigger,
+                action: rule.action,
+                affectedItems: affectedItems.length,
+                executedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                success: true
+            });
+
+            // Update rule lastExecuted
+            await db.collection('rules').doc(rule.id).update({
+                lastExecuted: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        }
+
+        return { affected: affectedItems.length, items: affectedItems };
+    }
+
+    async function executeAction(action, items, rule) {
+        switch (action) {
+            case 'notify_telegram':
+                const message = buildRuleNotification(rule, items);
+                await sendTelegramNotification(message);
+                break;
+            case 'notify_tenant':
+                for (const item of items) {
+                    const tenant = S.users.find(u => u.id === (item.tenantId || item.userId));
+                    if (tenant?.phone) {
+                        // Would send WhatsApp/SMS here
+                        console.log(`Would notify tenant ${tenant.name}: ${rule.name}`);
+                    }
+                }
+                break;
+            case 'notify_landlord':
+                for (const item of items) {
+                    const property = S.properties.find(p => p.id === item.propertyId);
+                    const landlord = property ? S.users.find(u => u.id === property.ownerId) : null;
+                    if (landlord?.phone) {
+                        console.log(`Would notify landlord ${landlord.name}: ${rule.name}`);
+                    }
+                }
+                break;
+            case 'notify_admin':
+                const adminMsg = buildRuleNotification(rule, items);
+                await sendTelegramNotification(adminMsg);
+                break;
+            case 'send_reminder':
+                for (const item of items) {
+                    if (item.id && (rule.trigger.includes('payment'))) {
+                        await sendPaymentReminder(item.id);
+                    }
+                }
+                break;
+            case 'escalate':
+                const escalationMsg = `🚨 ESCALATION: ${rule.name}\n${items.length} elementi richiedono attenzione immediata!`;
+                await sendTelegramNotification(escalationMsg);
+                break;
+        }
+    }
+
+    function buildRuleNotification(rule, items) {
+        const trigger = RULE_TRIGGERS[rule.trigger];
+        let msg = `⚡ *REGOLA ATTIVATA*\n\n`;
+        msg += `📌 *${rule.name}*\n`;
+        msg += `${trigger?.icon || '🔔'} ${trigger?.name || rule.trigger}\n`;
+        msg += `📊 ${items.length} elementi trovati\n\n`;
+
+        // Add details based on trigger type
+        if (rule.trigger.includes('payment')) {
+            items.slice(0, 5).forEach(p => {
+                const tenant = S.users.find(u => u.id === p.tenantId);
+                const prop = S.properties.find(x => x.id === p.propertyId);
+                msg += `• ${tenant?.name || 'N/A'} - €${p.amount} - ${prop?.name || 'N/A'}\n`;
+            });
+        } else if (rule.trigger.includes('contract')) {
+            items.slice(0, 5).forEach(c => {
+                const prop = S.properties.find(x => x.id === c.propertyId);
+                msg += `• ${prop?.name || 'N/A'} - scade ${fmtDate(c.endDate)}\n`;
+            });
+        } else if (rule.trigger.includes('maintenance')) {
+            items.slice(0, 5).forEach(m => {
+                msg += `• ${m.title} - ${m.priority === 'urgent' ? '🔴' : '🟡'}\n`;
+            });
+        }
+
+        if (items.length > 5) {
+            msg += `\n... e altri ${items.length - 5}`;
+        }
+
+        return msg;
+    }
+
+    async function runAllRules() {
+        const activeRules = (S.rules || []).filter(r => r.enabled);
+        if (activeRules.length === 0) {
+            toast('info', 'Nessuna regola attiva da eseguire');
+            return;
+        }
+
+        toast('info', `🔄 Esecuzione ${activeRules.length} regole...`);
+        let totalAffected = 0;
+
+        for (const rule of activeRules) {
+            try {
+                const result = await executeRule(rule);
+                totalAffected += result.affected;
+            } catch (err) {
+                console.error(`Error executing rule ${rule.name}:`, err);
+            }
+        }
+
+        toast('success', `✓ Esecuzione completata: ${totalAffected} elementi processati`);
+        goTo('rules');
+    }
+
+    async function createQuickRule(template) {
+        const templates = {
+            'payment_reminder': [
+                { name: 'Reminder Pagamento (3gg prima)', trigger: 'payment_due_soon', action: 'notify_tenant', enabled: true }
+            ],
+            'late_payment': [
+                { name: 'Pagamento in Ritardo (5gg)', trigger: 'payment_late_5', action: 'send_reminder', enabled: true },
+                { name: 'Pagamento in Ritardo (15gg)', trigger: 'payment_late_15', action: 'notify_telegram', enabled: true },
+                { name: 'Pagamento Critico (30gg)', trigger: 'payment_late_30', action: 'escalate', enabled: true }
+            ],
+            'contract_renewal': [
+                { name: 'Contratto in Scadenza (60gg)', trigger: 'contract_expiring_60', action: 'notify_landlord', enabled: true },
+                { name: 'Contratto in Scadenza (30gg)', trigger: 'contract_expiring_30', action: 'notify_telegram', enabled: true }
+            ],
+            'maintenance_alert': [
+                { name: 'Manutenzione Urgente', trigger: 'maintenance_urgent', action: 'notify_telegram', enabled: true },
+                { name: 'Manutenzione Vecchia (7gg)', trigger: 'maintenance_old', action: 'escalate', enabled: true }
+            ]
+        };
+
+        const rulesToCreate = templates[template];
+        if (!rulesToCreate) return;
+
+        toast('info', `Creazione ${rulesToCreate.length} regole...`);
+
+        try {
+            for (const ruleData of rulesToCreate) {
+                await db.collection('rules').add({
+                    ...ruleData,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    createdBy: S.user.uid
+                });
+            }
+            toast('success', `✓ ${rulesToCreate.length} regole create!`);
+            goTo('rules');
+        } catch (err) {
+            toast('error', 'Errore: ' + err.message);
+        }
+    }
+
+    // Helper functions for rules
+    function daysSinceDue(dueDate) {
+        if (!dueDate) return 0;
+        const due = dueDate.toDate ? dueDate.toDate() : new Date(dueDate);
+        const today = new Date();
+        return Math.floor((today - due) / (1000 * 60 * 60 * 24));
+    }
+
+    function daysUntilDue(dueDate) {
+        return -daysSinceDue(dueDate);
+    }
+
+    function daysUntil(date) {
+        if (!date) return 999;
+        const d = date.toDate ? date.toDate() : new Date(date);
+        const today = new Date();
+        return Math.floor((d - today) / (1000 * 60 * 60 * 24));
     }
 
     function documentsPage() {
@@ -3225,7 +4987,8 @@ Valentyne - BOOM Rome`
                 const c = S.contracts.find(x => x.id === p.contractId);
                 const prop = c ? S.properties.find(x => x.id === c.propertyId) : null;
                 const isOD = p.status === 'pending' && isOverdue(p.dueDate);
-                return `<div class="list-item"><div class="list-icon" style="background:${p.status === 'paid' ? 'var(--green-light)' : isOD ? 'var(--red-light)' : 'var(--orange-light)'}">${p.status === 'paid' ? '✔' : isOD ? '⚠️' : '⏳'}</div><div class="list-content"><div class="list-title">${prop?.name || ''} · ${p.month || 'Pagamento'}</div><div class="list-subtitle">${p.status === 'paid' ? 'Pagato il ' + fmtDate(p.paidDate) : 'Scadenza: ' + fmtDate(p.dueDate) + (isOD ? ' (IN RITARDO)' : '')}</div></div><div class="list-meta"><div class="list-value ${p.status === 'paid' ? 'text-green' : isOD ? 'text-red' : 'text-gold'}">€${p.amount || 0}</div></div>${p.status === 'paid' && isTenant() ? `<button class="btn btn-xs btn-secondary" onclick="downloadPaymentReceipt('${p.id}')">📥</button>` : ''}${p.status === 'pending' && isLandlord() ? `<button class="btn btn-xs btn-success" onclick="markPaymentPaid('${p.id}')">✔</button>` : ''}</div>`;
+                const payBadge = p.stripeSessionId ? ' <span class="badge blue" style="font-size:9px;padding:2px 6px">💳 Stripe</span>' : '';
+                return `<div class="list-item"><div class="list-icon" style="background:${p.status === 'paid' ? 'var(--green-light)' : isOD ? 'var(--red-light)' : 'var(--orange-light)'}">${p.status === 'paid' ? '✔' : isOD ? '⚠️' : '⏳'}</div><div class="list-content"><div class="list-title">${prop?.name || ''} · ${p.month || 'Pagamento'}${payBadge}</div><div class="list-subtitle">${p.status === 'paid' ? 'Pagato il ' + fmtDate(p.paidDate) : 'Scadenza: ' + fmtDate(p.dueDate) + (isOD ? ' (IN RITARDO)' : '')}</div></div><div class="list-meta"><div class="list-value ${p.status === 'paid' ? 'text-green' : isOD ? 'text-red' : 'text-gold'}">€${p.amount || 0}</div></div>${p.status === 'paid' && isTenant() ? `<button class="btn btn-xs btn-secondary" onclick="downloadPaymentReceipt('${p.id}')">📥</button>` : ''}${p.status === 'pending' && isTenant() && STRIPE_CONFIG.enabled ? `<button class="btn btn-xs" onclick="payWithStripe('${p.id}')" style="background:var(--blue);color:#fff">💳 Paga</button>` : ''}${p.status === 'pending' && isLandlord() ? `<button class="btn btn-xs btn-success" onclick="markPaymentPaid('${p.id}')">✔</button>` : ''}</div>`;
             }).join('') : '<div class="empty-state"><div class="empty-icon">💳</div><div class="empty-title">Nessun pagamento</div></div>'}</div></div>`;
     }
 
@@ -4343,9 +6106,9 @@ Valentyne - BOOM Rome`
 
         if (type === 'editUser') { const u = data; if (!u) return ''; return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">✏️ Modifica Utente</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="updateUser(event)"><input type="hidden" name="id" value="${u.id}"><div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="name" value="${u.name || ''}" required></div><div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" value="${u.email || ''}" disabled style="opacity:0.6"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Ruolo</label><select class="form-select" name="role"><option value="tenant" ${u.role === 'tenant' ? 'selected' : ''}>🔘 Inquilino</option><option value="landlord" ${u.role === 'landlord' ? 'selected' : ''}>🏠 Proprietario</option><option value="admin" ${u.role === 'admin' ? 'selected' : ''}>👁 Admin</option></select></div><div class="form-group"><label class="form-label">Telefono</label><input type="tel" class="form-input" name="phone" value="${u.phone || ''}" placeholder="+39..."></div></div><div class="form-row"><div class="form-group"><label class="form-label">Codice Fiscale</label><input type="text" class="form-input" name="codiceFiscale" value="${u.codiceFiscale || ''}" placeholder="RSSMRA85M01H501Z" maxlength="16" style="text-transform:uppercase"></div><div class="form-group"><label class="form-label">IBAN</label><input type="text" class="form-input" name="iban" value="${u.iban || ''}" placeholder="IT60X0542811101000000123456"></div></div><div class="form-group"><label class="form-label">Indirizzo</label><input type="text" class="form-input" name="address" value="${u.address || ''}" placeholder="Via Roma 123, 00100 Roma"></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes" rows="2" placeholder="Note interne...">${u.notes || ''}</textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Salva</button></div></div></div>`; }
 
-        if (type === 'addProperty') { const landlords = S.users.filter(u => u.role === 'landlord'); return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">🏠 Nuovo Immobile</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="saveProperty(event)"><div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="name" required placeholder="Es: Trastevere Terrace"></div><div class="form-group"><label class="form-label">Proprietario *</label><select class="form-select" name="ownerId" required><option value="">Seleziona...</option>${landlords.map(l => `<option value="${l.id}">${l.name}</option>`).join('')}</select></div></div><div class="form-group"><label class="form-label">Indirizzo</label><input type="text" class="form-input" name="address" placeholder="Via Roma 123, 00100 Roma"></div><div class="form-row"><div class="form-group"><label class="form-label">Affitto €/mese *</label><input type="number" class="form-input" name="rent" required></div><div class="form-group"><label class="form-label">Superficie m²</label><input type="number" class="form-input" name="sqm" placeholder="65"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Stanze</label><input type="number" class="form-input" name="rooms" placeholder="3"></div><div class="form-group"><label class="form-label">Bagni</label><input type="number" class="form-input" name="bathrooms" placeholder="1"></div><div class="form-group"><label class="form-label">Piano</label><input type="text" class="form-input" name="floor" placeholder="3° / 5"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Anno Costruzione</label><input type="number" class="form-input" name="yearBuilt" placeholder="1965"></div><div class="form-group"><label class="form-label">Tipo</label><select class="form-select" name="propertyType"><option value="apartment">Appartamento</option><option value="studio">Monolocale</option><option value="room">Stanza</option><option value="house">Casa</option><option value="loft">Loft</option></select></div></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes" rows="2" placeholder="Caratteristiche, condizioni..."></textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Crea</button></div></div></div>`; }
+        if (type === 'addProperty') { const landlords = S.users.filter(u => u.role === 'landlord'); return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">🏠 Nuovo Immobile</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body" style="max-height:70vh;overflow-y:auto"><form id="mForm" onsubmit="saveProperty(event)"><div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="name" required placeholder="Es: Trastevere Terrace"></div><div class="form-group"><label class="form-label">Proprietario *</label><select class="form-select" name="ownerId" required><option value="">Seleziona...</option>${landlords.map(l => `<option value="${l.id}">${l.name}</option>`).join('')}</select></div></div><div class="form-group"><label class="form-label">Indirizzo</label><input type="text" class="form-input" name="address" placeholder="Via Roma 123, 00100 Roma"></div><div class="form-row"><div class="form-group"><label class="form-label">Affitto €/mese *</label><input type="number" class="form-input" name="rent" required></div><div class="form-group"><label class="form-label">Superficie m²</label><input type="number" class="form-input" name="sqm" placeholder="65"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Stanze</label><input type="number" class="form-input" name="rooms" placeholder="3"></div><div class="form-group"><label class="form-label">Bagni</label><input type="number" class="form-input" name="bathrooms" placeholder="1"></div><div class="form-group"><label class="form-label">Piano</label><input type="text" class="form-input" name="floor" placeholder="3° / 5"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Anno Costruzione</label><input type="number" class="form-input" name="yearBuilt" placeholder="1965"></div><div class="form-group"><label class="form-label">Tipo</label><select class="form-select" name="propertyType"><option value="apartment">Appartamento</option><option value="studio">Monolocale</option><option value="room">Stanza</option><option value="house">Casa</option><option value="loft">Loft</option></select></div></div><div style="background:var(--bg);padding:12px;border-radius:8px;margin:12px 0"><div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--gold);margin-bottom:10px">📊 Disponibilità & Media</div><div class="form-row"><div class="form-group"><label class="form-label">Stato Disponibilità</label><select class="form-select" name="availabilityStatus"><option value="available">🟢 Disponibile</option><option value="negotiation">🟡 In Trattativa</option><option value="rented">🔴 Affittato</option><option value="off_market">⚫ Fuori Mercato</option></select></div><div class="form-group"><label class="form-label">Disponibile Dal</label><input type="date" class="form-input" name="availableSince" value="${new Date().toISOString().split('T')[0]}"></div></div><div class="form-group"><label class="form-label">📺 YouTube Video Tour</label><input type="url" class="form-input" name="youtubeUrl" placeholder="https://www.youtube.com/watch?v=..."></div></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes" rows="2" placeholder="Caratteristiche, condizioni..."></textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Crea</button></div></div></div>`; }
 
-        if (type === 'editProperty') { const p = data; if (!p) return ''; const landlords = S.users.filter(u => u.role === 'landlord'); return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">✏️ Modifica Immobile</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="updateProperty(event,'${p.id}')"><div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="name" value="${p.name || ''}" required></div><div class="form-group"><label class="form-label">Proprietario *</label><select class="form-select" name="ownerId" required><option value="">Seleziona...</option>${landlords.map(l => `<option value="${l.id}" ${p.ownerId === l.id ? 'selected' : ''}>${l.name}</option>`).join('')}</select></div></div><div class="form-group"><label class="form-label">Indirizzo</label><input type="text" class="form-input" name="address" value="${p.address || ''}"></div><div class="form-row"><div class="form-group"><label class="form-label">Affitto €/mese *</label><input type="number" class="form-input" name="rent" value="${p.rent || ''}" required></div><div class="form-group"><label class="form-label">Superficie m²</label><input type="number" class="form-input" name="sqm" value="${p.sqm || ''}"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Stanze</label><input type="number" class="form-input" name="rooms" value="${p.rooms || ''}"></div><div class="form-group"><label class="form-label">Bagni</label><input type="number" class="form-input" name="bathrooms" value="${p.bathrooms || ''}"></div><div class="form-group"><label class="form-label">Piano</label><input type="text" class="form-input" name="floor" value="${p.floor || ''}"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Anno Costruzione</label><input type="number" class="form-input" name="yearBuilt" value="${p.yearBuilt || ''}"></div><div class="form-group"><label class="form-label">Tipo</label><select class="form-select" name="propertyType"><option value="apartment" ${p.propertyType === 'apartment' || !p.propertyType ? 'selected' : ''}>Appartamento</option><option value="studio" ${p.propertyType === 'studio' ? 'selected' : ''}>Monolocale</option><option value="room" ${p.propertyType === 'room' ? 'selected' : ''}>Stanza</option><option value="house" ${p.propertyType === 'house' ? 'selected' : ''}>Casa</option><option value="loft" ${p.propertyType === 'loft' ? 'selected' : ''}>Loft</option></select></div></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes" rows="2">${p.notes || ''}</textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Salva</button></div></div></div>`; }
+        if (type === 'editProperty') { const p = data; if (!p) return ''; const landlords = S.users.filter(u => u.role === 'landlord'); const availDate = p.availableSince ? (typeof p.availableSince === 'string' ? p.availableSince.split('T')[0] : (p.availableSince.toDate ? p.availableSince.toDate().toISOString().split('T')[0] : '')) : ''; return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">✏️ Modifica Immobile</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body" style="max-height:70vh;overflow-y:auto"><form id="mForm" onsubmit="updateProperty(event,'${p.id}')"><div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="name" value="${p.name || ''}" required></div><div class="form-group"><label class="form-label">Proprietario *</label><select class="form-select" name="ownerId" required><option value="">Seleziona...</option>${landlords.map(l => `<option value="${l.id}" ${p.ownerId === l.id ? 'selected' : ''}>${l.name}</option>`).join('')}</select></div></div><div class="form-group"><label class="form-label">Indirizzo</label><input type="text" class="form-input" name="address" value="${p.address || ''}"></div><div class="form-row"><div class="form-group"><label class="form-label">Affitto €/mese *</label><input type="number" class="form-input" name="rent" value="${p.rent || ''}" required></div><div class="form-group"><label class="form-label">Superficie m²</label><input type="number" class="form-input" name="sqm" value="${p.sqm || ''}"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Stanze</label><input type="number" class="form-input" name="rooms" value="${p.rooms || ''}"></div><div class="form-group"><label class="form-label">Bagni</label><input type="number" class="form-input" name="bathrooms" value="${p.bathrooms || ''}"></div><div class="form-group"><label class="form-label">Piano</label><input type="text" class="form-input" name="floor" value="${p.floor || ''}"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Anno Costruzione</label><input type="number" class="form-input" name="yearBuilt" value="${p.yearBuilt || ''}"></div><div class="form-group"><label class="form-label">Tipo</label><select class="form-select" name="propertyType"><option value="apartment" ${p.propertyType === 'apartment' || !p.propertyType ? 'selected' : ''}>Appartamento</option><option value="studio" ${p.propertyType === 'studio' ? 'selected' : ''}>Monolocale</option><option value="room" ${p.propertyType === 'room' ? 'selected' : ''}>Stanza</option><option value="house" ${p.propertyType === 'house' ? 'selected' : ''}>Casa</option><option value="loft" ${p.propertyType === 'loft' ? 'selected' : ''}>Loft</option></select></div></div><div style="background:var(--bg);padding:12px;border-radius:8px;margin:12px 0"><div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--gold);margin-bottom:10px">📊 Disponibilità & Media</div><div class="form-row"><div class="form-group"><label class="form-label">Stato Disponibilità</label><select class="form-select" name="availabilityStatus"><option value="available" ${p.availabilityStatus === 'available' ? 'selected' : ''}>🟢 Disponibile</option><option value="negotiation" ${p.availabilityStatus === 'negotiation' ? 'selected' : ''}>🟡 In Trattativa</option><option value="rented" ${p.availabilityStatus === 'rented' ? 'selected' : ''}>🔴 Affittato</option><option value="off_market" ${p.availabilityStatus === 'off_market' ? 'selected' : ''}>⚫ Fuori Mercato</option></select></div><div class="form-group"><label class="form-label">Disponibile Dal</label><input type="date" class="form-input" name="availableSince" value="${availDate}"></div></div><div class="form-group"><label class="form-label">📺 YouTube Video Tour</label><input type="url" class="form-input" name="youtubeUrl" value="${p.youtubeUrl || ''}" placeholder="https://www.youtube.com/watch?v=..."></div></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes" rows="2">${p.notes || ''}</textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Salva</button></div></div></div>`; }
 
         if (type === 'addContract') { const tenants = S.users.filter(u => u.role === 'tenant'); const props = S.properties.filter(p => !S.contracts.some(c => c.propertyId === p.id && c.status === 'active')); return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">📋 Nuovo Contratto</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="saveContract(event)"><div class="form-row"><div class="form-group"><label class="form-label">Immobile *</label><select class="form-select" name="propertyId" required onchange="fillContractRent(this)"><option value="">Seleziona...</option>${props.map(p => `<option value="${p.id}" data-rent="${p.rent}">${p.name} €${p.rent}</option>`).join('')}</select></div><div class="form-group"><label class="form-label">Inquilino *</label><select class="form-select" name="tenantId" required><option value="">Seleziona...</option>${tenants.map(t => `<option value="${t.id}">${t.name}</option>`).join('')}</select></div></div><div class="form-row"><div class="form-group"><label class="form-label">Inizio *</label><input type="date" class="form-input" name="startDate" required></div><div class="form-group"><label class="form-label">Fine *</label><input type="date" class="form-input" name="endDate" required></div></div><div class="form-row"><div class="form-group"><label class="form-label">Affitto € *</label><input type="number" class="form-input" name="rent" id="cRent" required></div><div class="form-group"><label class="form-label">Deposito €</label><input type="number" class="form-input" name="deposit"></div></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes" rows="2" placeholder="Condizioni particolari..."></textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Crea</button></div></div></div>`; }
 
@@ -4836,6 +6599,66 @@ Valentyne - BOOM Rome`
         } catch (err) { toast('error', 'Errore', err.message); }
     }
 
+    // ═══════════════════════════════════════════════════════════════════════════
+    // STRIPE PAYMENT - One-click rent payment for tenants
+    // ═══════════════════════════════════════════════════════════════════════════
+    async function payWithStripe(paymentId) {
+        if (!STRIPE_CONFIG.enabled) {
+            toast('info', 'Pagamenti online temporaneamente disabilitati');
+            return;
+        }
+        try {
+            const payment = S.payments.find(p => p.id === paymentId);
+            if (!payment) throw new Error('Pagamento non trovato');
+
+            const contract = S.contracts.find(c => c.id === payment.contractId);
+            const property = contract ? S.properties.find(p => p.id === contract.propertyId) : null;
+            const tenant = S.users.find(u => u.id === S.profile.id);
+
+            toast('info', '💳 Reindirizzamento a Stripe...', 'Attendi');
+
+            const response = await fetch(STRIPE_CONFIG.checkoutEndpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    paymentId: paymentId,
+                    amount: payment.amount,
+                    description: `Affitto ${property?.name || 'Immobile'}`,
+                    tenantEmail: tenant?.email || '',
+                    tenantName: tenant?.name || '',
+                    propertyName: property?.name || '',
+                    month: payment.month || ''
+                })
+            });
+
+            if (!response.ok) throw new Error('Errore creazione sessione di pagamento');
+
+            const { url } = await response.json();
+
+            // Redirect to Stripe Checkout
+            window.location.href = url;
+
+        } catch (err) {
+            console.error('Stripe payment error:', err);
+            toast('error', 'Errore pagamento', err.message);
+        }
+    }
+
+    // Handle Stripe return URL parameters
+    function checkStripeReturn() {
+        const params = new URLSearchParams(window.location.search);
+        const paymentStatus = params.get('payment');
+
+        if (paymentStatus === 'success') {
+            toast('success', '✅ Pagamento completato!', 'Grazie! La ricevuta arriverà via email.');
+            // Clean URL
+            window.history.replaceState({}, document.title, window.location.pathname);
+        } else if (paymentStatus === 'cancelled') {
+            toast('info', 'Pagamento annullato', 'Puoi riprovare quando vuoi.');
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+    }
+
     async function saveMaintenance(e) {
         e.preventDefault();
         const data = Object.fromEntries(new FormData(e.target));
@@ -5198,13 +7021,18 @@ Valentyne - BOOM Rome`
         const activeContract = contracts.find(c => c.status === 'active');
         const tenant = activeContract ? S.users.find(u => u.id === activeContract.tenantId) : null;
         const propTypeLabels = { apartment: 'Appartamento', studio: 'Monolocale', room: 'Stanza', house: 'Casa', loft: 'Loft' };
+        const availStatusLabels = { available: { text: 'Disponibile', color: 'green', icon: '🟢' }, negotiation: { text: 'In Trattativa', color: 'orange', icon: '🟡' }, rented: { text: 'Affittato', color: 'red', icon: '🔴' }, off_market: { text: 'Fuori Mercato', color: 'gray', icon: '⚫' } };
+        const availStatus = availStatusLabels[p.availabilityStatus] || availStatusLabels.available;
+        const youtubeId = p.youtubeUrl ? extractYouTubeId(p.youtubeUrl) : null;
         document.getElementById('modals').innerHTML = `<div class="modal-overlay active"><div class="modal lg">
             <div class="modal-header"><h3 class="modal-title">🏠 ${p.name}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
             <div class="modal-body" style="max-height:70vh;overflow-y:auto">
                 <div class="detail-badges mb-16">
-                    <span class="badge ${activeContract ? 'green' : 'gray'}">${activeContract ? 'Affittato' : 'Libero'}</span>
+                    <span class="badge ${availStatus.color}">${availStatus.icon} ${availStatus.text}</span>
+                    <span class="badge ${activeContract ? 'green' : 'gray'}">${activeContract ? '📋 Contratto Attivo' : '📋 Nessun Contratto'}</span>
                     <span class="badge gray">${propTypeLabels[p.propertyType] || 'Appartamento'}</span>
                 </div>
+                ${youtubeId ? `<div style="margin-bottom:16px;border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.3)"><div style="position:relative;padding-bottom:56.25%;height:0"><iframe src="https://www.youtube.com/embed/${youtubeId}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:none" allowfullscreen></iframe></div></div>` : ''}
                 <div class="section-title" style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:12px">📍 Dettagli Immobile</div>
                 <div class="detail-grid">
                     <div><div class="detail-label">Indirizzo</div><div class="detail-value">${p.address || 'Roma'}</div></div>
@@ -5215,6 +7043,7 @@ Valentyne - BOOM Rome`
                     <div><div class="detail-label">Piano</div><div class="detail-value">${p.floor || '—'}</div></div>
                     <div><div class="detail-label">Anno</div><div class="detail-value">${p.yearBuilt || '—'}</div></div>
                     <div><div class="detail-label">Proprietario</div><div class="detail-value">${owner?.name || 'N/A'}</div></div>
+                    <div><div class="detail-label">Disponibile Dal</div><div class="detail-value">${p.availableSince ? fmtDate(p.availableSince) : '—'}</div></div>
                 </div>
                 ${p.notes ? `<div class="mt-16"><div class="detail-label">Note</div><div class="detail-value" style="background:var(--surface);padding:10px;border-radius:8px;font-size:13px;margin-top:6px">${p.notes}</div></div>` : ''}
                 ${activeContract ? `
@@ -6036,6 +7865,8 @@ Valentyne - BOOM Rome`
     }
 
     function openTemplateModal(type, prefillClient = null) {
+        console.log('openTemplateModal called with type:', type);
+        try {
         const titles = { 
             pfs: '🏠 Property Finding Service €350', 
             das: '📋 Deal Assistance Service €249', 
@@ -6490,8 +8321,13 @@ Valentyne - BOOM Rome`
         </div></div>`;
         
         if (prefillClient) fillClientData(prefillClient.id);
+        console.log('openTemplateModal completed successfully for type:', type);
+        } catch (err) {
+            console.error('openTemplateModal error:', err);
+            toast('error', 'Errore apertura template: ' + err.message);
+        }
     }
-    
+
     function fillUserData(id, type) {
         const u = S.users.find(x => x.id === id); if (!u) return;
         const prefix = type === 'landlord' ? 'landlord' : 'tenant';
@@ -7459,6 +9295,7 @@ Valentyne - BOOM Rome`
     }
     function fmtDate(d) { if (!d) return '—'; const dt = d.toDate ? d.toDate() : new Date(d); return isNaN(dt.getTime()) ? '—' : dt.toLocaleDateString('it-IT'); }
     function formatDate(d) { return fmtDate(d); }
+    function extractYouTubeId(url) { if (!url) return null; const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\?\/]+)/); return match ? match[1] : null; }
     function formatDateInput(d) { if (!d) return ''; const dt = d.toDate ? d.toDate() : new Date(d); return isNaN(dt.getTime()) ? '' : dt.toISOString().split('T')[0]; }
     function isThisMonth(d) { if (!d) return false; const dt = d.toDate ? d.toDate() : new Date(d); const now = new Date(); return dt.getMonth() === now.getMonth() && dt.getFullYear() === now.getFullYear(); }
     function numberToWords(n) {
