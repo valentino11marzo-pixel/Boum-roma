@@ -16,7 +16,6 @@
         :root{--gold:#FFD700;--pure-black:#000;--dark-void:#0A0A0A;--text-primary:#fff;--text-secondary:rgba(255,255,255,0.7);--text-fade:rgba(255,255,255,0.4)}
         body{font-family:'Inter',-apple-system,sans-serif;background:var(--pure-black);color:var(--text-primary);font-weight:300;line-height:1.6;-webkit-font-smoothing:antialiased}
         a{text-decoration:none;color:inherit}
-
         /* NAV */
         nav{position:fixed;width:100%;top:0;z-index:100;padding:20px 50px;background:rgba(0,0,0,0.98);backdrop-filter:blur(20px);border-bottom:1px solid rgba(255,215,0,0.1)}
         .nav-container{max-width:1400px;margin:0 auto;display:flex;justify-content:space-between;align-items:center}
@@ -42,27 +41,22 @@
         .mobile-menu a{color:rgba(255,255,255,0.6);font-size:18px;font-weight:300;text-transform:uppercase;letter-spacing:2px;transition:color .3s}
         .mobile-menu a:hover{color:var(--gold)}
         .wa-mob{color:#25D366!important;border:1px solid #25D366;padding:12px 28px;border-radius:30px;margin-top:10px}
-
         /* PAGE */
         .page{max-width:1400px;margin:0 auto;padding:140px 40px 80px}
         @media(max-width:768px){.page{padding:120px 20px 60px}}
-
         .page-header{text-align:center;margin-bottom:50px}
         .page-tag{display:inline-block;font-size:11px;text-transform:uppercase;letter-spacing:3px;color:var(--gold);margin-bottom:12px}
         .page-title{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:clamp(32px,5vw,56px);font-weight:200;line-height:1.1;margin-bottom:16px}
         .page-subtitle{font-size:16px;color:var(--text-secondary);max-width:600px;margin:0 auto}
-
         /* FILTERS */
         .filters{display:flex;justify-content:center;gap:12px;margin-bottom:40px;flex-wrap:wrap}
         .filter-btn{padding:10px 24px;border-radius:30px;border:1px solid rgba(255,255,255,0.1);background:transparent;color:var(--text-secondary);font-family:inherit;font-size:13px;font-weight:400;cursor:pointer;transition:all .3s}
         .filter-btn:hover{border-color:rgba(255,215,0,0.3);color:var(--text-primary)}
         .filter-btn.active{background:var(--gold);color:#000;border-color:var(--gold);font-weight:600}
         .filter-count{margin-left:6px;opacity:.6}
-
         /* GRID */
         .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:24px}
         @media(max-width:768px){.grid{grid-template-columns:1fr;gap:20px}}
-
         /* CARD */
         .card{background:var(--dark-void);border:1px solid rgba(255,255,255,0.06);border-radius:20px;overflow:hidden;transition:all .4s;cursor:pointer;display:flex;flex-direction:column}
         .card:hover{transform:translateY(-4px);border-color:rgba(255,215,0,0.15);box-shadow:0 20px 60px rgba(0,0,0,0.5)}
@@ -86,7 +80,6 @@
         .card-cta{padding:10px 20px;border-radius:10px;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;background:rgba(255,255,255,0.06);color:var(--text-secondary);transition:all .3s;border:1px solid rgba(255,255,255,0.06)}
         .card:hover .card-cta{background:var(--gold);color:#000;border-color:var(--gold)}
         .card-avail{font-size:11px;color:var(--text-fade);margin-top:8px}
-
         /* LOADING / EMPTY */
         .loading-state{text-align:center;padding:80px 20px}
         .spinner{width:40px;height:40px;border:3px solid rgba(255,255,255,0.1);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 20px}
@@ -94,14 +87,12 @@
         .empty-state{text-align:center;padding:80px 20px}
         .empty-state h3{font-size:24px;font-weight:200;margin-bottom:12px}
         .empty-state p{color:var(--text-secondary);margin-bottom:24px}
-
         /* UPSELL SECTION */
         .upsell-section{margin-top:80px}
         .upsell-header{text-align:center;margin-bottom:48px}
         .upsell-tag{display:inline-block;padding:8px 20px;background:var(--gold);color:#000;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:20px}
         .upsell-title{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:clamp(26px,4vw,44px);font-weight:200;margin-bottom:12px}
         .upsell-subtitle{font-size:15px;color:var(--text-secondary);max-width:520px;margin:0 auto;line-height:1.6}
-
         .notify-banner{background:linear-gradient(135deg,rgba(255,215,0,0.05) 0%,rgba(0,206,209,0.04) 100%);border:1px solid rgba(255,215,0,0.12);border-radius:20px;padding:32px 36px;margin-bottom:32px;display:flex;align-items:center;gap:28px;transition:border-color .3s}
         .notify-banner:hover{border-color:rgba(255,215,0,0.25)}
         .notify-icon{width:56px;height:56px;background:rgba(255,215,0,0.08);border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0}
@@ -115,7 +106,6 @@
         .nbtn-wa{background:#25D366;color:#fff}
         .nbtn-wa:hover{box-shadow:0 6px 24px rgba(37,211,102,0.25);transform:translateY(-1px)}
         @media(max-width:900px){.notify-banner{flex-direction:column;text-align:center;gap:18px;padding:28px 24px}.notify-actions{width:100%;flex-direction:column}.notify-actions .nbtn{justify-content:center}}
-
         /* VIDEO — LIVING PHONE (Ultra Premium) */
         .video-showcase{display:flex;align-items:center;gap:48px;margin-bottom:40px;padding:40px;background:linear-gradient(135deg,rgba(255,215,0,0.03) 0%,rgba(0,0,0,0.2) 50%,rgba(255,215,0,0.02) 100%);border:1px solid rgba(255,215,0,0.06);border-radius:24px;position:relative;overflow:hidden;opacity:0;transform:translateY(20px);transition:opacity .8s ease,transform .8s ease}
         .video-showcase.visible{opacity:1;transform:translateY(0)}
@@ -175,7 +165,6 @@
         .video-modal-close:hover{background:rgba(255,215,0,0.2);border-color:rgba(255,215,0,0.3);transform:scale(1.1)}
         @media(max-width:900px){.video-showcase{flex-direction:column;text-align:center;gap:28px;padding:28px 24px}.video-copy p{max-width:none}.video-copy .vc-stats{justify-content:center}.vd-frame{width:140px;height:248px}}
         .video-showcase.hidden{display:none}
-
         .services-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
         @media(max-width:1024px){.services-grid{grid-template-columns:1fr}}
         .svc-card{position:relative;background:var(--dark-void);border:1px solid rgba(255,255,255,0.05);border-radius:20px;overflow:hidden;transition:all .4s;display:flex;flex-direction:column}
@@ -203,7 +192,6 @@
         .svc-cta-gold:hover{box-shadow:0 8px 30px rgba(255,215,0,0.3)}
         .svc-cta-outline{background:transparent;border:1px solid rgba(255,255,255,0.1);color:var(--text-secondary)}
         .svc-cta-outline:hover{border-color:var(--gold);color:var(--gold)}
-
         /* FOOTER */
         footer{background:var(--dark-void);border-top:1px solid rgba(255,255,255,0.05);padding:60px 40px 30px}
         .footer-content{max-width:1400px;margin:0 auto;display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:40px}
@@ -217,7 +205,6 @@
     </style>
 </head>
 <body>
-
     <!-- NAV -->
     <nav>
         <div class="nav-container">
@@ -247,7 +234,6 @@
             <div class="hamburger" id="hamburger"><span></span><span></span><span></span></div>
         </div>
     </nav>
-
     <div class="mobile-menu" id="mobileMenu">
         <a href="/">Home</a>
         <a href="/apartments.html">Apartments</a>
@@ -259,27 +245,23 @@
         <a href="/login.html">Login</a>
         <a href="https://wa.me/393313251961" class="wa-mob">WhatsApp Us</a>
     </div>
-
     <div class="page">
         <div class="page-header">
             <div class="page-tag">Available Now</div>
             <h1 class="page-title">Apartments in Rome</h1>
             <p class="page-subtitle">All verified. All real. All ready. Updated daily from our portfolio.</p>
         </div>
-
         <div class="filters" id="filters">
             <button class="filter-btn active" data-filter="all">All</button>
             <button class="filter-btn" data-filter="available">Available</button>
             <button class="filter-btn" data-filter="waitlist">Coming Soon</button>
         </div>
-
         <div id="listingsContainer">
             <div class="loading-state" id="loadingState">
                 <div class="spinner"></div>
                 <p style="color:var(--text-secondary)">Loading apartments…</p>
             </div>
         </div>
-
         <!-- UPSELL SECTION -->
         <div class="upsell-section">
             <div class="upsell-header">
@@ -287,7 +269,6 @@
                 <h2 class="upsell-title">Not finding what you need?</h2>
                 <p class="upsell-subtitle">Whether you need us to find, verify, or negotiate — we've got the right service for every stage of your search.</p>
             </div>
-
             <div class="notify-banner">
                 <div class="notify-icon">🔔</div>
                 <div class="notify-text">
@@ -299,7 +280,6 @@
                     <a href="https://boom-property-dashboards.web.app/onboarding.html" class="nbtn nbtn-primary">📋 Fill the Form</a>
                 </div>
             </div>
-
             <!-- VIDEO SHOWCASE — Living Phone, Firestore-powered -->
             <div class="video-showcase" id="videoShowcase">
                 <div class="video-copy">
@@ -324,7 +304,6 @@
                     </div>
                 </div>
             </div>
-
             <!-- Cinema Modal -->
             <div class="video-modal" id="videoModal" onclick="closeCinema(event)">
                 <div class="video-modal-frame">
@@ -332,7 +311,6 @@
                     <div id="cinemaContainer"></div>
                 </div>
             </div>
-
             <div class="services-grid">
                 <div class="svc-card featured">
                     <div class="svc-popular">Most Popular</div>
@@ -351,7 +329,6 @@
                     </div>
                     <div class="svc-bottom"><a href="/property-finding.html" class="svc-cta svc-cta-gold">Start Property Finding →</a></div>
                 </div>
-
                 <div class="svc-card">
                     <div class="svc-top">
                         <span class="svc-badge svc-badge-das">🤝 Contract Help</span>
@@ -368,7 +345,6 @@
                     </div>
                     <div class="svc-bottom"><a href="/deal-assistance.html" class="svc-cta svc-cta-outline">Learn More →</a></div>
                 </div>
-
                 <div class="svc-card">
                     <div class="svc-top">
                         <span class="svc-badge svc-badge-vv">📹 Remote Viewing</span>
@@ -388,7 +364,6 @@
             </div>
         </div>
     </div>
-
     <!-- FOOTER -->
     <footer>
         <div class="footer-content">
@@ -423,7 +398,6 @@
         </div>
         <div class="footer-bottom">© 2025 BOOM — All Rights Reserved</div>
     </footer>
-
     <!-- FIREBASE -->
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -438,10 +412,8 @@
         appId:"1:937269017440:web:41c1a0b1e1633c2f373c05"
     });
     const db = firebase.firestore();
-
     let allListings = [];
     let currentFilter = 'all';
-
     // Hamburger
     document.getElementById('hamburger').addEventListener('click', () => {
         document.getElementById('mobileMenu').classList.toggle('open');
@@ -449,7 +421,6 @@
     document.querySelectorAll('.mobile-menu a').forEach(a => {
         a.addEventListener('click', () => document.getElementById('mobileMenu').classList.remove('open'));
     });
-
     // Filters
     document.querySelectorAll('.filter-btn').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -459,18 +430,17 @@
             renderListings();
         });
     });
-
-    // Load listings from Firebase
+    // Load listings from Firebase - CHANGED FROM 'listings' TO 'properties'
     async function loadListings() {
         try {
-            const snapshot = await db.collection('listings').get();
+            const snapshot = await db.collection('properties').get();
             allListings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            
+
             // Update filter counts
-            const available = allListings.filter(l => l.status === 'available').length;
-            const waitlist = allListings.filter(l => l.status === 'waitlist').length;
+            const available = allListings.filter(l => l.status === 'available' || l.availabilityStatus === 'available').length;
+            const waitlist = allListings.filter(l => l.status === 'waitlist' || l.availabilityStatus === 'negotiation').length;
             const visible = available + waitlist;
-            
+
             document.querySelectorAll('.filter-btn').forEach(btn => {
                 const f = btn.dataset.filter;
                 let count = 0;
@@ -487,7 +457,6 @@
                     btn.appendChild(span);
                 }
             });
-
             renderListings();
         } catch (err) {
             console.error('Error loading listings:', err);
@@ -498,26 +467,30 @@
                 </div>`;
         }
     }
-
     function renderListings() {
         const container = document.getElementById('listingsContainer');
-        
-        // Filter: hide rented, show available + waitlist
-        let filtered = allListings.filter(l => l.status === 'available' || l.status === 'waitlist');
-        
-        if (currentFilter === 'available') {
-            filtered = filtered.filter(l => l.status === 'available');
-        } else if (currentFilter === 'waitlist') {
-            filtered = filtered.filter(l => l.status === 'waitlist');
-        }
 
+        // Filter: hide rented, show available + waitlist/negotiation
+        let filtered = allListings.filter(l =>
+            l.status === 'available' ||
+            l.status === 'waitlist' ||
+            l.availabilityStatus === 'available' ||
+            l.availabilityStatus === 'negotiation'
+        );
+
+        if (currentFilter === 'available') {
+            filtered = filtered.filter(l => l.status === 'available' || l.availabilityStatus === 'available');
+        } else if (currentFilter === 'waitlist') {
+            filtered = filtered.filter(l => l.status === 'waitlist' || l.availabilityStatus === 'negotiation');
+        }
         // Sort: available first, then by price ascending
         filtered.sort((a, b) => {
-            if (a.status === 'available' && b.status !== 'available') return -1;
-            if (a.status !== 'available' && b.status === 'available') return 1;
-            return (a.price || 0) - (b.price || 0);
+            const aAvail = a.status === 'available' || a.availabilityStatus === 'available';
+            const bAvail = b.status === 'available' || b.availabilityStatus === 'available';
+            if (aAvail && !bAvail) return -1;
+            if (!aAvail && bAvail) return 1;
+            return (a.price || a.rent || 0) - (b.price || b.rent || 0);
         });
-
         if (filtered.length === 0) {
             container.innerHTML = `
                 <div class="empty-state">
@@ -527,38 +500,42 @@
                 </div>`;
             return;
         }
-
         container.innerHTML = `<div class="grid">${filtered.map(l => cardHTML(l)).join('')}</div>`;
     }
-
     function cardHTML(l) {
-        const imgUrl = l.image || 'https://via.placeholder.com/400x220/111111/333333?text=Photo+Coming+Soon';
-        const beds = l.beds || (l.bedrooms ? (l.bedrooms === 0 ? 'Studio' : l.bedrooms + ' Bed') : '');
+        const imgUrl = l.image || l.photos?.[0] || 'https://via.placeholder.com/400x220/111111/333333?text=Photo+Coming+Soon';
+        const beds = l.beds || l.bedrooms || (l.rooms ? l.rooms + ' Rooms' : '');
+        const bedsDisplay = beds === 0 ? 'Studio' : (beds ? beds + ' Bed' : '');
         const sqm = l.size || (l.sqm ? l.sqm + 'm²' : '');
-        const price = l.price ? `€${Number(l.price).toLocaleString()}` : '—';
-        
-        // Determine link: use l.file if set, otherwise apartment-detail.html?id=
+        const price = l.price || l.rent;
+        const priceDisplay = price ? `€${Number(price).toLocaleString()}` : '—';
+
+        // Determine link
         let link = l.file || `apartment-detail.html?id=${l.id}`;
         if (link && !link.startsWith('http') && !link.startsWith('/')) link = '/' + link;
-        
-        const statusBadge = l.status === 'available' 
-            ? '<span class="badge badge-available">Available</span>' 
+
+        // Status badge
+        const isAvailable = l.status === 'available' || l.availabilityStatus === 'available';
+        const statusBadge = isAvailable
+            ? '<span class="badge badge-available">Available</span>'
             : '<span class="badge badge-waitlist">Coming Soon</span>';
-        
+
         const verifiedBadge = '<span class="badge badge-verified">✓ Verified</span>';
         const videoBadge = l.videoUrl ? '<span class="badge badge-video">▶ Video</span>' : '';
-        
+
         // Tags (max 3)
         const tags = Array.isArray(l.tags) ? l.tags.slice(0, 3) : [];
         const tagsHTML = tags.length ? `<div class="card-tags">${tags.map(t => `<span class="card-tag">${t}</span>`).join('')}</div>` : '';
-        
+
         // Specs
         const specs = [];
-        if (beds) specs.push(`<span>🛏️ ${beds}</span>`);
+        if (bedsDisplay) specs.push(`<span>🛏️ ${bedsDisplay}</span>`);
         if (sqm) specs.push(`<span>📐 ${sqm}</span>`);
         if (l.floor) specs.push(`<span>🏢 ${l.floor}</span>`);
-        if (l.type) specs.push(`<span>${l.type}</span>`);
-        
+        if (l.type || l.propertyType) specs.push(`<span>${l.type || l.propertyType}</span>`);
+
+        const zone = l.zone || l.neighborhood || l.address || '';
+        const name = l.name || l.title || 'Apartment';
         const availDate = l.availableDate ? `<div class="card-avail">Available: ${l.availableDate}</div>` : '';
 
         return `<a href="${link}" class="card">
@@ -566,28 +543,25 @@
                 <div class="card-badges">${statusBadge}${verifiedBadge}${videoBadge}</div>
             </div>
             <div class="card-body">
-                ${l.zone ? `<div class="card-zone">${l.zone}</div>` : ''}
-                <div class="card-name">${l.name || 'Apartment'}</div>
+                ${zone ? `<div class="card-zone">${zone}</div>` : ''}
+                <div class="card-name">${name}</div>
                 ${specs.length ? `<div class="card-specs">${specs.join('')}</div>` : ''}
                 ${tagsHTML}
                 <div class="card-bottom">
-                    <div class="card-price">${price} <small>/month</small></div>
+                    <div class="card-price">${priceDisplay} <small>/month</small></div>
                     <div class="card-cta">View Details</div>
                 </div>
                 ${availDate}
             </div>
         </a>`;
     }
-
     // Init
     loadListings();
     </script>
-
     <!-- Video — Firestore-powered, autoplay on scroll, cinema on click -->
     <script>
     let boomVideoId = 'xb1OON-bhK4'; // fallback
     let inlinePlayer = null;
-
     // Load video ID from Firestore settings
     function loadVideoSetting() {
         if (typeof db === 'undefined') { initVideo(boomVideoId); return; }
@@ -605,19 +579,16 @@
             }
         }).catch(() => initVideo(boomVideoId));
     }
-
     function initVideo(vid) {
         const showcase = document.getElementById('videoShowcase');
         const device = document.getElementById('videoDevice');
         if (!vid) { showcase.classList.add('hidden'); return; }
-
         // Set thumbnail with maxres quality
         const thumb = document.getElementById('vdThumb');
         const maxres = new Image();
         maxres.onload = () => { thumb.src = maxres.src; };
         maxres.onerror = () => { thumb.src = 'https://img.youtube.com/vi/' + vid + '/hqdefault.jpg'; };
         maxres.src = 'https://img.youtube.com/vi/' + vid + '/maxresdefault.jpg';
-
         // Entrance animation — fade in when showcase enters viewport
         const entranceObs = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
@@ -628,7 +599,6 @@
             });
         }, { threshold: 0.15 });
         entranceObs.observe(showcase);
-
         // Autoplay muted in phone when 30% visible
         const playObs = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
@@ -642,7 +612,6 @@
                         iframe.loading = 'lazy';
                         screen.insertBefore(iframe, screen.querySelector('.vd-play'));
                         inlinePlayer = iframe;
-
                         // Smooth transition: fade iframe in, fade thumbnail out, activate playing state
                         iframe.onload = () => {
                             // Wait a beat for YouTube to actually start rendering
@@ -659,7 +628,6 @@
         }, { threshold: 0.3 });
         playObs.observe(showcase);
     }
-
     function openCinema() {
         const m = document.getElementById('videoModal');
         const c = document.getElementById('cinemaContainer');
@@ -674,7 +642,6 @@
         document.body.style.overflow = 'hidden';
         if (inlinePlayer) inlinePlayer.src = '';
     }
-
     function closeCinema(e) {
         if (e && e.target.closest('.video-modal-frame') && !e.target.closest('.video-modal-close')) return;
         const m = document.getElementById('videoModal');
@@ -690,9 +657,7 @@
             }
         }, 400);
     }
-
     document.addEventListener('keydown', e => { if (e.key === 'Escape') closeCinema(e); });
-
     // Init after Firebase is ready
     if (typeof db !== 'undefined') {
         loadVideoSetting();
