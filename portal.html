@@ -6474,37 +6474,49 @@ Valentyne - BOOM Rome`
     let propImageUrls = []; // array of uploaded image URLs
 
     function initPropImageUpload(existing) {
+        console.log('🔴 initPropImageUpload CALLED with', existing ? existing.length : 0, 'existing');
         propImageUrls = (existing || []).filter(u => !!u);
         renderPropThumbs();
 
         const zone = document.getElementById('propImgZone');
         const input = document.getElementById('propImgInput');
-        if (!zone || !input) { console.error('propImgZone or propImgInput not found'); return; }
+        console.log('🔴 zone found?', !!zone, 'input found?', !!input);
+        if (!zone || !input) { console.error('🔴 ELEMENTS NOT FOUND!'); return; }
 
         // Exact same pattern as initImageUpload()
-        zone.addEventListener('click', () => input.click());
+        zone.onclick = function() {
+            console.log('🔴 ZONE CLICKED');
+            input.click();
+        };
         zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('dragover'); });
         zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
         zone.addEventListener('drop', (e) => {
             e.preventDefault();
             zone.classList.remove('dragover');
+            console.log('🔴 FILES DROPPED:', e.dataTransfer.files.length);
             if (e.dataTransfer.files.length > 0) {
                 handlePropFiles(Array.from(e.dataTransfer.files));
             }
         });
-        input.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
-                handlePropFiles(Array.from(e.target.files));
+        input.onchange = function() {
+            console.log('🔴 INPUT CHANGED, files:', input.files.length);
+            if (input.files.length > 0) {
+                const files = Array.from(input.files);
                 input.value = '';
+                handlePropFiles(files);
             }
-        });
+        };
+        console.log('🔴 initPropImageUpload DONE - handlers attached');
     }
 
     async function handlePropFiles(fileList) {
+        console.log('🔴 handlePropFiles called with', fileList.length, 'files');
+        console.log('🔴 File details:', fileList.map(f => f.name + ' (' + f.type + ', ' + f.size + ')'));
         const images = fileList.filter(f => f.type.startsWith('image/'));
         if (!images.length) return toast('error', 'Nessuna immagine valida');
 
         const remaining = 10 - propImageUrls.length;
+        console.log('🔴 Current images:', propImageUrls.length, 'remaining slots:', remaining);
         if (remaining <= 0) return toast('warning', 'Massimo 10 foto');
         const batch = images.slice(0, remaining);
 
@@ -6553,6 +6565,7 @@ Valentyne - BOOM Rome`
 
                 // SUCCESS — add to array
                 propImageUrls.push(url);
+                console.log('🔴 UPLOAD SUCCESS! Total now:', propImageUrls.length, 'URL:', url.substring(0, 80));
                 renderPropThumbs();
                 toast('success', 'Foto ' + propImageUrls.length + ' caricata!');
 
@@ -6576,6 +6589,7 @@ Valentyne - BOOM Rome`
     function renderPropThumbs() {
         const container = document.getElementById('propImgThumbs');
         const counter = document.getElementById('propImgCount');
+        console.log('🔴 renderPropThumbs: container found?', !!container, 'urls:', propImageUrls.length);
         if (!container) return;
         container.innerHTML = propImageUrls.map((url, i) =>
             '<div class="propThumb">' +
@@ -6591,6 +6605,7 @@ Valentyne - BOOM Rome`
     // MODALS
     // ═══════════════════════════════════════════════════════════════════════════
     function openModal(type, data) { 
+        console.log('🔴 openModal called with type:', type);
         document.getElementById('modals').innerHTML = getModal(type, data); 
         setTimeout(() => {
             document.querySelector('.modal-overlay')?.classList.add('active');
@@ -6604,9 +6619,11 @@ Valentyne - BOOM Rome`
             }
             // Initialize image upload for property modals
             if (type === 'addProperty') {
+                console.log('🔴 openModal: addProperty detected, calling initPropImageUpload');
                 initPropImageUpload([]);
             }
             if (type === 'editProperty' && data) {
+                console.log('🔴 openModal: editProperty detected, images:', data.images?.length || 0);
                 initPropImageUpload(data.images || (data.imageUrl ? [data.imageUrl] : []));
             }
         }, 10); 
@@ -6931,6 +6948,7 @@ Valentyne - BOOM Rome`
         e.preventDefault();
         const data = Object.fromEntries(new FormData(e.target));
         const images = propImageUrls.slice(); // copy current images
+        console.log('🔴 saveProperty: saving with', images.length, 'images:', images);
         try {
             await db.collection('properties').add({
                 name: data.name, 
