@@ -241,6 +241,22 @@
         .confirm-icon{font-size:56px;margin-bottom:16px}
         .confirm-title{font-size:20px;font-weight:600;margin-bottom:8px}
         .confirm-text{color:var(--text-secondary);margin-bottom:24px}
+        .prop-images-zone{border:2px dashed var(--border);border-radius:12px;padding:20px;text-align:center;cursor:pointer;transition:all .3s;background:var(--bg)}
+        .prop-images-zone:hover,.prop-images-zone.dragover{border-color:var(--gold);background:rgba(212,175,55,0.05)}
+        .prop-images-zone.uploading{pointer-events:none;opacity:.7}
+        .prop-images-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px;margin-bottom:10px}
+        .prop-img-thumb{position:relative;aspect-ratio:1;border-radius:10px;overflow:hidden;border:1px solid var(--border)}
+        .prop-img-thumb img{width:100%;height:100%;object-fit:cover}
+        .prop-img-thumb .prop-img-remove{position:absolute;top:4px;right:4px;width:22px;height:22px;background:var(--red);border:none;border-radius:50%;color:#fff;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .2s;line-height:1}
+        .prop-img-thumb:hover .prop-img-remove{opacity:1}
+        .prop-img-thumb .prop-img-num{position:absolute;bottom:4px;left:4px;background:var(--gold);color:#000;font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px}
+        .prop-img-thumb.uploading-thumb{position:relative}
+        .prop-img-thumb.uploading-thumb::after{content:'';position:absolute;inset:0;background:rgba(0,0,0,0.5)}
+        .prop-img-thumb.uploading-thumb::before{content:'';position:absolute;top:50%;left:50%;width:20px;height:20px;margin:-10px 0 0 -10px;border:2px solid transparent;border-top-color:var(--gold);border-radius:50%;animation:spin .6s linear infinite;z-index:1}
+        .prop-upload-bar{height:3px;background:var(--border);border-radius:2px;overflow:hidden;margin-top:8px}
+        .prop-upload-bar-fill{height:100%;background:var(--gold);transition:width .3s;width:0%}
+        .prop-gallery{display:flex;gap:8px;overflow-x:auto;padding-bottom:8px;margin-bottom:16px;scroll-snap-type:x mandatory}
+        .prop-gallery img{height:180px;border-radius:12px;object-fit:cover;scroll-snap-align:start;flex-shrink:0}
     .crm-table { width: 100%; border-collapse: collapse; }
 .crm-table th { text-align: left; padding: 12px; font-size: 11px; text-transform: uppercase; color: var(--text-muted); border-bottom: 1px solid var(--border); background: var(--bg); }
 .crm-table td { padding: 12px; border-bottom: 1px solid var(--border); font-size: 13px; }
@@ -458,6 +474,51 @@
 
 /* Expanded modal */
 .modal.xxl { width: 1100px; max-width: 95vw; }
+
+/* Floating Action Button for Mobile */
+.fab-container { position: fixed; bottom: 24px; right: 24px; z-index: 400; display: none; flex-direction: column; gap: 12px; align-items: flex-end; }
+.fab { width: 56px; height: 56px; border-radius: 50%; border: none; font-size: 24px; cursor: pointer; box-shadow: 0 4px 20px rgba(0,0,0,0.4); transition: transform .2s, box-shadow .2s; }
+.fab:hover { transform: scale(1.1); }
+.fab-primary { background: var(--gold); color: #000; }
+.fab-secondary { background: var(--bg-elevated); color: var(--text); border: 1px solid var(--border); width: 48px; height: 48px; font-size: 20px; }
+.fab-menu { display: none; flex-direction: column; gap: 10px; align-items: flex-end; }
+.fab-menu.open { display: flex; }
+.fab-label { background: var(--bg-card); padding: 6px 12px; border-radius: 6px; font-size: 12px; margin-right: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.3); }
+@media (max-width: 768px) { .fab-container { display: flex; } }
+
+/* Mobile Optimizations */
+@media (max-width: 768px) {
+    .header { padding: 12px 16px; }
+    .main { padding: 12px; }
+    .card { padding: 14px; border-radius: 12px; }
+    .card-header { padding: 12px 14px; }
+    .card-body { padding: 14px; }
+    .btn { padding: 10px 16px; font-size: 13px; }
+    .modal { width: 95vw; max-height: 90vh; margin: 16px; border-radius: 16px; }
+    .modal-header { padding: 16px; }
+    .modal-body { padding: 16px; }
+    .modal-footer { padding: 12px 16px; flex-wrap: wrap; gap: 8px; }
+    .modal-footer .btn { flex: 1; min-width: 100px; }
+    .welcome-card { padding: 18px; }
+    .welcome-title { font-size: 20px; }
+    .table-container { margin: 0 -14px; }
+    .table { font-size: 12px; }
+    .table th, .table td { padding: 10px 8px; }
+    .detail-row { flex-direction: column; gap: 4px; }
+    .detail-label { min-width: auto; }
+    .tabs { gap: 4px; flex-wrap: wrap; }
+    .tab { padding: 8px 12px; font-size: 12px; }
+    .stats-grid { gap: 10px; }
+    .stat-card { padding: 14px; }
+    .stat-value { font-size: 22px; }
+}
+
+/* Quick Reminder Modal */
+.quick-reminder-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+.quick-time-btn { padding: 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; cursor: pointer; text-align: center; transition: all .2s; }
+.quick-time-btn:hover, .quick-time-btn.active { background: var(--gold); color: #000; border-color: var(--gold); }
+.quick-time-btn .time-icon { font-size: 20px; margin-bottom: 4px; }
+.quick-time-btn .time-label { font-size: 11px; font-weight: 600; }
 </style>
 </head>
 <body>
@@ -526,7 +587,8 @@
             <div class="header-center" id="searchContainer"></div>
             <div class="header-right">
                 <span class="header-badge" id="headerBadge">Admin</span>
-                <button class="reminder-btn" onclick="showReminders()" id="reminderBtn" title="Promemoria">📋</button>
+                <button class="reminder-btn" onclick="openQuickReminder()" id="quickReminderBtn" title="Promemoria Rapido" style="background:var(--gold);color:#000">⏰</button>
+                <button class="reminder-btn" onclick="showReminders()" id="reminderBtn" title="Tutti i Promemoria">📋</button>
                 <button class="notif-btn" onclick="showNotifications()" id="notifBtn">🔔</button>
                 <div class="user-menu" onclick="goTo('settings')">
                     <div class="user-avatar" id="headerAvatar">VR</div>
@@ -542,6 +604,16 @@
     </div>
     <div class="toast-container" id="toasts"></div>
     <div id="modals"></div>
+
+    <!-- Mobile FAB -->
+    <div class="fab-container" id="fabContainer">
+        <div class="fab-menu" id="fabMenu">
+            <div style="display:flex;align-items:center"><span class="fab-label">Promemoria</span><button class="fab-secondary" onclick="openQuickReminder()">⏰</button></div>
+            <div style="display:flex;align-items:center"><span class="fab-label">Notifiche</span><button class="fab-secondary" onclick="showNotifications()">🔔</button></div>
+            <div style="display:flex;align-items:center"><span class="fab-label">Telegram</span><button class="fab-secondary" onclick="sendTelegramBriefing()">📱</button></div>
+        </div>
+        <button class="fab fab-primary" onclick="toggleFabMenu()" id="fabMain">⚡</button>
+    </div>
 
     <script>
         // Track script loading
@@ -1890,6 +1962,201 @@ Valentyne - BOOM Rome`
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
+    // QUICK REMINDER SYSTEM
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    let selectedReminderTime = null;
+    let customReminders = JSON.parse(localStorage.getItem('boom_custom_reminders') || '[]');
+
+    function toggleFabMenu() {
+        const menu = document.getElementById('fabMenu');
+        const btn = document.getElementById('fabMain');
+        menu.classList.toggle('open');
+        btn.textContent = menu.classList.contains('open') ? '✕' : '⚡';
+    }
+
+    function openQuickReminder() {
+        selectedReminderTime = null;
+        const now = new Date();
+        const today = now.toISOString().split('T')[0];
+        const currentTime = now.toTimeString().slice(0, 5);
+
+        document.getElementById('modals').innerHTML = `<div class="modal-overlay active" onclick="if(event.target===this)closeModal()">
+            <div class="modal" style="max-width:450px">
+                <div class="modal-header">
+                    <h3 class="modal-title">⏰ Promemoria Rapido</h3>
+                    <button class="modal-close" onclick="closeModal()">×</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="form-label">Cosa vuoi ricordare?</label>
+                        <input type="text" class="form-input" id="reminderText" placeholder="Es: Chiamare inquilino, Verificare pagamento..." autofocus>
+                    </div>
+
+                    <label class="form-label">Quando?</label>
+                    <div class="quick-reminder-grid">
+                        <div class="quick-time-btn" onclick="selectQuickTime(this, 15)">
+                            <div class="time-icon">⚡</div>
+                            <div class="time-label">15 min</div>
+                        </div>
+                        <div class="quick-time-btn" onclick="selectQuickTime(this, 60)">
+                            <div class="time-icon">🕐</div>
+                            <div class="time-label">1 ora</div>
+                        </div>
+                        <div class="quick-time-btn" onclick="selectQuickTime(this, 180)">
+                            <div class="time-icon">☀️</div>
+                            <div class="time-label">3 ore</div>
+                        </div>
+                        <div class="quick-time-btn" onclick="selectQuickTime(this, 'tomorrow')">
+                            <div class="time-icon">📅</div>
+                            <div class="time-label">Domani 9:00</div>
+                        </div>
+                        <div class="quick-time-btn" onclick="selectQuickTime(this, 'week')">
+                            <div class="time-icon">📆</div>
+                            <div class="time-label">Tra 1 settimana</div>
+                        </div>
+                        <div class="quick-time-btn" onclick="selectQuickTime(this, 'custom')">
+                            <div class="time-icon">✏️</div>
+                            <div class="time-label">Personalizzato</div>
+                        </div>
+                    </div>
+
+                    <div id="customTimeContainer" style="display:none;margin-top:12px">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Data</label>
+                                <input type="date" class="form-input" id="reminderDate" value="${today}" min="${today}">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Ora</label>
+                                <input type="time" class="form-input" id="reminderTime" value="${currentTime}">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group" style="margin-top:16px">
+                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                            <input type="checkbox" id="sendTelegram" checked>
+                            <span>📱 Notifica anche su Telegram</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="closeModal()">Annulla</button>
+                    <button class="btn" onclick="saveQuickReminder()">💾 Salva Promemoria</button>
+                </div>
+            </div>
+        </div>`;
+
+        // Close FAB menu if open
+        const fabMenu = document.getElementById('fabMenu');
+        if (fabMenu) fabMenu.classList.remove('open');
+        const fabMain = document.getElementById('fabMain');
+        if (fabMain) fabMain.textContent = '⚡';
+    }
+
+    function selectQuickTime(btn, time) {
+        document.querySelectorAll('.quick-time-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedReminderTime = time;
+
+        const customContainer = document.getElementById('customTimeContainer');
+        if (time === 'custom') {
+            customContainer.style.display = 'block';
+        } else {
+            customContainer.style.display = 'none';
+        }
+    }
+
+    function calculateReminderDate(time) {
+        const now = new Date();
+        if (typeof time === 'number') {
+            return new Date(now.getTime() + time * 60 * 1000);
+        } else if (time === 'tomorrow') {
+            const tomorrow = new Date(now);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            tomorrow.setHours(9, 0, 0, 0);
+            return tomorrow;
+        } else if (time === 'week') {
+            const nextWeek = new Date(now);
+            nextWeek.setDate(nextWeek.getDate() + 7);
+            nextWeek.setHours(9, 0, 0, 0);
+            return nextWeek;
+        } else if (time === 'custom') {
+            const date = document.getElementById('reminderDate').value;
+            const timeVal = document.getElementById('reminderTime').value;
+            return new Date(`${date}T${timeVal}`);
+        }
+        return now;
+    }
+
+    async function saveQuickReminder() {
+        const text = document.getElementById('reminderText').value.trim();
+        if (!text) return toast('error', 'Inserisci un testo per il promemoria');
+        if (!selectedReminderTime) return toast('error', 'Seleziona quando vuoi essere ricordato');
+
+        const reminderDate = calculateReminderDate(selectedReminderTime);
+        const sendTelegram = document.getElementById('sendTelegram').checked;
+
+        const reminder = {
+            id: Date.now().toString(),
+            text: text,
+            date: reminderDate.toISOString(),
+            createdAt: new Date().toISOString(),
+            completed: false,
+            sendTelegram: sendTelegram
+        };
+
+        // Save to localStorage
+        customReminders.push(reminder);
+        localStorage.setItem('boom_custom_reminders', JSON.stringify(customReminders));
+
+        // Also save to Firestore for persistence across devices
+        if (S.profile?.id) {
+            try {
+                await db.collection('reminders').add({
+                    ...reminder,
+                    userId: S.profile.id,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            } catch (err) {
+                console.error('Error saving reminder to Firestore:', err);
+            }
+        }
+
+        // Send Telegram notification immediately if requested
+        if (sendTelegram && BOOM_CONFIG.telegram.adminChatId) {
+            const formattedDate = reminderDate.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+            await sendTelegramMessage(`⏰ PROMEMORIA IMPOSTATO\n\n📝 ${text}\n📅 ${formattedDate}\n\nRiceverai una notifica quando sarà il momento.`);
+        }
+
+        closeModal();
+        toast('success', 'Promemoria salvato!', `Ti ricorderò: ${text}`);
+        updateReminderBadge();
+
+        // Schedule browser notification if supported
+        if ('Notification' in window && Notification.permission === 'granted') {
+            const delay = reminderDate.getTime() - Date.now();
+            if (delay > 0 && delay < 24 * 60 * 60 * 1000) { // Only for reminders within 24h
+                setTimeout(() => {
+                    new Notification('⏰ BOOM Promemoria', {
+                        body: text,
+                        icon: 'https://www.boomrome.com/BOOMlogogoldicon512.png'
+                    });
+                    if (sendTelegram) {
+                        sendTelegramMessage(`⏰ PROMEMORIA ORA!\n\n📝 ${text}`);
+                    }
+                }, delay);
+            }
+        }
+    }
+
+    // Request notification permission on load
+    if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission();
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
     // NOTIFICATION TRIGGERS - Called on specific events
     // ═══════════════════════════════════════════════════════════════════════════
     
@@ -2033,6 +2300,144 @@ Valentyne - BOOM Rome`
         const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
         const today = new Date();
         return date.toDateString() === today.toDateString();
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // ADDITIONAL NOTIFICATION TRIGGERS
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    async function notifyNewListing(listing) {
+        // Notify all PFS clients who might be interested
+        const pfsClients = S.pfsClients?.filter(c => c.status === 'active') || [];
+        for (const client of pfsClients) {
+            // Check if listing matches client preferences (zone, budget, etc.)
+            const matchesZone = !client.preferredZones || client.preferredZones.includes(listing.zone);
+            const matchesBudget = !client.maxBudget || listing.price <= client.maxBudget;
+            if (matchesZone && matchesBudget && client.userId) {
+                await createNotification(
+                    client.userId,
+                    'listing',
+                    '🏠 Nuovo appartamento disponibile',
+                    `${listing.name} in ${listing.zone} - €${listing.price}/mese`,
+                    { listingId: listing.id }
+                );
+            }
+        }
+        // Also send to Telegram
+        if (BOOM_CONFIG.telegram.adminChatId) {
+            await sendTelegramMessage(`🏠 NUOVO LISTING\n\n📍 ${listing.name}\n📌 ${listing.zone}\n💰 €${listing.price}/mese\n\nAggiunto al portale.`);
+        }
+    }
+
+    async function notifyInvoiceCreated(invoice, client) {
+        if (!client?.userId) return;
+        await createNotification(
+            client.userId,
+            'invoice',
+            '📄 Nuova fattura',
+            `È stata emessa una fattura di €${invoice.amount} per ${invoice.service || 'servizi BOOM'}`,
+            { invoiceId: invoice.id, amount: invoice.amount }
+        );
+    }
+
+    async function notifyInvoicePaid(invoice, client) {
+        // Notify admin
+        const admins = S.users?.filter(u => u.role === 'admin') || [];
+        for (const admin of admins) {
+            await createNotification(
+                admin.id,
+                'payment',
+                '💳 Fattura pagata',
+                `${client?.name || 'Cliente'} ha pagato €${invoice.amount}`,
+                { invoiceId: invoice.id }
+            );
+        }
+        // Telegram notification
+        if (BOOM_CONFIG.telegram.adminChatId) {
+            await sendTelegramMessage(`💳 PAGAMENTO RICEVUTO\n\n👤 ${client?.name || 'Cliente'}\n💰 €${invoice.amount}\n📄 ${invoice.service || 'Servizio'}`);
+        }
+    }
+
+    async function notifyTaskAssigned(task, assignedUserId) {
+        if (!assignedUserId) return;
+        await createNotification(
+            assignedUserId,
+            'task',
+            '📋 Nuovo task assegnato',
+            task.title || task.description || 'Hai un nuovo task da completare',
+            { taskId: task.id }
+        );
+    }
+
+    async function notifyDeadlineApproaching(deadline, daysUntil) {
+        // Notify assigned user or all admins
+        const targetUsers = deadline.assignedTo ? [deadline.assignedTo] : S.users?.filter(u => u.role === 'admin').map(u => u.id) || [];
+        for (const userId of targetUsers) {
+            await createNotification(
+                userId,
+                'deadline',
+                `⏰ Scadenza ${daysUntil === 0 ? 'OGGI' : `tra ${daysUntil} giorni`}`,
+                deadline.title || deadline.description,
+                { deadlineId: deadline.id, daysUntil }
+            );
+        }
+    }
+
+    async function notifyPropertyStatusChange(property, newStatus) {
+        const statusLabels = { available: 'Disponibile', rented: 'Affittato', maintenance: 'In manutenzione' };
+        // Notify landlord
+        if (property.ownerId) {
+            await createNotification(
+                property.ownerId,
+                'property',
+                '🏠 Stato immobile aggiornato',
+                `${property.name} è ora: ${statusLabels[newStatus] || newStatus}`,
+                { propertyId: property.id, status: newStatus }
+            );
+        }
+        // Telegram
+        if (BOOM_CONFIG.telegram.adminChatId && newStatus === 'rented') {
+            await sendTelegramMessage(`🎉 IMMOBILE AFFITTATO!\n\n🏠 ${property.name}\n📍 ${property.zone || property.address}`);
+        }
+    }
+
+    async function notifyNewPFSClient(client) {
+        // Notify all admins about new PFS signup
+        const admins = S.users?.filter(u => u.role === 'admin') || [];
+        for (const admin of admins) {
+            await createNotification(
+                admin.id,
+                'pfs',
+                '🎯 Nuovo cliente PFS',
+                `${client.name} si è registrato al Property Finding Service`,
+                { clientId: client.id }
+            );
+        }
+        // Telegram
+        if (BOOM_CONFIG.telegram.adminChatId) {
+            await sendTelegramMessage(`🎯 NUOVO CLIENTE PFS!\n\n👤 ${client.name}\n📧 ${client.email || 'N/A'}\n📞 ${client.phone || 'N/A'}\n💰 Budget: €${client.maxBudget || 'N/A'}`);
+        }
+    }
+
+    async function notifyViewingScheduled(viewing) {
+        const property = S.properties?.find(p => p.id === viewing.propertyId);
+        const client = S.pfsClients?.find(c => c.id === viewing.clientId) || S.clients?.find(c => c.id === viewing.clientId);
+
+        // Notify admins
+        const admins = S.users?.filter(u => u.role === 'admin') || [];
+        for (const admin of admins) {
+            await createNotification(
+                admin.id,
+                'viewing',
+                '📅 Visita programmata',
+                `${client?.name || 'Cliente'} - ${property?.name || 'Immobile'} il ${viewing.date}`,
+                { viewingId: viewing.id, propertyId: viewing.propertyId }
+            );
+        }
+        // Telegram
+        if (BOOM_CONFIG.telegram.adminChatId) {
+            await sendTelegramMessage(`📅 NUOVA VISITA\n\n👤 ${client?.name || 'Cliente'}\n🏠 ${property?.name || 'Immobile'}\n📆 ${viewing.date} ${viewing.time || ''}`);
+        }
     }
 
     async function refresh() { 
@@ -2774,7 +3179,7 @@ Valentyne - BOOM Rome`
                 notes,
                 status: 'pending',
                 createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                createdBy: S.user.uid
+                createdBy: S.profile?.id || S.user?.uid
             };
 
             await db.collection('invoices').add(invoiceData);
@@ -3522,7 +3927,8 @@ Valentyne - BOOM Rome`
                 const tenant = c ? S.users.find(u => u.id === c.tenantId) : null;
                 const avail = availBadge(p.availabilityStatus);
                 const hasVideo = p.youtubeUrl ? '📺' : '';
-                return `<div class="list-item clickable" onclick="viewProperty('${p.id}')"><div class="list-icon">🏠</div><div class="list-content"><div class="list-title">${p.name} <span class="badge ${avail.color}">${avail.icon} ${avail.text}</span> ${hasVideo}</div><div class="list-subtitle">${owner?.name || 'N/A'}${c ? ' → ' + (tenant?.name || '') : ''} · ${p.address || 'Roma'}</div></div><div class="list-value text-gold">€${p.rent || 0}/mese</div></div>`;
+                const hasPhotos = (p.images && p.images.length) ? `📸${p.images.length}` : '';
+                return `<div class="list-item clickable" onclick="viewProperty('${p.id}')"><div class="list-icon">🏠</div><div class="list-content"><div class="list-title">${p.name} <span class="badge ${avail.color}">${avail.icon} ${avail.text}</span> ${hasVideo} ${hasPhotos}</div><div class="list-subtitle">${owner?.name || 'N/A'}${c ? ' → ' + (tenant?.name || '') : ''} · ${p.address || 'Roma'}</div></div><div class="list-value text-gold">€${p.rent || 0}/mese</div></div>`;
             }).join('') || '<div class="empty-state"><div class="empty-icon">🏠</div><div class="empty-title">Nessun immobile</div></div>'}</div></div>`;
     }
 
@@ -4412,7 +4818,7 @@ Valentyne - BOOM Rome`
                 toast('success', 'Regola aggiornata!');
             } else {
                 ruleData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-                ruleData.createdBy = S.user.uid;
+                ruleData.createdBy = S.profile?.id || S.user?.uid;
                 await db.collection('rules').add(ruleData);
                 toast('success', 'Regola creata!');
             }
@@ -4661,7 +5067,7 @@ Valentyne - BOOM Rome`
                 await db.collection('rules').add({
                     ...ruleData,
                     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                    createdBy: S.user.uid
+                    createdBy: S.profile?.id || S.user?.uid
                 });
             }
             toast('success', `✓ ${rulesToCreate.length} regole create!`);
@@ -5865,7 +6271,7 @@ Valentyne - BOOM Rome`
             status: data.status || 'available',
             availableDate: data.availableDate || '',
             description: data.description || '',
-            file: data.file || '',
+            youtubeUrl: data.youtubeUrl || '',
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         };
         
@@ -5875,12 +6281,7 @@ Valentyne - BOOM Rome`
                 toast('success', 'Listing aggiornato!', 'Visibile su boomrome.com');
             } else {
                 listingData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-                // Create new listing and get the document reference
-                const docRef = await db.collection('listings').add(listingData);
-                // If no custom file was set, auto-generate the detail page URL
-                if (!listingData.file || listingData.file.trim() === '') {
-                    await docRef.update({ file: 'apartment-detail.html?id=' + docRef.id });
-                }
+                await db.collection('listings').add(listingData);
                 toast('success', 'Listing creato!', 'Ora visibile su boomrome.com');
             }
             closeModal(); 
@@ -6075,6 +6476,87 @@ Valentyne - BOOM Rome`
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
+    // PROPERTY MULTI-IMAGE UPLOAD
+    // ═══════════════════════════════════════════════════════════════════════════
+    let propertyImages = [];
+    let propertyUploading = false;
+
+    function initPropertyImageUpload(existingImages) {
+        propertyImages = (existingImages || []).map(url => ({ url, path: '', uploading: false }));
+        renderPropertyImages();
+        const zone = document.getElementById('propImageZone');
+        const input = document.getElementById('propImageInput');
+        if (!zone || !input) return;
+        zone.addEventListener('click', () => { if (!propertyUploading) input.click(); });
+        zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('dragover'); });
+        zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+        zone.addEventListener('drop', (e) => {
+            e.preventDefault(); zone.classList.remove('dragover');
+            handlePropertyFiles(e.dataTransfer.files);
+        });
+        input.addEventListener('change', (e) => { handlePropertyFiles(e.target.files); input.value = ''; });
+    }
+
+    async function handlePropertyFiles(fileList) {
+        const files = Array.from(fileList).filter(f => f.type.startsWith('image/'));
+        if (!files.length) return toast('error', 'Nessuna immagine valida');
+        const remaining = 10 - propertyImages.length;
+        if (remaining <= 0) return toast('warning', 'Massimo 10 foto');
+        const toUpload = files.slice(0, remaining);
+        if (files.length > remaining) toast('info', `Solo ${remaining} foto rimanenti (max 10)`);
+        propertyUploading = true;
+        const zone = document.getElementById('propImageZone');
+        if (zone) zone.classList.add('uploading');
+        for (const file of toUpload) {
+            if (file.size > 10 * 1024 * 1024) { toast('error', `${file.name} troppo grande (max 10MB)`); continue; }
+            const idx = propertyImages.length;
+            propertyImages.push({ url: '', path: '', uploading: true });
+            renderPropertyImages();
+            try {
+                const ts = Date.now();
+                const safeName = file.name.replace(/[^a-zA-Z0-9.]/g, '_');
+                const path = `properties/${ts}_${safeName}`;
+                const ref = storage.ref(path);
+                const task = ref.put(file);
+                await new Promise((resolve, reject) => {
+                    task.on('state_changed',
+                        (snap) => { const pct = Math.round((snap.bytesTransferred / snap.totalBytes) * 100); const bar = document.getElementById('propUploadBar'); if (bar) bar.style.width = pct + '%'; },
+                        (err) => reject(err),
+                        async () => { const url = await task.snapshot.ref.getDownloadURL(); propertyImages[idx] = { url, path, uploading: false }; renderPropertyImages(); resolve(); }
+                    );
+                });
+            } catch (err) { propertyImages.splice(idx, 1); renderPropertyImages(); toast('error', 'Errore upload', err.message); }
+        }
+        propertyUploading = false;
+        if (zone) zone.classList.remove('uploading');
+        const bar = document.getElementById('propUploadBar'); if (bar) bar.style.width = '0%';
+    }
+
+    function removePropertyImage(idx) {
+        const img = propertyImages[idx];
+        if (img?.path) { try { storage.ref(img.path).delete(); } catch(e) {} }
+        propertyImages.splice(idx, 1);
+        renderPropertyImages();
+        toast('info', 'Foto rimossa');
+    }
+
+    function renderPropertyImages() {
+        const grid = document.getElementById('propImagesGrid'); if (!grid) return;
+        grid.innerHTML = propertyImages.map((img, i) => `
+            <div class="prop-img-thumb ${img.uploading ? 'uploading-thumb' : ''}">
+                ${img.url ? `<img src="${img.url}" alt="Foto ${i+1}">` : '<div style="background:var(--surface);width:100%;height:100%"></div>'}
+                <span class="prop-img-num">${i+1}</span>
+                ${!img.uploading ? `<button type="button" class="prop-img-remove" onclick="removePropertyImage(${i})">×</button>` : ''}
+            </div>`).join('');
+        const counter = document.getElementById('propImageCount');
+        if (counter) counter.textContent = `${propertyImages.length}/10 foto`;
+    }
+
+    function getPropertyImageUrls() {
+        return propertyImages.filter(img => img.url && !img.uploading).map(img => img.url);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
     // MODALS
     // ═══════════════════════════════════════════════════════════════════════════
     function openModal(type, data) { 
@@ -6089,9 +6571,12 @@ Valentyne - BOOM Rome`
                     setExistingImage(data.image);
                 }
             }
+            // Initialize multi-image upload for property modals
+            if (type === 'addProperty') initPropertyImageUpload([]);
+            if (type === 'editProperty' && data) initPropertyImageUpload(data.images || (data.imageUrl ? [data.imageUrl] : []));
         }, 10); 
     }
-    function closeModal() { document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active')); setTimeout(() => { document.getElementById('modals').innerHTML = ''; selectedFile = null; listingImageUrl = ''; }, 200); }
+    function closeModal() { document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active')); setTimeout(() => { document.getElementById('modals').innerHTML = ''; selectedFile = null; listingImageUrl = ''; propertyImages = []; propertyUploading = false; }, 200); }
 
     function getModal(type, data) {
         if (type === 'notifications') return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">🔔 Notifiche</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body">${S.notifications.map(n => `<div class="alert ${n.type} mb-8"><span class="alert-icon">${n.type === 'danger' ? '⚠️' : '📋'}</span><div class="alert-content"><div class="alert-title">${n.title}</div><div class="alert-text">${n.text}</div></div></div>`).join('')}</div><div class="modal-footer"><button class="btn" onclick="closeModal()">Chiudi</button></div></div></div>`;
@@ -6106,9 +6591,9 @@ Valentyne - BOOM Rome`
 
         if (type === 'editUser') { const u = data; if (!u) return ''; return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">✏️ Modifica Utente</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="updateUser(event)"><input type="hidden" name="id" value="${u.id}"><div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="name" value="${u.name || ''}" required></div><div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" value="${u.email || ''}" disabled style="opacity:0.6"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Ruolo</label><select class="form-select" name="role"><option value="tenant" ${u.role === 'tenant' ? 'selected' : ''}>🔘 Inquilino</option><option value="landlord" ${u.role === 'landlord' ? 'selected' : ''}>🏠 Proprietario</option><option value="admin" ${u.role === 'admin' ? 'selected' : ''}>👁 Admin</option></select></div><div class="form-group"><label class="form-label">Telefono</label><input type="tel" class="form-input" name="phone" value="${u.phone || ''}" placeholder="+39..."></div></div><div class="form-row"><div class="form-group"><label class="form-label">Codice Fiscale</label><input type="text" class="form-input" name="codiceFiscale" value="${u.codiceFiscale || ''}" placeholder="RSSMRA85M01H501Z" maxlength="16" style="text-transform:uppercase"></div><div class="form-group"><label class="form-label">IBAN</label><input type="text" class="form-input" name="iban" value="${u.iban || ''}" placeholder="IT60X0542811101000000123456"></div></div><div class="form-group"><label class="form-label">Indirizzo</label><input type="text" class="form-input" name="address" value="${u.address || ''}" placeholder="Via Roma 123, 00100 Roma"></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes" rows="2" placeholder="Note interne...">${u.notes || ''}</textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Salva</button></div></div></div>`; }
 
-        if (type === 'addProperty') { const landlords = S.users.filter(u => u.role === 'landlord'); return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">🏠 Nuovo Immobile</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body" style="max-height:70vh;overflow-y:auto"><form id="mForm" onsubmit="saveProperty(event)"><div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="name" required placeholder="Es: Trastevere Terrace"></div><div class="form-group"><label class="form-label">Proprietario *</label><select class="form-select" name="ownerId" required><option value="">Seleziona...</option>${landlords.map(l => `<option value="${l.id}">${l.name}</option>`).join('')}</select></div></div><div class="form-group"><label class="form-label">Indirizzo</label><input type="text" class="form-input" name="address" placeholder="Via Roma 123, 00100 Roma"></div><div class="form-row"><div class="form-group"><label class="form-label">Affitto €/mese *</label><input type="number" class="form-input" name="rent" required></div><div class="form-group"><label class="form-label">Superficie m²</label><input type="number" class="form-input" name="sqm" placeholder="65"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Stanze</label><input type="number" class="form-input" name="rooms" placeholder="3"></div><div class="form-group"><label class="form-label">Bagni</label><input type="number" class="form-input" name="bathrooms" placeholder="1"></div><div class="form-group"><label class="form-label">Piano</label><input type="text" class="form-input" name="floor" placeholder="3° / 5"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Anno Costruzione</label><input type="number" class="form-input" name="yearBuilt" placeholder="1965"></div><div class="form-group"><label class="form-label">Tipo</label><select class="form-select" name="propertyType"><option value="apartment">Appartamento</option><option value="studio">Monolocale</option><option value="room">Stanza</option><option value="house">Casa</option><option value="loft">Loft</option></select></div></div><div style="background:var(--bg);padding:12px;border-radius:8px;margin:12px 0"><div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--gold);margin-bottom:10px">📊 Disponibilità & Media</div><div class="form-row"><div class="form-group"><label class="form-label">Stato Disponibilità</label><select class="form-select" name="availabilityStatus"><option value="available">🟢 Disponibile</option><option value="negotiation">🟡 In Trattativa</option><option value="rented">🔴 Affittato</option><option value="off_market">⚫ Fuori Mercato</option></select></div><div class="form-group"><label class="form-label">Disponibile Dal</label><input type="date" class="form-input" name="availableSince" value="${new Date().toISOString().split('T')[0]}"></div></div><div class="form-group"><label class="form-label">📺 YouTube Video Tour</label><input type="url" class="form-input" name="youtubeUrl" placeholder="https://www.youtube.com/watch?v=..."></div></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes" rows="2" placeholder="Caratteristiche, condizioni..."></textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Crea</button></div></div></div>`; }
+        if (type === 'addProperty') { const landlords = S.users.filter(u => u.role === 'landlord'); return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">🏠 Nuovo Immobile</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body" style="max-height:70vh;overflow-y:auto"><form id="mForm" onsubmit="saveProperty(event)"><div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="name" required placeholder="Es: Trastevere Terrace"></div><div class="form-group"><label class="form-label">Proprietario *</label><select class="form-select" name="ownerId" required><option value="">Seleziona...</option>${landlords.map(l => `<option value="${l.id}">${l.name}</option>`).join('')}</select></div></div><div class="form-group"><label class="form-label">Indirizzo</label><input type="text" class="form-input" name="address" placeholder="Via Roma 123, 00100 Roma"></div><div class="form-row"><div class="form-group"><label class="form-label">Affitto €/mese *</label><input type="number" class="form-input" name="rent" required></div><div class="form-group"><label class="form-label">Superficie m²</label><input type="number" class="form-input" name="sqm" placeholder="65"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Stanze</label><input type="number" class="form-input" name="rooms" placeholder="3"></div><div class="form-group"><label class="form-label">Bagni</label><input type="number" class="form-input" name="bathrooms" placeholder="1"></div><div class="form-group"><label class="form-label">Piano</label><input type="text" class="form-input" name="floor" placeholder="3° / 5"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Anno Costruzione</label><input type="number" class="form-input" name="yearBuilt" placeholder="1965"></div><div class="form-group"><label class="form-label">Tipo</label><select class="form-select" name="propertyType"><option value="apartment">Appartamento</option><option value="studio">Monolocale</option><option value="room">Stanza</option><option value="house">Casa</option><option value="loft">Loft</option></select></div></div><div style="background:var(--bg);padding:14px;border-radius:12px;margin:12px 0"><div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--gold);margin-bottom:10px">📸 Foto Immobile</div><div id="propImagesGrid" class="prop-images-grid"></div><div class="prop-images-zone" id="propImageZone"><div style="font-size:28px;margin-bottom:4px">📷</div><div style="font-size:13px;font-weight:600">Clicca o trascina per aggiungere foto</div><div style="font-size:11px;color:var(--text-muted);margin-top:4px">JPG, PNG, WebP · Max 10MB · <span id="propImageCount">0/10 foto</span></div></div><input type="file" id="propImageInput" accept="image/*" multiple style="display:none"><div class="prop-upload-bar"><div class="prop-upload-bar-fill" id="propUploadBar"></div></div></div><div style="background:var(--bg);padding:14px;border-radius:12px;margin:12px 0"><div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--gold);margin-bottom:10px">📊 Disponibilità & Media</div><div class="form-row"><div class="form-group"><label class="form-label">Stato Disponibilità</label><select class="form-select" name="availabilityStatus"><option value="available">🟢 Disponibile</option><option value="negotiation">🟡 In Trattativa</option><option value="rented">🔴 Affittato</option><option value="off_market">⚫ Fuori Mercato</option></select></div><div class="form-group"><label class="form-label">Disponibile Dal</label><input type="date" class="form-input" name="availableSince" value="${new Date().toISOString().split('T')[0]}"></div></div><div class="form-group"><label class="form-label">📺 YouTube Video Tour</label><input type="url" class="form-input" name="youtubeUrl" placeholder="https://www.youtube.com/watch?v=..."></div></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes" rows="2" placeholder="Caratteristiche, condizioni..."></textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Crea</button></div></div></div>`; }
 
-        if (type === 'editProperty') { const p = data; if (!p) return ''; const landlords = S.users.filter(u => u.role === 'landlord'); const availDate = p.availableSince ? (typeof p.availableSince === 'string' ? p.availableSince.split('T')[0] : (p.availableSince.toDate ? p.availableSince.toDate().toISOString().split('T')[0] : '')) : ''; return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">✏️ Modifica Immobile</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body" style="max-height:70vh;overflow-y:auto"><form id="mForm" onsubmit="updateProperty(event,'${p.id}')"><div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="name" value="${p.name || ''}" required></div><div class="form-group"><label class="form-label">Proprietario *</label><select class="form-select" name="ownerId" required><option value="">Seleziona...</option>${landlords.map(l => `<option value="${l.id}" ${p.ownerId === l.id ? 'selected' : ''}>${l.name}</option>`).join('')}</select></div></div><div class="form-group"><label class="form-label">Indirizzo</label><input type="text" class="form-input" name="address" value="${p.address || ''}"></div><div class="form-row"><div class="form-group"><label class="form-label">Affitto €/mese *</label><input type="number" class="form-input" name="rent" value="${p.rent || ''}" required></div><div class="form-group"><label class="form-label">Superficie m²</label><input type="number" class="form-input" name="sqm" value="${p.sqm || ''}"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Stanze</label><input type="number" class="form-input" name="rooms" value="${p.rooms || ''}"></div><div class="form-group"><label class="form-label">Bagni</label><input type="number" class="form-input" name="bathrooms" value="${p.bathrooms || ''}"></div><div class="form-group"><label class="form-label">Piano</label><input type="text" class="form-input" name="floor" value="${p.floor || ''}"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Anno Costruzione</label><input type="number" class="form-input" name="yearBuilt" value="${p.yearBuilt || ''}"></div><div class="form-group"><label class="form-label">Tipo</label><select class="form-select" name="propertyType"><option value="apartment" ${p.propertyType === 'apartment' || !p.propertyType ? 'selected' : ''}>Appartamento</option><option value="studio" ${p.propertyType === 'studio' ? 'selected' : ''}>Monolocale</option><option value="room" ${p.propertyType === 'room' ? 'selected' : ''}>Stanza</option><option value="house" ${p.propertyType === 'house' ? 'selected' : ''}>Casa</option><option value="loft" ${p.propertyType === 'loft' ? 'selected' : ''}>Loft</option></select></div></div><div style="background:var(--bg);padding:12px;border-radius:8px;margin:12px 0"><div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--gold);margin-bottom:10px">📊 Disponibilità & Media</div><div class="form-row"><div class="form-group"><label class="form-label">Stato Disponibilità</label><select class="form-select" name="availabilityStatus"><option value="available" ${p.availabilityStatus === 'available' ? 'selected' : ''}>🟢 Disponibile</option><option value="negotiation" ${p.availabilityStatus === 'negotiation' ? 'selected' : ''}>🟡 In Trattativa</option><option value="rented" ${p.availabilityStatus === 'rented' ? 'selected' : ''}>🔴 Affittato</option><option value="off_market" ${p.availabilityStatus === 'off_market' ? 'selected' : ''}>⚫ Fuori Mercato</option></select></div><div class="form-group"><label class="form-label">Disponibile Dal</label><input type="date" class="form-input" name="availableSince" value="${availDate}"></div></div><div class="form-group"><label class="form-label">📺 YouTube Video Tour</label><input type="url" class="form-input" name="youtubeUrl" value="${p.youtubeUrl || ''}" placeholder="https://www.youtube.com/watch?v=..."></div></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes" rows="2">${p.notes || ''}</textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Salva</button></div></div></div>`; }
+        if (type === 'editProperty') { const p = data; if (!p) return ''; const landlords = S.users.filter(u => u.role === 'landlord'); const availDate = p.availableSince ? (typeof p.availableSince === 'string' ? p.availableSince.split('T')[0] : (p.availableSince.toDate ? p.availableSince.toDate().toISOString().split('T')[0] : '')) : ''; return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">✏️ Modifica Immobile</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body" style="max-height:70vh;overflow-y:auto"><form id="mForm" onsubmit="updateProperty(event,'${p.id}')"><div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="name" value="${p.name || ''}" required></div><div class="form-group"><label class="form-label">Proprietario *</label><select class="form-select" name="ownerId" required><option value="">Seleziona...</option>${landlords.map(l => `<option value="${l.id}" ${p.ownerId === l.id ? 'selected' : ''}>${l.name}</option>`).join('')}</select></div></div><div class="form-group"><label class="form-label">Indirizzo</label><input type="text" class="form-input" name="address" value="${p.address || ''}"></div><div class="form-row"><div class="form-group"><label class="form-label">Affitto €/mese *</label><input type="number" class="form-input" name="rent" value="${p.rent || ''}" required></div><div class="form-group"><label class="form-label">Superficie m²</label><input type="number" class="form-input" name="sqm" value="${p.sqm || ''}"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Stanze</label><input type="number" class="form-input" name="rooms" value="${p.rooms || ''}"></div><div class="form-group"><label class="form-label">Bagni</label><input type="number" class="form-input" name="bathrooms" value="${p.bathrooms || ''}"></div><div class="form-group"><label class="form-label">Piano</label><input type="text" class="form-input" name="floor" value="${p.floor || ''}"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Anno Costruzione</label><input type="number" class="form-input" name="yearBuilt" value="${p.yearBuilt || ''}"></div><div class="form-group"><label class="form-label">Tipo</label><select class="form-select" name="propertyType"><option value="apartment" ${p.propertyType === 'apartment' || !p.propertyType ? 'selected' : ''}>Appartamento</option><option value="studio" ${p.propertyType === 'studio' ? 'selected' : ''}>Monolocale</option><option value="room" ${p.propertyType === 'room' ? 'selected' : ''}>Stanza</option><option value="house" ${p.propertyType === 'house' ? 'selected' : ''}>Casa</option><option value="loft" ${p.propertyType === 'loft' ? 'selected' : ''}>Loft</option></select></div></div><div style="background:var(--bg);padding:14px;border-radius:12px;margin:12px 0"><div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--gold);margin-bottom:10px">📸 Foto Immobile</div><div id="propImagesGrid" class="prop-images-grid"></div><div class="prop-images-zone" id="propImageZone"><div style="font-size:28px;margin-bottom:4px">📷</div><div style="font-size:13px;font-weight:600">Clicca o trascina per aggiungere foto</div><div style="font-size:11px;color:var(--text-muted);margin-top:4px">JPG, PNG, WebP · Max 10MB · <span id="propImageCount">0/10 foto</span></div></div><input type="file" id="propImageInput" accept="image/*" multiple style="display:none"><div class="prop-upload-bar"><div class="prop-upload-bar-fill" id="propUploadBar"></div></div></div><div style="background:var(--bg);padding:14px;border-radius:12px;margin:12px 0"><div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--gold);margin-bottom:10px">📊 Disponibilità & Media</div><div class="form-row"><div class="form-group"><label class="form-label">Stato Disponibilità</label><select class="form-select" name="availabilityStatus"><option value="available" ${p.availabilityStatus === 'available' ? 'selected' : ''}>🟢 Disponibile</option><option value="negotiation" ${p.availabilityStatus === 'negotiation' ? 'selected' : ''}>🟡 In Trattativa</option><option value="rented" ${p.availabilityStatus === 'rented' ? 'selected' : ''}>🔴 Affittato</option><option value="off_market" ${p.availabilityStatus === 'off_market' ? 'selected' : ''}>⚫ Fuori Mercato</option></select></div><div class="form-group"><label class="form-label">Disponibile Dal</label><input type="date" class="form-input" name="availableSince" value="${availDate}"></div></div><div class="form-group"><label class="form-label">📺 YouTube Video Tour</label><input type="url" class="form-input" name="youtubeUrl" value="${p.youtubeUrl || ''}" placeholder="https://www.youtube.com/watch?v=..."></div></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes" rows="2">${p.notes || ''}</textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Salva</button></div></div></div>`; }
 
         if (type === 'addContract') { const tenants = S.users.filter(u => u.role === 'tenant'); const props = S.properties.filter(p => !S.contracts.some(c => c.propertyId === p.id && c.status === 'active')); return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">📋 Nuovo Contratto</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="saveContract(event)"><div class="form-row"><div class="form-group"><label class="form-label">Immobile *</label><select class="form-select" name="propertyId" required onchange="fillContractRent(this)"><option value="">Seleziona...</option>${props.map(p => `<option value="${p.id}" data-rent="${p.rent}">${p.name} €${p.rent}</option>`).join('')}</select></div><div class="form-group"><label class="form-label">Inquilino *</label><select class="form-select" name="tenantId" required><option value="">Seleziona...</option>${tenants.map(t => `<option value="${t.id}">${t.name}</option>`).join('')}</select></div></div><div class="form-row"><div class="form-group"><label class="form-label">Inizio *</label><input type="date" class="form-input" name="startDate" required></div><div class="form-group"><label class="form-label">Fine *</label><input type="date" class="form-input" name="endDate" required></div></div><div class="form-row"><div class="form-group"><label class="form-label">Affitto € *</label><input type="number" class="form-input" name="rent" id="cRent" required></div><div class="form-group"><label class="form-label">Deposito €</label><input type="number" class="form-input" name="deposit"></div></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes" rows="2" placeholder="Condizioni particolari..."></textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Crea</button></div></div></div>`; }
 
@@ -6219,8 +6704,8 @@ Valentyne - BOOM Rome`
                 <div class="form-group" style="margin-top:12px;margin-bottom:0"><label class="form-label">Oppure incolla URL immagine</label><input type="url" class="form-input" name="imageUrl" placeholder="https://i.imgur.com/..." onchange="if(this.value){document.getElementById('listingImageUrl').value=this.value}"></div>
             </div>
             <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
-                <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">🔗 Link</h4>
-                <div class="form-group" style="margin-bottom:0"><label class="form-label">File Pagina Dettaglio</label><input type="text" class="form-input" name="file" placeholder="Es: apartment_levico.html (opzionale)"></div>
+                <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">🎬 Video Tour</h4>
+                <div class="form-group" style="margin-bottom:0"><label class="form-label">YouTube URL</label><input type="url" class="form-input" name="youtubeUrl" placeholder="https://www.youtube.com/watch?v=... o https://youtu.be/..."></div>
             </div>
             <div style="background:var(--bg);padding:16px;border-radius:8px">
                 <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">📝 Descrizione</h4>
@@ -6271,8 +6756,8 @@ Valentyne - BOOM Rome`
                 <div class="form-group" style="margin-top:12px;margin-bottom:0"><label class="form-label">Oppure incolla URL immagine</label><input type="url" class="form-input" name="imageUrl" value="${data.image || ''}" placeholder="https://i.imgur.com/..." onchange="if(this.value){document.getElementById('listingImageUrl').value=this.value}"></div>
             </div>
             <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
-                <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">🔗 Link</h4>
-                <div class="form-group" style="margin-bottom:0"><label class="form-label">File Pagina Dettaglio</label><input type="text" class="form-input" name="file" value="${data.file || ''}"></div>
+                <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">🎬 Video Tour</h4>
+                <div class="form-group" style="margin-bottom:0"><label class="form-label">YouTube URL</label><input type="url" class="form-input" name="youtubeUrl" value="${data.youtubeUrl || ''}" placeholder="https://www.youtube.com/watch?v=... o https://youtu.be/..."></div>
             </div>
             <div style="background:var(--bg);padding:16px;border-radius:8px">
                 <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">📝 Descrizione</h4>
@@ -6409,7 +6894,9 @@ Valentyne - BOOM Rome`
 
     async function saveProperty(e) {
         e.preventDefault();
+        if (propertyUploading) return toast('warning', 'Attendi il caricamento delle foto...');
         const data = Object.fromEntries(new FormData(e.target));
+        const images = getPropertyImageUrls();
         try {
             await db.collection('properties').add({
                 name: data.name, 
@@ -6422,10 +6909,15 @@ Valentyne - BOOM Rome`
                 floor: data.floor || '',
                 yearBuilt: parseInt(data.yearBuilt) || null,
                 propertyType: data.propertyType || 'apartment',
+                availabilityStatus: data.availabilityStatus || 'available',
+                availableSince: data.availableSince || '',
+                youtubeUrl: data.youtubeUrl || '',
+                images: images,
+                imageUrl: images[0] || '',
                 notes: data.notes || '',
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
-            closeModal(); await refresh(); toast('success', 'Immobile creato!');
+            closeModal(); await refresh(); toast('success', 'Immobile creato!', images.length ? `${images.length} foto caricate` : '');
         } catch (err) { toast('error', 'Errore', err.message); }
     }
 
@@ -6694,7 +7186,9 @@ Valentyne - BOOM Rome`
     
     async function updateProperty(e, id) {
         e.preventDefault();
+        if (propertyUploading) return toast('warning', 'Attendi il caricamento delle foto...');
         const data = Object.fromEntries(new FormData(e.target));
+        const images = getPropertyImageUrls();
         try {
             await db.collection('properties').doc(id).update({
                 name: data.name,
@@ -6707,10 +7201,15 @@ Valentyne - BOOM Rome`
                 floor: data.floor || '',
                 yearBuilt: parseInt(data.yearBuilt) || null,
                 propertyType: data.propertyType || 'apartment',
+                availabilityStatus: data.availabilityStatus || 'available',
+                availableSince: data.availableSince || '',
+                youtubeUrl: data.youtubeUrl || '',
+                images: images,
+                imageUrl: images[0] || '',
                 notes: data.notes || '',
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()
             });
-            closeModal(); await refresh(); toast('success', 'Immobile aggiornato!');
+            closeModal(); await refresh(); toast('success', 'Immobile aggiornato!', images.length ? `${images.length} foto` : '');
         } catch (err) { toast('error', 'Errore', err.message); }
     }
 
@@ -6877,10 +7376,24 @@ Valentyne - BOOM Rome`
     }
 
     async function deleteRecord(type, id) {
+        // Map type names to correct collection names
+        const collectionMap = {
+            'property': 'properties', 'propert': 'properties',
+            'listing': 'listings', 'listings': 'listings',
+            'document': 'documents', 'invoice': 'invoices',
+            'payment': 'payments', 'client': 'clients',
+            'contract': 'contracts', 'maintenance': 'maintenance',
+            'user': 'users', 'rule': 'rules', 'task': 'tasks',
+            'deadline': 'deadlines', 'notification': 'notifications'
+        };
+        const collection = collectionMap[type] || (type.endsWith('s') ? type : type + 's');
         try {
-            await db.collection(type + 's').doc(id).delete();
+            await db.collection(collection).doc(id).delete();
             closeModal(); await refresh(); toast('success', 'Eliminato!');
-        } catch (err) { toast('error', 'Errore', err.message); }
+        } catch (err) {
+            console.error(`Delete from ${collection} failed:`, err);
+            toast('error', 'Errore eliminazione', err.message);
+        }
     }
 
     async function downloadDocument(id) {
@@ -7024,6 +7537,7 @@ Valentyne - BOOM Rome`
         const availStatusLabels = { available: { text: 'Disponibile', color: 'green', icon: '🟢' }, negotiation: { text: 'In Trattativa', color: 'orange', icon: '🟡' }, rented: { text: 'Affittato', color: 'red', icon: '🔴' }, off_market: { text: 'Fuori Mercato', color: 'gray', icon: '⚫' } };
         const availStatus = availStatusLabels[p.availabilityStatus] || availStatusLabels.available;
         const youtubeId = p.youtubeUrl ? extractYouTubeId(p.youtubeUrl) : null;
+        const allImages = p.images && p.images.length ? p.images : (p.imageUrl ? [p.imageUrl] : []);
         document.getElementById('modals').innerHTML = `<div class="modal-overlay active"><div class="modal lg">
             <div class="modal-header"><h3 class="modal-title">🏠 ${p.name}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
             <div class="modal-body" style="max-height:70vh;overflow-y:auto">
@@ -7031,7 +7545,9 @@ Valentyne - BOOM Rome`
                     <span class="badge ${availStatus.color}">${availStatus.icon} ${availStatus.text}</span>
                     <span class="badge ${activeContract ? 'green' : 'gray'}">${activeContract ? '📋 Contratto Attivo' : '📋 Nessun Contratto'}</span>
                     <span class="badge gray">${propTypeLabels[p.propertyType] || 'Appartamento'}</span>
+                    ${allImages.length ? `<span class="badge blue">📸 ${allImages.length} foto</span>` : ''}
                 </div>
+                ${allImages.length ? `<div class="prop-gallery">${allImages.map((img, i) => `<img src="${img}" alt="Foto ${i+1}" onclick="window.open('${img}','_blank')" style="cursor:zoom-in">`).join('')}</div>` : ''}
                 ${youtubeId ? `<div style="margin-bottom:16px;border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.3)"><div style="position:relative;padding-bottom:56.25%;height:0"><iframe src="https://www.youtube.com/embed/${youtubeId}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:none" allowfullscreen></iframe></div></div>` : ''}
                 <div class="section-title" style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:12px">📍 Dettagli Immobile</div>
                 <div class="detail-grid">
