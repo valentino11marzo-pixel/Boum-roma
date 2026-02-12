@@ -6258,6 +6258,7 @@ Valentyne - BOOM Rome`
             sqm: parseInt(data.sqm) || null,
             floor: data.floor || '',
             image: imageUrl,
+            images: propImageUrls.slice(),
             tags: tagsArray,
             features: featuresArray,
             status: data.status || 'available',
@@ -6616,6 +6617,13 @@ Valentyne - BOOM Rome`
                 if (type === 'editListing' && data?.image) {
                     setExistingImage(data.image);
                 }
+                // Also init multi-image gallery
+                console.log('🔴 openModal: listing detected, calling initPropImageUpload');
+                if (type === 'editListing' && data) {
+                    initPropImageUpload(data.images || []);
+                } else {
+                    initPropImageUpload([]);
+                }
             }
             // Initialize image upload for property modals
             if (type === 'addProperty') {
@@ -6756,6 +6764,20 @@ Valentyne - BOOM Rome`
                 <div class="form-group" style="margin-top:12px;margin-bottom:0"><label class="form-label">Oppure incolla URL immagine</label><input type="url" class="form-input" name="imageUrl" placeholder="https://i.imgur.com/..." onchange="if(this.value){document.getElementById('listingImageUrl').value=this.value}"></div>
             </div>
             <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
+                <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">📸 Galleria Foto (fino a 10)</h4>
+                <div id="propImgThumbs"></div>
+                <div id="propImgZone" style="border:2px dashed var(--border);border-radius:12px;padding:20px;text-align:center;cursor:pointer">
+                    <div style="font-size:28px;margin-bottom:4px">📷</div>
+                    <div style="font-size:13px;font-weight:600">Clicca o trascina foto aggiuntive</div>
+                    <div style="font-size:11px;color:var(--text-muted);margin-top:4px">JPG, PNG, WebP · Max 10MB · <span id="propImgCount">0/10 foto</span></div>
+                </div>
+                <input type="file" id="propImgInput" accept="image/*" multiple style="display:none">
+                <div id="propUploadProgress" style="display:none;margin-top:8px">
+                    <div style="background:var(--surface);border-radius:4px;height:6px;overflow:hidden"><div id="propProgressFill" style="height:100%;background:var(--gold);width:0%;transition:width .3s"></div></div>
+                    <div id="propProgressText" style="font-size:11px;color:var(--text-muted);margin-top:4px"></div>
+                </div>
+            </div>
+            <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
                 <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">🎬 Video Tour</h4>
                 <div class="form-group" style="margin-bottom:0"><label class="form-label">YouTube URL</label><input type="url" class="form-input" name="youtubeUrl" placeholder="https://www.youtube.com/watch?v=... o https://youtu.be/..."></div>
             </div>
@@ -6806,6 +6828,20 @@ Valentyne - BOOM Rome`
                 <div id="imagePreview"></div>
                 <input type="hidden" name="image" id="listingImageUrl" value="${data.image || ''}">
                 <div class="form-group" style="margin-top:12px;margin-bottom:0"><label class="form-label">Oppure incolla URL immagine</label><input type="url" class="form-input" name="imageUrl" value="${data.image || ''}" placeholder="https://i.imgur.com/..." onchange="if(this.value){document.getElementById('listingImageUrl').value=this.value}"></div>
+            </div>
+            <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
+                <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">📸 Galleria Foto (fino a 10)</h4>
+                <div id="propImgThumbs"></div>
+                <div id="propImgZone" style="border:2px dashed var(--border);border-radius:12px;padding:20px;text-align:center;cursor:pointer">
+                    <div style="font-size:28px;margin-bottom:4px">📷</div>
+                    <div style="font-size:13px;font-weight:600">Clicca o trascina foto aggiuntive</div>
+                    <div style="font-size:11px;color:var(--text-muted);margin-top:4px">JPG, PNG, WebP · Max 10MB · <span id="propImgCount">0/10 foto</span></div>
+                </div>
+                <input type="file" id="propImgInput" accept="image/*" multiple style="display:none">
+                <div id="propUploadProgress" style="display:none;margin-top:8px">
+                    <div style="background:var(--surface);border-radius:4px;height:6px;overflow:hidden"><div id="propProgressFill" style="height:100%;background:var(--gold);width:0%;transition:width .3s"></div></div>
+                    <div id="propProgressText" style="font-size:11px;color:var(--text-muted);margin-top:4px"></div>
+                </div>
             </div>
             <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
                 <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">🎬 Video Tour</h4>
