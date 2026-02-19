@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="description" content="BOOM Property Management Portal - Gestione immobili, contratti e pagamenti">
     <meta name="theme-color" content="#000000">
-    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>BOOM — Property Portal</title>
     <link rel="icon" type="image/png" href="https://www.boomrome.com/BOOMlogogoldicon512.png">
@@ -2381,8 +2381,15 @@ Valentyne - BOOM Rome`
         setTimeout(() => initDashboardCharts(), 50);
     }
 
+    // Track chart instances to destroy before recreating
+    let chartInstances = {};
+    
     function initDashboardCharts() {
         if (typeof Chart === 'undefined') return;
+        
+        // Destroy existing charts first
+        Object.values(chartInstances).forEach(c => { try { c.destroy(); } catch(e) {} });
+        chartInstances = {};
         
         // Revenue Chart (admin dashboard)
         const revCanvas = document.getElementById('revenueChart');
@@ -2403,7 +2410,7 @@ Valentyne - BOOM Rome`
                 boomRev.push(boomM);
                 rentRev.push(rentM);
             }
-            new Chart(ctx, {
+            chartInstances.revenue = new Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels: months,
@@ -2422,7 +2429,7 @@ Valentyne - BOOM Rome`
             const ctx = occCanvas.getContext('2d');
             const rented = (S.properties || []).filter(p => S.contracts.some(c => c.propertyId === p.id && c.status === 'active')).length;
             const avail = (S.properties || []).length - rented;
-            new Chart(ctx, {
+            chartInstances.occupancy = new Chart(ctx, {
                 type: 'doughnut',
                 data: {
                     labels: ['Occupied', 'Available'],
@@ -2717,11 +2724,11 @@ Valentyne - BOOM Rome`
             <div style="display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:20px">
                 <div class="card" style="padding:16px">
                     <h3 style="font-size:14px;font-weight:600;margin-bottom:12px">📈 Revenue Trend</h3>
-                    <canvas id="revenueChart" height="140"></canvas>
+                    <div style="position:relative;height:140px;width:100%"><canvas id="revenueChart"></canvas></div>
                 </div>
                 <div class="card" style="padding:16px">
                     <h3 style="font-size:14px;font-weight:600;margin-bottom:12px">🏠 Occupancy</h3>
-                    <canvas id="occupancyChart" height="140"></canvas>
+                    <div style="position:relative;height:140px;width:100%"><canvas id="occupancyChart"></canvas></div>
                 </div>
             </div>
             
@@ -2965,7 +2972,7 @@ Valentyne - BOOM Rome`
         const serviceName = type !== 'custom' ? (SERVICES[type]?.name || type) : '';
 
         S.modal = { type: 'quickInvoice', service: type };
-        document.getElementById('modalOverlay').innerHTML = `
+        document.getElementById('modals').innerHTML = `<div class="modal-overlay active">
             <div class="modal" style="max-width:480px">
                 <div class="modal-header">
                     <h2>⚡ Fattura Rapida ${type !== 'custom' ? '- ' + type : ''}</h2>
@@ -3011,8 +3018,8 @@ Valentyne - BOOM Rome`
                     <button class="btn btn-secondary" onclick="closeModal()">Annulla</button>
                     <button class="btn" onclick="createQuickInvoice()">Crea Fattura →</button>
                 </div>
-            </div>`;
-        document.getElementById('modalOverlay').classList.add('open');
+            </div></div>`;
+        
     }
 
     function prefillQuickInvoice() {
@@ -5306,7 +5313,7 @@ Valentyne - BOOM Rome`
         ).join('');
 
         S.modal = { type: 'rule', editId: ruleId };
-        document.getElementById('modalOverlay').innerHTML = `
+        document.getElementById('modals').innerHTML = `<div class="modal-overlay active">
             <div class="modal" style="max-width:500px">
                 <div class="modal-header">
                     <h2>${isEdit ? '✏️ Modifica' : '⚡ Nuova'} Regola</h2>
@@ -5353,8 +5360,8 @@ Valentyne - BOOM Rome`
                     <button class="btn btn-secondary" onclick="closeModal()">Annulla</button>
                     <button class="btn" onclick="saveRule()">${isEdit ? 'Salva Modifiche' : 'Crea Regola'}</button>
                 </div>
-            </div>`;
-        document.getElementById('modalOverlay').classList.add('open');
+            </div></div>`;
+        
         updateTriggerInfo();
         updateActionInfo();
     }
@@ -13588,7 +13595,8 @@ IBAN: ${l.iban || '-'}`;
         smartLinkPhotos = [];
         smartLinkPOIs = [];
         S.modal = { type: 'smartlink' };
-        document.getElementById('modalOverlay').innerHTML = `
+        document.getElementById('modals').innerHTML = `
+            <div class="modal-overlay active">
             <div class="modal lg" style="max-width:680px">
                 <div class="modal-header" style="border-bottom-color:var(--gold)">
                     <h2 style="font-weight:300;letter-spacing:1px">🔗 SmartLink Generator</h2>
@@ -13669,8 +13677,7 @@ IBAN: ${l.iban || '-'}`;
                     <button class="btn btn-secondary" onclick="closeModal()">Annulla</button>
                     <button class="btn" onclick="generateSmartLink()">🔗 Genera SmartLink</button>
                 </div>
-            </div>`;
-        document.getElementById('modalOverlay').style.display = 'flex';
+            </div></div>`;
     }
 
     let smartLinkPhotos = [];
@@ -13757,7 +13764,7 @@ IBAN: ${l.iban || '-'}`;
             const shareUrl = 'https://portal.boomrome.com/s/' + ref.id;
             closeModal();
             smartLinkPhotos = []; smartLinkPOIs = [];
-            document.getElementById('modalOverlay').innerHTML = `
+            document.getElementById('modals').innerHTML = `<div class="modal-overlay active">
                 <div class="modal" style="max-width:460px">
                     <div class="modal-header" style="border-bottom-color:var(--green)"><h2 style="font-weight:300">✅ SmartLink Creato</h2><button class="modal-close" onclick="closeModal()">×</button></div>
                     <div class="modal-body" style="text-align:center;padding:32px">
@@ -13773,8 +13780,8 @@ IBAN: ${l.iban || '-'}`;
                             <button class="btn btn-secondary btn-sm" onclick="closeModal()">Chiudi</button>
                         </div>
                     </div>
-                </div>`;
-            document.getElementById('modalOverlay').style.display = 'flex';
+                </div></div>`;
+            
         } catch(e) { showToast('Errore: ' + e.message, 'error'); }
     }
 
