@@ -2387,6 +2387,7 @@ Valentyne - BOOM Rome`
         // Revenue Chart (admin dashboard)
         const revCanvas = document.getElementById('revenueChart');
         if (revCanvas) {
+            if (window._boomRevenueChart) { window._boomRevenueChart.destroy(); }
             const ctx = revCanvas.getContext('2d');
             const months = [];
             const boomRev = []; // Invoice revenue
@@ -2403,7 +2404,7 @@ Valentyne - BOOM Rome`
                 boomRev.push(boomM);
                 rentRev.push(rentM);
             }
-            new Chart(ctx, {
+            window._boomRevenueChart = new Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels: months,
@@ -2419,10 +2420,11 @@ Valentyne - BOOM Rome`
         // Occupancy Chart
         const occCanvas = document.getElementById('occupancyChart');
         if (occCanvas) {
+            if (window._boomOccupancyChart) { window._boomOccupancyChart.destroy(); }
             const ctx = occCanvas.getContext('2d');
             const rented = (S.properties || []).filter(p => S.contracts.some(c => c.propertyId === p.id && c.status === 'active')).length;
             const avail = (S.properties || []).length - rented;
-            new Chart(ctx, {
+            window._boomOccupancyChart = new Chart(ctx, {
                 type: 'doughnut',
                 data: {
                     labels: ['Occupied', 'Available'],
@@ -13578,23 +13580,23 @@ IBAN: ${l.iban || '-'}`;
                 </div>
             </div>
         `;
-    }
-
     // ═══════════════════════════════════════════════════════════════════════════
     // SMARTLINK GENERATOR — Casafari-style property page creator
     // ═══════════════════════════════════════════════════════════════════════════
     
+    let smartLinkPhotos = [];
+    let smartLinkPOIs = [];
+
     function openSmartLinkGenerator() {
         smartLinkPhotos = [];
         smartLinkPOIs = [];
         S.modal = { type: 'smartlink' };
-        document.getElementById('modalOverlay').innerHTML = `
-            <div class="modal lg" style="max-width:680px">
+        document.getElementById('modals').innerHTML = `<div class="modal-overlay active" onclick="closeModal()"><div class="modal lg" style="max-width:680px" onclick="event.stopPropagation()">
                 <div class="modal-header" style="border-bottom-color:var(--gold)">
                     <h2 style="font-weight:300;letter-spacing:1px">🔗 SmartLink Generator</h2>
                     <button class="modal-close" onclick="closeModal()">×</button>
                 </div>
-                <div class="modal-body">
+                <div class="modal-body" style="max-height:70vh;overflow-y:auto">
                     <p style="color:var(--text-muted);font-size:13px;margin-bottom:20px">Crea una pagina condivisibile partendo da un link o da foto. Scheda professionale BOOM con mappa e contatti.</p>
                     
                     <div style="display:flex;gap:8px;margin-bottom:24px">
@@ -13604,8 +13606,11 @@ IBAN: ${l.iban || '-'}`;
                     
                     <div id="slUrlMode">
                         <div class="form-group">
-                            <label class="form-label">URL Annuncio (Immobiliare.it, Idealista, Subito)</label>
-                            <input type="url" class="form-input" id="slUrl" placeholder="https://www.immobiliare.it/annunci/..." style="font-size:15px" oninput="validateSmartLinkUrl(this.value)">
+                            <label class="form-label">URL Annuncio (Immobiliare.it, Idealista, Subito, Casafari)</label>
+                            <div style="display:flex;gap:8px">
+                                <input type="url" class="form-input" id="slUrl" placeholder="https://www.immobiliare.it/annunci/..." style="font-size:15px;flex:1;margin:0" oninput="validateSmartLinkUrl(this.value)">
+                                <button class="btn btn-sm" onclick="extractFromUrl()" id="slExtractBtn" style="white-space:nowrap">🔍 Estrai</button>
+                            </div>
                             <div id="slUrlStatus" style="margin-top:6px;font-size:11px"></div>
                         </div>
                     </div>
@@ -13625,6 +13630,11 @@ IBAN: ${l.iban || '-'}`;
                             <input type="file" id="slFileInput" multiple accept="image/*" style="display:none" onchange="handleSmartLinkFiles(this.files)">
                         </div>
                         <div id="slPhotoPreview" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"></div>
+                    </div>
+
+                    <div id="slExtractedPhotos" style="display:none;margin:12px 0">
+                        <label class="form-label">📸 Foto Estratte</label>
+                        <div id="slExtractedPhotoGrid" style="display:flex;gap:6px;flex-wrap:wrap"></div>
                     </div>
                     
                     <div style="border-top:1px solid var(--border);margin-top:20px;padding-top:20px">
@@ -13659,8 +13669,8 @@ IBAN: ${l.iban || '-'}`;
                             <label class="form-label">👤 Assegna a Cliente</label>
                             <select class="form-select" id="slClient">
                                 <option value="">—</option>
-                                ${(S.pfsClients || []).filter(c => c.stage !== 'placed').map(c => `<option value="${c.id}">${c.name} (${c.service})</option>`).join('')}
-                                ${(S.clients || []).filter(c => !['completed','lost'].includes(c.stage)).map(c => `<option value="${c.id}">${c.name} (${c.service})</option>`).join('')}
+                                ${(S.pfsClients || []).filter(c => c.stage !== 'placed').map(c => '<option value="' + c.id + '">' + c.name + ' (' + c.service + ')</option>').join('')}
+                                ${(S.clients || []).filter(c => !['completed','lost'].includes(c.stage)).map(c => '<option value="' + c.id + '">' + c.name + ' (' + c.service + ')</option>').join('')}
                             </select>
                         </div>
                     </div>
@@ -13669,12 +13679,8 @@ IBAN: ${l.iban || '-'}`;
                     <button class="btn btn-secondary" onclick="closeModal()">Annulla</button>
                     <button class="btn" onclick="generateSmartLink()">🔗 Genera SmartLink</button>
                 </div>
-            </div>`;
-        document.getElementById('modalOverlay').style.display = 'flex';
+            </div></div>`;
     }
-
-    let smartLinkPhotos = [];
-    let smartLinkPOIs = [];
 
     function toggleSmartLinkMode(mode) {
         document.getElementById('slUrlMode').style.display = mode === 'url' ? 'block' : 'none';
@@ -13686,10 +13692,134 @@ IBAN: ${l.iban || '-'}`;
     function validateSmartLinkUrl(url) {
         const el = document.getElementById('slUrlStatus');
         if (!url) { el.innerHTML = ''; return; }
-        if (url.includes('immobiliare.it')) el.innerHTML = '<span style="color:var(--green)">✅ Immobiliare.it</span>';
-        else if (url.includes('idealista.it')) el.innerHTML = '<span style="color:var(--blue)">✅ Idealista</span>';
-        else if (url.includes('subito.it')) el.innerHTML = '<span style="color:var(--orange)">✅ Subito.it</span>';
-        else el.innerHTML = '<span style="color:var(--text-muted)">Link generico</span>';
+        if (url.includes('immobiliare.it')) el.innerHTML = '<span style="color:var(--green)">✅ Immobiliare.it — clicca Estrai</span>';
+        else if (url.includes('idealista.it')) el.innerHTML = '<span style="color:var(--blue)">✅ Idealista — clicca Estrai</span>';
+        else if (url.includes('subito.it')) el.innerHTML = '<span style="color:var(--orange)">✅ Subito.it — clicca Estrai</span>';
+        else if (url.includes('casafari.com')) el.innerHTML = '<span style="color:var(--green)">✅ Casafari — clicca Estrai</span>';
+        else el.innerHTML = '<span style="color:var(--text-muted)">Link generico — clicca Estrai</span>';
+    }
+
+    async function extractFromUrl() {
+        const url = document.getElementById('slUrl')?.value;
+        if (!url) { showToast('Inserisci un URL', 'error'); return; }
+        const status = document.getElementById('slUrlStatus');
+        const btn = document.getElementById('slExtractBtn');
+        status.innerHTML = '<span style="color:var(--gold)">⏳ Scaricando pagina...</span>';
+        btn.disabled = true; btn.textContent = '⏳';
+        try {
+            const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
+            const resp = await fetch(proxyUrl);
+            if (!resp.ok) throw new Error('Fetch failed: ' + resp.status);
+            const html = await resp.text();
+            let extracted = {};
+            if (url.includes('immobiliare.it')) extracted = parseImmobiliare(html);
+            else if (url.includes('idealista.it')) extracted = parseIdealista(html);
+            else if (url.includes('subito.it')) extracted = parseSubito(html);
+            else if (url.includes('casafari.com')) extracted = parseCasafari(html);
+            else extracted = parseGeneric(html);
+            fillSmartLinkForm(extracted);
+            const parts = [];
+            if (extracted.title) parts.push('titolo');
+            if (extracted.price) parts.push('prezzo');
+            if (extracted.photos && extracted.photos.length) parts.push(extracted.photos.length + ' foto');
+            status.innerHTML = '<span style="color:var(--green)">✅ Estratti: ' + (parts.join(', ') || 'dati limitati') + '</span>';
+        } catch(e) {
+            console.error('Extract error:', e);
+            status.innerHTML = '<span style="color:var(--red)">❌ Errore estrazione: ' + e.message + '</span>';
+        }
+        btn.disabled = false; btn.textContent = '🔍 Estrai';
+    }
+
+    function parseImmobiliare(html) {
+        const r = {};
+        try {
+            const ldMatch = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
+            if (ldMatch) {
+                const ld = JSON.parse(ldMatch[1]);
+                if (ld.name) r.title = ld.name;
+                if (ld.description) r.description = ld.description;
+                if (ld.offers && ld.offers.price) r.price = ld.offers.price;
+                if (ld.address && ld.address.addressLocality) r.zone = ld.address.addressLocality;
+                if (ld.address && ld.address.streetAddress) r.address = ld.address.streetAddress;
+                if (ld.floorSize && ld.floorSize.value) r.size = ld.floorSize.value;
+                if (ld.numberOfRooms) r.rooms = ld.numberOfRooms;
+                if (ld.numberOfBathroomsTotal) r.bathrooms = ld.numberOfBathroomsTotal;
+            }
+        } catch(e) {}
+        if (!r.title) { const m = html.match(/<h1[^>]*>(.*?)<\/h1>/); if (m) r.title = m[1].replace(/<[^>]+>/g, '').trim(); }
+        if (!r.price) { const m = html.match(/€\s*([\d.,]+)/); if (m) r.price = m[1].replace(/\./g, '').replace(',', ''); }
+        if (!r.rooms) { const m = html.match(/(\d+)\s*(?:local|stanz|camer)/i); if (m) r.rooms = m[1]; }
+        if (!r.bathrooms) { const m = html.match(/(\d+)\s*bagn/i); if (m) r.bathrooms = m[1]; }
+        if (!r.size) { const m = html.match(/(\d+)\s*m²/); if (m) r.size = m[1]; }
+        r.photos = [];
+        const imgRe = /https?:\/\/[^"'\s]+?pwm\.immobiliare\.it[^"'\s]+\.(?:jpg|jpeg|webp)/gi;
+        let match; while ((match = imgRe.exec(html)) && r.photos.length < 10) { if (r.photos.indexOf(match[0]) === -1) r.photos.push(match[0]); }
+        if (!r.photos.length) { const imgRe2 = /https?:\/\/[^"'\s]+?img\d*\.immobiliare\.it[^"'\s]+\.(?:jpg|jpeg|webp)/gi; while ((match = imgRe2.exec(html)) && r.photos.length < 10) { if (r.photos.indexOf(match[0]) === -1) r.photos.push(match[0]); } }
+        return r;
+    }
+
+    function parseIdealista(html) {
+        const r = {};
+        const titleM = html.match(/<span class="main-info__title-main">(.*?)<\/span>/); if (titleM) r.title = titleM[1].trim();
+        const priceM = html.match(/(\d[\d.]*)\s*€\/m/); if (priceM) r.price = priceM[1].replace(/\./g, '');
+        const roomsM = html.match(/(\d+)\s*(?:hab|stanz|local)/i); if (roomsM) r.rooms = roomsM[1];
+        const bathM = html.match(/(\d+)\s*ba[ñgn]/i); if (bathM) r.bathrooms = bathM[1];
+        const sizeM = html.match(/(\d+)\s*m²/); if (sizeM) r.size = sizeM[1];
+        r.photos = [];
+        const imgRe = /https?:\/\/[^"'\s]+?img\d*\.idealista[^"'\s]+\.(?:jpg|jpeg|webp)/gi;
+        let match; while ((match = imgRe.exec(html)) && r.photos.length < 10) { if (r.photos.indexOf(match[0]) === -1) r.photos.push(match[0]); }
+        return r;
+    }
+
+    function parseSubito(html) {
+        const r = {};
+        const titleM = html.match(/<h1[^>]*>(.*?)<\/h1>/); if (titleM) r.title = titleM[1].replace(/<[^>]+>/g, '').trim();
+        const priceM = html.match(/€\s*([\d.,]+)/); if (priceM) r.price = priceM[1].replace(/\./g, '').replace(',', '');
+        r.photos = [];
+        const imgRe = /https?:\/\/[^"'\s]+?images\.subito\.it[^"'\s]+\.(?:jpg|jpeg|webp)/gi;
+        let match; while ((match = imgRe.exec(html)) && r.photos.length < 10) { if (r.photos.indexOf(match[0]) === -1) r.photos.push(match[0]); }
+        return r;
+    }
+
+    function parseCasafari(html) {
+        const r = {};
+        const titleM = html.match(/<h1[^>]*>(.*?)<\/h1>/); if (titleM) r.title = titleM[1].replace(/<[^>]+>/g, '').trim();
+        const priceM = html.match(/€\s*([\d.,]+)/); if (priceM) r.price = priceM[1].replace(/\./g, '').replace(',', '');
+        const sizeM = html.match(/(\d+)\s*m²/); if (sizeM) r.size = sizeM[1];
+        const roomsM = html.match(/(\d+)\s*(?:room|camer|local)/i); if (roomsM) r.rooms = roomsM[1];
+        r.photos = [];
+        return r;
+    }
+
+    function parseGeneric(html) {
+        const r = {};
+        const titleM = html.match(/<h1[^>]*>(.*?)<\/h1>/); if (titleM) r.title = titleM[1].replace(/<[^>]+>/g, '').trim();
+        const priceM = html.match(/€\s*([\d.,]+)/); if (priceM) r.price = priceM[1].replace(/\./g, '').replace(',', '');
+        const sizeM = html.match(/(\d+)\s*m²/); if (sizeM) r.size = sizeM[1];
+        r.photos = [];
+        return r;
+    }
+
+    function fillSmartLinkForm(d) {
+        if (d.title) document.getElementById('slTitle').value = d.title;
+        if (d.price) document.getElementById('slPrice').value = d.price;
+        if (d.zone) document.getElementById('slZone').value = d.zone;
+        if (d.address) document.getElementById('slAddress').value = d.address;
+        if (d.rooms) document.getElementById('slRooms').value = d.rooms;
+        if (d.bathrooms) document.getElementById('slBathrooms').value = d.bathrooms;
+        if (d.size) document.getElementById('slSize').value = d.size;
+        if (d.description) document.getElementById('slDescription').value = d.description.substring(0, 500);
+        if (d.photos && d.photos.length) {
+            smartLinkPhotos = d.photos.map(function(url) { return { name: url.split('/').pop(), data: url, isUrl: true }; });
+            const grid = document.getElementById('slExtractedPhotoGrid');
+            const container = document.getElementById('slExtractedPhotos');
+            if (grid && container) {
+                container.style.display = 'block';
+                grid.innerHTML = d.photos.slice(0, 8).map(function(url, i) {
+                    return '<div style="width:64px;height:64px;border-radius:6px;overflow:hidden;border:1px solid var(--border)"><img src="' + url + '" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.innerHTML=\'❌\'"></div>';
+                }).join('') + (d.photos.length > 8 ? '<div style="width:64px;height:64px;border-radius:6px;background:var(--bg-elevated);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--text-muted)">+' + (d.photos.length - 8) + '</div>' : '');
+            }
+        }
     }
 
     function handleSmartLinkDrop(e) {
@@ -13746,6 +13876,7 @@ IBAN: ${l.iban || '-'}`;
             size: document.getElementById('slSize')?.value || '',
             description: document.getElementById('slDescription')?.value || '',
             features: (document.getElementById('slFeatures')?.value || '').split(',').map(f => f.trim()).filter(Boolean),
+            photos: smartLinkPhotos.filter(p => p.isUrl).map(p => p.data),
             pois: smartLinkPOIs,
             photoCount: smartLinkPhotos.length,
             clientId: document.getElementById('slClient')?.value || '',
@@ -13754,11 +13885,9 @@ IBAN: ${l.iban || '-'}`;
         if (!data.title || !data.price) { showToast('Inserisci titolo e prezzo', 'error'); return; }
         try {
             const ref = await db.collection('smartlinks').add(data);
-            const shareUrl = 'https://portal.boomrome.com/s/' + ref.id;
-            closeModal();
+            const shareUrl = 'https://www.boomrome.com/s.html?id=' + ref.id;
             smartLinkPhotos = []; smartLinkPOIs = [];
-            document.getElementById('modalOverlay').innerHTML = `
-                <div class="modal" style="max-width:460px">
+            document.getElementById('modals').innerHTML = `<div class="modal-overlay active" onclick="closeModal()"><div class="modal" style="max-width:460px" onclick="event.stopPropagation()">
                     <div class="modal-header" style="border-bottom-color:var(--green)"><h2 style="font-weight:300">✅ SmartLink Creato</h2><button class="modal-close" onclick="closeModal()">×</button></div>
                     <div class="modal-body" style="text-align:center;padding:32px">
                         <div style="font-size:48px;margin-bottom:16px">🔗</div>
@@ -13769,14 +13898,15 @@ IBAN: ${l.iban || '-'}`;
                             <button class="btn btn-sm" onclick="navigator.clipboard.writeText('${shareUrl}');showToast('Copiato!','success')">📋</button>
                         </div>
                         <div style="display:flex;gap:10px;justify-content:center">
-                            <a href="https://wa.me/?text=${encodeURIComponent(data.title + ' · €' + data.price + '/m\\n' + shareUrl)}" target="_blank" class="btn btn-success btn-sm">💬 WhatsApp</a>
+                            <a href="https://wa.me/?text=${encodeURIComponent(data.title + ' · €' + data.price + '/m\n' + shareUrl)}" target="_blank" class="btn btn-success btn-sm">💬 WhatsApp</a>
                             <button class="btn btn-secondary btn-sm" onclick="closeModal()">Chiudi</button>
                         </div>
                     </div>
-                </div>`;
-            document.getElementById('modalOverlay').style.display = 'flex';
+                </div></div>`;
         } catch(e) { showToast('Errore: ' + e.message, 'error'); }
     }
+
+    function openBOOMCardGenerator() { openPropertyCardGenerator(); }
 
     function openBOOMCardGenerator() { openPropertyCardGenerator(); }
 
