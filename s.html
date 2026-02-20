@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Property — BOOM Rome</title>
+<meta name="description" content="Verified property listing by BOOM — Rome's trusted rental service for expats.">
+<meta name="theme-color" content="#0a0a0a">
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=DM+Serif+Display&display=swap" rel="stylesheet">
+
+<!-- Leaflet Map -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+<style>
+:root {
+    --gold: #C8A45A;
+    --gold-light: #E8D5A0;
+    --bg: #0a0a0a;
+    --bg-card: #141414;
+    --bg-elevated: #1a1a1a;
+    --text: #f0ede6;
+    --text-muted: #8a8780;
+    --text-secondary: #b0aca4;
+    --border: #252320;
+    --green: #4ade80;
+    --radius: 16px;
+    --max-w: 900px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { 
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+}
+
+body {
+    font-family: 'DM Sans', -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    overflow-x: hidden;
+    min-height: 100vh;
+}
+
+/* ── LOADING STATE ─────────────────── */
+.loading-state {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    flex-direction: column;
+    gap: 24px;
+}
+.loading-state .spinner {
+    width: 40px; height: 40px;
+    border: 2px solid var(--border);
+    border-top-color: var(--gold);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.loading-state .brand {
+    font-family: 'DM Serif Display', serif;
+    font-size: 28px;
+    color: var(--gold);
+    letter-spacing: 4px;
+}
+
+/* ── ERROR STATE ───────────────────── */
+.error-state {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    flex-direction: column;
+    gap: 16px;
+    padding: 24px;
+    text-align: center;
+}
+.error-state h2 { color: var(--gold); font-family: 'DM Serif Display', serif; }
+.error-state p { color: var(--text-muted); max-width: 400px; }
+
+/* ── HEADER ────────────────────────── */
+.top-bar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: linear-gradient(to bottom, rgba(10,10,10,.95), transparent);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    transition: background .3s;
+}
+.top-bar.scrolled {
+    background: rgba(10,10,10,.97);
+    border-bottom: 1px solid var(--border);
+}
+.top-bar .logo {
+    font-family: 'DM Serif Display', serif;
+    font-size: 22px;
+    color: var(--gold);
+    letter-spacing: 3px;
+    text-decoration: none;
+}
+.top-bar .badge {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--green);
+    border: 1px solid rgba(74,222,128,.3);
+    padding: 4px 10px;
+    border-radius: 20px;
+}
+
+/* ── HERO GALLERY ──────────────────── */
+.hero {
+    position: relative;
+    width: 100%;
+    height: 65vh;
+    min-height: 400px;
+    max-height: 700px;
+    overflow: hidden;
+    background: var(--bg-card);
+}
+.hero-slide {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity .6s ease;
+}
+.hero-slide.active { opacity: 1; }
+.hero-slide img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.hero-gradient {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 50%;
+    background: linear-gradient(to top, var(--bg), transparent);
+    pointer-events: none;
+}
+.hero-top-gradient {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 120px;
+    background: linear-gradient(to bottom, rgba(10,10,10,.7), transparent);
+    pointer-events: none;
+}
+
+/* Gallery controls */
+.gallery-nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(0,0,0,.5);
+    color: white;
+    font-size: 20px;
+    cursor: pointer;
+    backdrop-filter: blur(8px);
+    transition: all .2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+}
+.gallery-nav:hover { background: rgba(0,0,0,.8); transform: translateY(-50%) scale(1.05); }
+.gallery-nav.prev { left: 16px; }
+.gallery-nav.next { right: 16px; }
+.gallery-dots {
+    position: absolute;
+    bottom: 24px; left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 6px;
+    z-index: 10;
+}
+.gallery-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: rgba(255,255,255,.35);
+    border: none;
+    cursor: pointer;
+    transition: all .3s;
+    padding: 0;
+}
+.gallery-dot.active {
+    background: var(--gold);
+    width: 24px;
+    border-radius: 4px;
+}
+.gallery-counter {
+    position: absolute;
+    top: 80px; right: 20px;
+    background: rgba(0,0,0,.6);
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    color: rgba(255,255,255,.8);
+    z-index: 10;
+    backdrop-filter: blur(4px);
+}
+.hero-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--bg-card), var(--bg-elevated));
+}
+.hero-placeholder span { font-size: 80px; opacity: .3; }
+
+/* ── CONTENT ───────────────────────── */
+.content {
+    max-width: var(--max-w);
+    margin: 0 auto;
+    padding: 0 24px;
+    position: relative;
+    z-index: 2;
+}
+
+/* Price & Title Block */
+.title-block {
+    margin-top: -80px;
+    position: relative;
+    z-index: 10;
+    padding-bottom: 32px;
+    border-bottom: 1px solid var(--border);
+}
+.price-tag {
+    display: inline-block;
+    font-family: 'DM Serif Display', serif;
+    font-size: 42px;
+    color: var(--gold);
+    line-height: 1.1;
+}
+.price-tag .period {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 16px;
+    color: var(--text-muted);
+    font-weight: 300;
+}
+.property-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 28px;
+    font-weight: 400;
+    margin-top: 8px;
+    color: var(--text);
+    line-height: 1.3;
+}
+.property-zone {
+    font-size: 15px;
+    color: var(--text-secondary);
+    margin-top: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.property-zone .pin { color: var(--gold); }
+
+/* Key Stats */
+.key-stats {
+    display: flex;
+    gap: 0;
+    margin-top: 32px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+}
+.key-stat {
+    flex: 1;
+    text-align: center;
+    padding: 20px 16px;
+    border-right: 1px solid var(--border);
+}
+.key-stat:last-child { border-right: none; }
+.key-stat .icon { font-size: 22px; margin-bottom: 6px; }
+.key-stat .value {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text);
+}
+.key-stat .label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+/* Sections */
+.section {
+    padding: 40px 0;
+    border-bottom: 1px solid var(--border);
+}
+.section:last-child { border-bottom: none; }
+.section-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 22px;
+    font-weight: 400;
+    margin-bottom: 20px;
+    color: var(--text);
+}
+
+/* Description */
+.description-text {
+    color: var(--text-secondary);
+    font-size: 15px;
+    line-height: 1.8;
+    font-weight: 300;
+}
+
+/* Features */
+.features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px;
+}
+.feature-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    background: var(--bg-elevated);
+    border-radius: 10px;
+    font-size: 14px;
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+}
+.feature-item .check { color: var(--gold); font-size: 14px; }
+
+/* ── MAP SECTION ───────────────────── */
+#map {
+    width: 100%;
+    height: 380px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    overflow: hidden;
+    margin-bottom: 20px;
+}
+
+.poi-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.poi-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    background: var(--bg-elevated);
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: all .2s;
+}
+.poi-item:hover {
+    border-color: var(--gold);
+    background: rgba(200,164,90,.05);
+}
+.poi-item .poi-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.poi-item .poi-icon {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    background: rgba(200,164,90,.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+}
+.poi-item .poi-name {
+    font-size: 14px;
+    font-weight: 500;
+}
+.poi-item .poi-distance {
+    font-size: 13px;
+    color: var(--gold);
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+/* ── CTA / FOOTER ──────────────────── */
+.cta-section {
+    text-align: center;
+    padding: 60px 0 40px;
+}
+.cta-section h3 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 26px;
+    font-weight: 400;
+    margin-bottom: 10px;
+}
+.cta-section p {
+    color: var(--text-muted);
+    font-size: 14px;
+    margin-bottom: 28px;
+}
+.cta-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 36px;
+    background: #25D366;
+    color: #fff;
+    text-decoration: none;
+    border-radius: 14px;
+    font-size: 16px;
+    font-weight: 600;
+    transition: all .2s;
+    border: none;
+    cursor: pointer;
+}
+.cta-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(37,211,102,.3); }
+.cta-btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    background: transparent;
+    color: var(--gold);
+    text-decoration: none;
+    border-radius: 10px;
+    font-size: 14px;
+    border: 1px solid var(--gold);
+    margin-top: 12px;
+    transition: all .2s;
+}
+.cta-btn-secondary:hover { background: rgba(200,164,90,.1); }
+
+/* Sticky WhatsApp */
+.sticky-cta {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    z-index: 100;
+    padding: 16px 24px;
+    background: linear-gradient(to top, var(--bg) 70%, transparent);
+    display: flex;
+    justify-content: center;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all .4s;
+}
+.sticky-cta.visible { opacity: 1; transform: translateY(0); pointer-events: all; }
+.sticky-cta .cta-btn { box-shadow: 0 4px 20px rgba(0,0,0,.5); }
+
+/* Footer */
+.page-footer {
+    text-align: center;
+    padding: 40px 24px 100px;
+    border-top: 1px solid var(--border);
+}
+.page-footer .logo {
+    font-family: 'DM Serif Display', serif;
+    font-size: 20px;
+    color: var(--gold);
+    letter-spacing: 3px;
+}
+.page-footer p {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 8px;
+}
+.page-footer a { color: var(--gold); text-decoration: none; }
+.verified-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--green);
+    margin-top: 12px;
+    padding: 6px 14px;
+    border: 1px solid rgba(74,222,128,.2);
+    border-radius: 20px;
+}
+
+/* ── RESPONSIVE ────────────────────── */
+@media (max-width: 640px) {
+    .hero { height: 50vh; min-height: 300px; }
+    .title-block { margin-top: -60px; }
+    .price-tag { font-size: 32px; }
+    .property-title { font-size: 22px; }
+    .key-stats { flex-wrap: wrap; }
+    .key-stat { min-width: 50%; }
+    .key-stat:nth-child(2) { border-right: none; }
+    .key-stat:nth-child(3) { border-top: 1px solid var(--border); }
+    .key-stat:nth-child(4) { border-top: 1px solid var(--border); }
+    .features-grid { grid-template-columns: 1fr; }
+    #map { height: 300px; }
+    .gallery-nav { width: 36px; height: 36px; font-size: 16px; }
+    .content { padding: 0 16px; }
+}
+
+/* Animations */
+@keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.fade-up {
+    animation: fadeUp .6s ease forwards;
+    opacity: 0;
+}
+.fade-up:nth-child(1) { animation-delay: .1s; }
+.fade-up:nth-child(2) { animation-delay: .2s; }
+.fade-up:nth-child(3) { animation-delay: .3s; }
+.fade-up:nth-child(4) { animation-delay: .4s; }
+
+/* Leaflet overrides */
+.leaflet-control-attribution { display: none !important; }
+.leaflet-popup-content-wrapper {
+    background: var(--bg-card) !important;
+    color: var(--text) !important;
+    border-radius: 12px !important;
+    border: 1px solid var(--border) !important;
+    box-shadow: 0 8px 30px rgba(0,0,0,.5) !important;
+}
+.leaflet-popup-tip { background: var(--bg-card) !important; }
+.leaflet-popup-content { font-family: 'DM Sans', sans-serif !important; font-size: 13px !important; }
+</style>
+</head>
+<body>
+
+<!-- Loading -->
+<div id="loadingState" class="loading-state">
+    <div class="brand">BOOM</div>
+    <div class="spinner"></div>
+</div>
+
+<!-- Error -->
+<div id="errorState" class="error-state" style="display:none">
+    <h2>Property Not Found</h2>
+    <p>This link may have expired or the property has been removed.</p>
+    <a href="https://www.boomrome.com/apartments.html" class="cta-btn-secondary">Browse Available Apartments</a>
+</div>
+
+<!-- Main Content (hidden until loaded) -->
+<div id="mainContent" style="display:none">
+
+    <!-- Top Bar -->
+    <div class="top-bar" id="topBar">
+        <a href="https://www.boomrome.com" class="logo">BOOM</a>
+        <span class="badge">✓ Verified</span>
+    </div>
+
+    <!-- Hero Gallery -->
+    <div class="hero" id="heroGallery">
+        <div class="hero-top-gradient"></div>
+        <div id="heroSlides"></div>
+        <button class="gallery-nav prev" onclick="galleryPrev()">‹</button>
+        <button class="gallery-nav next" onclick="galleryNext()">›</button>
+        <div class="gallery-counter" id="galleryCounter"></div>
+        <div class="gallery-dots" id="galleryDots"></div>
+        <div class="hero-gradient"></div>
+    </div>
+
+    <!-- Content -->
+    <div class="content">
+
+        <!-- Title Block -->
+        <div class="title-block fade-up">
+            <div class="price-tag" id="priceTag"></div>
+            <h1 class="property-title" id="propertyTitle"></h1>
+            <div class="property-zone" id="propertyZone"></div>
+        </div>
+
+        <!-- Key Stats -->
+        <div class="key-stats fade-up" id="keyStats"></div>
+
+        <!-- Description -->
+        <div class="section fade-up" id="descSection" style="display:none">
+            <h2 class="section-title">About This Property</h2>
+            <div class="description-text" id="descText"></div>
+        </div>
+
+        <!-- Features -->
+        <div class="section fade-up" id="featSection" style="display:none">
+            <h2 class="section-title">Features & Amenities</h2>
+            <div class="features-grid" id="featGrid"></div>
+        </div>
+
+        <!-- Map & POIs -->
+        <div class="section fade-up" id="mapSection" style="display:none">
+            <h2 class="section-title">Location & Distances</h2>
+            <div id="map"></div>
+            <div class="poi-list" id="poiList"></div>
+        </div>
+
+        <!-- Source Link -->
+        <div class="section fade-up" id="sourceSection" style="display:none">
+            <h2 class="section-title">Original Listing</h2>
+            <a id="sourceLink" href="#" target="_blank" rel="noopener" style="color:var(--gold);font-size:14px;word-break:break-all"></a>
+        </div>
+
+        <!-- CTA -->
+        <div class="cta-section fade-up">
+            <h3>Interested?</h3>
+            <p>Contact BOOM to schedule a viewing or get more details. We handle everything.</p>
+            <a id="ctaMain" href="#" class="cta-btn" target="_blank">💬 Contact on WhatsApp</a>
+            <br>
+            <a href="https://www.boomrome.com" class="cta-btn-secondary">Visit boomrome.com →</a>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="page-footer">
+        <div class="logo">BOOM</div>
+        <p>Egidi Immobiliare S.r.l. · P.IVA 17322991005</p>
+        <p style="margin-top:4px"><a href="https://www.boomrome.com">boomrome.com</a></p>
+        <div class="verified-badge">✓ Verified by BOOM · Scam-Free Guarantee</div>
+    </div>
+
+    <!-- Sticky CTA -->
+    <div class="sticky-cta" id="stickyCta">
+        <a id="ctaSticky" href="#" class="cta-btn" target="_blank">💬 WhatsApp BOOM</a>
+    </div>
+
+</div>
+
+<script>
+// ── Firebase Config ───────────────────────────────────────────
+firebase.initializeApp({
+    apiKey: "AIzaSyDDb8UeSc8RhO_VxQrhLrupu1aPD4rwRso",
+    authDomain: "boom-property-dashboards.firebaseapp.com",
+    projectId: "boom-property-dashboards",
+    storageBucket: "boom-property-dashboards.firebasestorage.app",
+    messagingSenderId: "937269017440",
+    appId: "1:937269017440:web:41c1a0b1e1633c2f373c05"
+});
+const db = firebase.firestore();
+
+// ── State ─────────────────────────────────────────────────────
+let currentSlide = 0;
+let totalSlides = 0;
+let propertyData = null;
+let mapInstance = null;
+
+// ── Get ID from URL ───────────────────────────────────────────
+const urlParams = new URLSearchParams(window.location.search);
+const docId = urlParams.get('id');
+
+if (!docId) {
+    showError();
+} else {
+    loadProperty(docId);
+}
+
+async function loadProperty(id) {
+    try {
+        const doc = await db.collection('smartlinks').doc(id).get();
+        if (!doc.exists) { showError(); return; }
+        
+        propertyData = doc.data();
+        renderProperty(propertyData);
+        
+        document.getElementById('loadingState').style.display = 'none';
+        document.getElementById('mainContent').style.display = 'block';
+        
+        // Update page title
+        document.title = (propertyData.title || 'Property') + ' — BOOM Rome';
+        
+        // Init scroll listeners
+        initScroll();
+        
+    } catch(e) {
+        console.error('Load error:', e);
+        showError();
+    }
+}
+
+function showError() {
+    document.getElementById('loadingState').style.display = 'none';
+    document.getElementById('errorState').style.display = 'flex';
+}
+
+// ── Render ────────────────────────────────────────────────────
+function renderProperty(d) {
+    // Price
+    const priceEl = document.getElementById('priceTag');
+    priceEl.innerHTML = `€${Number(d.price).toLocaleString('it-IT')} <span class="period">/month</span>`;
+    
+    // Title
+    document.getElementById('propertyTitle').textContent = d.title || 'Property';
+    
+    // Zone
+    const zoneEl = document.getElementById('propertyZone');
+    const parts = [];
+    if (d.zone) parts.push(`<span class="pin">📍</span> ${esc(d.zone)}`);
+    if (d.address) parts.push(esc(d.address));
+    zoneEl.innerHTML = parts.join(' · ') || '';
+    
+    // Key Stats
+    const stats = [];
+    if (d.rooms) stats.push({ icon: '🛏️', value: d.rooms, label: 'Bedrooms' });
+    if (d.bathrooms) stats.push({ icon: '🚿', value: d.bathrooms, label: 'Bathrooms' });
+    if (d.size) stats.push({ icon: '📐', value: d.size + 'm²', label: 'Area' });
+    stats.push({ icon: '✓', value: 'BOOM', label: 'Verified' });
+    
+    document.getElementById('keyStats').innerHTML = stats.map(s => `
+        <div class="key-stat">
+            <div class="icon">${s.icon}</div>
+            <div class="value">${s.value}</div>
+            <div class="label">${s.label}</div>
+        </div>
+    `).join('');
+    
+    // Gallery
+    renderGallery(d.photos || [], d.uploadedPhotos || []);
+    
+    // Description
+    if (d.description) {
+        document.getElementById('descSection').style.display = 'block';
+        document.getElementById('descText').textContent = d.description;
+    }
+    
+    // Features
+    if (d.features?.length) {
+        document.getElementById('featSection').style.display = 'block';
+        document.getElementById('featGrid').innerHTML = d.features.map(f => `
+            <div class="feature-item"><span class="check">✦</span> ${esc(f)}</div>
+        `).join('');
+    }
+    
+    // POIs & Map
+    if (d.pois?.length || d.address) {
+        document.getElementById('mapSection').style.display = 'block';
+        initMap(d);
+    }
+    
+    // Source URL
+    if (d.url) {
+        document.getElementById('sourceSection').style.display = 'block';
+        const linkEl = document.getElementById('sourceLink');
+        linkEl.href = d.url;
+        try {
+            const hostname = new URL(d.url).hostname.replace('www.', '');
+            linkEl.textContent = '🔗 View on ' + hostname;
+        } catch(e) { linkEl.textContent = d.url; }
+    }
+    
+    // WhatsApp CTA
+    const waText = encodeURIComponent(`Hi BOOM! I'm interested in: ${d.title || 'this property'} — €${d.price}/month${d.zone ? ' in ' + d.zone : ''}.\n\nCan you tell me more?`);
+    const waUrl = `https://wa.me/393313251961?text=${waText}`;
+    document.getElementById('ctaMain').href = waUrl;
+    document.getElementById('ctaSticky').href = waUrl;
+}
+
+// ── Gallery ───────────────────────────────────────────────────
+function renderGallery(photos, uploaded) {
+    const allPhotos = [...photos, ...uploaded].filter(Boolean);
+    const slidesEl = document.getElementById('heroSlides');
+    const dotsEl = document.getElementById('galleryDots');
+    const counterEl = document.getElementById('galleryCounter');
+    
+    if (!allPhotos.length) {
+        slidesEl.innerHTML = '<div class="hero-placeholder"><span>🏠</span></div>';
+        document.querySelector('.gallery-nav.prev').style.display = 'none';
+        document.querySelector('.gallery-nav.next').style.display = 'none';
+        counterEl.style.display = 'none';
+        return;
+    }
+    
+    totalSlides = allPhotos.length;
+    
+    slidesEl.innerHTML = allPhotos.map((src, i) => `
+        <div class="hero-slide ${i === 0 ? 'active' : ''}">
+            <img src="${src}" alt="Photo ${i+1}" loading="${i === 0 ? 'eager' : 'lazy'}" onerror="this.parentElement.innerHTML='<div class=\\'hero-placeholder\\'><span>📷</span></div>'">
+        </div>
+    `).join('');
+    
+    dotsEl.innerHTML = allPhotos.map((_, i) => `
+        <button class="gallery-dot ${i === 0 ? 'active' : ''}" onclick="goToSlide(${i})"></button>
+    `).join('');
+    
+    counterEl.textContent = `1 / ${totalSlides}`;
+    
+    if (totalSlides <= 1) {
+        document.querySelector('.gallery-nav.prev').style.display = 'none';
+        document.querySelector('.gallery-nav.next').style.display = 'none';
+        counterEl.style.display = 'none';
+        dotsEl.style.display = 'none';
+    }
+    
+    // Touch swipe
+    let touchStartX = 0;
+    const hero = document.getElementById('heroGallery');
+    hero.addEventListener('touchstart', e => touchStartX = e.touches[0].clientX, { passive: true });
+    hero.addEventListener('touchend', e => {
+        const diff = touchStartX - e.changedTouches[0].clientX;
+        if (Math.abs(diff) > 50) { diff > 0 ? galleryNext() : galleryPrev(); }
+    }, { passive: true });
+}
+
+function goToSlide(n) {
+    document.querySelectorAll('.hero-slide').forEach((s, i) => s.classList.toggle('active', i === n));
+    document.querySelectorAll('.gallery-dot').forEach((d, i) => d.classList.toggle('active', i === n));
+    document.getElementById('galleryCounter').textContent = `${n+1} / ${totalSlides}`;
+    currentSlide = n;
+}
+function galleryNext() { goToSlide((currentSlide + 1) % totalSlides); }
+function galleryPrev() { goToSlide((currentSlide - 1 + totalSlides) % totalSlides); }
+
+// Auto-advance every 5s
+setInterval(() => { if (totalSlides > 1) galleryNext(); }, 5000);
+
+// ── Map ───────────────────────────────────────────────────────
+async function initMap(d) {
+    // Geocode address
+    let lat = 41.9028, lng = 12.4964; // Default: Rome center
+    
+    if (d.address || d.zone) {
+        try {
+            const q = encodeURIComponent((d.address || '') + ', ' + (d.zone || '') + ', Roma, Italia');
+            const resp = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${q}&limit=1`);
+            const results = await resp.json();
+            if (results.length) { lat = parseFloat(results[0].lat); lng = parseFloat(results[0].lon); }
+        } catch(e) { console.warn('Geocoding failed:', e); }
+    }
+    
+    mapInstance = L.map('map', { 
+        scrollWheelZoom: false, 
+        zoomControl: true,
+        attributionControl: false 
+    }).setView([lat, lng], 15);
+    
+    // Dark map tiles
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        maxZoom: 19
+    }).addTo(mapInstance);
+    
+    // Property marker (gold)
+    const goldIcon = L.divIcon({
+        html: `<div style="width:32px;height:32px;background:var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 4px 12px rgba(200,164,90,.5);border:3px solid #fff">🏠</div>`,
+        iconSize: [32, 32],
+        iconAnchor: [16, 16],
+        className: ''
+    });
+    L.marker([lat, lng], { icon: goldIcon })
+        .addTo(mapInstance)
+        .bindPopup(`<strong>${esc(d.title || 'Property')}</strong><br>€${d.price}/month`);
+    
+    // POI markers
+    const poiListEl = document.getElementById('poiList');
+    
+    if (d.pois?.length) {
+        const poiIcons = { 
+            metro: '🚇', bus: '🚌', train: '🚂', shop: '🛒', super: '🛒',
+            hospital: '🏥', school: '🎓', uni: '🎓', park: '🌳', 
+            restaurant: '🍽️', bar: '🍸', gym: '💪', pharmacy: '💊',
+            default: '📍'
+        };
+        
+        poiListEl.innerHTML = d.pois.map((poi, i) => {
+            const nameLower = poi.name.toLowerCase();
+            let icon = poiIcons.default;
+            for (const [key, emoji] of Object.entries(poiIcons)) {
+                if (nameLower.includes(key)) { icon = emoji; break; }
+            }
+            
+            return `<div class="poi-item" onclick="highlightPOI(${i})">
+                <div class="poi-info">
+                    <div class="poi-icon">${icon}</div>
+                    <span class="poi-name">${esc(poi.name)}</span>
+                </div>
+                <span class="poi-distance">${esc(poi.distance || '')}</span>
+            </div>`;
+        }).join('');
+    }
+    
+    // Slight delay for map render
+    setTimeout(() => mapInstance.invalidateSize(), 100);
+}
+
+function highlightPOI(index) {
+    // Highlight the selected POI item
+    document.querySelectorAll('.poi-item').forEach((el, i) => {
+        el.style.borderColor = i === index ? 'var(--gold)' : 'var(--border)';
+        el.style.background = i === index ? 'rgba(200,164,90,.08)' : 'var(--bg-elevated)';
+    });
+}
+
+// ── Scroll Effects ────────────────────────────────────────────
+function initScroll() {
+    const topBar = document.getElementById('topBar');
+    const stickyCta = document.getElementById('stickyCta');
+    
+    window.addEventListener('scroll', () => {
+        const y = window.scrollY;
+        topBar.classList.toggle('scrolled', y > 100);
+        stickyCta.classList.toggle('visible', y > 500);
+    }, { passive: true });
+}
+
+// ── Helpers ───────────────────────────────────────────────────
+function esc(str) {
+    if (!str) return '';
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+}
+</script>
+</body>
+</html>
