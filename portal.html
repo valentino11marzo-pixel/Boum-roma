@@ -2384,10 +2384,12 @@ Valentyne - BOOM Rome`
     function initDashboardCharts() {
         if (typeof Chart === 'undefined') return;
         
+        // Destroy ALL existing chart instances to prevent orphans/stretching
+        try { Object.values(Chart.instances || {}).forEach(c => c.destroy()); } catch(e) {}
+        
         // Revenue Chart (admin dashboard)
         const revCanvas = document.getElementById('revenueChart');
         if (revCanvas) {
-            if (window._boomRevenueChart) { window._boomRevenueChart.destroy(); }
             const ctx = revCanvas.getContext('2d');
             const months = [];
             const boomRev = []; // Invoice revenue
@@ -2404,7 +2406,7 @@ Valentyne - BOOM Rome`
                 boomRev.push(boomM);
                 rentRev.push(rentM);
             }
-            window._boomRevenueChart = new Chart(ctx, {
+            new Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels: months,
@@ -2420,11 +2422,10 @@ Valentyne - BOOM Rome`
         // Occupancy Chart
         const occCanvas = document.getElementById('occupancyChart');
         if (occCanvas) {
-            if (window._boomOccupancyChart) { window._boomOccupancyChart.destroy(); }
             const ctx = occCanvas.getContext('2d');
             const rented = (S.properties || []).filter(p => S.contracts.some(c => c.propertyId === p.id && c.status === 'active')).length;
             const avail = (S.properties || []).length - rented;
-            window._boomOccupancyChart = new Chart(ctx, {
+            new Chart(ctx, {
                 type: 'doughnut',
                 data: {
                     labels: ['Occupied', 'Available'],
@@ -2719,11 +2720,11 @@ Valentyne - BOOM Rome`
             <div style="display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:20px">
                 <div class="card" style="padding:16px">
                     <h3 style="font-size:14px;font-weight:600;margin-bottom:12px">📈 Revenue Trend</h3>
-                    <canvas id="revenueChart" height="140"></canvas>
+                    <div style="position:relative;height:140px"><canvas id="revenueChart"></canvas></div>
                 </div>
                 <div class="card" style="padding:16px">
                     <h3 style="font-size:14px;font-weight:600;margin-bottom:12px">🏠 Occupancy</h3>
-                    <canvas id="occupancyChart" height="140"></canvas>
+                    <div style="position:relative;height:140px"><canvas id="occupancyChart"></canvas></div>
                 </div>
             </div>
             
