@@ -1379,7 +1379,6 @@ Valentyne - BOOM Rome`
         safariStyles.textContent = `
             /* Safari performance optimizations */
             .sidebar, .modal-overlay { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
-            * { -webkit-transform: translateZ(0); }
             .card, .list-item { will-change: auto; }
             /* iOS safe area support */
             .header { padding-top: env(safe-area-inset-top, 0px); }
@@ -1460,7 +1459,19 @@ Valentyne - BOOM Rome`
                     authRetryCount++;
                     console.log('Retrying auth... attempt', authRetryCount);
                     authProcessed = false;
-                    setTimeout(() => auth.onAuthStateChanged(() => {}), 1000);
+                    // Actually retry loading user data after brief delay
+                    setTimeout(async () => {
+                        try {
+                            const retryDoc = await db.collection('users').doc(u.uid).get();
+                            if (retryDoc.exists) {
+                                S.profile = { id: u.uid, ...retryDoc.data() };
+                                await loadData();
+                                showApp();
+                                startSessionCheck();
+                                authProcessed = true;
+                            }
+                        } catch(retryErr) { console.error('Retry failed:', retryErr); }
+                    }, 1500);
                     return;
                 }
                 showAuthError('Errore di autenticazione: ' + e.message); 
@@ -13702,102 +13713,205 @@ IBAN: ${l.iban || '-'}`;
     }
 
     async function extractFromUrl() {
-        const url = document.getElementById('slUrl')?.value;
+        const url = document.getElementById('slUrl')?.value?.trim();
         if (!url) { showToast('Inserisci un URL', 'error'); return; }
         const status = document.getElementById('slUrlStatus');
         const btn = document.getElementById('slExtractBtn');
-        status.innerHTML = '<span style="color:var(--gold)">⏳ Scaricando pagina...</span>';
         btn.disabled = true; btn.textContent = '⏳';
+
+        // Try multiple CORS proxies in order
+        const proxies = [
+            u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
+            u => 'https://corsproxy.io/?' + encodeURIComponent(u),
+            u => 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u)
+        ];
+
+        let html = null;
+        for (let i = 0; i < proxies.length; i++) {
+            status.innerHTML = '<span style="color:var(--gold)">⏳ Proxy ' + (i + 1) + '/' + proxies.length + '...</span>';
+            try {
+                const resp = await fetch(proxies[i](url), { signal: AbortSignal.timeout(12000) });
+                if (!resp.ok) continue;
+                const text = await resp.text();
+                if (text && text.length > 500 && (text.includes('<') || text.includes('{'))) { html = text; break; }
+            } catch(e) { console.warn('Proxy ' + (i + 1) + ' failed:', e.message); }
+        }
+
+        if (!html) {
+            status.innerHTML = '<span style="color:var(--red)">❌ Impossibile scaricare la pagina. Prova a compilare i campi manualmente.</span>';
+            btn.disabled = false; btn.textContent = '🔍 Estrai';
+            return;
+        }
+
+        status.innerHTML = '<span style="color:var(--gold)">⏳ Analizzando contenuto...</span>';
+
+        let extracted = {};
         try {
-            const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
-            const resp = await fetch(proxyUrl);
-            if (!resp.ok) throw new Error('Fetch failed: ' + resp.status);
-            const html = await resp.text();
-            let extracted = {};
-            if (url.includes('immobiliare.it')) extracted = parseImmobiliare(html);
-            else if (url.includes('idealista.it')) extracted = parseIdealista(html);
-            else if (url.includes('subito.it')) extracted = parseSubito(html);
-            else if (url.includes('casafari.com')) extracted = parseCasafari(html);
-            else extracted = parseGeneric(html);
-            fillSmartLinkForm(extracted);
-            const parts = [];
-            if (extracted.title) parts.push('titolo');
-            if (extracted.price) parts.push('prezzo');
-            if (extracted.photos && extracted.photos.length) parts.push(extracted.photos.length + ' foto');
-            status.innerHTML = '<span style="color:var(--green)">✅ Estratti: ' + (parts.join(', ') || 'dati limitati') + '</span>';
-        } catch(e) {
-            console.error('Extract error:', e);
-            status.innerHTML = '<span style="color:var(--red)">❌ Errore estrazione: ' + e.message + '</span>';
+            if (url.includes('immobiliare.it')) extracted = parseImmobiliare(html, url);
+            else if (url.includes('idealista.it') || url.includes('idealista.com')) extracted = parseIdealista(html, url);
+            else if (url.includes('subito.it')) extracted = parseSubito(html, url);
+            else if (url.includes('casafari.com')) extracted = parseCasafari(html, url);
+            else extracted = parseGeneric(html, url);
+
+            // Fallback: always try OpenGraph / meta tags
+            extracted = enrichWithMeta(html, extracted);
+        } catch(e) { console.error('Parse error:', e); }
+
+        fillSmartLinkForm(extracted);
+
+        const parts = [];
+        if (extracted.title) parts.push('titolo');
+        if (extracted.price) parts.push('€' + extracted.price);
+        if (extracted.rooms) parts.push(extracted.rooms + ' cam');
+        if (extracted.size) parts.push(extracted.size + 'm²');
+        if (extracted.photos?.length) parts.push(extracted.photos.length + ' foto');
+        if (parts.length) {
+            status.innerHTML = '<span style="color:var(--green)">✅ Estratti: ' + parts.join(', ') + '</span>';
+        } else {
+            status.innerHTML = '<span style="color:var(--orange)">⚠️ Pagina scaricata ma pochi dati trovati. Compila manualmente i campi mancanti.</span>';
         }
         btn.disabled = false; btn.textContent = '🔍 Estrai';
     }
 
-    function parseImmobiliare(html) {
+    // Enrich with OpenGraph / meta tags as fallback
+    function enrichWithMeta(html, r) {
+        if (!r.title) {
+            const og = html.match(/property="og:title"[^>]*content="([^"]+)"/i) || html.match(/name="og:title"[^>]*content="([^"]+)"/i);
+            if (og) r.title = og[1].replace(/&amp;/g, '&').replace(/&#39;/g, "'");
+        }
+        if (!r.description) {
+            const og = html.match(/property="og:description"[^>]*content="([^"]+)"/i) || html.match(/name="description"[^>]*content="([^"]+)"/i);
+            if (og) r.description = og[1].replace(/&amp;/g, '&').replace(/&#39;/g, "'");
+        }
+        if (!r.photos || !r.photos.length) {
+            r.photos = r.photos || [];
+            const ogImg = html.match(/property="og:image"[^>]*content="([^"]+)"/gi);
+            if (ogImg) {
+                ogImg.forEach(function(tag) {
+                    const m = tag.match(/content="([^"]+)"/);
+                    if (m && m[1] && r.photos.indexOf(m[1]) === -1 && r.photos.length < 10) r.photos.push(m[1]);
+                });
+            }
+        }
+        // Try extracting large images from any site
+        if (!r.photos.length) {
+            const imgTags = html.match(/<img[^>]+src="(https?:\/\/[^"]+\.(?:jpg|jpeg|png|webp)[^"]*)"/gi) || [];
+            imgTags.forEach(function(tag) {
+                const m = tag.match(/src="([^"]+)"/);
+                if (m && m[1] && r.photos.indexOf(m[1]) === -1 && r.photos.length < 10) {
+                    // Skip tiny icons/logos
+                    if (!/icon|logo|sprite|favicon|pixel|tracking|badge/i.test(m[1])) r.photos.push(m[1]);
+                }
+            });
+        }
+        return r;
+    }
+
+    function parseImmobiliare(html, url) {
         const r = {};
+        // Try all JSON-LD blocks
         try {
-            const ldMatch = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
-            if (ldMatch) {
-                const ld = JSON.parse(ldMatch[1]);
-                if (ld.name) r.title = ld.name;
-                if (ld.description) r.description = ld.description;
-                if (ld.offers && ld.offers.price) r.price = ld.offers.price;
-                if (ld.address && ld.address.addressLocality) r.zone = ld.address.addressLocality;
-                if (ld.address && ld.address.streetAddress) r.address = ld.address.streetAddress;
-                if (ld.floorSize && ld.floorSize.value) r.size = ld.floorSize.value;
-                if (ld.numberOfRooms) r.rooms = ld.numberOfRooms;
-                if (ld.numberOfBathroomsTotal) r.bathrooms = ld.numberOfBathroomsTotal;
+            const ldBlocks = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g) || [];
+            for (const block of ldBlocks) {
+                const jsonStr = block.replace(/<script type="application\/ld\+json">/, '').replace(/<\/script>/, '');
+                try {
+                    const ld = JSON.parse(jsonStr);
+                    const item = ld['@type'] === 'Apartment' || ld['@type'] === 'House' || ld['@type'] === 'RealEstateListing' || ld['@type'] === 'Residence' ? ld : (ld['@graph'] || []).find(x => ['Apartment','House','RealEstateListing','Residence','SingleFamilyResidence'].includes(x['@type']));
+                    if (!item) continue;
+                    if (item.name) r.title = item.name;
+                    if (item.description) r.description = item.description.substring(0, 500);
+                    if (item.offers?.price) r.price = String(item.offers.price).replace(/[^\d]/g, '');
+                    if (item.address?.addressLocality) r.zone = item.address.addressLocality;
+                    if (item.address?.streetAddress) r.address = item.address.streetAddress;
+                    if (item.floorSize?.value) r.size = item.floorSize.value;
+                    if (item.numberOfRooms) r.rooms = item.numberOfRooms;
+                    if (item.numberOfBathroomsTotal) r.bathrooms = item.numberOfBathroomsTotal;
+                    // Photos from JSON-LD
+                    if (item.image) {
+                        r.photos = Array.isArray(item.image) ? item.image.slice(0, 10) : [item.image];
+                    }
+                    if (item.photo) {
+                        const imgs = Array.isArray(item.photo) ? item.photo : [item.photo];
+                        r.photos = imgs.map(p => typeof p === 'string' ? p : (p.contentUrl || p.url || '')).filter(Boolean).slice(0, 10);
+                    }
+                    if (r.title) break; // Found good data
+                } catch(e) {}
             }
         } catch(e) {}
-        if (!r.title) { const m = html.match(/<h1[^>]*>(.*?)<\/h1>/); if (m) r.title = m[1].replace(/<[^>]+>/g, '').trim(); }
-        if (!r.price) { const m = html.match(/€\s*([\d.,]+)/); if (m) r.price = m[1].replace(/\./g, '').replace(',', ''); }
-        if (!r.rooms) { const m = html.match(/(\d+)\s*(?:local|stanz|camer)/i); if (m) r.rooms = m[1]; }
+        // Regex fallbacks
+        if (!r.title) { const m = html.match(/<h1[^>]*>(.*?)<\/h1>/s); if (m) r.title = m[1].replace(/<[^>]+>/g, '').trim(); }
+        if (!r.price) { const m = html.match(/€\s*([\d.,]+)\s*(?:\/mese|al\s*mese)?/i); if (m) r.price = m[1].replace(/\./g, '').replace(',', ''); }
+        if (!r.rooms) { const m = html.match(/(\d+)\s*(?:local|stanz|camer|vani)/i); if (m) r.rooms = m[1]; }
         if (!r.bathrooms) { const m = html.match(/(\d+)\s*bagn/i); if (m) r.bathrooms = m[1]; }
-        if (!r.size) { const m = html.match(/(\d+)\s*m²/); if (m) r.size = m[1]; }
-        r.photos = [];
-        const imgRe = /https?:\/\/[^"'\s]+?pwm\.immobiliare\.it[^"'\s]+\.(?:jpg|jpeg|webp)/gi;
-        let match; while ((match = imgRe.exec(html)) && r.photos.length < 10) { if (r.photos.indexOf(match[0]) === -1) r.photos.push(match[0]); }
-        if (!r.photos.length) { const imgRe2 = /https?:\/\/[^"'\s]+?img\d*\.immobiliare\.it[^"'\s]+\.(?:jpg|jpeg|webp)/gi; while ((match = imgRe2.exec(html)) && r.photos.length < 10) { if (r.photos.indexOf(match[0]) === -1) r.photos.push(match[0]); } }
+        if (!r.size) { const m = html.match(/(\d+)\s*m[²2q]/); if (m) r.size = m[1]; }
+        if (!r.zone) { const m = html.match(/zona[:\s]*([^<,]+)/i); if (m) r.zone = m[1].trim().substring(0, 50); }
+        // Photos from HTML
+        if (!r.photos?.length) {
+            r.photos = [];
+            const patterns = [
+                /https?:\/\/[^"'\s]+?pwm\.immobiliare\.it[^"'\s]+\.(?:jpg|jpeg|webp)/gi,
+                /https?:\/\/[^"'\s]+?img\d*\.immobiliare\.it[^"'\s]+\.(?:jpg|jpeg|webp)/gi
+            ];
+            for (const re of patterns) {
+                let match;
+                while ((match = re.exec(html)) && r.photos.length < 10) {
+                    if (r.photos.indexOf(match[0]) === -1) r.photos.push(match[0]);
+                }
+                if (r.photos.length) break;
+            }
+        }
         return r;
     }
 
-    function parseIdealista(html) {
+    function parseIdealista(html, url) {
         const r = {};
-        const titleM = html.match(/<span class="main-info__title-main">(.*?)<\/span>/); if (titleM) r.title = titleM[1].trim();
-        const priceM = html.match(/(\d[\d.]*)\s*€\/m/); if (priceM) r.price = priceM[1].replace(/\./g, '');
-        const roomsM = html.match(/(\d+)\s*(?:hab|stanz|local)/i); if (roomsM) r.rooms = roomsM[1];
+        // Title
+        const titleM = html.match(/<span class="main-info__title-main">(.*?)<\/span>/s) || html.match(/<h1[^>]*>(.*?)<\/h1>/s);
+        if (titleM) r.title = titleM[1].replace(/<[^>]+>/g, '').trim();
+        // Price - idealista uses formats like "1.200 €/mese" or "€ 1200"
+        const priceM = html.match(/([\d.]+)\s*€\s*\/\s*me/i) || html.match(/€\s*([\d.]+)/i);
+        if (priceM) r.price = priceM[1].replace(/\./g, '');
+        const roomsM = html.match(/(\d+)\s*(?:hab|stanz|local|camer|vani)/i); if (roomsM) r.rooms = roomsM[1];
         const bathM = html.match(/(\d+)\s*ba[ñgn]/i); if (bathM) r.bathrooms = bathM[1];
-        const sizeM = html.match(/(\d+)\s*m²/); if (sizeM) r.size = sizeM[1];
+        const sizeM = html.match(/(\d+)\s*m[²2]/); if (sizeM) r.size = sizeM[1];
         r.photos = [];
-        const imgRe = /https?:\/\/[^"'\s]+?img\d*\.idealista[^"'\s]+\.(?:jpg|jpeg|webp)/gi;
+        const imgRe = /https?:\/\/[^"'\s]+?img\d*\.idealista[^"'\s]+\.(?:jpg|jpeg|png|webp)/gi;
         let match; while ((match = imgRe.exec(html)) && r.photos.length < 10) { if (r.photos.indexOf(match[0]) === -1) r.photos.push(match[0]); }
         return r;
     }
 
-    function parseSubito(html) {
+    function parseSubito(html, url) {
         const r = {};
-        const titleM = html.match(/<h1[^>]*>(.*?)<\/h1>/); if (titleM) r.title = titleM[1].replace(/<[^>]+>/g, '').trim();
+        const titleM = html.match(/<h1[^>]*>(.*?)<\/h1>/s); if (titleM) r.title = titleM[1].replace(/<[^>]+>/g, '').trim();
         const priceM = html.match(/€\s*([\d.,]+)/); if (priceM) r.price = priceM[1].replace(/\./g, '').replace(',', '');
+        const sizeM = html.match(/(\d+)\s*m[²2]/); if (sizeM) r.size = sizeM[1];
+        const roomsM = html.match(/(\d+)\s*(?:local|stanz|camer|vani)/i); if (roomsM) r.rooms = roomsM[1];
         r.photos = [];
-        const imgRe = /https?:\/\/[^"'\s]+?images\.subito\.it[^"'\s]+\.(?:jpg|jpeg|webp)/gi;
+        const imgRe = /https?:\/\/[^"'\s]+?images\.subito\.it[^"'\s]+\.(?:jpg|jpeg|png|webp)/gi;
         let match; while ((match = imgRe.exec(html)) && r.photos.length < 10) { if (r.photos.indexOf(match[0]) === -1) r.photos.push(match[0]); }
         return r;
     }
 
-    function parseCasafari(html) {
+    function parseCasafari(html, url) {
         const r = {};
-        const titleM = html.match(/<h1[^>]*>(.*?)<\/h1>/); if (titleM) r.title = titleM[1].replace(/<[^>]+>/g, '').trim();
+        const titleM = html.match(/<h1[^>]*>(.*?)<\/h1>/s); if (titleM) r.title = titleM[1].replace(/<[^>]+>/g, '').trim();
         const priceM = html.match(/€\s*([\d.,]+)/); if (priceM) r.price = priceM[1].replace(/\./g, '').replace(',', '');
-        const sizeM = html.match(/(\d+)\s*m²/); if (sizeM) r.size = sizeM[1];
-        const roomsM = html.match(/(\d+)\s*(?:room|camer|local)/i); if (roomsM) r.rooms = roomsM[1];
+        const sizeM = html.match(/(\d+)\s*m[²2]/); if (sizeM) r.size = sizeM[1];
+        const roomsM = html.match(/(\d+)\s*(?:room|camer|local|vani)/i); if (roomsM) r.rooms = roomsM[1];
         r.photos = [];
+        const imgRe = /https?:\/\/[^"'\s]+\.(?:jpg|jpeg|png|webp)(?:\?[^"'\s]*)?/gi;
+        let match; while ((match = imgRe.exec(html)) && r.photos.length < 10) {
+            if (r.photos.indexOf(match[0]) === -1 && !/icon|logo|sprite|favicon/i.test(match[0])) r.photos.push(match[0]);
+        }
         return r;
     }
 
-    function parseGeneric(html) {
+    function parseGeneric(html, url) {
         const r = {};
-        const titleM = html.match(/<h1[^>]*>(.*?)<\/h1>/); if (titleM) r.title = titleM[1].replace(/<[^>]+>/g, '').trim();
+        const titleM = html.match(/<h1[^>]*>(.*?)<\/h1>/s); if (titleM) r.title = titleM[1].replace(/<[^>]+>/g, '').trim();
         const priceM = html.match(/€\s*([\d.,]+)/); if (priceM) r.price = priceM[1].replace(/\./g, '').replace(',', '');
-        const sizeM = html.match(/(\d+)\s*m²/); if (sizeM) r.size = sizeM[1];
+        const sizeM = html.match(/(\d+)\s*m[²2]/); if (sizeM) r.size = sizeM[1];
+        const roomsM = html.match(/(\d+)\s*(?:local|stanz|camer|vani|room)/i); if (roomsM) r.rooms = roomsM[1];
         r.photos = [];
         return r;
     }

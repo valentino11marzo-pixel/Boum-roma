@@ -1,924 +1,407 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Property — BOOM Rome</title>
-<meta name="description" content="Verified property listing by BOOM — Rome's trusted rental service for expats.">
-<meta name="theme-color" content="#0a0a0a">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+    <title>BOOM – Property Details</title>
+    <meta name="robots" content="noindex,nofollow">
+    <link rel="icon" type="image/png" href="https://www.boomrome.com/BOOMlogogoldicon512.png">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        :root{--gold:#D4AF37;--gold-light:rgba(212,175,55,0.15);--bg:#000;--bg-card:#0A0A0A;--bg-elevated:#141414;--border:rgba(255,255,255,0.08);--text:#FFF;--text-secondary:#999;--text-muted:#666;--green:#34C759;--red:#FF3B30}
+        body{font-family:'HelveticaNeue','Helvetica Neue','Helvetica',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;font-weight:300}
+        a{color:var(--gold);text-decoration:none}
 
-<!-- Fonts -->
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=DM+Serif+Display&display=swap" rel="stylesheet">
+        /* HEADER */
+        .header{position:fixed;top:0;left:0;right:0;height:56px;background:rgba(0,0,0,0.85);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 20px;z-index:100}
+        .header-logo{display:flex;align-items:center;gap:10px}
+        .header-logo svg{width:28px;height:28px}
+        .header-logo span{font-size:16px;font-weight:300;letter-spacing:4px}
+        .header-badge{font-size:10px;color:var(--green);letter-spacing:1px;text-transform:uppercase;display:flex;align-items:center;gap:4px}
 
-<!-- Leaflet Map -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+        /* GALLERY */
+        .gallery{position:relative;width:100%;height:65vh;min-height:360px;max-height:560px;background:var(--bg-card);margin-top:56px;overflow:hidden}
+        .gallery-track{display:flex;height:100%;transition:transform .4s ease}
+        .gallery-slide{min-width:100%;height:100%;position:relative}
+        .gallery-slide img{width:100%;height:100%;object-fit:cover}
+        .gallery-placeholder{width:100%;height:100%;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;color:var(--text-muted);font-size:48px}
+        .gallery-nav{position:absolute;top:50%;transform:translateY(-50%);width:44px;height:44px;background:rgba(0,0,0,0.5);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.1);border-radius:50%;color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;z-index:10;border:none}
+        .gallery-nav:hover{background:rgba(0,0,0,0.8);border-color:var(--gold)}
+        .gallery-prev{left:16px}
+        .gallery-next{right:16px}
+        .gallery-counter{position:absolute;bottom:16px;right:16px;background:rgba(0,0,0,0.6);backdrop-filter:blur(8px);padding:6px 12px;border-radius:20px;font-size:12px;letter-spacing:1px;z-index:10}
+        .gallery-dots{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);display:flex;gap:6px;z-index:10}
+        .gallery-dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.3);cursor:pointer;transition:all .2s}
+        .gallery-dot.active{background:var(--gold);width:18px;border-radius:3px}
+        .gallery-gradient{position:absolute;bottom:0;left:0;right:0;height:120px;background:linear-gradient(transparent,rgba(0,0,0,0.7));z-index:5;pointer-events:none}
 
-<!-- Firebase -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+        /* CONTENT */
+        .content{max-width:720px;margin:0 auto;padding:0 20px}
+        .price-section{padding:32px 0 24px}
+        .price{font-size:40px;font-weight:300;letter-spacing:-1px}
+        .price span{color:var(--text-secondary);font-size:18px;font-weight:300}
+        .title{font-size:22px;font-weight:300;margin-top:8px;line-height:1.3}
+        .zone{font-size:14px;color:var(--text-secondary);margin-top:6px;display:flex;align-items:center;gap:6px}
 
-<style>
-:root {
-    --gold: #C8A45A;
-    --gold-light: #E8D5A0;
-    --bg: #0a0a0a;
-    --bg-card: #141414;
-    --bg-elevated: #1a1a1a;
-    --text: #f0ede6;
-    --text-muted: #8a8780;
-    --text-secondary: #b0aca4;
-    --border: #252320;
-    --green: #4ade80;
-    --radius: 16px;
-    --max-w: 900px;
-}
+        /* STATS */
+        .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:1px;background:var(--border);border-radius:16px;overflow:hidden;margin-bottom:32px}
+        .stat{background:var(--bg-card);padding:20px 16px;text-align:center}
+        .stat-value{font-size:22px;font-weight:300;margin-bottom:4px}
+        .stat-label{font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.5px}
 
-* { margin: 0; padding: 0; box-sizing: border-box; }
+        /* SECTIONS */
+        .section{margin-bottom:32px}
+        .section-title{font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:2px;margin-bottom:16px}
+        .description{font-size:15px;line-height:1.7;color:var(--text-secondary);font-weight:300}
 
-html { 
-    scroll-behavior: smooth;
-    -webkit-text-size-adjust: 100%;
-}
+        /* FEATURES */
+        .features{display:flex;flex-wrap:wrap;gap:8px}
+        .feature{padding:8px 16px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:20px;font-size:13px;font-weight:300;color:var(--text-secondary)}
 
-body {
-    font-family: 'DM Sans', -apple-system, sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    line-height: 1.6;
-    overflow-x: hidden;
-    min-height: 100vh;
-}
+        /* POIs */
+        .poi-list{display:flex;flex-direction:column;gap:1px;background:var(--border);border-radius:12px;overflow:hidden}
+        .poi{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:var(--bg-card);font-size:14px;font-weight:300}
+        .poi-name{display:flex;align-items:center;gap:10px}
+        .poi-icon{font-size:16px}
+        .poi-dist{color:var(--text-muted);font-size:13px}
 
-/* ── LOADING STATE ─────────────────── */
-.loading-state {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100vh;
-    flex-direction: column;
-    gap: 24px;
-}
-.loading-state .spinner {
-    width: 40px; height: 40px;
-    border: 2px solid var(--border);
-    border-top-color: var(--gold);
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
+        /* MAP */
+        .map-container{width:100%;height:280px;border-radius:16px;overflow:hidden;border:1px solid var(--border);margin-top:16px}
+        #map{width:100%;height:100%}
 
-.loading-state .brand {
-    font-family: 'DM Serif Display', serif;
-    font-size: 28px;
-    color: var(--gold);
-    letter-spacing: 4px;
-}
+        /* CTA */
+        .cta-section{padding:40px 0;text-align:center}
+        .cta-btn{display:inline-flex;align-items:center;gap:10px;padding:16px 40px;background:var(--gold);color:#000;border-radius:14px;font-family:inherit;font-size:15px;font-weight:600;letter-spacing:0.5px;text-decoration:none;transition:all .2s}
+        .cta-btn:hover{transform:translateY(-2px);box-shadow:0 12px 32px rgba(212,175,55,0.3)}
+        .cta-secondary{display:block;margin-top:16px;font-size:13px;color:var(--text-muted);font-weight:300}
+        .cta-secondary a{color:var(--text-secondary)}
 
-/* ── ERROR STATE ───────────────────── */
-.error-state {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100vh;
-    flex-direction: column;
-    gap: 16px;
-    padding: 24px;
-    text-align: center;
-}
-.error-state h2 { color: var(--gold); font-family: 'DM Serif Display', serif; }
-.error-state p { color: var(--text-muted); max-width: 400px; }
+        /* STICKY CTA */
+        .sticky-cta{position:fixed;bottom:0;left:0;right:0;background:rgba(0,0,0,0.9);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:1px solid var(--border);padding:12px 20px;display:flex;align-items:center;justify-content:space-between;z-index:100;transform:translateY(100%);transition:transform .3s ease}
+        .sticky-cta.visible{transform:translateY(0)}
+        .sticky-info{font-size:14px;font-weight:300}
+        .sticky-info strong{color:var(--gold);font-weight:400}
+        .sticky-btn{padding:10px 24px;background:var(--gold);color:#000;border-radius:10px;font-family:inherit;font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap}
 
-/* ── HEADER ────────────────────────── */
-.top-bar {
-    position: fixed;
-    top: 0; left: 0; right: 0;
-    z-index: 100;
-    padding: 16px 24px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: linear-gradient(to bottom, rgba(10,10,10,.95), transparent);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    transition: background .3s;
-}
-.top-bar.scrolled {
-    background: rgba(10,10,10,.97);
-    border-bottom: 1px solid var(--border);
-}
-.top-bar .logo {
-    font-family: 'DM Serif Display', serif;
-    font-size: 22px;
-    color: var(--gold);
-    letter-spacing: 3px;
-    text-decoration: none;
-}
-.top-bar .badge {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    color: var(--green);
-    border: 1px solid rgba(74,222,128,.3);
-    padding: 4px 10px;
-    border-radius: 20px;
-}
+        /* FOOTER */
+        .footer{border-top:1px solid var(--border);padding:32px 20px;text-align:center;margin-bottom:70px}
+        .footer-brand{font-size:14px;font-weight:300;letter-spacing:4px;margin-bottom:8px;color:var(--text-secondary)}
+        .footer-legal{font-size:11px;color:var(--text-muted);line-height:1.6}
+        .footer-badge{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;background:var(--gold-light);border:1px solid rgba(212,175,55,0.2);border-radius:20px;font-size:11px;color:var(--gold);margin-top:12px}
 
-/* ── HERO GALLERY ──────────────────── */
-.hero {
-    position: relative;
-    width: 100%;
-    height: 65vh;
-    min-height: 400px;
-    max-height: 700px;
-    overflow: hidden;
-    background: var(--bg-card);
-}
-.hero-slide {
-    position: absolute;
-    inset: 0;
-    opacity: 0;
-    transition: opacity .6s ease;
-}
-.hero-slide.active { opacity: 1; }
-.hero-slide img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-.hero-gradient {
-    position: absolute;
-    bottom: 0; left: 0; right: 0;
-    height: 50%;
-    background: linear-gradient(to top, var(--bg), transparent);
-    pointer-events: none;
-}
-.hero-top-gradient {
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 120px;
-    background: linear-gradient(to bottom, rgba(10,10,10,.7), transparent);
-    pointer-events: none;
-}
+        /* LOADING/ERROR */
+        .loading-state{min-height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:20px}
+        .spinner{width:36px;height:36px;border:2px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        .error-state{min-height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;padding:40px;text-align:center}
+        .error-state h2{font-weight:300;font-size:24px}
+        .error-state p{color:var(--text-muted);font-size:14px;font-weight:300}
 
-/* Gallery controls */
-.gallery-nav {
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 44px; height: 44px;
-    border-radius: 50%;
-    border: none;
-    background: rgba(0,0,0,.5);
-    color: white;
-    font-size: 20px;
-    cursor: pointer;
-    backdrop-filter: blur(8px);
-    transition: all .2s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 10;
-}
-.gallery-nav:hover { background: rgba(0,0,0,.8); transform: translateY(-50%) scale(1.05); }
-.gallery-nav.prev { left: 16px; }
-.gallery-nav.next { right: 16px; }
-.gallery-dots {
-    position: absolute;
-    bottom: 24px; left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    gap: 6px;
-    z-index: 10;
-}
-.gallery-dot {
-    width: 8px; height: 8px;
-    border-radius: 50%;
-    background: rgba(255,255,255,.35);
-    border: none;
-    cursor: pointer;
-    transition: all .3s;
-    padding: 0;
-}
-.gallery-dot.active {
-    background: var(--gold);
-    width: 24px;
-    border-radius: 4px;
-}
-.gallery-counter {
-    position: absolute;
-    top: 80px; right: 20px;
-    background: rgba(0,0,0,.6);
-    padding: 6px 12px;
-    border-radius: 8px;
-    font-size: 12px;
-    color: rgba(255,255,255,.8);
-    z-index: 10;
-    backdrop-filter: blur(4px);
-}
-.hero-placeholder {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: linear-gradient(135deg, var(--bg-card), var(--bg-elevated));
-}
-.hero-placeholder span { font-size: 80px; opacity: .3; }
-
-/* ── CONTENT ───────────────────────── */
-.content {
-    max-width: var(--max-w);
-    margin: 0 auto;
-    padding: 0 24px;
-    position: relative;
-    z-index: 2;
-}
-
-/* Price & Title Block */
-.title-block {
-    margin-top: -80px;
-    position: relative;
-    z-index: 10;
-    padding-bottom: 32px;
-    border-bottom: 1px solid var(--border);
-}
-.price-tag {
-    display: inline-block;
-    font-family: 'DM Serif Display', serif;
-    font-size: 42px;
-    color: var(--gold);
-    line-height: 1.1;
-}
-.price-tag .period {
-    font-family: 'DM Sans', sans-serif;
-    font-size: 16px;
-    color: var(--text-muted);
-    font-weight: 300;
-}
-.property-title {
-    font-family: 'DM Serif Display', serif;
-    font-size: 28px;
-    font-weight: 400;
-    margin-top: 8px;
-    color: var(--text);
-    line-height: 1.3;
-}
-.property-zone {
-    font-size: 15px;
-    color: var(--text-secondary);
-    margin-top: 6px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-.property-zone .pin { color: var(--gold); }
-
-/* Key Stats */
-.key-stats {
-    display: flex;
-    gap: 0;
-    margin-top: 32px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    overflow: hidden;
-}
-.key-stat {
-    flex: 1;
-    text-align: center;
-    padding: 20px 16px;
-    border-right: 1px solid var(--border);
-}
-.key-stat:last-child { border-right: none; }
-.key-stat .icon { font-size: 22px; margin-bottom: 6px; }
-.key-stat .value {
-    font-size: 20px;
-    font-weight: 600;
-    color: var(--text);
-}
-.key-stat .label {
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
-    color: var(--text-muted);
-    margin-top: 2px;
-}
-
-/* Sections */
-.section {
-    padding: 40px 0;
-    border-bottom: 1px solid var(--border);
-}
-.section:last-child { border-bottom: none; }
-.section-title {
-    font-family: 'DM Serif Display', serif;
-    font-size: 22px;
-    font-weight: 400;
-    margin-bottom: 20px;
-    color: var(--text);
-}
-
-/* Description */
-.description-text {
-    color: var(--text-secondary);
-    font-size: 15px;
-    line-height: 1.8;
-    font-weight: 300;
-}
-
-/* Features */
-.features-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    gap: 12px;
-}
-.feature-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 12px 16px;
-    background: var(--bg-elevated);
-    border-radius: 10px;
-    font-size: 14px;
-    color: var(--text-secondary);
-    border: 1px solid var(--border);
-}
-.feature-item .check { color: var(--gold); font-size: 14px; }
-
-/* ── MAP SECTION ───────────────────── */
-#map {
-    width: 100%;
-    height: 380px;
-    border-radius: var(--radius);
-    border: 1px solid var(--border);
-    overflow: hidden;
-    margin-bottom: 20px;
-}
-
-.poi-list {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-.poi-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 14px 18px;
-    background: var(--bg-elevated);
-    border-radius: 12px;
-    border: 1px solid var(--border);
-    cursor: pointer;
-    transition: all .2s;
-}
-.poi-item:hover {
-    border-color: var(--gold);
-    background: rgba(200,164,90,.05);
-}
-.poi-item .poi-info {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-.poi-item .poi-icon {
-    width: 36px; height: 36px;
-    border-radius: 10px;
-    background: rgba(200,164,90,.1);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 16px;
-}
-.poi-item .poi-name {
-    font-size: 14px;
-    font-weight: 500;
-}
-.poi-item .poi-distance {
-    font-size: 13px;
-    color: var(--gold);
-    font-weight: 500;
-    white-space: nowrap;
-}
-
-/* ── CTA / FOOTER ──────────────────── */
-.cta-section {
-    text-align: center;
-    padding: 60px 0 40px;
-}
-.cta-section h3 {
-    font-family: 'DM Serif Display', serif;
-    font-size: 26px;
-    font-weight: 400;
-    margin-bottom: 10px;
-}
-.cta-section p {
-    color: var(--text-muted);
-    font-size: 14px;
-    margin-bottom: 28px;
-}
-.cta-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    padding: 16px 36px;
-    background: #25D366;
-    color: #fff;
-    text-decoration: none;
-    border-radius: 14px;
-    font-size: 16px;
-    font-weight: 600;
-    transition: all .2s;
-    border: none;
-    cursor: pointer;
-}
-.cta-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(37,211,102,.3); }
-.cta-btn-secondary {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 12px 24px;
-    background: transparent;
-    color: var(--gold);
-    text-decoration: none;
-    border-radius: 10px;
-    font-size: 14px;
-    border: 1px solid var(--gold);
-    margin-top: 12px;
-    transition: all .2s;
-}
-.cta-btn-secondary:hover { background: rgba(200,164,90,.1); }
-
-/* Sticky WhatsApp */
-.sticky-cta {
-    position: fixed;
-    bottom: 0; left: 0; right: 0;
-    z-index: 100;
-    padding: 16px 24px;
-    background: linear-gradient(to top, var(--bg) 70%, transparent);
-    display: flex;
-    justify-content: center;
-    pointer-events: none;
-    opacity: 0;
-    transform: translateY(20px);
-    transition: all .4s;
-}
-.sticky-cta.visible { opacity: 1; transform: translateY(0); pointer-events: all; }
-.sticky-cta .cta-btn { box-shadow: 0 4px 20px rgba(0,0,0,.5); }
-
-/* Footer */
-.page-footer {
-    text-align: center;
-    padding: 40px 24px 100px;
-    border-top: 1px solid var(--border);
-}
-.page-footer .logo {
-    font-family: 'DM Serif Display', serif;
-    font-size: 20px;
-    color: var(--gold);
-    letter-spacing: 3px;
-}
-.page-footer p {
-    font-size: 11px;
-    color: var(--text-muted);
-    margin-top: 8px;
-}
-.page-footer a { color: var(--gold); text-decoration: none; }
-.verified-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 12px;
-    color: var(--green);
-    margin-top: 12px;
-    padding: 6px 14px;
-    border: 1px solid rgba(74,222,128,.2);
-    border-radius: 20px;
-}
-
-/* ── RESPONSIVE ────────────────────── */
-@media (max-width: 640px) {
-    .hero { height: 50vh; min-height: 300px; }
-    .title-block { margin-top: -60px; }
-    .price-tag { font-size: 32px; }
-    .property-title { font-size: 22px; }
-    .key-stats { flex-wrap: wrap; }
-    .key-stat { min-width: 50%; }
-    .key-stat:nth-child(2) { border-right: none; }
-    .key-stat:nth-child(3) { border-top: 1px solid var(--border); }
-    .key-stat:nth-child(4) { border-top: 1px solid var(--border); }
-    .features-grid { grid-template-columns: 1fr; }
-    #map { height: 300px; }
-    .gallery-nav { width: 36px; height: 36px; font-size: 16px; }
-    .content { padding: 0 16px; }
-}
-
-/* Animations */
-@keyframes fadeUp {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-.fade-up {
-    animation: fadeUp .6s ease forwards;
-    opacity: 0;
-}
-.fade-up:nth-child(1) { animation-delay: .1s; }
-.fade-up:nth-child(2) { animation-delay: .2s; }
-.fade-up:nth-child(3) { animation-delay: .3s; }
-.fade-up:nth-child(4) { animation-delay: .4s; }
-
-/* Leaflet overrides */
-.leaflet-control-attribution { display: none !important; }
-.leaflet-popup-content-wrapper {
-    background: var(--bg-card) !important;
-    color: var(--text) !important;
-    border-radius: 12px !important;
-    border: 1px solid var(--border) !important;
-    box-shadow: 0 8px 30px rgba(0,0,0,.5) !important;
-}
-.leaflet-popup-tip { background: var(--bg-card) !important; }
-.leaflet-popup-content { font-family: 'DM Sans', sans-serif !important; font-size: 13px !important; }
-</style>
+        /* RESPONSIVE */
+        @media(max-width:640px){
+            .gallery{height:50vh;min-height:280px}
+            .price{font-size:32px}
+            .price span{font-size:16px}
+            .title{font-size:18px}
+            .stats{grid-template-columns:repeat(2,1fr)}
+            .gallery-nav{width:36px;height:36px;font-size:14px}
+        }
+    </style>
 </head>
 <body>
 
-<!-- Loading -->
-<div id="loadingState" class="loading-state">
-    <div class="brand">BOOM</div>
+<div id="loading" class="loading-state">
     <div class="spinner"></div>
+    <div style="font-size:13px;color:var(--text-muted);letter-spacing:2px">Loading...</div>
 </div>
 
-<!-- Error -->
-<div id="errorState" class="error-state" style="display:none">
-    <h2>Property Not Found</h2>
-    <p>This link may have expired or the property has been removed.</p>
-    <a href="https://www.boomrome.com/apartments.html" class="cta-btn-secondary">Browse Available Apartments</a>
+<div id="error" class="error-state" style="display:none">
+    <div style="font-size:48px">🔗</div>
+    <h2>Link not available</h2>
+    <p>This property link may have expired or been removed.</p>
+    <a href="https://www.boomrome.com/apartments.html" class="cta-btn" style="margin-top:16px">Browse Apartments</a>
 </div>
 
-<!-- Main Content (hidden until loaded) -->
-<div id="mainContent" style="display:none">
+<div id="page" style="display:none">
 
-    <!-- Top Bar -->
-    <div class="top-bar" id="topBar">
-        <a href="https://www.boomrome.com" class="logo">BOOM</a>
-        <span class="badge">✓ Verified</span>
+    <!-- HEADER -->
+    <div class="header">
+        <a href="https://www.boomrome.com" class="header-logo">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+                <defs><linearGradient id="goldGrad" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#FFD54F"/><stop offset="100%" stop-color="#F5A623"/></linearGradient></defs>
+                <g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#goldGrad)"><path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z m610 -144 c743 -103 1436 -459 1919 -985 338 -367 562 -751 704 -1205 276 -879 132 -1858 -388 -2640 -242 -364 -493 -615 -900 -900 l-70 -49 109 104 c413 396 679 919 767 1505 33 217 33 558 0 765 -75 476 -257 896 -549 1265 -127 161 -363 380 -549 511 -300 211 -689 363 -1079 420 -172 26 -604 26 -764 0 -296 -47 -545 -128 -808 -262 -236 -122 -440 -271 -632 -464 -486 -485 -749 -1121 -751 -1815 -1 -611 170 -1148 515 -1608 100 -134 286 -335 382 -413 33 -27 -8 -2 -91 55 -513 351 -904 805 -1143 1331 -71 156 -136 336 -168 465 -9 33 -19 76 -24 95 -5 19 -20 100 -34 180 -59 343 -60 740 0 1070 81 456 229 826 479 1200 246 368 558 669 949 917 386 245 881 418 1321 462 61 6 124 13 140 15 73 10 556 -4 665 -19z"/></g>
+            </svg>
+            <span>BOOM</span>
+        </a>
+        <div class="header-badge">✓ Verified</div>
     </div>
 
-    <!-- Hero Gallery -->
-    <div class="hero" id="heroGallery">
-        <div class="hero-top-gradient"></div>
-        <div id="heroSlides"></div>
-        <button class="gallery-nav prev" onclick="galleryPrev()">‹</button>
-        <button class="gallery-nav next" onclick="galleryNext()">›</button>
+    <!-- GALLERY -->
+    <div class="gallery" id="gallery">
+        <div class="gallery-track" id="galleryTrack"></div>
+        <button class="gallery-nav gallery-prev" id="galleryPrev" onclick="galleryGo(-1)">‹</button>
+        <button class="gallery-nav gallery-next" id="galleryNext" onclick="galleryGo(1)">›</button>
         <div class="gallery-counter" id="galleryCounter"></div>
         <div class="gallery-dots" id="galleryDots"></div>
-        <div class="hero-gradient"></div>
+        <div class="gallery-gradient"></div>
     </div>
 
-    <!-- Content -->
+    <!-- CONTENT -->
     <div class="content">
-
-        <!-- Title Block -->
-        <div class="title-block fade-up">
-            <div class="price-tag" id="priceTag"></div>
-            <h1 class="property-title" id="propertyTitle"></h1>
-            <div class="property-zone" id="propertyZone"></div>
+        <div class="price-section">
+            <div class="price" id="propPrice"></div>
+            <div class="title" id="propTitle"></div>
+            <div class="zone" id="propZone"></div>
         </div>
 
-        <!-- Key Stats -->
-        <div class="key-stats fade-up" id="keyStats"></div>
+        <div class="stats" id="propStats"></div>
 
-        <!-- Description -->
-        <div class="section fade-up" id="descSection" style="display:none">
-            <h2 class="section-title">About This Property</h2>
-            <div class="description-text" id="descText"></div>
+        <div class="section" id="descSection" style="display:none">
+            <div class="section-title">Description</div>
+            <div class="description" id="propDescription"></div>
         </div>
 
-        <!-- Features -->
-        <div class="section fade-up" id="featSection" style="display:none">
-            <h2 class="section-title">Features & Amenities</h2>
-            <div class="features-grid" id="featGrid"></div>
+        <div class="section" id="featuresSection" style="display:none">
+            <div class="section-title">Features</div>
+            <div class="features" id="propFeatures"></div>
         </div>
 
-        <!-- Map & POIs -->
-        <div class="section fade-up" id="mapSection" style="display:none">
-            <h2 class="section-title">Location & Distances</h2>
-            <div id="map"></div>
-            <div class="poi-list" id="poiList"></div>
+        <div class="section" id="poisSection" style="display:none">
+            <div class="section-title">Nearby</div>
+            <div class="poi-list" id="propPois"></div>
+            <div class="map-container" id="mapContainer" style="display:none">
+                <div id="map"></div>
+            </div>
         </div>
 
-        <!-- Source Link -->
-        <div class="section fade-up" id="sourceSection" style="display:none">
-            <h2 class="section-title">Original Listing</h2>
-            <a id="sourceLink" href="#" target="_blank" rel="noopener" style="color:var(--gold);font-size:14px;word-break:break-all"></a>
-        </div>
-
-        <!-- CTA -->
-        <div class="cta-section fade-up">
-            <h3>Interested?</h3>
-            <p>Contact BOOM to schedule a viewing or get more details. We handle everything.</p>
-            <a id="ctaMain" href="#" class="cta-btn" target="_blank">💬 Contact on WhatsApp</a>
-            <br>
-            <a href="https://www.boomrome.com" class="cta-btn-secondary">Visit boomrome.com →</a>
+        <div class="cta-section">
+            <a id="ctaWhatsapp" href="#" class="cta-btn" target="_blank">💬&nbsp; Contact on WhatsApp</a>
+            <div class="cta-secondary">or <a href="https://www.boomrome.com/apartments.html">browse all apartments →</a></div>
         </div>
     </div>
 
-    <!-- Footer -->
-    <div class="page-footer">
-        <div class="logo">BOOM</div>
-        <p>Egidi Immobiliare S.r.l. · P.IVA 17322991005</p>
-        <p style="margin-top:4px"><a href="https://www.boomrome.com">boomrome.com</a></p>
-        <div class="verified-badge">✓ Verified by BOOM · Scam-Free Guarantee</div>
+    <!-- FOOTER -->
+    <div class="footer">
+        <div class="footer-brand">BOOM</div>
+        <div class="footer-legal">Egidi Immobiliare S.r.l.<br><a href="https://www.boomrome.com">www.boomrome.com</a></div>
+        <div class="footer-badge">🛡 Scam-Free Guarantee</div>
     </div>
 
-    <!-- Sticky CTA -->
+    <!-- STICKY CTA -->
     <div class="sticky-cta" id="stickyCta">
-        <a id="ctaSticky" href="#" class="cta-btn" target="_blank">💬 WhatsApp BOOM</a>
+        <div class="sticky-info" id="stickyInfo"></div>
+        <a id="stickyBtn" href="#" class="sticky-btn" target="_blank">WhatsApp →</a>
     </div>
 
 </div>
 
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-// ── Firebase Config ───────────────────────────────────────────
-firebase.initializeApp({
-    apiKey: "AIzaSyDDb8UeSc8RhO_VxQrhLrupu1aPD4rwRso",
-    authDomain: "boom-property-dashboards.firebaseapp.com",
-    projectId: "boom-property-dashboards",
-    storageBucket: "boom-property-dashboards.firebasestorage.app",
-    messagingSenderId: "937269017440",
-    appId: "1:937269017440:web:41c1a0b1e1633c2f373c05"
-});
-const db = firebase.firestore();
+(function() {
+    var FIREBASE_PROJECT = 'boom-property-dashboards';
+    var FIREBASE_KEY = 'AIzaSyDDb8UeSc8RhO_VxQrhLrupu1aPD4rwRso';
+    var WA_NUMBER = '393313251961';
+    var galleryIndex = 0;
 
-// ── State ─────────────────────────────────────────────────────
-let currentSlide = 0;
-let totalSlides = 0;
-let propertyData = null;
-let mapInstance = null;
+    var params = new URLSearchParams(window.location.search);
+    var docId = params.get('id');
+    if (!docId) { showError(); return; }
 
-// ── Get ID from URL ───────────────────────────────────────────
-const urlParams = new URLSearchParams(window.location.search);
-const docId = urlParams.get('id');
+    var url = 'https://firestore.googleapis.com/v1/projects/' + FIREBASE_PROJECT + '/databases/(default)/documents/smartlinks/' + docId + '?key=' + FIREBASE_KEY;
 
-if (!docId) {
-    showError();
-} else {
-    loadProperty(docId);
-}
+    fetch(url)
+        .then(function(r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+        .then(function(doc) {
+            var d = parseDoc(doc.fields);
+            if (!d.title) throw new Error('Empty');
+            render(d);
+        })
+        .catch(function(e) { console.error(e); showError(); });
 
-async function loadProperty(id) {
-    try {
-        const doc = await db.collection('smartlinks').doc(id).get();
-        if (!doc.exists) { showError(); return; }
-        
-        propertyData = doc.data();
-        renderProperty(propertyData);
-        
-        document.getElementById('loadingState').style.display = 'none';
-        document.getElementById('mainContent').style.display = 'block';
-        
-        // Update page title
-        document.title = (propertyData.title || 'Property') + ' — BOOM Rome';
-        
-        // Init scroll listeners
-        initScroll();
-        
-    } catch(e) {
-        console.error('Load error:', e);
-        showError();
-    }
-}
-
-function showError() {
-    document.getElementById('loadingState').style.display = 'none';
-    document.getElementById('errorState').style.display = 'flex';
-}
-
-// ── Render ────────────────────────────────────────────────────
-function renderProperty(d) {
-    // Price
-    const priceEl = document.getElementById('priceTag');
-    priceEl.innerHTML = `€${Number(d.price).toLocaleString('it-IT')} <span class="period">/month</span>`;
-    
-    // Title
-    document.getElementById('propertyTitle').textContent = d.title || 'Property';
-    
-    // Zone
-    const zoneEl = document.getElementById('propertyZone');
-    const parts = [];
-    if (d.zone) parts.push(`<span class="pin">📍</span> ${esc(d.zone)}`);
-    if (d.address) parts.push(esc(d.address));
-    zoneEl.innerHTML = parts.join(' · ') || '';
-    
-    // Key Stats
-    const stats = [];
-    if (d.rooms) stats.push({ icon: '🛏️', value: d.rooms, label: 'Bedrooms' });
-    if (d.bathrooms) stats.push({ icon: '🚿', value: d.bathrooms, label: 'Bathrooms' });
-    if (d.size) stats.push({ icon: '📐', value: d.size + 'm²', label: 'Area' });
-    stats.push({ icon: '✓', value: 'BOOM', label: 'Verified' });
-    
-    document.getElementById('keyStats').innerHTML = stats.map(s => `
-        <div class="key-stat">
-            <div class="icon">${s.icon}</div>
-            <div class="value">${s.value}</div>
-            <div class="label">${s.label}</div>
-        </div>
-    `).join('');
-    
-    // Gallery
-    renderGallery(d.photos || [], d.uploadedPhotos || []);
-    
-    // Description
-    if (d.description) {
-        document.getElementById('descSection').style.display = 'block';
-        document.getElementById('descText').textContent = d.description;
-    }
-    
-    // Features
-    if (d.features?.length) {
-        document.getElementById('featSection').style.display = 'block';
-        document.getElementById('featGrid').innerHTML = d.features.map(f => `
-            <div class="feature-item"><span class="check">✦</span> ${esc(f)}</div>
-        `).join('');
-    }
-    
-    // POIs & Map
-    if (d.pois?.length || d.address) {
-        document.getElementById('mapSection').style.display = 'block';
-        initMap(d);
-    }
-    
-    // Source URL
-    if (d.url) {
-        document.getElementById('sourceSection').style.display = 'block';
-        const linkEl = document.getElementById('sourceLink');
-        linkEl.href = d.url;
-        try {
-            const hostname = new URL(d.url).hostname.replace('www.', '');
-            linkEl.textContent = '🔗 View on ' + hostname;
-        } catch(e) { linkEl.textContent = d.url; }
-    }
-    
-    // WhatsApp CTA
-    const waText = encodeURIComponent(`Hi BOOM! I'm interested in: ${d.title || 'this property'} — €${d.price}/month${d.zone ? ' in ' + d.zone : ''}.\n\nCan you tell me more?`);
-    const waUrl = `https://wa.me/393313251961?text=${waText}`;
-    document.getElementById('ctaMain').href = waUrl;
-    document.getElementById('ctaSticky').href = waUrl;
-}
-
-// ── Gallery ───────────────────────────────────────────────────
-function renderGallery(photos, uploaded) {
-    const allPhotos = [...photos, ...uploaded].filter(Boolean);
-    const slidesEl = document.getElementById('heroSlides');
-    const dotsEl = document.getElementById('galleryDots');
-    const counterEl = document.getElementById('galleryCounter');
-    
-    if (!allPhotos.length) {
-        slidesEl.innerHTML = '<div class="hero-placeholder"><span>🏠</span></div>';
-        document.querySelector('.gallery-nav.prev').style.display = 'none';
-        document.querySelector('.gallery-nav.next').style.display = 'none';
-        counterEl.style.display = 'none';
-        return;
-    }
-    
-    totalSlides = allPhotos.length;
-    
-    slidesEl.innerHTML = allPhotos.map((src, i) => `
-        <div class="hero-slide ${i === 0 ? 'active' : ''}">
-            <img src="${src}" alt="Photo ${i+1}" loading="${i === 0 ? 'eager' : 'lazy'}" onerror="this.parentElement.innerHTML='<div class=\\'hero-placeholder\\'><span>📷</span></div>'">
-        </div>
-    `).join('');
-    
-    dotsEl.innerHTML = allPhotos.map((_, i) => `
-        <button class="gallery-dot ${i === 0 ? 'active' : ''}" onclick="goToSlide(${i})"></button>
-    `).join('');
-    
-    counterEl.textContent = `1 / ${totalSlides}`;
-    
-    if (totalSlides <= 1) {
-        document.querySelector('.gallery-nav.prev').style.display = 'none';
-        document.querySelector('.gallery-nav.next').style.display = 'none';
-        counterEl.style.display = 'none';
-        dotsEl.style.display = 'none';
-    }
-    
-    // Touch swipe
-    let touchStartX = 0;
-    const hero = document.getElementById('heroGallery');
-    hero.addEventListener('touchstart', e => touchStartX = e.touches[0].clientX, { passive: true });
-    hero.addEventListener('touchend', e => {
-        const diff = touchStartX - e.changedTouches[0].clientX;
-        if (Math.abs(diff) > 50) { diff > 0 ? galleryNext() : galleryPrev(); }
-    }, { passive: true });
-}
-
-function goToSlide(n) {
-    document.querySelectorAll('.hero-slide').forEach((s, i) => s.classList.toggle('active', i === n));
-    document.querySelectorAll('.gallery-dot').forEach((d, i) => d.classList.toggle('active', i === n));
-    document.getElementById('galleryCounter').textContent = `${n+1} / ${totalSlides}`;
-    currentSlide = n;
-}
-function galleryNext() { goToSlide((currentSlide + 1) % totalSlides); }
-function galleryPrev() { goToSlide((currentSlide - 1 + totalSlides) % totalSlides); }
-
-// Auto-advance every 5s
-setInterval(() => { if (totalSlides > 1) galleryNext(); }, 5000);
-
-// ── Map ───────────────────────────────────────────────────────
-async function initMap(d) {
-    // Geocode address
-    let lat = 41.9028, lng = 12.4964; // Default: Rome center
-    
-    if (d.address || d.zone) {
-        try {
-            const q = encodeURIComponent((d.address || '') + ', ' + (d.zone || '') + ', Roma, Italia');
-            const resp = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${q}&limit=1`);
-            const results = await resp.json();
-            if (results.length) { lat = parseFloat(results[0].lat); lng = parseFloat(results[0].lon); }
-        } catch(e) { console.warn('Geocoding failed:', e); }
-    }
-    
-    mapInstance = L.map('map', { 
-        scrollWheelZoom: false, 
-        zoomControl: true,
-        attributionControl: false 
-    }).setView([lat, lng], 15);
-    
-    // Dark map tiles
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        maxZoom: 19
-    }).addTo(mapInstance);
-    
-    // Property marker (gold)
-    const goldIcon = L.divIcon({
-        html: `<div style="width:32px;height:32px;background:var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 4px 12px rgba(200,164,90,.5);border:3px solid #fff">🏠</div>`,
-        iconSize: [32, 32],
-        iconAnchor: [16, 16],
-        className: ''
-    });
-    L.marker([lat, lng], { icon: goldIcon })
-        .addTo(mapInstance)
-        .bindPopup(`<strong>${esc(d.title || 'Property')}</strong><br>€${d.price}/month`);
-    
-    // POI markers
-    const poiListEl = document.getElementById('poiList');
-    
-    if (d.pois?.length) {
-        const poiIcons = { 
-            metro: '🚇', bus: '🚌', train: '🚂', shop: '🛒', super: '🛒',
-            hospital: '🏥', school: '🎓', uni: '🎓', park: '🌳', 
-            restaurant: '🍽️', bar: '🍸', gym: '💪', pharmacy: '💊',
-            default: '📍'
-        };
-        
-        poiListEl.innerHTML = d.pois.map((poi, i) => {
-            const nameLower = poi.name.toLowerCase();
-            let icon = poiIcons.default;
-            for (const [key, emoji] of Object.entries(poiIcons)) {
-                if (nameLower.includes(key)) { icon = emoji; break; }
+    function parseDoc(fields) {
+        var d = {};
+        for (var key in fields) {
+            var val = fields[key];
+            if (val.stringValue !== undefined) d[key] = val.stringValue;
+            else if (val.integerValue !== undefined) d[key] = val.integerValue;
+            else if (val.doubleValue !== undefined) d[key] = val.doubleValue;
+            else if (val.booleanValue !== undefined) d[key] = val.booleanValue;
+            else if (val.arrayValue) {
+                d[key] = (val.arrayValue.values || []).map(function(v) {
+                    if (v.stringValue !== undefined) return v.stringValue;
+                    if (v.mapValue) {
+                        var m = {};
+                        for (var mk in v.mapValue.fields) {
+                            var mv = v.mapValue.fields[mk];
+                            m[mk] = mv.stringValue || mv.integerValue || '';
+                        }
+                        return m;
+                    }
+                    return v.stringValue || '';
+                });
             }
-            
-            return `<div class="poi-item" onclick="highlightPOI(${i})">
-                <div class="poi-info">
-                    <div class="poi-icon">${icon}</div>
-                    <span class="poi-name">${esc(poi.name)}</span>
-                </div>
-                <span class="poi-distance">${esc(poi.distance || '')}</span>
-            </div>`;
-        }).join('');
+        }
+        return d;
     }
-    
-    // Slight delay for map render
-    setTimeout(() => mapInstance.invalidateSize(), 100);
-}
 
-function highlightPOI(index) {
-    // Highlight the selected POI item
-    document.querySelectorAll('.poi-item').forEach((el, i) => {
-        el.style.borderColor = i === index ? 'var(--gold)' : 'var(--border)';
-        el.style.background = i === index ? 'rgba(200,164,90,.08)' : 'var(--bg-elevated)';
-    });
-}
+    function showError() {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('error').style.display = 'flex';
+    }
 
-// ── Scroll Effects ────────────────────────────────────────────
-function initScroll() {
-    const topBar = document.getElementById('topBar');
-    const stickyCta = document.getElementById('stickyCta');
-    
-    window.addEventListener('scroll', () => {
-        const y = window.scrollY;
-        topBar.classList.toggle('scrolled', y > 100);
-        stickyCta.classList.toggle('visible', y > 500);
-    }, { passive: true });
-}
+    function esc(s) { var d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
 
-// ── Helpers ───────────────────────────────────────────────────
-function esc(str) {
-    if (!str) return '';
-    const d = document.createElement('div');
-    d.textContent = str;
-    return d.innerHTML;
-}
+    function render(d) {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('page').style.display = 'block';
+        document.title = (d.title || 'Property') + ' – BOOM Rome';
+
+        // Gallery
+        var photos = d.photos || [];
+        var track = document.getElementById('galleryTrack');
+        var dots = document.getElementById('galleryDots');
+        var counter = document.getElementById('galleryCounter');
+
+        if (photos.length) {
+            track.innerHTML = photos.map(function(u) {
+                return '<div class="gallery-slide"><img src="' + esc(u) + '" alt="' + esc(d.title) + '" loading="lazy" onerror="this.parentElement.innerHTML=\'<div class=gallery-placeholder>🏠</div>\'"></div>';
+            }).join('');
+            dots.innerHTML = photos.map(function(_, i) {
+                return '<div class="gallery-dot' + (i === 0 ? ' active' : '') + '" onclick="gallerySet(' + i + ')"></div>';
+            }).join('');
+            counter.textContent = '1 / ' + photos.length;
+            if (photos.length <= 1) hideGalleryNav();
+        } else {
+            track.innerHTML = '<div class="gallery-slide"><div class="gallery-placeholder">🏠<div style="font-size:14px;letter-spacing:2px">BOOM ROME</div></div></div>';
+            hideGalleryNav();
+        }
+
+        function hideGalleryNav() {
+            document.getElementById('galleryPrev').style.display = 'none';
+            document.getElementById('galleryNext').style.display = 'none';
+            dots.style.display = 'none';
+            counter.style.display = 'none';
+        }
+
+        // Price
+        var price = d.price ? '€' + Number(d.price).toLocaleString('it-IT') : '';
+        document.getElementById('propPrice').innerHTML = price ? price + ' <span>/month</span>' : '';
+
+        // Title & Zone
+        document.getElementById('propTitle').textContent = d.title || '';
+        var zoneParts = [d.zone, d.address].filter(Boolean);
+        document.getElementById('propZone').innerHTML = zoneParts.length ? '📍 ' + esc(zoneParts.join(' · ')) : '';
+
+        // Stats
+        var stats = [];
+        if (d.rooms) stats.push({ v: d.rooms, l: 'Bedrooms' });
+        if (d.bathrooms) stats.push({ v: d.bathrooms, l: 'Bathrooms' });
+        if (d.size) stats.push({ v: d.size + 'm²', l: 'Area' });
+        stats.push({ v: '✓', l: 'Verified' });
+        document.getElementById('propStats').innerHTML = stats.map(function(s) {
+            return '<div class="stat"><div class="stat-value">' + esc(String(s.v)) + '</div><div class="stat-label">' + s.l + '</div></div>';
+        }).join('');
+
+        // Description
+        if (d.description) {
+            document.getElementById('descSection').style.display = 'block';
+            document.getElementById('propDescription').textContent = d.description;
+        }
+
+        // Features
+        var features = d.features || [];
+        if (features.length) {
+            document.getElementById('featuresSection').style.display = 'block';
+            document.getElementById('propFeatures').innerHTML = features.map(function(f) {
+                return '<div class="feature">' + esc(f) + '</div>';
+            }).join('');
+        }
+
+        // POIs
+        var pois = d.pois || [];
+        if (pois.length) {
+            document.getElementById('poisSection').style.display = 'block';
+            var icons = { metro: '🚇', bus: '🚌', tram: '🚊', shop: '🛒', super: '🛒', market: '🛒', hospital: '🏥', park: '🌳', uni: '🎓', restaurant: '🍽', bar: '🍸', gym: '💪', pharmacy: '💊', station: '🚉' };
+            function getIcon(name) {
+                var n = (name || '').toLowerCase();
+                for (var k in icons) { if (n.indexOf(k) !== -1) return icons[k]; }
+                return '📍';
+            }
+            document.getElementById('propPois').innerHTML = pois.map(function(p) {
+                return '<div class="poi"><div class="poi-name"><span class="poi-icon">' + getIcon(p.name) + '</span> ' + esc(p.name) + '</div><div class="poi-dist">' + esc(p.distance) + '</div></div>';
+            }).join('');
+        }
+
+        // Map
+        var addr = [d.address, d.zone, 'Roma, Italia'].filter(Boolean).join(', ');
+        if (addr && typeof L !== 'undefined') {
+            fetch('https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(addr) + '&limit=1')
+                .then(function(r) { return r.json(); })
+                .then(function(res) {
+                    if (!res.length) return;
+                    var lat = parseFloat(res[0].lat), lon = parseFloat(res[0].lon);
+                    document.getElementById('mapContainer').style.display = 'block';
+                    var map = L.map('map', { zoomControl: false, attributionControl: false }).setView([lat, lon], 15);
+                    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
+                    L.marker([lat, lon], {
+                        icon: L.divIcon({
+                            className: '',
+                            html: '<div style="width:32px;height:32px;background:#D4AF37;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 4px 12px rgba(212,175,55,0.4)">🏠</div>',
+                            iconSize: [32, 32], iconAnchor: [16, 16]
+                        })
+                    }).addTo(map);
+                    setTimeout(function() { map.invalidateSize(); }, 200);
+                }).catch(function() {});
+        }
+
+        // WhatsApp CTAs
+        var waText = encodeURIComponent('Hi! I\'m interested in: ' + (d.title || 'this property') + (d.zone ? ' in ' + d.zone : '') + (price ? ' (' + price + '/mo)' : '') + '\n\nSent via BOOM SmartLink');
+        var waUrl = 'https://wa.me/' + WA_NUMBER + '?text=' + waText;
+        document.getElementById('ctaWhatsapp').href = waUrl;
+        document.getElementById('stickyBtn').href = waUrl;
+        document.getElementById('stickyInfo').innerHTML = '<strong>' + price + '</strong> ' + (d.zone ? '· ' + esc(d.zone) : '');
+
+        // Sticky CTA on scroll
+        var sticky = document.getElementById('stickyCta');
+        window.addEventListener('scroll', function() {
+            sticky.classList.toggle('visible', window.scrollY > 400);
+        });
+
+        // Touch swipe
+        var gallery = document.getElementById('gallery');
+        var startX = 0, startY = 0;
+        gallery.addEventListener('touchstart', function(e) { startX = e.touches[0].clientX; startY = e.touches[0].clientY; }, { passive: true });
+        gallery.addEventListener('touchend', function(e) {
+            var dx = e.changedTouches[0].clientX - startX;
+            var dy = Math.abs(e.changedTouches[0].clientY - startY);
+            if (Math.abs(dx) > 50 && dy < 100) galleryGo(dx < 0 ? 1 : -1);
+        }, { passive: true });
+
+        // Auto-advance
+        if (photos.length > 1) {
+            var timer = setInterval(function() { galleryGo(1); }, 5000);
+            gallery.addEventListener('touchstart', function() { clearInterval(timer); }, { once: true });
+        }
+    }
+
+    // Gallery controls (global)
+    window.galleryGo = function(dir) {
+        var slides = document.querySelectorAll('.gallery-slide');
+        if (!slides.length) return;
+        galleryIndex = (galleryIndex + dir + slides.length) % slides.length;
+        updateGallery();
+    };
+    window.gallerySet = function(i) { galleryIndex = i; updateGallery(); };
+
+    function updateGallery() {
+        document.getElementById('galleryTrack').style.transform = 'translateX(-' + (galleryIndex * 100) + '%)';
+        var dots = document.querySelectorAll('.gallery-dot');
+        for (var i = 0; i < dots.length; i++) dots[i].className = 'gallery-dot' + (i === galleryIndex ? ' active' : '');
+        var total = document.querySelectorAll('.gallery-slide').length;
+        document.getElementById('galleryCounter').textContent = (galleryIndex + 1) + ' / ' + total;
+    }
+})();
 </script>
 </body>
 </html>
