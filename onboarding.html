@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Find Your Perfect Home | BOOM Rome</title>
-    <link rel="icon" type="image/png" href="https://www.boomrome.com/BOOMlogogoldicon512.png">
+    <link rel="icon" type="image/svg+xml" href="https://www.boomrome.com/boom-logo.svg">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -41,20 +41,16 @@
         /* Animated Background */
         .bg-animation {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
             z-index: 0;
             overflow: hidden;
         }
 
         .bg-gradient {
             position: absolute;
-            width: 150%;
-            height: 150%;
-            top: -25%;
-            left: -25%;
+            width: 150%; height: 150%;
+            top: -25%; left: -25%;
             background:
                 radial-gradient(ellipse at 20% 20%, rgba(212,175,55,0.08) 0%, transparent 50%),
                 radial-gradient(ellipse at 80% 80%, rgba(212,175,55,0.05) 0%, transparent 50%),
@@ -77,20 +73,15 @@
         }
 
         .orb-1 {
-            width: 400px;
-            height: 400px;
+            width: 400px; height: 400px;
             background: var(--gold);
-            top: 10%;
-            right: -10%;
-            animation-delay: 0s;
+            top: 10%; right: -10%;
         }
 
         .orb-2 {
-            width: 300px;
-            height: 300px;
+            width: 300px; height: 300px;
             background: var(--gold-dark);
-            bottom: 20%;
-            left: -5%;
+            bottom: 20%; left: -5%;
             animation-delay: -5s;
         }
 
@@ -137,15 +128,14 @@
             position: relative;
             z-index: 2;
             animation: logoPulse 3s ease-in-out infinite;
+            object-fit: cover;
         }
 
         .logo-glow {
             position: absolute;
-            top: 50%;
-            left: 50%;
+            top: 50%; left: 50%;
             transform: translate(-50%, -50%);
-            width: 120px;
-            height: 120px;
+            width: 120px; height: 120px;
             background: radial-gradient(circle, var(--gold-glow) 0%, transparent 70%);
             border-radius: 50%;
             animation: glowPulse 3s ease-in-out infinite;
@@ -203,8 +193,7 @@
         }
 
         .step-dot {
-            width: 40px;
-            height: 40px;
+            width: 40px; height: 40px;
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -232,16 +221,11 @@
             color: #fff;
         }
 
-        .step-dot.completed::after {
-            content: '✓';
-            font-size: 16px;
-        }
-
+        .step-dot.completed::after { content: '✓'; font-size: 16px; }
         .step-dot.completed span { display: none; }
 
         .step-line {
-            width: 60px;
-            height: 3px;
+            width: 60px; height: 3px;
             background: var(--border);
             border-radius: 2px;
             position: relative;
@@ -251,10 +235,8 @@
         .step-line::after {
             content: '';
             position: absolute;
-            left: 0;
-            top: 0;
-            height: 100%;
-            width: 0;
+            left: 0; top: 0;
+            height: 100%; width: 0;
             background: linear-gradient(90deg, var(--gold), var(--green));
             border-radius: 2px;
             transition: width 0.5s ease;
@@ -292,9 +274,7 @@
         .card::before {
             content: '';
             position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
+            top: 0; left: 0; right: 0;
             height: 3px;
             background: linear-gradient(90deg, var(--gold), var(--gold-dark), var(--gold));
             background-size: 200% 100%;
@@ -352,9 +332,7 @@
             .form-row { grid-template-columns: 1fr; }
         }
 
-        .input-wrapper {
-            position: relative;
-        }
+        .input-wrapper { position: relative; }
 
         .form-label {
             position: absolute;
@@ -407,10 +385,7 @@
             box-shadow: 0 0 0 4px rgba(212,175,55,0.1), 0 8px 32px rgba(0,0,0,0.3);
         }
 
-        .form-input.valid {
-            border-color: var(--green);
-        }
-
+        .form-input.valid { border-color: var(--green); }
         .form-input.valid ~ .input-icon { color: var(--green); }
 
         .form-input.invalid {
@@ -426,8 +401,7 @@
 
         .input-icon {
             position: absolute;
-            right: 16px;
-            top: 50%;
+            right: 16px; top: 50%;
             transform: translateY(-50%);
             font-size: 18px;
             opacity: 0;
@@ -435,9 +409,7 @@
         }
 
         .form-input.valid ~ .input-icon,
-        .form-input.invalid ~ .input-icon {
-            opacity: 1;
-        }
+        .form-input.invalid ~ .input-icon { opacity: 1; }
 
         .form-select {
             cursor: pointer;
@@ -449,10 +421,7 @@
             padding-right: 48px;
         }
 
-        .form-select option {
-            background: #1a1a1a;
-            padding: 12px;
-        }
+        .form-select option { background: #1a1a1a; padding: 12px; }
 
         .form-textarea {
             min-height: 120px;
@@ -462,8 +431,7 @@
 
         .char-count {
             position: absolute;
-            bottom: 12px;
-            right: 16px;
+            bottom: 12px; right: 16px;
             font-size: 11px;
             color: var(--text-muted);
         }
@@ -490,8 +458,7 @@
         }
 
         .duration-btn {
-            width: 36px;
-            height: 28px;
+            width: 36px; height: 28px;
             border: 2px solid var(--border);
             background: var(--bg-input);
             border-radius: 8px;
@@ -509,9 +476,7 @@
             background: var(--gold-light);
         }
 
-        .duration-btn:active {
-            transform: scale(0.95);
-        }
+        .duration-btn:active { transform: scale(0.95); }
 
         .duration-label {
             font-size: 16px;
@@ -553,9 +518,7 @@
             box-shadow: 0 4px 20px var(--gold-glow);
         }
 
-        .zone-chip.selected::before {
-            content: '✓ ';
-        }
+        .zone-chip.selected::before { content: '✓ '; }
 
         .zones-hint {
             font-size: 12px;
@@ -605,26 +568,20 @@
         .btn-primary::before {
             content: '';
             position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
+            top: 0; left: -100%;
+            width: 100%; height: 100%;
             background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
             transition: left 0.5s;
         }
 
-        .btn-primary:hover::before {
-            left: 100%;
-        }
+        .btn-primary:hover::before { left: 100%; }
 
         .btn-primary:hover {
             transform: translateY(-3px);
             box-shadow: 0 12px 40px var(--gold-glow);
         }
 
-        .btn-primary:active {
-            transform: translateY(-1px);
-        }
+        .btn-primary:active { transform: translateY(-1px); }
 
         .btn-secondary {
             background: transparent;
@@ -649,9 +606,7 @@
             transition: transform 0.3s;
         }
 
-        .btn:hover .btn-icon {
-            transform: translateX(4px);
-        }
+        .btn:hover .btn-icon { transform: translateX(4px); }
 
         /* Alert */
         .alert {
@@ -676,7 +631,6 @@
         }
 
         .alert.show { display: flex; }
-
         .alert-icon { font-size: 20px; }
 
         /* Success Screen */
@@ -698,15 +652,13 @@
         }
 
         .success-animation {
-            width: 120px;
-            height: 120px;
+            width: 120px; height: 120px;
             margin: 0 auto 24px;
             position: relative;
         }
 
         .success-circle {
-            width: 100%;
-            height: 100%;
+            width: 100%; height: 100%;
             border-radius: 50%;
             background: linear-gradient(135deg, var(--green), #2DAE4E);
             display: flex;
@@ -721,8 +673,7 @@
         }
 
         .success-check {
-            font-size: 48px;
-            color: #fff;
+            font-size: 48px; color: #fff;
             animation: checkPop 0.4s ease-out 0.2s both;
         }
 
@@ -732,8 +683,7 @@
         }
 
         .success-title {
-            font-size: 28px;
-            font-weight: 700;
+            font-size: 28px; font-weight: 700;
             margin-bottom: 12px;
             background: linear-gradient(135deg, var(--green), #4AE371);
             -webkit-background-clip: text;
@@ -766,40 +716,22 @@
 
         .success-detail-item:last-child { border-bottom: none; }
 
-        .success-detail-label {
-            color: var(--text-muted);
-            font-size: 13px;
-        }
-
-        .success-detail-value {
-            color: var(--text);
-            font-weight: 500;
-            font-size: 14px;
-        }
+        .success-detail-label { color: var(--text-muted); font-size: 13px; }
+        .success-detail-value { color: var(--text); font-weight: 500; font-size: 14px; }
 
         /* Confetti */
         .confetti-container {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
             pointer-events: none;
             z-index: 1000;
             overflow: hidden;
         }
 
-        .confetti {
-            position: absolute;
-            width: 10px;
-            height: 10px;
-            opacity: 0;
-        }
-
         /* Loading Spinner */
         .spinner {
-            width: 20px;
-            height: 20px;
+            width: 20px; height: 20px;
             border: 3px solid rgba(0,0,0,0.2);
             border-top-color: #000;
             border-radius: 50%;
@@ -836,8 +768,7 @@
         }
 
         .tooltip-icon {
-            width: 16px;
-            height: 16px;
+            width: 16px; height: 16px;
             border-radius: 50%;
             background: var(--border);
             color: var(--text-muted);
@@ -850,8 +781,7 @@
         .tooltip-text {
             visibility: hidden;
             position: absolute;
-            bottom: 130%;
-            left: 50%;
+            bottom: 130%; left: 50%;
             transform: translateX(-50%);
             background: #333;
             color: #fff;
@@ -864,10 +794,7 @@
             z-index: 100;
         }
 
-        .tooltip:hover .tooltip-text {
-            visibility: visible;
-            opacity: 1;
-        }
+        .tooltip:hover .tooltip-text { visibility: visible; opacity: 1; }
 
         /* Responsive */
         @media (max-width: 600px) {
@@ -893,7 +820,7 @@
         <div class="logo-section">
             <div class="logo-wrapper">
                 <div class="logo-glow"></div>
-                <img src="boom-logo.svg" alt="BOOM Rome" class="logo">
+                <img src="https://www.boomrome.com/boom-logo.svg" alt="BOOM Rome" class="logo">
             </div>
             <div class="brand">BOOM</div>
             <div class="tagline">MID-TERM RENTALS • ROME</div>
@@ -927,14 +854,14 @@
                 <div class="form-row">
                     <div class="form-group">
                         <div class="input-wrapper">
-                            <input type="text" class="form-input" id="firstName" placeholder=" " required>
+                            <input type="text" class="form-input" id="firstName" placeholder=" " required autocomplete="given-name">
                             <label class="form-label">First Name</label>
                             <span class="input-icon" id="firstNameIcon"></span>
                         </div>
                     </div>
                     <div class="form-group">
                         <div class="input-wrapper">
-                            <input type="text" class="form-input" id="lastName" placeholder=" " required>
+                            <input type="text" class="form-input" id="lastName" placeholder=" " required autocomplete="family-name">
                             <label class="form-label">Last Name</label>
                             <span class="input-icon" id="lastNameIcon"></span>
                         </div>
@@ -943,7 +870,7 @@
 
                 <div class="form-group">
                     <div class="input-wrapper">
-                        <input type="email" class="form-input" id="email" placeholder=" " required>
+                        <input type="email" class="form-input" id="email" placeholder=" " required autocomplete="email">
                         <label class="form-label">Email Address</label>
                         <span class="input-icon" id="emailIcon"></span>
                     </div>
@@ -951,8 +878,8 @@
 
                 <div class="form-group">
                     <div class="input-wrapper">
-                        <input type="tel" class="form-input" id="phone" placeholder=" " required>
-                        <label class="form-label">Phone Number</label>
+                        <input type="tel" class="form-input" id="phone" placeholder=" " required autocomplete="tel">
+                        <label class="form-label">WhatsApp / Phone Number</label>
                         <span class="input-icon" id="phoneIcon"></span>
                     </div>
                 </div>
@@ -1017,17 +944,19 @@
                 <div class="form-group">
                     <label style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; display: block;">Preferred Neighborhoods</label>
                     <div class="zones-grid" id="zonesGrid">
+                        <span class="zone-chip" data-zone="Parioli">Parioli</span>
+                        <span class="zone-chip" data-zone="Trieste">Trieste</span>
+                        <span class="zone-chip" data-zone="Sallustiano">Sallustiano</span>
+                        <span class="zone-chip" data-zone="Prati">Prati</span>
                         <span class="zone-chip" data-zone="Centro Storico">Centro Storico</span>
                         <span class="zone-chip" data-zone="Trastevere">Trastevere</span>
-                        <span class="zone-chip" data-zone="Prati">Prati</span>
-                        <span class="zone-chip" data-zone="Parioli">Parioli</span>
                         <span class="zone-chip" data-zone="Flaminio">Flaminio</span>
                         <span class="zone-chip" data-zone="Monti">Monti</span>
                         <span class="zone-chip" data-zone="Testaccio">Testaccio</span>
-                        <span class="zone-chip" data-zone="Ostiense">Ostiense</span>
-                        <span class="zone-chip" data-zone="Monteverde">Monteverde</span>
-                        <span class="zone-chip" data-zone="Trieste">Trieste</span>
+                        <span class="zone-chip" data-zone="Pinciano">Pinciano</span>
                         <span class="zone-chip" data-zone="San Giovanni">San Giovanni</span>
+                        <span class="zone-chip" data-zone="Monteverde">Monteverde</span>
+                        <span class="zone-chip" data-zone="San Lorenzo">San Lorenzo</span>
                         <span class="zone-chip" data-zone="EUR">EUR</span>
                     </div>
                     <p class="zones-hint">
@@ -1084,6 +1013,7 @@
                         <option value="referral">💬 Word of Mouth</option>
                         <option value="airbnb">🏠 Airbnb</option>
                         <option value="linkedin">💼 LinkedIn</option>
+                        <option value="tiktok">🎵 TikTok</option>
                         <option value="agent">🤝 Real Estate Agent</option>
                         <option value="other">✨ Other</option>
                     </select>
@@ -1095,7 +1025,7 @@
                         <span style="font-weight: 400; text-transform: none;">(optional)</span>
                     </label>
                     <div class="input-wrapper">
-                        <textarea class="form-textarea" id="notes" placeholder="Tell us about any special requirements: pets, parking, home office needs, accessibility requirements..." maxlength="500" oninput="updateCharCount()"></textarea>
+                        <textarea class="form-textarea" id="notes" placeholder="Tell us about any special requirements: pets, parking, home office needs, accessibility, furnished/unfurnished preference..." maxlength="500" oninput="updateCharCount()"></textarea>
                         <span class="char-count"><span id="charCount">0</span>/500</span>
                     </div>
                 </div>
@@ -1126,11 +1056,9 @@
                     Our team will contact you within <strong>24 hours</strong> to begin your personalized apartment search.
                 </p>
 
-                <div class="success-details" id="successDetails">
-                    <!-- Filled dynamically -->
-                </div>
+                <div class="success-details" id="successDetails"></div>
 
-                <a href="https://www.boomrome.com" class="btn btn-primary" style="display: inline-block; width: auto; padding: 16px 40px;">
+                <a href="https://www.boomrome.com" class="btn btn-primary" style="display: inline-block; width: auto; padding: 16px 40px; text-decoration: none;">
                     Explore BOOM Rome <span class="btn-icon">→</span>
                 </a>
             </div>
@@ -1167,7 +1095,6 @@
             setMinDate();
         });
 
-        // Set minimum date to today
         function setMinDate() {
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('checkIn').min = today;
@@ -1190,15 +1117,15 @@
                     const value = input.value.trim();
                     if (value === '') {
                         input.classList.remove('valid', 'invalid');
-                        icon.textContent = '';
+                        if (icon) icon.textContent = '';
                     } else if (field.validate(value)) {
                         input.classList.remove('invalid');
                         input.classList.add('valid');
-                        icon.textContent = '✓';
+                        if (icon) icon.textContent = '✓';
                     } else {
                         input.classList.remove('valid');
                         input.classList.add('invalid');
-                        icon.textContent = '✗';
+                        if (icon) icon.textContent = '✗';
                     }
                 });
 
@@ -1215,7 +1142,6 @@
             document.querySelectorAll('.zone-chip').forEach(chip => {
                 chip.addEventListener('click', () => {
                     const zone = chip.dataset.zone;
-
                     if (chip.classList.contains('selected')) {
                         chip.classList.remove('selected');
                         selectedZones = selectedZones.filter(z => z !== zone);
@@ -1223,7 +1149,6 @@
                         chip.classList.add('selected');
                         selectedZones.push(zone);
                     }
-
                     updateZoneCount();
                 });
             });
@@ -1232,7 +1157,6 @@
         function updateZoneCount() {
             const badge = document.getElementById('zoneCountBadge');
             const hint = document.getElementById('zoneHintText');
-
             if (selectedZones.length > 0) {
                 badge.style.display = 'inline';
                 badge.textContent = selectedZones.length;
@@ -1243,7 +1167,6 @@
             }
         }
 
-        // Duration controls
         function adjustDuration(delta) {
             const input = document.getElementById('duration');
             let value = parseInt(input.value) || 6;
@@ -1251,73 +1174,43 @@
             input.value = value;
         }
 
-        // Character count
         function updateCharCount() {
-            const textarea = document.getElementById('notes');
-            document.getElementById('charCount').textContent = textarea.value.length;
+            document.getElementById('charCount').textContent = document.getElementById('notes').value.length;
         }
 
         // Step navigation
         function updateProgress() {
-            // Update dots
             document.querySelectorAll('.step-dot').forEach((dot, idx) => {
                 const stepNum = idx + 1;
                 dot.classList.remove('active', 'completed');
-
-                if (stepNum < currentStep) {
-                    dot.classList.add('completed');
-                } else if (stepNum === currentStep) {
-                    dot.classList.add('active');
-                }
+                if (stepNum < currentStep) dot.classList.add('completed');
+                else if (stepNum === currentStep) dot.classList.add('active');
             });
-
-            // Update lines
             document.getElementById('line1').classList.toggle('filled', currentStep > 1);
             document.getElementById('line2').classList.toggle('filled', currentStep > 2);
-
-            // Update label
             document.getElementById('stepLabel').textContent = stepLabels[currentStep - 1];
         }
 
         function showStep(step) {
-            document.querySelectorAll('.step-content').forEach(el => {
-                el.classList.remove('active');
-            });
+            document.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
             document.getElementById('step' + step).classList.add('active');
             updateProgress();
         }
 
         function nextStep(from) {
             hideError();
-
             if (from === 1) {
-                // Validate step 1
                 const firstName = document.getElementById('firstName').value.trim();
                 const lastName = document.getElementById('lastName').value.trim();
                 const email = document.getElementById('email').value.trim();
                 const phone = document.getElementById('phone').value.trim();
-
-                if (!firstName || !lastName) {
-                    showError('Please enter your full name');
-                    return;
-                }
-                if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-                    showError('Please enter a valid email address');
-                    return;
-                }
-                if (!phone || phone.length < 8) {
-                    showError('Please enter a valid phone number');
-                    return;
-                }
+                if (!firstName || !lastName) { showError('Please enter your full name'); return; }
+                if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showError('Please enter a valid email address'); return; }
+                if (!phone || phone.length < 8) { showError('Please enter a valid phone number'); return; }
             } else if (from === 2) {
-                // Validate step 2
                 const budget = parseInt(document.getElementById('budget').value);
-                if (!budget || budget < 500) {
-                    showError('Please enter a budget of at least €500');
-                    return;
-                }
+                if (!budget || budget < 500) { showError('Please enter a budget of at least €500'); return; }
             }
-
             currentStep = from + 1;
             showStep(currentStep);
             window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1328,7 +1221,6 @@
             showStep(currentStep);
         }
 
-        // Error handling
         function showError(message) {
             const alert = document.getElementById('errorAlert');
             document.getElementById('errorText').textContent = message;
@@ -1340,11 +1232,10 @@
             document.getElementById('errorAlert').classList.remove('show');
         }
 
-        // Confetti animation
+        // Confetti
         function createConfetti() {
             const container = document.getElementById('confettiContainer');
             const colors = ['#D4AF37', '#34C759', '#FF6B6B', '#4ECDC4', '#FFE66D', '#fff'];
-
             for (let i = 0; i < 100; i++) {
                 const confetti = document.createElement('div');
                 confetti.className = 'confetti';
@@ -1359,30 +1250,18 @@
                 `;
                 container.appendChild(confetti);
             }
-
-            // Add keyframes dynamically
             if (!document.getElementById('confettiStyle')) {
                 const style = document.createElement('style');
                 style.id = 'confettiStyle';
-                style.textContent = `
-                    @keyframes confettiFall {
-                        0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; }
-                        100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
-                    }
-                `;
+                style.textContent = `@keyframes confettiFall { 0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; } 100% { transform: translateY(100vh) rotate(720deg); opacity: 0; } }`;
                 document.head.appendChild(style);
             }
-
-            // Clean up after animation
-            setTimeout(() => {
-                container.innerHTML = '';
-            }, 5000);
+            setTimeout(() => container.innerHTML = '', 5000);
         }
 
-        // Form submission
+        // Form submission — writes to 'registrations' collection (public create allowed)
         async function submitForm() {
             hideError();
-
             const btn = document.getElementById('submitBtn');
             btn.disabled = true;
             btn.innerHTML = '<span class="spinner"></span> Submitting...';
@@ -1401,61 +1280,42 @@
                 const source = document.getElementById('source').value;
                 const notes = document.getElementById('notes').value.trim();
 
-                // Create user document
-                const userData = {
+                // Single write to 'registrations' — no auth required
+                const regData = {
+                    // Personal
                     name: firstName + ' ' + lastName,
                     firstName,
                     lastName,
                     email,
                     phone,
-                    role: 'tenant',
-                    status: 'pending',
-                    source: 'onboarding',
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    // Preferences
                     budget,
                     duration: duration + ' months',
                     durationMonths: duration,
                     checkIn: checkIn || null,
                     guests,
                     zones: selectedZones,
+                    zone: selectedZones.join(', ') || 'Flexible',
+                    // Additional
                     workStudyLocation,
                     advancePayment,
-                    referralSource: source,
-                    notes
-                };
-
-                const userRef = await db.collection('users').add(userData);
-
-                // Create PFS Client
-                const pfsData = {
-                    name: firstName + ' ' + lastName,
-                    email,
-                    phone,
-                    budget,
-                    zones: selectedZones,
-                    duration: duration + ' months',
-                    durationMonths: duration,
-                    checkIn: checkIn || null,
-                    guests,
-                    workStudyLocation,
-                    advancePayment,
-                    paymentPreference: advancePayment,
+                    referralSource: source || 'onboarding',
                     notes,
-                    source: source || 'onboarding',
+                    // Meta
                     service: 'PFS',
-                    stage: 'lead',
-                    stageEnteredAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    stage: 'new',
+                    source: 'onboarding',
+                    status: 'pending',
                     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                    userId: userRef.id
+                    submittedFrom: window.location.href
                 };
 
-                await db.collection('pfsClients').add(pfsData);
+                await db.collection('registrations').add(regData);
 
                 // Show success
                 document.getElementById('progressContainer').style.display = 'none';
                 document.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
 
-                // Fill success details
                 document.getElementById('successDetails').innerHTML = `
                     <div class="success-detail-item">
                         <span class="success-detail-label">Name</span>
@@ -1463,7 +1323,7 @@
                     </div>
                     <div class="success-detail-item">
                         <span class="success-detail-label">Budget</span>
-                        <span class="success-detail-value">€${budget}/month</span>
+                        <span class="success-detail-value">€${budget.toLocaleString()}/month</span>
                     </div>
                     <div class="success-detail-item">
                         <span class="success-detail-label">Duration</span>
@@ -1472,9 +1332,13 @@
                     ${selectedZones.length > 0 ? `
                     <div class="success-detail-item">
                         <span class="success-detail-label">Areas</span>
-                        <span class="success-detail-value">${selectedZones.slice(0, 3).join(', ')}${selectedZones.length > 3 ? '...' : ''}</span>
-                    </div>
-                    ` : ''}
+                        <span class="success-detail-value">${selectedZones.slice(0, 3).join(', ')}${selectedZones.length > 3 ? ' +' + (selectedZones.length - 3) + ' more' : ''}</span>
+                    </div>` : ''}
+                    ${checkIn ? `
+                    <div class="success-detail-item">
+                        <span class="success-detail-label">Check-in</span>
+                        <span class="success-detail-value">${new Date(checkIn).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                    </div>` : ''}
                 `;
 
                 document.getElementById('successScreen').classList.add('show');
