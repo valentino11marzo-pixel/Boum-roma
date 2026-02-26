@@ -1,1362 +1,708 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <link rel="icon" href="/favicon.ico" sizes="any">
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-    <link rel="icon" href="/favicon-32x32.png" sizes="32x32" type="image/png">
-    <link rel="icon" href="/favicon-16x16.png" sizes="16x16" type="image/png">
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-    <link rel="manifest" href="/site.webmanifest">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Find Your Perfect Home | BOOM Rome</title>
     <link rel="icon" type="image/svg+xml" href="https://www.boomrome.com/boom-logo.svg">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
         :root {
             --gold: #D4AF37;
             --gold-dark: #B8960C;
-            --gold-light: rgba(212,175,55,0.15);
-            --gold-glow: rgba(212,175,55,0.4);
+            --gold-soft: #E8D48B;
+            --gold-light: rgba(212,175,55,0.12);
+            --gold-glow: rgba(212,175,55,0.35);
             --green: #34C759;
-            --green-light: rgba(52,199,89,0.15);
-            --red: #FF3B30;
-            --red-light: rgba(255,59,48,0.1);
-            --bg: #000;
-            --bg-card: rgba(10,10,10,0.95);
-            --bg-input: rgba(30,30,30,0.8);
-            --border: rgba(255,255,255,0.08);
-            --border-focus: rgba(212,175,55,0.5);
-            --text: #FFF;
-            --text-secondary: rgba(255,255,255,0.7);
-            --text-muted: rgba(255,255,255,0.4);
+            --green-soft: #4AE371;
+            --green-light: rgba(52,199,89,0.12);
+            --red: #FF453A;
+            --red-light: rgba(255,69,58,0.1);
+            --bg: #0A0A0A;
+            --bg-card: rgba(14,14,14,0.97);
+            --bg-input: rgba(28,28,30,0.9);
+            --bg-input-hover: rgba(44,44,46,0.9);
+            --border: rgba(255,255,255,0.07);
+            --border-light: rgba(255,255,255,0.12);
+            --text: #F5F5F7;
+            --text-secondary: rgba(255,255,255,0.65);
+            --text-muted: rgba(255,255,255,0.35);
+            --radius-sm: 10px;
+            --radius-md: 16px;
+            --radius-lg: 24px;
+            --radius-xl: 32px;
+            --shadow-card: 0 24px 80px rgba(0,0,0,0.6), 0 0 1px rgba(255,255,255,0.05);
+            --transition: cubic-bezier(0.22, 1, 0.36, 1);
+            --bounce: cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
 
-        html { scroll-behavior: smooth; }
+        html { scroll-behavior: smooth; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
 
         body {
-            font-family: 'Inter', -apple-system, sans-serif;
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            font-weight: 300;
             background: var(--bg);
             color: var(--text);
             min-height: 100vh;
             overflow-x: hidden;
+            line-height: 1.55;
         }
 
-        /* Animated Background */
-        .bg-animation {
-            position: fixed;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            z-index: 0;
-            overflow: hidden;
+        /* ═══════════ ROME GEOMETRIC BACKGROUND ═══════════ */
+        .scene {
+            position: fixed; inset: 0;
+            z-index: 0; overflow: hidden;
+            pointer-events: none;
         }
 
-        .bg-gradient {
+        .scene-mesh {
             position: absolute;
-            width: 150%; height: 150%;
-            top: -25%; left: -25%;
+            width: 200%; height: 200%;
+            top: -50%; left: -50%;
             background:
-                radial-gradient(ellipse at 20% 20%, rgba(212,175,55,0.08) 0%, transparent 50%),
-                radial-gradient(ellipse at 80% 80%, rgba(212,175,55,0.05) 0%, transparent 50%),
-                radial-gradient(ellipse at 50% 50%, rgba(30,30,30,1) 0%, transparent 70%);
-            animation: bgFloat 20s ease-in-out infinite;
+                radial-gradient(ellipse at 20% 10%, rgba(212,175,55,0.06) 0%, transparent 45%),
+                radial-gradient(ellipse at 80% 90%, rgba(212,175,55,0.035) 0%, transparent 45%),
+                radial-gradient(ellipse at 50% 50%, rgba(15,15,15,1) 0%, transparent 75%);
+            animation: meshDrift 30s ease-in-out infinite;
         }
 
-        @keyframes bgFloat {
+        @keyframes meshDrift {
             0%, 100% { transform: translate(0, 0) rotate(0deg); }
-            33% { transform: translate(2%, 2%) rotate(1deg); }
-            66% { transform: translate(-1%, 1%) rotate(-1deg); }
+            50% { transform: translate(1%, 0.5%) rotate(0.3deg); }
         }
 
-        .floating-orb {
+        /* Roman arch outlines */
+        .arch {
+            position: absolute;
+            border: 1px solid rgba(212,175,55,0.06);
+            border-bottom: none;
+            border-radius: 50% 50% 0 0;
+            animation: archFloat 20s ease-in-out infinite;
+        }
+
+        .arch-1 { width: 320px; height: 200px; top: 8%; right: -60px; border-color: rgba(212,175,55,0.07); animation-duration: 22s; }
+        .arch-2 { width: 200px; height: 130px; top: 12%; right: 0; border-color: rgba(212,175,55,0.04); animation-delay: -3s; animation-duration: 25s; }
+        .arch-3 { width: 260px; height: 160px; bottom: 15%; left: -80px; border-color: rgba(212,175,55,0.05); animation-delay: -8s; }
+
+        @keyframes archFloat {
+            0%, 100% { transform: translateY(0) rotate(0deg); opacity: 1; }
+            50% { transform: translateY(-12px) rotate(0.5deg); opacity: 0.6; }
+        }
+
+        /* Dome circles */
+        .dome {
             position: absolute;
             border-radius: 50%;
-            filter: blur(80px);
-            opacity: 0.3;
-            animation: orbFloat 15s ease-in-out infinite;
+            border: 1px solid rgba(212,175,55,0.04);
         }
 
-        .orb-1 {
-            width: 400px; height: 400px;
+        .dome-1 { width: 400px; height: 400px; top: -120px; left: 50%; transform: translateX(-50%); border-color: rgba(212,175,55,0.03); animation: domePulse 15s ease-in-out infinite; }
+        .dome-2 { width: 250px; height: 250px; bottom: -60px; right: -40px; border-color: rgba(212,175,55,0.05); animation: domePulse2 18s ease-in-out infinite; }
+
+        @keyframes domePulse { 0%, 100% { transform: translateX(-50%) scale(1); opacity: 1; } 50% { transform: translateX(-50%) scale(1.03); opacity: 0.6; } }
+        @keyframes domePulse2 { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.04); opacity: 0.5; } }
+
+        /* Column verticals */
+        .col-line {
+            position: absolute;
+            width: 1px;
+            background: linear-gradient(to bottom, transparent, rgba(212,175,55,0.06), transparent);
+            animation: colShimmer 12s ease-in-out infinite;
+        }
+
+        .col-1 { height: 60%; top: 20%; left: 8%; }
+        .col-2 { height: 45%; top: 30%; right: 12%; animation-delay: -4s; animation-duration: 15s; }
+        .col-3 { height: 35%; top: 40%; left: 25%; animation-delay: -7s; animation-duration: 18s; }
+
+        @keyframes colShimmer { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+
+        /* Entablature horizontals */
+        .ent-line { position: absolute; height: 1px; background: linear-gradient(to right, transparent, rgba(212,175,55,0.05), transparent); }
+        .ent-1 { width: 40%; top: 22%; left: 5%; }
+        .ent-2 { width: 30%; bottom: 28%; right: 8%; }
+
+        /* Floating gold particles */
+        .particle {
+            position: absolute;
+            width: 2px; height: 2px;
             background: var(--gold);
-            top: 10%; right: -10%;
+            border-radius: 50%;
+            opacity: 0;
+            animation: particleDrift linear infinite;
         }
 
-        .orb-2 {
-            width: 300px; height: 300px;
-            background: var(--gold-dark);
-            bottom: 20%; left: -5%;
-            animation-delay: -5s;
+        .p1 { left: 15%; top: 60%; animation-duration: 14s; }
+        .p2 { left: 45%; top: 80%; animation-duration: 18s; animation-delay: -3s; }
+        .p3 { left: 72%; top: 50%; animation-duration: 16s; animation-delay: -7s; }
+        .p4 { left: 88%; top: 70%; animation-duration: 20s; animation-delay: -2s; }
+        .p5 { left: 30%; top: 40%; animation-duration: 15s; animation-delay: -9s; }
+        .p6 { left: 60%; top: 25%; animation-duration: 17s; animation-delay: -5s; }
+
+        @keyframes particleDrift {
+            0% { transform: translateY(0) translateX(0); opacity: 0; }
+            10% { opacity: 0.35; }
+            90% { opacity: 0.35; }
+            100% { transform: translateY(-200px) translateX(30px); opacity: 0; }
         }
 
-        @keyframes orbFloat {
-            0%, 100% { transform: translate(0, 0) scale(1); }
-            50% { transform: translate(30px, -30px) scale(1.1); }
+        /* Tessellation overlay */
+        .tessellation {
+            position: absolute; inset: 0;
+            opacity: 0.012;
+            background-image:
+                linear-gradient(30deg, var(--gold) 12%, transparent 12.5%, transparent 87%, var(--gold) 87.5%, var(--gold)),
+                linear-gradient(150deg, var(--gold) 12%, transparent 12.5%, transparent 87%, var(--gold) 87.5%, var(--gold)),
+                linear-gradient(30deg, var(--gold) 12%, transparent 12.5%, transparent 87%, var(--gold) 87.5%, var(--gold)),
+                linear-gradient(150deg, var(--gold) 12%, transparent 12.5%, transparent 87%, var(--gold) 87.5%, var(--gold)),
+                linear-gradient(60deg, rgba(212,175,55,0.6) 25%, transparent 25.5%, transparent 75%, rgba(212,175,55,0.6) 75%, rgba(212,175,55,0.6)),
+                linear-gradient(60deg, rgba(212,175,55,0.6) 25%, transparent 25.5%, transparent 75%, rgba(212,175,55,0.6) 75%, rgba(212,175,55,0.6));
+            background-size: 80px 140px;
+            background-position: 0 0, 0 0, 40px 70px, 40px 70px, 0 0, 40px 70px;
         }
 
-        /* Container */
+        /* Grain */
+        .scene::after {
+            content: '';
+            position: absolute; inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+            opacity: 0.6;
+        }
+
+        /* ═══════════ LAYOUT ═══════════ */
         .container {
-            position: relative;
-            z-index: 1;
-            width: 100%;
-            max-width: 600px;
+            position: relative; z-index: 1;
+            width: 100%; max-width: 580px;
             margin: 0 auto;
-            padding: 40px 24px;
+            padding: 32px 20px 60px;
             min-height: 100vh;
-            display: flex;
-            flex-direction: column;
+            display: flex; flex-direction: column;
         }
 
-        /* Logo Section */
-        .logo-section {
+        /* ═══════════ HEADER ═══════════ */
+        .header {
             text-align: center;
-            padding: 20px 0 40px;
-            animation: fadeInDown 0.8s ease-out;
+            padding: 24px 0 36px;
+            animation: revealDown 0.7s var(--transition) both;
         }
 
-        @keyframes fadeInDown {
-            from { opacity: 0; transform: translateY(-20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+        @keyframes revealDown { from { opacity: 0; transform: translateY(-16px); } to { opacity: 1; transform: translateY(0); } }
 
-        .logo-wrapper {
+        .logo-mark {
             position: relative;
             display: inline-block;
-            margin-bottom: 20px;
-        }
-
-        .logo {
-            width: 90px;
-            height: 90px;
-            border-radius: 50%;
-            position: relative;
-            z-index: 2;
-            animation: logoPulse 3s ease-in-out infinite;
-            object-fit: cover;
-        }
-
-        .logo-glow {
-            position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            width: 120px; height: 120px;
-            background: radial-gradient(circle, var(--gold-glow) 0%, transparent 70%);
-            border-radius: 50%;
-            animation: glowPulse 3s ease-in-out infinite;
-        }
-
-        @keyframes logoPulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.02); }
-        }
-
-        @keyframes glowPulse {
-            0%, 100% { opacity: 0.5; transform: translate(-50%, -50%) scale(1); }
-            50% { opacity: 0.8; transform: translate(-50%, -50%) scale(1.1); }
-        }
-
-        .brand {
-            font-size: 36px;
-            font-weight: 300;
-            letter-spacing: 12px;
-            color: var(--gold);
-            text-shadow: 0 0 40px rgba(212,175,55,0.3);
-        }
-
-        .tagline {
-            font-size: 13px;
-            color: var(--text-secondary);
-            margin-top: 8px;
-            letter-spacing: 4px;
-            font-weight: 300;
-        }
-
-        /* Progress Bar */
-        .progress-container {
-            margin-bottom: 32px;
-            animation: fadeIn 0.8s ease-out 0.2s both;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        .progress-steps {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 12px;
             margin-bottom: 16px;
         }
 
-        .step-indicator {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
+        .logo-mark svg { width: 80px; height: 80px; position: relative; z-index: 2; }
 
-        .step-dot {
-            width: 40px; height: 40px;
+        .logo-halo {
+            position: absolute; inset: -18px;
             border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 14px;
-            font-weight: 600;
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            border: 2px solid var(--border);
-            background: var(--bg-input);
-            color: var(--text-muted);
-            cursor: pointer;
+            background: radial-gradient(circle, var(--gold-glow) 0%, transparent 70%);
+            animation: haloPulse 4s ease-in-out infinite;
         }
 
-        .step-dot.active {
-            border-color: var(--gold);
-            background: linear-gradient(135deg, var(--gold), var(--gold-dark));
-            color: #000;
-            transform: scale(1.1);
-            box-shadow: 0 0 20px var(--gold-glow);
-        }
+        @keyframes haloPulse { 0%, 100% { opacity: 0.35; transform: scale(1); } 50% { opacity: 0.65; transform: scale(1.1); } }
 
-        .step-dot.completed {
-            border-color: var(--green);
-            background: var(--green);
-            color: #fff;
-        }
-
-        .step-dot.completed::after { content: '✓'; font-size: 16px; }
-        .step-dot.completed span { display: none; }
-
-        .step-line {
-            width: 60px; height: 3px;
-            background: var(--border);
-            border-radius: 2px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .step-line::after {
-            content: '';
-            position: absolute;
-            left: 0; top: 0;
-            height: 100%; width: 0;
-            background: linear-gradient(90deg, var(--gold), var(--green));
-            border-radius: 2px;
-            transition: width 0.5s ease;
-        }
-
-        .step-line.filled::after { width: 100%; }
-
-        .step-label {
-            font-size: 12px;
-            color: var(--text-muted);
-            text-align: center;
-            transition: color 0.3s;
-        }
-
-        .step-label.active { color: var(--gold); font-weight: 500; }
-
-        /* Card */
-        .card {
-            background: var(--bg-card);
-            backdrop-filter: blur(20px);
-            border: 1px solid var(--border);
-            border-radius: 28px;
-            padding: 40px;
-            position: relative;
-            overflow: hidden;
-            animation: cardSlideUp 0.6s ease-out 0.3s both;
-            flex: 1;
-        }
-
-        @keyframes cardSlideUp {
-            from { opacity: 0; transform: translateY(30px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .card::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0;
-            height: 3px;
-            background: linear-gradient(90deg, var(--gold), var(--gold-dark), var(--gold));
-            background-size: 200% 100%;
-            animation: shimmer 3s ease-in-out infinite;
-        }
-
-        @keyframes shimmer {
-            0% { background-position: -200% 0; }
-            100% { background-position: 200% 0; }
-        }
-
-        /* Step Content */
-        .step-content {
-            display: none;
-            animation: stepFadeIn 0.4s ease-out;
-        }
-
-        .step-content.active { display: block; }
-
-        @keyframes stepFadeIn {
-            from { opacity: 0; transform: translateX(20px); }
-            to { opacity: 1; transform: translateX(0); }
-        }
-
-        .step-title {
-            font-size: 26px;
-            font-weight: 700;
-            margin-bottom: 8px;
-            background: linear-gradient(135deg, #fff, var(--text-secondary));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .step-subtitle {
-            font-size: 14px;
-            color: var(--text-secondary);
-            margin-bottom: 32px;
-            line-height: 1.6;
-        }
-
-        /* Form Elements */
-        .form-group {
-            margin-bottom: 24px;
-            position: relative;
-        }
-
-        .form-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 16px;
-        }
-
-        @media (max-width: 500px) {
-            .form-row { grid-template-columns: 1fr; }
-        }
-
-        .input-wrapper { position: relative; }
-
-        .form-label {
-            position: absolute;
-            left: 20px;
-            top: 50%;
-            transform: translateY(-50%);
-            font-size: 15px;
-            color: var(--text-muted);
-            pointer-events: none;
-            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            background: transparent;
-            padding: 0 4px;
-        }
-
-        .form-label.floating,
-        .form-input:focus ~ .form-label,
-        .form-input:not(:placeholder-shown) ~ .form-label {
-            top: 0;
-            font-size: 11px;
-            font-weight: 600;
+        .wordmark {
+            font-size: 40px;
+            font-weight: 300;
+            letter-spacing: 16px;
             color: var(--gold);
-            background: var(--bg-card);
-            letter-spacing: 0.5px;
+            text-shadow: 0 0 60px rgba(212,175,55,0.15);
+        }
+
+        .tagline {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-top: 8px;
+            letter-spacing: 6px;
+            font-weight: 300;
             text-transform: uppercase;
         }
 
-        .form-input, .form-select, .form-textarea {
-            width: 100%;
-            padding: 20px;
+        /* ═══════════ PROGRESS ═══════════ */
+        .progress { margin-bottom: 28px; animation: revealIn 0.7s var(--transition) 0.15s both; }
+        @keyframes revealIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .progress-track { display: flex; justify-content: center; align-items: center; margin-bottom: 14px; }
+
+        .p-dot {
+            width: 38px; height: 38px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 13px; font-weight: 300;
+            transition: all 0.45s var(--bounce);
+            border: 1.5px solid var(--border);
             background: var(--bg-input);
-            border: 2px solid var(--border);
-            border-radius: 16px;
+            color: var(--text-muted);
+            flex-shrink: 0;
+        }
+
+        .p-dot.active {
+            border-color: var(--gold);
+            background: linear-gradient(135deg, var(--gold), var(--gold-dark));
+            color: #000; font-weight: 400;
+            transform: scale(1.12);
+            box-shadow: 0 0 24px var(--gold-glow), 0 0 0 4px rgba(212,175,55,0.08);
+        }
+
+        .p-dot.done { border-color: var(--green); background: var(--green); color: #fff; font-size: 15px; }
+
+        .p-line {
+            width: 56px; height: 2px;
+            background: var(--border);
+            border-radius: 1px;
+            position: relative; overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .p-line-fill {
+            position: absolute; inset: 0; width: 0;
+            background: linear-gradient(90deg, var(--gold), var(--green));
+            border-radius: 1px;
+            transition: width 0.5s var(--transition);
+        }
+
+        .p-line.filled .p-line-fill { width: 100%; }
+
+        .progress-label {
+            font-size: 11px; color: var(--text-muted);
+            text-align: center; letter-spacing: 2px;
+            text-transform: uppercase; font-weight: 300;
+        }
+
+        .progress-label.on { color: var(--gold); }
+
+        /* ═══════════ CARD ═══════════ */
+        .card {
+            background: var(--bg-card);
+            backdrop-filter: blur(24px) saturate(1.2);
+            -webkit-backdrop-filter: blur(24px) saturate(1.2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-xl);
+            padding: 40px 36px;
+            position: relative; overflow: hidden;
+            animation: cardReveal 0.6s var(--transition) 0.25s both;
+            box-shadow: var(--shadow-card);
+            flex: 1;
+        }
+
+        @keyframes cardReveal { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
+
+        .card::before {
+            content: '';
+            position: absolute; top: 0; left: 0; right: 0; height: 1px;
+            background: linear-gradient(90deg, transparent 0%, var(--gold) 30%, var(--gold-soft) 50%, var(--gold) 70%, transparent 100%);
+            background-size: 200% 100%;
+            animation: topLine 5s ease-in-out infinite;
+        }
+
+        @keyframes topLine { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+        /* ═══════════ STEPS ═══════════ */
+        .step { display: none; }
+        .step.active { display: block; animation: stepIn 0.4s var(--transition); }
+        @keyframes stepIn { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: translateX(0); } }
+
+        .step-heading { font-size: 28px; font-weight: 300; margin-bottom: 6px; letter-spacing: -0.3px; }
+        .step-desc { font-size: 14px; color: var(--text-secondary); margin-bottom: 32px; line-height: 1.7; font-weight: 300; }
+
+        /* ═══════════ FORM ═══════════ */
+        .field { margin-bottom: 22px; position: relative; }
+        .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .input-wrap { position: relative; }
+
+        .float-label {
+            position: absolute; left: 18px; top: 50%; transform: translateY(-50%);
+            font-size: 14px; font-weight: 300; color: var(--text-muted);
+            pointer-events: none; transition: all 0.3s var(--transition);
+            padding: 0 4px; background: transparent;
+        }
+
+        .float-label.up,
+        .input:focus ~ .float-label,
+        .input:not(:placeholder-shown) ~ .float-label {
+            top: 0; font-size: 10px; font-weight: 400;
+            color: var(--gold); background: var(--bg-card);
+            letter-spacing: 1px; text-transform: uppercase;
+        }
+
+        .input, .select, .textarea {
+            width: 100%; padding: 18px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
             color: var(--text);
-            font-family: inherit;
-            font-size: 16px;
-            transition: all 0.3s ease;
+            font-family: inherit; font-size: 15px; font-weight: 300;
+            transition: all 0.3s var(--transition);
             outline: none;
         }
 
-        .form-input::placeholder { color: transparent; }
+        .input::placeholder { color: transparent; }
+        .input:hover, .select:hover, .textarea:hover { border-color: var(--border-light); background: var(--bg-input-hover); }
+        .input:focus, .select:focus, .textarea:focus { border-color: var(--gold); background: rgba(212,175,55,0.03); box-shadow: 0 0 0 3px rgba(212,175,55,0.06); }
 
-        .form-input:hover {
-            border-color: rgba(255,255,255,0.15);
-            background: rgba(40,40,40,0.8);
+        .input.ok { border-color: var(--green); animation: fieldGlow 0.5s ease-out; }
+        .input.ok ~ .v-icon { opacity: 1; color: var(--green); }
+        .input.err { border-color: var(--red); animation: fieldShake 0.35s ease; }
+        .input.err ~ .v-icon { opacity: 1; color: var(--red); }
+
+        .v-icon { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); font-size: 14px; opacity: 0; transition: all 0.25s; }
+
+        @keyframes fieldShake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+        @keyframes fieldGlow { 0% { box-shadow: 0 0 0 0 rgba(52,199,89,0.25); } 100% { box-shadow: 0 0 0 6px rgba(52,199,89,0); } }
+
+        .select {
+            cursor: pointer; appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='rgba(255,255,255,0.25)'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+            background-repeat: no-repeat; background-position: right 16px center; background-size: 18px; padding-right: 44px;
         }
 
-        .form-input:focus {
-            border-color: var(--gold);
-            background: rgba(212,175,55,0.05);
-            box-shadow: 0 0 0 4px rgba(212,175,55,0.1), 0 8px 32px rgba(0,0,0,0.3);
-        }
+        .select option { background: #1a1a1a; color: #fff; }
+        .textarea { min-height: 110px; resize: none; line-height: 1.65; }
+        .char-count { position: absolute; bottom: 10px; right: 14px; font-size: 10px; color: var(--text-muted); font-weight: 300; }
 
-        .form-input.valid { border-color: var(--green); }
-        .form-input.valid ~ .input-icon { color: var(--green); }
+        .label { font-size: 10px; font-weight: 400; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+        .label-hint { font-weight: 300; text-transform: none; letter-spacing: 0; opacity: 0.6; }
+        .help { font-size: 11px; color: var(--text-muted); margin-top: 6px; line-height: 1.5; font-weight: 300; }
+        .help.positive { color: var(--green); }
 
-        .form-input.invalid {
-            border-color: var(--red);
-            animation: shake 0.4s ease;
-        }
+        .tip { position: relative; display: inline-flex; cursor: help; }
+        .tip-dot { width: 14px; height: 14px; border-radius: 50%; background: var(--border-light); color: var(--text-muted); font-size: 9px; display: flex; align-items: center; justify-content: center; font-weight: 400; }
+        .tip-text { visibility: hidden; position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%) translateY(4px); background: rgba(50,50,50,0.97); color: #fff; padding: 8px 12px; border-radius: var(--radius-sm); font-size: 11px; white-space: nowrap; opacity: 0; transition: all 0.2s; z-index: 100; pointer-events: none; font-weight: 300; }
+        .tip:hover .tip-text { visibility: visible; opacity: 1; transform: translateX(-50%) translateY(0); }
 
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-8px); }
-            75% { transform: translateX(8px); }
-        }
+        /* Phone */
+        .phone-wrap { display: flex; gap: 8px; }
+        .phone-prefix { width: 90px; flex-shrink: 0; text-align: center; font-size: 14px; }
 
-        .input-icon {
-            position: absolute;
-            right: 16px; top: 50%;
-            transform: translateY(-50%);
-            font-size: 18px;
-            opacity: 0;
-            transition: all 0.3s;
-        }
+        /* Duration */
+        .stepper-wrap { display: flex; align-items: center; gap: 10px; }
+        .stepper-input { width: 80px; text-align: center; font-size: 22px; font-weight: 300; padding: 14px 8px; }
+        .stepper-btns { display: flex; flex-direction: column; gap: 3px; }
+        .stepper-btn { width: 32px; height: 26px; border: 1px solid var(--border); background: var(--bg-input); border-radius: 8px; color: var(--text-secondary); font-size: 15px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; }
+        .stepper-btn:hover { border-color: var(--gold); background: var(--gold-light); color: var(--gold); }
+        .stepper-btn:active { transform: scale(0.92); }
+        .stepper-unit { font-size: 14px; color: var(--text-secondary); font-weight: 300; }
 
-        .form-input.valid ~ .input-icon,
-        .form-input.invalid ~ .input-icon { opacity: 1; }
+        /* Chips */
+        .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+        .chip { padding: 10px 18px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 100px; font-size: 13px; font-weight: 300; cursor: pointer; transition: all 0.3s var(--bounce); user-select: none; color: var(--text-secondary); }
+        .chip:hover { border-color: rgba(212,175,55,0.35); transform: translateY(-1px); color: var(--text); }
+        .chip.on { background: linear-gradient(135deg, var(--gold), var(--gold-dark)); color: #000; border-color: var(--gold); font-weight: 400; transform: scale(1.03); box-shadow: 0 4px 20px var(--gold-glow); }
+        .chip.on::before { content: '✓ '; font-size: 11px; }
+        .chips-status { font-size: 11px; color: var(--text-muted); margin-top: 10px; display: flex; align-items: center; gap: 6px; font-weight: 300; }
+        .chips-count { background: var(--gold); color: #000; padding: 1px 7px; border-radius: 10px; font-weight: 500; font-size: 10px; display: none; }
+        .chips-count.show { display: inline; }
 
-        .form-select {
-            cursor: pointer;
-            appearance: none;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23999'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
-            background-repeat: no-repeat;
-            background-position: right 16px center;
-            background-size: 20px;
-            padding-right: 48px;
-        }
-
-        .form-select option { background: #1a1a1a; padding: 12px; }
-
-        .form-textarea {
-            min-height: 120px;
-            resize: none;
-            line-height: 1.6;
-        }
-
-        .char-count {
-            position: absolute;
-            bottom: 12px; right: 16px;
-            font-size: 11px;
-            color: var(--text-muted);
-        }
-
-        /* Duration Input */
-        .duration-wrapper {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .duration-input {
-            width: 100px;
-            text-align: center;
-            font-size: 24px;
-            font-weight: 700;
-            padding: 16px;
-        }
-
-        .duration-controls {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-
-        .duration-btn {
-            width: 36px; height: 28px;
-            border: 2px solid var(--border);
-            background: var(--bg-input);
-            border-radius: 8px;
-            color: var(--text);
-            font-size: 16px;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .duration-btn:hover {
-            border-color: var(--gold);
-            background: var(--gold-light);
-        }
-
-        .duration-btn:active { transform: scale(0.95); }
-
-        .duration-label {
-            font-size: 16px;
-            color: var(--text-secondary);
-            font-weight: 500;
-        }
-
-        /* Zone Chips */
-        .zones-grid {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-top: 8px;
-        }
-
-        .zone-chip {
-            padding: 12px 20px;
-            background: var(--bg-input);
-            border: 2px solid var(--border);
-            border-radius: 100px;
-            font-size: 14px;
-            cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            user-select: none;
-        }
-
-        .zone-chip:hover {
-            border-color: var(--gold);
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-        }
-
-        .zone-chip.selected {
-            background: linear-gradient(135deg, var(--gold), var(--gold-dark));
-            color: #000;
-            border-color: var(--gold);
-            font-weight: 600;
-            transform: scale(1.05);
-            box-shadow: 0 4px 20px var(--gold-glow);
-        }
-
-        .zone-chip.selected::before { content: '✓ '; }
-
-        .zones-hint {
-            font-size: 12px;
-            color: var(--text-muted);
-            margin-top: 12px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .zones-count {
-            background: var(--gold);
-            color: #000;
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-weight: 600;
-            font-size: 11px;
-        }
+        /* Toggles */
+        .toggle-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .toggle-chip { padding: 14px 16px; background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius-md); cursor: pointer; transition: all 0.3s var(--bounce); user-select: none; display: flex; align-items: center; gap: 10px; }
+        .toggle-chip:hover { border-color: var(--border-light); background: var(--bg-input-hover); }
+        .toggle-chip.on { border-color: var(--gold); background: var(--gold-light); }
+        .toggle-icon { font-size: 20px; flex-shrink: 0; }
+        .toggle-label { font-size: 13px; color: var(--text-secondary); font-weight: 300; line-height: 1.3; }
+        .toggle-chip.on .toggle-label { color: var(--text); }
+        .toggle-check { margin-left: auto; width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid var(--border); transition: all 0.3s var(--bounce); display: flex; align-items: center; justify-content: center; font-size: 11px; flex-shrink: 0; }
+        .toggle-chip.on .toggle-check { border-color: var(--gold); background: var(--gold); color: #000; }
 
         /* Buttons */
-        .btn-group {
-            display: flex;
-            gap: 12px;
-            margin-top: 32px;
-        }
-
-        .btn {
-            flex: 1;
-            padding: 18px 28px;
-            border: none;
-            border-radius: 16px;
-            font-family: inherit;
-            font-size: 16px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            letter-spacing: 0.5px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, var(--gold), var(--gold-dark));
-            color: #000;
-        }
-
-        .btn-primary::before {
-            content: '';
-            position: absolute;
-            top: 0; left: -100%;
-            width: 100%; height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
-            transition: left 0.5s;
-        }
-
-        .btn-primary:hover::before { left: 100%; }
-
-        .btn-primary:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 12px 40px var(--gold-glow);
-        }
-
-        .btn-primary:active { transform: translateY(-1px); }
-
-        .btn-secondary {
-            background: transparent;
-            border: 2px solid var(--border);
-            color: var(--text-secondary);
-        }
-
-        .btn-secondary:hover {
-            border-color: var(--text-secondary);
-            color: var(--text);
-            background: rgba(255,255,255,0.05);
-        }
-
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none !important;
-        }
-
-        .btn-icon {
-            margin-left: 8px;
-            transition: transform 0.3s;
-        }
-
-        .btn:hover .btn-icon { transform: translateX(4px); }
+        .btn-row { display: flex; gap: 10px; margin-top: 32px; }
+        .btn { flex: 1; padding: 17px 24px; border: none; border-radius: var(--radius-md); font-family: inherit; font-size: 14px; font-weight: 400; letter-spacing: 0.5px; cursor: pointer; transition: all 0.3s var(--bounce); position: relative; overflow: hidden; }
+        .btn-gold { background: linear-gradient(135deg, var(--gold), var(--gold-dark)); color: #000; }
+        .btn-gold::after { content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent); transition: left 0.5s; }
+        .btn-gold:hover::after { left: 100%; }
+        .btn-gold:hover { transform: translateY(-2px); box-shadow: 0 12px 36px var(--gold-glow); }
+        .btn-gold:active { transform: translateY(0); }
+        .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text-secondary); font-weight: 300; }
+        .btn-ghost:hover { border-color: var(--text-secondary); color: var(--text); }
+        .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important; }
+        .btn-arrow { margin-left: 6px; transition: transform 0.3s; display: inline-block; }
+        .btn:hover .btn-arrow { transform: translateX(3px); }
 
         /* Alert */
-        .alert {
-            padding: 16px 20px;
-            border-radius: 14px;
-            margin-bottom: 24px;
-            display: none;
-            align-items: center;
-            gap: 12px;
-            animation: alertSlide 0.4s ease;
-        }
+        .alert { padding: 14px 18px; border-radius: var(--radius-md); margin-bottom: 20px; display: none; align-items: center; gap: 10px; font-size: 13px; font-weight: 300; animation: alertReveal 0.35s var(--transition); }
+        @keyframes alertReveal { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+        .alert.error { background: var(--red-light); border: 1px solid rgba(255,69,58,0.2); color: var(--red); }
+        .alert.visible { display: flex; }
 
-        @keyframes alertSlide {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+        /* Success */
+        .success { display: none; text-align: center; padding: 32px 16px; }
+        .success.show { display: block; animation: successReveal 0.6s var(--bounce); }
+        @keyframes successReveal { 0% { opacity: 0; transform: scale(0.85); } 60% { transform: scale(1.03); } 100% { opacity: 1; transform: scale(1); } }
+        .success-orb { width: 100px; height: 100px; margin: 0 auto 24px; border-radius: 50%; background: linear-gradient(135deg, var(--green), #2DAE4E); display: flex; align-items: center; justify-content: center; animation: orbGlow 2.5s ease-in-out infinite; }
+        @keyframes orbGlow { 0%, 100% { box-shadow: 0 0 0 0 rgba(52,199,89,0.3); } 50% { box-shadow: 0 0 0 16px rgba(52,199,89,0); } }
+        .success-orb span { font-size: 40px; color: #fff; animation: checkPop 0.4s ease 0.15s both; }
+        @keyframes checkPop { from { opacity: 0; transform: scale(0) rotate(-20deg); } to { opacity: 1; transform: scale(1) rotate(0deg); } }
+        .success h2 { font-size: 28px; font-weight: 300; margin-bottom: 10px; background: linear-gradient(135deg, var(--green), var(--green-soft)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .success p { color: var(--text-secondary); margin-bottom: 28px; line-height: 1.7; font-size: 14px; font-weight: 300; }
+        .summary { background: rgba(52,199,89,0.06); border: 1px solid rgba(52,199,89,0.12); border-radius: var(--radius-lg); padding: 20px; margin-bottom: 28px; text-align: left; }
+        .summary-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.03); }
+        .summary-row:last-child { border-bottom: none; }
+        .summary-k { color: var(--text-muted); font-size: 12px; font-weight: 300; }
+        .summary-v { color: var(--text); font-weight: 400; font-size: 13px; text-align: right; max-width: 60%; }
+        .success-actions { display: flex; flex-direction: column; gap: 12px; align-items: center; }
+        .btn-wa { display: inline-flex; align-items: center; gap: 8px; padding: 15px 32px; background: #25D366; color: #fff; border-radius: var(--radius-md); font-family: inherit; font-size: 14px; font-weight: 400; text-decoration: none; letter-spacing: 0.3px; transition: all 0.3s var(--bounce); }
+        .btn-wa:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(37,211,102,0.3); }
+        .btn-link { color: var(--gold); text-decoration: none; font-size: 13px; font-weight: 300; letter-spacing: 0.3px; transition: opacity 0.2s; }
+        .btn-link:hover { opacity: 0.7; }
 
-        .alert.error {
-            background: var(--red-light);
-            border: 1px solid rgba(255,59,48,0.3);
-            color: var(--red);
-        }
-
-        .alert.show { display: flex; }
-        .alert-icon { font-size: 20px; }
-
-        /* Success Screen */
-        .success-screen {
-            display: none;
-            text-align: center;
-            padding: 40px 20px;
-        }
-
-        .success-screen.show {
-            display: block;
-            animation: successPop 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
-
-        @keyframes successPop {
-            0% { opacity: 0; transform: scale(0.8); }
-            50% { transform: scale(1.05); }
-            100% { opacity: 1; transform: scale(1); }
-        }
-
-        .success-animation {
-            width: 120px; height: 120px;
-            margin: 0 auto 24px;
-            position: relative;
-        }
-
-        .success-circle {
-            width: 100%; height: 100%;
-            border-radius: 50%;
-            background: linear-gradient(135deg, var(--green), #2DAE4E);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            animation: circlePulse 2s ease-in-out infinite;
-        }
-
-        @keyframes circlePulse {
-            0%, 100% { box-shadow: 0 0 0 0 rgba(52,199,89,0.4); }
-            50% { box-shadow: 0 0 0 20px rgba(52,199,89,0); }
-        }
-
-        .success-check {
-            font-size: 48px; color: #fff;
-            animation: checkPop 0.4s ease-out 0.2s both;
-        }
-
-        @keyframes checkPop {
-            from { opacity: 0; transform: scale(0); }
-            to { opacity: 1; transform: scale(1); }
-        }
-
-        .success-title {
-            font-size: 28px; font-weight: 700;
-            margin-bottom: 12px;
-            background: linear-gradient(135deg, var(--green), #4AE371);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .success-text {
-            color: var(--text-secondary);
-            margin-bottom: 32px;
-            line-height: 1.7;
-            font-size: 15px;
-        }
-
-        .success-details {
-            background: rgba(52,199,89,0.1);
-            border: 1px solid rgba(52,199,89,0.2);
-            border-radius: 16px;
-            padding: 20px;
-            margin-bottom: 32px;
-            text-align: left;
-        }
-
-        .success-detail-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
-        }
-
-        .success-detail-item:last-child { border-bottom: none; }
-
-        .success-detail-label { color: var(--text-muted); font-size: 13px; }
-        .success-detail-value { color: var(--text); font-weight: 500; font-size: 14px; }
-
-        /* Confetti */
-        .confetti-container {
-            position: fixed;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            pointer-events: none;
-            z-index: 1000;
-            overflow: hidden;
-        }
-
-        /* Loading Spinner */
-        .spinner {
-            width: 20px; height: 20px;
-            border: 3px solid rgba(0,0,0,0.2);
-            border-top-color: #000;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-            display: inline-block;
-            margin-right: 10px;
-        }
-
+        .confetti-box { position: fixed; inset: 0; pointer-events: none; z-index: 1000; overflow: hidden; }
+        .spinner { width: 16px; height: 16px; border: 2px solid rgba(0,0,0,0.15); border-top-color: #000; border-radius: 50%; animation: spin 0.7s linear infinite; display: inline-block; vertical-align: middle; margin-right: 8px; }
         @keyframes spin { to { transform: rotate(360deg); } }
+        .privacy { font-size: 11px; color: var(--text-muted); text-align: center; margin-top: 20px; line-height: 1.6; font-weight: 300; }
+        .privacy a { color: var(--gold); text-decoration: none; }
+        .privacy a:hover { text-decoration: underline; }
+        .hp { position: absolute; left: -9999px; top: -9999px; opacity: 0; width: 1px; height: 1px; overflow: hidden; pointer-events: none; }
 
-        /* Privacy Note */
-        .privacy-note {
-            font-size: 12px;
-            color: var(--text-muted);
-            text-align: center;
-            margin-top: 24px;
-            line-height: 1.6;
-        }
-
-        .privacy-note a {
-            color: var(--gold);
-            text-decoration: none;
-            transition: opacity 0.2s;
-        }
-
-        .privacy-note a:hover { opacity: 0.8; }
-
-        /* Tooltip */
-        .tooltip {
-            position: relative;
-            display: inline-block;
-            margin-left: 6px;
-            cursor: help;
-        }
-
-        .tooltip-icon {
-            width: 16px; height: 16px;
-            border-radius: 50%;
-            background: var(--border);
-            color: var(--text-muted);
-            font-size: 10px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .tooltip-text {
-            visibility: hidden;
-            position: absolute;
-            bottom: 130%; left: 50%;
-            transform: translateX(-50%);
-            background: #333;
-            color: #fff;
-            padding: 8px 12px;
-            border-radius: 8px;
-            font-size: 12px;
-            white-space: nowrap;
-            opacity: 0;
-            transition: all 0.2s;
-            z-index: 100;
-        }
-
-        .tooltip:hover .tooltip-text { visibility: visible; opacity: 1; }
-
-        /* Responsive */
         @media (max-width: 600px) {
-            .container { padding: 24px 16px; }
-            .card { padding: 28px 20px; }
-            .step-title { font-size: 22px; }
-            .brand { font-size: 28px; letter-spacing: 8px; }
-            .step-line { width: 40px; }
-            .step-dot { width: 36px; height: 36px; font-size: 13px; }
+            .container { padding: 20px 14px 48px; }
+            .card { padding: 28px 20px; border-radius: var(--radius-lg); }
+            .step-heading { font-size: 24px; }
+            .wordmark { font-size: 32px; letter-spacing: 12px; }
+            .p-line { width: 36px; }
+            .p-dot { width: 34px; height: 34px; font-size: 12px; }
+            .field-row { grid-template-columns: 1fr; }
+            .toggle-row { grid-template-columns: 1fr; }
+            .phone-wrap { flex-direction: column; gap: 10px; }
+            .phone-prefix { width: 100%; }
+            .arch-1 { width: 200px; height: 130px; right: -80px; }
+            .arch-2 { width: 140px; height: 90px; }
+            .dome-1 { width: 280px; height: 280px; }
         }
     </style>
 </head>
 <body>
-    <div class="bg-animation">
-        <div class="bg-gradient"></div>
-        <div class="floating-orb orb-1"></div>
-        <div class="floating-orb orb-2"></div>
+    <!-- Rome Geometric Background -->
+    <div class="scene">
+        <div class="scene-mesh"></div>
+        <div class="arch arch-1"></div>
+        <div class="arch arch-2"></div>
+        <div class="arch arch-3"></div>
+        <div class="dome dome-1"></div>
+        <div class="dome dome-2"></div>
+        <div class="col-line col-1"></div>
+        <div class="col-line col-2"></div>
+        <div class="col-line col-3"></div>
+        <div class="ent-line ent-1"></div>
+        <div class="ent-line ent-2"></div>
+        <div class="particle p1"></div>
+        <div class="particle p2"></div>
+        <div class="particle p3"></div>
+        <div class="particle p4"></div>
+        <div class="particle p5"></div>
+        <div class="particle p6"></div>
+        <div class="tessellation"></div>
     </div>
 
-    <div class="confetti-container" id="confettiContainer"></div>
+    <div class="confetti-box" id="confettiBox"></div>
 
     <div class="container">
-        <div class="logo-section">
-            <div class="logo-wrapper">
-                <div class="logo-glow"></div>
-                <img src="https://www.boomrome.com/boom-logo.svg" alt="BOOM Rome" class="logo">
+        <header class="header">
+            <div class="logo-mark">
+                <div class="logo-halo"></div>
+                <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="40" cy="40" r="39" fill="#0A0A0A" stroke="#D4AF37" stroke-width="0.75"/>
+                    <circle cx="40" cy="40" r="33" stroke="rgba(212,175,55,0.1)" stroke-width="0.5"/>
+                    <circle cx="40" cy="40" r="26" stroke="rgba(212,175,55,0.06)" stroke-width="0.5"/>
+                    <!-- Arch motif -->
+                    <path d="M26 52 Q40 20 54 52" stroke="rgba(212,175,55,0.18)" stroke-width="0.5" fill="none"/>
+                    <path d="M30 52 Q40 26 50 52" stroke="rgba(212,175,55,0.1)" stroke-width="0.5" fill="none"/>
+                    <!-- BOOM wordmark inside -->
+                    <text x="50%" y="54%" text-anchor="middle" dominant-baseline="middle"
+                          font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"
+                          font-size="13" font-weight="300" fill="#D4AF37"
+                          letter-spacing="4">BOOM</text>
+                </svg>
             </div>
-            <div class="brand">BOOM</div>
-            <div class="tagline">MID-TERM RENTALS • ROME</div>
-        </div>
+            <div class="wordmark">BOOM</div>
+            <div class="tagline">Mid-Term Rentals · Rome</div>
+        </header>
 
-        <!-- Progress Steps -->
-        <div class="progress-container" id="progressContainer">
-            <div class="progress-steps">
-                <div class="step-indicator">
-                    <div class="step-dot active" data-step="1"><span>1</span></div>
-                    <div class="step-line" id="line1"></div>
-                    <div class="step-dot" data-step="2"><span>2</span></div>
-                    <div class="step-line" id="line2"></div>
-                    <div class="step-dot" data-step="3"><span>3</span></div>
-                </div>
+        <nav class="progress" id="progress">
+            <div class="progress-track">
+                <div class="p-dot active" id="dot1">1</div>
+                <div class="p-line" id="line1"><div class="p-line-fill"></div></div>
+                <div class="p-dot" id="dot2">2</div>
+                <div class="p-line" id="line2"><div class="p-line-fill"></div></div>
+                <div class="p-dot" id="dot3">3</div>
             </div>
-            <div class="step-label active" id="stepLabel">Personal Information</div>
-        </div>
+            <div class="progress-label on" id="progressLabel">About You</div>
+        </nav>
 
-        <div class="card">
-            <div class="alert error" id="errorAlert">
-                <span class="alert-icon">⚠️</span>
-                <span id="errorText"></span>
-            </div>
+        <main class="card">
+            <div class="alert error" id="alert"><span>⚠️</span><span id="alertMsg"></span></div>
+            <div class="hp" aria-hidden="true"><label for="website">Website</label><input type="text" id="hp_website" name="website" tabindex="-1" autocomplete="off"></div>
 
-            <!-- Step 1: Personal Info -->
-            <div class="step-content active" id="step1">
-                <h2 class="step-title">Let's get to know you</h2>
-                <p class="step-subtitle">We'll use this information to personalize your apartment search experience.</p>
-
-                <div class="form-row">
-                    <div class="form-group">
-                        <div class="input-wrapper">
-                            <input type="text" class="form-input" id="firstName" placeholder=" " required autocomplete="given-name">
-                            <label class="form-label">First Name</label>
-                            <span class="input-icon" id="firstNameIcon"></span>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <div class="input-wrapper">
-                            <input type="text" class="form-input" id="lastName" placeholder=" " required autocomplete="family-name">
-                            <label class="form-label">Last Name</label>
-                            <span class="input-icon" id="lastNameIcon"></span>
-                        </div>
-                    </div>
+            <!-- STEP 1 -->
+            <section class="step active" id="step1">
+                <h2 class="step-heading">Let's get to know you</h2>
+                <p class="step-desc">We'll use this to personalize your apartment search across Rome.</p>
+                <div class="field-row">
+                    <div class="field"><div class="input-wrap"><input type="text" class="input" id="firstName" placeholder=" " required autocomplete="given-name" maxlength="50"><label class="float-label">First Name</label><span class="v-icon" id="firstNameIcon"></span></div></div>
+                    <div class="field"><div class="input-wrap"><input type="text" class="input" id="lastName" placeholder=" " required autocomplete="family-name" maxlength="50"><label class="float-label">Last Name</label><span class="v-icon" id="lastNameIcon"></span></div></div>
                 </div>
-
-                <div class="form-group">
-                    <div class="input-wrapper">
-                        <input type="email" class="form-input" id="email" placeholder=" " required autocomplete="email">
-                        <label class="form-label">Email Address</label>
-                        <span class="input-icon" id="emailIcon"></span>
+                <div class="field"><div class="input-wrap"><input type="email" class="input" id="email" placeholder=" " required autocomplete="email" maxlength="120"><label class="float-label">Email Address</label><span class="v-icon" id="emailIcon"></span></div></div>
+                <div class="field">
+                    <div class="label">WhatsApp / Phone Number</div>
+                    <div class="phone-wrap">
+                        <input type="text" class="input phone-prefix" id="phonePrefix" value="+1" placeholder="+1" maxlength="5" autocomplete="tel-country-code">
+                        <div class="input-wrap" style="flex:1"><input type="tel" class="input" id="phone" placeholder="Your number" required autocomplete="tel-national" maxlength="20"><span class="v-icon" id="phoneIcon"></span></div>
                     </div>
+                    <p class="help">Include your country code — +1 (US), +44 (UK), +39 (Italy)</p>
                 </div>
+                <div class="btn-row"><button type="button" class="btn btn-gold" onclick="goNext(1)">Continue <span class="btn-arrow">→</span></button></div>
+            </section>
 
-                <div class="form-group">
-                    <div class="input-wrapper">
-                        <input type="tel" class="form-input" id="phone" placeholder=" " required autocomplete="tel">
-                        <label class="form-label">WhatsApp / Phone Number</label>
-                        <span class="input-icon" id="phoneIcon"></span>
+            <!-- STEP 2 -->
+            <section class="step" id="step2">
+                <h2 class="step-heading">Your ideal home</h2>
+                <p class="step-desc">Tell us about your preferences — we'll match you with the right apartments.</p>
+                <div class="field-row">
+                    <div class="field"><div class="input-wrap"><input type="number" class="input" id="budget" placeholder=" " min="500" max="50000" required><label class="float-label">Monthly Budget (€)</label></div></div>
+                    <div class="field">
+                        <div class="label">Duration <span class="tip"><span class="tip-dot">?</span><span class="tip-text">How many months do you need?</span></span></div>
+                        <div class="stepper-wrap"><input type="number" class="input stepper-input" id="duration" value="6" min="1" max="36"><div class="stepper-btns"><button type="button" class="stepper-btn" onclick="adjustDuration(1)">+</button><button type="button" class="stepper-btn" onclick="adjustDuration(-1)">−</button></div><span class="stepper-unit">months</span></div>
                     </div>
                 </div>
-
-                <div class="btn-group">
-                    <button type="button" class="btn btn-primary" onclick="nextStep(1)">
-                        Continue <span class="btn-icon">→</span>
-                    </button>
+                <div class="field-row">
+                    <div class="field"><div class="input-wrap"><input type="date" class="input" id="checkIn" placeholder=" "><label class="float-label up">Check-in Date</label></div></div>
+                    <div class="field"><div class="label">Number of Guests</div><select class="select" id="guests"><option value="1">1 person</option><option value="2" selected>2 people</option><option value="3">3 people</option><option value="4">4 people</option><option value="5+">5+ people</option></select></div>
                 </div>
-            </div>
-
-            <!-- Step 2: Preferences -->
-            <div class="step-content" id="step2">
-                <h2 class="step-title">Your ideal home</h2>
-                <p class="step-subtitle">Tell us about your preferences so we can find the perfect match.</p>
-
-                <div class="form-row">
-                    <div class="form-group">
-                        <div class="input-wrapper">
-                            <input type="number" class="form-input" id="budget" placeholder=" " min="500" required>
-                            <label class="form-label">Monthly Budget (€)</label>
-                        </div>
+                <div class="field">
+                    <div class="label">Preferred Neighborhoods</div>
+                    <div class="chips" id="zoneChips">
+                        <span class="chip" data-z="Parioli">Parioli</span><span class="chip" data-z="Trieste">Trieste</span><span class="chip" data-z="Sallustiano">Sallustiano</span><span class="chip" data-z="Prati">Prati</span><span class="chip" data-z="Centro Storico">Centro Storico</span><span class="chip" data-z="Trastevere">Trastevere</span><span class="chip" data-z="Flaminio">Flaminio</span><span class="chip" data-z="Monti">Monti</span><span class="chip" data-z="Testaccio">Testaccio</span><span class="chip" data-z="Pinciano">Pinciano</span><span class="chip" data-z="San Giovanni">San Giovanni</span><span class="chip" data-z="Monteverde">Monteverde</span><span class="chip" data-z="San Lorenzo">San Lorenzo</span><span class="chip" data-z="EUR">EUR</span><span class="chip" data-z="Nomentano">Nomentano</span>
                     </div>
-                    <div class="form-group">
-                        <label style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; display: block;">
-                            Duration
-                            <span class="tooltip">
-                                <span class="tooltip-icon">?</span>
-                                <span class="tooltip-text">How long do you need the apartment?</span>
-                            </span>
-                        </label>
-                        <div class="duration-wrapper">
-                            <input type="number" class="form-input duration-input" id="duration" value="6" min="1" max="36">
-                            <div class="duration-controls">
-                                <button type="button" class="duration-btn" onclick="adjustDuration(1)">+</button>
-                                <button type="button" class="duration-btn" onclick="adjustDuration(-1)">−</button>
-                            </div>
-                            <span class="duration-label">months</span>
-                        </div>
+                    <p class="chips-status"><span class="chips-count" id="zoneCount">0</span><span id="zoneHint">Tap to select your preferred areas</span></p>
+                </div>
+                <div class="field">
+                    <div class="label">Requirements</div>
+                    <div class="toggle-row">
+                        <div class="toggle-chip" data-toggle="pets" onclick="toggleChip(this)"><span class="toggle-icon">🐾</span><span class="toggle-label">Pet-friendly</span><span class="toggle-check"></span></div>
+                        <div class="toggle-chip" data-toggle="furnished" onclick="toggleChip(this)"><span class="toggle-icon">🛋️</span><span class="toggle-label">Furnished</span><span class="toggle-check"></span></div>
+                        <div class="toggle-chip" data-toggle="parking" onclick="toggleChip(this)"><span class="toggle-icon">🅿️</span><span class="toggle-label">Parking</span><span class="toggle-check"></span></div>
+                        <div class="toggle-chip" data-toggle="terrace" onclick="toggleChip(this)"><span class="toggle-icon">🌿</span><span class="toggle-label">Terrace / Balcony</span><span class="toggle-check"></span></div>
                     </div>
                 </div>
+                <div class="btn-row"><button type="button" class="btn btn-ghost" onclick="goBack(2)">← Back</button><button type="button" class="btn btn-gold" onclick="goNext(2)">Continue <span class="btn-arrow">→</span></button></div>
+            </section>
 
-                <div class="form-row">
-                    <div class="form-group">
-                        <div class="input-wrapper">
-                            <input type="date" class="form-input" id="checkIn" placeholder=" ">
-                            <label class="form-label floating">Check-in Date</label>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; display: block;">Number of Guests</label>
-                        <select class="form-select" id="guests">
-                            <option value="1">1 person</option>
-                            <option value="2" selected>2 people</option>
-                            <option value="3">3 people</option>
-                            <option value="4">4 people</option>
-                            <option value="5+">5+ people</option>
-                        </select>
-                    </div>
+            <!-- STEP 3 -->
+            <section class="step" id="step3">
+                <h2 class="step-heading">Almost there</h2>
+                <p class="step-desc">A few more details to help us find exactly what you need.</p>
+                <div class="field"><div class="input-wrap"><input type="text" class="input" id="workStudy" placeholder=" " maxlength="100"><label class="float-label">🎓 Where will you study or work?</label></div><p class="help">e.g. Sapienza, LUISS, Vatican, Termini area, remote work…</p></div>
+                <div class="field">
+                    <div class="label">💳 Would you pay rent in advance? <span class="tip"><span class="tip-dot">?</span><span class="tip-text">Advance payment can secure better apartments</span></span></div>
+                    <select class="select" id="advancePay"><option value="monthly">Monthly — I prefer month by month</option><option value="quarterly">Quarterly — 3 months in advance</option><option value="semester">Semester — 6 months in advance</option><option value="full">Full stay — entire period upfront</option></select>
+                    <p class="help positive">💡 Paying in advance often gives you priority access to the best listings</p>
                 </div>
-
-                <div class="form-group">
-                    <label style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; display: block;">Preferred Neighborhoods</label>
-                    <div class="zones-grid" id="zonesGrid">
-                        <span class="zone-chip" data-zone="Parioli">Parioli</span>
-                        <span class="zone-chip" data-zone="Trieste">Trieste</span>
-                        <span class="zone-chip" data-zone="Sallustiano">Sallustiano</span>
-                        <span class="zone-chip" data-zone="Prati">Prati</span>
-                        <span class="zone-chip" data-zone="Centro Storico">Centro Storico</span>
-                        <span class="zone-chip" data-zone="Trastevere">Trastevere</span>
-                        <span class="zone-chip" data-zone="Flaminio">Flaminio</span>
-                        <span class="zone-chip" data-zone="Monti">Monti</span>
-                        <span class="zone-chip" data-zone="Testaccio">Testaccio</span>
-                        <span class="zone-chip" data-zone="Pinciano">Pinciano</span>
-                        <span class="zone-chip" data-zone="San Giovanni">San Giovanni</span>
-                        <span class="zone-chip" data-zone="Monteverde">Monteverde</span>
-                        <span class="zone-chip" data-zone="San Lorenzo">San Lorenzo</span>
-                        <span class="zone-chip" data-zone="EUR">EUR</span>
-                    </div>
-                    <p class="zones-hint">
-                        <span id="zoneCountBadge" class="zones-count" style="display: none;">0</span>
-                        <span id="zoneHintText">Tap to select your favorite areas</span>
-                    </p>
+                <div class="field">
+                    <div class="label">How did you find us?</div>
+                    <select class="select" id="source"><option value="">Select an option…</option><option value="google">🔍 Google Search</option><option value="instagram">📸 Instagram</option><option value="facebook">👥 Facebook</option><option value="referral">💬 Word of Mouth</option><option value="airbnb">🏠 Airbnb</option><option value="linkedin">💼 LinkedIn</option><option value="tiktok">🎵 TikTok</option><option value="agent">🤝 Real Estate Agent</option><option value="other">✨ Other</option></select>
                 </div>
-
-                <div class="btn-group">
-                    <button type="button" class="btn btn-secondary" onclick="prevStep(2)">← Back</button>
-                    <button type="button" class="btn btn-primary" onclick="nextStep(2)">
-                        Continue <span class="btn-icon">→</span>
-                    </button>
+                <div class="field">
+                    <div class="label">Additional Notes <span class="label-hint">(optional)</span></div>
+                    <div class="input-wrap"><textarea class="textarea" id="notes" placeholder="Anything else we should know? Accessibility needs, specific streets, move-in flexibility…" maxlength="500" oninput="updateChars()"></textarea><span class="char-count"><span id="charNum">0</span>/500</span></div>
                 </div>
-            </div>
+                <div class="btn-row"><button type="button" class="btn btn-ghost" onclick="goBack(3)">← Back</button><button type="button" class="btn btn-gold" id="submitBtn" onclick="submitForm()">Submit Registration <span class="btn-arrow">✓</span></button></div>
+                <p class="privacy">By submitting, you agree to our <a href="https://www.boomrome.com/privacy" target="_blank" rel="noopener">Privacy Policy</a> and consent to receive communications about your apartment search.</p>
+            </section>
 
-            <!-- Step 3: Additional Info -->
-            <div class="step-content" id="step3">
-                <h2 class="step-title">Almost there!</h2>
-                <p class="step-subtitle">A few more details to help us serve you better.</p>
-
-                <div class="form-group">
-                    <div class="input-wrapper">
-                        <input type="text" class="form-input" id="workStudyLocation" placeholder=" ">
-                        <label class="form-label">🎓 Where will you study or work?</label>
-                    </div>
-                    <p style="font-size: 11px; color: var(--text-muted); margin-top: 6px;">e.g. Sapienza, LUISS, Vatican, Termini area, remote work...</p>
+            <!-- SUCCESS -->
+            <section class="success" id="successScreen">
+                <div class="success-orb"><span>✓</span></div>
+                <h2>Welcome to BOOM</h2>
+                <p>Your registration has been received.<br>Our team will reach out within <strong>24 hours</strong> to kick off your personalized apartment search.</p>
+                <div class="summary" id="summaryBox"></div>
+                <div class="success-actions">
+                    <a href="#" class="btn-wa" id="waLink" target="_blank" rel="noopener"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg> Chat with us on WhatsApp</a>
+                    <a href="https://www.boomrome.com" class="btn-link">Explore BOOM Rome →</a>
                 </div>
-
-                <div class="form-group">
-                    <label style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; display: block;">
-                        💳 Would you be open to paying rent in advance?
-                        <span class="tooltip">
-                            <span class="tooltip-icon">?</span>
-                            <span class="tooltip-text">Advance payment can help secure better apartments!</span>
-                        </span>
-                    </label>
-                    <select class="form-select" id="advancePayment">
-                        <option value="monthly">Monthly only - I prefer to pay month by month</option>
-                        <option value="quarterly">Quarterly - I could pay 3 months in advance</option>
-                        <option value="semester">Semester - I could pay 6 months in advance</option>
-                        <option value="full">Full stay - I could pay the entire period upfront</option>
-                    </select>
-                    <p style="font-size: 11px; color: var(--green); margin-top: 6px;">💡 Paying in advance often gives you priority access to the best apartments!</p>
-                </div>
-
-                <div class="form-group">
-                    <label style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; display: block;">How did you find us?</label>
-                    <select class="form-select" id="source">
-                        <option value="">Select an option...</option>
-                        <option value="google">🔍 Google Search</option>
-                        <option value="instagram">📸 Instagram</option>
-                        <option value="facebook">👥 Facebook</option>
-                        <option value="referral">💬 Word of Mouth</option>
-                        <option value="airbnb">🏠 Airbnb</option>
-                        <option value="linkedin">💼 LinkedIn</option>
-                        <option value="tiktok">🎵 TikTok</option>
-                        <option value="agent">🤝 Real Estate Agent</option>
-                        <option value="other">✨ Other</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; display: block;">
-                        Additional Notes
-                        <span style="font-weight: 400; text-transform: none;">(optional)</span>
-                    </label>
-                    <div class="input-wrapper">
-                        <textarea class="form-textarea" id="notes" placeholder="Tell us about any special requirements: pets, parking, home office needs, accessibility, furnished/unfurnished preference..." maxlength="500" oninput="updateCharCount()"></textarea>
-                        <span class="char-count"><span id="charCount">0</span>/500</span>
-                    </div>
-                </div>
-
-                <div class="btn-group">
-                    <button type="button" class="btn btn-secondary" onclick="prevStep(3)">← Back</button>
-                    <button type="button" class="btn btn-primary" id="submitBtn" onclick="submitForm()">
-                        Submit Registration <span class="btn-icon">✓</span>
-                    </button>
-                </div>
-
-                <p class="privacy-note">
-                    By submitting, you agree to our <a href="https://www.boomrome.com/privacy" target="_blank">Privacy Policy</a>
-                    and consent to receive communications about your apartment search.
-                </p>
-            </div>
-
-            <!-- Success Screen -->
-            <div class="success-screen" id="successScreen">
-                <div class="success-animation">
-                    <div class="success-circle">
-                        <span class="success-check">✓</span>
-                    </div>
-                </div>
-                <h2 class="success-title">Welcome to BOOM!</h2>
-                <p class="success-text">
-                    Your registration has been received.<br>
-                    Our team will contact you within <strong>24 hours</strong> to begin your personalized apartment search.
-                </p>
-
-                <div class="success-details" id="successDetails"></div>
-
-                <a href="https://www.boomrome.com" class="btn btn-primary" style="display: inline-block; width: auto; padding: 16px 40px; text-decoration: none;">
-                    Explore BOOM Rome <span class="btn-icon">→</span>
-                </a>
-            </div>
-        </div>
+            </section>
+        </main>
     </div>
 
-    <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-
     <script>
-        // Firebase Config
-        const firebaseConfig = {
-            apiKey: "AIzaSyDUuGKLoGMnmYPxMq8HYzLVe7B8E0keJLM",
-            authDomain: "boom-property-dashboards.firebaseapp.com",
-            projectId: "boom-property-dashboards",
-            storageBucket: "boom-property-dashboards.appspot.com",
-            messagingSenderId: "937269017440",
-            appId: "1:937269017440:web:41c1a0b1e1633c2f373c05"
-        };
-
+        const firebaseConfig={apiKey:"AIzaSyDUuGKLoGMnmYPxMq8HYzLVe7B8E0keJLM",authDomain:"boom-property-dashboards.firebaseapp.com",projectId:"boom-property-dashboards",storageBucket:"boom-property-dashboards.appspot.com",messagingSenderId:"937269017440",appId:"1:937269017440:web:41c1a0b1e1633c2f373c05"};
         firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
+        const db=firebase.firestore();
 
-        // State
-        let currentStep = 1;
-        let selectedZones = [];
-        const stepLabels = ['Personal Information', 'Your Preferences', 'Final Details'];
+        let step=1,zones=[],toggles={pets:false,furnished:false,parking:false,terrace:false},formStartTime=Date.now();
+        const LABELS=['About You','Your Preferences','Final Details'];
 
-        // Initialize
-        document.addEventListener('DOMContentLoaded', () => {
-            setupValidation();
-            setupZones();
-            setMinDate();
-        });
+        document.addEventListener('DOMContentLoaded',()=>{formStartTime=Date.now();initValidation();initZones();setDateBounds()});
 
-        function setMinDate() {
-            const today = new Date().toISOString().split('T')[0];
-            document.getElementById('checkIn').min = today;
-        }
+        function setDateBounds(){const c=document.getElementById('checkIn'),t=new Date();c.min=t.toISOString().split('T')[0];const m=new Date(t);m.setFullYear(m.getFullYear()+2);c.max=m.toISOString().split('T')[0]}
+        function sanitize(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML.trim()}
+        function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;')}
 
-        // Real-time validation
-        function setupValidation() {
-            const fields = [
-                { id: 'firstName', validate: v => v.length >= 2 },
-                { id: 'lastName', validate: v => v.length >= 2 },
-                { id: 'email', validate: v => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) },
-                { id: 'phone', validate: v => v.length >= 8 }
-            ];
-
-            fields.forEach(field => {
-                const input = document.getElementById(field.id);
-                const icon = document.getElementById(field.id + 'Icon');
-
-                input.addEventListener('input', () => {
-                    const value = input.value.trim();
-                    if (value === '') {
-                        input.classList.remove('valid', 'invalid');
-                        if (icon) icon.textContent = '';
-                    } else if (field.validate(value)) {
-                        input.classList.remove('invalid');
-                        input.classList.add('valid');
-                        if (icon) icon.textContent = '✓';
-                    } else {
-                        input.classList.remove('valid');
-                        input.classList.add('invalid');
-                        if (icon) icon.textContent = '✗';
-                    }
-                });
-
-                input.addEventListener('blur', () => {
-                    if (input.value.trim() && !field.validate(input.value.trim())) {
-                        input.classList.add('invalid');
-                    }
-                });
+        function initValidation(){
+            [{id:'firstName',ok:v=>v.length>=2},{id:'lastName',ok:v=>v.length>=2},{id:'email',ok:v=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)},{id:'phone',ok:v=>/^[\d\s\-().]{6,20}$/.test(v)}].forEach(r=>{
+                const el=document.getElementById(r.id),ic=document.getElementById(r.id+'Icon');
+                el.addEventListener('input',()=>{const v=el.value.trim();el.classList.remove('ok','err');if(ic)ic.textContent='';if(!v)return;if(r.ok(v)){el.classList.add('ok');if(ic)ic.textContent='✓'}else{el.classList.add('err');if(ic)ic.textContent='✗'}});
+                el.addEventListener('blur',()=>{if(el.value.trim()&&!r.ok(el.value.trim()))el.classList.add('err')});
             });
         }
 
-        // Zone selection
-        function setupZones() {
-            document.querySelectorAll('.zone-chip').forEach(chip => {
-                chip.addEventListener('click', () => {
-                    const zone = chip.dataset.zone;
-                    if (chip.classList.contains('selected')) {
-                        chip.classList.remove('selected');
-                        selectedZones = selectedZones.filter(z => z !== zone);
-                    } else {
-                        chip.classList.add('selected');
-                        selectedZones.push(zone);
-                    }
-                    updateZoneCount();
-                });
-            });
+        function initZones(){document.querySelectorAll('#zoneChips .chip').forEach(c=>{c.addEventListener('click',()=>{const z=c.dataset.z;if(c.classList.contains('on')){c.classList.remove('on');zones=zones.filter(x=>x!==z)}else{c.classList.add('on');zones.push(z)}refreshZoneCount()})})}
+        function refreshZoneCount(){const b=document.getElementById('zoneCount'),h=document.getElementById('zoneHint');if(zones.length){b.classList.add('show');b.textContent=zones.length;h.textContent=zones.length===1?'area selected':'areas selected'}else{b.classList.remove('show');h.textContent='Tap to select your preferred areas'}}
+        function toggleChip(el){const k=el.dataset.toggle;el.classList.toggle('on');toggles[k]=el.classList.contains('on');el.querySelector('.toggle-check').textContent=toggles[k]?'✓':''}
+        function adjustDuration(d){const el=document.getElementById('duration');el.value=Math.max(1,Math.min(36,(parseInt(el.value)||6)+d))}
+        function updateChars(){document.getElementById('charNum').textContent=document.getElementById('notes').value.length}
+
+        function updateProgress(){
+            for(let i=1;i<=3;i++){const d=document.getElementById('dot'+i);d.classList.remove('active','done');if(i<step){d.classList.add('done');d.textContent='✓'}else if(i===step){d.classList.add('active');d.textContent=i}else d.textContent=i}
+            document.getElementById('line1').classList.toggle('filled',step>1);document.getElementById('line2').classList.toggle('filled',step>2);
+            const l=document.getElementById('progressLabel');l.textContent=LABELS[step-1];l.classList.add('on');
         }
 
-        function updateZoneCount() {
-            const badge = document.getElementById('zoneCountBadge');
-            const hint = document.getElementById('zoneHintText');
-            if (selectedZones.length > 0) {
-                badge.style.display = 'inline';
-                badge.textContent = selectedZones.length;
-                hint.textContent = selectedZones.length === 1 ? 'neighborhood selected' : 'neighborhoods selected';
-            } else {
-                badge.style.display = 'none';
-                hint.textContent = 'Tap to select your favorite areas';
-            }
+        function showStep(n){document.querySelectorAll('.step').forEach(s=>s.classList.remove('active'));document.getElementById('step'+n).classList.add('active');updateProgress()}
+
+        function goNext(from){
+            dismissAlert();
+            if(from===1){const fn=document.getElementById('firstName').value.trim(),ln=document.getElementById('lastName').value.trim(),em=document.getElementById('email').value.trim(),ph=document.getElementById('phone').value.trim();if(!fn||!ln||fn.length<2||ln.length<2)return showAlert('Please enter your full name.');if(!em||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em))return showAlert('Please enter a valid email address.');if(!ph||ph.length<6)return showAlert('Please enter a valid phone number.')}
+            if(from===2){const b=parseInt(document.getElementById('budget').value);if(!b||b<500)return showAlert('Please enter a budget of at least €500.')}
+            step=from+1;showStep(step);window.scrollTo({top:0,behavior:'smooth'});
         }
 
-        function adjustDuration(delta) {
-            const input = document.getElementById('duration');
-            let value = parseInt(input.value) || 6;
-            value = Math.max(1, Math.min(36, value + delta));
-            input.value = value;
+        function goBack(from){step=from-1;showStep(step)}
+        function showAlert(msg){const el=document.getElementById('alert');document.getElementById('alertMsg').textContent=msg;el.classList.add('visible');el.scrollIntoView({behavior:'smooth',block:'center'})}
+        function dismissAlert(){document.getElementById('alert').classList.remove('visible')}
+
+        function launchConfetti(){
+            const box=document.getElementById('confettiBox'),pal=['#D4AF37','#34C759','#FF6B6B','#4ECDC4','#FFE66D','#fff','#E8D48B'];
+            for(let i=0;i<70;i++){const p=document.createElement('div'),sz=Math.random()*7+4;p.style.cssText=`position:absolute;left:${Math.random()*100}%;width:${sz}px;height:${sz}px;background:${pal[Math.floor(Math.random()*pal.length)]};border-radius:${Math.random()>0.5?'50%':'1px'};animation:cF ${Math.random()*2.5+2}s ease-out ${Math.random()*0.4}s forwards;`;box.appendChild(p)}
+            if(!document.getElementById('cS')){const s=document.createElement('style');s.id='cS';s.textContent='@keyframes cF{0%{transform:translateY(-10vh) rotate(0);opacity:1}100%{transform:translateY(105vh) rotate(720deg);opacity:0}}';document.head.appendChild(s)}
+            setTimeout(()=>box.innerHTML='',5000);
         }
 
-        function updateCharCount() {
-            document.getElementById('charCount').textContent = document.getElementById('notes').value.length;
+        async function submitForm(){
+            dismissAlert();
+            if(document.getElementById('hp_website').value){fakeSuccess();return}
+            if(Date.now()-formStartTime<3000){fakeSuccess();return}
+            const btn=document.getElementById('submitBtn');btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Submitting…';
+            try{
+                const firstName=sanitize(document.getElementById('firstName').value),lastName=sanitize(document.getElementById('lastName').value),email=sanitize(document.getElementById('email').value).toLowerCase(),phonePrefix=sanitize(document.getElementById('phonePrefix').value),phone=phonePrefix+' '+sanitize(document.getElementById('phone').value),budget=Math.max(0,Math.min(50000,parseInt(document.getElementById('budget').value)||0)),duration=Math.max(1,Math.min(36,parseInt(document.getElementById('duration').value)||6)),checkIn=document.getElementById('checkIn').value||null,guests=sanitize(document.getElementById('guests').value),workStudy=sanitize(document.getElementById('workStudy').value),advancePay=sanitize(document.getElementById('advancePay').value),source=sanitize(document.getElementById('source').value),notes=sanitize(document.getElementById('notes').value);
+                await db.collection('registrations').add({name:firstName+' '+lastName,firstName,lastName,email,phone,budget,duration:duration+' months',durationMonths:duration,checkIn,guests,zones,zone:zones.join(', ')||'Flexible',requirements:toggles,petFriendly:toggles.pets,furnished:toggles.furnished,parking:toggles.parking,terrace:toggles.terrace,workStudyLocation:workStudy,advancePayment:advancePay,referralSource:source||'onboarding',notes,service:'PFS',stage:'new',source:'onboarding',status:'pending',createdAt:firebase.firestore.FieldValue.serverTimestamp(),submittedFrom:window.location.href,formDuration:Math.round((Date.now()-formStartTime)/1000)});
+                document.getElementById('progress').style.display='none';document.querySelectorAll('.step').forEach(s=>s.classList.remove('active'));
+                let rows=`<div class="summary-row"><span class="summary-k">Name</span><span class="summary-v">${esc(firstName)} ${esc(lastName)}</span></div><div class="summary-row"><span class="summary-k">Budget</span><span class="summary-v">€${budget.toLocaleString()}/mo</span></div><div class="summary-row"><span class="summary-k">Duration</span><span class="summary-v">${duration} months</span></div>`;
+                if(zones.length){const shown=zones.slice(0,3).map(esc).join(', ');rows+=`<div class="summary-row"><span class="summary-k">Areas</span><span class="summary-v">${shown}${zones.length>3?' +'+(zones.length-3)+' more':''}</span></div>`}
+                const reqs=Object.entries(toggles).filter(([,v])=>v).map(([k])=>k.charAt(0).toUpperCase()+k.slice(1));
+                if(reqs.length)rows+=`<div class="summary-row"><span class="summary-k">Requirements</span><span class="summary-v">${reqs.join(', ')}</span></div>`;
+                if(checkIn)rows+=`<div class="summary-row"><span class="summary-k">Check-in</span><span class="summary-v">${new Date(checkIn).toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}</span></div>`;
+                document.getElementById('summaryBox').innerHTML=rows;
+                const waNum='393510798547',waMsg=encodeURIComponent(`Hi BOOM! I just registered.\n\nName: ${firstName} ${lastName}\nBudget: €${budget}/mo\nDuration: ${duration} months\n\nLooking forward to hearing from you!`);
+                document.getElementById('waLink').href=`https://wa.me/${waNum}?text=${waMsg}`;
+                document.getElementById('successScreen').classList.add('show');launchConfetti();
+            }catch(err){console.error('Registration error:',err);showAlert(err.message||'Something went wrong. Please try again.');btn.disabled=false;btn.innerHTML='Submit Registration <span class="btn-arrow">✓</span>'}
         }
 
-        // Step navigation
-        function updateProgress() {
-            document.querySelectorAll('.step-dot').forEach((dot, idx) => {
-                const stepNum = idx + 1;
-                dot.classList.remove('active', 'completed');
-                if (stepNum < currentStep) dot.classList.add('completed');
-                else if (stepNum === currentStep) dot.classList.add('active');
-            });
-            document.getElementById('line1').classList.toggle('filled', currentStep > 1);
-            document.getElementById('line2').classList.toggle('filled', currentStep > 2);
-            document.getElementById('stepLabel').textContent = stepLabels[currentStep - 1];
-        }
-
-        function showStep(step) {
-            document.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
-            document.getElementById('step' + step).classList.add('active');
-            updateProgress();
-        }
-
-        function nextStep(from) {
-            hideError();
-            if (from === 1) {
-                const firstName = document.getElementById('firstName').value.trim();
-                const lastName = document.getElementById('lastName').value.trim();
-                const email = document.getElementById('email').value.trim();
-                const phone = document.getElementById('phone').value.trim();
-                if (!firstName || !lastName) { showError('Please enter your full name'); return; }
-                if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showError('Please enter a valid email address'); return; }
-                if (!phone || phone.length < 8) { showError('Please enter a valid phone number'); return; }
-            } else if (from === 2) {
-                const budget = parseInt(document.getElementById('budget').value);
-                if (!budget || budget < 500) { showError('Please enter a budget of at least €500'); return; }
-            }
-            currentStep = from + 1;
-            showStep(currentStep);
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-
-        function prevStep(from) {
-            currentStep = from - 1;
-            showStep(currentStep);
-        }
-
-        function showError(message) {
-            const alert = document.getElementById('errorAlert');
-            document.getElementById('errorText').textContent = message;
-            alert.classList.add('show');
-            alert.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-
-        function hideError() {
-            document.getElementById('errorAlert').classList.remove('show');
-        }
-
-        // Confetti
-        function createConfetti() {
-            const container = document.getElementById('confettiContainer');
-            const colors = ['#D4AF37', '#34C759', '#FF6B6B', '#4ECDC4', '#FFE66D', '#fff'];
-            for (let i = 0; i < 100; i++) {
-                const confetti = document.createElement('div');
-                confetti.className = 'confetti';
-                confetti.style.cssText = `
-                    left: ${Math.random() * 100}%;
-                    background: ${colors[Math.floor(Math.random() * colors.length)]};
-                    width: ${Math.random() * 10 + 5}px;
-                    height: ${Math.random() * 10 + 5}px;
-                    border-radius: ${Math.random() > 0.5 ? '50%' : '0'};
-                    animation: confettiFall ${Math.random() * 3 + 2}s ease-out forwards;
-                    animation-delay: ${Math.random() * 0.5}s;
-                `;
-                container.appendChild(confetti);
-            }
-            if (!document.getElementById('confettiStyle')) {
-                const style = document.createElement('style');
-                style.id = 'confettiStyle';
-                style.textContent = `@keyframes confettiFall { 0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; } 100% { transform: translateY(100vh) rotate(720deg); opacity: 0; } }`;
-                document.head.appendChild(style);
-            }
-            setTimeout(() => container.innerHTML = '', 5000);
-        }
-
-        // Form submission — writes to 'registrations' collection (public create allowed)
-        async function submitForm() {
-            hideError();
-            const btn = document.getElementById('submitBtn');
-            btn.disabled = true;
-            btn.innerHTML = '<span class="spinner"></span> Submitting...';
-
-            try {
-                const firstName = document.getElementById('firstName').value.trim();
-                const lastName = document.getElementById('lastName').value.trim();
-                const email = document.getElementById('email').value.trim().toLowerCase();
-                const phone = document.getElementById('phone').value.trim();
-                const budget = parseInt(document.getElementById('budget').value) || 0;
-                const duration = parseInt(document.getElementById('duration').value) || 6;
-                const checkIn = document.getElementById('checkIn').value;
-                const guests = document.getElementById('guests').value;
-                const workStudyLocation = document.getElementById('workStudyLocation').value.trim();
-                const advancePayment = document.getElementById('advancePayment').value;
-                const source = document.getElementById('source').value;
-                const notes = document.getElementById('notes').value.trim();
-
-                // Single write to 'registrations' — no auth required
-                const regData = {
-                    // Personal
-                    name: firstName + ' ' + lastName,
-                    firstName,
-                    lastName,
-                    email,
-                    phone,
-                    // Preferences
-                    budget,
-                    duration: duration + ' months',
-                    durationMonths: duration,
-                    checkIn: checkIn || null,
-                    guests,
-                    zones: selectedZones,
-                    zone: selectedZones.join(', ') || 'Flexible',
-                    // Additional
-                    workStudyLocation,
-                    advancePayment,
-                    referralSource: source || 'onboarding',
-                    notes,
-                    // Meta
-                    service: 'PFS',
-                    stage: 'new',
-                    source: 'onboarding',
-                    status: 'pending',
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                    submittedFrom: window.location.href
-                };
-
-                await db.collection('registrations').add(regData);
-
-                // Show success
-                document.getElementById('progressContainer').style.display = 'none';
-                document.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
-
-                document.getElementById('successDetails').innerHTML = `
-                    <div class="success-detail-item">
-                        <span class="success-detail-label">Name</span>
-                        <span class="success-detail-value">${firstName} ${lastName}</span>
-                    </div>
-                    <div class="success-detail-item">
-                        <span class="success-detail-label">Budget</span>
-                        <span class="success-detail-value">€${budget.toLocaleString()}/month</span>
-                    </div>
-                    <div class="success-detail-item">
-                        <span class="success-detail-label">Duration</span>
-                        <span class="success-detail-value">${duration} months</span>
-                    </div>
-                    ${selectedZones.length > 0 ? `
-                    <div class="success-detail-item">
-                        <span class="success-detail-label">Areas</span>
-                        <span class="success-detail-value">${selectedZones.slice(0, 3).join(', ')}${selectedZones.length > 3 ? ' +' + (selectedZones.length - 3) + ' more' : ''}</span>
-                    </div>` : ''}
-                    ${checkIn ? `
-                    <div class="success-detail-item">
-                        <span class="success-detail-label">Check-in</span>
-                        <span class="success-detail-value">${new Date(checkIn).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
-                    </div>` : ''}
-                `;
-
-                document.getElementById('successScreen').classList.add('show');
-                createConfetti();
-
-            } catch (error) {
-                console.error('Registration error:', error);
-                showError(error.message || 'Something went wrong. Please try again.');
-                btn.disabled = false;
-                btn.innerHTML = 'Submit Registration <span class="btn-icon">✓</span>';
-            }
-        }
+        function fakeSuccess(){document.getElementById('progress').style.display='none';document.querySelectorAll('.step').forEach(s=>s.classList.remove('active'));document.getElementById('summaryBox').innerHTML='';document.getElementById('successScreen').classList.add('show')}
     </script>
 </body>
 </html>
