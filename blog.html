@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-EYCD59RDVJ"></script>
+    <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-EYCD59RDVJ');</script>
+
+    <link rel="icon" href="/favicon.ico" sizes="any">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="icon" href="/favicon-32x32.png" sizes="32x32" type="image/png">
+    <link rel="icon" href="/favicon-16x16.png" sizes="16x16" type="image/png">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <link rel="manifest" href="/site.webmanifest">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BOOM Blog – Rome Rental Guides, Tips & Expat Advice</title>
+    <meta name="description" content="Expert guides for renting in Rome. Neighborhood breakdowns, scam protection, cost calculators, tenant rights, and step-by-step rental walkthroughs.">
+    <meta property="og:title" content="BOOM Blog – Rome Rental Guides & Expat Advice">
+    <meta property="og:description" content="Expert guides for renting in Rome. Neighborhood breakdowns, scam protection, cost calculators, tenant rights, and more.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://www.boomrome.com/blog.html">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+        :root {
+            --gold: #FFD700; --gold-light: #FFE55C; --gold-dark: #E5C200;
+            --black: #030303; --surface: #0B0B0C; --surface-elevated: #121214;
+            --surface-hover: #1A1A1D;
+            --text-primary: #FAFAFA; --text-secondary: rgba(250,250,250,0.72);
+            --text-tertiary: rgba(250,250,250,0.44); --text-muted: rgba(250,250,250,0.24);
+            --border-subtle: rgba(255,255,255,0.04); --border-default: rgba(255,255,255,0.08);
+            --border-hover: rgba(255,215,0,0.25);
+            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            --font-display: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        html { -webkit-font-smoothing:antialiased; scroll-behavior:smooth; }
+        body { font-family:var(--font-sans); background:var(--black); color:var(--text-primary); font-weight:300; line-height:1.6; overflow-x:hidden; }
+        ::selection { background:var(--gold); color:var(--black); }
+        a { color:inherit; text-decoration:none; }
+        .container { max-width:1320px; margin:0 auto; padding:0 24px; }
+        @media(min-width:768px) { .container { padding:0 48px; } }
+
+        /* Nav */
+        .nav { position:fixed; top:0; left:0; right:0; z-index:10000; padding:16px 0;
+            background:linear-gradient(180deg, rgba(3,3,3,1) 0%, rgba(3,3,3,0.9) 60%, transparent 100%);
+            transition:all 0.4s var(--ease-out); }
+        .nav.scrolled { background:rgba(3,3,3,1); backdrop-filter:blur(20px); border-bottom:1px solid var(--border-subtle); padding:12px 0; }
+        .nav-inner { display:flex; align-items:center; justify-content:space-between; }
+        .logo { display:flex; align-items:center; gap:16px; transition:transform 0.3s var(--ease-out); }
+        .logo:hover { transform:scale(1.02); }
+        .logo-mark { width:56px; height:56px; filter:drop-shadow(0 0 20px rgba(255,215,0,0.4)); }
+        .logo-text { font-family:var(--font-display); font-size:28px; font-weight:300; letter-spacing:4px; text-transform:uppercase; }
+        .nav-links { display:none; align-items:center; gap:32px; }
+        @media(min-width:1024px) { .nav-links { display:flex; } }
+        .nav-link { font-size:11px; font-weight:500; letter-spacing:1.5px; text-transform:uppercase; color:var(--text-secondary); transition:color 0.3s; position:relative; }
+        .nav-link::after { content:''; position:absolute; bottom:-4px; left:0; width:0; height:1px; background:var(--gold); transition:width 0.3s var(--ease-out); }
+        .nav-link:hover { color:var(--text-primary); }
+        .nav-link:hover::after { width:100%; }
+        .nav-cta { padding:10px 20px; border:1px solid var(--gold); font-size:10px; font-weight:600; letter-spacing:1.5px; text-transform:uppercase; color:var(--gold); transition:all 0.3s; }
+        .nav-cta:hover { background:var(--gold); color:var(--black); }
+        .nav-toggle { display:flex; flex-direction:column; gap:5px; padding:10px; background:none; border:none; cursor:pointer; }
+        @media(min-width:1024px) { .nav-toggle { display:none; } }
+        .nav-toggle span { display:block; width:24px; height:2px; background:var(--gold); transition:all 0.3s; }
+        .nav-toggle.active span:nth-child(1) { transform:rotate(45deg) translate(5px,5px); }
+        .nav-toggle.active span:nth-child(2) { opacity:0; }
+        .nav-toggle.active span:nth-child(3) { transform:rotate(-45deg) translate(5px,-5px); }
+        .mobile-menu { position:fixed; top:0; right:0; width:100%; max-width:380px; height:100vh; background:#060607;
+            border-left:1px solid var(--border-subtle); z-index:999; transform:translateX(100%);
+            transition:transform 0.4s var(--ease-out); padding:100px 32px 32px; overflow-y:auto; }
+        .mobile-menu.active { transform:translateX(0); }
+        .mobile-menu-links { display:flex; flex-direction:column; gap:8px; }
+        .mobile-menu-link { font-size:14px; font-weight:400; letter-spacing:2px; text-transform:uppercase;
+            color:var(--text-secondary); padding:16px 0; border-bottom:1px solid var(--border-subtle); transition:all 0.3s; }
+        .mobile-menu-link:hover { color:var(--gold); padding-left:16px; }
+        .mobile-menu-cta { display:block; margin-top:32px; padding:24px; background:var(--gold); color:var(--black);
+            text-align:center; font-size:12px; font-weight:700; letter-spacing:2px; text-transform:uppercase; }
+
+        /* Hero */
+        .blog-hero { padding:160px 0 80px; position:relative; overflow:hidden; }
+        .blog-hero-bg { position:absolute; inset:0; }
+        .blog-hero-glow { position:absolute; width:600px; height:600px; border-radius:50%; filter:blur(120px); opacity:0.1;
+            background:var(--gold); top:-200px; right:-100px; animation:float 20s ease-in-out infinite; }
+        @keyframes float { 0%,100%{transform:translate(0,0)} 50%{transform:translate(30px,-30px)} }
+        .blog-hero-grid { position:absolute; inset:0;
+            background-image:linear-gradient(rgba(255,215,0,0.02) 1px, transparent 1px),linear-gradient(90deg, rgba(255,215,0,0.02) 1px, transparent 1px);
+            background-size:60px 60px;
+            mask-image:radial-gradient(ellipse at center, black 0%, transparent 70%);
+            -webkit-mask-image:radial-gradient(ellipse at center, black 0%, transparent 70%); }
+        .blog-hero-content { position:relative; z-index:1; }
+        .blog-eyebrow { font-size:10px; font-weight:600; letter-spacing:2px; text-transform:uppercase; color:var(--gold); margin-bottom:16px;
+            display:inline-flex; align-items:center; gap:8px; }
+        .blog-eyebrow-line { width:32px; height:1px; background:var(--gold); }
+        .blog-hero-title { font-family:var(--font-display); font-size:clamp(36px,6vw,72px); font-weight:200;
+            letter-spacing:-0.02em; text-transform:uppercase; line-height:1.1; margin-bottom:16px; }
+        .blog-hero-title .gold { color:var(--gold); }
+        .blog-hero-sub { font-size:18px; color:var(--text-secondary); max-width:560px; }
+
+        /* Blog Grid */
+        .blog-section { padding:0 0 96px; }
+        .blog-grid { display:grid; grid-template-columns:1fr; gap:24px; }
+        @media(min-width:640px) { .blog-grid { grid-template-columns:repeat(2,1fr); } }
+        @media(min-width:1024px) { .blog-grid { grid-template-columns:repeat(3,1fr); } }
+
+        .blog-card { background:var(--surface-elevated); border:1px solid var(--border-subtle);
+            overflow:hidden; transition:all 0.4s var(--ease-out); display:flex; flex-direction:column; position:relative; }
+        .blog-card::before { content:''; position:absolute; top:0; left:0; right:0; height:2px;
+            background:linear-gradient(90deg, transparent, var(--gold), transparent);
+            transform:scaleX(0); transform-origin:center; transition:transform 0.5s var(--ease-out); opacity:0.8; }
+        .blog-card:hover { border-color:var(--border-hover); transform:translateY(-6px);
+            box-shadow:0 12px 48px rgba(0,0,0,0.7); }
+        .blog-card:hover::before { transform:scaleX(1); }
+
+        .blog-card-visual { height:200px; position:relative; overflow:hidden; display:flex; align-items:center; justify-content:center; }
+        .blog-card-visual::after { content:''; position:absolute; inset:0;
+            background:linear-gradient(to top, var(--surface-elevated) 0%, transparent 60%); }
+        .blog-card-emoji { font-size:72px; position:relative; z-index:0;
+            filter:grayscale(0.3); transition:transform 0.4s var(--ease-out); }
+        .blog-card:hover .blog-card-emoji { transform:scale(1.1); }
+
+        .blog-card-badge { position:absolute; top:16px; left:16px; z-index:2;
+            padding:5px 12px; background:rgba(0,0,0,0.7); backdrop-filter:blur(10px);
+            font-size:9px; font-weight:600; letter-spacing:1px; text-transform:uppercase; color:var(--gold); }
+
+        .blog-card-body { padding:24px; flex:1; display:flex; flex-direction:column; }
+        .blog-card-title { font-size:20px; font-weight:500; letter-spacing:-0.01em; margin-bottom:8px; line-height:1.3; }
+        .blog-card-desc { font-size:14px; color:var(--text-secondary); line-height:1.7; flex:1; margin-bottom:16px; }
+        .blog-card-meta { display:flex; justify-content:space-between; align-items:center;
+            padding-top:16px; border-top:1px solid var(--border-subtle); }
+        .blog-card-read { font-size:11px; font-weight:600; letter-spacing:1px; text-transform:uppercase; color:var(--gold);
+            transition:gap 0.3s var(--ease-out); display:inline-flex; align-items:center; gap:6px; }
+        .blog-card:hover .blog-card-read { gap:12px; }
+        .blog-card-time { font-size:11px; color:var(--text-muted); }
+
+        /* Featured (first card spans 2 cols on desktop) */
+        @media(min-width:1024px) {
+            .blog-card.featured { grid-column:span 2; flex-direction:row; }
+            .blog-card.featured .blog-card-visual { width:50%; height:auto; min-height:320px; }
+            .blog-card.featured .blog-card-body { width:50%; padding:40px; justify-content:center; }
+            .blog-card.featured .blog-card-title { font-size:28px; }
+            .blog-card.featured .blog-card-emoji { font-size:96px; }
+        }
+
+        /* CTA */
+        .blog-cta { text-align:center; padding:80px 0; position:relative; }
+        .blog-cta-bg { position:absolute; inset:0; background:radial-gradient(ellipse at center, rgba(255,215,0,0.06) 0%, transparent 60%); }
+        .blog-cta-content { position:relative; z-index:1; }
+        .blog-cta h2 { font-family:var(--font-display); font-size:clamp(28px,5vw,48px); font-weight:200;
+            text-transform:uppercase; margin-bottom:16px; }
+        .blog-cta p { font-size:16px; color:var(--text-secondary); margin-bottom:32px; }
+        .btn-primary { display:inline-flex; align-items:center; justify-content:center; padding:18px 36px;
+            background:var(--gold); color:var(--black); font-size:11px; font-weight:600; letter-spacing:2px;
+            text-transform:uppercase; border:none; cursor:pointer; transition:all 0.4s var(--ease-out); }
+        .btn-primary:hover { transform:translateY(-2px); box-shadow:0 10px 40px rgba(255,215,0,0.4); }
+        .btn-whatsapp { display:inline-flex; align-items:center; justify-content:center; padding:18px 36px;
+            background:#25D366; color:white; font-size:11px; font-weight:600; letter-spacing:2px;
+            text-transform:uppercase; border:none; cursor:pointer; transition:all 0.4s var(--ease-out); }
+        .btn-whatsapp:hover { background:#20bd5a; transform:translateY(-2px); box-shadow:0 10px 40px rgba(37,211,102,0.4); }
+        .cta-actions { display:flex; gap:16px; justify-content:center; flex-wrap:wrap; }
+
+        /* Footer */
+        .footer { padding:96px 0 48px; border-top:1px solid var(--border-subtle); }
+        .footer-grid { display:grid; grid-template-columns:1fr; gap:48px; margin-bottom:64px; }
+        @media(min-width:768px) { .footer-grid { grid-template-columns:2fr 1fr 1fr 1fr; } }
+        .footer-brand-logo { display:flex; align-items:center; gap:16px; margin-bottom:24px; }
+        .footer-brand-logo svg { width:56px; height:56px; opacity:0.9; }
+        .footer-brand-logo span { font-family:var(--font-display); font-size:28px; font-weight:300; letter-spacing:4px; }
+        .footer-tagline { font-size:14px; color:var(--text-secondary); line-height:1.7; margin-bottom:24px; }
+        .footer-company { font-size:12px; color:var(--text-tertiary); line-height:1.8; }
+        .footer-company strong { color:var(--text-secondary); }
+        .footer-links-title { font-size:10px; font-weight:600; letter-spacing:2px; text-transform:uppercase; color:var(--gold); margin-bottom:24px; }
+        .footer-links-list { list-style:none; }
+        .footer-links-list a { display:block; font-size:13px; color:var(--text-secondary); padding:4px 0; transition:color 0.3s; }
+        .footer-links-list a:hover { color:var(--text-primary); }
+        .footer-bottom { display:flex; flex-direction:column; gap:16px; align-items:center; padding-top:32px;
+            border-top:1px solid var(--border-subtle); font-size:11px; color:var(--text-tertiary); text-transform:uppercase; letter-spacing:1px; }
+        @media(min-width:640px) { .footer-bottom { flex-direction:row; justify-content:space-between; } }
+        .footer-status { display:flex; align-items:center; gap:8px; }
+        .footer-status-dot { width:6px; height:6px; background:#00FF88; border-radius:50%; animation:pulse 2s ease-in-out infinite; }
+        @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.6;transform:scale(0.9)} }
+
+        /* Reveal */
+        .reveal { opacity:0; transform:translateY(30px); transition:opacity 0.8s var(--ease-out), transform 0.8s var(--ease-out); }
+        .reveal.active { opacity:1; transform:translateY(0); }
+    </style>
+
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "Blog",
+        "name": "BOOM Blog",
+        "description": "Expert guides for renting in Rome as an expat",
+        "url": "https://www.boomrome.com/blog.html",
+        "publisher": {
+            "@type": "Organization",
+            "name": "BOOM",
+            "url": "https://www.boomrome.com"
+        }
+    }
+    </script>
+</head>
+<body>
+
+<!-- Navigation -->
+<nav class="nav" id="nav">
+    <div class="container nav-inner">
+        <a href="/" class="logo">
+            <svg class="logo-mark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+                <defs><linearGradient id="goldGrad" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#FFE55C"/><stop offset="100%" stop-color="#E5C200"/></linearGradient></defs>
+                <g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#goldGrad)">
+                    <path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z m610 -144 c743 -103 1436 -459 1919 -985 338 -367 562 -751 704 -1205 276 -879 132 -1858 -388 -2640 -242 -364 -493 -615 -900 -900 l-70 -49 109 104 c413 396 679 919 767 1505 33 217 33 558 0 765 -75 476 -257 896 -549 1265 -127 161 -363 380 -549 511 -300 211 -689 363 -1079 420 -172 26 -604 26 -764 0 -296 -47 -545 -128 -808 -262 -236 -122 -440 -271 -632 -464 -486 -485 -749 -1121 -751 -1815 -1 -611 170 -1148 515 -1608 100 -134 286 -335 382 -413 33 -27 -8 -2 -91 55 -513 351 -904 805 -1143 1331 -71 156 -136 336 -168 465 -9 33 -19 76 -24 95 -5 19 -20 100 -34 180 -59 343 -60 740 0 1070 81 456 229 826 479 1200 246 368 558 669 949 917 386 245 881 418 1321 462 61 6 124 13 140 15 73 10 556 -4 665 -19z m-60 -1329 c105 -16 258 -49 335 -72 82 -26 197 -66 240 -84 149 -65 190 -84 266 -126 677 -379 1129 -1049 1246 -1849 27 -182 24 -517 -5 -695 -75 -458 -225 -813 -500 -1179 -116 -154 -340 -369 -527 -506 -44 -32 -87 -63 -95 -69 -8 -6 35 39 96 99 178 177 283 321 397 550 161 322 231 676 205 1045 -32 467 -223 902 -542 1237 -239 251 -521 426 -873 542 -79 26 -273 67 -383 81 -108 13 -349 13 -465 0 -276 -32 -597 -145 -834 -293 -224 -140 -466 -378 -613 -602 -307 -470 -407 -1055 -273 -1599 80 -327 217 -589 454 -871 71 -84 73 -88 31 -56 -293 225 -547 535 -718 877 -34 68 -65 143 -122 294 -42 112 -101 383 -120 555 -14 127 -14 401 0 534 51 482 223 912 516 1288 269 344 654 620 1085 778 160 59 400 115 574 134 121 13 508 5 625 -13z m-30 -1165 c401 -81 721 -242 992 -499 643 -612 769 -1607 300 -2367 -118 -190 -291 -386 -463 -524 -137 -111 -148 -113 -49 -12 110 112 206 248 275 386 67 137 98 222 132 367 24 103 26 132 27 323 0 182 -3 224 -22 310 -47 211 -126 394 -245 569 -126 186 -358 387 -564 490 -384 191 -823 225 -1218 95 -482 -160 -854 -541 -1004 -1029 -117 -379 -81 -810 96 -1165 37 -72 130 -215 166 -252 17 -18 26 -33 20 -33 -6 0 -61 52 -121 116 -259 272 -424 575 -511 934 -111 459 -18 1006 245 1430 298 483 791 797 1379 880 110 16 448 4 565 -19z m-239 -911 c360 -28 680 -171 925 -415 194 -193 317 -415 382 -688 24 -102 26 -130 26 -312 0 -191 -1 -205 -30 -320 -53 -205 -132 -372 -251 -535 -58 -79 -263 -288 -323 -330 -31 -22 -29 -18 18 35 195 220 312 519 312 795 0 325 -121 614 -350 841 -369 364 -926 453 -1385 222 -336 -170 -578 -499 -636 -865 -19 -126 -7 -371 25 -490 44 -162 97 -284 173 -398 9 -14 -4 -5 -30 20 -26 24 -45 51 -42 58 2 7 1 11 -4 7 -11 -6 -58 51 -118 140 -109 163 -183 347 -219 545 -23 127 -23 351 -1 489 55 335 248 677 492 871 261 208 530 311 881 338 11 1 81 -3 155 -8z m29 -714 c459 -74 823 -428 895 -869 58 -358 -60 -696 -345 -987 l-34 -35 22 35 c115 182 179 403 168 575 -14 235 -104 433 -268 591 -137 134 -287 209 -472 239 -115 19 -187 19 -303 0 -337 -55 -612 -302 -704 -635 -32 -113 -34 -325 -5 -440 23 -92 70 -213 98 -254 l21 -31 -31 29 c-39 36 -120 152 -155 221 -35 71 -81 215 -102 319 -25 130 -17 357 17 476 102 354 357 618 706 730 152 49 331 62 492 36z m-73 -567 c178 -24 327 -101 454 -236 137 -143 199 -303 201 -513 1 -162 -42 -309 -135 -453 -52 -82 -73 -97 -38 -28 51 99 67 290 36 412 -57 219 -251 413 -466 464 -75 17 -236 20 -311 4 -213 -44 -422 -247 -473 -460 -31 -133 -13 -325 41 -431 35 -70 8 -47 -52 43 -58 88 -90 167 -114 286 -25 121 -25 220 -1 331 33 146 84 243 186 351 171 183 413 266 672 230z m15 -470 c80 -17 186 -76 248 -139 106 -107 158 -248 147 -398 -6 -92 -25 -152 -79 -250 -45 -82 -60 -91 -27 -17 18 41 21 62 17 149 -4 89 -8 108 -35 162 -43 82 -126 165 -209 205 -58 29 -80 34 -158 37 -112 5 -184 -12 -259 -62 -182 -121 -251 -323 -171 -506 l24 -55 -25 30 c-36 44 -92 162 -104 223 -39 189 14 369 146 492 105 99 204 139 345 139 48 1 111 -4 140 -10z"/>
+                </g>
+            </svg>
+            <span class="logo-text">BOOM</span>
+        </a>
+        <div class="nav-links">
+            <a href="/apartments.html" class="nav-link">Apartments</a>
+            <a href="/property-finding.html" class="nav-link">Property Finding</a>
+            <a href="/deal-assistance.html" class="nav-link">Deal Assistance</a>
+            <a href="/virtual-viewing.html" class="nav-link">Virtual Viewing</a>
+            <a href="/concierge.html" class="nav-link">Concierge</a>
+            <a href="/about.html" class="nav-link">About</a>
+            <a href="https://wa.me/393313251961" class="nav-cta" target="_blank">WhatsApp</a>
+        </div>
+        <button class="nav-toggle" id="navToggle" aria-label="Toggle menu"><span></span><span></span><span></span></button>
+    </div>
+</nav>
+
+<!-- Mobile Menu -->
+<div class="mobile-menu" id="mobileMenu">
+    <div class="mobile-menu-links">
+        <a href="/" class="mobile-menu-link">Home</a>
+        <a href="/apartments.html" class="mobile-menu-link">Apartments</a>
+        <a href="/property-finding.html" class="mobile-menu-link">Property Finding</a>
+        <a href="/deal-assistance.html" class="mobile-menu-link">Deal Assistance</a>
+        <a href="/virtual-viewing.html" class="mobile-menu-link">Virtual Viewing</a>
+        <a href="/concierge.html" class="mobile-menu-link">Concierge</a>
+        <a href="/about.html" class="mobile-menu-link">About</a>
+        <a href="/login.html" class="mobile-menu-link">Login</a>
+    </div>
+    <a href="https://wa.me/393313251961" class="mobile-menu-cta" target="_blank">WhatsApp Us</a>
+</div>
+
+<!-- Hero -->
+<section class="blog-hero">
+    <div class="blog-hero-bg">
+        <div class="blog-hero-glow"></div>
+        <div class="blog-hero-grid"></div>
+    </div>
+    <div class="container blog-hero-content">
+        <div class="blog-eyebrow"><span class="blog-eyebrow-line"></span> BOOM Blog</div>
+        <h1 class="blog-hero-title">Rome rental <span class="gold">guides</span><br>& expat <span class="gold">survival</span> tips</h1>
+        <p class="blog-hero-sub">Everything we wish someone had told us before we moved here. No fluff, just the stuff that actually matters.</p>
+    </div>
+</section>
+
+<!-- Blog Grid -->
+<section class="blog-section">
+    <div class="container">
+        <div class="blog-grid">
+
+            <!-- Featured: Neighborhood Guide -->
+            <a href="/blog-neighborhood-guide.html" class="blog-card featured reveal">
+                <div class="blog-card-visual" style="background:linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);">
+                    <span class="blog-card-emoji">🏘️</span>
+                    <span class="blog-card-badge">Most Popular</span>
+                </div>
+                <div class="blog-card-body">
+                    <h2 class="blog-card-title">The Ultimate Rome Neighborhood Guide for Expats</h2>
+                    <p class="blog-card-desc">Trastevere or Prati? Testaccio or Monti? A no-BS breakdown of every neighborhood that matters — with prices, vibes, transport links, and who actually lives there.</p>
+                    <div class="blog-card-meta">
+                        <span class="blog-card-read">Read Guide →</span>
+                        <span class="blog-card-time">12 min read</span>
+                    </div>
+                </div>
+            </a>
+
+            <!-- Scam Bible -->
+            <a href="/blog-scam-bible.html" class="blog-card reveal">
+                <div class="blog-card-visual" style="background:linear-gradient(135deg, #2d1117 0%, #1a0a0a 100%);">
+                    <span class="blog-card-emoji">🚨</span>
+                    <span class="blog-card-badge">Essential</span>
+                </div>
+                <div class="blog-card-body">
+                    <h2 class="blog-card-title">The Rome Rental Scam Bible</h2>
+                    <p class="blog-card-desc">7 scam patterns we've seen destroy people's budgets and timelines. Learn the red flags before you wire money to a stranger.</p>
+                    <div class="blog-card-meta">
+                        <span class="blog-card-read">Read Guide →</span>
+                        <span class="blog-card-time">10 min read</span>
+                    </div>
+                </div>
+            </a>
+
+            <!-- Cost Calculator -->
+            <a href="/blog-cost-calculator.html" class="blog-card reveal">
+                <div class="blog-card-visual" style="background:linear-gradient(135deg, #0d1b2a 0%, #1b2838 100%);">
+                    <span class="blog-card-emoji">💰</span>
+                    <span class="blog-card-badge">Interactive</span>
+                </div>
+                <div class="blog-card-body">
+                    <h2 class="blog-card-title">The True Cost of Renting in Rome</h2>
+                    <p class="blog-card-desc">Beyond rent: deposits, agency fees, registration tax, utilities. An interactive breakdown of what you'll actually spend.</p>
+                    <div class="blog-card-meta">
+                        <span class="blog-card-read">Read Guide →</span>
+                        <span class="blog-card-time">8 min read</span>
+                    </div>
+                </div>
+            </a>
+
+            <!-- 47 Steps -->
+            <a href="/blog-47-steps.html" class="blog-card reveal">
+                <div class="blog-card-visual" style="background:linear-gradient(135deg, #1a1a2e 0%, #0f3460 100%);">
+                    <span class="blog-card-emoji">📋</span>
+                    <span class="blog-card-badge">Step-by-Step</span>
+                </div>
+                <div class="blog-card-body">
+                    <h2 class="blog-card-title">47 Steps to Your Rome Apartment</h2>
+                    <p class="blog-card-desc">The complete rental journey from first search to keys in hand. Every step, every document, every potential pitfall mapped out.</p>
+                    <div class="blog-card-meta">
+                        <span class="blog-card-read">Read Guide →</span>
+                        <span class="blog-card-time">15 min read</span>
+                    </div>
+                </div>
+            </a>
+
+            <!-- Tenant Rights -->
+            <a href="/blog-tenant-rights.html" class="blog-card reveal">
+                <div class="blog-card-visual" style="background:linear-gradient(135deg, #1a0a2e 0%, #16213e 100%);">
+                    <span class="blog-card-emoji">⚖️</span>
+                    <span class="blog-card-badge">Legal Guide</span>
+                </div>
+                <div class="blog-card-body">
+                    <h2 class="blog-card-title">Tenant Rights in Italy: What Landlords Won't Tell You</h2>
+                    <p class="blog-card-desc">15 rights you have as a tenant in Italy — deposits, eviction protections, maintenance obligations, and how to enforce them.</p>
+                    <div class="blog-card-meta">
+                        <span class="blog-card-read">Read Guide →</span>
+                        <span class="blog-card-time">11 min read</span>
+                    </div>
+                </div>
+            </a>
+
+        </div>
+    </div>
+</section>
+
+<!-- CTA -->
+<section class="blog-cta">
+    <div class="blog-cta-bg"></div>
+    <div class="container blog-cta-content reveal">
+        <h2>Still have <span style="color:var(--gold)">questions?</span></h2>
+        <p>Skip the research. Talk to someone who actually lives here.</p>
+        <div class="cta-actions">
+            <a href="/apartments.html" class="btn-primary">View Apartments</a>
+            <a href="https://wa.me/393313251961" class="btn-whatsapp" target="_blank">WhatsApp Us</a>
+        </div>
+    </div>
+</section>
+
+<!-- Footer -->
+<footer class="footer">
+    <div class="container">
+        <div class="footer-grid">
+            <div>
+                <div class="footer-brand-logo">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+                        <defs><linearGradient id="goldGradF" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#FFE55C"/><stop offset="100%" stop-color="#E5C200"/></linearGradient></defs>
+                        <g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#goldGradF)">
+                            <path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z"/>
+                        </g>
+                    </svg>
+                    <span>BOOM</span>
+                </div>
+                <p class="footer-tagline">Built in Rome, for Rome. If we can make Rome's rental market work, we can make it work anywhere.</p>
+                <div class="footer-company"><strong>Egidi Immobiliare S.r.l.</strong><br>P.IVA 17322991005<br>REA RM - 1710623<br>Rome, Italy</div>
+            </div>
+            <div>
+                <h4 class="footer-links-title">Services</h4>
+                <ul class="footer-links-list">
+                    <li><a href="/apartments.html">Apartments</a></li>
+                    <li><a href="/property-finding.html">Property Finding</a></li>
+                    <li><a href="/deal-assistance.html">Deal Assistance</a></li>
+                    <li><a href="/virtual-viewing.html">Virtual Viewing</a></li>
+                    <li><a href="/concierge.html">Concierge</a></li>
+                </ul>
+            </div>
+            <div>
+                <h4 class="footer-links-title">Company</h4>
+                <ul class="footer-links-list">
+                    <li><a href="/about.html">About</a></li>
+                    <li><a href="/how-it-works.html">How It Works</a></li>
+                    <li><a href="/owners.html">For Owners</a></li>
+                    <li><a href="/blog.html">Blog</a></li>
+                    <li><a href="/faq.html">FAQ</a></li>
+                    <li><a href="/contact.html">Contact</a></li>
+                </ul>
+            </div>
+            <div>
+                <h4 class="footer-links-title">Legal</h4>
+                <ul class="footer-links-list">
+                    <li><a href="/terms.html">Terms</a></li>
+                    <li><a href="/privacy.html">Privacy</a></li>
+                    <li><a href="/login.html">Login</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <span>© 2025 BOOM — All Rights Reserved</span>
+            <div class="footer-status"><span class="footer-status-dot"></span><span>Operational</span></div>
+        </div>
+    </div>
+</footer>
+
+<script>
+    // Nav scroll
+    const nav = document.getElementById('nav');
+    window.addEventListener('scroll', () => { nav.classList.toggle('scrolled', window.scrollY > 100); });
+
+    // Mobile menu
+    const navToggle = document.getElementById('navToggle');
+    const mobileMenu = document.getElementById('mobileMenu');
+    navToggle.addEventListener('click', () => {
+        navToggle.classList.toggle('active');
+        mobileMenu.classList.toggle('active');
+        document.body.style.overflow = mobileMenu.classList.contains('active') ? 'hidden' : '';
+    });
+    document.querySelectorAll('.mobile-menu-link').forEach(link => {
+        link.addEventListener('click', () => { navToggle.classList.remove('active'); mobileMenu.classList.remove('active'); document.body.style.overflow = ''; });
+    });
+
+    // Reveal
+    const obs = new IntersectionObserver(entries => { entries.forEach(e => { if(e.isIntersecting) e.target.classList.add('active'); }); }, { threshold:0.1, rootMargin:'0px 0px -50px 0px' });
+    document.querySelectorAll('.reveal').forEach(el => obs.observe(el));
+</script>
+</body>
+</html>
