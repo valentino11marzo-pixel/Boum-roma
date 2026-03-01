@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-EYCD59RDVJ"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-EYCD59RDVJ');
+    </script>
+
+    <link rel="icon" href="/favicon.ico" sizes="any">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <link rel="manifest" href="/site.webmanifest">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Real Rome Neighborhood Guide — Where to Actually Live | BOOM</title>
+    <meta name="description" content="Honest, no-BS guide to Rome's 12 best neighborhoods for expats. Interactive map with scam risk ratings, rent prices, and insider tips from 500+ rental deals.">
+    <meta name="keywords" content="best neighborhoods Rome expats, where to live in Rome, Rome zones rent, Trastevere rent, Parioli apartments, Flaminio rent, Prati Rome">
+    <meta property="og:title" content="The Real Rome Neighborhood Guide — Where to Actually Live | BOOM">
+    <meta property="og:description" content="Honest, no-BS guide to Rome's 12 best neighborhoods for expats. Interactive map with scam risk ratings, rent prices, and insider tips from 500+ rental deals.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://boomrome.com/blog-neighborhood-guide.html">
+    <link rel="canonical" href="https://boomrome.com/blog-neighborhood-guide.html">
+
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Article",
+      "headline": "The Real Rome Neighborhood Guide",
+      "description": "Honest, no-BS guide to Rome's 12 best neighborhoods for expats. Interactive map with scam risk ratings, rent prices, and insider tips from 500+ rental deals.",
+      "author": {"@type": "Organization", "name": "BOOM by Egidi Immobiliare S.r.l."},
+      "publisher": {"@type": "Organization", "name": "BOOM Rome Rentals", "url": "https://boomrome.com"},
+      "datePublished": "2026-02-26",
+      "mainEntityOfPage": "https://boomrome.com/blog-neighborhood-guide.html"
+    }
+    </script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+
+    <style>
+        *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+        :root {
+            --gold: #F5A623; --gold-light: #FFD54F; --gold-dark: #D4911E;
+            --gold-muted: rgba(245,166,35,0.12);
+            --black: #030303; --surface: #0B0B0C; --surface-el: #121214;
+            --text-1: #FAFAFA; --text-2: rgba(250,250,250,0.72);
+            --text-3: rgba(250,250,250,0.44); --text-4: rgba(250,250,250,0.24);
+            --border: rgba(255,255,255,0.06); --border-h: rgba(255,255,255,0.1);
+            --green: #00FF88; --green-m: rgba(0,255,136,0.15);
+            --cyan: #00CED1; --red: #FF4757; --orange: #FF9F43;
+            --blue: #45B7D1; --yellow: #FFEAA7; --purple: #9B59B6;
+            --font: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            --font-body: 'Helvetica Neue', Helvetica, -apple-system, sans-serif;
+            --font-accent: 'Instrument Serif', Georgia, serif;
+            --ease: cubic-bezier(0.16, 1, 0.3, 1);
+            --ease-out: cubic-bezier(0.33, 1, 0.68, 1);
+        }
+        html { -webkit-font-smoothing: antialiased; scroll-behavior: smooth; }
+        body { font-family: var(--font-body); background: var(--black); color: var(--text-1); font-weight: 300; line-height: 1.6; overflow-x: hidden; }
+        body::before { content:''; position:fixed; inset:0; opacity:0.015; pointer-events:none; z-index:9999;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+        ::selection { background: var(--gold); color: var(--black); }
+        a { color: inherit; text-decoration: none; }
+
+        /* Grid BG */
+        .bg-grid { position:fixed; inset:0; z-index:0; opacity:0.025; pointer-events:none;
+            background-image: linear-gradient(rgba(245,166,35,0.02) 1px, transparent 1px),
+                              linear-gradient(90deg, rgba(245,166,35,0.02) 1px, transparent 1px);
+            background-size: 80px 80px;
+            mask-image: radial-gradient(ellipse at center, black 0%, transparent 70%);
+            -webkit-mask-image: radial-gradient(ellipse at center, black 0%, transparent 70%); }
+
+        /* Nav */
+        .bnav { position:fixed; top:0; left:0; right:0; z-index:1000; padding:14px 0;
+            background:rgba(3,3,3,0.95); backdrop-filter:blur(20px); border-bottom:1px solid var(--border); }
+        .bnav-in { max-width:1200px; margin:0 auto; padding:0 24px; display:flex; align-items:center; justify-content:space-between; }
+        .bnav-logo { display:flex; align-items:center; gap:12px; transition:transform 0.3s var(--ease); }
+        .bnav-logo:hover { transform:scale(1.02); }
+        .bnav-logo span { font-family:var(--font); font-size:28px; font-weight:300; letter-spacing:4px; text-transform:uppercase; color:var(--text-1); }
+        .bnav-links { display:flex; gap:20px; align-items:center; }
+        .bnav-link { font-size:11px; font-weight:500; letter-spacing:1.5px; text-transform:uppercase; color:var(--text-3); transition:color 0.3s; }
+        .bnav-link:hover { color:var(--text-1); }
+        .bnav-cta { padding:8px 18px; border:1px solid var(--gold); font-size:10px; font-weight:600; letter-spacing:1.5px; text-transform:uppercase; color:var(--gold); transition:all 0.3s; }
+        .bnav-cta:hover { background:var(--gold); color:var(--black); }
+        @media(max-width:768px) { .bnav-link { display:none; } }
+
+        /* Back */
+        .back { max-width:1200px; margin:0 auto; padding:88px 24px 0; position:relative; z-index:1; }
+        .back a { font-size:12px; color:var(--text-4); letter-spacing:0.1em; text-transform:uppercase; transition:color 0.3s; }
+        .back a:hover { color:var(--gold); }
+
+        /* Hero */
+        .hero { padding:24px 24px 40px; max-width:1200px; margin:0 auto; position:relative; z-index:1; }
+        .hero-ey { display:flex; align-items:center; gap:12px; margin-bottom:36px; opacity:0; animation:fu .8s var(--ease) .2s forwards; }
+        .hero-line { width:32px; height:2px; background:var(--gold); }
+        .hero-tag { font-size:11px; letter-spacing:0.3em; color:var(--gold); text-transform:uppercase; font-weight:500; }
+        .hero h1 { font-family:var(--font); font-size:clamp(34px,6vw,68px); font-weight:200; line-height:1.05; letter-spacing:-0.02em; opacity:0; animation:fu .8s var(--ease) .4s forwards; }
+        .hero h1 em { color:var(--gold); font-style:italic; font-family:var(--font-accent); font-weight:400; }
+        .hero-sub { font-size:17px; color:var(--text-2); max-width:580px; line-height:1.7; margin-top:20px; opacity:0; animation:fu .8s var(--ease) .6s forwards; }
+        @keyframes fu { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+
+        /* Cards */
+        .card { background:rgba(255,255,255,0.02); border:1px solid var(--border); border-radius:14px; }
+        .card-p { padding:28px; }
+
+        /* ═══════════════════════════════════════════
+           PREMIUM UPSELL SYSTEM
+           ═══════════════════════════════════════════ */
+        .boom-upsell {
+            position:relative; margin:16px 0; overflow:hidden;
+            border-radius:16px; padding:1px;
+            background: linear-gradient(135deg, rgba(245,166,35,0.25), rgba(245,166,35,0.05) 40%, rgba(245,166,35,0.15) 60%, rgba(245,166,35,0.05));
+            transition: all 0.5s var(--ease);
+        }
+        .boom-upsell:hover {
+            background: linear-gradient(135deg, rgba(245,166,35,0.4), rgba(245,166,35,0.1) 40%, rgba(245,166,35,0.25) 60%, rgba(245,166,35,0.1));
+        }
+        .boom-upsell::before {
+            content:''; position:absolute; inset:-2px; border-radius:17px; z-index:0;
+            background: conic-gradient(from var(--angle, 0deg), transparent 0%, rgba(245,166,35,0.4) 10%, transparent 20%, transparent 50%, rgba(245,166,35,0.3) 60%, transparent 70%);
+            animation: borderSpin 8s linear infinite;
+            opacity:0; transition: opacity 0.5s;
+        }
+        .boom-upsell:hover::before { opacity:1; }
+        @property --angle { syntax:'<angle>'; initial-value:0deg; inherits:false; }
+        @keyframes borderSpin { to { --angle:360deg; } }
+
+        .boom-upsell-inner {
+            position:relative; z-index:1; border-radius:15px; overflow:hidden;
+            background: linear-gradient(165deg, rgba(12,12,14,0.97), rgba(18,18,22,0.99));
+            backdrop-filter: blur(20px);
+        }
+        .boom-upsell-inner::before {
+            content:''; position:absolute; inset:0; pointer-events:none; opacity:0.025;
+            background-image:
+                linear-gradient(30deg, rgba(245,166,35,1) 1px, transparent 1px),
+                linear-gradient(150deg, rgba(245,166,35,1) 1px, transparent 1px),
+                linear-gradient(270deg, rgba(245,166,35,1) 1px, transparent 1px);
+            background-size: 60px 104px;
+            background-position: 0 0, 30px 52px, 15px 26px;
+            mask-image: linear-gradient(135deg, black 0%, transparent 60%);
+            -webkit-mask-image: linear-gradient(135deg, black 0%, transparent 60%);
+        }
+        .boom-upsell-inner::after {
+            content:''; position:absolute; top:-40%; right:-20%; width:260px; height:260px;
+            background: radial-gradient(circle, rgba(245,166,35,0.06) 0%, transparent 70%);
+            pointer-events:none; transition: opacity 0.5s;
+        }
+        .boom-upsell:hover .boom-upsell-inner::after { opacity:1.5; }
+
+        .upsell-layout { display:flex; gap:0; position:relative; z-index:2; }
+
+        .upsell-icon-col {
+            width:72px; min-height:100%; flex-shrink:0;
+            display:flex; flex-direction:column; align-items:center; justify-content:center;
+            padding:24px 0;
+            background: linear-gradient(180deg, rgba(245,166,35,0.08) 0%, rgba(245,166,35,0.02) 100%);
+            border-right:1px solid rgba(245,166,35,0.08);
+            position:relative;
+        }
+        .upsell-icon-ring {
+            width:44px; height:44px; border-radius:50%; position:relative;
+            display:flex; align-items:center; justify-content:center;
+        }
+        .upsell-icon-ring svg { width:44px; height:44px; }
+        .upsell-icon-ring .ring-track { fill:none; stroke:rgba(245,166,35,0.1); stroke-width:2; }
+        .upsell-icon-ring .ring-progress {
+            fill:none; stroke:var(--gold); stroke-width:2;
+            stroke-dasharray: 120; stroke-dashoffset: 120;
+            stroke-linecap:round; transition: stroke-dashoffset 1s var(--ease);
+        }
+        .boom-upsell:hover .ring-progress { stroke-dashoffset:30; }
+        .upsell-emoji { position:absolute; font-size:18px; line-height:1; }
+        .upsell-icon-col::after {
+            content:''; position:absolute; bottom:12px; left:50%; transform:translateX(-50%);
+            width:1px; height:0; background: linear-gradient(180deg, var(--gold), transparent);
+            transition: height 0.6s var(--ease);
+        }
+        .boom-upsell:hover .upsell-icon-col::after { height:20px; }
+
+        .upsell-content { flex:1; padding:22px 24px 22px 20px; display:flex; flex-direction:column; gap:8px; }
+        .upsell-top { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
+
+        .upsell-tag {
+            font-size:9px; font-weight:600; letter-spacing:2px; text-transform:uppercase;
+            color:var(--gold); display:inline-flex; align-items:center; gap:6px;
+            background:rgba(245,166,35,0.08); padding:4px 10px 4px 8px; border-radius:4px;
+        }
+        .upsell-tag::before {
+            content:''; width:4px; height:4px; border-radius:50%;
+            background:var(--gold); display:block;
+            animation: tagPulse 2s ease-in-out infinite;
+        }
+        @keyframes tagPulse { 0%,100%{opacity:0.4;transform:scale(0.8)} 50%{opacity:1;transform:scale(1.2)} }
+
+        .upsell-price-badge { 
+            font-family:var(--font); font-size:22px; font-weight:200;
+            color:var(--gold); white-space:nowrap; line-height:1;
+            display:flex; align-items:baseline; gap:4px;
+        }
+        .upsell-price-badge .price-sub {
+            font-family:var(--font-body); font-size:10px; font-weight:400;
+            color:var(--text-4); letter-spacing:0.02em;
+        }
+
+        .upsell-headline {
+            font-family:var(--font); font-size:17px; font-weight:300; line-height:1.35;
+            color:var(--text-1); letter-spacing:-0.01em;
+        }
+        .upsell-desc { font-size:13px; color:var(--text-3); line-height:1.65; }
+
+        .upsell-chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:2px; }
+        .upsell-chip {
+            font-size:10px; font-weight:400; letter-spacing:0.03em;
+            color:var(--text-2); padding:4px 10px;
+            background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06);
+            border-radius:20px; transition:all 0.3s;
+        }
+        .boom-upsell:hover .upsell-chip {
+            border-color:rgba(245,166,35,0.15); background:rgba(245,166,35,0.04);
+        }
+
+        .upsell-cta-row { display:flex; align-items:center; gap:16px; margin-top:4px; }
+
+        .upsell-cta {
+            display:inline-flex; align-items:center; gap:8px;
+            font-size:11px; font-weight:600; letter-spacing:1.2px; text-transform:uppercase;
+            color:var(--black); background:var(--gold);
+            padding:9px 20px; border-radius:6px;
+            transition:all 0.4s var(--ease); position:relative; overflow:hidden;
+        }
+        .upsell-cta::before {
+            content:''; position:absolute; inset:0;
+            background:linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+            transform:translateX(-100%); transition:transform 0.6s;
+        }
+        .boom-upsell:hover .upsell-cta::before { transform:translateX(100%); }
+        .upsell-cta:hover { transform:translateY(-1px); box-shadow:0 6px 24px rgba(245,166,35,0.3); }
+        .upsell-cta .cta-arrow { display:inline-block; transition:transform 0.3s var(--ease); }
+        .upsell-cta:hover .cta-arrow { transform:translateX(3px); }
+
+        .upsell-alt-link { font-size:11px; color:var(--text-4); letter-spacing:0.05em; transition:color 0.3s; }
+        .upsell-alt-link:hover { color:var(--gold); }
+
+        /* Full-width sidebar variant */
+        .boom-upsell.upsell-full .upsell-layout { flex-direction:column; }
+        .boom-upsell.upsell-full .upsell-icon-col {
+            width:100%; min-height:auto; flex-direction:row; gap:12px;
+            padding:16px 20px; border-right:none; border-bottom:1px solid rgba(245,166,35,0.08);
+            justify-content:flex-start;
+        }
+        .boom-upsell.upsell-full .upsell-icon-col::after { display:none; }
+        .boom-upsell.upsell-full .upsell-icon-label {
+            font-size:10px; font-weight:600; letter-spacing:2px; text-transform:uppercase;
+            color:var(--gold); opacity:0.7;
+        }
+
+        .upsell-reveal { opacity:0; transform:translateY(16px); animation: upsellIn 0.7s var(--ease) forwards; }
+        .upsell-reveal.d1 { animation-delay:0.1s; }
+        .upsell-reveal.d2 { animation-delay:0.25s; }
+        @keyframes upsellIn { to { opacity:1; transform:translateY(0); } }
+
+        @media(max-width:600px) {
+            .upsell-layout { flex-direction:column; }
+            .upsell-icon-col { width:100%; min-height:auto; flex-direction:row; gap:10px; padding:14px 18px;
+                border-right:none; border-bottom:1px solid rgba(245,166,35,0.08); justify-content:flex-start; }
+            .upsell-icon-col::after { display:none; }
+            .upsell-content { padding:16px 18px; }
+            .upsell-top { flex-direction:column; gap:6px; }
+            .upsell-chips { gap:4px; }
+        }
+
+        /* CTA */
+        .cta-btn { display:inline-block; padding:16px 42px; background:var(--gold); color:var(--black); border-radius:0; font-size:12px; font-weight:600; letter-spacing:2px; text-transform:uppercase; cursor:pointer; transition:all 0.4s var(--ease); border:none; }
+        .cta-btn:hover { transform:translateY(-2px); box-shadow:0 10px 40px rgba(245,166,35,0.35); }
+        .cta-btn-outline { display:inline-block; padding:14px 32px; background:transparent; border:1px solid var(--border-h); color:var(--text-1); font-size:11px; font-weight:500; letter-spacing:1.5px; text-transform:uppercase; cursor:pointer; transition:all 0.3s; }
+        .cta-btn-outline:hover { border-color:var(--gold); background:rgba(245,166,35,0.05); }
+        .cta-wa { background:#25D366; }
+        .cta-wa:hover { background:#20bd5a; box-shadow:0 10px 40px rgba(37,211,102,0.35); }
+
+        /* Bottom CTA */
+        .bottom-cta { max-width:1200px; margin:50px auto 0; padding:0 24px 50px; position:relative; z-index:1; }
+        .bottom-cta-card { padding:56px 44px; background:rgba(255,255,255,0.02); border:1px solid var(--border); border-radius:0; text-align:center; position:relative; overflow:hidden; }
+        .bottom-cta-card::before { content:''; position:absolute; inset:0; opacity:0.015; pointer-events:none;
+            background-image: linear-gradient(30deg, rgba(245,166,35,1) 1px, transparent 1px), linear-gradient(150deg, rgba(245,166,35,1) 1px, transparent 1px);
+            background-size: 40px 69px; background-position: 0 0, 20px 35px; }
+        .bottom-cta-card h3 { font-family:var(--font); font-size:28px; font-weight:200; margin-bottom:10px; position:relative; }
+        .bottom-cta-card p { font-size:15px; color:var(--text-3); max-width:480px; margin:0 auto 24px; position:relative; }
+        .bottom-cta-actions { display:flex; gap:14px; justify-content:center; flex-wrap:wrap; position:relative; }
+
+        /* Contact Form */
+        .contact-section { max-width:1200px; margin:0 auto; padding:0 24px 50px; position:relative; z-index:1; }
+        .contact-card {
+            background:rgba(255,255,255,0.02); border:1px solid var(--border); padding:48px;
+            position:relative; overflow:hidden;
+        }
+        .contact-card::before { content:''; position:absolute; top:-80px; right:-80px; width:260px; height:260px;
+            background:radial-gradient(circle, rgba(245,166,35,0.05) 0%, transparent 70%); pointer-events:none; }
+        .contact-grid { display:grid; grid-template-columns:1fr 1fr; gap:48px; align-items:start; }
+        @media(max-width:768px) { .contact-grid { grid-template-columns:1fr; gap:28px; } .contact-card { padding:28px; } }
+        .contact-info h3 { font-family:var(--font); font-size:26px; font-weight:200; margin-bottom:12px; }
+        .contact-info p { font-size:14px; color:var(--text-3); line-height:1.7; margin-bottom:20px; }
+        .contact-stat { display:flex; gap:24px; margin-bottom:20px; }
+        .contact-stat-item { text-align:center; }
+        .contact-stat-n { font-family:var(--font); font-size:28px; font-weight:200; color:var(--gold); }
+        .contact-stat-l { font-size:10px; color:var(--text-4); letter-spacing:0.1em; text-transform:uppercase; margin-top:2px; }
+        .contact-form { display:flex; flex-direction:column; gap:14px; }
+        .form-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+        @media(max-width:500px) { .form-row { grid-template-columns:1fr; } }
+        .form-field { display:flex; flex-direction:column; gap:4px; }
+        .form-field label { font-size:10px; font-weight:600; letter-spacing:1.5px; text-transform:uppercase; color:var(--text-4); }
+        .form-field input, .form-field select, .form-field textarea {
+            background:rgba(255,255,255,0.03); border:1px solid var(--border);
+            color:var(--text-1); font-family:var(--font-body); font-size:14px; font-weight:300;
+            padding:12px 16px; border-radius:8px; outline:none; transition:border-color 0.3s;
+        }
+        .form-field input:focus, .form-field select:focus, .form-field textarea:focus { border-color:rgba(245,166,35,0.4); }
+        .form-field textarea { resize:vertical; min-height:80px; }
+        .form-field select option { background:#121214; color:var(--text-1); }
+        .form-submit {
+            display:inline-flex; align-items:center; justify-content:center; gap:8px;
+            padding:14px 36px; background:var(--gold); color:var(--black);
+            font-size:12px; font-weight:600; letter-spacing:2px; text-transform:uppercase;
+            border:none; border-radius:6px; cursor:pointer; transition:all 0.4s var(--ease);
+            font-family:var(--font-body); width:100%;
+        }
+        .form-submit:hover { transform:translateY(-2px); box-shadow:0 8px 32px rgba(245,166,35,0.3); }
+        .form-note { font-size:11px; color:var(--text-4); text-align:center; }
+
+        /* Related */
+        .related { max-width:1200px; margin:0 auto; padding:0 24px 40px; position:relative; z-index:1; }
+        .related-title { font-size:11px; letter-spacing:0.2em; color:var(--text-4); text-transform:uppercase; margin-bottom:16px; }
+        .related-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:10px; }
+        .related-card { padding:18px 20px; background:rgba(255,255,255,0.02); border:1px solid var(--border); transition:border-color 0.3s; }
+        .related-card:hover { border-color:rgba(245,166,35,0.25); }
+        .related-card h4 { font-size:14px; font-weight:400; margin-bottom:4px; }
+        .related-card span { font-size:12px; color:var(--text-4); }
+
+        /* Footer */
+        .bfoot { border-top:1px solid var(--border); padding:22px 24px; text-align:center; font-size:11px; color:var(--text-4); letter-spacing:0.1em; }
+    </style>
+
+    <style>
+        .content-grid { max-width:1200px; margin:0 auto; padding:0 24px 40px; display:grid; grid-template-columns:1fr 1fr; gap:28px; align-items:start; position:relative; z-index:1; }
+        @media(max-width:900px) { .content-grid { grid-template-columns:1fr; } }
+        .map-panel { position:sticky; top:76px; }
+        .map-card { padding:22px; }
+        .map-hd { display:flex; justify-content:space-between; margin-bottom:14px; }
+        .map-hd span { font-size:11px; letter-spacing:0.15em; color:var(--text-4); text-transform:uppercase; }
+        .zone-path { cursor:pointer; transition:all 0.3s ease; }
+        .map-legend { display:flex; gap:14px; margin-top:12px; justify-content:center; }
+        .leg-i { display:flex; align-items:center; gap:5px; }
+        .leg-d { width:6px; height:6px; border-radius:50%; }
+        .leg-t { font-size:10px; color:var(--text-4); }
+        .zone-nav { margin-top:12px; display:flex; flex-wrap:wrap; gap:5px; }
+        .zbtn { padding:5px 12px; font-size:11px; font-weight:300; font-family:var(--font-body); background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:18px; color:var(--text-3); cursor:pointer; transition:all 0.3s; }
+        .zbtn:hover { color:var(--text-2); border-color:var(--border-h); }
+        .zbtn.on { background:var(--gold-muted); border-color:rgba(245,166,35,0.35); color:var(--gold); }
+        .zd { display:none; animation:si .5s var(--ease); }
+        .zd.on { display:block; }
+        @keyframes si { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+        .zh { padding:28px; margin-bottom:10px; }
+        .zh-top { display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px; }
+        .zn { font-family:var(--font); font-size:30px; font-weight:200; letter-spacing:-0.02em; }
+        .zr { font-size:14px; color:var(--gold); margin-top:4px; }
+        .zv { font-size:15px; line-height:1.8; color:var(--text-2); margin-top:16px; }
+        .sm { display:inline-flex; align-items:center; gap:7px; padding:5px 12px; border-radius:18px; }
+        .sm-d { width:7px; height:7px; border-radius:50%; }
+        .sm-t { font-size:11px; font-weight:300; letter-spacing:0.04em; }
+        .rt-card { padding:22px 26px; margin-bottom:10px; }
+        .rt-title { font-size:11px; letter-spacing:0.15em; color:var(--text-4); text-transform:uppercase; margin-bottom:16px; }
+        .rt-row { display:flex; align-items:center; gap:10px; margin-bottom:9px; }
+        .rt-lbl { width:100px; font-size:11px; letter-spacing:0.06em; color:var(--text-3); text-transform:uppercase; }
+        .rt-trk { flex:1; max-width:130px; height:3px; background:rgba(255,255,255,0.05); border-radius:2px; overflow:hidden; }
+        .rt-fill { height:100%; border-radius:2px; transition:width .8s var(--ease); }
+        .rt-val { font-size:12px; color:var(--text-2); width:28px; text-align:right; }
+        .sp-cards { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px; }
+        @media(max-width:500px) { .sp-cards { grid-template-columns:1fr; } }
+        .sp { padding:20px; border-radius:14px; }
+        .sp.best { background:rgba(0,255,136,0.04); border:1px solid rgba(0,255,136,0.12); }
+        .sp.avoid { background:rgba(255,71,87,0.04); border:1px solid rgba(255,71,87,0.12); }
+        .sp-t { font-size:10px; letter-spacing:0.15em; text-transform:uppercase; margin-bottom:8px; }
+        .sp.best .sp-t { color:var(--green); }
+        .sp.avoid .sp-t { color:var(--red); }
+        .sp-tx { font-size:13px; color:var(--text-2); line-height:1.7; }
+        .ins { padding:20px 24px; background:rgba(245,166,35,0.04); border:1px solid rgba(245,166,35,0.12); border-radius:14px; margin-bottom:10px; }
+        .ins-t { font-size:10px; letter-spacing:0.15em; color:var(--gold); text-transform:uppercase; margin-bottom:8px; }
+        .ins-tx { font-size:14px; color:var(--text-2); line-height:1.8; font-style:italic; }
+        .zcta { padding:28px 24px; text-align:center; border-radius:14px; background:linear-gradient(135deg, rgba(245,166,35,0.06), rgba(245,166,35,0.02)); border:1px solid rgba(245,166,35,0.15); }
+        .zcta p { font-size:14px; color:var(--text-2); margin-bottom:12px; }
+        .zcta-sub { font-size:11px; color:var(--text-4); margin-top:8px; }
+        .def-card { padding:36px; }
+        .def-card p { font-size:14px; color:var(--text-2); line-height:1.8; margin-bottom:10px; }
+        .stats-bar { margin-top:12px; display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; }
+        .stat { padding:16px 12px; text-align:center; }
+        .stat-n { font-family:var(--font); font-size:26px; font-weight:200; color:var(--gold); }
+        .stat-l { font-size:10px; letter-spacing:0.1em; color:var(--text-4); margin-top:3px; text-transform:uppercase; }
+        .tip { margin-top:18px; padding:16px 20px; background:rgba(245,166,35,0.04); border:1px solid rgba(245,166,35,0.12); border-radius:10px; }
+        .tip p { margin:0!important; color:var(--gold)!important; font-size:13px!important; }
+    </style>
+</head>
+<body>
+
+<div class="bg-grid"></div>
+<nav class="bnav">
+    <div class="bnav-in">
+        <a href="https://www.boomrome.com" class="bnav-logo"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="56" height="56" style="filter:drop-shadow(0 0 12px rgba(245,166,35,0.4));">
+  <defs><linearGradient id="gN" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#FFD54F"/><stop offset="100%" stop-color="#F5A623"/></linearGradient></defs>
+  <g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#gN)">
+    <path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z m610 -144 c743 -103 1436 -459 1919 -985 338 -367 562 -751 704 -1205 276 -879 132 -1858 -388 -2640 -242 -364 -493 -615 -900 -900 l-70 -49 109 104 c413 396 679 919 767 1505 33 217 33 558 0 765 -75 476 -257 896 -549 1265 -127 161 -363 380 -549 511 -300 211 -689 363 -1079 420 -172 26 -604 26 -764 0 -296 -47 -545 -128 -808 -262 -236 -122 -440 -271 -632 -464 -486 -485 -749 -1121 -751 -1815 -1 -611 170 -1148 515 -1608 100 -134 286 -335 382 -413 33 -27 -8 -2 -91 55 -513 351 -904 805 -1143 1331 -71 156 -136 336 -168 465 -9 33 -19 76 -24 95 -5 19 -20 100 -34 180 -59 343 -60 740 0 1070 81 456 229 826 479 1200 246 368 558 669 949 917 386 245 881 418 1321 462 61 6 124 13 140 15 73 10 556 -4 665 -19z m-60 -1329 c105 -16 258 -49 335 -72 82 -26 197 -66 240 -84 149 -65 190 -84 266 -126 677 -379 1129 -1049 1246 -1849 27 -182 24 -517 -5 -695 -75 -458 -225 -813 -500 -1179 -116 -154 -340 -369 -527 -506 -44 -32 -87 -63 -95 -69 -8 -6 35 39 96 99 178 177 283 321 397 550 161 322 231 676 205 1045 -32 467 -223 902 -542 1237 -239 251 -521 426 -873 542 -79 26 -273 67 -383 81 -108 13 -349 13 -465 0 -276 -32 -597 -145 -834 -293 -224 -140 -466 -378 -613 -602 -307 -470 -407 -1055 -273 -1599 80 -327 217 -589 454 -871 71 -84 73 -88 31 -56 -293 225 -547 535 -718 877 -34 68 -65 143 -122 294 -42 112 -101 383 -120 555 -14 127 -14 401 0 534 51 482 223 912 516 1288 269 344 654 620 1085 778 160 59 400 115 574 134 121 13 508 5 625 -13z m-30 -1165 c401 -81 721 -242 992 -499 643 -612 769 -1607 300 -2367 -118 -190 -291 -386 -463 -524 -137 -111 -148 -113 -49 -12 110 112 206 248 275 386 67 137 98 222 132 367 24 103 26 132 27 323 0 182 -3 224 -22 310 -47 211 -126 394 -245 569 -126 186 -358 387 -564 490 -384 191 -823 225 -1218 95 -482 -160 -854 -541 -1004 -1029 -117 -379 -81 -810 96 -1165 37 -72 130 -215 166 -252 17 -18 26 -33 20 -33 -6 0 -61 52 -121 116 -259 272 -424 575 -511 934 -111 459 -18 1006 245 1430 298 483 791 797 1379 880 110 16 448 4 565 -19z m-239 -911 c360 -28 680 -171 925 -415 194 -193 317 -415 382 -688 24 -102 26 -130 26 -312 0 -191 -1 -205 -30 -320 -53 -205 -132 -372 -251 -535 -58 -79 -263 -288 -323 -330 -31 -22 -29 -18 18 35 195 220 312 519 312 795 0 325 -121 614 -350 841 -369 364 -926 453 -1385 222 -336 -170 -578 -499 -636 -865 -19 -126 -7 -371 25 -490 44 -162 97 -284 173 -398 9 -14 -4 -5 -30 20 -26 24 -45 51 -42 58 2 7 1 11 -4 7 -11 -6 -58 51 -118 140 -109 163 -183 347 -219 545 -23 127 -23 351 -1 489 55 335 248 677 492 871 261 208 530 311 881 338 11 1 81 -3 155 -8z m29 -714 c459 -74 823 -428 895 -869 58 -358 -60 -696 -345 -987 l-34 -35 22 35 c115 182 179 403 168 575 -14 235 -104 433 -268 591 -137 134 -287 209 -472 239 -115 19 -187 19 -303 0 -337 -55 -612 -302 -704 -635 -32 -113 -34 -325 -5 -440 23 -92 70 -213 98 -254 l21 -31 -31 29 c-39 36 -120 152 -155 221 -35 71 -81 215 -102 319 -25 130 -17 357 17 476 102 354 357 618 706 730 152 49 331 62 492 36z m-73 -567 c178 -24 327 -101 454 -236 137 -143 199 -303 201 -513 1 -162 -42 -309 -135 -453 -52 -82 -73 -97 -38 -28 51 99 67 290 36 412 -57 219 -251 413 -466 464 -75 17 -236 20 -311 4 -213 -44 -422 -247 -473 -460 -31 -133 -13 -325 41 -431 35 -70 8 -47 -52 43 -58 88 -90 167 -114 286 -25 121 -25 220 -1 331 33 146 84 243 186 351 171 183 413 266 672 230z m15 -470 c80 -17 186 -76 248 -139 106 -107 158 -248 147 -398 -6 -92 -25 -152 -79 -250 -45 -82 -60 -91 -27 -17 18 41 21 62 17 149 -4 89 -8 108 -35 162 -43 82 -126 165 -209 205 -58 29 -80 34 -158 37 -112 5 -184 -12 -259 -62 -182 -121 -251 -323 -171 -506 l24 -55 -25 30 c-36 44 -92 162 -104 223 -39 189 14 369 146 492 105 99 204 139 345 139 48 1 111 -4 140 -10z"/>
+  </g>
+</svg><span>BOOM</span></a>
+        <div class="bnav-links">
+            <a href="https://www.boomrome.com" class="bnav-link">Home</a>
+            <a href="https://www.boomrome.com/apartments.html" class="bnav-link">Apartments</a>
+            <a href="https://www.boomrome.com/blog.html" class="bnav-link">Blog</a>
+            <a href="https://wa.me/393313251961" target="_blank" class="bnav-cta">WhatsApp</a>
+        </div>
+    </div>
+</nav>
+<div class="back"><a href="https://www.boomrome.com/blog.html">&larr; Back to Blog</a></div>
+
+<header class="hero">
+    <div class="hero-ey"><div class="hero-line"></div><span class="hero-tag">BOOM Insider Guide</span></div>
+    <h1>The <em>Real</em> Rome<br>Neighborhood Guide</h1>
+    <p class="hero-sub">Where to actually live &mdash; and where to avoid. No sugar-coating. No recycled tourist advice. Just the truth from someone who's closed hundreds of rental deals across this city.</p>
+</header>
+
+<div class="content-grid">
+    <div class="map-panel">
+        <div class="card map-card">
+            <div class="map-hd"><span>Interactive Map</span><span>Click a zone</span></div>
+            <svg viewBox="100 100 440 490" xmlns="http://www.w3.org/2000/svg">
+                <path d="M 195 110 Q 185 140, 175 170 Q 165 210, 170 250 Q 175 290, 185 330 Q 195 360, 210 390 Q 230 420, 250 460 Q 260 500, 270 560" fill="none" stroke="rgba(69,183,209,0.1)" stroke-width="14" stroke-linecap="round"/>
+                <path id="p-parioli" class="zone-path" data-z="parioli" d="M 280 150 L 330 135 L 370 155 L 365 195 L 325 210 L 280 195 Z" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+                <text x="325" y="175" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="9" font-family="Helvetica Neue,sans-serif" font-weight="300" style="pointer-events:none">Parioli</text>
+                <circle cx="325" cy="187" r="3" fill="#00FF88" opacity=".5" style="pointer-events:none"/>
+                <path id="p-flaminio" class="zone-path" data-z="flaminio" d="M 200 155 L 245 140 L 280 160 L 275 200 L 240 215 L 205 195 Z" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+                <text x="240" y="180" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="9" font-family="Helvetica Neue,sans-serif" font-weight="300" style="pointer-events:none">Flaminio</text>
+                <circle cx="240" cy="192" r="3" fill="#00FF88" opacity=".5" style="pointer-events:none"/>
+                <path id="p-concadoro" class="zone-path" data-z="concadoro" d="M 340 130 L 390 115 L 425 140 L 418 180 L 380 195 L 342 175 Z" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+                <text x="383" y="157" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="8" font-family="Helvetica Neue,sans-serif" font-weight="300" style="pointer-events:none">Conca d'Oro</text>
+                <circle cx="383" cy="169" r="3" fill="#00FF88" opacity=".5" style="pointer-events:none"/>
+                <path id="p-africano" class="zone-path" data-z="africano" d="M 380 175 L 425 160 L 458 185 L 450 225 L 415 238 L 382 218 Z" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+                <text x="418" y="202" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="9" font-family="Helvetica Neue,sans-serif" font-weight="300" style="pointer-events:none">Africano</text>
+                <circle cx="418" cy="214" r="3" fill="#00FF88" opacity=".5" style="pointer-events:none"/>
+                <path id="p-prati" class="zone-path" data-z="prati" d="M 150 200 L 200 180 L 240 210 L 230 260 L 190 270 L 155 245 Z" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+                <text x="195" y="230" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="9" font-family="Helvetica Neue,sans-serif" font-weight="300" style="pointer-events:none">Prati</text>
+                <circle cx="195" cy="242" r="3" fill="#00FF88" opacity=".5" style="pointer-events:none"/>
+                <path id="p-centro" class="zone-path" data-z="centro" d="M 230 240 L 280 220 L 320 250 L 310 300 L 270 320 L 230 300 Z" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+                <text x="275" y="272" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="8" font-family="Helvetica Neue,sans-serif" font-weight="300" style="pointer-events:none">Centro Storico</text>
+                <circle cx="275" cy="284" r="3" fill="#FF4757" opacity=".6" style="pointer-events:none"/>
+                <path id="p-monti" class="zone-path" data-z="monti" d="M 310 240 L 360 225 L 390 255 L 380 300 L 340 310 L 310 285 Z" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+                <text x="348" y="272" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="9" font-family="Helvetica Neue,sans-serif" font-weight="300" style="pointer-events:none">Monti</text>
+                <circle cx="348" cy="284" r="3" fill="#FFEAA7" opacity=".6" style="pointer-events:none"/>
+                <path id="p-sanlorenzo" class="zone-path" data-z="sanlorenzo" d="M 370 220 L 420 210 L 450 240 L 440 280 L 400 290 L 370 265 Z" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+                <text x="408" y="253" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="8" font-family="Helvetica Neue,sans-serif" font-weight="300" style="pointer-events:none">S. Lorenzo</text>
+                <circle cx="408" cy="264" r="3" fill="#00FF88" opacity=".5" style="pointer-events:none"/>
+                <path id="p-trastevere" class="zone-path" data-z="trastevere" d="M 180 340 L 220 310 L 260 330 L 270 370 L 240 400 L 200 390 Z" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+                <text x="225" y="358" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="9" font-family="Helvetica Neue,sans-serif" font-weight="300" style="pointer-events:none">Trastevere</text>
+                <circle cx="225" cy="369" r="3" fill="#FFEAA7" opacity=".6" style="pointer-events:none"/>
+                <path id="p-testaccio" class="zone-path" data-z="testaccio" d="M 250 380 L 280 360 L 320 375 L 330 420 L 300 440 L 260 425 Z" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+                <text x="290" y="402" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="9" font-family="Helvetica Neue,sans-serif" font-weight="300" style="pointer-events:none">Testaccio</text>
+                <circle cx="290" cy="413" r="3" fill="#00FF88" opacity=".5" style="pointer-events:none"/>
+                <path id="p-pigneto" class="zone-path" data-z="pigneto" d="M 400 300 L 450 285 L 480 315 L 470 360 L 430 370 L 400 345 Z" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+                <text x="438" y="332" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="9" font-family="Helvetica Neue,sans-serif" font-weight="300" style="pointer-events:none">Pigneto</text>
+                <circle cx="438" cy="343" r="3" fill="#00FF88" opacity=".5" style="pointer-events:none"/>
+                <path id="p-eur" class="zone-path" data-z="eur" d="M 260 480 L 310 460 L 360 480 L 355 530 L 310 550 L 265 530 Z" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+                <text x="310" y="500" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="9" font-family="Helvetica Neue,sans-serif" font-weight="300" style="pointer-events:none">EUR</text>
+                <circle cx="310" cy="512" r="3" fill="#00FF88" opacity=".5" style="pointer-events:none"/>
+            </svg>
+            <div class="map-legend">
+                <div class="leg-i"><div class="leg-d" style="background:#00FF88;opacity:.6"></div><span class="leg-t">Low risk</span></div>
+                <div class="leg-i"><div class="leg-d" style="background:#FFEAA7;opacity:.7"></div><span class="leg-t">Moderate</span></div>
+                <div class="leg-i"><div class="leg-d" style="background:#FF4757;opacity:.7"></div><span class="leg-t">High risk</span></div>
+            </div>
+        </div>
+        <div class="zone-nav" id="zn"></div>
+
+        <!-- Static PFS upsell in sidebar -->
+        <div class="boom-upsell upsell-full" style="margin-top:14px;">
+            <div class="boom-upsell-inner">
+                <div class="upsell-layout">
+                    <div class="upsell-icon-col">
+                        <div class="upsell-icon-ring">
+                            <svg viewBox="0 0 44 44"><circle class="ring-track" cx="22" cy="22" r="19"/><circle class="ring-progress" cx="22" cy="22" r="19"/></svg>
+                            <span class="upsell-emoji">🔍</span>
+                        </div>
+                        <span class="upsell-icon-label">Featured Service</span>
+                    </div>
+                    <div class="upsell-content">
+                        <div class="upsell-top">
+                            <div class="upsell-tag">Property Finding</div>
+                            <div class="upsell-price-badge">&#8364;350 <span class="price-sub">upfront*</span></div>
+                        </div>
+                        <div class="upsell-headline">Don't have time to search? We'll hunt for you.</div>
+                        <div class="upsell-desc">Tell us your requirements &mdash; within 10 days you'll have curated options. Access to off-market properties included. *Deducted from agency fee.</div>
+                        <div class="upsell-chips">
+                            <span class="upsell-chip">10-Day Delivery</span>
+                            <span class="upsell-chip">Off-Market Access</span>
+                            <span class="upsell-chip">Full Refund if Fail</span>
+                        </div>
+                        <div class="upsell-cta-row">
+                            <a href="https://www.boomrome.com/property-finding.html" class="upsell-cta">Start Search <span class="cta-arrow">&rarr;</span></a>
+                            <a href="https://wa.me/393313251961" class="upsell-alt-link">or WhatsApp us</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="dp">
+        <div id="ds">
+            <div class="card def-card">
+                <p style="font-size:16px;">Select a neighborhood on the map to get the real story.</p>
+                <p>Every zone in Rome has a personality &mdash; and a price. Some will drain your budget. Others will give you the best years of your life for half the cost.</p>
+                <p>We've closed deals in every single one of these neighborhoods. What you'll read here isn't from a blog that visited Rome for a week.</p>
+                <div class="tip"><p>&#128161; Don't choose a neighborhood based on where you ate pasta on vacation. Choose it based on your commute, your budget, and how much bureaucracy you can handle alone.</p></div>
+            </div>
+            <div class="stats-bar">
+                <div class="card stat"><div class="stat-n">12</div><div class="stat-l">Zones Mapped</div></div>
+                <div class="card stat"><div class="stat-n">98%</div><div class="stat-l">Client Success</div></div>
+                <div class="card stat"><div class="stat-n">0</div><div class="stat-l">Sugar-Coated</div></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="bottom-cta">
+    <div class="bottom-cta-card">
+        <h3>Skip the research. Skip the scams.</h3>
+        <p>Every client we've served avoided at least one scam. Zero exceptions.</p>
+        <div class="bottom-cta-actions">
+            <a href="https://wa.me/393313251961" target="_blank" class="cta-btn cta-wa">WhatsApp Us</a>
+            <a href="https://www.boomrome.com/apartments.html" class="cta-btn-outline">Browse Apartments</a>
+            <a href="https://www.boomrome.com/property-finding.html" class="cta-btn-outline">Property Finding</a>
+            <a href="https://www.boomrome.com/deal-assistance.html" class="cta-btn-outline">Deal Assistance</a>
+        </div>
+    </div>
+</div>
+
+<!-- Contact Form -->
+<div class="contact-section">
+    <div class="contact-card">
+        <div class="contact-grid">
+            <div class="contact-info">
+                <h3>Talk to a <em style="font-family:var(--font-accent);font-style:italic;color:var(--gold);">human</em></h3>
+                <p>No chatbot. No call center. Just Valentino and the BOOM team &mdash; people who actually live in Rome and know every corner of this city's rental market.</p>
+                <div class="contact-stat">
+                    <div class="contact-stat-item"><div class="contact-stat-n">2min</div><div class="contact-stat-l">Avg Response</div></div>
+                    <div class="contact-stat-item"><div class="contact-stat-n">500+</div><div class="contact-stat-l">Clients Helped</div></div>
+                    <div class="contact-stat-item"><div class="contact-stat-n">&#8364;0</div><div class="contact-stat-l">Consult Fee</div></div>
+                </div>
+                <p style="font-size:12px;color:var(--text-4);">Or message us directly: <a href="https://wa.me/393313251961" style="color:var(--gold);">WhatsApp &rarr;</a></p>
+            </div>
+            <form class="contact-form" action="https://api.web3forms.com/submit" method="POST">
+                <input type="hidden" name="access_key" value="f2a0e600-9b96-4e00-8e3a-3cb616c490d5">
+                <input type="hidden" name="subject" value="BOOM Blog — Neighborhood Guide Inquiry">
+                <input type="hidden" name="from_name" value="BOOM Neighborhood Guide">
+                <input type="hidden" name="to" value="Valentino@boom-rome.com">
+                <input type="hidden" name="redirect" value="https://www.boomrome.com/blog-neighborhood-guide.html">
+                <div class="form-row">
+                    <div class="form-field">
+                        <label for="cf-name">Name</label>
+                        <input type="text" id="cf-name" name="name" placeholder="Your name" required>
+                    </div>
+                    <div class="form-field">
+                        <label for="cf-email">Email</label>
+                        <input type="email" id="cf-email" name="email" placeholder="you@example.com" required>
+                    </div>
+                </div>
+                <div class="form-field">
+                    <label for="cf-service">I'm interested in</label>
+                    <select id="cf-service" name="service">
+                        <option value="general">General inquiry</option>
+                        <option value="property-finding">Property Finding (&#8364;350)</option>
+                        <option value="deal-assistance">Deal Assistance (&#8364;249)</option>
+                        <option value="virtual-viewing">Virtual Viewing (&#8364;89)</option>
+                        <option value="apartments">Ready Apartments</option>
+                    </select>
+                </div>
+                <div class="form-field">
+                    <label for="cf-msg">Message</label>
+                    <textarea id="cf-msg" name="message" placeholder="Tell us about your situation — budget, move-in date, preferred neighborhoods..."></textarea>
+                </div>
+                <button type="submit" class="form-submit">Send Message <span>&rarr;</span></button>
+                <div class="form-note">Free consultation. No commitment. Response within 2 hours.</div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="related">
+    <div class="related-title">More from BOOM</div>
+    <div class="related-grid">
+        <a href="https://www.boomrome.com/blog-neighborhood-guide.html" class="related-card"><h4>The Real Rome Neighborhood Guide</h4><span>Interactive map of 12 zones &rarr;</span></a>
+        <a href="https://www.boomrome.com/blog-scam-bible.html" class="related-card"><h4>The Rome Rental Scam Bible</h4><span>Every trick they'll try on you &rarr;</span></a>
+        <a href="https://www.boomrome.com/blog-cost-calculator.html" class="related-card"><h4>What Renting Actually Costs</h4><span>Interactive cost calculator &rarr;</span></a>
+        <a href="https://www.boomrome.com/blog-47-steps.html" class="related-card"><h4>47 Steps to Your Keys</h4><span>The complete rental journey &rarr;</span></a>
+        <a href="https://www.boomrome.com/blog-tenant-rights.html" class="related-card"><h4>Your Rights as a Tenant</h4><span>Italian law cheat sheet &rarr;</span></a>
+    </div>
+</div>
+
+<footer class="bfoot">&copy; 2026 BOOM by Egidi Immobiliare S.r.l. &mdash; P.IVA 17322991005 &mdash; Rome Rental Assistance for Expats</footer>
+
+<script>
+const Z={
+trastevere:{n:"Trastevere",r:"\u20AC1,200\u20131,800",sr:2,sl:"Low",rt:{Affordability:{v:3,c:"#00CED1"},Safety:{v:4,c:"#45B7D1"},Transport:{v:3,c:"#00FF88"},"Vibe":{v:5,c:"#FFEAA7"},"Expat-Friendly":{v:5,c:"#9B59B6"}},v:"The expat magnet. Gorgeous, overpriced, and you\u2019ll fight for every listing. Worth it if you can afford it \u2014 but landlords here know their leverage.",b:"First-timers who want the Rome dream on day one",a:"If you hate cobblestones, weekend noise, or paying premium for charm",i:"The streets south of Viale Trastevere are quieter and cheaper. Most expats cluster north and overpay."},
+centro:{n:"Centro Storico",r:"\u20AC1,500\u20132,500+",sr:5,sl:"Extreme",rt:{Affordability:{v:1,c:"#00CED1"},Safety:{v:3,c:"#45B7D1"},Transport:{v:5,c:"#00FF88"},"Vibe":{v:4,c:"#FFEAA7"},"Expat-Friendly":{v:3,c:"#9B59B6"}},v:"Tourist central. The most beautiful place to live \u2014 and the most expensive mistake you can make. Scam density is off the charts.",b:"Short stays, deep pockets, people who\u2019ve done this before",a:"If this is your first Italian rental. Seriously.",i:"80% of \u2018too good to be true\u2019 listings online are in Centro. Not a coincidence."},
+testaccio:{n:"Testaccio",r:"\u20AC900\u20131,400",sr:1,sl:"Minimal",rt:{Affordability:{v:4,c:"#00CED1"},Safety:{v:5,c:"#45B7D1"},Transport:{v:4,c:"#00FF88"},"Vibe":{v:5,c:"#FFEAA7"},"Expat-Friendly":{v:3,c:"#9B59B6"}},v:"Rome\u2019s best-kept secret for quality of life. Real neighborhood, real people, incredible food market, and landlords who still play fair.",b:"Foodies, people who want authentic Rome without the markup",a:"If you need English spoken everywhere or want tourist-area nightlife",i:"The market area apartments have the best value. Ask about buildings near Monte Testaccio."},
+prati:{n:"Prati",r:"\u20AC1,100\u20131,700",sr:2,sl:"Low",rt:{Affordability:{v:3,c:"#00CED1"},Safety:{v:5,c:"#45B7D1"},Transport:{v:5,c:"#00FF88"},"Vibe":{v:3,c:"#FFEAA7"},"Expat-Friendly":{v:4,c:"#9B59B6"}},v:"The professional\u2019s choice. Clean, organized, well-connected. Feels more Milan than Rome \u2014 and that\u2019s exactly why some people love it.",b:"Professionals, families, people who value order over chaos",a:"If you moved to Rome for the chaos. Prati is Rome on easy mode.",i:"Via Cola di Rienzo has everything. Apartments on side streets off the main drag offer the best price-to-quality ratio."},
+monti:{n:"Monti",r:"\u20AC1,300\u20131,900",sr:3,sl:"Moderate",rt:{Affordability:{v:2,c:"#00CED1"},Safety:{v:4,c:"#45B7D1"},Transport:{v:5,c:"#00FF88"},"Vibe":{v:5,c:"#FFEAA7"},"Expat-Friendly":{v:4,c:"#9B59B6"}},v:"The cool kid. Boutiques, wine bars, and an increasingly inflated price tag. Still has soul \u2014 but gentrification is winning.",b:"Creatives, young professionals, walkability to everything",a:"If you\u2019re on a budget. Monti\u2019s charm comes with a Monti tax.",i:"Via Panisperna side streets still have reasonable rents. Avoid anything marketed as \u2018Colosseum view\u2019 \u2014 you\u2019re paying triple for a window angle."},
+sanlorenzo:{n:"San Lorenzo",r:"\u20AC700\u20131,100",sr:2,sl:"Low",rt:{Affordability:{v:5,c:"#00CED1"},Safety:{v:3,c:"#45B7D1"},Transport:{v:4,c:"#00FF88"},"Vibe":{v:4,c:"#FFEAA7"},"Expat-Friendly":{v:3,c:"#9B59B6"}},v:"University district. Cheap, gritty, alive. The graffiti is part of the deal. Best value in central-ish Rome if you don\u2019t need polish.",b:"Students, budget-conscious renters, raw energy lovers",a:"If noise sensitivity is your thing or you want a pristine building",i:"Post-university buildings on Via dei Sabelli are good. Upper floors \u2014 street noise drops dramatically above the 3rd."},
+eur:{n:"EUR",r:"\u20AC800\u20131,300",sr:1,sl:"Minimal",rt:{Affordability:{v:4,c:"#00CED1"},Safety:{v:5,c:"#45B7D1"},Transport:{v:3,c:"#00FF88"},"Vibe":{v:2,c:"#FFEAA7"},"Expat-Friendly":{v:2,c:"#9B59B6"}},v:"Mussolini\u2019s modernist suburb. Wide boulevards, rational architecture, zero charm. But honest prices and zero scams.",b:"Families, remote workers, space over atmosphere",a:"If you want to feel like you live in Rome. EUR feels like a different city.",i:"The lake area (Laghetto dell\u2019EUR) has the best apartments. Modern buildings, parking, green space \u2014 things that don\u2019t exist in central Rome."},
+pigneto:{n:"Pigneto",r:"\u20AC650\u20131,000",sr:2,sl:"Low",rt:{Affordability:{v:5,c:"#00CED1"},Safety:{v:3,c:"#45B7D1"},Transport:{v:3,c:"#00FF88"},"Vibe":{v:4,c:"#FFEAA7"},"Expat-Friendly":{v:2,c:"#9B59B6"}},v:"The Brooklyn of Rome \u2014 for better and worse. Street art, craft beer, rising rents but still affordable.",b:"Artists, freelancers, discovering \u2018the next neighborhood\u2019",a:"If you need reliable night transport or a polished environment",i:"The pedestrian zone on Via del Pigneto is where the action is. One block off it \u2014 close enough to enjoy, far enough to sleep."},
+parioli:{n:"Parioli",r:"\u20AC1,400\u20132,200",sr:1,sl:"Minimal",rt:{Affordability:{v:2,c:"#00CED1"},Safety:{v:5,c:"#45B7D1"},Transport:{v:4,c:"#00FF88"},"Vibe":{v:2,c:"#FFEAA7"},"Expat-Friendly":{v:4,c:"#9B59B6"}},v:"Old money Rome. Embassies, private schools, wide tree-lined streets. Safe as a vault, quiet as a library, and about as exciting.",b:"Families, diplomats, executives who prioritize safety and prestige",a:"If you\u2019re under 35 and want nightlife or the feeling of actually living in Rome",i:"Via Archimede and Piazza Euclide are the social centers. Side streets off Viale Parioli are 15-20% less than the main boulevard."},
+flaminio:{n:"Flaminio",r:"\u20AC1,100\u20131,600",sr:1,sl:"Minimal",rt:{Affordability:{v:3,c:"#00CED1"},Safety:{v:5,c:"#45B7D1"},Transport:{v:5,c:"#00FF88"},"Vibe":{v:4,c:"#FFEAA7"},"Expat-Friendly":{v:4,c:"#9B59B6"}},v:"The sweet spot nobody talks about. MAXXI museum, Auditorium, Ponte Milvio aperitivo \u2014 culturally rich without tourist chaos. Excellent tram and metro.",b:"Young professionals, couples, culture lovers who want connectivity",a:"If you want classic cobblestone-and-ivy Rome. Flaminio is modern Rome.",i:"Streets between Viale del Vignola and the Tiber are residential gold \u2014 quiet, green, 10 minutes from everything. Check buildings near the tram line."},
+concadoro:{n:"Conca d'Oro",r:"\u20AC600\u2013950",sr:1,sl:"Minimal",rt:{Affordability:{v:5,c:"#00CED1"},Safety:{v:3,c:"#45B7D1"},Transport:{v:4,c:"#00FF88"},"Vibe":{v:2,c:"#FFEAA7"},"Expat-Friendly":{v:1,c:"#9B59B6"}},v:"Working-class Rome, no filter. Metro B1 makes it accessible. Prices are rock-bottom for a reason \u2014 not pretty, not polished. But the value is real.",b:"Budget-first renters, students, metro access on a tight budget",a:"If aesthetics matter or you need English-speaking infrastructure",i:"Stay within 5-minute walk of the metro station. New-build apartments near Viale Jonio are the best value \u2014 modern interiors at half the Prati price."},
+africano:{n:"Africano",r:"\u20AC750\u20131,100",sr:1,sl:"Minimal",rt:{Affordability:{v:4,c:"#00CED1"},Safety:{v:4,c:"#45B7D1"},Transport:{v:4,c:"#00FF88"},"Vibe":{v:3,c:"#FFEAA7"},"Expat-Friendly":{v:2,c:"#9B59B6"}},v:"Named after its African-themed street names. Solid middle-class Rome. Good schools, decent transport, real neighborhood markets. The place to build a life.",b:"Families on a budget, long-term renters, normalcy over excitement",a:"Short stays or need walking distance to monuments",i:"Via Nomentana is the spine. Side streets around Piazza Gondar have a village feel with trattorias food bloggers haven\u2019t found."}
+};
+const SC={1:"#00FF88",2:"#00CED1",3:"#FFEAA7",4:"#FF9F43",5:"#FF4757"};
+const ZO=["parioli","flaminio","prati","centro","monti","sanlorenzo","trastevere","testaccio","pigneto","eur","concadoro","africano"];
+let az=null;
+const ne=document.getElementById('zn');
+ZO.forEach(id=>{const b=document.createElement('button');b.className='zbtn';b.textContent=Z[id].n;b.dataset.z=id;b.onclick=()=>sel(id);ne.appendChild(b);});
+document.querySelectorAll('.zone-path').forEach(p=>{
+    p.addEventListener('click',()=>sel(p.dataset.z));
+    p.addEventListener('mouseenter',()=>{if(az!==p.dataset.z){p.setAttribute('fill','rgba(245,166,35,0.1)');p.setAttribute('stroke','rgba(245,166,35,0.4)');}});
+    p.addEventListener('mouseleave',()=>{if(az!==p.dataset.z){p.setAttribute('fill','rgba(255,255,255,0.03)');p.setAttribute('stroke','rgba(255,255,255,0.08)');}});
+});
+
+function mkUpsell(cfg) {
+    return '<div class="boom-upsell upsell-reveal '+cfg.delay+'">'+
+        '<div class="boom-upsell-inner"><div class="upsell-layout">'+
+        '<div class="upsell-icon-col"><div class="upsell-icon-ring">'+
+        '<svg viewBox="0 0 44 44"><circle class="ring-track" cx="22" cy="22" r="19"/><circle class="ring-progress" cx="22" cy="22" r="19"/></svg>'+
+        '<span class="upsell-emoji">'+cfg.icon+'</span></div></div>'+
+        '<div class="upsell-content"><div class="upsell-top">'+
+        '<div class="upsell-tag">'+cfg.tag+'</div>'+
+        '<div class="upsell-price-badge">'+cfg.price+' <span class="price-sub">'+cfg.priceSub+'</span></div></div>'+
+        '<div class="upsell-headline">'+cfg.headline+'</div>'+
+        '<div class="upsell-desc">'+cfg.desc+'</div>'+
+        '<div class="upsell-chips">'+cfg.chips.map(function(c){return '<span class="upsell-chip">'+c+'</span>';}).join('')+'</div>'+
+        '<div class="upsell-cta-row">'+
+        '<a href="'+cfg.href+'" class="upsell-cta">'+cfg.cta+' <span class="cta-arrow">\u2192</span></a>'+
+        '<a href="https://wa.me/393313251961" class="upsell-alt-link">or WhatsApp</a>'+
+        '</div></div></div></div></div>';
+}
+
+var UPSELLS = {
+    pfs: {icon:'\uD83D\uDD0D',tag:'Property Finding',price:'\u20AC350',priceSub:'upfront*',
+        headline:"Can\u2019t search from abroad? We\u2019ll find it for you.",
+        desc:'Custom search based on your exact needs. Off-market properties, video tours, full negotiation. *Deducted from agency fee.',
+        chips:['10-Day Delivery','Off-Market Access','Money-Back Guarantee'],
+        href:'https://www.boomrome.com/property-finding.html',cta:'Start Search',delay:'d1'},
+    das: {icon:'\uD83E\uDD1D',tag:'Deal Assistance',price:'\u20AC249',priceSub:'fixed fee',
+        headline:"Found a place? Don\u2019t sign anything yet.",
+        desc:'Contract review, landlord verification, price negotiation, and red flag identification. We\u2019ve saved clients thousands.',
+        chips:['Contract Review','Landlord Check','Price Negotiation'],
+        href:'https://www.boomrome.com/deal-assistance.html',cta:'Get Protected',delay:'d1'},
+    vv: {icon:'\uD83D\uDCF9',tag:'Virtual Viewing',price:'\u20AC89',priceSub:'per viewing',
+        headline:"See the real apartment before you commit.",
+        desc:'Live video walkthrough with neighborhood assessment and honest written report. No surprises on move-in day.',
+        chips:['Live Video Tour','Written Report','Honest Opinion'],
+        href:'https://www.boomrome.com/virtual-viewing.html',cta:'Book Viewing',delay:'d2'}
+};
+
+function sel(id){
+    if(az===id){az=null;rst();return;}az=id;
+    document.querySelectorAll('.zone-path').forEach(p=>{p.setAttribute('fill','rgba(255,255,255,0.03)');p.setAttribute('stroke','rgba(255,255,255,0.08)');p.setAttribute('stroke-width','1');});
+    var ap=document.getElementById('p-'+id);if(ap){ap.setAttribute('fill','rgba(245,166,35,0.15)');ap.setAttribute('stroke','#F5A623');ap.setAttribute('stroke-width','2');}
+    document.querySelectorAll('.zbtn').forEach(b=>b.classList.remove('on'));
+    var ab=document.querySelector('.zbtn[data-z="'+id+'"]');if(ab)ab.classList.add('on');
+    ren(id);
+}
+function rst(){
+    document.querySelectorAll('.zone-path').forEach(p=>{p.setAttribute('fill','rgba(255,255,255,0.03)');p.setAttribute('stroke','rgba(255,255,255,0.08)');p.setAttribute('stroke-width','1');});
+    document.querySelectorAll('.zbtn').forEach(b=>b.classList.remove('on'));
+    document.getElementById('ds').style.display='block';
+    var o=document.querySelector('.zd');if(o)o.remove();
+}
+function ren(id){
+    var z=Z[id],sc=SC[z.sr];
+    document.getElementById('ds').style.display='none';
+    var o=document.querySelector('.zd');if(o)o.remove();
+    var rh='';Object.entries(z.rt).forEach(function(e){var l=e[0],v=e[1].v,c=e[1].c;rh+='<div class="rt-row"><span class="rt-lbl">'+l+'</span><div class="rt-trk"><div class="rt-fill" style="width:'+v*20+'%;background:'+c+'"></div></div><span class="rt-val">'+v+'/5</span></div>';});
+
+    // Card 1: Always DAS
+    var card1 = mkUpsell(UPSELLS.das);
+    // Card 2: Context-based
+    var card2 = '';
+    var ef = z.rt['Expat-Friendly'] ? z.rt['Expat-Friendly'].v : 0;
+    if(z.sr >= 3) {
+        var pfs = Object.assign({}, UPSELLS.pfs, {delay:'d2',
+            headline:z.n+' has high scam risk. Don\u2019t go in alone.',
+            desc:'This zone needs professional navigation. We search, verify, and negotiate \u2014 so you don\u2019t get burned.'});
+        card2 = mkUpsell(pfs);
+    } else if(ef >= 4 && z.sr < 3) {
+        var vv = Object.assign({}, UPSELLS.vv, {delay:'d2',
+            headline:'Can\u2019t visit '+z.n+' in person?'});
+        card2 = mkUpsell(vv);
+    } else {
+        var pfs2 = Object.assign({}, UPSELLS.pfs, {delay:'d2'});
+        card2 = mkUpsell(pfs2);
+    }
+
+    var h='<div class="zd on">'+
+        '<div class="card zh"><div class="zh-top"><div><div class="zn">'+z.n+'</div><div class="zr">'+z.r+'/month</div></div>'+
+        '<div class="sm" style="background:'+sc+'12;border:1px solid '+sc+'30"><div class="sm-d" style="background:'+sc+'"></div><span class="sm-t" style="color:'+sc+'">'+z.sl+' Scam Risk</span></div></div>'+
+        '<p class="zv">'+z.v+'</p></div>'+
+        '<div class="card rt-card"><div class="rt-title">Zone Ratings</div>'+rh+'</div>'+
+        '<div class="sp-cards"><div class="sp best"><div class="sp-t">\u2713 Best For</div><div class="sp-tx">'+z.b+'</div></div>'+
+        '<div class="sp avoid"><div class="sp-t">\u2717 Avoid If</div><div class="sp-tx">'+z.a+'</div></div></div>'+
+        '<div class="ins"><div class="ins-t">\uD83D\uDD11 BOOM Insider</div><div class="ins-tx">\u201C'+z.i+'\u201D</div></div>'+
+        card1+card2+
+        '<div class="zcta"><p>Want the perfect place in '+z.n+'?</p>'+
+        '<a href="https://wa.me/393313251961" target="_blank" class="cta-btn cta-wa" style="font-size:11px;padding:12px 28px;">WhatsApp BOOM \u2192</a>'+
+        '<div class="zcta-sub">Free consultation. No commitment. Just honest advice.</div></div></div>';
+    document.getElementById('dp').insertAdjacentHTML('beforeend',h);
+    if(window.innerWidth<900)document.querySelector('.zd').scrollIntoView({behavior:'smooth',block:'start'});
+    gtag('event','zone_view',{zone_name:z.n});
+}
+</script>
+</body>
+</html>

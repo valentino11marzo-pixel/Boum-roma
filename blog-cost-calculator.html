@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-EYCD59RDVJ"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-EYCD59RDVJ');
+    </script>
+
+    <link rel="icon" href="/favicon.ico" sizes="any">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <link rel="manifest" href="/site.webmanifest">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>What Renting in Rome Actually Costs — Interactive Calculator | BOOM</title>
+    <meta name="description" content="Interactive cost calculator for renting in Rome. See the real monthly and year-one costs by neighborhood, contract type, and budget. Hidden fees revealed.">
+    <meta name="keywords" content="Rome rent cost calculator, renting costs Rome, hidden costs Rome apartment, condominio Rome, canone concordato savings, agency fee Rome">
+    <meta property="og:title" content="What Renting in Rome Actually Costs — Interactive Calculator | BOOM">
+    <meta property="og:description" content="Interactive cost calculator for renting in Rome. Hidden fees revealed. See the real monthly and year-one costs.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://boomrome.com/blog-cost-calculator.html">
+    <link rel="canonical" href="https://boomrome.com/blog-cost-calculator.html">
+
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Article",
+      "headline": "What Renting in Rome Actually Costs",
+      "description": "Interactive cost calculator for renting in Rome. See the real monthly and year-one costs by neighborhood, contract type, and budget.",
+      "author": {"@type": "Organization", "name": "BOOM by Egidi Immobiliare S.r.l."},
+      "publisher": {"@type": "Organization", "name": "BOOM Rome Rentals", "url": "https://boomrome.com"},
+      "datePublished": "2026-02-26",
+      "mainEntityOfPage": "https://boomrome.com/blog-cost-calculator.html"
+    }
+    </script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+
+    <style>
+        *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+        :root {
+            --gold: #F5A623; --gold-light: #FFD54F; --gold-dark: #D4911E;
+            --gold-muted: rgba(245,166,35,0.12);
+            --black: #030303; --surface: #0B0B0C; --surface-el: #121214;
+            --text-1: #FAFAFA; --text-2: rgba(250,250,250,0.72);
+            --text-3: rgba(250,250,250,0.44); --text-4: rgba(250,250,250,0.24);
+            --border: rgba(255,255,255,0.06); --border-h: rgba(255,255,255,0.1);
+            --green: #00FF88; --green-m: rgba(0,255,136,0.15);
+            --cyan: #00CED1; --red: #FF4757; --orange: #FF9F43;
+            --blue: #45B7D1; --yellow: #FFEAA7; --purple: #9B59B6;
+            --font: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            --font-body: 'Helvetica Neue', Helvetica, -apple-system, sans-serif;
+            --font-accent: 'Instrument Serif', Georgia, serif;
+            --ease: cubic-bezier(0.16, 1, 0.3, 1);
+            --ease-out: cubic-bezier(0.33, 1, 0.68, 1);
+        }
+        html { -webkit-font-smoothing: antialiased; scroll-behavior: smooth; }
+        body { font-family: var(--font-body); background: var(--black); color: var(--text-1); font-weight: 300; line-height: 1.6; overflow-x: hidden; }
+        body::before { content:''; position:fixed; inset:0; opacity:0.015; pointer-events:none; z-index:9999;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+        ::selection { background: var(--gold); color: var(--black); }
+        a { color: inherit; text-decoration: none; }
+
+        /* Dot grid BG */
+        .bg-grid { position:fixed; inset:0; z-index:0; opacity:0.03; pointer-events:none; }
+
+        /* Nav */
+        .bnav { position:fixed; top:0; left:0; right:0; z-index:1000; padding:14px 0;
+            background:rgba(3,3,3,0.95); backdrop-filter:blur(20px); border-bottom:1px solid var(--border); }
+        .bnav-in { max-width:1200px; margin:0 auto; padding:0 24px; display:flex; align-items:center; justify-content:space-between; }
+        .bnav-logo { display:flex; align-items:center; gap:12px; transition:transform 0.3s var(--ease); }
+        .bnav-logo:hover { transform:scale(1.02); }
+        .bnav-logo span { font-family:var(--font); font-size:28px; font-weight:300; letter-spacing:4px; text-transform:uppercase; color:var(--text-1); }
+        .bnav-links { display:flex; gap:20px; align-items:center; }
+        .bnav-link { font-size:11px; font-weight:500; letter-spacing:1.5px; text-transform:uppercase; color:var(--text-3); transition:color 0.3s; }
+        .bnav-link:hover { color:var(--text-1); }
+        .bnav-cta { padding:8px 18px; border:1px solid var(--gold); font-size:10px; font-weight:600; letter-spacing:1.5px; text-transform:uppercase; color:var(--gold); transition:all 0.3s; }
+        .bnav-cta:hover { background:var(--gold); color:var(--black); }
+        @media(max-width:768px) { .bnav-link { display:none; } }
+
+        .back { max-width:1000px; margin:0 auto; padding:88px 24px 0; position:relative; z-index:1; }
+        .back a { font-size:12px; color:var(--text-4); letter-spacing:0.1em; text-transform:uppercase; transition:color 0.3s; }
+        .back a:hover { color:var(--gold); }
+
+        .hero { padding:24px 24px 40px; max-width:1000px; margin:0 auto; position:relative; z-index:1; }
+        .hero-ey { display:flex; align-items:center; gap:12px; margin-bottom:36px; opacity:0; animation:fu .8s var(--ease) .2s forwards; }
+        .hero-line { width:32px; height:2px; background:var(--gold); }
+        .hero-tag { font-size:11px; letter-spacing:0.3em; color:var(--gold); text-transform:uppercase; font-weight:500; }
+        .hero h1 { font-family:var(--font); font-size:clamp(34px,5vw,60px); font-weight:200; line-height:1.08; letter-spacing:-0.02em; opacity:0; animation:fu .8s var(--ease) .4s forwards; }
+        .hero h1 em { color:var(--gold); font-style:italic; font-family:var(--font-accent); font-weight:400; }
+        .hero-sub { font-size:17px; color:var(--text-2); max-width:560px; line-height:1.7; margin-top:20px; opacity:0; animation:fu .8s var(--ease) .6s forwards; }
+        @keyframes fu { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+
+        /* Calculator Grid */
+        .calc-grid { max-width:1000px; margin:0 auto; padding:0 24px 40px; display:grid; grid-template-columns:1fr 1fr; gap:24px; align-items:start; position:relative; z-index:1; }
+        @media(max-width:900px) { .calc-grid { grid-template-columns:1fr; } }
+
+        .card { background:rgba(255,255,255,0.02); border:1px solid var(--border); border-radius:16px; padding:32px; }
+        .card-label { font-size:11px; letter-spacing:0.2em; color:var(--text-4); text-transform:uppercase; margin-bottom:24px; }
+
+        /* Sliders */
+        .slider-group { margin-bottom:28px; }
+        .slider-head { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:10px; }
+        .slider-label { font-size:11px; letter-spacing:0.12em; color:var(--text-3); text-transform:uppercase; }
+        .slider-val { font-family:var(--font); font-size:22px; font-weight:200; color:var(--gold); }
+        input[type=range] { width:100%; height:3px; -webkit-appearance:none; appearance:none; border-radius:2px; outline:none; cursor:pointer; background:rgba(255,255,255,0.08); }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:16px; height:16px; border-radius:50%; background:var(--gold); cursor:pointer; border:2px solid var(--black); box-shadow:0 0 10px rgba(245,166,35,0.3); }
+
+        /* Zone buttons */
+        .zone-btns { display:flex; flex-wrap:wrap; gap:6px; }
+        .zone-btn { padding:6px 14px; font-size:11px; font-weight:300; font-family:var(--font-body); background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:20px; color:var(--text-3); cursor:pointer; transition:all 0.3s; }
+        .zone-btn.on { background:rgba(245,166,35,0.15); border-color:rgba(245,166,35,0.4); color:var(--gold); }
+
+        /* Contract type */
+        .ct-btns { display:flex; gap:8px; }
+        .ct-btn { flex:1; padding:14px 16px; text-align:left; font-family:var(--font-body); background:rgba(255,255,255,0.02); border:1px solid var(--border); border-radius:12px; color:var(--text-3); cursor:pointer; transition:all 0.3s; }
+        .ct-btn.on { background:rgba(245,166,35,0.08); border-color:rgba(245,166,35,0.3); }
+        .ct-btn .ct-name { font-size:13px; font-weight:300; }
+        .ct-btn.on .ct-name { font-weight:400; color:var(--gold); }
+        .ct-btn .ct-sub { font-size:10px; color:var(--text-4); margin-top:4px; }
+
+        /* Cost bars */
+        .cost-bar { margin-bottom:14px; }
+        .cost-bar-head { display:flex; justify-content:space-between; margin-bottom:6px; }
+        .cost-bar-label { font-size:12px; color:var(--text-3); font-weight:300; letter-spacing:0.03em; }
+        .cost-bar-amt { font-size:13px; color:var(--text-2); font-weight:300; }
+        .cost-bar-track { height:4px; background:rgba(255,255,255,0.05); border-radius:2px; overflow:hidden; }
+        .cost-bar-fill { height:100%; border-radius:2px; transition:width 0.6s var(--ease); }
+
+        /* Year one */
+        .y1-card { background:rgba(245,166,35,0.04); border:1px solid rgba(245,166,35,0.15); border-radius:16px; padding:28px 32px; margin-bottom:16px; }
+        .y1-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+        .y1-item-label { font-size:10px; color:var(--text-4); letter-spacing:0.05em; margin-bottom:4px; }
+        .y1-item-val { font-family:var(--font); font-size:18px; font-weight:200; color:var(--text-2); }
+
+        /* Comparison */
+        .compare-card { padding:24px 28px; background:rgba(255,255,255,0.02); border:1px solid var(--border); border-radius:16px; cursor:pointer; transition:all 0.3s; margin-bottom:16px; }
+        .compare-card.on { background:rgba(78,205,196,0.06); border-color:rgba(78,205,196,0.15); }
+        .compare-head { display:flex; justify-content:space-between; align-items:center; }
+        .compare-body { margin-top:20px; display:none; }
+        .compare-card.on .compare-body { display:block; }
+        .compare-cols { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+        .compare-col { padding:20px; background:rgba(255,255,255,0.03); border-radius:12px; text-align:center; }
+        .compare-col.conc { background:rgba(78,205,196,0.06); border:1px solid rgba(78,205,196,0.15); }
+        .compare-saving { margin-top:16px; padding:16px 20px; background:rgba(78,205,196,0.04); border-radius:10px; text-align:center; }
+
+        /* Premium Upsell System — identical to neighborhood guide */
+        .boom-upsell { position:relative; margin:16px 0; overflow:hidden; border-radius:16px; padding:1px;
+            background: linear-gradient(135deg, rgba(245,166,35,0.25), rgba(245,166,35,0.05) 40%, rgba(245,166,35,0.15) 60%, rgba(245,166,35,0.05));
+            transition: all 0.5s var(--ease); }
+        .boom-upsell:hover { background: linear-gradient(135deg, rgba(245,166,35,0.4), rgba(245,166,35,0.1) 40%, rgba(245,166,35,0.25) 60%, rgba(245,166,35,0.1)); }
+        .boom-upsell::before { content:''; position:absolute; inset:-2px; border-radius:17px; z-index:0;
+            background: conic-gradient(from var(--angle, 0deg), transparent 0%, rgba(245,166,35,0.4) 10%, transparent 20%, transparent 50%, rgba(245,166,35,0.3) 60%, transparent 70%);
+            animation: borderSpin 8s linear infinite; opacity:0; transition: opacity 0.5s; }
+        .boom-upsell:hover::before { opacity:1; }
+        @property --angle { syntax:'<angle>'; initial-value:0deg; inherits:false; }
+        @keyframes borderSpin { to { --angle:360deg; } }
+        .boom-upsell-inner { position:relative; z-index:1; border-radius:15px; overflow:hidden;
+            background: linear-gradient(165deg, rgba(12,12,14,0.97), rgba(18,18,22,0.99)); backdrop-filter: blur(20px); }
+        .boom-upsell-inner::before { content:''; position:absolute; inset:0; pointer-events:none; opacity:0.025;
+            background-image: linear-gradient(30deg, rgba(245,166,35,1) 1px, transparent 1px), linear-gradient(150deg, rgba(245,166,35,1) 1px, transparent 1px), linear-gradient(270deg, rgba(245,166,35,1) 1px, transparent 1px);
+            background-size: 60px 104px; background-position: 0 0, 30px 52px, 15px 26px;
+            mask-image: linear-gradient(135deg, black 0%, transparent 60%); -webkit-mask-image: linear-gradient(135deg, black 0%, transparent 60%); }
+        .boom-upsell-inner::after { content:''; position:absolute; top:-40%; right:-20%; width:260px; height:260px;
+            background: radial-gradient(circle, rgba(245,166,35,0.06) 0%, transparent 70%); pointer-events:none; transition: opacity 0.5s; }
+        .boom-upsell:hover .boom-upsell-inner::after { opacity:1.5; }
+        .upsell-layout { display:flex; gap:0; position:relative; z-index:2; }
+        .upsell-icon-col { width:72px; min-height:100%; flex-shrink:0; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px 0;
+            background: linear-gradient(180deg, rgba(245,166,35,0.08) 0%, rgba(245,166,35,0.02) 100%); border-right:1px solid rgba(245,166,35,0.08); position:relative; }
+        .upsell-icon-ring { width:44px; height:44px; border-radius:50%; position:relative; display:flex; align-items:center; justify-content:center; }
+        .upsell-icon-ring svg { width:44px; height:44px; }
+        .upsell-icon-ring .ring-track { fill:none; stroke:rgba(245,166,35,0.1); stroke-width:2; }
+        .upsell-icon-ring .ring-progress { fill:none; stroke:var(--gold); stroke-width:2; stroke-dasharray:120; stroke-dashoffset:120; stroke-linecap:round; transition: stroke-dashoffset 1s var(--ease); }
+        .boom-upsell:hover .ring-progress { stroke-dashoffset:30; }
+        .upsell-emoji { position:absolute; font-size:18px; line-height:1; }
+        .upsell-icon-col::after { content:''; position:absolute; bottom:12px; left:50%; transform:translateX(-50%); width:1px; height:0; background: linear-gradient(180deg, var(--gold), transparent); transition: height 0.6s var(--ease); }
+        .boom-upsell:hover .upsell-icon-col::after { height:20px; }
+        .upsell-content { flex:1; padding:22px 24px 22px 20px; display:flex; flex-direction:column; gap:8px; }
+        .upsell-top { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
+        .upsell-tag { font-size:9px; font-weight:600; letter-spacing:2px; text-transform:uppercase; color:var(--gold); display:inline-flex; align-items:center; gap:6px; background:rgba(245,166,35,0.08); padding:4px 10px 4px 8px; border-radius:4px; }
+        .upsell-tag::before { content:''; width:4px; height:4px; border-radius:50%; background:var(--gold); display:block; animation: tagPulse 2s ease-in-out infinite; }
+        @keyframes tagPulse { 0%,100%{opacity:0.4;transform:scale(0.8)} 50%{opacity:1;transform:scale(1.2)} }
+        .upsell-price-badge { font-family:var(--font); font-size:22px; font-weight:200; color:var(--gold); white-space:nowrap; line-height:1; display:flex; align-items:baseline; gap:4px; }
+        .upsell-price-badge .price-sub { font-family:var(--font-body); font-size:10px; font-weight:400; color:var(--text-4); letter-spacing:0.02em; }
+        .upsell-headline { font-family:var(--font); font-size:17px; font-weight:300; line-height:1.35; color:var(--text-1); letter-spacing:-0.01em; }
+        .upsell-desc { font-size:13px; color:var(--text-3); line-height:1.65; }
+        .upsell-chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:2px; }
+        .upsell-chip { font-size:10px; font-weight:400; letter-spacing:0.03em; color:var(--text-2); padding:4px 10px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); border-radius:20px; transition:all 0.3s; }
+        .boom-upsell:hover .upsell-chip { border-color:rgba(245,166,35,0.15); background:rgba(245,166,35,0.04); }
+        .upsell-cta-row { display:flex; align-items:center; gap:16px; margin-top:4px; }
+        .upsell-cta { display:inline-flex; align-items:center; gap:8px; font-size:11px; font-weight:600; letter-spacing:1.2px; text-transform:uppercase; color:var(--black); background:var(--gold); padding:9px 20px; border-radius:6px; transition:all 0.4s var(--ease); position:relative; overflow:hidden; }
+        .upsell-cta::before { content:''; position:absolute; inset:0; background:linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent); transform:translateX(-100%); transition:transform 0.6s; }
+        .boom-upsell:hover .upsell-cta::before { transform:translateX(100%); }
+        .upsell-cta:hover { transform:translateY(-1px); box-shadow:0 6px 24px rgba(245,166,35,0.3); }
+        .upsell-cta .cta-arrow { display:inline-block; transition:transform 0.3s var(--ease); }
+        .upsell-cta:hover .cta-arrow { transform:translateX(3px); }
+        .upsell-alt-link { font-size:11px; color:var(--text-4); letter-spacing:0.05em; transition:color 0.3s; }
+        .upsell-alt-link:hover { color:var(--gold); }
+        .upsell-reveal { opacity:0; transform:translateY(16px); animation: upsellIn 0.7s var(--ease) forwards; }
+        .upsell-reveal.d1 { animation-delay:0.1s; } .upsell-reveal.d2 { animation-delay:0.25s; }
+        @keyframes upsellIn { to { opacity:1; transform:translateY(0); } }
+        @media(max-width:600px) {
+            .upsell-layout { flex-direction:column; }
+            .upsell-icon-col { width:100%; min-height:auto; flex-direction:row; gap:10px; padding:14px 18px; border-right:none; border-bottom:1px solid rgba(245,166,35,0.08); justify-content:flex-start; }
+            .upsell-icon-col::after { display:none; }
+            .upsell-content { padding:16px 18px; }
+            .upsell-top { flex-direction:column; gap:6px; }
+        }
+
+        /* Bottom sections */
+        .cta-btn { display:inline-block; padding:16px 42px; background:var(--gold); color:var(--black); border-radius:0; font-size:12px; font-weight:600; letter-spacing:2px; text-transform:uppercase; cursor:pointer; transition:all 0.4s var(--ease); border:none; }
+        .cta-btn:hover { transform:translateY(-2px); box-shadow:0 10px 40px rgba(245,166,35,0.35); }
+        .cta-btn-outline { display:inline-block; padding:14px 32px; background:transparent; border:1px solid var(--border-h); color:var(--text-1); font-size:11px; font-weight:500; letter-spacing:1.5px; text-transform:uppercase; cursor:pointer; transition:all 0.3s; }
+        .cta-btn-outline:hover { border-color:var(--gold); background:rgba(245,166,35,0.05); }
+        .cta-wa { background:#25D366; } .cta-wa:hover { background:#20bd5a; box-shadow:0 10px 40px rgba(37,211,102,0.35); }
+
+        .bottom-cta { max-width:1000px; margin:50px auto 0; padding:0 24px 50px; position:relative; z-index:1; }
+        .bottom-cta-card { padding:56px 44px; background:rgba(255,255,255,0.02); border:1px solid var(--border); text-align:center; position:relative; overflow:hidden; }
+        .bottom-cta-card::before { content:''; position:absolute; inset:0; opacity:0.015; pointer-events:none;
+            background-image: linear-gradient(30deg, rgba(245,166,35,1) 1px, transparent 1px), linear-gradient(150deg, rgba(245,166,35,1) 1px, transparent 1px);
+            background-size: 40px 69px; background-position: 0 0, 20px 35px; }
+        .bottom-cta-card h3 { font-family:var(--font); font-size:28px; font-weight:200; margin-bottom:10px; position:relative; }
+        .bottom-cta-card p { font-size:15px; color:var(--text-3); max-width:480px; margin:0 auto 24px; position:relative; }
+        .bottom-cta-actions { display:flex; gap:14px; justify-content:center; flex-wrap:wrap; position:relative; }
+
+        .contact-section { max-width:1000px; margin:0 auto; padding:0 24px 50px; position:relative; z-index:1; }
+        .contact-card { background:rgba(255,255,255,0.02); border:1px solid var(--border); padding:48px; position:relative; overflow:hidden; }
+        .contact-card::before { content:''; position:absolute; top:-80px; right:-80px; width:260px; height:260px; background:radial-gradient(circle, rgba(245,166,35,0.05) 0%, transparent 70%); pointer-events:none; }
+        .contact-grid { display:grid; grid-template-columns:1fr 1fr; gap:48px; align-items:start; }
+        @media(max-width:768px) { .contact-grid { grid-template-columns:1fr; gap:28px; } .contact-card { padding:28px; } }
+        .contact-info h3 { font-family:var(--font); font-size:26px; font-weight:200; margin-bottom:12px; }
+        .contact-info p { font-size:14px; color:var(--text-3); line-height:1.7; margin-bottom:20px; }
+        .contact-stat { display:flex; gap:24px; margin-bottom:20px; }
+        .contact-stat-item { text-align:center; }
+        .contact-stat-n { font-family:var(--font); font-size:28px; font-weight:200; color:var(--gold); }
+        .contact-stat-l { font-size:10px; color:var(--text-4); letter-spacing:0.1em; text-transform:uppercase; margin-top:2px; }
+        .contact-form { display:flex; flex-direction:column; gap:14px; }
+        .form-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+        @media(max-width:500px) { .form-row { grid-template-columns:1fr; } }
+        .form-field { display:flex; flex-direction:column; gap:4px; }
+        .form-field label { font-size:10px; font-weight:600; letter-spacing:1.5px; text-transform:uppercase; color:var(--text-4); }
+        .form-field input, .form-field select, .form-field textarea { background:rgba(255,255,255,0.03); border:1px solid var(--border); color:var(--text-1); font-family:var(--font-body); font-size:14px; font-weight:300; padding:12px 16px; border-radius:8px; outline:none; transition:border-color 0.3s; }
+        .form-field input:focus, .form-field select:focus, .form-field textarea:focus { border-color:rgba(245,166,35,0.4); }
+        .form-field textarea { resize:vertical; min-height:80px; }
+        .form-field select option { background:#121214; color:var(--text-1); }
+        .form-submit { display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:14px 36px; background:var(--gold); color:var(--black); font-size:12px; font-weight:600; letter-spacing:2px; text-transform:uppercase; border:none; border-radius:6px; cursor:pointer; transition:all 0.4s var(--ease); font-family:var(--font-body); width:100%; }
+        .form-submit:hover { transform:translateY(-2px); box-shadow:0 8px 32px rgba(245,166,35,0.3); }
+        .form-note { font-size:11px; color:var(--text-4); text-align:center; }
+
+        .related { max-width:1000px; margin:0 auto; padding:0 24px 40px; position:relative; z-index:1; }
+        .related-title { font-size:11px; letter-spacing:0.2em; color:var(--text-4); text-transform:uppercase; margin-bottom:16px; }
+        .related-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:10px; }
+        .related-card { padding:18px 20px; background:rgba(255,255,255,0.02); border:1px solid var(--border); transition:border-color 0.3s; }
+        .related-card:hover { border-color:rgba(245,166,35,0.25); }
+        .related-card h4 { font-size:14px; font-weight:400; margin-bottom:4px; }
+        .related-card span { font-size:12px; color:var(--text-4); }
+        .bfoot { border-top:1px solid var(--border); padding:22px 24px; text-align:center; font-size:11px; color:var(--text-4); letter-spacing:0.1em; }
+    </style>
+</head>
+<body>
+
+<div class="bg-grid">
+    <svg width="100%" height="100%"><defs><pattern id="dot-grid" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="12" cy="12" r="0.5" fill="#F5A623"/></pattern></defs><rect width="100%" height="100%" fill="url(#dot-grid)"/></svg>
+</div>
+
+<nav class="bnav">
+    <div class="bnav-in">
+        <a href="https://www.boomrome.com" class="bnav-logo"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="56" height="56" style="filter:drop-shadow(0 0 12px rgba(245,166,35,0.4));"><defs><linearGradient id="gN" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#FFD54F"/><stop offset="100%" stop-color="#F5A623"/></linearGradient></defs><g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#gN)"><path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z m610 -144 c743 -103 1436 -459 1919 -985 338 -367 562 -751 704 -1205 276 -879 132 -1858 -388 -2640 -242 -364 -493 -615 -900 -900 l-70 -49 109 104 c413 396 679 919 767 1505 33 217 33 558 0 765 -75 476 -257 896 -549 1265 -127 161 -363 380 -549 511 -300 211 -689 363 -1079 420 -172 26 -604 26 -764 0 -296 -47 -545 -128 -808 -262 -236 -122 -440 -271 -632 -464 -486 -485 -749 -1121 -751 -1815 -1 -611 170 -1148 515 -1608 100 -134 286 -335 382 -413 33 -27 -8 -2 -91 55 -513 351 -904 805 -1143 1331 -71 156 -136 336 -168 465 -9 33 -19 76 -24 95 -5 19 -20 100 -34 180 -59 343 -60 740 0 1070 81 456 229 826 479 1200 246 368 558 669 949 917 386 245 881 418 1321 462 61 6 124 13 140 15 73 10 556 -4 665 -19z m-60 -1329 c105 -16 258 -49 335 -72 82 -26 197 -66 240 -84 149 -65 190 -84 266 -126 677 -379 1129 -1049 1246 -1849 27 -182 24 -517 -5 -695 -75 -458 -225 -813 -500 -1179 -116 -154 -340 -369 -527 -506 -44 -32 -87 -63 -95 -69 -8 -6 35 39 96 99 178 177 283 321 397 550 161 322 231 676 205 1045 -32 467 -223 902 -542 1237 -239 251 -521 426 -873 542 -79 26 -273 67 -383 81 -108 13 -349 13 -465 0 -276 -32 -597 -145 -834 -293 -224 -140 -466 -378 -613 -602 -307 -470 -407 -1055 -273 -1599 80 -327 217 -589 454 -871 71 -84 73 -88 31 -56 -293 225 -547 535 -718 877 -34 68 -65 143 -122 294 -42 112 -101 383 -120 555 -14 127 -14 401 0 534 51 482 223 912 516 1288 269 344 654 620 1085 778 160 59 400 115 574 134 121 13 508 5 625 -13z m-30 -1165 c401 -81 721 -242 992 -499 643 -612 769 -1607 300 -2367 -118 -190 -291 -386 -463 -524 -137 -111 -148 -113 -49 -12 110 112 206 248 275 386 67 137 98 222 132 367 24 103 26 132 27 323 0 182 -3 224 -22 310 -47 211 -126 394 -245 569 -126 186 -358 387 -564 490 -384 191 -823 225 -1218 95 -482 -160 -854 -541 -1004 -1029 -117 -379 -81 -810 96 -1165 37 -72 130 -215 166 -252 17 -18 26 -33 20 -33 -6 0 -61 52 -121 116 -259 272 -424 575 -511 934 -111 459 -18 1006 245 1430 298 483 791 797 1379 880 110 16 448 4 565 -19z m-239 -911 c360 -28 680 -171 925 -415 194 -193 317 -415 382 -688 24 -102 26 -130 26 -312 0 -191 -1 -205 -30 -320 -53 -205 -132 -372 -251 -535 -58 -79 -263 -288 -323 -330 -31 -22 -29 -18 18 35 195 220 312 519 312 795 0 325 -121 614 -350 841 -369 364 -926 453 -1385 222 -336 -170 -578 -499 -636 -865 -19 -126 -7 -371 25 -490 44 -162 97 -284 173 -398 9 -14 -4 -5 -30 20 -26 24 -45 51 -42 58 2 7 1 11 -4 7 -11 -6 -58 51 -118 140 -109 163 -183 347 -219 545 -23 127 -23 351 -1 489 55 335 248 677 492 871 261 208 530 311 881 338 11 1 81 -3 155 -8z m29 -714 c459 -74 823 -428 895 -869 58 -358 -60 -696 -345 -987 l-34 -35 22 35 c115 182 179 403 168 575 -14 235 -104 433 -268 591 -137 134 -287 209 -472 239 -115 19 -187 19 -303 0 -337 -55 -612 -302 -704 -635 -32 -113 -34 -325 -5 -440 23 -92 70 -213 98 -254 l21 -31 -31 29 c-39 36 -120 152 -155 221 -35 71 -81 215 -102 319 -25 130 -17 357 17 476 102 354 357 618 706 730 152 49 331 62 492 36z m-73 -567 c178 -24 327 -101 454 -236 137 -143 199 -303 201 -513 1 -162 -42 -309 -135 -453 -52 -82 -73 -97 -38 -28 51 99 67 290 36 412 -57 219 -251 413 -466 464 -75 17 -236 20 -311 4 -213 -44 -422 -247 -473 -460 -31 -133 -13 -325 41 -431 35 -70 8 -47 -52 43 -58 88 -90 167 -114 286 -25 121 -25 220 -1 331 33 146 84 243 186 351 171 183 413 266 672 230z m15 -470 c80 -17 186 -76 248 -139 106 -107 158 -248 147 -398 -6 -92 -25 -152 -79 -250 -45 -82 -60 -91 -27 -17 18 41 21 62 17 149 -4 89 -8 108 -35 162 -43 82 -126 165 -209 205 -58 29 -80 34 -158 37 -112 5 -184 -12 -259 -62 -182 -121 -251 -323 -171 -506 l24 -55 -25 30 c-36 44 -92 162 -104 223 -39 189 14 369 146 492 105 99 204 139 345 139 48 1 111 -4 140 -10z"/></g></svg><span>BOOM</span></a>
+        <div class="bnav-links">
+            <a href="https://www.boomrome.com" class="bnav-link">Home</a>
+            <a href="https://www.boomrome.com/apartments.html" class="bnav-link">Apartments</a>
+            <a href="https://www.boomrome.com/blog.html" class="bnav-link">Blog</a>
+            <a href="https://wa.me/393313251961" target="_blank" class="bnav-cta">WhatsApp</a>
+        </div>
+    </div>
+</nav>
+<div class="back"><a href="https://www.boomrome.com/blog.html">&larr; Back to Blog</a></div>
+
+<header class="hero">
+    <div class="hero-ey"><div class="hero-line"></div><span class="hero-tag">BOOM Money Guide</span></div>
+    <h1>What Renting in Rome<br><em>Actually Costs</em></h1>
+    <p class="hero-sub">The number on the listing is never the real number. Here's every euro you'll actually spend &mdash; with an interactive calculator to plan properly.</p>
+</header>
+
+<div class="calc-grid">
+    <!-- Controls -->
+    <div style="position:sticky;top:80px;">
+        <div class="card">
+            <div class="card-label">Configure Your Scenario</div>
+
+            <div class="slider-group">
+                <div class="slider-head"><span class="slider-label">Monthly Budget</span><span class="slider-val" id="budget-val">&euro;1,200</span></div>
+                <input type="range" id="budget" min="500" max="3000" step="50" value="1200" oninput="calc()">
+            </div>
+
+            <div class="slider-group">
+                <div class="slider-head"><span class="slider-label">Bedrooms</span><span class="slider-val" id="rooms-val">2</span></div>
+                <input type="range" id="rooms" min="1" max="4" step="1" value="2" oninput="calc()">
+            </div>
+
+            <div style="margin-bottom:28px;">
+                <div class="slider-label" style="margin-bottom:12px;">Neighborhood</div>
+                <div class="zone-btns" id="zone-btns"></div>
+            </div>
+
+            <div>
+                <div class="slider-label" style="margin-bottom:12px;">Contract Type</div>
+                <div class="ct-btns">
+                    <button class="ct-btn on" data-ct="concordato" onclick="setCT('concordato')"><div class="ct-name">Canone Concordato</div><div class="ct-sub">Regulated &mdash; Lower rent</div></button>
+                    <button class="ct-btn" data-ct="libero" onclick="setCT('libero')"><div class="ct-name">Canone Libero</div><div class="ct-sub">Free market &mdash; Higher rent</div></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- DAS Upsell in sidebar -->
+        <div class="boom-upsell upsell-reveal d1" style="margin-top:14px;">
+            <div class="boom-upsell-inner"><div class="upsell-layout">
+                <div class="upsell-icon-col"><div class="upsell-icon-ring"><svg viewBox="0 0 44 44"><circle class="ring-track" cx="22" cy="22" r="19"/><circle class="ring-progress" cx="22" cy="22" r="19"/></svg><span class="upsell-emoji">🤝</span></div></div>
+                <div class="upsell-content">
+                    <div class="upsell-top"><div class="upsell-tag">Deal Assistance</div><div class="upsell-price-badge">&#8364;249 <span class="price-sub">fixed fee</span></div></div>
+                    <div class="upsell-headline">We negotiate concordato rates that save you thousands.</div>
+                    <div class="upsell-desc">Contract review, price negotiation, landlord verification. The &euro;249 pays for itself on the first month.</div>
+                    <div class="upsell-chips"><span class="upsell-chip">Contract Review</span><span class="upsell-chip">Price Negotiation</span><span class="upsell-chip">Landlord Check</span></div>
+                    <div class="upsell-cta-row"><a href="https://www.boomrome.com/deal-assistance.html" class="upsell-cta">Get Assistance <span class="cta-arrow">&rarr;</span></a><a href="https://wa.me/393313251961" class="upsell-alt-link">or WhatsApp</a></div>
+                </div>
+            </div></div>
+        </div>
+    </div>
+
+    <!-- Results -->
+    <div id="results">
+        <!-- Monthly breakdown -->
+        <div class="card" style="margin-bottom:16px;">
+            <div class="card-label">Real Monthly Cost</div>
+            <div id="cost-bars"></div>
+            <div style="margin-top:20px;padding-top:20px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:baseline;">
+                <span style="font-size:14px;color:var(--text-3)">True Monthly Total</span>
+                <span id="monthly-total" style="font-family:var(--font);font-size:32px;font-weight:200;color:var(--gold)"></span>
+            </div>
+            <div id="monthly-diff" style="margin-top:8px;font-size:12px;color:var(--text-4)"></div>
+        </div>
+
+        <!-- Year One -->
+        <div class="y1-card">
+            <div style="font-size:11px;letter-spacing:0.15em;color:var(--gold);text-transform:uppercase;margin-bottom:16px;">&#128176; Year One &mdash; Full Picture</div>
+            <div class="y1-grid" id="y1-grid"></div>
+            <div style="margin-top:20px;padding-top:16px;border-top:1px solid rgba(245,166,35,0.15);display:flex;justify-content:space-between;align-items:baseline;">
+                <span style="font-size:13px;color:var(--text-3)">Year One Total Outlay</span>
+                <span id="y1-total" style="font-family:var(--font);font-size:36px;font-weight:200;color:var(--gold)"></span>
+            </div>
+        </div>
+
+        <!-- Comparison -->
+        <div class="compare-card" id="compare-card" onclick="toggleCompare()">
+            <div class="compare-head">
+                <div>
+                    <div style="font-size:11px;letter-spacing:0.12em;color:#4ECDC4;text-transform:uppercase;margin-bottom:6px;">&#9878;&#65039; Concordato vs. Libero &mdash; What You Save</div>
+                    <div id="compare-zone-name" style="font-size:14px;color:var(--text-3)"></div>
+                </div>
+                <span id="compare-arrow" style="color:var(--text-4);transition:transform 0.3s">&#9660;</span>
+            </div>
+            <div class="compare-body" id="compare-body"></div>
+        </div>
+
+        <!-- PFS Upsell -->
+        <div class="boom-upsell upsell-reveal d2">
+            <div class="boom-upsell-inner"><div class="upsell-layout">
+                <div class="upsell-icon-col"><div class="upsell-icon-ring"><svg viewBox="0 0 44 44"><circle class="ring-track" cx="22" cy="22" r="19"/><circle class="ring-progress" cx="22" cy="22" r="19"/></svg><span class="upsell-emoji">🔍</span></div></div>
+                <div class="upsell-content">
+                    <div class="upsell-top"><div class="upsell-tag">Property Finding</div><div class="upsell-price-badge">&#8364;350 <span class="price-sub">upfront*</span></div></div>
+                    <div class="upsell-headline">Don't have time to search? We'll hunt for you.</div>
+                    <div class="upsell-desc">Tell us your requirements &mdash; within 10 days you'll have curated options. Access to off-market properties included. *Deducted from agency fee.</div>
+                    <div class="upsell-chips"><span class="upsell-chip">10-Day Delivery</span><span class="upsell-chip">Off-Market Access</span><span class="upsell-chip">Money-Back Guarantee</span></div>
+                    <div class="upsell-cta-row"><a href="https://www.boomrome.com/property-finding.html" class="upsell-cta">Start Search <span class="cta-arrow">&rarr;</span></a><a href="https://wa.me/393313251961" class="upsell-alt-link">or WhatsApp</a></div>
+                </div>
+            </div></div>
+        </div>
+    </div>
+</div>
+
+<div class="bottom-cta">
+    <div class="bottom-cta-card">
+        <h3>We negotiate concordato rates that save clients</h3>
+        <p style="font-family:var(--font);font-size:36px;font-weight:200;color:var(--gold);max-width:none;margin-bottom:8px;">&euro;2,000&ndash;4,000<span style="font-size:16px;color:var(--text-3)">/year</span></p>
+        <p>That's not marketing &mdash; it's math.</p>
+        <div class="bottom-cta-actions">
+            <a href="https://wa.me/393313251961" target="_blank" class="cta-btn cta-wa">WhatsApp Us</a>
+            <a href="https://www.boomrome.com/deal-assistance.html" class="cta-btn-outline">Deal Assistance</a>
+            <a href="https://www.boomrome.com/property-finding.html" class="cta-btn-outline">Property Finding</a>
+        </div>
+    </div>
+</div>
+
+<div class="contact-section">
+    <div class="contact-card">
+        <div class="contact-grid">
+            <div class="contact-info">
+                <h3>Talk to a <em style="font-family:var(--font-accent);font-style:italic;color:var(--gold);">human</em></h3>
+                <p>No chatbot. No call center. Just Valentino and the BOOM team &mdash; people who actually live in Rome and know every corner of this city's rental market.</p>
+                <div class="contact-stat">
+                    <div class="contact-stat-item"><div class="contact-stat-n">2min</div><div class="contact-stat-l">Avg Response</div></div>
+                    <div class="contact-stat-item"><div class="contact-stat-n">500+</div><div class="contact-stat-l">Clients Helped</div></div>
+                    <div class="contact-stat-item"><div class="contact-stat-n">&#8364;0</div><div class="contact-stat-l">Consult Fee</div></div>
+                </div>
+                <p style="font-size:12px;color:var(--text-4);">Or message us directly: <a href="https://wa.me/393313251961" style="color:var(--gold);">WhatsApp &rarr;</a></p>
+            </div>
+            <form class="contact-form" action="https://api.web3forms.com/submit" method="POST">
+                <input type="hidden" name="access_key" value="f2a0e600-9b96-4e00-8e3a-3cb616c490d5">
+                <input type="hidden" name="subject" value="BOOM Blog — Cost Calculator Inquiry">
+                <input type="hidden" name="from_name" value="BOOM Cost Calculator">
+                <input type="hidden" name="to" value="Valentino@boom-rome.com">
+                <input type="hidden" name="redirect" value="https://www.boomrome.com/blog-cost-calculator.html">
+                <div class="form-row">
+                    <div class="form-field"><label for="cf-name">Name</label><input type="text" id="cf-name" name="name" placeholder="Your name" required></div>
+                    <div class="form-field"><label for="cf-email">Email</label><input type="email" id="cf-email" name="email" placeholder="you@example.com" required></div>
+                </div>
+                <div class="form-field"><label for="cf-service">I'm interested in</label>
+                    <select id="cf-service" name="service"><option value="general">General inquiry</option><option value="property-finding">Property Finding (&#8364;350)</option><option value="deal-assistance" selected>Deal Assistance (&#8364;249)</option><option value="virtual-viewing">Virtual Viewing (&#8364;89)</option><option value="apartments">Ready Apartments</option></select>
+                </div>
+                <div class="form-field"><label for="cf-msg">Message</label><textarea id="cf-msg" name="message" placeholder="Tell us your budget, preferred area, and move-in date. We'll help you plan."></textarea></div>
+                <button type="submit" class="form-submit">Send Message <span>&rarr;</span></button>
+                <div class="form-note">Free consultation. No commitment. Response within 2 hours.</div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="related">
+    <div class="related-title">More from BOOM</div>
+    <div class="related-grid">
+        <a href="https://www.boomrome.com/blog-neighborhood-guide.html" class="related-card"><h4>The Real Rome Neighborhood Guide</h4><span>Interactive map of 12 zones &rarr;</span></a>
+        <a href="https://www.boomrome.com/blog-scam-bible.html" class="related-card"><h4>The Rome Rental Scam Bible</h4><span>Every trick they'll try on you &rarr;</span></a>
+        <a href="https://www.boomrome.com/blog-cost-calculator.html" class="related-card"><h4>What Renting Actually Costs</h4><span>Interactive cost calculator &rarr;</span></a>
+        <a href="https://www.boomrome.com/blog-47-steps.html" class="related-card"><h4>47 Steps to Your Keys</h4><span>The complete rental journey &rarr;</span></a>
+        <a href="https://www.boomrome.com/blog-tenant-rights.html" class="related-card"><h4>Your Rights as a Tenant</h4><span>Italian law cheat sheet &rarr;</span></a>
+    </div>
+</div>
+
+<footer class="bfoot">&copy; 2026 BOOM by Egidi Immobiliare S.r.l. &mdash; P.IVA 17322991005 &mdash; Rome Rental Assistance for Expats</footer>
+
+<script>
+var zones=[
+  {name:"Centro Storico",libero:[1500,2500],concordato:[900,1400],scamPremium:0.25},
+  {name:"Trastevere",libero:[1200,1800],concordato:[750,1100],scamPremium:0.15},
+  {name:"Monti",libero:[1300,1900],concordato:[800,1200],scamPremium:0.15},
+  {name:"Prati",libero:[1100,1700],concordato:[700,1050],scamPremium:0.10},
+  {name:"Testaccio",libero:[900,1400],concordato:[600,900],scamPremium:0.05},
+  {name:"San Lorenzo",libero:[700,1100],concordato:[500,750],scamPremium:0.08},
+  {name:"Pigneto",libero:[650,1000],concordato:[450,700],scamPremium:0.08},
+  {name:"EUR",libero:[800,1300],concordato:[550,850],scamPremium:0.03}
+];
+
+var selZone=1, ct='concordato', compareOpen=false;
+
+// Build zone buttons
+var zb=document.getElementById('zone-btns');
+zones.forEach(function(z,i){
+    var b=document.createElement('button');
+    b.className='zone-btn'+(i===selZone?' on':'');
+    b.textContent=z.name;
+    b.onclick=function(){selZone=i;document.querySelectorAll('.zone-btn').forEach(function(x){x.classList.remove('on');});b.classList.add('on');calc();};
+    zb.appendChild(b);
+});
+
+function setCT(type){
+    ct=type;
+    document.querySelectorAll('.ct-btn').forEach(function(b){b.classList.toggle('on',b.dataset.ct===type);});
+    calc();
+}
+
+function toggleCompare(){
+    compareOpen=!compareOpen;
+    var card=document.getElementById('compare-card');
+    card.classList.toggle('on',compareOpen);
+    document.getElementById('compare-arrow').style.transform=compareOpen?'rotate(180deg)':'';
+}
+
+function costBar(label,amount,max,color){
+    var pct=Math.min((amount/max)*100,100);
+    return '<div class="cost-bar"><div class="cost-bar-head"><span class="cost-bar-label">'+label+'</span><span class="cost-bar-amt">\u20AC'+Math.round(amount).toLocaleString()+'</span></div>'+
+        '<div class="cost-bar-track"><div class="cost-bar-fill" style="width:'+pct+'%;background:'+color+'"></div></div></div>';
+}
+
+function calc(){
+    var budget=+document.getElementById('budget').value;
+    var rooms=+document.getElementById('rooms').value;
+    var zone=zones[selZone];
+    var range=ct==='concordato'?zone.concordato:zone.libero;
+    var baseRent=Math.min(Math.max(budget,range[0]),range[1]);
+    var annualRent=baseRent*12;
+    var regTax=annualRent*0.01;
+    var condo=80+(rooms*30);
+    var tari=15+(rooms*8);
+    var utilSetup=200;
+    var agencyFee=baseRent*1.22;
+    var deposit=baseRent*(ct==='concordato'?2:3);
+    var monthlyTotal=baseRent+condo+tari+(regTax/12);
+    var yearOne=(monthlyTotal*12)+utilSetup+agencyFee+deposit;
+    var maxCost=monthlyTotal*1.3;
+
+    document.getElementById('budget-val').textContent='\u20AC'+budget.toLocaleString();
+    document.getElementById('rooms-val').textContent=rooms;
+
+    // Update slider gradient
+    var bSlider=document.getElementById('budget');
+    var bPct=((budget-500)/2500)*100;
+    bSlider.style.background='linear-gradient(to right, var(--gold) 0%, var(--gold) '+bPct+'%, rgba(255,255,255,0.08) '+bPct+'%, rgba(255,255,255,0.08) 100%)';
+    var rSlider=document.getElementById('rooms');
+    var rPct=((rooms-1)/3)*100;
+    rSlider.style.background='linear-gradient(to right, var(--gold) 0%, var(--gold) '+rPct+'%, rgba(255,255,255,0.08) '+rPct+'%, rgba(255,255,255,0.08) 100%)';
+
+    // Cost bars
+    document.getElementById('cost-bars').innerHTML=
+        costBar('Base Rent',baseRent,maxCost,'#F5A623')+
+        costBar('Condominio',condo,maxCost,'#45B7D1')+
+        costBar('TARI (Waste Tax)',tari,maxCost,'#96CEB4')+
+        costBar('Registration Tax (monthly)',regTax/12,maxCost,'#DDA0DD');
+
+    document.getElementById('monthly-total').textContent='\u20AC'+Math.round(monthlyTotal).toLocaleString();
+    document.getElementById('monthly-diff').innerHTML='That\u2019s <span style="color:var(--orange)">\u20AC'+Math.round(monthlyTotal-baseRent).toLocaleString()+'/month more</span> than the listing price suggests.';
+
+    // Year one
+    var items=[
+        {l:'12 Months Total',v:monthlyTotal*12},
+        {l:'Utilities Setup',v:utilSetup},
+        {l:'Agency Fee (1mo+VAT)',v:agencyFee},
+        {l:'Deposit ('+(ct==='concordato'?'2':'3')+' months)',v:deposit}
+    ];
+    document.getElementById('y1-grid').innerHTML=items.map(function(it){
+        return '<div><div class="y1-item-label">'+it.l+'</div><div class="y1-item-val">\u20AC'+Math.round(it.v).toLocaleString()+'</div></div>';
+    }).join('');
+    document.getElementById('y1-total').textContent='\u20AC'+Math.round(yearOne).toLocaleString();
+
+    // Comparison
+    var libRent=Math.min(Math.max(budget,zone.libero[0]),zone.libero[1]);
+    var concRent=Math.min(Math.max(budget,zone.concordato[0]),zone.concordato[1]);
+    var saving=(libRent-concRent)*12;
+    document.getElementById('compare-zone-name').textContent='Click to see the comparison for '+zone.name;
+    document.getElementById('compare-body').innerHTML=
+        '<div class="compare-cols">'+
+            '<div class="compare-col"><div style="font-size:10px;color:var(--text-4);letter-spacing:0.1em;margin-bottom:8px">CANONE LIBERO</div><div style="font-family:var(--font);font-size:28px;font-weight:200;color:var(--orange)">\u20AC'+libRent.toLocaleString()+'</div><div style="font-size:11px;color:var(--text-4);margin-top:4px">/month</div></div>'+
+            '<div class="compare-col conc"><div style="font-size:10px;color:#4ECDC4;letter-spacing:0.1em;margin-bottom:8px">CANONE CONCORDATO</div><div style="font-family:var(--font);font-size:28px;font-weight:200;color:#4ECDC4">\u20AC'+concRent.toLocaleString()+'</div><div style="font-size:11px;color:var(--text-4);margin-top:4px">/month</div></div>'+
+        '</div>'+
+        '<div class="compare-saving"><div style="font-size:12px;color:var(--text-3);margin-bottom:4px">Annual Savings with Concordato</div><div style="font-family:var(--font);font-size:32px;font-weight:200;color:#4ECDC4">\u20AC'+saving.toLocaleString()+'</div><div style="font-size:12px;color:var(--text-4);margin-top:4px">+ tax benefits for both tenant and landlord</div></div>';
+
+    gtag('event','calc_update',{zone:zone.name,contract:ct,budget:budget});
+}
+
+calc();
+</script>
+</body>
+</html>
