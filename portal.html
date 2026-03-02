@@ -536,6 +536,22 @@
             <p class="auth-subtitle">Property Portal</p>
             <div class="auth-msg error" id="authError"></div>
             <div class="auth-msg info" id="authInfo"></div>
+            <script>
+            (function(){
+                const p = new URLSearchParams(window.location.search);
+                if (p.get('action') === 'sign') {
+                    const info = document.getElementById('authInfo');
+                    info.textContent = '✏️ Log in to sign your rental contract';
+                    info.style.display = 'block';
+                    info.style.background = 'rgba(212,175,55,0.1)';
+                    info.style.color = '#F5A623';
+                    info.style.border = '1px solid rgba(212,175,55,0.2)';
+                    info.style.borderRadius = '8px';
+                    info.style.padding = '12px';
+                    info.style.marginBottom = '16px';
+                }
+            })();
+            </script>
             <form id="loginForm">
                 <input type="email" class="form-input" id="loginEmail" placeholder="Email" required>
                 <input type="password" class="form-input" id="loginPassword" placeholder="Password" required>
@@ -722,6 +738,177 @@
     };
     // Initialize EmailJS
     try { if (typeof emailjs !== 'undefined') emailjs.init(EMAILJS_CONFIG.publicKey); } catch(e) { console.warn('EmailJS not loaded'); }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // ★ SMART ONBOARDING — Password Generator, Deep Links, Credential Sharing
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    function generatePassword(length = 10) {
+        const words = ['Rome','Boom','Casa','Blue','Gold','Star','Luna','Sole','Alto','Vita'];
+        const word = words[Math.floor(Math.random() * words.length)];
+        const nums = Math.floor(Math.random() * 900 + 100);
+        const specials = ['!','@','#','$'];
+        const spec = specials[Math.floor(Math.random() * specials.length)];
+        return word + nums + spec;
+    }
+    
+    // Store last created credentials for sharing
+    let lastCreatedCredentials = null;
+    
+    function checkDeepLink() {
+        const params = new URLSearchParams(window.location.search);
+        const action = params.get('action');
+        const contractId = params.get('contract');
+        
+        if (action === 'sign' && contractId) {
+            // Clean URL
+            window.history.replaceState({}, document.title, window.location.pathname);
+            // Wait for data to load then open sign modal
+            setTimeout(() => {
+                const contract = S.contracts.find(c => c.id === contractId);
+                if (!contract) { toast('info', 'Contratto non trovato'); return; }
+                const role = S.profile.id === contract.tenantId ? 'tenant' : 
+                             S.properties.find(p => p.id === contract.propertyId)?.ownerId === S.profile.id ? 'landlord' : null;
+                if (role) {
+                    openSignContractModal(contractId, role);
+                } else {
+                    // Admin viewing — show signature status
+                    viewContractSignatures(contractId);
+                }
+            }, 800);
+        }
+    }
+    
+    async function resetAndSharePassword(userId) {
+        const user = S.users.find(u => u.id === userId);
+        if (!user) return toast('error', 'Utente non trovato');
+        
+        closeModal();
+        
+        try {
+            await auth.sendPasswordResetEmail(user.email);
+            toast('success', '📧 Email reset inviata!', user.email);
+        } catch (err) {
+            console.error('Password reset error:', err);
+            // Continue anyway to show sharing options
+        }
+        
+        // Find active contract for deep link
+        const contract = S.contracts.find(c => (c.tenantId === userId || S.properties.find(p => p.id === c.propertyId)?.ownerId === userId) && c.status === 'active');
+        const portalUrl = window.location.origin + window.location.pathname;
+        const signLink = contract ? portalUrl + '?action=sign&contract=' + contract.id : portalUrl;
+        
+        const waMessage = encodeURIComponent(
+            `Hi ${user.name.split(' ')[0]}! 👋\n\n` +
+            `I just sent you a password reset email for your BOOM portal.\n\n` +
+            `1. Check your inbox (${user.email}) for the reset link\n` +
+            `2. Set your new password\n` +
+            `3. Then log in here: ${signLink}\n\n` +
+            `Let me know if you need help!\n` +
+            `— BOOM Property Management`
+        );
+        const waLink = user.phone ? 
+            `https://wa.me/${user.phone.replace(/[^0-9]/g, '')}?text=${waMessage}` :
+            `https://wa.me/?text=${waMessage}`;
+        
+        setTimeout(() => {
+            document.getElementById('modals').innerHTML = `
+            <div class="modal-overlay active" onclick="if(event.target===this)closeModal()">
+                <div class="modal" style="max-width:480px">
+                    <div class="modal-header">
+                        <h3 class="modal-title">🔑 Reset Password — ${user.name.split(' ')[0]}</h3>
+                        <button class="modal-close" onclick="closeModal()">×</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert success" style="margin-bottom:16px">
+                            <span class="alert-icon">📧</span>
+                            <div class="alert-content">
+                                <div class="alert-title">Email di reset inviata</div>
+                                <div class="alert-text">${user.email}</div>
+                            </div>
+                        </div>
+                        
+                        <p style="font-size:13px;color:var(--text-secondary);line-height:1.7;margin-bottom:16px">
+                            Firebase ha inviato un link per reimpostare la password. Condividi le istruzioni:
+                        </p>
+                        
+                        <div style="display:flex;flex-direction:column;gap:10px">
+                            <a href="${waLink}" target="_blank" class="btn btn-block" style="background:#25D366;text-decoration:none;text-align:center;padding:14px">
+                                💬 Istruzioni via WhatsApp
+                            </a>
+                            <button class="btn btn-secondary btn-block" onclick="navigator.clipboard.writeText('BOOM Portal: ${signLink}\\nCheck your email (${user.email}) for the password reset link.');toast('success','Copiato!')">
+                                📋 Copia istruzioni
+                            </button>
+                        </div>
+                        
+                        ${contract ? `<div style="background:rgba(212,175,55,0.08);border:1px solid rgba(212,175,55,0.2);border-radius:10px;padding:14px;margin-top:16px">
+                            <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">🔗 Link firma diretta (dopo reset):</div>
+                            <div style="font-size:11px;word-break:break-all;color:var(--text-primary)">${signLink}</div>
+                        </div>` : ''}
+                    </div>
+                </div>
+            </div>`;
+        }, 300);
+    }
+    
+    function showCredentialShareModal(userName, userEmail, userPassword, userPhone, contractId) {
+        const portalUrl = window.location.origin + window.location.pathname;
+        const signLink = contractId ? portalUrl + '?action=sign&contract=' + contractId : portalUrl;
+        
+        const waMessage = encodeURIComponent(
+            `Hi ${userName.split(' ')[0]}! 👋\n\n` +
+            `Your BOOM tenant portal is ready:\n` +
+            `🔗 ${signLink}\n\n` +
+            `Login:\n📧 ${userEmail}\n🔑 ${userPassword}\n\n` +
+            `Click the link, log in, and sign your contract. Takes 2 minutes!\n\n` +
+            `— BOOM Property Management`
+        );
+        const waLink = userPhone ? 
+            `https://wa.me/${userPhone.replace(/[^0-9]/g, '')}?text=${waMessage}` :
+            `https://wa.me/?text=${waMessage}`;
+        
+        const clipboardText = `BOOM Portal Login\n${signLink}\nEmail: ${userEmail}\nPassword: ${userPassword}`;
+        
+        document.getElementById('modals').innerHTML = `
+        <div class="modal-overlay active" onclick="if(event.target===this)closeModal()">
+            <div class="modal" style="max-width:480px">
+                <div class="modal-header">
+                    <h3 class="modal-title">🔐 Credenziali per ${userName.split(' ')[0]}</h3>
+                    <button class="modal-close" onclick="closeModal()">×</button>
+                </div>
+                <div class="modal-body">
+                    <div style="background:var(--surface);border-radius:12px;padding:20px;margin-bottom:16px">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                            <div style="font-size:8px;font-weight:500;letter-spacing:2px;text-transform:uppercase;color:var(--gold)">LOGIN CREDENTIALS</div>
+                            <button class="btn btn-xs btn-secondary" onclick="navigator.clipboard.writeText(\`${clipboardText.replace(/`/g, '\\`')}\`);toast('success','Copiato!')">📋 Copia tutto</button>
+                        </div>
+                        <div style="font-size:13px;line-height:2">
+                            <div><span style="color:var(--text-muted);width:60px;display:inline-block">Email:</span> <strong>${userEmail}</strong></div>
+                            <div><span style="color:var(--text-muted);width:60px;display:inline-block">Pass:</span> <code style="background:var(--bg);padding:2px 8px;border-radius:4px;font-size:14px;letter-spacing:0.5px">${userPassword}</code></div>
+                        </div>
+                    </div>
+                    
+                    ${contractId ? `<div style="background:rgba(212,175,55,0.08);border:1px solid rgba(212,175,55,0.2);border-radius:10px;padding:14px;margin-bottom:16px">
+                        <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">🔗 Link firma diretta:</div>
+                        <div style="font-size:11px;word-break:break-all;color:var(--text-primary)">${signLink}</div>
+                    </div>` : ''}
+                    
+                    <div style="font-size:12px;font-weight:600;margin-bottom:12px;color:var(--text-secondary)">Condividi via:</div>
+                    <div style="display:flex;flex-direction:column;gap:10px">
+                        <a href="${waLink}" target="_blank" class="btn btn-block" style="background:#25D366;text-decoration:none;text-align:center;padding:14px">
+                            💬 Invia su WhatsApp
+                        </a>
+                        <button class="btn btn-secondary btn-block" onclick="navigator.clipboard.writeText(\`${clipboardText.replace(/`/g, '\\`')}\`);toast('success','Credenziali copiate — incolla dove vuoi')">
+                            📋 Copia credenziali
+                        </button>
+                        <button class="btn btn-secondary btn-block" style="opacity:0.7" onclick="closeModal()">
+                            ✋ Le condivido dopo di persona
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+    }
 
     // ═══════════════════════════════════════════════════════════════════════════
     // STRIPE CONFIGURATION - Update these values!
@@ -1460,6 +1647,8 @@ Valentyne - BOOM Rome`
                     startSessionCheck();
                     // ★ BOOM PROTOCOL: Check onboarding for new tenants
                     setTimeout(() => { if (typeof checkOnboarding === 'function') checkOnboarding(); }, 500);
+                    // ★ BOOM PROTOCOL: Handle deep links (sign contract, etc.)
+                    setTimeout(() => { if (typeof checkDeepLink === 'function') checkDeepLink(); }, 600);
                 } else {
                     console.log('Creating new user document...');
                     await db.collection('users').doc(u.uid).set({
@@ -7516,7 +7705,7 @@ Valentyne - BOOM Rome`
 
         if (type === 'addDocument') return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">📁 Carica Documento</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="saveDocument(event)"><div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="name" required></div><div class="form-group"><label class="form-label">Tipo</label><select class="form-select" name="type"><option value="contract">📋 Contratto</option><option value="id">🪪 Documento ID</option><option value="receipt">🧾 Ricevuta</option><option value="utility">💡 Utenza</option><option value="other">📄 Altro</option></select></div></div>${isAdmin() ? `<div class="form-group"><label class="form-label">Condividi con inquilino/proprietario</label><select class="form-select" name="shared"><option value="false">No - Solo io</option><option value="true">Sì - Condividi</option></select></div>` : ''}<div class="form-group"><label class="form-label">File</label><div class="file-zone" onclick="document.getElementById('fileInput').click()"><div class="file-zone-icon">📁</div><div class="file-zone-text">Clicca per selezionare</div></div><input type="file" id="fileInput" class="file-input" onchange="handleFile(this)"><div id="filePreview"></div></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Carica</button></div></div></div>`;
 
-        if (type === 'addUser') return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">👥 Nuovo Utente</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="saveUser(event)"><div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="name" required></div><div class="form-group"><label class="form-label">Email *</label><input type="email" class="form-input" name="email" required></div></div><div class="form-row"><div class="form-group"><label class="form-label">Ruolo</label><select class="form-select" name="role"><option value="tenant">🔘 Inquilino</option><option value="landlord">🏠 Proprietario</option><option value="admin">👁 Admin</option></select></div><div class="form-group"><label class="form-label">Password *</label><input type="password" class="form-input" name="password" required minlength="6"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Telefono</label><input type="tel" class="form-input" name="phone" placeholder="+39..."></div><div class="form-group"><label class="form-label">Codice Fiscale</label><input type="text" class="form-input" name="codiceFiscale" placeholder="RSSMRA85M01H501Z" maxlength="16" style="text-transform:uppercase"></div></div><div class="form-group"><label class="form-label">Indirizzo</label><input type="text" class="form-input" name="address" placeholder="Via Roma 123, 00100 Roma"></div><div class="form-row"><div class="form-group"><label class="form-label">Data di Nascita</label><input type="date" class="form-input" name="birthDate"></div><div class="form-group"><label class="form-label">Luogo di Nascita</label><input type="text" class="form-input" name="birthPlace" placeholder="Roma (RM)"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Tipo Documento</label><select class="form-select" name="idDocType"><option value="">—</option><option value="Carta d'identità">Carta d'identità</option><option value="Passaporto">Passaporto</option><option value="Patente">Patente</option><option value="Permesso di soggiorno">Permesso di soggiorno</option></select></div><div class="form-group"><label class="form-label">N° Documento</label><input type="text" class="form-input" name="idDocNumber" placeholder="CA12345AB"></div></div><div class="form-group"><label class="form-label">IBAN</label><input type="text" class="form-input" name="iban" placeholder="IT60X0542811101000000123456"></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes" rows="2" placeholder="Note interne..."></textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Crea</button></div></div></div>`;
+        if (type === 'addUser') { const autoPass = generatePassword(); return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">👥 Nuovo Utente</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="saveUser(event)"><div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="name" required></div><div class="form-group"><label class="form-label">Email *</label><input type="email" class="form-input" name="email" required></div></div><div class="form-row"><div class="form-group"><label class="form-label">Ruolo</label><select class="form-select" name="role"><option value="tenant">🔘 Inquilino</option><option value="landlord">🏠 Proprietario</option><option value="admin">👁 Admin</option></select></div><div class="form-group"><label class="form-label">Password * <button type="button" class="btn btn-xs btn-secondary" style="margin-left:8px;font-size:9px" onclick="const p=generatePassword();document.querySelector('[name=password]').value=p;document.querySelector('[name=password]').type='text'">🔄 Genera</button></label><div style="display:flex;gap:6px"><input type="text" class="form-input" name="password" value="${autoPass}" required minlength="6" style="font-family:monospace;letter-spacing:0.5px"><button type="button" class="btn btn-xs btn-secondary" onclick="navigator.clipboard.writeText(this.previousElementSibling.value);toast('success','Password copiata!')" title="Copia">📋</button></div></div></div><div class="form-row"><div class="form-group"><label class="form-label">Telefono</label><input type="tel" class="form-input" name="phone" placeholder="+39..."></div><div class="form-group"><label class="form-label">Codice Fiscale</label><input type="text" class="form-input" name="codiceFiscale" placeholder="RSSMRA85M01H501Z" maxlength="16" style="text-transform:uppercase"></div></div><div class="form-group"><label class="form-label">Indirizzo</label><input type="text" class="form-input" name="address" placeholder="Via Roma 123, 00100 Roma"></div><div class="form-row"><div class="form-group"><label class="form-label">Data di Nascita</label><input type="date" class="form-input" name="birthDate"></div><div class="form-group"><label class="form-label">Luogo di Nascita</label><input type="text" class="form-input" name="birthPlace" placeholder="Roma (RM)"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Tipo Documento</label><select class="form-select" name="idDocType"><option value="">—</option><option value="Carta d'identità">Carta d'identità</option><option value="Passaporto">Passaporto</option><option value="Patente">Patente</option><option value="Permesso di soggiorno">Permesso di soggiorno</option></select></div><div class="form-group"><label class="form-label">N° Documento</label><input type="text" class="form-input" name="idDocNumber" placeholder="CA12345AB"></div></div><div class="form-group"><label class="form-label">IBAN</label><input type="text" class="form-input" name="iban" placeholder="IT60X0542811101000000123456"></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes" rows="2" placeholder="Note interne..."></textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Crea</button></div></div></div>`; }
 
         if (type === 'editUser') { const u = data; if (!u) return ''; return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">✏️ Modifica Utente</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="updateUser(event)"><input type="hidden" name="id" value="${u.id}"><div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="name" value="${u.name || ''}" required></div><div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" value="${u.email || ''}" disabled style="opacity:0.6"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Ruolo</label><select class="form-select" name="role"><option value="tenant" ${u.role === 'tenant' ? 'selected' : ''}>🔘 Inquilino</option><option value="landlord" ${u.role === 'landlord' ? 'selected' : ''}>🏠 Proprietario</option><option value="admin" ${u.role === 'admin' ? 'selected' : ''}>👁 Admin</option></select></div><div class="form-group"><label class="form-label">Telefono</label><input type="tel" class="form-input" name="phone" value="${u.phone || ''}" placeholder="+39..."></div></div><div class="form-row"><div class="form-group"><label class="form-label">Codice Fiscale</label><input type="text" class="form-input" name="codiceFiscale" value="${u.codiceFiscale || ''}" placeholder="RSSMRA85M01H501Z" maxlength="16" style="text-transform:uppercase"></div><div class="form-group"><label class="form-label">IBAN</label><input type="text" class="form-input" name="iban" value="${u.iban || ''}" placeholder="IT60X0542811101000000123456"></div></div><div class="form-group"><label class="form-label">Indirizzo</label><input type="text" class="form-input" name="address" value="${u.address || ''}" placeholder="Via Roma 123, 00100 Roma"></div><div class="form-row"><div class="form-group"><label class="form-label">Data di Nascita</label><input type="date" class="form-input" name="birthDate" value="${u.birthDate || ''}"></div><div class="form-group"><label class="form-label">Luogo di Nascita</label><input type="text" class="form-input" name="birthPlace" value="${u.birthPlace || ''}"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Tipo Documento</label><select class="form-select" name="idDocType"><option value="">—</option><option value="Carta d'identità" ${u.idDocType === "Carta d'identità" ? 'selected' : ''}>Carta d'identità</option><option value="Passaporto" ${u.idDocType === 'Passaporto' ? 'selected' : ''}>Passaporto</option><option value="Patente" ${u.idDocType === 'Patente' ? 'selected' : ''}>Patente</option><option value="Permesso di soggiorno" ${u.idDocType === 'Permesso di soggiorno' ? 'selected' : ''}>Permesso di soggiorno</option></select></div><div class="form-group"><label class="form-label">N° Documento</label><input type="text" class="form-input" name="idDocNumber" value="${u.idDocNumber || ''}"></div></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes" rows="2" placeholder="Note interne...">${u.notes || ''}</textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Salva</button></div></div></div>`; }
 
@@ -7847,8 +8036,15 @@ Valentyne - BOOM Rome`
                 documents: [],
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
-            closeModal(); await refresh(); toast('success', 'Utente creato!', data.name);
+            // Store credentials for sharing
+            lastCreatedCredentials = { name: data.name, email: data.email, password: data.password, phone: data.phone || '', userId: cred.user.uid };
+            closeModal(); await refresh(); 
+            toast('success', 'Utente creato!', data.name);
             logActivity('Utente creato', 'user', { targetName: data.name, role: data.role });
+            // Show credential sharing modal for tenants/landlords
+            if (data.role !== 'admin') {
+                setTimeout(() => showCredentialShareModal(data.name, data.email, data.password, data.phone), 500);
+            }
         } catch (err) { toast('error', 'Errore', authErr(err.code)); }
     }
 
@@ -7970,6 +8166,17 @@ Valentyne - BOOM Rome`
             closeModal(); await refresh(); 
             toast('success', '📋 Contratto creato!', `PDF generato${sendEmails ? ' + email inviate' : ''}`);
             logActivity('Contratto creato (BOOM Protocol)', 'contract', { type: data.type, propertyName: prop?.name, tenantName: tenant?.name, rent: data.rent, emailsSent: sendEmails });
+            
+            // ★ Show credential sharing if tenant credentials are available
+            if (lastCreatedCredentials && tenant && lastCreatedCredentials.userId === tenant.id) {
+                setTimeout(() => showCredentialShareModal(
+                    lastCreatedCredentials.name, 
+                    lastCreatedCredentials.email, 
+                    lastCreatedCredentials.password, 
+                    lastCreatedCredentials.phone,
+                    ref.id
+                ), 800);
+            }
         } catch (err) { toast('error', 'Errore', err.message); }
     }
     
@@ -8647,6 +8854,7 @@ Valentyne - BOOM Rome`
                 </div>
             </div>
             <div class="modal-footer">
+                ${u.role !== 'admin' ? `<button class="btn btn-sm" style="background:var(--gold);color:#000" onclick="resetAndSharePassword('${u.id}')">🔑 Reset & Condividi Password</button>` : ''}
                 ${u.id !== S.profile.id ? `<button class="btn btn-danger btn-sm" onclick="confirmDelete('user','${u.id}','${u.name}')">🗑 Elimina</button>` : ''}
                 <button class="btn btn-secondary" onclick="closeModal()">Chiudi</button>
                 <button class="btn" onclick="const uid='${u.id}';closeModal();setTimeout(()=>openModal('editUser',S.users.find(x=>x.id===uid)),250)">✏️ Modifica</button>
@@ -9136,12 +9344,32 @@ Valentyne - BOOM Rome`
             
             closeModal();
             await refresh();
-            toast('success', 'Firma salvata!', updateData.signatureStatus === 'complete' ? 'Contratto completato ✔' : 'In attesa dell\'altra firma');
             logActivity('Contratto firmato', 'contract', { role, propertyName: property?.name, complete: updateData.signatureStatus === 'complete' });
             
             // ★ BOOM PROTOCOL: Auto-activate contract when both signatures complete
             if (updateData.signatureStatus === 'complete') {
                 await activateContract(contractId);
+            } else {
+                // Show celebratory confirmation for partial signing
+                const otherRole = role === 'landlord' ? 'tenant' : 'landlord';
+                const otherName = role === 'landlord' ? (S.users.find(u => u.id === contract?.tenantId)?.name || 'inquilino') : (landlord?.name || 'proprietario');
+                document.getElementById('modals').innerHTML = `
+                <div class="modal-overlay active" style="background:rgba(0,0,0,0.85)">
+                    <div class="modal" style="max-width:420px;text-align:center;border-color:rgba(212,175,55,0.2)">
+                        <div class="modal-body" style="padding:40px 32px">
+                            <div style="font-size:56px;margin-bottom:16px">✅</div>
+                            <h2 style="font-size:22px;font-weight:600;margin-bottom:10px">Firma registrata!</h2>
+                            <p style="font-size:14px;color:var(--text-secondary);line-height:1.7;margin-bottom:24px">
+                                La tua firma è stata salvata con validità legale.<br>
+                                <strong style="color:var(--gold)">${otherName}</strong> deve ancora firmare per completare il contratto.
+                            </p>
+                            <div style="background:var(--surface);border-radius:10px;padding:14px;margin-bottom:24px;font-size:12px;color:var(--text-muted);line-height:1.6">
+                                ✅ La tua firma · 📋 IP e timestamp registrati · 🔒 Conforme FES Art. 21 CAD
+                            </div>
+                            <button class="btn" style="padding:12px 28px" onclick="closeModal()">OK, chiudi</button>
+                        </div>
+                    </div>
+                </div>`;
             }
             
         } catch (err) {
@@ -9204,7 +9432,27 @@ Valentyne - BOOM Rome`
             });
             
             await refresh();
-            toast('success', '★ Contratto Attivato!', `${payCount} pagamenti generati${emailSent ? ', email inviata' : ''}`);
+            
+            // Show celebration modal for the signer
+            document.getElementById('modals').innerHTML = `
+            <div class="modal-overlay active" style="background:rgba(0,0,0,0.85)">
+                <div class="modal" style="max-width:420px;text-align:center;border-color:rgba(34,197,94,0.3)">
+                    <div class="modal-body" style="padding:40px 32px">
+                        <div style="font-size:56px;margin-bottom:16px">🎉</div>
+                        <h2 style="font-size:22px;font-weight:600;margin-bottom:10px">Contratto completato!</h2>
+                        <p style="font-size:14px;color:var(--text-secondary);line-height:1.7;margin-bottom:12px">
+                            Entrambe le parti hanno firmato. Il contratto per <strong style="color:var(--gold)">${property?.name || 'immobile'}</strong> è ora attivo.
+                        </p>
+                        <div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:10px;padding:14px;margin:16px 0;font-size:12px;color:var(--text-muted);line-height:1.8;text-align:left">
+                            ✅ Contratto attivato<br>
+                            📊 ${payCount} pagamenti generati automaticamente<br>
+                            ${emailSent ? '📧 Welcome email inviata al tenant' : ''}<br>
+                            📁 PDF contratto firmato disponibile
+                        </div>
+                        <button class="btn" style="padding:12px 28px" onclick="closeModal()">Perfetto →</button>
+                    </div>
+                </div>
+            </div>`;
             
         } catch (err) {
             console.error('Contract activation error:', err);
@@ -9441,6 +9689,7 @@ Valentyne - BOOM Rome`
     async function sendSignatureEmail(user, contract, property, role) {
         if (!user?.email) return false;
         const portalUrl = window.location.origin + window.location.pathname;
+        const signLink = portalUrl + '?action=sign&contract=' + (contract.id || '');
         return sendBoomEmail(EMAILJS_CONFIG.templates.signatureRequest, user.email, {
             name: (user.name || '').split(' ')[0],
             full_name: user.name,
@@ -9450,7 +9699,7 @@ Valentyne - BOOM Rome`
             rent: '€' + (contract.rent || 0).toLocaleString('it-IT'),
             start_date: fmtDate(contract.startDate),
             end_date: fmtDate(contract.endDate),
-            portal_link: portalUrl,
+            portal_link: signLink,
             company_name: COMPANY.name,
             company_email: COMPANY.email,
             company_phone: COMPANY.phone
