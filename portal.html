@@ -721,8 +721,9 @@
         email: 'info@boomrome.com',
         phone: '+39 331 325 1961',
         website: 'www.boomrome.com',
-        // ⚠️ UPDATE WITH YOUR REAL IBAN
-        iban: 'IT00X0000000000000000000000'
+        // ✅ COORDINATE BANCARIE — Banca Sella
+        iban: 'IT54O0326803200052861450580',
+        bic: 'SELBIT2BXXX'
     };
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -3726,6 +3727,7 @@ Valentyne - BOOM Rome`
                             <div class="info-box" style="margin-bottom:0">
                                 <div class="info-box-row"><span class="info-box-label">Holder</span><span class="info-box-value" style="font-size:12px">${COMPANY.legal}</span></div>
                                 <div class="info-box-row"><span class="info-box-label">IBAN</span><span class="info-box-value" style="font-size:10px;font-family:monospace">${COMPANY.iban}</span></div>
+                                <div class="info-box-row"><span class="info-box-label">BIC/Swift</span><span class="info-box-value" style="font-size:10px;font-family:monospace">${COMPANY.bic}</span></div>
                                 <div class="info-box-row"><span class="info-box-label">Reference</span><span class="info-box-value" style="font-size:12px">Rent ${myProp?.name || ''}</span></div>
                             </div>
                         </div>
@@ -6184,6 +6186,7 @@ Valentyne - BOOM Rome`
                         <div class="info-box-title">💳 Dati per il Pagamento</div>
                         <div class="info-box-row"><span class="info-box-label">Intestatario</span><span class="info-box-value">${COMPANY.legal}</span></div>
                         <div class="info-box-row"><span class="info-box-label">IBAN</span><span class="info-box-value" style="font-size:11px">${COMPANY.iban}</span></div>
+                        <div class="info-box-row"><span class="info-box-label">BIC/Swift</span><span class="info-box-value" style="font-size:11px">${COMPANY.bic}</span></div>
                         <div class="info-box-row"><span class="info-box-label">Causale</span><span class="info-box-value">Affitto ${prop?.name}</span></div>
                     </div>
                 </div></div>
@@ -9019,6 +9022,7 @@ Valentyne - BOOM Rome`
                 ${c.status === 'active' ? `<button class="btn btn-sm" style="background:var(--red);color:white" onclick="const cid='${c.id}';closeModal();setTimeout(()=>openModal('terminateContract',S.contracts.find(x=>x.id===cid)),250)">⛔ Termina</button>` : ''}
                 ${c.status === 'active' ? `<button class="btn btn-sm" style="background:var(--green);color:white" onclick="const cid='${c.id}';closeModal();setTimeout(()=>openModal('renewContract',S.contracts.find(x=>x.id===cid)),250)">🔄 Rinnova</button>` : ''}
                 <button class="btn btn-secondary btn-sm" onclick="downloadContractPDF('${c.id}')">📥 PDF</button>
+                <button class="btn btn-sm" style="background:var(--gold);color:#000" onclick="regenerateContractPDF('${c.id}')">🔄 Rigenera PDF</button>
                 <button class="btn btn-secondary" onclick="closeModal()">Chiudi</button>
                 <button class="btn" onclick="const cid='${c.id}';closeModal();setTimeout(()=>openModal('editContract',S.contracts.find(x=>x.id===cid)),250)">✏️ Modifica</button>
             </div>
@@ -9238,14 +9242,22 @@ Valentyne - BOOM Rome`
                     
                     <div class="contract-preview">
                         <h4>📄 Riepilogo Contratto</h4>
+                        <p><strong>Tipo:</strong> ${contract.type === 'studenti' ? '🎓 Locazione Studenti Universitari' : '📋 Locazione Transitoria'}</p>
                         <p><strong>Immobile:</strong> ${property?.name || 'N/A'} - ${property?.address || ''}</p>
                         <p><strong>Proprietario:</strong> ${landlord?.name || 'N/A'}</p>
                         <p><strong>Inquilino:</strong> ${tenant?.name || 'N/A'}</p>
                         <p><strong>Canone:</strong> €${contract.rent}/mese</p>
                         <p><strong>Deposito:</strong> €${contract.deposit || 0}</p>
                         <p><strong>Durata:</strong> ${fmtDate(contract.startDate)} → ${fmtDate(contract.endDate)}</p>
+                        ${contract.transitionalReason ? `<p><strong>Motivo transitorio:</strong> ${contract.transitionalReason}</p>` : ''}
+                        ${contract.universityName ? `<p><strong>Università:</strong> ${contract.universityName} — ${contract.courseName || ''}</p>` : ''}
+                        <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+                            <button class="btn btn-sm btn-secondary" onclick="previewContractPDF('${contractId}')" style="width:100%">
+                                📄 Leggi contratto completo (PDF)
+                            </button>
+                        </div>
                         <p style="margin-top:12px;font-size:11px;color:var(--text-muted)">
-                            Firmando questo documento, ${signerName} accetta tutti i termini e le condizioni del contratto di locazione.
+                            ⚖️ Firmando questo documento con firma elettronica semplice (FES) ai sensi dell'Art. 21 del CAD, ${signerName} accetta tutti i termini e le condizioni del contratto di locazione conforme all'accordo territoriale di Roma Capitale.
                         </p>
                     </div>
                     
@@ -9719,7 +9731,7 @@ Valentyne - BOOM Rome`
             r1_icon: '📍', r1_label: 'Address', r1_value: property?.address || '',
             r2_icon: '💰', r2_label: 'Monthly Rent', r2_value: '€' + (contract.rent || 0).toLocaleString('it-IT') + ' — due on the 5th',
             r3_icon: '🗓', r3_label: 'Start Date', r3_value: fmtDate(contract.startDate),
-            r4_icon: '🏦', r4_label: 'IBAN', r4_value: COMPANY.iban + ' (' + COMPANY.legal + ')',
+            r4_icon: '🏦', r4_label: 'IBAN', r4_value: COMPANY.iban + ' (BIC: ' + COMPANY.bic + ')',
             closing: 'Your portal is ready — dashboard, documents, maintenance, and info hub. Welcome home.',
             cta_text: 'Open your portal →',
             portal_link: portalUrl
@@ -9739,7 +9751,7 @@ Valentyne - BOOM Rome`
             card_color: '#F5A623',
             r1_icon: '💰', r1_label: 'Amount', r1_value: '€' + (payment.amount || contract.rent || 0).toLocaleString('it-IT'),
             r2_icon: '📅', r2_label: 'Due Date', r2_value: fmtDate(payment.dueDate),
-            r3_icon: '🏦', r3_label: 'IBAN', r3_value: COMPANY.iban,
+            r3_icon: '🏦', r3_label: 'IBAN', r3_value: COMPANY.iban + ' (BIC: ' + COMPANY.bic + ')',
             r4_icon: '📝', r4_label: 'Reference', r4_value: 'Affitto ' + (property?.name || ''),
             closing: '',
             cta_text: 'View in portal →',
@@ -9864,98 +9876,42 @@ Valentyne - BOOM Rome`
     
     async function downloadSignedContractPDF(contractId) {
         const contract = S.contracts.find(c => c.id === contractId);
-        if (!contract) return;
+        if (!contract) return toast('error', 'Contratto non trovato');
         
         const property = S.properties.find(p => p.id === contract.propertyId);
         const tenant = S.users.find(u => u.id === contract.tenantId);
-        const landlord = property ? S.users.find(u => u.id === property.ownerId) : null;
         
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-        
-        // Header
-        doc.setFillColor(0, 0, 0);
-        doc.rect(0, 0, 210, 40, 'F');
-        doc.setTextColor(212, 175, 55);
-        doc.setFontSize(28);
-        doc.text('BOOM', 105, 22, { align: 'center' });
-        doc.setFontSize(10);
-        doc.setTextColor(150, 150, 150);
-        doc.text('CONTRATTO DI LOCAZIONE - FIRMATO DIGITALMENTE', 105, 32, { align: 'center' });
-        
-        doc.setTextColor(0, 0, 0);
-        let y = 55;
-        
-        // Contract details
-        doc.setFontSize(14);
-        doc.setFont(undefined, 'bold');
-        doc.text('DATI CONTRATTO', 20, y);
-        y += 10;
-        
-        doc.setFontSize(11);
-        doc.setFont(undefined, 'normal');
-        const details = [
-            ['Immobile:', property?.name || 'N/A'],
-            ['Indirizzo:', property?.address || 'N/A'],
-            ['Proprietario:', landlord?.name || 'N/A'],
-            ['Inquilino:', tenant?.name || 'N/A'],
-            ['Canone mensile:', `€${contract.rent}`],
-            ['Deposito cauzionale:', `€${contract.deposit || 0}`],
-            ['Data inizio:', fmtDate(contract.startDate)],
-            ['Data fine:', fmtDate(contract.endDate)]
-        ];
-        
-        details.forEach(([label, value]) => {
-            doc.setFont(undefined, 'bold');
-            doc.text(label, 20, y);
-            doc.setFont(undefined, 'normal');
-            doc.text(value, 70, y);
-            y += 7;
-        });
-        
-        // Signatures section
-        y += 15;
-        doc.setFontSize(14);
-        doc.setFont(undefined, 'bold');
-        doc.text('FIRME DIGITALI', 20, y);
-        y += 10;
-        
-        // Landlord signature
-        doc.setFontSize(11);
-        doc.text('Proprietario:', 20, y);
-        if (contract.landlordSignature) {
+        // Try to use stored CAF PDF first
+        if (contract.generatedPDF) {
             try {
-                doc.addImage(contract.landlordSignature, 'PNG', 20, y + 5, 60, 25);
-                doc.setFontSize(8);
-                doc.text(`Firmato: ${fmtDate(contract.landlordSignedAt)}`, 20, y + 35);
-            } catch (e) { console.error('Landlord signature error:', e); }
+                const link = document.createElement('a');
+                link.href = contract.generatedPDF;
+                link.download = `Contratto_${property?.name?.replace(/\s+/g, '_') || 'BOOM'}_Firmato.pdf`;
+                link.click();
+                toast('success', '📥 PDF CAF firmato scaricato!');
+                return;
+            } catch (e) { console.warn('Stored PDF download failed, regenerating...'); }
         }
         
-        // Tenant signature
-        doc.setFontSize(11);
-        doc.text('Inquilino:', 110, y);
-        if (contract.tenantSignature) {
-            try {
-                doc.addImage(contract.tenantSignature, 'PNG', 110, y + 5, 60, 25);
-                doc.setFontSize(8);
-                doc.text(`Firmato: ${fmtDate(contract.tenantSignedAt)}`, 110, y + 35);
-            } catch (e) { console.error('Tenant signature error:', e); }
+        // If no stored PDF, regenerate the CAF version
+        toast('info', '⏳ Generazione PDF in corso...');
+        const success = await generateContractPDF(contractId);
+        if (success) {
+            // Reload contract data to get the new PDF
+            const updatedDoc = await db.collection('contracts').doc(contractId).get();
+            if (updatedDoc.exists) {
+                const updatedData = updatedDoc.data();
+                if (updatedData.generatedPDF) {
+                    const link = document.createElement('a');
+                    link.href = updatedData.generatedPDF;
+                    link.download = `Contratto_${property?.name?.replace(/\s+/g, '_') || 'BOOM'}_Firmato.pdf`;
+                    link.click();
+                    toast('success', '📥 PDF CAF scaricato!');
+                    return;
+                }
+            }
         }
-        
-        // Verification hash
-        const verifyHash = btoa(contractId + contract.startDate + contract.rent).substring(0, 12).toUpperCase();
-        doc.setTextColor(80, 80, 80);
-        doc.setFontSize(9);
-        doc.text(`Codice verifica: BOOM-${verifyHash}`, 20, 275);
-        
-        // Footer
-        doc.setFontSize(8);
-        doc.setTextColor(128, 128, 128);
-        doc.text(`Documento generato digitalmente da BOOM Property Portal - ${new Date().toLocaleString('it-IT')}`, 105, 285, { align: 'center' });
-        doc.text('Egidi Immobiliare S.r.l. - www.boomrome.com', 105, 290, { align: 'center' });
-        
-        doc.save(`Contratto_${property?.name || 'BOOM'}_Firmato.pdf`);
-        toast('success', 'PDF scaricato!');
+        toast('error', 'Errore generazione PDF');
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -9964,77 +9920,69 @@ Valentyne - BOOM Rome`
     function downloadMyContractPDF() {
         const contract = getMyContracts().find(c => c.status === 'active');
         if (!contract) return toast('error', 'Nessun contratto attivo');
-        downloadContractPDF(contract.id);
+        downloadSignedContractPDF(contract.id);
     }
 
-    function downloadContractPDF(id) {
-        const c = S.contracts.find(x => x.id === id); if (!c) return;
-        const p = S.properties.find(x => x.id === c.propertyId);
-        const t = S.users.find(x => x.id === c.tenantId);
-        const o = S.users.find(x => x.id === p?.ownerId);
+    async function downloadContractPDF(id) {
+        // Redirect all contract PDF downloads to the CAF version
+        await downloadSignedContractPDF(id);
+    }
+
+    async function previewContractPDF(contractId) {
+        const contract = S.contracts.find(c => c.id === contractId);
+        if (!contract) return toast('error', 'Contratto non trovato');
         
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
+        // If stored PDF exists, open it directly
+        if (contract.generatedPDF) {
+            const win = window.open('', '_blank');
+            if (win) {
+                win.document.write(`<html><head><title>Contratto BOOM</title></head><body style="margin:0"><iframe src="${contract.generatedPDF}" style="width:100%;height:100vh;border:none"></iframe></body></html>`);
+            } else {
+                // Popup blocked — download instead
+                const link = document.createElement('a');
+                link.href = contract.generatedPDF;
+                link.download = 'Anteprima_Contratto.pdf';
+                link.click();
+            }
+            return;
+        }
         
-        // Header
-        doc.setFillColor(0, 0, 0); doc.rect(0, 0, 210, 40, 'F');
-        doc.setTextColor(212, 175, 55); doc.setFontSize(28); doc.setFont('helvetica', 'bold'); doc.text('BOOM', 20, 25);
-        doc.setTextColor(255, 255, 255); doc.setFontSize(14); doc.text('CONTRATTO DI LOCAZIONE', 190, 25, { align: 'right' });
-        
-        let y = 55;
-        doc.setTextColor(0, 0, 0);
-        
-        // Info box
-        doc.setFillColor(245, 245, 245); doc.rect(15, y - 5, 180, 20, 'F');
-        doc.setFontSize(10); doc.text(`Data: ${new Date().toLocaleDateString('it-IT')}`, 20, y + 5);
-        doc.text(`Ref: CTR-${c.id.slice(-8).toUpperCase()}`, 150, y + 5);
-        
-        y += 30;
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.text('LOCATORE (Proprietario)', 20, y);
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
-        y += 7; doc.text(`Nome: ${o?.name || 'N/A'}`, 20, y);
-        y += 5; doc.text(`Email: ${o?.email || 'N/A'}`, 20, y);
-        y += 5; doc.text(`Telefono: ${o?.phone || 'N/A'}`, 20, y);
-        
-        y += 12;
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.text('CONDUTTORE (Inquilino)', 20, y);
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
-        y += 7; doc.text(`Nome: ${t?.name || 'N/A'}`, 20, y);
-        y += 5; doc.text(`Email: ${t?.email || 'N/A'}`, 20, y);
-        y += 5; doc.text(`Telefono: ${t?.phone || 'N/A'}`, 20, y);
-        
-        y += 12;
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.text('IMMOBILE', 20, y);
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
-        y += 7; doc.text(`Denominazione: ${p?.name || 'N/A'}`, 20, y);
-        y += 5; doc.text(`Indirizzo: ${p?.address || 'Roma, Italia'}`, 20, y);
-        
-        y += 12;
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.text('CONDIZIONI CONTRATTUALI', 20, y);
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
-        y += 7; doc.text(`Durata: dal ${fmtDate(c.startDate)} al ${fmtDate(c.endDate)}`, 20, y);
-        y += 5; doc.text(`Canone mensile: EUR ${c.rent},00 (Euro ${numberToWords(c.rent)}/00)`, 20, y);
-        y += 5; doc.text(`Deposito cauzionale: EUR ${c.deposit || 0},00`, 20, y);
-        y += 5; doc.text(`Pagamento: entro il 5 di ogni mese`, 20, y);
-        
-        y += 12;
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.text('MODALITA DI PAGAMENTO', 20, y);
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
-        y += 7; doc.text(`Intestatario: ${COMPANY.legal}`, 20, y);
-        y += 5; doc.text(`IBAN: ${COMPANY.iban}`, 20, y);
-        y += 5; doc.text(`Causale: Affitto ${p?.name} - [Mese/Anno]`, 20, y);
-        
-        // Signatures
-        y = 230;
-        doc.setDrawColor(200); doc.line(20, y, 90, y); doc.line(120, y, 190, y);
-        doc.setFontSize(9); doc.text('Firma Locatore', 55, y + 5, { align: 'center' }); doc.text('Firma Conduttore', 155, y + 5, { align: 'center' });
-        
-        // Footer
-        doc.setFillColor(0, 0, 0); doc.rect(0, 280, 210, 20, 'F');
-        doc.setTextColor(150); doc.setFontSize(8); doc.text(`${COMPANY.legal} | P.IVA ${COMPANY.piva} | ${COMPANY.website}`, 105, 288, { align: 'center' });
-        
-        doc.save(`Contratto_${p?.name?.replace(/\s+/g, '_') || 'Immobile'}_${t?.name?.replace(/\s+/g, '_') || 'Inquilino'}.pdf`);
-        toast('success', 'Contratto scaricato!');
+        // Generate preview PDF (don't save to Firestore)
+        toast('info', '⏳ Generazione anteprima...');
+        try {
+            const success = await generateContractPDF(contractId);
+            if (success) {
+                // Reload to get stored PDF
+                const doc = await db.collection('contracts').doc(contractId).get();
+                if (doc.exists && doc.data().generatedPDF) {
+                    const win = window.open('', '_blank');
+                    if (win) {
+                        win.document.write(`<html><head><title>Contratto BOOM</title></head><body style="margin:0"><iframe src="${doc.data().generatedPDF}" style="width:100%;height:100vh;border:none"></iframe></body></html>`);
+                    }
+                    // Update local state
+                    const idx = S.contracts.findIndex(c => c.id === contractId);
+                    if (idx >= 0) S.contracts[idx].generatedPDF = doc.data().generatedPDF;
+                }
+            }
+        } catch (err) {
+            toast('error', 'Errore anteprima', err.message);
+        }
+    }
+
+    async function regenerateContractPDF(contractId) {
+        toast('info', '⏳ Rigenerazione PDF CAF...');
+        try {
+            // Force regenerate - this overwrites any stored PDF
+            const success = await generateContractPDF(contractId);
+            if (success) {
+                await refresh();
+                toast('success', '✅ PDF CAF rigenerato!', 'Il contratto ora usa il template legale completo');
+            } else {
+                toast('error', 'Errore rigenerazione');
+            }
+        } catch (err) {
+            toast('error', 'Errore', err.message);
+        }
     }
 
     function downloadPaymentReceipt(id) {
@@ -10123,6 +10071,7 @@ Valentyne - BOOM Rome`
         
         y += 25; doc.setTextColor(0); doc.setFontSize(10); doc.setFont('helvetica', 'bold');
         doc.text('Pagamento:', 20, y); doc.setFont('helvetica', 'normal'); y += 7; doc.text(`IBAN: ${COMPANY.iban}`, 20, y);
+        y += 5; doc.text(`BIC/Swift: ${COMPANY.bic}`, 20, y);
         
         doc.setFillColor(0); doc.rect(0, 275, 210, 25, 'F');
         doc.setTextColor(150); doc.setFontSize(8); doc.text(`${COMPANY.legal} | ${COMPANY.website}`, 105, 285, { align: 'center' });
