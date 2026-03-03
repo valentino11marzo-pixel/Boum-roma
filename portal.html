@@ -9553,141 +9553,226 @@ Valentyne - BOOM Rome`
             
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF({ format: 'a4', unit: 'mm' });
-            const pw = 170; // page width for text
+            const pw = 170;
             let y = 20;
-            const lh = 5; // line height
+            const lh = 4.5;
             
             const addText = (text, opts = {}) => {
-                doc.setFontSize(opts.size || 10);
-                doc.setFont('helvetica', opts.bold ? 'bold' : 'normal');
+                doc.setFontSize(opts.size || 9.5);
+                doc.setFont('helvetica', opts.bold ? 'bold' : (opts.italic ? 'italic' : 'normal'));
                 const lines = doc.splitTextToSize(text, opts.width || pw);
-                if (y + (lines.length * lh) > 275) { doc.addPage(); y = 20; }
+                const blockH = lines.length * lh;
+                if (y + blockH > 278) { doc.addPage(); y = 20; }
                 doc.text(lines, opts.x || 20, y);
-                y += lines.length * lh + (opts.gap || 2);
+                y += blockH + (opts.gap || 1.5);
+            };
+            
+            const addArticle = (num, title, body, extraGap) => {
+                addText(`Articolo ${num}`, { size: 10, bold: true, gap: 0.5 });
+                addText(`(${title})`, { size: 9.5, italic: true, gap: 2 });
+                addText(body, { gap: extraGap || 3 });
             };
             
             const isStudenti = contract.type === 'studenti';
-            const allegatoLabel = isStudenti ? 'ALLEGATO' : 'ALLEGATO B';
-            const titleText = isStudenti 
-                ? 'LOCAZIONE ABITATIVA PER STUDENTI UNIVERSITARI'
-                : 'LOCAZIONE ABITATIVA DI NATURA TRANSITORIA';
-            const lawRef = isStudenti 
-                ? '(Legge 9 dicembre 1998, n. 431, articolo 5, comma 3)'
-                : '(Legge 9 dicembre 1998, n. 431, articolo 5, comma 1)';
-            
-            // Header
-            addText(allegatoLabel, { size: 12, bold: true });
-            addText(titleText, { size: 11, bold: true });
-            addText(lawRef, { size: 8 });
-            addText('In conformità all\'accordo territoriale di Roma Capitale del 25 luglio 2023', { size: 8, gap: 4 });
-            
-            // Parties
-            y += 3;
-            addText('PARTI CONTRAENTI', { size: 10, bold: true, gap: 3 });
-            
-            // Build landlord line gracefully
-            let locatoreLine = `LOCATORE: ${landlord?.name || '[nome mancante]'}`;
-            if (landlord?.codiceFiscale) locatoreLine += ` — C.F. ${landlord.codiceFiscale}`;
-            if (landlord?.birthDate) {
-                locatoreLine += ` — Nato/a il ${fmtDate(landlord.birthDate)}`;
-                if (landlord.birthPlace) locatoreLine += ` a ${landlord.birthPlace}`;
-            }
-            if (landlord?.address) locatoreLine += ` — Residente in ${landlord.address}`;
-            addText(locatoreLine, { gap: 3 });
-            
-            // Build tenant line gracefully
-            let conduttoreLine = `CONDUTTORE: ${tenant?.name || '[nome mancante]'}`;
-            if (tenant?.codiceFiscale) conduttoreLine += ` — C.F. ${tenant.codiceFiscale}`;
-            if (tenant?.birthDate) {
-                conduttoreLine += ` — Nato/a il ${fmtDate(tenant.birthDate)}`;
-                if (tenant.birthPlace) conduttoreLine += ` a ${tenant.birthPlace}`;
-            }
-            if (tenant?.address) conduttoreLine += ` — Residente in ${tenant.address}`;
-            if (tenant?.idDocType) {
-                conduttoreLine += ` — Identificato/a mediante ${tenant.idDocType}`;
-                if (tenant.idDocNumber) conduttoreLine += ` n. ${tenant.idDocNumber}`;
-            }
-            addText(conduttoreLine, { gap: 4 });
-            
-            // Property
-            addText('IMMOBILE', { size: 10, bold: true, gap: 3 });
-            let propDesc = `L'unità immobiliare posta in ${property?.city || 'Roma'}, ${property?.address || '[indirizzo mancante]'}`;
-            const propDetails = [];
-            if (property?.floor) propDetails.push(`piano ${property.floor}`);
-            if (property?.scala) propDetails.push(`scala ${property.scala}`);
-            if (property?.interno) propDetails.push(`int. ${property.interno}`);
-            if (propDetails.length > 0) propDesc += ', ' + propDetails.join(', ');
-            propDesc += property?.rooms ? `, composta di n. ${property.rooms} vani, oltre cucina e servizi.` : '.';
-            addText(propDesc, { gap: 2 });
-            if (property?.furnished !== undefined && property.furnished !== null) addText(`${property.furnished ? 'Ammobiliata' : 'Non ammobiliata'} come da elenco a parte sottoscritto dalle parti.`, { gap: 2 });
-            if (property?.cadastralData) addText(`Estremi catastali: ${property.cadastralData}`, { gap: 1 });
-            if (property?.energyCert) addText(`Prestazione energetica: ${property.energyCert}`, { gap: 1 });
-            if (property?.safetyImplants) addText(`Sicurezza impianti: ${property.safetyImplants}`, { gap: 3 });
-            
-            // Art. 1 — Duration
-            y += 2;
-            addText('Articolo 1 — Durata', { size: 10, bold: true, gap: 3 });
             const durMonths = contract.durationMonths || Math.round((new Date(contract.endDate) - new Date(contract.startDate)) / (1000*60*60*24*30));
-            addText(`Il contratto è stipulato per la durata di ${durMonths} mesi, dal ${fmtDate(contract.startDate)} al ${fmtDate(contract.endDate)}${isStudenti ? '. Alla prima scadenza il contratto si rinnova automaticamente per uguale periodo se il conduttore non comunica disdetta almeno un mese e non oltre tre mesi prima della scadenza.' : ', allorché cessa senza bisogno di alcuna disdetta.'}`, { gap: 3 });
-            
-            // Art. 2 — Transitional reason / Student status
-            addText(isStudenti ? 'Articolo 2 — Natura transitoria' : 'Articolo 2 — Esigenza transitoria', { size: 10, bold: true, gap: 3 });
-            if (isStudenti) {
-                addText(`La presente locazione ha natura transitoria in quanto il conduttore ha l'esigenza di abitare l'immobile frequentando ${contract.courseName ? 'il corso di studi di ' + contract.courseName : 'un corso di studi'} presso ${contract.universityName || '[università da specificare]'}.`, { gap: 3 });
-            } else {
-                const reason = contract.transitionalReason || '[motivo da specificare]';
-                let transText = `Il locatore/conduttore dichiara la seguente esigenza che giustifica la transitorietà del contratto: ${reason}.`;
-                if (contract.transitionalDocs) transText += ` Documentazione allegata: ${contract.transitionalDocs}.`;
-                addText(transText, { gap: 3 });
-            }
-            
-            // Art. 3/4 — Rent
-            addText(isStudenti ? 'Articolo 3 — Canone' : 'Articolo 4 — Canone', { size: 10, bold: true, gap: 3 });
             const annualRent = contract.rent * 12;
-            addText(`Il canone annuo di locazione è convenuto in Euro ${annualRent.toLocaleString('it-IT')}, che il conduttore si obbliga a corrispondere in n. 12 rate eguali anticipate di Euro ${contract.rent.toLocaleString('it-IT')} ciascuna, da versare entro il giorno 5 di ogni mese, a mezzo di ${contract.paymentMethod || 'bonifico bancario'}.`, { gap: 3 });
-            
-            // Art. — Deposit
-            const depArt = isStudenti ? 'Articolo 4' : 'Articolo 5';
-            addText(`${depArt} — Deposito cauzionale`, { size: 10, bold: true, gap: 3 });
             const depMonths = contract.depositMonths || Math.round((contract.deposit || 0) / contract.rent) || 3;
-            addText(`A garanzia delle obbligazioni assunte col presente contratto, il conduttore versa al locatore una somma di Euro ${(contract.deposit || 0).toLocaleString('it-IT')} pari a n. ${depMonths} mensilità del canone, non imputabile in conto canoni e produttiva di interessi legali.`, { gap: 3 });
             
-            // Art. — Accessory charges
+            // ═══════════════════════════════════════════
+            // HEADER
+            // ═══════════════════════════════════════════
+            addText(isStudenti ? 'ALLEGATO' : 'ALLEGATO B', { size: 12, bold: true, gap: 1 });
+            addText(isStudenti ? 'LOCAZIONE ABITATIVA PER STUDENTI UNIVERSITARI' : 'LOCAZIONE ABITATIVA DI NATURA TRANSITORIA', { size: 11, bold: true, gap: 1 });
+            addText(isStudenti ? '(Legge 9 dicembre 1998, n. 431, articolo 5, comma 3)' : '(Legge 9 dicembre 1998, n. 431, articolo 5, comma 1)', { size: 8, italic: true, gap: 2 });
+            addText("In conformità all'accordo territoriale di Roma Capitale del 25 luglio 2023 e depositato presso il Comune di Roma il 27/07/2023 prot. QC/82672/2023", { size: 8, gap: 5 });
+            
+            // ═══════════════════════════════════════════
+            // PARTI CONTRAENTI
+            // ═══════════════════════════════════════════
+            
+            // Landlord
+            let locParts = [];
+            if (landlord?.name) locParts.push(landlord.name);
+            if (landlord?.birthDate) { let s = 'nato/a il ' + fmtDate(landlord.birthDate); if (landlord.birthPlace) s += ' a ' + landlord.birthPlace; locParts.push(s); }
+            if (landlord?.address) locParts.push('domiciliato/a in ' + landlord.address);
+            if (landlord?.codiceFiscale) locParts.push('C.F. ' + landlord.codiceFiscale);
+            addText(`Il/La sig. ${locParts.join(', ') || '[dati locatore da completare]'}, di seguito denominato/a locatore`, { gap: 2 });
+            
+            addText('concede in locazione al/alla sig.', { gap: 1 });
+            
+            // Tenant
+            let tenParts = [];
+            if (tenant?.name) tenParts.push(tenant.name);
+            if (tenant?.birthDate) { let s = 'nato/a il ' + fmtDate(tenant.birthDate); if (tenant.birthPlace) s += ' a ' + tenant.birthPlace; tenParts.push(s); }
+            if (tenant?.address) tenParts.push('domiciliato/a in ' + tenant.address);
+            if (tenant?.codiceFiscale) tenParts.push('C.F. ' + tenant.codiceFiscale);
+            let tenLine = `${tenParts.join(', ') || '[dati conduttore da completare]'}, di seguito denominato/a conduttore`;
+            if (tenant?.idDocType) {
+                tenLine += `, identificato/a mediante ${tenant.idDocType}`;
+                if (tenant.idDocNumber) tenLine += ` n. ${tenant.idDocNumber}`;
+            }
+            tenLine += ', che accetta, per sé e suoi aventi causa,';
+            addText(tenLine, { gap: 4 });
+            
+            // ═══════════════════════════════════════════
+            // IMMOBILE
+            // ═══════════════════════════════════════════
+            let propDesc = `A) l'unità immobiliare posta in ${property?.city || 'Roma'}, ${property?.address || '[indirizzo]'}`;
+            if (property?.floor) propDesc += `, piano ${property.floor}`;
+            if (property?.scala) propDesc += `, scala ${property.scala}`;
+            if (property?.interno) propDesc += `, int. ${property.interno}`;
+            if (property?.rooms) propDesc += `, composta di n. ${property.rooms} vani, oltre cucina e servizi`;
+            if (property?.accessories) propDesc += `, e dotata altresì dei seguenti elementi accessori: ${property.accessories}`;
+            propDesc += '.';
+            addText(propDesc, { gap: 2 });
+            
+            if (property?.furnished !== undefined && property?.furnished !== null) {
+                addText(`${property.furnished ? 'Ammobiliata' : 'Non ammobiliata'} come da elenco a parte sottoscritto dalle parti.`, { gap: 2 });
+            }
+            
+            if (property?.cadastralData) addText(`a) estremi catastali identificativi dell'unità immobiliare: ${property.cadastralData}`, { gap: 1 });
+            if (property?.energyCert) addText(`b) prestazione energetica: ${property.energyCert}`, { gap: 1 });
+            if (property?.safetyImplants) addText(`c) sicurezza impianti: ${property.safetyImplants}`, { gap: 1 });
+            
+            y += 2;
+            addText('La locazione è regolata dalle pattuizioni seguenti.', { italic: true, gap: 4 });
+            
+            // ═══════════════════════════════════════════
+            // ARTICOLO 1 — Durata
+            // ═══════════════════════════════════════════
+            addArticle(1, 'Durata',
+                `Il contratto è stipulato per la durata di ${durMonths} mesi, dal ${fmtDate(contract.startDate)} al ${fmtDate(contract.endDate)}, allorché, fatto salvo quanto previsto dall'articolo 2, cessa senza bisogno di alcuna disdetta.`
+            );
+            
+            // ═══════════════════════════════════════════
+            // ARTICOLO 2 — Esigenza transitoria
+            // ═══════════════════════════════════════════
+            if (isStudenti) {
+                addArticle(2, 'Natura transitoria',
+                    `La presente locazione ha natura transitoria in quanto il conduttore ha l'esigenza di abitare l'immobile frequentando ${contract.courseName ? 'il corso di studi di ' + contract.courseName : 'un corso di studi'} presso ${contract.universityName || '[università da specificare]'}.`
+                );
+            } else {
+                let art2 = `Il locatore/conduttore, nel rispetto di quanto previsto dal decreto del Ministro delle infrastrutture e dei trasporti di concerto con il Ministro dell'economia e delle finanze, emanato ai sensi dell'articolo 4, comma 2, della legge n. 431/98 e dall'Accordo territoriale di Roma Capitale del 25 luglio 2023, dichiara la seguente esigenza che giustifica la transitorietà del contratto: ${contract.transitionalReason || '[motivo da specificare]'}`;
+                if (contract.transitionalDocs) art2 += `, e che documenta allegando: ${contract.transitionalDocs}`;
+                art2 += '.';
+                addArticle(2, 'Esigenza del locatore/conduttore', art2);
+            }
+            
+            // ═══════════════════════════════════════════
+            // ARTICOLO 3 — Inadempimento
+            // ═══════════════════════════════════════════
+            addArticle(3, 'Inadempimento delle modalità di stipula',
+                "Il presente contratto è ricondotto alla durata prevista dall'art. 2 comma 1 della legge 9 dicembre 1998, n. 431, in caso di inadempimento delle modalità di stipula previste dall'art. 2, commi 1, 2, 3, 4, 5 e 6 del decreto dei Ministri delle infrastrutture e dell'economia e delle finanze ex art. 4 comma 2 della legge 431/98. In ogni caso, ove il locatore abbia riacquistato la disponibilità dell'alloggio alla scadenza dichiarando di volerlo adibire ad un uso determinato e non lo adibisca, senza giustificato motivo, nel termine di sei mesi dalla data in cui ha riacquistato la detta disponibilità, a tale uso, il conduttore ha diritto al ripristino del rapporto di locazione alle condizioni di cui all'articolo 2, comma 1, della legge n. 431/98 o, in alternativa, ad un risarcimento in misura pari a trentasei mensilità dell'ultimo canone di locazione corrisposto."
+            );
+            
+            // ═══════════════════════════════════════════
+            // ARTICOLO 4 — Canone
+            // ═══════════════════════════════════════════
+            addArticle(4, 'Canone',
+                `Il canone di locazione è convenuto in Euro ${annualRent.toLocaleString('it-IT')} annui, importo che il conduttore si obbliga a corrispondere a mezzo di ${contract.paymentMethod || 'bonifico bancario'}, in n. 12 rate eguali anticipate di Euro ${contract.rent.toLocaleString('it-IT')} ciascuna, da versare entro il giorno ${contract.paymentDay || 5} di ogni mese.`
+            );
+            
+            // ═══════════════════════════════════════════
+            // ARTICOLO 5 — Deposito cauzionale
+            // ═══════════════════════════════════════════
+            addArticle(5, 'Deposito cauzionale e altre forme di garanzia',
+                `A garanzia delle obbligazioni assunte col presente contratto, il conduttore versa al locatore (che con la firma del contratto ne rilascia quietanza) una somma di Euro ${(contract.deposit || 0).toLocaleString('it-IT')} pari a n. ${depMonths} mensilità del canone, non imputabile in conto canoni e produttiva di interessi legali, riconosciuti al conduttore al termine della locazione. Il deposito cauzionale così costituito viene reso al termine della locazione previa verifica dello stato dell'unità immobiliare e dell'osservanza di ogni obbligazione contrattuale.`
+            );
+            
+            // ═══════════════════════════════════════════
+            // ARTICOLO 6 — Oneri accessori
+            // ═══════════════════════════════════════════
+            let art6 = "Per gli oneri accessori le parti fanno applicazione della Tabella oneri accessori, allegato D al decreto emanato dal Ministro delle infrastrutture e dei trasporti di concerto con il Ministro dell'economia e delle finanze ai sensi dell'articolo 4, comma 2, della legge n. 431/1998. In sede di consuntivo, il pagamento degli oneri anzidetti, per la quota parte di quelli condominiali a carico del conduttore, deve avvenire entro sessanta giorni dalla richiesta. Sono interamente a carico del conduttore le spese relative ad ogni utenza (energia elettrica, acqua, gas, telefono e altro).";
             if (contract.accessoryCharges) {
-                addText(`${isStudenti ? 'Articolo 5' : 'Articolo 6'} — Oneri accessori`, { size: 10, bold: true, gap: 3 });
-                addText(`Per le spese di cui al presente articolo, il conduttore versa una quota di Euro ${contract.accessoryCharges.toLocaleString('it-IT')}, salvo conguaglio. Sono interamente a carico del conduttore le spese relative ad ogni utenza.`, { gap: 3 });
+                art6 += ` Per le spese di cui al presente articolo, il conduttore versa una quota di Euro ${contract.accessoryCharges.toLocaleString('it-IT')}, salvo conguaglio.`;
             }
+            addArticle(6, 'Oneri accessori', art6);
             
-            // Art. — Registration
-            addText(`${isStudenti ? 'Articolo 6' : 'Articolo 7'} — Spese di bollo e registrazione`, { size: 10, bold: true, gap: 3 });
-            addText('Le spese di bollo per il presente contratto sono a carico del conduttore. Il locatore provvede alla registrazione del contratto dandone comunicazione al conduttore entro trenta giorni. Le spese di registrazione sono ripartite in parti uguali.', { gap: 3 });
+            // ═══════════════════════════════════════════
+            // ARTICOLO 7 — Bollo e registrazione
+            // ═══════════════════════════════════════════
+            addArticle(7, 'Spese di bollo e registrazione',
+                "Le spese di bollo per il presente contratto e per le ricevute conseguenti sono a carico del conduttore. Il locatore provvede alla registrazione del contratto, ove dovuta, dandone comunicazione al conduttore — che corrisponde la quota di sua spettanza, pari alla metà — e all'Amministratore del Condominio ai sensi dell'art. 13 della legge 431/98."
+            );
             
-            // Art. — Use
-            addText(`${isStudenti ? 'Articolo 8' : 'Articolo 9'} — Uso`, { size: 10, bold: true, gap: 3 });
-            addText(`L'immobile deve essere destinato esclusivamente a civile abitazione del conduttore${contract.cohabitants ? ' e delle seguenti persone conviventi: ' + contract.cohabitants : ''}.`, { gap: 3 });
+            // ═══════════════════════════════════════════
+            // ARTICOLO 8 — Pagamento
+            // ═══════════════════════════════════════════
+            addArticle(8, 'Pagamento',
+                "Il pagamento del canone o di quant'altro dovuto anche per oneri accessori non può venire sospeso o ritardato da pretese o eccezioni del conduttore, qualunque ne sia il titolo. Il mancato puntuale pagamento, per qualunque causa, anche di una sola rata del canone (nonché di quant'altro dovuto, ove di importo pari almeno ad una mensilità del canone), costituisce in mora il conduttore, fatto salvo quanto previsto dall'articolo 55 della legge n. 392/78."
+            );
             
-            // Art. — Recesso
-            addText(`${isStudenti ? 'Articolo 9' : 'Articolo 10'} — Recesso del conduttore`, { size: 10, bold: true, gap: 3 });
-            addText(isStudenti 
-                ? 'Il conduttore ha facoltà di recedere dal contratto per gravi motivi, previo avviso da recapitarsi mediante lettera raccomandata almeno tre mesi prima.'
-                : 'Il conduttore ha facoltà di recedere per gravi motivi dal contratto previo avviso da recapitarsi mediante lettera raccomandata almeno tre mesi prima.', { gap: 3 });
+            // ═══════════════════════════════════════════
+            // ARTICOLO 9 — Uso
+            // ═══════════════════════════════════════════
+            let art9 = `L'immobile deve essere destinato esclusivamente a civile abitazione del conduttore`;
+            if (contract.cohabitants) art9 += ` e delle seguenti persone attualmente con lui conviventi: ${contract.cohabitants}`;
+            art9 += ". Salvo patto scritto contrario, è fatto divieto di sublocare o dare in comodato, né in tutto né in parte, l'unità immobiliare, pena la risoluzione di diritto del contratto. Per la successione nel contratto, si applica l'articolo 6 della legge n. 392/78, nel testo vigente a seguito della sentenza della Corte costituzionale n. 404 del 1988.";
+            addArticle(9, 'Uso', art9);
             
-            // Art. — Consegna
-            addText(`${isStudenti ? 'Articolo 10' : 'Articolo 11'} — Consegna`, { size: 10, bold: true, gap: 3 });
-            addText('Il conduttore dichiara di aver visitato l\'unità immobiliare locatagli, di averla trovata adatta all\'uso convenuto e di prenderla in consegna ad ogni effetto col ritiro delle chiavi.', { gap: 3 });
+            // ═══════════════════════════════════════════
+            // ARTICOLO 10 — Recesso del conduttore
+            // ═══════════════════════════════════════════
+            addArticle(10, 'Recesso del conduttore',
+                "Il conduttore ha facoltà di recedere per gravi motivi dal contratto previo avviso da recapitarsi mediante lettera raccomandata almeno tre mesi prima."
+            );
             
-            // Other clauses
-            if (contract.otherClauses) {
-                addText('Clausole aggiuntive', { size: 10, bold: true, gap: 3 });
-                addText(contract.otherClauses, { gap: 3 });
-            }
+            // ═══════════════════════════════════════════
+            // ARTICOLO 11 — Consegna
+            // ═══════════════════════════════════════════
+            addArticle(11, 'Consegna',
+                "Il conduttore dichiara di aver visitato l'unità immobiliare locatagli, di averla trovata adatta all'uso convenuto e, pertanto, di prenderla in consegna ad ogni effetto col ritiro delle chiavi, costituendosi da quel momento custode della stessa. Il conduttore si impegna a riconsegnare l'unità immobiliare nello stato in cui l'ha ricevuta, salvo il deperimento d'uso, pena il risarcimento del danno; si impegna, altresì, a rispettare le norme del regolamento dello stabile ove esistente."
+            );
             
-            // Signatures section
-            y += 5;
-            addText('Letto, approvato e sottoscritto', { size: 10, bold: true, gap: 3 });
-            addText(`Roma, li ${fmtDate(contract.fullySignedAt || new Date())}`, { gap: 4 });
+            // ═══════════════════════════════════════════
+            // ARTICOLO 12 — Modifiche e danni
+            // ═══════════════════════════════════════════
+            addArticle(12, 'Modifiche e danni',
+                "Il conduttore non può apportare alcuna modifica, innovazione, miglioria o addizione ai locali locati ed alla loro destinazione, o agli impianti esistenti, senza il preventivo consenso scritto del locatore. Il conduttore esonera espressamente il locatore da ogni responsabilità per danni diretti o indiretti che possano derivargli da fatti dei dipendenti del locatore medesimo nonché per interruzioni incolpevoli dei servizi."
+            );
             
-            // Signature images
+            // ═══════════════════════════════════════════
+            // ARTICOLO 13 — Assemblee
+            // ═══════════════════════════════════════════
+            addArticle(13, 'Assemblee',
+                "Il conduttore ha diritto di voto, in luogo del proprietario dell'unità immobiliare locatagli, nelle deliberazioni dell'assemblea condominiale relative alle spese ed alle modalità di gestione dei servizi di riscaldamento e di condizionamento d'aria. Ha inoltre diritto di intervenire, senza voto, sulle deliberazioni relative alla modificazione degli altri servizi comuni."
+            );
+            
+            // ═══════════════════════════════════════════
+            // ARTICOLO 14 — Impianti
+            // ═══════════════════════════════════════════
+            addArticle(14, 'Impianti',
+                "Il conduttore — in caso d'installazione sullo stabile di antenna televisiva centralizzata — si obbliga a servirsi unicamente dell'impianto relativo. Per quanto attiene all'impianto termico autonomo, ove presente, ai sensi della normativa del d.lgs n. 192/05, il conduttore subentra per la durata della detenzione alla figura del proprietario nell'onere di adempiere alle operazioni di controllo e di manutenzione."
+            );
+            
+            // ═══════════════════════════════════════════
+            // ARTICOLO 15 — Accesso
+            // ═══════════════════════════════════════════
+            addArticle(15, 'Accesso',
+                "Il conduttore deve consentire l'accesso all'unità immobiliare al locatore, al suo amministratore nonché ai loro incaricati ove gli stessi ne abbiano — motivandola — ragione. Nel caso in cui il locatore intenda vendere o locare l'unità immobiliare, il conduttore deve consentirne la visita una volta la settimana, per almeno due ore, con esclusione dei giorni festivi."
+            );
+            
+            // ═══════════════════════════════════════════
+            // ARTICOLO 16 — Commissione
+            // ═══════════════════════════════════════════
+            addArticle(16, 'Commissione di negoziazione paritetica e conciliazione stragiudiziale',
+                "La Commissione di cui all'articolo 6 del decreto del Ministro delle infrastrutture e dei trasporti di concerto con il Ministro dell'economia e delle finanze, emanato ai sensi dell'articolo 4, comma 2, della legge 431/98, è composta da due membri scelti fra appartenenti alle rispettive organizzazioni firmatarie dell'Accordo territoriale sulla base delle designazioni, rispettivamente, del locatore e del conduttore. La richiesta di intervento della Commissione non determina la sospensione delle obbligazioni contrattuali e non comporta oneri."
+            );
+            
+            // ═══════════════════════════════════════════
+            // ARTICOLO 17 — Varie
+            // ═══════════════════════════════════════════
+            let art17 = "A tutti gli effetti del presente contratto, comprese la notifica degli atti esecutivi, e ai fini della competenza a giudicare, il conduttore elegge domicilio nei locali a lui locati. Qualunque modifica al presente contratto non può aver luogo, e non può essere provata, se non con atto scritto. Il locatore ed il conduttore si autorizzano reciprocamente a comunicare a terzi i propri dati personali in relazione ad adempimenti connessi col rapporto di locazione (d.lgs n. 196/03). Per quanto non previsto dal presente contratto le parti rinviano a quanto in materia disposto dal Codice civile, dalle leggi n. 392/78 e n. 431/98 o comunque dalle norme vigenti e dagli usi locali nonché alla normativa ministeriale emanata in applicazione della legge n. 431/98 ed all'Accordo territoriale.";
+            if (contract.otherClauses) art17 += `\n\nAltre clausole: ${contract.otherClauses}`;
+            addArticle(17, 'Varie', art17);
+            
+            // ═══════════════════════════════════════════
+            // FIRME
+            // ═══════════════════════════════════════════
+            y += 4;
+            addText('Letto, approvato e sottoscritto', { size: 10, bold: true, gap: 2 });
+            addText(`Roma, li ${fmtDate(contract.fullySignedAt || new Date())}`, { gap: 5 });
+            
             const sigY = y;
             if (contract.landlordSignature) {
                 try { doc.addImage(contract.landlordSignature, 'PNG', 20, sigY, 60, 20); } catch(e) {}
@@ -9701,15 +9786,31 @@ Valentyne - BOOM Rome`
             doc.text(`Il Conduttore: ${tenant?.name || '[nome]'}`, 110, y);
             y += 8;
             
-            // Art. 1341/1342 approval
-            addText('Ai sensi degli articoli 1341 e 1342 del Codice civile, le parti specificamente approvano i patti di cui agli articoli sopra indicati.', { size: 8, gap: 5 });
+            // ═══════════════════════════════════════════
+            // ART. 1341/1342 — Clausole vessatorie
+            // ═══════════════════════════════════════════
+            addText("A mente degli articoli 1341 e 1342 del Codice civile, le parti specificamente approvano i patti di cui agli articoli 2 (Esigenza del locatore/conduttore), 3 (Inadempimento), 4 (Canone), 5 (Deposito cauzionale), 6 (Oneri accessori), 8 (Pagamento), 9 (Uso), 10 (Recesso del conduttore), 11 (Consegna), 12 (Modifiche e danni), 14 (Impianti), 15 (Accesso), 16 (Commissione) e 17 (Varie) del presente contratto.", { size: 8, gap: 4 });
             
-            // Audit footer
-            doc.setFontSize(7);
-            doc.setTextColor(150);
+            // Second signature block for 1341/1342
+            const sig2Y = y;
+            addText(`Il Locatore: ${landlord?.name || '[nome]'}`, { x: 20, size: 9, gap: 1 });
+            y = sig2Y;
+            doc.setFontSize(9);
+            doc.text(`Il Conduttore: ${tenant?.name || '[nome]'}`, 110, y);
+            y += 8;
+            
+            // ═══════════════════════════════════════════
+            // AUDIT FOOTER (every page)
+            // ═══════════════════════════════════════════
             const hash = await generateDocHash(contractId + contract.startDate + contract.endDate + contract.rent);
-            doc.text(`Documento generato da BOOM Property Management — Hash: ${hash} — ${new Date().toISOString()}`, 20, 285);
-            doc.setTextColor(0);
+            const totalPages = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= totalPages; i++) {
+                doc.setPage(i);
+                doc.setFontSize(7);
+                doc.setTextColor(150);
+                doc.text(`BOOM Property Management — Contratto ${contractId.substring(0,8)} — Pag. ${i}/${totalPages} — Hash: ${hash}`, 20, 290);
+                doc.setTextColor(0);
+            }
             
             // Save as base64 and store reference
             const pdfBase64 = doc.output('datauristring');
