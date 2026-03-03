@@ -1722,7 +1722,7 @@ Valentyne - BOOM Rome`
                 <p style="color:var(--text-muted);font-size:14px;line-height:1.6;margin:0">
                     ${bothSigned 
                         ? 'Both parties have signed. Your rental agreement is now active.' 
-                        : 'Your signature has been recorded. We\\'re waiting for the other party to sign.'}
+                        : 'Your signature has been recorded. We are waiting for the other party to sign.'}
                 </p>
             </div>
             
@@ -2604,31 +2604,24 @@ Valentyne - BOOM Rome`
         return date.toDateString() === today.toDateString();
     }
 
-    let _refreshDebounce = null;
     let _lastFullRefresh = 0;
     async function refresh(forceFullReload) { 
-        // Debounce: if called multiple times rapidly, only execute once
-        if (_refreshDebounce) clearTimeout(_refreshDebounce);
-        return new Promise(resolve => {
-            _refreshDebounce = setTimeout(async () => {
-                try {
-                    const now = Date.now();
-                    // If refreshed within last 3s, just re-render with existing data (fast path)
-                    if (!forceFullReload && now - _lastFullRefresh < 3000 && S.users.length > 0) {
-                        renderPage(); buildNav(); resolve(); return;
-                    }
-                    _lastFullRefresh = now;
-                    await loadData(); 
-                    await loadRegistrations();
-                    renderPage(); 
-                    buildNav(); 
-                } catch (e) {
-                    console.error('Refresh error:', e);
-                    toast('error', 'Errore aggiornamento', 'Ricarica la pagina');
-                }
-                resolve();
-            }, 150);
-        });
+        try {
+            const now = Date.now();
+            // Fast path: if refreshed within last 2s, just re-render with existing data
+            if (!forceFullReload && now - _lastFullRefresh < 2000 && S.users.length > 0) {
+                renderPage(); buildNav(); return;
+            }
+            _lastFullRefresh = now;
+            await loadData(); 
+            await loadRegistrations();
+            renderPage(); 
+            buildNav(); 
+        } catch (e) {
+            console.error('Refresh error:', e);
+            // Still try to render with whatever data we have
+            try { renderPage(); buildNav(); } catch(re) {}
+        }
     }
 
     function hideLoading() { document.getElementById('loading').classList.add('hidden'); }
