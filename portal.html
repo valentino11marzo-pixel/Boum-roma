@@ -8284,6 +8284,26 @@ Valentyne - BOOM Rome`
             </div>
             ${d.type === 'studenti' && d.universityName ? `<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);font-size:12px"><span style="color:var(--text-muted)">Università:</span> ${d.universityName} — ${d.courseName || ''}</div>` : ''}
             ${d.type === 'transitorio' && d.transitionalReason ? `<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);font-size:12px"><span style="color:var(--text-muted)">Motivo:</span> ${d.transitionalReason}</div>` : ''}
+            ${(() => {
+                const warnings = [];
+                if (!landlord?.codiceFiscale) warnings.push('C.F. proprietario');
+                if (!landlord?.birthDate) warnings.push('Data nascita proprietario');
+                if (!landlord?.address) warnings.push('Indirizzo proprietario');
+                if (!tenant?.codiceFiscale) warnings.push('C.F. inquilino');
+                if (!tenant?.birthDate) warnings.push('Data nascita inquilino');
+                if (!tenant?.address) warnings.push('Indirizzo inquilino');
+                if (!tenant?.idDocType) warnings.push('Documento identità inquilino');
+                if (!prop?.address) warnings.push('Indirizzo immobile');
+                if (!prop?.rooms) warnings.push('N° vani immobile');
+                if (!prop?.cadastralData) warnings.push('Dati catastali');
+                if (d.type === 'studenti' && !d.universityName) warnings.push('Nome università');
+                if (d.type === 'transitorio' && !d.transitionalReason) warnings.push('Motivo transitorietà');
+                if (warnings.length === 0) return '<div style="margin-top:12px;padding:10px;background:rgba(76,175,80,0.1);border:1px solid rgba(76,175,80,0.3);border-radius:8px;font-size:11px;color:var(--green)">✅ Tutti i dati completi — il PDF sarà compilato al 100%</div>';
+                return '<div style="margin-top:12px;padding:10px;background:rgba(255,152,0,0.1);border:1px solid rgba(255,152,0,0.3);border-radius:8px;font-size:11px">' +
+                    '<div style="font-weight:600;color:var(--orange);margin-bottom:4px">⚠️ Dati mancanti nel PDF (' + warnings.length + '):</div>' +
+                    '<div style="color:var(--text-muted)">' + warnings.join(' · ') + '</div>' +
+                    '<div style="color:var(--text-muted);margin-top:4px;font-size:10px">Puoi creare il contratto comunque, i campi mancanti verranno omessi. Per completare, modifica il profilo utente/immobile e rigenera il PDF.</div></div>';
+            })()}
         `;
     }
     
@@ -9564,13 +9584,42 @@ Valentyne - BOOM Rome`
             // Parties
             y += 3;
             addText('PARTI CONTRAENTI', { size: 10, bold: true, gap: 3 });
-            addText(`LOCATORE: ${landlord?.name || '___'} — C.F. ${landlord?.codiceFiscale || '___'}${landlord?.birthDate ? ' — Nato/a il ' + fmtDate(landlord.birthDate) + (landlord.birthPlace ? ' a ' + landlord.birthPlace : '') : ''}${landlord?.address ? ' — Residente in ' + landlord.address : ''}`, { gap: 3 });
-            addText(`CONDUTTORE: ${tenant?.name || '___'} — C.F. ${tenant?.codiceFiscale || '___'}${tenant?.birthDate ? ' — Nato/a il ' + fmtDate(tenant.birthDate) + (tenant.birthPlace ? ' a ' + tenant.birthPlace : '') : ''}${tenant?.address ? ' — Residente in ' + tenant.address : ''}${tenant?.idDocType ? ' — Identificato/a mediante ' + tenant.idDocType + (tenant.idDocNumber ? ' n. ' + tenant.idDocNumber : '') : ''}`, { gap: 4 });
+            
+            // Build landlord line gracefully
+            let locatoreLine = `LOCATORE: ${landlord?.name || '[nome mancante]'}`;
+            if (landlord?.codiceFiscale) locatoreLine += ` — C.F. ${landlord.codiceFiscale}`;
+            if (landlord?.birthDate) {
+                locatoreLine += ` — Nato/a il ${fmtDate(landlord.birthDate)}`;
+                if (landlord.birthPlace) locatoreLine += ` a ${landlord.birthPlace}`;
+            }
+            if (landlord?.address) locatoreLine += ` — Residente in ${landlord.address}`;
+            addText(locatoreLine, { gap: 3 });
+            
+            // Build tenant line gracefully
+            let conduttoreLine = `CONDUTTORE: ${tenant?.name || '[nome mancante]'}`;
+            if (tenant?.codiceFiscale) conduttoreLine += ` — C.F. ${tenant.codiceFiscale}`;
+            if (tenant?.birthDate) {
+                conduttoreLine += ` — Nato/a il ${fmtDate(tenant.birthDate)}`;
+                if (tenant.birthPlace) conduttoreLine += ` a ${tenant.birthPlace}`;
+            }
+            if (tenant?.address) conduttoreLine += ` — Residente in ${tenant.address}`;
+            if (tenant?.idDocType) {
+                conduttoreLine += ` — Identificato/a mediante ${tenant.idDocType}`;
+                if (tenant.idDocNumber) conduttoreLine += ` n. ${tenant.idDocNumber}`;
+            }
+            addText(conduttoreLine, { gap: 4 });
             
             // Property
             addText('IMMOBILE', { size: 10, bold: true, gap: 3 });
-            addText(`L'unità immobiliare posta in ${property?.city || 'Roma'}, ${property?.address || '___'}${property?.floor ? ', piano ' + property.floor : ''}${property?.scala ? ', scala ' + property.scala : ''}${property?.interno ? ', int. ' + property.interno : ''}, composta di n. ${property?.rooms || '___'} vani, oltre cucina e servizi.`, { gap: 2 });
-            if (property?.furnished !== undefined) addText(`${property.furnished ? 'Ammobiliata' : 'Non ammobiliata'} come da elenco a parte sottoscritto dalle parti.`, { gap: 2 });
+            let propDesc = `L'unità immobiliare posta in ${property?.city || 'Roma'}, ${property?.address || '[indirizzo mancante]'}`;
+            const propDetails = [];
+            if (property?.floor) propDetails.push(`piano ${property.floor}`);
+            if (property?.scala) propDetails.push(`scala ${property.scala}`);
+            if (property?.interno) propDetails.push(`int. ${property.interno}`);
+            if (propDetails.length > 0) propDesc += ', ' + propDetails.join(', ');
+            propDesc += property?.rooms ? `, composta di n. ${property.rooms} vani, oltre cucina e servizi.` : '.';
+            addText(propDesc, { gap: 2 });
+            if (property?.furnished !== undefined && property.furnished !== null) addText(`${property.furnished ? 'Ammobiliata' : 'Non ammobiliata'} come da elenco a parte sottoscritto dalle parti.`, { gap: 2 });
             if (property?.cadastralData) addText(`Estremi catastali: ${property.cadastralData}`, { gap: 1 });
             if (property?.energyCert) addText(`Prestazione energetica: ${property.energyCert}`, { gap: 1 });
             if (property?.safetyImplants) addText(`Sicurezza impianti: ${property.safetyImplants}`, { gap: 3 });
@@ -9584,9 +9633,12 @@ Valentyne - BOOM Rome`
             // Art. 2 — Transitional reason / Student status
             addText(isStudenti ? 'Articolo 2 — Natura transitoria' : 'Articolo 2 — Esigenza transitoria', { size: 10, bold: true, gap: 3 });
             if (isStudenti) {
-                addText(`La presente locazione ha natura transitoria in quanto il conduttore ha l'esigenza di abitare l'immobile frequentando il corso di studi di ${contract.courseName || '___'} presso ${contract.universityName || '___'}.`, { gap: 3 });
+                addText(`La presente locazione ha natura transitoria in quanto il conduttore ha l'esigenza di abitare l'immobile frequentando ${contract.courseName ? 'il corso di studi di ' + contract.courseName : 'un corso di studi'} presso ${contract.universityName || '[università da specificare]'}.`, { gap: 3 });
             } else {
-                addText(`Il locatore/conduttore dichiara la seguente esigenza che giustifica la transitorietà del contratto: ${contract.transitionalReason || '___'}.${contract.transitionalDocs ? ' Documentazione allegata: ' + contract.transitionalDocs + '.' : ''}`, { gap: 3 });
+                const reason = contract.transitionalReason || '[motivo da specificare]';
+                let transText = `Il locatore/conduttore dichiara la seguente esigenza che giustifica la transitorietà del contratto: ${reason}.`;
+                if (contract.transitionalDocs) transText += ` Documentazione allegata: ${contract.transitionalDocs}.`;
+                addText(transText, { gap: 3 });
             }
             
             // Art. 3/4 — Rent
@@ -9640,13 +9692,13 @@ Valentyne - BOOM Rome`
             if (contract.landlordSignature) {
                 try { doc.addImage(contract.landlordSignature, 'PNG', 20, sigY, 60, 20); } catch(e) {}
             }
-            addText(`Il Locatore: ${landlord?.name || '___'}`, { x: 20, gap: 1 });
+            addText(`Il Locatore: ${landlord?.name || '[nome]'}`, { x: 20, gap: 1 });
             y = sigY;
             if (contract.tenantSignature) {
                 try { doc.addImage(contract.tenantSignature, 'PNG', 110, sigY, 60, 20); } catch(e) {}
             }
             y = sigY + 22;
-            doc.text(`Il Conduttore: ${tenant?.name || '___'}`, 110, y);
+            doc.text(`Il Conduttore: ${tenant?.name || '[nome]'}`, 110, y);
             y += 8;
             
             // Art. 1341/1342 approval
