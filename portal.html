@@ -603,7 +603,6 @@
         window.firebaseScriptsTotal = 4;
         function onFirebaseScriptLoad() {
             window.firebaseScriptsLoaded++;
-            console.log(`Firebase script ${window.firebaseScriptsLoaded}/${window.firebaseScriptsTotal} loaded`);
         }
         function onFirebaseScriptError(e) {
             console.error('Failed to load Firebase script:', e.target.src);
@@ -795,7 +794,7 @@
         }
         
         // Find active contract for deep link
-        const contract = S.contracts.find(c => (c.tenantId === userId || S.properties.find(p => p.id === c.propertyId)?.ownerId === userId) && c.status === 'active');
+        const contract = S.contracts.find(c => (c.tenantId === userId || S.properties.find(p => p.id === c.propertyId)?.ownerId === userId) && isContractLive(c));
         const portalUrl = window.location.origin + window.location.pathname;
         const signLink = contract ? portalUrl + '?action=sign&contract=' + contract.id : portalUrl;
         
@@ -1481,6 +1480,10 @@ Valentyne - BOOM Rome`
         return [];
     }
 
+    
+    // Contract is "live" if active or pending signatures (not expired/terminated)
+    function isContractLive(c) { return c.status === 'active' || c.status === 'pending_signatures'; }
+
     function getMyContracts() {
         if (isAdmin()) return S.contracts;
         if (isLandlord()) {
@@ -1517,7 +1520,7 @@ Valentyne - BOOM Rome`
     // Get owner/admin contact for tenant
     function getMyLandlord() {
         if (!isTenant()) return null;
-        const myContract = getMyContracts().find(c => c.status === 'active');
+        const myContract = getMyContracts().find(c => isContractLive(c));
         if (!myContract) return null;
         const prop = S.properties.find(p => p.id === myContract.propertyId);
         if (!prop) return null;
@@ -1602,13 +1605,11 @@ Valentyne - BOOM Rome`
                 await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
                 console.log('Persistence set to SESSION');
             } catch (e2) {
-                console.log('SESSION persistence also failed, trying NONE:', e2.message);
                 // Last resort for private browsing / strict Safari
                 try {
                     await auth.setPersistence(firebase.auth.Auth.Persistence.NONE);
                     console.log('Persistence set to NONE (session only)');
                 } catch (e3) {
-                    console.log('All persistence methods failed:', e3.message);
                 }
             }
         }
@@ -1651,7 +1652,6 @@ Valentyne - BOOM Rome`
                     // ★ BOOM PROTOCOL: Handle deep links (sign contract, etc.)
                     setTimeout(() => { if (typeof checkDeepLink === 'function') checkDeepLink(); }, 600);
                 } else {
-                    console.log('Creating new user document...');
                     await db.collection('users').doc(u.uid).set({
                         name: u.displayName || u.email.split('@')[0],
                         email: u.email, role: 'admin', phone: '',
@@ -1664,7 +1664,6 @@ Valentyne - BOOM Rome`
                 // Retry logic for Safari (desktop and mobile)
                 if (isSafari && authRetryCount < maxAuthRetries) {
                     authRetryCount++;
-                    console.log('Retrying auth... attempt', authRetryCount);
                     authProcessed = false;
                     // Actually retry loading user data after brief delay
                     setTimeout(async () => {
@@ -1694,9 +1693,7 @@ Valentyne - BOOM Rome`
 
     async function checkSetup() {
         try {
-            console.log('Checking setup...');
             const q = await db.collection('users').where('role', '==', 'admin').limit(1).get();
-            console.log('Setup check complete, admins found:', !q.empty);
             hideLoading(); 
             showAuth();
             if (q.empty) {
@@ -1712,7 +1709,6 @@ Valentyne - BOOM Rome`
     }
 
     async function loadData() {
-        console.log('Loading data...');
         const startTime = performance.now();
         
         // Check cache first (5 min expiry)
@@ -1723,7 +1719,6 @@ Valentyne - BOOM Rome`
             try {
                 const { data, timestamp } = JSON.parse(cached);
                 if (Date.now() - timestamp < cacheExpiry) {
-                    console.log('Using cached data');
                     Object.assign(S, data);
                     checkAlerts();
                     // Refresh in background
@@ -1740,7 +1735,6 @@ Valentyne - BOOM Rome`
         const startTime = performance.now();
         try {
             // BATCH 1: Critical data (always load first)
-            console.log('Loading batch 1...');
             const [users, props, contracts] = await Promise.all([
                 db.collection('users').get(),
                 db.collection('properties').get(),
@@ -1757,7 +1751,6 @@ Valentyne - BOOM Rome`
             }
             
             // BATCH 2: Secondary data
-            console.log('Loading batch 2...');
             const [payments, maint, clients] = await Promise.all([
                 db.collection('payments').get(),
                 db.collection('maintenance').get(),
@@ -1773,7 +1766,6 @@ Valentyne - BOOM Rome`
             }
             
             // BATCH 3: Documents & Invoices
-            console.log('Loading batch 3...');
             const [docs, invoices, rules, ruleExecs] = await Promise.all([
                 db.collection('documents').get(),
                 db.collection('invoices').get(),
@@ -1957,7 +1949,6 @@ Valentyne - BOOM Rome`
             };
             
             const docRef = await db.collection('notifications').add(notifData);
-            console.log('Notification created for user:', userId);
             
             // Send to Make.com webhook for email - only if valid email exists
             const recipientEmail = recipient?.email?.trim();
@@ -1981,12 +1972,10 @@ Valentyne - BOOM Rome`
                     });
                     // Mark webhook as sent
                     await db.collection('notifications').doc(docRef.id).update({ webhookSent: true, emailSent: true });
-                    console.log('Webhook sent to:', recipientEmail);
                 } catch (webhookErr) {
                     console.error('Webhook error:', webhookErr);
                 }
             } else {
-                console.log('Skipping webhook - no valid email for user:', userId);
             }
         } catch (err) {
             console.error('Error creating notification:', err);
@@ -2140,7 +2129,7 @@ Valentyne - BOOM Rome`
 
         // 7. Properties available (liberi) for > 30 days
         S.properties.filter(p => {
-            const hasActiveContract = S.contracts.some(c => c.propertyId === p.id && c.status === 'active');
+            const hasActiveContract = S.contracts.some(c => c.propertyId === p.id && isContractLive(c));
             return !hasActiveContract && p.availableSince && daysSince(p.availableSince) > 30;
         }).forEach(p => {
             reminders.push({ type: 'property_vacant', priority: 'low', icon: '🏠', color: 'blue', title: 'Immobile sfitto', text: `${p.name} - libero da ${daysSince(p.availableSince)} giorni`, action: `viewProperty('${p.id}')`, date: p.availableSince });
@@ -2645,7 +2634,7 @@ Valentyne - BOOM Rome`
         const occCanvas = document.getElementById('occupancyChart');
         if (occCanvas) {
             const ctx = occCanvas.getContext('2d');
-            const rented = (S.properties || []).filter(p => S.contracts.some(c => c.propertyId === p.id && c.status === 'active')).length;
+            const rented = (S.properties || []).filter(p => S.contracts.some(c => c.propertyId === p.id && isContractLive(c))).length;
             const avail = (S.properties || []).length - rented;
             new Chart(ctx, {
                 type: 'doughnut',
@@ -2737,7 +2726,7 @@ Valentyne - BOOM Rome`
 
         // Property metrics
         const totalProperties = S.properties.length;
-        const rentedProperties = S.properties.filter(p => S.contracts.some(c => c.propertyId === p.id && c.status === 'active')).length;
+        const rentedProperties = S.properties.filter(p => S.contracts.some(c => c.propertyId === p.id && isContractLive(c))).length;
         const occupancyRate = totalProperties > 0 ? Math.round((rentedProperties / totalProperties) * 100) : 0;
         const availableProps = S.properties.filter(p => p.availabilityStatus === 'available' || !p.availabilityStatus).length;
         const inNegotiation = S.properties.filter(p => p.availabilityStatus === 'negotiation').length;
@@ -3403,7 +3392,7 @@ Valentyne - BOOM Rome`
                     <!-- I MIEI IMMOBILI -->
                     <div class="card" style="margin-bottom:20px"><div class="card-header"><h3 class="card-title">🏠 I Miei Immobili</h3><button class="btn btn-sm" onclick="goTo('my-properties')">Vedi Tutti</button></div><div class="card-body flush">
                         ${myProps.length > 0 ? myProps.map(p => {
-                            const contract = myContracts.find(c => c.propertyId === p.id && c.status === 'active');
+                            const contract = myContracts.find(c => c.propertyId === p.id && isContractLive(c));
                             const tenant = contract ? S.users.find(u => u.id === contract.tenantId) : null;
                             const contractDays = contract ? daysUntil(contract.endDate) : null;
                             const propMaint = myMaint.filter(m => m.propertyId === p.id);
@@ -3571,7 +3560,7 @@ Valentyne - BOOM Rome`
             doc.setFontSize(9);
             for (const prop of myProps) {
                 if (y > 270) { doc.addPage(); y = 20; }
-                const contract = myContracts.find(c => c.propertyId === prop.id && c.status === 'active');
+                const contract = myContracts.find(c => c.propertyId === prop.id && isContractLive(c));
                 const tenant = contract ? S.users.find(u => u.id === contract.tenantId) : null;
                 doc.text(`${prop.name} - ${prop.address || ''} · ${contract ? 'Affittato a ' + (tenant?.name || 'N/A') + ' · €' + contract.rent + '/mese' : 'Libero'}`, 17, y);
                 y += 6;
@@ -3589,7 +3578,7 @@ Valentyne - BOOM Rome`
     }
 
     function tenantDashboard() {
-        const myContract = getMyContracts().find(c => c.status === 'active');
+        const myContract = getMyContracts().find(c => isContractLive(c));
         const myProp = myContract ? S.properties.find(p => p.id === myContract.propertyId) : null;
         const myPayments = getMyPayments();
         const paidPayments = myPayments.filter(p => p.status === 'paid');
@@ -4596,14 +4585,14 @@ Valentyne - BOOM Rome`
 
         // Calculate stats
         const tenantsWithOverdue = tenants.filter(t => {
-            const contract = S.contracts.find(c => c.tenantId === t.id && c.status === 'active');
+            const contract = S.contracts.find(c => c.tenantId === t.id && isContractLive(c));
             return contract && S.payments.some(p => p.contractId === contract.id && p.status === 'pending' && isOverdue(p.dueDate));
         });
-        const tenantsActive = tenants.filter(t => S.contracts.some(c => c.tenantId === t.id && c.status === 'active'));
+        const tenantsActive = tenants.filter(t => S.contracts.some(c => c.tenantId === t.id && isContractLive(c)));
 
         // User payment score calculator
         const getPaymentScore = (userId) => {
-            const contract = S.contracts.find(c => c.tenantId === userId && c.status === 'active');
+            const contract = S.contracts.find(c => c.tenantId === userId && isContractLive(c));
             if (!contract) return null;
             const payments = S.payments.filter(p => p.contractId === contract.id);
             if (payments.length === 0) return null;
@@ -4613,7 +4602,7 @@ Valentyne - BOOM Rome`
 
         // User row generator
         const userRow = (u) => {
-            const contract = S.contracts.find(c => c.tenantId === u.id && c.status === 'active');
+            const contract = S.contracts.find(c => c.tenantId === u.id && isContractLive(c));
             const property = contract ? S.properties.find(p => p.id === contract.propertyId) : null;
             const ownedProps = S.properties.filter(p => p.ownerId === u.id);
             const overduePayments = contract ? S.payments.filter(p => p.contractId === contract.id && p.status === 'pending' && isOverdue(p.dueDate)) : [];
@@ -5766,7 +5755,6 @@ Valentyne - BOOM Rome`
                     const tenant = S.users.find(u => u.id === (item.tenantId || item.userId));
                     if (tenant?.phone) {
                         // Would send WhatsApp/SMS here
-                        console.log(`Would notify tenant ${tenant.name}: ${rule.name}`);
                     }
                 }
                 break;
@@ -5775,7 +5763,6 @@ Valentyne - BOOM Rome`
                     const property = S.properties.find(p => p.id === item.propertyId);
                     const landlord = property ? S.users.find(u => u.id === property.ownerId) : null;
                     if (landlord?.phone) {
-                        console.log(`Would notify landlord ${landlord.name}: ${rule.name}`);
                     }
                 }
                 break;
@@ -6151,7 +6138,7 @@ Valentyne - BOOM Rome`
                 const p = S.properties.find(x => x.id === c.propertyId);
                 const t = S.users.find(x => x.id === c.tenantId);
                 const days = daysUntil(c.endDate);
-                return `<div class="list-item clickable" onclick="viewContractLandlord('${c.id}')"><div class="list-icon">📋</div><div class="list-content"><div class="list-title">${p?.name || ''} <span class="badge ${c.status === 'active' ? 'green' : 'red'}">${c.status === 'active' ? 'Attivo' : 'Scaduto'}</span></div><div class="list-subtitle">${t?.name || ''} · ${fmtDate(c.startDate)} → ${fmtDate(c.endDate)}${days !== null && days <= 60 && days >= 0 ? ' · <span class="text-orange">' + days + ' giorni</span>' : ''}</div></div><div class="list-meta"><div class="list-value text-gold">€${c.rent || 0}</div><div class="stat-sub">Dep: €${c.deposit || 0}</div></div></div>`;
+                return `<div class="list-item clickable" onclick="viewContractLandlord('${c.id}')"><div class="list-icon">📋</div><div class="list-content"><div class="list-title">${p?.name || ''} <span class="badge ${statusColor(c.status)}">${statusLabel(c.status)}</span></div><div class="list-subtitle">${t?.name || ''} · ${fmtDate(c.startDate)} → ${fmtDate(c.endDate)}${days !== null && days <= 60 && days >= 0 ? ' · <span class="text-orange">' + days + ' giorni</span>' : ''}</div></div><div class="list-meta"><div class="list-value text-gold">€${c.rent || 0}</div><div class="stat-sub">Dep: €${c.deposit || 0}</div></div></div>`;
             }).join('') || '<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">Nessun contratto</div></div>'}</div></div>`;
     }
 
@@ -6159,7 +6146,7 @@ Valentyne - BOOM Rome`
     // TENANT PAGES
     // ═══════════════════════════════════════════════════════════════════════════
     function tenantContractPage() {
-        const contract = getMyContracts().find(c => c.status === 'active');
+        const contract = getMyContracts().find(c => isContractLive(c));
         if (!contract) return `<div class="card"><div class="card-body"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">Nessun contratto attivo</div></div></div></div>`;
         const prop = S.properties.find(p => p.id === contract.propertyId);
         const landlord = getMyLandlord();
@@ -7718,7 +7705,7 @@ Valentyne - BOOM Rome`
 
         if (type === 'editProperty') { const p = data; if (!p) return ''; const landlords = S.users.filter(u => u.role === 'landlord'); const availDate = p.availableSince ? (typeof p.availableSince === 'string' ? p.availableSince.split('T')[0] : (p.availableSince.toDate ? p.availableSince.toDate().toISOString().split('T')[0] : '')) : ''; return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">✏️ Modifica Immobile</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body" style="max-height:70vh;overflow-y:auto"><form id="mForm" onsubmit="updateProperty(event,'${p.id}')"><div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="name" value="${p.name || ''}" required></div><div class="form-group"><label class="form-label">Proprietario *</label><select class="form-select" name="ownerId" required><option value="">Seleziona...</option>${landlords.map(l => `<option value="${l.id}" ${p.ownerId === l.id ? 'selected' : ''}>${l.name}</option>`).join('')}</select></div></div><div class="form-group"><label class="form-label">Indirizzo</label><input type="text" class="form-input" name="address" value="${p.address || ''}"></div><div class="form-row"><div class="form-group"><label class="form-label">Affitto €/mese *</label><input type="number" class="form-input" name="rent" value="${p.rent || ''}" required></div><div class="form-group"><label class="form-label">Superficie m²</label><input type="number" class="form-input" name="sqm" value="${p.sqm || ''}"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Stanze</label><input type="number" class="form-input" name="rooms" value="${p.rooms || ''}"></div><div class="form-group"><label class="form-label">Bagni</label><input type="number" class="form-input" name="bathrooms" value="${p.bathrooms || ''}"></div><div class="form-group"><label class="form-label">Piano</label><input type="text" class="form-input" name="floor" value="${p.floor || ''}"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Anno Costruzione</label><input type="number" class="form-input" name="yearBuilt" value="${p.yearBuilt || ''}"></div><div class="form-group"><label class="form-label">Tipo</label><select class="form-select" name="propertyType"><option value="apartment" ${p.propertyType === 'apartment' || !p.propertyType ? 'selected' : ''}>Appartamento</option><option value="studio" ${p.propertyType === 'studio' ? 'selected' : ''}>Monolocale</option><option value="room" ${p.propertyType === 'room' ? 'selected' : ''}>Stanza</option><option value="house" ${p.propertyType === 'house' ? 'selected' : ''}>Casa</option><option value="loft" ${p.propertyType === 'loft' ? 'selected' : ''}>Loft</option></select></div></div><div style="background:var(--bg);padding:12px;border-radius:8px;margin:12px 0"><div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--gold);margin-bottom:10px">📊 Disponibilità & Media</div><div class="form-row"><div class="form-group"><label class="form-label">Stato Disponibilità</label><select class="form-select" name="availabilityStatus"><option value="available" ${p.availabilityStatus === 'available' ? 'selected' : ''}>🟢 Disponibile</option><option value="negotiation" ${p.availabilityStatus === 'negotiation' ? 'selected' : ''}>🟡 In Trattativa</option><option value="rented" ${p.availabilityStatus === 'rented' ? 'selected' : ''}>🔴 Affittato</option><option value="off_market" ${p.availabilityStatus === 'off_market' ? 'selected' : ''}>⚫ Fuori Mercato</option></select></div><div class="form-group"><label class="form-label">Disponibile Dal</label><input type="date" class="form-input" name="availableSince" value="${availDate}"></div></div><div class="form-group"><label class="form-label">📺 YouTube Video Tour</label><input type="url" class="form-input" name="youtubeUrl" value="${p.youtubeUrl || ''}" placeholder="https://www.youtube.com/watch?v=..."></div></div><div style="background:var(--bg);padding:12px;border-radius:8px;margin:12px 0"><div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--gold);margin-bottom:10px">📋 Dati Contratto (opzionali)</div><div class="form-row"><div class="form-group"><label class="form-label">Scala</label><input type="text" class="form-input" name="scala" value="${p.scala || ''}"></div><div class="form-group"><label class="form-label">Interno</label><input type="text" class="form-input" name="interno" value="${p.interno || ''}"></div><div class="form-group"><label class="form-label">Ammobiliato</label><select class="form-select" name="furnished"><option value="">Non specificato</option><option value="true" ${p.furnished === true || p.furnished === 'true' ? 'selected' : ''}>Sì</option><option value="false" ${p.furnished === false || p.furnished === 'false' ? 'selected' : ''}>No</option></select></div></div><div class="form-group"><label class="form-label">Dati Catastali</label><input type="text" class="form-input" name="cadastralData" value="${p.cadastralData || ''}"></div><div class="form-group"><label class="form-label">Certificazione Energetica (APE)</label><input type="text" class="form-input" name="energyCert" value="${p.energyCert || ''}"></div><div class="form-group"><label class="form-label">Conformità Impianti</label><input type="text" class="form-input" name="safetyImplants" value="${p.safetyImplants || ''}"></div><div class="form-group"><label class="form-label">Accessori</label><input type="text" class="form-input" name="accessories" value="${p.accessories || ''}"></div></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes" rows="2">${p.notes || ''}</textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Salva</button></div></div></div>`; }
 
-        if (type === 'addContract') { const tenants = S.users.filter(u => u.role === 'tenant'); const props = S.properties.filter(p => !S.contracts.some(c => c.propertyId === p.id && c.status === 'active')); const landlords = S.users.filter(u => u.role === 'landlord'); return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">📋 Nuovo Contratto — BOOM Protocol</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body" style="max-height:72vh;overflow-y:auto"><form id="mForm" onsubmit="saveContract(event)" novalidate>
+        if (type === 'addContract') { const tenants = S.users.filter(u => u.role === 'tenant'); const props = S.properties.filter(p => !S.contracts.some(c => c.propertyId === p.id && isContractLive(c))); const landlords = S.users.filter(u => u.role === 'landlord'); return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">📋 Nuovo Contratto — BOOM Protocol</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body" style="max-height:72vh;overflow-y:auto"><form id="mForm" onsubmit="saveContract(event)" novalidate>
 <!-- Step Indicator -->
 <div style="display:flex;gap:4px;margin-bottom:20px">${['Tipo & Parti','Termini','Dettagli','Riepilogo'].map((s,i)=>`<div id="cStep${i}" style="flex:1;text-align:center;padding:8px 4px;border-radius:8px;font-size:11px;font-weight:600;transition:all .2s;${i===0?'background:var(--gold);color:#000':'background:var(--surface);color:var(--text-muted)'}">${i+1}. ${s}</div>`).join('')}</div>
 
@@ -7759,7 +7746,30 @@ Valentyne - BOOM Rome`
 </div>
 </form></div></div></div>`; }
 
-        if (type === 'editContract') { const c = data; if (!c) return ''; const tenants = S.users.filter(u => u.role === 'tenant'); const props = S.properties; return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">✏️ Modifica Contratto</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="updateContract(event,'${c.id}')"><div class="form-row"><div class="form-group"><label class="form-label">Immobile</label><select class="form-select" name="propertyId">${props.map(p => `<option value="${p.id}" ${c.propertyId === p.id ? 'selected' : ''}>${p.name}</option>`).join('')}</select></div><div class="form-group"><label class="form-label">Inquilino</label><select class="form-select" name="tenantId">${tenants.map(t => `<option value="${t.id}" ${c.tenantId === t.id ? 'selected' : ''}>${t.name}</option>`).join('')}</select></div></div><div class="form-row"><div class="form-group"><label class="form-label">Inizio</label><input type="date" class="form-input" name="startDate" value="${c.startDate || ''}"></div><div class="form-group"><label class="form-label">Fine</label><input type="date" class="form-input" name="endDate" value="${c.endDate || ''}"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Affitto €</label><input type="number" class="form-input" name="rent" value="${c.rent || ''}"></div><div class="form-group"><label class="form-label">Deposito €</label><input type="number" class="form-input" name="deposit" value="${c.deposit || ''}"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Stato</label><select class="form-select" name="status"><option value="active" ${c.status === 'active' ? 'selected' : ''}>Attivo</option><option value="expired" ${c.status === 'expired' ? 'selected' : ''}>Scaduto</option><option value="terminated" ${c.status === 'terminated' ? 'selected' : ''}>Terminato</option></select></div></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes" rows="2">${c.notes || ''}</textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Salva</button></div></div></div>`; }
+        if (type === 'editContract') { const c = data; if (!c) return ''; const tenants = S.users.filter(u => u.role === 'tenant'); const props = S.properties; return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">✏️ Modifica Contratto</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body" style="max-height:70vh;overflow-y:auto"><form id="mForm" onsubmit="updateContract(event,'${c.id}')">
+<div style="font-weight:600;font-size:13px;color:var(--gold);margin-bottom:8px;border-bottom:1px solid var(--border);padding-bottom:6px">📋 Dati Base</div>
+<div class="form-row"><div class="form-group"><label class="form-label">Tipo Contratto</label><select class="form-select" name="type"><option value="transitorio" ${c.type === 'transitorio' ? 'selected' : ''}>Transitorio</option><option value="studenti" ${c.type === 'studenti' ? 'selected' : ''}>Studenti Universitari</option></select></div><div class="form-group"><label class="form-label">Stato</label><select class="form-select" name="status"><option value="pending_signatures" ${c.status === 'pending_signatures' ? 'selected' : ''}>⏳ In Attesa Firme</option><option value="active" ${c.status === 'active' ? 'selected' : ''}>✅ Attivo</option><option value="expired" ${c.status === 'expired' ? 'selected' : ''}>⏰ Scaduto</option><option value="terminated" ${c.status === 'terminated' ? 'selected' : ''}>🚫 Terminato</option></select></div></div>
+<div class="form-row"><div class="form-group"><label class="form-label">Immobile</label><select class="form-select" name="propertyId">${props.map(p => `<option value="${p.id}" ${c.propertyId === p.id ? 'selected' : ''}>${p.name}</option>`).join('')}</select></div><div class="form-group"><label class="form-label">Inquilino</label><select class="form-select" name="tenantId">${tenants.map(t => `<option value="${t.id}" ${c.tenantId === t.id ? 'selected' : ''}>${t.name}</option>`).join('')}</select></div></div>
+<div class="form-row"><div class="form-group"><label class="form-label">Inizio</label><input type="date" class="form-input" name="startDate" value="${c.startDate || ''}"></div><div class="form-group"><label class="form-label">Fine</label><input type="date" class="form-input" name="endDate" value="${c.endDate || ''}"></div></div>
+
+<div style="font-weight:600;font-size:13px;color:var(--gold);margin:16px 0 8px;border-bottom:1px solid var(--border);padding-bottom:6px">💰 Condizioni Economiche</div>
+<div class="form-row"><div class="form-group"><label class="form-label">Affitto Mensile €</label><input type="number" class="form-input" name="rent" value="${c.rent || ''}"></div><div class="form-group"><label class="form-label">Deposito €</label><input type="number" class="form-input" name="deposit" value="${c.deposit || ''}"></div></div>
+<div class="form-row"><div class="form-group"><label class="form-label">N. Mensilità Deposito</label><input type="number" class="form-input" name="depositMonths" value="${c.depositMonths || ''}" min="1" max="3"></div><div class="form-group"><label class="form-label">Oneri Accessori €</label><input type="number" class="form-input" name="accessoryCharges" value="${c.accessoryCharges || ''}"></div></div>
+<div class="form-row"><div class="form-group"><label class="form-label">Metodo Pagamento</label><select class="form-select" name="paymentMethod"><option value="bonifico bancario" ${(c.paymentMethod || 'bonifico bancario') === 'bonifico bancario' ? 'selected' : ''}>Bonifico Bancario</option><option value="contanti" ${c.paymentMethod === 'contanti' ? 'selected' : ''}>Contanti</option><option value="assegno" ${c.paymentMethod === 'assegno' ? 'selected' : ''}>Assegno</option></select></div><div class="form-group"><label class="form-label">Giorno Scadenza</label><input type="number" class="form-input" name="paymentDay" value="${c.paymentDay || 5}" min="1" max="28"></div></div>
+
+<div style="font-weight:600;font-size:13px;color:var(--gold);margin:16px 0 8px;border-bottom:1px solid var(--border);padding-bottom:6px">📝 Dati CAF (Art. 2 — Motivo Transitorio)</div>
+<div class="form-group"><label class="form-label">Motivo Transitorio</label><input type="text" class="form-input" name="transitionalReason" value="${c.transitionalReason || ''}" placeholder="Es: Trasferimento lavorativo temporaneo"></div>
+<div class="form-group"><label class="form-label">Documentazione Allegata</label><input type="text" class="form-input" name="transitionalDocs" value="${c.transitionalDocs || ''}" placeholder="Es: Lettera datore di lavoro"></div>
+<div class="form-row"><div class="form-group"><label class="form-label">Università (se studenti)</label><input type="text" class="form-input" name="universityName" value="${c.universityName || ''}" placeholder="Es: La Sapienza"></div><div class="form-group"><label class="form-label">Corso di Studi</label><input type="text" class="form-input" name="courseName" value="${c.courseName || ''}" placeholder="Es: Architettura"></div></div>
+
+<div style="font-weight:600;font-size:13px;color:var(--gold);margin:16px 0 8px;border-bottom:1px solid var(--border);padding-bottom:6px">🏠 Art. 9 & Clausole</div>
+<div class="form-group"><label class="form-label">Conviventi (Art. 9)</label><input type="text" class="form-input" name="cohabitants" value="${c.cohabitants || ''}" placeholder="Nomi delle persone conviventi"></div>
+<div class="form-group"><label class="form-label">Clausole Aggiuntive (Art. 17)</label><textarea class="form-textarea" name="otherClauses" rows="2" placeholder="Clausole personalizzate...">${c.otherClauses || ''}</textarea></div>
+<div class="form-group"><label class="form-label">Note Interne (non nel PDF)</label><textarea class="form-textarea" name="notes" rows="2">${c.notes || ''}</textarea></div>
+
+</form>
+<div style="background:rgba(212,175,55,0.06);border:1px solid rgba(212,175,55,0.15);border-radius:8px;padding:10px 14px;margin-top:12px;font-size:11px;color:var(--text-muted)">💡 Dopo il salvataggio, clicca <strong>🔄 Rigenera PDF</strong> nel dettaglio contratto per aggiornare il documento con i nuovi dati.</div>
+</div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">💾 Salva</button></div></div></div>`; }
 
         if (type === 'renewContract') { const c = data; if (!c) return ''; const p = S.properties.find(x => x.id === c.propertyId); const currentEnd = c.endDate ? new Date(c.endDate) : new Date(); const newEnd = new Date(currentEnd); newEnd.setFullYear(newEnd.getFullYear() + 1); return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">🔄 Rinnova Contratto</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><div style="background:var(--surface);padding:16px;border-radius:8px;margin-bottom:16px"><div style="font-weight:600;margin-bottom:8px">${p?.name || 'Immobile'}</div><div style="font-size:13px;color:var(--text-muted)">Scadenza attuale: ${fmtDate(c.endDate)}</div></div><form id="mForm" onsubmit="renewContract(event,'${c.id}')"><div class="form-group"><label class="form-label">Nuova Data Fine *</label><input type="date" class="form-input" name="newEndDate" value="${newEnd.toISOString().split('T')[0]}" required></div><div class="form-row"><div class="form-group"><label class="form-label">Nuovo Affitto €</label><input type="number" class="form-input" name="newRent" value="${c.rent || ''}" placeholder="Lascia vuoto per mantenere"></div><div class="form-group"><label class="form-label">Adeguamento %</label><input type="number" class="form-input" name="adjustment" placeholder="Es: 2 per +2%"></div></div><div class="form-group"><label class="form-label">Note Rinnovo</label><textarea class="form-textarea" name="renewalNotes" rows="2" placeholder="Es: Rinnovo annuale con adeguamento ISTAT..."></textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">🔄 Rinnova</button></div></div></div>`; }
 
@@ -7775,7 +7785,7 @@ Valentyne - BOOM Rome`
 
         if (type === 'editMaintenance') { const m = data; if (!m) return ''; return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">✏️ Modifica Manutenzione</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="updateMaintenance(event,'${m.id}')"><div class="form-group"><label class="form-label">Titolo *</label><input type="text" class="form-input" name="title" value="${m.title || ''}" required></div><div class="form-group"><label class="form-label">Immobile</label><select class="form-select" name="propertyId">${S.properties.map(p => `<option value="${p.id}" ${m.propertyId === p.id ? 'selected' : ''}>${p.name}</option>`).join('')}</select></div><div class="form-row"><div class="form-group"><label class="form-label">Categoria</label><select class="form-select" name="category"><option value="plumbing" ${m.category === 'plumbing' ? 'selected' : ''}>Idraulica</option><option value="electrical" ${m.category === 'electrical' ? 'selected' : ''}>Elettricità</option><option value="heating" ${m.category === 'heating' ? 'selected' : ''}>Riscaldamento</option><option value="appliance" ${m.category === 'appliance' ? 'selected' : ''}>Elettrodomestici</option><option value="other" ${m.category === 'other' ? 'selected' : ''}>Altro</option></select></div><div class="form-group"><label class="form-label">Priorità</label><select class="form-select" name="priority"><option value="low" ${m.priority === 'low' ? 'selected' : ''}>Bassa</option><option value="medium" ${m.priority === 'medium' ? 'selected' : ''}>Media</option><option value="high" ${m.priority === 'high' ? 'selected' : ''}>Alta</option><option value="urgent" ${m.priority === 'urgent' ? 'selected' : ''}>Urgente</option></select></div></div><div class="form-group"><label class="form-label">Stato</label><select class="form-select" name="status"><option value="pending" ${m.status === 'pending' ? 'selected' : ''}>🟡 In Attesa</option><option value="in_progress" ${m.status === 'in_progress' ? 'selected' : ''}>🔵 In Corso</option><option value="resolved" ${m.status === 'resolved' ? 'selected' : ''}>🟢 Risolto</option></select></div><div class="form-group"><label class="form-label">Descrizione</label><textarea class="form-textarea" name="description" rows="3">${m.description || ''}</textarea></div><div class="form-row"><div class="form-group"><label class="form-label">Costo €</label><input type="number" class="form-input" name="cost" value="${m.cost || ''}"></div><div class="form-group"><label class="form-label">Tecnico/Fornitore</label><input type="text" class="form-input" name="technician" value="${m.technician || ''}"></div></div><div class="form-group"><label class="form-label">Note Risoluzione</label><textarea class="form-textarea" name="resolutionNotes" rows="2">${m.resolutionNotes || ''}</textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Salva</button></div></div></div>`; }
 
-        if (type === 'addTenantMaintenance') { const myContract = getMyContracts().find(c => c.status === 'active'); const myProp = myContract ? S.properties.find(p => p.id === myContract.propertyId) : null; return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">🔧 Richiedi Manutenzione</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="saveTenantMaintenance(event)"><div class="form-group"><label class="form-label">Immobile</label><input type="text" class="form-input" value="${myProp?.name || 'N/A'}" readonly><input type="hidden" name="propertyId" value="${myProp?.id || ''}"></div><div class="form-group"><label class="form-label">Titolo *</label><input type="text" class="form-input" name="title" required placeholder="Es: Rubinetto perde"></div><div class="form-row"><div class="form-group"><label class="form-label">Categoria</label><select class="form-select" name="category"><option value="plumbing">Idraulica</option><option value="electrical">Elettricità</option><option value="heating">Riscaldamento</option><option value="appliance">Elettrodomestici</option><option value="other">Altro</option></select></div><div class="form-group"><label class="form-label">Urgenza</label><select class="form-select" name="priority"><option value="low">Non urgente</option><option value="medium" selected>Normale</option><option value="high">Urgente</option></select></div></div><div class="form-group"><label class="form-label">Descrizione</label><textarea class="form-textarea" name="description" placeholder="Descrivi il problema in dettaglio..."></textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Invia Richiesta</button></div></div></div>`; }
+        if (type === 'addTenantMaintenance') { const myContract = getMyContracts().find(c => isContractLive(c)); const myProp = myContract ? S.properties.find(p => p.id === myContract.propertyId) : null; return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">🔧 Richiedi Manutenzione</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="saveTenantMaintenance(event)"><div class="form-group"><label class="form-label">Immobile</label><input type="text" class="form-input" value="${myProp?.name || 'N/A'}" readonly><input type="hidden" name="propertyId" value="${myProp?.id || ''}"></div><div class="form-group"><label class="form-label">Titolo *</label><input type="text" class="form-input" name="title" required placeholder="Es: Rubinetto perde"></div><div class="form-row"><div class="form-group"><label class="form-label">Categoria</label><select class="form-select" name="category"><option value="plumbing">Idraulica</option><option value="electrical">Elettricità</option><option value="heating">Riscaldamento</option><option value="appliance">Elettrodomestici</option><option value="other">Altro</option></select></div><div class="form-group"><label class="form-label">Urgenza</label><select class="form-select" name="priority"><option value="low">Non urgente</option><option value="medium" selected>Normale</option><option value="high">Urgente</option></select></div></div><div class="form-group"><label class="form-label">Descrizione</label><textarea class="form-textarea" name="description" placeholder="Descrivi il problema in dettaglio..."></textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Invia Richiesta</button></div></div></div>`; }
 
         // COMMAND CENTER MODALS
         if (type === 'addDeadline') { 
@@ -8149,7 +8159,7 @@ Valentyne - BOOM Rome`
                 cohabitants: data.cohabitants || '',
                 otherClauses: data.otherClauses || '',
                 notes: data.notes || '',
-                status: 'active',
+                status: 'pending_signatures',
                 signatureStatus: 'none',
                 paymentsGenerated: false,
                 welcomeEmailSent: false,
@@ -8396,7 +8406,6 @@ Valentyne - BOOM Rome`
         }
         await batch.commit();
         
-        console.log(`✅ Generated ${deadlines.length} automatic deadlines for contract`);
     }
     
     // Generate deadlines for existing contract (called from UI)
@@ -8591,18 +8600,30 @@ Valentyne - BOOM Rome`
         e.preventDefault();
         const data = Object.fromEntries(new FormData(e.target));
         try {
-            await db.collection('contracts').doc(id).update({
+            const updateData = {
                 propertyId: data.propertyId,
                 tenantId: data.tenantId,
+                type: data.type || 'transitorio',
                 startDate: data.startDate,
                 endDate: data.endDate,
                 rent: parseInt(data.rent) || 0,
                 deposit: parseInt(data.deposit) || 0,
+                depositMonths: parseInt(data.depositMonths) || 0,
+                accessoryCharges: parseInt(data.accessoryCharges) || 0,
+                paymentMethod: data.paymentMethod || 'bonifico bancario',
+                paymentDay: parseInt(data.paymentDay) || 5,
+                transitionalReason: data.transitionalReason || '',
+                transitionalDocs: data.transitionalDocs || '',
+                universityName: data.universityName || '',
+                courseName: data.courseName || '',
+                cohabitants: data.cohabitants || '',
+                otherClauses: data.otherClauses || '',
                 status: data.status,
                 notes: data.notes || '',
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
-            closeModal(); await refresh(); toast('success', 'Contratto aggiornato!');
+            };
+            await db.collection('contracts').doc(id).update(updateData);
+            closeModal(); await refresh(); toast('success', 'Contratto aggiornato!', 'Clicca 🔄 Rigenera PDF per aggiornare il documento');
         } catch (err) { toast('error', 'Errore', err.message); }
     }
 
@@ -8876,7 +8897,7 @@ Valentyne - BOOM Rome`
                 </div>
                 
                 ${u.role === 'landlord' && userProps.length ? `<div class="mt-16"><div class="section-title" style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:12px">🏠 Immobili (${userProps.length})</div><div style="display:flex;flex-wrap:wrap;gap:6px">${userProps.map(p => `<span class="badge gold">${p.name}</span>`).join('')}</div></div>` : ''}
-                ${u.role === 'tenant' && userContracts.length ? `<div class="mt-16"><div class="section-title" style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:12px">📋 Contratti (${userContracts.length})</div><div style="display:flex;flex-wrap:wrap;gap:6px">${userContracts.map(c => { const p = S.properties.find(x => x.id === c.propertyId); return `<span class="badge ${c.status === 'active' ? 'green' : 'gray'}">${p?.name || 'Contratto'}</span>`; }).join('')}</div></div>` : ''}
+                ${u.role === 'tenant' && userContracts.length ? `<div class="mt-16"><div class="section-title" style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:12px">📋 Contratti (${userContracts.length})</div><div style="display:flex;flex-wrap:wrap;gap:6px">${userContracts.map(c => { const p = S.properties.find(x => x.id === c.propertyId); return `<span class="badge ${statusColor(c.status)}">${p?.name || 'Contratto'}</span>`; }).join('')}</div></div>` : ''}
                 
                 <div class="mt-16">
                     <div class="section-title" style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
@@ -8904,7 +8925,7 @@ Valentyne - BOOM Rome`
         const p = S.properties.find(x => x.id === id); if (!p) return;
         const owner = S.users.find(u => u.id === p.ownerId);
         const contracts = S.contracts.filter(c => c.propertyId === id);
-        const activeContract = contracts.find(c => c.status === 'active');
+        const activeContract = contracts.find(c => isContractLive(c));
         const tenant = activeContract ? S.users.find(u => u.id === activeContract.tenantId) : null;
         const propTypeLabels = { apartment: 'Appartamento', studio: 'Monolocale', room: 'Stanza', house: 'Casa', loft: 'Loft' };
         const availStatusLabels = { available: { text: 'Disponibile', color: 'green', icon: '🟢' }, negotiation: { text: 'In Trattativa', color: 'orange', icon: '🟡' }, rented: { text: 'Affittato', color: 'red', icon: '🔴' }, off_market: { text: 'Fuori Mercato', color: 'gray', icon: '⚫' } };
@@ -8940,7 +8961,7 @@ Valentyne - BOOM Rome`
                     <div><div class="detail-label">Contratto</div><div class="detail-value">${fmtDate(activeContract.startDate)} → ${fmtDate(activeContract.endDate)}</div></div>
                     <div><div class="detail-label">Deposito</div><div class="detail-value">€${activeContract.deposit || 0}</div></div>
                 </div>` : ''}
-                ${contracts.length ? `<div class="mt-16"><div class="section-title" style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:12px">📋 Storico Contratti (${contracts.length})</div><div style="background:var(--surface);border-radius:8px;overflow:hidden">${contracts.map(c => { const t = S.users.find(u => u.id === c.tenantId); return `<div style="padding:10px 12px;border-bottom:1px solid var(--border);font-size:13px;display:flex;align-items:center;gap:10px"><span class="badge ${c.status === 'active' ? 'green' : c.status === 'terminated' ? 'red' : 'gray'}">${c.status === 'active' ? 'Attivo' : c.status === 'terminated' ? 'Terminato' : 'Scaduto'}</span><span style="flex:1">${t?.name || 'Inquilino'} · ${fmtDate(c.startDate)} → ${fmtDate(c.endDate)}</span><span class="text-gold">€${c.rent}/mese</span></div>`; }).join('')}</div></div>` : ''}
+                ${contracts.length ? `<div class="mt-16"><div class="section-title" style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:12px">📋 Storico Contratti (${contracts.length})</div><div style="background:var(--surface);border-radius:8px;overflow:hidden">${contracts.map(c => { const t = S.users.find(u => u.id === c.tenantId); return `<div style="padding:10px 12px;border-bottom:1px solid var(--border);font-size:13px;display:flex;align-items:center;gap:10px"><span class="badge ${statusColor(c.status)}">${statusLabel(c.status)}</span><span style="flex:1">${t?.name || 'Inquilino'} · ${fmtDate(c.startDate)} → ${fmtDate(c.endDate)}</span><span class="text-gold">€${c.rent}/mese</span></div>`; }).join('')}</div></div>` : ''}
             </div>
             <div class="modal-footer">
                 <button class="btn btn-danger btn-sm" onclick="confirmDelete('propert','${p.id}','${p.name}')">🗑</button>
@@ -8953,7 +8974,7 @@ Valentyne - BOOM Rome`
     function viewPropertyLandlord(id) {
         const p = S.properties.find(x => x.id === id); if (!p) return;
         const contracts = getMyContracts().filter(c => c.propertyId === id);
-        const activeContract = contracts.find(c => c.status === 'active');
+        const activeContract = contracts.find(c => isContractLive(c));
         const tenant = activeContract ? S.users.find(u => u.id === activeContract.tenantId) : null;
         const payments = getMyPayments().filter(pay => { const c = contracts.find(x => x.id === pay.contractId); return c !== undefined; });
         const totalPaid = payments.filter(pay => pay.status === 'paid').reduce((s, pay) => s + (pay.amount || 0), 0);
@@ -8999,9 +9020,9 @@ Valentyne - BOOM Rome`
             <div class="modal-header"><h3 class="modal-title">📋 Contratto ${p?.name || ''}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
             <div class="modal-body" style="max-height:70vh;overflow-y:auto">
                 <div class="detail-badges mb-16">
-                    <span class="badge ${c.status === 'active' ? 'green' : c.status === 'terminated' ? 'red' : 'gray'}">${c.status === 'active' ? 'Attivo' : c.status === 'terminated' ? 'Terminato' : 'Scaduto'}</span>
+                    <span class="badge ${statusColor(c.status)}">${statusLabel(c.status)}</span>
                     ${sigBadge}
-                    ${c.status === 'active' && days !== null && days <= 60 && days >= 0 ? `<span class="badge orange">⏱ ${days} giorni alla scadenza</span>` : ''}
+                    ${isContractLive(c) && days !== null && days <= 60 && days >= 0 ? `<span class="badge orange">⏱ ${days} giorni alla scadenza</span>` : ''}
                 </div>
                 
                 <!-- Signature Section -->
@@ -9053,7 +9074,8 @@ Valentyne - BOOM Rome`
             </div>
             <div class="modal-footer" style="flex-wrap:wrap;gap:8px">
                 <button class="btn btn-danger btn-sm" onclick="confirmDelete('contract','${c.id}','Contratto ${p?.name}')">🗑</button>
-                ${c.status === 'active' ? `<button class="btn btn-sm" style="background:var(--purple);color:white" onclick="generateDeadlinesForContract('${c.id}')" title="Genera scadenze automatiche">📅 Genera Scadenze</button>` : ''}
+                ${c.status === 'pending_signatures' ? `<button class="btn btn-sm" style="background:var(--blue);color:white" onclick="sendSignatureReminder('${c.id}')">📧 Reinvia Email Firma</button>` : ''}
+                ${isContractLive(c) ? `<button class="btn btn-sm" style="background:var(--purple);color:white" onclick="generateDeadlinesForContract('${c.id}')" title="Genera scadenze automatiche">📅 Genera Scadenze</button>` : ''}
                 ${c.status === 'active' ? `<button class="btn btn-sm" style="background:var(--red);color:white" onclick="const cid='${c.id}';closeModal();setTimeout(()=>openModal('terminateContract',S.contracts.find(x=>x.id===cid)),250)">⛔ Termina</button>` : ''}
                 ${c.status === 'active' ? `<button class="btn btn-sm" style="background:var(--green);color:white" onclick="const cid='${c.id}';closeModal();setTimeout(()=>openModal('renewContract',S.contracts.find(x=>x.id===cid)),250)">🔄 Rinnova</button>` : ''}
                 <button class="btn btn-secondary btn-sm" onclick="downloadContractPDF('${c.id}')">📥 PDF</button>
@@ -9452,6 +9474,7 @@ Valentyne - BOOM Rome`
             
             // 4. Update contract with activation data
             await db.collection('contracts').doc(contractId).update({
+                status: 'active',
                 paymentsGenerated: true,
                 paymentsCount: payCount,
                 welcomeEmailSent: emailSent,
@@ -9539,7 +9562,6 @@ Valentyne - BOOM Rome`
         }
         
         if (count % 450 !== 0) await batch.commit();
-        console.log(`[BOOM] Generated ${count} payment records for contract ${contractId}`);
         return count;
     }
     
@@ -10019,27 +10041,30 @@ Valentyne - BOOM Rome`
         if (!contract) return;
         
         const property = S.properties.find(p => p.id === contract.propertyId);
+        let sent = 0;
         
-        // Send to whoever hasn't signed
+        // Send EMAIL + notification to whoever hasn't signed
         if (!contract.landlordSignature && property?.ownerId) {
-            await createNotification(
-                property.ownerId, 'contract',
-                '✏️ Promemoria: Firma contratto',
-                `Il contratto per ${property?.name || 'immobile'} è in attesa della tua firma`,
-                { contractId }
-            );
+            const landlord = S.users.find(u => u.id === property.ownerId);
+            if (landlord) {
+                await sendSignatureEmail(landlord, contract, property, 'landlord');
+                await createNotification(landlord.id, 'contract', '✏️ Promemoria: Firma contratto', `Il contratto per ${property?.name || 'immobile'} è in attesa della tua firma`, { contractId });
+                sent++;
+            }
         }
         
         if (!contract.tenantSignature && contract.tenantId) {
-            await createNotification(
-                contract.tenantId, 'contract',
-                '✏️ Promemoria: Firma contratto',
-                `Il contratto per ${property?.name || 'immobile'} è in attesa della tua firma`,
-                { contractId }
-            );
+            const tenant = S.users.find(u => u.id === contract.tenantId);
+            if (tenant) {
+                await sendSignatureEmail(tenant, contract, property, 'tenant');
+                await createNotification(tenant.id, 'contract', '✏️ Promemoria: Firma contratto', `Il contratto per ${property?.name || 'immobile'} è in attesa della tua firma`, { contractId });
+                sent++;
+            }
         }
         
-        toast('success', 'Promemoria inviato!');
+        if (sent === 0) toast('info', 'Tutti hanno già firmato');
+        else toast('success', `📧 ${sent} email + notifiche inviate!`);
+        logActivity('Promemoria firma inviato', 'contract', { contractId, emailsSent: sent });
     }
     
     async function downloadSignedContractPDF(contractId) {
@@ -10086,7 +10111,7 @@ Valentyne - BOOM Rome`
     // PDF GENERATION
     // ═══════════════════════════════════════════════════════════════════════════
     function downloadMyContractPDF() {
-        const contract = getMyContracts().find(c => c.status === 'active');
+        const contract = getMyContracts().find(c => isContractLive(c));
         if (!contract) return toast('error', 'Nessun contratto attivo');
         downloadSignedContractPDF(contract.id);
     }
@@ -10255,7 +10280,6 @@ Valentyne - BOOM Rome`
     }
 
     function openTemplateModal(type, prefillClient = null) {
-        console.log('openTemplateModal called with type:', type);
         try {
         const titles = { 
             pfs: '🏠 Property Finding Service €350', 
@@ -10711,7 +10735,6 @@ Valentyne - BOOM Rome`
         </div></div>`;
         
         if (prefillClient) fillClientData(prefillClient.id);
-        console.log('openTemplateModal completed successfully for type:', type);
         } catch (err) {
             console.error('openTemplateModal error:', err);
             toast('error', 'Errore apertura template: ' + err.message);
@@ -10812,9 +10835,6 @@ Valentyne - BOOM Rome`
 
     function generateTemplatePDF() {
         const data = Object.fromEntries(new FormData(document.getElementById('tplForm')));
-        console.log('generateTemplatePDF - templateType:', data.templateType);
-        console.log('generateTemplatePDF - inventoryList:', data.inventoryList);
-        console.log('generateTemplatePDF - full data:', data);
         
         if (!data.clientName && !data.landlordName && !data.tenantName && !data.propertyAddress) {
             return toast('error', 'Compila i campi obbligatori');
@@ -11184,7 +11204,6 @@ Valentyne - BOOM Rome`
         
         // VERBALE CONSEGNA CHIAVI (HANDOVER)
         else if (type === 'handover') {
-            console.log('>>> HANDOVER HANDLER MATCHED');
             const isCheckout = data.handoverType === 'checkout';
             const handoverTitle = isIT 
                 ? (isCheckout ? 'VERBALE DI RICONSEGNA IMMOBILE' : 'VERBALE DI CONSEGNA IMMOBILE')
@@ -11252,7 +11271,6 @@ Valentyne - BOOM Rome`
         
         // INVENTARIO ARREDI (INVENTORY)
         else if (type === 'inventory') {
-            console.log('>>> INVENTORY HANDLER MATCHED');
             section(isIT ? 'IMMOBILE' : 'PROPERTY');
             field(isIT ? 'Indirizzo' : 'Address', data.propertyAddress);
             field(isIT ? 'Data Redazione' : 'Date', data.date);
@@ -11554,7 +11572,6 @@ Valentyne - BOOM Rome`
         
         // DEFAULT - Altri documenti
         else {
-            console.log('>>> DEFAULT HANDLER - type was:', type);
             section('DATI');
             if (data.clientName) field('Cliente/Destinatario', data.clientName);
             if (data.landlordName) field('Proprietario', data.landlordName);
@@ -11666,8 +11683,8 @@ Valentyne - BOOM Rome`
     // ═══════════════════════════════════════════════════════════════════════════
     function initials(n) { return (n || '?').split(' ').map(x => x[0]).join('').toUpperCase().slice(0, 2); }
     function roleLabel(r) { return { admin: 'Admin', landlord: 'Proprietario', tenant: 'Inquilino' }[r] || r; }
-    function statusLabel(s) { return { open: 'Aperta', in_progress: 'In Corso', resolved: 'Risolta', paid: 'Pagato', pending: 'In Attesa', active: 'Attivo', expired: 'Scaduto' }[s] || s; }
-    function statusColor(s) { return { open: 'orange', in_progress: 'blue', resolved: 'green', paid: 'green', pending: 'orange', active: 'green', expired: 'red' }[s] || 'gray'; }
+    function statusLabel(s) { return { open: 'Aperta', in_progress: 'In Corso', resolved: 'Risolta', paid: 'Pagato', pending: 'In Attesa', pending_signatures: '⏳ Firme', active: 'Attivo', expired: 'Scaduto', terminated: 'Terminato' }[s] || s; }
+    function statusColor(s) { return { open: 'orange', in_progress: 'blue', resolved: 'green', paid: 'green', pending: 'orange', pending_signatures: 'orange', active: 'green', expired: 'red', terminated: 'red' }[s] || 'gray'; }
     function priorityLabel(p) { return { low: 'Bassa', medium: 'Media', high: 'Alta', urgent: 'Urgente' }[p] || p; }
     function priorityColor(p) { return { low: 'gray', medium: 'blue', high: 'orange', urgent: 'red' }[p] || 'gray'; }
     function catLabel(c) { return { plumbing: 'Idraulica', electrical: 'Elettricità', heating: 'Riscaldamento', appliance: 'Elettrodomestici', other: 'Altro' }[c] || c; }
@@ -11712,7 +11729,6 @@ Valentyne - BOOM Rome`
         setTimeout(() => { el.style.opacity = '0'; el.style.transform = 'translateX(100px)'; setTimeout(() => el.remove(), 300); }, 4000);
     }
 
-    console.log('🚀 BOOM Portal v5 Pro - Complete Bilingual Edition');
     
     // Aliases & utilities
     function showToast(title, type = 'info') { toast(type, title); }
@@ -11741,14 +11757,11 @@ Valentyne - BOOM Rome`
 
     // CONTRACT REGISTRATION SYSTEM
     async function loadRegistrations() {
-        console.log('Loading registrations...');
         try {
             const [regsSnap, statusSnap] = await Promise.all([
                 db.collection('contractRegistrations').get(),
                 db.collection('contractRegistrationStatus').get()
             ]);
-            console.log('Registrations loaded:', regsSnap.docs.length, 'docs');
-            console.log('Statuses loaded:', statusSnap.docs.length, 'docs');
             
             S.registrations = regsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
             S.registrations.sort((a, b) => {
@@ -11761,8 +11774,6 @@ Valentyne - BOOM Rome`
             statusSnap.docs.forEach(d => { S.registrationStatuses[d.id] = { id: d.id, ...d.data() }; });
             S.regPending = Object.values(S.registrationStatuses).filter(s => s.status !== 'completed' && s.status !== 'registered').length;
             
-            console.log('S.registrations:', S.registrations);
-            console.log('S.registrationStatuses:', S.registrationStatuses);
             buildNav();
             return true;
         } catch (err) { 
@@ -11823,9 +11834,6 @@ Valentyne - BOOM Rome`
     }
 
     function registrationsPage() {
-        console.log('Building registrations page...');
-        console.log('S.registrations:', S.registrations);
-        console.log('S.registrationStatuses:', S.registrationStatuses);
         
         // Group form submissions by contractId
         const grouped = {};
@@ -11860,7 +11868,6 @@ Valentyne - BOOM Rome`
             return bTime - aTime;
         });
         
-        console.log('Contracts to display:', contracts);
         
         const statusLabels = { pending: 'In Attesa', ready: 'Pronto RLI', registered: 'Registrato' };
         const statusColors = { pending: 'orange', ready: 'blue', registered: 'green' };
@@ -12006,13 +12013,11 @@ IBAN: ${l.iban || '-'}`;
     async function createReg(id) {
         const desc = document.getElementById('newRegDesc').value;
         try {
-            console.log('Creating registration:', id, desc);
             await db.collection('contractRegistrationStatus').doc(id).set({ 
                 status: 'pending', 
                 description: desc, 
                 createdAt: firebase.firestore.FieldValue.serverTimestamp() 
             });
-            console.log('Registration created successfully');
             closeModal(); 
             await loadRegistrations();
             document.getElementById('main').innerHTML = registrationsPage();
@@ -18479,9 +18484,7 @@ ${d.description || '-'}`;
         // Register service worker (physical file at /sw.js)
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/sw.js', { scope: '/' }).then(reg => {
-                console.log('Service Worker registered:', reg.scope);
             }).catch(err => {
-                console.log('Service Worker registration failed:', err.message);
             });
         }
     })();
