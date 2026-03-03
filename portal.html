@@ -2452,7 +2452,8 @@ Valentyne - BOOM Rome`
         }
         
         buildNav();
-        goTo('dashboard');
+        const savedPage = location.hash.slice(1);
+        goTo(savedPage || 'dashboard');
     }
 
     function buildNav() {
@@ -2538,7 +2539,8 @@ Valentyne - BOOM Rome`
         }
     }
 
-    function goTo(p) { S.page = p; buildNav(); renderPage(); closeSidebar(); window.scrollTo(0, 0); }
+    function goTo(p) { S.page = p; location.hash = p; buildNav(); renderPage(); closeSidebar(); window.scrollTo(0, 0); }
+    window.addEventListener('hashchange', () => { const h = location.hash.slice(1); if (h && h !== S.page) { S.page = h; buildNav(); renderPage(); } });
     function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); document.getElementById('sidebarOverlay').classList.toggle('open'); }
     function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebarOverlay').classList.remove('open'); }
 
@@ -7716,7 +7718,7 @@ Valentyne - BOOM Rome`
 
         if (type === 'editProperty') { const p = data; if (!p) return ''; const landlords = S.users.filter(u => u.role === 'landlord'); const availDate = p.availableSince ? (typeof p.availableSince === 'string' ? p.availableSince.split('T')[0] : (p.availableSince.toDate ? p.availableSince.toDate().toISOString().split('T')[0] : '')) : ''; return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">✏️ Modifica Immobile</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body" style="max-height:70vh;overflow-y:auto"><form id="mForm" onsubmit="updateProperty(event,'${p.id}')"><div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="name" value="${p.name || ''}" required></div><div class="form-group"><label class="form-label">Proprietario *</label><select class="form-select" name="ownerId" required><option value="">Seleziona...</option>${landlords.map(l => `<option value="${l.id}" ${p.ownerId === l.id ? 'selected' : ''}>${l.name}</option>`).join('')}</select></div></div><div class="form-group"><label class="form-label">Indirizzo</label><input type="text" class="form-input" name="address" value="${p.address || ''}"></div><div class="form-row"><div class="form-group"><label class="form-label">Affitto €/mese *</label><input type="number" class="form-input" name="rent" value="${p.rent || ''}" required></div><div class="form-group"><label class="form-label">Superficie m²</label><input type="number" class="form-input" name="sqm" value="${p.sqm || ''}"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Stanze</label><input type="number" class="form-input" name="rooms" value="${p.rooms || ''}"></div><div class="form-group"><label class="form-label">Bagni</label><input type="number" class="form-input" name="bathrooms" value="${p.bathrooms || ''}"></div><div class="form-group"><label class="form-label">Piano</label><input type="text" class="form-input" name="floor" value="${p.floor || ''}"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Anno Costruzione</label><input type="number" class="form-input" name="yearBuilt" value="${p.yearBuilt || ''}"></div><div class="form-group"><label class="form-label">Tipo</label><select class="form-select" name="propertyType"><option value="apartment" ${p.propertyType === 'apartment' || !p.propertyType ? 'selected' : ''}>Appartamento</option><option value="studio" ${p.propertyType === 'studio' ? 'selected' : ''}>Monolocale</option><option value="room" ${p.propertyType === 'room' ? 'selected' : ''}>Stanza</option><option value="house" ${p.propertyType === 'house' ? 'selected' : ''}>Casa</option><option value="loft" ${p.propertyType === 'loft' ? 'selected' : ''}>Loft</option></select></div></div><div style="background:var(--bg);padding:12px;border-radius:8px;margin:12px 0"><div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--gold);margin-bottom:10px">📊 Disponibilità & Media</div><div class="form-row"><div class="form-group"><label class="form-label">Stato Disponibilità</label><select class="form-select" name="availabilityStatus"><option value="available" ${p.availabilityStatus === 'available' ? 'selected' : ''}>🟢 Disponibile</option><option value="negotiation" ${p.availabilityStatus === 'negotiation' ? 'selected' : ''}>🟡 In Trattativa</option><option value="rented" ${p.availabilityStatus === 'rented' ? 'selected' : ''}>🔴 Affittato</option><option value="off_market" ${p.availabilityStatus === 'off_market' ? 'selected' : ''}>⚫ Fuori Mercato</option></select></div><div class="form-group"><label class="form-label">Disponibile Dal</label><input type="date" class="form-input" name="availableSince" value="${availDate}"></div></div><div class="form-group"><label class="form-label">📺 YouTube Video Tour</label><input type="url" class="form-input" name="youtubeUrl" value="${p.youtubeUrl || ''}" placeholder="https://www.youtube.com/watch?v=..."></div></div><div style="background:var(--bg);padding:12px;border-radius:8px;margin:12px 0"><div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--gold);margin-bottom:10px">📋 Dati Contratto (opzionali)</div><div class="form-row"><div class="form-group"><label class="form-label">Scala</label><input type="text" class="form-input" name="scala" value="${p.scala || ''}"></div><div class="form-group"><label class="form-label">Interno</label><input type="text" class="form-input" name="interno" value="${p.interno || ''}"></div><div class="form-group"><label class="form-label">Ammobiliato</label><select class="form-select" name="furnished"><option value="">Non specificato</option><option value="true" ${p.furnished === true || p.furnished === 'true' ? 'selected' : ''}>Sì</option><option value="false" ${p.furnished === false || p.furnished === 'false' ? 'selected' : ''}>No</option></select></div></div><div class="form-group"><label class="form-label">Dati Catastali</label><input type="text" class="form-input" name="cadastralData" value="${p.cadastralData || ''}"></div><div class="form-group"><label class="form-label">Certificazione Energetica (APE)</label><input type="text" class="form-input" name="energyCert" value="${p.energyCert || ''}"></div><div class="form-group"><label class="form-label">Conformità Impianti</label><input type="text" class="form-input" name="safetyImplants" value="${p.safetyImplants || ''}"></div><div class="form-group"><label class="form-label">Accessori</label><input type="text" class="form-input" name="accessories" value="${p.accessories || ''}"></div></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes" rows="2">${p.notes || ''}</textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Salva</button></div></div></div>`; }
 
-        if (type === 'addContract') { const tenants = S.users.filter(u => u.role === 'tenant'); const props = S.properties.filter(p => !S.contracts.some(c => c.propertyId === p.id && c.status === 'active')); const landlords = S.users.filter(u => u.role === 'landlord'); return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">📋 Nuovo Contratto — BOOM Protocol</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body" style="max-height:72vh;overflow-y:auto"><form id="mForm" onsubmit="saveContract(event)">
+        if (type === 'addContract') { const tenants = S.users.filter(u => u.role === 'tenant'); const props = S.properties.filter(p => !S.contracts.some(c => c.propertyId === p.id && c.status === 'active')); const landlords = S.users.filter(u => u.role === 'landlord'); return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">📋 Nuovo Contratto — BOOM Protocol</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body" style="max-height:72vh;overflow-y:auto"><form id="mForm" onsubmit="saveContract(event)" novalidate>
 <!-- Step Indicator -->
 <div style="display:flex;gap:4px;margin-bottom:20px">${['Tipo & Parti','Termini','Dettagli','Riepilogo'].map((s,i)=>`<div id="cStep${i}" style="flex:1;text-align:center;padding:8px 4px;border-radius:8px;font-size:11px;font-weight:600;transition:all .2s;${i===0?'background:var(--gold);color:#000':'background:var(--surface);color:var(--text-muted)'}">${i+1}. ${s}</div>`).join('')}</div>
 
@@ -8112,6 +8114,19 @@ Valentyne - BOOM Rome`
     async function saveContract(e) {
         e.preventDefault();
         const data = Object.fromEntries(new FormData(e.target));
+        
+        // Manual validation (form has novalidate for multi-step wizard)
+        const missing = [];
+        if (!data.propertyId) missing.push('Immobile');
+        if (!data.tenantId) missing.push('Inquilino');
+        if (!data.startDate) missing.push('Data inizio');
+        if (!data.endDate) missing.push('Data fine');
+        if (!data.rent || parseInt(data.rent) <= 0) missing.push('Canone');
+        if (missing.length > 0) {
+            toast('error', 'Campi mancanti', missing.join(', '));
+            return;
+        }
+        
         try {
             const contractData = {
                 propertyId: data.propertyId, 
