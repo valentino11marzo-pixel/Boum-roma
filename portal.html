@@ -1437,432 +1437,238 @@ Valentyne - BOOM Rome`
         isMagicSign = true;
         (async function initMagicSign() {
             try {
-                // Sign in anonymously for Firestore access
-                try {
-                    await auth.signInAnonymously();
-                } catch (anonErr) {
+                try { await auth.signInAnonymously(); } catch (anonErr) {
                     console.error('Anonymous auth failed:', anonErr);
+                    const ms = document.getElementById('magicSign');
                     document.getElementById('loading').classList.add('hidden');
-                    document.getElementById('magicSign').classList.remove('hidden');
-                    document.getElementById('magicSign').style.display = 'flex';
-                    document.getElementById('magicSign').innerHTML = `<div style="text-align:center;max-width:420px"><div style="font-size:48px;margin-bottom:16px">⚙️</div><h2 style="color:var(--text);margin-bottom:8px">Setup Required</h2><p style="color:var(--text-muted);font-size:14px;line-height:1.6">The signing service needs configuration. Contact your agent at <a href="mailto:${COMPANY.email}" style="color:var(--gold)">${COMPANY.email}</a></p><div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;margin-top:16px;font-size:11px;color:var(--text-muted);text-align:left;font-family:monospace">Admin: Enable Anonymous auth in Firebase Console → Authentication → Sign-in method → Anonymous → Enable</div></div>`;
+                    ms.classList.remove('hidden'); ms.style.display = 'flex';
+                    ms.innerHTML = '<div style="text-align:center;max-width:420px"><div style="font-size:48px;margin-bottom:16px">⚙️</div><h2 style="color:var(--text);margin-bottom:8px">Setup Required</h2><p style="color:var(--text-muted);font-size:14px;line-height:1.6">Contact your agent at <a href="mailto:' + COMPANY.email + '" style="color:var(--gold)">' + COMPANY.email + '</a></p><div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;margin-top:16px;font-size:11px;color:var(--text-muted);text-align:left;font-family:monospace">Admin: Enable Anonymous auth in Firebase Console</div></div>';
                     return;
                 }
-
-                // Query contracts for this token
-                let snap = await db.collection('contracts').where('tenantSignToken', '==', magicSignToken).limit(1).get();
-                let signRole = 'tenant';
+                var snap = await db.collection('contracts').where('tenantSignToken', '==', magicSignToken).limit(1).get();
+                var signRole = 'tenant';
+                if (snap.empty) { snap = await db.collection('contracts').where('landlordSignToken', '==', magicSignToken).limit(1).get(); signRole = 'landlord'; }
                 
-                if (snap.empty) {
-                    snap = await db.collection('contracts').where('landlordSignToken', '==', magicSignToken).limit(1).get();
-                    signRole = 'landlord';
-                }
+                var msEl = document.getElementById('magicSign');
+                document.getElementById('loading').classList.add('hidden');
+                msEl.classList.remove('hidden'); msEl.style.display = 'flex';
                 
-                if (snap.empty) {
-                    document.getElementById('loading').classList.add('hidden');
-                    document.getElementById('magicSign').classList.remove('hidden');
-                    document.getElementById('magicSign').style.display = 'flex';
-                    document.getElementById('magicSign').innerHTML = `<div style="text-align:center;max-width:400px"><div style="font-size:48px;margin-bottom:16px">🔗</div><h2 style="color:var(--text);margin-bottom:8px">Link non valido</h2><p style="color:var(--text-muted);font-size:14px;line-height:1.6">Questo link di firma non è valido o è già stato utilizzato. Contatta BOOM per assistenza.</p><a href="mailto:${COMPANY.email}" class="btn" style="margin-top:20px;display:inline-block">Contatta BOOM</a></div>`;
-                    return;
-                }
+                if (snap.empty) { msEl.innerHTML = '<div style="text-align:center;max-width:400px"><div style="font-size:48px;margin-bottom:16px">🔗</div><h2 style="color:var(--text);margin-bottom:8px">Link non valido</h2><p style="color:var(--text-muted);font-size:14px">Questo link non è valido o è già stato usato.</p><a href="mailto:' + COMPANY.email + '" class="btn" style="margin-top:20px;display:inline-block">Contatta BOOM</a></div>'; return; }
                 
-                const contractDoc = snap.docs[0];
-                const contract = { id: contractDoc.id, ...contractDoc.data() };
+                var contractDoc = snap.docs[0];
+                var contract = Object.assign({ id: contractDoc.id }, contractDoc.data());
+                var alreadySigned = (signRole === 'tenant' && contract.tenantSignature) || (signRole === 'landlord' && contract.landlordSignature);
+                if (alreadySigned) { msEl.innerHTML = '<div style="text-align:center;max-width:400px"><div style="font-size:48px;margin-bottom:16px">✅</div><h2 style="color:var(--text);margin-bottom:8px">Already Signed</h2><p style="color:var(--text-muted);font-size:14px">' + (contract.signatureStatus === 'complete' ? 'Contract is active.' : 'Waiting for the other party.') + '</p></div>'; return; }
                 
-                // Check if already signed
-                if ((signRole === 'tenant' && contract.tenantSignature) || (signRole === 'landlord' && contract.landlordSignature)) {
-                    document.getElementById('loading').classList.add('hidden');
-                    document.getElementById('magicSign').classList.remove('hidden');
-                    document.getElementById('magicSign').style.display = 'flex';
-                    document.getElementById('magicSign').innerHTML = `<div style="text-align:center;max-width:400px"><div style="font-size:48px;margin-bottom:16px">✅</div><h2 style="color:var(--text);margin-bottom:8px">Già firmato</h2><p style="color:var(--text-muted);font-size:14px;line-height:1.6">Hai già firmato questo contratto. ${contract.signatureStatus === 'complete' ? 'Il contratto è attivo.' : "In attesa della firma dell'altra parte."}</p></div>`;
-                    return;
-                }
+                var propDoc = await db.collection('properties').doc(contract.propertyId).get();
+                var property = propDoc.exists ? Object.assign({ id: propDoc.id }, propDoc.data()) : {};
+                var signerId = signRole === 'tenant' ? contract.tenantId : (property.ownerId || '');
+                var otherId = signRole === 'tenant' ? (property.ownerId || '') : contract.tenantId;
+                var signerDoc = signerId ? await db.collection('users').doc(signerId).get() : null;
+                var otherDoc = otherId ? await db.collection('users').doc(otherId).get() : null;
+                var signer = signerDoc && signerDoc.exists ? signerDoc.data() : {};
+                var otherParty = otherDoc && otherDoc.exists ? otherDoc.data() : {};
+                var durMonths = Math.round((new Date(contract.endDate) - new Date(contract.startDate)) / (1000*60*60*24*30));
                 
-                // Load property + user data
-                const propDoc = await db.collection('properties').doc(contract.propertyId).get();
-                const property = propDoc.exists ? { id: propDoc.id, ...propDoc.data() } : {};
-                
-                const userDoc = await db.collection('users').doc(signRole === 'tenant' ? contract.tenantId : property.ownerId).get();
-                const signer = userDoc.exists ? { id: userDoc.id, ...userDoc.data() } : {};
-                
-                const otherDoc = await db.collection('users').doc(signRole === 'tenant' ? property.ownerId : contract.tenantId).get();
-                const otherParty = otherDoc.exists ? { id: otherDoc.id, ...otherDoc.data() } : {};
-                
-                const durMonths = Math.round((new Date(contract.endDate) - new Date(contract.startDate)) / (1000*60*60*24*30));
-                
-                // Clean token from URL
                 window.history.replaceState({}, '', window.location.pathname);
                 
-                // ★ RENDER MAGIC SIGN PAGE
-                document.getElementById('loading').classList.add('hidden');
-                document.getElementById('magicSign').classList.remove('hidden');
-                document.getElementById('magicSign').style.display = 'flex';
+                var otherLabel = signRole === 'tenant' ? 'Landlord' : 'Tenant';
+                var typeLabel = contract.type === 'studenti' ? 'Student' : 'Transitional';
+                var startStr = contract.startDate ? new Date(contract.startDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'TBD';
                 
-                document.getElementById('magicSign').innerHTML = `
-                <div style="width:100%;max-width:640px;margin:0 auto">
-                    <!-- Header with real BOOM logo -->
-                    <div style="text-align:center;margin-bottom:32px">
-                        <img src="https://www.boomrome.com/BOOMlogogoldicon512.png" 
-                             alt="BOOM" 
-                             style="width:72px;height:72px;border-radius:50%;margin:0 auto 14px;display:block;box-shadow:0 4px 24px rgba(212,175,55,0.35);object-fit:cover"
-                             onerror="this.style.display='none'">
-                        <h1 style="font-size:22px;font-weight:700;color:var(--text);letter-spacing:2px;margin:0">BOOM</h1>
-                        <p style="color:var(--text-muted);font-size:11px;letter-spacing:3px;text-transform:uppercase;margin-top:6px;font-weight:500">Contract Signature</p>
-                    </div>
-                    
-                    <!-- Welcome -->
-                    <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;margin-bottom:20px">
-                        <p style="color:var(--text-muted);font-size:13px;margin-bottom:4px">Welcome,</p>
-                        <h2 style="font-size:22px;font-weight:600;color:var(--text);margin:0 0 4px">${signer.name || 'Signing Party'}</h2>
-                        <p style="color:var(--text-muted);font-size:13px;margin:0">You've been asked to sign a rental agreement for a property in Rome.</p>
-                    </div>
-                    
-                    <!-- Contract Summary -->
-                    <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;margin-bottom:20px">
-                        <h3 style="font-size:13px;font-weight:600;color:var(--gold);text-transform:uppercase;letter-spacing:1.5px;margin:0 0 20px">Contract Details</h3>
-                        
-                        <div style="display:grid;gap:14px">
-                            <div style="display:flex;align-items:center;gap:14px;padding:14px;background:var(--bg);border-radius:12px">
-                                <span style="font-size:24px">📍</span>
-                                <div>
-                                    <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;font-weight:600">Property</div>
-                                    <div style="font-size:16px;font-weight:600;color:var(--text);margin-top:2px">${property.name || 'Property'}</div>
-                                    <div style="font-size:12px;color:var(--text-muted);margin-top:1px">${property.address || 'Roma'}</div>
-                                </div>
-                            </div>
-                            
-                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-                                <div style="padding:14px;background:var(--bg);border-radius:12px">
-                                    <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;font-weight:600">Monthly Rent</div>
-                                    <div style="font-size:22px;font-weight:800;color:var(--gold);margin-top:4px">€${(contract.rent || 0).toLocaleString('it-IT')}</div>
-                                </div>
-                                <div style="padding:14px;background:var(--bg);border-radius:12px">
-                                    <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;font-weight:600">Duration</div>
-                                    <div style="font-size:22px;font-weight:800;color:var(--text);margin-top:4px">${durMonths} <span style="font-size:13px;font-weight:400;color:var(--text-muted)">months</span></div>
-                                </div>
-                            </div>
-                            
-                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-                                <div style="padding:14px;background:var(--bg);border-radius:12px">
-                                    <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;font-weight:600">Start Date</div>
-                                    <div style="font-size:14px;font-weight:600;color:var(--text);margin-top:4px">${contract.startDate ? new Date(contract.startDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'TBD'}</div>
-                                </div>
-                                <div style="padding:14px;background:var(--bg);border-radius:12px">
-                                    <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;font-weight:600">Deposit</div>
-                                    <div style="font-size:14px;font-weight:600;color:var(--text);margin-top:4px">€${(contract.deposit || 0).toLocaleString('it-IT')}</div>
-                                </div>
-                            </div>
-                            
-                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-                                <div style="padding:14px;background:var(--bg);border-radius:12px">
-                                    <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;font-weight:600">${signRole === 'tenant' ? 'Landlord' : 'Tenant'}</div>
-                                    <div style="font-size:14px;font-weight:600;color:var(--text);margin-top:4px">${otherParty.name || 'N/A'}</div>
-                                </div>
-                                <div style="padding:14px;background:var(--bg);border-radius:12px">
-                                    <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;font-weight:600">Contract Type</div>
-                                    <div style="font-size:14px;font-weight:600;color:var(--text);margin-top:4px">${contract.type === 'studenti' ? 'Student' : 'Transitional'}</div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        ${contract.generatedPDF ? `<button onclick="window.open('${contract.generatedPDF}','_blank')" style="width:100%;margin-top:16px;padding:12px;background:transparent;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:12px;cursor:pointer;transition:all .2s;font-weight:500" onmouseover="this.style.borderColor='var(--gold)';this.style.color='var(--gold)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-muted)'">📄 Read Full Contract (PDF)</button>` : ''}
-                    </div>
-                    
-                    <!-- Signature Section -->
-                    <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;margin-bottom:20px">
-                        <h3 style="font-size:13px;font-weight:600;color:var(--gold);text-transform:uppercase;letter-spacing:1.5px;margin:0 0 8px">Your Signature</h3>
-                        <p style="color:var(--text-muted);font-size:11px;margin:0 0 16px;line-height:1.6">Draw your signature below. This constitutes a legally valid electronic signature pursuant to EU Regulation No. 910/2014 (eIDAS) and Art. 21 of the Italian Digital Administration Code.</p>
-                        
-                        <div style="position:relative;border:2px dashed var(--border);border-radius:12px;background:var(--bg);overflow:hidden">
-                            <canvas id="magicSignPad" width="584" height="200" style="width:100%;height:200px;cursor:crosshair;touch-action:none"></canvas>
-                            <button onclick="window._magicPad?.clear()" style="position:absolute;top:8px;right:8px;background:rgba(255,255,255,0.08);border:none;border-radius:6px;padding:6px 12px;color:var(--text-muted);font-size:11px;cursor:pointer;backdrop-filter:blur(4px)">✕ Clear</button>
-                        </div>
-                    </div>
-                    
-                    <!-- Legal + Sign Button -->
-                    <div style="margin-bottom:40px">
-                        <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:14px;background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:16px">
-                            <input type="checkbox" id="magicSignConsent" style="margin-top:3px;accent-color:var(--gold);width:18px;height:18px;flex-shrink:0">
-                            <span style="font-size:12px;color:var(--text-muted);line-height:1.6">I confirm that I have read and understood the contract terms, and I agree to sign this rental agreement. I understand this constitutes a binding electronic signature.</span>
-                        </label>
-                        
-                        <button id="magicSignBtn" onclick="submitMagicSign('${contract.id}','${signRole}','${magicSignToken}')" style="width:100%;padding:18px;background:linear-gradient(135deg,#D4AF37,#F5C842);border:none;border-radius:14px;font-size:16px;font-weight:700;color:#000;cursor:pointer;letter-spacing:0.5px;transition:all .3s;opacity:0.4;pointer-events:none;box-shadow:0 4px 20px rgba(212,175,55,0.3)" disabled>
-                            ✏️ Sign Contract
-                        </button>
-                        
-                        <p style="text-align:center;color:var(--text-muted);font-size:10px;margin-top:14px;letter-spacing:0.3px">
-                            🔒 Secured by BOOM · ${COMPANY.legal} · IP and timestamp recorded
-                        </p>
-                    </div>
-                </div>`;
+                msEl.innerHTML = '<div style="width:100%;max-width:640px;margin:0 auto">' +
+                    '<div style="text-align:center;margin-bottom:32px">' +
+                        '<img src="https://www.boomrome.com/BOOMlogogoldicon512.png" alt="BOOM" style="width:72px;height:72px;border-radius:50%;margin:0 auto 14px;display:block;box-shadow:0 4px 24px rgba(212,175,55,0.35);object-fit:cover" onerror="this.style.display=\'none\'">' +
+                        '<h1 style="font-size:22px;font-weight:700;color:var(--text);letter-spacing:2px;margin:0">BOOM</h1>' +
+                        '<p style="color:var(--text-muted);font-size:11px;letter-spacing:3px;text-transform:uppercase;margin-top:6px">Contract Signature</p>' +
+                    '</div>' +
+                    '<div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;margin-bottom:20px">' +
+                        '<p style="color:var(--text-muted);font-size:13px;margin-bottom:4px">Welcome,</p>' +
+                        '<h2 style="font-size:22px;font-weight:600;color:var(--text);margin:0 0 4px">' + (signer.name || 'Signing Party') + '</h2>' +
+                        '<p style="color:var(--text-muted);font-size:13px;margin:0">You have been asked to sign a rental agreement for a property in Rome.</p>' +
+                    '</div>' +
+                    '<div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;margin-bottom:20px">' +
+                        '<h3 style="font-size:13px;font-weight:600;color:var(--gold);text-transform:uppercase;letter-spacing:1.5px;margin:0 0 20px">Contract Details</h3>' +
+                        '<div style="display:grid;gap:14px">' +
+                            '<div style="display:flex;align-items:center;gap:14px;padding:14px;background:var(--bg);border-radius:12px"><span style="font-size:24px">📍</span><div><div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;font-weight:600">Property</div><div style="font-size:16px;font-weight:600;color:var(--text);margin-top:2px">' + (property.name || 'Property') + '</div><div style="font-size:12px;color:var(--text-muted)">' + (property.address || 'Roma') + '</div></div></div>' +
+                            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">' +
+                                '<div style="padding:14px;background:var(--bg);border-radius:12px"><div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;font-weight:600">Monthly Rent</div><div style="font-size:22px;font-weight:800;color:var(--gold);margin-top:4px">\u20AC' + (contract.rent || 0).toLocaleString('it-IT') + '</div></div>' +
+                                '<div style="padding:14px;background:var(--bg);border-radius:12px"><div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;font-weight:600">Duration</div><div style="font-size:22px;font-weight:800;color:var(--text);margin-top:4px">' + durMonths + ' <span style="font-size:13px;font-weight:400;color:var(--text-muted)">months</span></div></div>' +
+                            '</div>' +
+                            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">' +
+                                '<div style="padding:14px;background:var(--bg);border-radius:12px"><div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;font-weight:600">Start Date</div><div style="font-size:14px;font-weight:600;color:var(--text);margin-top:4px">' + startStr + '</div></div>' +
+                                '<div style="padding:14px;background:var(--bg);border-radius:12px"><div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;font-weight:600">Deposit</div><div style="font-size:14px;font-weight:600;color:var(--text);margin-top:4px">\u20AC' + (contract.deposit || 0).toLocaleString('it-IT') + '</div></div>' +
+                            '</div>' +
+                            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">' +
+                                '<div style="padding:14px;background:var(--bg);border-radius:12px"><div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;font-weight:600">' + otherLabel + '</div><div style="font-size:14px;font-weight:600;color:var(--text);margin-top:4px">' + (otherParty.name || 'N/A') + '</div></div>' +
+                                '<div style="padding:14px;background:var(--bg);border-radius:12px"><div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;font-weight:600">Contract Type</div><div style="font-size:14px;font-weight:600;color:var(--text);margin-top:4px">' + typeLabel + '</div></div>' +
+                            '</div>' +
+                        '</div>' +
+                        (contract.generatedPDF ? '<button onclick="window.open(\'' + contract.generatedPDF + '\',\'_blank\')" style="width:100%;margin-top:16px;padding:12px;background:transparent;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:12px;cursor:pointer">📄 Read Full Contract (PDF)</button>' : '') +
+                    '</div>' +
+                    '<div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;margin-bottom:20px">' +
+                        '<h3 style="font-size:13px;font-weight:600;color:var(--gold);text-transform:uppercase;letter-spacing:1.5px;margin:0 0 8px">Your Signature</h3>' +
+                        '<p style="color:var(--text-muted);font-size:11px;margin:0 0 16px;line-height:1.6">Draw your signature below. This constitutes a legally valid electronic signature pursuant to EU Regulation No. 910/2014 (eIDAS).</p>' +
+                        '<div style="position:relative;border:2px dashed var(--border);border-radius:12px;background:var(--bg);overflow:hidden">' +
+                            '<canvas id="magicSignPad" width="584" height="200" style="width:100%;height:200px;cursor:crosshair;touch-action:none"></canvas>' +
+                            '<button onclick="window._magicPad&&window._magicPad.clear()" style="position:absolute;top:8px;right:8px;background:rgba(255,255,255,0.08);border:none;border-radius:6px;padding:6px 12px;color:var(--text-muted);font-size:11px;cursor:pointer">\u2715 Clear</button>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div style="margin-bottom:40px">' +
+                        '<label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:14px;background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:16px">' +
+                            '<input type="checkbox" id="magicSignConsent" style="margin-top:3px;accent-color:var(--gold);width:18px;height:18px;flex-shrink:0">' +
+                            '<span style="font-size:12px;color:var(--text-muted);line-height:1.6">I confirm that I have read and understood the contract terms, and I agree to sign this rental agreement.</span>' +
+                        '</label>' +
+                        '<button id="magicSignBtn" onclick="submitMagicSign(\'' + contract.id + '\',\'' + signRole + '\',\'' + magicSignToken + '\')" style="width:100%;padding:18px;background:linear-gradient(135deg,#D4AF37,#F5C842);border:none;border-radius:14px;font-size:16px;font-weight:700;color:#000;cursor:pointer;opacity:0.4;pointer-events:none;box-shadow:0 4px 20px rgba(212,175,55,0.3)" disabled>Sign Contract</button>' +
+                        '<p style="text-align:center;color:var(--text-muted);font-size:10px;margin-top:14px">🔒 Secured by BOOM &middot; IP and timestamp recorded</p>' +
+                    '</div>' +
+                '</div>';
                 
-                // Initialize signature pad
-                setTimeout(() => {
-                    const canvas = document.getElementById('magicSignPad');
+                // Init signature pad
+                setTimeout(function() {
+                    var canvas = document.getElementById('magicSignPad');
                     if (!canvas) return;
-                    
-                    const rect = canvas.getBoundingClientRect();
-                    const dpr = window.devicePixelRatio || 2;
+                    var rect = canvas.getBoundingClientRect();
+                    var dpr = window.devicePixelRatio || 2;
                     canvas.width = rect.width * dpr;
                     canvas.height = rect.height * dpr;
-                    const ctx = canvas.getContext('2d');
+                    var ctx = canvas.getContext('2d');
                     ctx.scale(dpr, dpr);
-                    ctx.strokeStyle = '#FFFFFF';
-                    ctx.lineWidth = 2.5;
-                    ctx.lineCap = 'round';
-                    ctx.lineJoin = 'round';
-                    
-                    let drawing = false;
-                    let hasDrawn = false;
-                    
-                    const getPos = (e) => {
-                        const r = canvas.getBoundingClientRect();
-                        const touch = e.touches ? e.touches[0] : e;
-                        return { x: touch.clientX - r.left, y: touch.clientY - r.top };
-                    };
-                    
-                    canvas.addEventListener('mousedown', (e) => { drawing = true; const p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); });
-                    canvas.addEventListener('mousemove', (e) => { if (!drawing) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); hasDrawn = true; });
-                    canvas.addEventListener('mouseup', () => { drawing = false; checkReady(); });
-                    canvas.addEventListener('mouseleave', () => { drawing = false; });
-                    canvas.addEventListener('touchstart', (e) => { e.preventDefault(); drawing = true; const p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); }, { passive: false });
-                    canvas.addEventListener('touchmove', (e) => { e.preventDefault(); if (!drawing) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); hasDrawn = true; }, { passive: false });
-                    canvas.addEventListener('touchend', (e) => { e.preventDefault(); drawing = false; checkReady(); }, { passive: false });
-                    
+                    ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+                    var drawing = false, hasDrawn = false;
+                    var getPos = function(e) { var r = canvas.getBoundingClientRect(); var t = e.touches ? e.touches[0] : e; return { x: t.clientX - r.left, y: t.clientY - r.top }; };
+                    canvas.addEventListener('mousedown', function(e) { drawing = true; var p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); });
+                    canvas.addEventListener('mousemove', function(e) { if (!drawing) return; var p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); hasDrawn = true; });
+                    canvas.addEventListener('mouseup', function() { drawing = false; checkReady(); });
+                    canvas.addEventListener('mouseleave', function() { drawing = false; });
+                    canvas.addEventListener('touchstart', function(e) { e.preventDefault(); drawing = true; var p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); }, { passive: false });
+                    canvas.addEventListener('touchmove', function(e) { e.preventDefault(); if (!drawing) return; var p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); hasDrawn = true; }, { passive: false });
+                    canvas.addEventListener('touchend', function(e) { e.preventDefault(); drawing = false; checkReady(); }, { passive: false });
                     window._magicPad = {
-                        clear: () => { ctx.clearRect(0, 0, rect.width, rect.height); hasDrawn = false; checkReady(); },
-                        isEmpty: () => !hasDrawn,
-                        toDataURL: () => canvas.toDataURL('image/png')
+                        clear: function() { ctx.clearRect(0, 0, rect.width, rect.height); hasDrawn = false; checkReady(); },
+                        isEmpty: function() { return !hasDrawn; },
+                        toDataURL: function() { return canvas.toDataURL('image/png'); }
                     };
-                    
-                    const checkReady = () => {
-                        const btn = document.getElementById('magicSignBtn');
-                        const consent = document.getElementById('magicSignConsent');
-                        const ready = hasDrawn && consent?.checked;
+                    var checkReady = function() {
+                        var btn = document.getElementById('magicSignBtn');
+                        var consent = document.getElementById('magicSignConsent');
+                        var ready = hasDrawn && consent && consent.checked;
                         if (btn) { btn.disabled = !ready; btn.style.opacity = ready ? '1' : '0.4'; btn.style.pointerEvents = ready ? 'auto' : 'none'; }
                     };
-                    
-                    document.getElementById('magicSignConsent')?.addEventListener('change', checkReady);
+                    var consentEl = document.getElementById('magicSignConsent');
+                    if (consentEl) consentEl.addEventListener('change', checkReady);
                 }, 200);
-                
             } catch (err) {
                 console.error('Magic sign error:', err);
+                var msErr = document.getElementById('magicSign');
                 document.getElementById('loading').classList.add('hidden');
-                document.getElementById('magicSign').classList.remove('hidden');
-                document.getElementById('magicSign').style.display = 'flex';
-                document.getElementById('magicSign').innerHTML = `<div style="text-align:center;max-width:400px"><div style="font-size:48px;margin-bottom:16px">⚠️</div><h2 style="color:var(--text);margin-bottom:8px">Error</h2><p style="color:var(--text-muted);font-size:14px">${err.message || 'Unable to load contract. Please try again.'}</p></div>`;
+                msErr.classList.remove('hidden'); msErr.style.display = 'flex';
+                msErr.innerHTML = '<div style="text-align:center;max-width:400px"><div style="font-size:48px;margin-bottom:16px">⚠️</div><h2 style="color:var(--text);margin-bottom:8px">Error</h2><p style="color:var(--text-muted);font-size:14px">' + (err.message || 'Unable to load. Please try again.') + '</p></div>';
             }
         })();
     }
     
-    // ★ MAGIC SIGN — Submit signature
+    // ★ MAGIC SIGN — Submit
     async function submitMagicSign(contractId, role, token) {
-        const btn = document.getElementById('magicSignBtn');
+        var btn = document.getElementById('magicSignBtn');
         if (!btn || btn.disabled) return;
-        btn.disabled = true;
-        btn.innerHTML = '⏳ Signing...';
-        
+        btn.disabled = true; btn.textContent = 'Signing...';
         try {
-            const signatureData = window._magicPad?.toDataURL();
-            if (!signatureData || window._magicPad?.isEmpty()) { btn.disabled = false; btn.innerHTML = '✏️ Sign Contract'; return; }
-            
-            const now = new Date().toISOString();
-            const updateData = {};
-            
+            var sigData = window._magicPad ? window._magicPad.toDataURL() : null;
+            if (!sigData || (window._magicPad && window._magicPad.isEmpty())) { btn.disabled = false; btn.textContent = 'Sign Contract'; return; }
+            var now = new Date().toISOString();
+            var upd = { updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
             if (role === 'tenant') {
-                updateData.tenantSignature = signatureData;
-                updateData.tenantSignedAt = now;
-                updateData.tenantSignedIP = 'collected';
-                updateData.tenantSignedUA = navigator.userAgent.substring(0, 200);
-                updateData.tenantSignToken = null;
+                upd.tenantSignature = sigData; upd.tenantSignedAt = now; upd.tenantSignedIP = 'collected'; upd.tenantSignedUA = navigator.userAgent.substring(0, 200); upd.tenantSignToken = null;
             } else {
-                updateData.landlordSignature = signatureData;
-                updateData.landlordSignedAt = now;
-                updateData.landlordSignedIP = 'collected';
-                updateData.landlordSignedUA = navigator.userAgent.substring(0, 200);
-                updateData.landlordSignToken = null;
+                upd.landlordSignature = sigData; upd.landlordSignedAt = now; upd.landlordSignedIP = 'collected'; upd.landlordSignedUA = navigator.userAgent.substring(0, 200); upd.landlordSignToken = null;
             }
-            
-            const freshDoc = await db.collection('contracts').doc(contractId).get();
-            const freshData = freshDoc.data();
-            const otherSigned = role === 'tenant' ? !!freshData.landlordSignature : !!freshData.tenantSignature;
-            
-            if (otherSigned) {
-                updateData.signatureStatus = 'complete';
-                updateData.status = 'active';
-                updateData.fullySignedAt = now;
-            } else {
-                updateData.signatureStatus = 'partial';
-            }
-            
-            updateData.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
-            await db.collection('contracts').doc(contractId).update(updateData);
-            
+            var freshDoc = await db.collection('contracts').doc(contractId).get();
+            var freshData = freshDoc.data();
+            var otherSigned = role === 'tenant' ? !!freshData.landlordSignature : !!freshData.tenantSignature;
+            if (otherSigned) { upd.signatureStatus = 'complete'; upd.status = 'active'; upd.fullySignedAt = now; } else { upd.signatureStatus = 'partial'; }
+            await db.collection('contracts').doc(contractId).update(upd);
             showMagicSignSuccess(contractId, role, freshData, otherSigned);
-            
         } catch (err) {
             console.error('Magic sign submit error:', err);
-            btn.disabled = false;
-            btn.innerHTML = '✏️ Sign Contract';
-            alert('Error signing: ' + (err.message || 'Please try again'));
-        }
-    }
-    
-    // ★ MAGIC SIGN — Success screen + account creation
-    function showMagicSignSuccess(contractId, role, contractData, bothSigned) {
-        const container = document.getElementById('magicSign');
-        const portalUrl = window.location.origin + window.location.pathname;
-        
-        container.innerHTML = `
-        <div style="width:100%;max-width:500px;margin:0 auto;text-align:center">
-            <div style="margin-bottom:32px">
-                <img src="https://www.boomrome.com/BOOMlogogoldicon512.png" alt="BOOM" style="width:56px;height:56px;border-radius:50%;margin:0 auto 16px;display:block;box-shadow:0 4px 24px rgba(212,175,55,0.35)">
-                <div style="font-size:56px;margin-bottom:16px;animation:bounceIn 0.6s">${bothSigned ? '🎉' : '✅'}</div>
-                <h1 style="font-size:24px;font-weight:700;color:var(--text);margin:0 0 8px">${bothSigned ? 'Contract Complete!' : 'Signed Successfully!'}</h1>
-                <p style="color:var(--text-muted);font-size:14px;line-height:1.6;margin:0">
-                    ${bothSigned 
-                        ? 'Both parties have signed. Your rental agreement is now active.' 
-                        : 'Your signature has been recorded. We are waiting for the other party to sign.'}
-                </p>
-            </div>
-            
-            ${bothSigned ? `
-            <div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:12px;padding:16px;margin-bottom:24px;text-align:left">
-                <div style="font-size:12px;font-weight:600;color:#22C55E;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">What happens next</div>
-                <div style="font-size:13px;color:var(--text-muted);line-height:1.8">
-                    ✅ Contract is now legally active<br>
-                    📊 Monthly payment schedule generated<br>
-                    📧 Confirmation email sent<br>
-                    📁 Signed PDF available in your portal
-                </div>
-            </div>
-            ` : ''}
-            
-            ${role === 'tenant' ? `
-            <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;text-align:left;margin-bottom:20px">
-                <h3 style="font-size:13px;font-weight:600;color:var(--gold);text-transform:uppercase;letter-spacing:1.5px;margin:0 0 8px">Your Portal</h3>
-                <p style="color:var(--text-muted);font-size:12px;margin:0 0 16px;line-height:1.5">Create a password to access your personal portal — manage payments, documents, maintenance requests, and more.</p>
-                
-                <div style="margin-bottom:12px">
-                    <label style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;font-weight:600">Email</label>
-                    <input type="email" id="magicAccEmail" readonly style="width:100%;padding:12px;background:var(--bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;margin-top:4px;box-sizing:border-box;opacity:0.7" placeholder="Loading...">
-                </div>
-                <div style="margin-bottom:16px">
-                    <label style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;font-weight:600">Choose Password</label>
-                    <input type="password" id="magicAccPassword" placeholder="Min. 6 characters" minlength="6" style="width:100%;padding:12px;background:var(--bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;margin-top:4px;box-sizing:border-box">
-                </div>
-                
-                <button onclick="createMagicAccount('${contractId}')" style="width:100%;padding:16px;background:linear-gradient(135deg,#D4AF37,#F5C842);border:none;border-radius:12px;font-size:14px;font-weight:700;color:#000;cursor:pointer;transition:all .3s" id="magicAccBtn">
-                    🚀 Create My Portal Account
-                </button>
-                
-                <button onclick="skipMagicAccount()" style="width:100%;padding:10px;background:transparent;border:none;color:var(--text-muted);font-size:12px;cursor:pointer;margin-top:8px">
-                    Skip for now →
-                </button>
-            </div>
-            ` : `
-            <div style="margin-top:24px">
-                <a href="${portalUrl}" class="btn" style="display:inline-block;padding:14px 28px">Open Portal →</a>
-            </div>
-            `}
-        </div>
-        <style>@keyframes bounceIn { 0% { transform:scale(0.3);opacity:0 } 50% { transform:scale(1.1) } 100% { transform:scale(1);opacity:1 } }</style>`;
-        
-        // Load tenant email
-        if (role === 'tenant' && contractData.tenantId) {
-            db.collection('users').doc(contractData.tenantId).get().then(doc => {
-                if (doc.exists) {
-                    const emailInput = document.getElementById('magicAccEmail');
-                    if (emailInput) emailInput.value = doc.data().email || '';
-                }
-            }).catch(() => {});
-        }
-    }
-    
-    // ★ MAGIC SIGN — Create real account
-    async function createMagicAccount(contractId) {
-        const email = document.getElementById('magicAccEmail')?.value?.trim();
-        const password = document.getElementById('magicAccPassword')?.value;
-        const btn = document.getElementById('magicAccBtn');
-        
-        if (!email || !password || password.length < 6) {
-            alert('Please enter a valid email and password (min. 6 characters)');
-            return;
-        }
-        
-        btn.disabled = true;
-        btn.innerHTML = '⏳ Creating account...';
-        
-        try {
-            await auth.signOut();
-            try {
-                await auth.signInWithEmailAndPassword(email, password);
-            } catch (signInErr) {
-                if (signInErr.code === 'auth/wrong-password' || signInErr.code === 'auth/invalid-credential') {
-                    alert('An account already exists with this email. Try logging in with the credentials shared by your agent, or use password reset.');
-                    btn.disabled = false;
-                    btn.innerHTML = '🚀 Create My Portal Account';
-                    return;
-                }
-                if (signInErr.code === 'auth/user-not-found') {
-                    await auth.createUserWithEmailAndPassword(email, password);
-                } else {
-                    throw signInErr;
-                }
-            }
-            window.location.href = window.location.origin + window.location.pathname;
-        } catch (err) {
-            console.error('Account creation error:', err);
-            btn.disabled = false;
-            btn.innerHTML = '🚀 Create My Portal Account';
+            btn.disabled = false; btn.textContent = 'Sign Contract';
             alert('Error: ' + (err.message || 'Please try again'));
         }
     }
     
+    // ★ MAGIC SIGN — Success + account creation
+    function showMagicSignSuccess(contractId, role, contractData, bothSigned) {
+        var c = document.getElementById('magicSign');
+        var portalUrl = window.location.origin + window.location.pathname;
+        var emoji = bothSigned ? '🎉' : '✅';
+        var title = bothSigned ? 'Contract Complete!' : 'Signed Successfully!';
+        var msg = bothSigned ? 'Both parties have signed. Your rental agreement is now active.' : 'Your signature has been recorded. Waiting for the other party to sign.';
+        
+        var html = '<div style="width:100%;max-width:500px;margin:0 auto;text-align:center">' +
+            '<img src="https://www.boomrome.com/BOOMlogogoldicon512.png" alt="BOOM" style="width:56px;height:56px;border-radius:50%;margin:0 auto 16px;display:block;box-shadow:0 4px 24px rgba(212,175,55,0.35)">' +
+            '<div style="font-size:56px;margin-bottom:16px">' + emoji + '</div>' +
+            '<h1 style="font-size:24px;font-weight:700;color:var(--text);margin:0 0 8px">' + title + '</h1>' +
+            '<p style="color:var(--text-muted);font-size:14px;line-height:1.6;margin:0 0 24px">' + msg + '</p>';
+        
+        if (role === 'tenant') {
+            html += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;text-align:left;margin-bottom:20px">' +
+                '<h3 style="font-size:13px;font-weight:600;color:var(--gold);text-transform:uppercase;letter-spacing:1.5px;margin:0 0 8px">Your Portal</h3>' +
+                '<p style="color:var(--text-muted);font-size:12px;margin:0 0 16px;line-height:1.5">Create a password to access your personal portal.</p>' +
+                '<div style="margin-bottom:12px"><label style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;font-weight:600">Email</label><input type="email" id="magicAccEmail" readonly style="width:100%;padding:12px;background:var(--bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;margin-top:4px;box-sizing:border-box;opacity:0.7" placeholder="Loading..."></div>' +
+                '<div style="margin-bottom:16px"><label style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;font-weight:600">Choose Password</label><input type="password" id="magicAccPassword" placeholder="Min. 6 characters" style="width:100%;padding:12px;background:var(--bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;margin-top:4px;box-sizing:border-box"></div>' +
+                '<button onclick="createMagicAccount(\'' + contractId + '\')" style="width:100%;padding:16px;background:linear-gradient(135deg,#D4AF37,#F5C842);border:none;border-radius:12px;font-size:14px;font-weight:700;color:#000;cursor:pointer" id="magicAccBtn">Create My Portal Account</button>' +
+                '<button onclick="skipMagicAccount()" style="width:100%;padding:10px;background:transparent;border:none;color:var(--text-muted);font-size:12px;cursor:pointer;margin-top:8px">Skip for now</button>' +
+            '</div>';
+        } else {
+            html += '<div style="margin-top:24px"><a href="' + portalUrl + '" class="btn" style="display:inline-block;padding:14px 28px">Open Portal</a></div>';
+        }
+        html += '</div>';
+        c.innerHTML = html;
+        
+        if (role === 'tenant' && contractData.tenantId) {
+            db.collection('users').doc(contractData.tenantId).get().then(function(doc) {
+                if (doc.exists) { var el = document.getElementById('magicAccEmail'); if (el) el.value = doc.data().email || ''; }
+            }).catch(function() {});
+        }
+    }
+    
+    // ★ MAGIC SIGN — Create account
+    async function createMagicAccount(contractId) {
+        var email = document.getElementById('magicAccEmail'); email = email ? email.value.trim() : '';
+        var pw = document.getElementById('magicAccPassword'); pw = pw ? pw.value : '';
+        var btn = document.getElementById('magicAccBtn');
+        if (!email || !pw || pw.length < 6) { alert('Enter valid email and password (min 6 chars)'); return; }
+        btn.disabled = true; btn.textContent = 'Creating...';
+        try {
+            await auth.signOut();
+            try { await auth.signInWithEmailAndPassword(email, pw); } catch (e) {
+                if (e.code === 'auth/user-not-found') { await auth.createUserWithEmailAndPassword(email, pw); }
+                else if (e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential') {
+                    alert('Account exists. Use credentials from your agent or reset password.'); btn.disabled = false; btn.textContent = 'Create My Portal Account'; return;
+                } else { throw e; }
+            }
+            window.location.href = window.location.origin + window.location.pathname;
+        } catch (err) { btn.disabled = false; btn.textContent = 'Create My Portal Account'; alert('Error: ' + (err.message || 'Try again')); }
+    }
+    
     function skipMagicAccount() {
-        document.getElementById('magicSign').innerHTML = `
-        <div style="text-align:center;max-width:400px">
-            <img src="https://www.boomrome.com/BOOMlogogoldicon512.png" alt="BOOM" style="width:48px;height:48px;border-radius:50%;margin:0 auto 16px;display:block;box-shadow:0 4px 24px rgba(212,175,55,0.35)">
-            <div style="font-size:48px;margin-bottom:16px">👋</div>
-            <h2 style="font-size:20px;font-weight:600;color:var(--text);margin:0 0 8px">All done!</h2>
-            <p style="color:var(--text-muted);font-size:14px;line-height:1.6;margin:0 0 20px">Your signature is recorded. Your agent will be in touch with your portal access details.</p>
-            <p style="color:var(--text-muted);font-size:12px">You can close this page.</p>
-        </div>`;
+        document.getElementById('magicSign').innerHTML = '<div style="text-align:center;max-width:400px"><img src="https://www.boomrome.com/BOOMlogogoldicon512.png" alt="BOOM" style="width:48px;height:48px;border-radius:50%;margin:0 auto 16px;display:block;box-shadow:0 4px 24px rgba(212,175,55,0.35)"><div style="font-size:48px;margin-bottom:16px">👋</div><h2 style="font-size:20px;font-weight:600;color:var(--text);margin:0 0 8px">All done!</h2><p style="color:var(--text-muted);font-size:14px;line-height:1.6;margin:0 0 20px">Your signature is recorded. Your agent will share portal access details.</p><p style="color:var(--text-muted);font-size:12px">You can close this page.</p></div>';
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // ★ SMART REFRESH — Only reload what changed (fixes sluggishness)
+    // ★ SMART REFRESH — targeted collection reload
     // ═══════════════════════════════════════════════════════════════════════
-    async function refreshOnly(...collections) {
+    async function refreshOnly() {
+        var cols = Array.prototype.slice.call(arguments);
         try {
-            const promises = collections.map(async (col) => {
-                const snap = col === 'ruleExecutions' 
-                    ? await db.collection(col).orderBy('executedAt', 'desc').limit(50).get()
-                    : await db.collection(col).get();
-                S[col] = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            var promises = cols.map(function(col) {
+                var q = col === 'ruleExecutions' ? db.collection(col).orderBy('executedAt', 'desc').limit(50) : db.collection(col);
+                return q.get().then(function(snap) { S[col] = snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); }); });
             });
             await Promise.all(promises);
             checkAlerts();
             renderPage();
-        } catch (e) {
-            console.error('Smart refresh error:', e);
-        }
-    }
-
-    // ★ BUTTON GUARD — Prevent double-clicks, show loading state
-    function guardBtn(btn, label) {
-        if (!btn || btn.dataset.busy === '1') return false;
-        btn.dataset.busy = '1';
-        btn.disabled = true;
-        btn._origHTML = btn.innerHTML;
-        btn.innerHTML = `<span style="opacity:0.7">⏳ ${label || 'Saving'}...</span>`;
-        return true;
-    }
-    function releaseBtn(btn) {
-        if (!btn) return;
-        btn.dataset.busy = '0';
-        btn.disabled = false;
-        if (btn._origHTML) btn.innerHTML = btn._origHTML;
+        } catch (e) { console.error('Smart refresh error:', e); }
     }
 
     // Track if auth already processed
@@ -1880,10 +1686,7 @@ Valentyne - BOOM Rome`
     }, isSafari ? 12000 : 8000);
     
     auth.onAuthStateChanged(async u => {
-        // Skip if magic sign is handling everything
         if (isMagicSign) return;
-        
-        // Prevent multiple processing
         if (authProcessed && u) return;
         
         clearTimeout(authTimeout);
@@ -2604,23 +2407,15 @@ Valentyne - BOOM Rome`
         return date.toDateString() === today.toDateString();
     }
 
-    let _lastFullRefresh = 0;
-    async function refresh(forceFullReload) { 
+    async function refresh() { 
         try {
-            const now = Date.now();
-            // Fast path: if refreshed within last 2s, just re-render with existing data
-            if (!forceFullReload && now - _lastFullRefresh < 2000 && S.users.length > 0) {
-                renderPage(); buildNav(); return;
-            }
-            _lastFullRefresh = now;
             await loadData(); 
             await loadRegistrations();
             renderPage(); 
             buildNav(); 
         } catch (e) {
             console.error('Refresh error:', e);
-            // Still try to render with whatever data we have
-            try { renderPage(); buildNav(); } catch(re) {}
+            toast('error', 'Errore aggiornamento', 'Ricarica la pagina');
         }
     }
 
@@ -2683,24 +2478,6 @@ Valentyne - BOOM Rome`
     // APP SETUP & NAVIGATION
     // ═══════════════════════════════════════════════════════════════════════════
     function setupApp() {
-        // ★ Global button guard — prevent double-clicks on ALL form submissions
-        document.addEventListener('submit', (e) => {
-            const btn = e.target.querySelector('button[type="submit"], .btn:last-of-type');
-            if (btn && !btn.dataset.busy) {
-                btn.dataset.busy = '1';
-                btn.dataset.origText = btn.textContent;
-                btn.disabled = true;
-                btn.style.opacity = '0.6';
-                // Auto-release after 8s (safety net)
-                setTimeout(() => { btn.dataset.busy = '0'; btn.disabled = false; btn.style.opacity = '1'; if (btn.dataset.origText) btn.textContent = btn.dataset.origText; }, 8000);
-            }
-        }, true);
-        
-        // ★ Global click guard — prevent double-clicks on action buttons
-        document.addEventListener('click', (e) => {
-            const btn = e.target.closest('.btn[onclick], button[onclick]');
-            if (btn && btn.dataset.busy === '1') { e.preventDefault(); e.stopPropagation(); return; }
-        }, true);
         const badge = document.getElementById('headerBadge');
         badge.textContent = roleLabel(S.profile.role);
         badge.className = `header-badge ${S.profile.role}`;
@@ -7973,12 +7750,7 @@ Valentyne - BOOM Rome`
             }
         }, 10); 
     }
-    function closeModal() { 
-        // Release any busy buttons before closing
-        document.querySelectorAll('[data-busy="1"]').forEach(btn => { btn.dataset.busy = '0'; btn.disabled = false; btn.style.opacity = '1'; if (btn.dataset.origText) btn.textContent = btn.dataset.origText; });
-        document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active')); 
-        setTimeout(() => { document.getElementById('modals').innerHTML = ''; selectedFile = null; listingImageUrl = ''; }, 200); 
-    }
+    function closeModal() { document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active')); setTimeout(() => { document.getElementById('modals').innerHTML = ''; selectedFile = null; listingImageUrl = ''; }, 200); }
 
     function getModal(type, data) {
         if (type === 'notifications') return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">🔔 Notifiche</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body">${S.notifications.map(n => `<div class="alert ${n.type} mb-8"><span class="alert-icon">${n.type === 'danger' ? '⚠️' : '📋'}</span><div class="alert-content"><div class="alert-title">${n.title}</div><div class="alert-text">${n.text}</div></div></div>`).join('')}</div><div class="modal-footer"><button class="btn" onclick="closeModal()">Chiudi</button></div></div></div>`;
@@ -8410,7 +8182,6 @@ Valentyne - BOOM Rome`
                 notes: data.notes || '',
                 status: 'active',
                 signatureStatus: 'none',
-                // Magic sign tokens (for passwordless signing)
                 tenantSignToken: crypto.randomUUID ? crypto.randomUUID() : ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c => (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)),
                 landlordSignToken: crypto.randomUUID ? crypto.randomUUID() : ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c => (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)),
                 paymentsGenerated: false,
@@ -8444,7 +8215,7 @@ Valentyne - BOOM Rome`
             if (landlord) await createNotification(landlord.id, 'contract', '📋 Nuovo Contratto Creato', `Contratto creato per ${prop?.name || 'immobile'} con ${tenant?.name || 'inquilino'}. Richiesta firma.`, { contractId: ref.id, propertyId: data.propertyId });
             
             closeModal(); await refresh(); 
-            toast('success', '📋 Contratto creato!', `PDF generato${sendEmails ? ' + magic sign links inviati ✨' : ''}`);
+            toast('success', '📋 Contratto creato!', `PDF generato${sendEmails ? ' + email inviate' : ''}`);
             logActivity('Contratto creato (BOOM Protocol)', 'contract', { type: data.type, propertyName: prop?.name, tenantName: tenant?.name, rent: data.rent, emailsSent: sendEmails });
         } catch (err) { toast('error', 'Errore', err.message); }
     }
@@ -8864,7 +8635,7 @@ Valentyne - BOOM Rome`
                 }),
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()
             });
-            closeModal(); await refreshOnly('contracts'); toast('success', 'Contratto rinnovato!', `Nuova scadenza: ${fmtDate(data.newEndDate)}`);
+            closeModal(); await refresh(); toast('success', 'Contratto rinnovato!', `Nuova scadenza: ${fmtDate(data.newEndDate)}`);
         } catch (err) { toast('error', 'Errore', err.message); }
     }
 
@@ -8881,7 +8652,7 @@ Valentyne - BOOM Rome`
                 depositWithheld: parseInt(data.depositWithheld) || 0,
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()
             });
-            closeModal(); await refreshOnly('contracts'); toast('success', 'Contratto terminato');
+            closeModal(); await refresh(); toast('success', 'Contratto terminato');
         } catch (err) { toast('error', 'Errore', err.message); }
     }
 
@@ -9917,7 +9688,6 @@ Valentyne - BOOM Rome`
     async function sendSignatureEmail(user, contract, property, role) {
         if (!user?.email) return false;
         const portalUrl = window.location.origin + window.location.pathname;
-        // Use magic sign token — no login needed
         const token = role === 'tenant' ? contract.tenantSignToken : contract.landlordSignToken;
         const signLink = token ? portalUrl + '?sign=' + token : portalUrl;
         return sendBoomEmail(EMAILJS_CONFIG.templates.signatureRequest, user.email, {
@@ -9926,7 +9696,7 @@ Valentyne - BOOM Rome`
             role_label: role === 'landlord' ? 'Proprietario' : 'Inquilino',
             property_name: property?.name || 'Immobile',
             property_address: property?.address || '',
-            rent: '€' + (contract.rent || 0).toLocaleString('it-IT'),
+            rent: '\u20AC' + (contract.rent || 0).toLocaleString('it-IT'),
             start_date: fmtDate(contract.startDate),
             end_date: fmtDate(contract.endDate),
             portal_link: signLink,
@@ -10067,45 +9837,22 @@ Valentyne - BOOM Rome`
     async function sendSignatureReminder(contractId) {
         const contract = S.contracts.find(c => c.id === contractId);
         if (!contract) return;
-        
         const property = S.properties.find(p => p.id === contract.propertyId);
         let sent = 0;
         const genToken = () => crypto.randomUUID ? crypto.randomUUID() : ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c => (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16));
-        
-        // Regenerate tokens if expired (null = already used)
         const tokenUpdates = {};
-        if (!contract.landlordSignature && !contract.landlordSignToken) {
-            tokenUpdates.landlordSignToken = genToken();
-            contract.landlordSignToken = tokenUpdates.landlordSignToken;
-        }
-        if (!contract.tenantSignature && !contract.tenantSignToken) {
-            tokenUpdates.tenantSignToken = genToken();
-            contract.tenantSignToken = tokenUpdates.tenantSignToken;
-        }
-        if (Object.keys(tokenUpdates).length) {
-            await db.collection('contracts').doc(contractId).update(tokenUpdates);
-        }
-        
-        // Send EMAIL + notification to whoever hasn't signed
+        if (!contract.landlordSignature && !contract.landlordSignToken) { tokenUpdates.landlordSignToken = genToken(); contract.landlordSignToken = tokenUpdates.landlordSignToken; }
+        if (!contract.tenantSignature && !contract.tenantSignToken) { tokenUpdates.tenantSignToken = genToken(); contract.tenantSignToken = tokenUpdates.tenantSignToken; }
+        if (Object.keys(tokenUpdates).length) await db.collection('contracts').doc(contractId).update(tokenUpdates);
         if (!contract.landlordSignature && property?.ownerId) {
             const landlord = S.users.find(u => u.id === property.ownerId);
-            if (landlord) {
-                await sendSignatureEmail(landlord, contract, property, 'landlord');
-                await createNotification(landlord.id, 'contract', '✏️ Promemoria: Firma contratto', `Il contratto per ${property?.name || 'immobile'} è in attesa della tua firma`, { contractId });
-                sent++;
-            }
+            if (landlord) { await sendSignatureEmail(landlord, contract, property, 'landlord'); await createNotification(landlord.id, 'contract', '✏️ Promemoria: Firma contratto', 'Il contratto per ' + (property?.name || 'immobile') + ' è in attesa della tua firma', { contractId }); sent++; }
         }
-        
         if (!contract.tenantSignature && contract.tenantId) {
             const tenant = S.users.find(u => u.id === contract.tenantId);
-            if (tenant) {
-                await sendSignatureEmail(tenant, contract, property, 'tenant');
-                await createNotification(tenant.id, 'contract', '✏️ Promemoria: Firma contratto', `Il contratto per ${property?.name || 'immobile'} è in attesa della tua firma`, { contractId });
-                sent++;
-            }
+            if (tenant) { await sendSignatureEmail(tenant, contract, property, 'tenant'); await createNotification(tenant.id, 'contract', '✏️ Promemoria: Firma contratto', 'Il contratto per ' + (property?.name || 'immobile') + ' è in attesa della tua firma', { contractId }); sent++; }
         }
-        
-        toast('success', sent ? `📧 Promemoria inviato a ${sent} parte/i` : 'Nessun promemoria da inviare');
+        toast('success', sent ? '📧 Promemoria inviato!' : 'Nessun promemoria da inviare');
     }
     
     async function downloadSignedContractPDF(contractId) {
