@@ -1697,322 +1697,273 @@ Valentyne - BOOM Rome`
         } catch (e) { console.error('Smart refresh error:', e); }
     }
 
+
     // ═══════════════════════════════════════════════════════════════════════
     // ★ INTAKE FORM — Premium step-by-step lead qualification (no login)
     // ═══════════════════════════════════════════════════════════════════════
     let isIntakeForm = false;
     var intakeParam = new URLSearchParams(window.location.search).get('intake');
     
-    function _boomSvg(sz, anim) {
-        return '<div style="display:flex;justify-content:center;margin-bottom:8px;'+(anim?'opacity:0;animation:ifFadeUp .8s ease .3s forwards':'')+'"><svg viewBox="0 0 1024 1024" width="'+sz+'" height="'+sz+'" style="filter:drop-shadow(0 0 '+Math.round(sz/3)+'px rgba(212,175,55,0.35))"><defs><linearGradient id="ifGld" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#FFD54F"/><stop offset="100%" stop-color="#F5A623"/></linearGradient></defs><g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#ifGld)"><path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z m610 -144 c743 -103 1436 -459 1919 -985 338 -367 562 -751 704 -1205 276 -879 132 -1858 -388 -2640 -242 -364 -493 -615 -900 -900 l-70 -49 109 104 c413 396 679 919 767 1505 33 217 33 558 0 765 -75 476 -257 896 -549 1265 -127 161 -363 380 -549 511 -300 211 -689 363 -1079 420 -172 26 -604 26 -764 0 -296 -47 -545 -128 -808 -262 -236 -122 -440 -271 -632 -464 -486 -485 -749 -1121 -751 -1815 -1 -611 170 -1148 515 -1608 100 -134 286 -335 382 -413 33 -27 -8 -2 -91 55 -513 351 -904 805 -1143 1331 -71 156 -136 336 -168 465 -9 33 -19 76 -24 95 -5 19 -20 100 -34 180 -59 343 -60 740 0 1070 81 456 229 826 479 1200 246 368 558 669 949 917 386 245 881 418 1321 462 61 6 124 13 140 15 73 10 556 -4 665 -19z m-60 -1329 c105 -16 258 -49 335 -72 82 -26 197 -66 240 -84 149 -65 190 -84 266 -126 677 -379 1129 -1049 1246 -1849 27 -182 24 -517 -5 -695 -75 -458 -225 -813 -500 -1179 -116 -154 -340 -369 -527 -506 -44 -32 -87 -63 -95 -69 -8 -6 35 39 96 99 178 177 283 321 397 550 161 322 231 676 205 1045 -32 467 -223 902 -542 1237 -239 251 -521 426 -873 542 -79 26 -273 67 -383 81 -108 13 -349 13 -465 0 -276 -32 -597 -145 -834 -293 -224 -140 -466 -378 -613 -602 -307 -470 -407 -1055 -273 -1599 80 -327 217 -589 454 -871 71 -84 73 -88 31 -56 -293 225 -547 535 -718 877 -34 68 -65 143 -122 294 -42 112 -101 383 -120 555 -14 127 -14 401 0 534 51 482 223 912 516 1288 269 344 654 620 1085 778 160 59 400 115 574 134 121 13 508 5 625 -13z m-30 -1165 c401 -81 721 -242 992 -499 643 -612 769 -1607 300 -2367 -118 -190 -291 -386 -463 -524 -137 -111 -148 -113 -49 -12 110 112 206 248 275 386 67 137 98 222 132 367 24 103 26 132 27 323 0 182 -3 224 -22 310 -47 211 -126 394 -245 569 -126 186 -358 387 -564 490 -384 191 -823 225 -1218 95 -482 -160 -854 -541 -1004 -1029 -117 -379 -81 -810 96 -1165 37 -72 130 -215 166 -252 17 -18 26 -33 20 -33 -6 0 -61 52 -121 116 -259 272 -424 575 -511 934 -111 459 -18 1006 245 1430 298 483 791 797 1379 880 110 16 448 4 565 -19z m-239 -911 c360 -28 680 -171 925 -415 194 -193 317 -415 382 -688 24 -102 26 -130 26 -312 0 -191 -1 -205 -30 -320 -53 -205 -132 -372 -251 -535 -58 -79 -263 -288 -323 -330 -31 -22 -29 -18 18 35 195 220 312 519 312 795 0 325 -121 614 -350 841 -369 364 -926 453 -1385 222 -336 -170 -578 -499 -636 -865 -19 -126 -7 -371 25 -490 44 -162 97 -284 173 -398 9 -14 -4 -5 -30 20 -26 24 -45 51 -42 58 2 7 1 11 -4 7 -11 -6 -58 51 -118 140 -109 163 -183 347 -219 545 -23 127 -23 351 -1 489 55 335 248 677 492 871 261 208 530 311 881 338 11 1 81 -3 155 -8z m29 -714 c459 -74 823 -428 895 -869 58 -358 -60 -696 -345 -987 l-34 -35 22 35 c115 182 179 403 168 575 -14 235 -104 433 -268 591 -137 134 -287 209 -472 239 -115 19 -187 19 -303 0 -337 -55 -612 -302 -704 -635 -32 -113 -34 -325 -5 -440 23 -92 70 -213 98 -254 l21 -31 -31 29 c-39 36 -120 152 -155 221 -35 71 -81 215 -102 319 -25 130 -17 357 17 476 102 354 357 618 706 730 152 49 331 62 492 36z m-73 -567 c178 -24 327 -101 454 -236 137 -143 199 -303 201 -513 1 -162 -42 -309 -135 -453 -52 -82 -73 -97 -38 -28 51 99 67 290 36 412 -57 219 -251 413 -466 464 -75 17 -236 20 -311 4 -213 -44 -422 -247 -473 -460 -31 -133 -13 -325 41 -431 35 -70 8 -47 -52 43 -58 88 -90 167 -114 286 -25 121 -25 220 -1 331 33 146 84 243 186 351 171 183 413 266 672 230z m15 -470 c80 -17 186 -76 248 -139 106 -107 158 -248 147 -398 -6 -92 -25 -152 -79 -250 -45 -82 -60 -91 -27 -17 18 41 21 62 17 149 -4 89 -8 108 -35 162 -43 82 -126 165 -209 205 -58 29 -80 34 -158 37 -112 5 -184 -12 -259 -62 -182 -121 -251 -323 -171 -506 l24 -55 -25 30 c-36 44 -92 162 -104 223 -39 189 14 369 146 492 105 99 204 139 345 139 48 1 111 -4 140 -10z/></g></svg></div>';
+    // SVG logo builder
+    function _boomLogo(sz) {
+        return '<div style="display:flex;justify-content:center;margin-bottom:16px"><svg viewBox="0 0 1024 1024" width="'+sz+'" height="'+sz+'" style="filter:drop-shadow(0 0 '+Math.round(sz/3)+'px rgba(255,213,79,0.4))"><defs><linearGradient id="ifG" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#FFD54F"/><stop offset="100%" stop-color="#F5A623"/></linearGradient></defs><g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#ifG)"><path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z m610 -144 c743 -103 1436 -459 1919 -985 338 -367 562 -751 704 -1205 276 -879 132 -1858 -388 -2640 -242 -364 -493 -615 -900 -900 l-70 -49 109 104 c413 396 679 919 767 1505 33 217 33 558 0 765 -75 476 -257 896 -549 1265 -127 161 -363 380 -549 511 -300 211 -689 363 -1079 420 -172 26 -604 26 -764 0 -296 -47 -545 -128 -808 -262 -236 -122 -440 -271 -632 -464 -486 -485 -749 -1121 -751 -1815 -1 -611 170 -1148 515 -1608 100 -134 286 -335 382 -413 33 -27 -8 -2 -91 55 -513 351 -904 805 -1143 1331 -71 156 -136 336 -168 465 -9 33 -19 76 -24 95 -5 19 -20 100 -34 180 -59 343 -60 740 0 1070 81 456 229 826 479 1200 246 368 558 669 949 917 386 245 881 418 1321 462 61 6 124 13 140 15 73 10 556 -4 665 -19z m-60 -1329 c105 -16 258 -49 335 -72 82 -26 197 -66 240 -84 149 -65 190 -84 266 -126 677 -379 1129 -1049 1246 -1849 27 -182 24 -517 -5 -695 -75 -458 -225 -813 -500 -1179 -116 -154 -340 -369 -527 -506 -44 -32 -87 -63 -95 -69 -8 -6 35 39 96 99 178 177 283 321 397 550 161 322 231 676 205 1045 -32 467 -223 902 -542 1237 -239 251 -521 426 -873 542 -79 26 -273 67 -383 81 -108 13 -349 13 -465 0 -276 -32 -597 -145 -834 -293 -224 -140 -466 -378 -613 -602 -307 -470 -407 -1055 -273 -1599 80 -327 217 -589 454 -871 71 -84 73 -88 31 -56 -293 225 -547 535 -718 877 -34 68 -65 143 -122 294 -42 112 -101 383 -120 555 -14 127 -14 401 0 534 51 482 223 912 516 1288 269 344 654 620 1085 778 160 59 400 115 574 134 121 13 508 5 625 -13z m-30 -1165 c401 -81 721 -242 992 -499 643 -612 769 -1607 300 -2367 -118 -190 -291 -386 -463 -524 -137 -111 -148 -113 -49 -12 110 112 206 248 275 386 67 137 98 222 132 367 24 103 26 132 27 323 0 182 -3 224 -22 310 -47 211 -126 394 -245 569 -126 186 -358 387 -564 490 -384 191 -823 225 -1218 95 -482 -160 -854 -541 -1004 -1029 -117 -379 -81 -810 96 -1165 37 -72 130 -215 166 -252 17 -18 26 -33 20 -33 -6 0 -61 52 -121 116 -259 272 -424 575 -511 934 -111 459 -18 1006 245 1430 298 483 791 797 1379 880 110 16 448 4 565 -19z m-239 -911 c360 -28 680 -171 925 -415 194 -193 317 -415 382 -688 24 -102 26 -130 26 -312 0 -191 -1 -205 -30 -320 -53 -205 -132 -372 -251 -535 -58 -79 -263 -288 -323 -330 -31 -22 -29 -18 18 35 195 220 312 519 312 795 0 325 -121 614 -350 841 -369 364 -926 453 -1385 222 -336 -170 -578 -499 -636 -865 -19 -126 -7 -371 25 -490 44 -162 97 -284 173 -398 9 -14 -4 -5 -30 20 -26 24 -45 51 -42 58 2 7 1 11 -4 7 -11 -6 -58 51 -118 140 -109 163 -183 347 -219 545 -23 127 -23 351 -1 489 55 335 248 677 492 871 261 208 530 311 881 338 11 1 81 -3 155 -8z m29 -714 c459 -74 823 -428 895 -869 58 -358 -60 -696 -345 -987 l-34 -35 22 35 c115 182 179 403 168 575 -14 235 -104 433 -268 591 -137 134 -287 209 -472 239 -115 19 -187 19 -303 0 -337 -55 -612 -302 -704 -635 -32 -113 -34 -325 -5 -440 23 -92 70 -213 98 -254 l21 -31 -31 29 c-39 36 -120 152 -155 221 -35 71 -81 215 -102 319 -25 130 -17 357 17 476 102 354 357 618 706 730 152 49 331 62 492 36z m-73 -567 c178 -24 327 -101 454 -236 137 -143 199 -303 201 -513 1 -162 -42 -309 -135 -453 -52 -82 -73 -97 -38 -28 51 99 67 290 36 412 -57 219 -251 413 -466 464 -75 17 -236 20 -311 4 -213 -44 -422 -247 -473 -460 -31 -133 -13 -325 41 -431 35 -70 8 -47 -52 43 -58 88 -90 167 -114 286 -25 121 -25 220 -1 331 33 146 84 243 186 351 171 183 413 266 672 230z m15 -470 c80 -17 186 -76 248 -139 106 -107 158 -248 147 -398 -6 -92 -25 -152 -79 -250 -45 -82 -60 -91 -27 -17 18 41 21 62 17 149 -4 89 -8 108 -35 162 -43 82 -126 165 -209 205 -58 29 -80 34 -158 37 -112 5 -184 -12 -259 -62 -182 -121 -251 -323 -171 -506 l24 -55 -25 30 c-36 44 -92 162 -104 223 -39 189 14 369 146 492 105 99 204 139 345 139 48 1 111 -4 140 -10z"/></g></svg></div>';
     }
     
     var INTAKE_SVC = {
-        pfs: { name:'Property Finding Service', headline:'Find your home<br>in Rome.', sub:'2 minutes. 4 questions.<br>We start searching today.', cta:'Start my search',
-            timeline:[{i:'\uD83D\uDCE8',t:'Within 24h',d:'We review your profile & contact you'},{i:'\uD83D\uDD0D',t:'Day 1\u20133',d:'First curated property options sent'},{i:'\uD83C\uDFE0',t:'Day 4\u201310',d:'Viewings & final selection'},{i:'\uD83D\uDD11',t:'Day 10\u201314',d:'Contract signed, keys in hand'}]},
-        das: { name:'Deal Assistance', headline:'Close the deal.<br>We handle the rest.', sub:'You found a place. We handle viewings,<br>negotiation and contracts.', cta:'Get assistance',
-            timeline:[{i:'\uD83D\uDCE8',t:'Within 24h',d:'We review the listing you found'},{i:'\uD83C\uDFE0',t:'Day 1\u20132',d:'We schedule & attend the viewing'},{i:'\uD83E\uDD1D',t:'Day 2\u20134',d:'Negotiation with the landlord'},{i:'\uD83D\uDCDD',t:'Day 4\u20137',d:'Contract reviewed & signed'}]},
-        vv: { name:'Virtual Viewing', headline:'See it before<br>you fly.', sub:'Live video walkthrough of any property.<br>We are your eyes in Rome.', cta:'Book a viewing',
-            timeline:[{i:'\uD83D\uDCE8',t:'Within 24h',d:'We confirm the property details'},{i:'\uD83D\uDCC5',t:'Day 1\u20132',d:'Viewing scheduled with landlord'},{i:'\uD83D\uDCF9',t:'Viewing day',d:'Live video call walkthrough'},{i:'\u2705',t:'Same day',d:'Full report with photos & verdict'}]},
-        general: { name:'BOOM', headline:'Find your home<br>in Rome.', sub:'2 minutes. 4 questions.<br>We start searching today.', cta:'Start my search',
-            timeline:[{i:'\uD83D\uDCE8',t:'Within 24h',d:'We review your request & reach out'},{i:'\uD83D\uDCAC',t:'Day 1',d:'Quick chat to understand your needs'},{i:'\uD83C\uDFAF',t:'Day 1\u20132',d:'We recommend the best service for you'},{i:'\uD83D\uDE80',t:'Day 2+',d:'Your search or assistance begins'}]}
+        pfs: { n:'Property Finding Service', h:'Find your home<br>in Rome.', s:'2 minutes. 4 questions.<br>We start searching today.', c:'Start my search',
+            tl:[{i:'\uD83D\uDCE8',t:'Within 24h',d:'We review your profile & contact you'},{i:'\uD83D\uDD0D',t:'Day 1\u20133',d:'First curated property options sent'},{i:'\uD83C\uDFE0',t:'Day 4\u201310',d:'Viewings & final selection'},{i:'\uD83D\uDD11',t:'Day 10\u201314',d:'Contract signed, keys in hand'}]},
+        das: { n:'Deal Assistance', h:'Close the deal.<br>We handle the rest.', s:'You found a place. We handle viewings,<br>negotiation and contracts.', c:'Get assistance',
+            tl:[{i:'\uD83D\uDCE8',t:'Within 24h',d:'We review the listing you found'},{i:'\uD83C\uDFE0',t:'Day 1\u20132',d:'We schedule & attend the viewing'},{i:'\uD83E\uDD1D',t:'Day 2\u20134',d:'Negotiation with the landlord'},{i:'\uD83D\uDCDD',t:'Day 4\u20137',d:'Contract reviewed & signed'}]},
+        vv: { n:'Virtual Viewing', h:'See it before<br>you fly.', s:'Live video walkthrough of any property.<br>We are your eyes in Rome.', c:'Book a viewing',
+            tl:[{i:'\uD83D\uDCE8',t:'Within 24h',d:'We confirm the property details'},{i:'\uD83D\uDCC5',t:'Day 1\u20132',d:'Viewing scheduled with landlord'},{i:'\uD83D\uDCF9',t:'Viewing day',d:'Live video call walkthrough'},{i:'\u2705',t:'Same day',d:'Full report with photos & verdict'}]},
+        general: { n:'BOOM', h:'Find your home<br>in Rome.', s:'2 minutes. 4 questions.<br>We start searching today.', c:'Start my search',
+            tl:[{i:'\uD83D\uDCE8',t:'Within 24h',d:'We review your request & reach out'},{i:'\uD83D\uDCAC',t:'Day 1',d:'Quick chat to understand your needs'},{i:'\uD83C\uDFAF',t:'Day 1\u20132',d:'We recommend the best service for you'},{i:'\uD83D\uDE80',t:'Day 2+',d:'Your search or assistance begins'}]}
     };
     
-    var intakeStep = 0;
-    var intakeDir = 1;
-    var intakeKey = ['pfs','das','vv'].includes(intakeParam) ? intakeParam : 'general';
-    var intakeData = {name:'',email:'',phone:'',budget:'',arrival:'',months:'',situation:'',zone:'',furnished:'either',pets:'no',musthaves:'',notes:'',source:'google'};
+    var IK = ['pfs','das','vv'].includes(intakeParam) ? intakeParam : 'general';
+    var IS = 0; // current step
+    var ID = { name:'',email:'',phone:'',budget:'',arrival:'',months:'',situation:'',zone:'',furnished:'either',pets:'no',musthaves:'',notes:'',source:'google' };
     
     if (intakeParam) {
         isIntakeForm = true;
-        (async function initIntakeForm() {
-            try { await auth.signInAnonymously(); } catch(e) { console.error('Anon auth:', e); }
+        (async function() {
+            try { await auth.signInAnonymously(); } catch(e) {}
             document.getElementById('loading').classList.add('hidden');
             var el = document.getElementById('intakeForm');
             el.classList.remove('hidden'); el.style.display = 'flex';
-            renderIntakeStep();
+            _ifRender();
         })();
     }
     
-    function _iif(id) { return document.getElementById(id)?.value?.trim() || ''; }
-    function _iset(k,v) { intakeData[k] = v; }
-    // Only sync fields that exist in the current step DOM — never overwrite with empty
-    function _isync(id, key) { var el = document.getElementById(id); if (el) intakeData[key] = el.value.trim(); }
-    
-    function intakeGo(to) {
-        if (to > intakeStep) {
-            if (intakeStep === 1 && (!intakeData.name || !intakeData.email || !intakeData.phone)) return;
-            if (intakeStep === 2 && !intakeData.budget) return;
-        }
-        intakeDir = to > intakeStep ? 1 : -1;
-        intakeStep = to;
-        renderIntakeStep();
+    // ── Helpers ──
+    function _ifSync() {
+        ['if_n:name','if_e:email','if_p:phone','if_b:budget','if_a:arrival','if_m:months','if_z:zone','if_mh:musthaves','if_nt:notes','if_src:source'].forEach(function(x) {
+            var p = x.split(':'), el = document.getElementById(p[0]);
+            if (el) ID[p[1]] = el.value.trim();
+        });
     }
     
-    function intakePickOption(key, val) {
-        intakeSyncFields(); // Save current field values first
-        intakeData[key] = val;
-        renderIntakeStep();
+    function _ifGo(to) {
+        if (to > IS) {
+            _ifSync();
+            if (IS === 1 && (!ID.name || !ID.email || !ID.phone)) return;
+            if (IS === 2 && !ID.budget) return;
+        } else { _ifSync(); }
+        IS = to;
+        _ifRender();
     }
     
-    function intakeSyncFields() {
-        _isync('if_name','name'); _isync('if_email','email'); _isync('if_phone','phone');
-        _isync('if_budget','budget'); _isync('if_arrival','arrival'); _isync('if_months','months');
-        _isync('if_zone','zone'); _isync('if_must','musthaves');
-        _isync('if_notes','notes'); _isync('if_source','source');
-    }
+    function _ifPick(k, v) { _ifSync(); ID[k] = v; _ifRender(); }
     
-    function intakeNext() { intakeSyncFields(); intakeGo(intakeStep + 1); }
-    function intakePrev() { intakeSyncFields(); intakeGo(intakeStep - 1); }
-    
-    function _optCards(key, options, cols) {
-        return '<div style="display:grid;grid-template-columns:repeat(' + cols + ',1fr);gap:10px;margin-bottom:18px">' +
-            options.map(function(o) {
-                var on = intakeData[key] === o.v;
-                return '<button onclick="intakePickOption(\'' + key + '\',\'' + o.v + '\')" style="padding:14px 10px;min-height:52px;background:' + (on ? 'rgba(255,213,79,0.15)' : 'rgba(255,255,255,0.02)') + ';border:1px solid ' + (on ? '#FFD54F' : 'rgba(255,255,255,0.06)') + ';border-radius:12px;cursor:pointer;transition:all .25s;transform:scale(' + (on ? '1.03' : '1') + ');color:' + (on ? '#FFD54F' : 'rgba(255,255,255,0.5)') + ';font-family:Helvetica Neue,Helvetica,-apple-system,sans-serif;text-align:center;font-size:12px;font-weight:' + (on ? '500' : '300') + ';line-height:1.3;box-shadow:' + (on ? '0 0 16px rgba(255,213,79,0.2),0 0 0 1px #FFD54F' : 'none') + '"><div style="font-size:22px;margin-bottom:4px">' + o.i + '</div>' + o.l + '</button>';
+    function _ifOpt(key, opts, cols) {
+        return '<div style="display:grid;grid-template-columns:repeat('+cols+',1fr);gap:10px;margin-bottom:18px">' +
+            opts.map(function(o) {
+                var on = ID[key] === o.v;
+                return '<button onclick="_ifPick(\''+key+'\',\''+o.v+'\');event.preventDefault()" style="padding:14px 10px;min-height:52px;background:'+(on?'rgba(255,213,79,0.15)':'rgba(255,255,255,0.02)')+';border:1px solid '+(on?'#FFD54F':'rgba(255,255,255,0.06)')+';border-radius:12px;cursor:pointer;transition:all .2s;color:'+(on?'#FFD54F':'rgba(255,255,255,0.5)')+';text-align:center;font-size:12px;font-weight:'+(on?'500':'300')+';box-shadow:'+(on?'0 0 16px rgba(255,213,79,0.15)':'none')+'"><div style="font-size:22px;margin-bottom:4px">'+o.i+'</div>'+o.l+'</button>';
             }).join('') + '</div>';
     }
     
-    function _input(id, label, val, ph, type, req, large, prefix, suffix, hint) {
-        var tp = type || 'text';
-        var im = tp === 'number' ? ' inputmode="numeric"' : '';
-        return '<div style="position:relative;margin-bottom:' + (large ? '0' : '18px') + '">' +
-            '<label style="display:block;font-size:10px;font-weight:500;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,0.35);margin-bottom:8px">' + label + (req ? '<span style="color:#D4AF37;margin-left:3px">*</span>' : '') + '</label>' +
+    function _ifIn(id, label, val, ph, type, req, big, pre, suf, hint) {
+        var t = type || 'text';
+        return '<div style="margin-bottom:'+(big?'0':'18px')+'">' +
+            '<label style="display:block;font-size:10px;font-weight:500;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,0.35);margin-bottom:8px">'+label+(req?'<span style=\"color:#FFD54F;margin-left:3px\">*</span>':'')+'</label>' +
             '<div style="position:relative">' +
-                (prefix ? '<span style="position:absolute;left:0;bottom:' + (large ? '8' : '10') + 'px;font-size:' + (large ? '32' : '16') + 'px;font-weight:300;color:rgba(255,255,255,0.3);pointer-events:none">' + prefix + '</span>' : '') +
-                '<input id="' + id + '" type="' + tp + '" value="' + (val || '') + '" placeholder="' + (ph || '') + '"' + im + ' style="width:100%;background:transparent;border:none;border-bottom:1px solid rgba(255,255,255,0.1);padding:' + (large ? '8px 0 8px 32px' : prefix ? '10px 0 10px 24px' : '10px 0') + ';padding-right:' + (suffix ? '70px' : '0') + ';color:#fff;font-size:' + (large ? '32' : '16') + 'px;font-weight:300;min-height:48px;font-family:Helvetica Neue,Helvetica,-apple-system,sans-serif;outline:none" onfocus="this.style.borderColor=\'#FFD54F\';this.style.boxShadow=\'0 1px 0 0 #FFD54F\';this.parentElement.previousElementSibling&&(this.parentElement.previousElementSibling.style.color=\'#FFD54F\')" onblur="this.style.borderColor=\'rgba(255,255,255,0.1)\';this.style.boxShadow=\'none\';this.parentElement.previousElementSibling&&(this.parentElement.previousElementSibling.style.color=\'rgba(255,255,255,0.35)\')">' +
-                (suffix ? '<span style="position:absolute;right:0;bottom:14px;font-size:13px;font-weight:400;color:rgba(255,255,255,0.2);pointer-events:none">' + suffix + '</span>' : '') +
+            (pre?'<span style="position:absolute;left:0;bottom:'+(big?'8':'10')+'px;font-size:'+(big?'32':'16')+'px;font-weight:300;color:rgba(255,255,255,0.3);pointer-events:none">'+pre+'</span>':'') +
+            '<input id="'+id+'" type="'+t+'" value="'+(val||'')+'" placeholder="'+(ph||'')+'"'+(t==='number'?' inputmode="numeric"':'')+' style="width:100%;background:transparent;border:none;border-bottom:1px solid rgba(255,255,255,0.1);padding:'+(big?'8px 0 8px 32px':pre?'10px 0 10px 24px':'10px 0')+';padding-right:'+(suf?'70px':'0')+';color:#fff;font-size:'+(big?'32':'16')+'px;font-weight:300;min-height:48px;outline:none">' +
+            (suf?'<span style="position:absolute;right:0;bottom:14px;font-size:13px;color:rgba(255,255,255,0.2);pointer-events:none">'+suf+'</span>':'') +
             '</div>' +
-            (hint ? '<div style="font-size:11px;color:rgba(255,255,255,0.15);margin-top:6px;font-weight:300">' + hint + '</div>' : '') +
+            (hint?'<div style="font-size:11px;color:rgba(255,255,255,0.15);margin-top:6px;font-weight:300">'+hint+'</div>':'') +
         '</div>';
     }
     
-    function _ctaBtn(onclick, text, disabled) {
-        var bg = disabled ? 'rgba(255,255,255,0.04)' : 'linear-gradient(135deg,#FFD54F,#D4AF37,#B8860B)';
-        var clr = disabled ? 'rgba(255,255,255,0.15)' : '#000';
-        return '<button onclick="' + onclick + '"' + (disabled ? ' disabled' : '') + ' style="width:100%;padding:16px;border-radius:60px;border:none;min-height:52px;background:' + bg + ';color:' + clr + ';font-size:15px;font-weight:' + (disabled ? '400' : '700') + ';cursor:' + (disabled ? 'default' : 'pointer') + ';font-family:Helvetica Neue,Helvetica,-apple-system,sans-serif;letter-spacing:0.3px;transition:all .4s cubic-bezier(.16,1,.3,1);opacity:' + (disabled ? '0.5' : '1') + ';filter:' + (disabled ? 'grayscale(1)' : 'grayscale(0)') + ';box-shadow:' + (disabled ? 'none' : '0 4px 28px rgba(255,213,79,0.35),0 0 0 1px rgba(255,213,79,0.15)') + '">' + text + '</button>';
+    function _ifBtn(action, text, off) {
+        return '<button onclick="'+action+'"'+(off?' disabled':'')+' style="width:100%;padding:16px;border-radius:60px;border:none;min-height:52px;background:'+(off?'rgba(255,255,255,0.04)':'linear-gradient(135deg,#FFD54F,#D4AF37,#B8860B)')+';color:'+(off?'rgba(255,255,255,0.15)':'#000')+';font-size:15px;font-weight:'+(off?'400':'700')+';cursor:'+(off?'default':'pointer')+';letter-spacing:0.3px;transition:all .3s;opacity:'+(off?'0.5':'1')+';box-shadow:'+(off?'none':'0 4px 28px rgba(255,213,79,0.3)')+'">' + text + '</button>';
     }
     
-    function renderIntakeStep() {
-        var s = INTAKE_SVC[intakeKey];
+    // ── Main Render ──
+    function _ifRender() {
         var el = document.getElementById('intakeForm');
-        var anim = intakeDir > 0 ? 'ifFadeUp' : 'ifFadeDown';
-        var d = intakeData;
-        var fn = d.name.split(' ')[0];
-        var html = '';
+        var sv = INTAKE_SVC[IK];
+        var fn = ID.name.split(' ')[0];
+        var h = '';
         
-        // Progress + nav
-        var prog = '';
-        var nav = '';
-        if (intakeStep > 0 && intakeStep < 5) {
-            var pct = (intakeStep / 4 * 100);
-            prog = '<div style="position:fixed;top:0;left:0;right:0;height:2px;background:rgba(255,255,255,0.04);z-index:10"><div style="height:100%;background:linear-gradient(90deg,#D4AF37,#FFD54F);width:' + pct + '%;transition:width .6s cubic-bezier(.16,1,.3,1);box-shadow:0 0 16px rgba(212,175,55,0.25)"></div></div>';
-            nav = '<div style="position:fixed;top:14px;left:20px;right:20px;display:flex;justify-content:space-between;align-items:center;z-index:10">' +
-                '<button onclick="intakePrev()" style="background:none;border:none;color:rgba(255,255,255,0.3);cursor:pointer;font-size:13px;font-weight:300;padding:12px 4px;font-family:inherit;min-height:44px;min-width:44px">\u2190 Back</button>' +
-                '<div style="display:flex;gap:6px">' + [1,2,3,4].map(function(i) {
-                    return '<div style="width:' + (intakeStep===i?24:6) + 'px;height:6px;border-radius:3px;background:' + (i<intakeStep?'#D4AF37':i===intakeStep?'#D4AF37':'rgba(255,255,255,0.08)') + ';transition:all .4s cubic-bezier(.16,1,.3,1)"></div>';
-                }).join('') + '</div>' +
-                '<div style="color:rgba(255,255,255,0.2);font-size:11px;font-weight:300;min-width:44px;text-align:right">' + intakeStep + '/4</div>' +
-            '</div>';
-        }
-        
-        // Steps
-        if (intakeStep === 0) {
-            html = '<div style="text-align:center">' +
-                _boomSvg(64, true) +
-                (intakeKey !== 'general' ? '<div style="display:inline-block;margin-top:20px;padding:5px 16px;border:1px solid rgba(212,175,55,0.2);border-radius:20px;font-size:10px;font-weight:500;letter-spacing:1.5px;text-transform:uppercase;color:#D4AF37;opacity:0;animation:ifFadeUp .6s ease .6s forwards">' + s.name + '</div>' : '') +
-                '<h1 style="font-size:clamp(30px,7vw,44px);font-weight:200;line-height:1.12;margin:24px 0 14px;letter-spacing:-0.5px;opacity:0;animation:ifFadeUp .8s cubic-bezier(.16,1,.3,1) .8s forwards">' + s.headline + '</h1>' +
-                '<p style="color:rgba(255,255,255,0.35);font-size:15px;font-weight:300;line-height:1.6;max-width:320px;margin:0 auto 44px;opacity:0;animation:ifFadeUp .8s cubic-bezier(.16,1,.3,1) 1.1s forwards">' + s.sub + '</p>' +
-                '<div style="opacity:0;animation:ifFadeUp .8s cubic-bezier(.16,1,.3,1) 1.4s both">' + _ctaBtn('intakeNext()', 'Get started \u2192') + '</div>' +
-                '<div style="margin-top:48px;display:flex;justify-content:center;gap:20px;flex-wrap:wrap;color:rgba(255,255,255,0.16);font-size:10px;font-weight:300;letter-spacing:0.3px;opacity:0;animation:ifFadeUp .5s ease 2s forwards"><span>~2 min</span><span style="opacity:0.4">\u00B7</span><span>98% success</span><span style="opacity:0.4">\u00B7</span><span>200+ housed</span></div>' +
-            '</div>';
-        } else if (intakeStep === 1) {
-            html = '<h2 style="font-size:28px;font-weight:200;margin-bottom:4px">About you</h2>' +
-                '<p style="color:rgba(255,255,255,0.3);font-size:14px;font-weight:300;margin-bottom:36px">So we can reach you. That\u2019s it.</p>' +
-                _input('if_name','Full name',d.name,'John Smith','text',true) +
-                _input('if_email','Email',d.email,'john@email.com','email',true) +
-                _input('if_phone','WhatsApp / Phone',d.phone,'+39 333 123 4567','tel',true) +
-                '<div style="margin-top:28px" id="if_btn1_wrap"></div>' +
-                '<div style="text-align:center;margin-top:14px;color:rgba(255,255,255,0.12);font-size:11px;font-weight:300">press Enter \u21B5</div>';
-        } else if (intakeStep === 2) {
-            html = '<h2 style="font-size:28px;font-weight:200;margin-bottom:4px">' + (fn ? fn + ', what are you looking for?' : 'Your search') + '</h2>' +
-                '<p style="color:rgba(255,255,255,0.3);font-size:14px;font-weight:300;margin-bottom:36px">The essentials. No fluff.</p>' +
-                _input('if_budget','Monthly budget',d.budget,'1200','number',true,true,'\u20AC','/month','avg in Rome: \u20AC800 studio \u00B7 \u20AC1200 1bd \u00B7 \u20AC1600 2bd') +
-                '<div style="height:24px"></div>' +
-                '<label style="display:block;font-size:10px;font-weight:500;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,0.35);margin-bottom:10px">I\u2019m moving as a...</label>' +
-                _optCards('situation', [{v:'worker',i:'\uD83D\uDCBC',l:'Worker'},{v:'student',i:'\uD83C\uDF93',l:'Student'},{v:'other',i:'\u2708\uFE0F',l:'Other'}], 3) +
-                '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">' +
-                    _input('if_arrival','Move-in date',d.arrival,'','date') +
-                    _input('if_months','How many months?',d.months,'12','number',false,false,null,'months') +
-                '</div>' +
-                '<div style="margin-top:20px" id="if_btn2_wrap"></div>' +
-                '<div style="text-align:center;margin-top:14px;color:rgba(255,255,255,0.12);font-size:11px;font-weight:300">press Enter \u21B5</div>';
-        } else if (intakeStep === 3) {
-            html = '<h2 style="font-size:28px;font-weight:200;margin-bottom:4px">Preferences</h2>' +
-                '<p style="color:rgba(255,255,255,0.3);font-size:14px;font-weight:300;margin-bottom:36px">The better we know, the faster we find.</p>' +
-                _input('if_zone','Preferred neighborhoods',d.zone,'Trastevere, Prati, Pigneto...') +
-                '<label style="display:block;font-size:10px;font-weight:500;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,0.35);margin-bottom:10px">Furnished?</label>' +
-                _optCards('furnished', [{v:'yes',i:'\uD83D\uDECB\uFE0F',l:'Furnished'},{v:'no',i:'\uD83D\uDCE6',l:'Empty'},{v:'either',i:'\uD83D\uDC4C',l:'Either'}], 3) +
-                '<label style="display:block;font-size:10px;font-weight:500;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,0.35);margin-bottom:10px">Pets?</label>' +
-                _optCards('pets', [{v:'no',i:'\u2014',l:'None'},{v:'cat',i:'\uD83D\uDC31',l:'Cat'},{v:'dog',i:'\uD83D\uDC15',l:'Dog'},{v:'other',i:'\uD83D\uDC3E',l:'Other'}], 4) +
-                _input('if_must','Must-haves',d.musthaves,'Balcony, AC, elevator, parking...') +
-                '<div style="margin-top:16px">' + _ctaBtn('intakeNext()', 'Continue \u2192') + '</div>';
-        } else if (intakeStep === 4) {
-            var summary = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;font-size:13px;font-weight:300">' +
-                '<span style="color:rgba(255,255,255,0.3)">Budget</span><span style="color:#fff;text-align:right">\u20AC' + (d.budget || '\u2014') + '/mo</span>' +
-                (d.zone ? '<span style="color:rgba(255,255,255,0.3)">Area</span><span style="color:#fff;text-align:right">' + esc(d.zone) + '</span>' : '') +
-                (d.months ? '<span style="color:rgba(255,255,255,0.3)">Duration</span><span style="color:#fff;text-align:right">' + d.months + ' months</span>' : '') +
-                (d.situation ? '<span style="color:rgba(255,255,255,0.3)">Status</span><span style="color:#fff;text-align:right;text-transform:capitalize">' + d.situation + '</span>' : '') +
-            '</div>';
-            html = '<h2 style="font-size:28px;font-weight:200;margin-bottom:4px">Almost done</h2>' +
-                '<p style="color:rgba(255,255,255,0.3);font-size:14px;font-weight:300;margin-bottom:36px">Anything else? No? Hit send.</p>' +
-                '<div style="margin-bottom:18px"><label style="display:block;font-size:10px;font-weight:500;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,0.35);margin-bottom:8px">Notes, deal-breakers, questions</label>' +
-                '<textarea id="if_notes" rows="3" placeholder="Anything we should know..." style="width:100%;background:transparent;border:none;border-bottom:1px solid rgba(255,255,255,0.1);padding:10px 0;min-height:48px;color:#fff;font-size:16px;font-weight:300;font-family:inherit;outline:none;line-height:1.6;resize:none">' + (d.notes || '') + '</textarea></div>' +
-                '<div style="margin-bottom:18px"><label style="display:block;font-size:10px;font-weight:500;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,0.35);margin-bottom:8px">How did you find us?</label>' +
-                '<select id="if_source" style="width:100%;background:transparent;border:none;border-bottom:1px solid rgba(255,255,255,0.1);padding:10px 0;color:#fff;font-size:16px;font-weight:300;min-height:48px;font-family:inherit;outline:none;cursor:pointer">' +
-                    ['google:Google','instagram:Instagram','referral:Friend / Referral','facebook:Facebook','tiktok:TikTok','website:BOOM Website','other:Other'].map(function(x){var p=x.split(':');return '<option value="'+p[0]+'" style="background:#111;color:#fff"'+(d.source===p[0]?' selected':'')+'>'+p[1]+'</option>';}).join('') +
-                '</select></div>' +
-                '<div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:14px;padding:16px 18px;margin-top:16px;margin-bottom:24px">' +
-                    '<div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:rgba(255,255,255,0.2);margin-bottom:10px;font-weight:500">Your request</div>' + summary +
-                '</div>' +
-                _ctaBtn('intakeSyncFields();submitIntakeForm()', '\uD83C\uDFE0 ' + s.cta);
-        } else if (intakeStep === 5) {
-            html = '<div style="text-align:center">' +
-                '<div style="width:76px;height:76px;border-radius:50%;border:2px solid #D4AF37;display:flex;align-items:center;justify-content:center;margin:0 auto 28px;animation:ifScaleIn .5s cubic-bezier(.16,1,.3,1) both">' +
-                    '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#D4AF37" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12" style="stroke-dasharray:50;stroke-dashoffset:50;animation:ifCheck .6s ease .4s forwards"/></svg>' +
-                '</div>' +
-                '<h2 style="font-size:30px;font-weight:200;margin-bottom:8px;opacity:0;animation:ifFadeUp .6s ease .5s forwards">You\u2019re in' + (fn ? ', ' + esc(fn) : '') + '.</h2>' +
-                '<p style="color:rgba(255,255,255,0.35);font-size:14px;font-weight:300;line-height:1.7;max-width:340px;margin:0 auto;opacity:0;animation:ifFadeUp .6s ease .7s forwards">We\u2019ll be in touch within 24 hours.</p>' +
-                '<div style="margin-top:36px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:16px;padding:20px 22px;text-align:left;opacity:0;animation:ifFadeUp .6s ease .9s forwards">' +
-                    '<div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#D4AF37;margin-bottom:14px;font-weight:500">What happens next</div>' +
-                    s.timeline.map(function(x,j) {
-                        return '<div style="display:flex;gap:14px;align-items:center;padding:9px 0;border-bottom:' + (j<3?'1px solid rgba(255,255,255,0.03)':'none') + ';opacity:0;animation:ifFadeUp .5s ease ' + (1.1+j*0.15) + 's forwards">' +
-                            '<span style="font-size:18px;width:24px;text-align:center;flex-shrink:0">' + x.i + '</span>' +
-                            '<div style="flex:1"><div style="font-size:13px;font-weight:500;color:rgba(255,255,255,0.65)">' + x.t + '</div><div style="font-size:11px;color:rgba(255,255,255,0.3);font-weight:300">' + x.d + '</div></div></div>';
-                    }).join('') +
-                '</div>' +
-                '<div style="margin-top:32px;opacity:0;animation:ifFadeUp .5s ease 1.9s forwards">' + _boomSvg(24, false) + '</div>' +
-            '</div>';
-        }
-        
-        el.innerHTML = '<style>' +
-            '@keyframes ifFadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}' +
-            '@keyframes ifFadeDown{from{opacity:0;transform:translateY(-24px)}to{opacity:1;transform:translateY(0)}}' +
-            '@keyframes ifScaleIn{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:scale(1)}}' +
-            '@keyframes ifCheck{from{stroke-dashoffset:50}to{stroke-dashoffset:0}}' +
-            '#intakeForm{font-family:Helvetica Neue,Helvetica,-apple-system,sans-serif!important}' +
-            '#intakeForm *{font-family:inherit}' +
+        // CSS
+        var css = '<style>#intakeForm,#intakeForm *{font-family:Helvetica Neue,Helvetica,-apple-system,sans-serif}' +
+            '@keyframes iUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}' +
+            '@keyframes iScale{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:scale(1)}}' +
+            '@keyframes iCheck{from{stroke-dashoffset:50}to{stroke-dashoffset:0}}' +
             '#intakeForm input::placeholder,#intakeForm textarea::placeholder{color:rgba(255,255,255,.2);font-weight:300}' +
             '#intakeForm input[type=date]::-webkit-calendar-picker-indicator{filter:invert(0.5);cursor:pointer}' +
             '#intakeForm input[type=number]::-webkit-inner-spin-button,#intakeForm input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}' +
             '#intakeForm select option{background:#111;color:#fff}' +
-            '#intakeForm input:focus,#intakeForm textarea:focus,#intakeForm select:focus{border-color:#FFD54F!important;box-shadow:0 1px 0 0 #FFD54F!important}' +
-            '#intakeForm button:active{transform:scale(0.97)!important}' +
-            '@media(max-width:520px){#intakeForm .if-grid2{grid-template-columns:1fr!important}#intakeForm h1{font-size:32px!important}#intakeForm h2{font-size:24px!important}}' +
-        '</style>' + prog + nav +
-        '<div style="flex:1;display:flex;align-items:center;justify-content:center;padding:72px 24px 40px;width:100%">' +
-            '<div id="ifAnimWrap" style="width:100%;max-width:460px;opacity:0">' + html + '</div>' +
-        '</div>';
+            '#intakeForm input:focus,#intakeForm textarea:focus{border-color:#FFD54F!important;box-shadow:0 1px 0 0 #FFD54F!important}' +
+            '#intakeForm button:not([disabled]):active{transform:scale(0.97)!important}' +
+            '@media(max-width:520px){.ifG2{grid-template-columns:1fr!important}}</style>';
         
-        // Trigger animation after DOM paint
+        // Progress bar + nav
+        var bar = '', nav = '';
+        if (IS > 0 && IS < 5) {
+            bar = '<div style="position:fixed;top:0;left:0;right:0;height:2px;background:rgba(255,255,255,0.04);z-index:10"><div style="height:100%;background:linear-gradient(90deg,#FFD54F,#D4AF37);width:'+(IS/4*100)+'%;transition:width .5s cubic-bezier(.16,1,.3,1);box-shadow:0 0 16px rgba(255,213,79,0.3)"></div></div>';
+            var dots = [1,2,3,4].map(function(i){ return '<div style="width:'+(IS===i?20:6)+'px;height:6px;border-radius:3px;background:'+(i<=IS?'#FFD54F':'rgba(255,255,255,0.08)')+';transition:all .4s cubic-bezier(.16,1,.3,1)"></div>'; }).join('');
+            nav = '<div style="position:fixed;top:12px;left:20px;right:20px;display:flex;justify-content:space-between;align-items:center;z-index:10">' +
+                '<button onclick="_ifGo('+(IS-1)+')" style="background:none;border:none;color:rgba(255,255,255,0.3);cursor:pointer;font-size:13px;font-weight:300;padding:12px 4px;min-height:44px;min-width:44px">\u2190 Back</button>' +
+                '<div style="display:flex;gap:6px">'+dots+'</div>' +
+                '<span style="color:rgba(255,255,255,0.2);font-size:11px;font-weight:300">'+IS+'/4</span></div>';
+        }
+        
+        // ── STEP 0: INTRO ──
+        if (IS === 0) {
+            h = '<div style="text-align:center">' +
+                '<div style="opacity:0;animation:iUp .7s ease .2s forwards">' + _boomLogo(64) + '</div>' +
+                (IK !== 'general' ? '<div style="display:inline-block;margin-bottom:8px;padding:5px 16px;border:1px solid rgba(255,213,79,0.2);border-radius:20px;font-size:10px;font-weight:500;letter-spacing:1.5px;text-transform:uppercase;color:#FFD54F;opacity:0;animation:iUp .6s ease .5s forwards">'+sv.n+'</div>' : '') +
+                '<h1 style="font-size:clamp(30px,7vw,44px);font-weight:200;line-height:1.12;margin:0 0 14px;letter-spacing:-0.5px;opacity:0;animation:iUp .7s ease .7s forwards">'+sv.h+'</h1>' +
+                '<p style="color:rgba(255,255,255,0.35);font-size:15px;font-weight:300;line-height:1.6;max-width:320px;margin:0 auto 40px;opacity:0;animation:iUp .7s ease .9s forwards">'+sv.s+'</p>' +
+                '<div style="opacity:0;animation:iUp .7s ease 1.1s forwards">'+_ifBtn('_ifGo(1)','Get started \u2192')+'</div>' +
+                '<div style="margin-top:44px;display:flex;justify-content:center;gap:20px;flex-wrap:wrap;color:rgba(255,255,255,0.16);font-size:10px;font-weight:300;opacity:0;animation:iUp .5s ease 1.6s forwards"><span>~2 min</span><span>\u00B7</span><span>98% success</span><span>\u00B7</span><span>200+ housed</span></div></div>';
+        
+        // ── STEP 1: ABOUT YOU ──
+        } else if (IS === 1) {
+            h = '<h2 style="font-size:28px;font-weight:200;margin-bottom:4px">About you</h2>' +
+                '<p style="color:rgba(255,255,255,0.3);font-size:14px;font-weight:300;margin-bottom:36px">So we can reach you. That\u2019s it.</p>' +
+                _ifIn('if_n','Full name',ID.name,'John Smith','text',true) +
+                _ifIn('if_e','Email',ID.email,'john@email.com','email',true) +
+                _ifIn('if_p','WhatsApp / Phone',ID.phone,'+39 333 123 4567','tel',true) +
+                '<div style="margin-top:28px" id="ifB1"></div>' +
+                '<div style="text-align:center;margin-top:14px;color:rgba(255,255,255,0.12);font-size:11px;font-weight:300">press Enter \u21B5</div>';
+        
+        // ── STEP 2: SEARCH ──
+        } else if (IS === 2) {
+            h = '<h2 style="font-size:28px;font-weight:200;margin-bottom:4px">'+(fn?fn+', what are you looking for?':'Your search')+'</h2>' +
+                '<p style="color:rgba(255,255,255,0.3);font-size:14px;font-weight:300;margin-bottom:36px">The essentials. No fluff.</p>' +
+                _ifIn('if_b','Monthly budget',ID.budget,'1200','number',true,true,'\u20AC','/month','avg in Rome: \u20AC800 studio \u00B7 \u20AC1200 1bd \u00B7 \u20AC1600 2bd') +
+                '<div style="height:24px"></div>' +
+                '<label style="display:block;font-size:10px;font-weight:500;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,0.35);margin-bottom:10px">I\u2019m moving as a...</label>' +
+                _ifOpt('situation',[{v:'worker',i:'\uD83D\uDCBC',l:'Worker'},{v:'student',i:'\uD83C\uDF93',l:'Student'},{v:'other',i:'\u2708\uFE0F',l:'Other'}],3) +
+                '<div class="ifG2" style="display:grid;grid-template-columns:1fr 1fr;gap:16px">' +
+                _ifIn('if_a','Move-in date',ID.arrival,'','date') +
+                _ifIn('if_m','How many months?',ID.months,'12','number',false,false,null,'months') +
+                '</div>' +
+                '<div style="margin-top:20px" id="ifB2"></div>' +
+                '<div style="text-align:center;margin-top:14px;color:rgba(255,255,255,0.12);font-size:11px;font-weight:300">press Enter \u21B5</div>';
+        
+        // ── STEP 3: PREFERENCES ──
+        } else if (IS === 3) {
+            h = '<h2 style="font-size:28px;font-weight:200;margin-bottom:4px">Preferences</h2>' +
+                '<p style="color:rgba(255,255,255,0.3);font-size:14px;font-weight:300;margin-bottom:36px">The better we know, the faster we find.</p>' +
+                _ifIn('if_z','Preferred neighborhoods',ID.zone,'Trastevere, Prati, Pigneto...') +
+                '<label style="display:block;font-size:10px;font-weight:500;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,0.35);margin-bottom:10px">Furnished?</label>' +
+                _ifOpt('furnished',[{v:'yes',i:'\uD83D\uDECB\uFE0F',l:'Furnished'},{v:'no',i:'\uD83D\uDCE6',l:'Empty'},{v:'either',i:'\uD83D\uDC4C',l:'Either'}],3) +
+                '<label style="display:block;font-size:10px;font-weight:500;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,0.35);margin-bottom:10px">Pets?</label>' +
+                _ifOpt('pets',[{v:'no',i:'\u2014',l:'None'},{v:'cat',i:'\uD83D\uDC31',l:'Cat'},{v:'dog',i:'\uD83D\uDC15',l:'Dog'},{v:'other',i:'\uD83D\uDC3E',l:'Other'}],4) +
+                _ifIn('if_mh','Must-haves',ID.musthaves,'Balcony, AC, elevator, parking...') +
+                '<div style="margin-top:16px">'+_ifBtn('_ifSync();_ifGo(4)','Continue \u2192')+'</div>';
+        
+        // ── STEP 4: FINAL ──
+        } else if (IS === 4) {
+            var sum = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;font-size:13px;font-weight:300">' +
+                '<span style="color:rgba(255,255,255,0.3)">Budget</span><span style="color:#fff;text-align:right">\u20AC'+(ID.budget||'\u2014')+'/mo</span>' +
+                (ID.zone?'<span style="color:rgba(255,255,255,0.3)">Area</span><span style="color:#fff;text-align:right">'+esc(ID.zone)+'</span>':'') +
+                (ID.months?'<span style="color:rgba(255,255,255,0.3)">Duration</span><span style="color:#fff;text-align:right">'+ID.months+' months</span>':'') +
+                (ID.situation?'<span style="color:rgba(255,255,255,0.3)">Status</span><span style="color:#fff;text-align:right;text-transform:capitalize">'+ID.situation+'</span>':'') +
+            '</div>';
+            h = '<h2 style="font-size:28px;font-weight:200;margin-bottom:4px">Almost done</h2>' +
+                '<p style="color:rgba(255,255,255,0.3);font-size:14px;font-weight:300;margin-bottom:36px">Anything else? No? Hit send.</p>' +
+                '<div style="margin-bottom:18px"><label style="display:block;font-size:10px;font-weight:500;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,0.35);margin-bottom:8px">Notes, deal-breakers, questions</label><textarea id="if_nt" rows="3" placeholder="Anything we should know..." style="width:100%;background:transparent;border:none;border-bottom:1px solid rgba(255,255,255,0.1);padding:10px 0;min-height:48px;color:#fff;font-size:16px;font-weight:300;outline:none;line-height:1.6;resize:none">'+(ID.notes||'')+'</textarea></div>' +
+                '<div style="margin-bottom:18px"><label style="display:block;font-size:10px;font-weight:500;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,0.35);margin-bottom:8px">How did you find us?</label>' +
+                '<select id="if_src" style="width:100%;background:transparent;border:none;border-bottom:1px solid rgba(255,255,255,0.1);padding:10px 0;color:#fff;font-size:16px;font-weight:300;min-height:48px;outline:none;cursor:pointer">' +
+                ['google:Google','instagram:Instagram','referral:Friend / Referral','facebook:Facebook','tiktok:TikTok','website:BOOM Website','other:Other'].map(function(x){var p=x.split(':');return '<option value="'+p[0]+'"'+(ID.source===p[0]?' selected':'')+'>'+p[1]+'</option>';}).join('') +
+                '</select></div>' +
+                '<div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:14px;padding:16px 18px;margin-top:16px;margin-bottom:24px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:rgba(255,255,255,0.2);margin-bottom:10px;font-weight:500">Your request</div>'+sum+'</div>' +
+                _ifBtn('_ifSync();_ifSubmit()','\uD83C\uDFE0 '+sv.c);
+        
+        // ── STEP 5: SUCCESS ──
+        } else if (IS === 5) {
+            h = '<div style="text-align:center">' +
+                '<div style="width:76px;height:76px;border-radius:50%;border:2px solid #FFD54F;display:flex;align-items:center;justify-content:center;margin:0 auto 28px;animation:iScale .5s cubic-bezier(.16,1,.3,1) both"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#FFD54F" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12" style="stroke-dasharray:50;stroke-dashoffset:50;animation:iCheck .6s ease .4s forwards"/></svg></div>' +
+                '<h2 style="font-size:30px;font-weight:200;margin-bottom:8px;opacity:0;animation:iUp .6s ease .5s forwards">You\u2019re in'+(fn?', '+esc(fn):'')+'.</h2>' +
+                '<p style="color:rgba(255,255,255,0.35);font-size:14px;font-weight:300;line-height:1.7;max-width:340px;margin:0 auto;opacity:0;animation:iUp .6s ease .7s forwards">We\u2019ll be in touch within 24 hours.</p>' +
+                '<div style="margin-top:36px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:16px;padding:20px 22px;text-align:left;opacity:0;animation:iUp .6s ease .9s forwards"><div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#FFD54F;margin-bottom:14px;font-weight:500">What happens next</div>' +
+                sv.tl.map(function(x,j){ return '<div style="display:flex;gap:14px;align-items:center;padding:9px 0;border-bottom:'+(j<3?'1px solid rgba(255,255,255,0.03)':'none')+';opacity:0;animation:iUp .5s ease '+(1.1+j*0.15)+'s forwards"><span style="font-size:18px;width:24px;text-align:center;flex-shrink:0">'+x.i+'</span><div style="flex:1"><div style="font-size:13px;font-weight:500;color:rgba(255,255,255,0.65)">'+x.t+'</div><div style="font-size:11px;color:rgba(255,255,255,0.3);font-weight:300">'+x.d+'</div></div></div>'; }).join('') +
+                '</div><div style="margin-top:32px;opacity:0;animation:iUp .5s ease 1.9s forwards">' + _boomLogo(24) + '</div></div>';
+        }
+        
+        // Render
+        el.innerHTML = css + bar + nav +
+            '<div style="flex:1;display:flex;align-items:center;justify-content:center;padding:72px 24px 40px;width:100%">' +
+            '<div id="ifW" style="width:100%;max-width:460px;opacity:0">' + h + '</div></div>';
+        
+        // Animate in
         requestAnimationFrame(function() {
-            var wrap = document.getElementById('ifAnimWrap');
-            if (wrap) { wrap.style.animation = anim + ' .45s cubic-bezier(.16,1,.3,1) both'; wrap.style.opacity = '1'; }
+            var w = document.getElementById('ifW');
+            if (w) { w.style.transition = 'opacity .35s ease, transform .4s cubic-bezier(.16,1,.3,1)'; w.style.opacity = '1'; w.style.transform = 'translateY(0)'; }
         });
         
-        // Dynamic button enable/disable based on input
-        if (intakeStep === 1) {
-            var wrap = document.getElementById('if_btn1_wrap');
-            if (wrap) {
-                var updateBtn1 = function() {
-                    var n = _iif('if_name'), e = _iif('if_email'), p = _iif('if_phone');
-                    wrap.innerHTML = _ctaBtn('intakeNext()', 'Continue \u2192', !(n && e && p));
-                };
-                updateBtn1();
-                ['if_name','if_email','if_phone'].forEach(function(id) {
-                    var inp = document.getElementById(id);
-                    if (inp) inp.addEventListener('input', updateBtn1);
-                });
+        // Dynamic validation buttons
+        if (IS === 1) {
+            var b1 = document.getElementById('ifB1');
+            if (b1) {
+                var u1 = function() { var ok = document.getElementById('if_n')?.value.trim() && document.getElementById('if_e')?.value.trim() && document.getElementById('if_p')?.value.trim(); b1.innerHTML = _ifBtn('_ifSync();_ifGo(2)','Continue \u2192',!ok); };
+                u1(); ['if_n','if_e','if_p'].forEach(function(id) { var i = document.getElementById(id); if (i) i.addEventListener('input', u1); });
             }
-            setTimeout(function() { var f = document.getElementById('if_name'); if (f) f.focus(); }, 350);
+            setTimeout(function() { var f = document.getElementById('if_n'); if (f) f.focus(); }, 300);
         }
-        if (intakeStep === 2) {
-            var wrap2 = document.getElementById('if_btn2_wrap');
-            if (wrap2) {
-                var updateBtn2 = function() {
-                    wrap2.innerHTML = _ctaBtn('intakeNext()', 'Continue \u2192', !_iif('if_budget'));
-                };
-                updateBtn2();
-                var bi = document.getElementById('if_budget');
-                if (bi) bi.addEventListener('input', updateBtn2);
+        if (IS === 2) {
+            var b2 = document.getElementById('ifB2');
+            if (b2) {
+                var u2 = function() { b2.innerHTML = _ifBtn('_ifSync();_ifGo(3)','Continue \u2192',!document.getElementById('if_b')?.value.trim()); };
+                u2(); var bi = document.getElementById('if_b'); if (bi) bi.addEventListener('input', u2);
             }
-            setTimeout(function() { var f = document.getElementById('if_budget'); if (f) f.focus(); }, 350);
+            setTimeout(function() { var f = document.getElementById('if_b'); if (f) f.focus(); }, 300);
         }
-        if (intakeStep === 3) {
-            setTimeout(function() { var f = document.getElementById('if_zone'); if (f) f.focus(); }, 350);
-        }
-        if (intakeStep === 4) {
-            setTimeout(function() { var f = document.getElementById('if_notes'); if (f) f.focus(); }, 350);
-        }
+        if (IS === 3) setTimeout(function() { var f = document.getElementById('if_z'); if (f) f.focus(); }, 300);
+        if (IS === 4) setTimeout(function() { var f = document.getElementById('if_nt'); if (f) f.focus(); }, 300);
         
-        // Enter key handler — use global ref to prevent accumulation
-        if (window._intakeKeyHandler) document.removeEventListener('keydown', window._intakeKeyHandler);
-        if (intakeStep > 0 && intakeStep < 5) {
-            window._intakeKeyHandler = function(e) {
-                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (intakeStep === 4) { intakeSyncFields(); submitIntakeForm(); } else intakeNext(); }
+        // Enter key
+        if (window._ifKey) document.removeEventListener('keydown', window._ifKey);
+        if (IS > 0 && IS < 5) {
+            window._ifKey = function(e) {
+                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); _ifSync(); if (IS === 4) _ifSubmit(); else _ifGo(IS + 1); }
             };
-            document.addEventListener('keydown', window._intakeKeyHandler);
-        } else {
-            window._intakeKeyHandler = null;
-        }
+            document.addEventListener('keydown', window._ifKey);
+        } else { window._ifKey = null; }
     }
     
-    async function submitIntakeForm() {
-        var d = intakeData;
-        if (!d.name || !d.email || !d.phone) return toast('error', 'Missing required fields');
-        
+    // ── Submit ──
+    async function _ifSubmit() {
+        if (!ID.name || !ID.email || !ID.phone) return toast('error', 'Missing required fields');
         try {
             await db.collection('leads').add({
-                name: d.name, email: d.email, phone: d.phone,
-                budget: parseInt(d.budget) || 0, arrivalDate: d.arrival || '',
-                duration: d.months ? d.months + ' months' : '', zone: d.zone || '',
-                situation: d.situation || '', furnished: d.furnished || '',
-                pets: d.pets || 'no', mustHaves: d.musthaves || '',
-                notes: d.notes || '', source: d.source || 'website',
-                service: intakeKey !== 'general' ? intakeKey.toUpperCase() : '',
-                status: 'new', intakeForm: true, intakeType: intakeKey,
+                name: ID.name, email: ID.email, phone: ID.phone,
+                budget: parseInt(ID.budget) || 0, arrivalDate: ID.arrival || '',
+                duration: ID.months ? ID.months + ' months' : '', zone: ID.zone || '',
+                situation: ID.situation || '', furnished: ID.furnished || '',
+                pets: ID.pets || 'no', mustHaves: ID.musthaves || '',
+                notes: ID.notes || '', source: ID.source || 'website',
+                service: IK !== 'general' ? IK.toUpperCase() : '',
+                status: 'new', intakeForm: true, intakeType: IK,
                 submittedAt: firebase.firestore.FieldValue.serverTimestamp(),
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
-            
-            // Email admin
             sendBoomEmail(EMAILJS_CONFIG.templates.notification, COMPANY.email, {
-                heading: 'New lead.', subheading: d.name + ' \u2014 \u20AC' + (d.budget || '?') + '/month',
+                heading: 'New lead.', subheading: ID.name + ' \u2014 \u20AC' + (ID.budget || '?') + '/month',
                 name: 'Valentino',
-                intro: 'A new ' + (intakeKey !== 'general' ? intakeKey.toUpperCase() + ' ' : '') + 'lead just submitted the intake form.',
-                card_title: 'NEW LEAD', card_color: '#D4AF37',
-                r1_icon: '\uD83D\uDC64', r1_label: 'Name', r1_value: d.name + (d.situation ? ' (' + d.situation + ')' : ''),
-                r2_icon: '\uD83D\uDCE7', r2_label: 'Contact', r2_value: d.email + ' / ' + d.phone,
-                r3_icon: '\uD83D\uDCB0', r3_label: 'Search', r3_value: '\u20AC' + (d.budget || '?') + '/m \u00B7 ' + (d.zone || 'Any zone') + (d.months ? ' \u00B7 ' + d.months + 'mo' : ''),
-                r4_icon: '\uD83D\uDCCB', r4_label: 'Details', r4_value: (d.furnished || 'any') + ' \u00B7 pets: ' + d.pets + (d.musthaves ? ' \u00B7 ' + d.musthaves : ''),
-                closing: d.notes ? 'Note: ' + d.notes : '',
-                cta_text: 'Open CRM \u2192', portal_link: 'https://boomrome.com/portal.html'
-            }).catch(function(e) { console.error('Email:', e); });
-            
-            // Webhook
+                intro: 'A new '+(IK!=='general'?IK.toUpperCase()+' ':'')+'lead just submitted the intake form.',
+                card_title: 'NEW LEAD', card_color: '#FFD54F',
+                r1_icon: '\uD83D\uDC64', r1_label: 'Name', r1_value: ID.name + (ID.situation ? ' (' + ID.situation + ')' : ''),
+                r2_icon: '\uD83D\uDCE7', r2_label: 'Contact', r2_value: ID.email + ' / ' + ID.phone,
+                r3_icon: '\uD83D\uDCB0', r3_label: 'Search', r3_value: '\u20AC' + (ID.budget || '?') + '/m \u00B7 ' + (ID.zone || 'Any zone') + (ID.months ? ' \u00B7 ' + ID.months + 'mo' : ''),
+                r4_icon: '\uD83D\uDCCB', r4_label: 'Details', r4_value: (ID.furnished || 'any') + ' \u00B7 pets: ' + ID.pets + (ID.musthaves ? ' \u00B7 ' + ID.musthaves : ''),
+                closing: ID.notes ? 'Note: ' + ID.notes : '', cta_text: 'Open CRM \u2192', portal_link: 'https://boomrome.com/portal.html'
+            }).catch(function(e){ console.error('Email:', e); });
             if (WEBHOOK_URL) {
                 fetch(WEBHOOK_URL, { method:'POST', headers:{'Content-Type':'application/json'},
-                    body: JSON.stringify({ type:'new_lead', title:'\uD83D\uDD14 New Lead (' + intakeKey.toUpperCase() + ')', message: d.name + ' \u2014 \u20AC' + (d.budget||'?') + '/m, ' + (d.zone||'Any'), recipientEmail: COMPANY.email, timestamp: new Date().toISOString(), priority:'high' })
-                }).catch(function(e) { console.error('Webhook:', e); });
+                    body: JSON.stringify({ type:'new_lead', title:'\uD83D\uDD14 New Lead ('+IK.toUpperCase()+')', message: ID.name+' \u2014 \u20AC'+(ID.budget||'?')+'/m, '+(ID.zone||'Any'), recipientEmail: COMPANY.email, timestamp: new Date().toISOString(), priority:'high' })
+                }).catch(function(e){ console.error('Webhook:', e); });
             }
-            
-            // Show success
-            intakeStep = 5;
-            renderIntakeStep();
-            
+            IS = 5; _ifRender();
         } catch (err) {
             console.error('Intake error:', err);
-            toast('error', 'Something went wrong', 'Please try again or contact ' + COMPANY.email);
+            toast('error', 'Something went wrong', err.message);
         }
     }
 
