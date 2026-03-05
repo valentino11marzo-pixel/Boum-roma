@@ -1703,6 +1703,10 @@ Valentyne - BOOM Rome`
     let isIntakeForm = false;
     var intakeParam = new URLSearchParams(window.location.search).get('intake');
     
+    function _boomSvg(sz, anim) {
+        return '<svg viewBox="0 0 1024 1024" width="'+sz+'" height="'+sz+'" style="'+(anim?'opacity:0;animation:ifFadeUp .8s ease .3s forwards;':'')+'filter:drop-shadow(0 0 '+Math.round(sz/3)+'px rgba(212,175,55,0.35))"><defs><linearGradient id="ifGld" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#FFD54F"/><stop offset="100%" stop-color="#F5A623"/></linearGradient></defs><g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#ifGld)"><path d="M4860 8749 c-509-29-976-161-1413-401-580-317-1057-806-1350-1383-148-292-229-532-291-859-89-465-69-1005 54-1461 184-688 616-1308 1232-1769 492-368 1172-609 1794-635 546-22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760-93 716-396 1341-900 1861-280 289-569 498-922 667-416 200-813 303-1285 332-165 10-170 10-365-1z m610-144 c743-103 1436-459 1919-985 338-367 562-751 704-1205 276-879 132-1858-388-2640-242-364-493-615-900-900l-70-49 109 104c413 396 679 919 767 1505 33 217 33 558 0 765-75 476-257 896-549 1265-127 161-363 380-549 511-300 211-689 363-1079 420-172 26-604 26-764 0-296-47-545-128-808-262-236-122-440-271-632-464-486-485-749-1121-751-1815-1-611 170-1148 515-1608 100-134 286-335 382-413 33-27-8-2-91 55-513 351-904 805-1143 1331-71 156-136 336-168 465-9 33-19 76-24 95-5 19-20 100-34 180-59 343-60 740 0 1070 81 456 229 826 479 1200 246 368 558 669 949 917 386 245 881 418 1321 462 61 6 124 13 140 15 73 10 556-4 665-19z"/></g></svg>';
+    }
+    
     var INTAKE_SVC = {
         pfs: { name:'Property Finding Service', headline:'Find your home<br>in Rome.', sub:'2 minutes. 4 questions.<br>We start searching today.', cta:'Start my search',
             timeline:[{i:'\uD83D\uDCE8',t:'Within 24h',d:'We review your profile & contact you'},{i:'\uD83D\uDD0D',t:'Day 1\u20133',d:'First curated property options sent'},{i:'\uD83C\uDFE0',t:'Day 4\u201310',d:'Viewings & final selection'},{i:'\uD83D\uDD11',t:'Day 10\u201314',d:'Contract signed, keys in hand'}]},
@@ -1732,6 +1736,8 @@ Valentyne - BOOM Rome`
     
     function _iif(id) { return document.getElementById(id)?.value?.trim() || ''; }
     function _iset(k,v) { intakeData[k] = v; }
+    // Only sync fields that exist in the current step DOM — never overwrite with empty
+    function _isync(id, key) { var el = document.getElementById(id); if (el) intakeData[key] = el.value.trim(); }
     
     function intakeGo(to) {
         if (to > intakeStep) {
@@ -1749,17 +1755,10 @@ Valentyne - BOOM Rome`
     }
     
     function intakeSyncFields() {
-        intakeData.name = _iif('if_name');
-        intakeData.email = _iif('if_email');
-        intakeData.phone = _iif('if_phone');
-        intakeData.budget = _iif('if_budget');
-        intakeData.arrival = _iif('if_arrival');
-        intakeData.months = _iif('if_months');
-        intakeData.zone = _iif('if_zone');
-        intakeData.musthaves = _iif('if_must');
-        intakeData.notes = _iif('if_notes');
-        var src = document.getElementById('if_source');
-        if (src) intakeData.source = src.value;
+        _isync('if_name','name'); _isync('if_email','email'); _isync('if_phone','phone');
+        _isync('if_budget','budget'); _isync('if_arrival','arrival'); _isync('if_months','months');
+        _isync('if_zone','zone'); _isync('if_must','musthaves');
+        _isync('if_notes','notes'); _isync('if_source','source');
     }
     
     function intakeNext() { intakeSyncFields(); intakeGo(intakeStep + 1); }
@@ -1769,7 +1768,7 @@ Valentyne - BOOM Rome`
         return '<div style="display:grid;grid-template-columns:repeat(' + cols + ',1fr);gap:10px;margin-bottom:18px">' +
             options.map(function(o) {
                 var on = intakeData[key] === o.v;
-                return '<button onclick="intakePickOption(\'' + key + '\',\'' + o.v + '\')" style="padding:14px 10px;min-height:52px;background:' + (on ? 'rgba(212,175,55,0.12)' : 'rgba(255,255,255,0.02)') + ';border:1px solid ' + (on ? '#D4AF37' : 'rgba(255,255,255,0.06)') + ';border-radius:12px;cursor:pointer;transition:all .25s;transform:scale(' + (on ? '1.03' : '1') + ');color:' + (on ? '#D4AF37' : 'rgba(255,255,255,0.5)') + ';font-family:Helvetica Neue,Helvetica,-apple-system,sans-serif;text-align:center;font-size:12px;font-weight:' + (on ? '500' : '300') + ';line-height:1.3;box-shadow:' + (on ? '0 0 0 1px #D4AF37' : 'none') + '"><div style="font-size:22px;margin-bottom:4px">' + o.i + '</div>' + o.l + '</button>';
+                return '<button onclick="intakePickOption(\'' + key + '\',\'' + o.v + '\')" style="padding:14px 10px;min-height:52px;background:' + (on ? 'rgba(255,213,79,0.15)' : 'rgba(255,255,255,0.02)') + ';border:1px solid ' + (on ? '#FFD54F' : 'rgba(255,255,255,0.06)') + ';border-radius:12px;cursor:pointer;transition:all .25s;transform:scale(' + (on ? '1.03' : '1') + ');color:' + (on ? '#FFD54F' : 'rgba(255,255,255,0.5)') + ';font-family:Helvetica Neue,Helvetica,-apple-system,sans-serif;text-align:center;font-size:12px;font-weight:' + (on ? '500' : '300') + ';line-height:1.3;box-shadow:' + (on ? '0 0 16px rgba(255,213,79,0.2),0 0 0 1px #FFD54F' : 'none') + '"><div style="font-size:22px;margin-bottom:4px">' + o.i + '</div>' + o.l + '</button>';
             }).join('') + '</div>';
     }
     
@@ -1780,7 +1779,7 @@ Valentyne - BOOM Rome`
             '<label style="display:block;font-size:10px;font-weight:500;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,0.35);margin-bottom:8px">' + label + (req ? '<span style="color:#D4AF37;margin-left:3px">*</span>' : '') + '</label>' +
             '<div style="position:relative">' +
                 (prefix ? '<span style="position:absolute;left:0;bottom:' + (large ? '8' : '10') + 'px;font-size:' + (large ? '32' : '16') + 'px;font-weight:300;color:rgba(255,255,255,0.3);pointer-events:none">' + prefix + '</span>' : '') +
-                '<input id="' + id + '" type="' + tp + '" value="' + (val || '') + '" placeholder="' + (ph || '') + '"' + im + ' style="width:100%;background:transparent;border:none;border-bottom:1px solid rgba(255,255,255,0.1);padding:' + (large ? '8px 0 8px 32px' : prefix ? '10px 0 10px 24px' : '10px 0') + ';padding-right:' + (suffix ? '70px' : '0') + ';color:#fff;font-size:' + (large ? '32' : '16') + 'px;font-weight:300;min-height:48px;font-family:Helvetica Neue,Helvetica,-apple-system,sans-serif;outline:none" onfocus="this.style.borderColor=\'#D4AF37\';this.style.boxShadow=\'0 1px 0 0 #D4AF37\';this.parentElement.previousElementSibling&&(this.parentElement.previousElementSibling.style.color=\'#D4AF37\')" onblur="this.style.borderColor=\'rgba(255,255,255,0.1)\';this.style.boxShadow=\'none\';this.parentElement.previousElementSibling&&(this.parentElement.previousElementSibling.style.color=\'rgba(255,255,255,0.35)\')">' +
+                '<input id="' + id + '" type="' + tp + '" value="' + (val || '') + '" placeholder="' + (ph || '') + '"' + im + ' style="width:100%;background:transparent;border:none;border-bottom:1px solid rgba(255,255,255,0.1);padding:' + (large ? '8px 0 8px 32px' : prefix ? '10px 0 10px 24px' : '10px 0') + ';padding-right:' + (suffix ? '70px' : '0') + ';color:#fff;font-size:' + (large ? '32' : '16') + 'px;font-weight:300;min-height:48px;font-family:Helvetica Neue,Helvetica,-apple-system,sans-serif;outline:none" onfocus="this.style.borderColor=\'#FFD54F\';this.style.boxShadow=\'0 1px 0 0 #FFD54F\';this.parentElement.previousElementSibling&&(this.parentElement.previousElementSibling.style.color=\'#FFD54F\')" onblur="this.style.borderColor=\'rgba(255,255,255,0.1)\';this.style.boxShadow=\'none\';this.parentElement.previousElementSibling&&(this.parentElement.previousElementSibling.style.color=\'rgba(255,255,255,0.35)\')">' +
                 (suffix ? '<span style="position:absolute;right:0;bottom:14px;font-size:13px;font-weight:400;color:rgba(255,255,255,0.2);pointer-events:none">' + suffix + '</span>' : '') +
             '</div>' +
             (hint ? '<div style="font-size:11px;color:rgba(255,255,255,0.15);margin-top:6px;font-weight:300">' + hint + '</div>' : '') +
@@ -1788,9 +1787,9 @@ Valentyne - BOOM Rome`
     }
     
     function _ctaBtn(onclick, text, disabled) {
-        var bg = disabled ? 'rgba(255,255,255,0.04)' : 'linear-gradient(135deg,#D4AF37,#B8860B)';
+        var bg = disabled ? 'rgba(255,255,255,0.04)' : 'linear-gradient(135deg,#FFD54F,#D4AF37,#B8860B)';
         var clr = disabled ? 'rgba(255,255,255,0.15)' : '#000';
-        return '<button onclick="' + onclick + '"' + (disabled ? ' disabled' : '') + ' style="width:100%;padding:16px;border-radius:60px;border:none;min-height:52px;background:' + bg + ';color:' + clr + ';font-size:15px;font-weight:' + (disabled ? '400' : '600') + ';cursor:' + (disabled ? 'default' : 'pointer') + ';font-family:Helvetica Neue,Helvetica,-apple-system,sans-serif;letter-spacing:0.3px;transition:all .4s cubic-bezier(.16,1,.3,1);opacity:' + (disabled ? '0.6' : '1') + ';filter:' + (disabled ? 'grayscale(1)' : 'grayscale(0)') + ';box-shadow:' + (disabled ? 'none' : '0 4px 24px rgba(212,175,55,0.25)') + '">' + text + '</button>';
+        return '<button onclick="' + onclick + '"' + (disabled ? ' disabled' : '') + ' style="width:100%;padding:16px;border-radius:60px;border:none;min-height:52px;background:' + bg + ';color:' + clr + ';font-size:15px;font-weight:' + (disabled ? '400' : '700') + ';cursor:' + (disabled ? 'default' : 'pointer') + ';font-family:Helvetica Neue,Helvetica,-apple-system,sans-serif;letter-spacing:0.3px;transition:all .4s cubic-bezier(.16,1,.3,1);opacity:' + (disabled ? '0.5' : '1') + ';filter:' + (disabled ? 'grayscale(1)' : 'grayscale(0)') + ';box-shadow:' + (disabled ? 'none' : '0 4px 28px rgba(255,213,79,0.35),0 0 0 1px rgba(255,213,79,0.15)') + '">' + text + '</button>';
     }
     
     function renderIntakeStep() {
@@ -1819,7 +1818,7 @@ Valentyne - BOOM Rome`
         // Steps
         if (intakeStep === 0) {
             html = '<div style="text-align:center">' +
-                '<img src="' + COMPANY.logo + '" style="width:64px;height:64px;filter:drop-shadow(0 0 20px rgba(212,175,55,0.3));opacity:0;animation:ifFadeUp .8s ease .3s forwards" alt="BOOM">' +
+                _boomSvg(64, true) +
                 (intakeKey !== 'general' ? '<div style="display:inline-block;margin-top:20px;padding:5px 16px;border:1px solid rgba(212,175,55,0.2);border-radius:20px;font-size:10px;font-weight:500;letter-spacing:1.5px;text-transform:uppercase;color:#D4AF37;opacity:0;animation:ifFadeUp .6s ease .6s forwards">' + s.name + '</div>' : '') +
                 '<h1 style="font-size:clamp(30px,7vw,44px);font-weight:200;line-height:1.12;margin:24px 0 14px;letter-spacing:-0.5px;opacity:0;animation:ifFadeUp .8s cubic-bezier(.16,1,.3,1) .8s forwards">' + s.headline + '</h1>' +
                 '<p style="color:rgba(255,255,255,0.35);font-size:15px;font-weight:300;line-height:1.6;max-width:320px;margin:0 auto 44px;opacity:0;animation:ifFadeUp .8s cubic-bezier(.16,1,.3,1) 1.1s forwards">' + s.sub + '</p>' +
@@ -1891,7 +1890,7 @@ Valentyne - BOOM Rome`
                             '<div style="flex:1"><div style="font-size:13px;font-weight:500;color:rgba(255,255,255,0.65)">' + x.t + '</div><div style="font-size:11px;color:rgba(255,255,255,0.3);font-weight:300">' + x.d + '</div></div></div>';
                     }).join('') +
                 '</div>' +
-                '<div style="margin-top:32px;opacity:0;animation:ifFadeUp .5s ease 1.9s forwards"><img src="' + COMPANY.logo + '" style="width:24px;height:24px" alt="BOOM"></div>' +
+                '<div style="margin-top:32px;opacity:0;animation:ifFadeUp .5s ease 1.9s forwards">' + _boomSvg(24, false) + '</div>' +
             '</div>';
         }
         
