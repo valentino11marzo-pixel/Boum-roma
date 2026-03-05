@@ -1750,6 +1750,7 @@ Valentyne - BOOM Rome`
     }
     
     function intakePickOption(key, val) {
+        intakeSyncFields(); // Save current field values first
         intakeData[key] = val;
         renderIntakeStep();
     }
@@ -1906,8 +1907,14 @@ Valentyne - BOOM Rome`
             '@media(max-width:480px){.if-grid2{grid-template-columns:1fr!important}}' +
         '</style>' + prog + nav +
         '<div style="flex:1;display:flex;align-items:center;justify-content:center;padding:72px 24px 40px;width:100%">' +
-            '<div style="width:100%;max-width:460px;animation:' + anim + ' .45s cubic-bezier(.16,1,.3,1) both">' + html + '</div>' +
+            '<div id="ifAnimWrap" style="width:100%;max-width:460px;opacity:0">' + html + '</div>' +
         '</div>';
+        
+        // Trigger animation after DOM paint
+        requestAnimationFrame(function() {
+            var wrap = document.getElementById('ifAnimWrap');
+            if (wrap) { wrap.style.animation = anim + ' .45s cubic-bezier(.16,1,.3,1) both'; wrap.style.opacity = '1'; }
+        });
         
         // Dynamic button enable/disable based on input
         if (intakeStep === 1) {
@@ -1944,13 +1951,15 @@ Valentyne - BOOM Rome`
             setTimeout(function() { var f = document.getElementById('if_notes'); if (f) f.focus(); }, 350);
         }
         
-        // Enter key handler
+        // Enter key handler — use global ref to prevent accumulation
+        if (window._intakeKeyHandler) document.removeEventListener('keydown', window._intakeKeyHandler);
         if (intakeStep > 0 && intakeStep < 5) {
-            el._keyHandler && document.removeEventListener('keydown', el._keyHandler);
-            el._keyHandler = function(e) {
+            window._intakeKeyHandler = function(e) {
                 if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (intakeStep === 4) { intakeSyncFields(); submitIntakeForm(); } else intakeNext(); }
             };
-            document.addEventListener('keydown', el._keyHandler);
+            document.addEventListener('keydown', window._intakeKeyHandler);
+        } else {
+            window._intakeKeyHandler = null;
         }
     }
     
@@ -3320,6 +3329,12 @@ Valentyne - BOOM Rome`
             <!-- CRITICAL ALERTS -->
             ${criticalAlerts}
 
+            <!-- QUICK LINKS — Copy & Send -->
+            <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap">
+                <button onclick="navigator.clipboard.writeText('https://boomrome.com/portal.html?intake=1');this.innerHTML='✅ Copied!';setTimeout(()=>this.innerHTML='📋 Intake Lead',1500)" style="padding:8px 16px;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;color:var(--text-secondary);font-size:12px;font-weight:400;cursor:pointer;font-family:inherit;transition:all .2s" onmouseover="this.style.borderColor='var(--gold)';this.style.color='var(--gold)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-secondary)'">📋 Intake Lead</button>
+                <button onclick="navigator.clipboard.writeText('https://boomrome.com/portal.html?intake=pfs');this.innerHTML='✅ Copied!';setTimeout(()=>this.innerHTML='🏆 Intake PFS',1500)" style="padding:8px 16px;background:rgba(212,175,55,0.08);border:1px solid rgba(212,175,55,0.2);border-radius:8px;color:var(--gold);font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;transition:all .2s" onmouseover="this.style.background='rgba(212,175,55,0.15)'" onmouseout="this.style.background='rgba(212,175,55,0.08)'">🏆 Intake PFS</button>
+            </div>
+
             <!-- MAIN KPI CARDS - Premium Design -->
             <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px">
                 <!-- Revenue Card -->
@@ -4321,7 +4336,7 @@ Valentyne - BOOM Rome`
                     <h1 style="font-size:28px;font-weight:300;margin-bottom:6px">
                         <span style="color:var(--gold)">●</span> Lead Inbox
                     </h1>
-                    <p style="color:var(--text-secondary);font-size:13px">Lead da Immobiliare.it, Idealista e altri canali · via Homie</p>
+                    <p style="color:var(--text-secondary);font-size:13px">Lead da Intake Form, Immobiliare.it, Idealista e altri canali</p>
                 </div>
                 <button class="btn btn-sm btn-secondary" onclick="refreshLeads()">🔄 Aggiorna</button>
             </div>
@@ -4350,7 +4365,7 @@ Valentyne - BOOM Rome`
                     const timeAgo = l.createdAt ? getTimeAgo(l.createdAt) : '';
                     const lang = l.language === 'en' ? '🇬🇧' : '🇮🇹';
                     
-                    return `<div class="list-item" style="padding:16px;${isNew ? 'border-left:3px solid var(--gold);' : ''}${isDiscarded ? 'opacity:0.5;' : ''}">
+                    return `<div class="list-item" style="padding:16px;cursor:pointer;${isNew ? 'border-left:3px solid var(--gold);' : ''}${isDiscarded ? 'opacity:0.5;' : ''}" onclick="viewLead('${l.id}')">
                         <div class="list-icon" style="background:${isNew ? 'var(--gold-light)' : isConverted ? 'var(--green-light)' : isResponded ? 'var(--blue-light)' : 'var(--bg-elevated)'}">
                             ${isNew ? '📬' : isConverted ? '✔' : isResponded ? '✉️' : '✕'}
                         </div>
@@ -4361,11 +4376,13 @@ Valentyne - BOOM Rome`
                                 <span style="font-size:11px;color:var(--text-muted)">${esc(l.source || 'web')}</span>
                             </div>
                             <div class="list-subtitle" style="margin-top:4px">
-                                ${l.propertyTitle ? `🏠 ${esc(l.propertyTitle)}` : ''}
+                                ${l.intakeForm ? `💰 €${l.budget || '?'}/mo${l.zone ? ' · 📍 ' + esc(l.zone) : ''}${l.situation ? ' · ' + (l.situation === 'worker' ? '💼' : l.situation === 'student' ? '🎓' : '✈️') + ' ' + l.situation : ''}` : ''}
+                                ${!l.intakeForm && l.propertyTitle ? `🏠 ${esc(l.propertyTitle)}` : ''}
                                 ${l.propertyPrice ? ` · €${l.propertyPrice.toLocaleString('it-IT')}` : ''}
                                 ${l.propertyAddress ? ` · ${esc(l.propertyAddress)}` : ''}
                             </div>
-                            ${l.message || l.leadMessage ? `<div style="margin-top:6px;font-size:12px;color:var(--text-secondary);font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:500px">"${esc((l.message || l.leadMessage).substring(0, 120))}"</div>` : ''}
+                            ${l.intakeForm && l.notes ? `<div style="margin-top:6px;font-size:12px;color:var(--text-secondary);font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:500px">"${esc(l.notes.substring(0, 120))}"</div>` : ''}
+                            ${!l.intakeForm && (l.message || l.leadMessage) ? `<div style="margin-top:6px;font-size:12px;color:var(--text-secondary);font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:500px">"${esc((l.message || l.leadMessage).substring(0, 120))}"</div>` : ''}
                             <div style="margin-top:6px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
                                 ${l.email || l.leadEmail ? `<a href="mailto:${l.email || l.leadEmail}" class="btn btn-xs btn-secondary" onclick="event.stopPropagation()">📧 Email</a>` : ''}
                                 ${l.phone || l.leadPhone ? `<a href="https://wa.me/${(l.phone || l.leadPhone || '').replace(/[^0-9+]/g, '')}" target="_blank" class="btn btn-xs btn-success" onclick="event.stopPropagation()">💬 WhatsApp</a>` : ''}
@@ -4401,6 +4418,52 @@ Valentyne - BOOM Rome`
         return fmtDate(date);
     }
 
+    function viewLead(id) {
+        var l = (S.leads || []).find(function(x) { return x.id === id; });
+        if (!l) return;
+        var isIntake = l.intakeForm;
+        var name = l.name || l.leadName || 'Unknown';
+        var statusBadge = !l.status || l.status === 'new' ? '<span class="badge gold">NEW</span>' : l.status === 'converted' ? '<span class="badge green">CONVERTED</span>' : l.status === 'responded' ? '<span class="badge blue">RESPONDED</span>' : '<span class="badge gray">DISCARDED</span>';
+        
+        var details = '';
+        if (isIntake) {
+            details = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 20px;margin-top:16px">' +
+                (l.budget ? '<div><div class="detail-label">Budget</div><div class="detail-value" style="font-size:18px;color:var(--gold)">\u20AC' + l.budget + '/mo</div></div>' : '') +
+                (l.zone ? '<div><div class="detail-label">Zone</div><div class="detail-value">' + esc(l.zone) + '</div></div>' : '') +
+                (l.situation ? '<div><div class="detail-label">Status</div><div class="detail-value" style="text-transform:capitalize">' + (l.situation === 'worker' ? '\uD83D\uDCBC Worker' : l.situation === 'student' ? '\uD83C\uDF93 Student' : '\u2708\uFE0F Other') + '</div></div>' : '') +
+                (l.duration || l.months ? '<div><div class="detail-label">Duration</div><div class="detail-value">' + esc(l.duration || (l.months + ' months')) + '</div></div>' : '') +
+                (l.arrivalDate ? '<div><div class="detail-label">Move-in</div><div class="detail-value">' + l.arrivalDate + '</div></div>' : '') +
+                (l.furnished ? '<div><div class="detail-label">Furnished</div><div class="detail-value" style="text-transform:capitalize">' + l.furnished + '</div></div>' : '') +
+                (l.pets && l.pets !== 'no' ? '<div><div class="detail-label">Pets</div><div class="detail-value" style="text-transform:capitalize">' + l.pets + '</div></div>' : '') +
+                (l.service ? '<div><div class="detail-label">Service</div><div class="detail-value"><span class="badge gold">' + l.service + '</span></div></div>' : '') +
+                (l.source ? '<div><div class="detail-label">Source</div><div class="detail-value" style="text-transform:capitalize">' + l.source + '</div></div>' : '') +
+            '</div>' +
+            (l.mustHaves ? '<div style="margin-top:14px"><div class="detail-label">Must-haves</div><p style="background:var(--bg);padding:10px 12px;border-radius:8px;margin-top:4px;font-size:13px;color:var(--text-secondary)">' + esc(l.mustHaves) + '</p></div>' : '') +
+            (l.notes ? '<div style="margin-top:10px"><div class="detail-label">Notes</div><p style="background:var(--bg);padding:10px 12px;border-radius:8px;margin-top:4px;font-size:13px;color:var(--text-secondary);font-style:italic">"' + esc(l.notes) + '"</p></div>' : '');
+        } else {
+            details = (l.propertyTitle ? '<div style="margin-top:16px"><div class="detail-label">Property</div><div class="detail-value">' + esc(l.propertyTitle) + (l.propertyPrice ? ' \u00B7 \u20AC' + l.propertyPrice : '') + '</div></div>' : '') +
+                (l.propertyAddress ? '<div><div class="detail-label">Address</div><div class="detail-value">' + esc(l.propertyAddress) + '</div></div>' : '') +
+                (l.message || l.leadMessage ? '<div style="margin-top:10px"><div class="detail-label">Message</div><p style="background:var(--bg);padding:10px 12px;border-radius:8px;margin-top:4px;font-size:13px;color:var(--text-secondary);font-style:italic">"' + esc(l.message || l.leadMessage) + '"</p></div>' : '');
+        }
+        
+        document.getElementById('modals').innerHTML = '<div class="modal-overlay active"><div class="modal lg">' +
+            '<div class="modal-header"><h3 class="modal-title">' + (isIntake ? '\uD83C\uDFE0 Intake Lead' : '\uD83D\uDCEC Lead') + '</h3><button class="modal-close" onclick="closeModal()">\u00D7</button></div>' +
+            '<div class="modal-body">' +
+                '<div class="detail-header"><div class="avatar xl">' + initials(name) + '</div>' +
+                    '<div class="detail-info"><h2 class="detail-title">' + esc(name) + '</h2><p class="detail-subtitle">' + esc(l.email || l.leadEmail || '') + (l.phone ? ' \u00B7 ' + esc(l.phone) : '') + '</p>' +
+                    '<div class="detail-badges">' + statusBadge + (isIntake ? ' <span class="badge purple">INTAKE FORM</span>' : '') + (l.intakeType && l.intakeType !== 'general' ? ' <span class="badge blue">' + l.intakeType.toUpperCase() + '</span>' : '') + '</div></div>' +
+                '</div>' +
+                details +
+                '<div style="margin-top:16px;font-size:11px;color:var(--text-muted)">Received: ' + fmtDate(l.createdAt) + '</div>' +
+            '</div>' +
+            '<div class="modal-footer">' +
+                '<button class="btn btn-danger btn-sm" onclick="discardLead(\'' + l.id + '\');closeModal();">\u2715 Scarta</button>' +
+                (l.phone ? '<a href="https://wa.me/' + (l.phone || '').replace(/[^0-9+]/g, '') + '" target="_blank" class="btn btn-success btn-sm">\uD83D\uDCAC WhatsApp</a>' : '') +
+                '<button class="btn" onclick="convertLeadToClient(\'' + l.id + '\');closeModal();">\u2192 Converti in Client</button>' +
+            '</div>' +
+        '</div></div>';
+    }
+    
     async function convertLeadToClient(leadId) {
         const lead = S.leads.find(l => l.id === leadId);
         if (!lead) return;
@@ -4412,6 +4475,7 @@ Valentyne - BOOM Rome`
         
         try {
             // Create client in clients collection (CRM)
+            const isIntake = lead.intakeForm;
             const clientData = {
                 name: name,
                 email: email,
@@ -4419,13 +4483,18 @@ Valentyne - BOOM Rome`
                 language: lang,
                 source: lead.source || 'web',
                 stage: 'new',
-                service: 'pfs',
-                notes: `Lead da ${lead.source || 'web'}: ${lead.message || lead.leadMessage || ''}\nImmobile: ${lead.propertyTitle || ''} ${lead.propertyAddress || ''} €${lead.propertyPrice || ''}`,
-                budget: lead.propertyPrice || 0,
-                zone: lead.propertyAddress || '',
+                service: isIntake ? (lead.service || 'PFS') : 'PFS',
+                notes: isIntake 
+                    ? (lead.notes || '') + (lead.mustHaves ? '\nMust-haves: ' + lead.mustHaves : '') + (lead.furnished ? '\nFurnished: ' + lead.furnished : '') + (lead.pets && lead.pets !== 'no' ? '\nPets: ' + lead.pets : '')
+                    : `Lead da ${lead.source || 'web'}: ${lead.message || lead.leadMessage || ''}\nImmobile: ${lead.propertyTitle || ''} ${lead.propertyAddress || ''} \u20AC${lead.propertyPrice || ''}`,
+                budget: isIntake ? (lead.budget || 0) : (lead.propertyPrice || 0),
+                zone: isIntake ? (lead.zone || '') : (lead.propertyAddress || ''),
+                arrivalDate: lead.arrivalDate || '',
+                duration: lead.duration || '',
+                situation: lead.situation || '',
                 createdAt: new Date().toISOString(),
                 leadId: leadId,
-                moveIn: '',
+                moveIn: lead.arrivalDate || '',
                 lastContact: new Date().toISOString()
             };
             
