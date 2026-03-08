@@ -879,7 +879,7 @@ function injectIntoDeals() {
   if (d.pertinenze?.box_mq) params.set('mq_box', d.pertinenze.box_mq);
 
   const queryString = params.toString();
-  const dealsUrl = `deals_v2_commandcenter.html?${queryString}`;
+  const dealsUrl = `https://www.boomrome.com/deals_v2_commandcenter.html?${queryString}`;
 
   const count = [...params.keys()].length;
 
