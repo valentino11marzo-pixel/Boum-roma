@@ -1,0 +1,1969 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BOOM — Deal Command Center</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0c0c0e;
+  --surface: #141416;
+  --surface2: #1c1c20;
+  --border: #2a2a30;
+  --gold: #C9A84C;
+  --gold-dim: #8a6f2e;
+  --gold-bright: #e8c46a;
+  --text: #e8e8f0;
+  --text-dim: #7a7a90;
+  --text-muted: #444458;
+  --green: #3ecf8e;
+  --red: #f04444;
+  --blue: #4a9eff;
+  --orange: #ff8c42;
+  --r: 8px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Syne', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  font-size: 14px;
+}
+.mono { font-family: 'JetBrains Mono', monospace; }
+
+/* HEADER */
+header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 28px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  position: sticky; top: 0; z-index: 100;
+}
+.logo { font-size: 20px; font-weight: 800; color: var(--gold); letter-spacing: 2px; }
+.logo span { color: var(--text-dim); font-weight: 400; font-size: 13px; margin-left: 8px; }
+.header-actions { display: flex; gap: 10px; }
+
+/* LAYOUT */
+.app { display: grid; grid-template-columns: 420px 1fr; min-height: calc(100vh - 57px); }
+.panel-left {
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  background: var(--surface);
+  max-height: calc(100vh - 57px);
+}
+.panel-right { overflow-y: auto; max-height: calc(100vh - 57px); }
+
+/* STEPS */
+.step-nav { display: flex; border-bottom: 1px solid var(--border); }
+.step-tab {
+  flex: 1; padding: 12px 8px; text-align: center;
+  font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+  color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent;
+  transition: all .2s;
+}
+.step-tab.active { color: var(--gold); border-bottom-color: var(--gold); }
+.step-tab:hover:not(.active) { color: var(--text-dim); }
+
+.step-content { display: none; padding: 20px; }
+.step-content.active { display: block; }
+
+/* SECTIONS */
+.section-title {
+  font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--gold); margin-bottom: 14px; padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+.field-group { margin-bottom: 14px; }
+.field-label {
+  font-size: 11px; font-weight: 600; color: var(--text-dim);
+  margin-bottom: 5px; display: block; letter-spacing: .5px;
+}
+.field-required { color: var(--gold); margin-left: 2px; }
+input[type=text], input[type=number], input[type=date], select, textarea {
+  width: 100%; background: var(--surface2); border: 1px solid var(--border);
+  color: var(--text); padding: 9px 12px; border-radius: var(--r);
+  font-family: 'JetBrains Mono', monospace; font-size: 13px;
+  transition: border-color .2s;
+}
+input:focus, select:focus, textarea:focus {
+  outline: none; border-color: var(--gold);
+}
+select { cursor: pointer; }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.field-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+
+/* CHECKBOXES */
+.param-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px;
+}
+.param-item {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 7px 10px; background: var(--surface2); border-radius: 6px;
+  cursor: pointer; transition: background .15s; border: 1px solid transparent;
+}
+.param-item:hover { background: #22222a; }
+.param-item.checked { background: #1a1a10; border-color: var(--gold-dim); }
+.param-item input[type=checkbox] { display: none; }
+.param-check {
+  width: 14px; height: 14px; min-width: 14px; border: 1.5px solid var(--border);
+  border-radius: 3px; display: flex; align-items: center; justify-content: center;
+  font-size: 10px; color: var(--gold); margin-top: 1px;
+  transition: all .15s; background: var(--surface);
+}
+.param-item.checked .param-check { background: var(--gold); border-color: var(--gold); color: var(--bg); }
+.param-num {
+  font-size: 10px; font-weight: 700; color: var(--gold-dim); min-width: 16px; line-height: 1.4;
+}
+.param-label { font-size: 11px; color: var(--text-dim); line-height: 1.4; }
+.param-item.checked .param-label { color: var(--text); }
+
+/* RADIO */
+.radio-group { display: flex; gap: 8px; flex-wrap: wrap; }
+.radio-btn {
+  padding: 7px 14px; border-radius: 20px; border: 1px solid var(--border);
+  font-size: 12px; font-weight: 600; cursor: pointer; color: var(--text-dim);
+  transition: all .15s; background: var(--surface2);
+}
+.radio-btn.active { background: var(--gold); color: var(--bg); border-color: var(--gold); }
+.radio-btn:hover:not(.active) { border-color: var(--gold-dim); color: var(--text); }
+
+/* REQUISITI */
+.req-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 14px; }
+.req-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; background: var(--surface2); border-radius: 6px;
+  cursor: pointer; border: 1px solid transparent; transition: all .15s;
+}
+.req-item.active { border-color: var(--green); background: #0a1a0f; }
+.req-dot {
+  width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--border);
+  transition: all .15s; min-width: 10px;
+}
+.req-item.active .req-dot { background: var(--green); border-color: var(--green); }
+.req-label { font-size: 11px; color: var(--text-dim); }
+.req-item.active .req-label { color: var(--text); }
+
+/* MODIFICATORI */
+.mod-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+.mod-item {
+  padding: 8px 10px; background: var(--surface2); border-radius: 6px;
+  border: 1px solid transparent; cursor: pointer; transition: all .15s; text-align: center;
+}
+.mod-item.active-plus { border-color: var(--green); background: #0a1a0f; }
+.mod-item.active-minus { border-color: var(--red); background: #1a0a0a; }
+.mod-tag { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--text-muted); }
+.mod-val { font-size: 13px; font-weight: 700; margin: 2px 0; }
+.mod-item.active-plus .mod-val { color: var(--green); }
+.mod-item.active-minus .mod-val { color: var(--red); }
+.mod-label { font-size: 10px; color: var(--text-muted); }
+
+/* BUTTONS */
+.btn {
+  padding: 10px 20px; border-radius: var(--r); font-family: 'Syne', sans-serif;
+  font-size: 13px; font-weight: 700; cursor: pointer; border: none;
+  transition: all .2s; display: inline-flex; align-items: center; gap: 8px;
+  letter-spacing: .5px;
+}
+.btn-gold { background: var(--gold); color: #000; }
+.btn-gold:hover { background: var(--gold-bright); transform: translateY(-1px); }
+.btn-outline { background: transparent; border: 1px solid var(--gold-dim); color: var(--gold); }
+.btn-outline:hover { border-color: var(--gold); background: #ffffff08; }
+.btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text-dim); }
+.btn-ghost:hover { border-color: var(--text-dim); color: var(--text); }
+.btn-green { background: var(--green); color: #000; }
+.btn-green:hover { filter: brightness(1.1); }
+.btn-sm { padding: 6px 12px; font-size: 12px; }
+.btn-full { width: 100%; justify-content: center; }
+
+/* RIGHT PANEL */
+.right-tabs {
+  display: flex; border-bottom: 1px solid var(--border);
+  background: var(--surface); position: sticky; top: 0; z-index: 10;
+}
+.right-tab {
+  padding: 14px 20px; font-size: 12px; font-weight: 700; letter-spacing: .5px;
+  color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent;
+  transition: all .2s;
+}
+.right-tab.active { color: var(--gold); border-bottom-color: var(--gold); }
+.right-tab:hover:not(.active) { color: var(--text-dim); }
+.right-content { display: none; padding: 24px; }
+.right-content.active { display: block; }
+
+/* RISULTATO CANONE */
+.canone-result {
+  background: linear-gradient(135deg, #1a1a08 0%, #141410 100%);
+  border: 1px solid var(--gold-dim); border-radius: 12px; padding: 24px;
+  margin-bottom: 20px;
+}
+.canone-label { font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--gold-dim); }
+.canone-value { font-size: 42px; font-weight: 800; color: var(--gold); margin: 6px 0; line-height: 1; }
+.canone-range { font-size: 13px; color: var(--text-dim); margin-top: 4px; }
+.canone-meta { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 20px; }
+.canone-meta-item { background: var(--surface2); border-radius: 8px; padding: 12px; }
+.cmeta-label { font-size: 10px; color: var(--text-muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px; }
+.cmeta-val { font-size: 16px; font-weight: 700; color: var(--text); }
+
+/* CALCOLO STEPS */
+.calc-breakdown {
+  background: var(--surface2); border-radius: var(--r); padding: 16px; margin-bottom: 16px;
+}
+.calc-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 12px;
+}
+.calc-row:last-child { border-bottom: none; }
+.calc-desc { color: var(--text-dim); }
+.calc-num { font-family: 'JetBrains Mono', monospace; font-weight: 600; color: var(--text); }
+.calc-total { display: flex; justify-content: space-between; align-items: center; padding-top: 8px; margin-top: 4px; border-top: 1px solid var(--gold-dim); }
+.calc-total .calc-desc { font-weight: 700; color: var(--text); }
+.calc-total .calc-num { font-size: 16px; color: var(--gold); font-weight: 800; }
+
+/* SCHEDA CAF */
+.scheda-container { background: #fff; color: #000; padding: 20px; border-radius: var(--r); font-family: Arial, sans-serif; font-size: 11px; line-height: 1.5; }
+.scheda-title { text-align: center; font-size: 13px; font-weight: bold; margin-bottom: 4px; }
+.scheda-subtitle { text-align: center; font-size: 11px; margin-bottom: 12px; border-bottom: 1px solid #000; padding-bottom: 6px; }
+.scheda-field { display: flex; gap: 8px; margin-bottom: 6px; align-items: baseline; }
+.scheda-fieldname { min-width: 120px; font-weight: bold; }
+.scheda-value { border-bottom: 1px solid #000; flex: 1; min-height: 16px; padding: 0 4px; }
+.scheda-table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 10px; }
+.scheda-table td, .scheda-table th { border: 1px solid #999; padding: 4px 6px; }
+.scheda-table th { background: #eee; font-weight: bold; text-align: center; }
+.scheda-section { margin: 10px 0; font-weight: bold; text-decoration: underline; }
+.scheda-checkbox-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px; margin: 6px 0; }
+.scheda-cb { display: flex; align-items: center; gap: 6px; font-size: 10px; }
+.scheda-box { width: 12px; height: 12px; border: 1px solid #000; display: inline-flex; align-items: center; justify-content: center; font-size: 8px; font-weight: bold; }
+.scheda-box.checked { background: #000; color: #fff; }
+.scheda-sign { display: flex; justify-content: space-between; margin-top: 20px; padding-top: 10px; border-top: 1px solid #000; }
+.sign-block { text-align: center; font-size: 10px; }
+.sign-line { border-bottom: 1px solid #000; width: 160px; margin: 20px auto 4px; }
+
+/* SCADENZARIO */
+.scad-timeline { position: relative; padding-left: 24px; }
+.scad-timeline::before { content: ''; position: absolute; left: 7px; top: 0; bottom: 0; width: 2px; background: var(--border); }
+.scad-item { position: relative; margin-bottom: 16px; }
+.scad-dot {
+  position: absolute; left: -21px; top: 3px;
+  width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--border);
+  background: var(--bg);
+}
+.scad-dot.urgente { background: var(--red); border-color: var(--red); }
+.scad-dot.importante { background: var(--orange); border-color: var(--orange); }
+.scad-dot.ok { background: var(--green); border-color: var(--green); }
+.scad-date { font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--text-dim); margin-bottom: 2px; }
+.scad-title { font-size: 13px; font-weight: 700; color: var(--text); }
+.scad-desc { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+.scad-badge { display: inline-block; font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: 2px 6px; border-radius: 10px; margin-left: 6px; }
+.badge-urgente { background: #3a0a0a; color: var(--red); }
+.badge-importante { background: #2a1a00; color: var(--orange); }
+.badge-ok { background: #0a2010; color: var(--green); }
+
+/* HOMIE PANEL */
+.homie-card {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 16px; margin-bottom: 12px;
+}
+.homie-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.homie-icon { font-size: 20px; }
+.homie-name { font-size: 13px; font-weight: 700; color: var(--text); }
+.homie-model { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: 2px 6px; border-radius: 4px; }
+.model-haiku { background: #0a2030; color: var(--blue); }
+.model-sonnet { background: #1a0a30; color: #a080ff; }
+.homie-desc { font-size: 12px; color: var(--text-dim); margin-bottom: 12px; line-height: 1.6; }
+.homie-trigger {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+  padding: 8px 12px; font-size: 11px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace;
+  margin-bottom: 4px;
+}
+.homie-trigger strong { color: var(--gold); }
+.homie-actions-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+
+/* ZONA SELECTOR */
+.zona-search { position: relative; margin-bottom: 8px; }
+#zonaSearch { padding-right: 32px; }
+.zona-dropdown {
+  position: absolute; top: 100%; left: 0; right: 0; z-index: 200;
+  background: #1e1e26; border: 1px solid var(--border); border-radius: 0 0 var(--r) var(--r);
+  max-height: 200px; overflow-y: auto; display: none;
+}
+.zona-option {
+  padding: 8px 12px; cursor: pointer; font-size: 12px; font-family: 'JetBrains Mono', monospace;
+  border-bottom: 1px solid #22222a; transition: background .1s;
+}
+.zona-option:hover { background: #2a2a36; }
+.zona-option .zona-code { color: var(--gold-dim); margin-right: 8px; }
+.zona-option .zona-range { color: var(--text-muted); float: right; font-size: 10px; }
+.zona-selected { background: var(--surface2); border: 1px solid var(--gold-dim); border-radius: var(--r); padding: 10px 14px; margin-bottom: 12px; display: none; }
+.zona-selected-name { font-size: 14px; font-weight: 700; color: var(--text); }
+.zona-selected-detail { font-size: 11px; color: var(--text-dim); margin-top: 4px; font-family: 'JetBrains Mono', monospace; }
+
+/* FASCIA DISPLAY */
+.fascia-display { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin: 12px 0; }
+.fascia-card {
+  background: var(--surface2); border-radius: 8px; padding: 12px; border: 2px solid transparent;
+  cursor: pointer; transition: all .15s; text-align: center;
+}
+.fascia-card.selected-A { border-color: var(--text-muted); background: #18181e; }
+.fascia-card.selected-B { border-color: var(--gold); background: #1a1a08; }
+.fascia-card.selected-C { border-color: var(--green); background: #081a10; }
+.fascia-card .fc-label { font-size: 10px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 6px; }
+.fascia-card .fc-range { font-size: 12px; font-family: 'JetBrains Mono', monospace; font-weight: 600; }
+.fascia-card .fc-desc { font-size: 10px; color: var(--text-muted); margin-top: 4px; }
+
+/* SUBFASCIA SLIDER */
+.subfascia-row { display: flex; align-items: center; gap: 12px; margin: 12px 0; }
+.subfascia-label { font-size: 11px; color: var(--text-muted); min-width: 60px; }
+input[type=range] { flex: 1; accent-color: var(--gold); }
+.subfascia-val { font-size: 14px; font-weight: 700; color: var(--gold); min-width: 60px; text-align: right; font-family: 'JetBrains Mono', monospace; }
+
+/* ALERTS */
+.alert { border-radius: var(--r); padding: 10px 14px; margin-bottom: 14px; font-size: 12px; line-height: 1.5; }
+.alert-gold { background: #1a1500; border-left: 3px solid var(--gold); color: #c8a040; }
+.alert-green { background: #081a0f; border-left: 3px solid var(--green); color: var(--green); }
+.alert-red { background: #1a0808; border-left: 3px solid var(--red); color: #f07070; }
+
+/* IMPOSTA */
+.imposta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+.imposta-card { background: var(--surface2); border-radius: var(--r); padding: 14px; }
+.ic-label { font-size: 10px; color: var(--text-muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; }
+.ic-val { font-size: 20px; font-weight: 800; color: var(--gold); }
+.ic-note { font-size: 10px; color: var(--text-muted); margin-top: 4px; }
+
+/* PRINT */
+@media print {
+  .scheda-container { font-size: 10px; }
+}
+
+/* TOOLTIP */
+.tooltip-wrap { position: relative; display: inline-block; }
+.tooltip-icon { font-size: 11px; color: var(--text-muted); cursor: help; margin-left: 4px; }
+.tooltip-box {
+  display: none; position: absolute; bottom: 120%; left: 50%; transform: translateX(-50%);
+  background: #2a2a36; border: 1px solid var(--border); border-radius: 6px;
+  padding: 8px 12px; font-size: 11px; color: var(--text); white-space: nowrap; z-index: 999;
+}
+.tooltip-wrap:hover .tooltip-box { display: block; }
+
+/* DIVIDER */
+.divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+
+/* NOTA BENE */
+.nota { font-size: 11px; color: var(--text-muted); background: var(--surface2); border-radius: 6px; padding: 8px 12px; margin: 8px 0; line-height: 1.5; }
+
+/* COPY BTN */
+.copy-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.copy-bar h3 { font-size: 14px; font-weight: 700; }
+
+/* SCROLLBAR */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* AUTOFILL BANNER */
+.autofill-banner {
+  display: none;
+  position: fixed; top: 57px; left: 0; right: 0; z-index: 200;
+  background: linear-gradient(90deg, #0f1a00, #1a2800, #0f1a00);
+  border-bottom: 1px solid #3a5a00;
+  padding: 10px 28px;
+  display: flex; align-items: center; justify-content: space-between;
+  animation: slideDown .35s ease;
+}
+@keyframes slideDown {
+  from { transform: translateY(-100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.autofill-banner.hidden { display: none !important; }
+.autofill-left { display: flex; align-items: center; gap: 12px; }
+.autofill-icon { font-size: 18px; }
+.autofill-text { font-size: 13px; font-weight: 700; color: var(--green); }
+.autofill-sub { font-size: 11px; color: #6a9a40; margin-top: 1px; }
+.autofill-fields { display: flex; gap: 6px; flex-wrap: wrap; }
+.autofill-tag {
+  background: #0a1a00; border: 1px solid #2a4a00;
+  border-radius: 4px; padding: 2px 7px;
+  font-size: 10px; font-weight: 700; color: #7acc40;
+  font-family: 'JetBrains Mono', monospace;
+}
+.autofill-close {
+  background: none; border: none; color: #4a6a20;
+  font-size: 18px; cursor: pointer; padding: 0 4px;
+  transition: color .15s;
+}
+.autofill-close:hover { color: var(--green); }
+
+/* TOAST */
+.toast {
+  position: fixed; bottom: 28px; right: 28px; z-index: 999;
+  background: #0f1a00; border: 1px solid #3a5a10;
+  border-radius: 10px; padding: 12px 18px;
+  font-size: 13px; font-weight: 700; color: var(--green);
+  display: flex; align-items: center; gap: 10px;
+  animation: toastIn .3s ease;
+  pointer-events: none;
+}
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div style="display:flex;align-items:center;gap:16px">
+    <div class="logo">BOOM <span>Deal Command Center</span></div>
+    <div style="background:#1a1a00;border:1px solid var(--gold-dim);border-radius:4px;padding:2px 8px;font-size:10px;color:var(--gold);font-weight:700;letter-spacing:1px">AT ROMA 2023</div>
+  </div>
+  <div class="header-actions">
+    <button class="btn btn-ghost btn-sm" onclick="newDeal()">✦ Nuovo Deal</button>
+    <button class="btn btn-ghost btn-sm" style="border-color:var(--blue);color:var(--blue)" onclick="sendToPortal()" id="portalBtn">🔗 Invia al Portal</button>
+    <button class="btn btn-gold btn-sm" onclick="generateAll()">⚡ Genera Tutto</button>
+  </div>
+</header>
+
+<!-- AUTOFILL BANNER (shown when URL params detected) -->
+<div class="autofill-banner hidden" id="autofillBanner">
+  <div class="autofill-left">
+    <div class="autofill-icon">⚡</div>
+    <div>
+      <div class="autofill-text">Form pre-compilato dal Document Parser</div>
+      <div class="autofill-sub" id="autofillSub">Campi iniettati: —</div>
+    </div>
+  </div>
+  <div class="autofill-fields" id="autofillTagsContainer"></div>
+  <button class="autofill-close" onclick="document.getElementById('autofillBanner').classList.add('hidden')">×</button>
+</div>
+
+<div class="app">
+  <!-- LEFT PANEL: INPUT -->
+  <div class="panel-left">
+    <div class="step-nav">
+      <div class="step-tab active" onclick="switchStep(0)" id="stab0">① Dati</div>
+      <div class="step-tab" onclick="switchStep(1)" id="stab1">② Immobile</div>
+      <div class="step-tab" onclick="switchStep(2)" id="stab2">③ Canone</div>
+      <div class="step-tab" onclick="switchStep(3)" id="stab3">④ Fiscale</div>
+    </div>
+
+    <!-- STEP 1: DATI DEAL -->
+    <div class="step-content active" id="step0">
+      <div class="section-title">Tipo Contratto</div>
+      <div class="radio-group" style="margin-bottom:20px">
+        <div class="radio-btn active" onclick="setTipo(this,'transitorio')">🔄 Transitorio</div>
+        <div class="radio-btn" onclick="setTipo(this,'studenti')">🎓 Studenti Univ.</div>
+        <div class="radio-btn" onclick="setTipo(this,'ordinaria')">📋 3+2 Ordinario</div>
+      </div>
+
+      <div class="section-title">Locatore</div>
+      <div class="field-group">
+        <label class="field-label">Nome e Cognome <span class="field-required">*</span></label>
+        <input type="text" id="locatore_nome" placeholder="Mario Rossi">
+      </div>
+      <div class="field-row">
+        <div class="field-group">
+          <label class="field-label">Nato a</label>
+          <input type="text" id="locatore_luogo" placeholder="Roma">
+        </div>
+        <div class="field-group">
+          <label class="field-label">Data di nascita</label>
+          <input type="date" id="locatore_dob">
+        </div>
+      </div>
+      <div class="field-group">
+        <label class="field-label">Codice Fiscale <span class="field-required">*</span></label>
+        <input type="text" id="locatore_cf" placeholder="RSSMRA80A01H501Z" style="text-transform:uppercase">
+      </div>
+
+      <hr class="divider">
+      <div class="section-title">Conduttore</div>
+      <div class="field-group">
+        <label class="field-label">Nome e Cognome <span class="field-required">*</span></label>
+        <input type="text" id="conduttore_nome" placeholder="John Smith">
+      </div>
+      <div class="field-row">
+        <div class="field-group">
+          <label class="field-label">Nato a</label>
+          <input type="text" id="conduttore_luogo" placeholder="London">
+        </div>
+        <div class="field-group">
+          <label class="field-label">Data di nascita</label>
+          <input type="date" id="conduttore_dob">
+        </div>
+      </div>
+      <div class="field-group">
+        <label class="field-label">Codice Fiscale / Passaporto <span class="field-required">*</span></label>
+        <input type="text" id="conduttore_cf" placeholder="CF o n. passaporto" style="text-transform:uppercase">
+      </div>
+
+      <div class="field-group" id="studenti_campo" style="display:none">
+        <label class="field-label">Università / Corso di studi</label>
+        <input type="text" id="universita" placeholder="es. Sapienza — Architettura">
+      </div>
+
+      <div class="field-group" id="transitorio_campo">
+        <label class="field-label">Motivazione transitorietà</label>
+        <input type="text" id="motivo_transitorio" placeholder="es. trasferimento temporaneo per lavoro">
+      </div>
+
+      <hr class="divider">
+      <div class="section-title">Date Contratto</div>
+      <div class="field-row">
+        <div class="field-group">
+          <label class="field-label">Data inizio <span class="field-required">*</span></label>
+          <input type="date" id="data_inizio" onchange="calcDate()">
+        </div>
+        <div class="field-group">
+          <label class="field-label">Data fine <span class="field-required">*</span></label>
+          <input type="date" id="data_fine" onchange="calcDate()">
+        </div>
+      </div>
+      <div id="durata_display" class="nota"></div>
+
+      <div style="margin-top:20px">
+        <button class="btn btn-gold btn-full" onclick="switchStep(1)">Avanti: Immobile →</button>
+      </div>
+    </div>
+
+    <!-- STEP 2: IMMOBILE -->
+    <div class="step-content" id="step1">
+      <div class="section-title">Indirizzo</div>
+      <div class="field-group">
+        <label class="field-label">Via / Piazza <span class="field-required">*</span></label>
+        <input type="text" id="via" placeholder="Via del Corso 123">
+      </div>
+      <div class="field-row-3">
+        <div class="field-group">
+          <label class="field-label">Piano</label>
+          <input type="text" id="piano" placeholder="3">
+        </div>
+        <div class="field-group">
+          <label class="field-label">Scala</label>
+          <input type="text" id="scala" placeholder="A">
+        </div>
+        <div class="field-group">
+          <label class="field-label">Int.</label>
+          <input type="text" id="interno" placeholder="5">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field-group">
+          <label class="field-label">N. vani</label>
+          <input type="number" id="vani" placeholder="3" min="1" max="20">
+        </div>
+        <div class="field-group">
+          <label class="field-label">Arredato</label>
+          <select id="arredato" onchange="calcCanone()">
+            <option value="no">No</option>
+            <option value="parziale">Parzialmente</option>
+            <option value="si">Sì (+15%)</option>
+          </select>
+        </div>
+      </div>
+
+      <hr class="divider">
+      <div class="section-title">Dati Catastali</div>
+      <div class="field-row-3">
+        <div class="field-group">
+          <label class="field-label">Foglio</label>
+          <input type="text" id="cat_foglio" placeholder="123">
+        </div>
+        <div class="field-group">
+          <label class="field-label">Particella</label>
+          <input type="text" id="cat_part" placeholder="456">
+        </div>
+        <div class="field-group">
+          <label class="field-label">Sub</label>
+          <input type="text" id="cat_sub" placeholder="7">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field-group">
+          <label class="field-label">Rendita Catastale €</label>
+          <input type="number" id="rendita" placeholder="500" step="0.01">
+        </div>
+        <div class="field-group">
+          <label class="field-label">Classe Energetica</label>
+          <select id="classe_en" onchange="calcCanone()">
+            <option value="">--</option>
+            <option value="ABC">A/B/C (+10%)</option>
+            <option value="D">D</option>
+            <option value="EFG">E/F/G</option>
+          </select>
+        </div>
+      </div>
+      <div class="field-group">
+        <label class="field-label">Attestazione Prestazione Energetica (APE)</label>
+        <input type="text" id="ape" placeholder="es. Classe B — 80 kWh/m²/anno">
+      </div>
+
+      <div style="margin-top:20px;display:flex;gap:8px">
+        <button class="btn btn-ghost" onclick="switchStep(0)">← Indietro</button>
+        <button class="btn btn-gold" style="flex:1" onclick="switchStep(2)">Avanti: Canone →</button>
+      </div>
+    </div>
+
+    <!-- STEP 3: CALCOLO CANONE -->
+    <div class="step-content" id="step2">
+
+      <div class="section-title">Zona OMI</div>
+      <div class="zona-search">
+        <input type="text" id="zonaSearch" placeholder="Cerca zona... (es. Trastevere, C40, Prati)" oninput="searchZona(this.value)" onfocus="showZonaDropdown()" onblur="hideZonaDropdown()">
+        <div class="zona-dropdown" id="zonaDropdown"></div>
+      </div>
+      <div class="zona-selected" id="zonaSelected">
+        <div class="zona-selected-name" id="zonaNome">—</div>
+        <div class="zona-selected-detail" id="zonaDetail">—</div>
+      </div>
+
+      <div class="fascia-display" id="fasciaDisplay">
+        <div class="fascia-card" id="fc-A" onclick="selectFascia('A')">
+          <div class="fc-label" style="color:var(--text-muted)">Fascia A</div>
+          <div class="fc-range" id="fc-A-range">—</div>
+          <div class="fc-desc">0-2 parametri o non normale</div>
+        </div>
+        <div class="fascia-card" id="fc-B" onclick="selectFascia('B')">
+          <div class="fc-label" style="color:var(--gold)">Fascia B</div>
+          <div class="fc-range" id="fc-B-range">—</div>
+          <div class="fc-desc">3–6 parametri</div>
+        </div>
+        <div class="fascia-card" id="fc-C" onclick="selectFascia('C')">
+          <div class="fc-label" style="color:var(--green)">Fascia C</div>
+          <div class="fc-range" id="fc-C-range">—</div>
+          <div class="fc-desc">7+ parametri</div>
+        </div>
+      </div>
+
+      <div class="subfascia-row">
+        <span class="subfascia-label" id="subfascia-min-label">Min</span>
+        <input type="range" id="fasciaSlider" min="0" max="100" value="50" oninput="updateSlider()">
+        <span class="subfascia-label" style="text-align:right" id="subfascia-max-label">Max</span>
+      </div>
+      <div style="text-align:center;margin-bottom:12px">
+        <span class="subfascia-val" id="sliderVal">€/mq/mese</span>
+      </div>
+
+      <hr class="divider">
+      <div class="section-title">Superficie Convenzionale</div>
+
+      <div class="field-row">
+        <div class="field-group">
+          <label class="field-label">Calpestabile (mq)</label>
+          <input type="number" id="mq_calpestabile" placeholder="80" min="10" oninput="calcCanone()">
+        </div>
+        <div class="field-group">
+          <label class="field-label">Coeff. applicato</label>
+          <input type="text" id="coeff_display" readonly style="color:var(--gold);font-weight:700">
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field-group">
+          <label class="field-label">Balconi / Terrazze (mq)</label>
+          <input type="number" id="mq_balconi" placeholder="10" min="0" oninput="calcCanone()">
+        </div>
+        <div class="field-group">
+          <label class="field-label">Cantina (mq)</label>
+          <input type="number" id="mq_cantina" placeholder="0" min="0" oninput="calcCanone()">
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field-group">
+          <label class="field-label">Box auto zona pregio (mq)</label>
+          <input type="number" id="mq_box_pregio" placeholder="0" min="0" oninput="calcCanone()">
+        </div>
+        <div class="field-group">
+          <label class="field-label">Box auto (mq)</label>
+          <input type="number" id="mq_box" placeholder="0" min="0" oninput="calcCanone()">
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field-group">
+          <label class="field-label">Posto auto comune (mq)</label>
+          <input type="number" id="mq_posto_comune" placeholder="0" min="0" oninput="calcCanone()">
+        </div>
+        <div class="field-group">
+          <label class="field-label">Verde condominiale (mq tot/millesimi)</label>
+          <input type="number" id="mq_verde" placeholder="0" min="0" oninput="calcCanone()">
+        </div>
+      </div>
+
+      <div class="nota">
+        <strong>Sup. conv. calcolata:</strong> <span id="supConvDisplay" style="color:var(--gold);font-weight:700;font-family:JetBrains Mono,monospace">—</span>
+        <br><span style="font-size:10px;color:var(--text-muted)">Include coefficienti AT 2023 • Tolleranza ±5% applicabile</span>
+      </div>
+
+      <hr class="divider">
+      <div class="section-title">Requisiti Essenziali <span style="font-size:10px;color:var(--text-muted);font-weight:400">(tutti e 4 per fascia B/C)</span></div>
+      <div class="req-grid">
+        <div class="req-item active" onclick="toggleReq(this,'req_idrica')" id="ri_idrica">
+          <div class="req-dot"></div><div class="req-label">💧 Rete idrica</div>
+        </div>
+        <div class="req-item active" onclick="toggleReq(this,'req_fognante')" id="ri_fognante">
+          <div class="req-dot"></div><div class="req-label">🚿 Rete fognante</div>
+        </div>
+        <div class="req-item active" onclick="toggleReq(this,'req_gas')" id="ri_gas">
+          <div class="req-dot"></div><div class="req-label">🔥 Gas / Induzione</div>
+        </div>
+        <div class="req-item active" onclick="toggleReq(this,'req_riscaldamento')" id="ri_risc">
+          <div class="req-dot"></div><div class="req-label">🌡 Riscaldamento</div>
+        </div>
+      </div>
+      <div id="req_alert" class="alert alert-gold" style="display:none">⚠️ Mancando requisiti essenziali → solo Fascia A applicabile</div>
+
+      <hr class="divider">
+      <div class="section-title">Parametri Allegato 2/B <span id="param_count_display" style="font-size:12px;color:var(--text-dim);font-weight:400;letter-spacing:0">(0 selezionati)</span></div>
+
+      <div class="param-grid" id="paramGrid">
+        <!-- generated by JS -->
+      </div>
+
+      <hr class="divider">
+      <div class="section-title">Modificatori</div>
+      <div class="mod-grid">
+        <div class="mod-item" id="mod_ammobiliato" onclick="toggleMod(this,'ammobiliato',15,'plus')">
+          <div class="mod-tag">Arredi</div>
+          <div class="mod-val">+15%</div>
+          <div class="mod-label">Ammobiliato</div>
+        </div>
+        <div class="mod-item" id="mod_attico" onclick="toggleMod(this,'attico',10,'plus')">
+          <div class="mod-tag">Piano</div>
+          <div class="mod-val">+10%</div>
+          <div class="mod-label">Attico</div>
+        </div>
+        <div class="mod-item" id="mod_ecobonus" onclick="toggleMod(this,'ecobonus',5,'plus')">
+          <div class="mod-tag">Green</div>
+          <div class="mod-val">+5%</div>
+          <div class="mod-label">Eco Bonus</div>
+        </div>
+        <div class="mod-item" id="mod_sismabonus" onclick="toggleMod(this,'sismabonus',10,'plus')">
+          <div class="mod-tag">Struttura</div>
+          <div class="mod-val">+10%</div>
+          <div class="mod-label">Sisma Bonus</div>
+        </div>
+        <div class="mod-item" id="mod_seminterrato" onclick="toggleMod(this,'seminterrato',10,'minus')">
+          <div class="mod-tag">Piano</div>
+          <div class="mod-val">-10%</div>
+          <div class="mod-label">Seminterrato</div>
+        </div>
+        <div class="mod-item" id="mod_noascensore" onclick="toggleMod(this,'noascensore',10,'minus')">
+          <div class="mod-tag">Servizi</div>
+          <div class="mod-val">-10%</div>
+          <div class="mod-label">No ascensore &gt;4 piani</div>
+        </div>
+      </div>
+      <div class="field-group">
+        <label class="field-label">Maggiorazione Transitorio (%)</label>
+        <input type="number" id="perc_transitorio" placeholder="0" min="0" max="30" value="0" oninput="calcCanone()">
+      </div>
+
+      <div style="margin-top:20px;display:flex;gap:8px">
+        <button class="btn btn-ghost" onclick="switchStep(1)">← Indietro</button>
+        <button class="btn btn-gold" style="flex:1" onclick="switchStep(3);calcCanone()">Avanti: Fiscale →</button>
+      </div>
+    </div>
+
+    <!-- STEP 4: DATI FISCALI -->
+    <div class="step-content" id="step3">
+      <div class="section-title">Regime Fiscale Locatore</div>
+      <div class="radio-group" style="margin-bottom:16px" id="regimeGroup">
+        <div class="radio-btn active" onclick="setRegime(this,'cedolare10')">Cedolare 10%</div>
+        <div class="radio-btn" onclick="setRegime(this,'cedolare21')">Cedolare 21%</div>
+        <div class="radio-btn" onclick="setRegime(this,'irpef')">IRPEF ordinaria</div>
+      </div>
+      <div class="alert alert-green" id="regime_alert">✅ Cedolare secca 10% — canone concordato, no bollo, no imposta di registro</div>
+
+      <hr class="divider">
+      <div class="section-title">Assistenza CAF</div>
+      <div class="field-group">
+        <label class="field-label">Associazione assistente (locatore)</label>
+        <input type="text" id="assoc_locatore" placeholder="es. ASPPI Roma" value="ASPPI Roma">
+      </div>
+      <div class="field-group">
+        <label class="field-label">Associazione assistente (conduttore)</label>
+        <input type="text" id="assoc_conduttore" placeholder="es. Unione Inquilini">
+      </div>
+
+      <hr class="divider">
+      <div class="section-title">Deposito Cauzionale</div>
+      <div class="field-row">
+        <div class="field-group">
+          <label class="field-label">Mensilità cauzione</label>
+          <select id="cauzione_mesi" onchange="calcCanone()">
+            <option value="1">1 mensilità</option>
+            <option value="2" selected>2 mensilità</option>
+            <option value="3">3 mensilità</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Importo cauzione (€)</label>
+          <input type="text" id="cauzione_importo" readonly style="color:var(--gold);font-weight:700">
+        </div>
+      </div>
+
+      <hr class="divider">
+      <div class="section-title">Note Aggiuntive</div>
+      <textarea id="note_aggiuntive" rows="3" placeholder="Clausole aggiuntive, note speciali..."></textarea>
+
+      <div style="margin-top:20px;display:flex;gap:8px">
+        <button class="btn btn-ghost" onclick="switchStep(2)">← Indietro</button>
+        <button class="btn btn-gold btn-full" onclick="generateAll()">⚡ Genera Tutto</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL: OUTPUT -->
+  <div class="panel-right">
+    <div class="right-tabs">
+      <div class="right-tab active" onclick="switchRight(0)" id="rtab0">📊 Canone</div>
+      <div class="right-tab" onclick="switchRight(1)" id="rtab1">📋 Scheda CAF</div>
+      <div class="right-tab" onclick="switchRight(2)" id="rtab2">📅 Scadenzario</div>
+      <div class="right-tab" onclick="switchRight(3)" id="rtab3">🤖 Homie</div>
+    </div>
+
+    <!-- TAB 0: CANONE RESULT -->
+    <div class="right-content active" id="rcont0">
+      <div class="canone-result">
+        <div class="canone-label">Canone Mensile Concordato</div>
+        <div class="canone-value" id="result_canone_mensile">€ —</div>
+        <div class="canone-range" id="result_canone_range">Inserisci i dati nel form per il calcolo</div>
+        <div class="canone-meta">
+          <div class="canone-meta-item">
+            <div class="cmeta-label">Canone annuo</div>
+            <div class="cmeta-val" id="result_canone_annuo">— €</div>
+          </div>
+          <div class="canone-meta-item">
+            <div class="cmeta-label">Sup. conv.</div>
+            <div class="cmeta-val" id="result_supconv">— mq</div>
+          </div>
+          <div class="canone-meta-item">
+            <div class="cmeta-label">€/mq/mese</div>
+            <div class="cmeta-val" id="result_eurmq">—</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="calc-breakdown">
+        <div class="section-title" style="margin-bottom:12px">Calcolo Step-by-Step</div>
+        <div class="calc-row">
+          <span class="calc-desc">Superficie calpestabile</span>
+          <span class="calc-num" id="cb_calpestabile">— mq</span>
+        </div>
+        <div class="calc-row">
+          <span class="calc-desc">Coeff. dimensione</span>
+          <span class="calc-num" id="cb_coeff">×—</span>
+        </div>
+        <div class="calc-row">
+          <span class="calc-desc">Sup. calpestabile conv.</span>
+          <span class="calc-num" id="cb_calp_conv">— mq</span>
+        </div>
+        <div class="calc-row">
+          <span class="calc-desc">Pertinenze (balconi ×25%, box ×50%, ecc.)</span>
+          <span class="calc-num" id="cb_pertinenze">+ — mq</span>
+        </div>
+        <div class="calc-row">
+          <span class="calc-desc"><strong>Superficie Convenzionale Totale</strong></span>
+          <span class="calc-num" id="cb_supconv_tot" style="color:var(--gold)">— mq</span>
+        </div>
+        <div class="calc-row">
+          <span class="calc-desc">Zona & Fascia</span>
+          <span class="calc-num" id="cb_fascia">—</span>
+        </div>
+        <div class="calc-row">
+          <span class="calc-desc">Valore unitario base</span>
+          <span class="calc-num" id="cb_unitbase">— €/mq/mese</span>
+        </div>
+        <div class="calc-row">
+          <span class="calc-desc">Modificatori applicati</span>
+          <span class="calc-num" id="cb_mod">—</span>
+        </div>
+        <div class="calc-row">
+          <span class="calc-desc">Valore unitario finale</span>
+          <span class="calc-num" id="cb_unitfinal">— €/mq/mese</span>
+        </div>
+        <div class="calc-total">
+          <span class="calc-desc">Canone mensile</span>
+          <span class="calc-num" id="cb_mensile">— €</span>
+        </div>
+      </div>
+
+      <!-- IMPOSTA -->
+      <div class="section-title">Costi Fiscali</div>
+      <div class="imposta-grid">
+        <div class="imposta-card">
+          <div class="ic-label">Cedolare annua</div>
+          <div class="ic-val" id="res_cedolare">—</div>
+          <div class="ic-note" id="res_cedolare_note">10% canone annuo</div>
+        </div>
+        <div class="imposta-card">
+          <div class="ic-label">Imposta registro</div>
+          <div class="ic-val" id="res_registro">€ 0</div>
+          <div class="ic-note">Esente con cedolare secca</div>
+        </div>
+        <div class="imposta-card">
+          <div class="ic-label">Imposta bollo</div>
+          <div class="ic-val" id="res_bollo">€ 0</div>
+          <div class="ic-note">Esente con cedolare secca</div>
+        </div>
+        <div class="imposta-card">
+          <div class="ic-label">Deposito cauzionale</div>
+          <div class="ic-val" id="res_cauzione">—</div>
+          <div class="ic-note" id="res_cauzione_note">2 mensilità</div>
+        </div>
+      </div>
+
+      <div style="margin-top:16px">
+        <button class="btn btn-outline btn-full" onclick="switchRight(1);generateSchedaCAF()">📋 Genera Scheda CAF →</button>
+      </div>
+    </div>
+
+    <!-- TAB 1: SCHEDA CAF -->
+    <div class="right-content" id="rcont1">
+      <div class="copy-bar">
+        <h3>Scheda Determinazione Canone — ASPPI Roma</h3>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-ghost btn-sm" onclick="generateSchedaCAF()">🔄 Aggiorna</button>
+          <button class="btn btn-gold btn-sm" onclick="printScheda()">🖨 Stampa / PDF</button>
+        </div>
+      </div>
+      <div id="schedaContainer">
+        <div class="nota" style="margin-bottom:16px">Completa il form e clicca "Genera Tutto" per vedere la scheda precompilata.</div>
+      </div>
+    </div>
+
+    <!-- TAB 2: SCADENZARIO -->
+    <div class="right-content" id="rcont2">
+      <div class="copy-bar">
+        <h3>Scadenzario Fiscale Contratto</h3>
+        <button class="btn btn-ghost btn-sm" onclick="generateScadenzario()">🔄 Aggiorna</button>
+      </div>
+      <div id="scadenzarioContainer">
+        <div class="nota">Inserisci le date del contratto per generare lo scadenzario completo.</div>
+      </div>
+    </div>
+
+    <!-- TAB 3: HOMIE -->
+    <div class="right-content" id="rcont3">
+      <div class="copy-bar">
+        <h3>Strategia Homie Integration</h3>
+        <div style="font-size:11px;color:var(--text-muted)">Ottimizzata per costo token</div>
+      </div>
+
+      <div class="alert alert-gold" style="margin-bottom:16px">
+        🤖 Homie opera su OpenClaw (Mac Mini M4). Usa <strong>Haiku per automatismi</strong> e <strong>Sonnet solo per ragionamento complesso</strong>. Stima: €12-18/mese per BOOM.
+      </div>
+
+      <!-- HAIKU FLOWS -->
+      <div class="homie-card">
+        <div class="homie-header">
+          <div class="homie-icon">⚡</div>
+          <div>
+            <div class="homie-name">Intake Deal da WhatsApp</div>
+            <span class="homie-model model-haiku">Haiku</span>
+          </div>
+        </div>
+        <div class="homie-desc">Il proprietario manda i dati su WhatsApp → Homie estrae, struttura e pre-popola deals.html via deep link. Zero form manuali.</div>
+        <div class="homie-trigger">🎯 Trigger: <strong>messaggio con indirizzo + data + €</strong><br>📤 Output: link pre-compilato → tu apri, verifichi, generi</div>
+        <div class="homie-actions-row">
+          <button class="btn btn-outline btn-sm" onclick="copyHomieLink()">📋 Copia Deep Link</button>
+          <button class="btn btn-ghost btn-sm" onclick="alert('Apri OpenClaw → Flow: deal_intake_wa')">⚙️ Config Flow</button>
+        </div>
+      </div>
+
+      <div class="homie-card">
+        <div class="homie-header">
+          <div class="homie-icon">📅</div>
+          <div>
+            <div class="homie-name">Reminder Registrazione RLI</div>
+            <span class="homie-model model-haiku">Haiku</span>
+          </div>
+        </div>
+        <div class="homie-desc">Quando un deal viene salvato, Homie schedula automaticamente 3 reminder: D-30 (info), D-10 (urgente), D-1 (last call). Via WhatsApp al locatore.</div>
+        <div class="homie-trigger">📅 Scadenza legale: <strong>30 giorni dalla firma</strong> (o data decorrenza)<br>💰 Penale omessa registrazione: dal 120% al 240% imposta</div>
+        <div class="homie-actions-row">
+          <button class="btn btn-green btn-sm" onclick="scheduleHomieReminder()">⏰ Schedula Reminder</button>
+        </div>
+      </div>
+
+      <div class="homie-card">
+        <div class="homie-header">
+          <div class="homie-icon">🔔</div>
+          <div>
+            <div class="homie-name">Scadenze Annuali Automatiche</div>
+            <span class="homie-model model-haiku">Haiku</span>
+          </div>
+        </div>
+        <div class="homie-desc">Per ogni contratto attivo, Homie notifica ogni anno: cedolare secca (acconto ottobre, saldo giugno), scadenza contratto -90gg, rinnovo tacito -30gg.</div>
+        <div class="homie-trigger">🗓 Cedolare: <strong>acconto 30 nov, saldo 30 giu</strong><br>📋 Contratto: alert a <strong>-90gg e -30gg</strong> dalla scadenza</div>
+      </div>
+
+      <div class="homie-card">
+        <div class="homie-header">
+          <div class="homie-icon">🏛️</div>
+          <div>
+            <div class="homie-name">Calcolo Canone Istantaneo</div>
+            <span class="homie-model model-haiku">Haiku</span>
+          </div>
+        </div>
+        <div class="homie-desc">Un proprietario chiede "quanto posso chiedere per 80mq a Prati?" — Homie risponde con range A/B/C, canone stimato e nota che serve attestazione ufficiale.</div>
+        <div class="homie-trigger">💬 WA: <strong>"80mq Prati zona C40, 3 camere, balcone"</strong><br>🤖 Risposta: range €1.024–1.760/mese + note fiscali</div>
+      </div>
+
+      <div class="homie-card">
+        <div class="homie-header">
+          <div class="homie-icon">📬</div>
+          <div>
+            <div class="homie-name">Invio Scheda CAF + Contratto</div>
+            <span class="homie-model model-haiku">Haiku</span>
+          </div>
+        </div>
+        <div class="homie-desc">Dopo generazione, Homie invia automaticamente la scheda CAF al locatore e il contratto a entrambe le parti via WhatsApp, con istruzioni di firma.</div>
+        <div class="homie-trigger">📎 Allegato PDF + messaggio guidato<br>✍️ Include link DocuSign / firma remota</div>
+        <div class="homie-actions-row">
+          <button class="btn btn-outline btn-sm" onclick="sendViaHomie()">📱 Invia via Homie</button>
+        </div>
+      </div>
+
+      <div class="homie-card">
+        <div class="homie-header">
+          <div class="homie-icon">🧠</div>
+          <div>
+            <div class="homie-name">Review Contratto Complesso</div>
+            <span class="homie-model model-sonnet">Sonnet</span>
+          </div>
+        </div>
+        <div class="homie-desc">Solo per casi edge: zona border ambigua, contratto con clausole speciali, richieste di proroga, situazioni di morosità. Sonnet attivato on-demand.</div>
+        <div class="homie-trigger">🔒 Solo su richiesta esplicita: <strong>"Homie, analizza questo contratto"</strong><br>💰 Costo stimato: €0.05–0.15 per review</div>
+      </div>
+
+      <div style="margin-top:16px">
+        <div class="section-title">Stima Costi Mensili Homie per BOOM</div>
+        <div class="calc-breakdown">
+          <div class="calc-row"><span class="calc-desc">Intake deal (Haiku, 2-3/mese)</span><span class="calc-num" style="color:var(--green)">~€0.20</span></div>
+          <div class="calc-row"><span class="calc-desc">Reminder RLI (Haiku, 9-12/mese)</span><span class="calc-num" style="color:var(--green)">~€0.30</span></div>
+          <div class="calc-row"><span class="calc-desc">Scadenze annuali (Haiku, 20-30/mese)</span><span class="calc-num" style="color:var(--green)">~€0.50</span></div>
+          <div class="calc-row"><span class="calc-desc">Calcoli canone quick (Haiku, 5-10/mese)</span><span class="calc-num" style="color:var(--green)">~€0.20</span></div>
+          <div class="calc-row"><span class="calc-desc">Review complesse (Sonnet, 0-2/mese)</span><span class="calc-num" style="color:var(--orange)">~€0.30</span></div>
+          <div class="calc-total"><span class="calc-desc">Totale stimato/mese</span><span class="calc-num">~€1.50–2.50</span></div>
+        </div>
+        <div class="nota">⚡ Questa è <strong>solo la componente deals/locazione</strong>. Sommare ai costi Homie esistenti (heartbeat, WhatsApp, Listing Scout).</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// ZONE DATA — AT ROMA 2023 (Accordo Territoriale 27/07/2023)
+// Fonte: ASPPI Roma / Delle Vittorie House Trading
+// Format: [codice, nome, macrozona, A_min, A_max, B_min, B_max, C_min, C_max]
+// ============================================================
+const ZONE_AT2023 = [
+  // PREGIO
+  ["B1","TESTACCIO","PREGIO",10.50,13.20,13.20,15.30,15.30,17.60],
+  ["B2","SAN SABA","PREGIO",10.50,13.20,13.20,18.90,18.90,22.60],
+  ["B3","CELIO","PREGIO",10.50,13.20,13.20,18.90,18.90,22.60],
+  ["B4","MONTI","PREGIO",10.50,13.20,13.20,18.90,18.90,22.60],
+  ["B12","AVENTINO / RIPA","PREGIO",12.60,15.40,15.40,22.00,22.00,26.40],
+  ["B13","SANT'ANGELO – CAMPITELLI","PREGIO",12.60,15.40,15.40,22.00,22.00,26.40],
+  ["B14","TRASTEVERE","PREGIO",12.60,15.40,15.40,22.00,22.00,26.40],
+  ["B15","BORGO","PREGIO",12.60,15.40,15.40,22.00,22.00,26.40],
+  ["B17","SALLUSTIANO – CASTRO PRETORIO","PREGIO",12.60,15.40,15.40,22.00,22.00,26.40],
+  ["B18","ESQUILINO","PREGIO",7.00,9.20,9.20,13.10,13.10,15.70],
+  ["B25","LUDOVISI / VIA VENETO","PREGIO",12.60,15.40,15.40,22.00,22.00,26.40],
+  ["B29","VIMINALE","PREGIO",10.50,13.20,13.20,18.90,18.90,22.60],
+  ["B31","TRIDENTE (Campo Marzio, Colonna, Pigna, Trevi)","PREGIO",12.60,18.30,18.30,26.20,26.20,31.50],
+  ["B32","CORSO VITTORIO (Ponte, Parione, Regola, S.Eustachio)","PREGIO",12.60,16.90,16.90,24.10,24.10,28.90],
+  ["C1","PARIOLI","PREGIO",10.50,13.80,13.80,19.80,19.80,23.80],
+  ["C2","SALARIO","PREGIO",10.50,13.80,13.80,19.80,19.80,23.80],
+  ["C3","PINCIANO","PREGIO",10.50,13.80,13.80,19.80,19.80,23.80],
+  ["C4","NOMENTANO TORLONIA","PREGIO",10.50,13.80,13.80,19.80,19.80,23.80],
+  ["C40","PRATI","PREGIO",10.50,12.80,12.80,18.40,18.40,22.00],
+  ["C41","DELLA VITTORIA / MAZZINI","PREGIO",10.50,12.80,12.80,18.40,18.40,22.00],
+  ["C46","SALARIO TRIESTE","PREGIO",10.50,13.90,13.90,19.90,19.90,23.90],
+  ["C49","FLAMINIO","PREGIO",10.50,12.80,12.80,18.40,18.40,22.00],
+  ["C50","FLAMINIO PORTA DEL POPOLO","PREGIO",10.50,13.00,13.00,18.60,18.60,22.40],
+  // CENTRALE / SEMICENTRALE
+  ["C5","SAN LORENZO","CENTRALE",4.40,8.10,8.10,11.60,11.60,13.60],
+  ["C7","APPIO – VILLA FIORELLI","CENTRALE",6.10,7.90,7.90,11.30,11.30,14.10],
+  ["C8","APPIO – NOCERA UMBRA","CENTRALE",6.10,7.90,7.90,11.30,11.30,14.10],
+  ["C9","APPIO METRONIO","CENTRALE",6.10,8.60,8.60,12.30,12.30,15.50],
+  ["C10","GARBATELLA","CENTRALE",6.10,8.20,8.20,11.80,11.80,13.50],
+  ["C11","MARCONI","CENTRALE",6.10,8.20,8.20,11.80,11.80,13.50],
+  ["C12","MONTEVERDE VECCHIO","CENTRALE",6.10,9.80,9.80,14.00,14.00,16.00],
+  ["C13","MONTEVERDE NUOVO","CENTRALE",6.10,8.20,8.20,11.80,11.80,12.80],
+  ["C14","AURELIO MONTE DI CRETA","CENTRALE",4.70,8.10,8.10,11.60,11.60,12.80],
+  ["C15","AURELIO GREGORIO VII","CENTRALE",6.10,8.40,8.40,12.00,12.00,15.50],
+  ["C16","CAVALLEGGERI","CENTRALE",6.10,8.40,8.40,12.00,12.00,14.50],
+  ["C17","BALDUINA GIOVENALE","CENTRALE",6.10,8.20,8.20,11.80,11.80,12.80],
+  ["C18","CIPRO","CENTRALE",6.30,8.40,8.40,12.00,12.00,13.50],
+  ["C19","PONTE MILVIO / FARNESINA","CENTRALE",8.80,11.40,11.40,16.30,16.30,17.90],
+  ["C21","SALARIO AFRICANO","CENTRALE",6.10,9.80,9.80,14.00,14.00,15.50],
+  ["C22","BATTERIA NOMENTANA / LANCIANI","CENTRALE",6.10,9.50,9.50,13.60,13.60,14.50],
+  ["C24","BOLOGNA","CENTRALE",6.50,9.70,9.70,13.80,13.80,15.00],
+  ["C26","VILLAGGIO OLIMPICO","CENTRALE",6.10,9.00,9.00,12.90,12.90,14.00],
+  ["C27","PORTA PORTESE","CENTRALE",8.80,10.10,10.10,14.50,14.50,16.00],
+  ["C29","CASAL BERTONE / PORTONACCIO","CENTRALE",4.20,6.40,6.40,9.10,9.10,12.40],
+  ["C30","PIGNETO","CENTRALE",4.40,7.30,7.30,10.50,10.50,13.10],
+  ["C31","MARCO POLO","CENTRALE",6.10,8.20,8.20,11.80,11.80,15.00],
+  ["C32","OSTIENSE","CENTRALE",6.10,7.70,7.70,11.00,11.00,12.50],
+  ["C35","AURELIO MADONNA DEL RIPOSO","CENTRALE",6.10,8.20,8.20,11.80,11.80,12.80],
+  ["C38","CASILINO MARRANELLA","CENTRALE",4.10,6.40,6.40,9.10,9.10,11.90],
+  ["C42","VIGNA CLARA","CENTRALE",8.80,9.80,9.80,14.00,14.00,15.50],
+  ["C43","TRIONFALE IGEA","CENTRALE",8.80,10.50,10.50,15.00,15.00,16.50],
+  ["C44","CAMILLUCCIA","CENTRALE",8.80,11.10,11.10,15.80,15.80,18.10],
+  ["C45","NOCETTA","CENTRALE",4.40,6.50,6.50,9.30,9.30,12.60],
+  ["C47","BALDUINA BELSITO","CENTRALE",6.30,8.30,8.30,11.90,11.90,14.30],
+  ["C48","TOR MARANCIA / NAVIGATORI","CENTRALE",6.10,8.20,8.20,11.80,11.80,13.50],
+  ["C51","APPIO LATINO","CENTRALE",6.10,8.20,8.20,11.80,11.80,13.30],
+  ["C52","COLLINA FLEMING","CENTRALE",8.80,9.80,9.80,14.00,14.00,15.50],
+  // SEMICENTRALE PERIFERICA
+  ["D1","PRENESTINO LABICANO","PERIFERICA",4.10,6.40,6.40,9.10,9.10,10.90],
+  ["D2","TOR PIGNATTARA","PERIFERICA",4.40,5.70,5.70,8.20,8.20,11.90],
+  ["D11","MONTESACRO","PERIFERICA",5.30,8.00,8.00,11.50,11.50,13.00],
+  ["D12","VALMELAINA / TUFELLO","PERIFERICA",4.70,7.30,7.30,10.50,10.50,12.80],
+  ["D14","CENTOCELLE","PERIFERICA",4.10,6.40,6.40,9.10,9.10,11.40],
+  ["D15","ARDEATINO / OTTAVO COLLE","PERIFERICA",7.00,9.70,9.70,13.80,13.80,15.90],
+  ["D16","PIETRALATA / TIBURTINO","PERIFERICA",4.10,6.30,6.30,9.00,9.00,12.40],
+  ["D17","COLLATINO","PERIFERICA",4.10,6.40,6.40,9.10,9.10,11.20],
+  ["D18","ALESSANDRINO","PERIFERICA",4.10,6.40,6.40,9.10,9.10,10.90],
+  ["D19","CINECITTÀ / DON BOSCO","PERIFERICA",4.10,6.40,6.40,9.10,9.10,11.70],
+  ["D20","CINECITTÀ LAMARO","PERIFERICA",4.10,6.40,6.40,9.10,9.10,10.50],
+  ["D21","APPIO CLAUDIO","PERIFERICA",4.10,6.60,6.60,9.40,9.40,12.20],
+  ["D22","STATUARIO / CAPANNELLE","PERIFERICA",3.80,6.40,6.40,9.10,9.10,12.20],
+  ["D23","QUARTO MIGLIO","PERIFERICA",7.00,9.70,9.70,13.80,13.80,15.90],
+  ["D24","PRIMAVALLE / TORREVECCHIA","PERIFERICA",3.50,6.60,6.60,9.40,9.40,11.90],
+  ["D26","SAN BASILIO","PERIFERICA",4.10,6.40,6.40,9.10,9.10,10.50],
+  ["D27","TALENTI","PERIFERICA",5.90,8.30,8.30,11.90,11.90,13.70],
+  ["D28","GIULIANO DALMATA","PERIFERICA",6.10,8.30,8.30,11.90,11.90,13.70],
+  ["D29","EUR","PERIFERICA",7.00,10.50,10.50,15.10,15.10,16.20],
+  ["D30","TOMBA DI NERONE","PERIFERICA",5.30,7.90,7.90,11.30,11.30,12.80],
+  ["D31","CASSIA DUE PONTI","PERIFERICA",8.80,9.20,9.20,13.10,13.10,14.50],
+  ["D32","FONTE MERAVIGLIOSA / ARDEATINO MILLEVOI","PERIFERICA",6.10,9.80,9.80,14.00,14.00,16.50],
+  ["D34","MONTAGNOLA","PERIFERICA",6.40,9.20,9.20,13.20,13.20,15.00],
+  ["D36","GROTTAPERFETTA / ROMA 70","PERIFERICA",7.00,9.80,9.80,13.90,13.90,15.60],
+  // PERIFERICA SUBURBANA (E) - valori indicativi AT2023
+  ["E1","ACILIA / VITINIA","SUBURBANA",3.20,5.50,5.50,7.90,7.90,10.20],
+  ["E2","INFERNETTO / DRAGONA","SUBURBANA",3.20,5.20,5.20,7.50,7.50,9.80],
+  ["E3","OSTIA LIDO","SUBURBANA",4.00,6.40,6.40,9.10,9.10,11.20],
+  ["E4","TOR SAPIENZA / TORRE ANGELA","SUBURBANA",3.50,5.50,5.50,7.90,7.90,10.00],
+  ["E5","BUFALOTTA / FIDENE","SUBURBANA",4.10,6.40,6.40,9.10,9.10,11.00],
+  ["E6","CASSIA / TOMBA DI NERONE SUB","SUBURBANA",3.50,6.00,6.00,8.60,8.60,11.00],
+  ["E7","CASALOTTI / OTTAVIA","SUBURBANA",3.40,5.80,5.80,8.30,8.30,10.50],
+  ["E8","CORVIALE / MAGLIANA","SUBURBANA",3.20,5.20,5.20,7.50,7.50,9.50],
+  ["E9","SPINACETO / LAURENTINA","SUBURBANA",3.50,5.80,5.80,8.30,8.30,10.50],
+  ["E10","TOR VERGATA / CASILINA","SUBURBANA",3.20,5.50,5.50,7.90,7.90,10.00],
+  ["E11","TRAGLIATELLA / PERIFERIA EST","SUBURBANA",3.20,4.50,4.50,6.50,6.50,8.50],
+];
+
+const PARAMETRI = [
+  "Posto auto","Cortile/area verde/impianto sportivo comune","Cantina",
+  "Terrazzo o balcone","Area verde di pertinenza","Aria condizionata",
+  "Stabile con ascensore","Bagno con finestra o doppi servizi","Porta blindata",
+  "Doppi vetri","Stabile con portierato","Stabile ultimato/ristrutturato ultimi 10 anni",
+  "Sistema sicurezza o allarme","Cucina abitabile con finestra","Videocitofono o videosorveglianza",
+  "Antenna centralizzata o impianto satellitare","Riscaldamento autonomo",
+  "Stabile ≤4 piani","Barriere architettoniche superate","Terrazzo condominiale ad uso comune"
+];
+
+// STATE
+let state = {
+  tipo: 'transitorio',
+  regime: 'cedolare10',
+  zona: null,
+  fascia: 'B',
+  sliderPct: 50,
+  params: new Set(),
+  requisiti: new Set(['req_idrica','req_fognante','req_gas','req_riscaldamento']),
+  mods: {},
+};
+
+// INIT
+document.addEventListener('DOMContentLoaded', () => {
+  buildParamGrid();
+  setDefaultDates();
+  readURLParams();
+  calcCanone();
+});
+
+// ============================================================
+// URL PARAMS READER — injected by boom_doc_parser.html
+// ============================================================
+function readURLParams() {
+  const p = new URLSearchParams(window.location.search);
+  if (p.size === 0) return;
+
+  const filled = [];
+  const set = (id, val) => {
+    if (!val || val === 'null') return;
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.value = val;
+    filled.push(id);
+  };
+
+  // Locatore
+  set('locatore_nome',   p.get('loc_nome'));
+  set('locatore_luogo',  p.get('loc_luogo'));
+  set('locatore_dob',    p.get('loc_dob'));
+  set('locatore_cf',     p.get('loc_cf'));
+
+  // Conduttore
+  set('conduttore_nome', p.get('cond_nome'));
+  set('conduttore_luogo',p.get('cond_luogo'));
+  set('conduttore_dob',  p.get('cond_dob'));
+  set('conduttore_cf',   p.get('cond_cf'));
+
+  // Immobile
+  set('via',             p.get('via'));
+  set('piano',           p.get('piano'));
+  set('scala',           p.get('scala'));
+  set('interno',         p.get('interno'));
+  set('vani',            p.get('vani'));
+  set('ape',             p.get('ape'));
+
+  // Catastale
+  set('cat_foglio',      p.get('cat_foglio'));
+  set('cat_part',        p.get('cat_part'));
+  set('cat_sub',         p.get('cat_sub'));
+  set('rendita',         p.get('rendita'));
+
+  // Superficie
+  set('mq_calpestabile', p.get('mq_calp'));
+  set('mq_balconi',      p.get('mq_balconi'));
+  set('mq_cantina',      p.get('mq_cantina'));
+  set('mq_box',          p.get('mq_box'));
+
+  // Classe energetica
+  const ce = p.get('classe_en');
+  if (ce) {
+    const ceUpper = ce.toUpperCase();
+    const ceSelect = document.getElementById('classe_en');
+    if (['A','B','C'].some(x => ceUpper.includes(x))) ceSelect.value = 'ABC';
+    else if (ceUpper === 'D') ceSelect.value = 'D';
+    else if (['E','F','G'].some(x => ceUpper.includes(x))) ceSelect.value = 'EFG';
+    if (ceSelect.value) filled.push('classe_en');
+  }
+
+  // Zona OMI — fuzzy match
+  const zonaParam = p.get('zona');
+  if (zonaParam) {
+    const zq = zonaParam.trim().toUpperCase();
+    // Try exact code match first
+    let match = ZONE_AT2023.find(z => z[0] === zq);
+    // Then try name contains
+    if (!match) match = ZONE_AT2023.find(z => z[1].toUpperCase().includes(zq));
+    if (match) {
+      selectZona(match[0]);
+      filled.push('zona_omi');
+    }
+  }
+
+  // Tipo contratto
+  const tipo = p.get('tipo');
+  if (tipo) {
+    const btnMap = { transitorio: 0, studenti: 1, ordinaria: 2 };
+    const idx = btnMap[tipo];
+    if (idx !== undefined) {
+      const btns = document.querySelectorAll('#step0 .radio-btn');
+      if (btns[idx]) setTipo(btns[idx], tipo);
+      filled.push('tipo');
+    }
+  }
+
+  // Show banner if we filled anything
+  if (filled.length === 0) return;
+
+  const labelMap = {
+    locatore_nome:'Locatore', conduttore_nome:'Conduttore', via:'Indirizzo',
+    mq_calpestabile:'Superficie', cat_foglio:'Catastale', cat_part:'Catastale',
+    rendita:'Rendita', classe_en:'Classe en.', zona_omi:'Zona OMI',
+    tipo:'Tipo contratto', locatore_cf:'CF Loc.', conduttore_cf:'CF Cond.',
+    piano:'Piano', scala:'Scala', interno:'Int.', vani:'Vani',
+    mq_balconi:'Balconi', mq_box:'Box', mq_cantina:'Cantina',
+  };
+
+  // Deduplicate display tags
+  const tags = [...new Set(filled.map(f => labelMap[f] || f))];
+  const banner = document.getElementById('autofillBanner');
+  banner.classList.remove('hidden');
+  document.getElementById('autofillSub').textContent =
+    `${filled.length} campi iniettati automaticamente`;
+  document.getElementById('autofillTagsContainer').innerHTML =
+    tags.map(t => `<span class="autofill-tag">${t}</span>`).join('');
+
+  // Recalculate after fill
+  calcDate();
+  calcCanone();
+
+  showToast(`⚡ ${filled.length} campi pre-compilati dal parser`);
+}
+
+function showToast(msg, duration = 3000) {
+  const existing = document.getElementById('boomToast');
+  if (existing) existing.remove();
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.id = 'boomToast';
+  toast.textContent = msg;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), duration);
+}
+
+// ============================================================
+// PORTAL BRIDGE — serializza state → apre portal con dati
+// ============================================================
+function sendToPortal() {
+  // Raccoglie canone calcolato dal DOM
+  const mensileEl = document.getElementById('result_canone_mensile');
+  const mensile = mensileEl ? parseFloat(mensileEl.textContent.replace(/[^\d.,]/g,'').replace(',','.')) || 0 : 0;
+
+  if (!mensile) {
+    showToast('⚠️ Calcola prima il canone');
+    return;
+  }
+
+  const bridge = {
+    // Canone
+    canone_mensile: mensile,
+    canone_annuo: Math.round(mensile * 12),
+    deposito: Math.round(mensile * 3),
+    tipo: state.tipo || 'transitorio',
+    regime: state.regime || 'cedolare10',
+    // Date
+    data_inizio: document.getElementById('data_inizio')?.value || '',
+    data_fine:   document.getElementById('data_fine')?.value || '',
+    // Locatore
+    locatore: {
+      nome_cognome: document.getElementById('locatore_nome')?.value || '',
+      luogo_nascita: document.getElementById('locatore_luogo')?.value || '',
+      data_nascita:  document.getElementById('locatore_dob')?.value || '',
+      cf:            document.getElementById('locatore_cf')?.value || '',
+    },
+    // Conduttore
+    conduttore: {
+      nome_cognome: document.getElementById('conduttore_nome')?.value || '',
+      luogo_nascita: document.getElementById('conduttore_luogo')?.value || '',
+      data_nascita:  document.getElementById('conduttore_dob')?.value || '',
+      cf:            document.getElementById('conduttore_cf')?.value || '',
+      email:         document.getElementById('conduttore_email')?.value || '',
+      telefono:      document.getElementById('conduttore_tel')?.value || '',
+    },
+    // Immobile
+    immobile: {
+      via:             document.getElementById('via')?.value || '',
+      piano:           document.getElementById('piano')?.value || '',
+      scala:           document.getElementById('scala')?.value || '',
+      interno:         document.getElementById('interno')?.value || '',
+      mq_calpestabile: document.getElementById('mq_calpestabile')?.value || '',
+      n_vani:          document.getElementById('vani')?.value || '',
+      cat_foglio:      document.getElementById('cat_foglio')?.value || '',
+      cat_part:        document.getElementById('cat_part')?.value || '',
+      cat_sub:         document.getElementById('cat_sub')?.value || '',
+      rendita:         document.getElementById('rendita')?.value || '',
+      classe_en:       document.getElementById('classe_en')?.value || '',
+    },
+    // Zona AT
+    zona_codice: state.zona?.[0] || '',
+    zona_nome:   state.zona?.[1] || '',
+    fascia:      state.fascia || 'B',
+    // Timestamp
+    _ts: new Date().toISOString(),
+  };
+
+  // Encode as base64 and open portal
+  const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(bridge))));
+  const portalUrl = `portal.html?boom=${encoded}`;
+
+  window.open(portalUrl, '_blank');
+  showToast('🔗 Apertura Portal con dati pre-compilati...');
+}
+
+function setDefaultDates() {
+  const d = new Date();
+  d.setDate(d.getDate() + 7);
+  document.getElementById('data_inizio').value = d.toISOString().split('T')[0];
+  d.setMonth(d.getMonth() + 18);
+  document.getElementById('data_fine').value = d.toISOString().split('T')[0];
+  calcDate();
+}
+
+function buildParamGrid() {
+  const grid = document.getElementById('paramGrid');
+  grid.innerHTML = PARAMETRI.map((p, i) => `
+    <div class="param-item" id="pi${i}" onclick="toggleParam(${i}, this)">
+      <input type="checkbox" id="param${i}">
+      <div class="param-check" id="pc${i}">✓</div>
+      <div class="param-num">${i+1}</div>
+      <div class="param-label">${p}</div>
+    </div>`).join('');
+}
+
+function toggleParam(idx, el) {
+  const id = `p${idx}`;
+  if (state.params.has(idx)) {
+    state.params.delete(idx);
+    el.classList.remove('checked');
+  } else {
+    state.params.add(idx);
+    el.classList.add('checked');
+  }
+  updateParamCount();
+  autoSelectFascia();
+  calcCanone();
+}
+
+function updateParamCount() {
+  const n = state.params.size;
+  document.getElementById('param_count_display').textContent = `(${n} selezionat${n===1?'o':'i'})`;
+}
+
+function autoSelectFascia() {
+  const requisiti_ok = state.requisiti.size === 4;
+  const n = state.params.size;
+  const alert = document.getElementById('req_alert');
+
+  if (!requisiti_ok) {
+    selectFascia('A');
+    alert.style.display = 'block';
+    return;
+  }
+  alert.style.display = 'none';
+
+  if (n <= 2) selectFascia('A');
+  else if (n <= 6) selectFascia('B');
+  else selectFascia('C');
+}
+
+function toggleReq(el, key) {
+  if (state.requisiti.has(key)) {
+    state.requisiti.delete(key);
+    el.classList.remove('active');
+  } else {
+    state.requisiti.add(key);
+    el.classList.add('active');
+  }
+  autoSelectFascia();
+  calcCanone();
+}
+
+// ZONA SEARCH
+function searchZona(q) {
+  const dropdown = document.getElementById('zonaDropdown');
+  if (!q.trim()) { dropdown.style.display = 'none'; return; }
+  const ql = q.toLowerCase();
+  const matches = ZONE_AT2023.filter(z =>
+    z[0].toLowerCase().includes(ql) || z[1].toLowerCase().includes(ql)
+  ).slice(0, 15);
+
+  if (matches.length === 0) { dropdown.style.display = 'none'; return; }
+
+  dropdown.innerHTML = matches.map(z => `
+    <div class="zona-option" onclick="selectZona('${z[0]}')">
+      <span class="zona-code">${z[0]}</span>${z[1]}
+      <span class="zona-range">${z[4]}–${z[7]} C</span>
+    </div>`).join('');
+  dropdown.style.display = 'block';
+}
+
+function showZonaDropdown() { if (document.getElementById('zonaSearch').value) searchZona(document.getElementById('zonaSearch').value); }
+function hideZonaDropdown() { setTimeout(() => document.getElementById('zonaDropdown').style.display = 'none', 200); }
+
+function selectZona(code) {
+  const z = ZONE_AT2023.find(x => x[0] === code);
+  if (!z) return;
+  state.zona = z;
+  document.getElementById('zonaSearch').value = `${z[0]} — ${z[1]}`;
+  document.getElementById('zonaDropdown').style.display = 'none';
+
+  const sel = document.getElementById('zonaSelected');
+  sel.style.display = 'block';
+  document.getElementById('zonaNome').textContent = `${z[0]} — ${z[1]}`;
+  document.getElementById('zonaDetail').textContent =
+    `${z[3]} (MACROZONA: ${z[2]}) | A: ${z[3]}–${z[4]} | B: ${z[5]}–${z[6]} | C: ${z[7]}–${z[8]} €/mq/mese`;
+
+  updateFasciaCards();
+  calcCanone();
+}
+
+function updateFasciaCards() {
+  if (!state.zona) return;
+  const z = state.zona;
+  document.getElementById('fc-A-range').textContent = `${z[3]}–${z[4]} €/mq`;
+  document.getElementById('fc-B-range').textContent = `${z[5]}–${z[6]} €/mq`;
+  document.getElementById('fc-C-range').textContent = `${z[7]}–${z[8]} €/mq`;
+}
+
+function selectFascia(f) {
+  state.fascia = f;
+  ['A','B','C'].forEach(x => {
+    const el = document.getElementById(`fc-${x}`);
+    el.className = 'fascia-card' + (x === f ? ` selected-${x}` : '');
+  });
+  updateSliderLabels();
+  calcCanone();
+}
+
+function updateSliderLabels() {
+  if (!state.zona) return;
+  const z = state.zona;
+  let min, max;
+  if (state.fascia === 'A') { min = z[3]; max = z[4]; }
+  else if (state.fascia === 'B') { min = z[5]; max = z[6]; }
+  else { min = z[7]; max = z[8]; }
+  document.getElementById('subfascia-min-label').textContent = `${min} min`;
+  document.getElementById('subfascia-max-label').textContent = `${max} max`;
+  updateSlider();
+}
+
+function updateSlider() {
+  state.sliderPct = parseInt(document.getElementById('fasciaSlider').value);
+  if (!state.zona) { document.getElementById('sliderVal').textContent = '— €/mq/mese'; return; }
+  const val = getUnitValue();
+  document.getElementById('sliderVal').textContent = `${val.toFixed(2)} €/mq/mese`;
+  calcCanone();
+}
+
+function getUnitValue() {
+  if (!state.zona) return 0;
+  const z = state.zona;
+  let min, max;
+  if (state.fascia === 'A') { min = z[3]; max = z[4]; }
+  else if (state.fascia === 'B') { min = z[5]; max = z[6]; }
+  else { min = z[7]; max = z[8]; }
+  return min + (max - min) * (state.sliderPct / 100);
+}
+
+function toggleMod(el, key, pct, type) {
+  if (state.mods[key]) {
+    delete state.mods[key];
+    el.classList.remove('active-plus', 'active-minus');
+  } else {
+    state.mods[key] = { pct, type };
+    el.classList.add(type === 'plus' ? 'active-plus' : 'active-minus');
+  }
+  calcCanone();
+}
+
+// SUPERFICIE CONVENZIONALE
+function calcSupConv() {
+  const calp = parseFloat(document.getElementById('mq_calpestabile').value) || 0;
+  const balconi = parseFloat(document.getElementById('mq_balconi').value) || 0;
+  const cantina = parseFloat(document.getElementById('mq_cantina').value) || 0;
+  const boxPregio = parseFloat(document.getElementById('mq_box_pregio').value) || 0;
+  const box = parseFloat(document.getElementById('mq_box').value) || 0;
+  const postoComune = parseFloat(document.getElementById('mq_posto_comune').value) || 0;
+  const verde = parseFloat(document.getElementById('mq_verde').value) || 0;
+
+  let coeff = 1.00;
+  if (calp < 46) coeff = 1.30;
+  else if (calp < 70) coeff = 1.15;
+  else if (calp <= 120) coeff = 1.00;
+  else coeff = 0.85;
+
+  const calpConv = calp * coeff;
+  const pertinenze = (balconi + cantina) * 0.25 + boxPregio * 0.80 + box * 0.50 + postoComune * 0.20 + verde * 0.10;
+  const total = calpConv + pertinenze;
+
+  document.getElementById('coeff_display').value = `×${coeff.toFixed(2)} (${calp < 46 ? '<46' : calp < 70 ? '46-70' : calp <= 120 ? '70-120' : '>120'} mq)`;
+
+  return { calp, coeff, calpConv, pertinenze, total };
+}
+
+// MAIN CALCULATION
+function calcCanone() {
+  const sc = calcSupConv();
+  document.getElementById('supConvDisplay').textContent = sc.total > 0 ? `${sc.total.toFixed(2)} mq` : '—';
+
+  // Update breakdown
+  document.getElementById('cb_calpestabile').textContent = `${sc.calp} mq`;
+  document.getElementById('cb_coeff').textContent = `×${sc.coeff.toFixed(2)}`;
+  document.getElementById('cb_calp_conv').textContent = `${sc.calpConv.toFixed(2)} mq`;
+  document.getElementById('cb_pertinenze').textContent = `+${sc.pertinenze.toFixed(2)} mq`;
+  document.getElementById('cb_supconv_tot').textContent = `${sc.total.toFixed(2)} mq`;
+  document.getElementById('result_supconv').textContent = `${sc.total.toFixed(1)} mq`;
+
+  if (!state.zona || sc.total === 0) {
+    resetResults();
+    return;
+  }
+
+  updateSliderLabels();
+
+  let unitBase = getUnitValue();
+  document.getElementById('cb_fascia').textContent = `${state.zona[0]} — Fascia ${state.fascia}`;
+  document.getElementById('cb_unitbase').textContent = `${unitBase.toFixed(2)} €/mq/mese`;
+
+  // Apply modifiers
+  let totalModPct = 0;
+  const modLabels = [];
+  for (const [k, v] of Object.entries(state.mods)) {
+    if (v.type === 'plus') { totalModPct += v.pct; modLabels.push(`+${v.pct}%`); }
+    else { totalModPct -= v.pct; modLabels.push(`-${v.pct}%`); }
+  }
+  // Arredato from select
+  const arr = document.getElementById('arredato').value;
+  if (arr === 'si') { totalModPct += 15; modLabels.push('+15% arredi'); }
+  else if (arr === 'parziale') { totalModPct += 7; modLabels.push('+7% arredi parz.'); }
+
+  // Classe energetica
+  const ce = document.getElementById('classe_en').value;
+  if (ce === 'ABC') { totalModPct += 10; modLabels.push('+10% cl.en.A/B/C'); }
+
+  // Transitorio %
+  const transPerc = parseFloat(document.getElementById('perc_transitorio').value) || 0;
+  if (transPerc > 0) { totalModPct += transPerc; modLabels.push(`+${transPerc}% transitorio`); }
+
+  document.getElementById('cb_mod').textContent = modLabels.length ? modLabels.join(', ') : 'Nessuno';
+
+  let unitFinal = unitBase * (1 + totalModPct / 100);
+  // Cap al massimo della zona (solo modificatori ordinari, non durata)
+  const fasciaMax = state.fascia === 'A' ? state.zona[4] : state.fascia === 'B' ? state.zona[6] : state.zona[8];
+  if (unitFinal > fasciaMax * 1.35) unitFinal = fasciaMax * 1.35; // margine per transitorio
+
+  document.getElementById('cb_unitfinal').textContent = `${unitFinal.toFixed(2)} €/mq/mese`;
+  document.getElementById('result_eurmq').textContent = `${unitFinal.toFixed(2)}`;
+
+  const mensile = unitFinal * sc.total;
+  const annuo = mensile * 12;
+
+  document.getElementById('cb_mensile').textContent = `€ ${mensile.toFixed(2)}`;
+  document.getElementById('result_canone_mensile').textContent = `€ ${Math.round(mensile).toLocaleString('it-IT')}`;
+  document.getElementById('result_canone_annuo').textContent = `€ ${Math.round(annuo).toLocaleString('it-IT')}`;
+
+  const fasciaMin = state.fascia === 'A' ? state.zona[3] : state.fascia === 'B' ? state.zona[5] : state.zona[7];
+  const cMin = fasciaMin * sc.total;
+  const cMax = fasciaMax * sc.total;
+  document.getElementById('result_canone_range').textContent = `Fascia ${state.fascia} • Range: €${Math.round(cMin).toLocaleString()}–€${Math.round(cMax).toLocaleString()}/mese`;
+
+  // Fiscale
+  const regime = state.regime;
+  const cedAl = regime === 'cedolare10' ? 0.10 : regime === 'cedolare21' ? 0.21 : null;
+  if (cedAl) {
+    document.getElementById('res_cedolare').textContent = `€ ${Math.round(annuo * cedAl).toLocaleString('it-IT')}`;
+    document.getElementById('res_cedolare_note').textContent = `${(cedAl*100).toFixed(0)}% su €${Math.round(annuo).toLocaleString()}/anno`;
+    document.getElementById('res_registro').textContent = `€ 0`;
+    document.getElementById('res_bollo').textContent = `€ 0`;
+  } else {
+    document.getElementById('res_cedolare').textContent = `IRPEF`;
+    document.getElementById('res_cedolare_note').textContent = 'Aliquota marginale locatore';
+    document.getElementById('res_registro').textContent = `€ ${Math.round(annuo * 0.02).toLocaleString()}`;
+    document.getElementById('res_bollo').textContent = `€ 16 /4 pag.`;
+  }
+
+  const causMesi = parseInt(document.getElementById('cauzione_mesi').value) || 2;
+  document.getElementById('cauzione_importo').value = `€ ${(mensile * causMesi).toFixed(2)}`;
+  document.getElementById('res_cauzione').textContent = `€ ${Math.round(mensile * causMesi).toLocaleString()}`;
+  document.getElementById('res_cauzione_note').textContent = `${causMesi} mensilità`;
+}
+
+function resetResults() {
+  ['result_canone_mensile','result_canone_annuo','result_supconv','result_eurmq',
+   'res_cedolare','res_registro','res_bollo','res_cauzione'].forEach(id => {
+    document.getElementById(id).textContent = '—';
+  });
+  document.getElementById('result_canone_range').textContent = 'Seleziona zona e inserisci superficie';
+}
+
+function calcDate() {
+  const inizio = document.getElementById('data_inizio').value;
+  const fine = document.getElementById('data_fine').value;
+  if (!inizio || !fine) return;
+  const d1 = new Date(inizio), d2 = new Date(fine);
+  const days = Math.round((d2 - d1) / 86400000);
+  const months = Math.round(days / 30.44);
+  const el = document.getElementById('durata_display');
+  if (days <= 0) { el.textContent = '⚠️ Data fine prima della data inizio'; return; }
+  el.textContent = `Durata: ${days} giorni ≈ ${months} mesi`;
+}
+
+// STEP NAVIGATION
+function switchStep(n) {
+  for (let i = 0; i < 4; i++) {
+    document.getElementById(`step${i}`).className = 'step-content' + (i === n ? ' active' : '');
+    document.getElementById(`stab${i}`).className = 'step-tab' + (i === n ? ' active' : '');
+  }
+}
+
+function switchRight(n) {
+  for (let i = 0; i < 4; i++) {
+    document.getElementById(`rcont${i}`).className = 'right-content' + (i === n ? ' active' : '');
+    document.getElementById(`rtab${i}`).className = 'right-tab' + (i === n ? ' active' : '');
+  }
+}
+
+function setTipo(el, tipo) {
+  state.tipo = tipo;
+  document.querySelectorAll('#step0 .radio-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('studenti_campo').style.display = tipo === 'studenti' ? 'block' : 'none';
+  document.getElementById('transitorio_campo').style.display = tipo === 'transitorio' ? 'block' : 'none';
+}
+
+function setRegime(el, regime) {
+  state.regime = regime;
+  document.querySelectorAll('#regimeGroup .radio-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  const alert = document.getElementById('regime_alert');
+  if (regime === 'cedolare10') {
+    alert.className = 'alert alert-green';
+    alert.textContent = '✅ Cedolare secca 10% — canone concordato, no bollo, no imposta di registro';
+  } else if (regime === 'cedolare21') {
+    alert.className = 'alert alert-gold';
+    alert.textContent = '⚠️ Cedolare 21% — standard. Valuta se conveniente vs IRPEF';
+  } else {
+    alert.className = 'alert alert-red';
+    alert.textContent = '⚠️ IRPEF ordinaria — imposta di registro 2% annua + bollo. Meno conveniente per concordato';
+  }
+  calcCanone();
+}
+
+// GENERATE ALL
+function generateAll() {
+  calcCanone();
+  generateSchedaCAF();
+  generateScadenzario();
+  switchRight(1);
+}
+
+// SCHEDA CAF
+function generateSchedaCAF() {
+  const get = id => document.getElementById(id)?.value || '';
+  const loc = get('locatore_nome');
+  const cond = get('conduttore_nome');
+  const via = get('via');
+  const piano = get('piano'), scala = get('scala'), interno = get('interno');
+  const catFoglio = get('cat_foglio'), catPart = get('cat_part'), catSub = get('cat_sub');
+  const dataInizio = get('data_inizio'), dataFine = get('data_fine');
+  const tipo = state.tipo;
+  const zonaStr = state.zona ? `${state.zona[0]} — ${state.zona[1]}` : '—';
+
+  // Get canone values from results
+  const canMens = document.getElementById('result_canone_mensile').textContent;
+  const supConv = document.getElementById('result_supconv').textContent;
+  const unitFin = document.getElementById('result_eurmq').textContent;
+
+  const sc = calcSupConv();
+  const calp = get('mq_calpestabile');
+  const balconi = get('mq_balconi');
+  const cantina = get('mq_cantina');
+  const boxPregio = get('mq_box_pregio');
+  const box = get('mq_box');
+
+  const paramSelezionati = PARAMETRI.filter((_, i) => state.params.has(i));
+  const fasciaStr = state.fascia;
+  const assocLoc = get('assoc_locatore') || 'ASPPI Roma';
+
+  const tipoLabel = tipo === 'transitorio' ? '☑ Transitorio' : tipo === 'studenti' ? '☑ Studenti universitari' : '☑ 3+2';
+
+  const container = document.getElementById('schedaContainer');
+  container.innerHTML = `
+  <div class="scheda-container" id="schedaCAF">
+    <div style="text-align:right;font-size:9px;color:#666;margin-bottom:8px">All. 2/B</div>
+    <div class="scheda-title">SCHEDA PER LA DETERMINAZIONE DEL CANONE CONCORDATO</div>
+    <div class="scheda-subtitle">
+      CONTRATTO: &nbsp;&nbsp; ${tipoLabel} &nbsp;&nbsp;|&nbsp;&nbsp; Data: ${dataInizio || '____'} — ${dataFine || '____'}
+    </div>
+
+    <div class="scheda-field"><span class="scheda-fieldname">LOCATORE:</span><span class="scheda-value">${loc}</span></div>
+    <div class="scheda-field"><span class="scheda-fieldname">CONDUTTORE:</span><span class="scheda-value">${cond}</span></div>
+    <div class="scheda-field"><span class="scheda-fieldname">Città:</span><span class="scheda-value" style="max-width:80px">Roma</span><span class="scheda-fieldname" style="min-width:80px">&nbsp;Via/Piazza</span><span class="scheda-value">${via} &nbsp;— Piano ${piano} Scala ${scala} Int. ${interno}</span></div>
+    <div class="scheda-field"><span class="scheda-fieldname">Identificazione catastale:</span><span class="scheda-value">Foglio ${catFoglio} – Part. ${catPart} – Sub ${catSub}</span></div>
+    <div class="scheda-field" style="font-size:10px"><span class="scheda-fieldname">Contratto decorrenza:</span><span class="scheda-value">${dataInizio}</span><span>&nbsp;registrato il:&nbsp;</span><span class="scheda-value" style="max-width:80px">____</span><span>&nbsp;al n.:&nbsp;</span><span class="scheda-value" style="max-width:40px">____</span><span>&nbsp;presso ADE</span></div>
+
+    <div style="text-align:center;font-size:10px;font-style:italic;margin:8px 0;border:1px solid #ddd;padding:4px">
+      Tutte le informazioni necessarie per determinare il calcolo del canone sono state fornite dalle parti.
+    </div>
+
+    <div class="scheda-section">CALCOLO DELLA SUPERFICIE CONVENZIONALE</div>
+    <table class="scheda-table">
+      <tr>
+        <td style="width:40%"><b>Superficie calpestabile appartamento:</b></td>
+        <td style="width:10%">${calp || '—'} mq</td>
+        <td style="width:30%">Coefficiente: ×${sc.coeff.toFixed(2)}</td>
+        <td style="width:20%">${sc.calpConv.toFixed(2)} mq</td>
+      </tr>
+      <tr><td>Balconi, terrazze, cantine e simili</td><td>${balconi||'0'} mq</td><td>×0,25</td><td>${((parseFloat(balconi)||0)*0.25+(parseFloat(cantina)||0)*0.25).toFixed(2)} mq</td></tr>
+      <tr><td>Box Zona Pregio</td><td>${boxPregio||'0'} mq</td><td>×0,80</td><td>${((parseFloat(boxPregio)||0)*0.80).toFixed(2)} mq</td></tr>
+      <tr><td>Box</td><td>${box||'0'} mq</td><td>×0,50</td><td>${((parseFloat(box)||0)*0.50).toFixed(2)} mq</td></tr>
+      <tr style="background:#f5f5f5"><td colspan="3"><b>SUPERFICIE CONVENZIONALE TOTALE</b></td><td><b>${sc.total.toFixed(2)} mq</b></td></tr>
+    </table>
+
+    <div class="scheda-section">CARATTERISTICHE</div>
+    <div style="display:flex;gap:20px;margin:6px 0;font-size:10px;flex-wrap:wrap">
+      ${['Allaccio rete idrica','Allaccio rete fognante','Erogazione GAS o induzione','Impianto riscaldamento'].map((r, i) => {
+        const keys = ['req_idrica','req_fognante','req_gas','req_riscaldamento'];
+        const active = state.requisiti.has(keys[i]);
+        return `<span><span class="scheda-box ${active?'checked':''}">${active?'✓':''}</span> ${r}</span>`;
+      }).join('')}
+    </div>
+
+    <div class="scheda-field"><span class="scheda-fieldname">Appartamento normale:</span>
+      <span class="scheda-box ${state.requisiti.size===4?'checked':''}">${state.requisiti.size===4?'✓':''}</span> SI &nbsp;&nbsp;
+      <span class="scheda-box ${state.requisiti.size!==4?'checked':''}">${state.requisiti.size!==4?'✓':''}</span> NO
+    </div>
+
+    <div class="scheda-section">PARAMETRI (Allegato 2/B)</div>
+    <div class="scheda-checkbox-grid">
+      ${PARAMETRI.map((p, i) => {
+        const checked = state.params.has(i);
+        return `<div class="scheda-cb"><span class="scheda-box ${checked?'checked':''}">${checked?'✓':''}</span> ${i+1}. ${p}</div>`;
+      }).join('')}
+    </div>
+
+    <div style="margin:10px 0;font-size:11px">
+      <b>ZONA:</b> ${zonaStr} &nbsp;&nbsp;
+      <b>FASCIA DI OSCILLAZIONE:</b> ${state.zona ? `${state.fascia === 'A' ? state.zona[3]+'–'+state.zona[4] : state.fascia === 'B' ? state.zona[5]+'–'+state.zona[6] : state.zona[7]+'–'+state.zona[8]}` : '—'} &nbsp;&nbsp;
+      <b>FASCIA:</b> ${fasciaStr} &nbsp;&nbsp;
+      <b>PARAMETRI n.:</b> ${state.params.size} &nbsp;&nbsp;
+      <b>SUBFASCIA:</b> ${state.sliderPct < 34 ? 'inferiore' : state.sliderPct < 67 ? 'media' : 'massima'} &nbsp;&nbsp;
+      <b>Valore applicato:</b> ${unitFin || '—'} €/mq/mese
+    </div>
+
+    <table class="scheda-table" style="margin-top:8px">
+      <tr>
+        <td><b>A – Ammobiliato + ___%</b><br>€ ${state.mods.ammobiliato ? '(+15%)' : '—'}</td>
+        <td><b>B – Seminterrato -10%</b><br>€ ${state.mods.seminterrato ? '(-10%)' : '—'}</td>
+        <td><b>C – Senza ascensore -10%</b><br>€ ${state.mods.noascensore ? '(-10%)' : '—'}</td>
+      </tr>
+      <tr>
+        <td><b>D – Attico +10%</b><br>€ ${state.mods.attico ? '(+10%)' : '—'}</td>
+        <td><b>E – Classe en. A/B/C +10%</b><br>€ ${document.getElementById('classe_en')?.value === 'ABC' ? '(+10%)' : '—'}</td>
+        <td><b>F – Eco Bonus +5%</b><br>€ ${state.mods.ecobonus ? '(+5%)' : '—'}</td>
+      </tr>
+      <tr><td colspan="3"><b>G – Sisma Bonus +10%</b>: ${state.mods.sismabonus ? '(+10%)' : '—'}</td></tr>
+    </table>
+
+    <div style="margin:12px 0;font-size:11px;border:1px solid #ddd;padding:8px">
+      <b>CALCOLO DEL CANONE:</b> ${unitFin||'—'} €/mq/mese × ${sc.total.toFixed(2)} mq = <b>${canMens}</b>/mese
+      <br><b>Durata +___% = €___</b> &nbsp;&nbsp; <b>Transitorio +${get('perc_transitorio')||'0'}%</b>
+      <br><br>
+      <b>Importo canone mensile: ${canMens}</b> &nbsp;&nbsp;&nbsp;&nbsp;
+      <b>Importo canone mensile pattuito: ${canMens}</b>
+    </div>
+
+    <div class="scheda-sign">
+      <div class="sign-block">
+        <div class="sign-line"></div>
+        <div>Il Locatore<br>${loc}</div>
+      </div>
+      <div class="sign-block">
+        <div>p. prestata assistenza</div>
+        <div class="sign-line"></div>
+        <div>${assocLoc}</div>
+      </div>
+      <div class="sign-block">
+        <div class="sign-line"></div>
+        <div>Il Conduttore<br>${cond}</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+// SCADENZARIO
+function generateScadenzario() {
+  const inizio = document.getElementById('data_inizio').value;
+  const fine = document.getElementById('data_fine').value;
+  if (!inizio) {
+    document.getElementById('scadenzarioContainer').innerHTML = '<div class="nota">Inserisci la data di inizio contratto.</div>';
+    return;
+  }
+
+  const d0 = new Date(inizio);
+  const df = fine ? new Date(fine) : null;
+
+  const addDays = (d, n) => { const r = new Date(d); r.setDate(r.getDate() + n); return r; };
+  const addMonths = (d, n) => { const r = new Date(d); r.setMonth(r.getMonth() + n); return r; };
+  const fmt = d => d.toLocaleDateString('it-IT', {day:'2-digit',month:'long',year:'numeric'});
+  const fmtShort = d => d.toLocaleDateString('it-IT', {day:'2-digit',month:'2-digit',year:'numeric'});
+
+  const events = [
+    { date: addDays(d0, 0), title: 'Data di decorrenza contratto', desc: `Contratto decorre da ${fmt(d0)}`, type: 'ok' },
+    { date: addDays(d0, 30), title: '⚠️ SCADENZA REGISTRAZIONE RLI', desc: 'Termine perentorio per registrazione presso Agenzia delle Entrate. Sanzioni dal 120% al 240% imposta in caso di ritardo.', type: 'urgente' },
+    { date: new Date(d0.getFullYear(), 10, 30), title: 'Acconto cedolare secca', desc: 'Acconto IRPEF / cedolare secca (se oltre €51,65): 100% dell\'acconto entro il 30 novembre', type: 'importante' },
+    { date: new Date(d0.getFullYear() + 1, 5, 30), title: 'Saldo cedolare secca annuale', desc: 'Saldo cedolare secca nella dichiarazione dei redditi (Modello 730 o PF). Scadenza ordinaria 30 giugno.', type: 'importante' },
+  ];
+
+  // Aggiungi scadenza annuale rinnovo
+  if (df) {
+    const m90 = addDays(df, -90);
+    const m30 = addDays(df, -30);
+    events.push({ date: m90, title: 'Alert pre-scadenza contratto (–90gg)', desc: `Contratto scade il ${fmt(df)}. Avvisare locatore di decidere: rinnovo, disdetta, o nuove condizioni.`, type: 'importante' });
+    events.push({ date: m30, title: '⚠️ Ultimo avviso scadenza contratto (–30gg)', desc: `Scadenza imminente. Verificare comunicazioni formali (raccomandata/PEC) entro i termini di legge.`, type: 'urgente' });
+    events.push({ date: df, title: '🏁 Scadenza contratto', desc: `Il contratto cessa il ${fmt(df)}. Per transitorio: automatica. Per studenti: rinnovo tacito salvo disdetta.`, type: 'ok' });
+  }
+
+  // Cedolare anni successivi
+  for (let y = 1; y <= 2; y++) {
+    events.push({
+      date: new Date(d0.getFullYear() + y, 10, 30),
+      title: `Acconto cedolare anno ${d0.getFullYear() + y}`,
+      desc: `Acconto cedolare secca entro il 30 novembre ${d0.getFullYear() + y}`,
+      type: 'importante'
+    });
+  }
+
+  events.sort((a, b) => a.date - b.date);
+
+  const html = `
+    <div class="scad-timeline">
+      ${events.map(e => `
+        <div class="scad-item">
+          <div class="scad-dot ${e.type}"></div>
+          <div class="scad-date">${fmtShort(e.date)}</div>
+          <div class="scad-title">${e.title} <span class="scad-badge badge-${e.type}">${e.type.toUpperCase()}</span></div>
+          <div class="scad-desc">${e.desc}</div>
+        </div>`).join('')}
+    </div>
+    <div class="nota" style="margin-top:20px">
+      📌 <strong>Homie automatizza tutti questi reminder.</strong> Una volta salvato il deal, Homie schedula notifiche WhatsApp automatiche. Zero ansia mentale.
+    </div>`;
+
+  document.getElementById('scadenzarioContainer').innerHTML = html;
+}
+
+// PRINT
+function printScheda() {
+  const content = document.getElementById('schedaCAF');
+  if (!content) { alert('Genera prima la scheda CAF.'); return; }
+  const w = window.open('', '_blank');
+  w.document.write(`<html><head><title>Scheda CAF — BOOM</title>
+    <style>body{font-family:Arial,sans-serif;font-size:11px;margin:20px}
+    table{width:100%;border-collapse:collapse}td,th{border:1px solid #999;padding:4px 6px}
+    th{background:#eee}.sign-line{border-bottom:1px solid #000;width:160px;margin:20px auto 4px}
+    @media print{button{display:none}}</style></head>
+    <body>${content.outerHTML}
+    <script>setTimeout(()=>window.print(),300)<\/script></body></html>`);
+  w.document.close();
+}
+
+function newDeal() {
+  if (confirm('Resettare tutti i dati del deal corrente?')) location.reload();
+}
+
+function copyHomieLink() {
+  const zona = state.zona ? state.zona[0] : '';
+  const mq = document.getElementById('mq_calpestabile').value || '';
+  const url = `https://boomrome.com/deals.html?zona=${zona}&mq=${mq}&tipo=${state.tipo}`;
+  navigator.clipboard.writeText(url).then(() => alert('Link Homie copiato! ✓'));
+}
+
+function scheduleHomieReminder() {
+  const inizio = document.getElementById('data_inizio').value;
+  const loc = document.getElementById('locatore_nome').value;
+  if (!inizio || !loc) { alert('Inserisci data inizio e nome locatore.'); return; }
+  alert(`⏰ Homie schedulerà reminder registrazione RLI:\n\n• D-30: ${inizio} → info a ${loc}\n• D-10 → urgente\n• D-1 → last call\n\nIntegra nel tuo flow OpenClaw con questo payload.`);
+}
+
+function sendViaHomie() {
+  const loc = document.getElementById('locatore_nome').value;
+  const cond = document.getElementById('conduttore_nome').value;
+  const canone = document.getElementById('result_canone_mensile').textContent;
+  alert(`📱 Homie invierà:\n\nA ${loc} (locatore): Scheda CAF precompilata + istruzioni firma\nA ${cond} (conduttore): Contratto in PDF + link firma\n\nCanone concordato: ${canone}/mese\n\nIntegrazione via OpenClaw webhook attiva.`);
+}
+</script>
+</body>
+</html>

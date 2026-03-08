@@ -2001,6 +2001,7 @@ Valentyne - BOOM Rome`
                     startSessionCheck();
                     // ★ BOOM PROTOCOL: Check onboarding for new tenants
                     setTimeout(() => { if (typeof checkOnboarding === 'function') checkOnboarding(); }, 500);
+                    setTimeout(() => readBoomBridge(), 800);
                 } else {
                     console.log('Creating new user document...');
                     await db.collection('users').doc(u.uid).set({
@@ -19200,5 +19201,418 @@ ${d.description || '-'}`;
     function i(key) { return (I18N[S.lang] || I18N.IT)[key] || (I18N.IT)[key] || key; }
 
     </script>
+<!-- ============================================================
+     BOOM BRIDGE — Riceve dati da deals_v2_commandcenter.html
+     ============================================================ -->
+<style>
+#boomBridge {
+  position: fixed; bottom: 24px; right: 24px; z-index: 9000;
+  width: 360px;
+  background: #0c0c0e;
+  border: 1px solid #C9A84C;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.8), 0 0 0 1px rgba(201,168,76,0.15);
+  font-family: 'Inter', -apple-system, sans-serif;
+  overflow: hidden;
+  animation: boomSlideIn .4s cubic-bezier(.16,1,.3,1);
+  display: none;
+}
+@keyframes boomSlideIn {
+  from { opacity:0; transform: translateY(20px) scale(.96); }
+  to   { opacity:1; transform: translateY(0) scale(1); }
+}
+#boomBridge.visible { display: block; }
+#boomBridge.collapsed #boomBridgeBody { display: none; }
+.boom-bridge-header {
+  background: linear-gradient(135deg, #1a1500, #2a2000);
+  padding: 14px 16px;
+  display: flex; align-items: center; justify-content: space-between;
+  cursor: pointer;
+  border-bottom: 1px solid #2a2000;
+}
+.boom-bridge-logo { font-weight: 800; font-size: 13px; color: #C9A84C; letter-spacing: 1px; }
+.boom-bridge-sub  { font-size: 10px; color: #7a6228; margin-top: 1px; letter-spacing: .5px; }
+.boom-bridge-controls { display: flex; gap: 6px; align-items: center; }
+.boom-bridge-btn-icon {
+  background: none; border: none; cursor: pointer;
+  color: #7a6228; font-size: 14px; padding: 2px 4px;
+  transition: color .15s;
+}
+.boom-bridge-btn-icon:hover { color: #C9A84C; }
+#boomBridgeBody { padding: 16px; }
+
+/* Step indicator */
+.bb-steps {
+  display: flex; gap: 0; margin-bottom: 16px;
+  border-radius: 8px; overflow: hidden; border: 1px solid #252520;
+}
+.bb-step {
+  flex: 1; text-align: center; padding: 7px 4px;
+  font-size: 10px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase;
+  color: #444; background: #111; transition: all .2s; cursor: default;
+}
+.bb-step.active { background: #C9A84C; color: #000; }
+.bb-step.done { background: #0a2015; color: #3ecf8e; }
+
+/* Step content */
+.bb-step-content { display: none; }
+.bb-step-content.active { display: block; }
+.bb-section-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+  color: #C9A84C; margin-bottom: 10px;
+}
+.bb-data-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.bb-data-key { font-size: 11px; color: #666; }
+.bb-data-val { font-size: 12px; font-weight: 600; color: #e8e8f0; font-family: 'JetBrains Mono', monospace; }
+.bb-data-val.big { font-size: 18px; font-weight: 800; color: #C9A84C; }
+
+.bb-btn {
+  width: 100%; padding: 11px 16px; border-radius: 8px;
+  font-size: 13px; font-weight: 700; border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  margin-top: 10px; transition: all .2s; letter-spacing: .3px;
+}
+.bb-btn-gold  { background: #C9A84C; color: #000; }
+.bb-btn-gold:hover { background: #e8c46a; }
+.bb-btn-green { background: #0a2015; color: #3ecf8e; border: 1px solid #1a4030; }
+.bb-btn-green:hover { background: #0f2a1c; }
+.bb-btn-ghost { background: transparent; color: #666; border: 1px solid #2a2a30; }
+.bb-btn-ghost:hover { color: #aaa; border-color: #444; }
+.bb-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+.bb-select {
+  width: 100%; padding: 9px 12px; background: #111; border: 1px solid #2a2a30;
+  border-radius: 8px; color: #e8e8f0; font-size: 12px; margin-top: 8px;
+  outline: none; cursor: pointer;
+}
+.bb-select:focus { border-color: #C9A84C; }
+.bb-divider {
+  text-align: center; font-size: 10px; color: #444; margin: 8px 0;
+  text-transform: uppercase; letter-spacing: 1px;
+}
+.bb-note {
+  font-size: 10px; color: #555; line-height: 1.5; margin-top: 8px;
+  padding: 8px 10px; background: #111; border-radius: 6px; border-left: 2px solid #2a2a30;
+}
+.bb-success {
+  text-align: center; padding: 20px 10px;
+  font-size: 14px; color: #3ecf8e; font-weight: 700;
+}
+</style>
+
+<div id="boomBridge">
+  <div class="boom-bridge-header" onclick="boomToggleCollapse()">
+    <div>
+      <div class="boom-bridge-logo">⚡ BOOM Bridge</div>
+      <div class="boom-bridge-sub">Da Command Center — Nuovo Deal</div>
+    </div>
+    <div class="boom-bridge-controls">
+      <button class="boom-bridge-btn-icon" id="boomCollapseIcon" title="Riduci">▾</button>
+      <button class="boom-bridge-btn-icon" onclick="event.stopPropagation();boomCloseBridge()" title="Chiudi">×</button>
+    </div>
+  </div>
+  <div id="boomBridgeBody">
+    <!-- Step indicator -->
+    <div class="bb-steps">
+      <div class="bb-step active" id="bbS1">1 · Inquilino</div>
+      <div class="bb-step" id="bbS2">2 · Immobile</div>
+      <div class="bb-step" id="bbS3">3 · Contratto</div>
+    </div>
+
+    <!-- STEP 1: Conduttore -->
+    <div class="bb-step-content active" id="bbPage1">
+      <div class="bb-section-label">👤 Inquilino (Conduttore)</div>
+      <div id="bbConduttoreInfo"></div>
+      <button class="bb-btn bb-btn-gold" onclick="boomCreateTenant()">+ Crea Inquilino nel Portal</button>
+      <div class="bb-divider">oppure seleziona esistente</div>
+      <select class="bb-select" id="bbTenantSelect" onchange="boomSelectTenant(this.value)">
+        <option value="">Seleziona inquilino esistente...</option>
+      </select>
+      <button class="bb-btn bb-btn-green" id="bbNext1" onclick="boomGoStep(2)" disabled>Avanti → Immobile</button>
+    </div>
+
+    <!-- STEP 2: Immobile -->
+    <div class="bb-step-content" id="bbPage2">
+      <div class="bb-section-label">🏠 Immobile</div>
+      <div id="bbImmobileInfo"></div>
+      <button class="bb-btn bb-btn-gold" onclick="boomCreateProperty()">+ Crea Immobile nel Portal</button>
+      <div class="bb-divider">oppure seleziona esistente</div>
+      <select class="bb-select" id="bbPropertySelect" onchange="boomSelectProperty(this.value)">
+        <option value="">Seleziona immobile esistente...</option>
+      </select>
+      <button class="bb-btn bb-btn-green" id="bbNext2" onclick="boomGoStep(3)" disabled>Avanti → Contratto</button>
+    </div>
+
+    <!-- STEP 3: Contratto -->
+    <div class="bb-step-content" id="bbPage3">
+      <div class="bb-section-label">📋 Contratto</div>
+      <div id="bbContractInfo"></div>
+      <button class="bb-btn bb-btn-gold" onclick="boomCreateContract()">⚡ Crea Contratto Pre-Compilato</button>
+      <div class="bb-note">Aprirà il wizard contratto con canone, date, tipo e parti già selezionate.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// BOOM BRIDGE — Logic
+// ============================================================
+var _boomData = null;
+var _boomTenantId = null;
+var _boomPropertyId = null;
+
+function readBoomBridge() {
+  try {
+    const urlParams = new URLSearchParams(window.location.search);
+    const encoded = urlParams.get('boom');
+    if (!encoded) return;
+
+    const json = decodeURIComponent(escape(atob(encoded)));
+    _boomData = JSON.parse(json);
+
+    boomRenderAll();
+    boomPopulateSelects();
+    document.getElementById('boomBridge').classList.add('visible');
+
+    // Clean URL without reload
+    const cleanUrl = window.location.pathname;
+    window.history.replaceState({}, '', cleanUrl);
+  } catch(e) {
+    console.warn('BOOM Bridge: errore parsing dati:', e);
+  }
+}
+
+function boomRenderAll() {
+  if (!_boomData) return;
+  const d = _boomData;
+  const c = d.conduttore || {};
+  const im = d.immobile || {};
+
+  // Step 1: conduttore info
+  document.getElementById('bbConduttoreInfo').innerHTML = `
+    <div class="bb-data-row"><span class="bb-data-key">Nome</span><span class="bb-data-val">${c.nome_cognome || '—'}</span></div>
+    <div class="bb-data-row"><span class="bb-data-key">CF</span><span class="bb-data-val">${c.cf || '—'}</span></div>
+    <div class="bb-data-row"><span class="bb-data-key">Email</span><span class="bb-data-val">${c.email || '—'}</span></div>
+  `;
+
+  // Step 2: immobile info
+  document.getElementById('bbImmobileInfo').innerHTML = `
+    <div class="bb-data-row"><span class="bb-data-key">Indirizzo</span><span class="bb-data-val">${im.via || '—'}</span></div>
+    <div class="bb-data-row"><span class="bb-data-key">Piano / Int.</span><span class="bb-data-val">${im.piano || '—'} / ${im.interno || '—'}</span></div>
+    <div class="bb-data-row"><span class="bb-data-key">Canone</span><span class="bb-data-val big">€${(d.canone_mensile||0).toLocaleString('it-IT')}/mese</span></div>
+  `;
+
+  // Step 3: contract summary
+  const tipoLabel = { transitorio:'🔄 Transitorio', studenti:'🎓 Studenti', ordinaria:'📋 3+2 Ordinaria' };
+  document.getElementById('bbContractInfo').innerHTML = `
+    <div class="bb-data-row"><span class="bb-data-key">Tipo</span><span class="bb-data-val">${tipoLabel[d.tipo] || d.tipo}</span></div>
+    <div class="bb-data-row"><span class="bb-data-key">Inizio</span><span class="bb-data-val">${d.data_inizio || '—'}</span></div>
+    <div class="bb-data-row"><span class="bb-data-key">Fine</span><span class="bb-data-val">${d.data_fine || '—'}</span></div>
+    <div class="bb-data-row"><span class="bb-data-key">Canone</span><span class="bb-data-val big">€${(d.canone_mensile||0).toLocaleString('it-IT')}/mese</span></div>
+    <div class="bb-data-row"><span class="bb-data-key">Deposito</span><span class="bb-data-val">€${(d.deposito||0).toLocaleString('it-IT')}</span></div>
+  `;
+}
+
+function boomPopulateSelects() {
+  // Populate tenant select
+  const tenantSel = document.getElementById('bbTenantSelect');
+  if (tenantSel && typeof S !== 'undefined' && S.users) {
+    S.users.filter(u => u.role === 'tenant').forEach(u => {
+      const opt = document.createElement('option');
+      opt.value = u.id; opt.textContent = `${u.name} — ${u.email || 'no email'}`;
+      tenantSel.appendChild(opt);
+    });
+  }
+
+  // Populate property select
+  const propSel = document.getElementById('bbPropertySelect');
+  if (propSel && typeof S !== 'undefined' && S.properties) {
+    S.properties.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.id; opt.textContent = `${p.name} — €${p.rent}/mese`;
+      propSel.appendChild(opt);
+    });
+  }
+}
+
+function boomSelectTenant(id) {
+  _boomTenantId = id || null;
+  document.getElementById('bbNext1').disabled = !_boomTenantId;
+}
+
+function boomSelectProperty(id) {
+  _boomPropertyId = id || null;
+  document.getElementById('bbNext2').disabled = !_boomPropertyId;
+}
+
+function boomGoStep(step) {
+  for (let i = 1; i <= 3; i++) {
+    document.getElementById('bbPage' + i).classList.toggle('active', i === step);
+    const el = document.getElementById('bbS' + i);
+    if (i < step)  { el.className = 'bb-step done'; }
+    else if (i === step) { el.className = 'bb-step active'; }
+    else { el.className = 'bb-step'; }
+  }
+}
+
+function boomCreateTenant() {
+  if (!_boomData) return;
+  const c = _boomData.conduttore || {};
+
+  openModal('addUser');
+  setTimeout(() => {
+    const f = document.getElementById('mForm');
+    if (!f) return;
+    const set = (n, v) => { const el = f.querySelector(`[name="${n}"]`); if (el && v) el.value = v; };
+
+    set('name',          c.nome_cognome);
+    set('email',         c.email);
+    set('phone',         c.telefono);
+    set('codiceFiscale', c.cf);
+    set('birthDate',     c.data_nascita);
+    set('birthPlace',    c.luogo_nascita);
+
+    // Set role to tenant
+    const roleSelect = f.querySelector('[name="role"]');
+    if (roleSelect) roleSelect.value = 'tenant';
+
+    // After modal closes, re-populate select and auto-select new user
+    const origClose = window.closeModal;
+    window.closeModal = function() {
+      origClose();
+      window.closeModal = origClose;
+      setTimeout(() => {
+        if (typeof S !== 'undefined' && S.users) {
+          // Find newly added tenant by name
+          const newTenant = S.users.filter(u => u.role === 'tenant')
+            .find(u => u.name?.toLowerCase().includes((c.nome_cognome || '').toLowerCase().split(' ')[0]));
+          if (newTenant) {
+            const sel = document.getElementById('bbTenantSelect');
+            // Rebuild options
+            sel.innerHTML = '<option value="">Seleziona inquilino esistente...</option>';
+            S.users.filter(u => u.role === 'tenant').forEach(u => {
+              const opt = document.createElement('option');
+              opt.value = u.id; opt.textContent = `${u.name} — ${u.email || 'no email'}`;
+              sel.appendChild(opt);
+            });
+            sel.value = newTenant.id;
+            boomSelectTenant(newTenant.id);
+          }
+        }
+      }, 1500);
+    };
+  }, 300);
+}
+
+function boomCreateProperty() {
+  if (!_boomData) return;
+  const d = _boomData;
+  const im = d.immobile || {};
+
+  openModal('addProperty');
+  setTimeout(() => {
+    const f = document.getElementById('mForm');
+    if (!f) return;
+    const set = (n, v) => { const el = f.querySelector(`[name="${n}"]`); if (el && v !== undefined && v !== '') el.value = v; };
+
+    // Build clean address name
+    const propName = im.via ? `${im.via}${im.piano ? ' P.'+im.piano : ''}` : 'Immobile';
+    set('name',         propName);
+    set('address',      im.via || '');
+    set('rent',         d.canone_mensile || '');
+    set('sqm',          im.mq_calpestabile || '');
+    set('floor',        im.piano || '');
+    set('scala',        im.scala || '');
+    set('interno',      im.interno || '');
+    set('energyCert',   im.classe_en ? `Classe ${im.classe_en}` : '');
+
+    // Catastale
+    const catStr = [
+      im.cat_foglio ? `Foglio ${im.cat_foglio}` : '',
+      im.cat_part   ? `Part. ${im.cat_part}` : '',
+      im.cat_sub    ? `Sub. ${im.cat_sub}` : '',
+    ].filter(Boolean).join(', ');
+    set('cadastralData', catStr);
+
+    // Intercept closeModal to auto-select new property
+    const origClose = window.closeModal;
+    window.closeModal = function() {
+      origClose();
+      window.closeModal = origClose;
+      setTimeout(() => {
+        if (typeof S !== 'undefined' && S.properties) {
+          const newProp = S.properties.find(p => p.name === propName || p.address?.includes(im.via || '___'));
+          if (newProp) {
+            const sel = document.getElementById('bbPropertySelect');
+            sel.innerHTML = '<option value="">Seleziona immobile esistente...</option>';
+            S.properties.forEach(p => {
+              const opt = document.createElement('option');
+              opt.value = p.id; opt.textContent = `${p.name} — €${p.rent}/mese`;
+              sel.appendChild(opt);
+            });
+            sel.value = newProp.id;
+            boomSelectProperty(newProp.id);
+          }
+        }
+      }, 1500);
+    };
+  }, 300);
+}
+
+function boomCreateContract() {
+  if (!_boomData || !_boomTenantId || !_boomPropertyId) {
+    if (!_boomTenantId) { boomGoStep(1); return; }
+    if (!_boomPropertyId) { boomGoStep(2); return; }
+    return;
+  }
+
+  const d = _boomData;
+  openModal('addContract');
+
+  setTimeout(() => {
+    const f = document.getElementById('mForm');
+    if (!f) return;
+    const set = (n, v) => { const el = f.querySelector(`[name="${n}"]`); if (el && v) el.value = v; };
+
+    // Select property + tenant in dropdowns
+    const propSel = f.querySelector('[name="propertyId"]');
+    const tenantSel = f.querySelector('[name="tenantId"]');
+    if (propSel)   { propSel.value = _boomPropertyId; propSel.dispatchEvent(new Event('change')); }
+    if (tenantSel) tenantSel.value = _boomTenantId;
+
+    // Set contract type
+    const tipo = d.tipo || 'transitorio';
+    if (typeof setContractType === 'function') setContractType(tipo);
+
+    // Advance to step 2 (Terms) and fill
+    setTimeout(() => {
+      if (typeof contractWizardNav === 'function') contractWizardNav(1);
+      setTimeout(() => {
+        set('startDate', d.data_inizio || '');
+        set('endDate',   d.data_fine || '');
+        set('rent',      d.canone_mensile || '');
+        set('deposit',   d.deposito || '');
+        if (typeof calcContractDuration === 'function') calcContractDuration();
+        if (typeof calcDeposit === 'function') calcDeposit();
+      }, 200);
+    }, 400);
+
+    // Collapse the bridge panel
+    document.getElementById('boomBridge').classList.add('collapsed');
+    document.getElementById('boomCollapseIcon').textContent = '▸';
+  }, 350);
+}
+
+function boomToggleCollapse() {
+  const bridge = document.getElementById('boomBridge');
+  const icon = document.getElementById('boomCollapseIcon');
+  bridge.classList.toggle('collapsed');
+  icon.textContent = bridge.classList.contains('collapsed') ? '▸' : '▾';
+}
+
+function boomCloseBridge() {
+  document.getElementById('boomBridge').classList.remove('visible');
+}
+</script>
 </body>
 </html>
