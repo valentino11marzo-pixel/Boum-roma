@@ -1,0 +1,14 @@
+{
+  "functions": {
+    "api/parse-docs.js": {
+      "maxDuration": 60
+    }
+  },
+  "redirects": [
+    {
+      "source": "/",
+      "destination": "/portal.html",
+      "permanent": false
+    }
+  ]
+}
