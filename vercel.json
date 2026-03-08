@@ -1,5 +1,5 @@
 {
-  "outputDirectory": "public",
+  "outputDirectory": ".",
   "functions": {
     "api/parse-docs.js": {
       "maxDuration": 60
