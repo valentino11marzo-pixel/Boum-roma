@@ -651,7 +651,7 @@ Restituisci SOLO questo JSON (nessun testo prima o dopo):
   // API CALL
   let rawResponse = '';
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const response = await fetch('/api/parse-docs', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
