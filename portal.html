@@ -1988,6 +1988,13 @@ Valentyne - BOOM Rome`
         clearTimeout(authTimeout);
         console.log('Auth state changed:', u ? u.email : 'no user');
         
+        // Skip anonymous users (leftover from magic sign sessions)
+        if (u && u.isAnonymous) {
+            console.log('Anonymous user detected, signing out...');
+            await auth.signOut();
+            return;
+        }
+        
         if (u) {
             authProcessed = true;
             S.user = u;
@@ -2005,8 +2012,8 @@ Valentyne - BOOM Rome`
                 } else {
                     console.log('Creating new user document...');
                     await db.collection('users').doc(u.uid).set({
-                        name: u.displayName || u.email.split('@')[0],
-                        email: u.email, role: 'admin', phone: '',
+                        name: u.displayName || (u.email ? u.email.split('@')[0] : 'User'),
+                        email: u.email || '', role: 'admin', phone: '',
                         createdAt: firebase.firestore.FieldValue.serverTimestamp()
                     });
                     location.reload();
