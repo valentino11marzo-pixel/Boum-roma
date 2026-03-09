@@ -2816,7 +2816,7 @@ Valentyne - BOOM Rome`
     }
 
     function hideLoading() { document.getElementById('loading').classList.add('hidden'); }
-    function showAuth() { window.location.href = 'login.html'; }
+    function showAuth() { hideLoading(); document.getElementById('authScreen').classList.remove('hidden'); }
     function showApp() { hideLoading(); document.getElementById('authScreen').classList.add('hidden'); document.getElementById('app').classList.add('active'); setupApp(); }
     function showAuthError(m) { const e = document.getElementById('authError'); e.textContent = m; e.classList.add('show'); document.getElementById('authInfo').classList.remove('show'); }
     function showAuthInfo(m) { const e = document.getElementById('authInfo'); e.textContent = m; e.classList.add('show'); document.getElementById('authError').classList.remove('show'); }
@@ -2856,7 +2856,7 @@ Valentyne - BOOM Rome`
             } catch (e) {
                 console.error('Logout error:', e);
             }
-            window.location.href = 'login.html';
+            window.location.href = 'portal.html';
         }
     }
     
