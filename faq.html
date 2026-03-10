@@ -1,795 +1,1088 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <link rel="icon" href="/favicon.ico" sizes="any">
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-    <link rel="icon" href="/favicon-32x32.png" sizes="32x32" type="image/png">
-    <link rel="icon" href="/favicon-16x16.png" sizes="16x16" type="image/png">
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-    <link rel="manifest" href="/site.webmanifest">
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BOOM – Frequently Asked Questions</title>
-    
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;900&family=Oswald:wght@200;300;400;500&display=swap" rel="stylesheet">
-    
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            -webkit-font-smoothing: antialiased;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FAQ – BOOM | Answers for Expats Renting in Rome</title>
+<meta name="description" content="Everything you need to know about renting in Rome with BOOM. Property Finding Service, contracts, payments, move-in, and support.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --gold:#D4AF37;--gold-b:#E8C547;--gold-d:#B8960C;--gold-dim:rgba(212,175,55,0.12);
+  --bg:#000;--bg1:#0A0A0A;--bg2:#0E0D0B;--border:rgba(255,255,255,0.06);--border-h:rgba(255,255,255,0.1);--border-g:rgba(212,175,55,0.2);
+  --text:#fff;--text2:rgba(255,255,255,0.55);--text3:rgba(255,255,255,0.2);
+  --f:'Helvetica Neue','HelveticaNeue','Outfit','Helvetica',-apple-system,sans-serif;
+  --radius:12px;--ease:cubic-bezier(0.16,1,0.3,1)
+}
+html{scroll-behavior:smooth;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+body{font-family:var(--f);font-weight:300;background:var(--bg);color:var(--text);line-height:1.7;overflow-x:hidden}
+a{color:var(--gold);text-decoration:none;transition:color 0.2s}
+a:hover{color:var(--gold-b)}
+::selection{background:var(--gold);color:#000}
+strong{font-weight:500;color:var(--gold-b)}
 
-        :root {
-            --gold: #FFD700;
-            --cyan: #00CED1;
-            --green: #00FF88;
-            --red: #FF3B3B;
-            --pure-black: #000000;
-            --dark-surface: #111111;
-            --text-primary: #FFFFFF;
-            --text-secondary: #999999;
-            --text-fade: #666666;
-        }
+/* ─── SCROLLBAR ─── */
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(212,175,55,0.2);border-radius:3px}
 
-        body {
-            font-family: 'Inter', -apple-system, sans-serif;
-            background: var(--pure-black);
-            color: var(--text-primary);
-            font-weight: 200;
-            line-height: 1.6;
-        }
+/* ─── CANVAS BG ─── */
+#geoCanvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none;opacity:0.35}
 
-        /* Navigation */
-        nav {
-            position: fixed;
-            width: 100%;
-            top: 0;
-            z-index: 100;
-            padding: 30px 50px;
-            background: rgba(0,0,0,0.95);
-            backdrop-filter: blur(20px);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-        }
+/* ─── NAV ─── */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:0 40px;height:60px;display:flex;align-items:center;justify-content:space-between;background:rgba(0,0,0,0.85);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:1px solid var(--border);transition:all 0.3s}
+.nav-logo{display:flex;align-items:center;gap:14px}
+.nav-logo svg{width:36px;height:36px}
+.nav-logo span{font-size:15px;font-weight:400;letter-spacing:4px;color:#fff}
+.nav-links{display:flex;gap:32px;align-items:center}
+.nav-links a{font-size:12px;font-weight:400;letter-spacing:1.5px;text-transform:uppercase;color:var(--text2);transition:color 0.25s}
+.nav-links a:hover{color:var(--gold)}
+.nav-kbd{font-size:11px;color:var(--text3);border:1px solid var(--border);border-radius:5px;padding:2px 8px;cursor:pointer;transition:all 0.25s;font-weight:400}
+.nav-kbd:hover{border-color:var(--gold);color:var(--gold)}
+.burger{display:none;background:none;border:none;cursor:pointer;padding:4px}
+.burger svg{width:22px;height:22px;stroke:var(--gold);stroke-width:1.5;fill:none}
 
-        .nav-container {
-            max-width: 1400px;
-            margin: 0 auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
+/* ─── HERO ─── */
+.hero{position:relative;z-index:1;min-height:75vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:120px 24px 60px}
+.hero-logo{width:120px;height:120px;margin-bottom:32px;opacity:0;animation:fadeDown 0.8s var(--ease) 0.1s forwards}
+.hero h1{font-size:clamp(44px,8vw,88px);font-weight:200;letter-spacing:-0.02em;line-height:1.05;color:var(--text);opacity:0;animation:fadeDown 0.8s var(--ease) 0.25s forwards}
+.hero h1 em{font-style:normal;color:var(--gold);font-weight:300}
+.hero p{font-size:clamp(14px,1.6vw,17px);font-weight:300;color:var(--text2);margin-top:20px;max-width:500px;line-height:1.8;opacity:0;animation:fadeDown 0.8s var(--ease) 0.4s forwards}
 
-        .logo {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            text-decoration: none;
-            color: white;
-        }
+/* ─── SEARCH BAR ─── */
+.search-wrap{margin-top:40px;width:100%;max-width:520px;opacity:0;animation:fadeDown 0.8s var(--ease) 0.55s forwards}
+.search-bar{display:flex;align-items:center;gap:10px;background:var(--bg1);border:1px solid var(--border);border-radius:50px;padding:12px 20px;transition:all 0.3s}
+.search-bar:focus-within{border-color:var(--border-g);box-shadow:0 0 0 1px rgba(212,175,55,0.08),0 8px 32px rgba(0,0,0,0.3)}
+.search-bar svg{width:18px;height:18px;stroke:var(--text3);stroke-width:1.5;fill:none;flex-shrink:0}
+.search-bar input{flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--f);font-size:14px;font-weight:300}
+.search-bar input::placeholder{color:var(--text3)}
+.search-count{font-size:11px;color:var(--text3);white-space:nowrap;font-weight:400}
 
-        .logo-circle {
-            width: 40px;
-            height: 40px;
-            background: linear-gradient(135deg, #FFD700, #FFA500);
-            border-radius: 50%;
-            opacity: 0.9;
-        }
+/* ─── TRUST STRIP ─── */
+.trust{display:flex;justify-content:center;gap:48px;padding:40px 24px 0;opacity:0;animation:fadeDown 0.8s var(--ease) 0.7s forwards}
+.trust-item{text-align:center}
+.trust-num{font-size:28px;font-weight:300;color:var(--gold);letter-spacing:-0.02em}
+.trust-label{font-size:10px;font-weight:400;text-transform:uppercase;letter-spacing:2px;color:var(--text3);margin-top:4px}
 
-        .logo-text {
-            font-family: 'Oswald', sans-serif;
-            font-size: 32px;
-            font-weight: 300;
-            letter-spacing: -2px;
-            text-transform: uppercase;
-        }
+/* ─── TABS ─── */
+.tabs-wrap{position:sticky;top:60px;z-index:50;background:rgba(0,0,0,0.92);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid var(--border);padding:0 24px;transition:all 0.3s}
+.tabs{display:flex;gap:4px;max-width:900px;margin:0 auto;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none;padding:12px 0}
+.tabs::-webkit-scrollbar{display:none}
+.tab{padding:8px 16px;border-radius:8px;font-size:12px;font-weight:400;letter-spacing:0.5px;color:var(--text2);cursor:pointer;white-space:nowrap;border:1px solid transparent;transition:all 0.25s;user-select:none;-webkit-tap-highlight-color:transparent}
+.tab:hover{color:var(--text);background:rgba(255,255,255,0.03)}
+.tab.active{color:var(--gold);background:var(--gold-dim);border-color:rgba(212,175,55,0.12);font-weight:500}
+.tab-count{font-size:10px;color:var(--text3);margin-left:4px;font-weight:400}
+.tab.active .tab-count{color:var(--gold-d)}
 
-        /* Hero Section */
-        .faq-hero {
-            padding: 150px 50px 60px;
-            text-align: center;
-            background: radial-gradient(circle at center, rgba(255, 215, 0, 0.05) 0%, transparent 60%);
-        }
+/* ─── FAQ GRID ─── */
+.faq-section{position:relative;z-index:1;max-width:760px;margin:0 auto;padding:48px 24px 80px}
+.group-head{font-size:11px;font-weight:500;letter-spacing:3px;text-transform:uppercase;color:var(--gold);margin:48px 0 20px;padding-bottom:12px;border-bottom:1px solid var(--border)}
+.group-head:first-child{margin-top:0}
 
-        h1 {
-            font-size: clamp(40px, 8vw, 80px);
-            font-weight: 100;
-            text-transform: uppercase;
-            line-height: 0.9;
-            letter-spacing: -2px;
-            margin-bottom: 30px;
-        }
+/* ─── FAQ CARDS ─── */
+.q-card{position:relative;background:var(--bg1);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:8px;overflow:hidden;transition:all 0.3s}
+.q-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:linear-gradient(180deg,var(--gold),var(--gold-d));opacity:0;transition:opacity 0.3s}
+.q-card:hover{border-color:var(--border-h);background:var(--bg2)}
+.q-card:hover::before{opacity:0.25}
+.q-card.open{border-color:var(--border-g);background:var(--bg2)}
+.q-card.open::before{opacity:1}
+.q-card.flash{box-shadow:0 0 0 2px var(--gold),0 0 24px rgba(212,175,55,0.15)}
+.q-head{padding:18px 22px;cursor:pointer;display:flex;align-items:flex-start;gap:14px;user-select:none;-webkit-tap-highlight-color:transparent}
+.q-head-content{flex:1;min-width:0}
+.q-head h3{font-size:14px;font-weight:400;color:var(--text);line-height:1.55;letter-spacing:0.01em;transition:all 0.25s}
+.q-card:hover .q-head h3{color:var(--gold)}
+.q-card.open .q-head h3{color:var(--gold);font-weight:500}
+.q-teaser{font-size:11px;font-weight:300;color:var(--text3);margin-top:4px;line-height:1.5;overflow:hidden;max-height:18px;transition:all 0.3s}
+.q-card.open .q-teaser{opacity:0;max-height:0;margin-top:0}
+.q-chevron{width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,0.04);display:flex;align-items:center;justify-content:center;transition:all 0.3s;flex-shrink:0;margin-top:1px}
+.q-chevron svg{width:14px;height:14px;stroke:var(--text3);stroke-width:1.5;fill:none;transition:transform 0.35s var(--ease)}
+.q-card.open .q-chevron{background:var(--gold-dim)}
+.q-card.open .q-chevron svg{transform:rotate(180deg);stroke:var(--gold)}
+.q-body{display:grid;grid-template-rows:0fr;transition:grid-template-rows 0.4s var(--ease)}
+.q-card.open .q-body{grid-template-rows:1fr}
+.q-body-inner{overflow:hidden}
+.q-content{padding:0 22px 20px;font-size:13px;font-weight:300;color:rgba(255,255,255,0.8);line-height:2}
+.q-share{position:absolute;top:16px;right:16px;background:none;border:none;cursor:pointer;padding:4px;opacity:0;transition:opacity 0.2s}
+.q-card:hover .q-share,.q-card.open .q-share{opacity:0.35}
+.q-share:hover{opacity:0.8 !important}
+.q-share svg{width:14px;height:14px;stroke:var(--text2);stroke-width:1.5;fill:none}
+.q-related{margin-top:14px;padding-top:12px;border-top:1px solid var(--border);display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.q-related-label{font-size:10px;font-weight:500;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);margin-right:4px}
+.q-related a{font-size:11px;font-weight:400;color:var(--gold);background:var(--gold-dim);padding:4px 10px;border-radius:20px;cursor:pointer;transition:all 0.2s}
+.q-related a:hover{background:rgba(212,175,55,0.2)}
 
-        .gold-accent {
-            color: var(--gold);
-            font-weight: 300;
-        }
+/* ─── BADGES ─── */
+.badge{display:inline-block;font-size:10px;font-weight:500;letter-spacing:0.5px;padding:3px 10px;border-radius:20px;vertical-align:middle;margin-left:4px}
+.badge-gold{background:var(--gold-dim);color:var(--gold)}
+.badge-green{background:rgba(40,167,69,0.12);color:#5cb85c}
 
-        .hero-subtitle {
-            font-size: 18px;
-            color: var(--text-secondary);
-            max-width: 600px;
-            margin: 0 auto;
-        }
+/* ─── SPOTLIGHT ─── */
+.spot-overlay{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.8);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);display:none;align-items:flex-start;justify-content:center;padding-top:min(20vh,160px)}
+.spot-overlay.open{display:flex}
+.spot{width:90%;max-width:560px;background:var(--bg1);border:1px solid var(--border-g);border-radius:16px;overflow:hidden;box-shadow:0 24px 80px rgba(0,0,0,0.6),0 0 0 1px rgba(212,175,55,0.06)}
+.spot-input-wrap{display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--border)}
+.spot-input-wrap svg{width:18px;height:18px;stroke:var(--gold);stroke-width:1.5;fill:none;flex-shrink:0}
+.spot-input{flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--f);font-size:15px;font-weight:300}
+.spot-input::placeholder{color:var(--text3)}
+.spot-esc{font-size:10px;color:var(--text3);border:1px solid var(--border);border-radius:4px;padding:2px 6px;font-weight:400}
+.spot-results{max-height:400px;overflow-y:auto;padding:8px}
+.spot-results::-webkit-scrollbar{width:4px}
+.spot-results::-webkit-scrollbar-thumb{background:rgba(212,175,55,0.15);border-radius:2px}
+.spot-item{padding:10px 14px;border-radius:8px;cursor:pointer;transition:background 0.15s}
+.spot-item:hover,.spot-item.active{background:var(--gold-dim)}
+.spot-item-q{font-size:13px;font-weight:400;color:var(--text);margin-bottom:2px}
+.spot-item-q mark{background:none;color:var(--gold);font-weight:500}
+.spot-item-a{font-size:11px;font-weight:300;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.spot-empty{padding:24px;text-align:center;font-size:13px;font-weight:300;color:var(--text3)}
 
-        /* Search Bar */
-        .search-section {
-            padding: 40px 50px;
-            background: var(--dark-surface);
-            position: sticky;
-            top: 80px;
-            z-index: 90;
-        }
+/* ─── CTA ─── */
+.cta{position:relative;z-index:1;text-align:center;padding:80px 24px;border-top:1px solid var(--border)}
+.cta h2{font-size:clamp(28px,5vw,44px);font-weight:200;color:var(--text);margin-bottom:12px}
+.cta h2 em{font-style:normal;color:var(--gold);font-weight:300}
+.cta p{font-size:14px;font-weight:300;color:var(--text2);margin-bottom:32px}
+.cta-btn{display:inline-flex;align-items:center;gap:10px;background:var(--gold);color:#000;font-family:var(--f);font-size:14px;font-weight:500;letter-spacing:0.5px;padding:14px 36px;border-radius:50px;border:none;cursor:pointer;transition:all 0.3s}
+.cta-btn:hover{background:var(--gold-b);transform:translateY(-1px);box-shadow:0 8px 24px rgba(212,175,55,0.25)}
+.cta-btn svg{width:18px;height:18px;fill:none;stroke:#000;stroke-width:2}
 
-        .search-container {
-            max-width: 800px;
-            margin: 0 auto;
-            position: relative;
-        }
+/* ─── FOOTER ─── */
+footer{position:relative;z-index:1;text-align:center;padding:40px 24px;border-top:1px solid var(--border);font-size:11px;font-weight:400;color:var(--text3);letter-spacing:0.5px}
+footer a{color:var(--text2)}
 
-        .search-input {
-            width: 100%;
-            padding: 20px 60px 20px 20px;
-            background: rgba(255, 255, 255, 0.02);
-            border: 2px solid rgba(255, 255, 255, 0.1);
-            color: var(--text-primary);
-            font-size: 16px;
-            font-family: inherit;
-            transition: all 0.3s;
-            border-radius: 100px;
-        }
+/* ─── WHATSAPP FAB ─── */
+.wa-fab{position:fixed;bottom:24px;right:24px;z-index:90;width:52px;height:52px;background:#25D366;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(37,211,102,0.3);transition:all 0.3s;cursor:pointer}
+.wa-fab:hover{transform:scale(1.08);box-shadow:0 6px 24px rgba(37,211,102,0.4)}
+.wa-fab svg{width:26px;height:26px;fill:#fff}
 
-        .search-input:focus {
-            outline: none;
-            border-color: var(--gold);
-            background: rgba(255, 215, 0, 0.02);
-        }
+/* ─── TOAST ─── */
+.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--bg1);border:1px solid var(--border-g);color:var(--gold);font-size:12px;font-weight:400;padding:10px 20px;border-radius:50px;z-index:300;opacity:0;pointer-events:none;transition:all 0.3s var(--ease)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
-        .search-input::placeholder {
-            color: var(--text-fade);
-        }
+/* ─── SCROLL PROGRESS ─── */
+.scroll-progress{position:fixed;top:60px;left:0;height:2px;background:linear-gradient(90deg,var(--gold-d),var(--gold),var(--gold-b));z-index:99;width:0;transition:width 0.1s}
 
-        .search-icon {
-            position: absolute;
-            right: 25px;
-            top: 50%;
-            transform: translateY(-50%);
-            font-size: 20px;
-            color: var(--gold);
-        }
+/* ─── ANIMATIONS ─── */
+@keyframes fadeDown{from{opacity:0;transform:translateY(-16px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.reveal{opacity:0;transform:translateY(16px);transition:opacity 0.5s var(--ease),transform 0.5s var(--ease)}
+.reveal.visible{opacity:1;transform:translateY(0)}
 
-        /* Category Tabs */
-        .categories-section {
-            padding: 60px 50px 40px;
-            background: var(--pure-black);
-        }
+/* ─── MOBILE ─── */
+@media(max-width:768px){
+  nav{padding:0 20px;height:54px}
+  .nav-links{display:none}
+  .burger{display:block}
+  .hero{min-height:60vh;padding:100px 20px 40px}
+  .hero-logo{width:88px;height:88px;margin-bottom:24px}
+  .trust{gap:28px;padding-top:32px}
+  .trust-num{font-size:22px}
+  .tabs{gap:2px;padding:10px 0}
+  .tab{padding:7px 12px;font-size:11px}
+  .faq-section{padding:32px 16px 60px}
+  .q-head{padding:16px 18px}
+  .q-content{padding:0 18px 16px}
+  .cta{padding:60px 20px}
+  .wa-fab{bottom:16px;right:16px;width:48px;height:48px}
+}
+@media(max-width:480px){
+  .trust{flex-wrap:wrap;gap:20px 36px}
+  .search-wrap{margin-top:28px}
+}
+@media(prefers-reduced-motion:reduce){
+  *{animation:none !important;transition:none !important}
+  .reveal{opacity:1;transform:none}
+}
+</style>
 
-        .categories-container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        .category-tabs {
-            display: flex;
-            gap: 20px;
-            justify-content: center;
-            flex-wrap: wrap;
-            margin-bottom: 60px;
-        }
-
-        .category-tab {
-            padding: 15px 30px;
-            background: transparent;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            color: var(--text-primary);
-            font-size: 13px;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        .category-tab:hover {
-            border-color: var(--gold);
-            color: var(--gold);
-        }
-
-        .category-tab.active {
-            background: var(--gold);
-            border-color: var(--gold);
-            color: var(--pure-black);
-            font-weight: 600;
-        }
-
-        /* FAQ Items */
-        .faq-list {
-            max-width: 900px;
-            margin: 0 auto;
-        }
-
-        .faq-category {
-            margin-bottom: 60px;
-        }
-
-        .category-title {
-            font-size: 24px;
-            font-weight: 300;
-            text-transform: uppercase;
-            letter-spacing: -0.5px;
-            margin-bottom: 30px;
-            padding-bottom: 15px;
-            border-bottom: 1px solid rgba(255, 215, 0, 0.3);
-            color: var(--gold);
-        }
-
-        .faq-item {
-            padding: 30px 0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        .faq-item:hover {
-            padding-left: 10px;
-        }
-
-        .faq-question {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 18px;
-            font-weight: 400;
-            color: var(--text-primary);
-            transition: color 0.3s;
-        }
-
-        .faq-item:hover .faq-question {
-            color: var(--gold);
-        }
-
-        .faq-toggle {
-            width: 30px;
-            height: 30px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: rgba(255, 215, 0, 0.1);
-            color: var(--gold);
-            font-size: 20px;
-            border-radius: 50%;
-            transition: all 0.3s;
-            flex-shrink: 0;
-        }
-
-        .faq-answer {
-            margin-top: 20px;
-            padding-right: 50px;
-            font-size: 14px;
-            color: var(--text-secondary);
-            line-height: 1.8;
-            display: none;
-        }
-
-        .faq-item.active .faq-answer {
-            display: block;
-            animation: fadeIn 0.3s ease;
-        }
-
-        .faq-item.active .faq-toggle {
-            transform: rotate(45deg);
-            background: var(--gold);
-            color: var(--pure-black);
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .highlight {
-            color: var(--gold);
-            font-weight: 500;
-        }
-
-        /* Quick Links */
-        .quick-links {
-            padding: 80px 50px;
-            background: var(--dark-surface);
-            text-align: center;
-        }
-
-        .links-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            max-width: 1000px;
-            margin: 40px auto 0;
-        }
-
-        .quick-link-card {
-            padding: 30px;
-            background: var(--pure-black);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            text-decoration: none;
-            color: var(--text-primary);
-            transition: all 0.3s;
-        }
-
-        .quick-link-card:hover {
-            transform: translateY(-5px);
-            border-color: var(--gold);
-        }
-
-        .link-icon {
-            font-size: 32px;
-            margin-bottom: 15px;
-            opacity: 0.5;
-        }
-
-        .link-title {
-            font-size: 16px;
-            font-weight: 400;
-            text-transform: uppercase;
-            margin-bottom: 10px;
-        }
-
-        .link-desc {
-            font-size: 12px;
-            color: var(--text-secondary);
-        }
-
-        /* CTA Section */
-        .cta-section {
-            padding: 100px 50px;
-            text-align: center;
-            background: radial-gradient(circle at center, rgba(255, 215, 0, 0.05) 0%, transparent 60%);
-        }
-
-        .cta-title {
-            font-size: clamp(36px, 6vw, 64px);
-            font-weight: 100;
-            text-transform: uppercase;
-            margin-bottom: 30px;
-        }
-
-        .cta-buttons {
-            display: flex;
-            gap: 20px;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-
-        .btn-primary {
-            padding: 20px 60px;
-            background: var(--gold);
-            color: var(--pure-black);
-            text-decoration: none;
-            font-size: 14px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            transition: all 0.3s;
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 20px 40px rgba(255, 215, 0, 0.3);
-        }
-
-        /* Mobile */
-        @media (max-width: 768px) {
-            nav {
-                padding: 20px;
-            }
-
-            .faq-hero {
-                padding: 120px 20px 40px;
-            }
-
-            .categories-section {
-                padding: 40px 20px;
-            }
-
-            .category-tabs {
-                gap: 10px;
-            }
-
-            .category-tab {
-                padding: 10px 20px;
-                font-size: 11px;
-            }
-
-            .faq-answer {
-                padding-right: 20px;
-            }
-
-            .links-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-    </style>
+<!-- FAQ Schema -->
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"What is BOOM?","acceptedAnswer":{"@type":"Answer","text":"BOOM is a premium mid-term rental platform (3–24 months) in Rome operated by Egidi Immobiliare S.r.l."}},{"@type":"Question","name":"What's the Property Finding Service?","acceptedAnswer":{"@type":"Answer","text":"For €350, we search the entire Rome market for your perfect apartment with a 98% success rate. Full refund if we don't deliver."}},{"@type":"Question","name":"How much do I pay upfront?","acceptedAnswer":{"@type":"Answer","text":"First month rent + 2 months deposit + BOOM commission (1 month rent or 10% annual, whichever is lower)."}},{"@type":"Question","name":"How fast can I move in?","acceptedAnswer":{"@type":"Answer","text":"48 hours from application approval. Record: 6 hours for emergency relocation."}}]}
+</script>
 </head>
 <body>
-    <!-- Navigation -->
-    <nav>
-        <div class="nav-container">
-            <a href="/index.html" class="logo">
-                <div class="logo-circle"></div>
-                <span class="logo-text">BOOM</span>
-            </a>
-        </div>
-    </nav>
 
-    <!-- Hero Section -->
-    <section class="faq-hero">
-        <h1>
-            Questions?<br>
-            <span class="gold-accent">We've got answers.</span>
-        </h1>
-        
-        <p class="hero-subtitle">
-            Everything you need to know about renting with BOOM.
-            Can't find your answer? WhatsApp us anytime.
-        </p>
-    </section>
+<!-- Canvas Background -->
+<canvas id="geoCanvas"></canvas>
 
-    <!-- Search Bar -->
-    <section class="search-section">
-        <div class="search-container">
-            <input type="text" class="search-input" placeholder="Search for answers..." id="searchInput">
-            <span class="search-icon">🔍</span>
-        </div>
-    </section>
+<!-- Scroll Progress -->
+<div class="scroll-progress" id="scrollProgress"></div>
 
-    <!-- Categories -->
-    <section class="categories-section">
-        <div class="categories-container">
-            <div class="category-tabs">
-                <button class="category-tab active" onclick="filterCategory('all')">All Topics</button>
-                <button class="category-tab" onclick="filterCategory('getting-started')">Getting Started</button>
-                <button class="category-tab" onclick="filterCategory('payments')">Payments</button>
-                <button class="category-tab" onclick="filterCategory('process')">Process</button>
-                <button class="category-tab" onclick="filterCategory('support')">Support</button>
-            </div>
+<!-- Spotlight Overlay -->
+<div class="spot-overlay" id="spotOverlay">
+<div class="spot" id="spot">
+  <div class="spot-input-wrap">
+    <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input class="spot-input" id="spotInput" type="text" placeholder="Search any question..." autocomplete="off">
+    <span class="spot-esc">ESC</span>
+  </div>
+  <div class="spot-results" id="spotResults"></div>
+</div>
+</div>
 
-            <div class="faq-list">
-                <!-- Getting Started -->
-                <div class="faq-category" data-category="getting-started">
-                    <h2 class="category-title">Getting Started</h2>
-                    
-                    <div class="faq-item">
-                        <div class="faq-question">
-                            How does BOOM actually work?
-                            <span class="faq-toggle">+</span>
-                        </div>
-                        <div class="faq-answer">
-                            BOOM is simple: <span class="highlight">Browse video-verified apartments → Apply online → Move in within 48 hours.</span> 
-                            We've eliminated all the traditional bullshit. No agency visits, no hidden fees, no waiting weeks. 
-                            Everything is transparent, fast, and guaranteed. We handle all paperwork, utilities setup, and provide 24/7 support throughout your stay.
-                        </div>
-                    </div>
+<!-- Toast -->
+<div class="toast" id="toast">Link copied</div>
 
-                    <div class="faq-item">
-                        <div class="faq-question">
-                            Why is BOOM different from other agencies?
-                            <span class="faq-toggle">+</span>
-                        </div>
-                        <div class="faq-answer">
-                            Traditional agencies take 45+ days, charge hidden fees, and disappear after signing. 
-                            <span class="highlight">BOOM guarantees 48-hour move-in, zero hidden fees, and 24/7 WhatsApp support.</span> 
-                            Every apartment has a 360° video tour, all prices are final, and we actually answer at 3am. 
-                            We built this because we suffered through Rome's rental nightmare ourselves.
-                        </div>
-                    </div>
+<!-- ═══ NAV ═══ -->
+<nav id="nav">
+  <a href="https://boomrome.com" class="nav-logo">
+    <svg viewBox="0 0 1024 1024" width="36" height="36">
+      <defs><linearGradient id="gN" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#FFD54F"/><stop offset="100%" stop-color="#F5A623"/></linearGradient></defs>
+      <rect width="1024" height="1024" fill="transparent" rx="200"/>
+      <g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#gN)"><path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z m610 -144 c743 -103 1436 -459 1919 -985 338 -367 562 -751 704 -1205 276 -879 132 -1858 -388 -2640 -242 -364 -493 -615 -900 -900 l-70 -49 109 104 c413 396 679 919 767 1505 33 217 33 558 0 765 -75 476 -257 896 -549 1265 -127 161 -363 380 -549 511 -300 211 -689 363 -1079 420 -172 26 -604 26 -764 0 -296 -47 -545 -128 -808 -262 -236 -122 -440 -271 -632 -464 -486 -485 -749 -1121 -751 -1815 -1 -611 170 -1148 515 -1608 100 -134 286 -335 382 -413 33 -27 -8 -2 -91 55 -513 351 -904 805 -1143 1331 -71 156 -136 336 -168 465 -9 33 -19 76 -24 95 -5 19 -20 100 -34 180 -59 343 -60 740 0 1070 81 456 229 826 479 1200 246 368 558 669 949 917 386 245 881 418 1321 462 61 6 124 13 140 15 73 10 556 -4 665 -19z m-60 -1329 c105 -16 258 -49 335 -72 82 -26 197 -66 240 -84 149 -65 190 -84 266 -126 677 -379 1129 -1049 1246 -1849 27 -182 24 -517 -5 -695 -75 -458 -225 -813 -500 -1179 -116 -154 -340 -369 -527 -506 -44 -32 -87 -63 -95 -69 -8 -6 35 39 96 99 178 177 283 321 397 550 161 322 231 676 205 1045 -32 467 -223 902 -542 1237 -239 251 -521 426 -873 542 -79 26 -273 67 -383 81 -108 13 -349 13 -465 0 -276 -32 -597 -145 -834 -293 -224 -140 -466 -378 -613 -602 -307 -470 -407 -1055 -273 -1599 80 -327 217 -589 454 -871 71 -84 73 -88 31 -56 -293 225 -547 535 -718 877 -34 68 -65 143 -122 294 -42 112 -101 383 -120 555 -14 127 -14 401 0 534 51 482 223 912 516 1288 269 344 654 620 1085 778 160 59 400 115 574 134 121 13 508 5 625 -13z m-30 -1165 c401 -81 721 -242 992 -499 643 -612 769 -1607 300 -2367 -118 -190 -291 -386 -463 -524 -137 -111 -148 -113 -49 -12 110 112 206 248 275 386 67 137 98 222 132 367 24 103 26 132 27 323 0 182 -3 224 -22 310 -47 211 -126 394 -245 569 -126 186 -358 387 -564 490 -384 191 -823 225 -1218 95 -482 -160 -854 -541 -1004 -1029 -117 -379 -81 -810 96 -1165 37 -72 130 -215 166 -252 17 -18 26 -33 20 -33 -6 0 -61 52 -121 116 -259 272 -424 575 -511 934 -111 459 -18 1006 245 1430 298 483 791 797 1379 880 110 16 448 4 565 -19z m-239 -911 c360 -28 680 -171 925 -415 194 -193 317 -415 382 -688 24 -102 26 -130 26 -312 0 -191 -1 -205 -30 -320 -53 -205 -132 -372 -251 -535 -58 -79 -263 -288 -323 -330 -31 -22 -29 -18 18 35 195 220 312 519 312 795 0 325 -121 614 -350 841 -369 364 -926 453 -1385 222 -336 -170 -578 -499 -636 -865 -19 -126 -7 -371 25 -490 44 -162 97 -284 173 -398 9 -14 -4 -5 -30 20 -26 24 -45 51 -42 58 2 7 1 11 -4 7 -11 -6 -58 51 -118 140 -109 163 -183 347 -219 545 -23 127 -23 351 -1 489 55 335 248 677 492 871 261 208 530 311 881 338 11 1 81 -3 155 -8z m29 -714 c459 -74 823 -428 895 -869 58 -358 -60 -696 -345 -987 l-34 -35 22 35 c115 182 179 403 168 575 -14 235 -104 433 -268 591 -137 134 -287 209 -472 239 -115 19 -187 19 -303 0 -337 -55 -612 -302 -704 -635 -32 -113 -34 -325 -5 -440 23 -92 70 -213 98 -254 l21 -31 -31 29 c-39 36 -120 152 -155 221 -35 71 -81 215 -102 319 -25 130 -17 357 17 476 102 354 357 618 706 730 152 49 331 62 492 36z m-73 -567 c178 -24 327 -101 454 -236 137 -143 199 -303 201 -513 1 -162 -42 -309 -135 -453 -52 -82 -73 -97 -38 -28 51 99 67 290 36 412 -57 219 -251 413 -466 464 -75 17 -236 20 -311 4 -213 -44 -422 -247 -473 -460 -31 -133 -13 -325 41 -431 35 -70 8 -47 -52 43 -58 88 -90 167 -114 286 -25 121 -25 220 -1 331 33 146 84 243 186 351 171 183 413 266 672 230z m15 -470 c80 -17 186 -76 248 -139 106 -107 158 -248 147 -398 -6 -92 -25 -152 -79 -250 -45 -82 -60 -91 -27 -17 18 41 21 62 17 149 -4 89 -8 108 -35 162 -43 82 -126 165 -209 205 -58 29 -80 34 -158 37 -112 5 -184 -12 -259 -62 -182 -121 -251 -323 -171 -506 l24 -55 -25 30 c-36 44 -92 162 -104 223 -39 189 14 369 146 492 105 99 204 139 345 139 48 1 111 -4 140 -10z"/></g>
+    </svg>
+    <span>BOOM</span>
+  </a>
+  <div class="nav-links">
+    <a href="https://boomrome.com">Home</a>
+    <a href="https://boomrome.com/apartments">Apartments</a>
+    <a href="https://boomrome.com/pfs">PFS</a>
+    <a href="https://boomrome.com/blog">Blog</a>
+    <span class="nav-kbd" onclick="openSpot()">⌘K</span>
+  </div>
+  <button class="burger" onclick="document.querySelector('.nav-links').classList.toggle('mob-open')">
+    <svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+  </button>
+</nav>
 
-                    <div class="faq-item">
-                        <div class="faq-question">
-                            Is this legitimate? Sounds too good to be true.
-                            <span class="faq-toggle">+</span>
-                        </div>
-                        <div class="faq-answer">
-                            We get it. Rome rentals are usually scams. <span class="highlight">BOOM is operated by Egidi Immobiliare S.r.l. 
-                            (P.IVA 17322991005)</span>, a registered Italian real estate company. We have 500+ happy tenants, 
-                            a physical office in Centro Storico, and you can verify our registration with the Rome Chamber of Commerce. 
-                            Plus, we use Stripe for payments - you're protected.
-                        </div>
-                    </div>
+<!-- ═══ HERO ═══ -->
+<section class="hero">
+  <svg class="hero-logo" viewBox="0 0 1024 1024" width="120" height="120">
+    <defs><linearGradient id="gH" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#FFD54F"/><stop offset="100%" stop-color="#F5A623"/></linearGradient></defs>
+    <g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#gH)"><path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z m610 -144 c743 -103 1436 -459 1919 -985 338 -367 562 -751 704 -1205 276 -879 132 -1858 -388 -2640 -242 -364 -493 -615 -900 -900 l-70 -49 109 104 c413 396 679 919 767 1505 33 217 33 558 0 765 -75 476 -257 896 -549 1265 -127 161 -363 380 -549 511 -300 211 -689 363 -1079 420 -172 26 -604 26 -764 0 -296 -47 -545 -128 -808 -262 -236 -122 -440 -271 -632 -464 -486 -485 -749 -1121 -751 -1815 -1 -611 170 -1148 515 -1608 100 -134 286 -335 382 -413 33 -27 -8 -2 -91 55 -513 351 -904 805 -1143 1331 -71 156 -136 336 -168 465 -9 33 -19 76 -24 95 -5 19 -20 100 -34 180 -59 343 -60 740 0 1070 81 456 229 826 479 1200 246 368 558 669 949 917 386 245 881 418 1321 462 61 6 124 13 140 15 73 10 556 -4 665 -19z m-60 -1329 c105 -16 258 -49 335 -72 82 -26 197 -66 240 -84 149 -65 190 -84 266 -126 677 -379 1129 -1049 1246 -1849 27 -182 24 -517 -5 -695 -75 -458 -225 -813 -500 -1179 -116 -154 -340 -369 -527 -506 -44 -32 -87 -63 -95 -69 -8 -6 35 39 96 99 178 177 283 321 397 550 161 322 231 676 205 1045 -32 467 -223 902 -542 1237 -239 251 -521 426 -873 542 -79 26 -273 67 -383 81 -108 13 -349 13 -465 0 -276 -32 -597 -145 -834 -293 -224 -140 -466 -378 -613 -602 -307 -470 -407 -1055 -273 -1599 80 -327 217 -589 454 -871 71 -84 73 -88 31 -56 -293 225 -547 535 -718 877 -34 68 -65 143 -122 294 -42 112 -101 383 -120 555 -14 127 -14 401 0 534 51 482 223 912 516 1288 269 344 654 620 1085 778 160 59 400 115 574 134 121 13 508 5 625 -13z m-30 -1165 c401 -81 721 -242 992 -499 643 -612 769 -1607 300 -2367 -118 -190 -291 -386 -463 -524 -137 -111 -148 -113 -49 -12 110 112 206 248 275 386 67 137 98 222 132 367 24 103 26 132 27 323 0 182 -3 224 -22 310 -47 211 -126 394 -245 569 -126 186 -358 387 -564 490 -384 191 -823 225 -1218 95 -482 -160 -854 -541 -1004 -1029 -117 -379 -81 -810 96 -1165 37 -72 130 -215 166 -252 17 -18 26 -33 20 -33 -6 0 -61 52 -121 116 -259 272 -424 575 -511 934 -111 459 -18 1006 245 1430 298 483 791 797 1379 880 110 16 448 4 565 -19z m-239 -911 c360 -28 680 -171 925 -415 194 -193 317 -415 382 -688 24 -102 26 -130 26 -312 0 -191 -1 -205 -30 -320 -53 -205 -132 -372 -251 -535 -58 -79 -263 -288 -323 -330 -31 -22 -29 -18 18 35 195 220 312 519 312 795 0 325 -121 614 -350 841 -369 364 -926 453 -1385 222 -336 -170 -578 -499 -636 -865 -19 -126 -7 -371 25 -490 44 -162 97 -284 173 -398 9 -14 -4 -5 -30 20 -26 24 -45 51 -42 58 2 7 1 11 -4 7 -11 -6 -58 51 -118 140 -109 163 -183 347 -219 545 -23 127 -23 351 -1 489 55 335 248 677 492 871 261 208 530 311 881 338 11 1 81 -3 155 -8z m29 -714 c459 -74 823 -428 895 -869 58 -358 -60 -696 -345 -987 l-34 -35 22 35 c115 182 179 403 168 575 -14 235 -104 433 -268 591 -137 134 -287 209 -472 239 -115 19 -187 19 -303 0 -337 -55 -612 -302 -704 -635 -32 -113 -34 -325 -5 -440 23 -92 70 -213 98 -254 l21 -31 -31 29 c-39 36 -120 152 -155 221 -35 71 -81 215 -102 319 -25 130 -17 357 17 476 102 354 357 618 706 730 152 49 331 62 492 36z m-73 -567 c178 -24 327 -101 454 -236 137 -143 199 -303 201 -513 1 -162 -42 -309 -135 -453 -52 -82 -73 -97 -38 -28 51 99 67 290 36 412 -57 219 -251 413 -466 464 -75 17 -236 20 -311 4 -213 -44 -422 -247 -473 -460 -31 -133 -13 -325 41 -431 35 -70 8 -47 -52 43 -58 88 -90 167 -114 286 -25 121 -25 220 -1 331 33 146 84 243 186 351 171 183 413 266 672 230z m15 -470 c80 -17 186 -76 248 -139 106 -107 158 -248 147 -398 -6 -92 -25 -152 -79 -250 -45 -82 -60 -91 -27 -17 18 41 21 62 17 149 -4 89 -8 108 -35 162 -43 82 -126 165 -209 205 -58 29 -80 34 -158 37 -112 5 -184 -12 -259 -62 -182 -121 -251 -323 -171 -506 l24 -55 -25 30 c-36 44 -92 162 -104 223 -39 189 14 369 146 492 105 99 204 139 345 139 48 1 111 -4 140 -10z"/></g>
+  </svg>
+  <h1>Your questions.<br><em>Answered.</em></h1>
+  <p>Everything you need to know about renting in Rome — no fluff, no runaround. Just straight answers.</p>
 
-                    <div class="faq-item">
-                        <div class="faq-question">
-                            Who can rent with BOOM?
-                            <span class="faq-toggle">+</span>
-                        </div>
-                        <div class="faq-answer">
-                            Anyone looking for 3-24 month rentals in Rome. <span class="highlight">International professionals, 
-                            students, digital nomads, relocating families.</span> You need: valid ID/passport, proof of income 
-                            (employment contract, bank statements, or sponsor letter), and ability to pay first month + deposit. 
-                            We have a 95% approval rate for internationals.
-                        </div>
-                    </div>
-                </div>
+  <div class="search-wrap">
+    <div class="search-bar">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input id="searchInput" type="text" placeholder="Type a question..." autocomplete="off">
+      <span class="search-count" id="searchCount">38 answers</span>
+    </div>
+  </div>
 
-                <!-- Payments -->
-                <div class="faq-category" data-category="payments">
-                    <h2 class="category-title">Payments & Fees</h2>
-                    
-                    <div class="faq-item">
-                        <div class="faq-question">
-                            What are the actual costs?
-                            <span class="faq-toggle">+</span>
-                        </div>
-                        <div class="faq-answer">
-                            <span class="highlight">Total upfront: First month rent + 2 months deposit + BOOM fee (1 month).</span> 
-                            That's it. No agency fees, no surprise charges, no "administration costs". 
-                            For a €1,800/month apartment: €1,800 (first month) + €3,600 (deposit) + €1,800 (BOOM fee) = €7,200 total. 
-                            The deposit is fully refundable. Utilities are included in most properties.
-                        </div>
-                    </div>
+  <div class="trust">
+    <div class="trust-item"><div class="trust-num" data-target="500">0</div><div class="trust-label">Tenants placed</div></div>
+    <div class="trust-item"><div class="trust-num" data-target="98">0</div><div class="trust-label">% Success rate</div></div>
+    <div class="trust-item"><div class="trust-num" data-target="48">0</div><div class="trust-label">Hour move-in</div></div>
+    <div class="trust-item"><div class="trust-num" data-target="2">0</div><div class="trust-label">Min response</div></div>
+  </div>
+</section>
 
-                    <div class="faq-item">
-                        <div class="faq-question">
-                            How do I pay rent?
-                            <span class="faq-toggle">+</span>
-                        </div>
-                        <div class="faq-answer">
-                            <span class="highlight">Bank transfer or Stripe (cards accepted).</span> Rent is due on the 1st of each month. 
-                            We send reminders 5 days before. You can set up automatic payments through your dashboard. 
-                            Late payment? We WhatsApp you immediately - no surprise fees if you communicate with us.
-                        </div>
-                    </div>
+<!-- ═══ TABS ═══ -->
+<div class="tabs-wrap">
+<div class="tabs" id="tabs">
+  <div class="tab active" data-cat="all">All<span class="tab-count">38</span></div>
+  <div class="tab" data-cat="general">General<span class="tab-count">5</span></div>
+  <div class="tab" data-cat="pfs">Property Finding<span class="tab-count">10</span></div>
+  <div class="tab" data-cat="booking">Booking<span class="tab-count">5</span></div>
+  <div class="tab" data-cat="payments">Payments<span class="tab-count">4</span></div>
+  <div class="tab" data-cat="moving">Moving In<span class="tab-count">3</span></div>
+  <div class="tab" data-cat="living">Living<span class="tab-count">4</span></div>
+  <div class="tab" data-cat="services">Services<span class="tab-count">4</span></div>
+  <div class="tab" data-cat="owners">For Owners<span class="tab-count">3</span></div>
+</div>
+</div>
 
-                    <div class="faq-item">
-                        <div class="faq-question">
-                            When do I get my deposit back?
-                            <span class="faq-toggle">+</span>
-                        </div>
-                        <div class="faq-answer">
-                            <span class="highlight">Within 14 days of move-out</span>, after final inspection. We do the inspection together 
-                            via video call - full transparency. Normal wear is expected and fine. We only deduct for actual damage 
-                            beyond normal use. 98% of our tenants get their full deposit back.
-                        </div>
-                    </div>
+<!-- ═══ FAQ CARDS ═══ -->
+<section class="faq-section" id="faqSection">
 
-                    <div class="faq-item">
-                        <div class="faq-question">
-                            Are utilities really included?
-                            <span class="faq-toggle">+</span>
-                        </div>
-                        <div class="faq-answer">
-                            <span class="highlight">Yes, in 90% of our apartments.</span> This includes electricity, water, gas, internet, 
-                            and condo fees up to €200/month. If you exceed this (rare), we'll show you the actual bills and charge 
-                            only the difference. For properties without utilities included, it's clearly stated upfront.
-                        </div>
-                    </div>
-                </div>
+<!-- ── GENERAL ── -->
+<div class="group-head" data-g="general">About BOOM</div>
 
-                <!-- Process -->
-                <div class="faq-category" data-category="process">
-                    <h2 class="category-title">The Process</h2>
-                    
-                    <div class="faq-item">
-                        <div class="faq-question">
-                            How fast can I really move in?
-                            <span class="faq-toggle">+</span>
-                        </div>
-                        <div class="faq-answer">
-                            <span class="highlight">48 hours from application approval.</span> Apply today, approved tomorrow, 
-                            keys in hand the day after. Record: 6 hours (emergency relocation from USA). 
-                            Average: 2-3 days. This includes contract signing, payment, and check-in. 
-                            We work weekends and holidays too.
-                        </div>
-                    </div>
+<div class="q-card reveal" id="q-what-is-boom" data-cat="general">
+  <button class="q-share" title="Copy link"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
+  <div class="q-head"><div class="q-head-content"><h3>What is BOOM?</h3><div class="q-teaser">Premium mid-term rental platform, 3–24 months in Rome…</div></div><span class="q-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span></div>
+  <div class="q-body"><div class="q-body-inner"><div class="q-content">
+    BOOM is a premium mid-term rental platform <strong>(3–24 months)</strong> in Rome. We verify every property, handle all paperwork, and provide 24/7 support throughout your stay. Operated by <strong>Egidi Immobiliare S.r.l.</strong> — a licensed Italian real estate agency. Fully legal, fully insured, fully transparent.
+    <div class="q-related"><div class="q-related-label">Related</div><a data-goto="q-legitimate">Is BOOM legitimate?</a><a data-goto="q-why-boom">Why choose BOOM?</a></div>
+  </div></div></div>
+</div>
 
-                    <div class="faq-item">
-                        <div class="faq-question">
-                            What documents do I need?
-                            <span class="faq-toggle">+</span>
-                        </div>
-                        <div class="faq-answer">
-                            Required: <span class="highlight">1) Passport/ID, 2) Proof of income (last 3 payslips or bank statements 
-                            showing 3x rent amount), 3) Employment contract or university enrollment.</span> 
-                            Optional but helpful: Previous rental references, Italian codice fiscale (we can help you get one). 
-                            Students can use sponsor letters from parents.
-                        </div>
-                    </div>
+<div class="q-card reveal" id="q-why-boom" data-cat="general">
+  <button class="q-share" title="Copy link"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
+  <div class="q-head"><div class="q-head-content"><h3>Why choose BOOM over other platforms?</h3><div class="q-teaser">Video-verified apartments, 24/7 support, zero hidden fees…</div></div><span class="q-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span></div>
+  <div class="q-body"><div class="q-body-inner"><div class="q-content">
+    Every apartment is <strong>video-verified</strong> — no catfishing. 24/7 English & Italian support, transparent pricing with zero hidden fees, professional contracts, and we handle everything from paperwork to utilities. Average placement: <strong>8 days</strong> vs. the 45-day market average. <span class="badge badge-gold">98% success rate</span>
+  </div></div></div>
+</div>
 
-                    <div class="faq-item">
-                        <div class="faq-question">
-                            Can I visit apartments before deciding?
-                            <span class="faq-toggle">+</span>
-                        </div>
-                        <div class="faq-answer">
-                            <span class="highlight">Yes, but our 360° video tours show everything.</span> 
-                            Physical viewings available daily 10am-7pm, including weekends. WhatsApp us to schedule. 
-                            But honestly? Our videos show more than you'd see in person - we film inside closets, 
-                            under sinks, every corner. No catfishing possible.
-                        </div>
-                    </div>
+<div class="q-card reveal" id="q-legitimate" data-cat="general">
+  <button class="q-share" title="Copy link"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
+  <div class="q-head"><div class="q-head-content"><h3>Is BOOM legitimate? How can I verify?</h3><div class="q-teaser">P.IVA 17322991005, REA RM-1710623, 500+ tenants, 4.9★…</div></div><span class="q-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span></div>
+  <div class="q-body"><div class="q-body-inner"><div class="q-content">
+    <strong>Egidi Immobiliare S.r.l.</strong> — P.IVA 17322991005, REA RM-1710623. Registered with the Rome Chamber of Commerce. Stripe for secure payments. 500+ tenants placed, 4.9★ on Google with 47 verified reviews. <span class="badge badge-green">✓ Verified Agency</span>
+  </div></div></div>
+</div>
 
-                    <div class="faq-item">
-                        <div class="faq-question">
-                            What if I need to leave early?
-                            <span class="faq-toggle">+</span>
-                        </div>
-                        <div class="faq-answer">
-                            Life happens. <span class="highlight">Give us 60 days notice and we'll work with you.</span> 
-                            We'll help find a replacement tenant. If we find someone, you can leave earlier without penalty. 
-                            For job loss or medical emergencies, we have special provisions. Just talk to us - we're human.
-                        </div>
-                    </div>
-                </div>
+<div class="q-card reveal" id="q-areas" data-cat="general">
+  <button class="q-share" title="Copy link"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
+  <div class="q-head"><div class="q-head-content"><h3>What areas of Rome do you cover?</h3><div class="q-teaser">Trieste, Pigneto, Trastevere, Prati, Monti, San Lorenzo…</div></div><span class="q-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span></div>
+  <div class="q-body"><div class="q-body-inner"><div class="q-content">
+    Premium central neighborhoods: <strong>Trieste, Pigneto, Historic Center, Trastevere, Prati, Monti, San Lorenzo</strong>, and surrounding areas. Need something specific? Our Property Finding Service searches the entire Rome market — including off-market properties.
+    <div class="q-related"><div class="q-related-label">Related</div><a data-goto="q-pfs-what">What's the Property Finding Service?</a></div>
+  </div></div></div>
+</div>
 
-                <!-- Support -->
-                <div class="faq-category" data-category="support">
-                    <h2 class="category-title">Living & Support</h2>
-                    
-                    <div class="faq-item">
-                        <div class="faq-question">
-                            What if something breaks?
-                            <span class="faq-toggle">+</span>
-                        </div>
-                        <div class="faq-answer">
-                            <span class="highlight">WhatsApp us. We fix it within 24 hours.</span> 
-                            Emergency repairs (no hot water, electricity issues, lockouts): 2 hours maximum response. 
-                            Non-urgent repairs: next business day. We have contracts with plumbers, electricians, 
-                            and handymen on call 24/7. You pay nothing for normal maintenance.
-                        </div>
-                    </div>
+<div class="q-card reveal" id="q-who-rent" data-cat="general">
+  <button class="q-share" title="Copy link"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
+  <div class="q-head"><div class="q-head-content"><h3>Who can rent with BOOM?</h3><div class="q-teaser">Professionals, students, digital nomads — 95% approval rate…</div></div><span class="q-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span></div>
+  <div class="q-body"><div class="q-body-inner"><div class="q-content">
+    Anyone looking for 3–24 month rentals in Rome. International professionals, students, digital nomads, relocating families. You need a <strong>valid ID/passport</strong>, <strong>proof of income</strong>, and the ability to pay first month + deposit. 95% approval rate for internationals.
+  </div></div></div>
+</div>
 
-                    <div class="faq-item">
-                        <div class="faq-question">
-                            Do you really answer at 3am?
-                            <span class="faq-toggle">+</span>
-                        </div>
-                        <div class="faq-answer">
-                            <span class="highlight">Yes. Valentino's phone is always on.</span> 
-                            Locked out at 3am? We'll get you in. Pipe burst on Sunday? Plumber arrives in 1 hour. 
-                            Can't figure out the heating? Video call us. Average WhatsApp response time: 2 minutes. 
-                            This isn't marketing bullshit - ask any of our tenants.
-                        </div>
-                    </div>
+<!-- ── PROPERTY FINDING SERVICE ── -->
+<div class="group-head" data-g="pfs">Property Finding Service</div>
 
-                    <div class="faq-item">
-                        <div class="faq-question">
-                            Can you help with residence permits?
-                            <span class="faq-toggle">+</span>
-                        </div>
-                        <div class="faq-answer">
-                            <span class="highlight">Yes. €150 and we handle everything.</span> 
-                            We'll prepare documents, book appointments, and even accompany you if needed. 
-                            This includes: residence permit, codice fiscale, SPID digital identity, and health card registration. 
-                            We know the system inside out - what takes others months, we do in days.
-                        </div>
-                    </div>
+<div class="q-card reveal" id="q-pfs-what" data-cat="pfs">
+  <button class="q-share" title="Copy link"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
+  <div class="q-head"><div class="q-head-content"><h3>What's the Property Finding Service?</h3><div class="q-teaser">€350 — we search the entire Rome market for your ideal apartment…</div></div><span class="q-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span></div>
+  <div class="q-body"><div class="q-body-inner"><div class="q-content">
+    For <strong>€350</strong>, we search the entire Rome market for your perfect apartment — including off-market properties other agencies can't access. 5+ curated options within 10 days, with video tours and rent negotiation. <span class="badge badge-gold">98% success rate</span> — if we don't deliver, you pay nothing.
+    <div class="q-related"><div class="q-related-label">Related</div><a data-goto="q-pfs-how">How does PFS work?</a><a data-goto="q-pfs-guarantee">What if you don't find anything?</a></div>
+  </div></div></div>
+</div>
 
-                    <div class="faq-item">
-                        <div class="faq-question">
-                            What about cleaning and maintenance?
-                            <span class="faq-toggle">+</span>
-                        </div>
-                        <div class="faq-answer">
-                            Optional services: <span class="highlight">Weekly cleaning €60/month, laundry service €30/load, 
-                            grocery delivery setup, plant care.</span> All apartments are professionally cleaned before move-in. 
-                            You're responsible for keeping it clean during your stay. Final cleaning can be arranged for €100 
-                            or do it yourself.
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
+<div class="q-card reveal" id="q-pfs-how" data-cat="pfs">
+  <button class="q-share" title="Copy link"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
+  <div class="q-head"><div class="q-head-content"><h3>How does the PFS process work?</h3><div class="q-teaser">Tell us what you want → we search → present 5+ options → you choose…</div></div><span class="q-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span></div>
+  <div class="q-body"><div class="q-body-inner"><div class="q-content">
+    <strong>1.</strong> Fill out your requirements (budget, neighborhood, size, move-in date). <strong>2.</strong> Pay the €350 service fee. <strong>3.</strong> We search across 50+ sources including private landlord networks. <strong>4.</strong> Receive 5+ curated options with video tours within 10 days. <strong>5.</strong> Choose your apartment. <strong>6.</strong> We handle contract, negotiation, and move-in.
+  </div></div></div>
+</div>
 
-    <!-- Quick Links -->
-    <section class="quick-links">
-        <h2 style="font-size: 24px; font-weight: 300; margin-bottom: 20px;">Still Need Help?</h2>
-        
-        <div class="links-grid">
-            <a href="/contact.html" class="quick-link-card">
-                <div class="link-icon">💬</div>
-                <div class="link-title">WhatsApp Us</div>
-                <div class="link-desc">2-minute response time</div>
-            </a>
-            
-            <a href="/apartments.html" class="quick-link-card">
-                <div class="link-icon">🏠</div>
-                <div class="link-title">View Apartments</div>
-                <div class="link-desc">18 available now</div>
-            </a>
-            
-            <a href="/pfs.html" class="quick-link-card">
-                <div class="link-icon">🔍</div>
-                <div class="link-title">Property Finding</div>
-                <div class="link-desc">Custom search service</div>
-            </a>
-            
-            <a href="/owner.html" class="quick-link-card">
-                <div class="link-icon">🔑</div>
-                <div class="link-title">List Your Property</div>
-                <div class="link-desc">For landlords</div>
-            </a>
-        </div>
-    </section>
+<div class="q-card reveal" id="q-pfs-guarantee" data-cat="pfs">
+  <button class="q-share" title="Copy link"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
+  <div class="q-head"><div class="q-head-content"><h3>What if you don't find me an apartment?</h3><div class="q-teaser">Full refund. 98% success rate, but if we fail, you pay nothing…</div></div><span class="q-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span></div>
+  <div class="q-body"><div class="q-body-inner"><div class="q-content">
+    <strong>Full refund.</strong> If we can't present at least 3 options matching your criteria within 15 days, you get your €350 back — no questions asked. With a <strong>98% success rate</strong> across hundreds of searches, this almost never happens. We'd rather refund than disappoint.
+  </div></div></div>
+</div>
 
-    <!-- CTA Section -->
-    <section class="cta-section">
-        <h2 class="cta-title">
-            Ready to move?<br>
-            <span class="gold-accent">Let's go.</span>
-        </h2>
-        
-        <div class="cta-buttons">
-            <a href="/apartments.html" class="btn-primary">View Apartments</a>
-        </div>
-    </section>
+<div class="q-card reveal" id="q-pfs-sources" data-cat="pfs">
+  <button class="q-share" title="Copy link"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
+  <div class="q-head"><div class="q-head-content"><h3>Where do you search for properties?</h3><div class="q-teaser">50+ sources — Immobiliare.it, Idealista, private networks, landlord contacts…</div></div><span class="q-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span></div>
+  <div class="q-body"><div class="q-body-inner"><div class="q-content">
+    <strong>50+ sources</strong> simultaneously: Immobiliare.it, Idealista, Casa.it, Subito.it, Facebook groups, WhatsApp landlord networks, our private database of 200+ verified owners, and off-market properties from our agency network. AI-powered matching filters thousands of listings to find exactly what you need.
+  </div></div></div>
+</div>
 
-    <script>
-        // FAQ Toggle
-        document.querySelectorAll('.faq-item').forEach(item => {
-            item.addEventListener('click', function() {
-                // Close other items in same category
-                const category = this.closest('.faq-category');
-                category.querySelectorAll('.faq-item').forEach(otherItem => {
-                    if (otherItem !== this) {
-                        otherItem.classList.remove('active');
-                    }
-                });
-                
-                // Toggle current item
-                this.classList.toggle('active');
-            });
-        });
+<div class="q-card reveal" id="q-pfs-vs-own" data-cat="pfs">
+  <button class="q-share" title="Copy link"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
+  <div class="q-head"><div class="q-head-content"><h3>Why can't I just search myself?</h3><div class="q-teaser">You can — but 70% of expats get scammed or waste weeks…</div></div><span class="q-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span></div>
+  <div class="q-body"><div class="q-body-inner"><div class="q-content">
+    You absolutely can. But here's reality: <strong>70% of international renters</strong> encounter scams on their first search. The average self-search takes <strong>45 days</strong> and requires Italian language skills, in-person viewings, and understanding of Italian contract law. We do it in 10 days, in English, with legal protection. The €350 saves you weeks of stress.
+  </div></div></div>
+</div>
 
-        // Category Filter
-        function filterCategory(category) {
-            // Update tabs
-            document.querySelectorAll('.category-tab').forEach(tab => {
-                tab.classList.remove('active');
-            });
-            event.target.classList.add('active');
-            
-            // Show/hide categories
-            document.querySelectorAll('.faq-category').forEach(cat => {
-                if (category === 'all' || cat.dataset.category === category) {
-                    cat.style.display = 'block';
-                } else {
-                    cat.style.display = 'none';
-                }
-            });
-        }
+<div class="q-card reveal" id="q-pfs-budget" data-cat="pfs">
+  <button class="q-share" title="Copy link"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
+  <div class="q-head"><div class="q-head-content"><h3>What budget range does PFS cover?</h3><div class="q-teaser">€600–€3,000/month. Sweet spot: €900–€1,500 for a central 1-bed…</div></div><span class="q-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span></div>
+  <div class="q-body"><div class="q-body-inner"><div class="q-content">
+    <strong>€600 to €3,000+/month.</strong> Sweet spot in Rome: €900–€1,500 for a good 1-bedroom in a central neighborhood. Below €600 is rare and competitive. Above €2,000 opens premium penthouses and terraces. We'll always be honest about what's realistic for your budget.
+  </div></div></div>
+</div>
 
-        // Search Functionality
-        document.getElementById('searchInput').addEventListener('input', function(e) {
-            const searchTerm = e.target.value.toLowerCase();
-            
-            document.querySelectorAll('.faq-item').forEach(item => {
-                const question = item.querySelector('.faq-question').textContent.toLowerCase();
-                const answer = item.querySelector('.faq-answer').textContent.toLowerCase();
-                
-                if (question.includes(searchTerm) || answer.includes(searchTerm)) {
-                    item.style.display = 'block';
-                    // Highlight search term
-                    if (searchTerm.length > 2) {
-                        item.classList.add('active');
-                    }
-                } else {
-                    item.style.display = 'none';
-                }
-            });
-            
-            // Show all categories when searching
-            if (searchTerm.length > 0) {
-                document.querySelectorAll('.faq-category').forEach(cat => {
-                    cat.style.display = 'block';
-                });
-            }
-        });
-    </script>
+<div class="q-card reveal" id="q-pfs-remote" data-cat="pfs">
+  <button class="q-share" title="Copy link"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
+  <div class="q-head"><div class="q-head-content"><h3>Can PFS work entirely remotely?</h3><div class="q-teaser">100% remote — video tours, digital signing, online payment…</div></div><span class="q-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span></div>
+  <div class="q-body"><div class="q-body-inner"><div class="q-content">
+    <strong>100% yes.</strong> Over 40% of our PFS clients book before arriving in Rome. Detailed video tours of every option, digital contract signing, online payments. You can land in Rome and walk straight into your new home.
+  </div></div></div>
+</div>
+
+<div class="q-card reveal" id="q-pfs-timeline" data-cat="pfs">
+  <button class="q-share" title="Copy link"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
+  <div class="q-head"><div class="q-head-content"><h3>When should I start PFS before my move?</h3><div class="q-teaser">Ideally 2–4 weeks before. Emergency searches possible in 72h…</div></div><span class="q-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span></div>
+  <div class="q-body"><div class="q-body-inner"><div class="q-content">
+    <strong>Ideally 2–4 weeks before your target move-in date.</strong> That gives us the best range of options. But we've done emergency searches in as little as <strong>72 hours</strong> for urgent relocations. The Rome market moves fast — early birds get the best properties.
+  </div></div></div>
+</div>
+
+<div class="q-card reveal" id="q-pfs-negotiate" data-cat="pfs">
+  <button class="q-share" title="Copy link"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
+  <div class="q-head"><div class="q-head-content"><h3>Do you negotiate rent on my behalf?</h3><div class="q-teaser">Always. Average savings: €80/month off listed prices…</div></div><span class="q-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span></div>
+  <div class="q-body"><div class="q-body-inner"><div class="q-content">
+    <strong>Always.</strong> We negotiate rent, deposit terms, contract conditions, and included utilities. Average savings: <strong>€80/month</strong> off listed price. Italian landlords respond better to a licensed agency negotiating in Italian than to a foreign tenant asking via Google Translate.
+  </div></div></div>
+</div>
+
+<div class="q-card reveal" id="q-pfs-scam" data-cat="pfs">
+  <button class="q-share" title="Copy link"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
+  <div class="q-head"><div class="q-head-content"><h3>How does PFS protect me from scams?</h3><div class="q-teaser">4-layer verification — ownership, in-person visit, contract review, payment protection…</div></div><span class="q-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span></div>
+  <div class="q-body"><div class="q-body-inner"><div class="q-content">
+    Every listing goes through <strong>4-layer verification</strong>: <strong>1)</strong> Property ownership via public records. <strong>2)</strong> Physical apartment visit. <strong>3)</strong> Lawyer contract review. <strong>4)</strong> Tracked bank transfers — never cash. In Rome's rental market, <strong>this is your insurance policy.</strong>
+  </div></div></div>
+</div>
+
+<!-- ── BOOKING ── -->
+<div class="group-head" data-g="booking">Booking & Documents</div>
+
+<div class="q-card reveal" id="q-how-book" data-cat="booking">
+  <button class="q-share" title="Copy link"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
+  <div class="q-head"><div class="q-head-content"><h3>How do I book an apartment?</h3><div class="q-teaser">Browse → WhatsApp → view → apply → sign → move in 48–72h…</div></div><span class="q-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span></div>
+  <div class="q-body"><div class="q-body-inner"><div class="q-content">
+    Browse apartments on our site → WhatsApp us to schedule a viewing (video available) → Apply with basic documents → Sign contract & pay deposit → Move in within 48–72 hours. <strong>Total time: 2–5 days average.</strong>
+  </div></div></div>
+</div>
+
+<div class="q-card reveal" id="q-documents" data-cat="booking">
+  <button class="q-share" title="Copy link"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
+  <div class="q-head"><div class="q-head-content"><h3>What documents do I need?</h3><div class="q-teaser">ID/passport, proof of income (3× rent), employment or enrollment…</div></div><span class="q-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span></div>
+  <div class="q-body"><div class="q-body-inner"><div class="q-content">
+    <strong>Required:</strong> Valid ID or passport, proof of income (last 3 payslips or bank statements showing 3× rent), employment contract or university enrollment.<br><br><strong>Optional:</strong> Previous rental references, Italian codice fiscale (we help you get one). Students can use parent sponsor letters.
+  </div></div></div>
+</div>
+
+<div class="q-card reveal" id="q-book-abroad" data-cat="booking">
+  <button class="q-share" title="Copy link"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
+  <div class="q-head"><div class="q-head-content"><h3>Can I book from abroad?</h3><div class="q-teaser">100% yes — video tours, digital signing, online payment…</div></div><span class="q-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span></div>
+  <div class="q-body"><div class="q-body-inner"><div class="q-content">
+    <strong>100% yes.</strong> Video tours, digital contract signing, online payments via Stripe. We can even receive your mail and packages before you arrive. Over 40% of our tenants book before landing in Rome.
+  </div></div></div>
+</div>
+
+<div class="q-card reveal" id="q-visit-person" data-cat="booking">
+  <button class="q-share" title="Copy link"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
+  <div class="q-head"><div class="q-head-content"><h3>Can I visit apartments in person?</h3><div class="q-teaser">Daily 10am–7pm, weekends included. Video tours also available…</div></div><span class="q-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span></div>
+  <div class="q-body"><div class="q-body-inner"><div class="q-content">
+    <strong>Absolutely.</strong> Physical viewings daily 10am–7pm including weekends. WhatsApp us to schedule. Our 360° video tours show everything — inside closets, under sinks, every corner. No catfishing possible.
+  </div></div></div>
+</div>
+
+<div class="q-card reveal" id="q-contract-type" data-cat="booking">
+  <button class="q-share" title="Copy link"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
+  <div class="q-head"><div class="q-head-content"><h3>What type of contract do I sign?</h3><div class="q-teaser">Contratto transitorio (3–18mo) — registered, legal, protective…</div></div><span class="q-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span></div>
+  <div class="q-body"><div class="q-body-inner"><div class="q-content">
+    A <strong>contratto transitorio</strong> (transitory contract) for 3–18 months, or a <strong>canone concordato</strong> (agreed rent) for longer stays. Both registered with the Italian tax authority (Agenzia delle Entrate), giving you full legal protection. All contracts drafted in <strong>English and Italian</strong>.
+  </div></div></div>
+</div>
+
+<!-- ── PAYMENTS ── -->
+<div class="group-head" data-g="payments">Payments & Costs</div>
+
+<div class="q-card reveal" id="q-how-much-upfront" data-cat="payments">
+  <button class="q-share" title="Copy link"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
+  <div class="q-head"><div class="q-head-content"><h3>How much do I pay upfront?</h3><div class="q-teaser">1st month + 2mo deposit + commission. Example at €1,500: €6,000…</div></div><span class="q-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span></div>
+  <div class="q-body"><div class="q-body-inner"><div class="q-content">
+    <strong>First month rent</strong> + <strong>2 months deposit</strong> (fully refundable) + <strong>BOOM commission</strong> (1 month rent or 10% annual, whichever is lower).<br><br>Example at €1,500/month: €1,500 + €3,000 + €1,500 = <strong>€6,000 total upfront.</strong><br><br>No hidden fees. No surprises. That's the complete number.
+  </div></div></div>
+</div>
+
+<div class="q-card reveal" id="q-payment-methods" data-cat="payments">
+  <button class="q-share" title="Copy link"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
+  <div class="q-head"><div class="q-head-content"><h3>What payment methods do you accept?</h3><div class="q-teaser">Bank transfer, Stripe card payments, PayPal on request…</div></div><span class="q-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span></div>
+  <div class="q-body"><div class="q-body-inner"><div class="q-content">
+    <strong>Bank transfer</strong> (preferred), <strong>credit/debit card</strong> via Stripe, and PayPal on request. Monthly rent paid by bank transfer. All transactions secure and fully traceable — receipts for everything. <span class="badge badge-green">Stripe Protected</span>
+  </div></div></div>
+</div>
+
+<div class="q-card reveal" id="q-utilities" data-cat="payments">
+  <button class="q-share" title="Copy link"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
+  <div class="q-head"><div class="q-head-content"><h3>Are utilities included in the rent?</h3><div class="q-teaser">Depends on property. Average: €80–150/month for utilities…</div></div><span class="q-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span></div>
+  <div class="q-body"><div class="q-body-inner"><div class="q-content">
+    <strong>Depends on the property.</strong> Some include utilities (water, gas, electricity), others don't. Always specified in the listing — no ambiguity. Average utility cost in Rome: <strong>€80–150/month</strong> depending on usage and season.
+  </div></div></div>
+</div>
+
+<div class="q-card reveal" id="q-deposit-back" data-cat="payments">
+  <button class="q-share" title="Copy link"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
+  <div class="q-head"><div class="q-head-content"><h3>When do I get my deposit back?</h3><div class="q-teaser">Within 30 days after move-out. Video inventory prevents disputes…</div></div><span class="q-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span></div>
+  <div class="q-body"><div class="q-body-inner"><div class="q-content">
+    <strong>Within 30 days</strong> after move-out, minus any damages beyond normal wear, unpaid bills, or professional cleaning if needed. <strong>Video inventory at check-in and check-out</strong> means no disputes. Most tenants get their full deposit back.
+  </div></div></div>
+</div>
+
+<!-- ── MOVING IN ── -->
+<div class="group-head" data-g="moving">Moving In</div>
+
+<div class="q-card reveal" id="q-how-fast-move" data-cat="moving">
+  <button class="q-share" title="Copy link"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
+  <div class="q-head"><div class="q-head-content"><h3>How fast can I really move in?</h3><div class="q-teaser">48 hours from approval. Record: 6 hours for emergency relocation…</div></div><span class="q-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span></div>
+  <div class="q-body"><div class="q-body-inner"><div class="q-content">
+    <strong>48 hours from application approval.</strong> Apply today, approved tomorrow, keys the day after. Our record: 6 hours for an emergency relocation from the US. Average: 2–3 days. We work weekends and holidays — no exceptions.
+  </div></div></div>
+</div>
+
+<div class="q-card reveal" id="q-checkin" data-cat="moving">
+  <button class="q-share" title="Copy link"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
+  <div class="q-head"><div class="q-head-content"><h3>How does check-in work?</h3><div class="q-teaser">Schedule time → meet at apartment → video inventory → keys → 30–45 min…</div></div><span class="q-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span></div>
+  <div class="q-body"><div class="q-body-inner"><div class="q-content">
+    Schedule a time (weekends included) → meet at the apartment → walk through a video inventory together → sign the inventory report → keys & welcome pack → we show you how everything works. <strong>30–45 minutes.</strong> Airport pickup available for €50.
+  </div></div></div>
+</div>
+
+<div class="q-card reveal" id="q-permits" data-cat="moving">
+  <button class="q-share" title="Copy link"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
+  <div class="q-head"><div class="q-head-content"><h3>Do you help with permits and bureaucracy?</h3><div class="q-teaser">€150/doc — permesso di soggiorno, codice fiscale, SPID, health card…</div></div><span class="q-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span></div>
+  <div class="q-body"><div class="q-body-inner"><div class="q-content">
+    <strong>Yes.</strong> €150 per document — residence permit (permesso di soggiorno), codice fiscale, SPID digital identity, health card registration. We prepare documents, book appointments, and accompany you when needed. What takes others months, we complete in days.
+  </div></div></div>
+</div>
+
+<!-- ── LIVING ── -->
+<div class="group-head" data-g="living">Living in Rome</div>
+
+<div class="q-card reveal" id="q-breaks" data-cat="living">
+  <button class="q-share" title="Copy link"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
+  <div class="q-head"><div class="q-head-content"><h3>What if something breaks?</h3><div class="q-teaser">WhatsApp us — emergencies within 2 hours, normal repairs coordinated…</div></div><span class="q-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span></div>
+  <div class="q-body"><div class="q-body-inner"><div class="q-content">
+    <strong>WhatsApp us.</strong> Normal wear & tear → we fix it, owner pays. Emergency (leak, no heat) → someone arrives within 2 hours. Your fault → you pay for repairs. We coordinate everything so you never call Italian contractors yourself. <strong>24/7, always.</strong>
+  </div></div></div>
+</div>
+
+<div class="q-card reveal" id="q-3am" data-cat="living">
+  <button class="q-share" title="Copy link"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
+  <div class="q-head"><div class="q-head-content"><h3>Do you really answer at 3am?</h3><div class="q-teaser">Yes. Average WhatsApp response: under 2 minutes. Ask our tenants…</div></div><span class="q-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span></div>
+  <div class="q-body"><div class="q-body-inner"><div class="q-content">
+    <strong>Yes.</strong> Locked out at 3am? We'll get you in. Pipe burst on Sunday? Plumber arrives in 1 hour. Average WhatsApp response: <strong>under 2 minutes.</strong> Not a marketing claim — ask any of our 500+ tenants.
+  </div></div></div>
+</div>
+
+<div class="q-card reveal" id="q-extend-leave" data-cat="living">
+  <button class="q-share" title="Copy link"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
+  <div class="q-head"><div class="q-head-content"><h3>Can I extend my lease or leave early?</h3><div class="q-teaser">Extend: 30 days notice, zero commission. Leave: 30 days notice…</div></div><span class="q-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span></div>
+  <div class="q-body"><div class="q-body-inner"><div class="q-content">
+    <strong>Extend:</strong> 30 days notice before lease ends — zero extra commission.<br><br><strong>Leave early:</strong> 30 days written notice. You're responsible for rent until we find a replacement — typically within <strong>7–10 days.</strong>
+  </div></div></div>
+</div>
+
+<div class="q-card reveal" id="q-concierge" data-cat="living">
+  <button class="q-share" title="Copy link"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
+  <div class="q-head"><div class="q-head-content"><h3>What concierge services do you offer?</h3><div class="q-teaser">Cleaning from €60/mo · Airport €50 · Permits €150/doc · Mail €20/mo…</div></div><span class="q-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span></div>
+  <div class="q-body"><div class="q-body-inner"><div class="q-content">
+    <strong>Weekly cleaning</strong> from €60/mo · <strong>Airport transfer</strong> €50 · <strong>Permit assistance</strong> €150/doc · <strong>Mail & package service</strong> €20/mo · <strong>24/7 emergency line</strong> included free. All optional — pay only for what you use.
+  </div></div></div>
+</div>
+
+<!-- ── OTHER SERVICES ── -->
+<div class="group-head" data-g="services">Other Services</div>
+
+<div class="q-card reveal" id="q-deal-assist" data-cat="services">
+  <button class="q-share" title="Copy link"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
+  <div class="q-head"><div class="q-head-content"><h3>What is Deal Assistance?</h3><div class="q-teaser">Found an apartment yourself? We verify it, review the contract, protect you…</div></div><span class="q-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span></div>
+  <div class="q-body"><div class="q-body-inner"><div class="q-content">
+    Found an apartment on your own? For <strong>€250</strong>, we verify the property, check ownership documents, review the contract, negotiate terms, and ensure everything is legally sound. <strong>Insurance for your deal</strong> — we catch what you'd miss.
+  </div></div></div>
+</div>
+
+<div class="q-card reveal" id="q-virtual-view" data-cat="services">
+  <button class="q-share" title="Copy link"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
+  <div class="q-head"><div class="q-head-content"><h3>How do virtual viewings work?</h3><div class="q-teaser">Live WhatsApp/Zoom walkthrough + 360° recorded tour…</div></div><span class="q-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span></div>
+  <div class="q-body"><div class="q-body-inner"><div class="q-content">
+    <strong>Live video walkthroughs</strong> via WhatsApp or Zoom where you direct the camera, plus <strong>360° pre-recorded tours</strong>. We show every corner — inside closets, under sinks, every window view, water pressure, appliance condition. Next best thing to being there.
+  </div></div></div>
+</div>
+
+<div class="q-card reveal" id="q-roommates" data-cat="services">
+  <button class="q-share" title="Copy link"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
+  <div class="q-head"><div class="q-head-content"><h3>Do you help find roommates?</h3><div class="q-teaser">Yes — we match compatible profiles for shared apartments…</div></div><span class="q-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span></div>
+  <div class="q-body"><div class="q-body-inner"><div class="q-content">
+    <strong>Yes.</strong> We match compatible roommates from our verified tenant pool — same move-in dates, similar lifestyles, shared budget range. We handle introductions and the shared contract so everyone's protected.
+  </div></div></div>
+</div>
+
+<div class="q-card reveal" id="q-pets" data-cat="services">
+  <button class="q-share" title="Copy link"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
+  <div class="q-head"><div class="q-head-content"><h3>Can I bring my pet?</h3><div class="q-teaser">Many properties allow pets. We filter for pet-friendly options…</div></div><span class="q-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span></div>
+  <div class="q-body"><div class="q-body-inner"><div class="q-content">
+    <strong>Many properties allow pets</strong> — we filter specifically for pet-friendly options. In Italy, landlords legally cannot refuse small pets in most cases, but we always confirm upfront. Mention your pet in your initial inquiry and we'll only show suitable apartments.
+  </div></div></div>
+</div>
+
+<!-- ── FOR OWNERS ── -->
+<div class="group-head" data-g="owners">For Property Owners</div>
+
+<div class="q-card reveal" id="q-owner-commission" data-cat="owners">
+  <button class="q-share" title="Copy link"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
+  <div class="q-head"><div class="q-head-content"><h3>How much commission do you charge owners?</h3><div class="q-teaser">1 month rent or 10% annual — whichever is lower. Full service…</div></div><span class="q-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span></div>
+  <div class="q-body"><div class="q-body-inner"><div class="q-content">
+    <strong>1 month rent OR 10% of annual rent</strong> — whichever is lower. You get: professional marketing & photography, full tenant screening, guaranteed rent, 24/7 property management, legal contracts, and maintenance coordination. Zero hassle.
+  </div></div></div>
+</div>
+
+<div class="q-card reveal" id="q-owner-speed" data-cat="owners">
+  <button class="q-share" title="Copy link"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
+  <div class="q-head"><div class="q-head-content"><h3>How fast can you rent my property?</h3><div class="q-teaser">Average: 8 days. Live waitlist of pre-screened tenants…</div></div><span class="q-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span></div>
+  <div class="q-body"><div class="q-body-inner"><div class="q-content">
+    Average: <strong>8 days.</strong> We maintain a live waitlist of pre-screened, verified tenants ready to move immediately. Your property won't stay empty — and if it takes longer than expected, we work harder, not slower.
+  </div></div></div>
+</div>
+
+<div class="q-card reveal" id="q-owner-work" data-cat="owners">
+  <button class="q-share" title="Copy link"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
+  <div class="q-head"><div class="q-head-content"><h3>What do I actually need to do as an owner?</h3><div class="q-teaser">Hand us the keys. We handle everything else…</div></div><span class="q-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span></div>
+  <div class="q-body"><div class="q-body-inner"><div class="q-content">
+    <strong>Hand us the keys.</strong> We photograph, market, conduct viewings, screen tenants, draft legal contracts, collect rent, manage maintenance, handle emergencies, and pay you monthly. You receive a bank transfer and a quarterly report. That's it.
+  </div></div></div>
+</div>
+
+</section>
+
+<!-- ═══ CTA ═══ -->
+<section class="cta">
+  <h2>Still have a question?<br><em>We respond in under 2 minutes.</em></h2>
+  <p>WhatsApp us right now — no bots, no forms, just a real person who knows Rome.</p>
+  <a href="https://wa.me/393516532844?text=Hi%20BOOM%2C%20I%20have%20a%20question%20about%20renting%20in%20Rome" class="cta-btn" target="_blank">
+    <svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+    WhatsApp Us
+  </a>
+</section>
+
+<!-- ═══ FOOTER ═══ -->
+<footer>
+  <p>© 2025 BOOM · Egidi Immobiliare S.r.l. · P.IVA 17322991005 · REA RM-1710623</p>
+  <p style="margin-top:8px"><a href="https://boomrome.com">boomrome.com</a> · <a href="https://boomrome.com/privacy">Privacy</a> · <a href="https://boomrome.com/terms">Terms</a></p>
+</footer>
+
+<!-- WhatsApp FAB -->
+<a class="wa-fab" href="https://wa.me/393516532844" target="_blank" title="WhatsApp BOOM">
+  <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.625.846 5.059 2.284 7.034L.789 23.492a.5.5 0 00.611.611l4.458-1.495A11.952 11.952 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-2.388 0-4.59-.837-6.313-2.233l-.44-.361-2.633.882.882-2.633-.361-.44A9.965 9.965 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
+</a>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- JAVASCRIPT -->
+<!-- ═══════════════════════════════════════════════ -->
+<script>
+(function(){
+'use strict';
+
+// ─── CANVAS BACKGROUND ───
+const canvas = document.getElementById('geoCanvas');
+const ctx = canvas.getContext('2d');
+let W, H, frame = 0;
+const particles = [];
+const isMobile = window.innerWidth < 768;
+const PARTICLE_COUNT = isMobile ? 20 : 50;
+
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+// Init particles
+for (let i = 0; i < PARTICLE_COUNT; i++) {
+  particles.push({
+    x: Math.random() * W,
+    y: Math.random() * H,
+    r: Math.random() * 1.5 + 0.3,
+    dx: (Math.random() - 0.5) * 0.3,
+    dy: (Math.random() - 0.5) * 0.2,
+    o: Math.random() * 0.4 + 0.1,
+    flicker: Math.random() * Math.PI * 2
+  });
+}
+
+function drawCanvas() {
+  ctx.clearRect(0, 0, W, H);
+  const t = frame * 0.005;
+
+  // Layer 1: Roman grid (Cardo/Decumanus)
+  ctx.strokeStyle = 'rgba(212,175,55,0.03)';
+  ctx.lineWidth = 0.5;
+  const gridSize = 120;
+  const offsetX = Math.sin(t * 0.3) * 8;
+  const offsetY = Math.cos(t * 0.2) * 6;
+  for (let x = offsetX % gridSize; x < W; x += gridSize) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+  }
+  for (let y = offsetY % gridSize; y < H; y += gridSize) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+  }
+
+  // Layer 2: Intersection glow points
+  const cx = W / 2, cy = H * 0.35;
+  for (let x = offsetX % gridSize; x < W; x += gridSize) {
+    for (let y = offsetY % gridSize; y < H; y += gridSize) {
+      const dist = Math.hypot(x - cx, y - cy);
+      if (dist < 400) {
+        const alpha = (1 - dist / 400) * 0.08;
+        ctx.fillStyle = `rgba(212,175,55,${alpha})`;
+        ctx.beginPath();
+        ctx.arc(x, y, 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+
+  // Layer 3: Arches (simplified on mobile)
+  if (!isMobile) {
+    const archCount = 4;
+    for (let i = 0; i < archCount; i++) {
+      const r = 100 + i * 90 + Math.sin(t + i) * 15;
+      const alpha = 0.02 + (1 - i / archCount) * 0.02;
+      ctx.strokeStyle = `rgba(212,175,55,${alpha})`;
+      ctx.lineWidth = 0.5;
+      ctx.beginPath();
+      ctx.arc(cx, cy + 60, r, Math.PI, 0);
+      ctx.stroke();
+    }
+  }
+
+  // Layer 4: Golden spiral
+  ctx.strokeStyle = 'rgba(212,175,55,0.025)';
+  ctx.lineWidth = 0.8;
+  ctx.beginPath();
+  const phi = 1.618;
+  const spiralRot = t * 0.1;
+  for (let a = 0; a < 8 * Math.PI; a += 0.05) {
+    const r2 = 3 * Math.pow(phi, a / (2 * Math.PI));
+    if (r2 > 500) break;
+    const sx = cx + r2 * Math.cos(a + spiralRot);
+    const sy = cy + r2 * Math.sin(a + spiralRot);
+    if (a === 0) ctx.moveTo(sx, sy);
+    else ctx.lineTo(sx, sy);
+  }
+  ctx.stroke();
+
+  // Layer 5: Particles
+  particles.forEach(p => {
+    p.x += p.dx;
+    p.y += p.dy;
+    p.flicker += 0.02;
+    if (p.x < 0) p.x = W;
+    if (p.x > W) p.x = 0;
+    if (p.y < 0) p.y = H;
+    if (p.y > H) p.y = 0;
+    const flick = p.o * (0.6 + 0.4 * Math.sin(p.flicker));
+    ctx.fillStyle = `rgba(212,175,55,${flick})`;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  frame++;
+  requestAnimationFrame(drawCanvas);
+}
+if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  drawCanvas();
+}
+
+// ─── SCROLL PROGRESS ───
+const progressBar = document.getElementById('scrollProgress');
+window.addEventListener('scroll', () => {
+  const scrolled = window.scrollY;
+  const total = document.documentElement.scrollHeight - window.innerHeight;
+  if (total > 0) progressBar.style.width = (scrolled / total * 100) + '%';
+}, { passive: true });
+
+// ─── TRUST COUNTER ANIMATION ───
+let trustAnimated = false;
+function animateTrust() {
+  if (trustAnimated) return;
+  const nums = document.querySelectorAll('.trust-num[data-target]');
+  const firstRect = nums[0]?.getBoundingClientRect();
+  if (!firstRect || firstRect.top > window.innerHeight) return;
+  trustAnimated = true;
+  nums.forEach(el => {
+    const target = parseInt(el.dataset.target);
+    const dur = 1800;
+    const start = performance.now();
+    function tick(now) {
+      const p = Math.min((now - start) / dur, 1);
+      const ease = 1 - Math.pow(1 - p, 3);
+      el.textContent = Math.round(target * ease) + (target >= 100 ? '+' : '');
+      if (p < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  });
+}
+window.addEventListener('scroll', animateTrust, { passive: true });
+animateTrust();
+
+// ─── SCROLL REVEAL ───
+const revealObs = new IntersectionObserver((entries) => {
+  entries.forEach((e, i) => {
+    if (e.isIntersecting) {
+      setTimeout(() => e.target.classList.add('visible'), i * 40);
+      revealObs.unobserve(e.target);
+    }
+  });
+}, { threshold: 0.08 });
+
+function observeReveals() {
+  document.querySelectorAll('.reveal:not(.visible)').forEach(el => revealObs.observe(el));
+}
+observeReveals();
+
+// ─── TABS ───
+const tabs = document.querySelectorAll('.tab');
+const cards = document.querySelectorAll('.q-card');
+const groupHeads = document.querySelectorAll('.group-head');
+let activeCat = 'all';
+
+tabs.forEach(tab => {
+  tab.addEventListener('click', () => {
+    const cat = tab.dataset.cat;
+    if (cat === activeCat) return;
+    activeCat = cat;
+    tabs.forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+
+    cards.forEach(c => {
+      const show = cat === 'all' || c.dataset.cat === cat;
+      c.style.display = show ? '' : 'none';
+      if (show) { c.classList.remove('visible'); }
+    });
+    groupHeads.forEach(g => {
+      const show = cat === 'all' || g.dataset.g === cat;
+      g.style.display = show ? '' : 'none';
+    });
+    setTimeout(observeReveals, 50);
+  });
+});
+
+// ─── ACCORDION ───
+document.querySelectorAll('.q-head').forEach(head => {
+  head.addEventListener('click', () => {
+    const card = head.closest('.q-card');
+    const isOpen = card.classList.contains('open');
+    // Close all
+    document.querySelectorAll('.q-card.open').forEach(c => c.classList.remove('open'));
+    if (!isOpen) {
+      card.classList.add('open');
+      setTimeout(() => {
+        const rect = card.getBoundingClientRect();
+        if (rect.top < 130) window.scrollBy({ top: rect.top - 130, behavior: 'smooth' });
+      }, 100);
+    }
+  });
+});
+
+// ─── SHARE BUTTONS ───
+document.querySelectorAll('.q-share').forEach(btn => {
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const card = btn.closest('.q-card');
+    const url = window.location.origin + window.location.pathname + '#' + card.id;
+    navigator.clipboard.writeText(url).then(() => showToast('Link copied to clipboard'));
+  });
+});
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ─── RELATED QUESTIONS ───
+document.querySelectorAll('[data-goto]').forEach(a => {
+  a.addEventListener('click', () => goToFaq(a.dataset.goto));
+});
+
+function goToFaq(id) {
+  const card = document.getElementById(id);
+  if (!card) return;
+  // Switch tab if needed
+  const cat = card.dataset.cat;
+  if (activeCat !== 'all' && activeCat !== cat) {
+    document.querySelector('.tab[data-cat="all"]').click();
+  }
+  setTimeout(() => {
+    document.querySelectorAll('.q-card.open').forEach(c => c.classList.remove('open'));
+    card.classList.add('open');
+    card.classList.add('flash');
+    setTimeout(() => card.classList.remove('flash'), 1200);
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, 100);
+}
+
+// ─── DEEP LINK ON LOAD ───
+if (window.location.hash) {
+  const id = window.location.hash.slice(1);
+  setTimeout(() => goToFaq(id), 500);
+}
+
+// ─── INLINE SEARCH (hero bar) ───
+const searchInput = document.getElementById('searchInput');
+const searchCount = document.getElementById('searchCount');
+
+searchInput.addEventListener('input', () => {
+  const q = searchInput.value.toLowerCase().trim();
+  if (!q) {
+    cards.forEach(c => c.style.display = '');
+    groupHeads.forEach(g => g.style.display = '');
+    searchCount.textContent = '38 answers';
+    // Reset to active tab
+    if (activeCat !== 'all') {
+      cards.forEach(c => {
+        c.style.display = c.dataset.cat === activeCat ? '' : 'none';
+      });
+      groupHeads.forEach(g => {
+        g.style.display = g.dataset.g === activeCat ? '' : 'none';
+      });
+    }
+    return;
+  }
+  // Set tab to All
+  if (activeCat !== 'all') {
+    tabs.forEach(t => t.classList.remove('active'));
+    document.querySelector('.tab[data-cat="all"]').classList.add('active');
+    activeCat = 'all';
+  }
+  let count = 0;
+  const visibleGroups = new Set();
+  cards.forEach(c => {
+    const text = c.textContent.toLowerCase();
+    const match = text.includes(q);
+    c.style.display = match ? '' : 'none';
+    if (match) { count++; visibleGroups.add(c.dataset.cat); }
+  });
+  groupHeads.forEach(g => {
+    g.style.display = visibleGroups.has(g.dataset.g) ? '' : 'none';
+  });
+  searchCount.textContent = count + (count === 1 ? ' answer' : ' answers');
+});
+
+// ─── SPOTLIGHT (⌘K) ───
+const FAQ_DATA = [];
+cards.forEach(c => {
+  const q = c.querySelector('h3')?.textContent || '';
+  const a = c.querySelector('.q-content')?.textContent?.replace(/\s+/g, ' ').trim() || '';
+  FAQ_DATA.push({ id: c.id, q, a, cat: c.dataset.cat });
+});
+
+const spotOverlay = document.getElementById('spotOverlay');
+const spotInput = document.getElementById('spotInput');
+const spotResults = document.getElementById('spotResults');
+let spotIdx = -1;
+
+function openSpot() {
+  spotOverlay.classList.add('open');
+  spotInput.value = '';
+  spotIdx = -1;
+  renderSpotResults('');
+  setTimeout(() => spotInput.focus(), 50);
+}
+
+function closeSpot() {
+  spotOverlay.classList.remove('open');
+}
+
+// Keyboard shortcut
+document.addEventListener('keydown', (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+    e.preventDefault();
+    spotOverlay.classList.contains('open') ? closeSpot() : openSpot();
+  }
+  if (e.key === 'Escape') closeSpot();
+
+  if (!spotOverlay.classList.contains('open')) return;
+
+  const items = spotResults.querySelectorAll('.spot-item');
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    spotIdx = Math.min(spotIdx + 1, items.length - 1);
+    items.forEach((it, i) => it.classList.toggle('active', i === spotIdx));
+    items[spotIdx]?.scrollIntoView({ block: 'nearest' });
+  }
+  if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    spotIdx = Math.max(spotIdx - 1, 0);
+    items.forEach((it, i) => it.classList.toggle('active', i === spotIdx));
+    items[spotIdx]?.scrollIntoView({ block: 'nearest' });
+  }
+  if (e.key === 'Enter' && spotIdx >= 0 && items[spotIdx]) {
+    const id = items[spotIdx].dataset.id;
+    closeSpot();
+    goToFaq(id);
+  }
+});
+
+spotOverlay.addEventListener('click', (e) => {
+  if (e.target === spotOverlay) closeSpot();
+});
+
+spotInput.addEventListener('input', () => {
+  spotIdx = -1;
+  renderSpotResults(spotInput.value.trim());
+});
+
+function fuzzyMatch(query, text) {
+  const q = query.toLowerCase();
+  const t = text.toLowerCase();
+  if (t.includes(q)) return 100;
+  // Word-level match
+  const words = q.split(/\s+/);
+  let score = 0;
+  words.forEach(w => { if (t.includes(w)) score += 30; });
+  return score;
+}
+
+function highlightMatch(text, query) {
+  if (!query) return text;
+  const re = new RegExp('(' + query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+  return text.replace(re, '<mark>$1</mark>');
+}
+
+function renderSpotResults(query) {
+  if (!query) {
+    // Show popular questions
+    const popular = ['q-what-is-boom', 'q-pfs-what', 'q-how-much-upfront', 'q-how-fast-move', 'q-pfs-scam', 'q-3am'];
+    spotResults.innerHTML = '<div style="padding:8px 14px;font-size:10px;font-weight:500;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,0.2)">Popular questions</div>' +
+      popular.map(id => {
+        const f = FAQ_DATA.find(d => d.id === id);
+        if (!f) return '';
+        return `<div class="spot-item" data-id="${f.id}"><div class="spot-item-q">${f.q}</div><div class="spot-item-a">${f.a.slice(0, 80)}…</div></div>`;
+      }).join('');
+    bindSpotClicks();
+    return;
+  }
+
+  const results = FAQ_DATA
+    .map(f => ({ ...f, score: Math.max(fuzzyMatch(query, f.q) * 2, fuzzyMatch(query, f.a)) }))
+    .filter(f => f.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 8);
+
+  if (results.length === 0) {
+    spotResults.innerHTML = '<div class="spot-empty">No matching questions found.<br>Try different keywords or <a href="https://wa.me/393516532844" target="_blank" style="color:var(--gold)">ask us on WhatsApp</a></div>';
+    return;
+  }
+
+  spotResults.innerHTML = results.map(f =>
+    `<div class="spot-item" data-id="${f.id}"><div class="spot-item-q">${highlightMatch(f.q, query)}</div><div class="spot-item-a">${f.a.slice(0, 90)}…</div></div>`
+  ).join('');
+  bindSpotClicks();
+}
+
+function bindSpotClicks() {
+  spotResults.querySelectorAll('.spot-item').forEach(item => {
+    item.addEventListener('click', () => {
+      closeSpot();
+      goToFaq(item.dataset.id);
+    });
+  });
+}
+
+// ─── MOBILE BURGER ───
+document.addEventListener('click', (e) => {
+  const nl = document.querySelector('.nav-links');
+  if (nl?.classList.contains('mob-open') && !e.target.closest('.nav-links') && !e.target.closest('.burger')) {
+    nl.classList.remove('mob-open');
+  }
+});
+
+})();
+</script>
+
+<style>
+/* Mobile nav overlay */
+@media(max-width:768px){
+  .nav-links.mob-open{
+    display:flex !important;flex-direction:column;position:fixed;top:54px;left:0;right:0;
+    background:rgba(0,0,0,0.96);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+    padding:24px 20px;gap:20px;border-bottom:1px solid var(--border);z-index:99
+  }
+  .nav-links.mob-open a{font-size:14px}
+  .nav-links.mob-open .nav-kbd{display:inline-block;align-self:flex-start}
+}
+</style>
+
 </body>
 </html>
