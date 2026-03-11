@@ -1,0 +1,20 @@
+{
+  "version": 2,
+  "buildCommand": "echo 'No build needed'",
+  "outputDirectory": "public",
+  "rewrites": [
+    { "source": "/book", "destination": "/book.html" },
+    { "source": "/book/(.*)", "destination": "/book.html" }
+  ],
+  "functions": {
+    "api/reminder-cron.js": {
+      "maxDuration": 60
+    }
+  },
+  "crons": [
+    {
+      "path": "/api/reminder-cron",
+      "schedule": "*/15 * * * *"
+    }
+  ]
+}
