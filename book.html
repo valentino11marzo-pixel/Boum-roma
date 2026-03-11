@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>BOOM — Book a Viewing</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{
+  --g:#D4AF37;--g-dim:rgba(212,175,55,0.10);--g-line:rgba(212,175,55,0.22);--g-glow:rgba(212,175,55,0.07);
+  --bg:#080808;--s0:#0C0C0C;--s1:#101010;--s2:#141414;--s3:#1A1A1A;
+  --b0:rgba(255,255,255,0.04);--b1:rgba(255,255,255,0.07);--b2:rgba(255,255,255,0.11);--b3:rgba(255,255,255,0.16);
+  --t0:#F2F2F2;--t1:#888;--t2:#444;--ok:#34C759;
+  --r:16px;--rsm:10px;--rxs:7px;
+}
+html{scroll-behavior:smooth}
+body{font-family:'Helvetica Neue','Helvetica',-apple-system,sans-serif;font-weight:300;background:var(--bg);color:var(--t0);min-height:100dvh;-webkit-font-smoothing:antialiased;letter-spacing:-.012em}
+.hdr{position:sticky;top:0;z-index:20;height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;background:rgba(8,8,8,0.92);border-bottom:1px solid var(--b0);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+.logo{display:flex;align-items:center;gap:8px;text-decoration:none}
+.logo-svg{width:20px;height:20px;flex-shrink:0}
+.logo-wm{font-size:13px;font-weight:300;letter-spacing:.32em;color:var(--t0);text-transform:uppercase}
+.hdr-pill{font-size:9px;font-weight:400;letter-spacing:.1em;text-transform:uppercase;color:var(--g);padding:3px 10px;border-radius:100px;border:1px solid var(--g-line);background:var(--g-glow)}
+.prog-wrap{height:1px;background:var(--b1);position:relative}
+.prog-bar{position:absolute;top:0;left:0;height:100%;background:linear-gradient(90deg,var(--g),#F5D98B);transition:width .55s cubic-bezier(.4,0,.2,1);box-shadow:0 0 8px rgba(212,175,55,.35)}
+.steps-row{display:flex;justify-content:space-between;padding:10px 20px 0}
+.sdot{display:flex;align-items:center;gap:5px;font-size:9px;font-weight:400;letter-spacing:.1em;text-transform:uppercase;color:var(--t2);transition:color .3s}
+.sdot.act{color:var(--g)}.sdot.done{color:var(--t2)}
+.sdot-pip{width:4px;height:4px;border-radius:50%;background:currentColor;transition:all .3s;flex-shrink:0}
+.sdot.act .sdot-pip{width:6px;height:6px;box-shadow:0 0 6px rgba(212,175,55,.7)}
+.wrap{max-width:420px;margin:0 auto;padding:20px 14px 80px}
+.card{background:var(--s0);border:1px solid var(--b1);border-radius:var(--r);overflow:hidden;animation:fadeUp .38s both}
+.card-shimmer{height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.055) 45%,rgba(255,255,255,.055) 55%,transparent)}
+.card-hd{padding:22px 20px 0}
+.eyebrow{font-size:9px;font-weight:400;letter-spacing:.12em;text-transform:uppercase;color:var(--t2);margin-bottom:7px}
+.ttl{font-size:22px;font-weight:300;letter-spacing:-.022em;line-height:1.18;color:var(--t0);margin-bottom:5px}
+.sub{font-size:13px;font-weight:300;color:var(--t1);line-height:1.6}
+.card-bd{padding:18px 20px}.card-ft{padding:0 20px 20px}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.fg{margin-bottom:11px}.fg:last-child{margin-bottom:0}
+.lbl{display:block;font-size:9px;font-weight:400;letter-spacing:.1em;text-transform:uppercase;color:var(--t1);margin-bottom:6px}
+.inp{display:block;width:100%;padding:11px 13px;background:var(--s2);border:1px solid var(--b1);border-radius:var(--rsm);color:var(--t0);font-family:inherit;font-size:14px;font-weight:300;letter-spacing:-.01em;outline:none;transition:border-color .2s,box-shadow .2s;-webkit-appearance:none;appearance:none}
+.inp:focus{border-color:rgba(212,175,55,.45);box-shadow:0 0 0 3px rgba(212,175,55,.06)}
+.inp::placeholder{color:var(--t2)}
+.fg.has-err .inp{border-color:rgba(255,59,48,.4)}
+.fg.has-err .err-msg{display:block}
+.err-msg{font-size:11px;color:#FF3B30;margin-top:4px;display:none}
+.div{height:1px;background:var(--b0);margin:16px 0}
+.date-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.inp[type="date"]::-webkit-calendar-picker-indicator,.inp[type="time"]::-webkit-calendar-picker-indicator{filter:invert(.35);cursor:pointer}
+.note-area{width:100%;min-height:70px;resize:vertical;padding:11px 13px;background:var(--s2);border:1px solid var(--b1);border-radius:var(--rsm);color:var(--t0);font-family:inherit;font-size:13px;font-weight:300;letter-spacing:-.01em;outline:none;line-height:1.55;transition:border-color .2s}
+.note-area:focus{border-color:rgba(212,175,55,.45);box-shadow:0 0 0 3px rgba(212,175,55,.06)}
+.note-area::placeholder{color:var(--t2)}
+.pc{position:relative;padding:14px 16px 12px;margin-bottom:7px;background:var(--s1);border:1px solid var(--b1);border-radius:var(--rsm);cursor:pointer;transition:border-color .18s,background .18s;overflow:hidden}
+.pc::after{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 15% 50%,rgba(212,175,55,.045),transparent 65%);opacity:0;transition:opacity .22s;pointer-events:none}
+.pc:hover{border-color:var(--b2)}.pc:hover::after{opacity:1}
+.pc.sel{border-color:rgba(212,175,55,.4);background:rgba(212,175,55,.025)}.pc.sel::after{opacity:1}
+.pc-check{position:absolute;top:13px;right:13px;width:20px;height:20px;border-radius:50%;border:1px solid var(--b2);background:var(--s3);display:flex;align-items:center;justify-content:center;transition:all .2s}
+.pc.sel .pc-check{background:var(--g);border-color:var(--g);box-shadow:0 0 10px rgba(212,175,55,.25)}
+.cp{stroke:#000;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;fill:none;stroke-dasharray:14;stroke-dashoffset:14;transition:stroke-dashoffset .2s .03s}
+.pc.sel .cp{stroke-dashoffset:0}
+.pc-zone{font-size:9px;font-weight:400;letter-spacing:.1em;text-transform:uppercase;color:var(--t2);margin-bottom:3px}
+.pc-name{font-size:14px;font-weight:300;color:var(--t0);padding-right:28px;margin-bottom:4px;letter-spacing:-.01em}
+.pc-meta{display:flex;align-items:center;gap:10px}
+.pc-price{font-size:12px;font-weight:400;color:var(--g);letter-spacing:.01em}
+.pc-detail{font-size:11px;color:var(--t2)}
+.pc-link{font-size:11px;color:var(--g);opacity:.6;text-decoration:none;transition:opacity .15s;font-weight:300;letter-spacing:.02em;margin-left:auto}
+.pc-link:hover{opacity:1}
+.skel{background:var(--s2);border-radius:4px;animation:sk 1.2s ease-in-out infinite alternate}
+@keyframes sk{from{opacity:.4}to{opacity:.8}}
+.pc-skel{padding:14px 16px;background:var(--s1);border:1px solid var(--b0);border-radius:var(--rsm);margin-bottom:7px}
+.empty-state{text-align:center;padding:32px 20px;color:var(--t2);font-size:13px;line-height:1.6}
+.empty-state span{display:block;font-size:24px;margin-bottom:8px}
+.sum-chip{display:flex;align-items:center;gap:10px;padding:10px 13px;background:var(--s2);border:1px solid var(--b0);border-radius:var(--rxs);margin-bottom:5px}
+.sc-icon{width:26px;height:26px;border-radius:6px;background:var(--s3);border:1px solid var(--b1);display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;opacity:.7}
+.sc-lbl{font-size:9px;font-weight:400;letter-spacing:.1em;text-transform:uppercase;color:var(--t2);margin-bottom:2px}
+.sc-val{font-size:12px;font-weight:300;color:var(--t0)}
+.btn{position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;gap:7px;width:100%;height:46px;border:none;border-radius:12px;font-family:inherit;font-size:11px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:transform .15s,box-shadow .15s;-webkit-appearance:none}
+.btn:disabled{opacity:.45;pointer-events:none}
+.btn-p{background:var(--g);color:#050505;box-shadow:0 2px 14px rgba(212,175,55,.18)}
+.btn-p:hover{transform:translateY(-1px);box-shadow:0 6px 22px rgba(212,175,55,.28)}
+.btn-p::after{content:'';position:absolute;top:0;left:-100%;width:45%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.13),transparent);transition:left .4s}
+.btn-p:hover::after{left:160%}
+.btn-s{background:var(--s2);color:var(--t1);border:1px solid var(--b1)}
+.btn-s:hover{border-color:var(--b2);color:var(--t0)}
+.btn-row{display:flex;gap:8px}.btn-row .btn{flex:1}
+.spin{width:16px;height:16px;border:2px solid rgba(0,0,0,.2);border-top-color:#000;border-radius:50%;animation:spin .6s linear infinite;display:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+.btn.loading .btn-label{display:none}.btn.loading .spin{display:block}
+.pending-wrap{padding:32px 20px;text-align:center}
+.pend-icon{width:68px;height:68px;border-radius:50%;margin:0 auto 20px;background:rgba(255,159,10,.08);border:1px solid rgba(255,159,10,.3);display:flex;align-items:center;justify-content:center;animation:iconIn .5s cubic-bezier(.175,.885,.32,1.275) both}
+@keyframes iconIn{from{transform:scale(.2);opacity:0}to{transform:scale(1);opacity:1}}
+.pend-icon.conf-icon{background:rgba(52,199,89,.08);border-color:rgba(52,199,89,.3)}
+.pend-title{font-size:21px;font-weight:300;letter-spacing:-.02em;color:var(--t0);margin-bottom:6px}
+.pend-sub{font-size:13px;font-weight:300;color:var(--t1);line-height:1.65;margin-bottom:22px}
+.status-badge{display:inline-flex;align-items:center;gap:6px;padding:5px 14px;border-radius:100px;background:rgba(255,159,10,.08);border:1px solid rgba(255,159,10,.25);font-size:10px;font-weight:400;letter-spacing:.08em;text-transform:uppercase;color:#FF9F0A;margin-bottom:22px}
+.status-badge.conf-badge{background:rgba(52,199,89,.08);border-color:rgba(52,199,89,.25);color:var(--ok)}
+.sdot-pulse{width:5px;height:5px;border-radius:50%;background:#FF9F0A;animation:pulse 1.5s ease-in-out infinite}
+.sdot-pulse.conf-dot{background:var(--ok);animation:none}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.cal-row{display:flex;gap:8px;justify-content:center;margin-bottom:20px;flex-wrap:wrap}
+.cal-btn{display:inline-flex;align-items:center;gap:7px;height:42px;padding:0 18px;border:1px solid var(--b1);border-radius:10px;color:var(--t0);text-decoration:none;font-family:inherit;font-size:12px;font-weight:400;letter-spacing:.04em;cursor:pointer;transition:border-color .15s,background .15s;-webkit-appearance:none}
+.cal-btn-g{background:rgba(66,133,244,.06);border-color:rgba(66,133,244,.35);color:rgba(120,170,255,.9)}
+.cal-btn-g:hover{border-color:rgba(66,133,244,.55);background:rgba(66,133,244,.1)}
+.cal-btn-a{background:var(--s2);border-color:var(--b2)}
+.cal-btn-a:hover{border-color:var(--b3);background:var(--s3)}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);padding:10px 18px;border-radius:10px;font-size:12px;font-weight:400;letter-spacing:.02em;white-space:nowrap;pointer-events:none;opacity:0;transition:all .25s;z-index:100;backdrop-filter:blur(12px)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.err{background:rgba(255,59,48,.15);border:1px solid rgba(255,59,48,.3);color:#FF6B6B}
+.toast.ok{background:rgba(52,199,89,.12);border:1px solid rgba(52,199,89,.25);color:#4CD964}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <a class="logo" href="https://www.boomrome.com">
+    <svg class="logo-svg" viewBox="0 0 1024 1024">
+      <defs><linearGradient id="lg" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#FFD54F"/><stop offset="100%" stop-color="#F5A623"/></linearGradient></defs>
+      <g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#lg)"><path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z"/></g>
+    </svg>
+    <span class="logo-wm">BOOM</span>
+  </a>
+  <span class="hdr-pill">Book a Viewing</span>
+</header>
+
+<div class="prog-wrap"><div class="prog-bar" id="pb" style="width:0%"></div></div>
+<div class="steps-row">
+  <div class="sdot act" id="sd1"><div class="sdot-pip"></div>You</div>
+  <div class="sdot" id="sd2"><div class="sdot-pip"></div>Property</div>
+  <div class="sdot" id="sd3"><div class="sdot-pip"></div>When</div>
+</div>
+
+<div class="wrap">
+
+  <!-- STEP 1 -->
+  <div class="card" id="s1">
+    <div class="card-shimmer"></div>
+    <div class="card-hd">
+      <div class="eyebrow">Step 1 of 3</div>
+      <div class="ttl">Let's get started.</div>
+      <div class="sub">A quick intro so we know who's coming.</div>
+    </div>
+    <div class="card-bd">
+      <div class="fg" id="fg-name">
+        <label class="lbl">Full name *</label>
+        <input class="inp" type="text" id="in-name" placeholder="Andreas Vrettos" autocomplete="name">
+        <div class="err-msg">Please enter your name</div>
+      </div>
+      <div class="fg" id="fg-email">
+        <label class="lbl">Email *</label>
+        <input class="inp" type="email" id="in-email" placeholder="you@gmail.com" autocomplete="email">
+        <div class="err-msg">Please enter a valid email</div>
+      </div>
+      <div class="fg">
+        <label class="lbl">Phone (WhatsApp preferred)</label>
+        <input class="inp" type="tel" id="in-phone" placeholder="+1 555 000 0000" autocomplete="tel">
+      </div>
+    </div>
+    <div class="card-ft">
+      <button class="btn btn-p" onclick="toStep2()">
+        <span class="btn-label">Continue →</span><div class="spin"></div>
+      </button>
+    </div>
+  </div>
+
+  <!-- STEP 2 -->
+  <div class="card hidden" id="s2">
+    <div class="card-shimmer"></div>
+    <div class="card-hd">
+      <div class="eyebrow">Step 2 of 3</div>
+      <div class="ttl">Choose a flat.</div>
+      <div class="sub">Select the property you'd like to visit.</div>
+    </div>
+    <div class="card-bd" id="props-list">
+      <div class="pc-skel"><div class="skel" style="height:10px;width:40%;margin-bottom:8px"></div><div class="skel" style="height:14px;width:80%"></div></div>
+      <div class="pc-skel"><div class="skel" style="height:10px;width:35%;margin-bottom:8px"></div><div class="skel" style="height:14px;width:70%"></div></div>
+      <div class="pc-skel"><div class="skel" style="height:10px;width:45%;margin-bottom:8px"></div><div class="skel" style="height:14px;width:65%"></div></div>
+    </div>
+    <div class="card-ft">
+      <div class="btn-row">
+        <button class="btn btn-s" onclick="setStep(1)">← Back</button>
+        <button class="btn btn-p" id="btn-s2-next" onclick="toStep3()" disabled>Continue →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 3 -->
+  <div class="card hidden" id="s3">
+    <div class="card-shimmer"></div>
+    <div class="card-hd">
+      <div class="eyebrow">Step 3 of 3</div>
+      <div class="ttl">When works for you?</div>
+      <div class="sub">Propose any date and time — Valentino will confirm or suggest an alternative.</div>
+    </div>
+    <div class="card-bd">
+      <div class="div" style="margin-top:0"></div>
+      <div class="fg">
+        <label class="lbl">Proposed date &amp; time *</label>
+        <div class="date-row">
+          <input class="inp" type="date" id="in-date">
+          <input class="inp" type="time" id="in-time" value="10:00">
+        </div>
+      </div>
+      <div class="fg">
+        <label class="lbl">Notes (optional)</label>
+        <textarea class="note-area" id="in-notes" placeholder="Questions, accessibility needs, or anything you'd like to share..."></textarea>
+      </div>
+      <div class="div"></div>
+      <div class="eyebrow" style="margin-bottom:10px">Your request</div>
+      <div class="sum-chip">
+        <div class="sc-icon">🏠</div>
+        <div><div class="sc-lbl">Property</div><div class="sc-val" id="sum-prop">—</div></div>
+      </div>
+      <div class="sum-chip">
+        <div class="sc-icon">📅</div>
+        <div><div class="sc-lbl">Proposed time</div><div class="sc-val" id="sum-time">—</div></div>
+      </div>
+    </div>
+    <div class="card-ft">
+      <div class="btn-row">
+        <button class="btn btn-s" onclick="setStep(2)">← Back</button>
+        <button class="btn btn-p" id="btn-submit" onclick="submitRequest()">
+          <span class="btn-label">Send Request →</span><div class="spin"></div>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 4 -->
+  <div class="card hidden" id="s4">
+    <div class="card-shimmer"></div>
+
+    <!-- Pending state -->
+    <div class="pending-wrap" id="pend-body">
+      <div class="pend-icon">
+        <svg width="30" height="30" viewBox="0 0 30 30" fill="none">
+          <circle cx="15" cy="15" r="11" stroke="#FF9F0A" stroke-width="1.5"/>
+          <line x1="15" y1="9" x2="15" y2="16" stroke="#FF9F0A" stroke-width="1.8" stroke-linecap="round"/>
+          <circle cx="15" cy="20" r="1.2" fill="#FF9F0A"/>
+        </svg>
+      </div>
+      <div class="pend-title">Request sent.</div>
+      <div class="pend-sub">Valentino will review your request and confirm<br>or suggest an alternative time. Check back soon.</div>
+      <div class="status-badge"><div class="sdot-pulse"></div>Awaiting confirmation</div>
+      <div class="sum-chip" style="text-align:left;margin-bottom:5px">
+        <div class="sc-icon">🏠</div><div><div class="sc-lbl">Property</div><div class="sc-val" id="sum-p-final">—</div></div>
+      </div>
+      <div class="sum-chip" style="text-align:left;margin-bottom:20px">
+        <div class="sc-icon">📅</div><div><div class="sc-lbl">Proposed</div><div class="sc-val" id="sum-t-final">—</div></div>
+      </div>
+      <div class="sub" style="font-size:12px;color:var(--t2)">
+        Questions? <a href="https://wa.me/393313251961" style="color:var(--g);opacity:.8;text-decoration:none" target="_blank">WhatsApp Valentino →</a>
+      </div>
+    </div>
+
+    <!-- Confirmed state -->
+    <div class="pending-wrap hidden" id="conf-body">
+      <div class="pend-icon conf-icon">
+        <svg width="30" height="30" viewBox="0 0 30 30" fill="none">
+          <polyline id="conf-chk" points="6,15 12,21 24,9" stroke="#34C759" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="32" stroke-dashoffset="32"/>
+        </svg>
+      </div>
+      <div class="pend-title">Confirmed!</div>
+      <div class="pend-sub">Your viewing is confirmed. Add it to your calendar<br>and we'll see you there.</div>
+      <div class="status-badge conf-badge"><div class="sdot-pulse conf-dot"></div>Confirmed</div>
+      <div class="sum-chip" style="text-align:left;margin-bottom:5px">
+        <div class="sc-icon">🏠</div><div><div class="sc-lbl">Property</div><div class="sc-val" id="conf-prop">—</div></div>
+      </div>
+      <div class="sum-chip" style="text-align:left;margin-bottom:5px">
+        <div class="sc-icon">📅</div><div><div class="sc-lbl">Confirmed time</div><div class="sc-val" id="conf-time">—</div></div>
+      </div>
+      <div class="sum-chip" style="text-align:left;margin-bottom:20px">
+        <div class="sc-icon">👤</div><div><div class="sc-lbl">Agent</div><div class="sc-val">Valentino — BOOM Rome</div></div>
+      </div>
+      <div class="cal-row">
+        <a class="cal-btn cal-btn-g" id="cal-g" href="#" target="_blank">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          Google Calendar
+        </a>
+        <a class="cal-btn cal-btn-a" id="cal-a" href="#" target="_blank">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          Apple Calendar
+        </a>
+      </div>
+      <div class="sub" style="font-size:12px;color:var(--t2)">
+        Bring valid ID · Arrive 5 min early<br>
+        <a href="https://wa.me/393313251961" style="color:var(--g);opacity:.8;text-decoration:none" target="_blank">WhatsApp Valentino →</a>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+<script>
+firebase.initializeApp({apiKey:"AIzaSyDDb8UeSc8RhO_VxQrhLrupu1aPD4rwRso",authDomain:"boom-property-dashboards.firebaseapp.com",projectId:"boom-property-dashboards",messagingSenderId:"937269017440",appId:"1:937269017440:web:41c1a0b1e1633c2f373c05"});
+const db=firebase.firestore();
+emailjs.init('dnMxbtS2qDm_o7SHE');
+
+let ST={step:1,name:'',email:'',phone:'',listing:null,date:'',time:'',notes:'',reqId:null};
+const PW={1:'0%',2:'33%',3:'67%',4:'100%'};
+window._L={};
+
+function setStep(n){
+  ST.step=n;
+  [1,2,3,4].forEach(i=>{
+    const el=document.getElementById('s'+i);
+    i===n?el.classList.remove('hidden'):el.classList.add('hidden');
+    if(i===n){el.style.animation='none';el.offsetHeight;el.style.animation='fadeUp .38s both'}
+  });
+  document.getElementById('pb').style.width=PW[n];
+  [1,2,3].forEach(i=>{
+    const d=document.getElementById('sd'+i);
+    d.classList.toggle('act',i===n);
+    d.classList.toggle('done',i<n);
+  });
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function toStep2(){
+  let ok=true;
+  const name=document.getElementById('in-name').value.trim();
+  const fgN=document.getElementById('fg-name');
+  if(!name){fgN.classList.add('has-err');ok=false}else fgN.classList.remove('has-err');
+  const email=document.getElementById('in-email').value.trim();
+  const fgE=document.getElementById('fg-email');
+  if(!email||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){fgE.classList.add('has-err');ok=false}else fgE.classList.remove('has-err');
+  if(!ok)return;
+  ST.name=name;ST.email=email;ST.phone=document.getElementById('in-phone').value.trim();
+  setStep(2);loadListings();
+}
+
+async function loadListings(){
+  const c=document.getElementById('props-list');
+  try{
+    const snap=await db.collection('listings').where('status','==','available').get();
+    if(snap.empty){c.innerHTML='<div class="empty-state"><span>🏠</span>No properties available right now.<br>Contact us directly — we may have unlisted options.</div>';return}
+    const list=snap.docs.map(d=>({id:d.id,...d.data()}));
+    list.forEach(l=>window._L[l.id]=l);
+    c.innerHTML=list.map(l=>`
+      <div class="pc" id="pc-${l.id}" onclick="pick('${l.id}')">
+        <div class="pc-check"><svg width="10" height="10" viewBox="0 0 14 14"><polyline class="cp" points="2,7 5.5,10.5 12,3.5"/></svg></div>
+        <div class="pc-zone">${esc(l.zone||'Rome')} · €${(l.price||0).toLocaleString()}/mo</div>
+        <div class="pc-name">${esc(l.name||l.address||'Property')}</div>
+        <div class="pc-meta">
+          ${l.bedrooms?`<span class="pc-detail">${l.bedrooms} bed${l.bedrooms>1?'s':''}</span>`:''}
+          ${l.sqm?`<span class="pc-detail">${l.sqm} m²</span>`:''}
+          ${l.file?`<a class="pc-link" href="${l.file.startsWith('http')?l.file:'https://www.boomrome.com/'+l.file}" target="_blank" onclick="event.stopPropagation()">View ↗</a>`:''}
+        </div>
+      </div>`).join('');
+  }catch(e){c.innerHTML='<div class="empty-state"><span>⚠️</span>Couldn\'t load. Please refresh.</div>'}
+}
+
+function pick(id){
+  document.querySelectorAll('.pc').forEach(el=>el.classList.remove('sel'));
+  document.getElementById('pc-'+id)?.classList.add('sel');
+  ST.listing=window._L[id]||{id,name:'Property'};
+  document.getElementById('btn-s2-next').disabled=false;
+}
+
+function toStep3(){
+  if(!ST.listing){toast('err','Select a property first');return}
+  const today=new Date().toISOString().split('T')[0];
+  document.getElementById('in-date').min=today;
+  document.getElementById('in-date').value='';
+  const l=ST.listing;
+  document.getElementById('sum-prop').textContent=(l.name||l.address||'Property')+(l.zone?' — '+l.zone:'');
+  document.getElementById('sum-time').textContent='—';
+  setStep(3);
+  ['in-date','in-time'].forEach(id=>{
+    document.getElementById(id).addEventListener('change',updateSum);
+  });
+}
+function updateSum(){
+  const d=document.getElementById('in-date').value,t=document.getElementById('in-time').value;
+  if(d&&t)document.getElementById('sum-time').textContent=fmtDT(new Date(d+'T'+t));
+}
+
+async function submitRequest(){
+  const d=document.getElementById('in-date').value,t=document.getElementById('in-time').value;
+  if(!d||!t){toast('err','Please select a date and time');return}
+  ST.date=d;ST.time=t;ST.notes=document.getElementById('in-notes').value.trim();
+  const btn=document.getElementById('btn-submit');
+  btn.classList.add('loading');
+  try{
+    const l=ST.listing,dt=new Date(d+'T'+t),dtStr=fmtDT(dt);
+    const ref=await db.collection('viewingRequests').add({
+      clientName:ST.name,clientEmail:ST.email,clientPhone:ST.phone,
+      listingId:l.id,listingName:l.name||l.address||'Property',listingZone:l.zone||'',listingPrice:l.price||0,
+      proposedDate:d,proposedTime:t,proposedDateTime:dt.toISOString(),
+      notes:ST.notes,status:'pending',
+      confirmedDate:null,confirmedTime:null,confirmedDateTime:null,
+      reminder3hSent:false,reminder30mSent:false,
+      agentEmail:'valentino@boomrome.com',
+      createdAt:firebase.firestore.FieldValue.serverTimestamp()
+    });
+    ST.reqId=ref.id;
+    await emailjs.send('service_74n80th','boom_notification',{
+      to_email:'valentino@boomrome.com',from_name:ST.name,reply_to:ST.email,
+      heading:'📅 New Viewing Request',subheading:ST.name+' — '+(l.zone||'Rome'),
+      name:'Valentino',intro:ST.name+' wants to visit '+(l.name||l.address||'a property')+'. Confirm or reschedule in the portal.',
+      card_title:l.name||l.address||'Property',card_color:'#D4AF37',
+      r1_icon:'👤',r1_label:'Client',r1_value:ST.name+(ST.phone?' · '+ST.phone:''),
+      r2_icon:'🏠',r2_label:'Property',r2_value:(l.name||l.address||'Property')+(l.zone?' · '+l.zone:''),
+      r3_icon:'📅',r3_label:'Proposed',r3_value:dtStr,
+      r4_icon:'📝',r4_label:'Notes',r4_value:ST.notes||'—',
+      closing:'Open the Viewings tab to confirm.',cta_text:'Open Viewings →',portal_link:'https://portal.boomrome.com'
+    });
+    const propName=(l.name||l.address||'Property')+(l.zone?' — '+l.zone:'');
+    document.getElementById('sum-p-final').textContent=propName;
+    document.getElementById('sum-t-final').textContent=dtStr;
+    btn.classList.remove('loading');
+    setStep(4);
+    startPolling(ref.id);
+  }catch(e){console.error(e);btn.classList.remove('loading');toast('err','Something went wrong. Please try again.')}
+}
+
+function startPolling(id){
+  const iv=setInterval(async()=>{
+    try{
+      const doc=await db.collection('viewingRequests').doc(id).get();
+      const data=doc.data();
+      if(data?.status==='confirmed'&&data.confirmedDateTime){clearInterval(iv);showConfirmed(data)}
+    }catch(e){}
+  },15000);
+  setTimeout(()=>clearInterval(iv),7200000);
+}
+
+function showConfirmed(data){
+  const dt=new Date(data.confirmedDateTime),dtStr=fmtDT(dt);
+  document.getElementById('conf-prop').textContent=data.listingName+(data.listingZone?' — '+data.listingZone:'');
+  document.getElementById('conf-time').textContent=dtStr;
+  const s=dt.toISOString().replace(/[-:]/g,'').split('.')[0]+'Z';
+  const e=new Date(dt.getTime()+3600000).toISOString().replace(/[-:]/g,'').split('.')[0]+'Z';
+  const ttl=encodeURIComponent('Viewing — '+data.listingName+' (BOOM)');
+  const loc=encodeURIComponent(data.listingName+(data.listingZone?', '+data.listingZone+', Rome, Italy':''));
+  document.getElementById('cal-g').href=`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${ttl}&dates=${s}/${e}&location=${loc}&details=${encodeURIComponent('Property viewing via BOOM Rome\nContact: +39 331 325 1961')}`;
+  document.getElementById('cal-a').href=`data:text/calendar;charset=utf8,BEGIN:VCALENDAR%0AVERSION:2.0%0ABEGIN:VEVENT%0ADTSTART:${s}%0ADTEND:${e}%0ASUMMARY:${ttl}%0ALOCATION:${loc}%0AEND:VEVENT%0AEND:VCALENDAR`;
+  const chk=document.getElementById('conf-chk');
+  if(chk){chk.style.animation='none';chk.offsetHeight;chk.style.animation='drawChk .5s .2s ease forwards'}
+  document.getElementById('pend-body').classList.add('hidden');
+  document.getElementById('conf-body').classList.remove('hidden');
+}
+
+function fmtDT(dt){return dt.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})+' · '+dt.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}
+function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML}
+function toast(tp,msg){const el=document.getElementById('toast');el.textContent=msg;el.className='toast '+(tp==='err'?'err':'ok')+' show';setTimeout(()=>el.classList.remove('show'),3000)}
+</script>
+<style>@keyframes drawChk{to{stroke-dashoffset:0}}</style>
+</body>
+</html>

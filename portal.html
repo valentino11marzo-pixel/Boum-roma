@@ -2203,9 +2203,15 @@ Valentyne - BOOM Rome`
                     S.pfsClients = []; S.pfsProperties = []; S.pfsActivities = []; S.landlords = [];
                 }
                 
+                try {
+                    // Viewing Requests
+                    const vr = await db.collection('viewingRequests').orderBy('createdAt', 'desc').limit(100).get();
+                    S.viewingRequests = vr.docs.map(d => ({ id: d.id, ...d.data() }));
+                } catch (e) { S.viewingRequests = []; }
+
                 console.log('Lazy data loaded:', (performance.now() - startTime).toFixed(0), 'ms total');
                 // Update UI if needed
-                if (S.page === 'command' || S.page === 'pfs-pipeline' || S.page === 'leads' || S.page === 'dashboard') renderPage();
+                if (S.page === 'command' || S.page === 'pfs-pipeline' || S.page === 'leads' || S.page === 'dashboard' || S.page === 'viewings') renderPage();
             }, isSafariDesktop ? 1500 : 500);
             
             console.log('Core data loaded in', (performance.now() - startTime).toFixed(0), 'ms');
@@ -2925,12 +2931,14 @@ Valentyne - BOOM Rome`
             const urgentDeadlines = (S.deadlines || []).filter(d => d.status !== 'done' && daysUntil(d.date) !== null && daysUntil(d.date) <= 7).length + (S.tasks || []).filter(t => t.status !== 'done' && t.priority === 'urgent').length;
             const urgentPFS = (S.pfsClients || []).filter(c => c.stage !== 'placed' && calculatePFSPriority && calculatePFSPriority(c) >= 70).length;
             const newLeads = (S.leads || []).filter(l => l.status === 'new' || !l.status).length;
+            const pendingViewings = (S.viewingRequests || []).filter(v => v.status === 'pending').length;
             
             sb.innerHTML = `
                 <div class="nav-section"><div class="nav-label">Operativo</div>
                     <div class="nav-item ${S.page==='dashboard'?'active':''}" onclick="goTo('dashboard')"><span class="nav-icon">📊</span> Dashboard ${urgentDeadlines?`<span class="nav-badge orange">${urgentDeadlines}</span>`:''}</div>
                     <div class="nav-item ${S.page==='leads'?'active':''}" onclick="goTo('leads')"><span class="nav-icon">📬</span> Lead ${newLeads?`<span class="nav-badge green">${newLeads}</span>`:''}</div>
                     <div class="nav-item ${S.page==='clienti'?'active':''}" onclick="goTo('clienti')"><span class="nav-icon">👥</span> Clienti ${(activeClients+urgentPFS)?`<span class="nav-badge gold">${activeClients+urgentPFS}</span>`:''}</div>
+                    <div class="nav-item ${S.page==='viewings'?'active':''}" onclick="goTo('viewings')"><span class="nav-icon">📅</span> Viewings ${pendingViewings?`<span class="nav-badge gold">${pendingViewings}</span>`:''}</div>
                     <div class="nav-item ${S.page==='adminflats'?'active':''}" onclick="goTo('adminflats')"><span class="nav-icon">🏢</span> AdminFlats</div>
                     <div class="nav-item ${S.page==='invoices'?'active':''}" onclick="goTo('invoices')"><span class="nav-icon">🧾</span> Fatture ${pendingInv?`<span class="nav-badge gold">${pendingInv}</span>`:''}</div>
                 </div>
@@ -3008,6 +3016,7 @@ Valentyne - BOOM Rome`
             // === UNIFIED CLIENTI (merges CRM + PFS Pipeline) ===
             case 'clienti': m.innerHTML = isAdmin() ? clientiPage() : accessDenied(); break;
             case 'leads': m.innerHTML = isAdmin() ? leadsPage() : accessDenied(); break;
+            case 'viewings': m.innerHTML = isAdmin() ? viewingsPage() : accessDenied(); break;
             // === Legacy redirects ===
             case 'crm': S.page = 'clienti'; m.innerHTML = isAdmin() ? clientiPage() : accessDenied(); buildNav(); break;
             case 'pfs-pipeline': S.page = 'clienti'; m.innerHTML = isAdmin() ? clientiPage() : accessDenied(); buildNav(); break;
@@ -4277,6 +4286,319 @@ Valentyne - BOOM Rome`
     // ═══════════════════════════════════════════════════════════════════════════
     // LEADS INBOX - Incoming leads from Homie/Immobiliare/Idealista
     // ═══════════════════════════════════════════════════════════════════════════
+
+    // ─── VIEWINGS PAGE ────────────────────────────────────────────────────────
+    function viewingsPage() {
+        const all = (S.viewingRequests || []);
+        const pending = all.filter(v => v.status === 'pending');
+        const confirmed = all.filter(v => v.status === 'confirmed');
+        const rescheduled = all.filter(v => v.status === 'rescheduled');
+        const cancelled = all.filter(v => v.status === 'cancelled');
+        const filter = S.viewingsFilter || 'pending';
+        let shown = all;
+        if (filter === 'pending') shown = pending;
+        else if (filter === 'confirmed') shown = confirmed;
+        else if (filter === 'rescheduled') shown = rescheduled;
+        else if (filter === 'all') shown = all;
+
+        function statusBadge(v) {
+            if (v.status === 'pending') return `<span class="badge orange">⏳ Pending</span>`;
+            if (v.status === 'confirmed') return `<span class="badge green">✅ Confirmed</span>`;
+            if (v.status === 'rescheduled') return `<span class="badge blue">↩ Rescheduled</span>`;
+            if (v.status === 'cancelled') return `<span class="badge gray">✕ Cancelled</span>`;
+            return `<span class="badge gray">${v.status}</span>`;
+        }
+
+        function fmtProposed(v) {
+            if (!v.proposedDate || !v.proposedTime) return '—';
+            try { return new Date(v.proposedDate + 'T' + v.proposedTime).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}) + ' · ' + new Date(v.proposedDate + 'T' + v.proposedTime).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}); }
+            catch(e){ return v.proposedDate + ' ' + v.proposedTime; }
+        }
+
+        function fmtConfirmed(v) {
+            if (!v.confirmedDate || !v.confirmedTime) return '—';
+            try { return new Date(v.confirmedDate + 'T' + v.confirmedTime).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}) + ' · ' + new Date(v.confirmedDate + 'T' + v.confirmedTime).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}); }
+            catch(e){ return v.confirmedDate + ' ' + v.confirmedTime; }
+        }
+
+        function actionBtns(v) {
+            if (v.status === 'pending') return `
+                <button class="btn btn-sm" onclick="confirmViewingModal('${v.id}')" style="background:var(--gold);color:#000;font-size:11px;padding:5px 12px">✓ Confirm</button>
+                <button class="btn btn-sm btn-secondary" onclick="rescheduleViewingModal('${v.id}')" style="font-size:11px;padding:5px 12px">↩ Reschedule</button>
+                <button class="btn btn-sm btn-secondary" onclick="cancelViewing('${v.id}')" style="font-size:11px;padding:5px 12px;opacity:.5">✕</button>`;
+            if (v.status === 'rescheduled') return `
+                <button class="btn btn-sm" onclick="confirmViewingModal('${v.id}')" style="background:var(--gold);color:#000;font-size:11px;padding:5px 12px">✓ Confirm</button>`;
+            return '';
+        }
+
+        return `
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">📅 Viewings</h1>
+                <p class="page-subtitle">Viewing requests from boomrome.com/book</p>
+            </div>
+            <div class="page-actions">
+                <a href="https://www.boomrome.com/book" target="_blank" class="btn btn-secondary" style="font-size:12px">🔗 Book Link</a>
+            </div>
+        </div>
+
+        <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px">
+            <div class="stat-card gold"><div class="stat-icon">⏳</div><div class="stat-value">${pending.length}</div><div class="stat-label">Pending</div></div>
+            <div class="stat-card green"><div class="stat-icon">✅</div><div class="stat-value">${confirmed.length}</div><div class="stat-label">Confirmed</div></div>
+            <div class="stat-card blue"><div class="stat-icon">↩</div><div class="stat-value">${rescheduled.length}</div><div class="stat-label">Rescheduled</div></div>
+            <div class="stat-card gray"><div class="stat-icon">📊</div><div class="stat-value">${all.length}</div><div class="stat-label">Total</div></div>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+            <button class="btn btn-sm ${filter==='pending'?'':'btn-secondary'}" onclick="setViewingsFilter('pending')" style="${filter==='pending'?'background:var(--gold);color:#000':''}">⏳ Pending ${pending.length?`(${pending.length})`:''}</button>
+            <button class="btn btn-sm ${filter==='confirmed'?'':'btn-secondary'}" onclick="setViewingsFilter('confirmed')" style="${filter==='confirmed'?'background:var(--gold);color:#000':''}">✅ Confirmed</button>
+            <button class="btn btn-sm ${filter==='rescheduled'?'':'btn-secondary'}" onclick="setViewingsFilter('rescheduled')" style="${filter==='rescheduled'?'background:var(--gold);color:#000':''}">↩ Rescheduled</button>
+            <button class="btn btn-sm ${filter==='all'?'':'btn-secondary'}" onclick="setViewingsFilter('all')" style="${filter==='all'?'background:var(--gold);color:#000':''}">All</button>
+        </div>
+
+        ${shown.length === 0 ? `
+        <div class="card"><div class="card-body" style="text-align:center;padding:48px 20px">
+            <div style="font-size:36px;margin-bottom:12px">📅</div>
+            <div style="font-size:15px;color:var(--text-secondary)">No ${filter} viewing requests</div>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:6px">Share <strong>boomrome.com/book</strong> with your clients</div>
+        </div></div>` : `
+        <div class="card"><div class="card-body flush">
+        <table class="crm-table">
+            <thead><tr>
+                <th>Client</th><th>Property</th>
+                <th>Proposed</th><th>Confirmed</th>
+                <th>Status</th><th>Actions</th>
+            </tr></thead>
+            <tbody>
+            ${shown.map(v => `
+                <tr>
+                    <td>
+                        <div style="font-weight:500">${esc(v.clientName||'—')}</div>
+                        <div style="font-size:11px;color:var(--text-muted)">${esc(v.clientEmail||'')}${v.clientPhone?` · ${esc(v.clientPhone)}`:''}</div>
+                    </td>
+                    <td>
+                        <div style="font-weight:400">${esc(v.listingName||'—')}</div>
+                        ${v.listingZone?`<div style="font-size:11px;color:var(--text-muted)">${esc(v.listingZone)}</div>`:''}
+                        ${v.listingPrice?`<div style="font-size:11px;color:var(--gold)">€${v.listingPrice.toLocaleString()}/mo</div>`:''}
+                    </td>
+                    <td style="font-size:12px">${fmtProposed(v)}</td>
+                    <td style="font-size:12px">${v.status==='confirmed'?fmtConfirmed(v):'—'}</td>
+                    <td>${statusBadge(v)}</td>
+                    <td onclick="event.stopPropagation()"><div style="display:flex;gap:5px;flex-wrap:wrap">${actionBtns(v)}</div></td>
+                </tr>
+                ${v.notes?`<tr><td colspan="6" style="padding:4px 16px 10px;font-size:11px;color:var(--text-muted)">📝 ${esc(v.notes)}</td></tr>`:''}
+            `).join('')}
+            </tbody>
+        </table>
+        </div></div>`}
+        `;
+    }
+
+    function setViewingsFilter(f) { S.viewingsFilter = f; goTo('viewings'); }
+
+    async function confirmViewingModal(id) {
+        const v = (S.viewingRequests||[]).find(r => r.id === id);
+        if (!v) return;
+        // Prefill with proposed date/time
+        const proposed = v.proposedDate || new Date().toISOString().split('T')[0];
+        const proposedT = v.proposedTime || '10:00';
+        document.getElementById('modals').innerHTML = `
+        <div class="modal-overlay active" onclick="if(event.target===this)closeModal()">
+        <div class="modal" onclick="event.stopPropagation()">
+            <div class="modal-header"><h3 class="modal-title">✅ Confirm Viewing</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+            <div class="modal-body">
+                <div class="info-box" style="margin-bottom:16px">
+                    <div style="font-size:13px"><strong>${esc(v.clientName)}</strong> → ${esc(v.listingName)}</div>
+                    <div style="font-size:12px;color:var(--text-muted);margin-top:4px">Proposed: ${v.proposedDate} at ${v.proposedTime}</div>
+                </div>
+                <form id="confForm">
+                    <input type="hidden" name="id" value="${id}">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Confirmed Date *</label>
+                            <input type="date" class="form-input" name="date" value="${proposed}" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Confirmed Time *</label>
+                            <input type="time" class="form-input" name="time" value="${proposedT}" required>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                <button class="btn" style="background:var(--gold);color:#000" onclick="confirmViewing()">✅ Confirm & Notify</button>
+            </div>
+        </div></div>`;
+    }
+
+    async function confirmViewing() {
+        const form = document.getElementById('confForm');
+        const id = form.querySelector('[name="id"]').value;
+        const date = form.querySelector('[name="date"]').value;
+        const time = form.querySelector('[name="time"]').value;
+        if (!date || !time) return toast('error', 'Select date and time');
+        const v = (S.viewingRequests||[]).find(r => r.id === id);
+        if (!v) return;
+        try {
+            const dt = new Date(date + 'T' + time);
+            const dtStr = dt.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'}) + ' · ' + dt.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+            await db.collection('viewingRequests').doc(id).update({
+                status: 'confirmed',
+                confirmedDate: date,
+                confirmedTime: time,
+                confirmedDateTime: dt.toISOString(),
+                confirmedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            // Build Google Calendar link for Valentino
+            const s = dt.toISOString().replace(/[-:]/g,'').split('.')[0]+'Z';
+            const e = new Date(dt.getTime()+3600000).toISOString().replace(/[-:]/g,'').split('.')[0]+'Z';
+            const ttl = encodeURIComponent('Viewing — ' + v.listingName + ' · ' + v.clientName);
+            const loc = encodeURIComponent(v.listingName + (v.listingZone ? ', ' + v.listingZone + ', Rome' : ''));
+            const gcalLink = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${ttl}&dates=${s}/${e}&location=${loc}&details=${encodeURIComponent('Client: '+v.clientName+'\nEmail: '+v.clientEmail+(v.clientPhone?'\nPhone: '+v.clientPhone:'')+'\nNotes: '+(v.notes||'—'))}`;
+            const appleLink = `data:text/calendar;charset=utf8,BEGIN:VCALENDAR%0AVERSION:2.0%0ABEGIN:VEVENT%0ADTSTART:${s}%0ADTEND:${e}%0ASUMMARY:${ttl}%0ALOCATION:${loc}%0AEND:VEVENT%0AEND:VCALENDAR`;
+            // Notify client
+            await emailjs.send('service_74n80th','boom_notification',{
+                to_email: v.clientEmail,
+                from_name: 'Valentino — BOOM',
+                reply_to: 'valentino@boomrome.com',
+                heading: '✅ Viewing Confirmed',
+                subheading: v.listingName + (v.listingZone ? ' — ' + v.listingZone : ''),
+                name: v.clientName.split(' ')[0],
+                intro: 'Your viewing is confirmed. Add it to your calendar.',
+                card_title: v.listingName,
+                card_color: '#34C759',
+                r1_icon:'📅', r1_label:'Date & Time', r1_value: dtStr,
+                r2_icon:'🏠', r2_label:'Property', r2_value: v.listingName + (v.listingZone ? ' · ' + v.listingZone : ''),
+                r3_icon:'👤', r3_label:'Agent', r3_value: 'Valentino — BOOM Rome',
+                r4_icon:'📞', r4_label:'Contact', r4_value: '+39 331 325 1961',
+                closing: 'Bring valid ID. Arrive 5 min early.',
+                cta_text: 'Add to Google Calendar →',
+                portal_link: gcalLink
+            });
+            // Notify yourself
+            await emailjs.send('service_74n80th','boom_notification',{
+                to_email: 'valentino@boomrome.com',
+                from_name: 'BOOM Portal',
+                reply_to: v.clientEmail,
+                heading: '📅 Viewing Confirmed',
+                subheading: v.clientName + ' — ' + dtStr,
+                name: 'Valentino',
+                intro: 'Viewing confirmed. Calendar links below.',
+                card_title: v.listingName,
+                card_color: '#D4AF37',
+                r1_icon:'👤', r1_label:'Client', r1_value: v.clientName + (v.clientPhone?' · '+v.clientPhone:''),
+                r2_icon:'🏠', r2_label:'Property', r2_value: v.listingName,
+                r3_icon:'📅', r3_label:'When', r3_value: dtStr,
+                r4_icon:'📝', r4_label:'Notes', r4_value: v.notes||'—',
+                closing: 'Add to your calendar:',
+                cta_text: 'Google Calendar →',
+                portal_link: gcalLink
+            });
+            closeModal();
+            toast('success', '✅ Confirmed — client notified');
+            await refreshViewings();
+        } catch(e) { console.error(e); toast('error', 'Error: ' + e.message); }
+    }
+
+    async function rescheduleViewingModal(id) {
+        const v = (S.viewingRequests||[]).find(r => r.id === id);
+        if (!v) return;
+        document.getElementById('modals').innerHTML = `
+        <div class="modal-overlay active" onclick="if(event.target===this)closeModal()">
+        <div class="modal" onclick="event.stopPropagation()">
+            <div class="modal-header"><h3 class="modal-title">↩ Propose Alternative</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+            <div class="modal-body">
+                <div class="info-box" style="margin-bottom:16px">
+                    <div style="font-size:13px"><strong>${esc(v.clientName)}</strong> proposed: ${v.proposedDate} at ${v.proposedTime}</div>
+                </div>
+                <form id="rescForm">
+                    <input type="hidden" name="id" value="${id}">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Your Suggested Date *</label>
+                            <input type="date" class="form-input" name="date" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Your Suggested Time *</label>
+                            <input type="time" class="form-input" name="time" value="10:00" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Message to client (optional)</label>
+                        <textarea class="form-textarea" name="msg" rows="2" placeholder="e.g. That time doesn't work for me. How about this slot?"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                <button class="btn" onclick="rescheduleViewing()">↩ Send Alternative</button>
+            </div>
+        </div></div>`;
+    }
+
+    async function rescheduleViewing() {
+        const form = document.getElementById('rescForm');
+        const id = form.querySelector('[name="id"]').value;
+        const date = form.querySelector('[name="date"]').value;
+        const time = form.querySelector('[name="time"]').value;
+        const msg = form.querySelector('[name="msg"]').value.trim();
+        if (!date || !time) return toast('error', 'Select a date and time');
+        const v = (S.viewingRequests||[]).find(r => r.id === id);
+        if (!v) return;
+        try {
+            const dt = new Date(date + 'T' + time);
+            const dtStr = dt.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'}) + ' · ' + dt.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+            await db.collection('viewingRequests').doc(id).update({
+                status: 'rescheduled',
+                suggestedDate: date,
+                suggestedTime: time,
+                suggestedDateTime: dt.toISOString(),
+                agentMessage: msg || null,
+                rescheduledAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            await emailjs.send('service_74n80th','boom_notification',{
+                to_email: v.clientEmail,
+                from_name: 'Valentino — BOOM',
+                reply_to: 'valentino@boomrome.com',
+                heading: '↩ Alternative Time Proposed',
+                subheading: v.listingName,
+                name: v.clientName.split(' ')[0],
+                intro: msg || 'The time you proposed doesn\'t work for me. I\'d suggest the slot below instead.',
+                card_title: 'Suggested Time',
+                card_color: '#0A84FF',
+                r1_icon:'📅', r1_label:'Suggested', r1_value: dtStr,
+                r2_icon:'🏠', r2_label:'Property', r2_value: v.listingName,
+                r3_icon:'📞', r3_label:'Questions?', r3_value: '+39 331 325 1961',
+                r4_icon:'💬', r4_label:'WhatsApp', r4_value: 'wa.me/393313251961',
+                closing: 'Reply to this email or WhatsApp me to confirm.',
+                cta_text: 'WhatsApp Valentino →',
+                portal_link: 'https://wa.me/393313251961'
+            });
+            closeModal();
+            toast('success', '↩ Alternative sent to client');
+            await refreshViewings();
+        } catch(e) { console.error(e); toast('error', 'Error: ' + e.message); }
+    }
+
+    async function cancelViewing(id) {
+        if (!confirm('Cancel this viewing request?')) return;
+        try {
+            await db.collection('viewingRequests').doc(id).update({ status: 'cancelled', cancelledAt: firebase.firestore.FieldValue.serverTimestamp() });
+            toast('success', 'Viewing cancelled');
+            await refreshViewings();
+        } catch(e) { toast('error', e.message); }
+    }
+
+    async function refreshViewings() {
+        try {
+            const snap = await db.collection('viewingRequests').orderBy('createdAt','desc').limit(100).get();
+            S.viewingRequests = snap.docs.map(d => ({id:d.id,...d.data()}));
+            if (S.page === 'viewings') goTo('viewings');
+            buildNav();
+        } catch(e) { console.error(e); }
+    }
+    // ─── END VIEWINGS ─────────────────────────────────────────────────────────
 
     function leadsPage() {
         const leads = (S.leads || []);
