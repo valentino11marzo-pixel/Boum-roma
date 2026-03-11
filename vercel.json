@@ -1,8 +1,17 @@
 {
-  "outputDirectory": ".",
+  "version": 2,
+  "rewrites": [
+    { "source": "/book", "destination": "/book.html" }
+  ],
   "functions": {
-    "api/parse-docs.js": {
+    "api/reminder-cron.js": {
       "maxDuration": 60
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/reminder-cron",
+      "schedule": "*/15 * * * *"
+    }
+  ]
 }
