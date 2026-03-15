@@ -161,6 +161,70 @@
         .signature-status.pending{background:var(--orange-light);color:var(--orange)}
         .signature-status.signed{background:var(--green-light);color:var(--green)}
         .signature-status.waiting{background:var(--blue-light);color:var(--blue)}
+        .ms-modal{max-width:480px;border:0.5px solid rgba(255,255,255,0.05);border-radius:20px;overflow:hidden}
+        .ms-hdr{padding:28px 24px 18px;background:var(--bg-card)}
+        .ms-hdr-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px}
+        .ms-logo{display:flex;align-items:center;gap:10px}
+        .ms-logo img{width:48px;height:48px}
+        .ms-logo span{font-size:16px;font-weight:300;letter-spacing:5px;color:var(--text)}
+        .ms-prog{display:flex;gap:6px;align-items:center}
+        .ms-prog-d{height:2.5px;border-radius:2px}
+        .ms-title{font-size:22px;font-weight:300;color:var(--text);letter-spacing:-0.3px}
+        .ms-sub{font-size:12px;color:var(--text-muted);margin-top:5px;font-weight:300}
+        .ms-body{padding:0 24px 24px}
+        .ms-prop{border-left:2px solid var(--gold);padding-left:16px;margin-bottom:18px}
+        .ms-prop-label{font-size:9px;color:rgba(212,175,55,0.7);letter-spacing:2px;text-transform:uppercase;font-weight:400;margin-bottom:4px}
+        .ms-prop-name{font-size:17px;color:var(--text);font-weight:300}
+        .ms-prop-addr{font-size:12px;color:var(--text-muted);font-weight:300;margin-top:2px}
+        .ms-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+        .ms-stat{background:rgba(255,255,255,0.025);border-radius:14px;padding:14px 16px}
+        .ms-stat-l{font-size:9px;color:var(--text-muted);letter-spacing:1px;font-weight:300}
+        .ms-stat-v{font-size:20px;font-weight:300;margin-top:5px}
+        .ms-stat-sm{font-size:13px;color:var(--text);font-weight:300;margin-top:4px}
+        .ms-party{background:rgba(255,255,255,0.025);border-radius:14px;padding:12px 16px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+        .ms-sec{font-size:9px;color:rgba(212,175,55,0.6);letter-spacing:2px;text-transform:uppercase;font-weight:400;margin-bottom:12px}
+        .ms-field{margin-bottom:14px}
+        .ms-fl{font-size:10px;color:var(--text-muted);letter-spacing:1px;font-weight:300;margin-bottom:6px}
+        .ms-fv{background:rgba(255,255,255,0.035);border:0.5px solid rgba(255,255,255,0.06);border-radius:11px;padding:13px 16px;color:var(--text);font-size:14px;font-weight:300}
+        .ms-fi{background:rgba(255,255,255,0.035);border:0.5px solid rgba(212,175,55,0.2);border-radius:11px;padding:13px 16px;color:var(--text);font-size:14px;font-weight:300;width:100%;font-family:'Helvetica Neue',Helvetica,-apple-system,sans-serif}
+        .ms-fi:focus{outline:none;border-color:var(--gold)}
+        .ms-fi::placeholder{color:var(--text-muted)}
+        .ms-fi-select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23666' stroke-width='1.2' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 16px center;padding-right:36px;cursor:pointer}
+        .ms-fi-select option{background:var(--bg-card)}
+        .ms-consent{background:rgba(255,255,255,0.025);border-radius:12px;padding:14px;margin-bottom:16px}
+        .ms-check{display:flex;gap:10px;align-items:flex-start;margin-bottom:12px;cursor:pointer}
+        .ms-check:last-child{margin-bottom:0}
+        .ms-cb{width:18px;height:18px;border:1.5px solid var(--border);border-radius:4px;flex-shrink:0;display:flex;align-items:center;justify-content:center;margin-top:1px;transition:all .2s}
+        .ms-cb.on{border-color:var(--gold);background:var(--gold)}
+        .ms-check-txt{font-size:11px;color:var(--text-secondary);line-height:1.6;font-weight:300}
+        .ms-cta{background:var(--gold);border:none;border-radius:14px;padding:15px;text-align:center;font-size:13px;font-weight:400;color:#08080A;cursor:pointer;width:100%;font-family:'Helvetica Neue',Helvetica,-apple-system,sans-serif;letter-spacing:0.5px;transition:all .2s}
+        .ms-cta:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 8px 24px rgba(212,175,55,0.25)}
+        .ms-cta:disabled{opacity:.35;cursor:not-allowed;transform:none;box-shadow:none}
+        .ms-cta2{background:rgba(255,255,255,0.035);border:0.5px solid rgba(255,255,255,0.06);border-radius:14px;padding:15px;text-align:center;font-size:12px;font-weight:300;color:var(--text-muted);cursor:pointer;font-family:'Helvetica Neue',Helvetica,-apple-system,sans-serif}
+        .ms-cta2:hover{border-color:var(--gold);color:var(--gold)}
+        .ms-row{display:flex;gap:8px;margin-top:16px}
+        .ms-verify{background:var(--gold-light);border:0.5px solid rgba(212,175,55,0.12);border-radius:14px;padding:14px;margin-top:12px}
+        .ms-verify-l{font-size:9px;color:rgba(212,175,55,0.4);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px}
+        .ms-verify-c{font-size:16px;color:rgba(212,175,55,0.75);letter-spacing:3px;font-family:'SF Mono',monospace;font-weight:300}
+        .ms-lock{background:rgba(255,255,255,0.025);border-radius:11px;padding:12px 14px;display:flex;align-items:center;gap:10px;margin-top:12px}
+        .ms-ok{text-align:center;padding:44px 24px 28px}
+        .ms-ok-icon{width:64px;height:64px;border-radius:50%;margin:0 auto 24px;position:relative;display:flex;align-items:center;justify-content:center;animation:msPop .5s cubic-bezier(.68,-.55,.27,1.55)}
+        .ms-ok-ring1{position:absolute;inset:0;border-radius:50%;border:1px solid rgba(52,199,89,0.3)}
+        .ms-ok-ring2{position:absolute;inset:5px;border-radius:50%;border:0.5px solid rgba(52,199,89,0.15)}
+        .ms-ok-title{font-size:24px;font-weight:300;color:var(--text);margin-bottom:6px;letter-spacing:-0.5px}
+        .ms-ok-sub{font-size:12px;color:var(--text-muted);margin-bottom:28px;font-weight:300}
+        .ms-receipt{background:rgba(255,255,255,0.025);border-radius:14px;padding:16px;text-align:left;margin-bottom:16px}
+        .ms-rr{display:flex;justify-content:space-between;padding:8px 0;border-bottom:0.5px solid rgba(255,255,255,0.04)}
+        .ms-rr:last-child{border-bottom:none}
+        .ms-rr-l{font-size:11px;color:var(--text-muted);font-weight:300}
+        .ms-rr-v{font-size:11px;color:var(--text);font-weight:300}
+        .ms-next{margin-top:20px;background:rgba(255,255,255,0.02);border-radius:10px;padding:12px;text-align:left}
+        .ms-next-t{font-size:9px;color:rgba(212,175,55,0.5);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px}
+        .ms-next-i{display:flex;gap:8px;align-items:flex-start;margin-bottom:7px}
+        .ms-next-i:last-child{margin-bottom:0}
+        .ms-next-dot{width:4px;height:4px;background:rgba(255,255,255,0.15);border-radius:50%;flex-shrink:0;margin-top:5px}
+        .ms-next-txt{font-size:11px;color:var(--text-muted);font-weight:300}
+        @keyframes msPop{0%{transform:scale(0);opacity:0}100%{transform:scale(1);opacity:1}}
         .contract-preview{background:var(--bg-elevated);border-radius:12px;padding:20px;margin:16px 0;max-height:300px;overflow-y:auto;font-size:13px;line-height:1.7}
         .contract-preview h4{color:var(--gold);margin-bottom:12px}
         @keyframes modalIn{from{opacity:0;transform:scale(.95) translateY(-20px)}to{opacity:1;transform:scale(1) translateY(0)}}
@@ -9018,6 +9082,10 @@ Valentyne - BOOM Rome`
                 cohabitants: data.cohabitants || '',
                 otherClauses: data.otherClauses || '',
                 notes: data.notes || '',
+                cadastral: data.cadastral || '',
+                energyClass: data.energyClass || '',
+                renditaCatastale: parseFloat(data.renditaCatastale) || 0,
+                cedolareSecca: data.cedolareSecca || 'si',
                 status: 'active',
                 signatureStatus: 'none',
                 tenantSignToken: crypto.randomUUID ? crypto.randomUUID() : ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c => (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)),
@@ -10254,159 +10322,244 @@ Valentyne - BOOM Rome`
     function openSignContractModal(contractId, role) {
         const contract = S.contracts.find(c => c.id === contractId);
         if (!contract) return toast('error', 'Contratto non trovato');
-        
         const property = S.properties.find(p => p.id === contract.propertyId);
         const tenant = S.users.find(u => u.id === contract.tenantId);
         const landlord = property ? S.users.find(u => u.id === property.ownerId) : null;
-        
-        currentSigningContract = contract;
-        currentSigningRole = role;
-        
+        currentSigningContract = contract; currentSigningRole = role;
         const signerName = role === 'landlord' ? (landlord?.name || 'Proprietario') : (tenant?.name || 'Inquilino');
-        const alreadySigned = role === 'landlord' ? contract.landlordSignature : contract.tenantSignature;
-        
-        if (alreadySigned) {
-            return toast('info', 'Già firmato', `${signerName} ha già firmato questo contratto`);
+        if (role === 'landlord' ? contract.landlordSignature : contract.tenantSignature) {
+            return toast('info', 'Already signed', signerName + ' has already signed this contract');
         }
-        
-        const otherSigned = role === 'landlord' ? contract.tenantSignature : contract.landlordSignature;
-        
+        const vh = 'BOOM-' + btoa(contractId + (contract.startDate||'') + contract.rent).substring(0,12).toUpperCase();
+        const LOGO = 'data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDI0IDEwMjQiIHdpZHRoPSIxMDI0IiBoZWlnaHQ9IjEwMjQiPgogIDxkZWZzPgogICAgPGxpbmVhckdyYWRpZW50IGlkPSJnb2xkR3JhZGllbnQiIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMCUiIHkyPSIxMDAlIj4KICAgICAgPHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iI0ZGRDU0RiIvPgogICAgICA8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiNGNUE2MjMiLz4KICAgIDwvbGluZWFyR3JhZGllbnQ+CiAgPC9kZWZzPgogIDxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDAsMTAyNCkgc2NhbGUoMC4xLC0wLjEpIiBmaWxsPSJ1cmwoI2dvbGRHcmFkaWVudCkiPgogICAgPHBhdGggZD0iTTQ4NjAgODc0OSBjLTUwOSAtMjkgLTk3NiAtMTYxIC0xNDEzIC00MDEgLTU4MCAtMzE3IC0xMDU3IC04MDYgLTEzNTAgLTEzODMgLTE0OCAtMjkyIC0yMjkgLTUzMiAtMjkxIC04NTkgLTg5IC00NjUgLTY5IC0xMDA1IDU0IC0xNDYxIDE4NCAtNjg4IDYxNiAtMTMwOCAxMjMyIC0xNzY5IDQ5MiAtMzY4IDExNzIgLTYwOSAxNzk0IC02MzUgNTQ2IC0yMiA5ODcgNTcgMTQ4OSAyNjcgNTAzIDIxMSA5NzkgNTg5IDEzMjcgMTA1MyAzNDAgNDUzIDU1NyA5OTQgNjMwIDE1NjkgMTcgMTM1IDE3IDYzMCAwIDc2MCAtOTMgNzE2IC0zOTYgMTM0MSAtOTAwIDE4NjEgLTI4MCAyODkgLTU2OSA0OTggLTkyMiA2NjcgLTQxNiAyMDAgLTgxMyAzMDMgLTEyODUgMzMyIC0xNjUgMTAgLTE3MCAxMCAtMzY1IC0xeiBtNjEwIC0xNDQgYzc0MyAtMTAzIDE0MzYgLTQ1OSAxOTE5IC05ODUgMzM4IC0zNjcgNTYyIC03NTEgNzA0IC0xMjA1IDI3NiAtODc5IDEzMiAtMTg1OCAtMzg4IC0yNjQwIC0yNDIgLTM2NCAtNDkzIC02MTUgLTkwMCAtOTAwIGwtNzAgLTQ5IDEwOSAxMDQgYzQxMyAzOTYgNjc5IDkxOSA3NjcgMTUwNSAzMyAyMTcgMzMgNTU4IDAgNzY1IC03NSA0NzYgLTI1NyA4OTYgLTU0OSAxMjY1IC0xMjcgMTYxIC0zNjMgMzgwIC01NDkgNTExIC0zMDAgMjExIC02ODkgMzYzIC0xMDc5IDQyMCAtMTcyIDI2IC02MDQgMjYgLTc2NCAwIC0yOTYgLTQ3IC01NDUgLTEyOCAtODA4IC0yNjIgLTIzNiAtMTIyIC00NDAgLTI3MSAtNjMyIC00NjQgLTQ4NiAtNDg1IC03NDkgLTExMjEgLTc1MSAtMTgxNSAtMSAtNjExIDE3MCAtMTE0OCA1MTUgLTE2MDggMTAwIC0xMzQgMjg2IC0zMzUgMzgyIC00MTMgMzMgLTI3IC04IC0yIC05MSA1NSAtNTEzIDM1MSAtOTA0IDgwNSAtMTE0MyAxMzMxIC03MSAxNTYgLTEzNiAzMzYgLTE2OCA0NjUgLTkgMzMgLTE5IDc2IC0yNCA5NSAtNSAxOSAtMjAgMTAwIC0zNCAxODAgLTU5IDM0MyAtNjAgNzQwIDAgMTA3MCA4MSA0NTYgMjI5IDgyNiA0NzkgMTIwMCAyNDYgMzY4IDU1OCA2NjkgOTQ5IDkxNyAzODYgMjQ1IDg4MSA0MTggMTMyMSA0NjIgNjEgNiAxMjQgMTMgMTQwIDE1IDczIDEwIDU1NiAtNCA2NjUgLTE5eiBtLTYwIC0xMzI5IGMxMDUgLTE2IDI1OCAtNDkgMzM1IC03MiA4MiAtMjYgMTk3IC02NiAyNDAgLTg0IDE0OSAtNjUgMTkwIC04NCAyNjYgLTEyNiA2NzcgLTM3OSAxMTI5IC0xMDQ5IDEyNDYgLTE4NDkgMjcgLTE4MiAyNCAtNTE3IC01IC02OTUgLTc1IC00NTggLTIyNSAtODEzIC01MDAgLTExNzkgLTExNiAtMTU0IC0zNDAgLTM2OSAtNTI3IC01MDYgLTQ0IC0zMiAtODcgLTYzIC05NSAtNjkgLTggLTYgMzUgMzkgOTYgOTkgMTc4IDE3NyAyODMgMzIxIDM5NyA1NTAgMTYxIDMyMiAyMzEgNjc2IDIwNSAxMDQ1IC0zMiA0NjcgLTIyMyA5MDIgLTU0MiAxMjM3IC0yMzkgMjUxIC01MjEgNDI2IC04NzMgNTQyIC03OSAyNiAtMjczIDY3IC0zODMgODEgLTEwOCAxMyAtMzQ5IDEzIC00NjUgMCAtMjc2IC0zMiAtNTk3IC0xNDUgLTgzNCAtMjkzIC0yMjQgLTE0MCAtNDY2IC0zNzggLTYxMyAtNjAyIC0zMDcgLTQ3MCAtNDA3IC0xMDU1IC0yNzMgLTE1OTkgODAgLTMyNyAyMTcgLTU4OSA0NTQgLTg3MSA3MSAtODQgNzMgLTg4IDMxIC01NiAtMjkzIDIyNSAtNTQ3IDUzNSAtNzE4IDg3NyAtMzQgNjggLTY1IDE0MyAtMTIyIDI5NCAtNDIgMTEyIC0xMDEgMzgzIC0xMjAgNTU1IC0xNCAxMjcgLTE0IDQwMSAwIDUzNCA1MSA0ODIgMjIzIDkxMiA1MTYgMTI4OCAyNjkgMzQ0IDY1NCA2MjAgMTA4NSA3NzggMTYwIDU5IDQwMCAxMTUgNTc0IDEzNCAxMjEgMTMgNTA4IDUgNjI1IC0xM3ogbS0zMCAtMTE2NSBjNDAxIC04MSA3MjEgLTI0MiA5OTIgLTQ5OSA2NDMgLTYxMiA3NjkgLTE2MDcgMzAwIC0yMzY3IC0xMTggLTE5MCAtMjkxIC0zODYgLTQ2MyAtNTI0IC0xMzcgLTExMSAtMTQ4IC0xMTMgLTQ5IC0xMiAxMTAgMTEyIDIwNiAyNDggMjc1IDM4NiA2NyAxMzcgOTggMjIyIDEzMiAzNjcgMjQgMTAzIDI2IDEzMiAyNyAzMjMgMCAxODIgLTMgMjI0IC0yMiAzMTAgLTQ3IDIxMSAtMTI2IDM5NCAtMjQ1IDU2OSAtMTI2IDE4NiAtMzU4IDM4NyAtNTY0IDQ5MCAtMzg0IDE5MSAtODIzIDIyNSAtMTIxOCA5NSAtNDgyIC0xNjAgLTg1NCAtNTQxIC0xMDA0IC0xMDI5IC0xMTcgLTM3OSAtODEgLTgxMCA5NiAtMTE2NSAzNyAtNzIgMTMwIC0yMTUgMTY2IC0yNTIgMTcgLTE4IDI2IC0zMyAyMCAtMzMgLTYgMCAtNjEgNTIgLTEyMSAxMTYgLTI1OSAyNzIgLTQyNCA1NzUgLTUxMSA5MzQgLTExMSA0NTkgLTE4IDEwMDYgMjQ1IDE0MzAgMjk4IDQ4MyA3OTEgNzk3IDEzNzkgODgwIDExMCAxNiA0NDggNCA1NjUgLTE5eiBtLTIzOSAtOTExIGMzNjAgLTI4IDY4MCAtMTcxIDkyNSAtNDE1IDE5NCAtMTkzIDMxNyAtNDE1IDM4MiAtNjg4IDI0IC0xMDIgMjYgLTEzMCAyNiAtMzEyIDAgLTE5MSAtMSAtMjA1IC0zMCAtMzIwIC01MyAtMjA1IC0xMzIgLTM3MiAtMjUxIC01MzUgLTU4IC03OSAtMjYzIC0yODggLTMyMyAtMzMwIC0zMSAtMjIgLTI5IC0xOCAxOCAzNSAxOTUgMjIwIDMxMiA1MTkgMzEyIDc5NSAwIDMyNSAtMTIxIDYxNCAtMzUwIDg0MSAtMzY5IDM2NCAtOTI2IDQ1MyAtMTM4NSAyMjIgLTMzNiAtMTcwIC01NzggLTQ5OSAtNjM2IC04NjUgLTE5IC0xMjYgLTcgLTM3MSAyNSAtNDkwIDQ0IC0xNjIgOTcgLTI4NCAxNzMgLTM5OCA5IC0xNCAtNCAtNSAtMzAgMjAgLTI2IDI0IC00NSA1MSAtNDIgNTggMiA3IDEgMTEgLTQgNyAtMTEgLTYgLTU4IDUxIC0xMTggMTQwIC0xMDkgMTYzIC0xODMgMzQ3IC0yMTkgNTQ1IC0yMyAxMjcgLTIzIDM1MSAtMSA0ODkgNTUgMzM1IDI0OCA2NzcgNDkyIDg3MSAyNjEgMjA4IDUzMCAzMTEgODgxIDMzOCAxMSAxIDgxIC0zIDE1NSAtOHogbTI5IC03MTQgYzQ1OSAtNzQgODIzIC00MjggODk1IC04NjkgNTggLTM1OCAtNjAgLTY5NiAtMzQ1IC05ODcgbC0zNCAtMzUgMjIgMzUgYzExNSAxODIgMTc5IDQwMyAxNjggNTc1IC0xNCAyMzUgLTEwNCA0MzMgLTI2OCA1OTEgLTEzNyAxMzQgLTI4NyAyMDkgLTQ3MiAyMzkgLTExNSAxOSAtMTg3IDE5IC0zMDMgMCAtMzM3IC01NSAtNjEyIC0zMDIgLTcwNCAtNjM1IC0zMiAtMTEzIC0zNCAtMzI1IC01IC00NDAgMjMgLTkyIDcwIC0yMTMgOTggLTI1NCBsMjEgLTMxIC0zMSAyOSBjLTM5IDM2IC0xMjAgMTUyIC0xNTUgMjIxIC0zNSA3MSAtODEgMjE1IC0xMDIgMzE5IC0yNSAxMzAgLTE3IDM1NyAxNyA0NzYgMTAyIDM1NCAzNTcgNjE4IDcwNiA3MzAgMTUyIDQ5IDMzMSA2MiA0OTIgMzZ6IG0tNzMgLTU2NyBjMTc4IC0yNCAzMjcgLTEwMSA0NTQgLTIzNiAxMzcgLTE0MyAxOTkgLTMwMyAyMDEgLTUxMyAxIC0xNjIgLTQyIC0zMDkgLTEzNSAtNDUzIC01MiAtODIgLTczIC05NyAtMzggLTI4IDUxIDk5IDY3IDI5MCAzNiA0MTIgLTU3IDIxOSAtMjUxIDQxMyAtNDY2IDQ2NCAtNzUgMTcgLTIzNiAyMCAtMzExIDQgLTIxMyAtNDQgLTQyMiAtMjQ3IC00NzMgLTQ2MCAtMzEgLTEzMyAtMTMgLTMyNSA0MSAtNDMxIDM1IC03MCA4IC00NyAtNTIgNDMgLTU4IDg4IC05MCAxNjcgLTExNCAyODYgLTI1IDEyMSAtMjUgMjIwIC0xIDMzMSAzMyAxNDYgODQgMjQzIDE4NiAzNTEgMTcxIDE4MyA0MTMgMjY2IDY3MiAyMzB6IG0xNSAtNDcwIGM4MCAtMTcgMTg2IC03NiAyNDggLTEzOSAxMDYgLTEwNyAxNTggLTI0OCAxNDcgLTM5OCAtNiAtOTIgLTI1IC0xNTIgLTc5IC0yNTAgLTQ1IC04MiAtNjAgLTkxIC0yNyAtMTcgMTggNDEgMjEgNjIgMTcgMTQ5IC00IDg5IC04IDEwOCAtMzUgMTYyIC00MyA4MiAtMTI2IDE2NSAtMjA5IDIwNSAtNTggMjkgLTgwIDM0IC0xNTggMzcgLTExMiA1IC0xODQgLTEyIC0yNTkgLTYyIC0xODIgLTEyMSAtMjUxIC0zMjMgLTE3MSAtNTA2IGwyNCAtNTUgLTI1IDMwIGMtMzYgNDQgLTkyIDE2MiAtMTA0IDIyMyAtMzkgMTg5IDE0IDM2OSAxNDYgNDkyIDEwNSA5OSAyMDQgMTM5IDM0NSAxMzkgNDggMSAxMTEgLTQgMTQwIC0xMHoiLz4KICA8L2c+Cjwvc3ZnPgo=';
+        var transHtml = contract.transitionalReason ? '<div class="ms-party" style="margin-top:4px"><div><div class="ms-stat-l">Transitional reason</div><div style="font-size:12px;color:var(--text);margin-top:3px">' + contract.transitionalReason + '</div></div></div>' : '';
+        var notesHtml = contract.notes ? '<div class="ms-party"><div><div class="ms-stat-l">Notes</div><div style="font-size:12px;color:var(--text);margin-top:3px">' + contract.notes + '</div></div></div>' : '';
+
         document.getElementById('modals').innerHTML = `
-        <div class="modal-overlay active">
-            <div class="modal lg">
-                <div class="modal-header">
-                    <h3 class="modal-title">✏️ Firma Contratto</h3>
-                    <button class="modal-close" onclick="closeModal()">×</button>
+        <div class="modal-overlay active"><div class="modal ms-modal">
+            <div class="ms-hdr">
+                <div class="ms-hdr-top">
+                    <div class="ms-logo"><img src="${LOGO}" alt="BOOM"><span>BOOM</span></div>
+                    <div class="ms-prog"><div class="ms-prog-d" style="width:20px;background:var(--gold)"></div><div class="ms-prog-d" style="width:8px;background:var(--border)"></div><div class="ms-prog-d" style="width:8px;background:var(--border)"></div></div>
                 </div>
-                <div class="modal-body">
-                    <div class="alert info" style="margin-bottom:16px">
-                        <span class="alert-icon">📋</span>
-                        <div class="alert-content">
-                            <div class="alert-title">Contratto di Locazione</div>
-                            <div class="alert-text">${property?.name || 'Immobile'} - Canone: €${contract.rent}/mese</div>
-                        </div>
-                    </div>
-                    
-                    <div class="contract-preview">
-                        <h4>📄 Riepilogo Contratto</h4>
-                        <p><strong>Immobile:</strong> ${property?.name || 'N/A'} - ${property?.address || ''}</p>
-                        <p><strong>Proprietario:</strong> ${landlord?.name || 'N/A'}</p>
-                        <p><strong>Inquilino:</strong> ${tenant?.name || 'N/A'}</p>
-                        <p><strong>Canone:</strong> €${contract.rent}/mese</p>
-                        <p><strong>Deposito:</strong> €${contract.deposit || 0}</p>
-                        <p><strong>Durata:</strong> ${fmtDate(contract.startDate)} → ${fmtDate(contract.endDate)}</p>
-                        <p style="margin-top:12px;font-size:11px;color:var(--text-muted)">
-                            Firmando questo documento, ${signerName} accetta tutti i termini e le condizioni del contratto di locazione.
-                        </p>
-                    </div>
-                    
-                    <div class="signature-status ${otherSigned ? 'signed' : 'waiting'}">
-                        ${otherSigned 
-                            ? `✅ ${role === 'landlord' ? 'Inquilino' : 'Proprietario'} ha già firmato`
-                            : `⏳ In attesa della firma ${role === 'landlord' ? "dell'inquilino" : 'del proprietario'}`
-                        }
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">La tua firma (${signerName})</label>
-                        <div class="signature-container" id="signatureContainer">
-                            <canvas id="signatureCanvas" class="signature-canvas"></canvas>
-                        </div>
-                        <div class="signature-hint">Firma con il dito o il mouse nell'area bianca sopra</div>
-                        <div class="signature-actions">
-                            <button class="btn btn-secondary btn-sm" onclick="clearSignature()">🗑 Cancella</button>
-                            <div style="display:flex;gap:8px">
-                                <button class="btn btn-secondary btn-sm" onclick="closeModal()">Annulla</button>
-                                <button class="btn btn-sm" onclick="saveContractSignature('${contractId}', '${role}')">✏️ Conferma Firma</button>
-                            </div>
-                        </div>
-                    </div>
+                <div class="ms-title">Contract review</div>
+                <div class="ms-sub">Review all terms before signing</div>
+            </div>
+            <div class="ms-body" style="max-height:55vh;overflow-y:auto">
+                <div class="ms-prop"><div class="ms-prop-label">Property</div><div class="ms-prop-name">${property?.name || 'N/A'}</div><div class="ms-prop-addr">${property?.address || 'Roma'}</div></div>
+                <div class="ms-grid">
+                    <div class="ms-stat"><div class="ms-stat-l">Monthly rent</div><div class="ms-stat-v" style="color:var(--gold)">\u20ac${contract.rent}</div></div>
+                    <div class="ms-stat"><div class="ms-stat-l">Deposit</div><div class="ms-stat-v">\u20ac${contract.deposit||0}</div></div>
+                </div>
+                <div class="ms-grid">
+                    <div class="ms-stat"><div class="ms-stat-l">Start</div><div class="ms-stat-sm">${fmtDate(contract.startDate)}</div></div>
+                    <div class="ms-stat"><div class="ms-stat-l">End</div><div class="ms-stat-sm">${fmtDate(contract.endDate)}</div></div>
+                </div>
+                ${transHtml}
+                <div class="ms-party">${msPartyBadge(landlord, 'Landlord', contract.landlordSignature)}</div>
+                <div class="ms-party">${msPartyBadge(tenant, 'Tenant', contract.tenantSignature)}</div>
+                ${notesHtml}
+                <div class="ms-verify"><div class="ms-verify-l">Verification</div><div class="ms-verify-c">${vh}</div></div>
+                <div style="text-align:center;margin-top:14px"><a href="#" onclick="event.preventDefault();previewContractPDF('${contractId}')" style="font-size:11px;color:var(--text-muted);text-decoration:none;font-weight:300;border-bottom:0.5px solid var(--border);padding-bottom:1px">Preview full contract PDF</a></div>
+                <div class="ms-row">
+                    <button class="ms-cta2" style="flex:1" onclick="closeModal()">Cancel</button>
+                    <button class="ms-cta" style="flex:2" onclick="msStep2('${contractId}','${role}')">Continue</button>
                 </div>
             </div>
-        </div>`;
-        
-        // Initialize signature pad after modal is rendered
+        </div></div>`;
+    }
+
+    function msPartyBadge(user, label, sig) {
+        var badge = sig
+            ? '<span style="font-size:9px;color:var(--green);background:var(--green-light);padding:3px 8px;border-radius:6px">Signed</span>'
+            : '<span style="font-size:9px;color:var(--orange);background:var(--orange-light);padding:3px 8px;border-radius:6px">Awaiting</span>';
+        return '<div><div class="ms-stat-l">' + label + '</div><div style="font-size:13px;color:var(--text);margin-top:3px">' + (user?.name||'N/A') + '</div></div>' + badge;
+    }
+
+    function msStep2(contractId, role) {
+        const contract = S.contracts.find(c => c.id === contractId);
+        const property = S.properties.find(p => p.id === contract?.propertyId);
+        const tenant = S.users.find(u => u.id === contract?.tenantId);
+        const landlord = property ? S.users.find(u => u.id === property.ownerId) : null;
+        const signer = role === 'landlord' ? landlord : tenant;
+        const LOGO = 'data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDI0IDEwMjQiIHdpZHRoPSIxMDI0IiBoZWlnaHQ9IjEwMjQiPgogIDxkZWZzPgogICAgPGxpbmVhckdyYWRpZW50IGlkPSJnb2xkR3JhZGllbnQiIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMCUiIHkyPSIxMDAlIj4KICAgICAgPHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iI0ZGRDU0RiIvPgogICAgICA8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiNGNUE2MjMiLz4KICAgIDwvbGluZWFyR3JhZGllbnQ+CiAgPC9kZWZzPgogIDxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDAsMTAyNCkgc2NhbGUoMC4xLC0wLjEpIiBmaWxsPSJ1cmwoI2dvbGRHcmFkaWVudCkiPgogICAgPHBhdGggZD0iTTQ4NjAgODc0OSBjLTUwOSAtMjkgLTk3NiAtMTYxIC0xNDEzIC00MDEgLTU4MCAtMzE3IC0xMDU3IC04MDYgLTEzNTAgLTEzODMgLTE0OCAtMjkyIC0yMjkgLTUzMiAtMjkxIC04NTkgLTg5IC00NjUgLTY5IC0xMDA1IDU0IC0xNDYxIDE4NCAtNjg4IDYxNiAtMTMwOCAxMjMyIC0xNzY5IDQ5MiAtMzY4IDExNzIgLTYwOSAxNzk0IC02MzUgNTQ2IC0yMiA5ODcgNTcgMTQ4OSAyNjcgNTAzIDIxMSA5NzkgNTg5IDEzMjcgMTA1MyAzNDAgNDUzIDU1NyA5OTQgNjMwIDE1NjkgMTcgMTM1IDE3IDYzMCAwIDc2MCAtOTMgNzE2IC0zOTYgMTM0MSAtOTAwIDE4NjEgLTI4MCAyODkgLTU2OSA0OTggLTkyMiA2NjcgLTQxNiAyMDAgLTgxMyAzMDMgLTEyODUgMzMyIC0xNjUgMTAgLTE3MCAxMCAtMzY1IC0xeiBtNjEwIC0xNDQgYzc0MyAtMTAzIDE0MzYgLTQ1OSAxOTE5IC05ODUgMzM4IC0zNjcgNTYyIC03NTEgNzA0IC0xMjA1IDI3NiAtODc5IDEzMiAtMTg1OCAtMzg4IC0yNjQwIC0yNDIgLTM2NCAtNDkzIC02MTUgLTkwMCAtOTAwIGwtNzAgLTQ5IDEwOSAxMDQgYzQxMyAzOTYgNjc5IDkxOSA3NjcgMTUwNSAzMyAyMTcgMzMgNTU4IDAgNzY1IC03NSA0NzYgLTI1NyA4OTYgLTU0OSAxMjY1IC0xMjcgMTYxIC0zNjMgMzgwIC01NDkgNTExIC0zMDAgMjExIC02ODkgMzYzIC0xMDc5IDQyMCAtMTcyIDI2IC02MDQgMjYgLTc2NCAwIC0yOTYgLTQ3IC01NDUgLTEyOCAtODA4IC0yNjIgLTIzNiAtMTIyIC00NDAgLTI3MSAtNjMyIC00NjQgLTQ4NiAtNDg1IC03NDkgLTExMjEgLTc1MSAtMTgxNSAtMSAtNjExIDE3MCAtMTE0OCA1MTUgLTE2MDggMTAwIC0xMzQgMjg2IC0zMzUgMzgyIC00MTMgMzMgLTI3IC04IC0yIC05MSA1NSAtNTEzIDM1MSAtOTA0IDgwNSAtMTE0MyAxMzMxIC03MSAxNTYgLTEzNiAzMzYgLTE2OCA0NjUgLTkgMzMgLTE5IDc2IC0yNCA5NSAtNSAxOSAtMjAgMTAwIC0zNCAxODAgLTU5IDM0MyAtNjAgNzQwIDAgMTA3MCA4MSA0NTYgMjI5IDgyNiA0NzkgMTIwMCAyNDYgMzY4IDU1OCA2NjkgOTQ5IDkxNyAzODYgMjQ1IDg4MSA0MTggMTMyMSA0NjIgNjEgNiAxMjQgMTMgMTQwIDE1IDczIDEwIDU1NiAtNCA2NjUgLTE5eiBtLTYwIC0xMzI5IGMxMDUgLTE2IDI1OCAtNDkgMzM1IC03MiA4MiAtMjYgMTk3IC02NiAyNDAgLTg0IDE0OSAtNjUgMTkwIC04NCAyNjYgLTEyNiA2NzcgLTM3OSAxMTI5IC0xMDQ5IDEyNDYgLTE4NDkgMjcgLTE4MiAyNCAtNTE3IC01IC02OTUgLTc1IC00NTggLTIyNSAtODEzIC01MDAgLTExNzkgLTExNiAtMTU0IC0zNDAgLTM2OSAtNTI3IC01MDYgLTQ0IC0zMiAtODcgLTYzIC05NSAtNjkgLTggLTYgMzUgMzkgOTYgOTkgMTc4IDE3NyAyODMgMzIxIDM5NyA1NTAgMTYxIDMyMiAyMzEgNjc2IDIwNSAxMDQ1IC0zMiA0NjcgLTIyMyA5MDIgLTU0MiAxMjM3IC0yMzkgMjUxIC01MjEgNDI2IC04NzMgNTQyIC03OSAyNiAtMjczIDY3IC0zODMgODEgLTEwOCAxMyAtMzQ5IDEzIC00NjUgMCAtMjc2IC0zMiAtNTk3IC0xNDUgLTgzNCAtMjkzIC0yMjQgLTE0MCAtNDY2IC0zNzggLTYxMyAtNjAyIC0zMDcgLTQ3MCAtNDA3IC0xMDU1IC0yNzMgLTE1OTkgODAgLTMyNyAyMTcgLTU4OSA0NTQgLTg3MSA3MSAtODQgNzMgLTg4IDMxIC01NiAtMjkzIDIyNSAtNTQ3IDUzNSAtNzE4IDg3NyAtMzQgNjggLTY1IDE0MyAtMTIyIDI5NCAtNDIgMTEyIC0xMDEgMzgzIC0xMjAgNTU1IC0xNCAxMjcgLTE0IDQwMSAwIDUzNCA1MSA0ODIgMjIzIDkxMiA1MTYgMTI4OCAyNjkgMzQ0IDY1NCA2MjAgMTA4NSA3NzggMTYwIDU5IDQwMCAxMTUgNTc0IDEzNCAxMjEgMTMgNTA4IDUgNjI1IC0xM3ogbS0zMCAtMTE2NSBjNDAxIC04MSA3MjEgLTI0MiA5OTIgLTQ5OSA2NDMgLTYxMiA3NjkgLTE2MDcgMzAwIC0yMzY3IC0xMTggLTE5MCAtMjkxIC0zODYgLTQ2MyAtNTI0IC0xMzcgLTExMSAtMTQ4IC0xMTMgLTQ5IC0xMiAxMTAgMTEyIDIwNiAyNDggMjc1IDM4NiA2NyAxMzcgOTggMjIyIDEzMiAzNjcgMjQgMTAzIDI2IDEzMiAyNyAzMjMgMCAxODIgLTMgMjI0IC0yMiAzMTAgLTQ3IDIxMSAtMTI2IDM5NCAtMjQ1IDU2OSAtMTI2IDE4NiAtMzU4IDM4NyAtNTY0IDQ5MCAtMzg0IDE5MSAtODIzIDIyNSAtMTIxOCA5NSAtNDgyIC0xNjAgLTg1NCAtNTQxIC0xMDA0IC0xMDI5IC0xMTcgLTM3OSAtODEgLTgxMCA5NiAtMTE2NSAzNyAtNzIgMTMwIC0yMTUgMTY2IC0yNTIgMTcgLTE4IDI2IC0zMyAyMCAtMzMgLTYgMCAtNjEgNTIgLTEyMSAxMTYgLTI1OSAyNzIgLTQyNCA1NzUgLTUxMSA5MzQgLTExMSA0NTkgLTE4IDEwMDYgMjQ1IDE0MzAgMjk4IDQ4MyA3OTEgNzk3IDEzNzkgODgwIDExMCAxNiA0NDggNCA1NjUgLTE5eiBtLTIzOSAtOTExIGMzNjAgLTI4IDY4MCAtMTcxIDkyNSAtNDE1IDE5NCAtMTkzIDMxNyAtNDE1IDM4MiAtNjg4IDI0IC0xMDIgMjYgLTEzMCAyNiAtMzEyIDAgLTE5MSAtMSAtMjA1IC0zMCAtMzIwIC01MyAtMjA1IC0xMzIgLTM3MiAtMjUxIC01MzUgLTU4IC03OSAtMjYzIC0yODggLTMyMyAtMzMwIC0zMSAtMjIgLTI5IC0xOCAxOCAzNSAxOTUgMjIwIDMxMiA1MTkgMzEyIDc5NSAwIDMyNSAtMTIxIDYxNCAtMzUwIDg0MSAtMzY5IDM2NCAtOTI2IDQ1MyAtMTM4NSAyMjIgLTMzNiAtMTcwIC01NzggLTQ5OSAtNjM2IC04NjUgLTE5IC0xMjYgLTcgLTM3MSAyNSAtNDkwIDQ0IC0xNjIgOTcgLTI4NCAxNzMgLTM5OCA5IC0xNCAtNCAtNSAtMzAgMjAgLTI2IDI0IC00NSA1MSAtNDIgNTggMiA3IDEgMTEgLTQgNyAtMTEgLTYgLTU4IDUxIC0xMTggMTQwIC0xMDkgMTYzIC0xODMgMzQ3IC0yMTkgNTQ1IC0yMyAxMjcgLTIzIDM1MSAtMSA0ODkgNTUgMzM1IDI0OCA2NzcgNDkyIDg3MSAyNjEgMjA4IDUzMCAzMTEgODgxIDMzOCAxMSAxIDgxIC0zIDE1NSAtOHogbTI5IC03MTQgYzQ1OSAtNzQgODIzIC00MjggODk1IC04NjkgNTggLTM1OCAtNjAgLTY5NiAtMzQ1IC05ODcgbC0zNCAtMzUgMjIgMzUgYzExNSAxODIgMTc5IDQwMyAxNjggNTc1IC0xNCAyMzUgLTEwNCA0MzMgLTI2OCA1OTEgLTEzNyAxMzQgLTI4NyAyMDkgLTQ3MiAyMzkgLTExNSAxOSAtMTg3IDE5IC0zMDMgMCAtMzM3IC01NSAtNjEyIC0zMDIgLTcwNCAtNjM1IC0zMiAtMTEzIC0zNCAtMzI1IC01IC00NDAgMjMgLTkyIDcwIC0yMTMgOTggLTI1NCBsMjEgLTMxIC0zMSAyOSBjLTM5IDM2IC0xMjAgMTUyIC0xNTUgMjIxIC0zNSA3MSAtODEgMjE1IC0xMDIgMzE5IC0yNSAxMzAgLTE3IDM1NyAxNyA0NzYgMTAyIDM1NCAzNTcgNjE4IDcwNiA3MzAgMTUyIDQ5IDMzMSA2MiA0OTIgMzZ6IG0tNzMgLTU2NyBjMTc4IC0yNCAzMjcgLTEwMSA0NTQgLTIzNiAxMzcgLTE0MyAxOTkgLTMwMyAyMDEgLTUxMyAxIC0xNjIgLTQyIC0zMDkgLTEzNSAtNDUzIC01MiAtODIgLTczIC05NyAtMzggLTI4IDUxIDk5IDY3IDI5MCAzNiA0MTIgLTU3IDIxOSAtMjUxIDQxMyAtNDY2IDQ2NCAtNzUgMTcgLTIzNiAyMCAtMzExIDQgLTIxMyAtNDQgLTQyMiAtMjQ3IC00NzMgLTQ2MCAtMzEgLTEzMyAtMTMgLTMyNSA0MSAtNDMxIDM1IC03MCA4IC00NyAtNTIgNDMgLTU4IDg4IC05MCAxNjcgLTExNCAyODYgLTI1IDEyMSAtMjUgMjIwIC0xIDMzMSAzMyAxNDYgODQgMjQzIDE4NiAzNTEgMTcxIDE4MyA0MTMgMjY2IDY3MiAyMzB6IG0xNSAtNDcwIGM4MCAtMTcgMTg2IC03NiAyNDggLTEzOSAxMDYgLTEwNyAxNTggLTI0OCAxNDcgLTM5OCAtNiAtOTIgLTI1IC0xNTIgLTc5IC0yNTAgLTQ1IC04MiAtNjAgLTkxIC0yNyAtMTcgMTggNDEgMjEgNjIgMTcgMTQ5IC00IDg5IC04IDEwOCAtMzUgMTYyIC00MyA4MiAtMTI2IDE2NSAtMjA5IDIwNSAtNTggMjkgLTgwIDM0IC0xNTggMzcgLTExMiA1IC0xODQgLTEyIC0yNTkgLTYyIC0xODIgLTEyMSAtMjUxIC0zMjMgLTE3MSAtNTA2IGwyNCAtNTUgLTI1IDMwIGMtMzYgNDQgLTkyIDE2MiAtMTA0IDIyMyAtMzkgMTg5IDE0IDM2OSAxNDYgNDkyIDEwNSA5OSAyMDQgMTM5IDM0NSAxMzkgNDggMSAxMTEgLTQgMTQwIC0xMHoiLz4KICA8L2c+Cjwvc3ZnPgo=';
+
+        document.getElementById('modals').innerHTML = `
+        <div class="modal-overlay active"><div class="modal ms-modal">
+            <div class="ms-hdr">
+                <div class="ms-hdr-top">
+                    <div class="ms-logo"><img src="${LOGO}" alt="BOOM"><span>BOOM</span></div>
+                    <div class="ms-prog"><div class="ms-prog-d" style="width:8px;background:var(--green)"></div><div class="ms-prog-d" style="width:20px;background:var(--gold)"></div><div class="ms-prog-d" style="width:8px;background:var(--border)"></div></div>
+                </div>
+                <div class="ms-title">Verify your details</div>
+                <div class="ms-sub">Required for contract registration</div>
+            </div>
+            <div class="ms-body" style="max-height:55vh;overflow-y:auto">
+                <div class="ms-sec">Personal information</div>
+                <div class="ms-field"><div class="ms-fl">FULL NAME</div><div class="ms-fv">${signer?.name||'N/A'}</div></div>
+                <div class="ms-grid ms-field">
+                    <div><div class="ms-fl">DATE OF BIRTH</div><input type="date" class="ms-fi" id="msDob" value="${signer?.dob||''}"></div>
+                    <div><div class="ms-fl">PLACE OF BIRTH</div><input type="text" class="ms-fi" id="msPob" value="${signer?.pob||''}" placeholder="City, Country"></div>
+                </div>
+                <div class="ms-field"><div class="ms-fl">CODICE FISCALE</div><input type="text" class="ms-fi" id="msCf" value="${signer?.cf||''}" placeholder="Tax ID" style="text-transform:uppercase;letter-spacing:1px" maxlength="16"></div>
+                <div class="ms-field"><div class="ms-fl">CURRENT ADDRESS</div><input type="text" class="ms-fi" id="msAddr" value="${signer?.address||''}" placeholder="Full address"></div>
+                <div class="ms-sec" style="margin-top:18px">Identity document</div>
+                <div class="ms-grid ms-field">
+                    <div><div class="ms-fl">DOCUMENT TYPE</div><select class="ms-fi ms-fi-select" id="msDocType"><option value="passport">Passport</option><option value="ci">Carta d'identit\u00e0</option><option value="permesso">Permesso di soggiorno</option></select></div>
+                    <div><div class="ms-fl">NUMBER</div><input type="text" class="ms-fi" id="msDocNum" value="${signer?.docNum||''}" placeholder="Document number"></div>
+                </div>
+                <div class="ms-field"><div class="ms-fl">NATIONALITY</div><input type="text" class="ms-fi" id="msNat" value="${signer?.nationality||''}" placeholder="Country"></div>
+                <div class="ms-sec" style="margin-top:18px">Legal acknowledgment</div>
+                <div class="ms-consent">
+                    <div class="ms-check" onclick="msToggle(this)"><div class="ms-cb" id="msC1"></div><div class="ms-check-txt">I confirm my identity and accept all lease terms for ${property?.name||'this property'}.</div></div>
+                    <div class="ms-check" onclick="msToggle(this)"><div class="ms-cb" id="msC2"></div><div class="ms-check-txt">This digital signature is legally valid (FES \u2014 Art. 21 CAD, D.Lgs. 82/2005).</div></div>
+                </div>
+                <div class="ms-row">
+                    <button class="ms-cta2" style="flex:1" onclick="openSignContractModal('${contractId}','${role}')">Back</button>
+                    <button class="ms-cta" style="flex:2" id="msS2Btn" disabled onclick="msStep3('${contractId}','${role}')">Proceed to signature</button>
+                </div>
+            </div>
+        </div></div>`;
+    }
+
+    function msToggle(el) {
+        var cb = el.querySelector('.ms-cb'); cb.classList.toggle('on');
+        var c1 = document.getElementById('msC1')?.classList.contains('on');
+        var c2 = document.getElementById('msC2')?.classList.contains('on');
+        var btn = document.getElementById('msS2Btn');
+        if (btn) btn.disabled = !(c1 && c2);
+    }
+
+    function msStep3(contractId, role) {
+        const contract = S.contracts.find(c => c.id === contractId);
+        const vh = 'BOOM-' + btoa(contractId + (contract?.startDate||'') + (contract?.rent||0)).substring(0,12).toUpperCase();
+        const LOGO = 'data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDI0IDEwMjQiIHdpZHRoPSIxMDI0IiBoZWlnaHQ9IjEwMjQiPgogIDxkZWZzPgogICAgPGxpbmVhckdyYWRpZW50IGlkPSJnb2xkR3JhZGllbnQiIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMCUiIHkyPSIxMDAlIj4KICAgICAgPHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iI0ZGRDU0RiIvPgogICAgICA8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiNGNUE2MjMiLz4KICAgIDwvbGluZWFyR3JhZGllbnQ+CiAgPC9kZWZzPgogIDxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDAsMTAyNCkgc2NhbGUoMC4xLC0wLjEpIiBmaWxsPSJ1cmwoI2dvbGRHcmFkaWVudCkiPgogICAgPHBhdGggZD0iTTQ4NjAgODc0OSBjLTUwOSAtMjkgLTk3NiAtMTYxIC0xNDEzIC00MDEgLTU4MCAtMzE3IC0xMDU3IC04MDYgLTEzNTAgLTEzODMgLTE0OCAtMjkyIC0yMjkgLTUzMiAtMjkxIC04NTkgLTg5IC00NjUgLTY5IC0xMDA1IDU0IC0xNDYxIDE4NCAtNjg4IDYxNiAtMTMwOCAxMjMyIC0xNzY5IDQ5MiAtMzY4IDExNzIgLTYwOSAxNzk0IC02MzUgNTQ2IC0yMiA5ODcgNTcgMTQ4OSAyNjcgNTAzIDIxMSA5NzkgNTg5IDEzMjcgMTA1MyAzNDAgNDUzIDU1NyA5OTQgNjMwIDE1NjkgMTcgMTM1IDE3IDYzMCAwIDc2MCAtOTMgNzE2IC0zOTYgMTM0MSAtOTAwIDE4NjEgLTI4MCAyODkgLTU2OSA0OTggLTkyMiA2NjcgLTQxNiAyMDAgLTgxMyAzMDMgLTEyODUgMzMyIC0xNjUgMTAgLTE3MCAxMCAtMzY1IC0xeiBtNjEwIC0xNDQgYzc0MyAtMTAzIDE0MzYgLTQ1OSAxOTE5IC05ODUgMzM4IC0zNjcgNTYyIC03NTEgNzA0IC0xMjA1IDI3NiAtODc5IDEzMiAtMTg1OCAtMzg4IC0yNjQwIC0yNDIgLTM2NCAtNDkzIC02MTUgLTkwMCAtOTAwIGwtNzAgLTQ5IDEwOSAxMDQgYzQxMyAzOTYgNjc5IDkxOSA3NjcgMTUwNSAzMyAyMTcgMzMgNTU4IDAgNzY1IC03NSA0NzYgLTI1NyA4OTYgLTU0OSAxMjY1IC0xMjcgMTYxIC0zNjMgMzgwIC01NDkgNTExIC0zMDAgMjExIC02ODkgMzYzIC0xMDc5IDQyMCAtMTcyIDI2IC02MDQgMjYgLTc2NCAwIC0yOTYgLTQ3IC01NDUgLTEyOCAtODA4IC0yNjIgLTIzNiAtMTIyIC00NDAgLTI3MSAtNjMyIC00NjQgLTQ4NiAtNDg1IC03NDkgLTExMjEgLTc1MSAtMTgxNSAtMSAtNjExIDE3MCAtMTE0OCA1MTUgLTE2MDggMTAwIC0xMzQgMjg2IC0zMzUgMzgyIC00MTMgMzMgLTI3IC04IC0yIC05MSA1NSAtNTEzIDM1MSAtOTA0IDgwNSAtMTE0MyAxMzMxIC03MSAxNTYgLTEzNiAzMzYgLTE2OCA0NjUgLTkgMzMgLTE5IDc2IC0yNCA5NSAtNSAxOSAtMjAgMTAwIC0zNCAxODAgLTU5IDM0MyAtNjAgNzQwIDAgMTA3MCA4MSA0NTYgMjI5IDgyNiA0NzkgMTIwMCAyNDYgMzY4IDU1OCA2NjkgOTQ5IDkxNyAzODYgMjQ1IDg4MSA0MTggMTMyMSA0NjIgNjEgNiAxMjQgMTMgMTQwIDE1IDczIDEwIDU1NiAtNCA2NjUgLTE5eiBtLTYwIC0xMzI5IGMxMDUgLTE2IDI1OCAtNDkgMzM1IC03MiA4MiAtMjYgMTk3IC02NiAyNDAgLTg0IDE0OSAtNjUgMTkwIC04NCAyNjYgLTEyNiA2NzcgLTM3OSAxMTI5IC0xMDQ5IDEyNDYgLTE4NDkgMjcgLTE4MiAyNCAtNTE3IC01IC02OTUgLTc1IC00NTggLTIyNSAtODEzIC01MDAgLTExNzkgLTExNiAtMTU0IC0zNDAgLTM2OSAtNTI3IC01MDYgLTQ0IC0zMiAtODcgLTYzIC05NSAtNjkgLTggLTYgMzUgMzkgOTYgOTkgMTc4IDE3NyAyODMgMzIxIDM5NyA1NTAgMTYxIDMyMiAyMzEgNjc2IDIwNSAxMDQ1IC0zMiA0NjcgLTIyMyA5MDIgLTU0MiAxMjM3IC0yMzkgMjUxIC01MjEgNDI2IC04NzMgNTQyIC03OSAyNiAtMjczIDY3IC0zODMgODEgLTEwOCAxMyAtMzQ5IDEzIC00NjUgMCAtMjc2IC0zMiAtNTk3IC0xNDUgLTgzNCAtMjkzIC0yMjQgLTE0MCAtNDY2IC0zNzggLTYxMyAtNjAyIC0zMDcgLTQ3MCAtNDA3IC0xMDU1IC0yNzMgLTE1OTkgODAgLTMyNyAyMTcgLTU4OSA0NTQgLTg3MSA3MSAtODQgNzMgLTg4IDMxIC01NiAtMjkzIDIyNSAtNTQ3IDUzNSAtNzE4IDg3NyAtMzQgNjggLTY1IDE0MyAtMTIyIDI5NCAtNDIgMTEyIC0xMDEgMzgzIC0xMjAgNTU1IC0xNCAxMjcgLTE0IDQwMSAwIDUzNCA1MSA0ODIgMjIzIDkxMiA1MTYgMTI4OCAyNjkgMzQ0IDY1NCA2MjAgMTA4NSA3NzggMTYwIDU5IDQwMCAxMTUgNTc0IDEzNCAxMjEgMTMgNTA4IDUgNjI1IC0xM3ogbS0zMCAtMTE2NSBjNDAxIC04MSA3MjEgLTI0MiA5OTIgLTQ5OSA2NDMgLTYxMiA3NjkgLTE2MDcgMzAwIC0yMzY3IC0xMTggLTE5MCAtMjkxIC0zODYgLTQ2MyAtNTI0IC0xMzcgLTExMSAtMTQ4IC0xMTMgLTQ5IC0xMiAxMTAgMTEyIDIwNiAyNDggMjc1IDM4NiA2NyAxMzcgOTggMjIyIDEzMiAzNjcgMjQgMTAzIDI2IDEzMiAyNyAzMjMgMCAxODIgLTMgMjI0IC0yMiAzMTAgLTQ3IDIxMSAtMTI2IDM5NCAtMjQ1IDU2OSAtMTI2IDE4NiAtMzU4IDM4NyAtNTY0IDQ5MCAtMzg0IDE5MSAtODIzIDIyNSAtMTIxOCA5NSAtNDgyIC0xNjAgLTg1NCAtNTQxIC0xMDA0IC0xMDI5IC0xMTcgLTM3OSAtODEgLTgxMCA5NiAtMTE2NSAzNyAtNzIgMTMwIC0yMTUgMTY2IC0yNTIgMTcgLTE4IDI2IC0zMyAyMCAtMzMgLTYgMCAtNjEgNTIgLTEyMSAxMTYgLTI1OSAyNzIgLTQyNCA1NzUgLTUxMSA5MzQgLTExMSA0NTkgLTE4IDEwMDYgMjQ1IDE0MzAgMjk4IDQ4MyA3OTEgNzk3IDEzNzkgODgwIDExMCAxNiA0NDggNCA1NjUgLTE5eiBtLTIzOSAtOTExIGMzNjAgLTI4IDY4MCAtMTcxIDkyNSAtNDE1IDE5NCAtMTkzIDMxNyAtNDE1IDM4MiAtNjg4IDI0IC0xMDIgMjYgLTEzMCAyNiAtMzEyIDAgLTE5MSAtMSAtMjA1IC0zMCAtMzIwIC01MyAtMjA1IC0xMzIgLTM3MiAtMjUxIC01MzUgLTU4IC03OSAtMjYzIC0yODggLTMyMyAtMzMwIC0zMSAtMjIgLTI5IC0xOCAxOCAzNSAxOTUgMjIwIDMxMiA1MTkgMzEyIDc5NSAwIDMyNSAtMTIxIDYxNCAtMzUwIDg0MSAtMzY5IDM2NCAtOTI2IDQ1MyAtMTM4NSAyMjIgLTMzNiAtMTcwIC01NzggLTQ5OSAtNjM2IC04NjUgLTE5IC0xMjYgLTcgLTM3MSAyNSAtNDkwIDQ0IC0xNjIgOTcgLTI4NCAxNzMgLTM5OCA5IC0xNCAtNCAtNSAtMzAgMjAgLTI2IDI0IC00NSA1MSAtNDIgNTggMiA3IDEgMTEgLTQgNyAtMTEgLTYgLTU4IDUxIC0xMTggMTQwIC0xMDkgMTYzIC0xODMgMzQ3IC0yMTkgNTQ1IC0yMyAxMjcgLTIzIDM1MSAtMSA0ODkgNTUgMzM1IDI0OCA2NzcgNDkyIDg3MSAyNjEgMjA4IDUzMCAzMTEgODgxIDMzOCAxMSAxIDgxIC0zIDE1NSAtOHogbTI5IC03MTQgYzQ1OSAtNzQgODIzIC00MjggODk1IC04NjkgNTggLTM1OCAtNjAgLTY5NiAtMzQ1IC05ODcgbC0zNCAtMzUgMjIgMzUgYzExNSAxODIgMTc5IDQwMyAxNjggNTc1IC0xNCAyMzUgLTEwNCA0MzMgLTI2OCA1OTEgLTEzNyAxMzQgLTI4NyAyMDkgLTQ3MiAyMzkgLTExNSAxOSAtMTg3IDE5IC0zMDMgMCAtMzM3IC01NSAtNjEyIC0zMDIgLTcwNCAtNjM1IC0zMiAtMTEzIC0zNCAtMzI1IC01IC00NDAgMjMgLTkyIDcwIC0yMTMgOTggLTI1NCBsMjEgLTMxIC0zMSAyOSBjLTM5IDM2IC0xMjAgMTUyIC0xNTUgMjIxIC0zNSA3MSAtODEgMjE1IC0xMDIgMzE5IC0yNSAxMzAgLTE3IDM1NyAxNyA0NzYgMTAyIDM1NCAzNTcgNjE4IDcwNiA3MzAgMTUyIDQ5IDMzMSA2MiA0OTIgMzZ6IG0tNzMgLTU2NyBjMTc4IC0yNCAzMjcgLTEwMSA0NTQgLTIzNiAxMzcgLTE0MyAxOTkgLTMwMyAyMDEgLTUxMyAxIC0xNjIgLTQyIC0zMDkgLTEzNSAtNDUzIC01MiAtODIgLTczIC05NyAtMzggLTI4IDUxIDk5IDY3IDI5MCAzNiA0MTIgLTU3IDIxOSAtMjUxIDQxMyAtNDY2IDQ2NCAtNzUgMTcgLTIzNiAyMCAtMzExIDQgLTIxMyAtNDQgLTQyMiAtMjQ3IC00NzMgLTQ2MCAtMzEgLTEzMyAtMTMgLTMyNSA0MSAtNDMxIDM1IC03MCA4IC00NyAtNTIgNDMgLTU4IDg4IC05MCAxNjcgLTExNCAyODYgLTI1IDEyMSAtMjUgMjIwIC0xIDMzMSAzMyAxNDYgODQgMjQzIDE4NiAzNTEgMTcxIDE4MyA0MTMgMjY2IDY3MiAyMzB6IG0xNSAtNDcwIGM4MCAtMTcgMTg2IC03NiAyNDggLTEzOSAxMDYgLTEwNyAxNTggLTI0OCAxNDcgLTM5OCAtNiAtOTIgLTI1IC0xNTIgLTc5IC0yNTAgLTQ1IC04MiAtNjAgLTkxIC0yNyAtMTcgMTggNDEgMjEgNjIgMTcgMTQ5IC00IDg5IC04IDEwOCAtMzUgMTYyIC00MyA4MiAtMTI2IDE2NSAtMjA5IDIwNSAtNTggMjkgLTgwIDM0IC0xNTggMzcgLTExMiA1IC0xODQgLTEyIC0yNTkgLTYyIC0xODIgLTEyMSAtMjUxIC0zMjMgLTE3MSAtNTA2IGwyNCAtNTUgLTI1IDMwIGMtMzYgNDQgLTkyIDE2MiAtMTA0IDIyMyAtMzkgMTg5IDE0IDM2OSAxNDYgNDkyIDEwNSA5OSAyMDQgMTM5IDM0NSAxMzkgNDggMSAxMTEgLTQgMTQwIC0xMHoiLz4KICA8L2c+Cjwvc3ZnPgo=';
+        // Save identity data from Step 2 to Firestore
+        var idData = {
+            dob: document.getElementById('msDob')?.value||'', pob: document.getElementById('msPob')?.value||'',
+            cf: (document.getElementById('msCf')?.value||'').toUpperCase(), address: document.getElementById('msAddr')?.value||'',
+            docType: document.getElementById('msDocType')?.value||'', docNum: document.getElementById('msDocNum')?.value||'',
+            nationality: document.getElementById('msNat')?.value||''
+        };
+        var cUp = {};
+        if (role === 'landlord') { cUp.landlordCF=idData.cf; cUp.landlordAddress=idData.address; cUp.landlordDob=idData.dob; cUp.landlordPob=idData.pob; cUp.landlordDocType=idData.docType; cUp.landlordDocNum=idData.docNum; cUp.landlordNationality=idData.nationality; }
+        else { cUp.tenantCF=idData.cf; cUp.tenantAddress=idData.address; cUp.tenantDob=idData.dob; cUp.tenantPob=idData.pob; cUp.tenantDocType=idData.docType; cUp.tenantDocNum=idData.docNum; cUp.tenantNationality=idData.nationality; }
+        db.collection('contracts').doc(contractId).update(cUp).catch(function(e){console.error('ID save:',e);});
+        var uid = role === 'landlord' ? S.properties.find(function(p){return p.id===contract?.propertyId;})?.ownerId : contract?.tenantId;
+        if (uid) db.collection('users').doc(uid).update({cf:idData.cf,address:idData.address,dob:idData.dob,pob:idData.pob,docType:idData.docType,docNum:idData.docNum,nationality:idData.nationality}).catch(function(e){console.error('User save:',e);});
+
+        document.getElementById('modals').innerHTML = `
+        <div class="modal-overlay active"><div class="modal ms-modal">
+            <div class="ms-hdr">
+                <div class="ms-hdr-top">
+                    <div class="ms-logo"><img src="${LOGO}" alt="BOOM"><span>BOOM</span></div>
+                    <div class="ms-prog"><div class="ms-prog-d" style="width:8px;background:var(--green)"></div><div class="ms-prog-d" style="width:8px;background:var(--green)"></div><div class="ms-prog-d" style="width:20px;background:var(--gold)"></div></div>
+                </div>
+                <div class="ms-title">Sign your contract</div>
+                <div class="ms-sub">Draw your signature in the white area</div>
+            </div>
+            <div class="ms-body">
+                <div class="signature-container" id="signatureContainer"><canvas id="signatureCanvas" class="signature-canvas"></canvas></div>
+                <div class="signature-hint">Finger or mouse</div>
+                <div class="ms-row" style="margin-top:12px">
+                    <button class="ms-cta2" style="flex:1" onclick="clearSignature()">Clear</button>
+                    <button class="ms-cta" style="flex:2" onclick="saveContractSignature('${contractId}','${role}')">Confirm signature</button>
+                </div>
+                <div class="ms-lock">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="3" y="7" width="10" height="7" rx="1.5" stroke="rgba(255,255,255,0.18)" stroke-width="1"/><path d="M5 7V5a3 3 0 016 0v2" stroke="rgba(255,255,255,0.18)" stroke-width="1" stroke-linecap="round"/></svg>
+                    <div><div style="font-size:10px;color:var(--text-muted);font-weight:300">Encrypted and stored securely</div>
+                    <div style="font-size:9px;color:rgba(212,175,55,0.4);margin-top:1px;letter-spacing:1px;font-family:monospace">${vh}</div></div>
+                </div>
+            </div>
+        </div></div>`;
         setTimeout(initSignaturePad, 100);
     }
-    
+
     async function saveContractSignature(contractId, role) {
         if (!signaturePad || signaturePad.isEmpty()) {
-            return toast('error', 'Firma richiesta', 'Disegna la tua firma prima di confermare');
+            return toast('error', 'Signature required', 'Draw your signature before confirming');
         }
-        
-        const signatureData = signaturePad.toDataURL();
-        const updateData = {};
-        
+        var signatureData = signaturePad.toDataURL();
+        var updateData = {};
         if (role === 'landlord') {
             updateData.landlordSignature = signatureData;
             updateData.landlordSignedAt = firebase.firestore.FieldValue.serverTimestamp();
-            updateData.landlordSignIP = await fetch('https://api.ipify.org?format=json').then(r=>r.json()).then(d=>d.ip).catch(()=>'unknown');
+            updateData.landlordSignIP = await fetch('https://api.ipify.org?format=json').then(function(r){return r.json();}).then(function(d){return d.ip;}).catch(function(){return 'unknown';});
             updateData.landlordSignUA = navigator.userAgent;
         } else {
             updateData.tenantSignature = signatureData;
             updateData.tenantSignedAt = firebase.firestore.FieldValue.serverTimestamp();
-            updateData.tenantSignIP = await fetch('https://api.ipify.org?format=json').then(r=>r.json()).then(d=>d.ip).catch(()=>'unknown');
+            updateData.tenantSignIP = await fetch('https://api.ipify.org?format=json').then(function(r){return r.json();}).then(function(d){return d.ip;}).catch(function(){return 'unknown';});
             updateData.tenantSignUA = navigator.userAgent;
         }
-        
-        // Check if both signatures will be complete
-        const contract = S.contracts.find(c => c.id === contractId);
-        const otherSigned = role === 'landlord' ? contract?.tenantSignature : contract?.landlordSignature;
-        if (otherSigned) {
-            updateData.signatureStatus = 'complete';
-            updateData.fullySignedAt = firebase.firestore.FieldValue.serverTimestamp();
-        } else {
-            updateData.signatureStatus = 'partial';
-        }
-        
+        var contract = S.contracts.find(function(c){return c.id===contractId;});
+        var otherSigned = role === 'landlord' ? contract?.tenantSignature : contract?.landlordSignature;
+        var isComplete = !!otherSigned;
+        updateData.signatureStatus = isComplete ? 'complete' : 'partial';
+        if (isComplete) updateData.fullySignedAt = firebase.firestore.FieldValue.serverTimestamp();
+
         try {
             await db.collection('contracts').doc(contractId).update(updateData);
-            
-            // Notify the other party
-            const property = S.properties.find(p => p.id === contract?.propertyId);
+            var property = S.properties.find(function(p){return p.id===contract?.propertyId;});
+            var tenant = S.users.find(function(u){return u.id===contract?.tenantId;});
+            var landlord = property ? S.users.find(function(u){return u.id===property?.ownerId;}) : null;
+            var signer = role === 'landlord' ? landlord : tenant;
+            var roleLabel = role === 'landlord' ? 'Landlord' : 'Tenant';
+            var vh = 'BOOM-' + btoa(contractId + (contract?.startDate||'') + (contract?.rent||0)).substring(0,12).toUpperCase();
+
+            // Notifications (existing logic preserved)
             if (role === 'landlord' && contract?.tenantId) {
-                await createNotification(
-                    contract.tenantId, 'contract',
-                    '✏️ Contratto firmato dal proprietario',
-                    `Il proprietario ha firmato il contratto per ${property?.name || 'immobile'}. ${otherSigned ? 'Il contratto è ora completo!' : 'Ora tocca a te firmare.'}`,
-                    { contractId }
-                );
+                await createNotification(contract.tenantId, 'contract', 'Landlord has signed',
+                    'The landlord signed for ' + (property?.name||'') + '. ' + (isComplete ? 'Contract complete!' : 'Your turn to sign.'), {contractId:contractId});
             } else if (role === 'tenant' && property?.ownerId) {
-                await createNotification(
-                    property.ownerId, 'contract',
-                    '✏️ Contratto firmato dall\'inquilino',
-                    `L'inquilino ha firmato il contratto per ${property?.name || 'immobile'}. ${otherSigned ? 'Il contratto è ora completo!' : 'Ora tocca a te firmare.'}`,
-                    { contractId }
-                );
+                await createNotification(property.ownerId, 'contract', 'Tenant has signed',
+                    'The tenant signed for ' + (property?.name||'') + '. ' + (isComplete ? 'Contract complete!' : 'Your turn to sign.'), {contractId:contractId});
             }
-            
-            // Notify admin
-            const admins = S.users.filter(u => u.role === 'admin');
-            for (const admin of admins) {
-                if (updateData.signatureStatus === 'complete') {
-                    await createNotification(
-                        admin.id, 'contract',
-                        '✅ Contratto completato',
-                        `Il contratto per ${property?.name || 'immobile'} è stato firmato da entrambe le parti`,
-                        { contractId }
-                    );
-                }
+            var admins = S.users.filter(function(u){return u.role==='admin';});
+            for (var ai=0; ai<admins.length; ai++) {
+                await createNotification(admins[ai].id, 'contract',
+                    isComplete ? 'Contract completed' : 'Signature received',
+                    (signer?.name||'')+' ('+roleLabel+') signed '+(property?.name||'')+(isComplete?' \u2014 both done':''), {contractId:contractId});
             }
-            
-            closeModal();
+
+            logActivity('Contract signed (Magic Sign)', 'contract', {role:role, propertyName:property?.name, complete:isComplete});
+
+            // SUCCESS SCREEN (Step 4)
+            var dlBtn = isComplete ? '<button class="ms-cta" style="margin-top:16px" onclick="closeModal();downloadSignedContractPDF(\'' + contractId + '\')">Download signed PDF</button>' : '';
+            var nextItems = isComplete
+                ? '<div class="ms-next-i"><div class="ms-next-dot"></div><div class="ms-next-txt">Portal account activated with your contract</div></div><div class="ms-next-i"><div class="ms-next-dot"></div><div class="ms-next-txt">Documents available in your portal</div></div><div class="ms-next-i"><div class="ms-next-dot"></div><div class="ms-next-txt">Rent reminders sent automatically</div></div>'
+                : '<div class="ms-next-i"><div class="ms-next-dot"></div><div class="ms-next-txt">The other party will be notified to sign</div></div><div class="ms-next-i"><div class="ms-next-dot"></div><div class="ms-next-txt">You will receive confirmation when complete</div></div>';
+
+            document.getElementById('modals').innerHTML = `
+            <div class="modal-overlay active"><div class="modal ms-modal">
+                <div class="ms-ok">
+                    <div class="ms-ok-icon"><div class="ms-ok-ring1"></div><div class="ms-ok-ring2"></div>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#34C759" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    </div>
+                    <div class="ms-ok-title">Contract signed</div>
+                    <div class="ms-ok-sub">Your signature has been recorded</div>
+                    <div class="ms-receipt">
+                        <div class="ms-rr"><span class="ms-rr-l">Property</span><span class="ms-rr-v">${property?.name||'N/A'}</span></div>
+                        <div class="ms-rr"><span class="ms-rr-l">Signed as</span><span class="ms-rr-v">${roleLabel} \u2014 ${signer?.name||''}</span></div>
+                        <div class="ms-rr"><span class="ms-rr-l">Date</span><span class="ms-rr-v">${new Date().toLocaleString('it-IT')}</span></div>
+                        <div class="ms-rr"><span class="ms-rr-l">Status</span><span class="ms-rr-v" style="${isComplete?'color:var(--green);font-weight:400':''}">${isComplete ? 'Both parties signed' : 'Awaiting other signature'}</span></div>
+                    </div>
+                    <div class="ms-verify"><div class="ms-verify-l">Verification</div><div class="ms-verify-c">${vh}</div></div>
+                    ${dlBtn}
+                    <button class="${isComplete?'ms-cta2':'ms-cta'}" style="margin-top:8px;width:100%" onclick="closeModal();refresh()">Close</button>
+                    <div class="ms-next"><div class="ms-next-t">What happens next</div>${nextItems}<div class="ms-next-i"><div class="ms-next-dot"></div><div class="ms-next-txt">Confirmation sent to ${signer?.email||''}</div></div></div>
+                </div>
+            </div></div>`;
+
             await refresh();
-            toast('success', 'Firma salvata!', updateData.signatureStatus === 'complete' ? 'Contratto completato ✔' : 'In attesa dell\'altra firma');
-            logActivity('Contratto firmato', 'contract', { role, propertyName: property?.name, complete: updateData.signatureStatus === 'complete' });
-            
-            // ★ BOOM PROTOCOL: Auto-activate contract when both signatures complete
-            if (updateData.signatureStatus === 'complete') {
+
+            // BOOM PROTOCOL: Auto-activate on complete (calls existing activateContract)
+            if (isComplete) {
                 await activateContract(contractId);
             }
-            
-        } catch (err) {
-            toast('error', 'Errore', err.message);
-        }
+        } catch (err) { toast('error', 'Error', err.message); }
     }
+
     
     // ═══════════════════════════════════════════════════════════════════════════
     // ★ BOOM PROTOCOL — Contract Activation & Automation Engine
@@ -10951,101 +11104,260 @@ Valentyne - BOOM Rome`
         toast('success', sent ? '📧 Promemoria inviato!' : 'Nessun promemoria da inviare');
     }
     
-    async function downloadSignedContractPDF(contractId) {
+    async function previewContractPDF(contractId) {
         const contract = S.contracts.find(c => c.id === contractId);
         if (!contract) return;
-        
+        // If a stored PDF exists (from BOOM Bridge), open it directly
+        if (contract.generatedPDF) {
+            try {
+                var parts = contract.generatedPDF.split(',');
+                var mime = parts[0].match(/:(.*?);/)[1];
+                var raw = atob(parts[1]);
+                var arr = new Uint8Array(raw.length);
+                for (var k = 0; k < raw.length; k++) arr[k] = raw.charCodeAt(k);
+                var blob = new Blob([arr], { type: mime });
+                window.open(URL.createObjectURL(blob), '_blank');
+                return;
+            } catch(e) { /* fall through to DRAFT generation */ }
+        }
         const property = S.properties.find(p => p.id === contract.propertyId);
         const tenant = S.users.find(u => u.id === contract.tenantId);
         const landlord = property ? S.users.find(u => u.id === property.ownerId) : null;
-        
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
-        
-        // Header
-        doc.setFillColor(0, 0, 0);
-        doc.rect(0, 0, 210, 40, 'F');
-        doc.setTextColor(212, 175, 55);
-        doc.setFontSize(28);
-        doc.text('BOOM', 105, 22, { align: 'center' });
-        doc.setFontSize(10);
-        doc.setTextColor(150, 150, 150);
-        doc.text('CONTRATTO DI LOCAZIONE - FIRMATO DIGITALMENTE', 105, 32, { align: 'center' });
-        
-        doc.setTextColor(0, 0, 0);
-        let y = 55;
-        
-        // Contract details
-        doc.setFontSize(14);
-        doc.setFont(undefined, 'bold');
-        doc.text('DATI CONTRATTO', 20, y);
-        y += 10;
-        
-        doc.setFontSize(11);
-        doc.setFont(undefined, 'normal');
-        const details = [
-            ['Immobile:', property?.name || 'N/A'],
-            ['Indirizzo:', property?.address || 'N/A'],
-            ['Proprietario:', landlord?.name || 'N/A'],
-            ['Inquilino:', tenant?.name || 'N/A'],
-            ['Canone mensile:', `€${contract.rent}`],
-            ['Deposito cauzionale:', `€${contract.deposit || 0}`],
-            ['Data inizio:', fmtDate(contract.startDate)],
-            ['Data fine:', fmtDate(contract.endDate)]
-        ];
-        
-        details.forEach(([label, value]) => {
-            doc.setFont(undefined, 'bold');
-            doc.text(label, 20, y);
-            doc.setFont(undefined, 'normal');
-            doc.text(value, 70, y);
-            y += 7;
-        });
-        
-        // Signatures section
-        y += 15;
-        doc.setFontSize(14);
-        doc.setFont(undefined, 'bold');
-        doc.text('FIRME DIGITALI', 20, y);
-        y += 10;
-        
-        // Landlord signature
-        doc.setFontSize(11);
-        doc.text('Proprietario:', 20, y);
-        if (contract.landlordSignature) {
-            try {
-                doc.addImage(contract.landlordSignature, 'PNG', 20, y + 5, 60, 25);
-                doc.setFontSize(8);
-                doc.text(`Firmato: ${fmtDate(contract.landlordSignedAt)}`, 20, y + 35);
-            } catch (e) { console.error('Landlord signature error:', e); }
-        }
-        
-        // Tenant signature
-        doc.setFontSize(11);
-        doc.text('Inquilino:', 110, y);
-        if (contract.tenantSignature) {
-            try {
-                doc.addImage(contract.tenantSignature, 'PNG', 110, y + 5, 60, 25);
-                doc.setFontSize(8);
-                doc.text(`Firmato: ${fmtDate(contract.tenantSignedAt)}`, 110, y + 35);
-            } catch (e) { console.error('Tenant signature error:', e); }
-        }
-        
-        // Verification hash
-        const verifyHash = btoa(contractId + contract.startDate + contract.rent).substring(0, 12).toUpperCase();
-        doc.setTextColor(80, 80, 80);
-        doc.setFontSize(9);
-        doc.text(`Codice verifica: BOOM-${verifyHash}`, 20, 275);
-        
-        // Footer
-        doc.setFontSize(8);
-        doc.setTextColor(128, 128, 128);
-        doc.text(`Documento generato digitalmente da BOOM Property Portal - ${new Date().toLocaleString('it-IT')}`, 105, 285, { align: 'center' });
-        doc.text('Egidi Immobiliare S.r.l. - www.boomrome.com', 105, 290, { align: 'center' });
-        
-        doc.save(`Contratto_${property?.name || 'BOOM'}_Firmato.pdf`);
-        toast('success', 'PDF scaricato!');
+        const W=210,ML=20,MR=190,CW=MR-ML; var y=0,pageNum=0;
+        const vh='BOOM-'+btoa(contractId+(contract.startDate||'')+contract.rent).substring(0,12).toUpperCase();
+        function addWM(){doc.saveGraphicsState();doc.setTextColor(220,220,220);doc.setFontSize(60);doc.setFont(undefined,'bold');doc.text('DRAFT',W/2,148,{align:'center',angle:45});doc.restoreGraphicsState();}
+        function addFt(){addWM();doc.setDrawColor(212,175,55);doc.setLineWidth(0.4);doc.line(ML-5,277,MR+5,277);doc.setFontSize(6.5);doc.setTextColor(150,150,150);doc.text(COMPANY.legal+' | '+COMPANY.website,ML-5,282);doc.text(vh+' DRAFT',ML-5,286);doc.text('Pag. '+pageNum,MR+5,282,{align:'right'});}
+        function np(){if(pageNum>0){addFt();doc.addPage();}pageNum++;y=20;}
+        function cp(n){if(y+n>270){addFt();doc.addPage();pageNum++;y=20;}}
+        function at(num,title){cp(20);y+=4;doc.setFillColor(245,245,245);doc.rect(ML,y-4,CW,14,'F');doc.setFontSize(10);doc.setFont(undefined,'bold');doc.setTextColor(212,175,55);doc.text('Art. '+num+' \u2013 '+title,ML+4,y+5);y+=16;}
+        function pa(text){doc.setFontSize(9);doc.setFont(undefined,'normal');doc.setTextColor(50,50,50);doc.splitTextToSize(text,CW-8).forEach(function(l){cp(10);doc.text(l,ML+4,y);y+=4.5;});y+=3;}
+        function fl(label,value){cp(10);doc.setFont(undefined,'bold');doc.setTextColor(0,0,0);doc.setFontSize(9);doc.text(label,ML+4,y);doc.setFont(undefined,'normal');doc.text(String(value||''),ML+4+doc.getTextWidth(label)+2,y);y+=5;}
+        np();
+        doc.setFillColor(10,10,10);doc.rect(0,0,W,38,'F');doc.setFillColor(255,213,79);doc.rect(0,38,W/3,3,'F');doc.setFillColor(245,166,35);doc.rect(W/3,38,W/3,3,'F');doc.setFillColor(255,213,79);doc.rect(2*W/3,38,W/3,3,'F');
+        doc.setFontSize(22);doc.setTextColor(212,175,55);doc.text('BOOM',ML,18);doc.setFontSize(7);doc.setTextColor(120,120,120);doc.text('PROPERTY MANAGEMENT',ML,24);
+        doc.setFontSize(9);doc.setFont(undefined,'bold');doc.setTextColor(255,255,255);doc.text('CONTRATTO DI LOCAZIONE TRANSITORIA',MR,14,{align:'right'});
+        doc.setFillColor(200,200,200);doc.roundedRect(MR-40,19,40,10,3,3,'F');doc.setFontSize(8);doc.setFont(undefined,'bold');doc.setTextColor(80,80,80);doc.text('DRAFT',MR-20,25,{align:'center'});
+        y=48;doc.setFontSize(13);doc.setFont(undefined,'bold');doc.setTextColor(0,0,0);doc.text('CONTRATTO DI LOCAZIONE AD USO TRANSITORIO',W/2,y,{align:'center'});
+        y+=5;doc.setFontSize(8);doc.setFont(undefined,'normal');doc.setTextColor(100,100,100);doc.text("(ai sensi dell'art. 5 della Legge 431/1998)",W/2,y,{align:'center'});
+        y+=8;pa('Con la presente scrittura privata, tra:');y+=2;
+        doc.setFontSize(10);doc.setFont(undefined,'bold');doc.setTextColor(212,175,55);doc.text('LOCATORE',ML+4,y);y+=6;
+        fl('Nome:',landlord?.name||'N/A');fl('C.F.:','[confirmed at signing]');fl('Residente in:','[confirmed at signing]');y+=3;
+        pa('e');y+=2;
+        doc.setFontSize(10);doc.setFont(undefined,'bold');doc.setTextColor(212,175,55);doc.text('CONDUTTORE',ML+4,y);y+=6;
+        fl('Nome:',tenant?.name||'N/A');fl('C.F.:','[confirmed at signing]');fl('Residente in:','[confirmed at signing]');y+=3;
+        pa('si conviene e si stipula quanto segue:');
+        at('1','OGGETTO');pa('Immobile sito in '+(property?.address||'Roma')+', denominato "'+(property?.name||'')+'". Uso abitativo transitorio.');
+        at('2','DURATA');pa('Dal '+fmtDate(contract.startDate)+' al '+fmtDate(contract.endDate)+'. Risoluzione automatica alla scadenza.');
+        if(contract.transitionalReason)pa('Motivazione: '+contract.transitionalReason);
+        at('3','CANONE');pa('EUR '+contract.rent+',00/mese, entro il '+(contract.paymentDay||5)+' di ogni mese.');fl('Intestatario:',COMPANY.legal);fl('IBAN:',COMPANY.iban);
+        at('4','DEPOSITO');var dm=contract.rent>0?Math.round((contract.deposit||0)/contract.rent*10)/10:0;pa('EUR '+(contract.deposit||0)+',00 ('+dm+' mensilit\u00e0). Restituibile previa verifica.');
+        at('5','STATO IMMOBILE');pa('Consegnato in buono stato. Restituzione nelle medesime condizioni.');
+        at('6','OBBLIGHI CONDUTTORE');pa('Diligenza, nessuna modifica senza consenso, rispetto regolamento condominiale.');
+        at('7','OBBLIGHI LOCATORE');pa('Buono stato, pacifico godimento, riparazioni straordinarie.');
+        at('8','SUBLOCAZIONE');pa('Vietata senza consenso scritto.');
+        at('9','RECESSO');pa('Preavviso 30 giorni tramite raccomandata.');
+        at('10','SPESE');pa('Utenze e ordinarie: Conduttore. Straordinarie: Locatore.');
+        at('11','REGISTRAZIONE');pa('Cedolare secca ove applicabile.');
+        at('12','FORO');pa('Foro di Roma.');
+        at('13','CLAUSOLE FINALI');pa('Codice Civile, Legge 431/1998, accordi territoriali.');
+        if(contract.notes){at('14','NOTE');pa(contract.notes);}
+        addFt();doc.addPage();pageNum++;y=40;
+        doc.setFontSize(10);doc.setFont(undefined,'bold');doc.setTextColor(0,0,0);
+        doc.text('Firma del Locatore:',ML,y);doc.text('Firma del Conduttore:',W/2+10,y);y+=4;
+        doc.setDrawColor(180,180,180);doc.setLineWidth(0.5);doc.setLineDashPattern([3,3],0);
+        doc.rect(ML,y,70,30,'S');doc.rect(W/2+10,y,70,30,'S');doc.setLineDashPattern([],0);
+        doc.setFontSize(9);doc.setTextColor(180,180,180);doc.setFont(undefined,'italic');
+        doc.text('Signature at signing',ML+35,y+17,{align:'center'});doc.text('Signature at signing',W/2+45,y+17,{align:'center'});
+        addFt();
+        doc.save('DRAFT_'+(property?.name||'BOOM').replace(/\s+/g,'_')+'.pdf');
+        toast('info','Draft downloaded','Preview only, not the signed version');
     }
+
+    async function downloadSignedContractPDF(contractId) {
+        const contract = S.contracts.find(c => c.id === contractId);
+        if (!contract) return;
+        const property = S.properties.find(p => p.id === contract.propertyId);
+        const tenant = S.users.find(u => u.id === contract.tenantId);
+        const landlord = property ? S.users.find(u => u.id === property.ownerId) : null;
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        const W = 210, ML = 20, MR = 190, CW = MR - ML;
+        let y = 0, pageNum = 0;
+        const vh = 'BOOM-' + btoa(contractId + (contract.startDate||'') + contract.rent).substring(0,12).toUpperCase();
+
+        function addFooter() {
+            doc.setDrawColor(212,175,55); doc.setLineWidth(0.4);
+            doc.line(ML-5, 277, MR+5, 277);
+            doc.setFontSize(6.5); doc.setTextColor(150,150,150);
+            doc.text(COMPANY.legal + ' | P.IVA ' + COMPANY.piva + ' | ' + COMPANY.website, ML-5, 282);
+            doc.text(vh, ML-5, 286);
+            doc.text('Pag. ' + pageNum, MR+5, 282, {align:'right'});
+        }
+        function newPage() { if(pageNum>0){addFooter();doc.addPage();} pageNum++; y=20; }
+        function checkPage(n) { if(y+n>270){addFooter();doc.addPage();pageNum++;y=20;} }
+        function artTitle(num,title) {
+            checkPage(20); y+=4;
+            doc.setFillColor(245,245,245); doc.rect(ML,y-4,CW,14,'F');
+            doc.setFontSize(10); doc.setFont(undefined,'bold'); doc.setTextColor(212,175,55);
+            doc.text('Art. '+num+' \u2013 '+title, ML+4, y+5); y+=16;
+        }
+        function para(text) {
+            doc.setFontSize(9); doc.setFont(undefined,'normal'); doc.setTextColor(50,50,50);
+            doc.splitTextToSize(text, CW-8).forEach(l => { checkPage(10); doc.text(l, ML+4, y); y+=4.5; });
+            y+=3;
+        }
+        function field(label, value) {
+            checkPage(10); doc.setFont(undefined,'bold'); doc.setTextColor(0,0,0); doc.setFontSize(9);
+            doc.text(label, ML+4, y);
+            doc.setFont(undefined,'normal'); doc.text(String(value||''), ML+4+doc.getTextWidth(label)+2, y); y+=5;
+        }
+
+        // ═══ HEADER ═══
+        newPage();
+        doc.setFillColor(10,10,10); doc.rect(0,0,W,38,'F');
+        doc.setFillColor(255,213,79); doc.rect(0,38,W/3,3,'F');
+        doc.setFillColor(245,166,35); doc.rect(W/3,38,W/3,3,'F');
+        doc.setFillColor(255,213,79); doc.rect(2*W/3,38,W/3,3,'F');
+        doc.setFontSize(22); doc.setTextColor(212,175,55); doc.text('BOOM', ML, 18);
+        doc.setFontSize(7); doc.setTextColor(120,120,120); doc.text('PROPERTY MANAGEMENT', ML, 24);
+        doc.setFontSize(9); doc.setFont(undefined,'bold'); doc.setTextColor(255,255,255);
+        doc.text('CONTRATTO DI LOCAZIONE TRANSITORIA', MR, 14, {align:'right'});
+        doc.setFillColor(255,213,79); doc.roundedRect(MR-55,19,55,10,3,3,'F');
+        doc.setFontSize(7); doc.setFont(undefined,'bold'); doc.setTextColor(10,10,10);
+        doc.text(vh, MR-27.5, 25, {align:'center'});
+        doc.setFontSize(8); doc.setTextColor(150,150,150);
+        doc.text('Roma, ' + new Date().toLocaleDateString('it-IT',{day:'numeric',month:'long',year:'numeric'}), MR, 35, {align:'right'});
+
+        y = 48;
+        doc.setFontSize(13); doc.setFont(undefined,'bold'); doc.setTextColor(0,0,0);
+        doc.text('CONTRATTO DI LOCAZIONE AD USO TRANSITORIO', W/2, y, {align:'center'});
+        y+=5; doc.setFontSize(8); doc.setFont(undefined,'normal'); doc.setTextColor(100,100,100);
+        doc.text("(ai sensi dell'art. 5 della Legge 9 dicembre 1998, n. 431)", W/2, y, {align:'center'});
+        y+=8; para('Con la presente scrittura privata, da valere ad ogni effetto di legge, tra:');
+        y+=2;
+        doc.setFontSize(10); doc.setFont(undefined,'bold'); doc.setTextColor(212,175,55);
+        doc.text('LOCATORE', ML+4, y); y+=6;
+        field('Nome:', landlord?.name||'N/A');
+        field('C.F.:', landlord?.cf || contract.landlordCF || '________________________');
+        field('Nato/a a:', (contract.landlordPob||landlord?.pob||'___') + ' il ' + (contract.landlordDob||landlord?.dob||'___'));
+        field('Residente in:', landlord?.address || contract.landlordAddress || '________________________');
+        doc.setFontSize(8); doc.setFont(undefined,'italic'); doc.setTextColor(80,80,80);
+        doc.text('(di seguito denominato "Locatore")', ML+4, y); y+=7;
+        para('e'); y+=2;
+        doc.setFontSize(10); doc.setFont(undefined,'bold'); doc.setTextColor(212,175,55);
+        doc.text('CONDUTTORE', ML+4, y); y+=6;
+        field('Nome:', tenant?.name||'N/A');
+        field('C.F.:', tenant?.cf || contract.tenantCF || '________________________');
+        field('Nato/a a:', (contract.tenantPob||tenant?.pob||'___') + ' il ' + (contract.tenantDob||tenant?.dob||'___'));
+        field('Residente in:', tenant?.address || contract.tenantAddress || '________________________');
+        field('Documento:', (contract.tenantDocType||tenant?.docType||'___') + ' n. ' + (contract.tenantDocNum||tenant?.docNum||'___'));
+        field('Nazionalit\u00e0:', contract.tenantNationality||tenant?.nationality||'___');
+        doc.setFontSize(8); doc.setFont(undefined,'italic'); doc.setTextColor(80,80,80);
+        doc.text('(di seguito denominato "Conduttore")', ML+4, y); y+=7;
+        para('si conviene e si stipula quanto segue:');
+
+        artTitle('1','OGGETTO');
+        para('Il Locatore concede in locazione al Conduttore l\'immobile sito in '+(property?.address||'Roma')+', denominato "'+(property?.name||'')+'".');
+        if(property?.cadastral||contract.cadastral) para('Dati catastali: '+(property?.cadastral||contract.cadastral)+'. Classe energetica: '+(property?.energyClass||contract.energyClass||'N/A')+'.');
+        para('L\'immobile viene concesso ad uso esclusivamente abitativo e transitorio, nello stato di fatto in cui si trova.');
+
+        artTitle('2','DURATA');
+        para('Il contratto ha durata dal '+fmtDate(contract.startDate)+' al '+fmtDate(contract.endDate)+'.');
+        if(contract.transitoryReason) para('Motivazione transitoria: '+contract.transitoryReason+'.');
+        para('Alla scadenza il contratto si intende risolto automaticamente. Non \u00e8 previsto il tacito rinnovo.');
+
+        artTitle('3','CANONE');
+        para('Il canone \u00e8 fissato in EUR '+contract.rent+',00 mensili, da corrispondere entro il 5 di ogni mese tramite bonifico bancario.');
+        field('Intestatario:', COMPANY.legal);
+        field('IBAN:', COMPANY.iban);
+
+        artTitle('4','DEPOSITO CAUZIONALE');
+        const dm = contract.rent > 0 ? Math.round((contract.deposit||0)/contract.rent*10)/10 : 0;
+        para('Il Conduttore versa un deposito di EUR '+(contract.deposit||0)+',00 ('+dm+' mensilit\u00e0), restituibile alla fine della locazione previa verifica.');
+
+        artTitle('5','STATO DELL\'IMMOBILE');
+        para('L\'immobile viene consegnato in buono stato. Il Conduttore si impegna a restituirlo nelle medesime condizioni, salvo normale usura.');
+
+        artTitle('6','OBBLIGHI DEL CONDUTTORE');
+        para('Utilizzare l\'immobile con diligenza; non apportare modifiche senza consenso scritto; rispettare il regolamento condominiale; comunicare tempestivamente guasti.');
+
+        artTitle('7','OBBLIGHI DEL LOCATORE');
+        para('Consegnare l\'immobile in buono stato; garantire il pacifico godimento; eseguire le riparazioni straordinarie.');
+
+        artTitle('8','DIVIETO DI SUBLOCAZIONE');
+        para('\u00c8 fatto divieto di sublocare l\'immobile senza il preventivo consenso scritto del Locatore.');
+
+        artTitle('9','RECESSO');
+        para('Il Conduttore pu\u00f2 recedere con preavviso di almeno 30 giorni tramite raccomandata.');
+
+        artTitle('10','SPESE');
+        para('Utenze e spese condominiali ordinarie a carico del Conduttore. Spese straordinarie e tasse sulla propriet\u00e0 a carico del Locatore.');
+
+        artTitle('11','REGISTRAZIONE E REGIME FISCALE');
+        const ced = contract.cedolareSecca || 'si';
+        if(ced === 'si' || ced === 'si21') {
+            para('Il Locatore opta per la cedolare secca al '+(ced==='si'?'10':'21')+'% ai sensi del D.Lgs. 23/2011.');
+        } else {
+            para('Il contratto sar\u00e0 registrato con regime ordinario presso l\'Agenzia delle Entrate.');
+        }
+
+        artTitle('12','FORO COMPETENTE');
+        para('Per qualsiasi controversia sar\u00e0 competente il Foro di Roma.');
+
+        artTitle('13','CLAUSOLE FINALI');
+        para('Per tutto quanto non previsto si applicano il Codice Civile, la Legge 431/1998 e gli accordi territoriali vigenti. Sottoscritto digitalmente tramite BOOM Property Portal.');
+
+        if(contract.notes) { artTitle('14','NOTE PARTICOLARI'); para(contract.notes); }
+
+        // ═══ SIGNATURE PAGE ═══
+        addFooter(); doc.addPage(); pageNum++;
+        doc.setFillColor(10,10,10); doc.rect(0,0,W,20,'F');
+        doc.setFontSize(11); doc.setFont(undefined,'bold'); doc.setTextColor(212,175,55);
+        doc.text('BOOM \u2013 FIRME DIGITALI', W/2, 13, {align:'center'});
+        y=32;
+        doc.setFontSize(13); doc.setFont(undefined,'bold'); doc.setTextColor(0,0,0);
+        doc.text('SOTTOSCRIZIONE DEL CONTRATTO', W/2, y, {align:'center'}); y+=6;
+        doc.setFontSize(8); doc.setFont(undefined,'normal'); doc.setTextColor(120,120,120);
+        doc.text('Le parti dichiarano di aver letto e approvato il presente contratto', W/2, y, {align:'center'}); y+=12;
+
+        // Summary box
+        doc.setFillColor(248,248,248); doc.rect(ML,y,CW,55,'F');
+        doc.setDrawColor(212,175,55); doc.setLineWidth(0.5); doc.rect(ML,y,CW,55,'S');
+        let sy=y+8;
+        doc.setFontSize(10); doc.setFont(undefined,'bold'); doc.setTextColor(212,175,55);
+        doc.text('RIEPILOGO', ML+8, sy); sy+=8;
+        [['Immobile:',property?.name],['Locatore:',landlord?.name],['Conduttore:',tenant?.name],
+         ['Canone:','EUR '+contract.rent+',00'],['Periodo:',fmtDate(contract.startDate)+' \u2013 '+fmtDate(contract.endDate)]
+        ].forEach(([l,v]) => {
+            doc.setFontSize(9); doc.setFont(undefined,'bold'); doc.setTextColor(0,0,0);
+            doc.text(l, ML+8, sy); doc.setFont(undefined,'normal'); doc.text(String(v||''), ML+50, sy); sy+=6;
+        });
+        y+=67;
+
+        // Signatures
+        doc.setFontSize(10); doc.setFont(undefined,'bold'); doc.setTextColor(0,0,0);
+        doc.text('Firma del Locatore:', ML, y); doc.text('Firma del Conduttore:', W/2+10, y); y+=4;
+        if(contract.landlordSignature) try{doc.addImage(contract.landlordSignature,'PNG',ML,y,70,28);}catch(e){}
+        if(contract.tenantSignature) try{doc.addImage(contract.tenantSignature,'PNG',W/2+10,y,70,28);}catch(e){}
+        y+=32;
+        doc.setFontSize(8); doc.setTextColor(100,100,100);
+        doc.text('Firmato: '+(contract.landlordSignedAt?fmtDate(contract.landlordSignedAt):''), ML, y);
+        doc.text('Firmato: '+(contract.tenantSignedAt?fmtDate(contract.tenantSignedAt):''), W/2+10, y);
+        y+=5; doc.setFont(undefined,'bold'); doc.setTextColor(0,0,0);
+        doc.text(landlord?.name||'', ML, y); doc.text(tenant?.name||'', W/2+10, y);
+        y+=12;
+        doc.setDrawColor(200,200,200); doc.setLineWidth(0.3); doc.line(ML,y,MR,y); y+=6;
+        doc.setFontSize(8); doc.setFont(undefined,'normal'); doc.setTextColor(100,100,100);
+        doc.text('Codice verifica: '+vh, ML, y); y+=4;
+        doc.text('Generato da BOOM Property Portal - '+new Date().toLocaleString('it-IT'), ML, y); y+=4;
+        doc.text(COMPANY.legal+' - '+COMPANY.website, ML, y);
+        addFooter();
+        doc.save('Contratto_'+(property?.name||'BOOM').replace(/\s+/g,'_')+'_Firmato.pdf');
+        toast('success', 'PDF downloaded');
+    }
+
 
     // ═══════════════════════════════════════════════════════════════════════════
     // PDF GENERATION
@@ -11086,26 +11398,6 @@ Valentyne - BOOM Rome`
         });
     }
     
-    function previewContractPDF(id) {
-        const c = S.contracts.find(x => x.id === id); if (!c) return;
-        if (c.generatedPDF) {
-            try {
-                var parts = c.generatedPDF.split(',');
-                var mime = parts[0].match(/:(.*?);/)[1];
-                var raw = atob(parts[1]);
-                var arr = new Uint8Array(raw.length);
-                for (var i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
-                var blob = new Blob([arr], { type: mime });
-                window.open(URL.createObjectURL(blob), '_blank');
-            } catch(e) { window.open(c.generatedPDF, '_blank'); }
-        } else {
-            toast('info', 'Generazione anteprima...');
-            generateContractPDF(id).then(ok => {
-                if (ok) { previewContractPDF(id); }
-                else toast('error', 'Errore generazione PDF');
-            });
-        }
-    }
     
     async function regenerateContractPDF(id) {
         toast('info', 'Rigenerazione Allegato B...');
