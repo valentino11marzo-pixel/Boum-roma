@@ -4867,10 +4867,10 @@
                     <div class="ms-stat"><div class="ms-stat-l">Start</div><div class="ms-stat-sm">${fmtDate(contract.startDate)}</div></div>
                     <div class="ms-stat"><div class="ms-stat-l">End</div><div class="ms-stat-sm">${fmtDate(contract.endDate)}</div></div>
                 </div>
-                ${contract.transitoryReason ? \`<div class="ms-party" style="margin-top:4px"><div><div class="ms-stat-l">Transitional reason</div><div style="font-size:12px;color:var(--text);margin-top:3px">${contract.transitoryReason}</div></div></div>\` : ''}
+                ${contract.transitoryReason ? '<div class="ms-party" style="margin-top:4px"><div><div class="ms-stat-l">Transitional reason</div><div style="font-size:12px;color:var(--text);margin-top:3px">' + contract.transitoryReason + '</div></div></div>' : ''}
                 <div class="ms-party">${mkPartySummary(landlord, 'Landlord', contract.landlordSignature)}</div>
                 <div class="ms-party">${mkPartySummary(tenant, 'Tenant', contract.tenantSignature)}</div>
-                ${contract.notes ? \`<div class="ms-party"><div><div class="ms-stat-l">Notes</div><div style="font-size:12px;color:var(--text);margin-top:3px">${contract.notes}</div></div></div>\` : ''}
+                ${contract.notes ? '<div class="ms-party"><div><div class="ms-stat-l">Notes</div><div style="font-size:12px;color:var(--text);margin-top:3px">' + contract.notes + '</div></div></div>' : ''}
                 <div class="ms-verify"><div class="ms-verify-l">Verification</div><div class="ms-verify-c">${vh}</div></div>
                 <div style="text-align:center;margin-top:14px"><a href="#" onclick="event.preventDefault();previewContractPDF('${contractId}')" style="font-size:11px;color:var(--text-muted);text-decoration:none;font-weight:300;border-bottom:0.5px solid var(--border);padding-bottom:1px;transition:all .2s" onmouseover="this.style.color='var(--gold)';this.style.borderColor='var(--gold)'" onmouseout="this.style.color='var(--text-muted)';this.style.borderColor='var(--border)'">Preview full contract PDF before signing</a></div>
                 <div class="ms-row">
@@ -5108,18 +5108,11 @@
                         <div class="ms-rr"><span class="ms-rr-l">Status</span><span class="ms-rr-v" style="${isComplete?'color:var(--green);font-weight:400':''}">${isComplete ? 'Both parties signed' : 'Awaiting other signature'}</span></div>
                     </div>
                     <div class="ms-verify"><div class="ms-verify-l">Verification</div><div class="ms-verify-c">${vh}</div></div>
-                    ${isComplete ? \`<button class="ms-cta" style="margin-top:16px" onclick="closeModal();downloadSignedContractPDF('${contractId}')">Download signed PDF</button>\` : ''}
+                    ${isComplete ? '<button class="ms-cta" style="margin-top:16px" onclick="closeModal();downloadSignedContractPDF(\x27' + contractId + '\x27)">Download signed PDF</button>' : ''}
                     <button class="${isComplete?'ms-cta2':'ms-cta'}" style="margin-top:8px;width:100%" onclick="closeModal();refresh()">Close</button>
                     <div class="ms-next">
                         <div class="ms-next-t">What happens next</div>
-                        ${isComplete ? \`
-                        <div class="ms-next-i"><div class="ms-next-dot"></div><div class="ms-next-txt">Portal account activated with your contract</div></div>
-                        <div class="ms-next-i"><div class="ms-next-dot"></div><div class="ms-next-txt">Documents available in your portal</div></div>
-                        <div class="ms-next-i"><div class="ms-next-dot"></div><div class="ms-next-txt">Rent reminders sent automatically</div></div>
-                        \` : \`
-                        <div class="ms-next-i"><div class="ms-next-dot"></div><div class="ms-next-txt">The other party will be notified to sign</div></div>
-                        <div class="ms-next-i"><div class="ms-next-dot"></div><div class="ms-next-txt">You will receive confirmation when complete</div></div>
-                        \`}
+                        ${isComplete ? '<div class="ms-next-i"><div class="ms-next-dot"></div><div class="ms-next-txt">Portal account activated with your contract</div></div><div class="ms-next-i"><div class="ms-next-dot"></div><div class="ms-next-txt">Documents available in your portal</div></div><div class="ms-next-i"><div class="ms-next-dot"></div><div class="ms-next-txt">Rent reminders sent automatically</div></div>' : '<div class="ms-next-i"><div class="ms-next-dot"></div><div class="ms-next-txt">The other party will be notified to sign</div></div><div class="ms-next-i"><div class="ms-next-dot"></div><div class="ms-next-txt">You will receive confirmation when complete</div></div>'}
                         <div class="ms-next-i"><div class="ms-next-dot"></div><div class="ms-next-txt">Confirmation sent to ${signer?.email||''}</div></div>
                     </div>
                 </div>
@@ -6762,7 +6755,7 @@
                 lines.forEach(line => {
                     if (!line.trim()) { y += 3; return; }
                     // Check if it's a room header (no dash/bullet at start)
-                    if (line.trim().match(/^[A-Za-zÃ€-Ãº]/i) && !line.trim().startsWith('-') && !line.trim().startsWith('â€¢') && line.includes(':')) {
+                    if (line.trim().match(/^[A-Za-z\u00C0-\u00FA]/i) && !line.trim().startsWith('-') && !line.trim().startsWith('â€¢') && line.includes(':')) {
                         // Room header
                         if (y > 250) { doc.addPage(); y = 30; }
                         doc.setFillColor(240, 240, 240);
