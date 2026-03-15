@@ -10936,43 +10936,187 @@ Valentyne - BOOM Rome`
     
     async function sendSignatureEmail(user, contract, property, role) {
         if (!user?.email) return false;
-        const portalUrl = window.location.origin + window.location.pathname;
-        const token = role === 'tenant' ? contract.tenantSignToken : contract.landlordSignToken;
-        const signLink = token ? portalUrl + '?sign=' + token : portalUrl;
-        return sendBoomEmail(EMAILJS_CONFIG.templates.signatureRequest, user.email, {
-            name: (user.name || '').split(' ')[0],
+        var portalUrl = window.location.origin + window.location.pathname;
+        var token = role === 'tenant' ? contract.tenantSignToken : contract.landlordSignToken;
+        var signLink = token ? portalUrl + '?sign=' + token : portalUrl;
+        var firstName = (user.name || '').split(' ')[0];
+        var roleLabel = role === 'landlord' ? 'Landlord' : 'Tenant';
+        var vh = 'BOOM-' + btoa((contract.id||'') + (contract.startDate||'') + contract.rent).substring(0,12).toUpperCase();
+
+        // Apple-level HTML email
+        var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>'
+            + '<body style="margin:0;padding:0;background:#f5f5f5;font-family:Helvetica Neue,Helvetica,Arial,sans-serif;font-weight:300">'
+            + '<table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:32px 16px"><tr><td align="center">'
+            + '<table width="520" cellpadding="0" cellspacing="0" style="background:#08080A;border-radius:16px;overflow:hidden;max-width:520px;width:100%">'
+            // Header
+            + '<tr><td style="padding:32px 32px 24px">'
+            + '<table width="100%" cellpadding="0" cellspacing="0"><tr>'
+            + '<td><img src="https://www.boomrome.com/BOOMlogogoldicon512.png" width="40" height="40" style="border-radius:50%;vertical-align:middle" alt="BOOM"> <span style="font-size:16px;font-weight:300;letter-spacing:5px;color:#fff;vertical-align:middle;margin-left:8px">BOOM</span></td>'
+            + '<td align="right"><span style="font-size:10px;color:rgba(255,255,255,0.3);letter-spacing:1px;text-transform:uppercase">Magic Sign</span></td>'
+            + '</tr></table>'
+            + '</td></tr>'
+            // Title
+            + '<tr><td style="padding:0 32px 8px"><div style="font-size:24px;font-weight:300;color:#fff;letter-spacing:-0.3px">Your contract is ready</div></td></tr>'
+            + '<tr><td style="padding:0 32px 24px"><div style="font-size:13px;color:rgba(255,255,255,0.4);font-weight:300">Hi ' + firstName + ', your rental contract is ready for your digital signature as ' + roleLabel + '.</div></td></tr>'
+            // Property card
+            + '<tr><td style="padding:0 32px 20px"><table width="100%" cellpadding="0" cellspacing="0" style="background:rgba(255,255,255,0.04);border-radius:12px;border-left:3px solid #FFD54F">'
+            + '<tr><td style="padding:16px 20px">'
+            + '<div style="font-size:9px;color:rgba(255,213,79,0.7);letter-spacing:2px;text-transform:uppercase;margin-bottom:6px">PROPERTY</div>'
+            + '<div style="font-size:18px;color:#fff;font-weight:300">' + (property?.name || '') + '</div>'
+            + '<div style="font-size:12px;color:rgba(255,255,255,0.35);margin-top:3px">' + (property?.address || 'Roma') + '</div>'
+            + '</td></tr></table></td></tr>'
+            // Details grid
+            + '<tr><td style="padding:0 32px 20px"><table width="100%" cellpadding="0" cellspacing="0"><tr>'
+            + '<td width="50%" style="padding-right:5px"><table width="100%" cellpadding="0" cellspacing="0" style="background:rgba(255,255,255,0.04);border-radius:10px"><tr><td style="padding:14px 16px"><div style="font-size:9px;color:rgba(255,255,255,0.3);letter-spacing:1px">MONTHLY RENT</div><div style="font-size:20px;color:#FFD54F;font-weight:300;margin-top:4px">\u20ac' + (contract.rent||0).toLocaleString('it-IT') + '</div></td></tr></table></td>'
+            + '<td width="50%" style="padding-left:5px"><table width="100%" cellpadding="0" cellspacing="0" style="background:rgba(255,255,255,0.04);border-radius:10px"><tr><td style="padding:14px 16px"><div style="font-size:9px;color:rgba(255,255,255,0.3);letter-spacing:1px">PERIOD</div><div style="font-size:13px;color:#fff;font-weight:300;margin-top:6px">' + fmtDate(contract.startDate) + ' \u2013 ' + fmtDate(contract.endDate) + '</div></td></tr></table></td>'
+            + '</tr></table></td></tr>'
+            // CTA button
+            + '<tr><td style="padding:0 32px 24px"><table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="background:#FFD54F;border-radius:12px;padding:16px"><a href="' + signLink + '" style="color:#08080A;text-decoration:none;font-size:14px;font-weight:400;letter-spacing:0.5px;display:block">Review and sign your contract</a></td></tr></table></td></tr>'
+            // Verification
+            + '<tr><td style="padding:0 32px 24px"><table width="100%" cellpadding="0" cellspacing="0" style="background:rgba(255,213,79,0.06);border-radius:10px;border:1px solid rgba(255,213,79,0.1)"><tr><td style="padding:12px 16px"><div style="font-size:9px;color:rgba(255,213,79,0.4);letter-spacing:2px;text-transform:uppercase;margin-bottom:3px">VERIFICATION</div><div style="font-size:14px;color:rgba(255,213,79,0.7);letter-spacing:2px;font-family:monospace">' + vh + '</div></td></tr></table></td></tr>'
+            // Legal note
+            + '<tr><td style="padding:0 32px 8px"><div style="font-size:11px;color:rgba(255,255,255,0.2);font-weight:300;line-height:1.6">This is a secure digital signature with legal validity under Italian law (FES \u2014 Art. 21 CAD, D.Lgs. 82/2005).</div></td></tr>'
+            // Footer
+            + '<tr><td style="padding:16px 32px 24px;border-top:1px solid rgba(255,255,255,0.04)">'
+            + '<div style="font-size:10px;color:rgba(255,255,255,0.15);font-weight:300;line-height:1.8">'
+            + COMPANY.legal + ' | P.IVA ' + COMPANY.piva + '<br>'
+            + '<a href="https://www.boomrome.com" style="color:rgba(255,213,79,0.3);text-decoration:none">boomrome.com</a> | ' + COMPANY.phone
+            + '</div></td></tr>'
+            + '</table>'
+            + '</td></tr></table></body></html>';
+
+        // Send via EmailJS (pass HTML as message_html param)
+        var emailSent = await sendBoomEmail(EMAILJS_CONFIG.templates.signatureRequest, user.email, {
+            name: firstName,
             full_name: user.name,
-            role_label: role === 'landlord' ? 'Proprietario' : 'Inquilino',
+            role_label: roleLabel,
             property_name: property?.name || 'Immobile',
             property_address: property?.address || '',
-            rent: '\u20AC' + (contract.rent || 0).toLocaleString('it-IT'),
+            rent: '\u20ac' + (contract.rent || 0).toLocaleString('it-IT'),
             start_date: fmtDate(contract.startDate),
             end_date: fmtDate(contract.endDate),
             portal_link: signLink,
             company_name: COMPANY.name,
             company_email: COMPANY.email,
-            company_phone: COMPANY.phone
+            company_phone: COMPANY.phone,
+            message_html: html
         });
+
+        // Also send via webhook (Make.com sends through Gmail)
+        if (WEBHOOK_URL) {
+            try {
+                await fetch(WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        type: 'signature_request',
+                        recipientEmail: user.email,
+                        recipientName: user.name,
+                        role: roleLabel,
+                        propertyName: property?.name,
+                        propertyAddress: property?.address,
+                        rent: contract.rent,
+                        startDate: contract.startDate,
+                        endDate: contract.endDate,
+                        signLink: signLink,
+                        verifyHash: vh,
+                        subject: 'Your contract is ready \u2014 ' + (property?.name || ''),
+                        html_body: html,
+                        timestamp: new Date().toISOString()
+                    })
+                });
+            } catch(we) { console.error('Signature webhook:', we); }
+        }
+
+        return emailSent;
     }
     
     async function sendWelcomeEmail(tenant, contract, property) {
         if (!tenant?.email) return false;
-        const portalUrl = window.location.origin + window.location.pathname;
-        return sendBoomEmail(EMAILJS_CONFIG.templates.notification, tenant.email, {
-            heading: 'Congratulations.',
+        var portalUrl = window.location.origin + window.location.pathname;
+        var firstName = (tenant.name || '').split(' ')[0];
+
+        var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>'
+            + '<body style="margin:0;padding:0;background:#f5f5f5;font-family:Helvetica Neue,Helvetica,Arial,sans-serif;font-weight:300">'
+            + '<table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:32px 16px"><tr><td align="center">'
+            + '<table width="520" cellpadding="0" cellspacing="0" style="background:#08080A;border-radius:16px;overflow:hidden;max-width:520px;width:100%">'
+            + '<tr><td style="padding:32px 32px 24px"><table width="100%" cellpadding="0" cellspacing="0"><tr>'
+            + '<td><img src="https://www.boomrome.com/BOOMlogogoldicon512.png" width="40" height="40" style="border-radius:50%;vertical-align:middle" alt="BOOM"> <span style="font-size:16px;font-weight:300;letter-spacing:5px;color:#fff;vertical-align:middle;margin-left:8px">BOOM</span></td>'
+            + '</tr></table></td></tr>'
+            + '<tr><td style="padding:0 32px"><div style="width:48px;height:48px;border-radius:50%;border:1.5px solid rgba(52,199,89,0.4);display:flex;align-items:center;justify-content:center;margin-bottom:16px"><span style="font-size:24px;color:#34C759">\u2713</span></div></td></tr>'
+            + '<tr><td style="padding:0 32px 6px"><div style="font-size:26px;font-weight:300;color:#fff;letter-spacing:-0.5px">Welcome home, ' + firstName + '.</div></td></tr>'
+            + '<tr><td style="padding:0 32px 24px"><div style="font-size:13px;color:rgba(255,255,255,0.4);font-weight:300">Your contract has been signed by both parties and is now active.</div></td></tr>'
+            // Property card
+            + '<tr><td style="padding:0 32px 20px"><table width="100%" cellpadding="0" cellspacing="0" style="background:rgba(255,255,255,0.04);border-radius:12px;border-left:3px solid #34C759"><tr><td style="padding:16px 20px">'
+            + '<div style="font-size:9px;color:rgba(52,199,89,0.7);letter-spacing:2px;text-transform:uppercase;margin-bottom:6px">YOUR NEW HOME</div>'
+            + '<div style="font-size:18px;color:#fff;font-weight:300">' + (property?.name || '') + '</div>'
+            + '<div style="font-size:12px;color:rgba(255,255,255,0.35);margin-top:3px">' + (property?.address || 'Roma') + '</div>'
+            + '</td></tr></table></td></tr>'
+            // Details
+            + '<tr><td style="padding:0 32px 6px"><table width="100%" cellpadding="0" cellspacing="0" style="background:rgba(255,255,255,0.03);border-radius:10px"><tr><td style="padding:12px 16px">'
+            + '<div style="font-size:10px;color:rgba(255,255,255,0.25);margin-bottom:8px">RENT</div>'
+            + '<div style="font-size:12px;color:#fff">\u20ac' + (contract.rent||0).toLocaleString('it-IT') + '/month \u2014 due on the ' + (contract.paymentDay||5) + 'th</div>'
+            + '</td></tr></table></td></tr>'
+            + '<tr><td style="padding:0 32px 6px"><table width="100%" cellpadding="0" cellspacing="0" style="background:rgba(255,255,255,0.03);border-radius:10px"><tr><td style="padding:12px 16px">'
+            + '<div style="font-size:10px;color:rgba(255,255,255,0.25);margin-bottom:8px">PAYMENT</div>'
+            + '<div style="font-size:12px;color:#fff">IBAN: ' + COMPANY.iban + '</div>'
+            + '<div style="font-size:11px;color:rgba(255,255,255,0.3);margin-top:2px">' + COMPANY.legal + '</div>'
+            + '</td></tr></table></td></tr>'
+            + '<tr><td style="padding:0 32px 20px"><table width="100%" cellpadding="0" cellspacing="0" style="background:rgba(255,255,255,0.03);border-radius:10px"><tr><td style="padding:12px 16px">'
+            + '<div style="font-size:10px;color:rgba(255,255,255,0.25);margin-bottom:8px">PERIOD</div>'
+            + '<div style="font-size:12px;color:#fff">' + fmtDate(contract.startDate) + ' \u2013 ' + fmtDate(contract.endDate) + '</div>'
+            + '</td></tr></table></td></tr>'
+            // What's in your portal
+            + '<tr><td style="padding:0 32px 20px"><table width="100%" cellpadding="0" cellspacing="0" style="background:rgba(255,213,79,0.04);border-radius:10px;border:1px solid rgba(255,213,79,0.08)"><tr><td style="padding:16px">'
+            + '<div style="font-size:9px;color:rgba(255,213,79,0.5);letter-spacing:2px;text-transform:uppercase;margin-bottom:10px">YOUR PORTAL</div>'
+            + '<div style="font-size:12px;color:rgba(255,255,255,0.4);line-height:2">'
+            + '\u2022 Signed contract and documents<br>\u2022 Monthly rent tracking and reminders<br>\u2022 Maintenance requests<br>\u2022 Direct landlord contact'
+            + '</div></td></tr></table></td></tr>'
+            // CTA
+            + '<tr><td style="padding:0 32px 24px"><table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="background:#FFD54F;border-radius:12px;padding:16px"><a href="' + portalUrl + '" style="color:#08080A;text-decoration:none;font-size:14px;font-weight:400;letter-spacing:0.5px;display:block">Open your portal</a></td></tr></table></td></tr>'
+            // Footer
+            + '<tr><td style="padding:16px 32px 24px;border-top:1px solid rgba(255,255,255,0.04)">'
+            + '<div style="font-size:10px;color:rgba(255,255,255,0.15);font-weight:300;line-height:1.8">'
+            + COMPANY.legal + ' | P.IVA ' + COMPANY.piva + '<br>'
+            + '<a href="https://www.boomrome.com" style="color:rgba(255,213,79,0.3);text-decoration:none">boomrome.com</a> | ' + COMPANY.phone
+            + '</div></td></tr>'
+            + '</table></td></tr></table></body></html>';
+
+        var sent = await sendBoomEmail(EMAILJS_CONFIG.templates.notification, tenant.email, {
+            heading: 'Welcome home.',
             subheading: 'Your contract is fully signed and active',
-            name: (tenant.name || '').split(' ')[0],
+            name: firstName,
             intro: 'Welcome to your new home in Rome.',
             card_title: 'YOUR NEW HOME',
             card_color: '#22C55E',
-            r1_icon: '📍', r1_label: 'Address', r1_value: property?.address || '',
-            r2_icon: '💰', r2_label: 'Monthly Rent', r2_value: '€' + (contract.rent || 0).toLocaleString('it-IT') + ' — due on the 5th',
-            r3_icon: '🗓', r3_label: 'Start Date', r3_value: fmtDate(contract.startDate),
-            r4_icon: '🏦', r4_label: 'IBAN', r4_value: COMPANY.iban + ' (' + COMPANY.legal + ')',
-            closing: 'Your portal is ready — dashboard, documents, maintenance, and info hub. Welcome home.',
-            cta_text: 'Open your portal →',
-            portal_link: portalUrl
+            r1_icon: '\ud83d\udccd', r1_label: 'Address', r1_value: property?.address || '',
+            r2_icon: '\ud83d\udcb0', r2_label: 'Monthly Rent', r2_value: '\u20ac' + (contract.rent || 0).toLocaleString('it-IT') + ' \u2014 due on the ' + (contract.paymentDay||5) + 'th',
+            r3_icon: '\ud83d\udcc5', r3_label: 'Start Date', r3_value: fmtDate(contract.startDate),
+            r4_icon: '\ud83c\udfe6', r4_label: 'IBAN', r4_value: COMPANY.iban + ' (' + COMPANY.legal + ')',
+            closing: 'Your portal is ready.',
+            cta_text: 'Open your portal',
+            portal_link: portalUrl,
+            message_html: html
         });
+
+        if (WEBHOOK_URL) {
+            try {
+                await fetch(WEBHOOK_URL, {
+                    method: 'POST', headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({
+                        type: 'welcome_tenant',
+                        recipientEmail: tenant.email, recipientName: tenant.name,
+                        propertyName: property?.name, propertyAddress: property?.address,
+                        rent: contract.rent, startDate: contract.startDate, endDate: contract.endDate,
+                        subject: 'Welcome home \u2014 ' + (property?.name || ''),
+                        html_body: html,
+                        portalUrl: portalUrl,
+                        timestamp: new Date().toISOString()
+                    })
+                });
+            } catch(we) { console.error('Welcome webhook:', we); }
+        }
+        return sent;
     }
     
     async function sendPaymentReminderEmail(tenant, contract, property, payment) {
