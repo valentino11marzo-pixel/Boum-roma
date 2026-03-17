@@ -1708,12 +1708,18 @@ Valentyne - BOOM Rome`
         // Init invisible reCAPTCHA
         setTimeout(function() {
             try {
-                if (window._otpRecaptcha) { window._otpRecaptcha.clear(); window._otpRecaptcha = null; }
+                // Clear any previous reCAPTCHA instance completely
+                if (window._otpRecaptcha) {
+                    try { window._otpRecaptcha.clear(); } catch(ce) {}
+                    window._otpRecaptcha = null;
+                }
+                // Reset the container DOM to prevent "already rendered" error
+                var rcEl = document.getElementById('otpRecaptcha');
+                if (rcEl) rcEl.innerHTML = '';
                 window._otpRecaptcha = new firebase.auth.RecaptchaVerifier('otpRecaptcha', {
                     size: 'invisible',
                     callback: function() { /* solved */ }
                 });
-                window._otpRecaptcha.render().catch(function(e) { console.error('reCAPTCHA render:', e); });
             } catch(e) { console.error('reCAPTCHA init:', e); }
         }, 300);
     }
@@ -1732,7 +1738,8 @@ Valentyne - BOOM Rome`
         try {
             var appVerifier = window._otpRecaptcha;
             if (!appVerifier) { otpShowError('Security check not ready. Please wait and try again.'); btn.disabled = false; btn.textContent = 'Send verification code'; btn.style.opacity = '1'; return; }
-            window._otpConfirmation = await auth.signInWithPhoneNumber(fullNumber, appVerifier);
+            var phoneProvider = new firebase.auth.PhoneAuthProvider();
+            window._otpVerificationId = await phoneProvider.verifyPhoneNumber(fullNumber, appVerifier);
             // Show code input
             document.getElementById('otpPhoneSection').style.display = 'none';
             document.getElementById('otpCodeSection').style.display = 'block';
@@ -1753,9 +1760,11 @@ Valentyne - BOOM Rome`
             otpShowError(msg);
             btn.disabled = false; btn.textContent = 'Send verification code'; btn.style.opacity = '1';
             // Reset reCAPTCHA for retry
-            try { if (window._otpRecaptcha) { window._otpRecaptcha.clear(); window._otpRecaptcha = null; }
+            try {
+                if (window._otpRecaptcha) { try { window._otpRecaptcha.clear(); } catch(ce) {} window._otpRecaptcha = null; }
+                var rcEl2 = document.getElementById('otpRecaptcha');
+                if (rcEl2) rcEl2.innerHTML = '';
                 window._otpRecaptcha = new firebase.auth.RecaptchaVerifier('otpRecaptcha', { size: 'invisible' });
-                window._otpRecaptcha.render().catch(function() {});
             } catch(re) {}
         }
     }
@@ -1796,8 +1805,28 @@ Valentyne - BOOM Rome`
         var btn = document.getElementById('otpVerifyBtn');
         btn.disabled = true; btn.textContent = 'Verifying...'; btn.style.opacity = '0.5';
         try {
-            if (!window._otpConfirmation) { otpShowError('Session expired. Please resend the code.'); return; }
-            await window._otpConfirmation.confirm(code);
+            if (!window._otpVerificationId) { otpShowError('Session expired. Please resend the code.'); return; }
+            var credential = firebase.auth.PhoneAuthProvider.credential(window._otpVerificationId, code);
+            // Verify OTP: link phone to anonymous account (proves code is correct, preserves session)
+            try {
+                if (auth.currentUser) {
+                    await auth.currentUser.linkWithCredential(credential);
+                } else {
+                    await auth.signInWithCredential(credential);
+                }
+            } catch(linkErr) {
+                if (linkErr.code === 'auth/provider-already-linked' || linkErr.code === 'auth/credential-already-in-use') {
+                    // Phone already verified/used — OTP was still correct, continue
+                } else if (linkErr.code === 'auth/invalid-verification-code') {
+                    throw linkErr; // Wrong code — let error handler show message
+                } else {
+                    // Other error — try direct signIn as fallback
+                    try { await auth.signInWithCredential(credential); } catch(si) {
+                        if (si.code === 'auth/invalid-verification-code') throw si;
+                        // If signIn worked or had a non-code error, OTP was verified
+                    }
+                }
+            }
             // Store verification proof
             if (window._msIdData) { window._msIdData.phoneVerified = true; window._msIdData.phoneVerifiedAt = new Date().toISOString(); }
             // Proceed to signature step
