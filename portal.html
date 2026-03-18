@@ -1720,8 +1720,7 @@ Valentyne - BOOM Rome`
                         '<input type="text" id="otpPrefix" value="+39" style="width:70px;padding:13px 12px;background:rgba(255,255,255,0.035);border:0.5px solid rgba(255,255,255,0.06);border-radius:11px;color:var(--text);font-size:14px;font-weight:300;font-family:inherit;box-sizing:border-box;text-align:center">' +
                         '<input type="tel" id="otpPhone" value="' + (s.phone||'') + '" placeholder="333 123 4567" style="flex:1;padding:13px 16px;background:rgba(255,255,255,0.035);border:0.5px solid rgba(212,175,55,0.2);border-radius:11px;color:var(--text);font-size:14px;font-weight:300;font-family:inherit;box-sizing:border-box;letter-spacing:1px">' +
                     '</div>' +
-                    '<div id="otpRecaptcha"></div>' +
-                    '<button id="otpSendBtn" onclick="otpSendCode()" style="width:100%;padding:16px;background:var(--gold);border:none;border-radius:14px;font-size:14px;font-weight:400;color:#08080A;cursor:pointer;font-family:inherit;letter-spacing:0.5px">Send verification code</button>' +
+                    '<button id="otpSendBtn" style="width:100%;padding:16px;background:var(--gold);border:none;border-radius:14px;font-size:14px;font-weight:400;color:#08080A;cursor:pointer;font-family:inherit;letter-spacing:0.5px">Send verification code</button>' +
                     '<div style="text-align:center;margin-top:10px"><a href="#" id="otpSkipLink" onclick="event.preventDefault();otpSkip()" style="font-size:11px;color:var(--text-muted);text-decoration:none;font-weight:300">Skip phone verification</a></div>' +
                 '</div>' +
                 '<div id="otpCodeSection" style="display:none">' +
@@ -1749,25 +1748,38 @@ Valentyne - BOOM Rome`
         // Init invisible reCAPTCHA
         setTimeout(function() {
             try {
-                // Clear any previous reCAPTCHA instance completely
+                // Use the Send button as reCAPTCHA container (Firebase recommended)
+                // When user clicks, reCAPTCHA verifies invisibly, then fires callback
                 if (window._otpRecaptcha) {
                     try { window._otpRecaptcha.clear(); } catch(ce) {}
                     window._otpRecaptcha = null;
                 }
-                // Reset the container DOM to prevent "already rendered" error
-                var rcEl = document.getElementById('otpRecaptcha');
-                if (rcEl) rcEl.innerHTML = '';
-                window._otpRecaptcha = new firebase.auth.RecaptchaVerifier('otpRecaptcha', {
+                window._otpRecaptcha = new firebase.auth.RecaptchaVerifier('otpSendBtn', {
                     size: 'invisible',
-                    callback: function() { /* solved */ }
+                    callback: function(token) {
+                        // reCAPTCHA solved — now send the SMS
+                        console.log('[BOOM OTP] reCAPTCHA solved, sending SMS...');
+                        otpSendCode();
+                    },
+                    'expired-callback': function() {
+                        console.log('[BOOM OTP] reCAPTCHA expired, resetting...');
+                        var btn = document.getElementById('otpSendBtn');
+                        if (btn) { btn.disabled = false; btn.textContent = 'Send verification code'; btn.style.opacity = '1'; }
+                    }
+                });
+                window._otpRecaptcha.render().then(function(widgetId) {
+                    console.log('[BOOM OTP] reCAPTCHA rendered on button, widgetId:', widgetId);
+                    window._otpRecaptchaWidgetId = widgetId;
+                }).catch(function(e) {
+                    console.warn('[BOOM OTP] reCAPTCHA render failed:', e);
                 });
             } catch(e) { 
-                console.warn('reCAPTCHA init failed:', e);
-                // Show skip link more prominently if reCAPTCHA fails
-                var skipEl = document.getElementById('otpSkipLink');
-                if (skipEl) { skipEl.style.opacity = '1'; skipEl.textContent = 'Skip verification and proceed'; }
+                console.warn('[BOOM OTP] reCAPTCHA init failed:', e);
+                // Fallback: make button work with manual onclick
+                var btn = document.getElementById('otpSendBtn');
+                if (btn) btn.onclick = function() { otpSendCode(); };
             }
-        }, 300);
+        }, 500);
     }
 
     // OTP: Skip verification (graceful fallback)
@@ -1791,19 +1803,10 @@ Valentyne - BOOM Rome`
         window._otpAttempts++;
         console.log('[BOOM OTP] Attempt', window._otpAttempts, 'for', fullNumber);
         try {
-            // Create reCAPTCHA on-the-fly if not ready
-            if (!window._otpRecaptcha) {
-                try {
-                    var rcEl = document.getElementById('otpRecaptcha');
-                    if (rcEl) rcEl.innerHTML = '';
-                    window._otpRecaptcha = new firebase.auth.RecaptchaVerifier('otpRecaptcha', { size: 'invisible' });
-                } catch(rcErr) {
-                    console.warn('reCAPTCHA creation failed:', rcErr);
-                }
-            }
+            // reCAPTCHA is attached to the button — it was already verified when callback fired
             var appVerifier = window._otpRecaptcha;
             if (!appVerifier) {
-                otpShowError('Security check initializing. Please try again in a moment.');
+                otpShowError('Security check not ready. Please refresh the page.');
                 btn.disabled = false; btn.textContent = 'Send verification code'; btn.style.opacity = '1';
                 return;
             }
@@ -1827,24 +1830,21 @@ Valentyne - BOOM Rome`
             if (e.code === 'auth/invalid-phone-number') msg += 'Invalid phone number format.';
             else if (e.code === 'auth/too-many-requests') msg += 'Too many attempts. Try again later.';
             else if (e.code === 'auth/captcha-check-failed') {
-                msg += 'Security check failed. Please try again.';
-                // Reset reCAPTCHA for fresh retry
+                msg += 'Security check failed. Please refresh the page and try again.';
+                // Reset reCAPTCHA widget
                 try {
-                    if (window._otpRecaptcha) { try { window._otpRecaptcha.clear(); } catch(ce) {} window._otpRecaptcha = null; }
-                    var rcR = document.getElementById('otpRecaptcha');
-                    if (rcR) rcR.innerHTML = '';
-                    window._otpRecaptcha = new firebase.auth.RecaptchaVerifier('otpRecaptcha', { size: 'invisible' });
-                } catch(re2) {}
+                    if (window._otpRecaptchaWidgetId !== undefined) {
+                        grecaptcha.reset(window._otpRecaptchaWidgetId);
+                        console.log('[BOOM OTP] reCAPTCHA widget reset');
+                    }
+                } catch(re2) { console.warn('reCAPTCHA reset:', re2); }
             }
             else msg += (e.message || 'Please try again.');
             otpShowError(msg);
             btn.disabled = false; btn.textContent = 'Send verification code'; btn.style.opacity = '1';
-            // Reset reCAPTCHA for retry
+            // Reset reCAPTCHA widget for retry
             try {
-                if (window._otpRecaptcha) { try { window._otpRecaptcha.clear(); } catch(ce) {} window._otpRecaptcha = null; }
-                var rcEl2 = document.getElementById('otpRecaptcha');
-                if (rcEl2) rcEl2.innerHTML = '';
-                window._otpRecaptcha = new firebase.auth.RecaptchaVerifier('otpRecaptcha', { size: 'invisible' });
+                if (window._otpRecaptchaWidgetId !== undefined) grecaptcha.reset(window._otpRecaptchaWidgetId);
             } catch(re) {}
         }
     }
