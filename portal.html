@@ -1675,26 +1675,17 @@ Valentyne - BOOM Rome`
             }
         });
         if (missing.length > 0) {
-            // Scroll to first empty field
             var firstEmpty = document.getElementById(fields.find(function(f) { return !(document.getElementById(f.id)||{}).value; })?.id);
             if (firstEmpty) firstEmpty.focus();
             return;
         }
-        // CF validation (basic: 16 chars alphanumeric)
         var cf = (document.getElementById('mpCf')||{}).value||'';
-        if (cf.length !== 16) {
+        if (cf.replace(/\s/g,'').length !== 16) {
             document.getElementById('mpCf').style.borderColor = 'rgba(255,59,48,0.5)';
             document.getElementById('mpCf').focus();
             return;
         }
-        msPassStepOTP();
-    }
-
-    // ★ MAGIC SIGN PASSWORDLESS — Step 2.5: OTP Phone Verification
-    function msPassStepOTP() {
-        var d = window._msData; if (!d) return;
-        var s = d.signer;
-        // Save identity data before moving on
+        // Save identity data
         window._msIdData = {
             dob: (document.getElementById('mpDob')||{}).value||'',
             pob: (document.getElementById('mpPob')||{}).value||'',
@@ -1704,6 +1695,16 @@ Valentyne - BOOM Rome`
             docNum: (document.getElementById('mpDocNum')||{}).value||'',
             nationality: (document.getElementById('mpNat')||{}).value||''
         };
+        msPassStepOTP();
+    }
+
+    // ★ MAGIC SIGN PASSWORDLESS — Step 2.5: OTP Phone Verification
+    // Clean implementation: one RecaptchaVerifier, proper lifecycle
+    window._otpState = { verifier: null, widgetId: null, confirmationResult: null };
+
+    function msPassStepOTP() {
+        var d = window._msData; if (!d) return;
+        var s = d.signer;
         var el = document.getElementById('msPassFlow') || document.getElementById('magicSign');
         el.innerHTML = '<div id="msPassFlow" style="width:100%;max-width:520px;margin:0 auto;font-family:Helvetica Neue,Helvetica,-apple-system,sans-serif;font-weight:300">' +
             '<div style="text-align:center;margin-bottom:24px;padding-top:8px">' +
@@ -1711,224 +1712,140 @@ Valentyne - BOOM Rome`
                 '<div style="font-size:16px;font-weight:300;letter-spacing:5px;color:var(--text)">BOOM</div>' +
                 '<div style="display:flex;gap:6px;justify-content:center;margin-top:14px"><div style="width:8px;height:2.5px;background:var(--green,#34C759);border-radius:2px"></div><div style="width:8px;height:2.5px;background:var(--green,#34C759);border-radius:2px"></div><div style="width:20px;height:2.5px;background:var(--gold);border-radius:2px"></div><div style="width:8px;height:2.5px;background:rgba(255,255,255,0.1);border-radius:2px"></div></div>' +
             '</div>' +
-            '<div style="padding:24px;background:var(--bg-card,rgba(255,255,255,0.025));border:0.5px solid var(--border);border-radius:16px;margin-bottom:16px">' +
+            '<div id="otpCard" style="padding:24px;background:var(--bg-card,rgba(255,255,255,0.025));border:0.5px solid var(--border);border-radius:16px;margin-bottom:16px">' +
                 '<div style="font-size:22px;font-weight:300;color:var(--text);letter-spacing:-0.3px;margin-bottom:4px">Verify your phone</div>' +
                 '<div style="font-size:12px;color:var(--text-muted);font-weight:300;margin-bottom:20px">We\x27ll send a 6-digit code to confirm your identity</div>' +
-                '<div id="otpPhoneSection">' +
+                '<div id="otpPhase1">' +
                     '<div style="font-size:10px;color:var(--text-muted);letter-spacing:1px;margin-bottom:6px">PHONE NUMBER</div>' +
                     '<div style="display:flex;gap:8px;margin-bottom:16px">' +
-                        '<input type="text" id="otpPrefix" value="+39" style="width:70px;padding:13px 12px;background:rgba(255,255,255,0.035);border:0.5px solid rgba(255,255,255,0.06);border-radius:11px;color:var(--text);font-size:14px;font-weight:300;font-family:inherit;box-sizing:border-box;text-align:center">' +
-                        '<input type="tel" id="otpPhone" value="' + (s.phone||'') + '" placeholder="333 123 4567" style="flex:1;padding:13px 16px;background:rgba(255,255,255,0.035);border:0.5px solid rgba(212,175,55,0.2);border-radius:11px;color:var(--text);font-size:14px;font-weight:300;font-family:inherit;box-sizing:border-box;letter-spacing:1px">' +
+                        '<input type="text" id="otpPrefix" value="+39" style="width:70px;padding:13px 12px;background:rgba(255,255,255,0.035);border:0.5px solid rgba(255,255,255,0.06);border-radius:11px;color:var(--text);font-size:16px;font-weight:300;font-family:inherit;box-sizing:border-box;text-align:center">' +
+                        '<input type="tel" id="otpPhone" value="' + (s.phone||'') + '" placeholder="333 123 4567" style="flex:1;padding:13px 16px;background:rgba(255,255,255,0.035);border:0.5px solid rgba(212,175,55,0.2);border-radius:11px;color:var(--text);font-size:16px;font-weight:300;font-family:inherit;box-sizing:border-box;letter-spacing:1px">' +
                     '</div>' +
-                    '<button id="otpSendBtn" style="width:100%;padding:16px;background:var(--gold);border:none;border-radius:14px;font-size:14px;font-weight:400;color:#08080A;cursor:pointer;font-family:inherit;letter-spacing:0.5px">Send verification code</button>' +
-                    '<div style="text-align:center;margin-top:10px"><a href="#" id="otpSkipLink" onclick="event.preventDefault();otpSkip()" style="font-size:11px;color:var(--text-muted);text-decoration:none;font-weight:300">Skip phone verification</a></div>' +
+                    '<div id="otpRcContainer"></div>' +
+                    '<button id="otpSendBtn" onclick="otpSend()" style="width:100%;padding:16px;background:var(--gold);border:none;border-radius:14px;font-size:14px;font-weight:400;color:#08080A;cursor:pointer;font-family:inherit;letter-spacing:0.5px">Send verification code</button>' +
                 '</div>' +
-                '<div id="otpCodeSection" style="display:none">' +
+                '<div id="otpPhase2" style="display:none">' +
                     '<div style="text-align:center;margin-bottom:16px">' +
-                        '<div style="width:40px;height:40px;border-radius:50%;background:rgba(212,175,55,0.1);display:inline-flex;align-items:center;justify-content:center;margin-bottom:8px"><span style="font-size:18px">\ud83d\udce8</span></div>' +
                         '<div style="font-size:13px;color:var(--text);font-weight:300">Code sent to <span id="otpSentTo" style="color:var(--gold)"></span></div>' +
                     '</div>' +
                     '<div style="font-size:10px;color:var(--text-muted);letter-spacing:1px;margin-bottom:6px">ENTER 6-DIGIT CODE</div>' +
-                    '<div style="display:flex;gap:6px;margin-bottom:16px;justify-content:center" id="otpDigits">' +
-                        '<input type="text" maxlength="1" inputmode="numeric" class="otpD" style="width:14%;max-width:44px;height:52px;text-align:center;font-size:20px;font-weight:300;background:rgba(255,255,255,0.035);border:0.5px solid rgba(212,175,55,0.2);border-radius:11px;color:var(--text);font-family:inherit;box-sizing:border-box" oninput="otpAutoTab(this)" onkeydown="otpBackTab(event,this)">' +
-                        '<input type="text" maxlength="1" inputmode="numeric" class="otpD" style="width:14%;max-width:44px;height:52px;text-align:center;font-size:20px;font-weight:300;background:rgba(255,255,255,0.035);border:0.5px solid rgba(212,175,55,0.2);border-radius:11px;color:var(--text);font-family:inherit;box-sizing:border-box" oninput="otpAutoTab(this)" onkeydown="otpBackTab(event,this)">' +
-                        '<input type="text" maxlength="1" inputmode="numeric" class="otpD" style="width:14%;max-width:44px;height:52px;text-align:center;font-size:20px;font-weight:300;background:rgba(255,255,255,0.035);border:0.5px solid rgba(212,175,55,0.2);border-radius:11px;color:var(--text);font-family:inherit;box-sizing:border-box" oninput="otpAutoTab(this)" onkeydown="otpBackTab(event,this)">' +
-                        '<input type="text" maxlength="1" inputmode="numeric" class="otpD" style="width:14%;max-width:44px;height:52px;text-align:center;font-size:20px;font-weight:300;background:rgba(255,255,255,0.035);border:0.5px solid rgba(212,175,55,0.2);border-radius:11px;color:var(--text);font-family:inherit;box-sizing:border-box" oninput="otpAutoTab(this)" onkeydown="otpBackTab(event,this)">' +
-                        '<input type="text" maxlength="1" inputmode="numeric" class="otpD" style="width:14%;max-width:44px;height:52px;text-align:center;font-size:20px;font-weight:300;background:rgba(255,255,255,0.035);border:0.5px solid rgba(212,175,55,0.2);border-radius:11px;color:var(--text);font-family:inherit;box-sizing:border-box" oninput="otpAutoTab(this)" onkeydown="otpBackTab(event,this)">' +
-                        '<input type="text" maxlength="1" inputmode="numeric" class="otpD" style="width:14%;max-width:44px;height:52px;text-align:center;font-size:20px;font-weight:300;background:rgba(255,255,255,0.035);border:0.5px solid rgba(212,175,55,0.2);border-radius:11px;color:var(--text);font-family:inherit;box-sizing:border-box" oninput="otpAutoTab(this)" onkeydown="otpBackTab(event,this)">' +
-                    '</div>' +
-                    '<button id="otpVerifyBtn" onclick="otpVerifyCode()" style="width:100%;padding:16px;background:var(--gold);border:none;border-radius:14px;font-size:14px;font-weight:400;color:#08080A;cursor:pointer;font-family:inherit;letter-spacing:0.5px;opacity:0.35;pointer-events:none" disabled>Verify</button>' +
-                    '<div style="text-align:center;margin-top:12px"><a href="#" onclick="event.preventDefault();document.getElementById(\x27otpCodeSection\x27).style.display=\x27none\x27;document.getElementById(\x27otpPhoneSection\x27).style.display=\x27block\x27" style="font-size:11px;color:var(--text-muted);text-decoration:none;font-weight:300">Resend code</a></div>' +
+                    '<input type="text" id="otpCodeInput" maxlength="6" inputmode="numeric" pattern="[0-9]*" placeholder="000000" style="width:100%;padding:16px;background:rgba(255,255,255,0.035);border:0.5px solid rgba(212,175,55,0.2);border-radius:11px;color:var(--text);font-size:24px;font-weight:300;font-family:inherit;box-sizing:border-box;text-align:center;letter-spacing:8px" oninput="if(this.value.length===6)otpVerify()">' +
+                    '<button id="otpVerifyBtn" onclick="otpVerify()" style="width:100%;padding:16px;background:var(--gold);border:none;border-radius:14px;font-size:14px;font-weight:400;color:#08080A;cursor:pointer;font-family:inherit;letter-spacing:0.5px;margin-top:12px">Verify</button>' +
+                    '<div style="text-align:center;margin-top:10px"><a href="#" onclick="event.preventDefault();document.getElementById(\x27otpPhase2\x27).style.display=\x27none\x27;document.getElementById(\x27otpPhase1\x27).style.display=\x27block\x27" style="font-size:11px;color:var(--text-muted);text-decoration:none;font-weight:300">Resend code</a></div>' +
                 '</div>' +
-                '<div id="otpError" style="display:none;margin-top:12px;padding:10px 14px;background:rgba(255,59,48,0.1);border-radius:10px;font-size:11px;color:#FF3B30;font-weight:300"></div>' +
+                '<div id="otpMsg" style="display:none;margin-top:12px;padding:10px 14px;border-radius:10px;font-size:11px;font-weight:300"></div>' +
             '</div>' +
-            '<div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:40px"><svg width="12" height="12" viewBox="0 0 16 16" fill="none"><rect x="3" y="7" width="10" height="7" rx="1.5" stroke="rgba(255,255,255,0.18)" stroke-width="1"/><path d="M5 7V5a3 3 0 016 0v2" stroke="rgba(255,255,255,0.18)" stroke-width="1" stroke-linecap="round"/></svg><span style="font-size:10px;color:var(--text-muted);font-weight:300">Firebase Phone Auth \u00b7 OTP verification</span></div>' +
+            '<div style="text-align:center;margin-bottom:40px"><a href="#" onclick="event.preventDefault();otpSkipStep()" style="font-size:11px;color:var(--text-muted);text-decoration:none;font-weight:300">Skip phone verification</a></div>' +
         '</div>';
         window.scrollTo({top: 0, behavior: 'smooth'});
-        // Init invisible reCAPTCHA
+        // Init reCAPTCHA once
+        otpInitRecaptcha();
+    }
+
+    function otpInitRecaptcha() {
         setTimeout(function() {
             try {
-                // Use the Send button as reCAPTCHA container (Firebase recommended)
-                // When user clicks, reCAPTCHA verifies invisibly, then fires callback
-                if (window._otpRecaptcha) {
-                    try { window._otpRecaptcha.clear(); } catch(ce) {}
-                    window._otpRecaptcha = null;
+                // Destroy previous verifier completely
+                if (window._otpState.verifier) {
+                    try { window._otpState.verifier.clear(); } catch(e) {}
                 }
-                window._otpRecaptcha = new firebase.auth.RecaptchaVerifier('otpSendBtn', {
+                window._otpState = { verifier: null, widgetId: null, confirmationResult: null };
+                var container = document.getElementById('otpRcContainer');
+                if (container) container.innerHTML = '<div id="otpRcWidget"></div>';
+                window._otpState.verifier = new firebase.auth.RecaptchaVerifier('otpRcWidget', {
                     size: 'invisible',
-                    callback: function(token) {
-                        // reCAPTCHA solved — now send the SMS
-                        console.log('[BOOM OTP] reCAPTCHA solved, sending SMS...');
-                        otpSendCode();
-                    },
-                    'expired-callback': function() {
-                        console.log('[BOOM OTP] reCAPTCHA expired, resetting...');
-                        var btn = document.getElementById('otpSendBtn');
-                        if (btn) { btn.disabled = false; btn.textContent = 'Send verification code'; btn.style.opacity = '1'; }
-                    }
+                    callback: function() { console.log('[OTP] reCAPTCHA solved'); }
                 });
-                window._otpRecaptcha.render().then(function(widgetId) {
-                    console.log('[BOOM OTP] reCAPTCHA rendered on button, widgetId:', widgetId);
-                    window._otpRecaptchaWidgetId = widgetId;
-                }).catch(function(e) {
-                    console.warn('[BOOM OTP] reCAPTCHA render failed:', e);
+                window._otpState.verifier.render().then(function(id) {
+                    window._otpState.widgetId = id;
+                    console.log('[OTP] reCAPTCHA ready, widgetId:', id);
                 });
-            } catch(e) { 
-                console.warn('[BOOM OTP] reCAPTCHA init failed:', e);
-                // Fallback: make button work with manual onclick
-                var btn = document.getElementById('otpSendBtn');
-                if (btn) btn.onclick = function() { otpSendCode(); };
-            }
+            } catch(e) { console.warn('[OTP] reCAPTCHA init:', e); }
         }, 500);
     }
 
-    // OTP: Skip verification (graceful fallback)
-    function otpSkip() {
-        if (window._msIdData) { window._msIdData.phoneVerified = false; window._msIdData.phoneSkipped = true; }
-        msPassStep3();
-    }
-
-    // OTP: Send SMS code
-    window._otpAttempts = 0;
-    async function otpSendCode() {
-        var prefix = (document.getElementById('otpPrefix')||{}).value || '+39';
-        var phone = (document.getElementById('otpPhone')||{}).value || '';
+    async function otpSend() {
+        var prefix = (document.getElementById('otpPrefix')||{}).value||'+39';
+        var phone = (document.getElementById('otpPhone')||{}).value||'';
         phone = phone.replace(/[^0-9]/g, '');
-        if (!phone || phone.length < 6) {
-            otpShowError('Enter a valid phone number'); return;
-        }
-        var fullNumber = prefix + phone;
+        if (!phone || phone.length < 6) { otpMsg('Enter a valid phone number', true); return; }
+        var full = prefix + phone;
         var btn = document.getElementById('otpSendBtn');
         btn.disabled = true; btn.textContent = 'Sending...'; btn.style.opacity = '0.5';
-        window._otpAttempts++;
-        console.log('[BOOM OTP] Attempt', window._otpAttempts, 'for', fullNumber);
+        console.log('[OTP] Sending to', full);
         try {
-            // reCAPTCHA is attached to the button — it was already verified when callback fired
-            var appVerifier = window._otpRecaptcha;
-            if (!appVerifier) {
-                otpShowError('Security check not ready. Please refresh the page.');
+            if (!window._otpState.verifier) {
+                otpMsg('Security check loading. Wait a moment and try again.', true);
                 btn.disabled = false; btn.textContent = 'Send verification code'; btn.style.opacity = '1';
+                otpInitRecaptcha();
                 return;
             }
-            var phoneProvider = new firebase.auth.PhoneAuthProvider();
-            window._otpVerificationId = await phoneProvider.verifyPhoneNumber(fullNumber, appVerifier);
+            var provider = new firebase.auth.PhoneAuthProvider();
+            var verificationId = await provider.verifyPhoneNumber(full, window._otpState.verifier);
+            window._otpState.verificationId = verificationId;
+            console.log('[OTP] SMS sent, verificationId received');
             // Show code input
-            document.getElementById('otpPhoneSection').style.display = 'none';
-            document.getElementById('otpCodeSection').style.display = 'block';
-            document.getElementById('otpSentTo').textContent = fullNumber;
-            document.getElementById('otpError').style.display = 'none';
-            // Store phone for contract
-            if (window._msIdData) window._msIdData.phone = fullNumber;
-            // Focus first digit
-            var first = document.querySelector('.otpD');
-            if (first) first.focus();
+            document.getElementById('otpPhase1').style.display = 'none';
+            document.getElementById('otpPhase2').style.display = 'block';
+            document.getElementById('otpSentTo').textContent = full;
+            document.getElementById('otpMsg').style.display = 'none';
+            if (window._msIdData) window._msIdData.phone = full;
+            setTimeout(function() { var ci = document.getElementById('otpCodeInput'); if (ci) ci.focus(); }, 100);
         } catch(e) {
-            console.error('[BOOM OTP] Send error:', e.code, e.message);
-            if (e.code === 'auth/operation-not-allowed') msg += 'Phone verification is being configured. You can continue without it for now.';
-            else if (e.code === 'auth/missing-client-identifier') msg += 'Browser security check issue. Try a different browser or continue without verification.';
-            var msg = 'Could not send code. ';
-            if (e.code === 'auth/invalid-phone-number') msg += 'Invalid phone number format.';
-            else if (e.code === 'auth/too-many-requests') msg += 'Too many attempts. Try again later.';
-            else if (e.code === 'auth/captcha-check-failed') {
-                msg += 'Security check failed. Please refresh the page and try again.';
-                // Reset reCAPTCHA widget
-                try {
-                    if (window._otpRecaptchaWidgetId !== undefined) {
-                        grecaptcha.reset(window._otpRecaptchaWidgetId);
-                        console.log('[BOOM OTP] reCAPTCHA widget reset');
-                    }
-                } catch(re2) { console.warn('reCAPTCHA reset:', re2); }
-            }
-            else msg += (e.message || 'Please try again.');
-            otpShowError(msg);
+            console.error('[OTP] Error:', e.code, e.message);
             btn.disabled = false; btn.textContent = 'Send verification code'; btn.style.opacity = '1';
-            // Reset reCAPTCHA widget for retry
-            try {
-                if (window._otpRecaptchaWidgetId !== undefined) grecaptcha.reset(window._otpRecaptchaWidgetId);
-            } catch(re) {}
+            // Reset reCAPTCHA for retry
+            try { if (window._otpState.widgetId !== null) grecaptcha.reset(window._otpState.widgetId); } catch(re) {}
+            if (e.code === 'auth/invalid-phone-number') otpMsg('Invalid phone number. Use format: +39 3XX XXX XXXX', true);
+            else if (e.code === 'auth/too-many-requests') otpMsg('Too many attempts. Wait a few minutes.', true);
+            else if (e.code === 'auth/operation-not-allowed') otpMsg('Phone verification not available. You can skip this step.', true);
+            else otpMsg('Error: ' + (e.message||'Try again'), true);
         }
     }
 
-    // OTP: Auto-tab between digit inputs
-    function otpAutoTab(el) {
-        if (el.value.length === 1) {
-            var next = el.nextElementSibling;
-            if (next && next.classList.contains('otpD')) next.focus();
-        }
-        // Check if all 6 filled
-        var digits = document.querySelectorAll('.otpD');
-        var code = '';
-        digits.forEach(function(d) { code += d.value; });
-        var btn = document.getElementById('otpVerifyBtn');
-        if (code.length === 6) {
-            btn.disabled = false; btn.style.opacity = '1'; btn.style.pointerEvents = 'auto';
-            // Auto-verify when all 6 digits entered
-            otpVerifyCode();
-        } else {
-            btn.disabled = true; btn.style.opacity = '0.35'; btn.style.pointerEvents = 'none';
-        }
-    }
-
-    // OTP: Backspace navigation
-    function otpBackTab(e, el) {
-        if (e.key === 'Backspace' && !el.value) {
-            var prev = el.previousElementSibling;
-            if (prev && prev.classList.contains('otpD')) { prev.focus(); prev.value = ''; }
-        }
-    }
-
-    // OTP: Verify entered code
-    async function otpVerifyCode() {
-        var digits = document.querySelectorAll('.otpD');
-        var code = ''; digits.forEach(function(d) { code += d.value; });
+    async function otpVerify() {
+        var code = (document.getElementById('otpCodeInput')||{}).value||'';
         if (code.length !== 6) return;
         var btn = document.getElementById('otpVerifyBtn');
         btn.disabled = true; btn.textContent = 'Verifying...'; btn.style.opacity = '0.5';
         try {
-            if (!window._otpVerificationId) { otpShowError('Session expired. Please resend the code.'); return; }
-            var credential = firebase.auth.PhoneAuthProvider.credential(window._otpVerificationId, code);
-            // Verify OTP: link phone to anonymous account (proves code is correct, preserves session)
+            if (!window._otpState.verificationId) { otpMsg('Session expired. Resend the code.', true); btn.disabled = false; btn.textContent = 'Verify'; btn.style.opacity = '1'; return; }
+            var credential = firebase.auth.PhoneAuthProvider.credential(window._otpState.verificationId, code);
+            // Link to anonymous user to verify (doesn't change auth state)
             try {
-                if (auth.currentUser) {
-                    await auth.currentUser.linkWithCredential(credential);
-                } else {
-                    await auth.signInWithCredential(credential);
-                }
+                if (auth.currentUser) await auth.currentUser.linkWithCredential(credential);
+                else await auth.signInWithCredential(credential);
             } catch(linkErr) {
-                if (linkErr.code === 'auth/provider-already-linked' || linkErr.code === 'auth/credential-already-in-use') {
-                    // Phone already verified/used — OTP was still correct, continue
-                } else if (linkErr.code === 'auth/invalid-verification-code') {
-                    throw linkErr; // Wrong code — let error handler show message
-                } else {
-                    // Other error — try direct signIn as fallback
-                    try { await auth.signInWithCredential(credential); } catch(si) {
-                        if (si.code === 'auth/invalid-verification-code') throw si;
-                        // If signIn worked or had a non-code error, OTP was verified
-                    }
-                }
+                if (linkErr.code === 'auth/invalid-verification-code') throw linkErr;
+                // Other link errors (already linked, etc.) mean the code was correct
             }
-            // Store verification proof
+            console.log('[OTP] Phone verified successfully');
             if (window._msIdData) { window._msIdData.phoneVerified = true; window._msIdData.phoneVerifiedAt = new Date().toISOString(); }
-            // Proceed to signature step
             msPassStep3();
         } catch(e) {
-            console.error('OTP verify:', e);
-            var msg = 'Verification failed. ';
-            if (e.code === 'auth/invalid-verification-code') msg += 'Incorrect code. Please try again.';
-            else if (e.code === 'auth/code-expired') msg += 'Code expired. Please resend.';
-            else msg += (e.message || 'Please try again.');
-            otpShowError(msg);
-            btn.disabled = false; btn.textContent = 'Verify'; btn.style.opacity = '1'; btn.style.pointerEvents = 'auto';
-            // Clear inputs
-            digits.forEach(function(d) { d.value = ''; });
-            if (digits[0]) digits[0].focus();
+            console.error('[OTP] Verify error:', e.code);
+            btn.disabled = false; btn.textContent = 'Verify'; btn.style.opacity = '1';
+            if (e.code === 'auth/invalid-verification-code') otpMsg('Wrong code. Check and try again.', true);
+            else if (e.code === 'auth/code-expired') otpMsg('Code expired. Resend it.', true);
+            else otpMsg('Verification failed. Try again.', true);
+            document.getElementById('otpCodeInput').value = '';
+            document.getElementById('otpCodeInput').focus();
         }
     }
 
-    // OTP: Show error message
-    function otpShowError(msg) {
-        var el = document.getElementById('otpError');
-        if (el) { el.textContent = msg; el.style.display = 'block'; }
+    function otpMsg(text, isError) {
+        var el = document.getElementById('otpMsg');
+        if (el) {
+            el.textContent = text;
+            el.style.display = 'block';
+            el.style.background = isError ? 'rgba(255,59,48,0.1)' : 'rgba(52,199,89,0.1)';
+            el.style.color = isError ? '#FF3B30' : '#34C759';
+        }
+    }
+
+    function otpSkipStep() {
+        if (window._msIdData) { window._msIdData.phoneVerified = false; window._msIdData.phoneSkipped = true; }
+        msPassStep3();
     }
 
     // ★ MAGIC SIGN PASSWORDLESS — Step 3: Signature
