@@ -1,0 +1,126 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>BOOM — PropPass</title>
+<style>
+:root{--gold:#D4AF37;--black:#08080A;--surface:#0D0D0F;--border:rgba(255,255,255,0.06);--text:#FAFAFA;--text-30:rgba(255,255,255,0.30);--text-15:rgba(255,255,255,0.15);--ease:cubic-bezier(0.22,1,0.36,1)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Helvetica Neue',-apple-system,sans-serif;background:var(--black);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased}
+.shell{max-width:1080px;margin:0 auto;padding:0 2.5rem}
+.header{padding:2.5rem 0 0;display:flex;align-items:center;justify-content:space-between}
+.brand{display:flex;align-items:center;gap:1.2rem}
+.brand h1{font-weight:300;font-size:1.1rem;letter-spacing:0.35em;color:var(--gold)}
+.brand-sub{font-weight:300;font-size:0.72rem;letter-spacing:0.08em;color:var(--text-30)}
+.header-link{font-size:0.68rem;color:var(--text-30);text-decoration:none;letter-spacing:0.06em;font-weight:300}
+.header-link:hover{color:var(--gold)}
+.type-bar{margin:2.5rem 0 0;display:flex;gap:2px;background:var(--surface);border-radius:14px;padding:4px;border:1px solid var(--border)}
+.type-btn{flex:1;padding:0.85rem 1rem;border:none;background:transparent;color:var(--text-30);border-radius:11px;cursor:pointer;transition:all 0.35s var(--ease);display:flex;align-items:center;justify-content:center;gap:0.6rem;font-family:inherit}
+.type-btn .t-label{font-size:0.65rem;font-weight:400;letter-spacing:0.14em;text-transform:uppercase}
+.type-btn.active{background:rgba(212,175,55,0.12);color:var(--gold);box-shadow:0 0 0 1px rgba(212,175,55,0.25)}
+.workspace{margin:2rem 0 4rem;display:grid;grid-template-columns:1fr 300px;gap:2.5rem;align-items:start}
+.form-panel{background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden}
+.form-header{padding:1.4rem 1.8rem;border-bottom:1px solid var(--border)}
+.form-header h2{font-size:0.62rem;font-weight:400;letter-spacing:0.16em;text-transform:uppercase;color:var(--text-30)}
+.form-body{padding:1.8rem}
+.field{margin-bottom:1.3rem}
+.field label{display:block;font-size:0.56rem;letter-spacing:0.14em;text-transform:uppercase;color:#C9A96E;margin-bottom:0.4rem;font-weight:400}
+.field input,.field select{width:100%;padding:0.72rem 0.85rem;background:var(--black);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.82rem;font-family:inherit;font-weight:300;outline:none;transition:border-color 0.3s}
+.field input:focus,.field select:focus{border-color:rgba(212,175,55,0.4)}
+.field input::placeholder{color:var(--text-15)}
+.field select{appearance:none;padding-right:2rem}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:0.85rem}
+.form-footer{padding:0 1.8rem 1.8rem}
+.gen-btn{width:100%;padding:0.95rem;background:var(--gold);color:var(--black);border:none;border-radius:12px;font-size:0.72rem;font-weight:500;letter-spacing:0.14em;cursor:pointer;transition:all 0.3s var(--ease);text-transform:uppercase;font-family:inherit}
+.gen-btn:hover{transform:translateY(-1px);box-shadow:0 8px 30px rgba(212,175,55,0.25)}
+.gen-btn:disabled{opacity:0.3;cursor:not-allowed;transform:none}
+.status-bar{text-align:center;margin-top:0.75rem;font-size:0.65rem;font-weight:300;color:var(--text-30);min-height:1.1rem}
+.status-bar.error{color:#FF4444}.status-bar.success{color:var(--gold)}
+.preview-col{position:sticky;top:2rem}
+.preview-label{font-size:0.56rem;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-15);margin-bottom:0.8rem}
+.pass-card{background:var(--black);border-radius:16px;border:1px solid var(--border);overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,0.3);transform:perspective(800px) rotateY(-2deg);transition:transform 0.5s var(--ease)}
+.pass-card:hover{transform:perspective(800px) rotateY(0)}
+.pass-top-row{padding:1.1rem 1.3rem 0.5rem;display:flex;justify-content:space-between}
+.pass-brand-text{font-size:0.7rem;font-weight:300;letter-spacing:0.25em;color:var(--gold)}
+.pass-hdr .lbl{font-size:0.42rem;letter-spacing:0.1em;color:#C9A96E;text-transform:uppercase;opacity:0.7}
+.pass-hdr .val{font-size:0.72rem;color:rgba(255,255,255,0.8);font-weight:300}
+.pass-hdr{text-align:right}
+.pass-strip{padding:0.9rem 1.3rem;background:linear-gradient(135deg,var(--surface) 0%,#131315 100%);border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.pass-strip .lbl{font-size:0.42rem;letter-spacing:0.1em;color:#C9A96E;text-transform:uppercase;opacity:0.7}
+.pass-strip .val{font-size:1rem;color:var(--text);font-weight:300;margin-top:0.2rem}
+.pass-fields-grid{padding:0.7rem 1.3rem;display:grid;grid-template-columns:1fr 1fr;gap:0.5rem 1rem}
+.pass-f .lbl{font-size:0.38rem;letter-spacing:0.1em;color:#C9A96E;text-transform:uppercase;opacity:0.6}
+.pass-f .val{font-size:0.68rem;color:rgba(255,255,255,0.8);font-weight:300}
+.pass-bottom{padding:0.6rem 1.3rem;border-top:1px solid var(--border);text-align:center}
+.pass-bottom span{font-size:0.42rem;color:var(--text-15)}
+.f-section{display:none}.f-section.active{display:block}
+@media(max-width:860px){.workspace{grid-template-columns:1fr}.preview-col{position:static;order:-1}.pass-card{transform:none;max-width:320px;margin:0 auto}}
+@media(max-width:520px){.shell{padding:0 1.2rem}.row{grid-template-columns:1fr}}
+</style></head><body>
+<div class="shell">
+<header class="header"><div class="brand"><h1>BOOM</h1><span class="brand-sub">PropPass</span></div><a href="portal.html" class="header-link">Portal</a></header>
+<div class="type-bar">
+<button class="type-btn active" data-type="viewing"><span>🔑</span><span class="t-label">Viewing</span></button>
+<button class="type-btn" data-type="tenant"><span>🏠</span><span class="t-label">Tenant</span></button>
+<button class="type-btn" data-type="referral"><span>🤝</span><span class="t-label">Referral</span></button>
+<button class="type-btn" data-type="landlord"><span>📋</span><span class="t-label">Landlord</span></button>
+</div>
+<div class="workspace">
+<div class="form-panel">
+<div class="form-header"><h2 id="form-title">Viewing Pass</h2></div>
+<div class="form-body">
+<div class="f-section active" id="s-viewing">
+<div class="field"><label>Client Name</label><input type="text" id="v-name" placeholder="Sarah Johnson"></div>
+<div class="field"><label>Property Address</label><input type="text" id="v-address" placeholder="Via dei Coronari 42, Roma"></div>
+<div class="row"><div class="field"><label>Zone</label><input type="text" id="v-zone" placeholder="Centro Storico"></div><div class="field"><label>Rent €/month</label><input type="number" id="v-rent" placeholder="1200"></div></div>
+<div class="row"><div class="field"><label>Date</label><input type="date" id="v-date"></div><div class="field"><label>Time</label><input type="time" id="v-time" value="14:30"></div></div>
+<div class="row"><div class="field"><label>Agent</label><input type="text" id="v-agent" value="Valentino"></div><div class="field"><label>Property ID</label><input type="text" id="v-pid" placeholder="optional"></div></div>
+</div>
+<div class="f-section" id="s-tenant">
+<div class="field"><label>Tenant Name</label><input type="text" id="t-name" placeholder="Sarah Johnson"></div>
+<div class="field"><label>Property Address</label><input type="text" id="t-address" placeholder="Via dei Coronari 42, Roma"></div>
+<div class="row"><div class="field"><label>Zone</label><input type="text" id="t-zone" placeholder="Centro Storico"></div><div class="field"><label>Contract Type</label><select id="t-contract"><option value="Concordato Transitorio">Concordato Transitorio</option><option value="Concordato Studenti">Concordato Studenti</option><option value="Libero Mercato 4+4">Libero 4+4</option></select></div></div>
+<div class="row"><div class="field"><label>Start Date</label><input type="date" id="t-start"></div><div class="field"><label>End Date</label><input type="date" id="t-end"></div></div>
+<div class="row"><div class="field"><label>Landlord</label><input type="text" id="t-landlord" placeholder="Mario Rossi"></div><div class="field"><label>Emergency Phone</label><input type="text" id="t-phone" value="+39 351 977 5583"></div></div>
+</div>
+<div class="f-section" id="s-referral">
+<div class="field"><label>Referrer Name</label><input type="text" id="r-name" placeholder="Sarah Johnson"></div>
+<div class="row"><div class="field"><label>Referral Code</label><input type="text" id="r-code" placeholder="auto if blank"></div><div class="field"><label>Discount</label><input type="text" id="r-discount" value="€100 off"></div></div>
+<div class="field"><label>Expiration</label><input type="date" id="r-expiry"></div>
+</div>
+<div class="f-section" id="s-landlord">
+<div class="field"><label>Landlord Name</label><input type="text" id="l-name" placeholder="Mario Rossi"></div>
+<div class="field"><label>Property Address</label><input type="text" id="l-address" placeholder="Via dei Coronari 42, Roma"></div>
+<div class="row"><div class="field"><label>Zone</label><input type="text" id="l-zone" placeholder="Centro Storico"></div><div class="field"><label>Rent €/month</label><input type="number" id="l-rent" placeholder="1200"></div></div>
+<div class="row"><div class="field"><label>Current Tenant</label><input type="text" id="l-tenant" placeholder="Sarah Johnson"></div><div class="field"><label>Contract Ends</label><input type="date" id="l-end"></div></div>
+<div class="field"><label>Property ID</label><input type="text" id="l-pid" placeholder="optional"></div>
+</div>
+</div>
+<div class="form-footer">
+<button class="gen-btn" id="gen-btn"> Add to Apple Wallet</button>
+<div class="status-bar" id="status"></div>
+</div>
+</div>
+<div class="preview-col">
+<div class="preview-label">Live Preview</div>
+<div class="pass-card">
+<div class="pass-top-row"><span class="pass-brand-text">BOOM</span><div class="pass-hdr"><div class="lbl" id="p-hdr-lbl">DATE</div><div class="val" id="p-hdr-val">—</div></div></div>
+<div class="pass-strip"><div class="lbl" id="p-pri-lbl">PROPERTY</div><div class="val" id="p-pri-val">Via dei Coronari 42</div></div>
+<div class="pass-fields-grid">
+<div class="pass-f"><div class="lbl" id="p-s1-lbl">TIME</div><div class="val" id="p-s1-val">14:30</div></div>
+<div class="pass-f"><div class="lbl" id="p-s2-lbl">ZONE</div><div class="val" id="p-s2-val">Rome</div></div>
+<div class="pass-f"><div class="lbl" id="p-a1-lbl">AGENT</div><div class="val" id="p-a1-val">Valentino</div></div>
+<div class="pass-f"><div class="lbl" id="p-a2-lbl"></div><div class="val" id="p-a2-val"></div></div>
+</div>
+<div class="pass-bottom"><span>boomrome.com</span></div>
+</div>
+</div>
+</div>
+</div>
+<script>
+let at='viewing';const T={viewing:'Viewing Pass',tenant:'Tenant Card',referral:'Referral Pass',landlord:'Landlord Pass'};
+document.querySelectorAll('.type-btn').forEach(b=>{b.addEventListener('click',()=>{document.querySelectorAll('.type-btn').forEach(x=>x.classList.remove('active'));b.classList.add('active');at=b.dataset.type;document.querySelectorAll('.f-section').forEach(s=>s.classList.remove('active'));document.getElementById('s-'+at).classList.add('active');document.getElementById('form-title').textContent=T[at];up()})});
+function up(){let h={},p={},s1={},s2={},a1={},a2={};switch(at){case'viewing':h={lbl:'DATE',val:g('v-date')||'—'};p={lbl:'PROPERTY',val:g('v-address')||'Property address'};s1={lbl:'TIME',val:g('v-time')||'TBC'};s2={lbl:'ZONE',val:g('v-zone')||'Rome'};a1={lbl:'AGENT',val:g('v-agent')||'Valentino'};const r=g('v-rent');a2=r?{lbl:'RENT',val:'€'+r+'/mo'}:{};break;case'tenant':h={lbl:'CONTRACT',val:g('t-contract')||'—'};p={lbl:'YOUR HOME',val:g('t-address')||'Property address'};s1={lbl:'FROM',val:g('t-start')||'—'};s2={lbl:'TO',val:g('t-end')||'—'};a1={lbl:'ZONE',val:g('t-zone')||'Rome'};a2={lbl:'TENANT',val:g('t-name')||'—'};break;case'referral':h={lbl:'REWARD',val:g('r-discount')||'€100 off'};p={lbl:'REFERRAL',val:'Share BOOM with a friend'};s1={lbl:'CODE',val:g('r-code')||'BOOM-XXXXX'};s2={lbl:'FROM',val:g('r-name')||'—'};a1={lbl:'VALID',val:g('r-expiry')||'No expiry'};a2={};break;case'landlord':const lr=g('l-rent');h=lr?{lbl:'RENT',val:'€'+lr+'/mo'}:{lbl:'',val:''};p={lbl:'YOUR PROPERTY',val:g('l-address')||'Property address'};s1={lbl:'TENANT',val:g('l-tenant')||'Vacant'};s2={lbl:'ZONE',val:g('l-zone')||'Rome'};a1={lbl:'ENDS',val:g('l-end')||'—'};a2={};break}sf('p-hdr',h);sf('p-pri',p);sf('p-s1',s1);sf('p-s2',s2);sf('p-a1',a1);sf('p-a2',a2)}
+function g(id){return document.getElementById(id)?.value||''}
+function sf(px,f){const l=document.getElementById(px+'-lbl'),v=document.getElementById(px+'-val');if(l)l.textContent=f.lbl||'';if(v)v.textContent=f.val||''}
+document.querySelectorAll('.form-body input,.form-body select').forEach(e=>{e.addEventListener('input',up);e.addEventListener('change',up)});
+document.getElementById('gen-btn').addEventListener('click',async()=>{const btn=document.getElementById('gen-btn'),st=document.getElementById('status');btn.disabled=true;btn.textContent='Generating...';st.textContent='';st.className='status-bar';const body={type:at,data:cd()};try{const res=await fetch('/api/generate-pass',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});if(!res.ok){const e=await res.json();throw new Error(e.details||e.error)}const blob=await res.blob(),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='boom-'+at+'-pass.pkpass';document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);st.textContent='Pass generated — open on iPhone to add to Wallet';st.className='status-bar success'}catch(e){st.textContent=e.message;st.className='status-bar error'}finally{btn.disabled=false;btn.textContent=' Add to Apple Wallet'}});
+function cd(){switch(at){case'viewing':return{clientName:g('v-name'),propertyAddress:g('v-address'),zone:g('v-zone'),date:g('v-date'),time:g('v-time'),rent:g('v-rent'),agentName:g('v-agent'),propertyId:g('v-pid')};case'tenant':return{tenantName:g('t-name'),propertyAddress:g('t-address'),zone:g('t-zone'),startDate:g('t-start'),endDate:g('t-end'),contractType:g('t-contract'),landlordName:g('t-landlord'),emergencyPhone:g('t-phone')};case'referral':return{referrerName:g('r-name'),referralCode:g('r-code'),discount:g('r-discount'),expirationDate:g('r-expiry')};case'landlord':return{landlordName:g('l-name'),propertyAddress:g('l-address'),zone:g('l-zone'),rentAmount:g('l-rent'),currentTenant:g('l-tenant'),contractEnd:g('l-end'),propertyId:g('l-pid')}}}
+const tmrw=new Date();tmrw.setDate(tmrw.getDate()+1);document.getElementById('v-date').value=tmrw.toISOString().split('T')[0];up();
+</script></body></html>
