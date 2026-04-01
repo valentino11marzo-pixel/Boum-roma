@@ -1,7 +1,24 @@
 {
   "name": "boum-roma",
   "version": "1.0.0",
+  "description": "",
+  "main": "parse-docs.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/valentino11marzo-pixel/Boum-roma.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/valentino11marzo-pixel/Boum-roma/issues"
+  },
+  "homepage": "https://github.com/valentino11marzo-pixel/Boum-roma#readme",
   "dependencies": {
-    "passkit-generator": "^3.2.0"
+    "passkit-generator": "^3.5.7"
   }
 }
