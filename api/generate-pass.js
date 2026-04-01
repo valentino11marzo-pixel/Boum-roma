@@ -6,6 +6,7 @@ import fs from "fs";
 const signerCert = Buffer.from(process.env.PASS_CERT_BASE64 || "", "base64");
 const signerKey = Buffer.from(process.env.PASS_KEY_BASE64 || "", "base64");
 const signerKeyPassphrase = process.env.PASS_KEY_PASSPHRASE || "";
+const wwdr = Buffer.from(process.env.WWDR_CERT_BASE64 || "", "base64");
 const PASS_TYPE_ID = "pass.com.boomrome.proppass";
 const TEAM_ID = "3MFCAL4947";
 
@@ -55,7 +56,7 @@ export default async function handler(req, res) {
     const passFields = builder(data);
     const serial = crypto.randomUUID();
     const assets = loadAssets(type);
-    const pass = new PKPass(assets, { signerCert, signerKey, signerKeyPassphrase }, { ...basePass(), serialNumber: serial, ...passFields });
+    const pass = new PKPass(assets, { wwdr, signerCert, signerKey, signerKeyPassphrase }, { ...basePass(), serialNumber: serial, ...passFields });
     const buf = pass.getAsBuffer();
     res.setHeader("Content-Type", "application/vnd.apple.pkpass");
     res.setHeader("Content-Disposition", "attachment; filename=boom-" + type + "-" + serial.slice(0,8) + ".pkpass");
