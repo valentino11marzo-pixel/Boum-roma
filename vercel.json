@@ -27,7 +27,8 @@
     { "source": "/deal-assistance", "destination": "/deal-assistance.html" },
     { "source": "/client-portal", "destination": "/client-portal.html" },
     { "source": "/property-finding", "destination": "/property-finding.html" },
-    { "source": "/dashboard", "destination": "/dashboard.html" }
+    { "source": "/dashboard", "destination": "/dashboard.html" },
+    { "source": "/thank-you", "destination": "/thank-you.html" }
   ],
   "functions": {
     "api/reminder-cron.js": {
