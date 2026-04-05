@@ -3,8 +3,7 @@
   "version": "1.0.0",
   "description": "BOOM Rome – premium rental management platform",
   "scripts": {
-    "dev": "vercel dev",
-    "build": "vercel build"
+    "dev": "vercel dev"
   },
   "repository": {
     "type": "git",
