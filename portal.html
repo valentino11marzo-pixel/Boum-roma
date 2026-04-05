@@ -12382,34 +12382,41 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         downloadContractPDF(contract.id);
     }
 
-    function downloadContractPDF(id) {
+    async function downloadContractPDF(id) {
         const c = S.contracts.find(x => x.id === id); if (!c) return;
         const p = S.properties.find(x => x.id === c.propertyId);
         const t = S.users.find(x => x.id === c.tenantId);
-        
-        // Use stored Allegato B PDF if available
-        if (c.generatedPDF) {
-            const link = document.createElement('a');
-            link.href = c.generatedPDF;
-            link.download = `Contratto_${p?.name?.replace(/\s+/g, '_') || 'Immobile'}_${t?.name?.replace(/\s+/g, '_') || 'Inquilino'}.pdf`;
-            link.click();
-            toast('success', 'Contratto Allegato B scaricato!');
-            return;
+        const fileName = `Contratto_${p?.name?.replace(/\s+/g, '_') || 'Immobile'}_${t?.name?.replace(/\s+/g, '_') || 'Inquilino'}.pdf`;
+
+        // Fetch stored Allegato B PDF from Firestore
+        try {
+            const doc = await db.collection('contracts').doc(id).get();
+            const storedPDF = doc.exists && doc.data().generatedPDF;
+            if (storedPDF) {
+                const link = document.createElement('a');
+                link.href = storedPDF;
+                link.download = fileName;
+                link.click();
+                toast('success', 'Contratto Allegato B scaricato!');
+                return;
+            }
+        } catch (e) {
+            console.warn('Could not fetch stored PDF, will generate:', e);
         }
-        // No stored PDF — generate on the fly
+
+        // No stored PDF (old contracts) — generate on the fly as fallback
         toast('info', 'Generazione PDF in corso...');
-        generateContractPDF(id).then(ok => {
-            if (ok) {
-                const fresh = S.contracts.find(x => x.id === id);
-                if (fresh?.generatedPDF) {
-                    const link = document.createElement('a');
-                    link.href = fresh.generatedPDF;
-                    link.download = `Contratto_${p?.name?.replace(/\s+/g, '_') || 'Immobile'}_${t?.name?.replace(/\s+/g, '_') || 'Inquilino'}.pdf`;
-                    link.click();
-                    toast('success', 'Contratto Allegato B generato e scaricato!');
-                }
-            } else { toast('error', 'Errore generazione PDF'); }
-        });
+        const ok = await generateContractPDF(id);
+        if (ok) {
+            const fresh = S.contracts.find(x => x.id === id);
+            if (fresh?.generatedPDF) {
+                const link = document.createElement('a');
+                link.href = fresh.generatedPDF;
+                link.download = fileName;
+                link.click();
+                toast('success', 'Contratto Allegato B generato e scaricato!');
+            }
+        } else { toast('error', 'Errore generazione PDF'); }
     }
     
     
