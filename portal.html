@@ -21,7 +21,7 @@
         @font-face { font-family: 'HelveticaNeue'; src: local('Helvetica Neue Bold'), local('HelveticaNeue-Bold'), local('Helvetica'); font-weight: 700; font-style: normal; }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <!-- Chart.js loaded lazily by loadChartJS() on first dashboard visit -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
@@ -3899,7 +3899,20 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             default: m.innerHTML = r === 'admin' ? adminDashboard() : r === 'landlord' ? landlordDashboard() : tenantDashboard();
         }
         // Post-render hooks
-        setTimeout(() => initDashboardCharts(), 50);
+        setTimeout(() => loadChartJS().then(() => initDashboardCharts()), 50);
+    }
+
+    function loadChartJS() {
+        if (typeof Chart !== 'undefined') return Promise.resolve();
+        if (window._chartJSLoading) return window._chartJSLoading;
+        window._chartJSLoading = new Promise((resolve, reject) => {
+            const s = document.createElement('script');
+            s.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js';
+            s.onload = resolve;
+            s.onerror = reject;
+            document.head.appendChild(s);
+        });
+        return window._chartJSLoading;
     }
 
     function initDashboardCharts() {
