@@ -2526,6 +2526,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             await Promise.all(promises);
             checkAlerts();
             renderPage();
+            buildNav();
         } catch (e) { console.error('Smart refresh error:', e); }
     }
 
@@ -3748,7 +3749,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         }
         
         buildNav();
-        goTo('dashboard');
+        goTo(window.location.hash.slice(1) || localStorage.getItem('boom_lastPage') || 'dashboard');
     }
 
     function buildNav() {
@@ -3836,7 +3837,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         }
     }
 
-    function goTo(p) { S.page = p; buildNav(); renderPage(); closeSidebar(); window.scrollTo(0, 0); }
+    function goTo(p) { S.page = p; window.location.hash = p; localStorage.setItem('boom_lastPage', p); buildNav(); renderPage(); closeSidebar(); window.scrollTo(0, 0); }
+    window.addEventListener('popstate', () => { const page = window.location.hash.slice(1); if (page && page !== S.page) { S.page = page; buildNav(); renderPage(); } });
     function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); document.getElementById('sidebarOverlay').classList.toggle('open'); }
     function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebarOverlay').classList.remove('open'); }
 
@@ -3998,7 +4000,19 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const p = S.properties.find(x => x.id === m.propertyId);
             results.push({ type: '🔧', label: m.title, sub: `${p?.name || ''} · ${m.status}`, action: `viewMaintenance('${m.id}')` });
         });
-        
+
+        // Search leads
+        (S.leads || []).filter(l => (l.name||'').toLowerCase().includes(ql) || (l.email||'').toLowerCase().includes(ql) || (l.phone||'').includes(q) || (l.service||'').toLowerCase().includes(ql)).forEach(l =>
+            results.push({ type: '🔔', label: l.name, sub: `${l.service || ''} · ${l.email || ''}`, action: `goTo('leads')` }));
+
+        // Search tasks
+        (S.tasks || []).filter(t => (t.title||'').toLowerCase().includes(ql)).forEach(t =>
+            results.push({ type: '✅', label: t.title, sub: `${t.status || 'pending'} · ${t.priority || ''}`, action: `goTo('commandCenter')` }));
+
+        // Search deadlines
+        (S.deadlines || []).filter(d => (d.title||'').toLowerCase().includes(ql)).forEach(d =>
+            results.push({ type: '📅', label: d.title, sub: `${d.type || ''} · ${fmtDate(d.date)}`, action: `goTo('commandCenter')` }));
+
         // Render dropdown
         let dd = document.getElementById('searchResults');
         if (!dd) { dd = document.createElement('div'); dd.id = 'searchResults'; dd.style.cssText = 'position:absolute;top:100%;left:0;right:0;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;max-height:360px;overflow-y:auto;z-index:1000;box-shadow:0 8px 32px rgba(0,0,0,0.3);margin-top:4px'; document.getElementById('globalSearch').parentElement.style.position = 'relative'; document.getElementById('globalSearch').parentElement.appendChild(dd); }
@@ -8896,6 +8910,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             S.tasks = (S.tasks || []).filter(t => t.id !== id);
             toast('success', 'Task eliminato');
             renderPage();
+            buildNav();
         } catch (e) { toast('error', 'Errore', e.message); }
     }
     
@@ -10114,7 +10129,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 paidDate: data.status === 'paid' ? new Date().toISOString() : null,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
-            closeModal(); await refreshOnly('payments'); toast('success', 'Pagamento registrato!');
+            await refreshOnly('payments'); closeModal(); toast('success', 'Pagamento registrato!');
         } catch (err) { toast('error', 'Errore', err.message); }
     }
 
@@ -10279,7 +10294,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 notes: data.notes || '',
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()
             });
-            closeModal(); await refreshOnly('contracts'); toast('success', 'Contratto aggiornato!');
+            await refreshOnly('contracts'); closeModal(); toast('success', 'Contratto aggiornato!');
         } catch (err) { toast('error', 'Errore', err.message); }
     }
 
@@ -10345,7 +10360,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 notes: data.notes || '',
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()
             });
-            closeModal(); await refreshOnly('payments'); toast('success', 'Pagamento aggiornato!');
+            await refreshOnly('payments'); closeModal(); toast('success', 'Pagamento aggiornato!');
         } catch (err) { toast('error', 'Errore', err.message); }
     }
 
@@ -10434,7 +10449,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                         { maintenanceId: id, propertyId: data.propertyId });
                 }
             }
-            closeModal(); await refreshOnly('maintenance'); toast('success', 'Manutenzione aggiornata!');
+            await refreshOnly('maintenance'); closeModal(); toast('success', 'Manutenzione aggiornata!');
         } catch (err) { toast('error', 'Errore', err.message); }
     }
 
