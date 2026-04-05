@@ -1,7 +1,33 @@
 {
   "version": 2,
   "rewrites": [
-    { "source": "/book", "destination": "/book.html" }
+    { "source": "/book", "destination": "/book.html" },
+    { "source": "/apartments", "destination": "/apartments.html" },
+    { "source": "/about", "destination": "/about.html" },
+    { "source": "/contact", "destination": "/contact.html" },
+    { "source": "/login", "destination": "/login.html" },
+    { "source": "/portal", "destination": "/portal.html" },
+    { "source": "/owners", "destination": "/owners.html" },
+    { "source": "/deals", "destination": "/deals.html" },
+    { "source": "/blog", "destination": "/blog.html" },
+    { "source": "/faq", "destination": "/faq.html" },
+    { "source": "/concierge", "destination": "/concierge.html" },
+    { "source": "/privacy", "destination": "/privacy.html" },
+    { "source": "/terms", "destination": "/terms.html" },
+    { "source": "/how-it-works", "destination": "/how-it-works.html" },
+    { "source": "/booking", "destination": "/booking.html" },
+    { "source": "/onboarding", "destination": "/onboarding.html" },
+    { "source": "/tenant", "destination": "/tenant.html" },
+    { "source": "/tenant-registration", "destination": "/tenant-registration.html" },
+    { "source": "/proppass", "destination": "/proppass.html" },
+    { "source": "/pass-delivery", "destination": "/pass-delivery.html" },
+    { "source": "/apartment-detail", "destination": "/apartment-detail.html" },
+    { "source": "/virtual-viewing", "destination": "/virtual-viewing.html" },
+    { "source": "/pre-arrival", "destination": "/pre-arrival.html" },
+    { "source": "/deal-assistance", "destination": "/deal-assistance.html" },
+    { "source": "/client-portal", "destination": "/client-portal.html" },
+    { "source": "/property-finding", "destination": "/property-finding.html" },
+    { "source": "/dashboard", "destination": "/dashboard.html" }
   ],
   "functions": {
     "api/reminder-cron.js": {

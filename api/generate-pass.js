@@ -42,7 +42,11 @@ function buildLandlord(d) {
 const BUILDERS = { viewing: buildViewing, tenant: buildTenant, referral: buildReferral, landlord: buildLandlord };
 
 export default async function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  const allowedOrigins = ["https://boomrome.com", "https://www.boomrome.com"];
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+  }
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
   if (req.method === "OPTIONS") return res.status(200).end();
@@ -62,6 +66,6 @@ export default async function handler(req, res) {
     return res.send(buf);
   } catch (err) {
     console.error("PropPass error:", err);
-    return res.status(500).json({ error: "Failed to generate pass", details: err.message });
+    return res.status(500).json({ error: "Failed to generate pass" });
   }
 }
