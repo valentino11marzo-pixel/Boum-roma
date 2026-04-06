@@ -800,8 +800,7 @@
         serviceId: 'service_74n80th',       // emailjs.com → Email Services
         templates: {
             signatureRequest: 'boom_signature_request',
-            notification: 'boom_notification',
-            cafRegistration: 'template_caf_registration'
+            notification: 'boom_notification'
         }
     };
     // Initialize EmailJS
@@ -11926,35 +11925,33 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             var cafEmailAlt = settingsDoc.exists ? settingsDoc.data().cafEmailAlt : '';
             if (!cafEmail) { console.warn('[CAF] No CAF email configured in settings'); return false; }
             var reqType = contract.requiresAsseverazione ? 'asseverazione' : 'registrazione';
-            var subject = 'Richiesta ' + reqType + ' contratto - ' + (property?.address || property?.name || 'immobile');
+            var llName = contract.landlordName || '[da completare]';
+            var llCF = contract.landlordCF || '[da completare]';
+            var tenName = contract.tenantName || '[da completare]';
+            var tenCF = contract.tenantCF || '[da completare]';
+            var propAddr = property?.address || property?.name || 'immobile';
+            var cedolare = (contract.cedolareSecca || 'si') !== 'no' ? 'Sì' : 'No';
+            var closingLines = 'LOCATORE: ' + llName + ' · CF: ' + llCF + ' · Nato/a: ' + (contract.landlordDob||'') + ' a ' + (contract.landlordPob||'') + ' · Res: ' + (contract.landlordAddress||'') + ' · Doc: ' + (contract.landlordDocType||'') + ' ' + (contract.landlordDocNum||'') +
+                '\n\nCONDUTTORE: ' + tenName + ' · CF: ' + tenCF + ' · Nato/a: ' + (contract.tenantDob||'') + ' a ' + (contract.tenantPob||'') + ' · Res: ' + (contract.tenantAddress||'') + ' · Doc: ' + (contract.tenantDocType||'') + ' ' + (contract.tenantDocNum||'') +
+                '\n\nIMMOBILE: ' + propAddr + ' · Catasto: ' + (property?.cadastralData || contract.cadastral || 'N/A') + ' · Vani: ' + (property?.rooms||'N/A') + ' · mq: ' + (property?.sqm||'N/A') +
+                '\n\nCedolare secca: ' + cedolare;
             var params = {
-                subject: subject,
-                request_type: reqType,
-                landlord_name: contract.landlordCF ? (contract.landlordName || '') : '[da completare]',
-                landlord_cf: contract.landlordCF || '[da completare]',
-                landlord_dob: contract.landlordDob || '',
-                landlord_pob: contract.landlordPob || '',
-                landlord_address: contract.landlordAddress || '',
-                landlord_doc: (contract.landlordDocType || '') + ' ' + (contract.landlordDocNum || ''),
-                tenant_name: contract.tenantCF ? (contract.tenantName || '') : '[da completare]',
-                tenant_cf: contract.tenantCF || '[da completare]',
-                tenant_dob: contract.tenantDob || '',
-                tenant_pob: contract.tenantPob || '',
-                tenant_address: contract.tenantAddress || '',
-                tenant_doc: (contract.tenantDocType || '') + ' ' + (contract.tenantDocNum || ''),
-                property_address: property?.address || '',
-                property_cadastral: property?.cadastralData || contract.cadastral || '',
-                property_rooms: property?.rooms || '',
-                property_sqm: property?.sqm || '',
-                contract_type: contract.type || 'transitorio',
-                duration: contract.startDate + ' — ' + contract.endDate,
-                rent: '€' + (contract.rent || 0) + '/mese',
-                deposit: '€' + (contract.deposit || 0),
-                cedolare_secca: (contract.cedolareSecca || 'si') !== 'no' ? 'Sì' : 'No',
-                requires_asseverazione: contract.requiresAsseverazione ? 'Sì - Asseverazione richiesta' : 'No - Solo registrazione'
+                heading: 'Richiesta ' + reqType + ' contratto',
+                subheading: propAddr,
+                name: 'CAF',
+                intro: 'Nuova richiesta di ' + reqType + ' per il contratto firmato da entrambe le parti.',
+                card_title: reqType.toUpperCase(),
+                card_color: '#D4AF37',
+                r1_icon: '🏠', r1_label: 'Immobile', r1_value: propAddr,
+                r2_icon: '📋', r2_label: 'Tipo / Durata', r2_value: (contract.type || 'transitorio') + ' · ' + contract.startDate + ' — ' + contract.endDate,
+                r3_icon: '💰', r3_label: 'Canone / Deposito', r3_value: '€' + (contract.rent||0) + '/mese · Deposito €' + (contract.deposit||0),
+                r4_icon: '📝', r4_label: 'Parti', r4_value: llName + ' (locatore) / ' + tenName + ' (conduttore)',
+                closing: closingLines,
+                cta_text: 'Apri Portal BOOM →',
+                portal_link: window.location.origin + window.location.pathname
             };
-            await sendBoomEmail(EMAILJS_CONFIG.templates.cafRegistration, cafEmail, params);
-            if (cafEmailAlt) await sendBoomEmail(EMAILJS_CONFIG.templates.cafRegistration, cafEmailAlt, params);
+            await sendBoomEmail(EMAILJS_CONFIG.templates.notification, cafEmail, params);
+            if (cafEmailAlt) await sendBoomEmail(EMAILJS_CONFIG.templates.notification, cafEmailAlt, params);
             console.log('[CAF] Email sent to', cafEmail);
             return true;
         } catch (err) { console.error('[CAF] Email error:', err); return false; }
