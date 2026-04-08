@@ -19,9 +19,9 @@ function loadAssets(type) {
 }
 
 function buildViewing(d) {
-  const pass = {
+  const passJson = {
     formatVersion: 1, organizationName: "BOOM", passTypeIdentifier: PASS_TYPE_ID, teamIdentifier: TEAM_ID,
-    description: "BOOM Viewing Pass",
+    serialNumber: crypto.randomUUID(), description: "BOOM Viewing Pass",
     backgroundColor: "rgb(10, 10, 10)", foregroundColor: "rgb(255, 255, 255)", labelColor: "rgb(212, 175, 55)",
     logoText: "BOOM",
     eventTicket: {
@@ -34,7 +34,7 @@ function buildViewing(d) {
       ],
       auxiliaryFields: [
         { key: "client", label: "CLIENT", value: d.clientName || "" },
-        ...(d.rent ? [{ key: "rent", label: "RENT", value: "€" + Number(d.rent).toLocaleString("it-IT") + "/mo" }] : []),
+        ...(d.rent ? [{ key: "rent", label: "RENT", value: "\u20ac" + d.rent + "/mo" }] : []),
         ...(d.rooms ? [{ key: "rooms", label: "ROOMS", value: String(d.rooms) }] : [])
       ],
       backFields: [
@@ -50,21 +50,23 @@ function buildViewing(d) {
   if (d.date && d.time) {
     try {
       const dt = new Date(d.date + "T" + d.time + ":00");
-      pass.relevantDate = dt.toISOString();
-      const exp = new Date(dt); exp.setDate(exp.getDate() + 1);
-      pass.expirationDate = exp.toISOString();
+      if (!isNaN(dt.getTime())) {
+        passJson.relevantDate = dt.toISOString();
+        const exp = new Date(dt); exp.setDate(exp.getDate() + 1);
+        passJson.expirationDate = exp.toISOString();
+      }
     } catch(e) {}
   }
   if (d.latitude && d.longitude) {
-    pass.locations = [{ latitude: parseFloat(d.latitude), longitude: parseFloat(d.longitude), relevantText: "Your viewing is nearby" }];
+    passJson.locations = [{ latitude: parseFloat(d.latitude), longitude: parseFloat(d.longitude), relevantText: "Your viewing is nearby" }];
   }
-  return pass;
+  return passJson;
 }
 
 function buildTenant(d) {
-  const pass = {
+  const passJson = {
     formatVersion: 1, organizationName: "BOOM", passTypeIdentifier: PASS_TYPE_ID, teamIdentifier: TEAM_ID,
-    description: "BOOM Tenant Card",
+    serialNumber: crypto.randomUUID(), description: "BOOM Tenant Card",
     backgroundColor: "rgb(10, 10, 10)", foregroundColor: "rgb(255, 255, 255)", labelColor: "rgb(212, 175, 55)",
     logoText: "BOOM",
     storeCard: {
@@ -73,15 +75,15 @@ function buildTenant(d) {
       secondaryFields: [
         { key: "from", label: "FROM", value: d.startDate || "" },
         { key: "to", label: "TO", value: d.endDate || "" },
-        { key: "rent", label: "RENT", value: "€" + (d.rent || "0"), currencyCode: "EUR" }
+        { key: "rent", label: "RENT", value: "\u20ac" + (d.rent || "0") }
       ],
       auxiliaryFields: [
         { key: "contract", label: "CONTRACT", value: d.contractType || "Transitorio" },
-        { key: "deposit", label: "DEPOSIT", value: d.deposit ? "€" + d.deposit : "—" },
+        { key: "deposit", label: "DEPOSIT", value: d.deposit ? "\u20ac" + d.deposit : "\u2014" },
         { key: "payment", label: "PAYMENT DAY", value: d.paymentDay || "5th" }
       ],
       backFields: [
-        { key: "iban", label: "Landlord IBAN (tap to copy)", value: d.iban || "—" },
+        { key: "iban", label: "Landlord IBAN (tap to copy)", value: d.iban || "\u2014" },
         { key: "paymentDay", label: "Payment due", value: "5th of each month via bank transfer" },
         { key: "emergency", label: "Emergency contact", value: d.emergencyPhone || "+39 377 087 0403" },
         { key: "landlordName", label: "Landlord", value: d.landlordName || "" },
@@ -95,15 +97,15 @@ function buildTenant(d) {
     barcodes: [{ format: "PKBarcodeFormatQR", message: "https://boomrome.com/portal.html#dashboard", messageEncoding: "iso-8859-1" }]
   };
   if (d.latitude && d.longitude) {
-    pass.locations = [{ latitude: parseFloat(d.latitude), longitude: parseFloat(d.longitude) }];
+    passJson.locations = [{ latitude: parseFloat(d.latitude), longitude: parseFloat(d.longitude) }];
   }
-  return pass;
+  return passJson;
 }
 
 function buildLandlord(d) {
   return {
     formatVersion: 1, organizationName: "BOOM", passTypeIdentifier: PASS_TYPE_ID, teamIdentifier: TEAM_ID,
-    description: "BOOM Landlord Card",
+    serialNumber: crypto.randomUUID(), description: "BOOM Landlord Card",
     backgroundColor: "rgb(18, 16, 10)", foregroundColor: "rgb(232, 212, 139)", labelColor: "rgb(201, 168, 76)",
     logoText: "BOOM",
     storeCard: {
@@ -112,16 +114,16 @@ function buildLandlord(d) {
       secondaryFields: [
         { key: "properties", label: "PROPERTIES", value: String(d.propertyCount || 1) },
         { key: "since", label: "SINCE", value: String(d.since || new Date().getFullYear()) },
-        { key: "status", label: "STATUS", value: "Active" }
+        { key: "pstatus", label: "STATUS", value: "Active" }
       ],
       backFields: [
-        { key: "activeTenant", label: "Active tenant", value: d.currentTenant || "—" },
-        { key: "activeRent", label: "Monthly rent", value: d.rentAmount ? "€" + d.rentAmount : "—" },
-        { key: "contractDates", label: "Contract period", value: d.contractDates || "—" },
+        { key: "activeTenant", label: "Active tenant", value: d.currentTenant || "\u2014" },
+        { key: "activeRent", label: "Monthly rent", value: d.rentAmount ? "\u20ac" + d.rentAmount : "\u2014" },
+        { key: "contractDates", label: "Contract period", value: d.contractDates || "\u2014" },
         { key: "contractType", label: "Contract type", value: d.contractType || "Transitorio - Cedolare secca 10%" },
-        { key: "nextPayment", label: "Next payment due", value: d.nextPayment || "—" },
+        { key: "nextPayment", label: "Next payment due", value: d.nextPayment || "\u2014" },
         { key: "propertyAddress", label: "Property", value: d.propertyAddress || "" },
-        { key: "cadastral", label: "Cadastral data", value: d.cadastral || "—" },
+        { key: "cadastral", label: "Cadastral data", value: d.cadastral || "\u2014" },
         { key: "boomDirect", label: "Your BOOM contact", value: "Valentino | +39 377 087 0403" },
         { key: "boomEmail", label: "Email", value: "valentino@boom-rome.com" },
         { key: "portal", label: "Landlord portal", value: "https://boomrome.com/portal" }
@@ -133,9 +135,9 @@ function buildLandlord(d) {
 
 function buildReferral(d) {
   const code = d.referralCode || "BOOM-" + crypto.randomBytes(3).toString("hex").toUpperCase();
-  const pass = {
+  const passJson = {
     formatVersion: 1, organizationName: "BOOM", passTypeIdentifier: PASS_TYPE_ID, teamIdentifier: TEAM_ID,
-    description: "BOOM Referral Pass",
+    serialNumber: crypto.randomUUID(), description: "BOOM Referral Pass",
     backgroundColor: "rgb(10, 10, 10)", foregroundColor: "rgb(255, 255, 255)", labelColor: "rgb(212, 175, 55)",
     logoText: "BOOM",
     coupon: {
@@ -147,7 +149,7 @@ function buildReferral(d) {
         { key: "uses", label: "USES LEFT", value: d.usesLeft || "Unlimited" }
       ],
       backFields: [
-        { key: "howItWorks", label: "How it works", value: "Share your code with a friend looking for an apartment in Rome. When they sign a contract through BOOM, you both receive €100 credit." },
+        { key: "howItWorks", label: "How it works", value: "Share your code with a friend looking for an apartment in Rome. When they sign a contract through BOOM, you both receive \u20ac100 credit." },
         { key: "terms", label: "Terms", value: "Valid for new BOOM clients only. Credit applied to next invoice or rent payment. Cannot be combined with other offers." },
         { key: "shareLink", label: "Share this link", value: "https://boomrome.com/portal.html?intake=1&ref=" + code },
         { key: "boomSupport", label: "BOOM support", value: "valentino@boom-rome.com | +39 377 087 0403" }
@@ -156,9 +158,12 @@ function buildReferral(d) {
     barcodes: [{ format: "PKBarcodeFormatQR", message: "https://boomrome.com/portal.html?intake=1&ref=" + code, messageEncoding: "iso-8859-1" }]
   };
   if (d.expirationDate) {
-    try { pass.expirationDate = new Date(d.expirationDate + "T23:59:59").toISOString(); } catch(e) {}
+    try {
+      const exp = new Date(d.expirationDate + "T23:59:59");
+      if (!isNaN(exp.getTime())) passJson.expirationDate = exp.toISOString();
+    } catch(e) {}
   }
-  return pass;
+  return passJson;
 }
 
 const BUILDERS = { viewing: buildViewing, tenant: buildTenant, referral: buildReferral, landlord: buildLandlord };
@@ -178,14 +183,20 @@ export default async function handler(req, res) {
     if (!data) return res.status(400).json({ error: "Missing data" });
     const builder = BUILDERS[type];
     if (!builder) return res.status(400).json({ error: "Unknown type: " + type });
-    const passData = builder(data);
-    const serial = crypto.randomUUID();
-    passData.serialNumber = serial;
+
+    // Build pass.json content
+    const passJson = builder(data);
+
+    // Load image assets and add pass.json as a buffer
     const assets = loadAssets(type);
-    const pass = new PKPass(assets, { signerCert, signerKey, signerKeyPassphrase }, passData);
+    assets["pass.json"] = Buffer.from(JSON.stringify(passJson));
+
+    // Create PKPass from buffers — pass.json is parsed internally by passkit-generator
+    const pass = new PKPass(assets, { signerCert, signerKey, signerKeyPassphrase });
     const buf = pass.getAsBuffer();
+
     res.setHeader("Content-Type", "application/vnd.apple.pkpass");
-    res.setHeader("Content-Disposition", "attachment; filename=boom-" + type + "-" + serial.slice(0, 8) + ".pkpass");
+    res.setHeader("Content-Disposition", "attachment; filename=boom-" + type + "-" + passJson.serialNumber.slice(0, 8) + ".pkpass");
     return res.send(buf);
   } catch (err) {
     console.error("PropPass error:", err);
