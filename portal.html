@@ -2016,6 +2016,8 @@ Valentyne - BOOM Rome`
                     }
                     // (f) CAF EMAIL
                     sendCAFEmail(contractId).catch(function(e){ console.warn('CAF email:', e); });
+                    // (g) PROPPASS — generate tenant + landlord Apple Wallet passes
+                    generateContractPasses(contractId).catch(function(e){ console.warn('PropPass:', e); });
                     // (3) TENANT AUTO-ACCOUNT
                     if (fullContract.tenantId) {
                         var tenDoc = await db.collection('users').doc(fullContract.tenantId).get();
@@ -4442,6 +4444,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                                 <button class="btn btn-secondary btn-block" onclick="openModal('addPayment')">💳 Pagamento</button>
                                 <button class="btn btn-secondary btn-block" onclick="openModal('addMaintenance')">🔧 Manutenzione</button>
                                 <button class="btn btn-secondary btn-block" onclick="goTo('templates')">📜 Template</button>
+                                <button class="btn btn-secondary btn-block" onclick="openModal('generateReferral')">🎁 Referral Pass</button>
+                                <a href="proppass.html" target="_blank" class="btn btn-secondary btn-block" style="text-align:center;text-decoration:none"> PropPass</a>
                             </div>
                         </div>
                     </div>
@@ -5263,6 +5267,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <button class="btn btn-sm btn-secondary" onclick="cancelViewing('${v.id}')" style="font-size:11px;padding:5px 12px;opacity:.5">✕</button>`;
             if (v.status === 'rescheduled') return `
                 <button class="btn btn-sm" onclick="confirmViewingModal('${v.id}')" style="background:var(--gold);color:#000;font-size:11px;padding:5px 12px">✓ Confirm</button>`;
+            if (v.status === 'confirmed') return `
+                <button class="btn btn-sm" onclick="generateViewingPass('${v.id}')" style="background:#000;color:#fff;font-size:11px;padding:5px 12px;border:1px solid rgba(255,255,255,.2)"> Send Pass</button>${v.passSent ? ' <span class="badge green" style="font-size:9px">Pass ✓</span>' : ''}`;
             return '';
         }
 
@@ -9627,6 +9633,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
         if (type === 'addTenantMaintenance') { const myContract = getMyContracts().find(c => c.status === 'active'); const myProp = myContract ? S.properties.find(p => p.id === myContract.propertyId) : null; return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">🔧 Richiedi Manutenzione</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="saveTenantMaintenance(event)"><div class="form-group"><label class="form-label">Immobile</label><input type="text" class="form-input" value="${myProp?.name || 'N/A'}" readonly><input type="hidden" name="propertyId" value="${myProp?.id || ''}"></div><div class="form-group"><label class="form-label">Titolo *</label><input type="text" class="form-input" name="title" required placeholder="Es: Rubinetto perde"></div><div class="form-row"><div class="form-group"><label class="form-label">Categoria</label><select class="form-select" name="category"><option value="plumbing">Idraulica</option><option value="electrical">Elettricità</option><option value="heating">Riscaldamento</option><option value="appliance">Elettrodomestici</option><option value="other">Altro</option></select></div><div class="form-group"><label class="form-label">Urgenza</label><select class="form-select" name="priority"><option value="low">Non urgente</option><option value="medium" selected>Normale</option><option value="high">Urgente</option></select></div></div><div class="form-group"><label class="form-label">Descrizione</label><textarea class="form-textarea" name="description" placeholder="Descrivi il problema in dettaglio..."></textarea></div><div class="form-group"><label class="form-label">📷 Foto (opzionale)</label><input type="file" class="form-input" id="maintPhoto" accept="image/*" style="padding:8px"></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Invia Richiesta</button></div></div></div>`; }
 
+        // REFERRAL PASS MODAL
+        if (type === 'generateReferral') return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">🎁 Genera Referral Pass</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="event.preventDefault();generateReferralPass(document.getElementById('refName').value,document.getElementById('refCode').value,document.getElementById('refExpiry').value,document.getElementById('refPhone').value,document.getElementById('refUses').value);closeModal()"><div class="form-group"><label class="form-label">Nome Referrer *</label><input type="text" class="form-input" id="refName" required placeholder="Sarah Johnson"></div><div class="form-row"><div class="form-group"><label class="form-label">Codice Referral</label><input type="text" class="form-input" id="refCode" placeholder="auto se vuoto"></div><div class="form-group"><label class="form-label">Scadenza</label><input type="date" class="form-input" id="refExpiry"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Max Utilizzi</label><input type="number" class="form-input" id="refUses" placeholder="Illimitato"></div><div class="form-group"><label class="form-label">Telefono (WhatsApp)</label><input type="text" class="form-input" id="refPhone" placeholder="+39 333..."></div></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">🎁 Genera & Invia</button></div></div></div>`;
+
         // COMMAND CENTER MODALS
         if (type === 'addDeadline') { 
             return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">📅 ${data ? 'Modifica' : 'Nuova'} Scadenza</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body">
@@ -11935,6 +11944,97 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             toast('warning', 'Email non inviata', `Errore: ${err?.text || err?.message || 'unknown'}`);
             return false;
         }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // PROPPASS — Apple Wallet Pass Generation
+    // ═══════════════════════════════════════════════════════════════════════════
+    async function generatePass(type, data) {
+        try {
+            var res = await fetch('/api/generate-pass', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: type, data: data }) });
+            if (!res.ok) throw new Error('Pass generation failed');
+            var blob = await res.blob();
+            return blob;
+        } catch (e) { console.error('[PropPass]', e); return null; }
+    }
+
+    function downloadPass(blob, type) {
+        if (!blob) return;
+        var url = URL.createObjectURL(blob); var a = document.createElement('a');
+        a.href = url; a.download = 'boom-' + type + '-pass.pkpass'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    }
+
+    function sendPassWhatsApp(phone, msg) {
+        var ph = (phone || '').replace(/[^0-9+]/g, '');
+        var url = ph ? 'https://wa.me/' + ph + '?text=' + encodeURIComponent(msg) : 'https://wa.me/?text=' + encodeURIComponent(msg);
+        window.open(url, '_blank');
+    }
+
+    async function generateViewingPass(viewingId) {
+        var v = (S.viewingRequests || []).find(function(x) { return x.id === viewingId; });
+        if (!v) return toast('error', 'Viewing non trovato');
+        var prop = (S.properties || []).find(function(p) { return p.id === v.propertyId; }) || (S.listings || []).find(function(l) { return l.id === v.listingId; });
+        toast('info', 'Generazione pass...');
+        var blob = await generatePass('viewing', {
+            clientName: v.clientName || '', propertyAddress: prop?.address || v.listingName || '',
+            zone: prop?.zone || v.listingZone || '', rent: prop?.price || v.listingPrice || '',
+            date: v.confirmedDate || v.proposedDate || '', time: v.confirmedTime || v.proposedTime || '',
+            rooms: prop?.bedrooms || prop?.rooms || '', agentName: 'Valentino',
+            listingUrl: v.listingUrl || prop?.listingUrl || '', latitude: prop?.lat || '', longitude: prop?.lng || ''
+        });
+        if (blob) {
+            downloadPass(blob, 'viewing');
+            await db.collection('viewingRequests').doc(viewingId).update({ passSent: true, passSentAt: new Date().toISOString() }).catch(function(e){});
+            var waMsg = 'Hey ' + (v.clientName || '') + '! Here\'s your viewing pass for ' + (prop?.address || v.listingName || '') + ' on ' + (v.confirmedDate || v.proposedDate || '') + ' at ' + (v.confirmedTime || v.proposedTime || '') + ' 🔑 Add it to your Apple Wallet and you\'ll get a reminder 30 min before. See you there!';
+            sendPassWhatsApp(v.clientPhone || v.phone || '', waMsg);
+            toast('success', 'Viewing pass generato e inviato');
+            renderPage();
+        } else { toast('error', 'Errore generazione pass'); }
+    }
+
+    async function generateContractPasses(contractId) {
+        var contract = (S.contracts || []).find(function(c) { return c.id === contractId; });
+        if (!contract) return;
+        var prop = (S.properties || []).find(function(p) { return p.id === contract.propertyId; });
+        var tenant = (S.users || []).find(function(u) { return u.id === contract.tenantId; });
+        var landlord = prop ? (S.users || []).find(function(u) { return u.id === prop.ownerId; }) : null;
+        var llData = prop?.ownerId ? (S.landlords || []).find(function(l) { return l.id === prop.ownerId; }) : null;
+        // Tenant pass
+        var tenantBlob = await generatePass('tenant', {
+            tenantName: tenant?.name || contract.tenantName || '', propertyAddress: prop?.address || '',
+            startDate: contract.startDate || '', endDate: contract.endDate || '', rent: contract.rent || '',
+            contractType: contract.type || 'Transitorio', deposit: contract.deposit || '',
+            landlordName: landlord?.name || contract.landlordName || '', iban: landlord?.iban || llData?.iban || '',
+            emergencyPhone: '+39 377 087 0403', latitude: prop?.lat || '', longitude: prop?.lng || ''
+        });
+        // Landlord pass
+        var landlordBlob = await generatePass('landlord', {
+            landlordName: landlord?.name || contract.landlordName || '', propertyAddress: prop?.address || '',
+            propertyCount: llData?.propertyCount || 1, since: llData?.createdAt ? new Date(llData.createdAt.seconds ? llData.createdAt.seconds * 1000 : llData.createdAt).getFullYear() : new Date().getFullYear(),
+            rentAmount: contract.rent || '', currentTenant: tenant?.name || '', contractDates: (contract.startDate || '') + ' - ' + (contract.endDate || ''),
+            contractType: (contract.type || 'Transitorio') + ' - Cedolare secca ' + ((contract.cedolareSecca || 'si') !== 'no' ? '10%' : 'N/A'),
+            cadastral: prop?.cadastralData || contract.cadastral || '', propertyId: prop?.id || ''
+        });
+        await db.collection('contracts').doc(contractId).update({ tenantPassGenerated: !!tenantBlob, landlordPassGenerated: !!landlordBlob, passGeneratedAt: firebase.firestore.FieldValue.serverTimestamp() }).catch(function(e){});
+        // WhatsApp to tenant
+        if (tenantBlob && (tenant?.phone || contract.tenantPhone)) {
+            sendPassWhatsApp(tenant?.phone || contract.tenantPhone, 'Welcome home ' + (tenant?.name || '') + '! 🏠 Here\'s your BOOM Tenant Card — add it to your Wallet for easy access to your contract details, IBAN for payments, and emergency contacts.');
+        }
+        // WhatsApp to landlord
+        if (landlordBlob && (landlord?.phone || llData?.phone)) {
+            sendPassWhatsApp(landlord?.phone || llData?.phone, 'Hi ' + (landlord?.name || '') + ', here\'s your BOOM Premium Partner Card ✨ Your property portfolio at a glance, right in your Apple Wallet.');
+        }
+        console.log('[PropPass] Contract passes generated for', contractId);
+    }
+
+    async function generateReferralPass(name, code, expiry, phone, maxUses) {
+        toast('info', 'Generazione referral pass...');
+        var blob = await generatePass('referral', { referrerName: name, referralCode: code, expirationDate: expiry || '', usesLeft: maxUses ? maxUses + ' remaining' : 'Unlimited' });
+        if (blob) {
+            downloadPass(blob, 'referral');
+            sendPassWhatsApp(phone || '', 'Hey ' + (name || '') + '! Share this referral code with friends looking for an apartment in Rome. You both get €100 credit! 🎁');
+            toast('success', 'Referral pass generato');
+        } else { toast('error', 'Errore generazione pass'); }
     }
 
     async function sendCAFEmail(contractId) {
