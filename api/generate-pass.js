@@ -200,6 +200,6 @@ export default async function handler(req, res) {
     return res.send(buf);
   } catch (err) {
     console.error("PropPass error:", err);
-    return res.status(500).json({ error: "Failed to generate pass" });
+    return res.status(500).json({ error: "Failed to generate pass", debug_message: err.message, debug_stack: (err.stack || "").split("\n").slice(0, 5) });
   }
 }
