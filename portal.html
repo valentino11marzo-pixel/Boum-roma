@@ -2138,6 +2138,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 if (tenantId) { var ts = f.querySelector('[name="tenantId"]'); if (ts) ts.value = tenantId; }
                 var hiddenLead = document.createElement('input'); hiddenLead.type = 'hidden'; hiddenLead.name = 'linkedLeadId'; hiddenLead.value = leadId; f.appendChild(hiddenLead);
                 var hiddenLeadSrc = document.createElement('input'); hiddenLeadSrc.type = 'hidden'; hiddenLeadSrc.name = 'linkedLeadSource'; hiddenLeadSrc.value = source || 'lead'; f.appendChild(hiddenLeadSrc);
+                if (lead.linkedViewingId) { var hiddenView = document.createElement('input'); hiddenView.type = 'hidden'; hiddenView.name = 'linkedViewingId'; hiddenView.value = lead.linkedViewingId; f.appendChild(hiddenView); }
                 if (typeof setContractType === 'function') setContractType('transitorio');
                 setTimeout(function() {
                     if (typeof contractWizardNav === 'function') contractWizardNav(1);
@@ -3857,11 +3858,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <div class="nav-item ${S.page==='zone-intel'?'active':''}" onclick="goTo('zone-intel')"><span class="nav-icon">🎯</span> Zone Intelligence</div>
                     <div class="nav-item ${S.page==='burocrazia'?'active':''}" onclick="goTo('burocrazia')"><span class="nav-icon">📝</span> Burocrazia ${S.regPending?`<span class="nav-badge orange">${S.regPending}</span>`:''}</div>
                     <div class="nav-item ${S.page==='landlords'?'active':''}" onclick="goTo('landlords')"><span class="nav-icon">🏘️</span> Landlord DB</div>
-                    <div class="nav-item ${S.page==='rules'?'active':''}" onclick="goTo('rules')"><span class="nav-icon">⚡</span> Regole <span class="nav-badge gold">AI</span></div>
                 </div>
                 <div class="nav-section"><div class="nav-label">Sistema</div>
                     <div class="nav-item ${S.page==='users'?'active':''}" onclick="goTo('users')"><span class="nav-icon">👤</span> Utenti</div>
-                    <div class="nav-item ${S.page==='templates'?'active':''}" onclick="goTo('templates')"><span class="nav-icon">📜</span> Template</div>
                     <div class="nav-item ${S.page==='activity-log'?'active':''}" onclick="goTo('activity-log')"><span class="nav-icon">📋</span> Activity Log</div>
                 </div>
                 <div class="sidebar-footer">
@@ -5316,6 +5315,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <td>
                         <div style="font-weight:500">${esc(v.clientName||'—')}</div>
                         <div style="font-size:11px;color:var(--text-muted)">${esc(v.clientEmail||'')}${v.clientPhone?` · ${esc(v.clientPhone)}`:''}</div>
+                        ${v.linkedLeadId ? `<div style="margin-top:4px"><span class="badge blue" style="font-size:9px;cursor:pointer" onclick="event.stopPropagation();S.leadsFilter='all';goTo('leads')">📬 From Lead</span></div>` : ''}
                     </td>
                     <td>
                         <div style="font-weight:400">${esc(v.listingName||'—')}</div>
@@ -5391,6 +5391,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 confirmedDateTime: dt.toISOString(),
                 confirmedAt: firebase.firestore.FieldValue.serverTimestamp()
             });
+            // Back-link to source lead if exists
+            if (v.linkedLeadId) {
+                db.collection('leads').doc(v.linkedLeadId).update({ linkedViewingId: id, viewingScheduledAt: firebase.firestore.FieldValue.serverTimestamp() }).catch(function(e){ console.warn('Lead back-link:', e); });
+            }
             // Build Google Calendar link for Valentino
             const s = dt.toISOString().replace(/[-:]/g,'').split('.')[0]+'Z';
             const e = new Date(dt.getTime()+3600000).toISOString().replace(/[-:]/g,'').split('.')[0]+'Z';
@@ -5616,6 +5620,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                                 ${l.email || l.leadEmail ? `<a href="mailto:${l.email || l.leadEmail}" class="btn btn-xs btn-secondary" onclick="event.stopPropagation()">📧 Email</a>` : ''}
                                 ${l.phone || l.leadPhone ? `<a href="https://wa.me/${(l.phone || l.leadPhone || '').replace(/[^0-9+]/g, '')}" target="_blank" class="btn btn-xs btn-success" onclick="event.stopPropagation()">💬 WhatsApp</a>` : ''}
                                 ${isNew || isResponded ? `<button class="btn btn-xs" onclick="event.stopPropagation();convertLeadToClient('${l.id}')">→ Converti in Client</button>` : ''}
+                                ${isNew || isResponded ? `<button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();scheduleViewingFromLead('${l.id}')">📅 Schedule Viewing</button>` : ''}
+                                ${l.linkedViewingId ? `<span class="badge blue" style="font-size:9px">📅 Viewing scheduled</span>` : ''}
                                 ${isNew ? `<button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();discardLead('${l.id}')" style="color:var(--text-muted)">✕ Scarta</button>` : ''}
                             </div>
                         </div>
@@ -5693,6 +5699,44 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         '</div></div>';
     }
     
+    async function scheduleViewingFromLead(leadId) {
+        const lead = (S.leads || []).find(l => l.id === leadId);
+        if (!lead) return toast('error', 'Lead non trovato');
+        try {
+            const viewingData = {
+                clientName: lead.name || lead.leadName || '',
+                clientEmail: lead.email || lead.leadEmail || '',
+                clientPhone: lead.phone || lead.leadPhone || '',
+                listingName: lead.propertyTitle || lead.zone || 'TBC',
+                listingZone: lead.zone || '',
+                listingPrice: lead.budget || lead.propertyPrice || '',
+                notes: lead.notes || lead.message || '',
+                language: lead.language || 'it',
+                source: lead.source || 'lead',
+                linkedLeadId: leadId,
+                status: 'pending',
+                proposedDate: '',
+                proposedTime: '',
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                createdBy: S.profile?.id || 'admin'
+            };
+            const ref = await db.collection('viewingRequests').add(viewingData);
+            await db.collection('leads').doc(leadId).update({
+                linkedViewingId: ref.id,
+                status: 'responded',
+                viewingScheduledAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            // Update local state
+            if (!S.viewingRequests) S.viewingRequests = [];
+            S.viewingRequests.push({ id: ref.id, ...viewingData, createdAt: new Date() });
+            const localLead = S.leads.find(l => l.id === leadId);
+            if (localLead) { localLead.linkedViewingId = ref.id; localLead.status = 'responded'; }
+            toast('success', 'Viewing schedulato', 'Vai alla sezione Viewings per confermare data e ora');
+            renderPage();
+            buildNav();
+        } catch (e) { toast('error', 'Errore', e.message); }
+    }
+
     async function convertLeadToClient(leadId) {
         const lead = S.leads.find(l => l.id === leadId);
         if (!lead) return;
@@ -5972,108 +6016,6 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // ═══════════════════════════════════════════════════════════════════════════
     // ADMIN PAGES
     // ═══════════════════════════════════════════════════════════════════════════
-    function crmPage() {
-        const clients = (S.clients || []).filter(c => !c.intakeForm);
-        const active = clients.filter(c => !['completed', 'lost'].includes(c.stage));
-        const pipeline = active.reduce((s, c) => s + (SERVICES[c.service]?.price || 0), 0);
-        const pfs = clients.filter(c => c.service === 'PFS');
-        const das = clients.filter(c => c.service === 'DAS');
-        const vv = clients.filter(c => c.service === 'VV');
-        const completed = clients.filter(c => c.stage === 'completed' || c.stage === 'paid');
-        
-        return `
-            <div class="page-header">
-                <div><h1 class="page-title">💼 CRM Clienti</h1><p class="page-subtitle">${active.length} attivi · €${pipeline.toLocaleString('it-IT')} pipeline</p></div>
-                <div class="page-actions">
-                    <button class="btn btn-secondary" onclick="goTo('templates')">📜 Template</button>
-                    <button class="btn" onclick="openModal('addClient')">+ Nuovo Cliente</button>
-                </div>
-            </div>
-            
-            <!-- Stats Row -->
-            <div class="stats-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:20px">
-                <div class="stat-card"><div class="stat-value">${clients.length}</div><div class="stat-label">Totali</div></div>
-                <div class="stat-card gold"><div class="stat-value">${pfs.length}</div><div class="stat-label">🏠 PFS</div></div>
-                <div class="stat-card blue"><div class="stat-value">${das.length}</div><div class="stat-label">📋 DAS</div></div>
-                <div class="stat-card purple"><div class="stat-value">${vv.length}</div><div class="stat-label">🎥 VV</div></div>
-                <div class="stat-card green"><div class="stat-value">€${completed.reduce((s,c) => s + (SERVICES[c.service]?.price || 0), 0).toLocaleString('it-IT')}</div><div class="stat-label">✔ Chiusi</div></div>
-            </div>
-            
-            <!-- Tabs -->
-            <div class="card" style="margin-bottom:20px">
-                <div style="display:flex;gap:8px;padding:12px;border-bottom:1px solid var(--border);flex-wrap:wrap">
-                    <button class="btn btn-sm" onclick="filterCRM('all',this)">Tutti (${clients.length})</button>
-                    <button class="btn btn-sm btn-secondary" onclick="filterCRM('PFS',this)">🏠 PFS (${pfs.length})</button>
-                    <button class="btn btn-sm btn-secondary" onclick="filterCRM('DAS',this)">📋 DAS (${das.length})</button>
-                    <button class="btn btn-sm btn-secondary" onclick="filterCRM('VV',this)">🎥 VV (${vv.length})</button>
-                    <div style="flex:1"></div>
-                    <input type="text" class="form-input" placeholder="🔍 Cerca..." style="width:200px;padding:6px 12px" oninput="searchCRM(this.value)">
-                </div>
-                
-                <!-- Client Table -->
-                <div style="overflow-x:auto">
-                    <table class="crm-table" id="crmTable">
-                        <thead>
-                            <tr>
-                                <th>Cliente</th>
-                                <th>Contatto</th>
-                                <th>Servizio</th>
-                                <th>Budget</th>
-                                <th>Zona</th>
-                                <th>Stage</th>
-                                <th>Data</th>
-                                <th>Azioni</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${clients.map(c => `
-                                <tr class="crm-row" data-service="${c.service}" data-search="${(c.name + ' ' + c.email + ' ' + (c.zone || '')).toLowerCase()}">
-                                    <td>
-                                        <div style="display:flex;align-items:center;gap:10px">
-                                            <div class="avatar sm ${c.service === 'DAS' ? 'blue' : c.service === 'VV' ? 'purple' : ''}">${initials(c.name)}</div>
-                                            <div style="font-weight:600">${c.name}</div>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div style="font-size:12px">
-                                            <div><a href="mailto:${c.email}" style="color:var(--text-muted)">📧 ${c.email}</a></div>
-                                            ${c.phone ? `<div><a href="tel:${c.phone}" style="color:var(--text-muted)">📞 ${c.phone}</a></div>` : ''}
-                                        </div>
-                                    </td>
-                                    <td><span class="badge ${SERVICES[c.service]?.color}">${c.service} €${SERVICES[c.service]?.price}</span></td>
-                                    <td>${c.budget ? '€' + c.budget + '/m' : '—'}</td>
-                                    <td>${c.zone || '—'}</td>
-                                    <td><span class="badge ${stageColor(c.stage)}">${stageLabel(c.stage)}</span></td>
-                                    <td style="font-size:12px;color:var(--text-muted)">${fmtDate(c.createdAt)}</td>
-                                    <td>
-                                        <div style="display:flex;gap:4px">
-                                            <button class="btn btn-xs btn-secondary" onclick="viewClient('${c.id}')" title="Dettagli">👁</button>
-                                            <button class="btn btn-xs btn-secondary" onclick="editClientModal('${c.id}')" title="Modifica">✏️</button>
-                                            <button class="btn btn-xs btn-secondary" onclick="openTemplateForClient('${c.id}')" title="Documento">📜</button>
-                                            <button class="btn btn-xs btn-secondary" onclick="createInvoiceFor('${c.id}')" title="Fattura">🧾</button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            `).join('') || '<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted)">Nessun cliente. Clicca + Nuovo Cliente per iniziare.</td></tr>'}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            
-            <!-- Pipeline Kanban (collapsible) -->
-            <div class="card">
-                <div class="card-header" style="cursor:pointer" onclick="togglePipeline()">
-                    <h3 class="card-title">📊 Pipeline Kanban</h3>
-                    <span id="pipelineToggle">▼</span>
-                </div>
-                <div id="pipelineView" class="card-body" style="display:none;padding:0">
-                    <div class="pipeline">${PIPELINE_STAGES.filter(s => s.id !== 'lost').map(stage => {
-                        const stageClients = clients.filter(c => c.stage === stage.id);
-                        return `<div class="pipeline-col"><div class="pipeline-header"><span class="pipeline-title">${stage.icon} ${stage.name}</span><span class="pipeline-count">${stageClients.length}</span></div><div class="pipeline-cards">${stageClients.map(c => `<div class="pipeline-card" onclick="viewClient('${c.id}')"><span class="pipeline-card-service ${c.service.toLowerCase()}">${c.service}</span><div class="pipeline-card-name">${c.name}</div><div class="pipeline-card-meta">€${c.budget || '?'}/m · ${c.zone || 'Roma'}</div></div>`).join('') || '<div class="text-muted text-center" style="padding:16px;font-size:11px">—</div>'}</div></div>`;
-                    }).join('')}</div>
-                </div>
-            </div>`;
-    }
     
     function filterCRM(service, btn) {
         document.querySelectorAll('.card button.btn-sm').forEach(b => b.classList.remove('btn-secondary'));
@@ -6535,6 +6477,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                         <span style="font-weight:600">${p?.name || 'Immobile'}</span>
                         <span class="badge ${statusConfig.color}">${statusConfig.text}</span>
                         ${overdueCount > 0 ? `<span class="badge red" style="font-size:9px">⚠️ ${overdueCount} pagamenti in ritardo</span>` : ''}
+                        ${c.tenantPassGenerated && c.landlordPassGenerated ? `<span class="badge gold" style="font-size:9px"> Passes sent</span>` : ''}
                     </div>
                     <div class="list-subtitle" style="margin-top:4px">
                         <span>👤 ${t?.name || 'N/A'}</span>
@@ -8564,295 +8507,6 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         other: { icon: '📌', label: 'Altro', color: 'gray' }
     };
     
-    function commandPage() {
-        try {
-            const upcomingDeadlines = (S.deadlines || []).filter(d => d.status !== 'done').sort((a, b) => {
-                const dA = daysUntil(a.date), dB = daysUntil(b.date);
-                return (dA ?? 999) - (dB ?? 999);
-            });
-            const overdueDeadlines = upcomingDeadlines.filter(d => daysUntil(d.date) !== null && daysUntil(d.date) < 0);
-            const urgentDeadlines = upcomingDeadlines.filter(d => {
-                const days = daysUntil(d.date);
-                return days !== null && days >= 0 && days <= 7;
-            });
-            const soonDeadlines = upcomingDeadlines.filter(d => {
-                const days = daysUntil(d.date);
-                return days !== null && days > 7 && days <= 30;
-            });
-            
-            const pendingTasks = (S.tasks || []).filter(t => t.status !== 'done').sort((a, b) => {
-                const prio = { urgent: 0, normal: 1, low: 2 };
-                return (prio[a.priority] || 1) - (prio[b.priority] || 1);
-            });
-            const urgentTasks = pendingTasks.filter(t => t.priority === 'urgent');
-            const completedTasks = (S.tasks || []).filter(t => t.status === 'done').length;
-            
-            // SMART PRIORITY - Calculate priority score for all items
-            const calculatePriorityScore = (item, type) => {
-                let score = 0;
-                if (type === 'deadline') {
-                    const days = daysUntil(item.date);
-                    if (days === null) return 0;
-                    if (days < 0) score += 100 + Math.abs(days) * 5; // Overdue: highest priority
-                    else if (days <= 3) score += 80;
-                    else if (days <= 7) score += 60;
-                    else if (days <= 14) score += 40;
-                    else score += 20;
-                    // Type bonus
-                    const typeBonus = { ade_registration: 20, ade_annual: 15, contract_renewal: 15, tax_deadline: 15, permit_expiry: 10 };
-                    score += typeBonus[item.type] || 0;
-                    // Linked contract value bonus
-                    if (item.linkedContractId) {
-                        const contract = (S.contracts || []).find(c => c.id === item.linkedContractId);
-                        if (contract?.rent > 1000) score += 10;
-                    }
-                } else if (type === 'task') {
-                    const prioScore = { urgent: 70, normal: 30, low: 10 };
-                    score += prioScore[item.priority] || 30;
-                    if (item.dueDate) {
-                        const days = daysUntil(item.dueDate);
-                        if (days !== null && days < 0) score += 50;
-                        else if (days !== null && days <= 3) score += 30;
-                        else if (days !== null && days <= 7) score += 15;
-                    }
-                }
-                return score;
-            };
-            
-            // Build Focus Items - Top 5 priorities
-            const focusItems = [
-                ...overdueDeadlines.map(d => ({ ...d, itemType: 'deadline', score: calculatePriorityScore(d, 'deadline') })),
-                ...urgentDeadlines.map(d => ({ ...d, itemType: 'deadline', score: calculatePriorityScore(d, 'deadline') })),
-                ...urgentTasks.map(t => ({ ...t, itemType: 'task', score: calculatePriorityScore(t, 'task') })),
-                ...pendingTasks.filter(t => t.priority !== 'urgent' && t.dueDate && daysUntil(t.dueDate) <= 3).map(t => ({ ...t, itemType: 'task', score: calculatePriorityScore(t, 'task') }))
-            ].sort((a, b) => b.score - a.score).slice(0, 5);
-            
-            // Time blocking suggestion
-            const today = new Date();
-            const dayOfWeek = today.getDay();
-            const timeBlocks = {
-                morning: pendingTasks.filter(t => ['admin', 'finance'].includes(t.category)).slice(0, 2),
-                afternoon: pendingTasks.filter(t => ['clients', 'owners'].includes(t.category)).slice(0, 2),
-                flexible: pendingTasks.filter(t => ['marketing', 'maintenance'].includes(t.category)).slice(0, 2)
-            };
-        
-        return `<div class="page-header">
-                <div><h1 class="page-title">🎯 Command Center</h1><p class="page-subtitle">Scadenze e task sotto controllo</p></div>
-                <div class="page-actions">
-                    <button class="btn btn-secondary" onclick="openModal('addDeadline')">📅 + Scadenza</button>
-                    <button class="btn" onclick="openModal('addTask')">✅ + Task</button>
-                </div>
-            </div>
-            
-            <!-- 🧠 FOCUS MODE - Today's Top Priorities -->
-            ${focusItems.length > 0 ? `
-            <div class="card" style="background:linear-gradient(135deg, rgba(212,175,55,0.1) 0%, rgba(0,0,0,0.9) 100%);border-color:var(--gold);margin-bottom:20px">
-                <div class="card-header" style="border-bottom-color:var(--gold)">
-                    <span class="card-title">🧠 Focus Mode — Priorità di Oggi</span>
-                    <span class="badge gold">${focusItems.length} items</span>
-                </div>
-                <div class="card-body">
-                    <div style="display:grid;gap:12px">
-                        ${focusItems.map((item, idx) => {
-                            if (item.itemType === 'deadline') {
-                                const type = DEADLINE_TYPES[item.type] || DEADLINE_TYPES.other;
-                                const days = daysUntil(item.date);
-                                return `<div style="display:flex;align-items:center;gap:14px;padding:14px;background:var(--bg-elevated);border-radius:10px;border-left:4px solid var(--${days < 0 ? 'red' : days <= 3 ? 'orange' : 'gold'})">
-                                    <div style="font-size:24px;opacity:0.9">${idx + 1}.</div>
-                                    <span style="font-size:20px">${type.icon}</span>
-                                    <div style="flex:1">
-                                        <div style="font-weight:600">${esc(item.title)}</div>
-                                        <div style="font-size:12px;color:var(--text-muted)">${type.label} • ${days < 0 ? '<span style="color:var(--red)">SCADUTO ' + Math.abs(days) + 'gg fa</span>' : days === 0 ? '<span style="color:var(--orange)">OGGI!</span>' : 'tra ' + days + ' giorni'}</div>
-                                    </div>
-                                    <div style="text-align:right">
-                                        <div class="badge ${days < 0 ? 'red' : days <= 3 ? 'orange' : 'gold'}" style="font-size:11px">Score: ${item.score}</div>
-                                    </div>
-                                    <button class="btn btn-xs btn-success" onclick="completeDeadline('${item.id}')">✔</button>
-                                </div>`;
-                            } else {
-                                const cat = TASK_CATEGORIES[item.category] || TASK_CATEGORIES.other;
-                                return `<div style="display:flex;align-items:center;gap:14px;padding:14px;background:var(--bg-elevated);border-radius:10px;border-left:4px solid var(--${item.priority === 'urgent' ? 'red' : 'blue'})">
-                                    <div style="font-size:24px;opacity:0.9">${idx + 1}.</div>
-                                    <span style="font-size:20px">${cat.icon}</span>
-                                    <div style="flex:1">
-                                        <div style="font-weight:600">${esc(item.title)} ${item.priority === 'urgent' ? '<span class="badge red" style="font-size:9px">URGENTE</span>' : ''}</div>
-                                        <div style="font-size:12px;color:var(--text-muted)">${cat.label}${item.dueDate ? ' • Scade: ' + formatDate(item.dueDate) : ''}</div>
-                                    </div>
-                                    <div style="text-align:right">
-                                        <div class="badge blue" style="font-size:11px">Score: ${item.score}</div>
-                                    </div>
-                                    <button class="btn btn-xs btn-success" onclick="completeTask('${item.id}')">✔</button>
-                                </div>`;
-                            }
-                        }).join('')}
-                    </div>
-                </div>
-            </div>
-            ` : `
-            <div class="card" style="background:linear-gradient(135deg, rgba(52,199,89,0.1) 0%, rgba(0,0,0,0.9) 100%);border-color:var(--green);margin-bottom:20px">
-                <div class="card-body" style="text-align:center;padding:30px">
-                    <div style="font-size:48px;margin-bottom:10px">🎉</div>
-                    <div style="font-size:18px;font-weight:600;color:var(--green)">Tutto sotto controllo!</div>
-                    <div style="color:var(--text-muted);margin-top:8px">Nessuna urgenza per oggi</div>
-                </div>
-            </div>
-            `}
-            
-            <!-- ⏰ TIME BLOCKING SUGGESTION -->
-            ${(timeBlocks.morning.length + timeBlocks.afternoon.length + timeBlocks.flexible.length) > 0 ? `
-            <div class="card" style="margin-bottom:20px">
-                <div class="card-header" onclick="this.nextElementSibling.classList.toggle('hidden')" style="cursor:pointer">
-                    <span class="card-title">⏰ Suggerimento Giornata</span>
-                    <span style="color:var(--text-muted);font-size:12px">clicca per espandere</span>
-                </div>
-                <div class="card-body hidden">
-                    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
-                        <div style="background:var(--bg);padding:16px;border-radius:10px">
-                            <div style="font-size:12px;color:var(--gold);font-weight:600;margin-bottom:10px">🌅 MATTINA (9-12)</div>
-                            <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px">Admin & Finance</div>
-                            ${timeBlocks.morning.length ? timeBlocks.morning.map(t => `<div style="padding:8px;background:var(--bg-elevated);border-radius:6px;margin-bottom:6px;font-size:12px">${esc(t.title)}</div>`).join('') : '<div style="color:var(--text-muted);font-size:12px">—</div>'}
-                        </div>
-                        <div style="background:var(--bg);padding:16px;border-radius:10px">
-                            <div style="font-size:12px;color:var(--blue);font-weight:600;margin-bottom:10px">☀️ POMERIGGIO (14-18)</div>
-                            <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px">Clienti & Proprietari</div>
-                            ${timeBlocks.afternoon.length ? timeBlocks.afternoon.map(t => `<div style="padding:8px;background:var(--bg-elevated);border-radius:6px;margin-bottom:6px;font-size:12px">${esc(t.title)}</div>`).join('') : '<div style="color:var(--text-muted);font-size:12px">—</div>'}
-                        </div>
-                        <div style="background:var(--bg);padding:16px;border-radius:10px">
-                            <div style="font-size:12px;color:var(--purple);font-weight:600;margin-bottom:10px">🌙 FLESSIBILE</div>
-                            <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px">Marketing & Manutenzione</div>
-                            ${timeBlocks.flexible.length ? timeBlocks.flexible.map(t => `<div style="padding:8px;background:var(--bg-elevated);border-radius:6px;margin-bottom:6px;font-size:12px">${esc(t.title)}</div>`).join('') : '<div style="color:var(--text-muted);font-size:12px">—</div>'}
-                        </div>
-                    </div>
-                </div>
-            </div>
-            ` : ''}
-            
-            <!-- 📅 QUESTA SETTIMANA -->
-            ${buildWeeklyView(upcomingDeadlines, pendingTasks)}
-            
-            <!-- ALERT SUMMARY -->
-            <div class="stats-grid" style="grid-template-columns: repeat(4, 1fr)">
-                <div class="stat-card ${overdueDeadlines.length ? 'red' : 'green'}">
-                    <div class="stat-icon">${overdueDeadlines.length ? '🚨' : '✅'}</div>
-                    <div class="stat-value">${overdueDeadlines.length}</div>
-                    <div class="stat-label">Scadenze Passate</div>
-                </div>
-                <div class="stat-card ${urgentDeadlines.length ? 'orange' : 'green'}">
-                    <div class="stat-icon">⏰</div>
-                    <div class="stat-value">${urgentDeadlines.length}</div>
-                    <div class="stat-label">Entro 7 giorni</div>
-                </div>
-                <div class="stat-card ${urgentTasks.length ? 'red' : 'blue'}">
-                    <div class="stat-icon">🔥</div>
-                    <div class="stat-value">${urgentTasks.length}</div>
-                    <div class="stat-label">Task Urgenti</div>
-                </div>
-                <div class="stat-card purple">
-                    <div class="stat-icon">📊</div>
-                    <div class="stat-value">${pendingTasks.length}</div>
-                    <div class="stat-label">Task Aperti</div>
-                </div>
-            </div>
-            
-            <div class="grid-2">
-                <!-- SCADENZARIO -->
-                <div class="card">
-                    <div class="card-header">
-                        <span class="card-title">📅 Scadenzario</span>
-                        <span class="badge ${overdueDeadlines.length ? 'red' : 'green'}">${upcomingDeadlines.length} attive</span>
-                    </div>
-                    <div class="card-body flush" style="max-height:500px;overflow-y:auto">
-                        ${overdueDeadlines.length ? `
-                            <div style="padding:12px 20px;background:var(--red-light);border-bottom:1px solid var(--border)">
-                                <span style="font-weight:600;color:var(--red)">🚨 SCADUTE</span>
-                            </div>
-                            ${overdueDeadlines.map(d => renderDeadlineItem(d)).join('')}
-                        ` : ''}
-                        ${urgentDeadlines.length ? `
-                            <div style="padding:12px 20px;background:var(--orange-light);border-bottom:1px solid var(--border)">
-                                <span style="font-weight:600;color:var(--orange)">⏰ ENTRO 7 GIORNI</span>
-                            </div>
-                            ${urgentDeadlines.map(d => renderDeadlineItem(d)).join('')}
-                        ` : ''}
-                        ${soonDeadlines.length ? `
-                            <div style="padding:12px 20px;background:var(--blue-light);border-bottom:1px solid var(--border)">
-                                <span style="font-weight:600;color:var(--blue)">📆 ENTRO 30 GIORNI</span>
-                            </div>
-                            ${soonDeadlines.map(d => renderDeadlineItem(d)).join('')}
-                        ` : ''}
-                        ${upcomingDeadlines.length === 0 ? `
-                            <div style="padding:40px;text-align:center;color:var(--text-muted)">
-                                <div style="font-size:48px;margin-bottom:12px">🎉</div>
-                                <div>Nessuna scadenza imminente!</div>
-                            </div>
-                        ` : ''}
-                    </div>
-                </div>
-                
-                <!-- TASK MANAGER -->
-                <div class="card">
-                    <div class="card-header">
-                        <span class="card-title">✅ Task Manager</span>
-                        <span class="badge blue">${pendingTasks.length} aperti</span>
-                    </div>
-                    <div class="card-body flush" style="max-height:500px;overflow-y:auto">
-                        ${pendingTasks.length === 0 ? `
-                            <div style="padding:40px;text-align:center;color:var(--text-muted)">
-                                <div style="font-size:48px;margin-bottom:12px">🎯</div>
-                                <div>Nessun task da fare!</div>
-                            </div>
-                        ` : pendingTasks.map(t => renderTaskItem(t)).join('')}
-                    </div>
-                </div>
-            </div>
-            
-            <!-- QUICK ADD SECTION -->
-            <div class="card" style="margin-top:20px">
-                <div class="card-header">
-                    <span class="card-title">⚡ Quick Add</span>
-                </div>
-                <div class="card-body">
-                    <div style="display:flex;gap:12px;flex-wrap:wrap">
-                        <input type="text" id="quickTaskInput" class="form-input" style="flex:1;min-width:200px;margin:0" placeholder="Descrizione task veloce..." onkeypress="if(event.key==='Enter')quickAddTask()">
-                        <select id="quickTaskCategory" class="form-select" style="width:150px;margin:0">
-                            ${Object.entries(TASK_CATEGORIES).map(([k, v]) => `<option value="${k}">${v.icon} ${v.label}</option>`).join('')}
-                        </select>
-                        <select id="quickTaskPriority" class="form-select" style="width:120px;margin:0">
-                            <option value="normal">Normale</option>
-                            <option value="urgent">🔥 Urgente</option>
-                            <option value="low">Bassa</option>
-                        </select>
-                        <button class="btn" onclick="quickAddTask()">+ Aggiungi</button>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- COMPLETED TASKS (Collapsible) -->
-            ${completedTasks > 0 ? `
-                <div class="card" style="margin-top:20px">
-                    <div class="card-header" style="cursor:pointer" onclick="this.nextElementSibling.classList.toggle('hidden')">
-                        <span class="card-title">✔ Completati</span>
-                        <span class="badge gray">${completedTasks}</span>
-                    </div>
-                    <div class="card-body flush hidden" style="max-height:300px;overflow-y:auto">
-                        ${(S.tasks || []).filter(t => t.status === 'done').slice(0, 20).map(t => `
-                            <div class="list-item" style="opacity:0.6">
-                                <span class="list-icon" style="background:var(--green-light);color:var(--green)">✔</span>
-                                <div class="list-content">
-                                    <div class="list-title" style="text-decoration:line-through">${esc(t.title)}</div>
-                                    <div class="list-subtitle">${TASK_CATEGORIES[t.category]?.label || 'Altro'} • Completato ${formatDate(t.completedAt)}</div>
-                                </div>
-                                <button class="btn btn-xs btn-secondary" onclick="deleteTask('${t.id}')" title="Elimina">🗑️</button>
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-            ` : ''}`;
-        } catch (e) {
-            console.error('Command Center error:', e);
-            return `<div class="page-header"><div><h1 class="page-title">🎯 Command Center</h1><p class="page-subtitle">Errore nel caricamento</p></div></div><div class="card"><div class="card-body"><p>Si è verificato un errore: ${e.message}</p></div></div>`;
-        }
-    }
     
     // Build weekly calendar view
     function buildWeeklyView(deadlines, tasks) {
@@ -9998,6 +9652,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 requiresAsseverazione: document.getElementById('cAsseverazione')?.checked ?? true,
                 linkedLeadId: data.linkedLeadId || '',
                 linkedLeadSource: data.linkedLeadSource || '',
+                linkedViewingId: data.linkedViewingId || '',
                 status: 'active',
                 signatureStatus: 'none',
                 tenantSignToken: crypto.randomUUID ? crypto.randomUUID() : ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c => (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)),
@@ -11054,6 +10709,31 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     </div>
                 </div>
                 
+                ${c.linkedLeadId || c.linkedViewingId ? `
+                <div class="section-title" style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:12px">🔗 Origine Deal</div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+                    ${c.linkedLeadId ? `<button class="btn btn-xs btn-secondary" onclick="closeModal();S.leadsFilter='all';goTo('leads')">📬 Lead origine</button>` : ''}
+                    ${c.linkedViewingId ? `<button class="btn btn-xs btn-secondary" onclick="closeModal();S.viewingsFilter='all';goTo('viewings')">📅 Viewing origine</button>` : ''}
+                </div>` : ''}
+
+                <!-- PropPass Wallet Status -->
+                <div class="card" style="padding:14px;margin-bottom:16px;background:var(--bg-elevated);border:1px solid var(--border)">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+                        <span style="font-weight:600"> Apple Wallet Passes</span>
+                        <button class="btn btn-xs btn-secondary" onclick="generateContractPasses('${c.id}').then(()=>{toast('success','Passes regenerated');closeModal();})"> Regenerate</button>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:12px">
+                        <div style="display:flex;align-items:center;gap:6px">
+                            <span style="font-size:14px">${c.tenantPassGenerated ? '✅' : '⏳'}</span>
+                            <span style="color:var(--text-secondary)">Tenant Card</span>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:6px">
+                            <span style="font-size:14px">${c.landlordPassGenerated ? '✅' : '⏳'}</span>
+                            <span style="color:var(--text-secondary)">Landlord Card</span>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="section-title" style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:12px">📍 Dettagli Contratto</div>
                 <div class="detail-grid">
                     <div><div class="detail-label">Immobile</div><div class="detail-value">${p?.name || 'N/A'}</div></div>
@@ -12034,6 +11714,33 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             downloadPass(blob, 'referral');
             sendPassWhatsApp(phone || '', 'Hey ' + (name || '') + '! Share this referral code with friends looking for an apartment in Rome. You both get €100 credit! 🎁');
             toast('success', 'Referral pass generato');
+        } else { toast('error', 'Errore generazione pass'); }
+    }
+
+    async function sendLandlordPassFromDb(landlordId) {
+        var l = (S.landlords || []).find(function(x) { return x.id === landlordId; });
+        if (!l) return toast('error', 'Landlord not found');
+        // Find their active contract for tenant info
+        var ownedProps = (S.properties || []).filter(function(p) { return p.ownerId === landlordId; });
+        var activeContract = null, tenant = null, prop = null;
+        for (var i = 0; i < ownedProps.length; i++) {
+            var c = (S.contracts || []).find(function(x) { return x.propertyId === ownedProps[i].id && x.status === 'active'; });
+            if (c) { activeContract = c; prop = ownedProps[i]; tenant = (S.users || []).find(function(u) { return u.id === c.tenantId; }); break; }
+        }
+        toast('info', 'Generazione landlord pass...');
+        var blob = await generatePass('landlord', {
+            landlordName: l.name || '', propertyAddress: prop?.address || (l.zones || ''),
+            propertyCount: l.propertyCount || ownedProps.length || 1,
+            since: l.createdAt ? new Date(l.createdAt.seconds ? l.createdAt.seconds * 1000 : l.createdAt).getFullYear() : new Date().getFullYear(),
+            rentAmount: activeContract?.rent || '', currentTenant: tenant?.name || '',
+            contractDates: activeContract ? (activeContract.startDate + ' - ' + activeContract.endDate) : '',
+            contractType: activeContract ? ((activeContract.type || 'Transitorio') + ' - Cedolare secca ' + ((activeContract.cedolareSecca || 'si') !== 'no' ? '10%' : 'N/A')) : '',
+            cadastral: prop?.cadastralData || '', propertyId: prop?.id || ''
+        });
+        if (blob) {
+            downloadPass(blob, 'landlord');
+            sendPassWhatsApp(l.phone || '', 'Hi ' + (l.name || '') + ', here\'s your BOOM Premium Partner Card ✨ Your property portfolio at a glance, right in your Apple Wallet.');
+            toast('success', 'Landlord pass inviato');
         } else { toast('error', 'Errore generazione pass'); }
     }
 
@@ -14912,37 +14619,6 @@ IBAN: ${l.iban || '-'}`;
     }
 
     // Main PFS Pipeline Page - Command Center View
-    function pfsPipelinePage() {
-        const { view } = pfsState;
-
-        return `
-            <div class="page-header">
-                <div>
-                    <h1 class="page-title" style="display:flex;align-items:center;gap:12px">
-                        🚀 PFS Command Center
-                        <span class="badge gold" style="font-size:10px">PRO</span>
-                    </h1>
-                    <p class="page-subtitle">Sales Pipeline · Revenue Tracking · Client Management</p>
-                </div>
-                <div class="page-actions">
-                    <button class="btn" onclick="openPFSAddClient()">+ New Client</button>
-                </div>
-            </div>
-
-            <!-- View Tabs -->
-            <div class="tabs" style="margin-bottom:20px">
-                <div class="tab ${view === 'command' ? 'active' : ''}" onclick="setPFSView('command')">📊 Command Center</div>
-                <div class="tab ${view === 'kanban' ? 'active' : ''}" onclick="setPFSView('kanban')">📋 Kanban</div>
-                <div class="tab ${view === 'list' ? 'active' : ''}" onclick="setPFSView('list')">📃 List</div>
-                <div class="tab ${view === 'analytics' ? 'active' : ''}" onclick="setPFSView('analytics')">📈 Analytics</div>
-            </div>
-
-            ${view === 'command' ? renderPFSCommandCenter() : ''}
-            ${view === 'kanban' ? renderPFSKanbanPro() : ''}
-            ${view === 'list' ? renderPFSListPro() : ''}
-            ${view === 'analytics' ? renderPFSAnalytics() : ''}
-        `;
-    }
 
     // Command Center Dashboard
     function renderPFSCommandCenter() {
@@ -16005,7 +15681,7 @@ IBAN: ${l.iban || '-'}`;
     function openLandlordDetail(id) {
         var l = S.landlords.find(function(x) { return x.id === id; });
         if (!l) return;
-        document.getElementById('modals').innerHTML = '<div class="modal-overlay active" onclick="if(event.target===this)closeModal()"><div class="modal" onclick="event.stopPropagation()"><div class="modal-header"><div style="display:flex;align-items:center;gap:12px"><div class="avatar lg">' + (l.name?.charAt(0) || '?') + '</div><div><h3 class="modal-title">' + esc(l.name) + '</h3><div style="color:var(--gold);margin-top:4px">' + '⭐'.repeat(l.rating || 0) + '</div></div></div><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><div class="detail-grid"><div><div class="detail-label">Phone</div><div class="detail-value">' + esc(l.phone || '-') + '</div></div><div><div class="detail-label">Email</div><div class="detail-value">' + esc(l.email || '-') + '</div></div><div><div class="detail-label">Zones</div><div class="detail-value">' + esc(l.zones || '-') + '</div></div><div><div class="detail-label">Properties</div><div class="detail-value">' + (l.propertyCount || 0) + '</div></div><div><div class="detail-label">Deals</div><div class="detail-value">' + (l.dealsCompleted || 0) + '</div></div>' + (l.iban ? '<div><div class="detail-label">IBAN</div><div class="detail-value" style="font-family:monospace;font-size:12px">' + esc(l.iban) + '</div></div>' : '') + '</div>' + (l.notes ? '<div class="info-box mt-16"><div class="info-box-title">📝 Notes</div><p>' + esc(l.notes) + '</p></div>' : '') + '</div><div class="modal-footer"><button class="btn btn-danger" onclick="deleteLandlord(\'' + id + '\')">Delete</button><button class="btn btn-secondary" onclick="closeModal()">Close</button><button class="btn" onclick="openLandlordWhatsApp(\'' + id + '\')">💬 WhatsApp</button></div></div></div>';
+        document.getElementById('modals').innerHTML = '<div class="modal-overlay active" onclick="if(event.target===this)closeModal()"><div class="modal" onclick="event.stopPropagation()"><div class="modal-header"><div style="display:flex;align-items:center;gap:12px"><div class="avatar lg">' + (l.name?.charAt(0) || '?') + '</div><div><h3 class="modal-title">' + esc(l.name) + '</h3><div style="color:var(--gold);margin-top:4px">' + '⭐'.repeat(l.rating || 0) + '</div></div></div><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><div class="detail-grid"><div><div class="detail-label">Phone</div><div class="detail-value">' + esc(l.phone || '-') + '</div></div><div><div class="detail-label">Email</div><div class="detail-value">' + esc(l.email || '-') + '</div></div><div><div class="detail-label">Zones</div><div class="detail-value">' + esc(l.zones || '-') + '</div></div><div><div class="detail-label">Properties</div><div class="detail-value">' + (l.propertyCount || 0) + '</div></div><div><div class="detail-label">Deals</div><div class="detail-value">' + (l.dealsCompleted || 0) + '</div></div>' + (l.iban ? '<div><div class="detail-label">IBAN</div><div class="detail-value" style="font-family:monospace;font-size:12px">' + esc(l.iban) + '</div></div>' : '') + '</div>' + (l.notes ? '<div class="info-box mt-16"><div class="info-box-title">📝 Notes</div><p>' + esc(l.notes) + '</p></div>' : '') + '</div><div class="modal-footer"><button class="btn btn-danger" onclick="deleteLandlord(\'' + id + '\')">Delete</button><button class="btn btn-secondary" onclick="closeModal()">Close</button><button class="btn btn-secondary" onclick="sendLandlordPassFromDb(\'' + id + '\')" style="background:#000;color:#fff;border:1px solid rgba(255,255,255,.2)"> Send Pass</button><button class="btn" onclick="openLandlordWhatsApp(\'' + id + '\')">💬 WhatsApp</button></div></div></div>';
     }
 
     async function deleteLandlord(id) {
@@ -19367,404 +19043,6 @@ IBAN: ${l.iban || '-'}`;
     }
 
     // Main Page Renderer
-    function propertyResearchEnginePage() {
-        const clients = (S.pfsClients || []).filter(c => !['placed', 'lost'].includes(c.stage));
-        const props = preState.properties || [];
-        const active = props.filter(p => !['rented', 'rejected'].includes(p.status));
-
-        const newCount = props.filter(p => p.status === 'new').length;
-        const viewingCount = props.filter(p => p.status === 'viewing').length;
-        const avgPrice = active.length ? Math.round(active.reduce((s, p) => s + (p.price || 0), 0) / active.length) : 0;
-
-        // Calculate top matches
-        const topMatches = [];
-        if (clients.length && active.length) {
-            for (const p of active.slice(0, 20)) {
-                for (const c of clients.slice(0, 10)) {
-                    const m = preCalculateMatch(p, c);
-                    if (m.score >= 50) topMatches.push({ property: p, client: c, score: m.score });
-                }
-            }
-            topMatches.sort((a, b) => b.score - a.score);
-        }
-
-        let content = '';
-
-        // DASHBOARD
-        if (preState.currentTab === 'dashboard') {
-            content = `
-                <!-- BOOM Hero Banner -->
-                <div class="boom-dashboard-hero">
-                    <div class="boom-hero-left">
-                        <h2 class="boom-hero-title">Property Research Engine</h2>
-                        <p class="boom-hero-subtitle">Smart matching · Tracker · Analytics</p>
-                    </div>
-                    <div class="boom-hero-right">
-                        <button class="boom-hero-btn" onclick="preOpenBoomCardGenerator()">
-                            <span>✨</span> Card Generator
-                        </button>
-                    </div>
-                </div>
-
-                <div class="stats-grid" style="grid-template-columns:repeat(5,1fr)">
-                    <div class="stat-card blue"><div class="stat-icon">🏠</div><div class="stat-value">${active.length}</div><div class="stat-label">Immobili</div></div>
-                    <div class="stat-card orange"><div class="stat-icon">🆕</div><div class="stat-value">${newCount}</div><div class="stat-label">Da Contattare</div></div>
-                    <div class="stat-card purple"><div class="stat-icon">👁️</div><div class="stat-value">${viewingCount}</div><div class="stat-label">Visite</div></div>
-                    <div class="stat-card green"><div class="stat-icon">👥</div><div class="stat-value">${clients.length}</div><div class="stat-label">Clienti</div></div>
-                    <div class="stat-card gold"><div class="stat-icon">💰</div><div class="stat-value">€${avgPrice}</div><div class="stat-label">Media</div></div>
-                </div>
-
-                <!-- Quick Zone Access -->
-                <div class="card boom-zones-card" style="margin-bottom:24px">
-                    <div class="card-header">
-                        <h3 class="card-title"><span style="color:var(--gold)">⚡</span> Zone Rapide</h3>
-                    </div>
-                    <div class="card-body">
-                        <div class="boom-zones-grid">
-                            ${PRE_HOT_ZONES.slice(0, 10).map(slug => {
-                                const z = PRE_ZONES[slug];
-                                return z ? `<button class="boom-zone-btn" onclick="preQuickZoneSearch('${slug}')">${z.hot ? '🔥' : '📍'} ${z.name}</button>` : '';
-                            }).join('')}
-                        </div>
-                    </div>
-                </div>
-
-                <div class="grid-2">
-                    <div class="card"><div class="card-header"><h3 class="card-title">🎯 Top Matches</h3></div>
-                        <div class="card-body flush">${topMatches.slice(0, 5).map(m => `
-                            <div class="list-item">
-                                <div class="list-content"><div class="list-title">${esc(m.property.address || m.property.zone)} → ${esc(m.client.name)}</div>
-                                <div class="list-subtitle">€${m.property.price}/mo</div></div>
-                                ${preMatchBadge(m.score)}
-                            </div>`).join('') || '<div class="empty-state" style="padding:30px"><div class="empty-icon">🎯</div><div class="empty-text">Aggiungi immobili</div></div>'}
-                        </div>
-                    </div>
-                    <div class="card"><div class="card-header"><h3 class="card-title">⚡ Quick Actions</h3></div>
-                        <div class="card-body" style="display:grid;gap:12px">
-                            <button class="btn boom-action-btn" onclick="preOpenAdd()" style="justify-content:flex-start;gap:12px"><span style="font-size:20px">➕</span>Aggiungi Immobile</button>
-                            <button class="btn boom-action-btn-alt" onclick="preOpenBoomCardGenerator()" style="justify-content:flex-start;gap:12px"><span style="font-size:20px">✨</span>BOOM Card Generator</button>
-                            <button class="btn btn-secondary" onclick="preState.currentTab='search';renderPage()" style="justify-content:flex-start;gap:12px"><span style="font-size:20px">🔍</span>Cerca sui Portali</button>
-                            <button class="btn btn-secondary" onclick="preState.currentTab='matching';renderPage()" style="justify-content:flex-start;gap:12px"><span style="font-size:20px">🎯</span>Smart Matching</button>
-                        </div>
-                    </div>
-                </div>
-                <div class="card"><div class="card-header"><h3 class="card-title">🏠 Immobili Recenti</h3></div>
-                    <div class="card-body" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px">
-                        ${active.slice(0, 6).map(p => prePropertyCard(p, preState.selectedClient)).join('') || '<div class="empty-state" style="grid-column:1/-1;padding:40px"><div class="empty-icon">🏠</div><button class="btn" onclick="preOpenAdd()">➕ Aggiungi</button></div>'}
-                    </div>
-                </div>`;
-        }
-
-        // SEARCH
-        else if (preState.currentTab === 'search') {
-            const uni = preState.selectedUni ? ZI_UNIVERSITIES.find(u => u.id === preState.selectedUni) : null;
-            const zones = uni ? uni.zones.map(s => ({ slug: s, ...PRE_ZONES[s] })) : Object.entries(PRE_ZONES).map(([k, v]) => ({ slug: k, ...v }));
-
-            // Quick Zone Buttons HTML
-            const quickZoneBtns = PRE_HOT_ZONES.map(slug => {
-                const z = PRE_ZONES[slug];
-                return z ? `<button class="boom-zone-btn" onclick="preQuickZoneSearch('${slug}')" title="${z.name} · €${z.avgPrice}">${z.hot ? '🔥' : '📍'} ${z.name}</button>` : '';
-            }).join('');
-
-            content = `
-                <!-- BOOM Card Generator Quick Access -->
-                <div class="boom-hero-action">
-                    <button class="boom-card-gen-btn" onclick="preOpenBoomCardGenerator()">
-                        <span class="boom-btn-icon">✨</span>
-                        <span class="boom-btn-text">BOOM Card Generator</span>
-                        <span class="boom-btn-sub">Incolla link → Scheda brandizzata</span>
-                    </button>
-                </div>
-
-                <!-- Hot Zones Quick Access -->
-                <div class="card boom-zones-card">
-                    <div class="card-header">
-                        <h3 class="card-title"><span style="color:var(--gold)">⚡</span> Zone Più Richieste</h3>
-                        <div style="display:flex;gap:8px">
-                            <button class="btn btn-sm" onclick="preOpenAllHotZones('immobiliare')">🏠 Apri Tutte Immo</button>
-                            <button class="btn btn-sm btn-secondary" onclick="preOpenAllHotZones('idealista')">🏡 Tutte Idealista</button>
-                        </div>
-                    </div>
-                    <div class="card-body">
-                        <div class="boom-zones-grid">${quickZoneBtns}</div>
-                    </div>
-                </div>
-
-                <div class="grid-2">
-                    <div>
-                        <div class="card"><div class="card-header"><h3 class="card-title">👤 Cliente</h3></div>
-                            <div class="card-body"><select class="form-select" onchange="preSelectClient(this.value)"><option value="">--</option>${clients.map(c => `<option value="${c.id}" ${preState.selectedClient?.id === c.id ? 'selected' : ''}>${esc(c.name)} · €${c.budget || '?'}</option>`).join('')}</select></div>
-                        </div>
-                        <div class="card"><div class="card-header"><h3 class="card-title">🎓 Università</h3></div>
-                            <div class="card-body" style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px">
-                                ${ZI_UNIVERSITIES.map(u => `<div class="pipeline-card" onclick="preState.selectedUni='${u.id}';renderPage()" style="text-align:center;padding:12px;cursor:pointer;${preState.selectedUni === u.id ? 'border-color:var(--gold);background:var(--gold-light)' : ''}"><div style="font-size:20px">${u.icon}</div><div style="font-size:11px">${u.name}</div></div>`).join('')}
-                            </div>
-                        </div>
-                        <div class="card"><div class="card-header"><h3 class="card-title">💰 Budget</h3></div>
-                            <div class="card-body"><div style="display:flex;gap:8px;align-items:center">
-                                <input type="number" class="form-input" value="${preState.minBudget}" onchange="preState.minBudget=+this.value;renderPage()" style="width:90px">-
-                                <input type="number" class="form-input" value="${preState.maxBudget}" onchange="preState.maxBudget=+this.value;renderPage()" style="width:90px">€
-                            </div></div>
-                        </div>
-                    </div>
-                    <div class="card"><div class="card-header"><h3 class="card-title">📍 Zone ${uni ? `(${uni.name})` : ''}</h3>
-                        <div style="display:flex;gap:8px"><button class="btn btn-sm btn-secondary" onclick="preOpenAllPortals('immobiliare')">🏠 Immo</button><button class="btn btn-sm btn-secondary" onclick="preOpenAllPortals('idealista')">🏡 Idealista</button></div></div>
-                        <div class="card-body flush" style="max-height:450px;overflow-y:auto">
-                            ${zones.filter(z => z.name).sort((a, b) => ({ primary: 0, secondary: 1, tertiary: 2 }[a.tier] || 2) - ({ primary: 0, secondary: 1, tertiary: 2 }[b.tier] || 2)).map(z => `
-                                <div class="list-item" style="border-left:3px solid ${z.tier === 'primary' ? 'var(--gold)' : z.tier === 'secondary' ? 'var(--blue)' : 'var(--text-muted)'}">
-                                    <div class="list-content"><div class="list-title">${z.name}</div><div class="list-subtitle">€${z.avgPrice} · <span class="badge ${z.trend >= 0 ? 'green' : 'red'}">${z.trend >= 0 ? '+' : ''}${z.trend}%</span></div></div>
-                                    <div style="display:flex;gap:6px"><a href="${preBuildSearchUrl('immobiliare', z.slug)}" target="_blank" class="btn btn-xs btn-secondary">🏠</a><a href="${preBuildSearchUrl('idealista', z.slug)}" target="_blank" class="btn btn-xs btn-secondary">🏡</a></div>
-                                </div>`).join('')}
-                        </div>
-                    </div>
-                </div>`;
-        }
-
-        // PROPERTIES
-        else if (preState.currentTab === 'properties') {
-            const filtered = active.filter(p => p.price >= preState.minBudget && p.price <= preState.maxBudget);
-            const sorted = preState.selectedClient
-                ? filtered.map(p => ({ ...p, match: preCalculateMatch(p, preState.selectedClient).score })).sort((a, b) => b.match - a.match)
-                : filtered;
-
-            content = `
-                <div class="card" style="margin-bottom:16px"><div class="card-body" style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
-                    <select class="form-select" style="width:auto" onchange="preSelectClient(this.value)"><option value="">Tutti</option>${clients.map(c => `<option value="${c.id}" ${preState.selectedClient?.id === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select>
-                    <div style="margin-left:auto"><button class="btn" onclick="preOpenAdd()">➕ Aggiungi</button></div>
-                </div></div>
-                <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px">
-                    ${sorted.map(p => prePropertyCard(p, preState.selectedClient)).join('') || '<div class="empty-state" style="grid-column:1/-1;padding:60px"><div class="empty-icon">🏠</div><button class="btn" onclick="preOpenAdd()">➕</button></div>'}
-                </div>`;
-        }
-
-        // MATCHING
-        else if (preState.currentTab === 'matching') {
-            content = `
-                <div class="card"><div class="card-header"><h3 class="card-title">🎯 Smart Matching</h3><span class="badge">${topMatches.length} matches</span></div>
-                    <div class="card-body flush"><table class="crm-table"><thead><tr><th>Immobile</th><th>Cliente</th><th>Match</th><th>Azioni</th></tr></thead><tbody>
-                        ${topMatches.slice(0, 20).map(m => `<tr>
-                            <td><div style="font-weight:500">${esc(m.property.address || m.property.zone)}</div><div style="font-size:11px;color:var(--text-muted)">€${m.property.price}/mo</div></td>
-                            <td><div style="font-weight:500">${esc(m.client.name)}</div><div style="font-size:11px;color:var(--text-muted)">${m.client.service}</div></td>
-                            <td>${preMatchBadge(m.score)}</td>
-                            <td><button class="btn btn-xs" style="background:#25D366" onclick="preSendWA('${m.client.phone || ''}',preWAClient([preState.properties.find(x=>x.id==='${m.property.id}')],S.pfsClients.find(x=>x.id==='${m.client.id}')))">💬</button></td>
-                        </tr>`).join('')}
-                    </tbody></table></div>
-                </div>`;
-        }
-
-        // ANALYTICS
-        else if (preState.currentTab === 'analytics') {
-            const allZones = Object.entries(PRE_ZONES).map(([k, v]) => ({ slug: k, ...v })).sort((a, b) => b.avgPrice - a.avgPrice);
-            const maxPrice = Math.max(...allZones.map(z => z.avgPrice));
-            const hotZones = allZones.filter(z => z.trend > 3).sort((a, b) => b.trend - a.trend);
-
-            content = `
-                <div class="stats-grid" style="grid-template-columns:repeat(4,1fr)">
-                    <div class="stat-card gold"><div class="stat-icon">💰</div><div class="stat-value">€875</div><div class="stat-label">Media Roma</div></div>
-                    <div class="stat-card green"><div class="stat-icon">📉</div><div class="stat-value">€550</div><div class="stat-label">Min</div></div>
-                    <div class="stat-card blue"><div class="stat-icon">📈</div><div class="stat-value">€${maxPrice}</div><div class="stat-label">Max</div></div>
-                    <div class="stat-card purple"><div class="stat-icon">🔥</div><div class="stat-value">+6.5%</div><div class="stat-label">Top Trend</div></div>
-                </div>
-                <div class="grid-2">
-                    <div class="card"><div class="card-header"><h3 class="card-title">📊 Prezzi per Zona</h3></div>
-                        <div class="card-body">${allZones.slice(0, 10).map(z => `
-                            <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
-                                <div style="width:100px;font-size:11px;text-align:right">${z.name}</div>
-                                <div style="flex:1;height:20px;background:var(--bg-elevated);border-radius:4px;overflow:hidden;position:relative">
-                                    <div style="height:100%;width:${(z.avgPrice / maxPrice) * 100}%;background:linear-gradient(90deg,var(--gold),var(--gold-dark))"></div>
-                                    <span style="position:absolute;right:8px;top:2px;font-size:10px;font-weight:600">€${z.avgPrice}</span>
-                                </div>
-                            </div>`).join('')}
-                        </div>
-                    </div>
-                    <div class="card"><div class="card-header"><h3 class="card-title">🔥 Hot Zones</h3></div>
-                        <div class="card-body flush">${hotZones.slice(0, 6).map(z => `
-                            <div class="list-item"><div class="list-content"><div class="list-title">${z.name}</div><div class="list-subtitle">€${z.avgPrice}/mo</div></div><span class="badge green">+${z.trend}%</span></div>`).join('')}
-                        </div>
-                    </div>
-                </div>`;
-        }
-
-        // CASAFARI TAB - Complete Filter System
-        else if (preState.currentTab === 'casafari') {
-            const zones = Object.entries(PRE_ZONES).slice(0, 14);
-            const f = casafariFilters;
-            const pfsClients = (S.pfsClients || []).filter(c => !['placed', 'lost'].includes(c.stage));
-
-            content = `
-                <!-- Hero Section -->
-                <div style="background:linear-gradient(135deg, rgba(212,175,55,0.15) 0%, rgba(0,122,255,0.1) 100%);border-radius:16px;padding:28px;margin-bottom:24px;border:1px solid var(--gold)">
-                    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px">
-                        <div>
-                            <h2 style="font-size:26px;margin-bottom:6px">🏠 CASAFARI Search Builder</h2>
-                            <p style="color:var(--text-secondary);font-size:13px">Configura i filtri → Cerca su Casafari → Crea Alert con un click</p>
-                        </div>
-                        <div style="display:flex;gap:10px;flex-wrap:wrap">
-                            <button class="btn" onclick="preOpenCasafari()">🔍 CERCA ORA</button>
-                            <button class="btn btn-secondary" onclick="preOpenCasafariAlerts()" style="border-color:var(--orange);color:var(--orange)">🔔 I Miei Alert</button>
-                            <button class="btn btn-secondary" onclick="preResetCasafariFilters()">↺ Reset</button>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="grid-2">
-                    <!-- FILTERS PANEL -->
-                    <div class="card">
-                        <div class="card-header"><h3 class="card-title">⚙️ Filtri Ricerca</h3></div>
-                        <div class="card-body">
-                            <!-- Quick Presets -->
-                            <div style="margin-bottom:20px">
-                                <label class="form-label">⚡ Preset Rapidi</label>
-                                <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px">
-                                    <button class="btn btn-xs btn-secondary" onclick="preCasafariPreset('student-budget')">🎓 Studente Budget</button>
-                                    <button class="btn btn-xs btn-secondary" onclick="preCasafariPreset('student-comfort')">🎓 Studente Comfort</button>
-                                    <button class="btn btn-xs btn-secondary" onclick="preCasafariPreset('professional')">💼 Professional</button>
-                                    <button class="btn btn-xs btn-secondary" onclick="preCasafariPreset('new-listings')">🆕 Solo Nuovi (3gg)</button>
-                                </div>
-                            </div>
-
-                            <!-- Price Range -->
-                            <div style="margin-bottom:16px">
-                                <label class="form-label">💰 Budget (€/mese)</label>
-                                <div style="display:flex;gap:10px;margin-top:6px">
-                                    <input type="number" class="form-input" value="${f.priceMin}" onchange="preSetCasafariFilter('priceMin', +this.value)" placeholder="Min" style="margin:0">
-                                    <span style="padding:8px;color:var(--text-muted)">-</span>
-                                    <input type="number" class="form-input" value="${f.priceMax}" onchange="preSetCasafariFilter('priceMax', +this.value)" placeholder="Max" style="margin:0">
-                                </div>
-                            </div>
-
-                            <!-- Rooms & Baths -->
-                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
-                                <div>
-                                    <label class="form-label">🛏️ Camere (min)</label>
-                                    <select class="form-select" onchange="preSetCasafariFilter('roomsMin', +this.value)" style="margin:0">
-                                        <option value="0" ${f.roomsMin === 0 ? 'selected' : ''}>Qualsiasi</option>
-                                        <option value="1" ${f.roomsMin === 1 ? 'selected' : ''}>1+</option>
-                                        <option value="2" ${f.roomsMin === 2 ? 'selected' : ''}>2+</option>
-                                        <option value="3" ${f.roomsMin === 3 ? 'selected' : ''}>3+</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="form-label">🚿 Bagni (min)</label>
-                                    <select class="form-select" onchange="preSetCasafariFilter('bathMin', +this.value)" style="margin:0">
-                                        <option value="0" ${f.bathMin === 0 ? 'selected' : ''}>Qualsiasi</option>
-                                        <option value="1" ${f.bathMin === 1 ? 'selected' : ''}>1+</option>
-                                        <option value="2" ${f.bathMin === 2 ? 'selected' : ''}>2+</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <!-- Area -->
-                            <div style="margin-bottom:16px">
-                                <label class="form-label">📐 Superficie minima (mq)</label>
-                                <select class="form-select" onchange="preSetCasafariFilter('areaMin', +this.value)" style="margin:0">
-                                    <option value="0" ${f.areaMin === 0 ? 'selected' : ''}>Qualsiasi</option>
-                                    <option value="30" ${f.areaMin === 30 ? 'selected' : ''}>30+ mq</option>
-                                    <option value="50" ${f.areaMin === 50 ? 'selected' : ''}>50+ mq</option>
-                                    <option value="70" ${f.areaMin === 70 ? 'selected' : ''}>70+ mq</option>
-                                    <option value="100" ${f.areaMin === 100 ? 'selected' : ''}>100+ mq</option>
-                                </select>
-                            </div>
-
-                            <!-- Days on Market -->
-                            <div style="margin-bottom:16px">
-                                <label class="form-label">📅 Pubblicato negli ultimi</label>
-                                <select class="form-select" onchange="preSetCasafariFilter('daysMax', +this.value)" style="margin:0">
-                                    <option value="3" ${f.daysMax === 3 ? 'selected' : ''}>3 giorni</option>
-                                    <option value="7" ${f.daysMax === 7 ? 'selected' : ''}>7 giorni</option>
-                                    <option value="14" ${f.daysMax === 14 ? 'selected' : ''}>14 giorni</option>
-                                    <option value="30" ${f.daysMax === 30 ? 'selected' : ''}>30 giorni</option>
-                                    <option value="90" ${f.daysMax === 90 ? 'selected' : ''}>90 giorni</option>
-                                    <option value="365" ${f.daysMax === 365 ? 'selected' : ''}>Tutti</option>
-                                </select>
-                            </div>
-
-                            <!-- Furnished -->
-                            <div style="margin-bottom:16px">
-                                <label class="form-label">🪑 Arredamento</label>
-                                <div style="display:flex;gap:8px;margin-top:6px">
-                                    <button class="btn btn-sm ${f.furnished === 0 ? '' : 'btn-secondary'}" onclick="preSetCasafariFilter('furnished', 0)">Tutti</button>
-                                    <button class="btn btn-sm ${f.furnished === 1 ? '' : 'btn-secondary'}" onclick="preSetCasafariFilter('furnished', 1)">Arredato</button>
-                                    <button class="btn btn-sm ${f.furnished === 2 ? '' : 'btn-secondary'}" onclick="preSetCasafariFilter('furnished', 2)">Non arredato</button>
-                                </div>
-                            </div>
-
-                            <!-- Private Only -->
-                            <div>
-                                <label class="form-label">👤 Tipologia</label>
-                                <div style="display:flex;gap:8px;margin-top:6px">
-                                    <button class="btn btn-sm ${!f.privateOnly ? '' : 'btn-secondary'}" onclick="preSetCasafariFilter('privateOnly', false)">Tutti</button>
-                                    <button class="btn btn-sm ${f.privateOnly ? '' : 'btn-secondary'}" onclick="preSetCasafariFilter('privateOnly', true)">Solo Privati</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- ZONES PANEL -->
-                    <div class="card">
-                        <div class="card-header"><h3 class="card-title">📍 Zone (${f.zones.length || 'Tutta Roma'})</h3></div>
-                        <div class="card-body">
-                            <p style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">Seleziona le zone da cercare. Lascia vuoto per tutta Roma.</p>
-                            <div style="display:flex;flex-wrap:wrap;gap:8px">
-                                ${zones.map(([slug, z]) => `<button class="btn btn-sm ${f.zones.includes(slug) ? '' : 'btn-secondary'}" onclick="preToggleCasafariZone('${slug}')" style="${f.zones.includes(slug) ? '' : 'opacity:0.7'}">${z.name}</button>`).join('')}
-                            </div>
-                            ${f.zones.length > 0 ? `<div style="margin-top:12px;padding:10px;background:var(--bg-elevated);border-radius:8px;font-size:12px"><strong>Selezionate:</strong> ${f.zones.map(z => PRE_ZONES[z]?.name || z).join(', ')}</div>` : ''}
-                        </div>
-                    </div>
-                </div>
-
-                <!-- PFS CLIENTS QUICK SEARCH -->
-                ${pfsClients.length > 0 ? `
-                <div class="card" style="margin-top:24px">
-                    <div class="card-header"><h3 class="card-title">👥 Cerca per Cliente PFS</h3></div>
-                    <div class="card-body">
-                        <p style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">Clicca su un cliente per aprire Casafari con i suoi criteri di ricerca.</p>
-                        <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(200px, 1fr));gap:12px">
-                            ${pfsClients.slice(0, 8).map(c => {
-                                const uni = ZI_UNIVERSITIES.find(u => u.id === c.university);
-                                return `<div style="padding:12px;background:var(--bg-elevated);border-radius:10px;cursor:pointer;transition:all .2s" onclick="preOpenCasafariForClient('${c.id}')" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='transparent'">
-                                    <div style="font-weight:600;font-size:14px;margin-bottom:4px">${esc(c.name?.split(' ')[0] || 'Cliente')}</div>
-                                    <div style="font-size:11px;color:var(--text-secondary)">€${c.budget || '?'}/mo · ${c.rooms || '?'} cam · ${uni?.name || '?'}</div>
-                                </div>`;
-                            }).join('')}
-                        </div>
-                    </div>
-                </div>` : ''}
-
-                <!-- CURRENT SEARCH PREVIEW -->
-                <div class="card" style="margin-top:24px;border-color:var(--gold)">
-                    <div class="card-header" style="background:var(--gold-light)"><h3 class="card-title" style="color:var(--gold)">🔍 Riepilogo Ricerca</h3></div>
-                    <div class="card-body">
-                        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px">
-                            <span class="badge gold">€${f.priceMin}-€${f.priceMax}</span>
-                            ${f.roomsMin > 0 ? `<span class="badge blue">${f.roomsMin}+ camere</span>` : ''}
-                            ${f.bathMin > 0 ? `<span class="badge blue">${f.bathMin}+ bagni</span>` : ''}
-                            ${f.areaMin > 0 ? `<span class="badge blue">${f.areaMin}+ mq</span>` : ''}
-                            <span class="badge orange">Ultimi ${f.daysMax} gg</span>
-                            ${f.furnished === 1 ? '<span class="badge green">Arredato</span>' : f.furnished === 2 ? '<span class="badge">Non arredato</span>' : ''}
-                            ${f.privateOnly ? '<span class="badge purple">Solo Privati</span>' : ''}
-                            ${f.zones.length > 0 ? f.zones.map(z => `<span class="badge">${PRE_ZONES[z]?.name || z}</span>`).join('') : '<span class="badge gray">Tutta Roma</span>'}
-                        </div>
-                        <div style="display:flex;gap:12px;flex-wrap:wrap">
-                            <button class="btn" onclick="preOpenCasafari()" style="flex:1;min-width:200px">🔍 APRI CASAFARI CON QUESTI FILTRI</button>
-                            <button class="btn btn-secondary" onclick="preOpenCasafariAlerts()" style="border-color:var(--orange);color:var(--orange)">🔔 Gestisci Alert</button>
-                        </div>
-                    </div>
-                </div>`;
-        }
-
-        return `
-            <div class="page-header"><div><h1 class="page-title">🏠 Property Research Engine</h1><p class="page-subtitle">Smart matching · Tracker · Analytics</p></div><button class="btn btn-secondary" onclick="preReset()">🔄</button></div>
-            <div class="tabs" style="margin-bottom:24px">
-                <div class="tab ${preState.currentTab === 'dashboard' ? 'active' : ''}" onclick="preState.currentTab='dashboard';renderPage()">📊 Dashboard</div>
-                <div class="tab ${preState.currentTab === 'casafari' ? 'active' : ''}" onclick="preState.currentTab='casafari';renderPage()">🏠 Casafari <span class="nav-badge gold">NEW</span></div>
-                <div class="tab ${preState.currentTab === 'search' ? 'active' : ''}" onclick="preState.currentTab='search';renderPage()">🔍 Cerca</div>
-                <div class="tab ${preState.currentTab === 'properties' ? 'active' : ''}" onclick="preState.currentTab='properties';renderPage()">🏠 Immobili <span class="nav-badge">${active.length}</span></div>
-                <div class="tab ${preState.currentTab === 'matching' ? 'active' : ''}" onclick="preState.currentTab='matching';renderPage()">🎯 Matching</div>
-                <div class="tab ${preState.currentTab === 'analytics' ? 'active' : ''}" onclick="preState.currentTab='analytics';renderPage()">📈 Analytics</div>
-            </div>
-            ${content}`;
-    }
 
     // ========================================
     // ADE DOCUMENT CONVERTER v2.0 - COMPLIANT
@@ -20152,89 +19430,6 @@ IBAN: ${l.iban || '-'}`;
         'Centocelle', 'Alessandrino', 'Tor Vergata', 'Casilino', 'Quadraro'
     ];
 
-    function listingsPage() {
-        const drafts = listingState.drafts;
-        return `
-            <div class="page-header">
-                <h1 class="page-title">📢 Pubblica Annunci</h1>
-                <div class="page-actions">
-                    <button class="btn" onclick="openNewListing()">+ Nuovo Annuncio</button>
-                </div>
-            </div>
-            
-            <!-- Quick Stats -->
-            <div class="grid-3" style="margin-bottom:24px">
-                <div class="stat-card"><div class="stat-value">${drafts.length}</div><div class="stat-label">Bozze Salvate</div></div>
-                <div class="stat-card" style="cursor:pointer" onclick="window.open('https://www.immobiliare.it','_blank')">
-                    <div class="stat-value" style="color:#c41e3a">🏠</div><div class="stat-label">Immobiliare.it</div>
-                </div>
-                <div class="stat-card" style="cursor:pointer" onclick="window.open('https://www.idealista.it','_blank')">
-                    <div class="stat-value" style="color:#ffe100">🏡</div><div class="stat-label">Idealista</div>
-                </div>
-            </div>
-
-            <!-- New/Edit Listing Form -->
-            ${listingState.editMode ? listingFormCard() : ''}
-
-            <!-- Saved Drafts -->
-            <div class="card">
-                <div class="card-header">
-                    <span class="card-title">Bozze Annunci (${drafts.length})</span>
-                    ${drafts.length > 0 ? `<button class="btn btn-sm btn-secondary" onclick="clearAllDrafts()">Svuota Tutto</button>` : ''}
-                </div>
-                <div class="card-body flush">
-                    ${drafts.length === 0 ? `
-                        <div class="empty-state">
-                            <div class="empty-icon">📝</div>
-                            <div class="empty-title">Nessuna bozza</div>
-                            <p class="empty-text">Crea un nuovo annuncio per iniziare</p>
-                            <button class="btn" onclick="openNewListing()">+ Crea Annuncio</button>
-                        </div>
-                    ` : drafts.map((d, i) => `
-                        <div class="list-item">
-                            <div class="list-content" style="flex:1">
-                                <div class="list-title">${esc(d.title || d.address || 'Senza titolo')}</div>
-                                <div class="list-subtitle">
-                                    ${d.propertyType || 'Appartamento'} · €${d.price || '?'}/mese · ${d.sqm || '?'}mq · ${d.zone || 'Roma'}
-                                </div>
-                                <div style="font-size:10px;color:var(--text-muted);margin-top:4px">
-                                    Creato: ${new Date(d.createdAt).toLocaleDateString('it-IT')}
-                                </div>
-                            </div>
-                            <div style="display:flex;gap:6px;flex-wrap:wrap">
-                                <button class="btn btn-sm" onclick="publishToImmobiliare(${i})" title="Pubblica su Immobiliare.it" style="background:#c41e3a;border-color:#c41e3a">🏠</button>
-                                <button class="btn btn-sm" onclick="publishToIdealista(${i})" title="Pubblica su Idealista" style="background:#1a1a1a;border-color:#1a1a1a">🏡</button>
-                                <button class="btn btn-sm btn-secondary" onclick="editDraft(${i})" title="Modifica">✏️</button>
-                                <button class="btn btn-sm btn-secondary" onclick="copyListingData(${i})" title="Copia dati">📋</button>
-                                <button class="btn btn-sm btn-secondary" onclick="deleteDraft(${i})" title="Elimina" style="color:var(--red)">🗑️</button>
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
-            </div>
-
-            <!-- Quick Templates -->
-            <div class="card" style="margin-top:24px">
-                <div class="card-header"><span class="card-title">🚀 Template Rapidi</span></div>
-                <div class="card-body">
-                    <div class="grid-3">
-                        <button class="btn btn-secondary" onclick="loadTemplate('monolocale')" style="padding:16px;height:auto;flex-direction:column">
-                            <span style="font-size:24px;margin-bottom:8px">🏠</span>
-                            <span>Monolocale Centro</span>
-                        </button>
-                        <button class="btn btn-secondary" onclick="loadTemplate('bilocale')" style="padding:16px;height:auto;flex-direction:column">
-                            <span style="font-size:24px;margin-bottom:8px">🏡</span>
-                            <span>Bilocale Standard</span>
-                        </button>
-                        <button class="btn btn-secondary" onclick="loadTemplate('stanza')" style="padding:16px;height:auto;flex-direction:column">
-                            <span style="font-size:24px;margin-bottom:8px">🛏️</span>
-                            <span>Stanza Studenti</span>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
 
     function listingFormCard() {
         const d = listingState.current || {};
