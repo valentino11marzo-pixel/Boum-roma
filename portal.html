@@ -11634,7 +11634,17 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             var res = await fetch('/api/generate-pass', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: type, data: data }) });
             if (!res.ok) throw new Error('Pass generation failed');
             var blob = await res.blob();
-            return blob;
+            // Upload to Firebase Storage to get a public URL
+            var publicUrl = '';
+            try {
+                var serial = (Date.now().toString(36) + Math.random().toString(36).slice(2, 8));
+                var storageRef = firebase.storage().ref('passes/' + type + '_' + serial + '.pkpass');
+                var snap = await storageRef.put(blob, { contentType: 'application/vnd.apple.pkpass' });
+                publicUrl = await snap.ref.getDownloadURL();
+            } catch (uploadErr) {
+                console.warn('[PropPass] Storage upload failed, blob still usable:', uploadErr);
+            }
+            return { blob: blob, url: publicUrl };
         } catch (e) { console.error('[PropPass]', e); return null; }
     }
 
@@ -11644,9 +11654,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         a.href = url; a.download = 'boom-' + type + '-pass.pkpass'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
     }
 
-    function sendPassWhatsApp(phone, msg) {
+    function sendPassWhatsApp(phone, msg, passUrl) {
         var ph = (phone || '').replace(/[^0-9+]/g, '');
-        var url = ph ? 'https://wa.me/' + ph + '?text=' + encodeURIComponent(msg) : 'https://wa.me/?text=' + encodeURIComponent(msg);
+        var fullMsg = passUrl ? (msg + '\n\n📲 Tap to download: ' + passUrl) : msg;
+        var url = ph ? 'https://wa.me/' + ph + '?text=' + encodeURIComponent(fullMsg) : 'https://wa.me/?text=' + encodeURIComponent(fullMsg);
         window.open(url, '_blank');
     }
 
@@ -11655,18 +11666,18 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (!v) return toast('error', 'Viewing non trovato');
         var prop = (S.properties || []).find(function(p) { return p.id === v.propertyId; }) || (S.listings || []).find(function(l) { return l.id === v.listingId; });
         toast('info', 'Generazione pass...');
-        var blob = await generatePass('viewing', {
+        var result = await generatePass('viewing', {
             clientName: v.clientName || '', propertyAddress: prop?.address || v.listingName || '',
             zone: prop?.zone || v.listingZone || '', rent: prop?.price || v.listingPrice || '',
             date: v.confirmedDate || v.proposedDate || '', time: v.confirmedTime || v.proposedTime || '',
             rooms: prop?.bedrooms || prop?.rooms || '', agentName: 'Valentino',
             listingUrl: v.listingUrl || prop?.listingUrl || '', latitude: prop?.lat || '', longitude: prop?.lng || ''
         });
-        if (blob) {
-            downloadPass(blob, 'viewing');
-            await db.collection('viewingRequests').doc(viewingId).update({ passSent: true, passSentAt: new Date().toISOString() }).catch(function(e){});
+        if (result && result.blob) {
+            downloadPass(result.blob, 'viewing');
+            await db.collection('viewingRequests').doc(viewingId).update({ passSent: true, passSentUrl: result.url || '', passSentAt: new Date().toISOString() }).catch(function(e){});
             var waMsg = 'Hey ' + (v.clientName || '') + '! Here\'s your viewing pass for ' + (prop?.address || v.listingName || '') + ' on ' + (v.confirmedDate || v.proposedDate || '') + ' at ' + (v.confirmedTime || v.proposedTime || '') + ' 🔑 Add it to your Apple Wallet and you\'ll get a reminder 30 min before. See you there!';
-            sendPassWhatsApp(v.clientPhone || v.phone || '', waMsg);
+            sendPassWhatsApp(v.clientPhone || v.phone || '', waMsg, result.url);
             toast('success', 'Viewing pass generato e inviato');
             renderPage();
         } else { toast('error', 'Errore generazione pass'); }
@@ -11680,7 +11691,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         var landlord = prop ? (S.users || []).find(function(u) { return u.id === prop.ownerId; }) : null;
         var llData = prop?.ownerId ? (S.landlords || []).find(function(l) { return l.id === prop.ownerId; }) : null;
         // Tenant pass
-        var tenantBlob = await generatePass('tenant', {
+        var tenantResult = await generatePass('tenant', {
             tenantName: tenant?.name || contract.tenantName || '', propertyAddress: prop?.address || '',
             startDate: contract.startDate || '', endDate: contract.endDate || '', rent: contract.rent || '',
             contractType: contract.type || 'Transitorio', deposit: contract.deposit || '',
@@ -11688,31 +11699,37 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             emergencyPhone: '+39 377 087 0403', latitude: prop?.lat || '', longitude: prop?.lng || ''
         });
         // Landlord pass
-        var landlordBlob = await generatePass('landlord', {
+        var landlordResult = await generatePass('landlord', {
             landlordName: landlord?.name || contract.landlordName || '', propertyAddress: prop?.address || '',
             propertyCount: llData?.propertyCount || 1, since: llData?.createdAt ? new Date(llData.createdAt.seconds ? llData.createdAt.seconds * 1000 : llData.createdAt).getFullYear() : new Date().getFullYear(),
             rentAmount: contract.rent || '', currentTenant: tenant?.name || '', contractDates: (contract.startDate || '') + ' - ' + (contract.endDate || ''),
             contractType: (contract.type || 'Transitorio') + ' - Cedolare secca ' + ((contract.cedolareSecca || 'si') !== 'no' ? '10%' : 'N/A'),
             cadastral: prop?.cadastralData || contract.cadastral || '', propertyId: prop?.id || ''
         });
-        await db.collection('contracts').doc(contractId).update({ tenantPassGenerated: !!tenantBlob, landlordPassGenerated: !!landlordBlob, passGeneratedAt: firebase.firestore.FieldValue.serverTimestamp() }).catch(function(e){});
+        await db.collection('contracts').doc(contractId).update({
+            tenantPassGenerated: !!(tenantResult && tenantResult.blob),
+            landlordPassGenerated: !!(landlordResult && landlordResult.blob),
+            tenantPassUrl: tenantResult?.url || '',
+            landlordPassUrl: landlordResult?.url || '',
+            passGeneratedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }).catch(function(e){});
         // WhatsApp to tenant
-        if (tenantBlob && (tenant?.phone || contract.tenantPhone)) {
-            sendPassWhatsApp(tenant?.phone || contract.tenantPhone, 'Welcome home ' + (tenant?.name || '') + '! 🏠 Here\'s your BOOM Tenant Card — add it to your Wallet for easy access to your contract details, IBAN for payments, and emergency contacts.');
+        if (tenantResult && tenantResult.blob && (tenant?.phone || contract.tenantPhone)) {
+            sendPassWhatsApp(tenant?.phone || contract.tenantPhone, 'Welcome home ' + (tenant?.name || '') + '! 🏠 Here\'s your BOOM Tenant Card — add it to your Wallet for easy access to your contract details, IBAN for payments, and emergency contacts.', tenantResult.url);
         }
         // WhatsApp to landlord
-        if (landlordBlob && (landlord?.phone || llData?.phone)) {
-            sendPassWhatsApp(landlord?.phone || llData?.phone, 'Hi ' + (landlord?.name || '') + ', here\'s your BOOM Premium Partner Card ✨ Your property portfolio at a glance, right in your Apple Wallet.');
+        if (landlordResult && landlordResult.blob && (landlord?.phone || llData?.phone)) {
+            sendPassWhatsApp(landlord?.phone || llData?.phone, 'Hi ' + (landlord?.name || '') + ', here\'s your BOOM Premium Partner Card ✨ Your property portfolio at a glance, right in your Apple Wallet.', landlordResult.url);
         }
         console.log('[PropPass] Contract passes generated for', contractId);
     }
 
     async function generateReferralPass(name, code, expiry, phone, maxUses) {
         toast('info', 'Generazione referral pass...');
-        var blob = await generatePass('referral', { referrerName: name, referralCode: code, expirationDate: expiry || '', usesLeft: maxUses ? maxUses + ' remaining' : 'Unlimited' });
-        if (blob) {
-            downloadPass(blob, 'referral');
-            sendPassWhatsApp(phone || '', 'Hey ' + (name || '') + '! Share this referral code with friends looking for an apartment in Rome. You both get €100 credit! 🎁');
+        var result = await generatePass('referral', { referrerName: name, referralCode: code, expirationDate: expiry || '', usesLeft: maxUses ? maxUses + ' remaining' : 'Unlimited' });
+        if (result && result.blob) {
+            downloadPass(result.blob, 'referral');
+            sendPassWhatsApp(phone || '', 'Hey ' + (name || '') + '! Share this referral code with friends looking for an apartment in Rome. You both get €100 credit! 🎁', result.url);
             toast('success', 'Referral pass generato');
         } else { toast('error', 'Errore generazione pass'); }
     }
@@ -11728,7 +11745,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             if (c) { activeContract = c; prop = ownedProps[i]; tenant = (S.users || []).find(function(u) { return u.id === c.tenantId; }); break; }
         }
         toast('info', 'Generazione landlord pass...');
-        var blob = await generatePass('landlord', {
+        var result = await generatePass('landlord', {
             landlordName: l.name || '', propertyAddress: prop?.address || (l.zones || ''),
             propertyCount: l.propertyCount || ownedProps.length || 1,
             since: l.createdAt ? new Date(l.createdAt.seconds ? l.createdAt.seconds * 1000 : l.createdAt).getFullYear() : new Date().getFullYear(),
@@ -11737,9 +11754,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             contractType: activeContract ? ((activeContract.type || 'Transitorio') + ' - Cedolare secca ' + ((activeContract.cedolareSecca || 'si') !== 'no' ? '10%' : 'N/A')) : '',
             cadastral: prop?.cadastralData || '', propertyId: prop?.id || ''
         });
-        if (blob) {
-            downloadPass(blob, 'landlord');
-            sendPassWhatsApp(l.phone || '', 'Hi ' + (l.name || '') + ', here\'s your BOOM Premium Partner Card ✨ Your property portfolio at a glance, right in your Apple Wallet.');
+        if (result && result.blob) {
+            downloadPass(result.blob, 'landlord');
+            // Persist the URL on the landlord doc
+            if (result.url) db.collection('landlords').doc(landlordId).update({ landlordPassUrl: result.url, landlordPassSentAt: new Date().toISOString() }).catch(function(e){});
+            sendPassWhatsApp(l.phone || '', 'Hi ' + (l.name || '') + ', here\'s your BOOM Premium Partner Card ✨ Your property portfolio at a glance, right in your Apple Wallet.', result.url);
             toast('success', 'Landlord pass inviato');
         } else { toast('error', 'Errore generazione pass'); }
     }
@@ -12411,30 +12430,52 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const t = S.users.find(x => x.id === c.tenantId);
         const fileName = `Contratto_${p?.name?.replace(/\s+/g, '_') || 'Immobile'}_${t?.name?.replace(/\s+/g, '_') || 'Inquilino'}.pdf`;
 
-        // Fetch stored Allegato B PDF from Firestore
+        // Fetch fresh contract data from Firestore
+        let fresh = null;
         try {
             const doc = await db.collection('contracts').doc(id).get();
-            const storedPDF = doc.exists && doc.data().generatedPDF;
-            if (storedPDF) {
-                const link = document.createElement('a');
-                link.href = storedPDF;
-                link.download = fileName;
-                link.click();
-                toast('success', 'Contratto Allegato B scaricato!');
+            if (doc.exists) fresh = doc.data();
+        } catch (e) { console.warn('Fetch contract:', e); }
+
+        // If signed but PDF was generated BEFORE signature → regenerate to embed signatures
+        const hasSignatures = fresh && (fresh.tenantSignature || fresh.landlordSignature);
+        const needsRebuild = hasSignatures && !fresh.pdfRegeneratedAfterSign;
+        if (needsRebuild) {
+            toast('info', 'Rigenerazione PDF con firme...');
+            const ok = await generateContractPDF(id);
+            if (ok) {
+                await db.collection('contracts').doc(id).update({ pdfRegeneratedAfterSign: true }).catch(function(e){ console.warn('pdfRegeneratedAfterSign flag:', e); });
+                const localContract = S.contracts.find(x => x.id === id);
+                if (localContract) localContract.pdfRegeneratedAfterSign = true;
+                // Re-fetch the updated PDF
+                try {
+                    const doc2 = await db.collection('contracts').doc(id).get();
+                    if (doc2.exists) fresh = doc2.data();
+                } catch (e) {}
+            } else {
+                toast('error', 'Errore rigenerazione PDF');
                 return;
             }
-        } catch (e) {
-            console.warn('Could not fetch stored PDF, will generate:', e);
+        }
+
+        const storedPDF = fresh && fresh.generatedPDF;
+        if (storedPDF) {
+            const link = document.createElement('a');
+            link.href = storedPDF;
+            link.download = fileName;
+            link.click();
+            toast('success', hasSignatures ? 'Contratto firmato scaricato' : 'Contratto Allegato B scaricato');
+            return;
         }
 
         // No stored PDF (old contracts) — generate on the fly as fallback
         toast('info', 'Generazione PDF in corso...');
         const ok = await generateContractPDF(id);
         if (ok) {
-            const fresh = S.contracts.find(x => x.id === id);
-            if (fresh?.generatedPDF) {
+            const after = S.contracts.find(x => x.id === id);
+            if (after?.generatedPDF) {
                 const link = document.createElement('a');
-                link.href = fresh.generatedPDF;
+                link.href = after.generatedPDF;
                 link.download = fileName;
                 link.click();
                 toast('success', 'Contratto Allegato B generato e scaricato!');
