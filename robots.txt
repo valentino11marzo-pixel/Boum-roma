@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /portal
+Disallow: /admin
+Disallow: /setup-firebase
+Disallow: /seed-listings
+Sitemap: https://www.boomrome.com/sitemap.xml
