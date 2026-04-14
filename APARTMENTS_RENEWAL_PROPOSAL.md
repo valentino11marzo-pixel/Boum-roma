@@ -77,7 +77,7 @@
 
 | Problem |
 |---------|
-| Two Firebase projects referenced: `boomrome-b5c4a` (portal) and `boom-property-dashboards` (apartments). This means listings data and portal data are in DIFFERENT Firestore databases |
+| ~~Two Firebase projects~~ **CORRECTED**: Both portal.html and apartments.html use the same project (`boom-property-dashboards`). Legacy pages (tenant.html, admin.html, owner.html) used a stale config pointing to `boomrome-b5c4a` — now fixed to match. |
 | Inline JS at bottom mixes DOM manipulation, Firebase queries, and UI logic — no separation |
 | `cardHTML()` function builds strings with template literals but no escaping of user-provided fields (listing names, zones) |
 | Old static apartment pages (`apartment_*.html`) are dead weight — not used by the dynamic system |
@@ -129,7 +129,7 @@ When an expat lands on this page, within 3 seconds they should understand:
 | **Trust bar** | Below hero: "500+ tenants helped / 48h average response / 4.9 Google rating / Video-verified" |
 | **Listing card upgrade** | Add: prominent move-in date, WhatsApp quick-inquiry button, neighborhood tag with link |
 | **JSON-LD schema** | Add `RealEstateAgent` and `ItemList` with `ListItem` for each apartment |
-| **Unify Firebase project** | Both pages should read from the same Firestore. Either sync `listings` between projects or switch apartments.html to `boomrome-b5c4a` |
+| **Firebase already unified** | Both pages use `boom-property-dashboards`. Legacy pages now fixed to match. |
 
 ### Phase 2 (Next Sprint)
 
@@ -196,15 +196,9 @@ Three capture points on the page:
 
 ### 5.1 Data Source
 
-**Current**: apartments.html reads from Firebase project `boom-property-dashboards` collection `listings`.
-**Portal**: reads from project `boomrome-b5c4a` collection `listings` (via adminflatsPage sync).
+**Current**: Both apartments.html and portal.html use the same Firebase project (`boom-property-dashboards`), collection `listings`. Single source of truth — no sync needed.
 
-**Problem**: Two separate Firestore databases. Listings edited in portal don't appear on apartments page unless synced.
-
-**Fix**: Either:
-- (A) Switch apartments.html to use `boomrome-b5c4a` config (same as portal) — simplest
-- (B) Use a Cloud Function to sync `listings` between projects on write
-- Recommendation: **(A)** — one source of truth
+**Note**: Legacy pages (tenant.html, admin.html, owner.html) previously referenced a stale project (`boomrome-b5c4a`) via `js/firebase-config.js`. This has been corrected to match `boom-property-dashboards`.
 
 ### 5.2 Listing Data Model
 

@@ -1,13 +1,12 @@
 /* BOOM Platform – Firebase Configuration */
 
 const firebaseConfig = {
-    apiKey: "AIzaSyBsqRUEF34FVYvw9NR1gqmm-Lgk3NmFRqY",
-    authDomain: "boomrome-b5c4a.firebaseapp.com",
-    projectId: "boomrome-b5c4a",
-    storageBucket: "boomrome-b5c4a.firebasestorage.app",
-    messagingSenderId: "421264669348",
-    appId: "1:421264669348:web:a934b1d7e0667451440431",
-    measurementId: "G-B6D01F4N98"
+    apiKey: "AIzaSyDDb8UeSc8RhO_VxQrhLrupu1aPD4rwRso",
+    authDomain: "boom-property-dashboards.firebaseapp.com",
+    projectId: "boom-property-dashboards",
+    storageBucket: "boom-property-dashboards.firebasestorage.app",
+    messagingSenderId: "937269017440",
+    appId: "1:937269017440:web:41c1a0b1e1633c2f373c05"
 };
 
 firebase.initializeApp(firebaseConfig);
