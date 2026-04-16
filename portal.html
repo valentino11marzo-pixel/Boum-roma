@@ -8964,7 +8964,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                                             <button class="btn btn-secondary" style="padding:6px 10px;font-size:11px" onclick="editListing('${l.id}')" title="Modifica">✏️</button>
                                             <button class="btn btn-secondary" style="padding:6px 10px;font-size:11px" onclick="cycleListing('${l.id}','${l.status}')" title="Cambia status">🔄</button>
                                             <button class="btn btn-secondary" style="padding:6px 10px;font-size:11px" onclick="duplicateListing('${l.id}')" title="Duplica">📋</button>
-                                            <button class="btn btn-secondary" style="padding:6px 10px;font-size:11px" onclick="confirmDelete('listings','${l.id}','${l.name}')" title="Elimina">🗑️</button>
+                                            <button class="btn btn-secondary" style="padding:6px 10px;font-size:11px" onclick="confirmDelete('listing','${l.id}','${l.name}')" title="Elimina">🗑️</button>
                                         </div>
                                     </td>
                                 </tr>
@@ -10335,10 +10335,31 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
 
     async function deleteRecord(type, id) {
+        // Map singular type → Firestore collection name (handles irregular plurals)
+        var COLLECTION_MAP = {
+            listing: 'listings', property: 'properties', propert: 'properties',
+            contract: 'contracts', payment: 'payments', invoice: 'invoices',
+            client: 'clients', user: 'users', document: 'documents',
+            maintenance: 'maintenance', rule: 'rules', lead: 'leads',
+            deadline: 'deadlines', task: 'tasks', landlord: 'landlords',
+            viewingRequest: 'viewingRequests'
+        };
+        var collection = COLLECTION_MAP[type] || (type + 's');
         try {
-            await db.collection(type + 's').doc(id).delete();
-            closeModal(); await refresh(); toast('success', 'Eliminato!');
-        } catch (err) { toast('error', 'Errore', err.message); }
+            await db.collection(collection).doc(id).delete();
+            // Remove from local state immediately so UI updates before refresh
+            if (S[collection] && Array.isArray(S[collection])) {
+                S[collection] = S[collection].filter(function(x) { return x.id !== id; });
+            }
+            closeModal();
+            renderPage();
+            buildNav();
+            await refresh();
+            toast('success', 'Eliminato!');
+        } catch (err) {
+            console.error('[deleteRecord]', collection, id, err);
+            toast('error', 'Errore eliminazione', err.message);
+        }
     }
 
     async function downloadDocument(id) {
