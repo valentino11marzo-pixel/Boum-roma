@@ -11,7 +11,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Apartment Details — BOOM Rome</title>
     <meta name="description" content="View verified apartment details, photos, and location in Rome. BOOM — Get your apartment in days, not weeks.">
-    <meta name="theme-color" content="#000000">
+    <meta name="theme-color" content="#08080A">
     <link rel="icon" type="image/png" href="https://www.boomrome.com/BOOMlogogoldicon512.png">
     <link rel="apple-touch-icon" href="https://www.boomrome.com/BOOMlogogoldicon512.png">
     <meta property="og:type" content="website">
@@ -27,19 +27,19 @@
       gtag('config', 'G-EYCD59RDVJ');
     </script>
 
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
 
     <style>
         *{margin:0;padding:0;box-sizing:border-box;-webkit-font-smoothing:antialiased}
-        :root{--gold:#FFD700;--gold-dark:#F5A623;--gold-light:#FFD54F;--cyan:#00CED1;--green:#00FF88;--pure-black:#000;--dark-void:#0A0A0A;--dark-surface:#111;--text-primary:#FFF;--text-fade:#666;--text-secondary:#999}
-        body{font-family:'Inter',-apple-system,sans-serif;background:var(--pure-black);color:var(--text-primary);font-weight:200;line-height:1.6}
+        :root{--gold:#D4AF37;--gold-dark:#D4AF37;--gold-light:#FFD54F;--cyan:#00CED1;--green:#00FF88;--pure-black:#08080A;--dark-void:#0A0A0A;--dark-surface:#111;--text-primary:#FFF;--text-fade:#666;--text-secondary:#999}
+        body{font-family:'Helvetica Neue',Helvetica,'Inter',-apple-system,sans-serif;background:var(--pure-black);color:var(--text-primary);font-weight:300;line-height:1.6}
 
         /* ===== NAV — matches live site ===== */
-        nav{position:fixed;width:100%;top:0;z-index:100;padding:20px 50px;background:rgba(0,0,0,0.98);backdrop-filter:blur(20px);border-bottom:1px solid rgba(255,215,0,0.1)}
+        nav{position:fixed;width:100%;top:0;z-index:100;padding:20px 50px;background:rgba(8,8,10,0.98);backdrop-filter:blur(20px);border-bottom:1px solid rgba(212,175,55,0.1)}
         .nav-container{max-width:1400px;margin:0 auto;display:flex;justify-content:space-between;align-items:center}
         .logo{display:flex;align-items:center;gap:15px;text-decoration:none;color:#fff}
-        .logo-svg{width:80px;height:80px;filter:drop-shadow(0 0 20px rgba(255,215,0,0.5));transition:filter .3s}
-        .logo:hover .logo-svg{filter:drop-shadow(0 0 35px rgba(255,215,0,0.8))}
+        .logo-svg{width:80px;height:80px;filter:drop-shadow(0 0 20px rgba(212,175,55,0.5));transition:filter .3s}
+        .logo:hover .logo-svg{filter:drop-shadow(0 0 35px rgba(212,175,55,0.8))}
         .logo-text{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:32px;font-weight:300;letter-spacing:4px;text-transform:uppercase}
         .nav-links{display:flex;gap:30px;align-items:center}
         .nav-links a{color:rgba(255,255,255,0.6);text-decoration:none;font-size:13px;font-weight:300;text-transform:uppercase;letter-spacing:1px;transition:color .3s}
@@ -50,7 +50,7 @@
         .hamburger.active span:nth-child(1){transform:rotate(45deg) translate(5px,5px)}
         .hamburger.active span:nth-child(2){opacity:0}
         .hamburger.active span:nth-child(3){transform:rotate(-45deg) translate(5px,-5px)}
-        .mobile-menu{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.98);backdrop-filter:blur(30px);z-index:150;flex-direction:column;align-items:center;justify-content:center;gap:30px}
+        .mobile-menu{display:none;position:fixed;inset:0;background:rgba(8,8,10,0.98);backdrop-filter:blur(30px);z-index:150;flex-direction:column;align-items:center;justify-content:center;gap:30px}
         .mobile-menu.active{display:flex}
         .mobile-menu a{color:rgba(255,255,255,0.7);text-decoration:none;font-size:18px;font-weight:300;letter-spacing:2px;text-transform:uppercase;transition:color .3s}
         .mobile-menu a:hover{color:var(--gold)}
@@ -67,10 +67,11 @@
         .page-error h2{font-size:48px;font-weight:100;text-transform:uppercase}
         .page-error p{color:var(--text-secondary);font-size:16px}
         .page-error a{display:inline-block;margin-top:10px;padding:14px 40px;background:var(--gold);color:#000;text-decoration:none;font-weight:600;font-size:13px;text-transform:uppercase;letter-spacing:2px;transition:all .3s}
-        .page-error a:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(255,215,0,0.3)}
+        .page-error a:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(212,175,55,0.3)}
 
         /* ===== PAGE WRAPPER ===== */
         .apartment-page{display:none;padding-top:120px}
+        @media(max-width:768px){.apartment-page{display:none;flex-direction:column}.apartment-page.show{display:flex}.media-section{order:-1}}
 
         /* Breadcrumb */
         .breadcrumb{max-width:1400px;margin:0 auto;padding:0 50px 20px;font-size:12px;color:var(--text-fade)}
@@ -88,7 +89,7 @@
         .badge-available{background:rgba(0,255,136,0.1);color:#00FF88}
         .badge-waitlist{background:rgba(255,149,0,0.1);color:#FF9500}
         .badge-rented{background:rgba(255,59,48,0.1);color:#FF3B30}
-        .badge-verified{background:rgba(255,215,0,0.1);color:var(--gold)}
+        .badge-verified{background:rgba(212,175,55,0.1);color:var(--gold)}
         .badge-video{background:rgba(255,59,48,0.1);color:#FF3B30}
         .apt-name{font-size:clamp(32px,5vw,56px);font-weight:100;text-transform:uppercase;letter-spacing:-1px;line-height:1.1;margin-bottom:12px}
         .apt-address{font-size:15px;color:var(--text-secondary);margin-bottom:6px}
@@ -141,14 +142,14 @@
         /* ===== TWO COLUMN ===== */
         .apt-content{max-width:1400px;margin:0 auto;padding:0 50px 80px;display:grid;grid-template-columns:1fr 380px;gap:50px;align-items:start}
         .content-section{margin-bottom:50px}
-        .content-section-title{font-size:11px;text-transform:uppercase;letter-spacing:3px;color:var(--gold);font-weight:600;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid rgba(255,215,0,0.15)}
+        .content-section-title{font-size:11px;text-transform:uppercase;letter-spacing:3px;color:var(--gold);font-weight:600;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid rgba(212,175,55,0.15)}
         .apt-description{font-size:16px;line-height:1.8;color:var(--text-secondary);font-weight:300}
 
         /* Features */
         .features-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
         .feature-item{display:flex;align-items:center;gap:10px;padding:12px 16px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:10px;font-size:14px;color:var(--text-secondary);transition:all .3s}
-        .feature-item:hover{border-color:rgba(255,215,0,0.2);background:rgba(255,215,0,0.03)}
-        .feature-icon{width:32px;height:32px;display:flex;align-items:center;justify-content:center;background:rgba(255,215,0,0.08);border-radius:8px;font-size:16px;flex-shrink:0}
+        .feature-item:hover{border-color:rgba(212,175,55,0.2);background:rgba(212,175,55,0.03)}
+        .feature-icon{width:32px;height:32px;display:flex;align-items:center;justify-content:center;background:rgba(212,175,55,0.08);border-radius:8px;font-size:16px;flex-shrink:0}
 
         /* Tags */
         .tags-wrap{display:flex;gap:8px;flex-wrap:wrap}
@@ -167,10 +168,10 @@
         .distance-input:focus{border-color:var(--gold)}
         .distance-input::placeholder{color:var(--text-fade)}
         .distance-btn{padding:12px 24px;background:var(--gold);border:none;border-radius:10px;color:#000;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;text-transform:uppercase;letter-spacing:1px;transition:all .3s;white-space:nowrap}
-        .distance-btn:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(255,215,0,0.3)}
+        .distance-btn:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(212,175,55,0.3)}
         .quick-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
         .quick-chip{padding:6px 14px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:100px;font-size:11px;color:var(--text-secondary);cursor:pointer;transition:all .3s}
-        .quick-chip:hover{border-color:var(--gold);color:var(--gold);background:rgba(255,215,0,0.05)}
+        .quick-chip:hover{border-color:var(--gold);color:var(--gold);background:rgba(212,175,55,0.05)}
         .route-results{display:none;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:16px}
         .route-results.active{display:grid}
         .route-link{display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;text-decoration:none;color:var(--text-secondary);font-size:11px;text-transform:uppercase;letter-spacing:.5px;transition:all .3s}
@@ -187,14 +188,14 @@
         .sidebar-cta svg{width:22px;height:22px}
         .sidebar-secondary{display:block;width:100%;padding:14px;margin-top:12px;background:transparent;border:1px solid rgba(255,255,255,0.08);border-radius:12px;color:var(--text-secondary);font-family:inherit;font-size:13px;font-weight:400;text-decoration:none;text-align:center;transition:all .3s}
         .sidebar-secondary:hover{border-color:var(--gold);color:var(--gold)}
-        .inquiry-card{background:var(--dark-void);border:1px solid rgba(255,215,0,0.15);border-radius:20px;padding:30px}
+        .inquiry-card{background:var(--dark-void);border:1px solid rgba(212,175,55,0.15);border-radius:20px;padding:30px}
         .inquiry-card h3{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-weight:200;font-size:20px;margin-bottom:4px;color:#fff}
         .inquiry-card p{font-size:13px;color:var(--text-fade);margin-bottom:20px}
         .inquiry-card input,.inquiry-card textarea{width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:12px 14px;color:#fff;font-family:inherit;font-size:14px;margin-bottom:12px;outline:none;transition:border .3s;box-sizing:border-box}
         .inquiry-card input:focus,.inquiry-card textarea:focus{border-color:var(--gold)}
         .inquiry-card textarea{resize:vertical;min-height:80px}
-        .inquiry-card button{width:100%;padding:14px;background:linear-gradient(135deg,#FFD700,#FFA500);border:none;border-radius:12px;color:#000;font-family:inherit;font-size:15px;font-weight:600;cursor:pointer;transition:all .3s}
-        .inquiry-card button:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(255,215,0,0.3)}
+        .inquiry-card button{width:100%;padding:14px;background:linear-gradient(135deg,#D4AF37,#FFA500);border:none;border-radius:12px;color:#000;font-family:inherit;font-size:15px;font-weight:600;cursor:pointer;transition:all .3s}
+        .inquiry-card button:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(212,175,55,0.3)}
         .inquiry-card button:disabled{opacity:.5;cursor:not-allowed;transform:none}
         .inquiry-success{display:none;text-align:center;padding:20px 0;color:#25D366;font-size:14px}
         .sidebar-trust{display:flex;flex-direction:column;gap:12px;margin-top:24px;padding-top:24px;border-top:1px solid rgba(255,255,255,0.06)}
@@ -209,16 +210,16 @@
         .upsell-subtitle{font-size:15px;color:var(--text-secondary);max-width:520px;margin:14px auto 0;line-height:1.6}
 
         /* Notify banner */
-        .notify-banner{background:linear-gradient(135deg,rgba(255,215,0,0.05) 0%,rgba(0,206,209,0.04) 100%);border:1px solid rgba(255,215,0,0.12);border-radius:20px;padding:32px 36px;margin-bottom:32px;display:flex;align-items:center;gap:28px;transition:border-color .3s}
-        .notify-banner:hover{border-color:rgba(255,215,0,0.25)}
-        .notify-icon{width:56px;height:56px;background:rgba(255,215,0,0.08);border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0}
+        .notify-banner{background:linear-gradient(135deg,rgba(212,175,55,0.05) 0%,rgba(0,206,209,0.04) 100%);border:1px solid rgba(212,175,55,0.12);border-radius:20px;padding:32px 36px;margin-bottom:32px;display:flex;align-items:center;gap:28px;transition:border-color .3s}
+        .notify-banner:hover{border-color:rgba(212,175,55,0.25)}
+        .notify-icon{width:56px;height:56px;background:rgba(212,175,55,0.08);border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0}
         .notify-text{flex:1}
         .notify-text h3{font-size:17px;font-weight:500;margin-bottom:4px}
         .notify-text p{font-size:13px;color:var(--text-secondary);line-height:1.5}
         .notify-actions{display:flex;gap:10px;flex-shrink:0}
         .notify-actions .nbtn{padding:12px 24px;border-radius:10px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:all .3s;text-decoration:none;display:inline-flex;align-items:center;gap:8px;white-space:nowrap;border:none}
         .nbtn-primary{background:var(--gold);color:#000}
-        .nbtn-primary:hover{box-shadow:0 6px 24px rgba(255,215,0,0.25);transform:translateY(-1px)}
+        .nbtn-primary:hover{box-shadow:0 6px 24px rgba(212,175,55,0.25);transform:translateY(-1px)}
         .nbtn-wa{background:#25D366;color:#fff}
         .nbtn-wa:hover{box-shadow:0 6px 24px rgba(37,211,102,0.25);transform:translateY(-1px)}
         @media(max-width:900px){.notify-banner{flex-direction:column;text-align:center;gap:18px;padding:28px 24px}.notify-actions{width:100%;flex-direction:column}.notify-actions .nbtn{justify-content:center}}
@@ -227,13 +228,13 @@
         .upsell-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
         .upsell-card{position:relative;padding:0;background:var(--dark-void);border:1px solid rgba(255,255,255,0.05);border-radius:20px;overflow:hidden;transition:all .4s;display:flex;flex-direction:column}
         .upsell-card:hover{transform:translateY(-6px);box-shadow:0 24px 60px rgba(0,0,0,0.5)}
-        .upsell-card.featured{border-color:rgba(255,215,0,0.15)}
-        .upsell-card.featured:hover{border-color:rgba(255,215,0,0.35)}
+        .upsell-card.featured{border-color:rgba(212,175,55,0.15)}
+        .upsell-card.featured:hover{border-color:rgba(212,175,55,0.35)}
         .upsell-card-popular{position:absolute;top:0;left:0;right:0;padding:6px;text-align:center;background:var(--gold);color:#000;font-size:10px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase}
         .upsell-card-top{padding:32px 28px 0;flex:1}
         .upsell-card.featured .upsell-card-top{padding-top:44px}
         .upsell-card-badge{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:8px;font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin-bottom:16px}
-        .badge-pfs{background:rgba(255,215,0,0.1);color:var(--gold)}
+        .badge-pfs{background:rgba(212,175,55,0.1);color:var(--gold)}
         .badge-das{background:rgba(0,206,209,0.1);color:#00CED1}
         .badge-vv{background:rgba(255,107,107,0.1);color:#FF6B6B}
         .upsell-card-title{font-size:22px;font-weight:400;margin-bottom:6px}
@@ -247,12 +248,12 @@
         .upsell-card-bottom{padding:20px 28px;border-top:1px solid rgba(255,255,255,0.04);margin-top:auto}
         .upsell-card-cta{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:14px;border-radius:12px;font-size:14px;font-weight:600;text-decoration:none;transition:all .3s;border:none;cursor:pointer;font-family:inherit}
         .cta-gold{background:var(--gold);color:#000}
-        .cta-gold:hover{box-shadow:0 8px 30px rgba(255,215,0,0.3);transform:translateY(-1px)}
+        .cta-gold:hover{box-shadow:0 8px 30px rgba(212,175,55,0.3);transform:translateY(-1px)}
         .cta-outline{background:transparent;border:1px solid rgba(255,255,255,0.1);color:var(--text-secondary)}
         .cta-outline:hover{border-color:var(--gold);color:var(--gold)}
 
         /* ===== MOBILE CTA ===== */
-        .mobile-cta{display:none;position:fixed;bottom:0;left:0;right:0;padding:16px 20px;background:rgba(0,0,0,0.95);backdrop-filter:blur(20px);border-top:1px solid rgba(255,215,0,0.15);z-index:90;align-items:center;justify-content:space-between;gap:16px}
+        .mobile-cta{display:none;position:fixed;bottom:0;left:0;right:0;padding:16px 20px;background:rgba(0,0,0,0.95);backdrop-filter:blur(20px);border-top:1px solid rgba(212,175,55,0.15);z-index:90;align-items:center;justify-content:space-between;gap:16px}
         .mobile-cta-price{font-size:22px;font-weight:200;color:var(--gold)}
         .mobile-cta-price small{font-size:12px;color:var(--text-fade);display:block}
         .mobile-cta-btn{display:flex;align-items:center;gap:8px;padding:14px 28px;background:#25D366;border:none;border-radius:12px;color:#fff;font-family:inherit;font-size:14px;font-weight:600;text-decoration:none;white-space:nowrap}
@@ -315,7 +316,7 @@
                     <defs>
                       <linearGradient id="goldGradientNav" x1="0%" y1="0%" x2="0%" y2="100%">
                         <stop offset="0%" stop-color="#FFD54F"/>
-                        <stop offset="100%" stop-color="#F5A623"/>
+                        <stop offset="100%" stop-color="#D4AF37"/>
                       </linearGradient>
                     </defs>
                     <g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#goldGradientNav)">
@@ -432,20 +433,14 @@
                 <div class="sidebar-card inquiry-card" id="inquiryCard">
                     <h3>Interested?</h3>
                     <p>Send us your details and we'll get back to you within 2 hours.</p>
-                    <form id="inquiryForm" action="https://api.web3forms.com/submit" method="POST">
-                        <input type="hidden" name="access_key" value="8d4c9378-5211-4d7c-a2a6-f90c3789a2a6">
-                        <input type="hidden" name="subject" id="formSubject" value="Inquiry from apartment detail page">
-                        <input type="hidden" name="from_name" value="BOOM Apartment Inquiry">
-                        <input type="hidden" name="redirect" value="https://www.boomrome.com/_thank-you.html">
-                        <input type="text" name="name" placeholder="Your name" required>
-                        <input type="email" name="email" placeholder="Your email" required>
-                        <input type="tel" name="phone" placeholder="WhatsApp number (optional)">
+                    <form id="inquiryForm">
+                        <input type="text" name="name" id="iqName" placeholder="Your name" required>
+                        <input type="email" name="email" id="iqEmail" placeholder="Your email" required>
+                        <input type="tel" name="phone" id="iqPhone" placeholder="WhatsApp number (optional)">
                         <textarea name="message" id="formMessage" placeholder="When do you want to move in? Any questions?"></textarea>
-                        <input type="hidden" name="apartment" id="formApartment" value="">
-                        <input type="checkbox" name="botcheck" style="display:none">
                         <button type="submit" id="inquiryBtn">Send Inquiry</button>
                     </form>
-                    <div class="inquiry-success" id="inquirySuccess">✓ Sent! We'll contact you shortly.</div>
+                    <div class="inquiry-success" id="inquirySuccess">✓ Sent! We'll contact you within 2 hours.</div>
                 </div>
             </div>
         <div class="upsell-section">
@@ -616,10 +611,12 @@
         const sEl=document.getElementById('aptSpecs'),specs=[];
         const beds=d.beds||d.bedrooms;
         if(beds)specs.push({i:'🛏️',v:beds,l:beds>1?'Bedrooms':'Bedroom'});
+        if(d.bathrooms)specs.push({i:'🚿',v:d.bathrooms,l:d.bathrooms>1?'Bathrooms':'Bathroom'});
         const sqm=d.sqm||d.size;
         if(sqm)specs.push({i:'📐',v:`${sqm}m²`,l:'Size'});
         if(d.floor)specs.push({i:'🏢',v:d.floor,l:'Floor'});
         if(d.type)specs.push({i:'🏠',v:d.type,l:'Type'});
+        if(d.furnished){const fl={'yes':'Furnished','partial':'Partial','no':'Unfurnished'};specs.push({i:'🪑',v:fl[d.furnished]||d.furnished,l:'Furnishing'});}
         sEl.innerHTML=specs.map(s=>`<div class="spec-item"><div class="spec-icon">${s.i}</div><div class="spec-text"><strong>${s.v}</strong><small>${s.l}</small></div></div>`).join('');
 
         if(d.availableDate){document.getElementById('availSection').style.display='block';document.getElementById('availDate').textContent=d.availableDate}
@@ -631,13 +628,11 @@
         buildMap(d);
 
         document.getElementById('pageLoading').style.display='none';
-        document.getElementById('apartmentPage').style.display='block';
+        var ap=document.getElementById('apartmentPage');ap.style.display='block';ap.classList.add('show');
 
         if(typeof gtag==='function')gtag('event','view_listing',{listing_id:id,listing_name:name,listing_price:d.price});
 
-        // Web3Forms inquiry
-        document.getElementById('formSubject').value=`Inquiry: ${name}`;
-        document.getElementById('formApartment').value=name+' ('+id+')';
+        // Inquiry form → Firestore leads
         document.getElementById('formMessage').placeholder=`I'm interested in ${name}. When can I move in?`;
         const iqForm=document.getElementById('inquiryForm');
         iqForm.addEventListener('submit',async function(e){
@@ -645,11 +640,20 @@
             const btn=document.getElementById('inquiryBtn');
             btn.disabled=true;btn.textContent='Sending…';
             try{
-                const r=await fetch('https://api.web3forms.com/submit',{method:'POST',body:new FormData(iqForm)});
-                const j=await r.json();
-                if(j.success){iqForm.style.display='none';document.getElementById('inquirySuccess').style.display='block';if(typeof gtag==='function')gtag('event','inquiry_sent',{listing_id:id,listing_name:name})}
-                else{btn.textContent='Error — try again';btn.disabled=false}
-            }catch(err){btn.textContent='Error — try again';btn.disabled=false}
+                await db.collection('leads').add({
+                    name: document.getElementById('iqName').value,
+                    email: document.getElementById('iqEmail').value,
+                    phone: document.getElementById('iqPhone').value||'',
+                    message: document.getElementById('formMessage').value||'',
+                    source: 'apartment-detail',
+                    listingId: id,
+                    listingName: name,
+                    status: 'new',
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                iqForm.style.display='none';document.getElementById('inquirySuccess').style.display='block';
+                if(typeof gtag==='function')gtag('event','inquiry_sent',{listing_id:id,listing_name:name});
+            }catch(err){btn.textContent='Error — try again';btn.disabled=false;console.error('Inquiry error:',err)}
         });
     }
 
