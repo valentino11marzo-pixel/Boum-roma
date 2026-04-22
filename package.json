@@ -18,6 +18,8 @@
   },
   "homepage": "https://github.com/valentino11marzo-pixel/Boum-roma#readme",
   "dependencies": {
-    "passkit-generator": "^3.5.7"
+    "nodemailer": "^8.0.5",
+    "passkit-generator": "^3.5.7",
+    "stripe": "^22.0.2"
   }
 }

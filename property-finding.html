@@ -1441,8 +1441,31 @@
                 
                 if (result.success) {
                     submitBtn.textContent = 'Redirecting to payment...';
-                    // Redirect to Stripe Payment Link
-                    window.location.href = 'https://buy.stripe.com/bJecN69Nl5M51aS69D5J607';
+
+                    const checkoutPayload = {
+                      name: formData.get('name'),
+                      email: formData.get('email'),
+                      phone: formData.get('phone'),
+                      move_in_date: formData.get('move_in_date'),
+                      budget: formData.get('budget'),
+                      bedrooms: formData.get('bedrooms'),
+                      preferred_areas: formData.get('preferred_areas'),
+                      must_haves: formData.get('must_haves') || '',
+                      additional_info: formData.get('additional_info') || '',
+                    };
+
+                    const checkoutResp = await fetch('/api/create-checkout', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify(checkoutPayload),
+                    });
+                    const checkoutData = await checkoutResp.json();
+
+                    if (checkoutData.url) {
+                      window.location.href = checkoutData.url;
+                    } else {
+                      throw new Error('Checkout creation failed: ' + (checkoutData.error || 'unknown'));
+                    }
                 } else {
                     throw new Error('Form submission failed');
                 }
