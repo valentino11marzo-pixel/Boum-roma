@@ -58,7 +58,7 @@ async function writePfsClient(docId, data) {
 async function sendEmailJS(templateParams) {
   const body = {
     service_id: 'service_74n80th',
-    template_id: 'template_jruz1gi',
+    template_id: 'boom_notification',
     user_id: 'dnMxbtS2qDm_o7SHE',
     accessToken: process.env.EMAILJS_PRIVATE_KEY,
     template_params: templateParams,
