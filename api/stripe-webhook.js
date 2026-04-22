@@ -1,5 +1,4 @@
 import Stripe from 'stripe';
-import nodemailer from 'nodemailer';
 import crypto from 'node:crypto';
 
 export const config = { api: { bodyParser: false } };
@@ -56,19 +55,26 @@ async function writePfsClient(docId, data) {
   return r.json();
 }
 
-function transporter() {
-  return nodemailer.createTransport({
-    service: 'gmail',
-    auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASS },
-  });
-}
+async function sendEmailJS(templateParams) {
+  const body = {
+    service_id: 'service_74n80th',
+    template_id: 'template_jruz1gi',
+    user_id: 'dnMxbtS2qDm_o7SHE',
+    accessToken: process.env.EMAILJS_PRIVATE_KEY,
+    template_params: templateParams,
+  };
 
-async function sendEmail({ to, subject, html, replyTo }) {
-  await transporter().sendMail({
-    from: `"BOOM Rome" <${process.env.GMAIL_USER}>`,
-    to, subject, html,
-    replyTo: replyTo || 'valentino@boom-rome.com',
+  const r = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
   });
+
+  if (!r.ok) {
+    const txt = await r.text();
+    throw new Error(`EmailJS ${r.status}: ${txt}`);
+  }
+  return r.text();
 }
 
 export default async function handler(req, res) {
@@ -127,58 +133,61 @@ export default async function handler(req, res) {
   const firstName = (m.name || '').split(' ')[0] || 'there';
   const portalLink = `https://www.boomrome.com/portal.html?pfs=${portalToken}`;
 
-  const clientHtml = `
-    <div style="font-family:-apple-system,Helvetica Neue,sans-serif;max-width:560px;margin:0 auto;color:#08080A;padding:24px;">
-      <h2 style="font-weight:300;letter-spacing:-0.5px;margin:0 0 16px;">Welcome to BOOM, ${firstName}.</h2>
-      <p>Your Property Finding Service is now active. Payment received: €350.</p>
-      <p style="margin-top:24px;"><strong>What happens next:</strong></p>
-      <ol style="line-height:1.7;padding-left:20px;">
-        <li>Intake call within 24 hours to align on requirements</li>
-        <li>Curated shortlist delivered within 72 hours</li>
-        <li>Viewings scheduled, negotiation and contract</li>
-      </ol>
-      <p style="margin:32px 0;">
-        <a href="${portalLink}" style="background:#08080A;color:#D4AF37;padding:14px 28px;text-decoration:none;display:inline-block;letter-spacing:0.5px;">Access your BOOM dashboard</a>
-      </p>
-      <p style="color:#666;font-size:13px;">This link is personal and does not require a password.</p>
-      <p style="color:#666;font-size:13px;">Questions? Just reply to this email.</p>
-      <hr style="border:none;border-top:1px solid #eee;margin:32px 0;">
-      <p style="color:#999;font-size:12px;">BOOM · Egidi Immobiliare S.r.l. · Rome</p>
-    </div>`;
-
+  // === EMAIL 1 — CLIENT CONFIRMATION ===
   try {
-    await sendEmail({
-      to: doc.email,
-      subject: 'Your BOOM Property Finding Service is active',
-      html: clientHtml,
+    await sendEmailJS({
+      to_email: doc.email,
+      heading: 'Welcome to BOOM',
+      subheading: 'Your Property Finding Service is active',
+      name: firstName,
+      intro: 'Payment received. Your apartment search starts now. Here is what happens next:',
+      card_color: '#D4AF37',
+      card_title: 'Your timeline',
+      r1_icon: '✓',
+      r1_label: 'Intake call',
+      r1_value: 'Within 24 hours',
+      r2_icon: '✓',
+      r2_label: 'Curated shortlist',
+      r2_value: 'Within 72 hours',
+      r3_icon: '✓',
+      r3_label: 'Viewings & negotiation',
+      r3_value: 'Scheduled & managed by BOOM',
+      r4_icon: '✓',
+      r4_label: 'Contract signing',
+      r4_value: 'Guided end-to-end',
+      closing: 'Questions? Just reply to this email and I will personally get back to you.',
+      cta_text: 'Access your dashboard',
+      portal_link: portalLink,
     });
-  } catch (err) { console.error('Client email error:', err); }
+  } catch (err) { console.error('Client EmailJS error:', err); }
 
-  const adminHtml = `
-    <h3 style="margin:0 0 16px;">PAID — PFS €350</h3>
-    <ul style="line-height:1.7;">
-      <li><strong>Client:</strong> ${m.name}</li>
-      <li><strong>Email:</strong> ${m.email}</li>
-      <li><strong>Phone:</strong> ${m.phone}</li>
-      <li><strong>Move-in:</strong> ${m.move_in_date}</li>
-      <li><strong>Budget:</strong> ${m.budget}</li>
-      <li><strong>Bedrooms:</strong> ${m.bedrooms}</li>
-      <li><strong>Areas:</strong> ${m.preferred_areas}</li>
-      <li><strong>Must-haves:</strong> ${m.must_haves || '—'}</li>
-      <li><strong>Notes:</strong> ${m.additional_info || '—'}</li>
-    </ul>
-    <p><strong>Firestore:</strong> pfsClients/${docId}</p>
-    <p><strong>Stripe session:</strong> ${session.id}</p>
-    <p><strong>Portal token:</strong> <code>${portalToken}</code></p>
-    <p><strong>Portal link:</strong> <a href="${portalLink}">${portalLink}</a></p>`;
-
+  // === EMAIL 2 — ADMIN NOTIFICATION ===
   try {
-    await sendEmail({
-      to: 'valentino@boom-rome.com',
-      subject: `PAID — PFS — ${m.name}`,
-      html: adminHtml,
+    await sendEmailJS({
+      to_email: 'valentino@boom-rome.com',
+      heading: 'PAID — PFS €350',
+      subheading: m.name || 'New PFS client',
+      name: 'Valentino',
+      intro: 'New paid PFS client. Details below, full record in Firestore.',
+      card_color: '#737373',
+      card_title: 'Client details',
+      r1_icon: '📧',
+      r1_label: 'Email',
+      r1_value: m.email || session.customer_email || '—',
+      r2_icon: '📱',
+      r2_label: 'Phone',
+      r2_value: m.phone || '—',
+      r3_icon: '📅',
+      r3_label: 'Move-in',
+      r3_value: m.move_in_date || '—',
+      r4_icon: '💰',
+      r4_label: 'Budget / bedrooms',
+      r4_value: `${m.budget || '—'} · ${m.bedrooms || '—'}`,
+      closing: `Areas: ${m.preferred_areas || '—'}. Must-haves: ${m.must_haves || '—'}. Notes: ${m.additional_info || '—'}. Firestore doc: pfsClients/${docId}. Stripe session: ${session.id}.`,
+      cta_text: 'Open portal',
+      portal_link: portalLink,
     });
-  } catch (err) { console.error('Admin email error:', err); }
+  } catch (err) { console.error('Admin EmailJS error:', err); }
 
   return res.status(200).json({ received: true, pfsClientId: docId });
 }
