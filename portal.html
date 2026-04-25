@@ -6451,6 +6451,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     ${expiring30.length > 0 ? `<span class="badge red">${expiring30.length} urgenti</span>` : ''}
                     ${expiring60.length > 0 ? `<span class="badge orange">${expiring60.length} in scadenza</span>` : ''}
                     <button class="btn btn-secondary" onclick="goTo('templates')">📜 Template</button>
+                    <button class="btn btn-secondary" onclick="(async()=>{ const r = await window.boomAuditAllContracts(); toast(r.stale.length ? 'warning' : 'success', 'Audit canone: ' + r.ok + ' OK · ' + r.stale.length + ' stale', r.stale.length ? 'Apri console (F12) per dettagli' : 'Tutti i contratti coerenti'); })()" title="Audit math canone su tutti i contratti">🔍 Audit canone</button>
                     <button class="btn" onclick="openModal('addContract')">+ Nuovo</button>
                 </div>
             </div>
@@ -9222,7 +9223,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 </div>
 </form></div></div></div>`; }
 
-        if (type === 'editContract') { const c = data; if (!c) return ''; const tenants = S.users.filter(u => u.role === 'tenant'); const props = S.properties; return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">✏️ Modifica Contratto</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="updateContract(event,'${c.id}')"><div class="form-row"><div class="form-group"><label class="form-label">Immobile</label><select class="form-select" name="propertyId">${props.map(p => `<option value="${p.id}" ${c.propertyId === p.id ? 'selected' : ''}>${p.name}</option>`).join('')}</select></div><div class="form-group"><label class="form-label">Inquilino</label><select class="form-select" name="tenantId">${tenants.map(t => `<option value="${t.id}" ${c.tenantId === t.id ? 'selected' : ''}>${t.name}</option>`).join('')}</select></div></div><div class="form-row"><div class="form-group"><label class="form-label">Inizio</label><input type="date" class="form-input" name="startDate" value="${c.startDate || ''}"></div><div class="form-group"><label class="form-label">Fine</label><input type="date" class="form-input" name="endDate" value="${c.endDate || ''}"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Affitto €</label><input type="number" class="form-input" name="rent" value="${c.rent || ''}"></div><div class="form-group"><label class="form-label">Deposito €</label><input type="number" class="form-input" name="deposit" value="${c.deposit || ''}"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Stato</label><select class="form-select" name="status"><option value="active" ${c.status === 'active' ? 'selected' : ''}>Attivo</option><option value="expired" ${c.status === 'expired' ? 'selected' : ''}>Scaduto</option><option value="terminated" ${c.status === 'terminated' ? 'selected' : ''}>Terminato</option></select></div></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes" rows="2">${c.notes || ''}</textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Salva</button></div></div></div>`; }
+        if (type === 'editContract') { const c = data; if (!c) return ''; const tenants = S.users.filter(u => u.role === 'tenant'); const props = S.properties; const _mb = (c.startDate && c.endDate) ? monthsBetween(c.startDate, c.endDate) : { text: '', total: 0 }; const _autoInst = Math.max(1, Math.ceil(_mb.total || 0)); const _autoTotal = (c.rent || (c.canone && c.canone.monthly) || 0) * _autoInst; const _curInst = (c.canone && c.canone.installments) || _autoInst; const _curTotal = (c.canone && c.canone.total) || _autoTotal || 0; return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">✏️ Modifica Contratto</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="updateContract(event,'${c.id}')"><div class="form-row"><div class="form-group"><label class="form-label">Immobile</label><select class="form-select" name="propertyId">${props.map(p => `<option value="${p.id}" ${c.propertyId === p.id ? 'selected' : ''}>${p.name}</option>`).join('')}</select></div><div class="form-group"><label class="form-label">Inquilino</label><select class="form-select" name="tenantId">${tenants.map(t => `<option value="${t.id}" ${c.tenantId === t.id ? 'selected' : ''}>${t.name}</option>`).join('')}</select></div></div><div class="form-row"><div class="form-group"><label class="form-label">Inizio</label><input type="date" class="form-input" name="startDate" value="${c.startDate || ''}" onchange="calcContractDuration()"></div><div class="form-group"><label class="form-label">Fine</label><input type="date" class="form-input" name="endDate" value="${c.endDate || ''}" onchange="calcContractDuration()"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Affitto €</label><input type="number" class="form-input" name="rent" id="cRent" value="${c.rent || ''}" oninput="calcContractDuration()"></div><div class="form-group"><label class="form-label">Deposito €</label><input type="number" class="form-input" name="deposit" value="${c.deposit || ''}"></div></div><div id="cDurationInfo" style="font-size:12px;margin:-4px 0 12px;padding:8px 12px;background:var(--surface);border-radius:8px">${_mb.text ? `<span style="color:var(--green)">Durata: ${_mb.text}</span> &middot; <span style="color:var(--gold)">N° rate: ${_curInst}</span> &middot; <span style="color:var(--gold)">Totale: &euro;${_curTotal.toLocaleString('it-IT')}</span>` : '<span style="color:var(--text-muted)">Compila le date per vedere la durata</span>'}</div><div class="form-row" id="cCanoneCalcRow"><div class="form-group"><label class="form-label">Canone Totale € <span style="font-size:10px;color:var(--text-muted)">(auto)</span></label><input type="number" class="form-input" name="canoneTotal" id="cCanoneTotal" value="${_curTotal || ''}" readonly style="opacity:0.7"></div><div class="form-group"><label class="form-label">N° Rate <span style="font-size:10px;color:var(--text-muted)">(auto)</span></label><input type="number" class="form-input" name="canoneInstallments" id="cCanoneInstallments" value="${_curInst || ''}" readonly style="opacity:0.7"></div></div><div style="margin:-4px 0 12px"><button type="button" class="btn btn-sm btn-secondary" id="cOverrideBtn" data-active="0" onclick="toggleCanoneOverride()" style="font-size:11px">🔓 Personalizza canone</button></div><div id="cOverrideWarn" style="display:none;background:rgba(220,38,38,0.12);border:1px solid #ef4444;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#fca5a5">⚠️ Stai personalizzando il canone manualmente. Verifica che (canone totale ÷ numero rate = canone mensile) e che il numero di rate corrisponda alla durata. Una matematica sbagliata può causare problemi al CAF.</div><div class="form-row"><div class="form-group"><label class="form-label">Stato</label><select class="form-select" name="status"><option value="active" ${c.status === 'active' ? 'selected' : ''}>Attivo</option><option value="expired" ${c.status === 'expired' ? 'selected' : ''}>Scaduto</option><option value="terminated" ${c.status === 'terminated' ? 'selected' : ''}>Terminato</option></select></div></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes" rows="2">${c.notes || ''}</textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Salva</button></div></div></div>`; }
 
         if (type === 'renewContract') { const c = data; if (!c) return ''; const p = S.properties.find(x => x.id === c.propertyId); const currentEnd = c.endDate ? new Date(c.endDate) : new Date(); const newEnd = new Date(currentEnd); newEnd.setFullYear(newEnd.getFullYear() + 1); return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">🔄 Rinnova Contratto</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><div style="background:var(--surface);padding:16px;border-radius:8px;margin-bottom:16px"><div style="font-weight:600;margin-bottom:8px">${p?.name || 'Immobile'}</div><div style="font-size:13px;color:var(--text-muted)">Scadenza attuale: ${fmtDate(c.endDate)}</div></div><form id="mForm" onsubmit="renewContract(event,'${c.id}')"><div class="form-group"><label class="form-label">Nuova Data Fine *</label><input type="date" class="form-input" name="newEndDate" value="${newEnd.toISOString().split('T')[0]}" required></div><div class="form-row"><div class="form-group"><label class="form-label">Nuovo Affitto €</label><input type="number" class="form-input" name="newRent" value="${c.rent || ''}" placeholder="Lascia vuoto per mantenere"></div><div class="form-group"><label class="form-label">Adeguamento %</label><input type="number" class="form-input" name="adjustment" placeholder="Es: 2 per +2%"></div></div><div class="form-group"><label class="form-label">Note Rinnovo</label><textarea class="form-textarea" name="renewalNotes" rows="2" placeholder="Es: Rinnovo annuale con adeguamento ISTAT..."></textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">🔄 Rinnova</button></div></div></div>`; }
 
@@ -9840,6 +9841,48 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         }
         return issues;
     };
+
+    // Full audit including fossil contracts (math errata even without canone object).
+    // Uses monthsBetween() to compute expected math from dates + monthly.
+    // Returns { ok: number, stale: array }. Console-prints a table.
+    window.boomAuditAllContracts = async function() {
+        if (!Array.isArray(S.contracts)) return { ok: 0, stale: [] };
+        const stale = [];
+        const ok = [];
+        for (const c of S.contracts) {
+            const monthly = (c.canone && c.canone.monthly) || c.rent || 0;
+            const startDate = c.startDate || (c.durata && c.durata.startDate);
+            const endDate = c.endDate || (c.durata && c.durata.endDate);
+            if (!monthly || !startDate || !endDate) {
+                stale.push({ id: c.id, reason: 'Missing monthly or dates', tenant: c.tenantName || (S.users.find(u => u.id === c.tenantId) || {}).name || '—' });
+                continue;
+            }
+            const dur = monthsBetween(startDate, endDate);
+            const expectedInstallments = Math.max(1, Math.ceil(dur.total));
+            const expectedTotal = monthly * expectedInstallments;
+            const currentTotal = (c.canone && c.canone.total) || 0;
+            const currentInstallments = (c.canone && c.canone.installments) || 0;
+            const isStale = (currentInstallments !== expectedInstallments)
+                         || (Math.abs(currentTotal - expectedTotal) > 0.01);
+            if (isStale) {
+                stale.push({
+                    id: c.id,
+                    tenant: c.tenantName || (S.users.find(u => u.id === c.tenantId) || {}).name || '—',
+                    durata: dur.text,
+                    monthly: monthly,
+                    current: currentInstallments + ' × €' + monthly + ' = €' + currentTotal,
+                    expected: expectedInstallments + ' × €' + monthly + ' = €' + expectedTotal
+                });
+            } else {
+                ok.push(c.id);
+            }
+        }
+        console.log('%c📊 BOOM Contracts Audit', 'font-size:16px;font-weight:bold;color:#D4AF37');
+        console.log('%c✅ ' + ok.length + ' contracts OK', 'color:green');
+        console.log('%c⚠️ ' + stale.length + ' contracts with stale math:', 'color:red;font-weight:bold');
+        if (stale.length) console.table(stale);
+        return { ok: ok.length, stale: stale };
+    };
     
     function calcDeposit() {
         const rent = parseInt(document.getElementById('cRent')?.value) || 0;
@@ -10167,18 +10210,39 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     async function updateContract(e, id) {
         e.preventDefault();
         const data = Object.fromEntries(new FormData(e.target));
+        // Canone math validation (Muky bug guard)
+        const _monthly = parseInt(data.rent) || 0;
+        const _total = parseInt(data.canoneTotal) || 0;
+        const _installments = parseInt(data.canoneInstallments) || 0;
+        if (_monthly > 0 && _total > 0 && _installments > 0) {
+            const expectedTotal = _monthly * _installments;
+            if (Math.abs(_total - expectedTotal) >= 0.01) {
+                alert('Il canone totale (€' + _total + ') non corrisponde a (canone mensile × numero rate = €' + expectedTotal + '). Correggi prima di salvare.');
+                return;
+            }
+        }
         try {
-            await db.collection('contracts').doc(id).update({
+            const _mb = (data.startDate && data.endDate) ? monthsBetween(data.startDate, data.endDate) : { text: '', months: 0 };
+            const updatePayload = {
                 propertyId: data.propertyId,
                 tenantId: data.tenantId,
                 startDate: data.startDate,
                 endDate: data.endDate,
-                rent: parseInt(data.rent) || 0,
+                rent: _monthly,
                 deposit: parseInt(data.deposit) || 0,
                 status: data.status,
                 notes: data.notes || '',
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
+            };
+            if (_monthly > 0 && _installments > 0) {
+                updatePayload['canone.monthly'] = _monthly;
+                updatePayload['canone.total'] = _total || (_monthly * _installments);
+                updatePayload['canone.installments'] = _installments;
+                updatePayload['durata.text'] = _mb.text;
+                updatePayload['durata.startDate'] = data.startDate;
+                updatePayload['durata.endDate'] = data.endDate;
+            }
+            await db.collection('contracts').doc(id).update(updatePayload);
             await refreshOnly('contracts'); closeModal(); toast('success', 'Contratto aggiornato!');
         } catch (err) { toast('error', 'Errore', err.message); }
     }
@@ -12765,10 +12829,67 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     
     
     async function regenerateContractPDF(id) {
+        const contract = S.contracts.find(c => c.id === id);
+        if (!contract) return;
+
+        // Self-healing: detect and offer to fix stale canone math before regenerating PDF
+        const monthly = (contract.canone && contract.canone.monthly) || contract.rent || 0;
+        const startDate = contract.startDate || (contract.durata && contract.durata.startDate);
+        const endDate = contract.endDate || (contract.durata && contract.durata.endDate);
+
+        if (monthly > 0 && startDate && endDate) {
+            const dur = monthsBetween(startDate, endDate);
+            const expectedInstallments = Math.max(1, Math.ceil(dur.total));
+            const expectedTotal = monthly * expectedInstallments;
+            const currentTotal = (contract.canone && contract.canone.total) || 0;
+            const currentInstallments = (contract.canone && contract.canone.installments) || 0;
+
+            const isStale = (currentInstallments !== expectedInstallments)
+                         || (Math.abs(currentTotal - expectedTotal) > 0.01);
+
+            if (isStale && currentInstallments > 0 && currentTotal > 0) {
+                const proceed = confirm(
+                    '⚠️ Math canone non corretta su questo contratto:\n\n' +
+                    'Attuale: ' + currentInstallments + ' rate × €' + monthly + ' = €' + currentTotal + '\n' +
+                    'Corretta: ' + expectedInstallments + ' rate × €' + monthly + ' = €' + expectedTotal + '\n' +
+                    'Durata: ' + dur.text + '\n\n' +
+                    'Vuoi correggere automaticamente prima di rigenerare?'
+                );
+
+                if (proceed) {
+                    try {
+                        await db.collection('contracts').doc(id).update({
+                            'canone.total': expectedTotal,
+                            'canone.installments': expectedInstallments,
+                            'durata.text': dur.text,
+                            'canoneAutoFixed': firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                        contract.canone = contract.canone || {};
+                        contract.canone.total = expectedTotal;
+                        contract.canone.installments = expectedInstallments;
+                        contract.durata = contract.durata || {};
+                        contract.durata.text = dur.text;
+                        toast('success', 'Canone auto-corretto: ' + expectedInstallments + ' rate da €' + monthly + ' = €' + expectedTotal);
+                    } catch (fixErr) {
+                        console.error('Auto-fix canone failed:', fixErr);
+                        toast('error', 'Auto-correzione fallita', fixErr.message);
+                        return;
+                    }
+                } else {
+                    toast('warning', 'Rigenerazione interrotta', 'Modifica il contratto manualmente.');
+                    return;
+                }
+            }
+        }
+
         toast('info', 'Rigenerazione Allegato B...');
         const ok = await generateContractPDF(id);
-        if (ok) { await refreshOnly('contracts'); toast('success', 'PDF Allegato B rigenerato!'); }
-        else toast('error', 'Errore rigenerazione PDF');
+        if (ok) {
+            await refreshOnly('contracts');
+            toast('success', 'PDF Allegato B rigenerato!');
+        } else {
+            toast('error', 'Errore rigenerazione PDF');
+        }
     }
 
     async function archiveDeal(contractId) {
