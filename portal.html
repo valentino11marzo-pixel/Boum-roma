@@ -11437,7 +11437,400 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         return count;
     }
     
+    // ============================================================================
+    // CAF Allegato B alignment task (Apr 2026)
+    //   Dispatcher: routes by contract.type.
+    //   Allegato B (transitorio): verbatim CAF template — Roma Capitale 25/07/2023 prot. QC/82672/2023
+    //   Allegato C (studenti):    legacy path preserved unchanged — out of scope this task
+    // ============================================================================
     async function generateContractPDF(contractId) {
+        const contract = S.contracts.find(c => c.id === contractId);
+        if (!contract) return false;
+        if (contract.type === 'studenti') {
+            return await _generateContractPDF_studenti_v0(contractId);
+        }
+        return await _generateContractPDF_allegatoB(contractId);
+    }
+
+    async function _generateContractPDF_allegatoB(contractId) {
+        try {
+            const contract = S.contracts.find(c => c.id === contractId);
+            if (!contract) return false;
+            const property = S.properties.find(p => p.id === contract.propertyId);
+            const tenant = S.users.find(u => u.id === contract.tenantId);
+            const landlord = property ? S.users.find(u => u.id === property.ownerId) : null;
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ format: 'a4', unit: 'mm' });
+            const pageW = 210, pageH = 297;
+            const margin = 20;
+            const pw = pageW - 2 * margin;          // 170 mm content width
+            const bottomLimit = pageH - margin;     // 277 mm
+            let y = margin;
+
+            doc.setFont('times', 'normal');
+            doc.setFontSize(11);
+            doc.setLineHeightFactor(1.15);
+
+            const ptToMm = (pt) => pt * 0.3528;
+
+            function ensureSpace(blockH) {
+                if (y + blockH > bottomLimit) {
+                    doc.addPage();
+                    y = margin;
+                    doc.setFont('times', 'normal');
+                    doc.setFontSize(11);
+                    doc.setLineHeightFactor(1.15);
+                }
+            }
+
+            function addParagraph(text, opts) {
+                opts = opts || {};
+                const size = opts.size || 11;
+                const style = opts.bold ? 'bold' : (opts.italic ? 'italic' : 'normal');
+                const x = (opts.x !== undefined) ? opts.x : margin;
+                const w = opts.width || pw;
+                const after = (opts.after !== undefined) ? opts.after : 3;
+                const align = opts.align || 'left';
+                doc.setFont('times', style);
+                doc.setFontSize(size);
+                const lines = doc.splitTextToSize(text, w);
+                const lineH = ptToMm(size) * 1.15;
+                ensureSpace(lines.length * lineH);
+                if (align === 'left') {
+                    doc.text(lines, x, y);
+                } else {
+                    doc.text(lines, x, y, { align: align, maxWidth: w });
+                }
+                y += lines.length * lineH + after;
+            }
+
+            function addArticle(num, title, body) {
+                ensureSpace(20);
+                y += 4; // 12 pt before
+                doc.setFont('times', 'bold');
+                doc.setFontSize(12);
+                doc.text('Articolo ' + num, margin, y);
+                y += 5;
+                doc.setFont('times', 'bold');
+                doc.setFontSize(12);
+                doc.text('(' + title + ')', margin, y);
+                y += 6; // 6 pt after heading
+                doc.setFont('times', 'normal');
+                doc.setFontSize(11);
+                const lineH = ptToMm(11) * 1.15;
+                // Render paragraph by paragraph so blank lines (\n\n) survive splitTextToSize quirks.
+                const paragraphs = body.split('\n\n');
+                for (let pi = 0; pi < paragraphs.length; pi++) {
+                    const lines = doc.splitTextToSize(paragraphs[pi], pw);
+                    ensureSpace(lines.length * lineH);
+                    doc.text(lines, margin, y, { align: 'justify', maxWidth: pw });
+                    y += lines.length * lineH;
+                    if (pi < paragraphs.length - 1) y += lineH * 0.5; // inter-paragraph gap
+                }
+                y += 3;
+            }
+
+            function formatCadastral(p) {
+                if (!p) return '';
+                const parts = [];
+                if (p.foglio)    parts.push('foglio ' + p.foglio);
+                if (p.particella) parts.push('particella ' + p.particella);
+                if (p.sub)       parts.push('sub ' + p.sub);
+                if (p.categoria) parts.push('cat. ' + p.categoria);
+                return parts.join(', ');
+            }
+
+            const fmtIt = (n) => Number(n || 0).toLocaleString('it-IT');
+            const dot = '………';
+
+            // --------------- Variable data points ---------------
+            const locName = (landlord && landlord.name) || dot;
+            const locDOB  = (landlord && landlord.birthDate)  ? fmtDate(landlord.birthDate) : dot;
+            const locPOB  = (landlord && landlord.birthPlace) || dot;
+            const locDom  = (landlord && landlord.address)    || dot;
+            const locCF   = (landlord && landlord.codiceFiscale) || dot;
+
+            const tenName = (tenant && tenant.name) || dot;
+            const tenDOB  = (tenant && tenant.birthDate)  ? fmtDate(tenant.birthDate) : dot;
+            const tenPOB  = (tenant && tenant.birthPlace) || dot;
+            const tenDom  = (tenant && tenant.address)    || dot;
+            const tenCF   = (tenant && tenant.codiceFiscale) || dot;
+            const tenDoc  = (tenant && tenant.idDocType)
+                ? (tenant.idDocType + (tenant.idDocNumber ? ' n. ' + tenant.idDocNumber : ''))
+                : dot;
+
+            const propCity   = (property && property.city)    || 'Roma';
+            const propStreet = (property && property.address) || dot;
+            const propFloor  = (property && property.floor)   || dot;
+            const propScala  = (property && property.scala)   || dot;
+            const propInt    = (property && (property.interno || property.unit)) || dot;
+            const propRooms  = (property && property.rooms)   || dot;
+            const propAcc    = (property && property.accessories) || dot;
+            const propFurnishedFlag = property && property.furnished;
+            const propFurnished = propFurnishedFlag ? 'ammobiliata' : 'non ammobiliata';
+
+            const cadast    = (property && property.cadastralData) || formatCadastral(property) || dot;
+            const energy    = (property && (property.energyCert || property.energyClass)) || dot;
+            const sicurezza = (contract.propertyExtra && contract.propertyExtra.sicurezzaImpianti)
+                              || (property && property.safetyImplants)
+                              || dot;
+            const tab = (contract.propertyExtra && contract.propertyExtra.tabelleMillesimali) || {};
+            const tabFmt = (v) => (v !== undefined && v !== null && v !== '') ? String(v) : dot;
+            const tabPro = tabFmt(tab['proprietà']);
+            const tabRis = tabFmt(tab.riscaldamento);
+            const tabAcq = tabFmt(tab.acqua);
+            const tabAlt = tabFmt(tab.altre);
+
+            const durText = (contract.durata && contract.durata.text)
+                            || (contract.durationMonths ? contract.durationMonths + ' mesi' : dot);
+            const durStart = (contract.durata && contract.durata.startDate) || contract.startDate;
+            const durEnd   = (contract.durata && contract.durata.endDate)   || contract.endDate;
+            const durStartStr = durStart ? fmtDate(durStart) : dot;
+            const durEndStr   = durEnd   ? fmtDate(durEnd)   : dot;
+
+            const canMonthly      = (contract.canone && contract.canone.monthly)      || contract.rent || 0;
+            const canInstallments = (contract.canone && contract.canone.installments) || 12;
+            const canTotal        = (contract.canone && contract.canone.total)        || (canMonthly * canInstallments);
+            const canDay          = (contract.canone && contract.canone.paymentDay)   || contract.paymentDay   || 5;
+            const canMethod       = (contract.canone && contract.canone.paymentMethod)|| contract.paymentMethod|| 'bonifico bancario';
+            const cedolareSecca   = (contract.canone && contract.canone.cedolareSecca === true) || contract.cedolareSecca === true;
+            const oneriMode       = (contract.canone && contract.canone.oneriMode)    || 'tabella_allegato_d';
+            const oneriSoglia     = (contract.canone && contract.canone.oneriSoglia)  || null;
+
+            const depAmount = (contract.deposit && typeof contract.deposit === 'object')
+                ? (contract.deposit.amount || 0)
+                : (contract.deposit || 0);
+            const depMonthsRaw = (contract.deposit && typeof contract.deposit === 'object'
+                                  && contract.deposit.months !== undefined && contract.deposit.months !== null)
+                ? Number(contract.deposit.months)
+                : (canMonthly > 0 ? Math.round((depAmount / canMonthly) * 100) / 100 : 0);
+            const depMonthsStr = depMonthsRaw.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+            const transReason = (contract.motivazioneTransitorieta && contract.motivazioneTransitorieta.esigenza)
+                                || contract.transitionalReason || dot;
+            const transDoc    = (contract.motivazioneTransitorieta && contract.motivazioneTransitorieta.documento)
+                                || contract.transitionalDocs   || dot;
+
+            const conviventi  = (contract.uso && contract.uso.conviventi) || contract.cohabitants || 'nessuno';
+
+            const consegnaStato = contract.consegnaStato || dot;
+
+            const sigPlace = contract.signaturePlace || 'Roma';
+            const sigDateRaw = contract.signatureDate || contract.fullySignedAt || new Date();
+            const sigDateStr = fmtDate(sigDateRaw);
+
+            // --------------- HEADER ---------------
+            doc.setFont('times', 'bold');
+            doc.setFontSize(14);
+            doc.text('ALLEGATO B', pageW / 2, y, { align: 'center' });
+            y += 7;
+            doc.text('LOCAZIONE ABITATIVA DI NATURA TRANSITORIA', pageW / 2, y, { align: 'center' });
+            y += 7;
+            doc.setFont('times', 'normal');
+            doc.setFontSize(10);
+            doc.text('(Legge 9 dicembre 1998, n. 431, articolo 5, comma 1)', pageW / 2, y, { align: 'center' });
+            y += 5;
+            const subHdr = doc.splitTextToSize("In conformità all'accordo territoriale di Roma Capitale del 25 luglio 2023 e depositato presso il Comune di Roma il 27/07/2023 prot. QC/82672/2023", pw);
+            doc.text(subHdr, pageW / 2, y, { align: 'center', maxWidth: pw });
+            y += subHdr.length * ptToMm(10) * 1.15 + 6;
+
+            doc.setFont('times', 'normal');
+            doc.setFontSize(11);
+
+            // --------------- PARTI ---------------
+            addParagraph(`Il/La sig./soc. ${locName}, nato/a il ${locDOB} a ${locPOB}, domiciliato/a in ${locDom}, C.F. ${locCF}, di seguito denominato/a locatore`);
+            addParagraph(`concede in locazione al/alla sig. ${tenName}, nato/a il ${tenDOB} a ${tenPOB}, domiciliato/a in ${tenDom}, C.F. ${tenCF}, di seguito denominato/a conduttore, identificato/a mediante ${tenDoc}, che accetta, per sé e suoi aventi causa,`);
+
+            addParagraph(`A) l'unità immobiliare posta in ${propCity}, via ${propStreet}, piano ${propFloor}, scala ${propScala}, int. ${propInt}, composta di n. ${propRooms} vani, oltre cucina e servizi, e dotata altresì dei seguenti elementi accessori ${propAcc}`);
+            addParagraph(`${propFurnished} come da elenco a parte sottoscritto dalle parti.`);
+
+            addParagraph(`a) estremi catastali identificativi dell'unità immobiliare: ${cadast}`);
+            addParagraph(`b) prestazione energetica: ${energy}`);
+            addParagraph(`c) sicurezza impianti: ${sicurezza}`);
+            addParagraph(`d) tabelle millesimali: proprietà ${tabPro}, riscaldamento ${tabRis}, acqua ${tabAcq}, altre ${tabAlt}`);
+
+            y += 2;
+            addParagraph('La locazione è regolata dalle pattuizioni seguenti.', { italic: true, after: 2 });
+
+            // --------------- ARTICOLI 1–17 (verbatim CAF) ---------------
+
+            addArticle(1, 'Durata',
+                `Il contratto è stipulato per la durata di ${durText}, dal ${durStartStr} al ${durEndStr}, allorché, fatto salvo quanto previsto dall'articolo 2, cessa senza bisogno di alcuna disdetta.`
+            );
+
+            addArticle(2, 'Esigenza del locatore/conduttore',
+                `A) Il locatore/conduttore, nel rispetto di quanto previsto dal decreto del Ministro delle infrastrutture e dei trasporti di concerto con il Ministro dell'economia e delle finanze, emanato ai sensi dell'articolo 4, comma 2, della legge n. 431/98 - di cui il presente tipo di contratto costituisce l'Allegato B - e dall'Accordo territoriale di Roma Capitale del 25 luglio 2023 e depositato presso il Comune di Roma il 27/07/2023 prot. QC/82672/2023,\n\ndichiara la seguente esigenza che giustifica la transitorietà del contratto: ${transReason}, e che documenta, in caso di durata superiore a 30 giorni, allegando ${transDoc}.\n\nAi sensi di quanto previsto dall'art. 2, comma 4 del decreto Ministero delle infrastrutture e trasporti, ex art. 4 comma 2 legge 431/98, e dall'Accordo territoriale di Roma Capitale del 25 luglio 2023 depositato il 27/07/2023 presso il Comune di Roma prot. QC/82672/2023, le parti concordano che la presente locazione ha natura transitoria per il motivo indicato al precedente paragrafo.`
+            );
+
+            addArticle(3, 'Inadempimento delle modalità di stipula',
+                `Il presente contratto è ricondotto alla durata prevista dall'art. 2 comma 1 della legge 9 dicembre 1998, n. 431, in caso di inadempimento delle modalità di stipula previste dall'art. 2, commi 1, 2, 3, 4, 5 e 6 del decreto dei Ministri delle infrastrutture e dell'economia e delle finanze ex art. 4 comma 2 della legge 431/98.\n\nIn ogni caso, ove il locatore abbia riacquistato la disponibilità dell'alloggio alla scadenza dichiarando di volerlo adibire ad un uso determinato e non lo adibisca, senza giustificato motivo, nel termine di sei mesi dalla data in cui ha riacquistato la detta disponibilità, a tale uso, il conduttore ha diritto al ripristino del rapporto di locazione alle condizioni di cui all'articolo 2, comma 1, della legge n. 431/98 o, in alternativa, ad un risarcimento in misura pari a trentasei mensilità dell'ultimo canone di locazione corrisposto.`
+            );
+
+            addArticle(4, 'Canone',
+                `Il canone complessivo di locazione, riferito all'intera durata contrattuale di ${durText}, secondo quanto stabilito dall'Accordo territoriale di Roma Capitale del 25 luglio 2023, è convenuto in euro ${fmtIt(canTotal)} (${fmtIt(canTotal)}/00), importo che il conduttore si obbliga a corrispondere a mezzo di ${canMethod}, in n. ${canInstallments} rate mensili eguali anticipate di euro ${fmtIt(canMonthly)} (${fmtIt(canMonthly)}/00) ciascuna, da versare entro il giorno ${canDay} di ogni mese.`
+            );
+
+            addArticle(5, 'Deposito cauzionale e altre forme di garanzia',
+                `A garanzia delle obbligazioni assunte col presente contratto, il conduttore versa al locatore (che con la firma del contratto ne rilascia quietanza) una somma di euro ${fmtIt(depAmount)} (${fmtIt(depAmount)}/00) pari a n. ${depMonthsStr} mensilità del canone, non imputabile in conto canoni e produttiva di interessi legali, riconosciuti al conduttore al termine della locazione. Il deposito cauzionale così costituito viene reso al termine della locazione previa verifica dello stato dell'unità immobiliare e dell'osservanza di ogni obbligazione contrattuale.`
+            );
+
+            // Article 6 — oneri accessori
+            if (oneriMode === 'custom') {
+                console.warn('[BOOM] Contract', contractId, 'uses oneriMode=custom — non conforme al CAF. Usare tabella_allegato_d per nuovi contratti.');
+                const sogliaTxt = oneriSoglia ? ` (soglia € ${fmtIt(oneriSoglia)})` : '';
+                addArticle(6, 'Oneri accessori',
+                    `[CLAUSOLA LEGACY — non conforme CAF] Per gli oneri accessori si applica la formula concordata fra le parti${sogliaTxt}. Sono interamente a carico del conduttore le spese relative ad ogni utenza (energia elettrica, acqua, gas, telefono e altro).`
+                );
+            } else {
+                addArticle(6, 'Oneri accessori',
+                    `Per gli oneri accessori le parti fanno applicazione della Tabella oneri accessori, allegato D al decreto emanato dal Ministro delle infrastrutture e dei trasporti di concerto con il Ministro dell'economia e delle finanze ai sensi dell'articolo 4, comma 2, della legge n. 431/1998 e di cui il presente contratto costituisce l'Allegato B.\n\nIn sede di consuntivo, il pagamento degli oneri anzidetti, per la quota parte di quelli condominiali/comuni a carico del conduttore, deve avvenire entro sessanta giorni dalla richiesta. Prima di effettuare il pagamento, il conduttore ha diritto di ottenere l'indicazione specifica delle spese anzidette e dei criteri di ripartizione. Ha inoltre diritto di prendere visione - anche tramite organizzazioni sindacali - presso il locatore (o il suo amministratore o l'amministratore condominiale, ove esistente) dei documenti giustificativi delle spese effettuate.\n\nSono interamente a carico del conduttore le spese relative ad ogni utenza (energia elettrica, acqua, gas, telefono e altro).`
+                );
+            }
+
+            // Article 7 — bollo / registrazione (parametric on cedolareSecca)
+            if (cedolareSecca) {
+                addArticle(7, 'Spese di bollo e registrazione — regime cedolare secca',
+                    `Le parti danno atto che il locatore ha esercitato l'opzione per l'applicazione del regime della cedolare secca di cui all'art. 3 del d.lgs. 14 marzo 2011 n. 23. Ai sensi dell'art. 3, comma 11 del medesimo decreto, per l'intera durata dell'opzione sono sospesi, in favore del locatore, gli obblighi di versamento dell'imposta di registro e dell'imposta di bollo, ivi compresa quella dovuta per la risoluzione e per le proroghe del contratto. Il locatore provvede alla registrazione del contratto, dandone comunicazione al conduttore e all'Amministratore del Condominio ai sensi dell'art. 13 della legge 431/98.`
+                );
+            } else {
+                addArticle(7, 'Spese di bollo e registrazione',
+                    `Le spese di bollo per il presente contratto e per le ricevute conseguenti sono a carico del conduttore. Il locatore provvede alla registrazione del contratto, ove dovuta, dandone comunicazione al conduttore - che corrisponde la quota di sua spettanza, pari alla metà - e all'Amministratore del Condominio ai sensi dell'art. 13 della legge 431/98.\n\nLe parti possono delegare alla registrazione del contratto una delle organizzazioni sindacali che abbia prestato assistenza ai fini della stipula del contratto medesimo.`
+                );
+            }
+
+            addArticle(8, 'Pagamento',
+                `Il pagamento del canone o di quant'altro dovuto anche per oneri accessori non può venire sospeso o ritardato da pretese o eccezioni del conduttore, qualunque ne sia il titolo. Il mancato puntuale pagamento, per qualunque causa, anche di una sola rata del canone (nonché di quant'altro dovuto, ove di importo pari almeno ad una mensilità del canone), costituisce in mora il conduttore, fatto salvo quanto previsto dall'articolo 55 della legge n. 392/78.`
+            );
+
+            addArticle(9, 'Uso',
+                `L'immobile deve essere destinato esclusivamente a civile abitazione del conduttore e delle seguenti persone attualmente con lui conviventi: ${conviventi}\n\nSalvo patto scritto contrario, è fatto divieto di sublocare o dare in comodato, né in tutto né in parte, l'unità immobiliare, pena la risoluzione di diritto del contratto. Per la successione nel contratto, si applica l'articolo 6 della legge n. 392/78, nel testo vigente a seguito della sentenza della Corte costituzionale n. 404 del 1988.`
+            );
+
+            addArticle(10, 'Recesso del conduttore',
+                `Il conduttore ha facoltà di recedere per gravi motivi dal contratto previo avviso da recapitarsi mediante lettera raccomandata almeno tre mesi prima.`
+            );
+
+            addArticle(11, 'Consegna',
+                `Il conduttore dichiara di aver visitato l'unità immobiliare locatagli, di averla trovata adatta all'uso convenuto e, pertanto, di prenderla in consegna ad ogni effetto col ritiro delle chiavi, costituendosi da quel momento custode della stessa. Il conduttore si impegna a riconsegnare l'unità immobiliare nello stato in cui l'ha ricevuta, salvo il deperimento d'uso, pena il risarcimento del danno; si impegna, altresì, a rispettare le norme del regolamento dello stabile ove esistente, accusando in tal caso ricevuta dello stesso con la firma del presente contratto, così come si impegna ad osservare le deliberazioni dell'assemblea dei condomini. È in ogni caso vietato al conduttore compiere atti e tenere comportamenti che possano recare molestia agli altri abitanti dello stabile.\n\nLe parti danno atto, in relazione allo stato dell'unità immobiliare, ai sensi dell'articolo 1590 del Codice civile, di quanto segue: ${consegnaStato}`
+            );
+
+            addArticle(12, 'Modifiche e danni',
+                `Il conduttore non può apportare alcuna modifica, innovazione, miglioria o addizione ai locali locati ed alla loro destinazione, o agli impianti esistenti, senza il preventivo consenso scritto del locatore. Il conduttore esonera espressamente il locatore da ogni responsabilità per danni diretti o indiretti che possano derivargli da fatti dei dipendenti del locatore medesimo nonché per interruzioni incolpevoli dei servizi.`
+            );
+
+            addArticle(13, 'Assemblee',
+                `Il conduttore ha diritto di voto, in luogo del proprietario dell'unità immobiliare locatagli, nelle deliberazioni dell'assemblea condominiale relative alle spese ed alle modalità di gestione dei servizi di riscaldamento e di condizionamento d'aria. Ha inoltre diritto di intervenire, senza voto, sulle deliberazioni relative alla modificazione degli altri servizi comuni.\n\nQuanto stabilito in materia di riscaldamento e di condizionamento d'aria si applica anche ove si tratti di edificio non in condominio. In tale caso (e con l'osservanza, in quanto applicabili, delle disposizioni del codice civile sull'assemblea dei condomini) i conduttori si riuniscono in apposita assemblea, convocata dalla proprietà o da almeno tre conduttori.`
+            );
+
+            addArticle(14, 'Impianti',
+                `Il conduttore - in caso d'installazione sullo stabile di antenna televisiva centralizzata - si obbliga a servirsi unicamente dell'impianto relativo, restando sin d'ora il locatore, in caso di inosservanza, autorizzato a far rimuovere e demolire ogni antenna individuale a spese del conduttore, il quale nulla può pretendere a qualsiasi titolo, fatte salve le eccezioni di legge.\n\nPer quanto attiene all'impianto termico autonomo, ove presente, ai sensi della normativa del d.lgs n. 192/05, con particolare riferimento all'art. 7 comma 1, il conduttore subentra per la durata della detenzione alla figura del proprietario nell'onere di adempiere alle operazioni di controllo e di manutenzione.`
+            );
+
+            addArticle(15, 'Accesso',
+                `Il conduttore deve consentire l'accesso all'unità immobiliare al locatore, al suo amministratore nonché ai loro incaricati ove gli stessi ne abbiano - motivandola - ragione.\n\nNel caso in cui il locatore intenda vendere o locare l'unità immobiliare, in caso di recesso anticipato del conduttore, questi deve consentirne la visita una volta la settimana, per almeno due ore, con esclusione dei giorni festivi.`
+            );
+
+            addArticle(16, 'Commissione di negoziazione paritetica e conciliazione stragiudiziale',
+                `La Commissione di cui all'articolo 6 del decreto del Ministro delle infrastrutture e dei trasporti di concerto con il Ministro dell'economia e delle finanze, emanato ai sensi dell'articolo 4, comma 2, della legge 431/98, è composta da due membri scelti fra appartenenti alle rispettive organizzazioni firmatarie dell'Accordo territoriale sulla base delle designazioni, rispettivamente, del locatore e del conduttore.\n\nL'operato della Commissione è disciplinato dal documento "Procedure di negoziazione e conciliazione stragiudiziale nonché modalità di funzionamento della Commissione" Allegato E, al sopracitato decreto.\n\nLa richiesta di intervento della Commissione non determina la sospensione delle obbligazioni contrattuali. La richiesta di attivazione della Commissione non comporta oneri.`
+            );
+
+            addArticle(17, 'Varie',
+                `A tutti gli effetti del presente contratto, comprese la notifica degli atti esecutivi, e ai fini della competenza a giudicare, il conduttore elegge domicilio nei locali a lui locati e, ove egli più non li occupi o comunque detenga, presso l'ufficio di segreteria del Comune ove è situato l'immobile locato.\n\nQualunque modifica al presente contratto non può aver luogo, e non può essere provata, se non con atto scritto.\n\nIl locatore ed il conduttore si autorizzano reciprocamente a comunicare a terzi i propri dati personali in relazione ad adempimenti connessi col rapporto di locazione (d.lgs n. 196/03).\n\nPer quanto non previsto dal presente contratto le parti rinviano a quanto in materia disposto dal Codice civile, dalle leggi n. 392/78 e n. 431/98 o comunque dalle norme vigenti e dagli usi locali nonché alla normativa ministeriale emanata in applicazione della legge n. 431/98 ed all'Accordo territoriale.`
+            );
+
+            // --------------- LETTO, APPROVATO, SOTTOSCRITTO ---------------
+            y += 6;
+            ensureSpace(60);
+            doc.setFont('times', 'bold');
+            doc.setFontSize(11);
+            doc.text('Letto, approvato e sottoscritto', margin, y);
+            y += 8;
+            doc.setFont('times', 'normal');
+            doc.setFontSize(11);
+            doc.text(`${sigPlace}, lì ${sigDateStr}`, margin, y);
+            y += 18;
+
+            // --- First signature block ---
+            const sig1Y = y;
+            const sigW = 70, sigH = 18;
+            const rightX = pageW - margin - sigW;
+            doc.setLineWidth(0.4);
+            doc.setDrawColor(0);
+            doc.line(margin, sig1Y, margin + sigW, sig1Y);
+            doc.line(rightX, sig1Y, rightX + sigW, sig1Y);
+            if (contract.landlordSignature) {
+                try { doc.addImage(contract.landlordSignature, 'PNG', margin, sig1Y - sigH, sigW - 5, sigH); } catch (e) {}
+            }
+            if (contract.tenantSignature) {
+                try { doc.addImage(contract.tenantSignature, 'PNG', rightX, sig1Y - sigH, sigW - 5, sigH); } catch (e) {}
+            }
+            doc.setFontSize(10);
+            doc.text('Il Locatore: ' + locName, margin, sig1Y + 5);
+            doc.text('Il Conduttore: ' + tenName, rightX, sig1Y + 5);
+            y = sig1Y + 16;
+
+            // --- 1341–1342 block ---
+            y += 8;
+            ensureSpace(40);
+            doc.setFont('times', 'normal');
+            doc.setFontSize(10);
+            const art1341 = `A mente degli articoli 1341 e 1342 del Codice civile, le parti specificamente approvano i patti di cui agli articoli 2 (Esigenza del locatore/conduttore), 3 (Inadempimento delle modalità di stipula), 4 (Canone), 5 (Deposito cauzionale e altre forme di garanzia), 6 (Oneri accessori), 8 (Pagamento), 9 (Uso), 10 (Recesso del conduttore), 11 (Consegna), 12 (Modifiche e danni), 14 (Impianti), 15 (Accesso), 16 (Commissione di negoziazione paritetica e conciliazione stragiudiziale) e 17 (Varie) del presente contratto.`;
+            const art1341Lines = doc.splitTextToSize(art1341, pw);
+            const art1341LineH = ptToMm(10) * 1.15;
+            ensureSpace(art1341Lines.length * art1341LineH);
+            doc.text(art1341Lines, margin, y, { align: 'justify', maxWidth: pw });
+            y += art1341Lines.length * art1341LineH + 14;
+
+            // --- Second signature block ---
+            ensureSpace(28);
+            const sig2Y = y;
+            doc.setLineWidth(0.4);
+            doc.line(margin, sig2Y, margin + sigW, sig2Y);
+            doc.line(rightX, sig2Y, rightX + sigW, sig2Y);
+            if (contract.landlordSignature) {
+                try { doc.addImage(contract.landlordSignature, 'PNG', margin, sig2Y - sigH, sigW - 5, sigH); } catch (e) {}
+            }
+            if (contract.tenantSignature) {
+                try { doc.addImage(contract.tenantSignature, 'PNG', rightX, sig2Y - sigH, sigW - 5, sigH); } catch (e) {}
+            }
+            doc.setFontSize(10);
+            doc.text('Il Locatore: ' + locName, margin, sig2Y + 5);
+            doc.text('Il Conduttore: ' + tenName, rightX, sig2Y + 5);
+
+            // --------------- FOOTER (Pagina N di M) ---------------
+            const totalPages = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= totalPages; i++) {
+                doc.setPage(i);
+                doc.setFont('times', 'normal');
+                doc.setFontSize(9);
+                doc.setTextColor(0);
+                doc.text(`Pagina ${i} di ${totalPages}`, pageW / 2, pageH - 10, { align: 'center' });
+            }
+
+            // --------------- HASH + STORE ---------------
+            const hash = await generateDocHash(contractId + (contract.startDate || '') + (contract.endDate || '') + (canMonthly || ''));
+            const pdfBase64 = doc.output('datauristring');
+
+            await db.collection('contracts').doc(contractId).update({
+                generatedPDF: pdfBase64,
+                pdfHash: hash,
+                pdfGeneratedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            const localContract = S.contracts.find(c => c.id === contractId);
+            if (localContract) { localContract.generatedPDF = pdfBase64; localContract.pdfHash = hash; }
+
+            console.log('[BOOM] Allegato B PDF (CAF verbatim) generated for ' + contractId);
+            return true;
+        } catch (err) {
+            console.error('PDF generation error (Allegato B):', err);
+            return false;
+        }
+    }
+
+    // === LEGACY — Allegato C / studenti — preserved unchanged (out of scope this task) ===
+    async function _generateContractPDF_studenti_v0(contractId) {
         try {
             const contract = S.contracts.find(c => c.id === contractId);
             if (!contract) return false;
@@ -12205,298 +12598,89 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         toast('success', sent ? '📧 Promemoria inviato!' : 'Nessun promemoria da inviare');
     }
     
+    // Preview the signed/draft PDF in a new tab.
+    // Single source of truth: contract.generatedPDF. If absent, regenerate live
+    // via canonical generateContractPDF; never produces a from-scratch fallback.
     async function previewContractPDF(contractId) {
         const contract = S.contracts.find(c => c.id === contractId);
         if (!contract) return;
-        // If a stored PDF exists (from BOOM Bridge), open it directly
-        if (contract.generatedPDF) {
-            try {
-                var parts = contract.generatedPDF.split(',');
-                var mime = parts[0].match(/:(.*?);/)[1];
-                var raw = atob(parts[1]);
-                var arr = new Uint8Array(raw.length);
-                for (var k = 0; k < raw.length; k++) arr[k] = raw.charCodeAt(k);
-                var blob = new Blob([arr], { type: mime });
-                window.open(URL.createObjectURL(blob), '_blank');
-                return;
-            } catch(e) { /* fall through to DRAFT generation */ }
+
+        let dataUri = contract.generatedPDF;
+
+        if (!dataUri) {
+            toast('info', 'Generazione anteprima...');
+            const ok = await generateContractPDF(contractId);
+            if (!ok) return toast('error', 'Errore generazione PDF');
+            const refreshed = S.contracts.find(c => c.id === contractId);
+            dataUri = refreshed && refreshed.generatedPDF;
         }
-        const property = S.properties.find(p => p.id === contract.propertyId);
-        const tenant = S.users.find(u => u.id === contract.tenantId);
-        const landlord = property ? S.users.find(u => u.id === property.ownerId) : null;
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-        const W=210,ML=20,MR=190,CW=MR-ML; var y=0,pageNum=0;
-        const vh='BOOM-'+btoa(contractId+(contract.startDate||'')+contract.rent).substring(0,12).toUpperCase();
-        function addWM(){doc.saveGraphicsState();doc.setTextColor(220,220,220);doc.setFontSize(60);doc.setFont(undefined,'bold');doc.text('DRAFT',W/2,148,{align:'center',angle:45});doc.restoreGraphicsState();}
-        function addFt(){addWM();doc.setDrawColor(212,175,55);doc.setLineWidth(0.4);doc.line(ML-5,277,MR+5,277);doc.setFontSize(6.5);doc.setTextColor(150,150,150);doc.text(COMPANY.legal+' | '+COMPANY.website,ML-5,282);doc.text(vh+' DRAFT',ML-5,286);doc.text('Pag. '+pageNum,MR+5,282,{align:'right'});}
-        function np(){if(pageNum>0){addFt();doc.addPage();}pageNum++;y=20;}
-        function cp(n){if(y+n>270){addFt();doc.addPage();pageNum++;y=20;}}
-        function at(num,title){cp(20);y+=4;doc.setFillColor(245,245,245);doc.rect(ML,y-4,CW,14,'F');doc.setFontSize(10);doc.setFont(undefined,'bold');doc.setTextColor(212,175,55);doc.text('Art. '+num+' \u2013 '+title,ML+4,y+5);y+=16;}
-        function pa(text){doc.setFontSize(9);doc.setFont(undefined,'normal');doc.setTextColor(50,50,50);doc.splitTextToSize(text,CW-8).forEach(function(l){cp(10);doc.text(l,ML+4,y);y+=4.5;});y+=3;}
-        function fl(label,value){cp(10);doc.setFont(undefined,'bold');doc.setTextColor(0,0,0);doc.setFontSize(9);doc.text(label,ML+4,y);doc.setFont(undefined,'normal');doc.text(String(value||''),ML+4+doc.getTextWidth(label)+2,y);y+=5;}
-        np();
-        doc.setFillColor(10,10,10);doc.rect(0,0,W,38,'F');doc.setFillColor(255,213,79);doc.rect(0,38,W/3,3,'F');doc.setFillColor(245,166,35);doc.rect(W/3,38,W/3,3,'F');doc.setFillColor(255,213,79);doc.rect(2*W/3,38,W/3,3,'F');
-        doc.setFontSize(22);doc.setTextColor(212,175,55);doc.text('BOOM',ML,18);doc.setFontSize(7);doc.setTextColor(120,120,120);doc.text('PROPERTY MANAGEMENT',ML,24);
-        doc.setFontSize(9);doc.setFont(undefined,'bold');doc.setTextColor(255,255,255);doc.text('CONTRATTO DI LOCAZIONE TRANSITORIA',MR,14,{align:'right'});
-        doc.setFillColor(200,200,200);doc.roundedRect(MR-40,19,40,10,3,3,'F');doc.setFontSize(8);doc.setFont(undefined,'bold');doc.setTextColor(80,80,80);doc.text('DRAFT',MR-20,25,{align:'center'});
-        y=48;doc.setFontSize(13);doc.setFont(undefined,'bold');doc.setTextColor(0,0,0);doc.text('CONTRATTO DI LOCAZIONE AD USO TRANSITORIO',W/2,y,{align:'center'});
-        y+=5;doc.setFontSize(8);doc.setFont(undefined,'normal');doc.setTextColor(100,100,100);doc.text("(ai sensi dell'art. 5 della Legge 431/1998)",W/2,y,{align:'center'});
-        y+=8;pa('Con la presente scrittura privata, tra:');y+=2;
-        doc.setFontSize(10);doc.setFont(undefined,'bold');doc.setTextColor(212,175,55);doc.text('LOCATORE',ML+4,y);y+=6;
-        fl('Nome:',landlord?.name||'N/A');fl('C.F.:','[confirmed at signing]');fl('Residente in:','[confirmed at signing]');y+=3;
-        pa('e');y+=2;
-        doc.setFontSize(10);doc.setFont(undefined,'bold');doc.setTextColor(212,175,55);doc.text('CONDUTTORE',ML+4,y);y+=6;
-        fl('Nome:',tenant?.name||'N/A');fl('C.F.:','[confirmed at signing]');fl('Residente in:','[confirmed at signing]');y+=3;
-        pa('si conviene e si stipula quanto segue:');
-        at('1','OGGETTO');pa('Immobile sito in '+(property?.address||'Roma')+', denominato "'+(property?.name||'')+'". Uso abitativo transitorio.');
-        at('2','DURATA');pa('Dal '+fmtDate(contract.startDate)+' al '+fmtDate(contract.endDate)+'. Risoluzione automatica alla scadenza.');
-        if(contract.transitionalReason)pa('Motivazione: '+contract.transitionalReason);
-        at('3','CANONE');pa('EUR '+contract.rent+',00/mese, entro il '+(contract.paymentDay||5)+' di ogni mese.');fl('Intestatario:',COMPANY.legal);fl('IBAN:',COMPANY.iban);
-        at('4','DEPOSITO');var dm=contract.rent>0?Math.round((contract.deposit||0)/contract.rent*10)/10:0;pa('EUR '+(contract.deposit||0)+',00 ('+dm+' mensilit\u00e0). Restituibile previa verifica.');
-        at('5','STATO IMMOBILE');pa('Consegnato in buono stato. Restituzione nelle medesime condizioni.');
-        at('6','OBBLIGHI CONDUTTORE');pa('Diligenza, nessuna modifica senza consenso, rispetto regolamento condominiale.');
-        at('7','OBBLIGHI LOCATORE');pa('Buono stato, pacifico godimento, riparazioni straordinarie.');
-        at('8','SUBLOCAZIONE');pa('Vietata senza consenso scritto.');
-        at('9','RECESSO');pa('Preavviso 30 giorni tramite raccomandata.');
-        at('10','SPESE');pa('Utenze e ordinarie: Conduttore. Straordinarie: Locatore.');
-        at('11','REGISTRAZIONE');pa('Cedolare secca ove applicabile.');
-        at('12','FORO');pa('Foro di Roma.');
-        at('13','CLAUSOLE FINALI');pa('Codice Civile, Legge 431/1998, accordi territoriali.');
-        if(contract.notes){at('14','NOTE');pa(contract.notes);}
-        addFt();doc.addPage();pageNum++;y=40;
-        doc.setFontSize(10);doc.setFont(undefined,'bold');doc.setTextColor(0,0,0);
-        doc.text('Firma del Locatore:',ML,y);doc.text('Firma del Conduttore:',W/2+10,y);y+=4;
-        doc.setDrawColor(180,180,180);doc.setLineWidth(0.5);doc.setLineDashPattern([3,3],0);
-        doc.rect(ML,y,70,30,'S');doc.rect(W/2+10,y,70,30,'S');doc.setLineDashPattern([],0);
-        doc.setFontSize(9);doc.setTextColor(180,180,180);doc.setFont(undefined,'italic');
-        doc.text('Signature at signing',ML+35,y+17,{align:'center'});doc.text('Signature at signing',W/2+45,y+17,{align:'center'});
-        addFt();
-        doc.save('DRAFT_'+(property?.name||'BOOM').replace(/\s+/g,'_')+'.pdf');
-        toast('info','Draft downloaded','Preview only, not the signed version');
+        if (!dataUri) return toast('error', 'PDF non disponibile');
+
+        try {
+            const parts = dataUri.split(',');
+            const mime = parts[0].match(/:(.*?);/)[1];
+            const raw = atob(parts[1]);
+            const arr = new Uint8Array(raw.length);
+            for (let k = 0; k < raw.length; k++) arr[k] = raw.charCodeAt(k);
+            const blob = new Blob([arr], { type: mime });
+            window.open(URL.createObjectURL(blob), '_blank');
+        } catch (e) {
+            console.error('Preview decode error:', e);
+            toast('error', 'Impossibile aprire il PDF');
+        }
     }
 
+    // Download the contract as a file. Single source of truth: contract.generatedPDF.
+    // If absent: regenerate live via canonical generateContractPDF.
+    // If still absent: error toast. No from-scratch fallback.
+    // Filename reflects state: pdfRegeneratedAfterSign === true => _Firmato; else _Bozza.
     async function downloadSignedContractPDF(contractId) {
         const contract = S.contracts.find(c => c.id === contractId);
         if (!contract) return;
-        const property = S.properties.find(p => p.id === contract.propertyId);
         const tenant = S.users.find(u => u.id === contract.tenantId);
-        const landlord = property ? S.users.find(u => u.id === property.ownerId) : null;
-        
-        // If we have the real CAF contract PDF stored, use it + append signature page
-        var storedPDF = contract.generatedPDF;
-        if (!storedPDF) {
-            // Try to fetch fresh from Firestore in case local state is stale
+
+        let dataUri = contract.generatedPDF;
+        let isSigned = contract.pdfRegeneratedAfterSign === true;
+        if (!dataUri) {
             try {
-                var freshDoc = await db.collection('contracts').doc(contractId).get();
-                if (freshDoc.exists && freshDoc.data().generatedPDF) storedPDF = freshDoc.data().generatedPDF;
-            } catch(e) { console.error('Fresh fetch:', e); }
-        }
-        
-        if (storedPDF) {
-            // Use the real CAF contract and append a signature page
-            try {
-                var { jsPDF } = window.jspdf;
-                // Load the stored PDF
-                var parts = storedPDF.split(',');
-                var raw = atob(parts.length > 1 ? parts[1] : parts[0]);
-                var arr = new Uint8Array(raw.length);
-                for (var i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
-                
-                var doc = new jsPDF();
-                // Load stored PDF as first pages
-                // jsPDF can't easily merge, so we open it in a new tab with signature overlay
-                // Instead: download the stored PDF directly (it already has signature images from generateContractPDF)
-                var blob = new Blob([arr], { type: 'application/pdf' });
-                var link = document.createElement('a');
-                link.href = URL.createObjectURL(blob);
-                link.download = 'Contratto_' + (property?.name || 'BOOM').replace(/\s+/g, '_') + '_Firmato.pdf';
-                link.click();
-                URL.revokeObjectURL(link.href);
-                toast('success', 'PDF downloaded', 'Full CAF contract with signatures');
-                return;
-            } catch(e) { 
-                console.error('Stored PDF error:', e);
-                // Fall through to generate fresh
-            }
-        }
-        
-        // Fallback: generate contract PDF from scratch
-        var jsPDFLib = window.jspdf.jsPDF;
-        var doc = new jsPDFLib();
-        const W = 210, ML = 20, MR = 190, CW = MR - ML;
-        let y = 0, pageNum = 0;
-        const vh = 'BOOM-' + btoa(contractId + (contract.startDate||'') + contract.rent).substring(0,12).toUpperCase();
-
-        function addFooter() {
-            doc.setDrawColor(212,175,55); doc.setLineWidth(0.4);
-            doc.line(ML-5, 277, MR+5, 277);
-            doc.setFontSize(6.5); doc.setTextColor(150,150,150);
-            doc.text(COMPANY.legal + ' | P.IVA ' + COMPANY.piva + ' | ' + COMPANY.website, ML-5, 282);
-            doc.text(vh, ML-5, 286);
-            doc.text('Pag. ' + pageNum, MR+5, 282, {align:'right'});
-        }
-        function newPage() { if(pageNum>0){addFooter();doc.addPage();} pageNum++; y=20; }
-        function checkPage(n) { if(y+n>270){addFooter();doc.addPage();pageNum++;y=20;} }
-        function artTitle(num,title) {
-            checkPage(20); y+=4;
-            doc.setFillColor(245,245,245); doc.rect(ML,y-4,CW,14,'F');
-            doc.setFontSize(10); doc.setFont(undefined,'bold'); doc.setTextColor(212,175,55);
-            doc.text('Art. '+num+' \u2013 '+title, ML+4, y+5); y+=16;
-        }
-        function para(text) {
-            doc.setFontSize(9); doc.setFont(undefined,'normal'); doc.setTextColor(50,50,50);
-            doc.splitTextToSize(text, CW-8).forEach(l => { checkPage(10); doc.text(l, ML+4, y); y+=4.5; });
-            y+=3;
-        }
-        function field(label, value) {
-            checkPage(10); doc.setFont(undefined,'bold'); doc.setTextColor(0,0,0); doc.setFontSize(9);
-            doc.text(label, ML+4, y);
-            doc.setFont(undefined,'normal'); doc.text(String(value||''), ML+4+doc.getTextWidth(label)+2, y); y+=5;
+                const fresh = await db.collection('contracts').doc(contractId).get();
+                if (fresh.exists) {
+                    const fd = fresh.data();
+                    dataUri = fd.generatedPDF;
+                    isSigned = fd.pdfRegeneratedAfterSign === true;
+                }
+            } catch (e) { console.error('Fresh fetch:', e); }
         }
 
-        // ═══ HEADER ═══
-        newPage();
-        doc.setFillColor(10,10,10); doc.rect(0,0,W,38,'F');
-        doc.setFillColor(255,213,79); doc.rect(0,38,W/3,3,'F');
-        doc.setFillColor(245,166,35); doc.rect(W/3,38,W/3,3,'F');
-        doc.setFillColor(255,213,79); doc.rect(2*W/3,38,W/3,3,'F');
-        doc.setFontSize(22); doc.setTextColor(212,175,55); doc.text('BOOM', ML, 18);
-        doc.setFontSize(7); doc.setTextColor(120,120,120); doc.text('PROPERTY MANAGEMENT', ML, 24);
-        doc.setFontSize(9); doc.setFont(undefined,'bold'); doc.setTextColor(255,255,255);
-        doc.text('CONTRATTO DI LOCAZIONE TRANSITORIA', MR, 14, {align:'right'});
-        doc.setFillColor(255,213,79); doc.roundedRect(MR-55,19,55,10,3,3,'F');
-        doc.setFontSize(7); doc.setFont(undefined,'bold'); doc.setTextColor(10,10,10);
-        doc.text(vh, MR-27.5, 25, {align:'center'});
-        doc.setFontSize(8); doc.setTextColor(150,150,150);
-        doc.text('Roma, ' + new Date().toLocaleDateString('it-IT',{day:'numeric',month:'long',year:'numeric'}), MR, 35, {align:'right'});
-
-        y = 48;
-        doc.setFontSize(13); doc.setFont(undefined,'bold'); doc.setTextColor(0,0,0);
-        doc.text('CONTRATTO DI LOCAZIONE AD USO TRANSITORIO', W/2, y, {align:'center'});
-        y+=5; doc.setFontSize(8); doc.setFont(undefined,'normal'); doc.setTextColor(100,100,100);
-        doc.text("(ai sensi dell'art. 5 della Legge 9 dicembre 1998, n. 431)", W/2, y, {align:'center'});
-        y+=8; para('Con la presente scrittura privata, da valere ad ogni effetto di legge, tra:');
-        y+=2;
-        doc.setFontSize(10); doc.setFont(undefined,'bold'); doc.setTextColor(212,175,55);
-        doc.text('LOCATORE', ML+4, y); y+=6;
-        field('Nome:', landlord?.name||'N/A');
-        field('C.F.:', landlord?.cf || contract.landlordCF || '________________________');
-        field('Nato/a a:', (contract.landlordPob||landlord?.pob||'___') + ' il ' + (contract.landlordDob||landlord?.dob||'___'));
-        field('Residente in:', landlord?.address || contract.landlordAddress || '________________________');
-        doc.setFontSize(8); doc.setFont(undefined,'italic'); doc.setTextColor(80,80,80);
-        doc.text('(di seguito denominato "Locatore")', ML+4, y); y+=7;
-        para('e'); y+=2;
-        doc.setFontSize(10); doc.setFont(undefined,'bold'); doc.setTextColor(212,175,55);
-        doc.text('CONDUTTORE', ML+4, y); y+=6;
-        field('Nome:', tenant?.name||'N/A');
-        field('C.F.:', tenant?.cf || contract.tenantCF || '________________________');
-        field('Nato/a a:', (contract.tenantPob||tenant?.pob||'___') + ' il ' + (contract.tenantDob||tenant?.dob||'___'));
-        field('Residente in:', tenant?.address || contract.tenantAddress || '________________________');
-        field('Documento:', (contract.tenantDocType||tenant?.docType||'___') + ' n. ' + (contract.tenantDocNum||tenant?.docNum||'___'));
-        field('Nazionalit\u00e0:', contract.tenantNationality||tenant?.nationality||'___');
-        doc.setFontSize(8); doc.setFont(undefined,'italic'); doc.setTextColor(80,80,80);
-        doc.text('(di seguito denominato "Conduttore")', ML+4, y); y+=7;
-        para('si conviene e si stipula quanto segue:');
-
-        artTitle('1','OGGETTO');
-        para('Il Locatore concede in locazione al Conduttore l\'immobile sito in '+(property?.address||'Roma')+', denominato "'+(property?.name||'')+'".');
-        if(property?.cadastral||contract.cadastral) para('Dati catastali: '+(property?.cadastral||contract.cadastral)+'. Classe energetica: '+(property?.energyClass||contract.energyClass||'N/A')+'.');
-        para('L\'immobile viene concesso ad uso esclusivamente abitativo e transitorio, nello stato di fatto in cui si trova.');
-
-        artTitle('2','DURATA');
-        para('Il contratto ha durata dal '+fmtDate(contract.startDate)+' al '+fmtDate(contract.endDate)+'.');
-        if(contract.transitoryReason) para('Motivazione transitoria: '+contract.transitoryReason+'.');
-        para('Alla scadenza il contratto si intende risolto automaticamente. Non \u00e8 previsto il tacito rinnovo.');
-
-        artTitle('3','CANONE');
-        para('Il canone \u00e8 fissato in EUR '+contract.rent+',00 mensili, da corrispondere entro il 5 di ogni mese tramite bonifico bancario.');
-        field('Intestatario:', COMPANY.legal);
-        field('IBAN:', COMPANY.iban);
-
-        artTitle('4','DEPOSITO CAUZIONALE');
-        const dm = contract.rent > 0 ? Math.round((contract.deposit||0)/contract.rent*10)/10 : 0;
-        para('Il Conduttore versa un deposito di EUR '+(contract.deposit||0)+',00 ('+dm+' mensilit\u00e0), restituibile alla fine della locazione previa verifica.');
-
-        artTitle('5','STATO DELL\'IMMOBILE');
-        para('L\'immobile viene consegnato in buono stato. Il Conduttore si impegna a restituirlo nelle medesime condizioni, salvo normale usura.');
-
-        artTitle('6','OBBLIGHI DEL CONDUTTORE');
-        para('Utilizzare l\'immobile con diligenza; non apportare modifiche senza consenso scritto; rispettare il regolamento condominiale; comunicare tempestivamente guasti.');
-
-        artTitle('7','OBBLIGHI DEL LOCATORE');
-        para('Consegnare l\'immobile in buono stato; garantire il pacifico godimento; eseguire le riparazioni straordinarie.');
-
-        artTitle('8','DIVIETO DI SUBLOCAZIONE');
-        para('\u00c8 fatto divieto di sublocare l\'immobile senza il preventivo consenso scritto del Locatore.');
-
-        artTitle('9','RECESSO');
-        para('Il Conduttore pu\u00f2 recedere con preavviso di almeno 30 giorni tramite raccomandata.');
-
-        artTitle('10','SPESE');
-        para('Utenze e spese condominiali ordinarie a carico del Conduttore. Spese straordinarie e tasse sulla propriet\u00e0 a carico del Locatore.');
-
-        artTitle('11','REGISTRAZIONE E REGIME FISCALE');
-        const ced = contract.cedolareSecca || 'si';
-        if(ced === 'si' || ced === 'si21') {
-            para('Il Locatore opta per la cedolare secca al '+(ced==='si'?'10':'21')+'% ai sensi del D.Lgs. 23/2011.');
-        } else {
-            para('Il contratto sar\u00e0 registrato con regime ordinario presso l\'Agenzia delle Entrate.');
+        if (!dataUri) {
+            toast('info', 'Generazione PDF...');
+            const ok = await generateContractPDF(contractId);
+            if (!ok) return toast('error', 'Errore generazione PDF');
+            const after = S.contracts.find(c => c.id === contractId);
+            dataUri = after && after.generatedPDF;
+            isSigned = !!(after && after.pdfRegeneratedAfterSign === true);
         }
+        if (!dataUri) return toast('error', 'PDF non disponibile');
 
-        artTitle('12','FORO COMPETENTE');
-        para('Per qualsiasi controversia sar\u00e0 competente il Foro di Roma.');
+        const tName = ((tenant && tenant.name) || 'Conduttore').replace(/\s+/g, '_');
+        const fileName = `Contratto_${tName}_${isSigned ? 'Firmato' : 'Bozza'}.pdf`;
 
-        artTitle('13','CLAUSOLE FINALI');
-        para('Per tutto quanto non previsto si applicano il Codice Civile, la Legge 431/1998 e gli accordi territoriali vigenti. Sottoscritto digitalmente tramite BOOM Property Portal.');
-
-        if(contract.notes) { artTitle('14','NOTE PARTICOLARI'); para(contract.notes); }
-
-        // ═══ SIGNATURE PAGE ═══
-        addFooter(); doc.addPage(); pageNum++;
-        doc.setFillColor(10,10,10); doc.rect(0,0,W,20,'F');
-        doc.setFontSize(11); doc.setFont(undefined,'bold'); doc.setTextColor(212,175,55);
-        doc.text('BOOM \u2013 FIRME DIGITALI', W/2, 13, {align:'center'});
-        y=32;
-        doc.setFontSize(13); doc.setFont(undefined,'bold'); doc.setTextColor(0,0,0);
-        doc.text('SOTTOSCRIZIONE DEL CONTRATTO', W/2, y, {align:'center'}); y+=6;
-        doc.setFontSize(8); doc.setFont(undefined,'normal'); doc.setTextColor(120,120,120);
-        doc.text('Le parti dichiarano di aver letto e approvato il presente contratto', W/2, y, {align:'center'}); y+=12;
-
-        // Summary box
-        doc.setFillColor(248,248,248); doc.rect(ML,y,CW,55,'F');
-        doc.setDrawColor(212,175,55); doc.setLineWidth(0.5); doc.rect(ML,y,CW,55,'S');
-        let sy=y+8;
-        doc.setFontSize(10); doc.setFont(undefined,'bold'); doc.setTextColor(212,175,55);
-        doc.text('RIEPILOGO', ML+8, sy); sy+=8;
-        [['Immobile:',property?.name],['Locatore:',landlord?.name],['Conduttore:',tenant?.name],
-         ['Canone:','EUR '+contract.rent+',00'],['Periodo:',fmtDate(contract.startDate)+' \u2013 '+fmtDate(contract.endDate)]
-        ].forEach(([l,v]) => {
-            doc.setFontSize(9); doc.setFont(undefined,'bold'); doc.setTextColor(0,0,0);
-            doc.text(l, ML+8, sy); doc.setFont(undefined,'normal'); doc.text(String(v||''), ML+50, sy); sy+=6;
-        });
-        y+=67;
-
-        // Signatures
-        doc.setFontSize(10); doc.setFont(undefined,'bold'); doc.setTextColor(0,0,0);
-        doc.text('Firma del Locatore:', ML, y); doc.text('Firma del Conduttore:', W/2+10, y); y+=4;
-        if(contract.landlordSignature) try{doc.addImage(contract.landlordSignature,'PNG',ML,y,70,28);}catch(e){}
-        if(contract.tenantSignature) try{doc.addImage(contract.tenantSignature,'PNG',W/2+10,y,70,28);}catch(e){}
-        y+=32;
-        doc.setFontSize(8); doc.setTextColor(100,100,100);
-        doc.text('Firmato: '+(contract.landlordSignedAt?fmtDate(contract.landlordSignedAt):''), ML, y);
-        doc.text('Firmato: '+(contract.tenantSignedAt?fmtDate(contract.tenantSignedAt):''), W/2+10, y);
-        y+=5; doc.setFont(undefined,'bold'); doc.setTextColor(0,0,0);
-        doc.text(landlord?.name||'', ML, y); doc.text(tenant?.name||'', W/2+10, y);
-        y+=12;
-        doc.setDrawColor(200,200,200); doc.setLineWidth(0.3); doc.line(ML,y,MR,y); y+=6;
-        doc.setFontSize(8); doc.setFont(undefined,'normal'); doc.setTextColor(100,100,100);
-        doc.text('Codice verifica: '+vh, ML, y); y+=4;
-        doc.text('Generato da BOOM Property Portal - '+new Date().toLocaleString('it-IT'), ML, y); y+=4;
-        doc.text(COMPANY.legal+' - '+COMPANY.website, ML, y);
-        addFooter();
-        doc.save('Contratto_'+(property?.name||'BOOM').replace(/\s+/g,'_')+'_Firmato.pdf');
-        toast('success', 'PDF downloaded');
+        try {
+            const parts = dataUri.split(',');
+            const raw = atob(parts.length > 1 ? parts[1] : parts[0]);
+            const arr = new Uint8Array(raw.length);
+            for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+            const blob = new Blob([arr], { type: 'application/pdf' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = fileName;
+            link.click();
+            URL.revokeObjectURL(link.href);
+            toast('success', isSigned ? 'Contratto firmato scaricato' : 'Bozza scaricata');
+        } catch (e) {
+            console.error('Download decode error:', e);
+            toast('error', 'Impossibile scaricare il PDF');
+        }
     }
 
 
