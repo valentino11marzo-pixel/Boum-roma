@@ -4,4 +4,6 @@ Disallow: /portal
 Disallow: /admin
 Disallow: /setup-firebase
 Disallow: /seed-listings
+Disallow: /boom-doc-parser
+Disallow: /boom_doc_parser.html
 Sitemap: https://www.boomrome.com/sitemap.xml

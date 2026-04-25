@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>BOOM — AI Document Parser</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<!-- Firebase 10.7.0 compat SDKs (matches portal.html) -->
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
 <style>
 :root {
   --bg: #0a0a0c;
@@ -22,6 +26,36 @@
   --blue: #4a9eff;
   --r: 10px;
 }
+
+/* Admin auth gate */
+#authGate {
+  position: fixed; inset: 0; z-index: 9999;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column; gap: 16px; padding: 24px;
+}
+#authGate.hidden { display: none; }
+#authGate .gate-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 32px; width: 100%; max-width: 380px;
+}
+#authGate h2 { color: var(--gold); margin-bottom: 8px; font-size: 20px; }
+#authGate p { color: var(--text-dim); margin-bottom: 20px; font-size: 13px; }
+#authGate input {
+  width: 100%; padding: 12px; margin-bottom: 12px;
+  background: var(--surface2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 8px;
+  font-family: inherit; font-size: 14px;
+}
+#authGate button {
+  width: 100%; padding: 12px; background: var(--gold); color: #000;
+  border: none; border-radius: 8px; font-weight: 600; cursor: pointer;
+  font-family: inherit; font-size: 14px;
+}
+#authGate button:disabled { opacity: 0.5; cursor: not-allowed; }
+#authGate .gate-error { color: var(--red); font-size: 13px; margin-top: 8px; min-height: 18px; }
+#mainApp.hidden { display: none; }
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
   font-family: 'Syne', sans-serif;
@@ -316,6 +350,20 @@ input[type=file] { display: none; }
 </head>
 <body>
 
+<!-- Admin auth gate. Revealed only after Firebase login + admin role verified. -->
+<div id="authGate">
+  <div class="gate-card">
+    <h2>BOOM Doc Parser</h2>
+    <p>Admin access only. Sign in with your BOOM account.</p>
+    <input type="email" id="gateEmail" placeholder="Email" autocomplete="username">
+    <input type="password" id="gatePassword" placeholder="Password" autocomplete="current-password">
+    <button id="gateLoginBtn" onclick="gateLogin()">Sign in</button>
+    <div class="gate-error" id="gateError"></div>
+  </div>
+</div>
+
+<div id="mainApp" class="hidden">
+
 <div class="header">
   <div>
     <div class="logo">BOOM</div>
@@ -406,7 +454,77 @@ input[type=file] { display: none; }
 
 </div>
 
+</div>
+<!-- end #mainApp -->
+
 <script>
+// ---------- Admin auth gate ----------
+firebase.initializeApp({
+  apiKey: "AIzaSyDDb8UeSc8RhO_VxQrhLrupu1aPD4rwRso",
+  authDomain: "boom-property-dashboards.firebaseapp.com",
+  projectId: "boom-property-dashboards",
+  storageBucket: "boom-property-dashboards.firebasestorage.app",
+  messagingSenderId: "937269017440",
+  appId: "1:937269017440:web:41c1a0b1e1633c2f373c05"
+});
+const _auth = firebase.auth();
+const _db = firebase.firestore();
+let _parseDocsBearer = null;
+
+async function gateLogin() {
+  const btn = document.getElementById('gateLoginBtn');
+  const err = document.getElementById('gateError');
+  const email = document.getElementById('gateEmail').value.trim();
+  const password = document.getElementById('gatePassword').value;
+  err.textContent = '';
+  btn.disabled = true;
+  try {
+    await _auth.signInWithEmailAndPassword(email, password);
+    // onAuthStateChanged handles the rest
+  } catch (e) {
+    err.textContent = 'Sign-in failed. Check your credentials.';
+    btn.disabled = false;
+  }
+}
+
+_auth.onAuthStateChanged(async (user) => {
+  const gate = document.getElementById('authGate');
+  const app = document.getElementById('mainApp');
+  const err = document.getElementById('gateError');
+  const btn = document.getElementById('gateLoginBtn');
+
+  if (!user) {
+    gate.classList.remove('hidden');
+    app.classList.add('hidden');
+    if (btn) btn.disabled = false;
+    return;
+  }
+
+  try {
+    // Verify admin role
+    const userDoc = await _db.collection('users').doc(user.uid).get();
+    if (!userDoc.exists || userDoc.data().role !== 'admin') {
+      err.textContent = 'This tool is admin-only.';
+      await _auth.signOut();
+      return;
+    }
+    // Fetch bearer for /api/parse-docs
+    const secretDoc = await _db.collection('config').doc('parse_docs').get();
+    if (!secretDoc.exists || !secretDoc.data().bearer) {
+      err.textContent = 'Parser config missing. Contact admin.';
+      await _auth.signOut();
+      return;
+    }
+    _parseDocsBearer = secretDoc.data().bearer;
+    gate.classList.add('hidden');
+    app.classList.remove('hidden');
+  } catch (e) {
+    err.textContent = 'Authorization check failed: ' + (e?.message || 'unknown');
+    await _auth.signOut();
+  }
+});
+// ---------- end auth gate ----------
+
 let files = [];
 let extractedData = null;
 
@@ -653,7 +771,10 @@ Restituisci SOLO questo JSON (nessun testo prima o dopo):
   try {
     const response = await fetch('/api/parse-docs', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + (_parseDocsBearer || ''),
+      },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 1500,
