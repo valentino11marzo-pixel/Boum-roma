@@ -12231,12 +12231,54 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
 
     async function generateContractPasses(contractId) {
+        // Resolve contract — fallback to Firestore if not in S.contracts cache
+        // (Magic Sign session has anonymous auth; S.contracts may be empty.)
         var contract = (S.contracts || []).find(function(c) { return c.id === contractId; });
-        if (!contract) return;
+        if (!contract) {
+            try {
+                var cDoc = await db.collection('contracts').doc(contractId).get();
+                if (cDoc.exists) contract = Object.assign({ id: contractId }, cDoc.data());
+            } catch (e) { console.warn('[PropPass] contract fetch:', e); }
+        }
+        if (!contract) { console.warn('[PropPass] Contract not found:', contractId); return; }
+
+        // Resolve property — fallback to Firestore
         var prop = (S.properties || []).find(function(p) { return p.id === contract.propertyId; });
+        if (!prop && contract.propertyId) {
+            try {
+                var pDoc = await db.collection('properties').doc(contract.propertyId).get();
+                if (pDoc.exists) prop = Object.assign({ id: contract.propertyId }, pDoc.data());
+            } catch (e) { console.warn('[PropPass] property fetch:', e); }
+        }
+
+        // Resolve tenant — fallback to Firestore (CRITICAL for Magic Sign session
+        // where S.users is empty and tenant.email would be undefined → email skipped)
         var tenant = (S.users || []).find(function(u) { return u.id === contract.tenantId; });
+        if (!tenant && contract.tenantId) {
+            try {
+                var tDoc = await db.collection('users').doc(contract.tenantId).get();
+                if (tDoc.exists) tenant = Object.assign({ id: contract.tenantId }, tDoc.data());
+            } catch (e) { console.warn('[PropPass] tenant fetch:', e); }
+        }
+
+        // Resolve landlord — fallback to Firestore
         var landlord = prop ? (S.users || []).find(function(u) { return u.id === prop.ownerId; }) : null;
+        if (!landlord && prop && prop.ownerId) {
+            try {
+                var lDoc = await db.collection('users').doc(prop.ownerId).get();
+                if (lDoc.exists) landlord = Object.assign({ id: prop.ownerId }, lDoc.data());
+            } catch (e) { console.warn('[PropPass] landlord fetch:', e); }
+        }
+
         var llData = prop?.ownerId ? (S.landlords || []).find(function(l) { return l.id === prop.ownerId; }) : null;
+        if (!llData && prop && prop.ownerId) {
+            try {
+                var llDoc = await db.collection('landlords').doc(prop.ownerId).get();
+                if (llDoc.exists) llData = Object.assign({ id: prop.ownerId }, llDoc.data());
+            } catch (e) { /* landlords collection optional */ }
+        }
+
+        console.log('[PropPass] Generating passes for', contractId, '| tenant:', tenant?.email || '(no email)', '| landlord:', landlord?.email || '(no email)');
         // Tenant pass
         var tenantResult = await generatePass('tenant', {
             tenantName: tenant?.name || contract.tenantName || '', propertyAddress: prop?.address || '',
@@ -12271,6 +12313,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         // Email passes (Apple Wallet auto-delivery)
         if (tenantResult && tenantResult.url && tenant?.email) {
             try {
+                console.log('[BOOM] Tenant pass email sending to', tenant.email);
                 await sendBoomEmail(EMAILJS_CONFIG.templates.notification, tenant.email, {
                     heading: '🎫 La tua tessera Apple Wallet BOOM',
                     subheading: 'Aggiungi la tessera al tuo iPhone in un tap',
@@ -12286,10 +12329,14 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     portal_link: tenantResult.url,
                     attachment_url: tenantResult.url
                 });
-            } catch (e) { console.warn('[PropPass] Tenant pass email:', e); }
+                console.log('[BOOM] Tenant pass email sent to', tenant.email);
+            } catch (e) { console.warn('[PropPass] Tenant pass email failed:', e); }
+        } else if (tenantResult && tenantResult.url && !tenant?.email) {
+            console.warn('[PropPass] Tenant pass generated but no email available — skipping auto-deliver');
         }
         if (landlordResult && landlordResult.url && landlord?.email) {
             try {
+                console.log('[BOOM] Landlord pass email sending to', landlord.email);
                 await sendBoomEmail(EMAILJS_CONFIG.templates.notification, landlord.email, {
                     heading: '🎫 La tua tessera Landlord BOOM',
                     subheading: 'Aggiungi la tessera al tuo iPhone',
@@ -12305,7 +12352,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     portal_link: landlordResult.url,
                     attachment_url: landlordResult.url
                 });
-            } catch (e) { console.warn('[PropPass] Landlord pass email:', e); }
+                console.log('[BOOM] Landlord pass email sent to', landlord.email);
+            } catch (e) { console.warn('[PropPass] Landlord pass email failed:', e); }
+        } else if (landlordResult && landlordResult.url && !landlord?.email) {
+            console.warn('[PropPass] Landlord pass generated but no email available — skipping auto-deliver');
         }
         console.log('[PropPass] Contract passes generated for', contractId);
     }
@@ -12684,12 +12734,15 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         }
         if (!dataUri) return toast('error', 'PDF non disponibile');
 
-        // fetch() works for both data: URIs (legacy base64) and https:// (Firebase Storage)
+        // Mobile-friendly: HTTPS URLs (Firebase Storage) open natively in any browser.
+        // Safari mobile truncates blob: URLs to first page only — never use blob for HTTPS PDFs.
+        if (dataUri.startsWith('https://')) {
+            window.open(dataUri, '_blank');
+            return;
+        }
+        // Legacy base64 path — fall back to blob conversion
         try {
-            const blob = await fetch(dataUri).then(r => {
-                if (!r.ok && !dataUri.startsWith('data:')) throw new Error('HTTP ' + r.status);
-                return r.blob();
-            });
+            const blob = await fetch(dataUri).then(r => r.blob());
             window.open(URL.createObjectURL(blob), '_blank');
         } catch (e) {
             console.error('Preview decode error:', e);
