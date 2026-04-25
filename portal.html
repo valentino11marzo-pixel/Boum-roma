@@ -2501,6 +2501,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             checkAlerts();
             renderPage();
             buildNav();
+            if (cols.indexOf('contracts') >= 0 && S.profile && S.profile.role === 'admin' && typeof window.boomAuditCanone === 'function') {
+                try { window.boomAuditCanone(); } catch (auditErr) { console.warn('Audit failed:', auditErr); }
+            }
         } catch (e) { console.error('Smart refresh error:', e); }
     }
 
@@ -9166,13 +9169,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
         if (type === 'addDocument') return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">📁 Carica Documento</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="saveDocument(event)"><div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="name" required></div><div class="form-group"><label class="form-label">Tipo</label><select class="form-select" name="type"><option value="contract">📋 Contratto</option><option value="id">🪪 Documento ID</option><option value="receipt">🧾 Ricevuta</option><option value="utility">💡 Utenza</option><option value="other">📄 Altro</option></select></div></div>${isAdmin() ? `<div class="form-group"><label class="form-label">Condividi con inquilino/proprietario</label><select class="form-select" name="shared"><option value="false">No - Solo io</option><option value="true">Sì - Condividi</option></select></div>` : ''}<div class="form-group"><label class="form-label">File</label><div class="file-zone" onclick="document.getElementById('fileInput').click()"><div class="file-zone-icon">📁</div><div class="file-zone-text">Clicca per selezionare</div></div><input type="file" id="fileInput" class="file-input" onchange="handleFile(this)"><div id="filePreview"></div></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Carica</button></div></div></div>`;
 
-        if (type === 'addUser') return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">👥 Nuovo Utente</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="saveUser(event)"><div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="name" required></div><div class="form-group"><label class="form-label">Email *</label><input type="email" class="form-input" name="email" required></div></div><div class="form-row"><div class="form-group"><label class="form-label">Ruolo</label><select class="form-select" name="role"><option value="tenant">🔘 Inquilino</option><option value="landlord">🏠 Proprietario</option><option value="admin">👁 Admin</option></select></div><div class="form-group"><label class="form-label">Password *</label><input type="password" class="form-input" name="password" required minlength="6"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Telefono</label><input type="tel" class="form-input" name="phone" placeholder="+39..."></div><div class="form-group"><label class="form-label">Codice Fiscale</label><input type="text" class="form-input" name="codiceFiscale" placeholder="RSSMRA85M01H501Z" maxlength="16" style="text-transform:uppercase"></div></div><div class="form-group"><label class="form-label">Indirizzo</label><input type="text" class="form-input" name="address" placeholder="Via Roma 123, 00100 Roma"></div><div class="form-row"><div class="form-group"><label class="form-label">Data di Nascita</label><input type="date" class="form-input" name="birthDate"></div><div class="form-group"><label class="form-label">Luogo di Nascita</label><input type="text" class="form-input" name="birthPlace" placeholder="Roma (RM)"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Tipo Documento</label><select class="form-select" name="idDocType"><option value="">—</option><option value="Carta d'identità">Carta d'identità</option><option value="Passaporto">Passaporto</option><option value="Patente">Patente</option><option value="Permesso di soggiorno">Permesso di soggiorno</option></select></div><div class="form-group"><label class="form-label">N° Documento</label><input type="text" class="form-input" name="idDocNumber" placeholder="CA12345AB"></div></div><div class="form-group"><label class="form-label">IBAN</label><input type="text" class="form-input" name="iban" placeholder="IT60X0542811101000000123456"></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes" rows="2" placeholder="Note interne..."></textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Crea</button></div></div></div>`;
+        if (type === 'addUser') return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">👥 Nuovo Utente</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="saveUser(event)"><div style="background:linear-gradient(135deg,rgba(212,175,55,0.10),rgba(212,175,55,0.03));border:1px solid rgba(212,175,55,0.3);border-radius:10px;padding:10px 14px;margin-bottom:14px"><div style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:var(--gold);margin-bottom:4px">📋 DATI PER CONTRATTI CAF</div><div style="font-size:11px;color:var(--text-muted);line-height:1.5">Compila Data/Luogo nascita, CF, indirizzo e (se inquilino) il documento. Sono obbligatori per generare contratti CAF-compliant.</div></div><div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="name" required></div><div class="form-group"><label class="form-label">Email *</label><input type="email" class="form-input" name="email" required></div></div><div class="form-row"><div class="form-group"><label class="form-label">Ruolo</label><select class="form-select" name="role"><option value="tenant">🔘 Inquilino</option><option value="landlord">🏠 Proprietario</option><option value="admin">👁 Admin</option></select></div><div class="form-group"><label class="form-label">Password *</label><input type="password" class="form-input" name="password" required minlength="6"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Telefono</label><input type="tel" class="form-input" name="phone" placeholder="+39..."></div><div class="form-group"><label class="form-label">Codice Fiscale</label><input type="text" class="form-input" name="codiceFiscale" placeholder="RSSMRA85M01H501Z" maxlength="16" style="text-transform:uppercase"></div></div><div class="form-group"><label class="form-label">Indirizzo</label><input type="text" class="form-input" name="address" placeholder="Via Roma 123, 00100 Roma"></div><div class="form-row"><div class="form-group"><label class="form-label">Data di Nascita</label><input type="date" class="form-input" name="birthDate"></div><div class="form-group"><label class="form-label">Luogo di Nascita</label><input type="text" class="form-input" name="birthPlace" placeholder="Roma (RM)"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Tipo Documento</label><select class="form-select" name="idDocType"><option value="">—</option><option value="Carta d'identità">Carta d'identità</option><option value="Passaporto">Passaporto</option><option value="Patente">Patente</option><option value="Permesso di soggiorno">Permesso di soggiorno</option></select></div><div class="form-group"><label class="form-label">N° Documento</label><input type="text" class="form-input" name="idDocNumber" placeholder="CA12345AB"></div></div><div class="form-group"><label class="form-label">IBAN</label><input type="text" class="form-input" name="iban" placeholder="IT60X0542811101000000123456"></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes" rows="2" placeholder="Note interne..."></textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Crea</button></div></div></div>`;
 
-        if (type === 'editUser') { const u = data; if (!u) return ''; return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">✏️ Modifica Utente</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="updateUser(event)"><input type="hidden" name="id" value="${u.id}"><div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="name" value="${u.name || ''}" required></div><div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" value="${u.email || ''}" disabled style="opacity:0.6"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Ruolo</label><select class="form-select" name="role"><option value="tenant" ${u.role === 'tenant' ? 'selected' : ''}>🔘 Inquilino</option><option value="landlord" ${u.role === 'landlord' ? 'selected' : ''}>🏠 Proprietario</option><option value="admin" ${u.role === 'admin' ? 'selected' : ''}>👁 Admin</option></select></div><div class="form-group"><label class="form-label">Telefono</label><input type="tel" class="form-input" name="phone" value="${u.phone || ''}" placeholder="+39..."></div></div><div class="form-row"><div class="form-group"><label class="form-label">Codice Fiscale</label><input type="text" class="form-input" name="codiceFiscale" value="${u.codiceFiscale || ''}" placeholder="RSSMRA85M01H501Z" maxlength="16" style="text-transform:uppercase"></div><div class="form-group"><label class="form-label">IBAN</label><input type="text" class="form-input" name="iban" value="${u.iban || ''}" placeholder="IT60X0542811101000000123456"></div></div><div class="form-group"><label class="form-label">Indirizzo</label><input type="text" class="form-input" name="address" value="${u.address || ''}" placeholder="Via Roma 123, 00100 Roma"></div><div class="form-row"><div class="form-group"><label class="form-label">Data di Nascita</label><input type="date" class="form-input" name="birthDate" value="${u.birthDate || ''}"></div><div class="form-group"><label class="form-label">Luogo di Nascita</label><input type="text" class="form-input" name="birthPlace" value="${u.birthPlace || ''}"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Tipo Documento</label><select class="form-select" name="idDocType"><option value="">—</option><option value="Carta d'identità" ${u.idDocType === "Carta d'identità" ? 'selected' : ''}>Carta d'identità</option><option value="Passaporto" ${u.idDocType === 'Passaporto' ? 'selected' : ''}>Passaporto</option><option value="Patente" ${u.idDocType === 'Patente' ? 'selected' : ''}>Patente</option><option value="Permesso di soggiorno" ${u.idDocType === 'Permesso di soggiorno' ? 'selected' : ''}>Permesso di soggiorno</option></select></div><div class="form-group"><label class="form-label">N° Documento</label><input type="text" class="form-input" name="idDocNumber" value="${u.idDocNumber || ''}"></div></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes" rows="2" placeholder="Note interne...">${u.notes || ''}</textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Salva</button></div></div></div>`; }
+        if (type === 'editUser') { const u = data; if (!u) return ''; return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">✏️ Modifica Utente</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="updateUser(event)"><input type="hidden" name="id" value="${u.id}">${(!u.birthDate || !u.birthPlace || !u.codiceFiscale) ? '<div style="background:rgba(245,166,35,0.12);border:1px solid rgba(245,166,35,0.4);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#f5a623">⚠️ Compila i dati anagrafici (data/luogo nascita, CF) per generare contratti CAF-compliant</div>' : ''}<div style="background:linear-gradient(135deg,rgba(212,175,55,0.10),rgba(212,175,55,0.03));border:1px solid rgba(212,175,55,0.3);border-radius:10px;padding:10px 14px;margin-bottom:14px"><div style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:var(--gold);margin-bottom:4px">📋 DATI PER CONTRATTI CAF</div><div style="font-size:11px;color:var(--text-muted);line-height:1.5">Questi dati sono obbligatori per generare contratti CAF-compliant. Inseriscili una volta sola.</div></div><div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="name" value="${u.name || ''}" required></div><div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" value="${u.email || ''}" disabled style="opacity:0.6"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Ruolo</label><select class="form-select" name="role"><option value="tenant" ${u.role === 'tenant' ? 'selected' : ''}>🔘 Inquilino</option><option value="landlord" ${u.role === 'landlord' ? 'selected' : ''}>🏠 Proprietario</option><option value="admin" ${u.role === 'admin' ? 'selected' : ''}>👁 Admin</option></select></div><div class="form-group"><label class="form-label">Telefono</label><input type="tel" class="form-input" name="phone" value="${u.phone || ''}" placeholder="+39..."></div></div><div class="form-row"><div class="form-group"><label class="form-label">Codice Fiscale</label><input type="text" class="form-input" name="codiceFiscale" value="${u.codiceFiscale || ''}" placeholder="RSSMRA85M01H501Z" maxlength="16" style="text-transform:uppercase"></div><div class="form-group"><label class="form-label">IBAN</label><input type="text" class="form-input" name="iban" value="${u.iban || ''}" placeholder="IT60X0542811101000000123456"></div></div><div class="form-group"><label class="form-label">Indirizzo</label><input type="text" class="form-input" name="address" value="${u.address || ''}" placeholder="Via Roma 123, 00100 Roma"></div><div class="form-row"><div class="form-group"><label class="form-label">Data di Nascita</label><input type="date" class="form-input" name="birthDate" value="${u.birthDate || ''}"></div><div class="form-group"><label class="form-label">Luogo di Nascita</label><input type="text" class="form-input" name="birthPlace" value="${u.birthPlace || ''}"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Tipo Documento</label><select class="form-select" name="idDocType"><option value="">—</option><option value="Carta d'identità" ${u.idDocType === "Carta d'identità" ? 'selected' : ''}>Carta d'identità</option><option value="Passaporto" ${u.idDocType === 'Passaporto' ? 'selected' : ''}>Passaporto</option><option value="Patente" ${u.idDocType === 'Patente' ? 'selected' : ''}>Patente</option><option value="Permesso di soggiorno" ${u.idDocType === 'Permesso di soggiorno' ? 'selected' : ''}>Permesso di soggiorno</option></select></div><div class="form-group"><label class="form-label">N° Documento</label><input type="text" class="form-input" name="idDocNumber" value="${u.idDocNumber || ''}"></div></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes" rows="2" placeholder="Note interne...">${u.notes || ''}</textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Salva</button></div></div></div>`; }
 
-        if (type === 'addProperty') { const landlords = S.users.filter(u => u.role === 'landlord'); return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">🏠 Nuovo Immobile</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body" style="max-height:70vh;overflow-y:auto"><form id="mForm" onsubmit="saveProperty(event)"><div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="name" required placeholder="Es: Trastevere Terrace"></div><div class="form-group"><label class="form-label">Proprietario *</label><select class="form-select" name="ownerId" required><option value="">Seleziona...</option>${landlords.map(l => `<option value="${l.id}">${l.name}</option>`).join('')}</select></div></div><div class="form-group"><label class="form-label">Indirizzo</label><input type="text" class="form-input" name="address" placeholder="Via Roma 123, 00100 Roma"></div><div class="form-row"><div class="form-group"><label class="form-label">Affitto €/mese *</label><input type="number" class="form-input" name="rent" required></div><div class="form-group"><label class="form-label">Superficie m²</label><input type="number" class="form-input" name="sqm" placeholder="65"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Stanze</label><input type="number" class="form-input" name="rooms" placeholder="3"></div><div class="form-group"><label class="form-label">Bagni</label><input type="number" class="form-input" name="bathrooms" placeholder="1"></div><div class="form-group"><label class="form-label">Piano</label><input type="text" class="form-input" name="floor" placeholder="3° / 5"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Anno Costruzione</label><input type="number" class="form-input" name="yearBuilt" placeholder="1965"></div><div class="form-group"><label class="form-label">Tipo</label><select class="form-select" name="propertyType"><option value="apartment">Appartamento</option><option value="studio">Monolocale</option><option value="room">Stanza</option><option value="house">Casa</option><option value="loft">Loft</option></select></div></div><div style="background:var(--bg);padding:12px;border-radius:8px;margin:12px 0"><div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--gold);margin-bottom:10px">📊 Disponibilità & Media</div><div class="form-row"><div class="form-group"><label class="form-label">Stato Disponibilità</label><select class="form-select" name="availabilityStatus"><option value="available">🟢 Disponibile</option><option value="negotiation">🟡 In Trattativa</option><option value="rented">🔴 Affittato</option><option value="off_market">⚫ Fuori Mercato</option></select></div><div class="form-group"><label class="form-label">Disponibile Dal</label><input type="date" class="form-input" name="availableSince" value="${new Date().toISOString().split('T')[0]}"></div></div><div class="form-group"><label class="form-label">📺 YouTube Video Tour</label><input type="url" class="form-input" name="youtubeUrl" placeholder="https://www.youtube.com/watch?v=..."></div></div><div style="background:var(--bg);padding:12px;border-radius:8px;margin:12px 0"><div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--gold);margin-bottom:10px">📋 Dati Contratto (opzionali)</div><div class="form-row"><div class="form-group"><label class="form-label">Scala</label><input type="text" class="form-input" name="scala" placeholder="A"></div><div class="form-group"><label class="form-label">Interno</label><input type="text" class="form-input" name="interno" placeholder="12"></div><div class="form-group"><label class="form-label">Ammobiliato</label><select class="form-select" name="furnished"><option value="">Non specificato</option><option value="true">Sì</option><option value="false">No</option></select></div></div><div class="form-group"><label class="form-label">Dati Catastali</label><input type="text" class="form-input" name="cadastralData" placeholder="Foglio 123, Part. 456, Sub. 7, Cat. A/2"></div><div class="form-group"><label class="form-label">Certificazione Energetica (APE)</label><input type="text" class="form-input" name="energyCert" placeholder="Classe C — prot. n. XXX"></div><div class="form-group"><label class="form-label">Conformità Impianti</label><input type="text" class="form-input" name="safetyImplants" placeholder="Conformi D.M. 37/2008"></div><div class="form-group"><label class="form-label">Accessori</label><input type="text" class="form-input" name="accessories" placeholder="cantina, posto auto, soffitta..."></div></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes" rows="2" placeholder="Caratteristiche, condizioni..."></textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Crea</button></div></div></div>`; }
+        if (type === 'addProperty') { const landlords = S.users.filter(u => u.role === 'landlord'); return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">🏠 Nuovo Immobile</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body" style="max-height:70vh;overflow-y:auto"><form id="mForm" onsubmit="saveProperty(event)"><div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="name" required placeholder="Es: Trastevere Terrace"></div><div class="form-group"><label class="form-label">Proprietario *</label><select class="form-select" name="ownerId" required><option value="">Seleziona...</option>${landlords.map(l => `<option value="${l.id}">${l.name}</option>`).join('')}</select></div></div><div class="form-group"><label class="form-label">Indirizzo</label><input type="text" class="form-input" name="address" placeholder="Via Roma 123, 00100 Roma"></div><div class="form-row"><div class="form-group"><label class="form-label">Affitto €/mese *</label><input type="number" class="form-input" name="rent" required></div><div class="form-group"><label class="form-label">Superficie m²</label><input type="number" class="form-input" name="sqm" placeholder="65"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Stanze</label><input type="number" class="form-input" name="rooms" placeholder="3"></div><div class="form-group"><label class="form-label">Bagni</label><input type="number" class="form-input" name="bathrooms" placeholder="1"></div><div class="form-group"><label class="form-label">Piano</label><input type="text" class="form-input" name="floor" placeholder="3° / 5"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Anno Costruzione</label><input type="number" class="form-input" name="yearBuilt" placeholder="1965"></div><div class="form-group"><label class="form-label">Tipo</label><select class="form-select" name="propertyType"><option value="apartment">Appartamento</option><option value="studio">Monolocale</option><option value="room">Stanza</option><option value="house">Casa</option><option value="loft">Loft</option></select></div></div><div style="background:var(--bg);padding:12px;border-radius:8px;margin:12px 0"><div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--gold);margin-bottom:10px">📊 Disponibilità & Media</div><div class="form-row"><div class="form-group"><label class="form-label">Stato Disponibilità</label><select class="form-select" name="availabilityStatus"><option value="available">🟢 Disponibile</option><option value="negotiation">🟡 In Trattativa</option><option value="rented">🔴 Affittato</option><option value="off_market">⚫ Fuori Mercato</option></select></div><div class="form-group"><label class="form-label">Disponibile Dal</label><input type="date" class="form-input" name="availableSince" value="${new Date().toISOString().split('T')[0]}"></div></div><div class="form-group"><label class="form-label">📺 YouTube Video Tour</label><input type="url" class="form-input" name="youtubeUrl" placeholder="https://www.youtube.com/watch?v=..."></div></div><div style="background:var(--bg);padding:12px;border-radius:8px;margin:12px 0"><div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--gold);margin-bottom:6px">📋 Dati Catastali e Tecnici (CAF)</div><div style="font-size:11px;color:var(--text-muted);margin-bottom:10px">Obbligatori per contratti CAF-compliant. Compilali una volta sola.</div><div class="form-row"><div class="form-group"><label class="form-label">Scala</label><input type="text" class="form-input" name="scala" placeholder="A"></div><div class="form-group"><label class="form-label">Interno</label><input type="text" class="form-input" name="interno" placeholder="12"></div><div class="form-group"><label class="form-label">Ammobiliato</label><select class="form-select" name="furnished"><option value="">Non specificato</option><option value="true">Sì</option><option value="false">No</option></select></div></div><div class="form-group"><label class="form-label">Dati Catastali</label><input type="text" class="form-input" name="cadastralData" placeholder="Foglio 123, Part. 456, Sub. 7, Cat. A/2"></div><div class="form-row"><div class="form-group"><label class="form-label">Classe Energetica</label><select class="form-select" name="energyClass"><option value="">—</option><option value="A4">A4</option><option value="A3">A3</option><option value="A2">A2</option><option value="A1">A1</option><option value="B">B</option><option value="C">C</option><option value="D">D</option><option value="E">E</option><option value="F">F</option><option value="G">G</option></select></div><div class="form-group"><label class="form-label">Certificazione APE (testo)</label><input type="text" class="form-input" name="energyCert" placeholder="prot. n. XXX"></div></div><div class="form-group"><label class="form-label">Conformità Impianti</label><input type="text" class="form-input" name="safetyImplants" placeholder="Dichiarazione di conformità ai sensi DM 37/08"></div><div class="form-group"><label class="form-label">Accessori</label><input type="text" class="form-input" name="accessories" placeholder="cantina, posto auto, soffitta..."></div></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes" rows="2" placeholder="Caratteristiche, condizioni..."></textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Crea</button></div></div></div>`; }
 
-        if (type === 'editProperty') { const p = data; if (!p) return ''; const landlords = S.users.filter(u => u.role === 'landlord'); const availDate = p.availableSince ? (typeof p.availableSince === 'string' ? p.availableSince.split('T')[0] : (p.availableSince.toDate ? p.availableSince.toDate().toISOString().split('T')[0] : '')) : ''; return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">✏️ Modifica Immobile</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body" style="max-height:70vh;overflow-y:auto"><form id="mForm" onsubmit="updateProperty(event,'${p.id}')"><div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="name" value="${p.name || ''}" required></div><div class="form-group"><label class="form-label">Proprietario *</label><select class="form-select" name="ownerId" required><option value="">Seleziona...</option>${landlords.map(l => `<option value="${l.id}" ${p.ownerId === l.id ? 'selected' : ''}>${l.name}</option>`).join('')}</select></div></div><div class="form-group"><label class="form-label">Indirizzo</label><input type="text" class="form-input" name="address" value="${p.address || ''}"></div><div class="form-row"><div class="form-group"><label class="form-label">Affitto €/mese *</label><input type="number" class="form-input" name="rent" value="${p.rent || ''}" required></div><div class="form-group"><label class="form-label">Superficie m²</label><input type="number" class="form-input" name="sqm" value="${p.sqm || ''}"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Stanze</label><input type="number" class="form-input" name="rooms" value="${p.rooms || ''}"></div><div class="form-group"><label class="form-label">Bagni</label><input type="number" class="form-input" name="bathrooms" value="${p.bathrooms || ''}"></div><div class="form-group"><label class="form-label">Piano</label><input type="text" class="form-input" name="floor" value="${p.floor || ''}"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Anno Costruzione</label><input type="number" class="form-input" name="yearBuilt" value="${p.yearBuilt || ''}"></div><div class="form-group"><label class="form-label">Tipo</label><select class="form-select" name="propertyType"><option value="apartment" ${p.propertyType === 'apartment' || !p.propertyType ? 'selected' : ''}>Appartamento</option><option value="studio" ${p.propertyType === 'studio' ? 'selected' : ''}>Monolocale</option><option value="room" ${p.propertyType === 'room' ? 'selected' : ''}>Stanza</option><option value="house" ${p.propertyType === 'house' ? 'selected' : ''}>Casa</option><option value="loft" ${p.propertyType === 'loft' ? 'selected' : ''}>Loft</option></select></div></div><div style="background:var(--bg);padding:12px;border-radius:8px;margin:12px 0"><div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--gold);margin-bottom:10px">📊 Disponibilità & Media</div><div class="form-row"><div class="form-group"><label class="form-label">Stato Disponibilità</label><select class="form-select" name="availabilityStatus"><option value="available" ${p.availabilityStatus === 'available' ? 'selected' : ''}>🟢 Disponibile</option><option value="negotiation" ${p.availabilityStatus === 'negotiation' ? 'selected' : ''}>🟡 In Trattativa</option><option value="rented" ${p.availabilityStatus === 'rented' ? 'selected' : ''}>🔴 Affittato</option><option value="off_market" ${p.availabilityStatus === 'off_market' ? 'selected' : ''}>⚫ Fuori Mercato</option></select></div><div class="form-group"><label class="form-label">Disponibile Dal</label><input type="date" class="form-input" name="availableSince" value="${availDate}"></div></div><div class="form-group"><label class="form-label">📺 YouTube Video Tour</label><input type="url" class="form-input" name="youtubeUrl" value="${p.youtubeUrl || ''}" placeholder="https://www.youtube.com/watch?v=..."></div></div><div style="background:var(--bg);padding:12px;border-radius:8px;margin:12px 0"><div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--gold);margin-bottom:10px">📋 Dati Contratto (opzionali)</div><div class="form-row"><div class="form-group"><label class="form-label">Scala</label><input type="text" class="form-input" name="scala" value="${p.scala || ''}"></div><div class="form-group"><label class="form-label">Interno</label><input type="text" class="form-input" name="interno" value="${p.interno || ''}"></div><div class="form-group"><label class="form-label">Ammobiliato</label><select class="form-select" name="furnished"><option value="">Non specificato</option><option value="true" ${p.furnished === true || p.furnished === 'true' ? 'selected' : ''}>Sì</option><option value="false" ${p.furnished === false || p.furnished === 'false' ? 'selected' : ''}>No</option></select></div></div><div class="form-group"><label class="form-label">Dati Catastali</label><input type="text" class="form-input" name="cadastralData" value="${p.cadastralData || ''}"></div><div class="form-group"><label class="form-label">Certificazione Energetica (APE)</label><input type="text" class="form-input" name="energyCert" value="${p.energyCert || ''}"></div><div class="form-group"><label class="form-label">Conformità Impianti</label><input type="text" class="form-input" name="safetyImplants" value="${p.safetyImplants || ''}"></div><div class="form-group"><label class="form-label">Accessori</label><input type="text" class="form-input" name="accessories" value="${p.accessories || ''}"></div></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes" rows="2">${p.notes || ''}</textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Salva</button></div></div></div>`; }
+        if (type === 'editProperty') { const p = data; if (!p) return ''; const landlords = S.users.filter(u => u.role === 'landlord'); const availDate = p.availableSince ? (typeof p.availableSince === 'string' ? p.availableSince.split('T')[0] : (p.availableSince.toDate ? p.availableSince.toDate().toISOString().split('T')[0] : '')) : ''; return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">✏️ Modifica Immobile</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body" style="max-height:70vh;overflow-y:auto"><form id="mForm" onsubmit="updateProperty(event,'${p.id}')"><div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="name" value="${p.name || ''}" required></div><div class="form-group"><label class="form-label">Proprietario *</label><select class="form-select" name="ownerId" required><option value="">Seleziona...</option>${landlords.map(l => `<option value="${l.id}" ${p.ownerId === l.id ? 'selected' : ''}>${l.name}</option>`).join('')}</select></div></div><div class="form-group"><label class="form-label">Indirizzo</label><input type="text" class="form-input" name="address" value="${p.address || ''}"></div><div class="form-row"><div class="form-group"><label class="form-label">Affitto €/mese *</label><input type="number" class="form-input" name="rent" value="${p.rent || ''}" required></div><div class="form-group"><label class="form-label">Superficie m²</label><input type="number" class="form-input" name="sqm" value="${p.sqm || ''}"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Stanze</label><input type="number" class="form-input" name="rooms" value="${p.rooms || ''}"></div><div class="form-group"><label class="form-label">Bagni</label><input type="number" class="form-input" name="bathrooms" value="${p.bathrooms || ''}"></div><div class="form-group"><label class="form-label">Piano</label><input type="text" class="form-input" name="floor" value="${p.floor || ''}"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Anno Costruzione</label><input type="number" class="form-input" name="yearBuilt" value="${p.yearBuilt || ''}"></div><div class="form-group"><label class="form-label">Tipo</label><select class="form-select" name="propertyType"><option value="apartment" ${p.propertyType === 'apartment' || !p.propertyType ? 'selected' : ''}>Appartamento</option><option value="studio" ${p.propertyType === 'studio' ? 'selected' : ''}>Monolocale</option><option value="room" ${p.propertyType === 'room' ? 'selected' : ''}>Stanza</option><option value="house" ${p.propertyType === 'house' ? 'selected' : ''}>Casa</option><option value="loft" ${p.propertyType === 'loft' ? 'selected' : ''}>Loft</option></select></div></div><div style="background:var(--bg);padding:12px;border-radius:8px;margin:12px 0"><div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--gold);margin-bottom:10px">📊 Disponibilità & Media</div><div class="form-row"><div class="form-group"><label class="form-label">Stato Disponibilità</label><select class="form-select" name="availabilityStatus"><option value="available" ${p.availabilityStatus === 'available' ? 'selected' : ''}>🟢 Disponibile</option><option value="negotiation" ${p.availabilityStatus === 'negotiation' ? 'selected' : ''}>🟡 In Trattativa</option><option value="rented" ${p.availabilityStatus === 'rented' ? 'selected' : ''}>🔴 Affittato</option><option value="off_market" ${p.availabilityStatus === 'off_market' ? 'selected' : ''}>⚫ Fuori Mercato</option></select></div><div class="form-group"><label class="form-label">Disponibile Dal</label><input type="date" class="form-input" name="availableSince" value="${availDate}"></div></div><div class="form-group"><label class="form-label">📺 YouTube Video Tour</label><input type="url" class="form-input" name="youtubeUrl" value="${p.youtubeUrl || ''}" placeholder="https://www.youtube.com/watch?v=..."></div></div>${(!p.cadastralData || (!p.energyClass && !p.energyCert)) ? '<div style="background:rgba(245,166,35,0.12);border:1px solid rgba(245,166,35,0.4);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#f5a623">⚠️ Compila Dati Catastali + Classe Energetica per contratti CAF-compliant</div>' : ''}<div style="background:var(--bg);padding:12px;border-radius:8px;margin:12px 0"><div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--gold);margin-bottom:6px">📋 Dati Catastali e Tecnici (CAF)</div><div style="font-size:11px;color:var(--text-muted);margin-bottom:10px">Obbligatori per contratti CAF-compliant.</div><div class="form-row"><div class="form-group"><label class="form-label">Scala</label><input type="text" class="form-input" name="scala" value="${p.scala || ''}"></div><div class="form-group"><label class="form-label">Interno</label><input type="text" class="form-input" name="interno" value="${p.interno || ''}"></div><div class="form-group"><label class="form-label">Ammobiliato</label><select class="form-select" name="furnished"><option value="">Non specificato</option><option value="true" ${p.furnished === true || p.furnished === 'true' ? 'selected' : ''}>Sì</option><option value="false" ${p.furnished === false || p.furnished === 'false' ? 'selected' : ''}>No</option></select></div></div><div class="form-group"><label class="form-label">Dati Catastali</label><input type="text" class="form-input" name="cadastralData" value="${p.cadastralData || ''}"></div><div class="form-row"><div class="form-group"><label class="form-label">Classe Energetica</label><select class="form-select" name="energyClass">${['','A4','A3','A2','A1','B','C','D','E','F','G'].map(cl => `<option value="${cl}" ${(p.energyClass||'') === cl ? 'selected' : ''}>${cl || '—'}</option>`).join('')}</select></div><div class="form-group"><label class="form-label">Certificazione APE (testo)</label><input type="text" class="form-input" name="energyCert" value="${p.energyCert || ''}"></div></div><div class="form-group"><label class="form-label">Conformità Impianti</label><input type="text" class="form-input" name="safetyImplants" value="${p.safetyImplants || ''}" placeholder="Dichiarazione di conformità ai sensi DM 37/08"></div><div class="form-group"><label class="form-label">Accessori</label><input type="text" class="form-input" name="accessories" value="${p.accessories || ''}"></div></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes" rows="2">${p.notes || ''}</textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Salva</button></div></div></div>`; }
 
         if (type === 'addContract') { const tenants = S.users.filter(u => u.role === 'tenant'); const props = S.properties.filter(p => !S.contracts.some(c => c.propertyId === p.id && c.status === 'active')); const landlords = S.users.filter(u => u.role === 'landlord'); return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">📋 Nuovo Contratto — BOOM Protocol</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body" style="max-height:72vh;overflow-y:auto"><form id="mForm" onsubmit="saveContract(event)">
 <!-- Step Indicator -->
@@ -9190,7 +9193,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 <div id="cPage1" style="display:none">
 <div class="form-row"><div class="form-group"><label class="form-label">Data Inizio *</label><input type="date" class="form-input" name="startDate" required onchange="calcContractDuration()"></div><div class="form-group"><label class="form-label">Data Fine *</label><input type="date" class="form-input" name="endDate" required onchange="calcContractDuration()"></div></div>
 <div id="cDurationInfo" style="font-size:12px;color:var(--text-muted);margin:-8px 0 12px;padding:8px 12px;background:var(--surface);border-radius:8px;display:none"></div>
-<div class="form-row"><div class="form-group"><label class="form-label">Affitto €/mese *</label><input type="number" class="form-input" name="rent" id="cRent" required></div><div class="form-group"><label class="form-label">Deposito €</label><input type="number" class="form-input" name="deposit" id="cDeposit"></div></div>
+<div class="form-row"><div class="form-group"><label class="form-label">Affitto €/mese *</label><input type="number" class="form-input" name="rent" id="cRent" required oninput="calcContractDuration()"></div><div class="form-group"><label class="form-label">Deposito €</label><input type="number" class="form-input" name="deposit" id="cDeposit"></div></div>
+<div class="form-row" id="cCanoneCalcRow"><div class="form-group"><label class="form-label">Canone Totale € <span style="font-size:10px;color:var(--text-muted)">(auto)</span></label><input type="number" class="form-input" name="canoneTotal" id="cCanoneTotal" readonly style="opacity:0.7"></div><div class="form-group"><label class="form-label">N° Rate <span style="font-size:10px;color:var(--text-muted)">(auto)</span></label><input type="number" class="form-input" name="canoneInstallments" id="cCanoneInstallments" readonly style="opacity:0.7"></div></div>
+<div style="margin:-4px 0 12px"><button type="button" class="btn btn-sm btn-secondary" id="cOverrideBtn" data-active="0" onclick="toggleCanoneOverride()" style="font-size:11px">🔓 Personalizza canone</button></div>
+<div id="cOverrideWarn" style="display:none;background:rgba(220,38,38,0.12);border:1px solid #ef4444;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#fca5a5">⚠️ Stai personalizzando il canone manualmente. Verifica che (canone totale ÷ numero rate = canone mensile) e che il numero di rate corrisponda alla durata. Una matematica sbagliata può causare problemi al CAF.</div>
 <div class="form-row"><div class="form-group"><label class="form-label">N° Mensilità Deposito</label><input type="number" class="form-input" name="depositMonths" value="3" min="1" max="3" onchange="calcDeposit()"></div><div class="form-group"><label class="form-label">Oneri Accessori €/mese</label><input type="number" class="form-input" name="accessoryCharges" placeholder="0"></div></div>
 <div class="form-row"><div class="form-group"><label class="form-label">Metodo Pagamento</label><select class="form-select" name="paymentMethod"><option value="bonifico bancario">Bonifico Bancario</option><option value="contanti">Contanti</option><option value="assegno">Assegno</option></select></div><div class="form-group"><label class="form-label">Giorno Pagamento</label><input type="number" class="form-input" name="paymentDay" value="5" readonly style="opacity:0.6" title="Sempre il 5 del mese"></div></div>
 <div style="display:flex;justify-content:space-between;margin-top:16px"><button type="button" class="btn btn-secondary" onclick="contractWizardNav(0)">← Indietro</button><button type="button" class="btn" onclick="contractWizardNav(2)">Avanti →</button></div>
@@ -9556,6 +9562,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 interno: data.interno || '',
                 furnished: data.furnished === 'true' ? true : data.furnished === 'false' ? false : null,
                 cadastralData: data.cadastralData || '',
+                energyClass: data.energyClass || '',
                 energyCert: data.energyCert || '',
                 safetyImplants: data.safetyImplants || '',
                 accessories: data.accessories || '',
@@ -9570,19 +9577,42 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     async function saveContract(e) {
         e.preventDefault();
         const data = Object.fromEntries(new FormData(e.target));
+        // Canone math validation (CRITICAL — Muky bug guard)
+        const _monthly = parseInt(data.rent) || 0;
+        const _total = parseInt(data.canoneTotal) || 0;
+        const _installments = parseInt(data.canoneInstallments) || 0;
+        if (_monthly > 0 && _total > 0 && _installments > 0) {
+            const expectedTotal = _monthly * _installments;
+            if (Math.abs(_total - expectedTotal) >= 0.01) {
+                alert('Il canone totale (€' + _total + ') non corrisponde a (canone mensile × numero rate = €' + expectedTotal + '). Correggi prima di salvare.');
+                return;
+            }
+        }
         try {
+            const _mb = (data.startDate && data.endDate) ? monthsBetween(data.startDate, data.endDate) : { text: '', months: 0 };
             const contractData = {
                 propertyId: data.propertyId, 
                 tenantId: data.tenantId,
                 type: data.type || 'transitorio',
                 startDate: data.startDate, 
                 endDate: data.endDate,
-                rent: parseInt(data.rent) || 0, 
+                rent: _monthly,
                 deposit: parseInt(data.deposit) || 0,
                 depositMonths: parseInt(data.depositMonths) || 3,
                 accessoryCharges: parseInt(data.accessoryCharges) || 0,
                 paymentMethod: data.paymentMethod || 'bonifico bancario',
                 paymentDay: parseInt(data.paymentDay) || 5,
+                // Structured canone (CAF-compliant) — used by PDF generator
+                canone: {
+                    monthly: _monthly,
+                    total: _total || (_monthly * (_installments || 12)),
+                    installments: _installments || 12,
+                    paymentDay: parseInt(data.paymentDay) || 5,
+                    paymentMethod: data.paymentMethod || 'bonifico bancario',
+                    cedolareSecca: (data.cedolareSecca || 'si') !== 'no',
+                    oneriMode: 'tabella_allegato_d'
+                },
+                durata: { text: _mb.text, startDate: data.startDate, endDate: data.endDate },
                 // Type-specific
                 transitionalReason: data.transitionalReason || '',
                 transitionalDocs: data.transitionalDocs || '',
@@ -9707,20 +9737,109 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         document.getElementById('cStudentiFields').style.display = type === 'studenti' ? 'block' : 'none';
     }
     
+    // ═══════════════════════════════════════════════════════════════════════
+    // ★ DURATA + CANONE — auto-calc from dates (Muky bug fix)
+    // ═══════════════════════════════════════════════════════════════════════
+    // monthsBetween(startDate, endDate) returns { months, days, total, text }
+    // Used by both contract form auto-calc and PDF generator durText fallback.
+    function monthsBetween(startDate, endDate) {
+        if (!startDate || !endDate) return { months: 0, days: 0, total: 0, text: '' };
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        if (isNaN(start) || isNaN(end) || end < start) return { months: 0, days: 0, total: 0, text: '' };
+        let months = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth());
+        let days = end.getDate() - start.getDate();
+        if (days < 0) {
+            months -= 1;
+            const lastMonth = new Date(end.getFullYear(), end.getMonth(), 0);
+            days += lastMonth.getDate();
+        }
+        const total = months + (days / 30);
+        let text = '';
+        if (months >= 12) {
+            const years = Math.floor(months / 12);
+            const remMonths = months % 12;
+            text = years + ' ' + (years === 1 ? 'anno' : 'anni');
+            if (remMonths) text += ' e ' + remMonths + ' mes' + (remMonths === 1 ? 'e' : 'i');
+            if (days) text += ' e ' + days + ' giorn' + (days === 1 ? 'o' : 'i');
+        } else if (months > 0) {
+            text = months + ' mes' + (months === 1 ? 'e' : 'i');
+            if (days) text += ' e ' + days + ' giorn' + (days === 1 ? 'o' : 'i');
+        } else {
+            text = days + ' giorn' + (days === 1 ? 'o' : 'i');
+        }
+        return { months: months, days: days, total: total, text: text };
+    }
+
     function calcContractDuration() {
         const s = document.querySelector('[name="startDate"]')?.value;
         const e = document.querySelector('[name="endDate"]')?.value;
+        const monthly = parseInt(document.getElementById('cRent')?.value) || 0;
         const info = document.getElementById('cDurationInfo');
-        if (s && e && info) {
-            const start = new Date(s), end = new Date(e);
-            const months = Math.round((end - start) / (1000*60*60*24*30));
-            const type = document.getElementById('cType')?.value;
-            const maxMonths = type === 'transitorio' ? 18 : 36;
-            const isOk = months > 0 && months <= maxMonths;
+        const overrideActive = document.getElementById('cOverrideBtn')?.dataset.active === '1';
+        if (!s || !e) return;
+        const mb = monthsBetween(s, e);
+        const type = document.getElementById('cType')?.value;
+        const maxMonths = type === 'transitorio' ? 18 : 36;
+        const isOk = mb.total > 0 && mb.months <= maxMonths;
+        const installments = Math.max(1, Math.ceil(mb.total));
+        const total = monthly * installments;
+        if (info) {
             info.style.display = 'block';
-            info.innerHTML = `<span style="color:${isOk?'var(--green)':'var(--red)'}">Durata: ${months} mesi</span>${!isOk ? ` <span style="color:var(--red)">(max ${maxMonths} per ${type})</span>` : ''}`;
+            info.innerHTML = '<span style="color:' + (isOk ? 'var(--green)' : 'var(--red)') + '">Durata: ' + mb.text + '</span>'
+                + (monthly > 0 ? ' &middot; <span style="color:var(--gold)">N° rate: ' + installments + '</span> &middot; <span style="color:var(--gold)">Totale: &euro;' + total.toLocaleString('it-IT') + '</span>' : '')
+                + (!isOk ? ' <span style="color:var(--red)">(max ' + maxMonths + ' per ' + type + ')</span>' : '');
+        }
+        if (!overrideActive) {
+            const tEl = document.getElementById('cCanoneTotal');
+            const iEl = document.getElementById('cCanoneInstallments');
+            if (tEl) tEl.value = total || '';
+            if (iEl) iEl.value = installments || '';
         }
     }
+
+    function toggleCanoneOverride() {
+        const btn = document.getElementById('cOverrideBtn');
+        const warn = document.getElementById('cOverrideWarn');
+        const tEl = document.getElementById('cCanoneTotal');
+        const iEl = document.getElementById('cCanoneInstallments');
+        if (!btn) return;
+        const active = btn.dataset.active === '1';
+        if (active) {
+            btn.dataset.active = '0';
+            btn.textContent = '🔓 Personalizza canone';
+            if (warn) warn.style.display = 'none';
+            if (tEl) { tEl.readOnly = true; tEl.style.opacity = '0.7'; }
+            if (iEl) { iEl.readOnly = true; iEl.style.opacity = '0.7'; }
+            calcContractDuration();
+        } else {
+            btn.dataset.active = '1';
+            btn.textContent = '🔒 Blocca (auto-calc)';
+            if (warn) warn.style.display = 'block';
+            if (tEl) { tEl.readOnly = false; tEl.style.opacity = '1'; }
+            if (iEl) { iEl.readOnly = false; iEl.style.opacity = '1'; }
+        }
+    }
+
+    // Audit existing contracts: log any with inconsistent canone math (admin only).
+    window.boomAuditCanone = function() {
+        if (!Array.isArray(S.contracts)) return [];
+        const issues = S.contracts.filter(function(c) {
+            const m = (c.canone && c.canone.monthly) || c.rent || 0;
+            const t = (c.canone && c.canone.total) || 0;
+            const i = (c.canone && c.canone.installments) || 0;
+            return m > 0 && t > 0 && i > 0 && Math.abs(t - m * i) >= 0.01;
+        });
+        if (issues.length) {
+            console.warn('[BOOM CAF audit] Contracts with inconsistent canone math (' + issues.length + '):');
+            issues.forEach(function(c) {
+                console.warn('  -', c.id, '| monthly=' + ((c.canone && c.canone.monthly) || c.rent), 'installments=' + (c.canone && c.canone.installments), 'total=' + (c.canone && c.canone.total), 'expected=' + (((c.canone && c.canone.monthly) || c.rent) * (c.canone && c.canone.installments)));
+            });
+        } else if (S.contracts.length) {
+            console.log('[BOOM CAF audit] All ' + S.contracts.length + ' contracts have consistent canone math.');
+        }
+        return issues;
+    };
     
     function calcDeposit() {
         const rent = parseInt(document.getElementById('cRent')?.value) || 0;
@@ -10034,6 +10153,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 interno: data.interno || '',
                 furnished: data.furnished === 'true' ? true : data.furnished === 'false' ? false : null,
                 cadastralData: data.cadastralData || '',
+                energyClass: data.energyClass || '',
                 energyCert: data.energyCert || '',
                 safetyImplants: data.safetyImplants || '',
                 accessories: data.accessories || '',
@@ -11386,29 +11506,24 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             }
 
             function addArticle(num, title, body) {
-                ensureSpace(20);
-                y += 4; // 12 pt before
+                ensureSpace(18);
+                y += 3;
                 doc.setFont('times', 'bold');
-                doc.setFontSize(12);
-                doc.text('Articolo ' + num, margin, y);
-                y += 5;
-                doc.setFont('times', 'bold');
-                doc.setFontSize(12);
-                doc.text('(' + title + ')', margin, y);
-                y += 6; // 6 pt after heading
+                doc.setFontSize(11);
+                doc.text('Articolo ' + num + ' \u2014 ' + title, margin, y);
+                y += 4;
                 doc.setFont('times', 'normal');
                 doc.setFontSize(11);
                 const lineH = ptToMm(11) * 1.15;
-                // Render paragraph by paragraph so blank lines (\n\n) survive splitTextToSize quirks.
                 const paragraphs = body.split('\n\n');
                 for (let pi = 0; pi < paragraphs.length; pi++) {
                     const lines = doc.splitTextToSize(paragraphs[pi], pw);
                     ensureSpace(lines.length * lineH);
                     doc.text(lines, margin, y, { align: 'justify', maxWidth: pw });
                     y += lines.length * lineH;
-                    if (pi < paragraphs.length - 1) y += lineH * 0.5; // inter-paragraph gap
+                    if (pi < paragraphs.length - 1) y += lineH * 0.5;
                 }
-                y += 3;
+                y += 2;
             }
 
             function formatCadastral(p) {
@@ -11463,6 +11578,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const tabAlt = tabFmt(tab.altre);
 
             const durText = (contract.durata && contract.durata.text)
+                            || (contract.startDate && contract.endDate ? monthsBetween(contract.startDate, contract.endDate).text : '')
                             || (contract.durationMonths ? contract.durationMonths + ' mesi' : dot);
             const durStart = (contract.durata && contract.durata.startDate) || contract.startDate;
             const durEnd   = (contract.durata && contract.durata.endDate)   || contract.endDate;
@@ -11633,25 +11749,26 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
             // --- First signature block ---
             const sig1Y = y;
-            const sigW = 70, sigH = 18;
+            const sigW = 60, sigH = 22;
             const rightX = pageW - margin - sigW;
             doc.setLineWidth(0.4);
             doc.setDrawColor(0);
             doc.line(margin, sig1Y, margin + sigW, sig1Y);
             doc.line(rightX, sig1Y, rightX + sigW, sig1Y);
             if (contract.landlordSignature) {
-                try { doc.addImage(contract.landlordSignature, 'PNG', margin, sig1Y - sigH, sigW - 5, sigH); } catch (e) {}
+                try { doc.addImage(contract.landlordSignature, 'PNG', margin, sig1Y - sigH + 4, sigW - 4, sigH); } catch (e) {}
             }
             if (contract.tenantSignature) {
-                try { doc.addImage(contract.tenantSignature, 'PNG', rightX, sig1Y - sigH, sigW - 5, sigH); } catch (e) {}
+                try { doc.addImage(contract.tenantSignature, 'PNG', rightX, sig1Y - sigH + 4, sigW - 4, sigH); } catch (e) {}
             }
+            doc.setFont('times', 'normal');
             doc.setFontSize(10);
             doc.text('Il Locatore: ' + locName, margin, sig1Y + 5);
             doc.text('Il Conduttore: ' + tenName, rightX, sig1Y + 5);
             y = sig1Y + 16;
 
             // --- 1341–1342 block ---
-            y += 8;
+            y += 14;
             ensureSpace(40);
             doc.setFont('times', 'normal');
             doc.setFontSize(10);
@@ -11660,7 +11777,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const art1341LineH = ptToMm(10) * 1.15;
             ensureSpace(art1341Lines.length * art1341LineH);
             doc.text(art1341Lines, margin, y, { align: 'justify', maxWidth: pw });
-            y += art1341Lines.length * art1341LineH + 14;
+            y += art1341Lines.length * art1341LineH + 16;
 
             // --- Second signature block ---
             ensureSpace(28);
@@ -11669,11 +11786,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             doc.line(margin, sig2Y, margin + sigW, sig2Y);
             doc.line(rightX, sig2Y, rightX + sigW, sig2Y);
             if (contract.landlordSignature) {
-                try { doc.addImage(contract.landlordSignature, 'PNG', margin, sig2Y - sigH, sigW - 5, sigH); } catch (e) {}
+                try { doc.addImage(contract.landlordSignature, 'PNG', margin, sig2Y - sigH + 4, sigW - 4, sigH); } catch (e) {}
             }
             if (contract.tenantSignature) {
-                try { doc.addImage(contract.tenantSignature, 'PNG', rightX, sig2Y - sigH, sigW - 5, sigH); } catch (e) {}
+                try { doc.addImage(contract.tenantSignature, 'PNG', rightX, sig2Y - sigH + 4, sigW - 4, sigH); } catch (e) {}
             }
+            doc.setFont('times', 'normal');
             doc.setFontSize(10);
             doc.text('Il Locatore: ' + locName, margin, sig2Y + 5);
             doc.text('Il Conduttore: ' + tenName, rightX, sig2Y + 5);
