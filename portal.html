@@ -1512,7 +1512,72 @@ Valentyne - BOOM Rome`
     // ★ MAGIC SIGN — DocuSign-like passwordless contract signing
     // ═══════════════════════════════════════════════════════════════════════
     let isMagicSign = false;
+    let isPostSign = false;
+
+    // Welcome banner — shown after a successful magic-link sign-in (?welcome=1&cid=...)
+    document.addEventListener('DOMContentLoaded', function() {
+        try {
+            const flag = new URLSearchParams(window.location.search).get('welcome');
+            if (flag !== '1') return;
+            const cid = new URLSearchParams(window.location.search).get('cid');
+            const banner = document.createElement('div');
+            banner.id = 'boomWelcomeBanner';
+            banner.style.cssText = 'position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:99999;max-width:560px;width:92%;background:linear-gradient(135deg,#08080A,#1a1a1a);color:#FFF;border:1px solid rgba(212,175,55,0.4);border-radius:14px;padding:14px 18px;box-shadow:0 12px 40px rgba(0,0,0,0.4);font-family:Helvetica Neue,Helvetica,-apple-system,sans-serif;font-weight:300;letter-spacing:0.2px;display:flex;align-items:center;gap:14px;transition:opacity .4s ease, transform .4s ease;opacity:0;transform:translate(-50%,-12px)';
+            banner.innerHTML = '<div style="font-size:24px">🎉</div>' +
+                '<div style="flex:1;font-size:13.5px;line-height:1.5"><strong style="font-weight:500;color:#D4AF37">Benvenuto.</strong> Il tuo contratto è firmato e attivo. Esplora la tua area: contratti, pagamenti, documenti, supporto.</div>' +
+                '<button type="button" onclick="document.getElementById(\'boomWelcomeBanner\')?.remove()" style="background:none;border:0;color:rgba(255,255,255,0.5);font-size:18px;cursor:pointer;padding:4px 8px;line-height:1">×</button>';
+            document.body.appendChild(banner);
+            requestAnimationFrame(function() { banner.style.opacity = '1'; banner.style.transform = 'translate(-50%,0)'; });
+            setTimeout(function() {
+                if (!banner.isConnected) return;
+                banner.style.opacity = '0';
+                banner.style.transform = 'translate(-50%,-12px)';
+                setTimeout(function() { banner.remove(); }, 500);
+            }, 10000);
+            // Clean the URL once shown so refresh doesn't re-trigger
+            try {
+                const cleanUrl = window.location.pathname + (cid ? '?postSignCid=' + encodeURIComponent(cid) : '');
+                history.replaceState(null, '', cleanUrl);
+            } catch (e) {}
+        } catch (e) { console.warn('[welcomeBanner]', e); }
+    });
     const magicSignToken = new URLSearchParams(window.location.search).get('sign');
+    const _bootURLParams = new URLSearchParams(window.location.search);
+    const _postSignMagicToken = _bootURLParams.get('magicToken');
+    const _postSignContractId = _bootURLParams.get('cid');
+    const _welcomeFlag = _bootURLParams.get('welcome');
+    const _welcomeContractId = _welcomeFlag ? _bootURLParams.get('cid') : null;
+    if (_postSignMagicToken) {
+        isPostSign = true;
+        (async function bootPostSign() {
+            try {
+                try { await auth.signInAnonymously(); } catch (anonErr) { console.warn('[postSign] anon auth:', anonErr); }
+                const tokenDoc = await db.collection('magicLinks').doc(_postSignMagicToken).get();
+                if (!tokenDoc.exists) throw new Error('Link non valido');
+                const tokenData = tokenDoc.data();
+                const expiresAt = tokenData.expiresAt;
+                const expMs = (expiresAt && typeof expiresAt.toMillis === 'function') ? expiresAt.toMillis() : Number(expiresAt) || 0;
+                if (expMs && expMs < Date.now()) throw new Error('Link scaduto');
+                if (tokenData.used) throw new Error('Link già utilizzato');
+                if (!tokenData.customToken) throw new Error('Token interno mancante');
+                // Sign in with the custom token (replaces the anonymous session)
+                await auth.signInWithCustomToken(tokenData.customToken);
+                // Mark the token used (rules enforce auth.uid === resource.data.uid)
+                await db.collection('magicLinks').doc(_postSignMagicToken).update({
+                    used: true,
+                    usedAt: firebase.firestore.FieldValue.serverTimestamp()
+                }).catch(function(e){ console.warn('[postSign] mark-used:', e); });
+                // Redirect cleanly with welcome banner trigger
+                const cid = tokenData.contractId || _postSignContractId || '';
+                window.location.replace('/portal.html?welcome=1' + (cid ? '&cid=' + encodeURIComponent(cid) : ''));
+            } catch (e) {
+                console.error('[postSign] failed:', e);
+                document.getElementById('loading')?.classList.add('hidden');
+                alert('Link non valido o scaduto: ' + (e.message || 'errore') + '\n\nContatta valentino@boom-rome.com per assistenza.');
+                window.location.replace('/portal.html');
+            }
+        })();
+    }
     
     if (magicSignToken) {
         isMagicSign = true;
@@ -2017,6 +2082,8 @@ Valentyne - BOOM Rome`
                     sendCAFEmail(contractId).catch(function(e){ console.warn('CAF email:', e); });
                     // (g) PROPPASS — generate tenant + landlord Apple Wallet passes
                     generateContractPasses(contractId).catch(function(e){ console.warn('PropPass:', e); });
+                    // (h) TENANT WELCOME — premium email with one-click magic link
+                    sendTenantWelcomeWithMagicLink(Object.assign({ id: contractId }, freshData)).catch(function(e){ console.warn('Tenant welcome:', e); });
                     // (3) TENANT AUTO-ACCOUNT
                     if (fullContract.tenantId) {
                         var tenDoc = await db.collection('users').doc(fullContract.tenantId).get();
@@ -2780,7 +2847,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     
     // Auth timeout - reduced for better UX
     let authTimeout = setTimeout(() => {
-        if (!authProcessed && !isMagicSign && !isIntakeForm) {
+        if (!authProcessed && !isMagicSign && !isIntakeForm && !isPostSign) {
             console.log('Auth timeout - no response');
             hideLoading();
             showAuth();
@@ -2789,6 +2856,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     
     auth.onAuthStateChanged(async u => {
         if (isMagicSign || isIntakeForm) return;
+        if (isPostSign) return; // postSign boot handler handles its own auth
         if (authProcessed && u) return;
         
         clearTimeout(authTimeout);
@@ -11385,10 +11453,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             // 2. Generate signed contract PDF and store reference
             const pdfGenerated = await generateContractPDF(contractId);
             
-            // 3. Send welcome email to tenant
+            // 3. Send premium welcome email with magic link (replaces legacy sendWelcomeEmail)
             let emailSent = false;
             if (tenant?.email) {
-                emailSent = await sendWelcomeEmail(tenant, contract, property);
+                // Ensure contract object has id for the magic-link API
+                emailSent = await sendTenantWelcomeWithMagicLink(Object.assign({ id: contractId }, contract));
             }
             
             // 3.5. Create document entry visible to tenant
@@ -12515,6 +12584,97 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         return emailSent;
     }
     
+    // Premium post-signature welcome email with one-click magic link.
+    // Calls /api/issue-magic-token to mint a Firebase custom-token URL, then sends
+    // a single branded email via EmailJS (boom_notification template).
+    async function sendTenantWelcomeWithMagicLink(contract) {
+        try {
+            // Resolve tenant + property + landlord with Firestore fallback (Magic Sign session
+            // has anonymous auth; S.users may be empty)
+            var tenant = (S.users || []).find(function(u) { return u.id === contract.tenantId; });
+            if (!tenant && contract.tenantId) {
+                try {
+                    var tDoc = await db.collection('users').doc(contract.tenantId).get();
+                    if (tDoc.exists) tenant = Object.assign({ id: contract.tenantId }, tDoc.data());
+                } catch (e) { console.warn('[Welcome] tenant fetch:', e); }
+            }
+            if (!tenant || !tenant.email) {
+                console.warn('[Welcome] No tenant email — skipping magic-link welcome', contract.id);
+                return false;
+            }
+
+            var property = (S.properties || []).find(function(p) { return p.id === contract.propertyId; });
+            if (!property && contract.propertyId) {
+                try {
+                    var pDoc = await db.collection('properties').doc(contract.propertyId).get();
+                    if (pDoc.exists) property = Object.assign({ id: contract.propertyId }, pDoc.data());
+                } catch (e) { console.warn('[Welcome] property fetch:', e); }
+            }
+
+            var landlord = property ? (S.users || []).find(function(u) { return u.id === property.ownerId; }) : null;
+            if (!landlord && property && property.ownerId) {
+                try {
+                    var lDoc = await db.collection('users').doc(property.ownerId).get();
+                    if (lDoc.exists) landlord = Object.assign({ id: property.ownerId }, lDoc.data());
+                } catch (e) { console.warn('[Welcome] landlord fetch:', e); }
+            }
+
+            // Issue the magic link (Vercel function, Admin SDK custom token under the hood)
+            var magicUrl = '';
+            try {
+                var resp = await fetch('/api/issue-magic-token', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contractId: contract.id })
+                });
+                if (resp.ok) {
+                    var data = await resp.json();
+                    magicUrl = data.magicUrl || '';
+                    console.log('[Welcome] Magic link issued for', contract.id);
+                } else {
+                    console.warn('[Welcome] Magic-link API returned', resp.status);
+                }
+            } catch (apiErr) {
+                console.error('[Welcome] Magic-link API failed:', apiErr);
+            }
+
+            // Fallback if magic-link issuance failed: plain portal link with email pre-filled
+            if (!magicUrl) {
+                magicUrl = window.location.origin + '/portal.html?email=' + encodeURIComponent(tenant.email);
+                console.warn('[Welcome] Falling back to plain portal link');
+            }
+
+            var firstName = (tenant.name || '').split(' ')[0] || 'tenant';
+            var pdfLink = contract.generatedPDF || '';
+            var pdfBlock = pdfLink
+                ? '\n\n📎 Contratto firmato (PDF): ' + pdfLink
+                : '';
+
+            console.log('[BOOM] Tenant magic-link email sending to', tenant.email);
+            var sent = await sendBoomEmail(EMAILJS_CONFIG.templates.notification, tenant.email, {
+                heading: 'Benvenuto in BOOM, ' + firstName,
+                subheading: 'Il tuo contratto è firmato e attivo',
+                name: firstName,
+                intro: 'Ciao ' + firstName + ', il contratto per ' + (property && property.address ? property.address : 'la tua nuova casa a ' + (property && property.city ? property.city : 'Roma')) + ' è stato firmato da entrambe le parti ed è ora attivo.',
+                card_title: 'IL TUO PORTAL',
+                card_color: '#D4AF37',
+                r1_icon: '🚀', r1_label: 'Accesso', r1_value: 'Un click, niente password — il link sotto ti logga direttamente.',
+                r2_icon: '📄', r2_label: 'Contratto firmato', r2_value: pdfLink ? 'PDF disponibile per CAF e archivio (link in fondo)' : 'In generazione, lo riceverai a breve',
+                r3_icon: '🏠', r3_label: 'Indirizzo', r3_value: (property && property.address) || '',
+                r4_icon: '👤', r4_label: 'Locatore', r4_value: (landlord && landlord.name) || '',
+                closing: 'Il link funziona una volta sola e scade tra 1 ora. Salva questa email.' + pdfBlock + '\n\nIn bocca al lupo per la tua nuova casa a ' + ((property && property.city) || 'Roma') + '.\n— Valentino, BOOM',
+                cta_text: '→ Entra nel tuo portal',
+                portal_link: magicUrl,
+                attachment_url: pdfLink
+            });
+            if (sent) console.log('[BOOM] Tenant magic-link email sent to', tenant.email);
+            return sent;
+        } catch (err) {
+            console.error('[Welcome] sendTenantWelcomeWithMagicLink failed:', err);
+            return false;
+        }
+    }
+
     async function sendWelcomeEmail(tenant, contract, property) {
         if (!tenant?.email) return false;
         var portalUrl = window.location.origin + window.location.pathname;
