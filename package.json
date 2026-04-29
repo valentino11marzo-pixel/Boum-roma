@@ -18,7 +18,6 @@
   },
   "homepage": "https://github.com/valentino11marzo-pixel/Boum-roma#readme",
   "dependencies": {
-    "firebase-admin": "^12.7.0",
     "passkit-generator": "^3.5.7",
     "stripe": "^22.0.2"
   }

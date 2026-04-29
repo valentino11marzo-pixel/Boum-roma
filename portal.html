@@ -1551,6 +1551,9 @@ Valentyne - BOOM Rome`
         isPostSign = true;
         (async function bootPostSign() {
             try {
+                // Anon auth: required for Firestore reads (rules expect request.auth != null).
+                // Stays as the auth state — onAuthStateChanged below detects the magic-link
+                // session via localStorage and renders the tenant view.
                 try { await auth.signInAnonymously(); } catch (anonErr) { console.warn('[postSign] anon auth:', anonErr); }
                 const tokenDoc = await db.collection('magicLinks').doc(_postSignMagicToken).get();
                 if (!tokenDoc.exists) throw new Error('Link non valido');
@@ -1559,14 +1562,22 @@ Valentyne - BOOM Rome`
                 const expMs = (expiresAt && typeof expiresAt.toMillis === 'function') ? expiresAt.toMillis() : Number(expiresAt) || 0;
                 if (expMs && expMs < Date.now()) throw new Error('Link scaduto');
                 if (tokenData.used) throw new Error('Link già utilizzato');
-                if (!tokenData.customToken) throw new Error('Token interno mancante');
-                // Sign in with the custom token (replaces the anonymous session)
-                await auth.signInWithCustomToken(tokenData.customToken);
-                // Mark the token used (rules enforce auth.uid === resource.data.uid)
+                if (!tokenData.tenantId) throw new Error('Token incompleto (manca tenantId)');
+                // Mark the token used (single-use enforcement — Firestore rules permit only this transition)
                 await db.collection('magicLinks').doc(_postSignMagicToken).update({
                     used: true,
                     usedAt: firebase.firestore.FieldValue.serverTimestamp()
                 }).catch(function(e){ console.warn('[postSign] mark-used:', e); });
+                // Save tenant session marker (read by onAuthStateChanged below)
+                try {
+                    localStorage.setItem('boomTenantSession', JSON.stringify({
+                        tenantId: tokenData.tenantId,
+                        contractId: tokenData.contractId || '',
+                        email: tokenData.tenantEmail || '',
+                        sessionStart: Date.now(),
+                        tokenId: _postSignMagicToken
+                    }));
+                } catch (lsErr) { console.warn('[postSign] localStorage write:', lsErr); }
                 // Redirect cleanly with welcome banner trigger
                 const cid = tokenData.contractId || _postSignContractId || '';
                 window.location.replace('/portal.html?welcome=1' + (cid ? '&cid=' + encodeURIComponent(cid) : ''));
@@ -2862,9 +2873,46 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         clearTimeout(authTimeout);
         console.log('Auth state changed:', u ? u.email : 'no user');
         
-        // Skip anonymous users (leftover from magic sign sessions)
+        // Anonymous user: could be (a) leftover from Magic Sign or (b) magic-link tenant session
         if (u && u.isAnonymous) {
-            console.log('Anonymous user detected, signing out...');
+            let tenantSession = null;
+            try {
+                const sessionRaw = localStorage.getItem('boomTenantSession');
+                if (sessionRaw) {
+                    const session = JSON.parse(sessionRaw);
+                    // 24h hard cap on the localStorage session (the Firestore token is already 1h single-use)
+                    if (session && session.tenantId && (Date.now() - session.sessionStart < 24 * 60 * 60 * 1000)) {
+                        tenantSession = session;
+                    } else {
+                        localStorage.removeItem('boomTenantSession');
+                    }
+                }
+            } catch (e) { console.warn('[Auth] tenantSession parse:', e); }
+
+            if (tenantSession) {
+                console.log('[Auth] Magic-link tenant session active for', tenantSession.tenantId);
+                authProcessed = true;
+                S.user = u;
+                try {
+                    const tDoc = await db.collection('users').doc(tenantSession.tenantId).get();
+                    if (tDoc.exists) {
+                        S.profile = Object.assign({ id: tenantSession.tenantId }, tDoc.data());
+                        if (!S.profile.role) S.profile.role = 'tenant';
+                        await loadData();
+                        showApp();
+                        startSessionCheck();
+                        setTimeout(() => readBoomBridge(), 800);
+                        return;
+                    } else {
+                        console.warn('[Auth] Tenant user doc missing — clearing session');
+                        localStorage.removeItem('boomTenantSession');
+                    }
+                } catch (e) {
+                    console.error('[Auth] Magic-link tenant load failed:', e);
+                    localStorage.removeItem('boomTenantSession');
+                }
+            }
+            console.log('Anonymous user (no tenant session) — signing out...');
             await auth.signOut();
             return;
         }
@@ -11944,7 +11992,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const pdfBlob = doc.output('blob');
 
             const pdfRef = firebase.storage().ref().child(`contracts/${contractId}/contract.pdf`);
-            await pdfRef.put(pdfBlob, { contentType: 'application/pdf' });
+            await pdfRef.put(pdfBlob, {
+                contentType: 'application/pdf',
+                contentDisposition: 'inline; filename="contract.pdf"',
+                cacheControl: 'public, max-age=3600'
+            });
             const pdfUrl = await pdfRef.getDownloadURL();
 
             await db.collection('contracts').doc(contractId).update({
@@ -12185,7 +12237,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             // Save to Firebase Storage; store URL in Firestore (1MB Firestore limit avoidance)
             const pdfBlob = doc.output('blob');
             const pdfRef = firebase.storage().ref().child(`contracts/${contractId}/contract.pdf`);
-            await pdfRef.put(pdfBlob, { contentType: 'application/pdf' });
+            await pdfRef.put(pdfBlob, {
+                contentType: 'application/pdf',
+                contentDisposition: 'inline; filename="contract.pdf"',
+                cacheControl: 'public, max-age=3600'
+            });
             const pdfUrl = await pdfRef.getDownloadURL();
 
             await db.collection('contracts').doc(contractId).update({
@@ -12585,8 +12641,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
     
     // Premium post-signature welcome email with one-click magic link.
-    // Calls /api/issue-magic-token to mint a Firebase custom-token URL, then sends
-    // a single branded email via EmailJS (boom_notification template).
+    // Pattern: Firestore-Only token (32+ chars unguessable, 1h expiry, single-use)
+    // → portal handler reads doc, marks used, saves localStorage tenant session,
+    //   redirects with anon Firebase Auth so client-side filters drive the view.
+    // No Admin SDK / no service account / no separate Vercel function required.
     async function sendTenantWelcomeWithMagicLink(contract) {
         try {
             // Resolve tenant + property + landlord with Firestore fallback (Magic Sign session
@@ -12619,26 +12677,29 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 } catch (e) { console.warn('[Welcome] landlord fetch:', e); }
             }
 
-            // Issue the magic link (Vercel function, Admin SDK custom token under the hood)
+            // Issue the magic link client-side (Firestore-Only pattern — no Admin SDK).
+            // Security: token unguessability (UUID v4) + 1h expiry + single-use enforcement.
+            // Trade-off vs custom-token: client-side filters drive view; Firestore Rules
+            // must allow anon reads of relevant collections (separate hardening session).
             var magicUrl = '';
             try {
-                var resp = await fetch('/api/issue-magic-token', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ contractId: contract.id })
+                var tokenId = (crypto.randomUUID ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2))).replace(/-/g, '');
+                var ttlMs = 60 * 60 * 1000; // 1h
+                await db.collection('magicLinks').doc(tokenId).set({
+                    contractId: contract.id,
+                    tenantEmail: tenant.email,
+                    tenantId: contract.tenantId,
+                    expiresAt: firebase.firestore.Timestamp.fromMillis(Date.now() + ttlMs),
+                    used: false,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
-                if (resp.ok) {
-                    var data = await resp.json();
-                    magicUrl = data.magicUrl || '';
-                    console.log('[Welcome] Magic link issued for', contract.id);
-                } else {
-                    console.warn('[Welcome] Magic-link API returned', resp.status);
-                }
-            } catch (apiErr) {
-                console.error('[Welcome] Magic-link API failed:', apiErr);
+                magicUrl = window.location.origin + '/portal.html?postSign=1&magicToken=' + tokenId;
+                console.log('[Welcome] Magic link issued for', contract.id, '→', tokenId);
+            } catch (genErr) {
+                console.error('[Welcome] Magic-link generation failed:', genErr);
             }
 
-            // Fallback if magic-link issuance failed: plain portal link with email pre-filled
+            // Fallback if Firestore write failed: plain portal link with email pre-filled
             if (!magicUrl) {
                 magicUrl = window.location.origin + '/portal.html?email=' + encodeURIComponent(tenant.email);
                 console.warn('[Welcome] Falling back to plain portal link');
@@ -12894,10 +12955,17 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         }
         if (!dataUri) return toast('error', 'PDF non disponibile');
 
-        // Mobile-friendly: HTTPS URLs (Firebase Storage) open natively in any browser.
-        // Safari mobile truncates blob: URLs to first page only — never use blob for HTTPS PDFs.
+        // HTTPS URLs (Firebase Storage): open directly on desktop + Android (native PDF viewer is fine).
+        // iOS Safari/iPadOS: built-in PDF mini-viewer renders only first page on multi-page docs —
+        // wrap with Google Docs viewer for reliable multi-page rendering.
         if (dataUri.startsWith('https://')) {
-            window.open(dataUri, '_blank');
+            const isIOS = /iPad|iPhone|iPod/i.test(navigator.userAgent) && !window.MSStream;
+            const isIPadOS = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+            if (isIOS || isIPadOS) {
+                window.open('https://docs.google.com/viewer?url=' + encodeURIComponent(dataUri) + '&embedded=false', '_blank');
+            } else {
+                window.open(dataUri, '_blank');
+            }
             return;
         }
         // Legacy base64 path — fall back to blob conversion
