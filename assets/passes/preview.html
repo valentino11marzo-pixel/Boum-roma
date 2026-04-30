@@ -2,141 +2,92 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>BOOM PropPass — Strip Preview</title>
+<title>BOOM PropPass V2 — Strip Preview</title>
 <style>
     body {
-        background: #0a0a0a;
-        color: #e8e8e8;
+        background: #0a0a0a; color: #e8e8e8;
         font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
-        font-weight: 300;
-        padding: 32px;
-        margin: 0;
+        font-weight: 300; padding: 32px; margin: 0;
     }
-    h1 {
-        color: #D4AF37;
-        font-weight: 300;
-        letter-spacing: 4px;
-        text-transform: uppercase;
-        font-size: 18px;
-        margin-bottom: 8px;
-    }
-    .lede {
-        color: #888;
-        font-size: 13px;
-        margin-bottom: 36px;
-        max-width: 640px;
-        line-height: 1.6;
-    }
-    .grid {
-        display: grid;
-        grid-template-columns: 1fr;
-        gap: 28px;
-        max-width: 800px;
-    }
-    .pass {
-        background: #141414;
-        border: 1px solid #222;
-        border-radius: 14px;
-        padding: 18px;
-    }
-    .pass h3 {
-        margin: 0 0 10px;
-        font-weight: 400;
-        font-size: 14px;
-        letter-spacing: 1.5px;
-        text-transform: uppercase;
-        color: #D4AF37;
-    }
-    .pass .desc {
-        font-size: 12px;
-        color: #999;
-        margin-bottom: 14px;
-        line-height: 1.5;
-    }
-    .strips {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-    }
-    .strip-row {
-        display: flex;
-        align-items: center;
-        gap: 14px;
-    }
-    .strip-row .label {
-        font-size: 10px;
-        color: #555;
-        letter-spacing: 1px;
-        text-transform: uppercase;
-        width: 38px;
-        flex-shrink: 0;
-    }
-    .strip-row img {
-        display: block;
-        border-radius: 4px;
-        max-width: 100%;
-        height: auto;
-    }
+    h1 { color: #D4AF37; font-weight: 300; letter-spacing: 4px;
+          text-transform: uppercase; font-size: 18px; margin-bottom: 8px; }
+    .lede { color: #888; font-size: 13px; margin-bottom: 36px; max-width: 680px; line-height: 1.6; }
+    .grid { display: grid; grid-template-columns: 1fr; gap: 28px; max-width: 820px; }
+    .pass { background: #141414; border: 1px solid #222; border-radius: 14px; padding: 18px; }
+    .pass h3 { margin: 0 0 4px; font-weight: 400; font-size: 16px;
+                letter-spacing: 1.2px; text-transform: uppercase; color: #D4AF37; }
+    .pass .atype { font-size: 11px; color: #888; letter-spacing: 1px; text-transform: lowercase; }
+    .pass .desc { font-size: 12px; color: #999; margin: 8px 0 14px; line-height: 1.5; }
+    .strips { display: flex; flex-direction: column; gap: 10px; }
+    .strip-row { display: flex; align-items: center; gap: 14px; }
+    .strip-row .label { font-size: 9.5px; color: #555; letter-spacing: 0.5px;
+                          text-transform: uppercase; width: 70px; flex-shrink: 0; line-height: 1.4; }
+    .strip-row img { display: block; border-radius: 4px; max-width: 100%; height: auto; }
     .strip-row.x1 img { width: 375px; }
-    .strip-row.x2 img { width: 375px; opacity: 0.6; }
-    .strip-row.x3 img { width: 375px; opacity: 0.4; }
-    .footnote {
-        margin-top: 40px;
-        font-size: 11px;
-        color: #444;
-        line-height: 1.6;
-        padding-top: 20px;
-        border-top: 1px solid #1f1f1f;
-    }
+    .strip-row.x2 img { width: 375px; opacity: 0.7; }
+    .strip-row.x3 img { width: 375px; opacity: 0.5; }
+    .footnote { margin-top: 40px; font-size: 11px; color: #444;
+                  line-height: 1.6; padding-top: 20px; border-top: 1px solid #1f1f1f; }
 </style>
 </head>
 <body>
-<h1>BOOM PropPass — Strip Preview</h1>
+<h1>BOOM PropPass V2 — Strip Preview</h1>
 <p class="lede">
-    Phase 1 deliverable: 4 procedural satin / brushed-metal strip images, one per pass type.
-    Strip is the dominant visual real estate on Wallet cards. Each variant is rendered at 1×, 2× and 3×
-    so you can spot artifacts on retina before Phase 2 wires them into <code>api/generate-pass.js</code>.
+    Phase 1.5 deliverable: 5 procedural brushed-metal strips, V3 algorithm.
+    Multi-octave noise + horizontal brush lines + asymmetric specular highlight + signature overlays.
+    Strip is the dominant visual real estate on Apple Wallet cards.
 </p>
 <div class="grid">
     <div class="pass">
-        <h3>Tenant</h3>
-        <div class="desc">Black BOOM card — subtle gold sheen left, brushed-metal feel. Speaks "this is your home, premium."</div>
+        <h3>Tenant <span class="atype">— storeCard</span></h3>
+        <div class="desc">Black BOOM card — concentric gold rings right side, brushed-metal sheen.</div>
         <div class="strips">
-            <div class="strip-row x1"><div class="label">1×</div><img src="tenant/strip.png" alt="Tenant 1x"></div>
-            <div class="strip-row x2"><div class="label">2×</div><img src="tenant/strip@2x.png" alt="Tenant 2x"></div>
-            <div class="strip-row x3"><div class="label">3×</div><img src="tenant/strip@3x.png" alt="Tenant 3x"></div>
+            <div class="strip-row x1"><div class="label">1×<br>375×144</div><img src="tenant/strip.png" alt="tenant 1x"></div>
+            <div class="strip-row x2"><div class="label">2×<br>750×288</div><img src="tenant/strip@2x.png" alt="tenant 2x"></div>
+            <div class="strip-row x3"><div class="label">3×<br>1125×432</div><img src="tenant/strip@3x.png" alt="tenant 3x"></div>
         </div>
     </div>
     <div class="pass">
-        <h3>Landlord — Gold Amex</h3>
-        <div class="desc">Warm gold to bronze diagonal, brighter highlight, more visible noise. The status card.</div>
+        <h3>Silver <span class="atype">— storeCard</span></h3>
+        <div class="desc">Silver brushed metal — VIP tier. Concentric silver rings echo the BOOM signature.</div>
         <div class="strips">
-            <div class="strip-row x1"><div class="label">1×</div><img src="landlord/strip.png" alt="Landlord 1x"></div>
-            <div class="strip-row x2"><div class="label">2×</div><img src="landlord/strip@2x.png" alt="Landlord 2x"></div>
-            <div class="strip-row x3"><div class="label">3×</div><img src="landlord/strip@3x.png" alt="Landlord 3x"></div>
+            <div class="strip-row x1"><div class="label">1×<br>375×144</div><img src="silver/strip.png" alt="silver 1x"></div>
+            <div class="strip-row x2"><div class="label">2×<br>750×288</div><img src="silver/strip@2x.png" alt="silver 2x"></div>
+            <div class="strip-row x3"><div class="label">3×<br>1125×432</div><img src="silver/strip@3x.png" alt="silver 3x"></div>
         </div>
     </div>
     <div class="pass">
-        <h3>Viewing — Event Ticket</h3>
-        <div class="desc">Black with stronger gold highlight + ghosted gold circle on the right (echoes BOOM spiral). Evokes a moment.</div>
+        <h3>Landlord <span class="atype">— storeCard</span></h3>
+        <div class="desc">Gold-Amex aesthetic — warm gold→bronze, brighter highlight, no overlay (the metal IS the signature).</div>
         <div class="strips">
-            <div class="strip-row x1"><div class="label">1×</div><img src="viewing/strip.png" alt="Viewing 1x"></div>
-            <div class="strip-row x2"><div class="label">2×</div><img src="viewing/strip@2x.png" alt="Viewing 2x"></div>
-            <div class="strip-row x3"><div class="label">3×</div><img src="viewing/strip@3x.png" alt="Viewing 3x"></div>
+            <div class="strip-row x1"><div class="label">1×<br>375×144</div><img src="landlord/strip.png" alt="landlord 1x"></div>
+            <div class="strip-row x2"><div class="label">2×<br>750×288</div><img src="landlord/strip@2x.png" alt="landlord 2x"></div>
+            <div class="strip-row x3"><div class="label">3×<br>1125×432</div><img src="landlord/strip@3x.png" alt="landlord 3x"></div>
         </div>
     </div>
     <div class="pass">
-        <h3>Referral</h3>
-        <div class="desc">Black-to-deep-green diagonal — subtle "money" cue without being on the nose. Gold sheen.</div>
+        <h3>Viewing <span class="atype">— eventTicket</span></h3>
+        <div class="desc">Black with stronger gold glow + 'emerging sun' (large + small concentric circle right). Evokes a moment.</div>
         <div class="strips">
-            <div class="strip-row x1"><div class="label">1×</div><img src="referral/strip.png" alt="Referral 1x"></div>
-            <div class="strip-row x2"><div class="label">2×</div><img src="referral/strip@2x.png" alt="Referral 2x"></div>
-            <div class="strip-row x3"><div class="label">3×</div><img src="referral/strip@3x.png" alt="Referral 3x"></div>
+            <div class="strip-row x1"><div class="label">1×<br>375×98</div><img src="viewing/strip.png" alt="viewing 1x"></div>
+            <div class="strip-row x2"><div class="label">2×<br>750×196</div><img src="viewing/strip@2x.png" alt="viewing 2x"></div>
+            <div class="strip-row x3"><div class="label">3×<br>1125×294</div><img src="viewing/strip@3x.png" alt="viewing 3x"></div>
+        </div>
+    </div>
+    <div class="pass">
+        <h3>Referral <span class="atype">— coupon</span></h3>
+        <div class="desc">Black with subtle gradient + warm gold wax-seal line + concentric dots bottom-right.</div>
+        <div class="strips">
+            <div class="strip-row x1"><div class="label">1×<br>375×144</div><img src="referral/strip.png" alt="referral 1x"></div>
+            <div class="strip-row x2"><div class="label">2×<br>750×288</div><img src="referral/strip@2x.png" alt="referral 2x"></div>
+            <div class="strip-row x3"><div class="label">3×<br>1125×432</div><img src="referral/strip@3x.png" alt="referral 3x"></div>
         </div>
     </div>
 </div>
 <p class="footnote">
-    Generated by <code>scripts/generate-pass-assets.py</code>. Re-run any time to regenerate with seed=42 (deterministic). Strip dim: 375×123 (1×) — non-standard for Apple Wallet which uses 375×144 (storeCard) or 375×98 (eventTicket). Verify on a real device before Phase 2 deploy.
+    Generated by <code>scripts/generate-pass-assets.py</code> (V3 aggressive brushed metal).
+    storeCard / coupon strips: 375×144. eventTicket strip: 375×98.
+    Re-run any time — seeded deterministic.
 </p>
 </body>
 </html>

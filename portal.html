@@ -5290,6 +5290,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // ═══════════════════════════════════════════════════════════════════════════
 
     // ─── VIEWINGS PAGE ────────────────────────────────────────────────────────
+    function viewingsPage_addCheckInButton() { /* anchor for check-in modal injection — see openCheckInScan */ }
     function viewingsPage() {
         const all = (S.viewingRequests || []);
         const pending = all.filter(v => v.status === 'pending');
@@ -5332,6 +5333,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <button class="btn btn-sm" onclick="confirmViewingModal('${v.id}')" style="background:var(--gold);color:#000;font-size:11px;padding:5px 12px">✓ Confirm</button>`;
             if (v.status === 'confirmed') return `
                 <button class="btn btn-sm" onclick="generateViewingPass('${v.id}')" style="background:#000;color:#fff;font-size:11px;padding:5px 12px;border:1px solid rgba(255,255,255,.2)"> Send Pass</button>${v.passSent ? ' <span class="badge green" style="font-size:9px">Pass ✓</span>' : ''}`;
+                if (v.passSent && v.passSentUrl && (v.clientPhone || v.phone)) {
+                    actions += ` <button class="btn btn-sm btn-secondary" onclick="(function(){var u=buildBoomWaLink('${(v.clientPhone || v.phone || '').replace(/'/g, '')}', 'viewing', { clientName: '${(v.clientName || '').replace(/'/g, '')}', confirmedDate: '${v.confirmedDate || ''}', confirmedTime: '${v.confirmedTime || ''}', passUrl: '${v.passSentUrl}' });if(u)window.open(u,'_blank');})()" style="font-size:11px;padding:5px 12px">💬 WA</button>`;
+                }
+                if ((v.status === 'completed' || v.status === 'confirmed') && !v.linkedContractId) {
+                    actions += ` <button class="btn btn-sm" onclick="createContractFromViewing('${v.id}')" style="background:var(--gold);color:#000;font-size:11px;padding:5px 12px">📝 Contratto</button>`;
+                }
             return '';
         }
 
@@ -5342,6 +5349,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <p class="page-subtitle">Viewing requests from boomrome.com/book</p>
             </div>
             <div class="page-actions">
+                <button class="btn btn-secondary" style="font-size:12px" onclick="openCheckInScan()">📷 Check-in QR</button>
                 <a href="https://www.boomrome.com/book" target="_blank" class="btn btn-secondary" style="font-size:12px">🔗 Book Link</a>
             </div>
         </div>
@@ -5504,8 +5512,20 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 cta_text: 'Google Calendar →',
                 portal_link: gcalLink
             });
+            // V2: auto-generate viewing pass with native features (no manual click)
+            try {
+                var freshV = Object.assign({}, v, { confirmedDate: date, confirmedTime: time, status: 'confirmed' });
+                // Update local cache so generateViewingPass sees the confirmed times
+                var idx = (S.viewingRequests || []).findIndex(function(x) { return x.id === id; });
+                if (idx >= 0) S.viewingRequests[idx] = Object.assign({}, S.viewingRequests[idx], { confirmedDate: date, confirmedTime: time, status: 'confirmed' });
+                await generateViewingPass(id);
+                console.log('[Viewing] Pass V2 auto-generated on confirm');
+            } catch (passErr) { console.warn('[Viewing] auto-pass failed:', passErr); }
+            // V2: structured admin notification
+            try { await sendAdminViewingNotification('confirmed', Object.assign({}, v, { confirmedDate: date, confirmedTime: time, status: 'confirmed' })); }
+            catch (notifyErr) { console.warn('[admin-notify confirmed]', notifyErr); }
             closeModal();
-            toast('success', '✅ Confirmed — client notified');
+            toast('success', '✅ Confirmed — client notified + pass generated');
             await refreshViewings();
         } catch(e) { console.error(e); toast('error', 'Error: ' + e.message); }
     }
@@ -9288,7 +9308,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
         if (type === 'addUser') return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">👥 Nuovo Utente</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="saveUser(event)"><div style="background:linear-gradient(135deg,rgba(212,175,55,0.10),rgba(212,175,55,0.03));border:1px solid rgba(212,175,55,0.3);border-radius:10px;padding:10px 14px;margin-bottom:14px"><div style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:var(--gold);margin-bottom:4px">📋 DATI PER CONTRATTI CAF</div><div style="font-size:11px;color:var(--text-muted);line-height:1.5">Compila Data/Luogo nascita, CF, indirizzo e (se inquilino) il documento. Sono obbligatori per generare contratti CAF-compliant.</div></div><div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="name" required></div><div class="form-group"><label class="form-label">Email *</label><input type="email" class="form-input" name="email" required></div></div><div class="form-row"><div class="form-group"><label class="form-label">Ruolo</label><select class="form-select" name="role"><option value="tenant">🔘 Inquilino</option><option value="landlord">🏠 Proprietario</option><option value="admin">👁 Admin</option></select></div><div class="form-group"><label class="form-label">Password *</label><input type="password" class="form-input" name="password" required minlength="6"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Telefono</label><input type="tel" class="form-input" name="phone" placeholder="+39..."></div><div class="form-group"><label class="form-label">Codice Fiscale</label><input type="text" class="form-input" name="codiceFiscale" placeholder="RSSMRA85M01H501Z" maxlength="16" style="text-transform:uppercase"></div></div><div class="form-group"><label class="form-label">Indirizzo</label><input type="text" class="form-input" name="address" placeholder="Via Roma 123, 00100 Roma"></div><div class="form-row"><div class="form-group"><label class="form-label">Data di Nascita</label><input type="date" class="form-input" name="birthDate"></div><div class="form-group"><label class="form-label">Luogo di Nascita</label><input type="text" class="form-input" name="birthPlace" placeholder="Roma (RM)"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Tipo Documento</label><select class="form-select" name="idDocType"><option value="">—</option><option value="Carta d'identità">Carta d'identità</option><option value="Passaporto">Passaporto</option><option value="Patente">Patente</option><option value="Permesso di soggiorno">Permesso di soggiorno</option></select></div><div class="form-group"><label class="form-label">N° Documento</label><input type="text" class="form-input" name="idDocNumber" placeholder="CA12345AB"></div></div><div class="form-group"><label class="form-label">IBAN</label><input type="text" class="form-input" name="iban" placeholder="IT60X0542811101000000123456"></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes" rows="2" placeholder="Note interne..."></textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Crea</button></div></div></div>`;
 
-        if (type === 'editUser') { const u = data; if (!u) return ''; return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">✏️ Modifica Utente</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="updateUser(event)"><input type="hidden" name="id" value="${u.id}">${(!u.birthDate || !u.birthPlace || !u.codiceFiscale) ? '<div style="background:rgba(245,166,35,0.12);border:1px solid rgba(245,166,35,0.4);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#f5a623">⚠️ Compila i dati anagrafici (data/luogo nascita, CF) per generare contratti CAF-compliant</div>' : ''}<div style="background:linear-gradient(135deg,rgba(212,175,55,0.10),rgba(212,175,55,0.03));border:1px solid rgba(212,175,55,0.3);border-radius:10px;padding:10px 14px;margin-bottom:14px"><div style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:var(--gold);margin-bottom:4px">📋 DATI PER CONTRATTI CAF</div><div style="font-size:11px;color:var(--text-muted);line-height:1.5">Questi dati sono obbligatori per generare contratti CAF-compliant. Inseriscili una volta sola.</div></div><div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="name" value="${u.name || ''}" required></div><div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" value="${u.email || ''}" disabled style="opacity:0.6"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Ruolo</label><select class="form-select" name="role"><option value="tenant" ${u.role === 'tenant' ? 'selected' : ''}>🔘 Inquilino</option><option value="landlord" ${u.role === 'landlord' ? 'selected' : ''}>🏠 Proprietario</option><option value="admin" ${u.role === 'admin' ? 'selected' : ''}>👁 Admin</option></select></div><div class="form-group"><label class="form-label">Telefono</label><input type="tel" class="form-input" name="phone" value="${u.phone || ''}" placeholder="+39..."></div></div><div class="form-row"><div class="form-group"><label class="form-label">Codice Fiscale</label><input type="text" class="form-input" name="codiceFiscale" value="${u.codiceFiscale || ''}" placeholder="RSSMRA85M01H501Z" maxlength="16" style="text-transform:uppercase"></div><div class="form-group"><label class="form-label">IBAN</label><input type="text" class="form-input" name="iban" value="${u.iban || ''}" placeholder="IT60X0542811101000000123456"></div></div><div class="form-group"><label class="form-label">Indirizzo</label><input type="text" class="form-input" name="address" value="${u.address || ''}" placeholder="Via Roma 123, 00100 Roma"></div><div class="form-row"><div class="form-group"><label class="form-label">Data di Nascita</label><input type="date" class="form-input" name="birthDate" value="${u.birthDate || ''}"></div><div class="form-group"><label class="form-label">Luogo di Nascita</label><input type="text" class="form-input" name="birthPlace" value="${u.birthPlace || ''}"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Tipo Documento</label><select class="form-select" name="idDocType"><option value="">—</option><option value="Carta d'identità" ${u.idDocType === "Carta d'identità" ? 'selected' : ''}>Carta d'identità</option><option value="Passaporto" ${u.idDocType === 'Passaporto' ? 'selected' : ''}>Passaporto</option><option value="Patente" ${u.idDocType === 'Patente' ? 'selected' : ''}>Patente</option><option value="Permesso di soggiorno" ${u.idDocType === 'Permesso di soggiorno' ? 'selected' : ''}>Permesso di soggiorno</option></select></div><div class="form-group"><label class="form-label">N° Documento</label><input type="text" class="form-input" name="idDocNumber" value="${u.idDocNumber || ''}"></div></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes" rows="2" placeholder="Note interne...">${u.notes || ''}</textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Salva</button></div></div></div>`; }
+        if (type === 'editUser') { const u = data; if (!u) return ''; return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">✏️ Modifica Utente</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="updateUser(event)">${u.role === 'tenant' ? `<div style="background:linear-gradient(135deg,rgba(170,170,175,0.10),rgba(170,170,175,0.04));border:1px solid rgba(170,170,175,0.4);border-radius:10px;padding:10px 14px;margin-bottom:12px"><label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px"><input type="checkbox" name="isPremium" ${u.isPremium ? 'checked' : ''} style="width:18px;height:18px"><span><strong style="color:#C5C5C8">⭐ Premium VIP (Silver Card)</strong><br><span style="font-size:11px;color:var(--text-muted)">Genera pass Apple Wallet con design Silver invece di Tenant Black</span></span></label></div>` : ''}<input type="hidden" name="id" value="${u.id}">${(!u.birthDate || !u.birthPlace || !u.codiceFiscale) ? '<div style="background:rgba(245,166,35,0.12);border:1px solid rgba(245,166,35,0.4);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#f5a623">⚠️ Compila i dati anagrafici (data/luogo nascita, CF) per generare contratti CAF-compliant</div>' : ''}<div style="background:linear-gradient(135deg,rgba(212,175,55,0.10),rgba(212,175,55,0.03));border:1px solid rgba(212,175,55,0.3);border-radius:10px;padding:10px 14px;margin-bottom:14px"><div style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:var(--gold);margin-bottom:4px">📋 DATI PER CONTRATTI CAF</div><div style="font-size:11px;color:var(--text-muted);line-height:1.5">Questi dati sono obbligatori per generare contratti CAF-compliant. Inseriscili una volta sola.</div></div><div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="name" value="${u.name || ''}" required></div><div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" value="${u.email || ''}" disabled style="opacity:0.6"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Ruolo</label><select class="form-select" name="role"><option value="tenant" ${u.role === 'tenant' ? 'selected' : ''}>🔘 Inquilino</option><option value="landlord" ${u.role === 'landlord' ? 'selected' : ''}>🏠 Proprietario</option><option value="admin" ${u.role === 'admin' ? 'selected' : ''}>👁 Admin</option></select></div><div class="form-group"><label class="form-label">Telefono</label><input type="tel" class="form-input" name="phone" value="${u.phone || ''}" placeholder="+39..."></div></div><div class="form-row"><div class="form-group"><label class="form-label">Codice Fiscale</label><input type="text" class="form-input" name="codiceFiscale" value="${u.codiceFiscale || ''}" placeholder="RSSMRA85M01H501Z" maxlength="16" style="text-transform:uppercase"></div><div class="form-group"><label class="form-label">IBAN</label><input type="text" class="form-input" name="iban" value="${u.iban || ''}" placeholder="IT60X0542811101000000123456"></div></div><div class="form-group"><label class="form-label">Indirizzo</label><input type="text" class="form-input" name="address" value="${u.address || ''}" placeholder="Via Roma 123, 00100 Roma"></div><div class="form-row"><div class="form-group"><label class="form-label">Data di Nascita</label><input type="date" class="form-input" name="birthDate" value="${u.birthDate || ''}"></div><div class="form-group"><label class="form-label">Luogo di Nascita</label><input type="text" class="form-input" name="birthPlace" value="${u.birthPlace || ''}"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Tipo Documento</label><select class="form-select" name="idDocType"><option value="">—</option><option value="Carta d'identità" ${u.idDocType === "Carta d'identità" ? 'selected' : ''}>Carta d'identità</option><option value="Passaporto" ${u.idDocType === 'Passaporto' ? 'selected' : ''}>Passaporto</option><option value="Patente" ${u.idDocType === 'Patente' ? 'selected' : ''}>Patente</option><option value="Permesso di soggiorno" ${u.idDocType === 'Permesso di soggiorno' ? 'selected' : ''}>Permesso di soggiorno</option></select></div><div class="form-group"><label class="form-label">N° Documento</label><input type="text" class="form-input" name="idDocNumber" value="${u.idDocNumber || ''}"></div></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes" rows="2" placeholder="Note interne...">${u.notes || ''}</textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Salva</button></div></div></div>`; }
 
         if (type === 'addProperty') { const landlords = S.users.filter(u => u.role === 'landlord'); return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">🏠 Nuovo Immobile</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body" style="max-height:70vh;overflow-y:auto"><form id="mForm" onsubmit="saveProperty(event)"><div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="name" required placeholder="Es: Trastevere Terrace"></div><div class="form-group"><label class="form-label">Proprietario *</label><select class="form-select" name="ownerId" required><option value="">Seleziona...</option>${landlords.map(l => `<option value="${l.id}">${l.name}</option>`).join('')}</select></div></div><div class="form-group"><label class="form-label">Indirizzo</label><input type="text" class="form-input" name="address" placeholder="Via Roma 123, 00100 Roma"></div><div class="form-row"><div class="form-group"><label class="form-label">Affitto €/mese *</label><input type="number" class="form-input" name="rent" required></div><div class="form-group"><label class="form-label">Superficie m²</label><input type="number" class="form-input" name="sqm" placeholder="65"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Stanze</label><input type="number" class="form-input" name="rooms" placeholder="3"></div><div class="form-group"><label class="form-label">Bagni</label><input type="number" class="form-input" name="bathrooms" placeholder="1"></div><div class="form-group"><label class="form-label">Piano</label><input type="text" class="form-input" name="floor" placeholder="3° / 5"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Anno Costruzione</label><input type="number" class="form-input" name="yearBuilt" placeholder="1965"></div><div class="form-group"><label class="form-label">Tipo</label><select class="form-select" name="propertyType"><option value="apartment">Appartamento</option><option value="studio">Monolocale</option><option value="room">Stanza</option><option value="house">Casa</option><option value="loft">Loft</option></select></div></div><div style="background:var(--bg);padding:12px;border-radius:8px;margin:12px 0"><div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--gold);margin-bottom:10px">📊 Disponibilità & Media</div><div class="form-row"><div class="form-group"><label class="form-label">Stato Disponibilità</label><select class="form-select" name="availabilityStatus"><option value="available">🟢 Disponibile</option><option value="negotiation">🟡 In Trattativa</option><option value="rented">🔴 Affittato</option><option value="off_market">⚫ Fuori Mercato</option></select></div><div class="form-group"><label class="form-label">Disponibile Dal</label><input type="date" class="form-input" name="availableSince" value="${new Date().toISOString().split('T')[0]}"></div></div><div class="form-group"><label class="form-label">📺 YouTube Video Tour</label><input type="url" class="form-input" name="youtubeUrl" placeholder="https://www.youtube.com/watch?v=..."></div></div><div style="background:var(--bg);padding:12px;border-radius:8px;margin:12px 0"><div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--gold);margin-bottom:6px">📋 Dati Catastali e Tecnici (CAF)</div><div style="font-size:11px;color:var(--text-muted);margin-bottom:10px">Obbligatori per contratti CAF-compliant. Compilali una volta sola.</div><div class="form-row"><div class="form-group"><label class="form-label">Scala</label><input type="text" class="form-input" name="scala" placeholder="A"></div><div class="form-group"><label class="form-label">Interno</label><input type="text" class="form-input" name="interno" placeholder="12"></div><div class="form-group"><label class="form-label">Ammobiliato</label><select class="form-select" name="furnished"><option value="">Non specificato</option><option value="true">Sì</option><option value="false">No</option></select></div></div><div class="form-group"><label class="form-label">Dati Catastali</label><input type="text" class="form-input" name="cadastralData" placeholder="Foglio 123, Part. 456, Sub. 7, Cat. A/2"></div><div class="form-row"><div class="form-group"><label class="form-label">Classe Energetica</label><select class="form-select" name="energyClass"><option value="">—</option><option value="A4">A4</option><option value="A3">A3</option><option value="A2">A2</option><option value="A1">A1</option><option value="B">B</option><option value="C">C</option><option value="D">D</option><option value="E">E</option><option value="F">F</option><option value="G">G</option></select></div><div class="form-group"><label class="form-label">Certificazione APE (testo)</label><input type="text" class="form-input" name="energyCert" placeholder="prot. n. XXX"></div></div><div class="form-group"><label class="form-label">Conformità Impianti</label><input type="text" class="form-input" name="safetyImplants" placeholder="Dichiarazione di conformità ai sensi DM 37/08"></div><div class="form-group"><label class="form-label">Accessori</label><input type="text" class="form-input" name="accessories" placeholder="cantina, posto auto, soffitta..."></div></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes" rows="2" placeholder="Caratteristiche, condizioni..."></textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').dispatchEvent(new Event('submit'))">Crea</button></div></div></div>`; }
 
@@ -9650,6 +9670,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 iban: data.iban?.toUpperCase() || '',
                 notes: data.notes || '',
                 role: data.role,
+                isPremium: !!data.isPremium,
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()
             });
             closeModal(); await refreshOnly('users'); toast('success', 'Utente aggiornato!', data.name);
@@ -12454,7 +12475,106 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // ═══════════════════════════════════════════════════════════════════════════
     // PROPPASS — Apple Wallet Pass Generation
     // ═══════════════════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════════
+    // ★ PROPPASS V2 — helpers
+    // ═══════════════════════════════════════════════════════════════════════
+    function combineToISO(dateStr, timeStr) {
+        // Combine "2026-06-01" + "18:00" into ISO with explicit Europe/Rome offset.
+        // Returns ISO string or null.
+        if (!dateStr) return null;
+        var t = (timeStr || '00:00').slice(0, 5);
+        var iso = dateStr + 'T' + (t.length === 5 ? t : '00:00') + ':00';
+        // Determine Rome offset for that date (handles DST). Use a probe Date:
+        try {
+            var d = new Date(iso);
+            if (isNaN(d.getTime())) return null;
+            // Simple Rome offset: CET=+01:00 (winter) / CEST=+02:00 (summer)
+            var month = d.getUTCMonth() + 1;
+            var dst = (month >= 4 && month <= 9) || (month === 3 && d.getUTCDate() >= 30) || (month === 10 && d.getUTCDate() <= 27);
+            var offset = dst ? '+02:00' : '+01:00';
+            return dateStr + 'T' + (t.length === 5 ? t : '00:00') + ':00' + offset;
+        } catch (e) { return null; }
+    }
+
+    function computeNextPaymentDate(contract) {
+        // Next payment date = next 5th of the month from today.
+        var now = new Date();
+        var year = now.getFullYear();
+        var month = now.getMonth();
+        var day = now.getDate();
+        if (day >= 5) month += 1;
+        if (month > 11) { month = 0; year += 1; }
+        var d = new Date(year, month, 5);
+        return d.toISOString().slice(0, 10); // YYYY-MM-DD
+    }
+
+    function buildBoomWaLink(phone, passType, ctx) {
+        var phoneClean = (phone || '').replace(/[^0-9+]/g, '').replace(/^\+/, '');
+        if (!phoneClean) return null;
+        ctx = ctx || {};
+        var first = function(s) { return ((s || '').split(' ')[0]) || ''; };
+        var url = ctx.passUrl || '';
+        var msgs = {
+            tenant:   'Ciao ' + first(ctx.tenantName) + ', benvenuto in BOOM. La tua tessera digitale è qui:\n' + url + '\n\nAggiungila al Wallet del tuo iPhone — saprà sempre il tuo prossimo pagamento e i dettagli del contratto.',
+            silver:   'Ciao ' + first(ctx.tenantName) + ', benvenuto nel BOOM Silver Tier. La tua tessera VIP è qui:\n' + url,
+            landlord: 'Ciao ' + first(ctx.landlordName) + ', ecco la tua tessera BOOM Partner:\n' + url,
+            viewing:  'Ciao ' + first(ctx.clientName) + ', ecco la tessera del tuo viewing del ' + (ctx.confirmedDate || '') + ' alle ' + (ctx.confirmedTime || '') + ':\n' + url + '\n\nAggiungila al Wallet — ti ricorderà l\'appuntamento e ti guiderà all\'indirizzo.',
+            referral: 'Ciao ' + first(ctx.referrerName) + ', ecco la tua tessera BOOM Circle:\n' + url + '\n\nIl tuo codice referral è ' + (ctx.referralCode || '')
+        };
+        var text = msgs[passType] || ('Ecco la tua BOOM PropPass: ' + url);
+        return 'https://wa.me/' + phoneClean + '?text=' + encodeURIComponent(text);
+    }
+
+    async function sendAdminViewingNotification(action, v) {
+        try {
+            var ADMIN_EMAIL = 'valentino@boom-rome.com';
+            var subjects = {
+                created:     '[BOOM] Nuovo viewing — ' + (v.clientName || '') + ' @ ' + (v.listingName || '') + ' — ' + (v.requestedDate || v.proposedDate || 'TBD'),
+                confirmed:   '[BOOM] Viewing CONFERMATO — ' + (v.clientName || '') + ' @ ' + (v.listingName || '') + ' — ' + (v.confirmedDate || '') + ' ' + (v.confirmedTime || ''),
+                rescheduled: '[BOOM] Viewing RESCHEDULED — ' + (v.clientName || '') + ' @ ' + (v.listingName || '') + ' — nuovo: ' + (v.confirmedDate || '') + ' ' + (v.confirmedTime || ''),
+                cancelled:   '[BOOM] Viewing CANCELLATO — ' + (v.clientName || '') + ' @ ' + (v.listingName || ''),
+                completed:   '[BOOM] Viewing COMPLETATO — ' + (v.clientName || '') + ' @ ' + (v.listingName || '') + ' — check-in ' + (v.checkedInAt || '')
+            };
+            var subject = subjects[action] || ('[BOOM] Viewing ' + action);
+            var bodyLines = [
+                'Action: ' + action.toUpperCase(),
+                '',
+                'Cliente: ' + (v.clientName || '') + ' (' + (v.clientEmail || 'no email') + ' / ' + (v.clientPhone || v.phone || 'no phone') + ')',
+                'Property: ' + (v.listingName || ''),
+                'Date: ' + (v.confirmedDate || v.requestedDate || v.proposedDate || '') + ' ' + (v.confirmedTime || v.proposedTime || ''),
+                'Status: ' + (v.status || ''),
+                '',
+                'Portal link: https://boomrome.com/portal.html#/viewings',
+                '',
+                '— BOOM Auto-notify'
+            ];
+            await emailjs.send('service_74n80th', 'boom_notification', {
+                to_email: ADMIN_EMAIL,
+                from_name: 'BOOM Portal',
+                reply_to: v.clientEmail || 'noreply@boomrome.com',
+                heading: subject,
+                subheading: (v.listingName || ''),
+                name: 'Valentino',
+                intro: 'Viewing ' + action,
+                card_title: 'VIEWING ' + action.toUpperCase(),
+                card_color: '#D4AF37',
+                r1_icon: '👤', r1_label: 'Cliente', r1_value: (v.clientName || '') + (v.clientPhone ? ' · ' + v.clientPhone : ''),
+                r2_icon: '🏠', r2_label: 'Property', r2_value: (v.listingName || ''),
+                r3_icon: '📅', r3_label: 'When', r3_value: (v.confirmedDate || v.requestedDate || v.proposedDate || '') + ' ' + (v.confirmedTime || v.proposedTime || ''),
+                r4_icon: '📊', r4_label: 'Status', r4_value: (v.status || ''),
+                closing: bodyLines.join('\n'),
+                cta_text: 'Apri portal →',
+                portal_link: 'https://boomrome.com/portal.html'
+            });
+        } catch (e) { console.warn('[admin-notify]', action, e); }
+    }
+
     async function generatePass(type, data) {
+        var validTypes = ['tenant', 'silver', 'landlord', 'viewing', 'referral'];
+        if (!validTypes.includes(type)) {
+            console.error('[PropPass] Invalid type:', type);
+            return null;
+        }
         try {
             var res = await fetch('/api/generate-pass', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: type, data: data }) });
             if (!res.ok) throw new Error('Pass generation failed');
@@ -12488,24 +12608,227 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
     async function generateViewingPass(viewingId) {
         var v = (S.viewingRequests || []).find(function(x) { return x.id === viewingId; });
-        if (!v) return toast('error', 'Viewing non trovato');
-        var prop = (S.properties || []).find(function(p) { return p.id === v.propertyId; }) || (S.listings || []).find(function(l) { return l.id === v.listingId; });
+        if (!v) { toast('error', 'Viewing non trovato'); return null; }
+
+        // Resolve property coordinates from properties → listings fallback
+        var propertyCoords = null;
+        var prop = (S.properties || []).find(function(p) { return p.id === v.propertyId; });
+        if (prop && prop.coordinates) propertyCoords = prop.coordinates;
+        else if (prop && prop.lat && prop.lng) propertyCoords = { lat: prop.lat, lng: prop.lng };
+        if (!propertyCoords && v.propertyId) {
+            try {
+                var pDoc = await db.collection('properties').doc(v.propertyId).get();
+                if (pDoc.exists) {
+                    var pData = pDoc.data();
+                    propertyCoords = pData.coordinates || (pData.lat && pData.lng ? { lat: pData.lat, lng: pData.lng } : null);
+                }
+            } catch (e) { console.warn('[Viewing] property fetch:', e); }
+        }
+        if (!propertyCoords && v.listingId) {
+            try {
+                var lDoc = await db.collection('listings').doc(v.listingId).get();
+                if (lDoc.exists) {
+                    var lData = lDoc.data();
+                    propertyCoords = lData.coordinates || (lData.lat && lData.lng ? { lat: lData.lat, lng: lData.lng } : null);
+                }
+            } catch (e) {}
+        }
+
+        var confirmedDateISO = combineToISO(v.confirmedDate || v.proposedDate, v.confirmedTime || v.proposedTime);
         toast('info', 'Generazione pass...');
         var result = await generatePass('viewing', {
-            clientName: v.clientName || '', propertyAddress: prop?.address || v.listingName || '',
-            zone: prop?.zone || v.listingZone || '', rent: prop?.price || v.listingPrice || '',
-            date: v.confirmedDate || v.proposedDate || '', time: v.confirmedTime || v.proposedTime || '',
-            rooms: prop?.bedrooms || prop?.rooms || '', agentName: 'Valentino',
-            listingUrl: v.listingUrl || prop?.listingUrl || '', latitude: prop?.lat || '', longitude: prop?.lng || ''
+            viewingId: viewingId,
+            clientName: v.clientName || '',
+            propertyAddress: (prop && prop.address) || v.listingName || '',
+            propertyCity: (prop && prop.city) || 'Roma',
+            propertyCoords: propertyCoords,
+            confirmedDateISO: confirmedDateISO,
+            durationMinutes: v.duration || 30,
+            meetingPoint: v.meetingPoint || 'AL CITOFONO'
         });
-        if (result && result.blob) {
-            downloadPass(result.blob, 'viewing');
-            await db.collection('viewingRequests').doc(viewingId).update({ passSent: true, passSentUrl: result.url || '', passSentAt: new Date().toISOString() }).catch(function(e){});
-            var waMsg = 'Hey ' + (v.clientName || '') + '! Here\'s your viewing pass for ' + (prop?.address || v.listingName || '') + ' on ' + (v.confirmedDate || v.proposedDate || '') + ' at ' + (v.confirmedTime || v.proposedTime || '') + ' 🔑 Add it to your Apple Wallet and you\'ll get a reminder 30 min before. See you there!';
-            sendPassWhatsApp(v.clientPhone || v.phone || '', waMsg, result.url);
-            toast('success', 'Viewing pass generato e inviato');
+        if (result && result.url) {
+            await db.collection('viewingRequests').doc(viewingId).update({
+                passSent: true,
+                passSentUrl: result.url,
+                passSentAt: new Date().toISOString(),
+                passType: 'eventTicket',
+                passNativeFeaturesActive: true
+            }).catch(function(e){ console.warn('[Viewing] update:', e); });
+            // Optional: download blob locally for admin convenience
+            if (result.blob) downloadPass(result.blob, 'viewing');
+            toast('success', 'Viewing pass V2 generato');
             renderPage();
-        } else { toast('error', 'Errore generazione pass'); }
+            return result;
+        }
+        toast('error', 'Errore generazione pass');
+        return null;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // ★ Bridge viewing → contract: pre-fills addContract modal
+    // ═══════════════════════════════════════════════════════════════════════
+    function createContractFromViewing(viewingId) {
+        var v = (S.viewingRequests || []).find(function(x) { return x.id === viewingId; });
+        if (!v) { toast('error', 'Viewing non trovato'); return; }
+        // Stash for post-render pre-fill
+        window._prefillContractFromViewing = {
+            viewingId: viewingId,
+            clientName: v.clientName || '',
+            clientEmail: v.clientEmail || '',
+            clientPhone: v.clientPhone || v.phone || '',
+            propertyId: v.propertyId || '',
+            listingId: v.listingId || '',
+            listingName: v.listingName || ''
+        };
+        openModal('addContract');
+        // Pre-fill via DOM (modal HTML already rendered by openModal)
+        setTimeout(function() {
+            try {
+                var prefill = window._prefillContractFromViewing;
+                if (!prefill) return;
+                var form = document.getElementById('mForm');
+                if (!form) return;
+                // Set tenant if exists in S.users matching email
+                var matchedUser = (S.users || []).find(function(u) { return u.email && prefill.clientEmail && u.email.toLowerCase() === prefill.clientEmail.toLowerCase(); });
+                var tenantSelect = form.querySelector('[name="tenantId"]');
+                if (matchedUser && tenantSelect) tenantSelect.value = matchedUser.id;
+                // Set property
+                var propSelect = form.querySelector('[name="propertyId"]');
+                if (propSelect && prefill.propertyId) propSelect.value = prefill.propertyId;
+                // Default dates: today+30 → today+30 + 12 months
+                var start = new Date(); start.setDate(start.getDate() + 30);
+                var end = new Date(start); end.setMonth(end.getMonth() + 12);
+                var startInput = form.querySelector('[name="startDate"]');
+                var endInput = form.querySelector('[name="endDate"]');
+                if (startInput) startInput.value = start.toISOString().slice(0, 10);
+                if (endInput) endInput.value = end.toISOString().slice(0, 10);
+                // Stash viewingId for the save handler
+                var hidden = document.createElement('input');
+                hidden.type = 'hidden';
+                hidden.name = 'linkedViewingId';
+                hidden.value = prefill.viewingId;
+                form.appendChild(hidden);
+                if (typeof calcContractDuration === 'function') calcContractDuration();
+                toast('info', 'Form pre-compilato dai dati viewing');
+            } catch (e) { console.warn('[Bridge] prefill:', e); }
+        }, 250);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // ★ Check-in QR scan — viewing → status:'completed'
+    // Uses BarcodeDetector when available; falls back to manual ID entry.
+    // ═══════════════════════════════════════════════════════════════════════
+    function openCheckInScan() {
+        var modalsEl = document.getElementById('modals');
+        modalsEl.innerHTML = `
+        <div class="modal-overlay active" onclick="if(event.target===this)closeModal()">
+        <div class="modal" onclick="event.stopPropagation()">
+            <div class="modal-header"><h3 class="modal-title">📷 Check-in Viewing</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+            <div class="modal-body" style="padding:20px;text-align:center">
+                <p style="font-size:13px;color:var(--text-secondary);margin-bottom:14px">Scansiona il QR della pass del cliente al meeting point. Formato atteso: <code>BOOM:VIEWING:&lt;id&gt;</code></p>
+                <video id="qr-video" style="width:100%;max-width:380px;border-radius:12px;background:#000" muted playsinline></video>
+                <div id="qr-result" style="margin:14px 0;font-size:13px;color:var(--text-secondary);min-height:20px">Apertura camera…</div>
+                <div style="border-top:1px solid var(--border);padding-top:14px;margin-top:14px">
+                    <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px">Fallback: inserisci viewing ID manualmente</div>
+                    <input type="text" id="qr-manual" class="form-input" placeholder="viewingId" style="margin-bottom:8px">
+                    <button class="btn btn-block btn-secondary" onclick="checkInManual()">Check-in manuale</button>
+                </div>
+            </div>
+        </div></div>`;
+        initQRScanner();
+    }
+
+    function checkInManual() {
+        var inputEl = document.getElementById('qr-manual');
+        if (!inputEl) return;
+        var raw = (inputEl.value || '').trim();
+        if (!raw) { toast('error', 'Inserisci un viewing ID'); return; }
+        // Allow either raw ID or full QR text "BOOM:VIEWING:xxx"
+        var id = raw.replace(/^BOOM:VIEWING:/i, '').trim();
+        completeViewingCheckIn(id);
+    }
+
+    async function completeViewingCheckIn(viewingId) {
+        var v = (S.viewingRequests || []).find(function(x) { return x.id === viewingId; });
+        if (!v) {
+            // Fetch from Firestore as fallback
+            try {
+                var doc = await db.collection('viewingRequests').doc(viewingId).get();
+                if (doc.exists) v = Object.assign({ id: viewingId }, doc.data());
+            } catch (e) {}
+        }
+        if (!v) { toast('error', 'Viewing non trovato: ' + viewingId); return; }
+        var nowIso = new Date().toISOString();
+        try {
+            await db.collection('viewingRequests').doc(viewingId).update({
+                status: 'completed',
+                checkedInAt: nowIso
+            });
+            var resultEl = document.getElementById('qr-result');
+            if (resultEl) resultEl.innerHTML = '<span style="color:var(--green)">✅ Check-in: ' + (v.clientName || '') + ' @ ' + (v.listingName || '') + '</span>';
+            try { await sendAdminViewingNotification('completed', Object.assign({}, v, { checkedInAt: nowIso })); }
+            catch (e) { console.warn('[admin-notify completed]', e); }
+            toast('success', 'Check-in registrato');
+            setTimeout(function() { closeModal(); refreshViewings && refreshViewings(); }, 1500);
+        } catch (e) {
+            console.error('[checkin]', e);
+            toast('error', 'Errore: ' + e.message);
+        }
+    }
+
+    function initQRScanner() {
+        var video = document.getElementById('qr-video');
+        var resultEl = document.getElementById('qr-result');
+        if (!video) return;
+        if (!('BarcodeDetector' in window)) {
+            if (resultEl) resultEl.innerHTML = '<span style="color:var(--orange)">⚠️ BarcodeDetector non disponibile in questo browser. Usa il check-in manuale sotto.</span>';
+            return;
+        }
+        var detector;
+        try { detector = new window.BarcodeDetector({ formats: ['qr_code'] }); }
+        catch (e) {
+            if (resultEl) resultEl.innerHTML = '<span style="color:var(--orange)">⚠️ QR scanner non disponibile. Usa check-in manuale.</span>';
+            return;
+        }
+        var stream;
+        var stopRequested = false;
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+            .then(function(s) {
+                stream = s;
+                video.srcObject = s;
+                video.play();
+                if (resultEl) resultEl.textContent = 'Inquadra il QR…';
+                var scan = function() {
+                    if (stopRequested) return;
+                    detector.detect(video).then(function(codes) {
+                        if (codes && codes.length) {
+                            var raw = codes[0].rawValue || '';
+                            if (raw.indexOf('BOOM:VIEWING:') === 0) {
+                                var id = raw.slice('BOOM:VIEWING:'.length).trim();
+                                stopRequested = true;
+                                if (stream) stream.getTracks().forEach(function(t) { t.stop(); });
+                                completeViewingCheckIn(id);
+                                return;
+                            } else {
+                                if (resultEl) resultEl.innerHTML = '<span style="color:var(--orange)">QR non riconosciuto: ' + raw.slice(0, 40) + '…</span>';
+                            }
+                        }
+                        setTimeout(scan, 400);
+                    }).catch(function() { setTimeout(scan, 800); });
+                };
+                scan();
+                // Auto-stop on modal close
+                var checkClose = setInterval(function() {
+                    if (!document.getElementById('qr-video')) {
+                        stopRequested = true;
+                        if (stream) stream.getTracks().forEach(function(t) { t.stop(); });
+                        clearInterval(checkClose);
+                    }
+                }, 1000);
+            })
+            .catch(function(err) {
+                if (resultEl) resultEl.innerHTML = '<span style="color:var(--red)">Camera negata: ' + err.message + '. Usa check-in manuale.</span>';
+            });
     }
 
     async function generateContractPasses(contractId) {
@@ -12557,21 +12880,41 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         }
 
         console.log('[PropPass] Generating passes for', contractId, '| tenant:', tenant?.email || '(no email)', '| landlord:', landlord?.email || '(no email)');
-        // Tenant pass
-        var tenantResult = await generatePass('tenant', {
-            tenantName: tenant?.name || contract.tenantName || '', propertyAddress: prop?.address || '',
-            startDate: contract.startDate || '', endDate: contract.endDate || '', rent: contract.rent || '',
-            contractType: contract.type || 'Transitorio', deposit: contract.deposit || '',
-            landlordName: landlord?.name || contract.landlordName || '', iban: landlord?.iban || llData?.iban || '',
-            emergencyPhone: '+39 377 087 0403', latitude: prop?.lat || '', longitude: prop?.lng || ''
+        // V2: tier-aware tenant pass — Silver if tenant.isPremium, else Tenant Black
+        var tenantPassType = (tenant && tenant.isPremium === true) ? 'silver' : 'tenant';
+        var propertyCoords = (prop && prop.coordinates) || (prop && prop.lat && prop.lng ? { lat: prop.lat, lng: prop.lng } : null);
+        var monthlyRentNum = (contract.canone && contract.canone.monthly) || contract.rent || 0;
+        var tenantResult = await generatePass(tenantPassType, {
+            contractId: contractId,
+            tenantName: (tenant && tenant.name) || contract.tenantName || '',
+            propertyAddress: (prop && prop.address) || '',
+            propertyCity: (prop && prop.city) || 'Roma',
+            propertyCoords: propertyCoords,
+            contractStart: contract.startDate || '',
+            contractEnd: contract.endDate || '',
+            monthlyRent: monthlyRentNum,
+            nextPaymentDate: computeNextPaymentDate(contract)
         });
-        // Landlord pass
+        // V2: landlord pass with multi-property locations
+        var landlordPropsCoords = [];
+        try {
+            var ownedProps = (S.properties || []).filter(function(p) { return p.ownerId === (prop && prop.ownerId); });
+            landlordPropsCoords = ownedProps
+                .map(function(p) { return p.coordinates || (p.lat && p.lng ? { lat: p.lat, lng: p.lng } : null); })
+                .filter(function(c) { return c && c.lat && c.lng; });
+            if (landlordPropsCoords.length === 0 && propertyCoords) landlordPropsCoords = [propertyCoords];
+        } catch (e) {}
+        var landlordSinceYear = (llData && llData.createdAt)
+            ? new Date(llData.createdAt.seconds ? llData.createdAt.seconds * 1000 : llData.createdAt).getFullYear()
+            : new Date().getFullYear();
         var landlordResult = await generatePass('landlord', {
-            landlordName: landlord?.name || contract.landlordName || '', propertyAddress: prop?.address || '',
-            propertyCount: llData?.propertyCount || 1, since: llData?.createdAt ? new Date(llData.createdAt.seconds ? llData.createdAt.seconds * 1000 : llData.createdAt).getFullYear() : new Date().getFullYear(),
-            rentAmount: contract.rent || '', currentTenant: tenant?.name || '', contractDates: (contract.startDate || '') + ' - ' + (contract.endDate || ''),
-            contractType: (contract.type || 'Transitorio') + ' - Cedolare secca ' + ((contract.cedolareSecca || 'si') !== 'no' ? '10%' : 'N/A'),
-            cadastral: prop?.cadastralData || contract.cadastral || '', propertyId: prop?.id || ''
+            landlordId: (landlord && landlord.id) || (prop && prop.ownerId) || '',
+            landlordName: (landlord && landlord.name) || contract.landlordName || '',
+            memberSince: landlordSinceYear,
+            propertiesCount: (llData && llData.propertyCount) || ((S.properties || []).filter(function(p) { return p.ownerId === (prop && prop.ownerId); }).length) || 1,
+            totalRevenue: monthlyRentNum * 12,
+            partnerId: 'BOOM-' + ((landlord && landlord.id) || '').slice(0, 6).toUpperCase(),
+            propertiesCoords: landlordPropsCoords
         });
         await db.collection('contracts').doc(contractId).update({
             tenantPassGenerated: !!(tenantResult && tenantResult.blob),
