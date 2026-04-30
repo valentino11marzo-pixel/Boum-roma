@@ -280,6 +280,7 @@ function buildViewingPass({
   confirmedDateISO,
   durationMinutes = 30,
   meetingPoint = "AL CITOFONO",
+  isVoided = false,
 }) {
   const eventDate = safeDate(confirmedDateISO);
   const expirationDate = eventDate
@@ -293,7 +294,7 @@ function buildViewingPass({
     passTypeIdentifier: PASS_TYPE_ID,
     teamIdentifier: TEAM_ID,
     organizationName: "BOOM Rome",
-    description: `BOOM Viewing — ${propertyAddress}${formattedDate ? " on " + formattedDate : ""}`,
+    description: `BOOM Viewing — ${propertyAddress}${formattedDate ? " on " + formattedDate : ""}${isVoided ? " (cancelled)" : ""}`,
     serialNumber: `viewing-${viewingId || crypto.randomUUID()}`,
     backgroundColor: "rgb(8,8,10)",
     foregroundColor: "rgb(245,245,240)",
@@ -302,7 +303,7 @@ function buildViewingPass({
     webServiceURL: WEB_SERVICE_URL,
     authenticationToken: generateAuthToken(viewingId || clientName),
     eventTicket: {
-      headerFields: [{ key: "type", label: "VIEWING", value: "PRIVATE" }],
+      headerFields: [{ key: "type", label: "VIEWING", value: isVoided ? "CANCELLED" : "PRIVATE" }],
       primaryFields: [{ key: "address", label: "INDIRIZZO", value: propertyAddress }],
       secondaryFields: [
         { key: "date", label: "DATA", value: formattedDate || "TBD" },
@@ -314,22 +315,23 @@ function buildViewingPass({
       ],
       backFields: [
         { key: "client", label: "Client", value: clientName },
-        { key: "cancellation", label: "Cancellation", value: "Reschedule up to 2h before. Reply to confirmation email." },
+        { key: "cancellation", label: "Cancellation", value: isVoided ? "This viewing has been CANCELLED. Contact +39 331 3251961 to reschedule." : "Reschedule up to 2h before. Reply to confirmation email." },
         { key: "support", label: "Support", value: "valentino@boom-rome.com\n+39 331 3251961" },
       ],
     },
+    voided: !!isVoided,
     barcodes: [{
       format: "PKBarcodeFormatQR",
       message: `BOOM:VIEWING:${viewingId}`,
       messageEncoding: "iso-8859-1",
       altText: String(viewingId || "").slice(0, 8).toUpperCase(),
     }],
-    userInfo: { viewingId, type: "viewing", confirmedDate: confirmedDateISO || null },
+    userInfo: { viewingId, type: "viewing", confirmedDate: confirmedDateISO || null, voided: !!isVoided },
   };
   // CRITICAL native features
   if (eventDate) pass.relevantDate = eventDate.toISOString();
   if (expirationDate) pass.expirationDate = expirationDate.toISOString();
-  if (propertyCoords && propertyCoords.lat && propertyCoords.lng) {
+  if (propertyCoords && propertyCoords.lat && propertyCoords.lng && !isVoided) {
     pass.locations = [{
       latitude: parseFloat(propertyCoords.lat),
       longitude: parseFloat(propertyCoords.lng),

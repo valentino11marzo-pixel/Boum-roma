@@ -4,13 +4,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="description" content="BOOM Property Management Portal - Gestione immobili, contratti e pagamenti">
-    <meta name="theme-color" content="#000000">
+    <meta name="theme-color" content="#08080A">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="BOOM">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="BOOM">
     <title>BOOM — Property Portal</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/favicon-32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/assets/icons/favicon-16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/icons/apple-touch-icon-180.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="/assets/icons/apple-touch-icon-152.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="/assets/icons/apple-touch-icon-120.png">
     <link rel="icon" type="image/png" href="data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDI0IDEwMjQiIHdpZHRoPSIxMDI0IiBoZWlnaHQ9IjEwMjQiPgogIDxkZWZzPgogICAgPGxpbmVhckdyYWRpZW50IGlkPSJnb2xkR3JhZGllbnQiIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMCUiIHkyPSIxMDAlIj4KICAgICAgPHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iI0ZGRDU0RiIvPgogICAgICA8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiNGNUE2MjMiLz4KICAgIDwvbGluZWFyR3JhZGllbnQ+CiAgPC9kZWZzPgogIDxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDAsMTAyNCkgc2NhbGUoMC4xLC0wLjEpIiBmaWxsPSJ1cmwoI2dvbGRHcmFkaWVudCkiPgogICAgPHBhdGggZD0iTTQ4NjAgODc0OSBjLTUwOSAtMjkgLTk3NiAtMTYxIC0xNDEzIC00MDEgLTU4MCAtMzE3IC0xMDU3IC04MDYgLTEzNTAgLTEzODMgLTE0OCAtMjkyIC0yMjkgLTUzMiAtMjkxIC04NTkgLTg5IC00NjUgLTY5IC0xMDA1IDU0IC0xNDYxIDE4NCAtNjg4IDYxNiAtMTMwOCAxMjMyIC0xNzY5IDQ5MiAtMzY4IDExNzIgLTYwOSAxNzk0IC02MzUgNTQ2IC0yMiA5ODcgNTcgMTQ4OSAyNjcgNTAzIDIxMSA5NzkgNTg5IDEzMjcgMTA1MyAzNDAgNDUzIDU1NyA5OTQgNjMwIDE1NjkgMTcgMTM1IDE3IDYzMCAwIDc2MCAtOTMgNzE2IC0zOTYgMTM0MSAtOTAwIDE4NjEgLTI4MCAyODkgLTU2OSA0OTggLTkyMiA2NjcgLTQxNiAyMDAgLTgxMyAzMDMgLTEyODUgMzMyIC0xNjUgMTAgLTE3MCAxMCAtMzY1IC0xeiBtNjEwIC0xNDQgYzc0MyAtMTAzIDE0MzYgLTQ1OSAxOTE5IC05ODUgMzM4IC0zNjcgNTYyIC03NTEgNzA0IC0xMjA1IDI3NiAtODc5IDEzMiAtMTg1OCAtMzg4IC0yNjQwIC0yNDIgLTM2NCAtNDkzIC02MTUgLTkwMCAtOTAwIGwtNzAgLTQ5IDEwOSAxMDQgYzQxMyAzOTYgNjc5IDkxOSA3NjcgMTUwNSAzMyAyMTcgMzMgNTU4IDAgNzY1IC03NSA0NzYgLTI1NyA4OTYgLTU0OSAxMjY1IC0xMjcgMTYxIC0zNjMgMzgwIC01NDkgNTExIC0zMDAgMjExIC02ODkgMzYzIC0xMDc5IDQyMCAtMTcyIDI2IC02MDQgMjYgLTc2NCAwIC0yOTYgLTQ3IC01NDUgLTEyOCAtODA4IC0yNjIgLTIzNiAtMTIyIC00NDAgLTI3MSAtNjMyIC00NjQgLTQ4NiAtNDg1IC03NDkgLTExMjEgLTc1MSAtMTgxNSAtMSAtNjExIDE3MCAtMTE0OCA1MTUgLTE2MDggMTAwIC0xMzQgMjg2IC0zMzUgMzgyIC00MTMgMzMgLTI3IC04IC0yIC05MSA1NSAtNTEzIDM1MSAtOTA0IDgwNSAtMTE0MyAxMzMxIC03MSAxNTYgLTEzNiAzMzYgLTE2OCA0NjUgLTkgMzMgLTE5IDc2IC0yNCA5NSAtNSAxOSAtMjAgMTAwIC0zNCAxODAgLTU5IDM0MyAtNjAgNzQwIDAgMTA3MCA4MSA0NTYgMjI5IDgyNiA0NzkgMTIwMCAyNDYgMzY4IDU1OCA2NjkgOTQ5IDkxNyAzODYgMjQ1IDg4MSA0MTggMTMyMSA0NjIgNjEgNiAxMjQgMTMgMTQwIDE1IDczIDEwIDU1NiAtNCA2NjUgLTE5eiBtLTYwIC0xMzI5IGMxMDUgLTE2IDI1OCAtNDkgMzM1IC03MiA4MiAtMjYgMTk3IC02NiAyNDAgLTg0IDE0OSAtNjUgMTkwIC04NCAyNjYgLTEyNiA2NzcgLTM3OSAxMTI5IC0xMDQ5IDEyNDYgLTE4NDkgMjcgLTE4MiAyNCAtNTE3IC01IC02OTUgLTc1IC00NTggLTIyNSAtODEzIC01MDAgLTExNzkgLTExNiAtMTU0IC0zNDAgLTM2OSAtNTI3IC01MDYgLTQ0IC0zMiAtODcgLTYzIC05NSAtNjkgLTggLTYgMzUgMzkgOTYgOTkgMTc4IDE3NyAyODMgMzIxIDM5NyA1NTAgMTYxIDMyMiAyMzEgNjc2IDIwNSAxMDQ1IC0zMiA0NjcgLTIyMyA5MDIgLTU0MiAxMjM3IC0yMzkgMjUxIC01MjEgNDI2IC04NzMgNTQyIC03OSAyNiAtMjczIDY3IC0zODMgODEgLTEwOCAxMyAtMzQ5IDEzIC00NjUgMCAtMjc2IC0zMiAtNTk3IC0xNDUgLTgzNCAtMjkzIC0yMjQgLTE0MCAtNDY2IC0zNzggLTYxMyAtNjAyIC0zMDcgLTQ3MCAtNDA3IC0xMDU1IC0yNzMgLTE1OTkgODAgLTMyNyAyMTcgLTU4OSA0NTQgLTg3MSA3MSAtODQgNzMgLTg4IDMxIC01NiAtMjkzIDIyNSAtNTQ3IDUzNSAtNzE4IDg3NyAtMzQgNjggLTY1IDE0MyAtMTIyIDI5NCAtNDIgMTEyIC0xMDEgMzgzIC0xMjAgNTU1IC0xNCAxMjcgLTE0IDQwMSAwIDUzNCA1MSA0ODIgMjIzIDkxMiA1MTYgMTI4OCAyNjkgMzQ0IDY1NCA2MjAgMTA4NSA3NzggMTYwIDU5IDQwMCAxMTUgNTc0IDEzNCAxMjEgMTMgNTA4IDUgNjI1IC0xM3ogbS0zMCAtMTE2NSBjNDAxIC04MSA3MjEgLTI0MiA5OTIgLTQ5OSA2NDMgLTYxMiA3NjkgLTE2MDcgMzAwIC0yMzY3IC0xMTggLTE5MCAtMjkxIC0zODYgLTQ2MyAtNTI0IC0xMzcgLTExMSAtMTQ4IC0xMTMgLTQ5IC0xMiAxMTAgMTEyIDIwNiAyNDggMjc1IDM4NiA2NyAxMzcgOTggMjIyIDEzMiAzNjcgMjQgMTAzIDI2IDEzMiAyNyAzMjMgMCAxODIgLTMgMjI0IC0yMiAzMTAgLTQ3IDIxMSAtMTI2IDM5NCAtMjQ1IDU2OSAtMTI2IDE4NiAtMzU4IDM4NyAtNTY0IDQ5MCAtMzg0IDE5MSAtODIzIDIyNSAtMTIxOCA5NSAtNDgyIC0xNjAgLTg1NCAtNTQxIC0xMDA0IC0xMDI5IC0xMTcgLTM3OSAtODEgLTgxMCA5NiAtMTE2NSAzNyAtNzIgMTMwIC0yMTUgMTY2IC0yNTIgMTcgLTE4IDI2IC0zMyAyMCAtMzMgLTYgMCAtNjEgNTIgLTEyMSAxMTYgLTI1OSAyNzIgLTQyNCA1NzUgLTUxMSA5MzQgLTExMSA0NTkgLTE4IDEwMDYgMjQ1IDE0MzAgMjk4IDQ4MyA3OTEgNzk3IDEzNzkgODgwIDExMCAxNiA0NDggNCA1NjUgLTE5eiBtLTIzOSAtOTExIGMzNjAgLTI4IDY4MCAtMTcxIDkyNSAtNDE1IDE5NCAtMTkzIDMxNyAtNDE1IDM4MiAtNjg4IDI0IC0xMDIgMjYgLTEzMCAyNiAtMzEyIDAgLTE5MSAtMSAtMjA1IC0zMCAtMzIwIC01MyAtMjA1IC0xMzIgLTM3MiAtMjUxIC01MzUgLTU4IC03OSAtMjYzIC0yODggLTMyMyAtMzMwIC0zMSAtMjIgLTI5IC0xOCAxOCAzNSAxOTUgMjIwIDMxMiA1MTkgMzEyIDc5NSAwIDMyNSAtMTIxIDYxNCAtMzUwIDg0MSAtMzY5IDM2NCAtOTI2IDQ1MyAtMTM4NSAyMjIgLTMzNiAtMTcwIC01NzggLTQ5OSAtNjM2IC04NjUgLTE5IC0xMjYgLTcgLTM3MSAyNSAtNDkwIDQ0IC0xNjIgOTcgLTI4NCAxNzMgLTM5OCA5IC0xNCAtNCAtNSAtMzAgMjAgLTI2IDI0IC00NSA1MSAtNDIgNTggMiA3IDEgMTEgLTQgNyAtMTEgLTYgLTU4IDUxIC0xMTggMTQwIC0xMDkgMTYzIC0xODMgMzQ3IC0yMTkgNTQ1IC0yMyAxMjcgLTIzIDM1MSAtMSA0ODkgNTUgMzM1IDI0OCA2NzcgNDkyIDg3MSAyNjEgMjA4IDUzMCAzMTEgODgxIDMzOCAxMSAxIDgxIC0zIDE1NSAtOHogbTI5IC03MTQgYzQ1OSAtNzQgODIzIC00MjggODk1IC04NjkgNTggLTM1OCAtNjAgLTY5NiAtMzQ1IC05ODcgbC0zNCAtMzUgMjIgMzUgYzExNSAxODIgMTc5IDQwMyAxNjggNTc1IC0xNCAyMzUgLTEwNCA0MzMgLTI2OCA1OTEgLTEzNyAxMzQgLTI4NyAyMDkgLTQ3MiAyMzkgLTExNSAxOSAtMTg3IDE5IC0zMDMgMCAtMzM3IC01NSAtNjEyIC0zMDIgLTcwNCAtNjM1IC0zMiAtMTEzIC0zNCAtMzI1IC01IC00NDAgMjMgLTkyIDcwIC0yMTMgOTggLTI1NCBsMjEgLTMxIC0zMSAyOSBjLTM5IDM2IC0xMjAgMTUyIC0xNTUgMjIxIC0zNSA3MSAtODEgMjE1IC0xMDIgMzE5IC0yNSAxMzAgLTE3IDM1NyAxNyA0NzYgMTAyIDM1NCAzNTcgNjE4IDcwNiA3MzAgMTUyIDQ5IDMzMSA2MiA0OTIgMzZ6IG0tNzMgLTU2NyBjMTc4IC0yNCAzMjcgLTEwMSA0NTQgLTIzNiAxMzcgLTE0MyAxOTkgLTMwMyAyMDEgLTUxMyAxIC0xNjIgLTQyIC0zMDkgLTEzNSAtNDUzIC01MiAtODIgLTczIC05NyAtMzggLTI4IDUxIDk5IDY3IDI5MCAzNiA0MTIgLTU3IDIxOSAtMjUxIDQxMyAtNDY2IDQ2NCAtNzUgMTcgLTIzNiAyMCAtMzExIDQgLTIxMyAtNDQgLTQyMiAtMjQ3IC00NzMgLTQ2MCAtMzEgLTEzMyAtMTMgLTMyNSA0MSAtNDMxIDM1IC03MCA4IC00NyAtNTIgNDMgLTU4IDg4IC05MCAxNjcgLTExNCAyODYgLTI1IDEyMSAtMjUgMjIwIC0xIDMzMSAzMyAxNDYgODQgMjQzIDE4NiAzNTEgMTcxIDE4MyA0MTMgMjY2IDY3MiAyMzB6IG0xNSAtNDcwIGM4MCAtMTcgMTg2IC03NiAyNDggLTEzOSAxMDYgLTEwNyAxNTggLTI0OCAxNDcgLTM5OCAtNiAtOTIgLTI1IC0xNTIgLTc5IC0yNTAgLTQ1IC04MiAtNjAgLTkxIC0yNyAtMTcgMTggNDEgMjEgNjIgMTcgMTQ5IC00IDg5IC04IDEwOCAtMzUgMTYyIC00MyA4MiAtMTI2IDE2NSAtMjA5IDIwNSAtNTggMjkgLTgwIDM0IC0xNTggMzcgLTExMiA1IC0xODQgLTEyIC0yNTkgLTYyIC0xODIgLTEyMSAtMjUxIC0zMjMgLTE3MSAtNTA2IGwyNCAtNTUgLTI1IDMwIGMtMzYgNDQgLTkyIDE2MiAtMTA0IDIyMyAtMzkgMTg5IDE0IDM2OSAxNDYgNDkyIDEwNSA5OSAyMDQgMTM5IDM0NSAxMzkgNDggMSAxMTEgLTQgMTQwIC0xMHoiLz4KICA8L2c+Cjwvc3ZnPgo=">
     <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDI0IDEwMjQiIHdpZHRoPSIxMDI0IiBoZWlnaHQ9IjEwMjQiPgogIDxkZWZzPgogICAgPGxpbmVhckdyYWRpZW50IGlkPSJnb2xkR3JhZGllbnQiIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMCUiIHkyPSIxMDAlIj4KICAgICAgPHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iI0ZGRDU0RiIvPgogICAgICA8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiNGNUE2MjMiLz4KICAgIDwvbGluZWFyR3JhZGllbnQ+CiAgPC9kZWZzPgogIDxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDAsMTAyNCkgc2NhbGUoMC4xLC0wLjEpIiBmaWxsPSJ1cmwoI2dvbGRHcmFkaWVudCkiPgogICAgPHBhdGggZD0iTTQ4NjAgODc0OSBjLTUwOSAtMjkgLTk3NiAtMTYxIC0xNDEzIC00MDEgLTU4MCAtMzE3IC0xMDU3IC04MDYgLTEzNTAgLTEzODMgLTE0OCAtMjkyIC0yMjkgLTUzMiAtMjkxIC04NTkgLTg5IC00NjUgLTY5IC0xMDA1IDU0IC0xNDYxIDE4NCAtNjg4IDYxNiAtMTMwOCAxMjMyIC0xNzY5IDQ5MiAtMzY4IDExNzIgLTYwOSAxNzk0IC02MzUgNTQ2IC0yMiA5ODcgNTcgMTQ4OSAyNjcgNTAzIDIxMSA5NzkgNTg5IDEzMjcgMTA1MyAzNDAgNDUzIDU1NyA5OTQgNjMwIDE1NjkgMTcgMTM1IDE3IDYzMCAwIDc2MCAtOTMgNzE2IC0zOTYgMTM0MSAtOTAwIDE4NjEgLTI4MCAyODkgLTU2OSA0OTggLTkyMiA2NjcgLTQxNiAyMDAgLTgxMyAzMDMgLTEyODUgMzMyIC0xNjUgMTAgLTE3MCAxMCAtMzY1IC0xeiBtNjEwIC0xNDQgYzc0MyAtMTAzIDE0MzYgLTQ1OSAxOTE5IC05ODUgMzM4IC0zNjcgNTYyIC03NTEgNzA0IC0xMjA1IDI3NiAtODc5IDEzMiAtMTg1OCAtMzg4IC0yNjQwIC0yNDIgLTM2NCAtNDkzIC02MTUgLTkwMCAtOTAwIGwtNzAgLTQ5IDEwOSAxMDQgYzQxMyAzOTYgNjc5IDkxOSA3NjcgMTUwNSAzMyAyMTcgMzMgNTU4IDAgNzY1IC03NSA0NzYgLTI1NyA4OTYgLTU0OSAxMjY1IC0xMjcgMTYxIC0zNjMgMzgwIC01NDkgNTExIC0zMDAgMjExIC02ODkgMzYzIC0xMDc5IDQyMCAtMTcyIDI2IC02MDQgMjYgLTc2NCAwIC0yOTYgLTQ3IC01NDUgLTEyOCAtODA4IC0yNjIgLTIzNiAtMTIyIC00NDAgLTI3MSAtNjMyIC00NjQgLTQ4NiAtNDg1IC03NDkgLTExMjEgLTc1MSAtMTgxNSAtMSAtNjExIDE3MCAtMTE0OCA1MTUgLTE2MDggMTAwIC0xMzQgMjg2IC0zMzUgMzgyIC00MTMgMzMgLTI3IC04IC0yIC05MSA1NSAtNTEzIDM1MSAtOTA0IDgwNSAtMTE0MyAxMzMxIC03MSAxNTYgLTEzNiAzMzYgLTE2OCA0NjUgLTkgMzMgLTE5IDc2IC0yNCA5NSAtNSAxOSAtMjAgMTAwIC0zNCAxODAgLTU5IDM0MyAtNjAgNzQwIDAgMTA3MCA4MSA0NTYgMjI5IDgyNiA0NzkgMTIwMCAyNDYgMzY4IDU1OCA2NjkgOTQ5IDkxNyAzODYgMjQ1IDg4MSA0MTggMTMyMSA0NjIgNjEgNiAxMjQgMTMgMTQwIDE1IDczIDEwIDU1NiAtNCA2NjUgLTE5eiBtLTYwIC0xMzI5IGMxMDUgLTE2IDI1OCAtNDkgMzM1IC03MiA4MiAtMjYgMTk3IC02NiAyNDAgLTg0IDE0OSAtNjUgMTkwIC04NCAyNjYgLTEyNiA2NzcgLTM3OSAxMTI5IC0xMDQ5IDEyNDYgLTE4NDkgMjcgLTE4MiAyNCAtNTE3IC01IC02OTUgLTc1IC00NTggLTIyNSAtODEzIC01MDAgLTExNzkgLTExNiAtMTU0IC0zNDAgLTM2OSAtNTI3IC01MDYgLTQ0IC0zMiAtODcgLTYzIC05NSAtNjkgLTggLTYgMzUgMzkgOTYgOTkgMTc4IDE3NyAyODMgMzIxIDM5NyA1NTAgMTYxIDMyMiAyMzEgNjc2IDIwNSAxMDQ1IC0zMiA0NjcgLTIyMyA5MDIgLTU0MiAxMjM3IC0yMzkgMjUxIC01MjEgNDI2IC04NzMgNTQyIC03OSAyNiAtMjczIDY3IC0zODMgODEgLTEwOCAxMyAtMzQ5IDEzIC00NjUgMCAtMjc2IC0zMiAtNTk3IC0xNDUgLTgzNCAtMjkzIC0yMjQgLTE0MCAtNDY2IC0zNzggLTYxMyAtNjAyIC0zMDcgLTQ3MCAtNDA3IC0xMDU1IC0yNzMgLTE1OTkgODAgLTMyNyAyMTcgLTU4OSA0NTQgLTg3MSA3MSAtODQgNzMgLTg4IDMxIC01NiAtMjkzIDIyNSAtNTQ3IDUzNSAtNzE4IDg3NyAtMzQgNjggLTY1IDE0MyAtMTIyIDI5NCAtNDIgMTEyIC0xMDEgMzgzIC0xMjAgNTU1IC0xNCAxMjcgLTE0IDQwMSAwIDUzNCA1MSA0ODIgMjIzIDkxMiA1MTYgMTI4OCAyNjkgMzQ0IDY1NCA2MjAgMTA4NSA3NzggMTYwIDU5IDQwMCAxMTUgNTc0IDEzNCAxMjEgMTMgNTA4IDUgNjI1IC0xM3ogbS0zMCAtMTE2NSBjNDAxIC04MSA3MjEgLTI0MiA5OTIgLTQ5OSA2NDMgLTYxMiA3NjkgLTE2MDcgMzAwIC0yMzY3IC0xMTggLTE5MCAtMjkxIC0zODYgLTQ2MyAtNTI0IC0xMzcgLTExMSAtMTQ4IC0xMTMgLTQ5IC0xMiAxMTAgMTEyIDIwNiAyNDggMjc1IDM4NiA2NyAxMzcgOTggMjIyIDEzMiAzNjcgMjQgMTAzIDI2IDEzMiAyNyAzMjMgMCAxODIgLTMgMjI0IC0yMiAzMTAgLTQ3IDIxMSAtMTI2IDM5NCAtMjQ1IDU2OSAtMTI2IDE4NiAtMzU4IDM4NyAtNTY0IDQ5MCAtMzg0IDE5MSAtODIzIDIyNSAtMTIxOCA5NSAtNDgyIC0xNjAgLTg1NCAtNTQxIC0xMDA0IC0xMDI5IC0xMTcgLTM3OSAtODEgLTgxMCA5NiAtMTE2NSAzNyAtNzIgMTMwIC0yMTUgMTY2IC0yNTIgMTcgLTE4IDI2IC0zMyAyMCAtMzMgLTYgMCAtNjEgNTIgLTEyMSAxMTYgLTI1OSAyNzIgLTQyNCA1NzUgLTUxMSA5MzQgLTExMSA0NTkgLTE4IDEwMDYgMjQ1IDE0MzAgMjk4IDQ4MyA3OTEgNzk3IDEzNzkgODgwIDExMCAxNiA0NDggNCA1NjUgLTE5eiBtLTIzOSAtOTExIGMzNjAgLTI4IDY4MCAtMTcxIDkyNSAtNDE1IDE5NCAtMTkzIDMxNyAtNDE1IDM4MiAtNjg4IDI0IC0xMDIgMjYgLTEzMCAyNiAtMzEyIDAgLTE5MSAtMSAtMjA1IC0zMCAtMzIwIC01MyAtMjA1IC0xMzIgLTM3MiAtMjUxIC01MzUgLTU4IC03OSAtMjYzIC0yODggLTMyMyAtMzMwIC0zMSAtMjIgLTI5IC0xOCAxOCAzNSAxOTUgMjIwIDMxMiA1MTkgMzEyIDc5NSAwIDMyNSAtMTIxIDYxNCAtMzUwIDg0MSAtMzY5IDM2NCAtOTI2IDQ1MyAtMTM4NSAyMjIgLTMzNiAtMTcwIC01NzggLTQ5OSAtNjM2IC04NjUgLTE5IC0xMjYgLTcgLTM3MSAyNSAtNDkwIDQ0IC0xNjIgOTcgLTI4NCAxNzMgLTM5OCA5IC0xNCAtNCAtNSAtMzAgMjAgLTI2IDI0IC00NSA1MSAtNDIgNTggMiA3IDEgMTEgLTQgNyAtMTEgLTYgLTU4IDUxIC0xMTggMTQwIC0xMDkgMTYzIC0xODMgMzQ3IC0yMTkgNTQ1IC0yMyAxMjcgLTIzIDM1MSAtMSA0ODkgNTUgMzM1IDI0OCA2NzcgNDkyIDg3MSAyNjEgMjA4IDUzMCAzMTEgODgxIDMzOCAxMSAxIDgxIC0zIDE1NSAtOHogbTI5IC03MTQgYzQ1OSAtNzQgODIzIC00MjggODk1IC04NjkgNTggLTM1OCAtNjAgLTY5NiAtMzQ1IC05ODcgbC0zNCAtMzUgMjIgMzUgYzExNSAxODIgMTc5IDQwMyAxNjggNTc1IC0xNCAyMzUgLTEwNCA0MzMgLTI2OCA1OTEgLTEzNyAxMzQgLTI4NyAyMDkgLTQ3MiAyMzkgLTExNSAxOSAtMTg3IDE5IC0zMDMgMCAtMzM3IC01NSAtNjEyIC0zMDIgLTcwNCAtNjM1IC0zMiAtMTEzIC0zNCAtMzI1IC01IC00NDAgMjMgLTkyIDcwIC0yMTMgOTggLTI1NCBsMjEgLTMxIC0zMSAyOSBjLTM5IDM2IC0xMjAgMTUyIC0xNTUgMjIxIC0zNSA3MSAtODEgMjE1IC0xMDIgMzE5IC0yNSAxMzAgLTE3IDM1NyAxNyA0NzYgMTAyIDM1NCAzNTcgNjE4IDcwNiA3MzAgMTUyIDQ5IDMzMSA2MiA0OTIgMzZ6IG0tNzMgLTU2NyBjMTc4IC0yNCAzMjcgLTEwMSA0NTQgLTIzNiAxMzcgLTE0MyAxOTkgLTMwMyAyMDEgLTUxMyAxIC0xNjIgLTQyIC0zMDkgLTEzNSAtNDUzIC01MiAtODIgLTczIC05NyAtMzggLTI4IDUxIDk5IDY3IDI5MCAzNiA0MTIgLTU3IDIxOSAtMjUxIDQxMyAtNDY2IDQ2NCAtNzUgMTcgLTIzNiAyMCAtMzExIDQgLTIxMyAtNDQgLTQyMiAtMjQ3IC00NzMgLTQ2MCAtMzEgLTEzMyAtMTMgLTMyNSA0MSAtNDMxIDM1IC03MCA4IC00NyAtNTIgNDMgLTU4IDg4IC05MCAxNjcgLTExNCAyODYgLTI1IDEyMSAtMjUgMjIwIC0xIDMzMSAzMyAxNDYgODQgMjQzIDE4NiAzNTEgMTcxIDE4MyA0MTMgMjY2IDY3MiAyMzB6IG0xNSAtNDcwIGM4MCAtMTcgMTg2IC03NiAyNDggLTEzOSAxMDYgLTEwNyAxNTggLTI0OCAxNDcgLTM5OCAtNiAtOTIgLTI1IC0xNTIgLTc5IC0yNTAgLTQ1IC04MiAtNjAgLTkxIC0yNyAtMTcgMTggNDEgMjEgNjIgMTcgMTQ5IC00IDg5IC04IDEwOCAtMzUgMTYyIC00MyA4MiAtMTI2IDE2NSAtMjA5IDIwNSAtNTggMjkgLTgwIDM0IC0xNTggMzcgLTExMiA1IC0xODQgLTEyIC0yNTkgLTYyIC0xODIgLTEyMSAtMjUxIC0zMjMgLTE3MSAtNTA2IGwyNCAtNTUgLTI1IDMwIGMtMzYgNDQgLTkyIDE2MiAtMTA0IDIyMyAtMzkgMTg5IDE0IDM2OSAxNDYgNDkyIDEwNSA5OSAyMDQgMTM5IDM0NSAxMzkgNDggMSAxMTEgLTQgMTQwIC0xMHoiLz4KICA8L2c+Cjwvc3ZnPgo=">
-    <link rel="manifest" id="pwa-manifest">
+    <link rel="manifest" href="/manifest.json" id="pwa-manifest">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         /* BOOM Design System — Helvetica Neue 300 Primary */
@@ -2091,10 +2099,27 @@ Valentyne - BOOM Rome`
                     }
                     // (f) CAF EMAIL
                     sendCAFEmail(contractId).catch(function(e){ console.warn('CAF email:', e); });
-                    // (g) PROPPASS — generate tenant + landlord Apple Wallet passes
-                    generateContractPasses(contractId).catch(function(e){ console.warn('PropPass:', e); });
-                    // (h) TENANT WELCOME — premium email with one-click magic link
-                    sendTenantWelcomeWithMagicLink(Object.assign({ id: contractId }, freshData)).catch(function(e){ console.warn('Tenant welcome:', e); });
+                    // (g+h) PROPPASS + WELCOME — serialized so welcome emails embed pass URLs
+                    (async function postSignaturePassFlow() {
+                        try {
+                            var passResult = await generateContractPasses(contractId);
+                            var tenantPassUrl = (passResult && passResult.tenant && passResult.tenant.url) || '';
+                            var landlordPassUrl = (passResult && passResult.landlord && passResult.landlord.url) || '';
+                            var landlordUser = passResult && passResult.landlordUser;
+                            var contractUsed = (passResult && passResult.contract) || Object.assign({ id: contractId }, freshData);
+                            var propertyUsed = passResult && passResult.property;
+                            // Tenant welcome — magic link + pass URL
+                            try { await sendTenantWelcomeWithMagicLink(contractUsed, tenantPassUrl); }
+                            catch (e) { console.warn('Tenant welcome:', e); }
+                            // Landlord welcome — pass URL embedded
+                            try { await sendLandlordWelcomeWithPass(contractUsed, landlordUser, propertyUsed, landlordPassUrl); }
+                            catch (e) { console.warn('Landlord welcome:', e); }
+                        } catch (passFlowErr) {
+                            console.warn('[postSignaturePassFlow]', passFlowErr);
+                            // Fallback: still try welcome without pass URL
+                            sendTenantWelcomeWithMagicLink(Object.assign({ id: contractId }, freshData), '').catch(function(e){ console.warn('Tenant welcome fallback:', e); });
+                        }
+                    })();
                     // (3) TENANT AUTO-ACCOUNT
                     if (fullContract.tenantId) {
                         var tenDoc = await db.collection('users').doc(fullContract.tenantId).get();
@@ -5455,7 +5480,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (!v) return;
         try {
             const dt = new Date(date + 'T' + time);
-            const dtStr = dt.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'}) + ' · ' + dt.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+            const durationMin = v.duration || 60;
             await db.collection('viewingRequests').doc(id).update({
                 status: 'confirmed',
                 confirmedDate: date,
@@ -5467,63 +5492,33 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             if (v.linkedLeadId) {
                 db.collection('leads').doc(v.linkedLeadId).update({ linkedViewingId: id, viewingScheduledAt: firebase.firestore.FieldValue.serverTimestamp() }).catch(function(e){ console.warn('Lead back-link:', e); });
             }
-            // Build Google Calendar link for Valentino
-            const s = dt.toISOString().replace(/[-:]/g,'').split('.')[0]+'Z';
-            const e = new Date(dt.getTime()+3600000).toISOString().replace(/[-:]/g,'').split('.')[0]+'Z';
-            const ttl = encodeURIComponent('Viewing — ' + v.listingName + ' · ' + v.clientName);
-            const loc = encodeURIComponent(v.listingName + (v.listingZone ? ', ' + v.listingZone + ', Rome' : ''));
-            const gcalLink = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${ttl}&dates=${s}/${e}&location=${loc}&details=${encodeURIComponent('Client: '+v.clientName+'\nEmail: '+v.clientEmail+(v.clientPhone?'\nPhone: '+v.clientPhone:'')+'\nNotes: '+(v.notes||'—'))}`;
-            const appleLink = `data:text/calendar;charset=utf8,BEGIN:VCALENDAR%0AVERSION:2.0%0ABEGIN:VEVENT%0ADTSTART:${s}%0ADTEND:${e}%0ASUMMARY:${ttl}%0ALOCATION:${loc}%0AEND:VEVENT%0AEND:VCALENDAR`;
-            // Notify client
-            await emailjs.send('service_74n80th','boom_notification',{
-                to_email: v.clientEmail,
-                from_name: 'Valentino — BOOM',
-                reply_to: 'valentino@boomrome.com',
-                heading: '✅ Viewing Confirmed',
-                subheading: v.listingName + (v.listingZone ? ' — ' + v.listingZone : ''),
-                name: v.clientName.split(' ')[0],
-                intro: 'Your viewing is confirmed. Add it to your calendar.',
-                card_title: v.listingName,
-                card_color: '#34C759',
-                r1_icon:'📅', r1_label:'Date & Time', r1_value: dtStr,
-                r2_icon:'🏠', r2_label:'Property', r2_value: v.listingName + (v.listingZone ? ' · ' + v.listingZone : ''),
-                r3_icon:'👤', r3_label:'Agent', r3_value: 'Valentino — BOOM Rome',
-                r4_icon:'📞', r4_label:'Contact', r4_value: '+39 331 325 1961',
-                closing: 'Bring valid ID. Arrive 5 min early.',
-                cta_text: 'Add to Google Calendar →',
-                portal_link: gcalLink
-            });
-            // Notify yourself
-            await emailjs.send('service_74n80th','boom_notification',{
-                to_email: 'valentino@boomrome.com',
-                from_name: 'BOOM Portal',
-                reply_to: v.clientEmail,
-                heading: '📅 Viewing Confirmed',
-                subheading: v.clientName + ' — ' + dtStr,
-                name: 'Valentino',
-                intro: 'Viewing confirmed. Calendar links below.',
-                card_title: v.listingName,
-                card_color: '#D4AF37',
-                r1_icon:'👤', r1_label:'Client', r1_value: v.clientName + (v.clientPhone?' · '+v.clientPhone:''),
-                r2_icon:'🏠', r2_label:'Property', r2_value: v.listingName,
-                r3_icon:'📅', r3_label:'When', r3_value: dtStr,
-                r4_icon:'📝', r4_label:'Notes', r4_value: v.notes||'—',
-                closing: 'Add to your calendar:',
-                cta_text: 'Google Calendar →',
-                portal_link: gcalLink
-            });
-            // V2: auto-generate viewing pass with native features (no manual click)
+            // Update local cache so downstream (generateViewingPass, admin notify) sees confirmed times
+            const freshV = Object.assign({}, v, { confirmedDate: date, confirmedTime: time, confirmedDateTime: dt.toISOString(), status: 'confirmed' });
+            const idx = (S.viewingRequests || []).findIndex(x => x.id === id);
+            if (idx >= 0) S.viewingRequests[idx] = Object.assign({}, S.viewingRequests[idx], { confirmedDate: date, confirmedTime: time, status: 'confirmed' });
+
+            // 1) Resolve address (property → listing → viewing fallback)
+            const addr = await resolveViewingAddress(freshV);
+
+            // 2) Build calendar links (Google + universal ICS w/ GEO + reminders)
+            const calLinks = buildCalendarLinks(dt, durationMin, addr, freshV);
+
+            // 3) Generate viewing pass FIRST so we can include URL in client email
+            let passUrl = '';
             try {
-                var freshV = Object.assign({}, v, { confirmedDate: date, confirmedTime: time, status: 'confirmed' });
-                // Update local cache so generateViewingPass sees the confirmed times
-                var idx = (S.viewingRequests || []).findIndex(function(x) { return x.id === id; });
-                if (idx >= 0) S.viewingRequests[idx] = Object.assign({}, S.viewingRequests[idx], { confirmedDate: date, confirmedTime: time, status: 'confirmed' });
-                await generateViewingPass(id);
-                console.log('[Viewing] Pass V2 auto-generated on confirm');
+                const passResult = await generateViewingPass(id);
+                if (passResult && passResult.url) passUrl = passResult.url;
+                console.log('[Viewing] Pass generated on confirm:', passUrl ? 'OK' : 'no URL');
             } catch (passErr) { console.warn('[Viewing] auto-pass failed:', passErr); }
-            // V2: structured admin notification
-            try { await sendAdminViewingNotification('confirmed', Object.assign({}, v, { confirmedDate: date, confirmedTime: time, status: 'confirmed' })); }
+
+            // 4) Admin notification (structured)
+            try { await sendAdminViewingNotification('confirmed', freshV); }
             catch (notifyErr) { console.warn('[admin-notify confirmed]', notifyErr); }
+
+            // 5) Client confirmation email — pass URL + ICS link embedded
+            try { await sendClientViewingConfirmation(freshV, dt, durationMin, addr, passUrl, calLinks); }
+            catch (clientErr) { console.warn('[viewing client email]', clientErr); }
+
             closeModal();
             toast('success', '✅ Confirmed — client notified + pass generated');
             await refreshViewings();
@@ -5577,43 +5572,147 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (!v) return;
         try {
             const dt = new Date(date + 'T' + time);
+            const durationMin = v.duration || 60;
             const dtStr = dt.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'}) + ' · ' + dt.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
-            await db.collection('viewingRequests').doc(id).update({
-                status: 'rescheduled',
-                suggestedDate: date,
-                suggestedTime: time,
-                suggestedDateTime: dt.toISOString(),
-                agentMessage: msg || null,
-                rescheduledAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
-            await emailjs.send('service_74n80th','boom_notification',{
-                to_email: v.clientEmail,
-                from_name: 'Valentino — BOOM',
-                reply_to: 'valentino@boomrome.com',
-                heading: '↩ Alternative Time Proposed',
-                subheading: v.listingName,
-                name: v.clientName.split(' ')[0],
-                intro: msg || 'The time you proposed doesn\'t work for me. I\'d suggest the slot below instead.',
-                card_title: 'Suggested Time',
-                card_color: '#0A84FF',
-                r1_icon:'📅', r1_label:'Suggested', r1_value: dtStr,
-                r2_icon:'🏠', r2_label:'Property', r2_value: v.listingName,
-                r3_icon:'📞', r3_label:'Questions?', r3_value: '+39 331 325 1961',
-                r4_icon:'💬', r4_label:'WhatsApp', r4_value: 'wa.me/393313251961',
-                closing: 'Reply to this email or WhatsApp me to confirm.',
-                cta_text: 'WhatsApp Valentino →',
-                portal_link: 'https://wa.me/393313251961'
-            });
+            // If viewing was already confirmed, treat reschedule as a re-confirm to a new date
+            const wasConfirmed = (v.status === 'confirmed' || v.confirmedDate);
+            const newStatus = wasConfirmed ? 'confirmed' : 'rescheduled';
+            const updateFields = wasConfirmed
+                ? {
+                    status: 'confirmed',
+                    confirmedDate: date,
+                    confirmedTime: time,
+                    confirmedDateTime: dt.toISOString(),
+                    rescheduledAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    agentMessage: msg || null
+                }
+                : {
+                    status: 'rescheduled',
+                    suggestedDate: date,
+                    suggestedTime: time,
+                    suggestedDateTime: dt.toISOString(),
+                    agentMessage: msg || null,
+                    rescheduledAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+            await db.collection('viewingRequests').doc(id).update(updateFields);
+
+            // Update local cache
+            const idx = (S.viewingRequests || []).findIndex(x => x.id === id);
+            if (idx >= 0) S.viewingRequests[idx] = Object.assign({}, S.viewingRequests[idx], updateFields, { confirmedDate: wasConfirmed ? date : S.viewingRequests[idx].confirmedDate });
+            const freshV = Object.assign({}, v, updateFields);
+
+            if (wasConfirmed) {
+                // Auto-regen pass with new date (relevantDate updated by builder)
+                let passUrl = '';
+                try {
+                    const passResult = await generateViewingPass(id);
+                    if (passResult && passResult.url) passUrl = passResult.url;
+                    console.log('[Viewing] Pass regenerated after reschedule');
+                } catch (passErr) { console.warn('[Viewing] reschedule pass regen failed:', passErr); }
+
+                const addr = await resolveViewingAddress(freshV);
+                const calLinks = buildCalendarLinks(dt, durationMin, addr, freshV);
+
+                // Notify client of reschedule + pass
+                try {
+                    await emailjs.send('service_74n80th', 'boom_notification', {
+                        to_email: v.clientEmail,
+                        from_name: 'Valentino — BOOM',
+                        reply_to: 'valentino@boomrome.com',
+                        heading: '↩ Viewing Rescheduled',
+                        subheading: addr.label || v.listingName,
+                        name: (v.clientName || '').split(' ')[0],
+                        intro: msg || 'I\'ve moved your viewing to the new slot below. Pass + calendar links updated.',
+                        card_title: 'NEW TIME',
+                        card_color: '#0A84FF',
+                        r1_icon: '📅', r1_label: 'New Date & Time', r1_value: dtStr,
+                        r2_icon: '🏠', r2_label: 'Property', r2_value: addr.label || v.listingName,
+                        r3_icon: '📍', r3_label: 'Meeting point', r3_value: v.meetingPoint || 'AL CITOFONO',
+                        r4_icon: '📞', r4_label: 'Agent', r4_value: 'Valentino — +39 331 325 1961',
+                        closing: 'Bring valid ID. Arrive 5 min early.\n\n' +
+                            (passUrl ? '🎟️ Updated Apple Wallet pass: ' + passUrl + '\n' : '') +
+                            (calLinks.ics ? '📅 Calendar (universal): ' + calLinks.ics + '\n' : '') +
+                            (calLinks.google ? '📅 Google Calendar: ' + calLinks.google : ''),
+                        cta_text: passUrl ? 'Open updated pass →' : 'Add to Calendar →',
+                        portal_link: passUrl || calLinks.google,
+                        attachment_url: passUrl || ''
+                    });
+                } catch (clientErr) { console.warn('[reschedule client email]', clientErr); }
+
+                try { await sendAdminViewingNotification('rescheduled', freshV); }
+                catch (notifyErr) { console.warn('[admin-notify rescheduled]', notifyErr); }
+            } else {
+                // First-time proposal — send simple suggestion email
+                await emailjs.send('service_74n80th', 'boom_notification', {
+                    to_email: v.clientEmail,
+                    from_name: 'Valentino — BOOM',
+                    reply_to: 'valentino@boomrome.com',
+                    heading: '↩ Alternative Time Proposed',
+                    subheading: v.listingName,
+                    name: (v.clientName || '').split(' ')[0],
+                    intro: msg || 'The time you proposed doesn\'t work for me. I\'d suggest the slot below instead.',
+                    card_title: 'Suggested Time',
+                    card_color: '#0A84FF',
+                    r1_icon: '📅', r1_label: 'Suggested', r1_value: dtStr,
+                    r2_icon: '🏠', r2_label: 'Property', r2_value: v.listingName,
+                    r3_icon: '📞', r3_label: 'Questions?', r3_value: '+39 331 325 1961',
+                    r4_icon: '💬', r4_label: 'WhatsApp', r4_value: 'wa.me/393313251961',
+                    closing: 'Reply to this email or WhatsApp me to confirm.',
+                    cta_text: 'WhatsApp Valentino →',
+                    portal_link: 'https://wa.me/393313251961'
+                });
+                try { await sendAdminViewingNotification('rescheduled', freshV); }
+                catch (notifyErr) { console.warn('[admin-notify rescheduled]', notifyErr); }
+            }
+
             closeModal();
-            toast('success', '↩ Alternative sent to client');
+            toast('success', wasConfirmed ? '↩ Rescheduled — client notified + pass updated' : '↩ Alternative sent to client');
             await refreshViewings();
         } catch(e) { console.error(e); toast('error', 'Error: ' + e.message); }
     }
 
     async function cancelViewing(id) {
         if (!confirm('Cancel this viewing request?')) return;
+        const v = (S.viewingRequests || []).find(r => r.id === id);
         try {
             await db.collection('viewingRequests').doc(id).update({ status: 'cancelled', cancelledAt: firebase.firestore.FieldValue.serverTimestamp() });
+            // Local cache update
+            const idx = (S.viewingRequests || []).findIndex(x => x.id === id);
+            if (idx >= 0) S.viewingRequests[idx] = Object.assign({}, S.viewingRequests[idx], { status: 'cancelled' });
+            const freshV = Object.assign({}, v || { id: id }, { status: 'cancelled' });
+
+            // If a pass was previously generated, regenerate as voided so already-installed
+            // Apple Wallet passes get the strikethrough indicator on next push.
+            if (v && v.passSent) {
+                try {
+                    const addr = await resolveViewingAddress(freshV);
+                    const confirmedDateISO = combineToISO(v.confirmedDate || v.proposedDate, v.confirmedTime || v.proposedTime);
+                    toast('info', 'Voiding pass...');
+                    const result = await generatePass('viewing', {
+                        viewingId: id,
+                        clientName: v.clientName || '',
+                        propertyAddress: addr.address || v.listingName || '',
+                        propertyCity: addr.city || 'Roma',
+                        propertyCoords: addr.coords,
+                        confirmedDateISO: confirmedDateISO,
+                        durationMinutes: v.duration || 30,
+                        meetingPoint: v.meetingPoint || 'AL CITOFONO',
+                        isVoided: true
+                    });
+                    if (result && result.url) {
+                        await db.collection('viewingRequests').doc(id).update({
+                            passVoided: true,
+                            passVoidedAt: new Date().toISOString(),
+                            passSentUrl: result.url
+                        }).catch(function(e){});
+                        console.log('[Viewing] Voided pass generated:', result.url);
+                    }
+                } catch (voidErr) { console.warn('[Viewing] void pass failed:', voidErr); }
+            }
+
+            try { await sendAdminViewingNotification('cancelled', freshV); }
+            catch (notifyErr) { console.warn('[admin-notify cancelled]', notifyErr); }
+
             toast('success', 'Viewing cancelled');
             await refreshViewings();
         } catch(e) { toast('error', e.message); }
@@ -11044,13 +11143,19 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                         <button class="btn btn-xs btn-secondary" onclick="generateContractPasses('${c.id}').then(()=>{toast('success','Passes regenerated');closeModal();})"> Regenerate</button>
                     </div>
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:12px">
-                        <div style="display:flex;align-items:center;gap:6px">
-                            <span style="font-size:14px">${c.tenantPassGenerated ? '✅' : '⏳'}</span>
-                            <span style="color:var(--text-secondary)">Tenant Card</span>
+                        <div>
+                            <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+                                <span style="font-size:14px">${c.tenantPassGenerated ? '✅' : '⏳'}</span>
+                                <span style="color:var(--text-secondary)">Tenant Card</span>
+                            </div>
+                            ${c.tenantPassUrl && (t?.phone || c.tenantPhone) ? `<a class="btn btn-xs" style="background:#25D366;color:#fff;text-decoration:none;display:inline-flex;align-items:center;gap:4px" href="${buildBoomWaLink(t?.phone || c.tenantPhone, (t?.isPremium ? 'silver' : 'tenant'), { tenantName: t?.name || c.tenantName || '', passUrl: c.tenantPassUrl })}" target="_blank" rel="noopener">💬 WhatsApp</a>` : ''}
                         </div>
-                        <div style="display:flex;align-items:center;gap:6px">
-                            <span style="font-size:14px">${c.landlordPassGenerated ? '✅' : '⏳'}</span>
-                            <span style="color:var(--text-secondary)">Landlord Card</span>
+                        <div>
+                            <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+                                <span style="font-size:14px">${c.landlordPassGenerated ? '✅' : '⏳'}</span>
+                                <span style="color:var(--text-secondary)">Landlord Card</span>
+                            </div>
+                            ${c.landlordPassUrl && (o?.phone) ? `<a class="btn btn-xs" style="background:#25D366;color:#fff;text-decoration:none;display:inline-flex;align-items:center;gap:4px" href="${buildBoomWaLink(o?.phone, 'landlord', { landlordName: o?.name || '', passUrl: c.landlordPassUrl })}" target="_blank" rel="noopener">💬 WhatsApp</a>` : ''}
                         </div>
                     </div>
                 </div>
@@ -12508,6 +12613,159 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         return d.toISOString().slice(0, 10); // YYYY-MM-DD
     }
 
+    // Resolve a viewing's display address with property → listing → viewing fallback chain.
+    // Returns { address, city, coords, label } — label is 'address (city)' or fallback.
+    async function resolveViewingAddress(v) {
+        var out = { address: '', city: 'Roma', coords: null, label: v.listingName || '' };
+        if (!v) return out;
+        var prop = (S.properties || []).find(function(p) { return p.id === v.propertyId; });
+        if (!prop && v.propertyId) {
+            try { var pDoc = await db.collection('properties').doc(v.propertyId).get(); if (pDoc.exists) prop = Object.assign({ id: v.propertyId }, pDoc.data()); }
+            catch (e) {}
+        }
+        if (prop) {
+            out.address = prop.address || '';
+            out.city = prop.city || 'Roma';
+            out.coords = prop.coordinates || (prop.lat && prop.lng ? { lat: prop.lat, lng: prop.lng } : null);
+        }
+        if ((!out.address || !out.coords) && v.listingId) {
+            try {
+                var lDoc = await db.collection('listings').doc(v.listingId).get();
+                if (lDoc.exists) {
+                    var lData = lDoc.data();
+                    if (!out.address) out.address = lData.address || '';
+                    if (!out.city || out.city === 'Roma') out.city = lData.city || out.city;
+                    if (!out.coords) out.coords = lData.coordinates || (lData.lat && lData.lng ? { lat: lData.lat, lng: lData.lng } : null);
+                }
+            } catch (e) {}
+        }
+        if (!out.address) out.address = v.address || v.listingName || '';
+        out.label = out.address ? (out.address + (out.city ? (', ' + out.city) : '')) : (v.listingName || '');
+        return out;
+    }
+
+    // Build both Google Calendar URL + universal ICS data URL with GEO + reminders.
+    // dt: Date object (start). durationMin defaults to 60. addr: { address, city, coords, label }.
+    function buildCalendarLinks(dt, durationMin, addr, v) {
+        durationMin = durationMin || 60;
+        var pad = function(n) { return n < 10 ? '0' + n : '' + n; };
+        var endDt = new Date(dt.getTime() + durationMin * 60000);
+        var fmtZ = function(d) { return d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'; };
+        var s = fmtZ(dt);
+        var e = fmtZ(endDt);
+        var title = 'Viewing — ' + (v.listingName || 'BOOM') + ' · ' + (v.clientName || '');
+        var locStr = addr && addr.label ? addr.label : (v.listingName || 'Roma');
+        var details = 'Cliente: ' + (v.clientName || '') +
+            '\nEmail: ' + (v.clientEmail || '') +
+            (v.clientPhone ? '\nPhone: ' + v.clientPhone : '') +
+            '\nNotes: ' + (v.notes || '—') +
+            '\n\nMeeting point: ' + (v.meetingPoint || 'AL CITOFONO') +
+            '\nAgent: Valentino · +39 331 325 1961';
+        var gcal = 'https://calendar.google.com/calendar/render?action=TEMPLATE'
+            + '&text=' + encodeURIComponent(title)
+            + '&dates=' + s + '/' + e
+            + '&location=' + encodeURIComponent(locStr)
+            + '&details=' + encodeURIComponent(details);
+        // Universal ICS with GEO + 24h/1h alarms
+        var uid = 'boom-viewing-' + (v.id || Date.now()) + '@boomrome.com';
+        var stamp = fmtZ(new Date());
+        var icsLines = [
+            'BEGIN:VCALENDAR',
+            'VERSION:2.0',
+            'PRODID:-//BOOM Rome//Viewing//EN',
+            'CALSCALE:GREGORIAN',
+            'METHOD:PUBLISH',
+            'BEGIN:VEVENT',
+            'UID:' + uid,
+            'DTSTAMP:' + stamp,
+            'DTSTART:' + s,
+            'DTEND:' + e,
+            'SUMMARY:' + title.replace(/[,;\\]/g, '\\$&'),
+            'DESCRIPTION:' + details.replace(/\n/g, '\\n').replace(/[,;\\]/g, '\\$&'),
+            'LOCATION:' + locStr.replace(/[,;\\]/g, '\\$&')
+        ];
+        if (addr && addr.coords && addr.coords.lat && addr.coords.lng) {
+            icsLines.push('GEO:' + addr.coords.lat + ';' + addr.coords.lng);
+        }
+        // 24h reminder
+        icsLines.push('BEGIN:VALARM', 'TRIGGER:-P1D', 'ACTION:DISPLAY', 'DESCRIPTION:Viewing tomorrow', 'END:VALARM');
+        // 1h reminder
+        icsLines.push('BEGIN:VALARM', 'TRIGGER:-PT1H', 'ACTION:DISPLAY', 'DESCRIPTION:Viewing in 1 hour', 'END:VALARM');
+        icsLines.push('END:VEVENT', 'END:VCALENDAR');
+        var icsRaw = icsLines.join('\r\n');
+        var icsUrl = 'data:text/calendar;charset=utf-8,' + encodeURIComponent(icsRaw);
+        return { google: gcal, ics: icsUrl, title: title, location: locStr };
+    }
+
+    // Send confirmation email to viewing client (with pass URL + ICS calendar link).
+    async function sendClientViewingConfirmation(v, dt, durationMin, addr, passUrl, calLinks) {
+        if (!v.clientEmail) return false;
+        try {
+            var dtStr = dt.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }) +
+                ' · ' + dt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+            var firstName = (v.clientName || '').split(' ')[0] || '';
+            var rows = {
+                r1_icon: '📅', r1_label: 'Date & Time', r1_value: dtStr,
+                r2_icon: '🏠', r2_label: 'Property', r2_value: addr && addr.label ? addr.label : (v.listingName || ''),
+                r3_icon: '📍', r3_label: 'Meeting point', r3_value: v.meetingPoint || 'AL CITOFONO',
+                r4_icon: '📞', r4_label: 'Agent', r4_value: 'Valentino — +39 331 325 1961'
+            };
+            var closingLines = 'Bring a valid ID. Arrive 5 min early.\n\n';
+            if (passUrl) closingLines += '🎟️ Apple Wallet pass: ' + passUrl + '\n';
+            if (calLinks && calLinks.ics) closingLines += '📅 Add to calendar (universal): ' + calLinks.ics + '\n';
+            if (calLinks && calLinks.google) closingLines += '📅 Google Calendar: ' + calLinks.google;
+            await emailjs.send('service_74n80th', 'boom_notification', {
+                to_email: v.clientEmail,
+                from_name: 'Valentino — BOOM',
+                reply_to: 'valentino@boomrome.com',
+                heading: '✅ Viewing Confirmed',
+                subheading: addr && addr.label ? addr.label : (v.listingName || ''),
+                name: firstName,
+                intro: 'Your viewing is confirmed. Apple Wallet pass + calendar links below.',
+                card_title: v.listingName || 'BOOM Viewing',
+                card_color: '#34C759',
+                r1_icon: rows.r1_icon, r1_label: rows.r1_label, r1_value: rows.r1_value,
+                r2_icon: rows.r2_icon, r2_label: rows.r2_label, r2_value: rows.r2_value,
+                r3_icon: rows.r3_icon, r3_label: rows.r3_label, r3_value: rows.r3_value,
+                r4_icon: rows.r4_icon, r4_label: rows.r4_label, r4_value: rows.r4_value,
+                closing: closingLines,
+                cta_text: passUrl ? 'Add to Apple Wallet →' : 'Add to Google Calendar →',
+                portal_link: passUrl || (calLinks && calLinks.google) || 'https://boomrome.com',
+                attachment_url: passUrl || ''
+            });
+            return true;
+        } catch (e) { console.warn('[viewing client email]', e); return false; }
+    }
+
+    // Send landlord welcome email post-signature with pass URL embedded.
+    async function sendLandlordWelcomeWithPass(contract, landlord, property, passUrl) {
+        if (!landlord || !landlord.email) return false;
+        try {
+            var firstName = (landlord.name || '').split(' ')[0] || '';
+            var pdfLink = contract.generatedPDF || '';
+            var closingLines = 'Grazie per la fiducia. Il contratto è attivo.';
+            if (passUrl) closingLines += '\n\n🎫 La tua tessera Partner BOOM (Apple Wallet): ' + passUrl;
+            if (pdfLink) closingLines += '\n\n📎 Contratto firmato (PDF): ' + pdfLink;
+            closingLines += '\n— Valentino, BOOM';
+            return await sendBoomEmail(EMAILJS_CONFIG.templates.notification, landlord.email, {
+                heading: 'Benvenuto in BOOM Partner, ' + firstName,
+                subheading: 'Il contratto è firmato e attivo',
+                name: firstName,
+                intro: 'Ciao ' + firstName + ', il contratto per ' + (property && property.address ? property.address : 'la proprietà') + ' è stato firmato da entrambe le parti ed è ora attivo.',
+                card_title: 'BOOM PREMIUM PARTNER',
+                card_color: '#D4AF37',
+                r1_icon: '🏠', r1_label: 'Proprietà', r1_value: (property && (property.name || property.address)) || '',
+                r2_icon: '👤', r2_label: 'Inquilino', r2_value: contract.tenantName || '',
+                r3_icon: '💰', r3_label: 'Canone', r3_value: '€' + ((contract.rent || 0).toLocaleString ? (contract.rent || 0).toLocaleString('it-IT') : (contract.rent || 0)) + '/mese',
+                r4_icon: '🎫', r4_label: 'Apple Wallet', r4_value: passUrl ? 'Aggiungi la tessera al Wallet' : 'In generazione',
+                closing: closingLines,
+                cta_text: passUrl ? 'Aggiungi a Apple Wallet →' : 'Apri portal →',
+                portal_link: passUrl || (window.location.origin + '/portal.html'),
+                attachment_url: passUrl || pdfLink
+            });
+        } catch (e) { console.warn('[landlord welcome]', e); return false; }
+    }
+
     function buildBoomWaLink(phone, passType, ctx) {
         var phoneClean = (phone || '').replace(/[^0-9+]/g, '').replace(/^\+/, '');
         if (!phoneClean) return null;
@@ -12718,12 +12976,77 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // ★ Check-in QR scan — viewing → status:'completed'
     // Uses BarcodeDetector when available; falls back to manual ID entry.
     // ═══════════════════════════════════════════════════════════════════════
+    // Shared QR scanner state machine (BarcodeDetector preferred, jsQR fallback)
+    var qrScanState = { stream: null, raf: null, stopRequested: false, jsqrLoaded: false, canvas: null };
+
+    function loadJsQR() {
+        if (qrScanState.jsqrLoaded || window.jsQR) return Promise.resolve(true);
+        return new Promise(function(resolve, reject) {
+            var s = document.createElement('script');
+            s.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js';
+            s.async = true;
+            s.onload = function() { qrScanState.jsqrLoaded = true; resolve(true); };
+            s.onerror = function() { reject(new Error('jsQR load failed')); };
+            document.head.appendChild(s);
+        });
+    }
+
+    function handleQRCode(raw) {
+        if (!raw) return false;
+        if (raw.indexOf('BOOM:VIEWING:') !== 0) {
+            var resultEl = document.getElementById('qr-result');
+            if (resultEl) resultEl.innerHTML = '<span style="color:var(--orange)">QR non riconosciuto: ' + raw.slice(0, 40) + '…</span>';
+            return false;
+        }
+        var id = raw.slice('BOOM:VIEWING:'.length).trim();
+        stopQRScanAndClose();
+        completeViewingCheckIn(id);
+        return true;
+    }
+
+    function stopQRScanAndClose() {
+        qrScanState.stopRequested = true;
+        if (qrScanState.raf) { try { cancelAnimationFrame(qrScanState.raf); } catch (e) {} qrScanState.raf = null; }
+        if (qrScanState.stream) {
+            try { qrScanState.stream.getTracks().forEach(function(t) { t.stop(); }); } catch (e) {}
+            qrScanState.stream = null;
+        }
+    }
+
+    function scanLoopWithDetector(detector, video) {
+        if (qrScanState.stopRequested) return;
+        detector.detect(video).then(function(codes) {
+            if (codes && codes.length && handleQRCode(codes[0].rawValue || '')) return;
+            if (!qrScanState.stopRequested) setTimeout(function() { scanLoopWithDetector(detector, video); }, 400);
+        }).catch(function() {
+            if (!qrScanState.stopRequested) setTimeout(function() { scanLoopWithDetector(detector, video); }, 800);
+        });
+    }
+
+    function scanLoopWithJsQR(video) {
+        if (qrScanState.stopRequested) return;
+        if (!qrScanState.canvas) qrScanState.canvas = document.createElement('canvas');
+        var canvas = qrScanState.canvas;
+        var ctx = canvas.getContext('2d', { willReadFrequently: true });
+        if (video.readyState >= 2 && video.videoWidth) {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            try {
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                var img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                var code = window.jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
+                if (code && code.data && handleQRCode(code.data)) return;
+            } catch (e) { /* drawImage can throw if video not ready */ }
+        }
+        qrScanState.raf = requestAnimationFrame(function() { scanLoopWithJsQR(video); });
+    }
+
     function openCheckInScan() {
         var modalsEl = document.getElementById('modals');
         modalsEl.innerHTML = `
-        <div class="modal-overlay active" onclick="if(event.target===this)closeModal()">
+        <div class="modal-overlay active" onclick="if(event.target===this){stopQRScanAndClose();closeModal();}">
         <div class="modal" onclick="event.stopPropagation()">
-            <div class="modal-header"><h3 class="modal-title">📷 Check-in Viewing</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+            <div class="modal-header"><h3 class="modal-title">📷 Check-in Viewing</h3><button class="modal-close" onclick="stopQRScanAndClose();closeModal()">×</button></div>
             <div class="modal-body" style="padding:20px;text-align:center">
                 <p style="font-size:13px;color:var(--text-secondary);margin-bottom:14px">Scansiona il QR della pass del cliente al meeting point. Formato atteso: <code>BOOM:VIEWING:&lt;id&gt;</code></p>
                 <video id="qr-video" style="width:100%;max-width:380px;border-radius:12px;background:#000" muted playsinline></video>
@@ -12776,59 +13099,50 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         }
     }
 
-    function initQRScanner() {
+    async function initQRScanner() {
         var video = document.getElementById('qr-video');
         var resultEl = document.getElementById('qr-result');
         if (!video) return;
-        if (!('BarcodeDetector' in window)) {
-            if (resultEl) resultEl.innerHTML = '<span style="color:var(--orange)">⚠️ BarcodeDetector non disponibile in questo browser. Usa il check-in manuale sotto.</span>';
+        qrScanState.stopRequested = false;
+
+        // Decide engine: native BarcodeDetector preferred, else jsQR fallback
+        var hasNative = ('BarcodeDetector' in window);
+        var detector = null;
+        if (hasNative) {
+            try { detector = new window.BarcodeDetector({ formats: ['qr_code'] }); }
+            catch (e) { hasNative = false; detector = null; }
+        }
+        if (!hasNative) {
+            if (resultEl) resultEl.textContent = 'Scanner avanzato non supportato — caricamento jsQR…';
+            try { await loadJsQR(); }
+            catch (loadErr) {
+                if (resultEl) resultEl.innerHTML = '<span style="color:var(--orange)">⚠️ Scanner non disponibile. Usa il check-in manuale sotto.</span>';
+                return;
+            }
+        }
+
+        // Open camera
+        try {
+            qrScanState.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+            video.srcObject = qrScanState.stream;
+            await video.play();
+            if (resultEl) resultEl.textContent = 'Inquadra il QR…';
+        } catch (err) {
+            if (resultEl) resultEl.innerHTML = '<span style="color:var(--red)">Camera negata: ' + err.message + '. Usa check-in manuale.</span>';
             return;
         }
-        var detector;
-        try { detector = new window.BarcodeDetector({ formats: ['qr_code'] }); }
-        catch (e) {
-            if (resultEl) resultEl.innerHTML = '<span style="color:var(--orange)">⚠️ QR scanner non disponibile. Usa check-in manuale.</span>';
-            return;
-        }
-        var stream;
-        var stopRequested = false;
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-            .then(function(s) {
-                stream = s;
-                video.srcObject = s;
-                video.play();
-                if (resultEl) resultEl.textContent = 'Inquadra il QR…';
-                var scan = function() {
-                    if (stopRequested) return;
-                    detector.detect(video).then(function(codes) {
-                        if (codes && codes.length) {
-                            var raw = codes[0].rawValue || '';
-                            if (raw.indexOf('BOOM:VIEWING:') === 0) {
-                                var id = raw.slice('BOOM:VIEWING:'.length).trim();
-                                stopRequested = true;
-                                if (stream) stream.getTracks().forEach(function(t) { t.stop(); });
-                                completeViewingCheckIn(id);
-                                return;
-                            } else {
-                                if (resultEl) resultEl.innerHTML = '<span style="color:var(--orange)">QR non riconosciuto: ' + raw.slice(0, 40) + '…</span>';
-                            }
-                        }
-                        setTimeout(scan, 400);
-                    }).catch(function() { setTimeout(scan, 800); });
-                };
-                scan();
-                // Auto-stop on modal close
-                var checkClose = setInterval(function() {
-                    if (!document.getElementById('qr-video')) {
-                        stopRequested = true;
-                        if (stream) stream.getTracks().forEach(function(t) { t.stop(); });
-                        clearInterval(checkClose);
-                    }
-                }, 1000);
-            })
-            .catch(function(err) {
-                if (resultEl) resultEl.innerHTML = '<span style="color:var(--red)">Camera negata: ' + err.message + '. Usa check-in manuale.</span>';
-            });
+
+        // Start the appropriate loop
+        if (hasNative && detector) scanLoopWithDetector(detector, video);
+        else scanLoopWithJsQR(video);
+
+        // Auto-stop guard if modal removed without explicit close
+        var checkClose = setInterval(function() {
+            if (!document.getElementById('qr-video')) {
+                stopQRScanAndClose();
+                clearInterval(checkClose);
+            }
+        }, 1000);
     }
 
     async function generateContractPasses(contractId) {
@@ -12979,6 +13293,14 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             console.warn('[PropPass] Landlord pass generated but no email available — skipping auto-deliver');
         }
         console.log('[PropPass] Contract passes generated for', contractId);
+        return {
+            tenant: tenantResult ? { url: tenantResult.url || '', blob: tenantResult.blob || null } : null,
+            landlord: landlordResult ? { url: landlordResult.url || '', blob: landlordResult.blob || null } : null,
+            contract: contract,
+            tenantUser: tenant,
+            landlordUser: landlord,
+            property: prop
+        };
     }
 
     async function generateReferralPass(name, code, expiry, phone, maxUses) {
@@ -13141,7 +13463,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // → portal handler reads doc, marks used, saves localStorage tenant session,
     //   redirects with anon Firebase Auth so client-side filters drive the view.
     // No Admin SDK / no service account / no separate Vercel function required.
-    async function sendTenantWelcomeWithMagicLink(contract) {
+    async function sendTenantWelcomeWithMagicLink(contract, passUrl) {
         try {
             // Resolve tenant + property + landlord with Firestore fallback (Magic Sign session
             // has anonymous auth; S.users may be empty)
@@ -13203,11 +13525,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
             var firstName = (tenant.name || '').split(' ')[0] || 'tenant';
             var pdfLink = contract.generatedPDF || '';
-            var pdfBlock = pdfLink
-                ? '\n\n📎 Contratto firmato (PDF): ' + pdfLink
-                : '';
+            var passBlock = passUrl ? ('\n\n🎫 La tua tessera Apple Wallet: ' + passUrl) : '';
+            var pdfBlock = pdfLink ? ('\n\n📎 Contratto firmato (PDF): ' + pdfLink) : '';
 
-            console.log('[BOOM] Tenant magic-link email sending to', tenant.email);
+            console.log('[BOOM] Tenant magic-link email sending to', tenant.email, passUrl ? '(with pass URL)' : '(no pass URL)');
             var sent = await sendBoomEmail(EMAILJS_CONFIG.templates.notification, tenant.email, {
                 heading: 'Benvenuto in BOOM, ' + firstName,
                 subheading: 'Il tuo contratto è firmato e attivo',
@@ -13216,13 +13537,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 card_title: 'IL TUO PORTAL',
                 card_color: '#D4AF37',
                 r1_icon: '🚀', r1_label: 'Accesso', r1_value: 'Un click, niente password — il link sotto ti logga direttamente.',
-                r2_icon: '📄', r2_label: 'Contratto firmato', r2_value: pdfLink ? 'PDF disponibile per CAF e archivio (link in fondo)' : 'In generazione, lo riceverai a breve',
-                r3_icon: '🏠', r3_label: 'Indirizzo', r3_value: (property && property.address) || '',
-                r4_icon: '👤', r4_label: 'Locatore', r4_value: (landlord && landlord.name) || '',
-                closing: 'Il link funziona una volta sola e scade tra 1 ora. Salva questa email.' + pdfBlock + '\n\nIn bocca al lupo per la tua nuova casa a ' + ((property && property.city) || 'Roma') + '.\n— Valentino, BOOM',
+                r2_icon: '🎫', r2_label: 'Apple Wallet', r2_value: passUrl ? 'Tessera disponibile (link in fondo)' : 'In generazione, ti arriva a breve',
+                r3_icon: '📄', r3_label: 'Contratto firmato', r3_value: pdfLink ? 'PDF disponibile per CAF e archivio' : 'In generazione, lo riceverai a breve',
+                r4_icon: '🏠', r4_label: 'Indirizzo', r4_value: (property && property.address) || '',
+                closing: 'Il link funziona una volta sola e scade tra 1 ora. Salva questa email.' + passBlock + pdfBlock + '\n\nIn bocca al lupo per la tua nuova casa a ' + ((property && property.city) || 'Roma') + '.\n— Valentino, BOOM',
                 cta_text: '→ Entra nel tuo portal',
                 portal_link: magicUrl,
-                attachment_url: pdfLink
+                attachment_url: passUrl || pdfLink
             });
             if (sent) console.log('[BOOM] Tenant magic-link email sent to', tenant.email);
             return sent;
@@ -22061,6 +22382,16 @@ function boomToggleCollapse() {
 
 function boomCloseBridge() {
   document.getElementById('boomBridge').classList.remove('visible');
+}
+</script>
+<script>
+// PWA service worker — network-first HTML/API, cache-first static assets
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then(reg => console.log('[SW] registered:', reg.scope))
+      .catch(err => console.warn('[SW] registration failed:', err));
+  });
 }
 </script>
 </body>

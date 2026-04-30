@@ -1,23 +1,31 @@
 {
-  "name": "BOOM Property Portal",
+  "name": "BOOM Rome — Portal",
   "short_name": "BOOM",
-  "description": "Premium rental management for landlords & tenants",
+  "description": "BOOM Rome property management portal",
   "start_url": "/portal.html",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#000000",
-  "theme_color": "#000000",
-  "orientation": "portrait-primary",
+  "orientation": "portrait",
+  "background_color": "#08080A",
+  "theme_color": "#08080A",
   "icons": [
     {
-      "src": "https://www.boomrome.com/BOOMlogogoldicon512.png",
-      "sizes": "512x512",
+      "src": "/assets/icons/icon-192.png",
+      "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
-      "src": "https://www.boomrome.com/BOOMlogogoldicon512.png",
-      "sizes": "192x192",
-      "type": "image/png"
+      "src": "/assets/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/icons/icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }

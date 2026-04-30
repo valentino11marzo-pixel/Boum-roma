@@ -399,17 +399,25 @@ async function submitRequest(){
       createdAt:firebase.firestore.FieldValue.serverTimestamp()
     });
     ST.reqId=ref.id;
-    await emailjs.send('service_74n80th','boom_notification',{
-      to_email:'valentino@boomrome.com',from_name:ST.name,reply_to:ST.email,
-      heading:'📅 New Viewing Request',subheading:ST.name+' — '+(l.zone||'Rome'),
-      name:'Valentino',intro:ST.name+' wants to visit '+(l.name||l.address||'a property')+'. Confirm or reschedule in the portal.',
-      card_title:l.name||l.address||'Property',card_color:'#D4AF37',
-      r1_icon:'👤',r1_label:'Client',r1_value:ST.name+(ST.phone?' · '+ST.phone:''),
-      r2_icon:'🏠',r2_label:'Property',r2_value:(l.name||l.address||'Property')+(l.zone?' · '+l.zone:''),
-      r3_icon:'📅',r3_label:'Proposed',r3_value:dtStr,
-      r4_icon:'📝',r4_label:'Notes',r4_value:ST.notes||'—',
-      closing:'Open the Viewings tab to confirm.',cta_text:'Open Viewings →',portal_link:'https://portal.boomrome.com'
-    });
+    // Server-side admin notification (cleaner than client-side EmailJS, also tolerates 4xx)
+    try {
+      await fetch('/api/notify-viewing-created', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          viewingId: ref.id,
+          clientName: ST.name,
+          clientEmail: ST.email,
+          clientPhone: ST.phone,
+          listingName: (l.name || l.address || 'Property') + (l.zone ? ' · ' + l.zone : ''),
+          requestedDate: d,
+          requestedTime: t,
+          notes: ST.notes || ''
+        })
+      });
+    } catch (notifyErr) {
+      console.warn('[book] notify-viewing-created failed (non-fatal):', notifyErr);
+    }
     const propName=(l.name||l.address||'Property')+(l.zone?' — '+l.zone:'');
     document.getElementById('sum-p-final').textContent=propName;
     document.getElementById('sum-t-final').textContent=dtStr;

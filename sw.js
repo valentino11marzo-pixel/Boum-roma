@@ -1,76 +1,96 @@
-// BOOM Portal Service Worker v1
-const CACHE_NAME = 'boom-v1';
-const PRECACHE_URLS = ['/portal.html'];
+// BOOM Service Worker — minimal
+// Network-first for HTML/API (always fresh).
+// Cache-first for static assets (icons, manifest).
+// Skips Firebase / EmailJS / 3rd-party traffic entirely.
 
-// Install - precache core files
-self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(PRECACHE_URLS))
-      .then(() => self.skipWaiting())
-  );
+const CACHE_VERSION = 'boom-v3';
+const STATIC_CACHE = `${CACHE_VERSION}-static`;
+const STATIC_ASSETS = [
+    '/portal.html',
+    '/manifest.json',
+    '/assets/icons/icon-192.png',
+    '/assets/icons/icon-512.png',
+    '/assets/icons/icon-512-maskable.png',
+    '/assets/icons/apple-touch-icon-180.png',
+    '/assets/icons/apple-touch-icon-152.png',
+    '/assets/icons/apple-touch-icon-120.png',
+    '/assets/icons/favicon-16.png',
+    '/assets/icons/favicon-32.png'
+];
+
+self.addEventListener('install', (event) => {
+    event.waitUntil(
+        caches.open(STATIC_CACHE)
+            .then((cache) => cache.addAll(STATIC_ASSETS).catch(() => null))
+            .then(() => self.skipWaiting())
+    );
 });
 
-// Activate - cleanup old caches
-self.addEventListener('activate', event => {
-  event.waitUntil(
-    caches.keys().then(names => {
-      return Promise.all(
-        names.filter(name => name !== CACHE_NAME).map(name => caches.delete(name))
-      );
-    }).then(() => self.clients.claim())
-  );
+self.addEventListener('activate', (event) => {
+    event.waitUntil(
+        caches.keys()
+            .then((keys) => Promise.all(
+                keys.filter((k) => !k.startsWith(CACHE_VERSION)).map((k) => caches.delete(k))
+            ))
+            .then(() => self.clients.claim())
+    );
 });
 
-// Fetch - network-first for API, cache-first for static
-self.addEventListener('fetch', event => {
-  if (event.request.method !== 'GET') return;
-  
-  // Skip Firebase/API requests
-  const url = event.request.url;
-  if (url.includes('firestore') || url.includes('firebase') || url.includes('googleapis') || url.includes('gstatic')) {
-    return;
-  }
-  
-  // Network-first strategy with cache fallback
-  event.respondWith(
-    fetch(event.request)
-      .then(response => {
-        if (response.ok) {
-          const responseClone = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(event.request, responseClone));
-        }
-        return response;
-      })
-      .catch(() => caches.match(event.request))
-  );
+self.addEventListener('fetch', (event) => {
+    if (event.request.method !== 'GET') return;
+
+    const url = new URL(event.request.url);
+
+    // Skip 3rd-party (Firebase, EmailJS, fonts, CDN)
+    const skipHosts = ['firebaseio.com', 'firestore.googleapis.com', 'googleapis.com',
+                       'gstatic.com', 'firebasestorage.app', 'emailjs.com',
+                       'fonts.googleapis.com', 'fonts.gstatic.com',
+                       'cdn.jsdelivr.net', 'cdnjs.cloudflare.com'];
+    if (skipHosts.some(h => url.hostname.includes(h))) return;
+
+    // Network-first for HTML and API endpoints (sempre fresh)
+    if (url.pathname.endsWith('.html') || url.pathname.startsWith('/api/')) {
+        event.respondWith(
+            fetch(event.request).catch(() => caches.match(event.request))
+        );
+        return;
+    }
+
+    // Cache-first for declared static assets
+    if (STATIC_ASSETS.includes(url.pathname) || url.pathname.startsWith('/assets/icons/')) {
+        event.respondWith(
+            caches.match(event.request).then((cached) => cached || fetch(event.request))
+        );
+        return;
+    }
+
+    // Default: network only (let browser handle). Don't intercept.
 });
 
-// Push notifications
-self.addEventListener('push', event => {
-  const data = event.data ? event.data.json() : { title: 'BOOM', body: 'New notification' };
-  event.waitUntil(
-    self.registration.showNotification(data.title, {
-      body: data.body,
-      icon: 'https://www.boomrome.com/BOOMlogogoldicon512.png',
-      badge: 'https://www.boomrome.com/BOOMlogogoldicon512.png',
-      vibrate: [200, 100, 200],
-      data: data.url || '/portal.html'
-    })
-  );
+// Push notifications (optional, kept for future)
+self.addEventListener('push', (event) => {
+    if (!event.data) return;
+    let data;
+    try { data = event.data.json(); }
+    catch (_) { data = { title: 'BOOM', body: event.data.text() }; }
+    event.waitUntil(
+        self.registration.showNotification(data.title || 'BOOM', {
+            body: data.body || '',
+            icon: '/assets/icons/icon-192.png',
+            badge: '/assets/icons/icon-192.png',
+            data: data.url || '/portal.html'
+        })
+    );
 });
 
-// Notification click - open portal
-self.addEventListener('notificationclick', event => {
-  event.notification.close();
-  event.waitUntil(
-    clients.matchAll({ type: 'window' }).then(windowClients => {
-      for (const client of windowClients) {
-        if (client.url.includes('portal.html') && 'focus' in client) {
-          return client.focus();
-        }
-      }
-      return clients.openWindow(event.notification.data || '/portal.html');
-    })
-  );
+self.addEventListener('notificationclick', (event) => {
+    event.notification.close();
+    event.waitUntil(
+        clients.matchAll({ type: 'window', includeUncontrolled: true }).then((wcs) => {
+            for (const c of wcs) {
+                if (c.url.includes('portal.html') && 'focus' in c) return c.focus();
+            }
+            return clients.openWindow(event.notification.data || '/portal.html');
+        })
+    );
 });
