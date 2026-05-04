@@ -2120,6 +2120,46 @@ Valentyne - BOOM Rome`
                             sendTenantWelcomeWithMagicLink(Object.assign({ id: contractId }, freshData), '').catch(function(e){ console.warn('Tenant welcome fallback:', e); });
                         }
                     })();
+                    // (i) ATLAS write-hook stub — sibling IIFE, INDEPENDENT of postSignaturePassFlow.
+                    //     Atlas write must not depend on EmailJS uptime. If welcomes fail, the
+                    //     contract is still signed — the memory must still be captured.
+                    //     Idempotency: deterministic doc ID in writePendingMemory + best-effort flag.
+                    (async function postSignatureAtlasHook() {
+                        if (freshData.atlasContractSignedEmitted === true) return;
+                        try {
+                            // Independent property fetch with null-fallback. Do NOT reuse
+                            // resolution from postSignaturePassFlow — that flow may have failed.
+                            var atlasProperty = null;
+                            try {
+                                if (freshData.propertyId) {
+                                    var pSnap = await db.collection('properties').doc(freshData.propertyId).get();
+                                    if (pSnap.exists) atlasProperty = pSnap.data();
+                                }
+                            } catch (fetchErr) { /* tolerated — atlas content tolerates nulls */ }
+                            var atlasContent = 'Contract signed: ' + (freshData.tenantName || '') +
+                                ' → ' + ((atlasProperty && (atlasProperty.address || atlasProperty.name)) || '') +
+                                ' on ' + (freshData.startDate || '') +
+                                ', rent €' + (freshData.rent || 0) +
+                                ', type=' + (freshData.type || 'transitorio');
+                            var atlasMeta = {
+                                propertyId: freshData.propertyId || null,
+                                tenantId: freshData.tenantId || null,
+                                landlordId: (atlasProperty && atlasProperty.ownerId) || null,
+                                contractId: contractId,
+                                tags: ['contract', freshData.type || 'transitorio']
+                            };
+                            await writePendingMemory('magic_sign_success', atlasContent, atlasMeta, 'magic-sign', { collection: 'contracts', id: contractId });
+                            // Optimization: flip the flag so future re-runs short-circuit.
+                            // Best-effort — any failure is logged, not propagated.
+                            try {
+                                await db.collection('contracts').doc(contractId).update({ atlasContractSignedEmitted: true });
+                            } catch (flagErr) {
+                                console.warn('[atlas-stub] flag update failed:', flagErr && flagErr.message);
+                            }
+                        } catch (atlasErr) {
+                            console.warn('[atlas-stub] postSignatureAtlasHook:', atlasErr && atlasErr.message);
+                        }
+                    })();
                     // (3) TENANT AUTO-ACCOUNT
                     if (fullContract.tenantId) {
                         var tenDoc = await db.collection('users').doc(fullContract.tenantId).get();
@@ -12552,9 +12592,53 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
     
     // ═══════════════════════════════════════════════════════════════════════════
+    // ★ ATLAS WRITE-HOOK STUB (Master Sprint 2026-05-02 — Phase 1)
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Captures memorable events into the `pendingMemories` collection so v1.1
+    // Atlas can drain them on first deploy (post-launch). Schema is FROZEN — see
+    // src/schemas.md §pendingMemories. Do not mutate the field shape here without
+    // updating that doc in lockstep.
+    //
+    // Idempotency: deterministic doc ID `${type}__${col}_${id}` + Firestore
+    // .set() (overwrites). Re-calling for the same source doc never produces a
+    // duplicate; only the latest payload survives. Even if the caller crashes
+    // between this write and setting the source-doc `atlas{Type}Emitted` flag,
+    // no duplication occurs — the flag is an OPTIMIZATION (skips the Firestore
+    // round-trip when already emitted), not a correctness gate.
+    //
+    // Fire-and-forget: never throws to the caller. Failure is logged only. The
+    // caller's flow MUST NOT depend on this resolving.
+    //
+    // @param {string} type         Memory type — see pendingMemories.type union in src/schemas.md
+    // @param {string} content      Free-form text (≤ 4000 chars) — what would be embedded by Atlas.
+    // @param {object} metadata     { propertyId?, tenantId?, landlordId?, contractId?, leadId?, ticketId?, paymentId?, viewingId?, pfsClientId?, tags? }
+    // @param {string} source       Originating subsystem: 'magic-sign' | 'leads' | 'tickets' | 'payments' | 'viewings' | 'pfs'
+    // @param {object} sourceDocRef { collection, id } — REQUIRED, used to compute the deterministic doc ID
+    async function writePendingMemory(type, content, metadata, source, sourceDocRef) {
+        try {
+            if (!type || !sourceDocRef || !sourceDocRef.collection || !sourceDocRef.id) {
+                console.warn('[atlas-stub] writePendingMemory missing required args; skipping');
+                return;
+            }
+            const docId = type + '__' + sourceDocRef.collection + '_' + sourceDocRef.id;
+            await db.collection('pendingMemories').doc(docId).set({
+                type: type,
+                content: (content || '').toString().slice(0, 4000),
+                metadata: metadata || {},
+                source: source || 'portal',
+                drained: false,
+                drainedAt: null,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            });
+        } catch (e) {
+            console.warn('[atlas-stub] writePendingMemory failed:', e && e.message);
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
     // ★ BOOM EMAIL ENGINE — EmailJS Integration
     // ═══════════════════════════════════════════════════════════════════════════
-    
+
     async function sendBoomEmail(templateId, toEmail, params) {
         if (EMAILJS_CONFIG.publicKey === 'YOUR_PUBLIC_KEY') {
             console.warn('[BOOM] EmailJS not configured — skipping email to', toEmail);

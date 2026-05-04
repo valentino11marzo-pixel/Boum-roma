@@ -195,6 +195,27 @@ Extend existing `Payments` tab. Migrate any docs in legacy `payments` collection
 
 ---
 
+## Phase 2 carry-overs (deferred from Phase 1)
+
+Items that the brief assigned to Phase 1 but turned out not to be wireable from `portal.html` alone. Documented here so Phase 2 picks them up cleanly when Atlas activates.
+
+### Lead grading Atlas wire — verified absent from portal.html on 2026-05-03
+
+The brief listed "lead grade decided" as one of the three Phase 1 Atlas write-hooks. Comprehensive grep of `portal.html` for `gradeLead`, `setGrade`, `setLeadGrade`, `applyGrade`, `boomGrade`, `classification`, `grade-A/B/C`, `Greta`, `leadScor*`, `leadBrain` returned **zero matches**. The 3 existing `leads.update(...)` call-sites write `linkedViewingId`, `status: 'responded'|'converted'|'discarded'`, `discardedAt` — never `grade`. Greta (lead grading agent) runs externally on the Mac Mini OpenClaw and either does not currently emit grades to Firestore, or writes via REST from outside the portal.
+
+**Phase 2 action**: locate the Greta REST writer (likely `~/boom-tools/lead_brain/greta_grader.py` on OpenClaw — confirm with founder before editing). Inject a call to `writePendingMemory` (server-side mirror in `src/atlas-pending.js`) with:
+- `type: 'lead_graded'`
+- `content`: human-readable summary (e.g. `"Lead graded ${grade}: ${name} from ${source}, intent=${intent}, budget=€${budget}"`)
+- `metadata`: `{ leadId, propertyId?, tags: ['lead', grade] }`
+- `source: 'leads'`
+- `sourceDocRef: { collection: 'leads', id: leadId }`
+
+Idempotency flag on `leads.{id}.atlasGradeEmitted` (boolean) — same pattern as `contracts.atlasContractSignedEmitted`. Document the wire in `src/schemas.md` §leads when adding the field.
+
+**Effort estimate**: ~30 minutes once Greta source is located. Lower priority than Atlas API itself — without v1.1 Atlas live, the wire would write to `pendingMemories` only, exactly as the portal-side wires do today.
+
+---
+
 ## Risk register
 
 | # | Risk | Probability | Mitigation |
