@@ -215,9 +215,10 @@ function buildDynamicContext({ lead, listings, zones, stage }) {
     ? `CURRENT INVENTORY ZONES (real availability right now): ${zones.join(', ')}. If the visitor names a zone you don't have, be honest — say what we do have, or offer the Property Finder Service.`
     : 'CURRENT INVENTORY ZONES: (none retrievable — be honest if asked).';
 
-  const listingsBlock = listings && listings.length
-    ? `MATCHED LISTINGS (the page will render these below your reply — do NOT name them, prices, or addresses yourself; refer to count and let them be shown):\n${JSON.stringify(listings, null, 2)}`
-    : 'MATCHED LISTINGS: none found for the current criteria. If the visitor has timing+duration+budget+zone all set, the page will show a Property Finder Service card. Acknowledge the gap honestly without "unfortunately".';
+  const listingsCount = (listings && listings.length) || 0;
+  const listingsBlock = listingsCount > 0
+    ? `MATCHED LISTINGS COUNT: ${listingsCount}. ${listingsCount} listings WILL BE RENDERED to the visitor below your reply. The visitor WILL see them. Do NOT name them, prices, or addresses yourself; refer to count ("Two fit your dates and budget — shown below"). Do NOT propose [SERVICE:PFS] when listings exist — there is no empty state. Listings JSON for your context only:\n${JSON.stringify(listings, null, 2)}`
+    : 'MATCHED LISTINGS COUNT: 0. No listings match the current criteria. Acknowledge the gap honestly without "unfortunately". If the visitor has timing+duration+budget+zone all set, propose [SERVICE:PFS] for off-market hunting. Do NOT propose [BOOK_VIEWING] — there is nothing to view.';
 
   return `CURRENT FACTS (already extracted by the page; advance the next still-unknown step only — do not re-ask anything already known):
 ${facts.join('; ')}.
