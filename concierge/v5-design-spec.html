@@ -1283,30 +1283,9 @@
 (() => {
   const ROME_TZ = "Europe/Rome";
   const STORAGE_KEY = "boom.concierge.v5";
-  const SESSION_KEY = "boom.concierge.sessionId";
   const MAX_TURNS = 12;
   const MAX_INPUT_LEN = 500;
   const ADMIN_MODE = new URLSearchParams(location.search).get("admin") === "1";
-
-  // Stable session id (per-browser). Used for /api/concierge and /api/concierge-event.
-  let SESSION_ID;
-  try {
-    SESSION_ID = localStorage.getItem(SESSION_KEY);
-    if (!SESSION_ID) {
-      SESSION_ID = (typeof crypto !== "undefined" && crypto.randomUUID)
-        ? crypto.randomUUID()
-        : (Math.random().toString(36).slice(2) + Date.now().toString(36));
-      localStorage.setItem(SESSION_KEY, SESSION_ID);
-    }
-  } catch {
-    SESSION_ID = Math.random().toString(36).slice(2) + Date.now().toString(36);
-  }
-
-  function esc(s) {
-    return String(s == null ? "" : s).replace(/[&<>"']/g, c =>
-      ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
-  }
-  function capitalize(s) { return s ? s[0].toUpperCase() + s.slice(1) : ""; }
 
   /* ═════ STATE ═════ */
 
@@ -1473,17 +1452,66 @@
   setInterval(rotateStoic, 24_000);
 
   /* ════════════════════════════════════════════════════════════════
-     SERVER DATA — populated from /api/concierge and /api/recent-signed
+     MOCK FIRESTORE — terminal will replace with real reads
      ════════════════════════════════════════════════════════════════ */
 
-  // Matched listings come back inline with each /api/concierge response.
-  // Recent-signed is fetched once at page boot.
-  let serverListings = [];
-  let serverRecentSigned = [];
+  // In production /api/concierge does:
+  //   const listings = await firestore.collection('listings')
+  //       .where('status', '==', 'available')
+  //       .where('zone', '==', lead.zone)
+  //       .where('price', '<=', lead.budget_max + 200)
+  //       .where('price', '>=', lead.budget_max - 400)
+  //       .limit(5).get()
+  // and the result is injected into the system prompt as JSON.
+
+  const MOCK_LISTINGS = [
+    { id: "L-VC08", zone: "Borgo Pio",  type: "Studio",      sqm: 32, price: 1380, available_from: "2026-09-08", duration_min: 3, duration_max: 12, features: ["furnished", "wifi", "elevator"] },
+    { id: "L-PR22", zone: "Borgo Pio",  type: "Studio",      sqm: 38, price: 1450, available_from: "2026-09-22", duration_min: 6, duration_max: 18, features: ["furnished", "balcony", "elevator"] },
+    { id: "L-TR14", zone: "Trastevere", type: "1-bedroom",   sqm: 48, price: 1620, available_from: "2026-09-14", duration_min: 6, duration_max: 12, features: ["furnished", "terrace"] },
+    { id: "L-TR03", zone: "Trastevere", type: "Studio",      sqm: 28, price: 1350, available_from: "2026-09-03", duration_min: 3, duration_max: 9,  features: ["furnished", "wifi"] },
+    { id: "L-PA18", zone: "Parioli",    type: "1-bedroom",   sqm: 55, price: 1850, available_from: "2026-10-01", duration_min: 6, duration_max: 18, features: ["furnished", "balcony", "concierge"] },
+    { id: "L-SL05", zone: "San Lorenzo",type: "Studio",      sqm: 26, price: 920,  available_from: "2026-09-05", duration_min: 3, duration_max: 12, features: ["furnished", "wifi"] },
+    { id: "L-TS11", zone: "Trieste",    type: "1-bedroom",   sqm: 50, price: 1200, available_from: "2026-09-11", duration_min: 6, duration_max: 24, features: ["furnished", "elevator", "metro"] }
+  ];
+
+  // Recently-signed (from `contracts` collection, scrubbed)
+  const MOCK_RECENT_SIGNED = [
+    { firstName: "Carla",  origin: "Berlin",     zone: "Trastevere",  daysAgo: 2 },
+    { firstName: "Marco",  origin: "São Paulo",  zone: "Borgo Pio",   daysAgo: 4 },
+    { firstName: "Anika",  origin: "Mumbai",     zone: "Salario",     daysAgo: 7 },
+    { firstName: "Sophie", origin: "Paris",      zone: "Parioli",     daysAgo: 9 }
+  ];
+
+  function matchListings(criteria) {
+    let pool = MOCK_LISTINGS.filter(l => true);
+    if (criteria.zone) {
+      pool = pool.filter(l => l.zone.toLowerCase() === criteria.zone.toLowerCase());
+    }
+    if (typeof criteria.budget_max === "number") {
+      pool = pool.filter(l => l.price <= criteria.budget_max + 150);
+    }
+    if (typeof criteria.duration_months === "number") {
+      pool = pool.filter(l =>
+        l.duration_min <= criteria.duration_months &&
+        l.duration_max >= criteria.duration_months);
+    }
+    pool.sort((a, b) => a.price - b.price);
+    return pool;
+  }
+
+  function smartSurpriseMe() {
+    // Pick the zone with the most matching listings for this lead's profile + budget
+    const zones = ["Borgo Pio", "Trastevere", "Parioli", "Salario", "Trieste", "San Lorenzo"];
+    const scored = zones.map(z => ({
+      zone: z,
+      matches: matchListings({ ...lead, zone: z }).length
+    }));
+    scored.sort((a, b) => b.matches - a.matches);
+    return scored[0]?.zone || "Trastevere";
+  }
 
   function recentForZone(zone) {
-    if (!serverRecentSigned.length) return null;
-    return serverRecentSigned.find(r => r.zone === zone) || serverRecentSigned[0];
+    return MOCK_RECENT_SIGNED.find(r => r.zone === zone) || MOCK_RECENT_SIGNED[0];
   }
 
   /* ════════════════════════════════════════════════════════════════
@@ -1540,7 +1568,7 @@
       updates.needs_admin_help = true;
     }
 
-    const zones = ["Borgo Pio", "Trastevere", "Parioli", "Salario", "Trieste", "San Lorenzo", "Flaminio", "Ponte Milvio", "Vatican", "Centro"];
+    const zones = ["Borgo Pio", "Trastevere", "Parioli", "Salario", "Trieste", "San Lorenzo", "Vatican", "Centro"];
     for (const z of zones) {
       if (new RegExp("\\b" + z.toLowerCase() + "\\b", "i").test(t)) {
         updates.zone = z === "Vatican" ? "Borgo Pio" : (z === "Centro" ? "Centro Storico" : z);
@@ -1679,33 +1707,61 @@
     document.getElementById("op-routing").textContent  = r || "pending";
   }
 
-  /* ═════ Integration — POST /api/concierge-event ═════ */
+  /* ═════ Integration mock ═════ */
 
   async function fireIntegration(eventName, payload) {
-    try {
-      const res = await fetch("/api/concierge-event", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: eventName,
-          sessionId: SESSION_ID,
-          lead: { ...lead },
-          payload: payload || {},
-        }),
-      });
-      if (!res.ok) return { ok: false, status: res.status };
-      return await res.json();
-    } catch (err) {
-      return { ok: false, error: err.message };
-    }
+    console.groupCollapsed(`%c[BOOM Integration] ${eventName}`, "color:#D4AF37;font-weight:600");
+    console.log("payload:", payload);
+    if (eventName === "lead.captured")     console.log("  → POST /api/concierge-event { type:'lead.captured', lead, transcript }");
+    if (eventName === "lead.hot")          console.log("  → Telegram ping to Homie channel + tag in wacli");
+    if (eventName === "lead.declined")     console.log("  → Firestore.leads { status:'declined', reason }");
+    if (eventName === "viewing.requested") console.log("  → POST /api/generate-pass + Firestore.viewingRequests");
+    if (eventName === "intake.opened")     console.log("  → /portal.html?intake=1 with prefilled params");
+    if (eventName === "service.engaged")   console.log("  → Firestore.leads { service: '" + payload.service + "', status: 'engaged' }");
+    if (eventName === "alert.subscribed")  console.log("  → Firestore.leadAlerts { criteria, email }");
+    console.groupEnd();
+    return { ok: true };
   }
 
   /* ════════════════════════════════════════════════════════════════
      CONCIERGE ENGINE
      ════════════════════════════════════════════════════════════════ */
 
-  // The system prompt lives server-side (api/concierge.js) — loaded from
-  // concierge/voice-prompt.md as two cached blocks. The page never sees it.
+  const SYSTEM_PROMPT = `You are the BOOM Rome Concierge — an honest AI front door for Egidi Immobiliare S.r.l.
+
+VOICE
+- Calm, premium, direct. A refined Roman concierge with insider knowledge.
+- 1–2 sentences usually. Up to 3 only when depth is asked for.
+- No exclamation points. No emoji. Never salesy.
+- Detect language; respond in Italian if they write Italian, otherwise English.
+
+OFFERINGS (mention only when relevant)
+- Mid-term furnished rentals 1–18 months; transitorio (Allegato B); studenti (Allegato C).
+- Concierge tiers: PFS €350, DAS €249, VV €89; commission ~1 month rent on closed leases.
+- Neighborhoods: Borgo Pio (Vatican), Trastevere, Parioli, Salario, Trieste, San Lorenzo (students).
+- BOOM Shield — corporate guarantor for tenants without Italian guarantor; 5% of annual rent. Mention ONLY if the visitor explicitly states they lack an Italian guarantor.
+
+QUALIFICATION ORDER (advance one step per reply, in order, ONLY ask what's still unknown)
+1. timing → 2. duration → 3. budget → 4. profile → 5. guarantor → 6. zone → 7. contact → 8. close
+
+When timing + duration + budget + zone are known, the page will show real listings inline below your reply. Do NOT name properties or invent prices yourself; just say something like "Two fit your dates and budget — shown below."
+
+HONESTY GATES
+- < 30 day stays → BOOM doesn't fit; suggest Airbnb honestly.
+- < €900 budget → tell them honestly we can't deliver standard at that price.
+- Cities other than Rome → Rome-only for now.
+
+INLINE TOKENS (one max per reply, on its own line)
+- [LISTINGS] — page shows the 3 best matches for current criteria. Only emit when timing+duration+budget+zone are all set.
+- [NBHD:Borgo Pio] — neighborhood card. Use when the visitor names a zone or you propose one.
+- [SERVICE:VV] — Virtual Viewing card (€89). Use when visitor is abroad or far from arrival.
+- [SERVICE:PFS] — Property Finder Service (€350). Use when no listings match (empty state).
+- [SERVICE:DAS] — Document & Administrative Setup (€249). Use when visitor surfaces bureaucracy / codice fiscale / paperwork.
+- [SERVICE:SHIELD] — Shield offer. Use ONLY when visitor confirms no Italian guarantor.
+- [BOOK_VIEWING] — confirm a viewing.
+- [OPEN_INTAKE] — formal intake.
+
+The visitor just landed at boomrome.com. Make them feel met, then qualify them honestly.`;
 
   /* Regex shortcircuit */
   const FALLBACKS = [
@@ -1780,14 +1836,12 @@
   }
 
   const NBHD_DATA = {
-    "Borgo Pio":     { zone: "Rione Borgo · Vatican",         price: "€1,200–€1,600/mo", note: "Quiet stone streets, 100m from St. Peter's." },
-    "Trastevere":    { zone: "Rione Trastevere · River",      price: "€1,400–€1,900/mo", note: "Alive in a way no other rione is." },
-    "Parioli":       { zone: "Quartiere Parioli · North",     price: "€1,500–€2,200/mo", note: "Leafy, residential, well-connected." },
-    "Salario":       { zone: "Quartiere Salario · North",     price: "€1,000–€1,500/mo", note: "Universities nearby; calm streets." },
-    "Trieste":       { zone: "Quartiere Trieste · North",     price: "€1,000–€1,500/mo", note: "Student-friendly, metro-served, residential." },
-    "San Lorenzo":   { zone: "Rione San Lorenzo · Tiburtina", price: "€800–€1,200/mo",   note: "The university quarter — energy and grit." },
-    "Flaminio":      { zone: "Quartiere Flaminio · North",    price: "€1,400–€2,000/mo", note: "Stadium quarter — green, well-connected, strong residential anchor." },
-    "Ponte Milvio":  { zone: "Ponte Milvio · North river",    price: "€1,300–€1,900/mo", note: "Bridge area — locals' weekend Rome, river-adjacent, leafy." }
+    "Borgo Pio":   { zone: "Rione Borgo · Vatican",       price: "€1,200–€1,600/mo", note: "Quiet stone streets, 100m from St. Peter's." },
+    "Trastevere":  { zone: "Rione Trastevere · River",    price: "€1,400–€1,900/mo", note: "Alive in a way no other rione is." },
+    "Parioli":     { zone: "Quartiere Parioli · North",   price: "€1,500–€2,200/mo", note: "Leafy, residential, well-connected." },
+    "Salario":     { zone: "Quartiere Salario · North",   price: "€1,000–€1,500/mo", note: "Universities nearby; calm streets." },
+    "Trieste":     { zone: "Quartiere Trieste · North",   price: "€1,000–€1,500/mo", note: "Student-friendly, metro-served, residential." },
+    "San Lorenzo": { zone: "Rione San Lorenzo · Tiburtina", price: "€800–€1,200/mo",  note: "The university quarter — energy and grit." }
   };
 
   const SERVICE_DATA = {
@@ -1916,9 +1970,7 @@
   }
 
   function fmtAvailableFrom(iso) {
-    if (!iso) return "";
     const d = new Date(iso);
-    if (isNaN(d.getTime())) return String(iso); // free-text fallback (some listings have non-ISO availability strings)
     return new Intl.DateTimeFormat("en-GB", { timeZone: ROME_TZ, day: "2-digit", month: "short" }).format(d);
   }
 
@@ -1936,13 +1988,15 @@
         </div>
         <div class="listing-body">
           <div class="listing-headline">
-            <div class="listing-name">${esc(capitalize(l.type || "Apartment"))}${l.sqm ? ' &middot; ' + l.sqm + 'm²' : ''}</div>
-            <div class="listing-price">${typeof l.price === 'number' ? '€' + l.price.toLocaleString() : '—'}<span class="per">/mo</span></div>
+            <div class="listing-name">${l.type} &middot; ${l.sqm}m²</div>
+            <div class="listing-price">€${l.price.toLocaleString()}<span class="per">/mo</span></div>
           </div>
           <div class="listing-meta">
-            ${l.available_from ? 'Available <strong style="color:var(--ink-2)">' + esc(fmtAvailableFrom(l.available_from)) + '</strong><span class="sep">·</span>' : ''}
+            Available <strong style="color:var(--ink-2)">${fmtAvailableFrom(l.available_from)}</strong>
+            <span class="sep">·</span>
             ${l.duration_min}–${l.duration_max} months
-            ${(l.features && l.features.length) ? '<span class="sep">·</span>' + esc(l.features.slice(0, 2).map(f => String(f).replace(/_/g, ' ')).join(" · ")) : ''}
+            <span class="sep">·</span>
+            ${l.features.slice(0, 2).join(" · ")}
           </div>
           <div class="listing-cta">
             <button class="listing-btn" data-listing="${l.id}">Hold viewing</button>
@@ -2063,16 +2117,11 @@
   function addRecentSignedCard() {
     if (lead.recent_signed_shown) return;
     const r = recentForZone(lead.zone || "Trastevere");
-    if (!r) return;
-    const days = (typeof r.daysAgo === "number") ? r.daysAgo : "?";
-    const inner = (r.firstName && r.origin)
-      ? `<strong>${esc(r.firstName)}</strong> from ${esc(r.origin)} → ${esc(r.zone)}. Signed ${days} days ago.`
-      : (r.type
-          ? `<strong>${esc(capitalize(r.type))}</strong> in ${esc(r.zone)}. Signed ${days} days ago.`
-          : `Recently signed in ${esc(r.zone)} · ${days} days ago.`);
     const card = document.createElement("div");
     card.className = "recent-signed";
-    card.innerHTML = `<span class="pip"></span><span>${inner}</span>`;
+    card.innerHTML = `
+      <span class="pip"></span>
+      <span><strong>${r.firstName}</strong> from ${r.origin} → ${r.zone}. Signed ${r.daysAgo} days ago.</span>`;
     conv.appendChild(card);
     lead.recent_signed_shown = true;
     persist();
@@ -2139,26 +2188,32 @@
      ════════════════════════════════════════════════════════════════ */
 
   async function callConcierge(messages) {
+    // PROD: POST /api/concierge with messages + lead snapshot.
+    // Backend matches Firestore listings, injects them into system prompt,
+    // applies caching, returns model reply.
+    const sys = SYSTEM_PROMPT + "\n\nCURRENT FACTS:\n" +
+      `timing=${lead.timing || "?"}; duration=${lead.duration_months || "?"}; ` +
+      `budget=${lead.budget_max || "?"}; profile=${lead.profile || "?"}; ` +
+      `guarantor=${lead.has_guarantor === null ? "?" : lead.has_guarantor}; ` +
+      `zone=${lead.zone || "?"}; remote=${lead.is_remote}; ` +
+      `admin_help=${lead.needs_admin_help}; ` +
+      `contact=${lead.email || lead.phone ? "yes" : "no"}.\n` +
+      `NEXT STAGE: ${STAGE_NAMES[lead.stage] || "CLOSE"}. Ask only the still-unknown next field.`;
+
     try {
-      const res = await fetch("/api/concierge", {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          messages,
-          lead: { ...lead },
-          sessionId: SESSION_ID,
-          stage: STAGE_NAMES[lead.stage] || "INTRO",
-        }),
+          model: "claude-haiku-4-5",
+          max_tokens: 280,
+          system: sys,
+          messages
+        })
       });
-      if (!res.ok) {
-        if (res.status === 429) return "Just a moment — we're slowing down to keep this honest .";
-        return null;
-      }
+      if (!res.ok) throw new Error("api " + res.status);
       const data = await res.json();
-      // Server returns matched listings inline; engine reads serverListings on render.
-      serverListings = Array.isArray(data.listings) ? data.listings : [];
-      if (window.__BOOM__) window.__BOOM__.lastTokens = data.tokens_used || null;
-      return data.reply || null;
+      return (data.content || []).filter(b => b.type === "text").map(b => b.text).join("\n").trim() || null;
     } catch { return null; }
   }
 
@@ -2205,7 +2260,6 @@
     addUserMsg(text);
     lead.history.push({ role: "user", content: text });
 
-    const hadContactBefore = !!(lead.email || lead.phone);
     const facts = extractFacts(text);
     Object.assign(lead, facts);
     advanceStage();
@@ -2215,13 +2269,6 @@
     updateOperator();
     persist();
     clearChips();
-
-    // First time we capture contact info → conversion event
-    if (!hadContactBefore && (lead.email || lead.phone)) {
-      fireIntegration("lead.captured", {
-        fieldsCaptured: ["name", "email", "phone"].filter(k => lead[k])
-      });
-    }
 
     if (lead.history.length > MAX_TURNS) {
       const cap = "We've covered enough ground for me to be useful. The cleanest next step is a 15-minute call with Valentyne — he'll close out the rest in person.\n[OPEN_INTAKE]";
@@ -2265,9 +2312,9 @@
 
       if (nbhd && NBHD_DATA[nbhd]) addNeighborhoodCard(nbhd);
 
-      // Listings inline (server returned matched listings in serverListings)
+      // Listings inline
       if (listings || (lead.timing && lead.duration_months && lead.budget_max && lead.zone && lead.stage >= 7)) {
-        const matches = serverListings || [];
+        const matches = matchListings(lead);
         if (matches.length === 0) {
           // EMPTY STATE = PFS upsell + alert
           setTimeout(() => addServiceCard("PFS"), 200);
@@ -2341,7 +2388,7 @@
     if (lead.email)           params.set("email",    lead.email);
     if (lead.phone)           params.set("phone",    lead.phone);
     const url = `/portal.html?intake=1&${params.toString()}`;
-    window.location.href = url;
+    alert("In production this routes to:\n\n" + url + "\n\nThe portal intake will be prefilled with everything captured here.");
   }
 
   /* ═════ Composer ═════ */
@@ -2508,17 +2555,6 @@
   if (!isReturning) {
     setTimeout(() => askOpening(false), 1800);
   }
-
-  // Fetch recently-signed once at boot — populates the peer-proof card.
-  (async () => {
-    try {
-      const r = await fetch("/api/recent-signed");
-      if (r.ok) {
-        const data = await r.json();
-        if (Array.isArray(data.items)) serverRecentSigned = data.items;
-      }
-    } catch { /* non-fatal */ }
-  })();
 
   /* ═════ Boot ═════ */
   syncSendBtn();

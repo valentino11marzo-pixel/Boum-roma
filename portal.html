@@ -2676,7 +2676,26 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     var IK = ['pfs','das','vv'].includes(intakeParam) ? intakeParam : 'general';
     var IS = 0; // current step
     var ID = { name:'',email:'',phone:'',budget:'',arrival:'',months:'',situation:'',zone:'',furnished:'either',pets:'no',musthaves:'',notes:'',source:'google' };
-    
+
+    // ★ Concierge handoff — prefill from query params (?name=&email=&phone=&budget=&zone=&duration=&profile=)
+    (function _ifPrefillFromQuery() {
+        var P = new URLSearchParams(window.location.search);
+        if (P.get('name'))     ID.name     = P.get('name');
+        if (P.get('email'))    ID.email    = P.get('email');
+        if (P.get('phone'))    ID.phone    = P.get('phone');
+        if (P.get('budget'))   ID.budget   = P.get('budget');
+        if (P.get('zone'))     ID.zone     = P.get('zone');
+        if (P.get('duration')) ID.months   = P.get('duration');
+        if (P.get('profile')) {
+            var prof = String(P.get('profile')).toLowerCase();
+            ID.situation = (prof === 'student') ? 'student' : (prof === 'family' ? 'other' : 'worker');
+        }
+        if (P.get('source'))   ID.source   = 'concierge';
+        // Skip ahead if the concierge already collected the contact + budget block.
+        if (ID.name && ID.email && ID.phone && ID.budget) IS = 3;       // skip About + Search
+        else if (ID.name && ID.email && ID.phone)         IS = 2;       // skip About only
+    })();
+
     if (intakeParam) {
         isIntakeForm = true;
         (async function() {

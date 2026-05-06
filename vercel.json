@@ -59,6 +59,9 @@
   "functions": {
     "api/reminder-cron.js": {
       "maxDuration": 60
+    },
+    "api/concierge.js": {
+      "includeFiles": "concierge/voice-prompt.md"
     }
   },
   "crons": [
