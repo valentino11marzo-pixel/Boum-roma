@@ -482,21 +482,29 @@
   .listing-illustration {
     width: 100%;
     height: 140px;
-    background: linear-gradient(180deg, #14141a, #0c0c10);
+    background:
+      linear-gradient(rgba(212,175,55,0.06) 1px, transparent 1px) 0 0 / 32px 32px,
+      linear-gradient(90deg, rgba(212,175,55,0.06) 1px, transparent 1px) 0 0 / 32px 32px,
+      linear-gradient(180deg, #14141a, #0c0c10);
     position: relative;
     overflow: hidden;
     display: flex; align-items: center; justify-content: center;
   }
   .listing-illustration svg {
     width: 100%; height: 100%;
-    opacity: 0.65;
+    opacity: 0.85;
   }
-  .listing-illustration .zone-badge {
+  .listing-illustration .zone-overlay {
     position: absolute;
-    top: 12px; left: 14px;
-    font-size: 9px; letter-spacing: 0.3em; text-transform: uppercase;
-    color: var(--gold-soft);
+    inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px;
+    letter-spacing: 0.32em;
     font-weight: 400;
+    color: var(--gold);
+    text-transform: uppercase;
+    text-shadow: 0 0 12px rgba(8, 8, 10, 0.85), 0 0 4px rgba(8, 8, 10, 0.85);
+    pointer-events: none;
   }
   .listing-illustration .verified {
     position: absolute;
@@ -504,6 +512,7 @@
     display: flex; align-items: center; gap: 6px;
     font-size: 9px; letter-spacing: 0.22em; text-transform: uppercase;
     color: var(--ink-3);
+    z-index: 2;
   }
   .listing-illustration .verified .pip {
     width: 6px; height: 6px;
@@ -1283,9 +1292,30 @@
 (() => {
   const ROME_TZ = "Europe/Rome";
   const STORAGE_KEY = "boom.concierge.v5";
+  const SESSION_KEY = "boom.concierge.sessionId";
   const MAX_TURNS = 12;
   const MAX_INPUT_LEN = 500;
   const ADMIN_MODE = new URLSearchParams(location.search).get("admin") === "1";
+
+  // Stable session id (per-browser). Used for /api/concierge and /api/concierge-event.
+  let SESSION_ID;
+  try {
+    SESSION_ID = localStorage.getItem(SESSION_KEY);
+    if (!SESSION_ID) {
+      SESSION_ID = (typeof crypto !== "undefined" && crypto.randomUUID)
+        ? crypto.randomUUID()
+        : (Math.random().toString(36).slice(2) + Date.now().toString(36));
+      localStorage.setItem(SESSION_KEY, SESSION_ID);
+    }
+  } catch {
+    SESSION_ID = Math.random().toString(36).slice(2) + Date.now().toString(36);
+  }
+
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, c =>
+      ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+  }
+  function capitalize(s) { return s ? s[0].toUpperCase() + s.slice(1) : ""; }
 
   /* ═════ STATE ═════ */
 
@@ -1452,66 +1482,17 @@
   setInterval(rotateStoic, 24_000);
 
   /* ════════════════════════════════════════════════════════════════
-     MOCK FIRESTORE — terminal will replace with real reads
+     SERVER DATA — populated from /api/concierge and /api/recent-signed
      ════════════════════════════════════════════════════════════════ */
 
-  // In production /api/concierge does:
-  //   const listings = await firestore.collection('listings')
-  //       .where('status', '==', 'available')
-  //       .where('zone', '==', lead.zone)
-  //       .where('price', '<=', lead.budget_max + 200)
-  //       .where('price', '>=', lead.budget_max - 400)
-  //       .limit(5).get()
-  // and the result is injected into the system prompt as JSON.
-
-  const MOCK_LISTINGS = [
-    { id: "L-VC08", zone: "Borgo Pio",  type: "Studio",      sqm: 32, price: 1380, available_from: "2026-09-08", duration_min: 3, duration_max: 12, features: ["furnished", "wifi", "elevator"] },
-    { id: "L-PR22", zone: "Borgo Pio",  type: "Studio",      sqm: 38, price: 1450, available_from: "2026-09-22", duration_min: 6, duration_max: 18, features: ["furnished", "balcony", "elevator"] },
-    { id: "L-TR14", zone: "Trastevere", type: "1-bedroom",   sqm: 48, price: 1620, available_from: "2026-09-14", duration_min: 6, duration_max: 12, features: ["furnished", "terrace"] },
-    { id: "L-TR03", zone: "Trastevere", type: "Studio",      sqm: 28, price: 1350, available_from: "2026-09-03", duration_min: 3, duration_max: 9,  features: ["furnished", "wifi"] },
-    { id: "L-PA18", zone: "Parioli",    type: "1-bedroom",   sqm: 55, price: 1850, available_from: "2026-10-01", duration_min: 6, duration_max: 18, features: ["furnished", "balcony", "concierge"] },
-    { id: "L-SL05", zone: "San Lorenzo",type: "Studio",      sqm: 26, price: 920,  available_from: "2026-09-05", duration_min: 3, duration_max: 12, features: ["furnished", "wifi"] },
-    { id: "L-TS11", zone: "Trieste",    type: "1-bedroom",   sqm: 50, price: 1200, available_from: "2026-09-11", duration_min: 6, duration_max: 24, features: ["furnished", "elevator", "metro"] }
-  ];
-
-  // Recently-signed (from `contracts` collection, scrubbed)
-  const MOCK_RECENT_SIGNED = [
-    { firstName: "Carla",  origin: "Berlin",     zone: "Trastevere",  daysAgo: 2 },
-    { firstName: "Marco",  origin: "São Paulo",  zone: "Borgo Pio",   daysAgo: 4 },
-    { firstName: "Anika",  origin: "Mumbai",     zone: "Salario",     daysAgo: 7 },
-    { firstName: "Sophie", origin: "Paris",      zone: "Parioli",     daysAgo: 9 }
-  ];
-
-  function matchListings(criteria) {
-    let pool = MOCK_LISTINGS.filter(l => true);
-    if (criteria.zone) {
-      pool = pool.filter(l => l.zone.toLowerCase() === criteria.zone.toLowerCase());
-    }
-    if (typeof criteria.budget_max === "number") {
-      pool = pool.filter(l => l.price <= criteria.budget_max + 150);
-    }
-    if (typeof criteria.duration_months === "number") {
-      pool = pool.filter(l =>
-        l.duration_min <= criteria.duration_months &&
-        l.duration_max >= criteria.duration_months);
-    }
-    pool.sort((a, b) => a.price - b.price);
-    return pool;
-  }
-
-  function smartSurpriseMe() {
-    // Pick the zone with the most matching listings for this lead's profile + budget
-    const zones = ["Borgo Pio", "Trastevere", "Parioli", "Salario", "Trieste", "San Lorenzo"];
-    const scored = zones.map(z => ({
-      zone: z,
-      matches: matchListings({ ...lead, zone: z }).length
-    }));
-    scored.sort((a, b) => b.matches - a.matches);
-    return scored[0]?.zone || "Trastevere";
-  }
+  // Matched listings come back inline with each /api/concierge response.
+  // Recent-signed is fetched once at page boot.
+  let serverListings = [];
+  let serverRecentSigned = [];
 
   function recentForZone(zone) {
-    return MOCK_RECENT_SIGNED.find(r => r.zone === zone) || MOCK_RECENT_SIGNED[0];
+    if (!serverRecentSigned.length) return null;
+    return serverRecentSigned.find(r => r.zone === zone) || serverRecentSigned[0];
   }
 
   /* ════════════════════════════════════════════════════════════════
@@ -1568,7 +1549,7 @@
       updates.needs_admin_help = true;
     }
 
-    const zones = ["Borgo Pio", "Trastevere", "Parioli", "Salario", "Trieste", "San Lorenzo", "Vatican", "Centro"];
+    const zones = ["Borgo Pio", "Trastevere", "Parioli", "Salario", "Trieste", "San Lorenzo", "Flaminio", "Ponte Milvio", "Vatican", "Centro"];
     for (const z of zones) {
       if (new RegExp("\\b" + z.toLowerCase() + "\\b", "i").test(t)) {
         updates.zone = z === "Vatican" ? "Borgo Pio" : (z === "Centro" ? "Centro Storico" : z);
@@ -1707,61 +1688,33 @@
     document.getElementById("op-routing").textContent  = r || "pending";
   }
 
-  /* ═════ Integration mock ═════ */
+  /* ═════ Integration — POST /api/concierge-event ═════ */
 
   async function fireIntegration(eventName, payload) {
-    console.groupCollapsed(`%c[BOOM Integration] ${eventName}`, "color:#D4AF37;font-weight:600");
-    console.log("payload:", payload);
-    if (eventName === "lead.captured")     console.log("  → POST /api/concierge-event { type:'lead.captured', lead, transcript }");
-    if (eventName === "lead.hot")          console.log("  → Telegram ping to Homie channel + tag in wacli");
-    if (eventName === "lead.declined")     console.log("  → Firestore.leads { status:'declined', reason }");
-    if (eventName === "viewing.requested") console.log("  → POST /api/generate-pass + Firestore.viewingRequests");
-    if (eventName === "intake.opened")     console.log("  → /portal.html?intake=1 with prefilled params");
-    if (eventName === "service.engaged")   console.log("  → Firestore.leads { service: '" + payload.service + "', status: 'engaged' }");
-    if (eventName === "alert.subscribed")  console.log("  → Firestore.leadAlerts { criteria, email }");
-    console.groupEnd();
-    return { ok: true };
+    try {
+      const res = await fetch("/api/concierge-event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: eventName,
+          sessionId: SESSION_ID,
+          lead: { ...lead },
+          payload: payload || {},
+        }),
+      });
+      if (!res.ok) return { ok: false, status: res.status };
+      return await res.json();
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
   }
 
   /* ════════════════════════════════════════════════════════════════
      CONCIERGE ENGINE
      ════════════════════════════════════════════════════════════════ */
 
-  const SYSTEM_PROMPT = `You are the BOOM Rome Concierge — an honest AI front door for Egidi Immobiliare S.r.l.
-
-VOICE
-- Calm, premium, direct. A refined Roman concierge with insider knowledge.
-- 1–2 sentences usually. Up to 3 only when depth is asked for.
-- No exclamation points. No emoji. Never salesy.
-- Detect language; respond in Italian if they write Italian, otherwise English.
-
-OFFERINGS (mention only when relevant)
-- Mid-term furnished rentals 1–18 months; transitorio (Allegato B); studenti (Allegato C).
-- Concierge tiers: PFS €350, DAS €249, VV €89; commission ~1 month rent on closed leases.
-- Neighborhoods: Borgo Pio (Vatican), Trastevere, Parioli, Salario, Trieste, San Lorenzo (students).
-- BOOM Shield — corporate guarantor for tenants without Italian guarantor; 5% of annual rent. Mention ONLY if the visitor explicitly states they lack an Italian guarantor.
-
-QUALIFICATION ORDER (advance one step per reply, in order, ONLY ask what's still unknown)
-1. timing → 2. duration → 3. budget → 4. profile → 5. guarantor → 6. zone → 7. contact → 8. close
-
-When timing + duration + budget + zone are known, the page will show real listings inline below your reply. Do NOT name properties or invent prices yourself; just say something like "Two fit your dates and budget — shown below."
-
-HONESTY GATES
-- < 30 day stays → BOOM doesn't fit; suggest Airbnb honestly.
-- < €900 budget → tell them honestly we can't deliver standard at that price.
-- Cities other than Rome → Rome-only for now.
-
-INLINE TOKENS (one max per reply, on its own line)
-- [LISTINGS] — page shows the 3 best matches for current criteria. Only emit when timing+duration+budget+zone are all set.
-- [NBHD:Borgo Pio] — neighborhood card. Use when the visitor names a zone or you propose one.
-- [SERVICE:VV] — Virtual Viewing card (€89). Use when visitor is abroad or far from arrival.
-- [SERVICE:PFS] — Property Finder Service (€350). Use when no listings match (empty state).
-- [SERVICE:DAS] — Document & Administrative Setup (€249). Use when visitor surfaces bureaucracy / codice fiscale / paperwork.
-- [SERVICE:SHIELD] — Shield offer. Use ONLY when visitor confirms no Italian guarantor.
-- [BOOK_VIEWING] — confirm a viewing.
-- [OPEN_INTAKE] — formal intake.
-
-The visitor just landed at boomrome.com. Make them feel met, then qualify them honestly.`;
+  // The system prompt lives server-side (api/concierge.js) — loaded from
+  // concierge/voice-prompt.md as two cached blocks. The page never sees it.
 
   /* Regex shortcircuit */
   const FALLBACKS = [
@@ -1780,68 +1733,77 @@ The visitor just landed at boomrome.com. Make them feel met, then qualify them h
   }
 
   /* Smart contextual chips */
-  function suggestChips(lastBotMsg, declined) {
+  // Deterministic chip set per question. The model is instructed to emit
+  // [ASK:field] on every reply; the page reads the token and shows the matching
+  // chips. If the token is missing, fall back to lead.stage.
+  const CHIPS = {
+    timing: [
+      { l: "September", q: "I'm arriving in September." },
+      { l: "October",   q: "I'm arriving in October." },
+      { l: "Flexible",  q: "My dates are flexible." },
+      { l: "ASAP",      q: "I need something within 2 weeks." }
+    ],
+    duration: [
+      { l: "3 months",  q: "Three months." },
+      { l: "6 months",  q: "Six months." },
+      { l: "12 months", q: "Twelve months." }
+    ],
+    budget: [
+      { l: "€1,000–€1,400", q: "Budget €1,000 to €1,400/mo." },
+      { l: "€1,400–€1,800", q: "Budget €1,400 to €1,800/mo." },
+      { l: "€1,800–€2,500", q: "Budget €1,800 to €2,500/mo." },
+      { l: "Open",          q: "Budget is open." }
+    ],
+    profile: [
+      { l: "Student",   q: "I'm a student." },
+      { l: "Corporate", q: "I'm here for work." },
+      { l: "Freelance", q: "I'm a freelancer / nomad." },
+      { l: "Family",    q: "I'm coming with family." }
+    ],
+    guarantor: [
+      { l: "I have one",       q: "I have an Italian guarantor." },
+      { l: "I don't have one", q: "I don't have an Italian guarantor." }
+    ],
+    zone: [
+      { l: "Borgo Pio",   q: "Borgo Pio, near the Vatican." },
+      { l: "Trastevere",  q: "Trastevere." },
+      { l: "Parioli",     q: "Parioli." },
+      { l: "Surprise me", q: "Surprise me with the right zone for me." }
+    ],
+    contact: [
+      { l: "Yes, let's begin", q: "Yes, let's begin." },
+      { l: "Schedule a call",  q: "Can we schedule a call instead?" }
+    ],
+    open: [
+      { l: "Tell me more", q: "Tell me more." },
+      { l: "Next step?",   q: "What's the next step?" }
+    ]
+  };
+
+  // stage 0/1 → timing, 2 → duration, 3 → budget, 4 → profile, 5 → guarantor,
+  // 6 → zone, 7 → contact, 8 → open. Used only as fallback when [ASK:X] missing.
+  const STAGE_FIELD = ["timing","timing","duration","budget","profile","guarantor","zone","contact","open"];
+
+  function suggestChips(askedField, declined) {
     if (declined) {
       return [
         { l: "Got it, thanks", q: "Got it, thanks for being honest." },
         { l: "What else fits?", q: "What else might fit my situation?" }
       ];
     }
-    const m = (lastBotMsg || "").toLowerCase();
-    const turn = lead.history.length;
-
-    if (turn === 0) {
-      return [
-        { l: "September",   q: "I'm arriving in September." },
-        { l: "October",     q: "I'm arriving in October." },
-        { l: "Flexible",    q: "My dates are flexible." },
-        { l: "ASAP",        q: "I need something within 2 weeks." }
-      ];
-    }
-    if (lead.stage === 2) return [
-      { l: "3 months",  q: "Three months." },
-      { l: "6 months",  q: "Six months." },
-      { l: "12 months", q: "Twelve months." }
-    ];
-    if (lead.stage === 3) return [
-      { l: "€1,000–€1,400",  q: "Budget €1,000 to €1,400/mo." },
-      { l: "€1,400–€1,800",  q: "Budget €1,400 to €1,800/mo." },
-      { l: "€1,800–€2,500",  q: "Budget €1,800 to €2,500/mo." },
-      { l: "Open",           q: "Budget is open." }
-    ];
-    if (lead.stage === 4) return [
-      { l: "Student",    q: "I'm a student." },
-      { l: "Corporate",  q: "I'm here for work." },
-      { l: "Freelance",  q: "I'm a freelancer / nomad." },
-      { l: "Family",     q: "I'm coming with family." }
-    ];
-    if (lead.stage === 5) return [
-      { l: "I have one",       q: "I have an Italian guarantor." },
-      { l: "I don't have one", q: "I don't have an Italian guarantor." }
-    ];
-    if (lead.stage === 6) return [
-      { l: "Borgo Pio",   q: "Borgo Pio, near the Vatican." },
-      { l: "Trastevere",  q: "Trastevere." },
-      { l: "Parioli",     q: "Parioli." },
-      { l: "Surprise me", q: "Surprise me with the right zone for me." }
-    ];
-    if (lead.stage === 7) return [
-      { l: "Yes, let's begin", q: "Yes, let's begin the intake." },
-      { l: "Schedule a call",  q: "Can we schedule a call instead?" }
-    ];
-    return [
-      { l: "Tell me more",    q: "Tell me more." },
-      { l: "Next step?",      q: "What's the next step?" }
-    ];
+    const field = (askedField && CHIPS[askedField]) ? askedField : (STAGE_FIELD[lead.stage] || "open");
+    return CHIPS[field] || CHIPS.open;
   }
 
   const NBHD_DATA = {
-    "Borgo Pio":   { zone: "Rione Borgo · Vatican",       price: "€1,200–€1,600/mo", note: "Quiet stone streets, 100m from St. Peter's." },
-    "Trastevere":  { zone: "Rione Trastevere · River",    price: "€1,400–€1,900/mo", note: "Alive in a way no other rione is." },
-    "Parioli":     { zone: "Quartiere Parioli · North",   price: "€1,500–€2,200/mo", note: "Leafy, residential, well-connected." },
-    "Salario":     { zone: "Quartiere Salario · North",   price: "€1,000–€1,500/mo", note: "Universities nearby; calm streets." },
-    "Trieste":     { zone: "Quartiere Trieste · North",   price: "€1,000–€1,500/mo", note: "Student-friendly, metro-served, residential." },
-    "San Lorenzo": { zone: "Rione San Lorenzo · Tiburtina", price: "€800–€1,200/mo",  note: "The university quarter — energy and grit." }
+    "Borgo Pio":     { zone: "Rione Borgo · Vatican",         price: "€1,200–€1,600/mo", note: "Quiet stone streets, 100m from St. Peter's." },
+    "Trastevere":    { zone: "Rione Trastevere · River",      price: "€1,400–€1,900/mo", note: "Alive in a way no other rione is." },
+    "Parioli":       { zone: "Quartiere Parioli · North",     price: "€1,500–€2,200/mo", note: "Leafy, residential, well-connected." },
+    "Salario":       { zone: "Quartiere Salario · North",     price: "€1,000–€1,500/mo", note: "Universities nearby; calm streets." },
+    "Trieste":       { zone: "Quartiere Trieste · North",     price: "€1,000–€1,500/mo", note: "Student-friendly, metro-served, residential." },
+    "San Lorenzo":   { zone: "Rione San Lorenzo · Tiburtina", price: "€800–€1,200/mo",   note: "The university quarter — energy and grit." },
+    "Flaminio":      { zone: "Quartiere Flaminio · North",    price: "€1,400–€2,000/mo", note: "Stadium quarter — green, well-connected, strong residential anchor." },
+    "Ponte Milvio":  { zone: "Ponte Milvio · North river",    price: "€1,300–€1,900/mo", note: "Bridge area — locals' weekend Rome, river-adjacent, leafy." }
   };
 
   const SERVICE_DATA = {
@@ -1956,21 +1918,27 @@ The visitor just landed at boomrome.com. Make them feel met, then qualify them h
     document.getElementById("orb").classList.remove("thinking");
   }
 
-  /* ───── Anonymized zone illustrations ───── */
-  function zoneIllustration(zone) {
-    const illus = {
-      "Borgo Pio":   '<svg viewBox="0 0 320 140" preserveAspectRatio="xMidYMid slice"><g stroke="#D4AF37" stroke-width="0.7" fill="none" opacity="0.85"><path d="M40 105 L40 70 L60 70 L60 50 L80 50 L80 70 L100 70 L100 105 Z"/><path d="M120 105 L120 60 L140 40 L160 40 L180 60 L180 105 Z"/><circle cx="150" cy="55" r="8"/><path d="M150 30 L150 47"/><path d="M200 105 L200 50 L260 50 L260 105 Z"/><path d="M220 50 L220 30 L240 30 L240 50"/><line x1="0" y1="105" x2="320" y2="105" stroke="#D4AF37" opacity="0.4"/></g></svg>',
-      "Trastevere":  '<svg viewBox="0 0 320 140" preserveAspectRatio="xMidYMid slice"><g stroke="#D4AF37" stroke-width="0.7" fill="none" opacity="0.85"><path d="M30 105 Q 60 80, 90 105 Q 120 80, 150 105 Q 180 80, 210 105 Q 240 80, 270 105"/><path d="M30 105 L30 70 L70 70 L70 105 Z"/><path d="M90 105 L90 60 L130 60 L130 105 Z"/><path d="M150 105 L150 50 L190 50 L190 105 Z"/><path d="M210 105 L210 65 L250 65 L250 105 Z"/></g></svg>',
-      "Parioli":     '<svg viewBox="0 0 320 140" preserveAspectRatio="xMidYMid slice"><g stroke="#D4AF37" stroke-width="0.7" fill="none" opacity="0.85"><path d="M20 105 L20 50 L80 50 L80 105 Z"/><path d="M100 105 L100 30 L140 30 L140 105 Z"/><path d="M160 105 L160 45 L210 45 L210 105 Z"/><path d="M230 105 L230 35 L290 35 L290 105 Z"/><path d="M30 75 L70 75 M30 90 L70 90"/><path d="M110 50 L130 50 M110 70 L130 70 M110 90 L130 90"/></g></svg>',
-      "Salario":     '<svg viewBox="0 0 320 140" preserveAspectRatio="xMidYMid slice"><g stroke="#D4AF37" stroke-width="0.7" fill="none" opacity="0.85"><path d="M30 105 L30 60 L80 60 L80 105 Z"/><path d="M100 105 L100 50 L150 50 L150 105 Z"/><path d="M170 105 L170 55 L220 55 L220 105 Z"/><path d="M240 105 L240 65 L290 65 L290 105 Z"/><path d="M40 75 L70 75 M40 85 L70 85 M110 65 L140 65 M110 80 L140 80"/></g></svg>',
-      "Trieste":     '<svg viewBox="0 0 320 140" preserveAspectRatio="xMidYMid slice"><g stroke="#D4AF37" stroke-width="0.7" fill="none" opacity="0.85"><path d="M20 105 L20 55 L75 55 L75 105 Z"/><path d="M95 105 L95 45 L155 45 L155 105 Z"/><path d="M175 105 L175 50 L235 50 L235 105 Z"/><path d="M255 105 L255 60 L300 60 L300 105 Z"/><circle cx="160" cy="120" r="3"/></g></svg>',
-      "San Lorenzo": '<svg viewBox="0 0 320 140" preserveAspectRatio="xMidYMid slice"><g stroke="#D4AF37" stroke-width="0.7" fill="none" opacity="0.85"><path d="M20 105 L20 60 L70 60 L70 80 L90 80 L90 105 Z"/><path d="M110 105 L110 50 L170 50 L170 105 Z"/><path d="M190 105 L190 65 L250 65 L250 105 Z"/><path d="M270 105 L270 55 L300 55 L300 105 Z"/></g></svg>'
-    };
-    return illus[zone] || illus["Trastevere"];
+  /* ───── Generic zone illustration — concentric BOOM monogram, works for any zone ───── */
+  function zoneIllustration() {
+    return '<svg viewBox="0 0 320 140" preserveAspectRatio="xMidYMid slice">' +
+      '<g stroke="#D4AF37" stroke-width="0.5" fill="none" opacity="0.45" stroke-dasharray="2 5">' +
+        '<circle cx="160" cy="70" r="62"/>' +
+      '</g>' +
+      '<g stroke="#D4AF37" stroke-width="0.6" fill="none" opacity="0.6">' +
+        '<circle cx="160" cy="70" r="44"/>' +
+        '<circle cx="204" cy="70" r="1.5" fill="#D4AF37" stroke="none"/>' +
+      '</g>' +
+      '<g stroke="#D4AF37" stroke-width="0.7" fill="none" opacity="0.85">' +
+        '<circle cx="160" cy="70" r="24"/>' +
+      '</g>' +
+      '<circle cx="160" cy="70" r="2.5" fill="#D4AF37"/>' +
+      '</svg>';
   }
 
   function fmtAvailableFrom(iso) {
+    if (!iso) return "";
     const d = new Date(iso);
+    if (isNaN(d.getTime())) return String(iso); // free-text fallback (some listings have non-ISO availability strings)
     return new Intl.DateTimeFormat("en-GB", { timeZone: ROME_TZ, day: "2-digit", month: "short" }).format(d);
   }
 
@@ -1982,21 +1950,19 @@ The visitor just landed at boomrome.com. Make them feel met, then qualify them h
       card.style.animationDelay = (idx * 80) + "ms";
       card.innerHTML = `
         <div class="listing-illustration">
-          <span class="zone-badge">${l.zone}</span>
           <span class="verified"><span class="pip"></span>verified</span>
-          ${zoneIllustration(l.zone)}
+          ${zoneIllustration()}
+          <span class="zone-overlay">${esc(l.zone || '')}</span>
         </div>
         <div class="listing-body">
           <div class="listing-headline">
-            <div class="listing-name">${l.type} &middot; ${l.sqm}m²</div>
-            <div class="listing-price">€${l.price.toLocaleString()}<span class="per">/mo</span></div>
+            <div class="listing-name">${esc(capitalize(l.type || "Apartment"))}${l.sqm ? ' &middot; ' + l.sqm + 'm²' : ''}</div>
+            <div class="listing-price">${typeof l.price === 'number' ? '€' + l.price.toLocaleString() : '—'}<span class="per">/mo</span></div>
           </div>
           <div class="listing-meta">
-            Available <strong style="color:var(--ink-2)">${fmtAvailableFrom(l.available_from)}</strong>
-            <span class="sep">·</span>
+            ${l.available_from ? 'Available <strong style="color:var(--ink-2)">' + esc(fmtAvailableFrom(l.available_from)) + '</strong><span class="sep">·</span>' : ''}
             ${l.duration_min}–${l.duration_max} months
-            <span class="sep">·</span>
-            ${l.features.slice(0, 2).join(" · ")}
+            ${(l.features && l.features.length) ? '<span class="sep">·</span>' + esc(l.features.slice(0, 2).map(f => String(f).replace(/_/g, ' ')).join(" · ")) : ''}
           </div>
           <div class="listing-cta">
             <button class="listing-btn" data-listing="${l.id}">Hold viewing</button>
@@ -2006,7 +1972,7 @@ The visitor just landed at boomrome.com. Make them feel met, then qualify them h
       `;
       conv.appendChild(card);
       card.querySelector("[data-listing]").addEventListener("click", () => {
-        confirmViewing(l);
+        openBooking(l);
       });
       card.querySelector("[data-listing-info]").addEventListener("click", () => {
         ask("Tell me more about " + l.type + " in " + l.zone + " at €" + l.price + ".");
@@ -2117,11 +2083,16 @@ The visitor just landed at boomrome.com. Make them feel met, then qualify them h
   function addRecentSignedCard() {
     if (lead.recent_signed_shown) return;
     const r = recentForZone(lead.zone || "Trastevere");
+    if (!r) return;
+    const days = (typeof r.daysAgo === "number") ? r.daysAgo : "?";
+    const inner = (r.firstName && r.origin)
+      ? `<strong>${esc(r.firstName)}</strong> from ${esc(r.origin)} → ${esc(r.zone)}. Signed ${days} days ago.`
+      : (r.type
+          ? `<strong>${esc(capitalize(r.type))}</strong> in ${esc(r.zone)}. Signed ${days} days ago.`
+          : `Recently signed in ${esc(r.zone)} · ${days} days ago.`);
     const card = document.createElement("div");
     card.className = "recent-signed";
-    card.innerHTML = `
-      <span class="pip"></span>
-      <span><strong>${r.firstName}</strong> from ${r.origin} → ${r.zone}. Signed ${r.daysAgo} days ago.</span>`;
+    card.innerHTML = `<span class="pip"></span><span>${inner}</span>`;
     conv.appendChild(card);
     lead.recent_signed_shown = true;
     persist();
@@ -2131,17 +2102,30 @@ The visitor just landed at boomrome.com. Make them feel met, then qualify them h
   function addActionCard(kind) {
     const card = document.createElement("div");
     card.className = "service-card";
-    if (kind === "viewing") {
+    if (kind === "book") {
       card.innerHTML = `
         <div class="service-head">
           <div class="service-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
           <div class="service-text">
             <div class="service-eyebrow">Next step</div>
-            <div class="service-name">Hold a viewing — Apple Wallet</div>
+            <div class="service-name">Hold a viewing — pick your slot</div>
           </div>
         </div>
-        <div class="service-cta"><button class="btn primary">Confirm</button></div>`;
+        <div class="service-body">A real date, a real time, a verified property. Pass mints once you confirm.</div>
+        <div class="service-cta"><button class="btn primary">Open booking</button></div>`;
+    } else if (kind === "talk") {
+      card.innerHTML = `
+        <div class="service-head">
+          <div class="service-icon"><svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-9 8.5 8.5 8.5 0 0 1-3.4-.7L3 21l1.7-5.6A8.38 8.38 0 0 1 4 11.5a8.5 8.5 0 1 1 17 0z"/></svg></div>
+          <div class="service-text">
+            <div class="service-eyebrow">Talk to Valentino directly</div>
+            <div class="service-name">He's the one who closes deals.</div>
+          </div>
+        </div>
+        <div class="service-body">One message, real human, real Roma. Your conversation summary goes with you.</div>
+        <div class="service-cta"><button class="btn primary">Open WhatsApp</button></div>`;
     } else {
+      // intake — the soft container for hesitant visitors
       card.innerHTML = `
         <div class="service-head">
           <div class="service-icon"><svg viewBox="0 0 24 24"><path d="M5 4h14v16l-7-4-7 4z"/></svg></div>
@@ -2154,7 +2138,11 @@ The visitor just landed at boomrome.com. Make them feel met, then qualify them h
     }
     conv.appendChild(card);
     const btn = card.querySelector(".btn");
-    btn.addEventListener("click", () => kind === "viewing" ? confirmViewing() : openIntake());
+    btn.addEventListener("click", () => {
+      if (kind === "book") openBooking();
+      else if (kind === "talk") talkValentino();
+      else openIntake();
+    });
     bindCursorHover(btn);
     scrollToBottom();
   }
@@ -2188,59 +2176,66 @@ The visitor just landed at boomrome.com. Make them feel met, then qualify them h
      ════════════════════════════════════════════════════════════════ */
 
   async function callConcierge(messages) {
-    // PROD: POST /api/concierge with messages + lead snapshot.
-    // Backend matches Firestore listings, injects them into system prompt,
-    // applies caching, returns model reply.
-    const sys = SYSTEM_PROMPT + "\n\nCURRENT FACTS:\n" +
-      `timing=${lead.timing || "?"}; duration=${lead.duration_months || "?"}; ` +
-      `budget=${lead.budget_max || "?"}; profile=${lead.profile || "?"}; ` +
-      `guarantor=${lead.has_guarantor === null ? "?" : lead.has_guarantor}; ` +
-      `zone=${lead.zone || "?"}; remote=${lead.is_remote}; ` +
-      `admin_help=${lead.needs_admin_help}; ` +
-      `contact=${lead.email || lead.phone ? "yes" : "no"}.\n` +
-      `NEXT STAGE: ${STAGE_NAMES[lead.stage] || "CLOSE"}. Ask only the still-unknown next field.`;
-
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch("/api/concierge", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "claude-haiku-4-5",
-          max_tokens: 280,
-          system: sys,
-          messages
-        })
+          messages,
+          lead: { ...lead },
+          sessionId: SESSION_ID,
+          stage: STAGE_NAMES[lead.stage] || "INTRO",
+        }),
       });
-      if (!res.ok) throw new Error("api " + res.status);
+      if (!res.ok) {
+        if (res.status === 429) return "Just a moment — we're slowing down to keep this honest .";
+        return null;
+      }
       const data = await res.json();
-      return (data.content || []).filter(b => b.type === "text").map(b => b.text).join("\n").trim() || null;
+      // Server returns matched listings inline; engine reads serverListings on render.
+      serverListings = Array.isArray(data.listings) ? data.listings : [];
+      if (window.__BOOM__) window.__BOOM__.lastTokens = data.tokens_used || null;
+      return data.reply || null;
     } catch { return null; }
   }
 
   function parseTokens(text) {
-    const tokens = { nbhd: null, action: null, listings: false, service: null };
+    const tokens = { nbhd: null, action: null, listings: false, service: null, ask: null };
+    const askMatch = text.match(/\[ASK:([a-z_]+)\]/i);
+    if (askMatch) tokens.ask = askMatch[1].toLowerCase().trim();
     const nbhdMatch = text.match(/\[NBHD:([^\]]+)\]/);
     if (nbhdMatch) tokens.nbhd = nbhdMatch[1].trim();
     const serviceMatch = text.match(/\[SERVICE:([A-Z]+)\]/);
     if (serviceMatch) tokens.service = serviceMatch[1].trim();
     if (/\[LISTINGS\]/.test(text)) tokens.listings = true;
-    if (/\[BOOK_VIEWING\]/.test(text)) tokens.action = "viewing";
-    else if (/\[OPEN_INTAKE\]/.test(text)) tokens.action = "intake";
+    if (/\[BOOK_VIEWING\]/.test(text))         tokens.action = "book";
+    else if (/\[TALK_VALENTINO\]/.test(text))  tokens.action = "talk";
+    else if (/\[OPEN_INTAKE\]/.test(text))     tokens.action = "intake";
     const clean = text
+      .replace(/\[ASK:[a-z_]+\]/gi, "")
       .replace(/\[NBHD:[^\]]+\]/g, "")
       .replace(/\[SERVICE:[A-Z]+\]/g, "")
       .replace(/\[LISTINGS\]/g, "")
-      .replace(/\[(BOOK_VIEWING|OPEN_INTAKE)\]/g, "")
+      .replace(/\[(BOOK_VIEWING|OPEN_INTAKE|TALK_VALENTINO)\]/g, "")
       .trim();
     return { ...tokens, clean };
   }
 
-  /* Decide if a service card should fire on the FRONT-END (heuristic)
-     even if the LLM didn't emit one — based on captured signals. */
+  /* Decide if a service card should fire on the FRONT-END (heuristic) even
+     if the LLM didn't emit one — based on captured signals.
+     Strong triggers come first; soft triggers (late-stage hesitation, stuck
+     zone) come after so they don't pre-empt the contextual ones. */
   function frontendServiceTrigger() {
-    if (lead.is_remote && !lead.services_shown.includes("VV")) return "VV";
-    if (lead.needs_admin_help && !lead.services_shown.includes("DAS")) return "DAS";
-    if (lead.needs_shield === true && !lead.services_shown.includes("SHIELD")) return "SHIELD";
+    const shown = lead.services_shown || [];
+    if (lead.needs_shield === true && !shown.includes("SHIELD"))  return "SHIELD";
+    if (lead.is_remote               && !shown.includes("VV"))    return "VV";
+    if (lead.timing === "later"      && !shown.includes("VV"))    return "VV";
+    if (lead.needs_admin_help        && !shown.includes("DAS"))   return "DAS";
+    // Soft surface — late stage, qualified profile, not yet committed
+    if (lead.stage >= 7 && lead.profile && (lead.score || 0) < 80 && !shown.includes("DAS")) return "DAS";
+    // PFS when zone has been the open question for many turns
+    const userTurns = (lead.history || []).filter(h => h.role === "user").length;
+    if (!lead.zone && userTurns >= 5 && !shown.includes("PFS"))   return "PFS";
     return null;
   }
 
@@ -2260,6 +2255,7 @@ The visitor just landed at boomrome.com. Make them feel met, then qualify them h
     addUserMsg(text);
     lead.history.push({ role: "user", content: text });
 
+    const hadContactBefore = !!(lead.email || lead.phone);
     const facts = extractFacts(text);
     Object.assign(lead, facts);
     advanceStage();
@@ -2270,8 +2266,20 @@ The visitor just landed at boomrome.com. Make them feel met, then qualify them h
     persist();
     clearChips();
 
+    // First time we capture contact info → conversion event
+    if (!hadContactBefore && (lead.email || lead.phone)) {
+      fireIntegration("lead.captured", {
+        fieldsCaptured: ["name", "email", "phone"].filter(k => lead[k])
+      });
+    }
+
     if (lead.history.length > MAX_TURNS) {
-      const cap = "We've covered enough ground for me to be useful. The cleanest next step is a 15-minute call with Valentyne — he'll close out the rest in person.\n[OPEN_INTAKE]";
+      const sc = lead.score || 0;
+      const cap = sc >= 80
+        ? "We've covered enough . One message to Valentino and he closes from there .\n[ASK:open]\n[TALK_VALENTINO]"
+        : sc >= 40
+          ? "We've covered enough . The cleanest next step is to pick a viewing slot .\n[ASK:open]\n[BOOK_VIEWING]"
+          : "We've covered enough ground for me to be useful . The cleanest next step is the formal intake — six questions .\n[ASK:open]\n[OPEN_INTAKE]";
       const shell = addBotShell();
       setTimeout(() => {
         const { clean, action } = parseTokens(cap);
@@ -2290,7 +2298,7 @@ The visitor just landed at boomrome.com. Make them feel met, then qualify them h
         typeInto(shell, gate.reply, () => {
           finalizeBot(shell, gate.reply);
           fireIntegration("lead.declined", { lead: { ...lead } });
-          renderChips(suggestChips(gate.reply, true));
+          renderChips(suggestChips(null, true));
           busy = false;
         });
       }, 700);
@@ -2303,7 +2311,7 @@ The visitor just landed at boomrome.com. Make them feel met, then qualify them h
     if (!raw) raw = await callConcierge(lead.history);
     if (!raw) raw = nextStageQuestion();
 
-    const { clean, nbhd, action, listings, service } = parseTokens(raw);
+    const { clean, nbhd, action, listings, service, ask: askField } = parseTokens(raw);
     lead.history.push({ role: "assistant", content: clean });
     persist();
 
@@ -2312,9 +2320,9 @@ The visitor just landed at boomrome.com. Make them feel met, then qualify them h
 
       if (nbhd && NBHD_DATA[nbhd]) addNeighborhoodCard(nbhd);
 
-      // Listings inline
+      // Listings inline (server returned matched listings in serverListings)
       if (listings || (lead.timing && lead.duration_months && lead.budget_max && lead.zone && lead.stage >= 7)) {
-        const matches = matchListings(lead);
+        const matches = serverListings || [];
         if (matches.length === 0) {
           // EMPTY STATE = PFS upsell + alert
           setTimeout(() => addServiceCard("PFS"), 200);
@@ -2339,7 +2347,8 @@ The visitor just landed at boomrome.com. Make them feel met, then qualify them h
         if (fe) setTimeout(() => addServiceCard(fe), 600);
       }
 
-      if (action === "viewing") addActionCard("viewing");
+      if (action === "book")        addActionCard("book");
+      else if (action === "talk")   addActionCard("talk");
       else if (action === "intake") addActionCard("intake");
 
       recalcScore();
@@ -2351,7 +2360,7 @@ The visitor just landed at boomrome.com. Make them feel met, then qualify them h
         fireIntegration("lead.hot", { lead: { ...lead } });
       }
 
-      setTimeout(() => renderChips(suggestChips(clean, false)), 400);
+      setTimeout(() => renderChips(suggestChips(askField, false)), 400);
 
       busy = false;
       armIdleNudge();
@@ -2373,22 +2382,59 @@ The visitor just landed at boomrome.com. Make them feel met, then qualify them h
 
   /* ═════ Actions ═════ */
 
-  function confirmViewing(listing) {
-    fireIntegration("viewing.requested", { lead: { ...lead }, listing });
-    showPass(listing);
+  // Build the standard query-param payload — used by /book and /portal handoffs.
+  function leadParams(extra) {
+    const p = new URLSearchParams();
+    p.set("sessionId", SESSION_ID);
+    if (lead.timing)          p.set("timing",   lead.timing);
+    if (lead.duration_months) p.set("duration", String(lead.duration_months));
+    if (lead.budget_max)      p.set("budget",   String(lead.budget_max));
+    if (lead.profile)         p.set("profile",  lead.profile);
+    if (lead.zone)            p.set("zone",     lead.zone);
+    if (lead.name)            p.set("name",     lead.name);
+    if (lead.email)           p.set("email",    lead.email);
+    if (lead.phone)           p.set("phone",    lead.phone);
+    if (extra) for (const [k, v] of Object.entries(extra)) p.set(k, String(v));
+    return p;
   }
+
+  // viewing.requested — log the intent, then route to /book where the user
+  // picks date/time. The Apple Wallet pass mints AFTER /book confirms.
+  function openBooking(listing) {
+    const extras = {};
+    if (listing) {
+      if (listing.id)                        extras.listing      = listing.id;
+      if (listing.zone)                      extras.listingZone  = listing.zone;
+      if (typeof listing.price === "number") extras.price        = listing.price;
+      if (listing.type)                      extras.listingType  = listing.type;
+    }
+    fireIntegration("viewing.requested", { lead: { ...lead }, listing });
+    window.location.href = `/book?${leadParams(extras).toString()}`;
+  }
+
   function openIntake() {
     fireIntegration("intake.opened", { lead: { ...lead } });
-    const params = new URLSearchParams();
-    if (lead.timing)          params.set("timing",   lead.timing);
-    if (lead.duration_months) params.set("duration", String(lead.duration_months));
-    if (lead.budget_max)      params.set("budget",   String(lead.budget_max));
-    if (lead.profile)         params.set("profile",  lead.profile);
-    if (lead.zone)            params.set("zone",     lead.zone);
-    if (lead.email)           params.set("email",    lead.email);
-    if (lead.phone)           params.set("phone",    lead.phone);
-    const url = `/portal.html?intake=1&${params.toString()}`;
-    alert("In production this routes to:\n\n" + url + "\n\nThe portal intake will be prefilled with everything captured here.");
+    window.location.href = `/portal.html?intake=1&${leadParams().toString()}`;
+  }
+
+  // Hot-lead direct line — opens WhatsApp with the conversation summary
+  // pre-filled. Routed only when score >= 80 per the voice prompt.
+  function talkValentino() {
+    fireIntegration("lead.talk_valentino", { lead: { ...lead } });
+    const lines = ["Hello Valentino, I just talked with the BOOM concierge.", ""];
+    if (lead.timing)          lines.push("Arrival: " + lead.timing);
+    if (lead.duration_months) lines.push("Stay: " + lead.duration_months + " months");
+    if (lead.budget_max)      lines.push("Budget: €" + lead.budget_max + "/mo");
+    if (lead.profile)         lines.push("Profile: " + lead.profile);
+    lines.push("Zone: " + (lead.zone || "open"));
+    if (lead.has_guarantor === false) lines.push("Guarantor: no — need Shield");
+    else if (lead.has_guarantor === true) lines.push("Guarantor: yes");
+    lines.push("");
+    lines.push("Session: " + SESSION_ID);
+    lines.push("");
+    lines.push("I'm ready to talk.");
+    const url = "https://wa.me/393313251961?text=" + encodeURIComponent(lines.join("\n"));
+    window.open(url, "_blank");
   }
 
   /* ═════ Composer ═════ */
@@ -2546,7 +2592,8 @@ The visitor just landed at boomrome.com. Make them feel met, then qualify them h
     setTimeout(() => {
       typeInto(shell, msg, () => {
         finalizeBot(shell, msg);
-        renderChips(suggestChips(msg, false));
+        // Opening always asks for timing — show the timing chips deterministically.
+        renderChips(suggestChips(returning ? "open" : "timing", false));
         armIdleNudge();
       });
     }, 600);
@@ -2555,6 +2602,17 @@ The visitor just landed at boomrome.com. Make them feel met, then qualify them h
   if (!isReturning) {
     setTimeout(() => askOpening(false), 1800);
   }
+
+  // Fetch recently-signed once at boot — populates the peer-proof card.
+  (async () => {
+    try {
+      const r = await fetch("/api/recent-signed");
+      if (r.ok) {
+        const data = await r.json();
+        if (Array.isArray(data.items)) serverRecentSigned = data.items;
+      }
+    } catch { /* non-fatal */ }
+  })();
 
   /* ═════ Boot ═════ */
   syncSendBtn();

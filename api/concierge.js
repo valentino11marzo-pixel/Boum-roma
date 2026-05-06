@@ -207,6 +207,8 @@ function buildDynamicContext({ lead, listings, zones, stage }) {
     `is_remote=${!!lead?.is_remote}`,
     `needs_admin_help=${!!lead?.needs_admin_help}`,
     `has_contact=${!!(lead?.email || lead?.phone)}`,
+    `score=${typeof lead?.score === 'number' ? lead.score : 0}`,
+    `routing=${lead?.routing || 'pending'}`,
   ];
 
   const zonesLine = zones && zones.length
@@ -220,7 +222,12 @@ function buildDynamicContext({ lead, listings, zones, stage }) {
   return `CURRENT FACTS (already extracted by the page; advance the next still-unknown step only — do not re-ask anything already known):
 ${facts.join('; ')}.
 
-NEXT STAGE: ${stage}. Ask only the still-unknown next field, in one short sentence. If all fields are known, propose the next concrete step ([BOOK_VIEWING] or [OPEN_INTAKE]).
+NEXT STAGE: ${stage}. Ask only the still-unknown next field, in one short sentence. Always emit [ASK:field] (timing/duration/budget/profile/guarantor/zone/contact/open) on its own line so the page can show the right input chips.
+
+When closing, pick exactly one close token based on score above:
+  • score < 40 → [OPEN_INTAKE]   (soft container for hesitant visitors)
+  • score 40–79 → [BOOK_VIEWING] (routes to /book — pass mints AFTER booking confirms)
+  • score 80+ → [TALK_VALENTINO] (opens WhatsApp directly to Valentino)
 
 ${zonesLine}
 

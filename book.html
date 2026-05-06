@@ -457,6 +457,52 @@ function showConfirmed(data){
 function fmtDT(dt){return dt.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})+' · '+dt.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}
 function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML}
 function toast(tp,msg){const el=document.getElementById('toast');el.textContent=msg;el.className='toast '+(tp==='err'?'err':'ok')+' show';setTimeout(()=>el.classList.remove('show'),3000)}
+
+// ★ Concierge handoff — prefill from query params
+// (?name=&email=&phone=&listing=<id>&listingZone=&price=&listingType=&zone=&budget=&duration=&timing=&profile=&sessionId=)
+(function _bookPrefillFromQuery(){
+  try{
+    const P=new URLSearchParams(window.location.search);
+    if(!P.toString())return;
+    // Step 1 inputs
+    const setVal=(id,v)=>{const el=document.getElementById(id);if(el&&v)el.value=v};
+    if(P.get('name'))  setVal('in-name',  P.get('name'));
+    if(P.get('email')) setVal('in-email', P.get('email'));
+    if(P.get('phone')) setVal('in-phone', P.get('phone'));
+    // Stash for the request payload
+    if(P.get('sessionId'))ST.sessionId=P.get('sessionId');
+    // Notes seed: concierge context (zone/budget/duration/timing/profile)
+    const notes=[];
+    if(P.get('zone'))    notes.push('Zone: '+P.get('zone'));
+    if(P.get('budget'))  notes.push('Budget: €'+P.get('budget')+'/mo');
+    if(P.get('duration'))notes.push('Stay: '+P.get('duration')+' months');
+    if(P.get('timing'))  notes.push('Arrival: '+P.get('timing'));
+    if(P.get('profile')) notes.push('Profile: '+P.get('profile'));
+    if(notes.length){const nEl=document.querySelector('.note-area, textarea[placeholder]');if(nEl&&!nEl.value)nEl.value='Via concierge — '+notes.join(' · ')}
+    // Listing prefill — resolved AFTER loadListings finishes; if all step-1 fields
+    // present and listing id given, skip step 1 entirely and auto-select.
+    const wantListing=P.get('listing');
+    const haveContact=!!(P.get('name')&&P.get('email')&&P.get('phone'));
+    if(haveContact){
+      ST.name=P.get('name');ST.email=P.get('email');ST.phone=P.get('phone');
+      if(wantListing){
+        // Wrap loadListings so it auto-picks the requested listing on first run.
+        const _orig=window.loadListings;
+        window.loadListings=async function(){
+          await _orig.apply(this,arguments);
+          if(window._L&&window._L[wantListing]){window.pick(wantListing)}
+          else if(P.get('listingZone')){
+            // Listing id wasn't found (unpublished?) — synthesize a stub from query params
+            ST.listing={id:wantListing,zone:P.get('listingZone'),name:(P.get('listingType')||'Property')+' · '+P.get('listingZone'),price:parseInt(P.get('price'))||0};
+            const btn=document.getElementById('btn-s2-next');if(btn)btn.disabled=false;
+          }
+        };
+        // Skip step 1 → straight to step 2 once DOM ready
+        document.addEventListener('DOMContentLoaded',()=>{setStep(2);loadListings()});
+      }
+    }
+  }catch(e){console.warn('book prefill error:',e)}
+})();
 </script>
 <style>@keyframes drawChk{to{stroke-dashoffset:0}}</style>
 </body>

@@ -31,6 +31,7 @@ const VALID_EVENTS = new Set([
   'lead.captured',
   'lead.declined',
   'lead.hot',
+  'lead.talk_valentino',
   'viewing.requested',
   'intake.opened',
   'service.engaged',
@@ -146,6 +147,10 @@ function buildLeadDoc({ sessionId, lead, eventType, payload }) {
   if (eventType === 'service.engaged')  fields.concierge.serviceEngaged = payload?.service || '';
   if (eventType === 'lead.hot')         fields.concierge.hotAt = now;
   if (eventType === 'viewing.requested')fields.concierge.viewingRequestedAt = now;
+  if (eventType === 'lead.talk_valentino') {
+    fields.concierge.talkValentinoAt = now;
+    fields.status = 'whatsapp_opened';
+  }
   return fields;
 }
 
@@ -245,8 +250,10 @@ async function writeAlert({ sessionId, lead, payload }) {
 
 // ─── Lead.hot — admin EmailJS notification (same pattern as notify-viewing-created.js)
 
-async function fireHotEmail({ sessionId, lead }) {
-  const subject = `🔥 [BOOM] HOT concierge lead — ${(lead?.name || lead?.zone || 'unnamed')} · score ${lead?.score || '?'}/100`;
+async function fireHotEmail({ sessionId, lead, talkVariant = false }) {
+  const subject = talkVariant
+    ? `📲 [BOOM] WhatsApp opened — ${(lead?.name || lead?.zone || 'unnamed')} · score ${lead?.score || '?'}/100`
+    : `🔥 [BOOM] HOT concierge lead — ${(lead?.name || lead?.zone || 'unnamed')} · score ${lead?.score || '?'}/100`;
   const body = JSON.stringify({
     service_id: 'service_74n80th',
     template_id: 'boom_notification',
@@ -256,7 +263,7 @@ async function fireHotEmail({ sessionId, lead }) {
       to_email: 'valentino@boom-rome.com',
       from_name: 'BOOM Concierge',
       reply_to: lead?.email || 'noreply@boomrome.com',
-      heading: '🔥 Hot concierge lead',
+      heading: talkVariant ? '📲 Lead opened WhatsApp' : '🔥 Hot concierge lead',
       subheading: lead?.name || lead?.zone || 'unnamed',
       name: 'Valentino',
       intro: `Score ${lead?.score || '?'}/100 · routing HOT`,
@@ -337,6 +344,7 @@ export default async function handler(req, res) {
       case 'service.engaged':
       case 'alert.subscribed':
       case 'lead.hot':
+      case 'lead.talk_valentino':
       case 'viewing.requested':
       case 'intake.opened': {
         const leadPath = await upsertLead({ sessionId, lead, eventType, payload });
@@ -356,8 +364,8 @@ export default async function handler(req, res) {
       const a = await writeAlert({ sessionId, lead, payload });
       result.alertId = a?.id || null;
     }
-    if (eventType === 'lead.hot') {
-      result.adminEmailSent = await fireHotEmail({ sessionId, lead });
+    if (eventType === 'lead.hot' || eventType === 'lead.talk_valentino') {
+      result.adminEmailSent = await fireHotEmail({ sessionId, lead, talkVariant: eventType === 'lead.talk_valentino' });
     }
   } catch (err) {
     log('write-error', { eventType, sessionId, message: err.message });
