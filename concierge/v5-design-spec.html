@@ -777,6 +777,62 @@
     to   { opacity: 0.7; transform: translateY(0); }
   }
 
+  /* ─────────────  Contact mini-form (CONTACT state)  ───────────── */
+
+  .contact-mini-form {
+    align-self: stretch;
+    max-width: 92%;
+    margin-left: calc(var(--u) * 3);
+    background: linear-gradient(180deg, rgba(212,175,55,0.04), rgba(212,175,55,0.01));
+    border: 1px solid var(--gold-mute);
+    border-radius: 14px;
+    padding: calc(var(--u) * 2.2) calc(var(--u) * 2.5);
+    display: flex; flex-direction: column;
+    gap: 10px;
+    animation: msg-in 0.7s var(--ease-soft) forwards;
+    opacity: 0;
+  }
+  .contact-mini-form .cf-eyebrow {
+    font-size: 9px; letter-spacing: 0.32em; text-transform: uppercase;
+    color: var(--gold);
+    font-weight: 400;
+    margin-bottom: 4px;
+  }
+  .contact-mini-form .cf-input {
+    background: rgba(255, 255, 255, 0.025);
+    border: 1px solid var(--ink-4);
+    border-radius: 100px;
+    padding: 10px 16px;
+    color: var(--ink);
+    font-family: var(--sans);
+    font-weight: 300;
+    font-size: 14px;
+    letter-spacing: -0.005em;
+    outline: none;
+    transition: border-color 0.3s var(--ease), background 0.3s var(--ease);
+  }
+  .contact-mini-form .cf-input::placeholder { color: var(--ink-3); }
+  .contact-mini-form .cf-input:focus {
+    border-color: var(--gold-soft);
+    background: rgba(255, 255, 255, 0.04);
+  }
+  .contact-mini-form .cf-submit {
+    margin-top: 4px;
+    padding: 10px 18px;
+    border-radius: 100px;
+    border: none;
+    background: var(--gold); color: var(--bg);
+    font-family: var(--sans); font-weight: 500;
+    font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+    cursor: pointer;
+    transition: transform 0.3s var(--ease), box-shadow 0.4s var(--ease);
+    align-self: flex-end;
+  }
+  .contact-mini-form .cf-submit:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 22px var(--gold-glow);
+  }
+
   /* ─────────────  Composer  ───────────── */
 
   .composer-zone {
@@ -1362,7 +1418,8 @@
     needs_admin_help: false,    // ← fires DAS recommendation
     is_remote: false,           // ← fires VV recommendation
     services_shown: [],         // ← never propose same service twice
-    listingsRenderedCount: 0,   // ← session-cumulative count; gates [BOOK_VIEWING]
+    listingsRenderedCount: 0,   // ← session-cumulative count; gates close action
+    currentState: 'INTRO',      // ← state machine cursor
     started_at: Date.now(),
     last_touched: Date.now(),
     history: []
@@ -1404,8 +1461,11 @@
   document.getElementById("return-continue").addEventListener("click", () => {
     document.body.classList.remove("has-return");
     document.body.classList.add("active");
-    // Replay last bot message context as opening
-    setTimeout(() => askOpening(true), 400);
+    // Restore the state machine to where they left off — falls back to TIMING.
+    setTimeout(() => {
+      const resume = STATE_TABLE[lead.currentState] ? lead.currentState : 'TIMING';
+      enterState(resume);
+    }, 400);
   });
   document.getElementById("return-fresh").addEventListener("click", () => {
     localStorage.removeItem(STORAGE_KEY);
@@ -1513,10 +1573,13 @@
      SERVER DATA — populated from /api/concierge and /api/recent-signed
      ════════════════════════════════════════════════════════════════ */
 
-  // Matched listings come back inline with each /api/concierge response.
-  // Recent-signed is fetched once at page boot.
+  // Server-fetched data populated by the page (no LLM in these paths):
+  //   serverListings      ← /api/listings-match (per-MATCH-state call)
+  //   serverRecentSigned  ← /api/recent-signed   (boot fetch)
+  //   serverZones         ← /api/listings-zones  (boot fetch — used by ZONE state chips)
   let serverListings = [];
   let serverRecentSigned = [];
+  let serverZones = [];
 
   function recentForZone(zone) {
     if (!serverRecentSigned.length) return null;
@@ -1667,16 +1730,9 @@
     if (s <= 6) return 2;
     return 3;
   }
-  function advanceStage() {
-    if (!lead.timing) lead.stage = 1;
-    else if (lead.duration_months == null) lead.stage = 2;
-    else if (lead.budget_max == null) lead.stage = 3;
-    else if (!lead.profile) lead.stage = 4;
-    else if (lead.has_guarantor == null) lead.stage = 5;
-    else if (!lead.zone) lead.stage = 6;
-    else if (!lead.email && !lead.phone) lead.stage = 7;
-    else lead.stage = 8;
-  }
+  // advanceStage was the LLM-driven progression. Replaced by state machine
+  // below — `lead.stage` is now derived from `lead.currentState` via the
+  // STATE_TABLE entry's `headerStage` property when entering each state.
   function updateHeader() {
     const groupIdx = stageGroup(lead.stage);
     const labelEl = document.getElementById("stage-label");
@@ -1738,29 +1794,13 @@
   }
 
   /* ════════════════════════════════════════════════════════════════
-     CONCIERGE ENGINE
+     CONCIERGE — chip data + neighborhood/service catalogs
      ════════════════════════════════════════════════════════════════ */
 
-  // The system prompt lives server-side (api/concierge.js) — loaded from
-  // concierge/voice-prompt.md as two cached blocks. The page never sees it.
-
-  /* Regex shortcircuit */
-  const FALLBACKS = [
-    { match: /^\s*(hi|hello|hey|yo)\s*[.!?]*\s*$/i,
-      reply: "Welcome. When are you arriving in Rome — and how long are you staying?" },
-    { match: /^\s*(ciao|salve|buongiorno|buonasera|buonanotte)\s*[.!?]*\s*$/i,
-      reply: "Ciao. Quando arrivi a Roma — e per quanto tempo?" },
-    { match: /^(thanks|thank you|grazie)\s*[.!?]*\s*$/i,
-      reply: "Of course. Anything else I can pre-screen for you?" },
-    { match: /(how much|costo|quanto cost|fee|price|prezzo)\s*\??\s*$/i,
-      reply: "Three concierge tiers: Virtual Viewing €89, Document & Administrative Setup €249, full Property Finder Service €350. Closed leases carry roughly one month's rent as agency commission. Which fits where you are?" }
-  ];
-  function regexFallback(text) {
-    for (const f of FALLBACKS) if (f.match.test(text)) return f.reply;
-    return null;
-  }
-
-  /* Smart contextual chips */
+  /* Deterministic chip set per qualification field. Reads from STATE_TABLE
+     to know which set to render in the current state. Items can carry
+     either `q` (synthetic user message → handleUserInput) or `action`
+     (sentinel handled in renderChips, e.g. surpriseMe / openContactForm). */
   // Deterministic chip set per question. The model is instructed to emit
   // [ASK:field] on every reply; the page reads the token and shows the matching
   // chips. If the token is missing, fall back to lead.stage.
@@ -1793,13 +1833,14 @@
       { l: "I don't have one", q: "I don't have an Italian guarantor." }
     ],
     zone: [
+      // Marquee zones; mixed with serverZones at render time via suggestChipsForState.
       { l: "Borgo Pio",   q: "Borgo Pio, near the Vatican." },
       { l: "Trastevere",  q: "Trastevere." },
       { l: "Parioli",     q: "Parioli." },
-      { l: "Surprise me", q: "Surprise me with the right zone for me." }
+      { l: "Surprise me", action: 'surpriseMe' }
     ],
     contact: [
-      { l: "Yes, let's begin", q: "Yes, let's begin." },
+      { l: "Yes, let's begin", action: 'openContactForm' },
       { l: "Schedule a call",  q: "Can we schedule a call instead?" }
     ],
     open: [
@@ -1808,19 +1849,28 @@
     ]
   };
 
-  // stage 0/1 → timing, 2 → duration, 3 → budget, 4 → profile, 5 → guarantor,
-  // 6 → zone, 7 → contact, 8 → open. Used only as fallback when [ASK:X] missing.
-  const STAGE_FIELD = ["timing","timing","duration","budget","profile","guarantor","zone","contact","open"];
-
-  function suggestChips(askedField, declined) {
+  // State machine cursor field map — the page reads this to know which chip
+  // set to render and which qualification field is being captured.
+  function suggestChipsForState(stateOrFieldKey, declined) {
     if (declined) {
       return [
-        { l: "Got it, thanks", q: "Got it, thanks for being honest." },
+        { l: "Got it, thanks",  q: "Got it, thanks for being honest." },
         { l: "What else fits?", q: "What else might fit my situation?" }
       ];
     }
-    const field = (askedField && CHIPS[askedField]) ? askedField : (STAGE_FIELD[lead.stage] || "open");
-    return CHIPS[field] || CHIPS.open;
+    if (stateOrFieldKey === 'zone') {
+      // Mix marquee zones with currently-stocked zones from serverZones.
+      const marquee = ['Borgo Pio', 'Trastevere', 'Parioli'];
+      const extras = (serverZones || [])
+        .filter(z => z && !z.includes('/') && !marquee.includes(z))
+        .slice(0, 2);
+      const items = [];
+      for (const z of marquee) items.push({ l: z, q: z + (z === 'Borgo Pio' ? ', near the Vatican.' : '.') });
+      for (const z of extras)  items.push({ l: z, q: z + '.' });
+      items.push({ l: "Surprise me", action: 'surpriseMe' });
+      return items;
+    }
+    return CHIPS[stateOrFieldKey] || CHIPS.open;
   }
 
   const NBHD_DATA = {
@@ -2015,7 +2065,7 @@
       const tail = document.createElement("div");
       tail.className = "listings-tail";
       tail.textContent = `${listings.length - 3} more available`;
-      tail.addEventListener("click", () => ask("Show me the others."));
+      tail.addEventListener("click", () => handleUserInput("Show me the others.", 'tail'));
       bindCursorHover(tail);
       conv.appendChild(tail);
     }
@@ -2054,6 +2104,8 @@
     if (!s) return;
     lead.services_shown.push(key);
     persist();
+    // Analytics: log that the page rendered this service to the visitor.
+    fireIntegration('service.shown', { service: key });
     const card = document.createElement("div");
     card.className = "service-card";
     card.innerHTML = `
@@ -2075,9 +2127,9 @@
     const secondary = card.querySelectorAll(".btn")[1];
     primary.addEventListener("click", () => {
       fireIntegration("service.engaged", { service: key, lead: { ...lead } });
-      ask("Yes, engage " + s.eyebrow + ".");
+      handleUserInput("Yes, engage " + s.eyebrow + ".", 'service-cta');
     });
-    secondary.addEventListener("click", () => ask("Tell me more about " + s.eyebrow + "."));
+    secondary.addEventListener("click", () => handleUserInput("Tell me more about " + s.eyebrow + ".", 'service-cta'));
     bindCursorHover(primary);
     bindCursorHover(secondary);
     scrollToBottom();
@@ -2106,7 +2158,7 @@
       if (email && /\S+@\S+\.\S+/.test(email)) {
         lead.email = email;
         fireIntegration("alert.subscribed", { criteria: { ...lead }, email });
-        ask("Subscribed at " + email + ".");
+        handleUserInput("Subscribed at " + email + ".", 'alert-subscribe');
       }
     });
     bindCursorHover(btn);
@@ -2192,7 +2244,12 @@
       c.className = "chip";
       c.style.animationDelay = (i * 70) + "ms";
       c.textContent = item.l;
-      c.addEventListener("click", () => { clearChips(); ask(item.q); });
+      c.addEventListener("click", () => {
+        clearChips();
+        if (item.action === 'surpriseMe')      return runSurpriseMe();
+        if (item.action === 'openContactForm') return addContactMiniForm();
+        handleUserInput(item.q || item.l, 'chip');
+      });
       bindCursorHover(c);
       strip.appendChild(c);
     });
@@ -2205,230 +2262,419 @@
   }
 
   /* ════════════════════════════════════════════════════════════════
-     ENGINE
+     STATE MACHINE — page is the conductor, LLM is the voice actor.
      ════════════════════════════════════════════════════════════════ */
 
-  async function callConcierge(messages) {
+  // Per-state config: which field, which chip set, which phrase kinds, where to
+  // go next, which header bar to light. Single source of truth for the flow.
+  const STATE_TABLE = {
+    TIMING:    { field: 'timing',          chipKey: 'timing',    askKind: 'ask_timing',    extractKind: 'extract_timing',    next: 'DURATION',  headerStage: 1 },
+    DURATION:  { field: 'duration_months', chipKey: 'duration',  askKind: 'ask_duration',  extractKind: 'extract_duration',  next: 'BUDGET',    headerStage: 2 },
+    BUDGET:    { field: 'budget_max',      chipKey: 'budget',    askKind: 'ask_budget',    extractKind: 'extract_budget',    next: 'PROFILE',   headerStage: 3 },
+    PROFILE:   { field: 'profile',         chipKey: 'profile',   askKind: 'ask_profile',   extractKind: 'extract_profile',   next: 'GUARANTOR', headerStage: 4 },
+    GUARANTOR: { field: 'has_guarantor',   chipKey: 'guarantor', askKind: 'ask_guarantor', extractKind: null,                next: 'ZONE',      headerStage: 5 },
+    ZONE:      { field: 'zone',            chipKey: 'zone',      askKind: 'ask_zone',      extractKind: 'extract_zone',      next: 'CONTACT',   headerStage: 6 },
+    CONTACT:   { field: '__contact__',     chipKey: 'contact',   askKind: 'ask_contact',   extractKind: 'extract_contact',   next: 'MATCH',     headerStage: 7 },
+  };
+
+  const KEY_FIELDS = ['timing','duration_months','budget_max','profile','has_guarantor','zone','email','phone'];
+
+  // Per-kind hand-written fallbacks. The page never breaks if the LLM is
+  // unreachable — every question has a Valentino-voice sentence pre-written.
+  const PHRASE_FALLBACKS = {
+    ask_timing:    () => "When are you landing in Roma — and what's your timing ?",
+    ask_duration:  () => "How long are you staying ?",
+    ask_budget:    () => "Budget per month ?",
+    ask_profile:   () => "Student, work, or freelance ?",
+    ask_guarantor: () => "Italian guarantor — yes or no ?",
+    ask_zone:      () => "Any neighborhood drawing you, or shall I match you ?",
+    ask_contact:   () => "Send me your name, email, phone — I lock it in .",
+    extract_timing:    () => ({ value: null, phrasedAck: "" }),
+    extract_duration:  () => ({ value: null, phrasedAck: "" }),
+    extract_budget:    () => ({ value: null, phrasedAck: "" }),
+    extract_profile:   () => ({ value: null, phrasedAck: "" }),
+    extract_zone:      () => ({ value: null, phrasedAck: "" }),
+    extract_contact:   () => ({ name: null, email: null, phone: null, phrasedAck: "" }),
+    decline_short:  () => "Under one month, BOOM doesn't fit . Airbnb will serve you better — come back when you're staying longer .",
+    decline_budget: () => "Below €900 in our zones, I can't deliver our standard . Idealista is better below that line .",
+    decline_geo:    () => "Roma only, for now . Barcelona on the roadmap . If Roma's in your trip, I'm here .",
+    ack_listings:        (ctx) => ((ctx?.count || 0) === 1 ? "One fits — shown below ." : `${ctx?.count || 'A few'} fit — shown below .`),
+    ack_no_listings:     (ctx) => `Nothing matches in ${ctx?.lead?.zone || 'that zone'} right now — want us to hunt off-market ?`,
+    ack_multi_capture:   (ctx) => {
+      const lead2 = ctx?.lead || {};
+      const parts = [];
+      if (lead2.timing) parts.push(lead2.timing);
+      if (lead2.duration_months) parts.push(lead2.duration_months + ' months');
+      if (lead2.budget_max) parts.push('€' + lead2.budget_max);
+      if (lead2.zone) parts.push(lead2.zone);
+      return `Got it — ${parts.join(', ')} . Looking now .`;
+    },
+    ack_shield_offered:  () => "No Italian guarantor — Shield covers you .",
+    free_response:       () => "Pick one of the chips below to keep us moving .",
+  };
+
+  // Single phrase call. 2.5s timeout. Falls back to PHRASE_FALLBACKS on miss.
+  async function callPhrase(kind, context = {}) {
+    const fb = PHRASE_FALLBACKS[kind] ? PHRASE_FALLBACKS[kind](context) : '';
+    const fallbackResult = (typeof fb === 'string')
+      ? { text: fb, extracted: null }
+      : { text: fb?.phrasedAck || '', extracted: fb };
     try {
-      const res = await fetch("/api/concierge", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages,
-          lead: { ...lead },
-          sessionId: SESSION_ID,
-          stage: STAGE_NAMES[lead.stage] || "INTRO",
-        }),
+      const ac = new AbortController();
+      const timer = setTimeout(() => ac.abort(), 2500);
+      const res = await fetch('/api/concierge-phrase', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind, context, sessionId: SESSION_ID }),
+        signal: ac.signal,
       });
-      if (!res.ok) {
-        if (res.status === 429) return "Just a moment — we're slowing down to keep this honest .";
-        return null;
-      }
+      clearTimeout(timer);
+      if (!res.ok) return fallbackResult;
       const data = await res.json();
-      // Server returns matched listings inline; engine reads serverListings on render.
-      serverListings = Array.isArray(data.listings) ? data.listings : [];
       if (window.__BOOM__) window.__BOOM__.lastTokens = data.tokens_used || null;
-      return data.reply || null;
-    } catch { return null; }
+      return {
+        text: data.text || fallbackResult.text,
+        extracted: data.extracted || fallbackResult.extracted,
+      };
+    } catch {
+      return fallbackResult;
+    }
   }
 
-  function parseTokens(text) {
-    const tokens = { nbhd: null, action: null, listings: false, service: null, ask: null };
-    const askMatch = text.match(/\[ASK:([a-z_]+)\]/i);
-    if (askMatch) tokens.ask = askMatch[1].toLowerCase().trim();
-    const nbhdMatch = text.match(/\[NBHD:([^\]]+)\]/);
-    if (nbhdMatch) tokens.nbhd = nbhdMatch[1].trim();
-    const serviceMatch = text.match(/\[SERVICE:([A-Z]+)\]/);
-    if (serviceMatch) tokens.service = serviceMatch[1].trim();
-    if (/\[LISTINGS\]/.test(text)) tokens.listings = true;
-    if (/\[BOOK_VIEWING\]/.test(text))         tokens.action = "book";
-    else if (/\[TALK_VALENTINO\]/.test(text))  tokens.action = "talk";
-    else if (/\[OPEN_INTAKE\]/.test(text))     tokens.action = "intake";
-    const clean = text
-      .replace(/\[ASK:[a-z_]+\]/gi, "")
-      .replace(/\[NBHD:[^\]]+\]/g, "")
-      .replace(/\[SERVICE:[A-Z]+\]/g, "")
-      .replace(/\[LISTINGS\]/g, "")
-      .replace(/\[(BOOK_VIEWING|OPEN_INTAKE|TALK_VALENTINO)\]/g, "")
-      .trim();
-    return { ...tokens, clean };
+  // Helpers: is this state's field captured? apply LLM-extracted value to lead.
+  function isFieldCaptured(field) {
+    if (field === '__contact__') return !!(lead.email || lead.phone);
+    if (field === 'has_guarantor') return lead.has_guarantor !== null && lead.has_guarantor !== undefined;
+    return lead[field] !== null && lead[field] !== undefined && lead[field] !== '';
+  }
+  function applyExtracted(field, ex) {
+    if (!ex) return;
+    if (field === '__contact__') {
+      if (ex.name)  lead.name  = ex.name;
+      if (ex.email) lead.email = ex.email;
+      if (ex.phone) lead.phone = ex.phone;
+      return;
+    }
+    if (ex.value !== null && ex.value !== undefined) lead[field] = ex.value;
   }
 
-  /* Decide if a service card should fire on the FRONT-END (heuristic) even
-     if the LLM didn't emit one — based on captured signals.
-     Strong triggers come first; soft triggers (late-stage hesitation, stuck
-     zone) come after so they don't pre-empt the contextual ones. */
-  function frontendServiceTrigger() {
-    const shown = lead.services_shown || [];
-    if (lead.needs_shield === true && !shown.includes("SHIELD"))  return "SHIELD";
-    if (lead.is_remote               && !shown.includes("VV"))    return "VV";
-    if (lead.timing === "later"      && !shown.includes("VV"))    return "VV";
-    if (lead.needs_admin_help        && !shown.includes("DAS"))   return "DAS";
-    // Soft surface — late stage, qualified profile, not yet committed
-    if (lead.stage >= 7 && lead.profile && (lead.score || 0) < 80 && !shown.includes("DAS")) return "DAS";
-    // PFS when zone has been the open question for many turns
-    const userTurns = (lead.history || []).filter(h => h.role === "user").length;
-    if (!lead.zone && userTurns >= 5 && !shown.includes("PFS"))   return "PFS";
-    return null;
-  }
+  // Service triggers — fire deterministically when their conditions are met,
+  // BEFORE the next state's question, non-blocking.
+  function shouldFireVV()  { return !lead.services_shown.includes('VV')  && (lead.timing === 'later' || lead.is_remote); }
+  function shouldFireDAS() { return !lead.services_shown.includes('DAS') && ['student','researcher','corporate'].includes(lead.profile || ''); }
 
   let busy = false;
 
-  async function ask(text) {
+  // Enter a state. Updates header, fires pre-state services if applicable,
+  // renders chips, asks the question via callPhrase.
+  async function enterState(name) {
+    if (!name) return;
+    lead.currentState = name;
+    if (STATE_TABLE[name]) lead.stage = STATE_TABLE[name].headerStage;
+    persist();
+    updateHeader();
+    updateOperator();
+    // Analytics: fire-and-forget, never blocks the UI.
+    fireIntegration('state.transition', { state: name });
+
+    if (name === 'MATCH')              return enterMatch();
+    if (name === 'ROUTE')              return enterRoute();
+    if (name === 'ROUTE_NO_LISTINGS')  return enterRouteNoListings();
+    if (name === 'CLOSE' || name === 'DECLINED') return;
+
+    const cfg = STATE_TABLE[name];
+    if (!cfg) return;
+
+    // Pre-state services (non-blocking — slide in beneath the conversation)
+    if (name === 'DURATION' && shouldFireVV())  addServiceCard('VV');
+    if (name === 'ZONE'     && shouldFireDAS()) addServiceCard('DAS');
+
+    // Render chips immediately so the visitor sees options while we wait for phrasing.
+    renderChips(suggestChipsForState(cfg.chipKey, false));
+
+    // Phrase + type the question.
+    const result = await callPhrase(cfg.askKind, { lead });
+    if (!document.body.classList.contains('active')) document.body.classList.add('active');
+    document.body.classList.remove('has-return');
+    const shell = addBotShell();
+    setTimeout(() => typeInto(shell, result.text, () => {
+      finalizeBot(shell, result.text);
+      armIdleNudge();
+    }), 300);
+  }
+
+  async function enterMatch() {
+    let matches = [];
+    try {
+      const res = await fetch('/api/listings-match', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          zone: lead.zone || '',
+          budget_max: typeof lead.budget_max === 'number' ? lead.budget_max : null,
+          duration_months: typeof lead.duration_months === 'number' ? lead.duration_months : null,
+          profile: lead.profile || '',
+          sessionId: SESSION_ID,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.matches)) matches = data.matches;
+      }
+    } catch { /* network error → 0 matches → routes to PFS path */ }
+
+    serverListings = matches;
+    fireIntegration('match.results', {
+      count: matches.length,
+      zone: lead.zone || '',
+      budget: typeof lead.budget_max === 'number' ? lead.budget_max : 0,
+    });
+
+    if (matches.length === 0) {
+      const ack = await callPhrase('ack_no_listings', { lead });
+      const shell = addBotShell();
+      setTimeout(() => typeInto(shell, ack.text, () => {
+        finalizeBot(shell, ack.text);
+        addServiceCard('PFS');
+        setTimeout(() => addAlertSubscribeCard(), 600);
+        enterRouteNoListings();
+      }), 300);
+      return;
+    }
+
+    const ack = await callPhrase('ack_listings', { lead, count: matches.length });
+    const shell = addBotShell();
+    setTimeout(() => typeInto(shell, ack.text, () => {
+      finalizeBot(shell, ack.text);
+      addListingCards(matches);
+      if ((lead.score || 0) >= 50 && !lead.recent_signed_shown) {
+        setTimeout(() => addRecentSignedCard(), 1200);
+      }
+      enterRoute();
+    }), 300);
+  }
+
+  function enterRoute() {
+    recalcScore();
+    updateHeader();
+    updateOperator();
+    const sc = lead.score || 0;
+    let kind;
+    if      (sc >= 80) kind = 'talk';
+    else if (sc >= 50) kind = 'book';
+    else               kind = 'intake';
+    setTimeout(() => addActionCard(kind), 800);
+    lead.currentState = 'CLOSE';
+    persist();
+    if (sc >= 80 && lead.routing !== 'hot') {
+      lead.routing = 'hot';
+      fireIntegration('lead.hot', { lead: { ...lead } });
+      persist();
+    }
+    busy = false;
+  }
+
+  function enterRouteNoListings() {
+    recalcScore();
+    updateHeader();
+    updateOperator();
+    const sc = lead.score || 0;
+    if (sc >= 60) {
+      // Warm enough for a direct human handoff even without listings.
+      setTimeout(() => addActionCard('talk'), 1200);
+    }
+    // sc < 60: PFS card already showing; alert subscribe handles the rest.
+    lead.currentState = 'CLOSE';
+    persist();
+    busy = false;
+  }
+
+  function enterDecline(reason, replyText) {
+    lead.declined_reason = reason;
+    lead.currentState = 'DECLINED';
+    persist();
+    updateHeader();
+    updateOperator();
+    const shell = addBotShell(true);
+    setTimeout(() => typeInto(shell, replyText, () => {
+      finalizeBot(shell, replyText);
+      fireIntegration('lead.declined', { lead: { ...lead }, reason });
+      renderChips(suggestChipsForState(null, true));
+      busy = false;
+    }), 700);
+  }
+
+  // Surprise-me handler — page picks a zone from real inventory and advances.
+  function runSurpriseMe() {
+    const z = (serverZones && serverZones.length)
+      ? serverZones.find(s => !s.includes('/')) || serverZones[0]
+      : 'Trastevere';
+    addUserMsg(z + ' — surprise me .');
+    lead.zone = z;
+    persist();
+    recalcScore();
+    updateHeader();
+    enterState(STATE_TABLE.ZONE.next);
+  }
+
+  // Inline contact mini-form (CONTACT state, "Yes, let's begin" path).
+  function addContactMiniForm() {
+    if (document.querySelector('.contact-mini-form')) return;
+    const card = document.createElement('div');
+    card.className = 'contact-mini-form';
+    card.innerHTML = `
+      <div class="cf-eyebrow">Lock it in</div>
+      <input class="cf-input" id="cf-name"  type="text"  placeholder="Full name" autocomplete="name" />
+      <input class="cf-input" id="cf-email" type="email" placeholder="Email" autocomplete="email" />
+      <input class="cf-input" id="cf-phone" type="tel"   placeholder="WhatsApp / phone" autocomplete="tel" />
+      <button class="cf-submit" id="cf-submit">Send</button>`;
+    conv.appendChild(card);
+    const submit = () => {
+      const name  = document.getElementById('cf-name').value.trim();
+      const email = document.getElementById('cf-email').value.trim();
+      const phone = document.getElementById('cf-phone').value.trim();
+      if (!email && !phone) return;
+      if (name)  lead.name  = name;
+      if (email) lead.email = email;
+      if (phone) lead.phone = phone;
+      persist();
+      recalcScore();
+      updateHeader();
+      fireIntegration('lead.captured', { fieldsCaptured: ['name','email','phone'].filter(k => lead[k]) });
+      addUserMsg([name, email, phone].filter(Boolean).join(' · '));
+      card.remove();
+      enterState('MATCH');
+    };
+    card.querySelector('#cf-submit').addEventListener('click', submit);
+    card.querySelectorAll('.cf-input').forEach(el => {
+      el.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
+    });
+    bindCursorHover(card.querySelector('#cf-submit'));
+    setTimeout(() => card.querySelector('#cf-name').focus(), 100);
+    scrollToBottom();
+  }
+
+  // Single entry-point for chip clicks AND composer submissions.
+  async function handleUserInput(text, source = 'free') {
     if (busy) return;
     busy = true;
     text = text.trim().slice(0, MAX_INPUT_LEN);
     if (!text) { busy = false; return; }
 
-    if (!document.body.classList.contains("active")) {
-      document.body.classList.add("active");
-    }
-    document.body.classList.remove("has-return");
+    if (!document.body.classList.contains('active')) document.body.classList.add('active');
+    document.body.classList.remove('has-return');
 
     addUserMsg(text);
-    lead.history.push({ role: "user", content: text });
+    lead.history.push({ role: 'user', content: text });
 
+    const beforeState = lead.currentState;
+    const beforeFacts = {};
+    for (const k of KEY_FIELDS) beforeFacts[k] = lead[k];
     const hadContactBefore = !!(lead.email || lead.phone);
+
+    // Page-side regex pre-extraction (cheap, deterministic, multi-field).
     const facts = extractFacts(text);
     Object.assign(lead, facts);
-    advanceStage();
+
+    // Decline gates — page-level. Fires at every input.
     const gate = checkDeclineGates(text);
+
+    // SHIELD on no-guarantor capture (regex path).
+    if (lead.has_guarantor === false && !lead.services_shown.includes('SHIELD')) {
+      addServiceCard('SHIELD');
+    }
+
+    // Newly-captured contact fields → conversion event (once).
+    if (!hadContactBefore && (lead.email || lead.phone)) {
+      fireIntegration('lead.captured', { fieldsCaptured: ['name','email','phone'].filter(k => lead[k]) });
+    }
+
     recalcScore();
     updateHeader();
     updateOperator();
     persist();
     clearChips();
 
-    // First time we capture contact info → conversion event
-    if (!hadContactBefore && (lead.email || lead.phone)) {
-      fireIntegration("lead.captured", {
-        fieldsCaptured: ["name", "email", "phone"].filter(k => lead[k])
-      });
-    }
-
-    if (lead.history.length > MAX_TURNS) {
-      const sc = lead.score || 0;
-      const cap = sc >= 80
-        ? "We've covered enough . One message to Valentino and he closes from there .\n[ASK:open]\n[TALK_VALENTINO]"
-        : sc >= 40
-          ? "We've covered enough . The cleanest next step is to pick a viewing slot .\n[ASK:open]\n[BOOK_VIEWING]"
-          : "We've covered enough ground for me to be useful . The cleanest next step is the formal intake — six questions .\n[ASK:open]\n[OPEN_INTAKE]";
-      const shell = addBotShell();
-      setTimeout(() => {
-        const { clean, action } = parseTokens(cap);
-        typeInto(shell, clean, () => {
-          finalizeBot(shell, clean);
-          if (action) addActionCard(action);
-          busy = false;
-        });
-      }, 700);
-      return;
-    }
-
     if (gate.decline) {
-      const shell = addBotShell(true);
-      setTimeout(() => {
-        typeInto(shell, gate.reply, () => {
-          finalizeBot(shell, gate.reply);
-          fireIntegration("lead.declined", { lead: { ...lead } });
-          renderChips(suggestChips(null, true));
-          busy = false;
-        });
-      }, 700);
+      busy = false;
+      return enterDecline(gate.reason || 'declined', gate.reply);
+    }
+
+    // Multi-field capture: ack with ONE phrase, then auto-advance.
+    const newlyCaptured = KEY_FIELDS.filter(k => {
+      const before = beforeFacts[k];
+      const after = lead[k];
+      const wasUnset = (before === null || before === undefined || before === '');
+      const isSet    = (after  !== null && after  !== undefined && after  !== '');
+      return wasUnset && isSet;
+    });
+    if (newlyCaptured.length >= 2) {
+      const ack = await callPhrase('ack_multi_capture', { lead, captured: newlyCaptured });
+      const shell = addBotShell();
+      setTimeout(() => typeInto(shell, ack.text, () => {
+        finalizeBot(shell, ack.text);
+        busy = false;
+        advanceFromMultiCapture();
+      }), 300);
       return;
     }
 
+    // Single state-aware handling.
+    const cfg = STATE_TABLE[beforeState];
+    if (cfg && isFieldCaptured(cfg.field)) {
+      // Regex captured the current field; advance silently to next state.
+      busy = false;
+      return enterState(cfg.next);
+    }
+
+    // Field not regex-captured: try LLM extract for current state's field.
+    if (cfg && cfg.extractKind) {
+      const ex = await callPhrase(cfg.extractKind, { lead, userText: text });
+      if (ex.extracted) {
+        applyExtracted(cfg.field, ex.extracted);
+        if (isFieldCaptured(cfg.field)) {
+          if (lead.has_guarantor === false && !lead.services_shown.includes('SHIELD')) addServiceCard('SHIELD');
+          recalcScore();
+          updateHeader();
+          persist();
+          const ackText = ex.text || '';
+          if (ackText) {
+            const shell = addBotShell();
+            setTimeout(() => typeInto(shell, ackText, () => {
+              finalizeBot(shell, ackText);
+              busy = false;
+              enterState(cfg.next);
+            }), 300);
+          } else {
+            busy = false;
+            enterState(cfg.next);
+          }
+          return;
+        }
+      }
+    }
+
+    // Fallback: free-text not pertaining to the current field.
+    const free = await callPhrase('free_response', { lead, userText: text, currentField: cfg?.field });
     const shell = addBotShell();
-
-    let raw = regexFallback(text);
-    if (!raw) raw = await callConcierge(lead.history);
-    if (!raw) raw = nextStageQuestion();
-
-    const { clean, nbhd, action, listings, service, ask: askField } = parseTokens(raw);
-    lead.history.push({ role: "assistant", content: clean });
-    persist();
-
-    typeInto(shell, clean, () => {
-      finalizeBot(shell, clean);
-
-      if (nbhd && NBHD_DATA[nbhd]) addNeighborhoodCard(nbhd);
-
-      // Listings inline (server returned matched listings in serverListings)
-      if (listings || (lead.timing && lead.duration_months && lead.budget_max && lead.zone && lead.stage >= 7)) {
-        const matches = serverListings || [];
-        if (matches.length === 0) {
-          // EMPTY STATE = PFS upsell + alert
-          setTimeout(() => addServiceCard("PFS"), 200);
-          setTimeout(() => addAlertSubscribeCard(), 800);
-        } else {
-          setTimeout(() => addListingCards(matches), 200);
-          // Peer proof after listings, only if WARM+
-          if (lead.score >= 50 && !lead.recent_signed_shown) {
-            setTimeout(() => addRecentSignedCard(), 1400);
-          }
-        }
-      }
-
-      // Service card from LLM token. Hard gate: PFS only fires when no
-      // listings exist, regardless of what the model emitted. The model has
-      // bad days and proposes PFS over real inventory; the page is the gate.
-      if (service && SERVICE_DATA[service]) {
-        const blockPFS = (service === "PFS" && (serverListings && serverListings.length > 0));
-        if (!blockPFS) setTimeout(() => addServiceCard(service), 250);
-      }
-
-      // Front-end heuristic service trigger (also blocked from PFS when listings exist)
-      if (!service) {
-        const fe = frontendServiceTrigger();
-        const blockFE = (fe === "PFS" && (serverListings && serverListings.length > 0));
-        if (fe && !blockFE) setTimeout(() => addServiceCard(fe), 600);
-      }
-
-      // Close-action gate: [BOOK_VIEWING] is only valid when listings have
-      // rendered in this session. If the model emits "book" prematurely, override
-      // — high score reroutes to WhatsApp, lower reroutes to PFS (off-market hunt).
-      let resolvedAction = action;
-      if (action === "book" && (lead.listingsRenderedCount || 0) === 0) {
-        if ((lead.score || 0) >= 60) {
-          resolvedAction = "talk";
-        } else {
-          resolvedAction = null;
-          if (!lead.services_shown.includes("PFS") && (!serverListings || serverListings.length === 0)) {
-            setTimeout(() => addServiceCard("PFS"), 250);
-          }
-        }
-      }
-      if (resolvedAction === "book")        addActionCard("book");
-      else if (resolvedAction === "talk")   addActionCard("talk");
-      else if (resolvedAction === "intake") addActionCard("intake");
-
-      recalcScore();
-      updateHeader();
-      updateOperator();
-
-      if (lead.score >= 80 && lead.routing !== "hot") {
-        lead.routing = "hot";
-        fireIntegration("lead.hot", { lead: { ...lead } });
-      }
-
-      setTimeout(() => renderChips(suggestChips(askField, false)), 400);
-
+    setTimeout(() => typeInto(shell, free.text, () => {
+      finalizeBot(shell, free.text);
+      // Re-render chips for current state — visitor still needs to answer.
+      renderChips(suggestChipsForState(cfg?.chipKey || 'open', false));
       busy = false;
       armIdleNudge();
-    });
+    }), 300);
   }
 
-  function nextStageQuestion() {
-    switch (lead.stage) {
-      case 1: return "Tell me when you're arriving in Rome.";
-      case 2: return "How long are you planning to stay?";
-      case 3: return "What's your monthly budget range?";
-      case 4: return "Are you here as a student, for work, or as a freelancer / family?";
-      case 5: return "Do you have an Italian guarantor?";
-      case 6: return "Any neighborhood you're drawn to — Borgo Pio, Trastevere, Parioli — or should I match you?";
-      case 7: return "Send me your name, email and phone and I'll lock it in.";
-      default: return "We have enough — let's lock in the next step.\n[OPEN_INTAKE]";
-    }
+  function advanceFromMultiCapture() {
+    if (!lead.timing)                                                return enterState('TIMING');
+    if (lead.duration_months === null || lead.duration_months === undefined || lead.duration_months === '') return enterState('DURATION');
+    if (lead.budget_max === null || lead.budget_max === undefined)   return enterState('BUDGET');
+    if (!lead.profile)                                               return enterState('PROFILE');
+    if (lead.has_guarantor === null || lead.has_guarantor === undefined) return enterState('GUARANTOR');
+    if (!lead.zone)                                                  return enterState('ZONE');
+    if (!lead.email && !lead.phone)                                  return enterState('CONTACT');
+    return enterState('MATCH');
   }
 
   /* ═════ Actions ═════ */
@@ -2506,7 +2752,7 @@
     if (!v) return;
     inputEl.value = "";
     syncSendBtn();
-    ask(v);
+    handleUserInput(v, 'composer');
   }
 
   let recognition = null;
@@ -2631,40 +2877,39 @@
   document.getElementById("pass-dismiss").addEventListener("click", () =>
     document.getElementById("pass-stage").classList.remove("show"));
 
-  /* ═════ Opening ═════ */
+  /* ═════ Opening — bootstraps the state machine into TIMING ═════ */
 
-  function askOpening(returning = false) {
-    const h = romeHour();
-    let msg;
-    if (returning) {
-      msg = `Welcome back. Where would you like to pick up — same criteria, or refine?`;
-    } else if (h >= 5 && h < 12)  msg = "Welcome. When are you arriving in Rome — and roughly how long are you staying?";
-    else if (h >= 12 && h < 18)   msg = "Welcome. When are you arriving in Rome, and how long are you planning to stay?";
-    else if (h >= 18 && h < 23)   msg = "Good evening. Tell me when you're arriving in Rome and how long you'll be here.";
-    else                          msg = "Welcome. Even at this hour — tell me when you're arriving in Rome, and I'll begin pulling what fits.";
-
-    const shell = addBotShell();
-    setTimeout(() => {
-      typeInto(shell, msg, () => {
-        finalizeBot(shell, msg);
-        // Opening always asks for timing — show the timing chips deterministically.
-        renderChips(suggestChips(returning ? "open" : "timing", false));
-        armIdleNudge();
-      });
-    }, 600);
+  function askOpening() {
+    // Time-keyed greeting (page-side, deterministic) + state-machine entry.
+    // Calls enterState('TIMING') after a brief delay so the orb collapses
+    // animation has time to settle.
+    if (!document.body.classList.contains('active')) document.body.classList.add('active');
+    document.body.classList.remove('has-return');
+    setTimeout(() => enterState('TIMING'), 400);
   }
 
   if (!isReturning) {
-    setTimeout(() => askOpening(false), 1800);
+    setTimeout(() => askOpening(), 1800);
   }
 
-  // Fetch recently-signed once at boot — populates the peer-proof card.
+  // Fetch recently-signed AND distinct available zones once at boot.
+  // recent-signed populates the peer-proof card; zones populates the ZONE
+  // state's chip list with real-inventory options alongside the marquee zones.
   (async () => {
     try {
       const r = await fetch("/api/recent-signed");
       if (r.ok) {
         const data = await r.json();
         if (Array.isArray(data.items)) serverRecentSigned = data.items;
+      }
+    } catch { /* non-fatal */ }
+  })();
+  (async () => {
+    try {
+      const r = await fetch("/api/listings-zones");
+      if (r.ok) {
+        const data = await r.json();
+        if (Array.isArray(data.zones)) serverZones = data.zones;
       }
     } catch { /* non-fatal */ }
   })();

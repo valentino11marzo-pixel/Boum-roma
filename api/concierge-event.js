@@ -28,6 +28,7 @@ const rateMin = new Map();
 const rateDay = new Map();
 
 const VALID_EVENTS = new Set([
+  // Conversion events — write to leads collection + side effects (EmailJS, etc.)
   'lead.captured',
   'lead.declined',
   'lead.hot',
@@ -36,7 +37,51 @@ const VALID_EVENTS = new Set([
   'intake.opened',
   'service.engaged',
   'alert.subscribed',
+  // Analytics-only events from the state machine — append to conversations
+  // events array, no leads write, no email.
+  'state.transition',
+  'match.results',
+  'service.shown',
 ]);
+
+const ANALYTICS_ONLY = new Set(['state.transition', 'match.results', 'service.shown']);
+
+// Translate raw event types into the analytics schema the conversations doc
+// stores. Each shape is purpose-built for funnel-stage aggregation later.
+function toAnalyticsEvent(eventType, payload, lead) {
+  const ts = new Date().toISOString();
+  switch (eventType) {
+    case 'state.transition':
+      return { ts, type: 'state.entered', state: payload?.state || lead?.currentState || 'INTRO' };
+    case 'match.results':
+      return {
+        ts, type: 'match.results',
+        count: typeof payload?.count === 'number' ? payload.count : 0,
+        zone: payload?.zone || lead?.zone || '',
+        budget: typeof payload?.budget === 'number' ? payload.budget : (lead?.budget_max || 0),
+      };
+    case 'service.shown':
+      return { ts, type: 'service.shown', service: payload?.service || '' };
+    case 'service.engaged':
+      return { ts, type: 'service.engaged', service: payload?.service || '' };
+    case 'lead.captured':
+      return { ts, type: 'field.captured', fields: Array.isArray(payload?.fieldsCaptured) ? payload.fieldsCaptured : [] };
+    case 'lead.declined':
+      return { ts, type: 'decline', gate: payload?.reason || lead?.declined_reason || 'unknown' };
+    case 'lead.hot':
+      return { ts, type: 'score.hot', score: typeof lead?.score === 'number' ? lead.score : 0 };
+    case 'lead.talk_valentino':
+      return { ts, type: 'action.taken', action: 'talk' };
+    case 'viewing.requested':
+      return { ts, type: 'action.taken', action: 'book', listing: payload?.listing?.id || null };
+    case 'intake.opened':
+      return { ts, type: 'action.taken', action: 'intake' };
+    case 'alert.subscribed':
+      return { ts, type: 'action.taken', action: 'alert' };
+    default:
+      return { ts, type: eventType };
+  }
+}
 
 // ─── HTTP helpers ────────────────────────────────────────────────────────
 
@@ -161,24 +206,26 @@ async function upsertConversation({ sessionId, lead, eventType, payload }) {
   const existing = await fsdb.readDoc(path).catch(() => null);
   const now = new Date();
   const events = (existing && Array.isArray(existing.events)) ? existing.events : [];
-  events.push({ type: eventType, payload: payload || {}, ts: now.toISOString() });
+  // Append the analytics-shaped event (not the raw integration type).
+  events.push(toAnalyticsEvent(eventType, payload, lead));
 
   const fields = {
     sessionId,
-    lead,
-    events: events.slice(-60),
+    events: events.slice(-100),
     lastEventAt: now,
-    score:           typeof lead?.score === 'number' ? lead.score : 0,
-    routing:         lead?.routing || null,
-    declined_reason: lead?.declined_reason || null,
+    finalState:    lead?.currentState || existing?.finalState || 'INTRO',
+    finalScore:    typeof lead?.score === 'number' ? lead.score : (existing?.finalScore || 0),
+    finalRouting:  lead?.routing || existing?.finalRouting || null,
+    declined_reason: lead?.declined_reason || existing?.declined_reason || null,
   };
   if (!existing) {
     fields.startedAt = now;
     fields.status = 'active';
   }
   if (eventType === 'lead.declined') fields.status = 'declined';
-  if (eventType === 'lead.hot')      fields.routing = 'hot';
+  if (eventType === 'lead.hot')      fields.finalRouting = 'hot';
   if (eventType === 'intake.opened') fields.status = 'intake_opened';
+  if (eventType === 'lead.talk_valentino') fields.status = 'whatsapp_opened';
   await fsdb.setDoc(path, fields);
 }
 
@@ -337,6 +384,12 @@ export default async function handler(req, res) {
   try {
     // 1. Always upsert conversations (best-effort)
     await upsertConversation({ sessionId, lead, eventType, payload });
+
+    // Analytics-only events stop here — no leads write, no email.
+    if (ANALYTICS_ONLY.has(eventType)) {
+      log('ok', { eventType, sessionId, ip, analyticsOnly: true });
+      return res.status(200).json(result);
+    }
 
     // 2. Per-type side effects
     switch (eventType) {

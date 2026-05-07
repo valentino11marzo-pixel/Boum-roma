@@ -60,7 +60,7 @@
     "api/reminder-cron.js": {
       "maxDuration": 60
     },
-    "api/concierge.js": {
+    "api/concierge-phrase.js": {
       "includeFiles": "concierge/voice-prompt.md"
     }
   },
