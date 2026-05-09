@@ -268,7 +268,6 @@ ASK kinds — phrase ONE short question. Max 8–12 words.
   ask_duration   →  e.g. "How long are you staying ?"
   ask_budget     →  e.g. "Budget per month ?"
   ask_profile    →  e.g. "Student, work, or freelance ?"
-  ask_guarantor  →  e.g. "Italian guarantor — yes or no ?"
   ask_zone       →  e.g. "Any neighborhood drawing you, or shall I match you ?"
   ask_contact    →  e.g. "Send me your name, email, phone — I lock it in ."
 
@@ -296,6 +295,11 @@ ACK kinds — one short Valentino-voice sentence. Max 10–12 words.
   ack_multi_capture   →  visitor gave multiple fields at once.
                          Format: "Got it — {recap} . Looking now ."
                          e.g. "Got it — September, 6 months, €1500, Trastevere . Looking now ."
+
+  (Note: ask_guarantor and ack_shield_offered were removed iter 4. The
+  guarantor question is no longer part of the qualification flow — Shield
+  is reactive-only, surfacing from free-text mentions of guarantor /
+  cosigner / sponsor in any state, or via the boomrome.com Shield page.)
 
 FREE_RESPONSE — visitor's text doesn't fit the current state's field.
   free_response  →  Reply 1–2 short Valentino sentences. Don't re-ask the

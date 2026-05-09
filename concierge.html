@@ -193,8 +193,9 @@
     background: rgba(8, 8, 10, 0.75);
     backdrop-filter: blur(20px) saturate(140%);
     -webkit-backdrop-filter: blur(20px) saturate(140%);
-    opacity: 0;
-    animation: fade-in 1.0s var(--ease-soft) 0.3s forwards;
+    /* No opacity fade — talk-btn (escape hatch) must be visible from t=0.
+       Cinematic feel comes from the brand-mark spin, corner brackets, and
+       hero/orb animations. */
     transition: padding 0.6s var(--ease);
   }
   @keyframes fade-in { to { opacity: 1; } }
@@ -265,9 +266,20 @@
     border-color: var(--gold);
     background: var(--gold-glow);
   }
+  @media (max-width: 1023px) and (min-width: 641px) {
+    /* Tablet — keep label visible; tighten gap so it fits alongside clock/lang/reset. */
+    .top-right { gap: calc(var(--u) * 1.5); }
+    .talk-btn { padding: 5px 10px; }
+  }
   @media (max-width: 640px) {
+    /* Mobile — icon-only with a 36×36 minimum tap target. */
     .talk-btn .talk-btn-label { display: none; }
-    .talk-btn { padding: 5px 8px; }
+    .talk-btn {
+      padding: 8px 10px;
+      min-width: 36px; min-height: 36px;
+      justify-content: center;
+    }
+    .talk-btn svg { width: 14px; height: 14px; }
   }
 
   body:not(.active) .stage-cluster { display: none; }
@@ -731,6 +743,34 @@
     color: var(--ink-2);
   }
   .service-cta .btn.ghost:hover { border-color: var(--gold); color: var(--gold); }
+
+  /* Stale service cards — fade after their relevance window passes. */
+  .service-card.stale {
+    opacity: 0.45;
+    filter: grayscale(0.4);
+    transition: opacity 0.6s var(--ease), filter 0.6s var(--ease);
+  }
+  .service-card.stale:hover { opacity: 0.75; filter: grayscale(0.1); }
+
+  /* Inline accordion for service "Tell me more" — replaces chat-loop CTA. */
+  .service-card .service-details {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.5s var(--ease-soft), margin-top 0.5s var(--ease-soft), padding-top 0.5s var(--ease-soft);
+    border-top: 1px solid var(--gold-mute);
+    margin-top: 0;
+    padding-top: 0;
+    font-size: 13px;
+    color: var(--ink-2);
+    line-height: 1.6;
+    position: relative;
+    z-index: 1;
+  }
+  .service-card.expanded .service-details {
+    max-height: 240px;
+    margin-top: calc(var(--u) * 1.5);
+    padding-top: calc(var(--u) * 1.5);
+  }
 
   /* ─────────────  RECENTLY-SIGNED MICRO CARD  ───────────── */
 
@@ -1670,7 +1710,8 @@
       if (lead.duration_months >= 3 && lead.duration_months <= 18) s += 15;
       else if (lead.duration_months > 18) s += 10;
     }
-    if (lead.needs_shield === true) s += 15;
+    // has_guarantor / needs_shield no longer contribute to score — Shield is
+    // reactive-only after iter 4. Field still tracked when free-text mentions it.
     if (lead.zone) s += 10;
     if (lead.email) s += 7;
     if (lead.phone) s += 8;
@@ -1722,13 +1763,13 @@
 
   /* ═════ Stage logic ═════ */
 
-  const STAGE_NAMES = ["INTRO", "TIMING", "DURATION", "BUDGET", "PROFILE", "GUARANTOR", "ZONE", "CONTACT", "CLOSE"];
+  const STAGE_NAMES = ["INTRO", "TIMING", "DURATION", "BUDGET", "PROFILE", "ZONE", "CONTACT", "CLOSE"];
   const STAGE_GROUPS = ["WARMING", "QUALIFYING", "MATCHING", "CLOSING"];
   function stageGroup(s) {
-    if (s <= 1) return 0;
-    if (s <= 3) return 1;
-    if (s <= 6) return 2;
-    return 3;
+    if (s <= 1) return 0; // INTRO / TIMING
+    if (s <= 3) return 1; // DURATION / BUDGET
+    if (s <= 5) return 2; // PROFILE / ZONE
+    return 3;             // CONTACT / CLOSE
   }
   // advanceStage was the LLM-driven progression. Replaced by state machine
   // below — `lead.stage` is now derived from `lead.currentState` via the
@@ -1828,10 +1869,6 @@
       { l: "Freelance", q: "I'm a freelancer / nomad." },
       { l: "Family",    q: "I'm coming with family." }
     ],
-    guarantor: [
-      { l: "I have one",       q: "I have an Italian guarantor." },
-      { l: "I don't have one", q: "I don't have an Italian guarantor." }
-    ],
     zone: [
       // Marquee zones; mixed with serverZones at render time via suggestChipsForState.
       { l: "Borgo Pio",   q: "Borgo Pio, near the Vatican." },
@@ -1844,7 +1881,7 @@
       { l: "Schedule a call",  q: "Can we schedule a call instead?" }
     ],
     open: [
-      { l: "Tell me more", q: "Tell me more." },
+      // "Tell me more" was a dead-end at CLOSE / post-action — removed iter 4.
       { l: "Next step?",   q: "What's the next step?" }
     ]
   };
@@ -1891,6 +1928,7 @@
       name: "Walk through it from your couch.",
       price: "€89",
       body: "We're physically at the property, you're on video. Live walkthrough, every angle, every question answered. Most of our overseas tenants commit from a Virtual Viewing alone.",
+      details: "Live walk-through with our agent on WhatsApp video . Real angles, real questions answered live, audio of the street, the floor, the door, the elevator . Recorded if you want to rewatch .",
       cta_primary: "Book €89",
       cta_secondary: "Tell me more",
       event: "service.engaged.vv"
@@ -1901,6 +1939,7 @@
       name: "We hunt off-market until we find it.",
       price: "€350",
       body: "Two-week active search. We tap our landlord network, off-market inventory, and zones we know but don't list publicly. If we don't find a match in 14 days, we refund.",
+      details: "Two-week active search . We tap landlord network, off-market inventory, zones we know but don't list publicly . If we don't find a match in 14 days, we refund — no questions .",
       cta_primary: "Engage €350",
       cta_secondary: "How it works",
       event: "service.engaged.pfs"
@@ -1911,6 +1950,7 @@
       name: "We handle the bureaucracy.",
       price: "€249",
       body: "Codice fiscale, contract registration with the Agenzia delle Entrate, asseverazione via our CAF partner, cedolare secca paperwork. You sign the lease — the rest is done.",
+      details: "We handle the bureaucracy you'd otherwise hate . Codice fiscale at the Agenzia delle Entrate, contract registration, asseverazione via our CAF partner, cedolare secca paperwork . You sign the lease — the rest is done .",
       cta_primary: "Engage €249",
       cta_secondary: "What's included",
       event: "service.engaged.das"
@@ -1921,6 +1961,7 @@
       name: "We stand behind your lease.",
       price: "5% of annual rent",
       body: "Without an Italian guarantor, most landlords decline. Egidi Immobiliare acts as fideiussore — included with our concierge service, structured as a service benefit.",
+      details: "If you don't have an Italian guarantor, we step in as your corporate fideiussore . Egidi Immobiliare guarantees you to the landlord, you pay a small premium, your application moves like everyone else's .",
       cta_primary: "Add Shield",
       cta_secondary: "How it works",
       event: "service.engaged.shield"
@@ -1931,6 +1972,7 @@
       name: "Sign now — passwordless.",
       price: "Included",
       body: "FES/eIDAS-compliant. Identity check, OTP, signature. Allegato B contract emailed and registered the same day. We send the link, you sign on your phone.",
+      details: "FES/eIDAS-compliant signature flow . Identity check, OTP, signature — done in under a minute on your phone . Allegato B contract emailed and registered the same day .",
       cta_primary: "Send me the link",
       cta_secondary: "Skip for now",
       event: "service.engaged.magicsign"
@@ -2108,6 +2150,8 @@
     fireIntegration('service.shown', { service: key });
     const card = document.createElement("div");
     card.className = "service-card";
+    // Tag with the stage at render time so markStaleCards can fade it later.
+    card.dataset.stage = String(lead.stage || 0);
     card.innerHTML = `
       <div class="service-head">
         <div class="service-icon"><svg viewBox="0 0 24 24">${s.icon}</svg></div>
@@ -2121,7 +2165,8 @@
       <div class="service-cta">
         <button class="btn primary">${s.cta_primary}</button>
         <button class="btn ghost">${s.cta_secondary}</button>
-      </div>`;
+      </div>
+      <div class="service-details">${esc(s.details || s.body)}</div>`;
     conv.appendChild(card);
     const primary = card.querySelectorAll(".btn")[0];
     const secondary = card.querySelectorAll(".btn")[1];
@@ -2129,10 +2174,33 @@
       fireIntegration("service.engaged", { service: key, lead: { ...lead } });
       handleUserInput("Yes, engage " + s.eyebrow + ".", 'service-cta');
     });
-    secondary.addEventListener("click", () => handleUserInput("Tell me more about " + s.eyebrow + ".", 'service-cta'));
+    // Inline accordion: toggle .expanded on the card. No chat loop, no LLM
+    // call — the details content is local data on SERVICE_DATA[key].details.
+    secondary.addEventListener("click", () => {
+      card.classList.toggle('expanded');
+      scrollToBottom();
+    });
     bindCursorHover(primary);
     bindCursorHover(secondary);
+    // Newly-rendered service is the active one; mark earlier services stale.
+    markStaleCards();
     scrollToBottom();
+  }
+
+  // Fade service cards that are more than 1 stage old. Action cards are
+  // exempt (.action-card class). The most recently rendered card is also
+  // exempt — it's the one the visitor is currently considering.
+  function markStaleCards() {
+    const cards = Array.from(conv.querySelectorAll('.service-card:not(.action-card)'));
+    if (cards.length === 0) return;
+    const currentStage = lead.stage || 0;
+    const lastIdx = cards.length - 1;
+    cards.forEach((card, i) => {
+      const cardStage = parseInt(card.dataset.stage || '0', 10);
+      const stageGap = currentStage - cardStage;
+      if (i !== lastIdx && stageGap >= 2) card.classList.add('stale');
+      else                                 card.classList.remove('stale');
+    });
   }
 
   function addAlertSubscribeCard() {
@@ -2186,7 +2254,7 @@
 
   function addActionCard(kind) {
     const card = document.createElement("div");
-    card.className = "service-card";
+    card.className = "service-card action-card"; // .action-card exempts it from stale-fade
     if (kind === "book") {
       card.innerHTML = `
         <div class="service-head">
@@ -2271,13 +2339,14 @@
     TIMING:    { field: 'timing',          chipKey: 'timing',    askKind: 'ask_timing',    extractKind: 'extract_timing',    next: 'DURATION',  headerStage: 1 },
     DURATION:  { field: 'duration_months', chipKey: 'duration',  askKind: 'ask_duration',  extractKind: 'extract_duration',  next: 'BUDGET',    headerStage: 2 },
     BUDGET:    { field: 'budget_max',      chipKey: 'budget',    askKind: 'ask_budget',    extractKind: 'extract_budget',    next: 'PROFILE',   headerStage: 3 },
-    PROFILE:   { field: 'profile',         chipKey: 'profile',   askKind: 'ask_profile',   extractKind: 'extract_profile',   next: 'GUARANTOR', headerStage: 4 },
-    GUARANTOR: { field: 'has_guarantor',   chipKey: 'guarantor', askKind: 'ask_guarantor', extractKind: null,                next: 'ZONE',      headerStage: 5 },
-    ZONE:      { field: 'zone',            chipKey: 'zone',      askKind: 'ask_zone',      extractKind: 'extract_zone',      next: 'CONTACT',   headerStage: 6 },
-    CONTACT:   { field: '__contact__',     chipKey: 'contact',   askKind: 'ask_contact',   extractKind: 'extract_contact',   next: 'MATCH',     headerStage: 7 },
+    PROFILE:   { field: 'profile',         chipKey: 'profile',   askKind: 'ask_profile',   extractKind: 'extract_profile',   next: 'ZONE',      headerStage: 4 },
+    ZONE:      { field: 'zone',            chipKey: 'zone',      askKind: 'ask_zone',      extractKind: 'extract_zone',      next: 'CONTACT',   headerStage: 5 },
+    CONTACT:   { field: '__contact__',     chipKey: 'contact',   askKind: 'ask_contact',   extractKind: 'extract_contact',   next: 'MATCH',     headerStage: 6 },
   };
 
-  const KEY_FIELDS = ['timing','duration_months','budget_max','profile','has_guarantor','zone','email','phone'];
+  // GUARANTOR state removed (iter 4) — Shield is reactive-only now: surfaces
+  // from free-text mentions of guarantor/cosigner/sponsor in any state.
+  const KEY_FIELDS = ['timing','duration_months','budget_max','profile','zone','email','phone'];
 
   // Per-kind hand-written fallbacks. The page never breaks if the LLM is
   // unreachable — every question has a Valentino-voice sentence pre-written.
@@ -2286,7 +2355,6 @@
     ask_duration:  () => "How long are you staying ?",
     ask_budget:    () => "Budget per month ?",
     ask_profile:   () => "Student, work, or freelance ?",
-    ask_guarantor: () => "Italian guarantor — yes or no ?",
     ask_zone:      () => "Any neighborhood drawing you, or shall I match you ?",
     ask_contact:   () => "Send me your name, email, phone — I lock it in .",
     extract_timing:    () => ({ value: null, phrasedAck: "" }),
@@ -2309,7 +2377,6 @@
       if (lead2.zone) parts.push(lead2.zone);
       return `Got it — ${parts.join(', ')} . Looking now .`;
     },
-    ack_shield_offered:  () => "No Italian guarantor — Shield covers you .",
     free_response:       () => "Pick one of the chips below to keep us moving .",
   };
 
@@ -2374,6 +2441,7 @@
     persist();
     updateHeader();
     updateOperator();
+    markStaleCards(); // fade service cards that are >=2 stages old
     // Analytics: fire-and-forget, never blocks the UI.
     fireIntegration('state.transition', { state: name });
 
@@ -2570,6 +2638,7 @@
     const beforeState = lead.currentState;
     const beforeFacts = {};
     for (const k of KEY_FIELDS) beforeFacts[k] = lead[k];
+    const hadGuarantorBefore = lead.has_guarantor;
     const hadContactBefore = !!(lead.email || lead.phone);
 
     // Page-side regex pre-extraction (cheap, deterministic, multi-field).
@@ -2579,8 +2648,12 @@
     // Decline gates — page-level. Fires at every input.
     const gate = checkDeclineGates(text);
 
-    // SHIELD on no-guarantor capture (regex path).
-    if (lead.has_guarantor === false && !lead.services_shown.includes('SHIELD')) {
+    // Shield is reactive-only (iter 4 product correction). The state machine
+    // no longer asks about guarantor; SHIELD surfaces ONLY when the visitor
+    // mentions guarantor/cosigner in free text and the regex caught a
+    // no-guarantor signal in THIS turn.
+    const guarantorJustCaptured = (hadGuarantorBefore !== false) && (lead.has_guarantor === false);
+    if (guarantorJustCaptured && !lead.services_shown.includes('SHIELD')) {
       addServiceCard('SHIELD');
     }
 
@@ -2633,7 +2706,9 @@
       if (ex.extracted) {
         applyExtracted(cfg.field, ex.extracted);
         if (isFieldCaptured(cfg.field)) {
-          if (lead.has_guarantor === false && !lead.services_shown.includes('SHIELD')) addServiceCard('SHIELD');
+          // (Shield trigger lives in the regex-capture block above; LLM
+          // extract path doesn't fire SHIELD because no extract_guarantor
+          // kind exists after the iter-4 product correction.)
           recalcScore();
           updateHeader();
           persist();
@@ -2671,7 +2746,6 @@
     if (lead.duration_months === null || lead.duration_months === undefined || lead.duration_months === '') return enterState('DURATION');
     if (lead.budget_max === null || lead.budget_max === undefined)   return enterState('BUDGET');
     if (!lead.profile)                                               return enterState('PROFILE');
-    if (lead.has_guarantor === null || lead.has_guarantor === undefined) return enterState('GUARANTOR');
     if (!lead.zone)                                                  return enterState('ZONE');
     if (!lead.email && !lead.phone)                                  return enterState('CONTACT');
     return enterState('MATCH');

@@ -22,12 +22,29 @@ const ALLOWED_ORIGINS = new Set([
 const ALLOWED_MODEL = 'claude-haiku-4-5-20251001';
 
 const VALID_KINDS = new Set([
-  'ask_timing','ask_duration','ask_budget','ask_profile','ask_guarantor','ask_zone','ask_contact',
+  // ask_guarantor and ack_shield_offered removed iter 4 (guarantor state
+  // dropped from qualification flow; Shield is reactive-only now).
+  'ask_timing','ask_duration','ask_budget','ask_profile','ask_zone','ask_contact',
   'extract_timing','extract_duration','extract_budget','extract_profile','extract_zone','extract_contact',
   'decline_short','decline_budget','decline_geo',
-  'ack_listings','ack_no_listings','ack_multi_capture','ack_shield_offered',
+  'ack_listings','ack_no_listings','ack_multi_capture',
   'free_response',
 ]);
+
+// Server-side guard: catch model drift where it talks to a developer instead
+// of the visitor. If any of these patterns appear in free_response output,
+// substitute the safe fallback. Defensive layer only — the prompt change
+// should make this rare, but production safety > theory.
+const BAD_PATTERNS = [
+  /^I (need|require) (the |your |a )?visitor/i,
+  /\boff[- ]?topic\b/i,
+  /could you (clarify|elaborate|specify)/i,
+  /what did (they|the visitor) (write|say|reply|tell)/i,
+  /\bcontext\b[^.!?]{0,40}\bmessage\b/i,
+  /\bdevelopers?\b/i,
+  /\bsystem\b[^.!?]{0,40}\bmessage\b/i,
+];
+const FREE_RESPONSE_SAFE_FALLBACK = "Pick one of the chips below to keep us moving .";
 
 const MAX_TOKENS_ASK = 80;
 const MAX_TOKENS_EXTRACT = 200;
@@ -103,7 +120,6 @@ function buildKindInstruction(kind, context) {
     case 'ask_duration':  return ASK('how long they stay', 8);
     case 'ask_budget':    return ASK('their monthly budget in euros', 8);
     case 'ask_profile':   return ASK('whether student / corporate / freelance / family', 10);
-    case 'ask_guarantor': return ASK('Italian guarantor — yes or no', 8);
     case 'ask_zone':      return ASK('which neighborhood or to be matched', 12);
     case 'ask_contact':   return ASK('name + email + phone', 12);
 
@@ -133,11 +149,23 @@ function buildKindInstruction(kind, context) {
       return `TASK: ack_no_listings\nThe page found zero matches in ${zone || "the visitor's zone"}. Phrase ONE short sentence acknowledging the gap, inviting off-market hunt. Max 12 words. Output the sentence only.`;
     case 'ack_multi_capture':
       return `TASK: ack_multi_capture\nThe visitor gave us multiple fields at once. Recap: "${recap}". Phrase ONE Valentino-voice sentence in this exact rhythm: "Got it — <recap> . Looking now ." Output the sentence only.`;
-    case 'ack_shield_offered':
-      return `TASK: ack_shield_offered\nThe page just rendered the Shield service card (visitor has no Italian guarantor). Phrase ONE short sentence acknowledging Shield covers them. Max 10 words. Output the sentence only.`;
 
     case 'free_response':
-      return `TASK: free_response\nVisitor was asked about their ${cf}. They said something off-topic instead: "${userText}"\nReply in 1–2 short Valentino sentences. DO NOT re-ask their ${cf} (chips remain visible below the input). Be honest. No validation before answering. Output the reply only.`;
+      return `TASK: free_response
+The visitor just sent a message that doesn't directly answer the current state's question.
+Visitor's message: "${userText}"
+Current state's question: about their ${cf}.
+
+Reply with ONE OR TWO short Valentino-voice sentences that acknowledge their message and gently steer back to the current question. Chips for the current state remain visible below the input.
+
+Hard rules:
+- Do NOT ask them to clarify
+- Do NOT explain what you can or cannot do
+- Do NOT mention "off-topic", "context", "system", "developer", or any meta-language about the message
+- Do NOT speak about what you need from a developer or system
+- If the message is too vague to respond meaningfully, output exactly: "${FREE_RESPONSE_SAFE_FALLBACK}"
+
+Output the reply only. No preamble, no quotes, no JSON, no explanations. ONE OR TWO sentences max.`;
   }
   return `TASK: ${kind}\nUnknown task. Output a single short Valentino-voice acknowledgment.`;
 }
@@ -282,6 +310,14 @@ export default async function handler(req, res) {
       text = '';
       extracted = null;
     }
+  }
+
+  // Defensive guard for free_response — if the model leaks meta-instructions
+  // (talking to a developer instead of the visitor), substitute the safe
+  // fallback. The hardened prompt should make this rare; this is the floor.
+  if (kind === 'free_response' && text && BAD_PATTERNS.some(p => p.test(text))) {
+    log('warn', { event: 'free_response_drift_caught', kind, originalSlice: text.slice(0, 120) });
+    text = FREE_RESPONSE_SAFE_FALLBACK;
   }
 
   const u = data.usage || {};
