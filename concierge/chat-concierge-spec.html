@@ -1,0 +1,3106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>BOOM Roma · Chat Concierge</title>
+<meta name="description" content="A concierge for those who arrive in Rome with intent." />
+<meta name="theme-color" content="#08080A" />
+
+<style>
+  /* ════════════════════════════════════════════════════════════════════
+     BOOM ROME · CONCIERGE · v5 — DESIGN LOCKED
+     Listings · Services · Empty-state-as-PFS · Returning-visitor strip
+     Recently-signed peer proof · Surprise-me smart match
+     ════════════════════════════════════════════════════════════════════ */
+
+  :root {
+    --bg:          #08080A;
+    --bg-soft:     #0c0c10;
+    --ink:         rgba(255, 255, 255, 0.96);
+    --ink-2:       rgba(255, 255, 255, 0.66);
+    --ink-3:       rgba(255, 255, 255, 0.36);
+    --ink-4:       rgba(255, 255, 255, 0.16);
+    --ink-5:       rgba(255, 255, 255, 0.08);
+    --line:        rgba(255, 255, 255, 0.08);
+    --gold:        #D4AF37;
+    --gold-warm:   #C9A96E;
+    --gold-soft:   rgba(212, 175, 55, 0.62);
+    --gold-mute:   rgba(212, 175, 55, 0.32);
+    --gold-glow:   rgba(212, 175, 55, 0.16);
+    --gold-dust:   rgba(212, 175, 55, 0.85);
+    --decline:     rgba(220, 130, 90, 0.85);
+
+    --sans: "Helvetica Neue", "Helvetica", "Arial", system-ui, sans-serif;
+    --u: 8px;
+    --header-h: 72px;
+    --header-h-active: 56px;
+    --return-strip-h: 0px;
+
+    --ease:        cubic-bezier(0.22, 0.61, 0.36, 1);
+    --ease-soft:   cubic-bezier(0.16, 1, 0.30, 1);
+    --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  body.has-return { --return-strip-h: 44px; }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-weight: 300;
+    font-feature-settings: "kern" 1, "liga" 1, "ss01" 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    overflow: hidden;
+  }
+
+  body {
+    position: relative;
+    height: 100vh;
+    height: 100svh;
+    display: grid;
+    grid-template-rows: var(--return-strip-h) var(--header-h) 1fr auto;
+    transition: grid-template-rows 0.9s var(--ease-soft);
+  }
+  body.active { grid-template-rows: var(--return-strip-h) var(--header-h-active) 1fr auto; }
+
+  /* ─────────────  Atmosphere  ───────────── */
+
+  .sky {
+    position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background:
+      radial-gradient(ellipse 90% 60% at 50% 110%,
+        var(--sky-warm, rgba(48, 28, 18, 0.55)) 0%,
+        rgba(8, 8, 10, 0) 55%),
+      radial-gradient(ellipse 120% 80% at 50% -20%,
+        var(--sky-cool, rgba(18, 22, 38, 0.55)) 0%,
+        rgba(8, 8, 10, 0) 60%);
+    transition: background 4s var(--ease-soft), transform 0.4s linear;
+    will-change: transform;
+  }
+
+  .grain {
+    position: fixed; inset: 0; z-index: 1; pointer-events: none;
+    opacity: 0.05;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.5 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  }
+
+  .frame { position: fixed; inset: 0; z-index: 3; pointer-events: none; }
+  .frame .corner {
+    position: absolute; width: 18px; height: 18px;
+    opacity: 0;
+    animation: corner-in 1.4s var(--ease-soft) 0.8s forwards;
+    transition: opacity 0.6s var(--ease);
+  }
+  .frame .corner svg { width: 100%; height: 100%; display: block; }
+  .frame .corner svg path { fill: none; stroke: var(--gold-mute); stroke-width: 1; }
+  .frame .tl { top: 18px; left: 18px; }
+  .frame .tr { top: 18px; right: 18px; transform: scaleX(-1); }
+  .frame .bl { bottom: 18px; left: 18px; transform: scaleY(-1); }
+  .frame .br { bottom: 18px; right: 18px; transform: scale(-1, -1); }
+  body.active .frame .corner { opacity: 0.4; }
+  @keyframes corner-in { to { opacity: 1; } }
+
+  @media (hover: hover) and (pointer: fine) {
+    body.cursor-on { cursor: none; }
+    body.cursor-on a, body.cursor-on button, body.cursor-on input { cursor: none; }
+    .cursor {
+      position: fixed; top: 0; left: 0; z-index: 9999; pointer-events: none;
+      width: 22px; height: 22px;
+      border: 1px solid var(--gold-soft);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      transition: width 0.3s var(--ease-soft),
+                  height 0.3s var(--ease-soft),
+                  border-color 0.3s var(--ease-soft),
+                  background 0.3s var(--ease-soft);
+      mix-blend-mode: difference;
+    }
+    .cursor.hover { width: 44px; height: 44px; border-color: var(--gold); background: var(--gold-glow); }
+    .cursor.tap { width: 12px; height: 12px; background: var(--gold); }
+  }
+  .cursor { display: none; }
+  body.cursor-on .cursor { display: block; }
+
+  /* ─────────────  Returning-visitor strip  ───────────── */
+
+  .return-strip {
+    grid-row: 1;
+    position: relative; z-index: 25;
+    background: linear-gradient(90deg, rgba(212,175,55,0.06), rgba(212,175,55,0.12), rgba(212,175,55,0.06));
+    border-bottom: 1px solid var(--gold-mute);
+    display: none;
+    align-items: center; justify-content: center;
+    gap: calc(var(--u) * 3);
+    padding: 0 calc(var(--u) * 4);
+    font-size: 11px;
+    color: var(--ink-2);
+    letter-spacing: 0.02em;
+    height: var(--return-strip-h);
+    overflow: hidden;
+  }
+  body.has-return .return-strip { display: flex; }
+  .return-strip .summary {
+    color: var(--ink-2);
+    font-weight: 300;
+  }
+  .return-strip .summary em {
+    color: var(--gold-warm);
+    font-style: italic;
+  }
+  .return-strip .actions {
+    display: flex; gap: calc(var(--u) * 1.5);
+    flex-shrink: 0;
+  }
+  .return-strip .btn {
+    background: transparent;
+    border: 1px solid var(--ink-4);
+    color: var(--ink-2);
+    font-family: var(--sans);
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    padding: 6px 12px;
+    border-radius: 100px;
+    cursor: pointer;
+    transition: all 0.3s var(--ease);
+  }
+  .return-strip .btn:hover { border-color: var(--gold); color: var(--gold); }
+  .return-strip .btn.primary {
+    background: var(--gold);
+    border-color: var(--gold);
+    color: var(--bg);
+    font-weight: 500;
+  }
+  .return-strip .btn.primary:hover { box-shadow: 0 0 14px var(--gold-glow); }
+
+  /* ─────────────  Header  ───────────── */
+
+  header.top {
+    position: relative; z-index: 20;
+    grid-row: 2;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    padding: 0 calc(var(--u) * 4);
+    border-bottom: 1px solid var(--line);
+    background: rgba(8, 8, 10, 0.75);
+    backdrop-filter: blur(20px) saturate(140%);
+    -webkit-backdrop-filter: blur(20px) saturate(140%);
+    /* No opacity fade — talk-btn (escape hatch) must be visible from t=0.
+       Cinematic feel comes from the brand-mark spin, corner brackets, and
+       hero/orb animations. */
+    transition: padding 0.6s var(--ease);
+  }
+  @keyframes fade-in { to { opacity: 1; } }
+
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .brand-mark { width: 22px; height: 22px; flex-shrink: 0; animation: spin-mark 90s linear infinite; }
+  .brand-mark svg { width: 100%; height: 100%; display: block; }
+  @keyframes spin-mark { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+  .brand-text { display: flex; flex-direction: column; gap: 2px; line-height: 1; }
+  .brand-name {
+    color: var(--ink); font-weight: 400; font-size: 12px;
+    letter-spacing: 0.32em; text-transform: uppercase;
+  }
+  .brand-tag {
+    color: var(--ink-3); font-weight: 300; font-size: 9px;
+    letter-spacing: 0.28em; text-transform: uppercase;
+    transition: color 0.6s var(--ease);
+  }
+  body.active .brand-tag { color: var(--gold-soft); }
+
+  .stage-cluster {
+    display: flex; align-items: center; gap: 14px;
+    color: var(--ink-3); font-size: 10px;
+    letter-spacing: 0.28em; text-transform: uppercase;
+    transition: opacity 0.5s var(--ease);
+    opacity: 0;
+  }
+  body.active .stage-cluster { opacity: 1; }
+  .stage-label { color: var(--gold-soft); font-weight: 400; transition: color 0.4s var(--ease); }
+  .stage-label.declining { color: var(--decline); }
+  .stage-bars { display: flex; gap: 4px; align-items: center; }
+  .stage-bars .bar {
+    width: 14px; height: 3px;
+    background: var(--ink-5);
+    border-radius: 2px;
+    transition: background 0.6s var(--ease);
+  }
+  .stage-bars .bar.on { background: var(--gold); }
+  .stage-bars .bar.declining { background: var(--decline); }
+
+  .top-right {
+    display: flex; gap: calc(var(--u) * 2.5); align-items: center;
+    justify-self: end;
+    font-size: 10px; letter-spacing: 0.24em; text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .clock { color: var(--ink-2); font-variant-numeric: tabular-nums; }
+  .clock .sep { color: var(--gold); margin: 0 4px; animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+  .lang, .reset { cursor: pointer; transition: color 0.4s var(--ease); user-select: none; }
+  .lang:hover, .reset:hover { color: var(--gold); }
+  /* Persistent escape-hatch — same visual weight as Reset, slightly elevated by gold border. */
+  .talk-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: transparent;
+    border: 1px solid var(--gold-mute);
+    color: var(--gold-soft);
+    font-family: var(--sans); font-weight: 400;
+    font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
+    padding: 5px 11px;
+    border-radius: 100px;
+    cursor: pointer;
+    transition: color 0.3s var(--ease), border-color 0.3s var(--ease), background 0.3s var(--ease);
+  }
+  .talk-btn svg { flex-shrink: 0; }
+  .talk-btn:hover {
+    color: var(--gold);
+    border-color: var(--gold);
+    background: var(--gold-glow);
+  }
+  @media (max-width: 1023px) and (min-width: 641px) {
+    /* Tablet — keep label visible; tighten gap so it fits alongside clock/lang/reset. */
+    .top-right { gap: calc(var(--u) * 1.5); }
+    .talk-btn { padding: 5px 10px; }
+  }
+  @media (max-width: 640px) {
+    /* Mobile — icon-only with a 36×36 minimum tap target. */
+    .talk-btn .talk-btn-label { display: none; }
+    .talk-btn {
+      padding: 8px 10px;
+      min-width: 36px; min-height: 36px;
+      justify-content: center;
+    }
+    .talk-btn svg { width: 14px; height: 14px; }
+  }
+
+  body:not(.active) .stage-cluster { display: none; }
+  body:not(.active) header.top { grid-template-columns: 1fr auto; }
+
+  /* ─────────────  Conversation lane  ───────────── */
+
+  .conversation-wrap {
+    grid-row: 3;
+    position: relative;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+  .conversation-wrap::-webkit-scrollbar { width: 0; height: 0; }
+
+  .conversation {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: calc(var(--u) * 4) calc(var(--u) * 4) calc(var(--u) * 3);
+    display: flex; flex-direction: column;
+    gap: calc(var(--u) * 3);
+    min-height: 100%;
+  }
+
+  /* ─────────────  STATE A — Cinematic hero  ───────────── */
+
+  .hero-state {
+    flex: 1;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    text-align: center;
+    padding: calc(var(--u) * 4) 0;
+    position: relative;
+    transition: opacity 0.7s var(--ease-soft), transform 0.9s var(--ease-soft);
+  }
+  body.active .hero-state {
+    opacity: 0;
+    transform: translateY(-30px) scale(0.85);
+    pointer-events: none;
+    height: 0; padding: 0; overflow: hidden;
+  }
+
+  .hero-greeting {
+    font-size: 11px; letter-spacing: 0.32em; text-transform: uppercase;
+    color: var(--gold-soft);
+    margin-bottom: calc(var(--u) * 3);
+    opacity: 0;
+    animation: rise 1.4s var(--ease-soft) 0.6s forwards;
+  }
+
+  .orb {
+    width: 120px; height: 120px;
+    margin: 0 auto calc(var(--u) * 5);
+    position: relative;
+    opacity: 0;
+    animation: orb-in 2s var(--ease-soft) 0.9s forwards;
+  }
+  .orb svg { width: 100%; height: 100%; display: block; overflow: visible; }
+  .orb svg .ring-1 { transform-origin: 60px 60px; animation: ring-spin 24s linear infinite; }
+  .orb svg .ring-2 { transform-origin: 60px 60px; animation: ring-spin 36s linear infinite reverse; }
+  .orb svg .ring-3 { transform-origin: 60px 60px; animation: ring-spin 60s linear infinite; }
+  @keyframes ring-spin { to { transform: rotate(360deg); } }
+  .orb-breathe { animation: breathe 5s ease-in-out infinite; }
+  @keyframes breathe { 0%,100% { transform: scale(1); } 50% { transform: scale(1.04); } }
+  @keyframes orb-in {
+    from { opacity: 0; transform: scale(0.7); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+  .orb.thinking svg .ring-1 { animation-duration: 4s; }
+  .orb.thinking svg .ring-2 { animation-duration: 6s; }
+  .orb.thinking svg .core { animation: core-pulse 0.8s ease-in-out infinite; }
+  @keyframes core-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+  .hero-question {
+    font-weight: 200;
+    font-size: clamp(34px, 5.4vw, 64px);
+    line-height: 1.06;
+    letter-spacing: -0.025em;
+    color: var(--ink);
+    max-width: 720px;
+    padding: 0 calc(var(--u) * 3);
+    opacity: 0;
+    transform: translateY(16px);
+    animation: rise 1.6s var(--ease-soft) 1.2s forwards;
+  }
+  .hero-question .accent { color: var(--gold); font-style: italic; font-weight: 200; }
+
+  .hero-sub {
+    margin-top: calc(var(--u) * 3);
+    font-size: 13px;
+    color: var(--ink-3);
+    letter-spacing: 0.02em;
+    line-height: 1.55;
+    max-width: 480px;
+    padding: 0 calc(var(--u) * 3);
+    opacity: 0;
+    animation: rise 1.4s var(--ease-soft) 1.6s forwards;
+  }
+  .hero-sub em { color: var(--gold-warm); font-style: italic; }
+
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ─────────────  STATE B — Active conversation  ───────────── */
+
+  .conv-presence {
+    align-self: flex-start;
+    display: flex; align-items: center;
+    gap: calc(var(--u) * 1.5);
+    padding-bottom: calc(var(--u));
+    opacity: 0;
+    transition: opacity 0.6s var(--ease) 0.5s;
+  }
+  body.active .conv-presence { opacity: 1; }
+  .mini-orb { width: 22px; height: 22px; }
+  .mini-orb svg { width: 100%; height: 100%; animation: spin-mark 60s linear infinite; }
+  .conv-presence .label {
+    font-size: 10px; letter-spacing: 0.28em; text-transform: uppercase;
+    color: var(--gold-soft); font-weight: 400;
+  }
+
+  /* Messages */
+
+  .msg {
+    font-size: 17px;
+    line-height: 1.55;
+    letter-spacing: -0.005em;
+    animation: msg-in 0.7s var(--ease-soft) forwards;
+    opacity: 0;
+  }
+  @keyframes msg-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .msg.user { align-self: flex-end; color: var(--ink-2); max-width: 80%; text-align: right; }
+  .msg.user::before {
+    content: "you"; color: var(--ink-3);
+    font-size: 9px; letter-spacing: 0.32em;
+    text-transform: uppercase;
+    display: block; margin-bottom: 4px;
+    font-weight: 400;
+  }
+  .msg.bot {
+    align-self: flex-start; color: var(--ink); max-width: 92%;
+    border-left: 1px solid var(--gold);
+    padding-left: calc(var(--u) * 2.4);
+  }
+  .msg.bot.declining { border-left-color: var(--decline); }
+  .msg.bot::before {
+    content: "concierge"; color: var(--gold);
+    font-size: 9px; letter-spacing: 0.34em;
+    text-transform: uppercase;
+    display: block; margin-bottom: 6px;
+    font-weight: 400;
+  }
+  .msg.bot.declining::before { content: "honest answer"; color: var(--decline); }
+  .msg.bot em { font-style: italic; color: var(--gold-warm); }
+  .msg.bot.declining em { color: var(--decline); }
+
+  .typing { display: inline-flex; gap: 4px; align-items: center; padding: 4px 0; }
+  .typing .d {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--gold); opacity: 0.4;
+    animation: typing-pulse 1.2s ease-in-out infinite;
+  }
+  .typing .d:nth-child(2) { animation-delay: 0.2s; }
+  .typing .d:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes typing-pulse {
+    0%, 60%, 100% { opacity: 0.3; transform: scale(1); }
+    30%           { opacity: 1;   transform: scale(1.2); }
+  }
+
+  /* ════════════════════════════════════════════════
+     CARD GRAMMAR — shared base for all rich components
+     ════════════════════════════════════════════════ */
+
+  .card {
+    background: linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.005));
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: calc(var(--u) * 2.5);
+    animation: msg-in 0.7s var(--ease-soft) forwards;
+    opacity: 0;
+    align-self: stretch;
+    max-width: 92%;
+    margin-left: calc(var(--u) * 3);
+    position: relative;
+    overflow: hidden;
+  }
+  .card-row {
+    display: flex; align-items: center;
+    gap: calc(var(--u) * 2.5);
+  }
+  .card .label {
+    font-size: 9px; letter-spacing: 0.3em; text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 4px;
+    font-weight: 400;
+  }
+  .card .name {
+    font-size: 18px; font-weight: 300; color: var(--ink);
+    letter-spacing: -0.01em;
+    margin-bottom: 4px;
+  }
+  .card .meta {
+    font-size: 12px; color: var(--ink-3);
+    line-height: 1.5;
+  }
+
+  /* ─────────────  LISTING CARD  ───────────── */
+
+  .listing-card {
+    background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.005));
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 0;
+    overflow: hidden;
+    animation: msg-in 0.8s var(--ease-soft) forwards;
+    opacity: 0;
+    align-self: stretch;
+    max-width: 92%;
+    margin-left: calc(var(--u) * 3);
+    position: relative;
+    transition: border-color 0.4s var(--ease), transform 0.3s var(--ease);
+  }
+  .listing-card:hover {
+    border-color: var(--gold-mute);
+    transform: translateY(-1px);
+  }
+  .listing-illustration {
+    width: 100%;
+    height: 140px;
+    background:
+      linear-gradient(rgba(212,175,55,0.06) 1px, transparent 1px) 0 0 / 32px 32px,
+      linear-gradient(90deg, rgba(212,175,55,0.06) 1px, transparent 1px) 0 0 / 32px 32px,
+      linear-gradient(180deg, #14141a, #0c0c10);
+    position: relative;
+    overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .listing-illustration svg {
+    width: 100%; height: 100%;
+    opacity: 0.85;
+  }
+  .listing-illustration .zone-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px;
+    letter-spacing: 0.32em;
+    font-weight: 400;
+    color: var(--gold);
+    text-transform: uppercase;
+    text-shadow: 0 0 12px rgba(8, 8, 10, 0.85), 0 0 4px rgba(8, 8, 10, 0.85);
+    pointer-events: none;
+  }
+  .listing-illustration .verified {
+    position: absolute;
+    top: 12px; right: 14px;
+    display: flex; align-items: center; gap: 6px;
+    font-size: 9px; letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--ink-3);
+    z-index: 2;
+  }
+  .listing-illustration .verified .pip {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #74D77B;
+    box-shadow: 0 0 6px rgba(116, 215, 123, 0.5);
+  }
+  .listing-body {
+    padding: calc(var(--u) * 2.2) calc(var(--u) * 2.5) calc(var(--u) * 2.5);
+  }
+  .listing-headline {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    gap: calc(var(--u) * 2);
+    margin-bottom: 6px;
+  }
+  .listing-name {
+    font-size: 18px; font-weight: 300; color: var(--ink);
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+  }
+  .listing-price {
+    font-size: 18px; font-weight: 400; color: var(--gold);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.005em;
+    flex-shrink: 0;
+  }
+  .listing-price .per { color: var(--ink-3); font-size: 11px; font-weight: 300; }
+  .listing-meta {
+    font-size: 12px; color: var(--ink-3);
+    letter-spacing: 0.02em;
+    line-height: 1.55;
+    margin-bottom: calc(var(--u) * 2);
+  }
+  .listing-meta .sep { color: var(--ink-4); margin: 0 8px; }
+  .listing-cta {
+    display: flex; gap: calc(var(--u) * 1.5);
+    align-items: center;
+    padding-top: calc(var(--u) * 1.5);
+    border-top: 1px solid var(--line);
+  }
+  .listing-btn {
+    background: var(--gold); color: var(--bg);
+    border: none;
+    padding: 10px 18px;
+    border-radius: 100px;
+    font-family: var(--sans); font-weight: 500;
+    font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+    cursor: pointer; white-space: nowrap;
+    transition: transform 0.3s var(--ease), box-shadow 0.4s var(--ease);
+  }
+  .listing-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 22px var(--gold-glow); }
+  .listing-btn.ghost {
+    background: transparent;
+    border: 1px solid var(--ink-4);
+    color: var(--ink-2);
+  }
+  .listing-btn.ghost:hover { border-color: var(--gold); color: var(--gold); }
+
+  /* "see more" tail */
+  .listings-tail {
+    align-self: flex-start;
+    margin-left: calc(var(--u) * 3);
+    color: var(--ink-3);
+    font-size: 12px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    cursor: pointer;
+    padding: calc(var(--u)) 0;
+    transition: color 0.3s var(--ease);
+    animation: msg-in 0.6s var(--ease-soft) forwards;
+    opacity: 0;
+  }
+  .listings-tail:hover { color: var(--gold); }
+  .listings-tail::before {
+    content: "+ ";
+    color: var(--gold);
+    margin-right: 4px;
+  }
+
+  /* ─────────────  NEIGHBORHOOD CARD  ───────────── */
+
+  .nbhd {
+    background: linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.005));
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: calc(var(--u) * 2.5);
+    display: flex; gap: calc(var(--u) * 2.5);
+    align-items: center;
+    animation: msg-in 0.7s var(--ease-soft) forwards;
+    opacity: 0;
+    align-self: stretch;
+    max-width: 92%;
+    margin-left: calc(var(--u) * 3);
+  }
+  .nbhd .map { width: 64px; height: 64px; flex-shrink: 0; }
+  .nbhd .map svg { width: 100%; height: 100%; }
+  .nbhd .info { flex: 1; min-width: 0; }
+  .nbhd .label { font-size: 9px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--gold); margin-bottom: 4px; }
+  .nbhd .name { font-size: 18px; font-weight: 300; color: var(--ink); letter-spacing: -0.01em; margin-bottom: 4px; }
+  .nbhd .meta { font-size: 12px; color: var(--ink-3); line-height: 1.5; }
+  .nbhd .price { color: var(--gold-warm); font-variant-numeric: tabular-nums; }
+
+  /* ─────────────  SERVICE CARD  ───────────── */
+
+  .service-card {
+    background: linear-gradient(180deg, rgba(212, 175, 55, 0.04), rgba(212, 175, 55, 0.01));
+    border: 1px solid var(--gold-mute);
+    border-radius: 16px;
+    padding: calc(var(--u) * 2.5) calc(var(--u) * 3);
+    animation: msg-in 0.8s var(--ease-soft) forwards;
+    opacity: 0;
+    align-self: stretch;
+    max-width: 92%;
+    margin-left: calc(var(--u) * 3);
+    position: relative;
+    overflow: hidden;
+  }
+  .service-card::before {
+    content: "";
+    position: absolute; inset: 0;
+    background: linear-gradient(120deg, transparent 30%, var(--gold-glow) 50%, transparent 70%);
+    transform: translateX(-100%);
+    animation: service-sweep 3s var(--ease-soft) 0.6s forwards;
+    pointer-events: none;
+  }
+  @keyframes service-sweep { to { transform: translateX(100%); } }
+  .service-head {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    gap: calc(var(--u) * 2);
+    margin-bottom: calc(var(--u) * 1.5);
+    position: relative;
+    z-index: 1;
+  }
+  .service-icon {
+    width: 38px; height: 38px;
+    border: 1px solid var(--gold-mute);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .service-icon svg { width: 18px; height: 18px; stroke: var(--gold); fill: none; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+  .service-text { flex: 1; min-width: 0; }
+  .service-eyebrow {
+    font-size: 9px; letter-spacing: 0.32em; text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 4px;
+    font-weight: 400;
+  }
+  .service-name {
+    font-size: 17px; font-weight: 300; color: var(--ink);
+    letter-spacing: -0.005em;
+    line-height: 1.25;
+  }
+  .service-price {
+    background: rgba(212, 175, 55, 0.12);
+    color: var(--gold);
+    border: 1px solid var(--gold-mute);
+    padding: 4px 10px;
+    border-radius: 100px;
+    font-size: 11px;
+    letter-spacing: 0.02em;
+    font-variant-numeric: tabular-nums;
+    font-weight: 400;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+  .service-body {
+    font-size: 13px; color: var(--ink-2);
+    line-height: 1.6;
+    margin-bottom: calc(var(--u) * 2);
+    position: relative;
+    z-index: 1;
+  }
+  .service-cta {
+    display: flex; gap: calc(var(--u) * 1.5);
+    position: relative;
+    z-index: 1;
+  }
+  .service-cta .btn {
+    background: var(--gold); color: var(--bg);
+    border: none;
+    padding: 10px 18px;
+    border-radius: 100px;
+    font-family: var(--sans); font-weight: 500;
+    font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+    cursor: pointer;
+    transition: transform 0.3s var(--ease), box-shadow 0.4s var(--ease);
+  }
+  .service-cta .btn:hover { transform: translateY(-1px); box-shadow: 0 8px 22px var(--gold-glow); }
+  .service-cta .btn.ghost {
+    background: transparent;
+    border: 1px solid var(--ink-4);
+    color: var(--ink-2);
+  }
+  .service-cta .btn.ghost:hover { border-color: var(--gold); color: var(--gold); }
+
+  /* Stale service cards — fade after their relevance window passes. */
+  .service-card.stale {
+    opacity: 0.45;
+    filter: grayscale(0.4);
+    transition: opacity 0.6s var(--ease), filter 0.6s var(--ease);
+  }
+  .service-card.stale:hover { opacity: 0.75; filter: grayscale(0.1); }
+
+  /* Inline accordion for service "Tell me more" — replaces chat-loop CTA. */
+  .service-card .service-details {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.5s var(--ease-soft), margin-top 0.5s var(--ease-soft), padding-top 0.5s var(--ease-soft);
+    border-top: 1px solid var(--gold-mute);
+    margin-top: 0;
+    padding-top: 0;
+    font-size: 13px;
+    color: var(--ink-2);
+    line-height: 1.6;
+    position: relative;
+    z-index: 1;
+  }
+  .service-card.expanded .service-details {
+    max-height: 240px;
+    margin-top: calc(var(--u) * 1.5);
+    padding-top: calc(var(--u) * 1.5);
+  }
+
+  /* ─────────────  RECENTLY-SIGNED MICRO CARD  ───────────── */
+
+  .recent-signed {
+    align-self: flex-start;
+    max-width: 92%;
+    margin-left: calc(var(--u) * 3);
+    padding: 10px 14px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--ink-5);
+    border-radius: 100px;
+    font-size: 11px;
+    color: var(--ink-3);
+    letter-spacing: 0.02em;
+    display: flex; align-items: center; gap: calc(var(--u) * 1.5);
+    animation: msg-in 0.7s var(--ease-soft) forwards;
+    opacity: 0;
+  }
+  .recent-signed .pip {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--gold);
+    box-shadow: 0 0 6px var(--gold-glow);
+    flex-shrink: 0;
+  }
+  .recent-signed strong {
+    color: var(--ink-2);
+    font-weight: 400;
+  }
+
+  /* Idle nudge */
+  .nudge {
+    align-self: center;
+    color: var(--ink-3);
+    font-size: 12px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    padding: calc(var(--u) * 2) 0;
+    opacity: 0;
+    animation: nudge-in 1.4s var(--ease-soft) forwards;
+  }
+  @keyframes nudge-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 0.7; transform: translateY(0); }
+  }
+
+  /* ─────────────  Contact mini-form (CONTACT state)  ───────────── */
+
+  .contact-mini-form {
+    align-self: stretch;
+    max-width: 92%;
+    margin-left: calc(var(--u) * 3);
+    background: linear-gradient(180deg, rgba(212,175,55,0.04), rgba(212,175,55,0.01));
+    border: 1px solid var(--gold-mute);
+    border-radius: 14px;
+    padding: calc(var(--u) * 2.2) calc(var(--u) * 2.5);
+    display: flex; flex-direction: column;
+    gap: 10px;
+    animation: msg-in 0.7s var(--ease-soft) forwards;
+    opacity: 0;
+  }
+  .contact-mini-form .cf-eyebrow {
+    font-size: 9px; letter-spacing: 0.32em; text-transform: uppercase;
+    color: var(--gold);
+    font-weight: 400;
+    margin-bottom: 4px;
+  }
+  .contact-mini-form .cf-input {
+    background: rgba(255, 255, 255, 0.025);
+    border: 1px solid var(--ink-4);
+    border-radius: 100px;
+    padding: 10px 16px;
+    color: var(--ink);
+    font-family: var(--sans);
+    font-weight: 300;
+    font-size: 14px;
+    letter-spacing: -0.005em;
+    outline: none;
+    transition: border-color 0.3s var(--ease), background 0.3s var(--ease);
+  }
+  .contact-mini-form .cf-input::placeholder { color: var(--ink-3); }
+  .contact-mini-form .cf-input:focus {
+    border-color: var(--gold-soft);
+    background: rgba(255, 255, 255, 0.04);
+  }
+  .contact-mini-form .cf-submit {
+    margin-top: 4px;
+    padding: 10px 18px;
+    border-radius: 100px;
+    border: none;
+    background: var(--gold); color: var(--bg);
+    font-family: var(--sans); font-weight: 500;
+    font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+    cursor: pointer;
+    transition: transform 0.3s var(--ease), box-shadow 0.4s var(--ease);
+    align-self: flex-end;
+  }
+  .contact-mini-form .cf-submit:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 22px var(--gold-glow);
+  }
+
+  /* ─────────────  Composer  ───────────── */
+
+  .composer-zone {
+    grid-row: 4;
+    position: relative;
+    z-index: 15;
+    background: rgba(8, 8, 10, 0.85);
+    backdrop-filter: blur(24px) saturate(140%);
+    -webkit-backdrop-filter: blur(24px) saturate(140%);
+    border-top: 1px solid var(--line);
+    opacity: 0;
+    animation: fade-in 1.0s var(--ease-soft) 1.8s forwards;
+  }
+
+  .smart-chips {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: calc(var(--u) * 1.5) calc(var(--u) * 4) 0;
+    display: flex;
+    gap: calc(var(--u) * 1.5);
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    transition: max-height 0.5s var(--ease-soft), opacity 0.5s var(--ease-soft);
+    max-height: 60px;
+  }
+  .smart-chips::-webkit-scrollbar { display: none; }
+  .smart-chips.empty { max-height: 0; padding-top: 0; padding-bottom: 0; opacity: 0; }
+  .smart-chips .chip {
+    background: transparent;
+    border: 1px solid var(--ink-4);
+    color: var(--ink-2);
+    font-family: var(--sans);
+    font-weight: 300;
+    font-size: 12px;
+    padding: 7px 14px;
+    border-radius: 100px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.3s var(--ease);
+    flex-shrink: 0;
+    animation: chip-in 0.5s var(--ease-soft) forwards;
+    opacity: 0;
+  }
+  @keyframes chip-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+  .smart-chips .chip:hover { border-color: var(--gold-soft); color: var(--ink); }
+
+  .composer {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: calc(var(--u) * 2) calc(var(--u) * 4);
+    display: flex; align-items: center;
+    gap: calc(var(--u) * 1.5);
+  }
+  .composer-line {
+    flex: 1;
+    position: relative;
+    display: flex; align-items: center; gap: calc(var(--u) * 1.5);
+    padding: 12px 18px;
+    background: rgba(255, 255, 255, 0.025);
+    border: 1px solid var(--ink-4);
+    border-radius: 100px;
+    transition: border-color 0.4s var(--ease), background 0.4s var(--ease);
+  }
+  .composer-line:focus-within {
+    border-color: var(--gold-soft);
+    background: rgba(255, 255, 255, 0.04);
+  }
+  .composer-prefix {
+    color: var(--gold);
+    font-size: 18px;
+    line-height: 1;
+    user-select: none;
+    width: 14px;
+    flex-shrink: 0;
+    text-align: center;
+    opacity: 0.85;
+  }
+  input.composer-input {
+    flex: 1;
+    background: transparent;
+    border: none; outline: none;
+    color: var(--ink);
+    font-family: var(--sans);
+    font-weight: 300;
+    font-size: 16px;
+    letter-spacing: -0.005em;
+    caret-color: var(--gold);
+    padding: 0;
+  }
+  input.composer-input::placeholder { color: var(--ink-3); font-weight: 300; }
+
+  .composer-mic, .composer-send {
+    background: transparent;
+    border: none;
+    width: 42px; height: 42px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--ink-3);
+    transition: color 0.3s var(--ease), background 0.3s var(--ease);
+    flex-shrink: 0;
+  }
+  .composer-mic svg, .composer-send svg {
+    width: 18px; height: 18px;
+    stroke: currentColor; fill: none;
+    stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round;
+  }
+  .composer-mic:hover { color: var(--ink); background: var(--ink-5); }
+  .composer-mic.active { color: var(--gold); background: var(--gold-glow); }
+  .composer-send { background: var(--gold); color: var(--bg); }
+  .composer-send:hover { box-shadow: 0 0 18px var(--gold-glow); }
+  .composer-send:active { transform: scale(0.94); }
+  .composer-send.idle { background: transparent; color: var(--ink-3); border: 1px solid var(--ink-4); }
+
+  .stoic-strip {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 0 calc(var(--u) * 4) calc(var(--u) * 1.5);
+    display: flex; justify-content: space-between; align-items: center;
+    gap: calc(var(--u) * 3);
+    font-size: 10px;
+    color: var(--ink-3);
+    letter-spacing: 0.02em;
+  }
+  .stoic-strip .quote {
+    font-style: italic;
+    overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+    transition: opacity 0.6s var(--ease-soft);
+  }
+  .stoic-strip .quote .author {
+    color: var(--ink-4);
+    font-style: normal;
+    margin-left: 8px;
+    letter-spacing: 0.18em; text-transform: uppercase; font-size: 9px;
+  }
+  .stoic-strip .links { display: flex; gap: calc(var(--u) * 2); flex-shrink: 0; text-transform: uppercase; letter-spacing: 0.22em; }
+  .stoic-strip .links span { cursor: pointer; transition: color 0.3s var(--ease); }
+  .stoic-strip .links span:hover { color: var(--gold); }
+
+  /* Manifesto */
+
+  .manifesto {
+    position: fixed; inset: 0; z-index: 100;
+    background: rgba(8, 8, 10, 0.97);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    display: flex; align-items: center; justify-content: center;
+    padding: calc(var(--u) * 6);
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.9s var(--ease-soft);
+  }
+  .manifesto.open { opacity: 1; pointer-events: auto; }
+  .manifesto-content { max-width: 660px; transform: translateY(30px); transition: transform 1.1s var(--ease-soft); }
+  .manifesto.open .manifesto-content { transform: translateY(0); }
+  .manifesto-eyebrow { font-size: 10px; letter-spacing: 0.32em; text-transform: uppercase; color: var(--gold); margin-bottom: calc(var(--u) * 3); font-weight: 400; }
+  .manifesto h2 {
+    font-weight: 200;
+    font-size: clamp(28px, 4.2vw, 44px);
+    line-height: 1.18;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+    margin-bottom: calc(var(--u) * 4);
+  }
+  .manifesto h2 em { font-style: italic; color: var(--gold); font-weight: 200; }
+  .manifesto p { font-size: 16px; line-height: 1.7; color: var(--ink-2); margin-bottom: calc(var(--u) * 2.2); font-weight: 300; }
+  .manifesto p strong { color: var(--ink); font-weight: 400; }
+  .manifesto .signature { margin-top: calc(var(--u) * 5); font-style: italic; color: var(--gold-soft); font-size: 14px; }
+  .manifesto-close {
+    position: absolute; top: calc(var(--u) * 4); right: calc(var(--u) * 6);
+    background: transparent;
+    border: 1px solid var(--ink-4);
+    color: var(--ink-2);
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    cursor: pointer; font-size: 18px;
+    transition: all 0.4s var(--ease);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .manifesto-close:hover { border-color: var(--gold); color: var(--gold); }
+
+  /* Wallet pass */
+
+  .pass-stage {
+    position: fixed; inset: 0; z-index: 90;
+    display: flex; align-items: center; justify-content: center;
+    pointer-events: none; opacity: 0;
+    background: radial-gradient(ellipse at center, rgba(8,8,10,0.9), rgba(8,8,10,0.75));
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    transition: opacity 0.9s var(--ease-soft);
+  }
+  .pass-stage.show { opacity: 1; pointer-events: auto; }
+  .pass-wrap { position: relative; perspective: 1200px; }
+  .pass-dust { position: absolute; top: -40px; left: -40px; right: -40px; bottom: -40px; pointer-events: none; }
+  .pass-dust .speck {
+    position: absolute;
+    width: 3px; height: 3px;
+    border-radius: 50%;
+    background: var(--gold-dust);
+    box-shadow: 0 0 4px var(--gold);
+    opacity: 0;
+  }
+  .pass-stage.show .pass-dust .speck { animation: speck 2.4s var(--ease-soft) forwards; }
+  @keyframes speck {
+    0%   { opacity: 0; transform: translate(0, 0) scale(0.4); }
+    20%  { opacity: 1; }
+    100% { opacity: 0; transform: translate(var(--dx, 40px), var(--dy, -40px)) scale(1.2); }
+  }
+  .pass-card {
+    width: 360px;
+    background: linear-gradient(160deg, #18181c 0%, #0e0e12 60%, #08080A 100%);
+    border-radius: 24px;
+    border: 1px solid var(--line);
+    padding: 26px;
+    box-shadow:
+      0 40px 80px rgba(0, 0, 0, 0.7),
+      0 0 100px var(--gold-glow),
+      inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    transform: translateY(60px) rotateX(20deg) scale(0.9);
+    transition: transform 1.4s var(--ease-spring);
+    position: relative;
+    overflow: hidden;
+  }
+  .pass-card::before {
+    content: "";
+    position: absolute; inset: 0;
+    background: linear-gradient(135deg, transparent 30%, var(--gold-glow) 50%, transparent 70%);
+    transform: translateX(-100%);
+    animation: pass-sweep 3.5s var(--ease-soft) 0.4s forwards;
+    pointer-events: none;
+  }
+  @keyframes pass-sweep { to { transform: translateX(100%); } }
+  .pass-stage.show .pass-card { transform: translateY(0) rotateX(0) scale(1); }
+  .pass-head {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--line);
+  }
+  .pass-head .label { font-size: 9px; letter-spacing: 0.36em; text-transform: uppercase; color: var(--gold); font-weight: 400; }
+  .pass-head .brand { font-size: 11px; letter-spacing: 0.32em; color: var(--ink-2); margin-top: 6px; font-weight: 300; }
+  .pass-head .icon { width: 30px; height: 30px; }
+  .pass-head .icon svg { width: 100%; height: 100%; }
+  .pass-body { margin-top: 22px; }
+  .pass-property { font-size: 24px; font-weight: 200; color: var(--ink); margin-bottom: 6px; letter-spacing: -0.012em; }
+  .pass-zone { font-size: 11px; color: var(--ink-3); letter-spacing: 0.2em; text-transform: uppercase; font-weight: 400; }
+  .pass-meta { margin-top: 26px; display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .pass-meta .cell .k { font-size: 9px; letter-spacing: 0.32em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 5px; font-weight: 400; }
+  .pass-meta .cell .v { font-size: 14px; color: var(--ink); font-variant-numeric: tabular-nums; font-weight: 300; }
+  .pass-foot { margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--line); }
+  .pass-foot .barcode {
+    width: 100%; height: 40px;
+    background: repeating-linear-gradient(90deg,
+      var(--ink) 0 1px, transparent 1px 2px,
+      var(--ink) 2px 4px, transparent 4px 7px,
+      var(--ink) 7px 9px, transparent 9px 12px);
+    opacity: 0.88; border-radius: 3px;
+  }
+  .pass-hint { margin-top: 24px; font-size: 10px; letter-spacing: 0.24em; text-transform: uppercase; color: var(--ink-3); text-align: center; font-weight: 300; }
+  .pass-dismiss {
+    margin-top: 12px;
+    background: transparent; border: none; color: var(--ink-3);
+    font-size: 10px; letter-spacing: 0.24em; text-transform: uppercase;
+    cursor: pointer; text-align: center;
+    width: 100%; padding: 10px;
+    transition: color 0.4s var(--ease);
+    font-family: var(--sans); font-weight: 300;
+  }
+  .pass-dismiss:hover { color: var(--ink); }
+
+  /* Operator overlay */
+  .operator {
+    position: fixed;
+    bottom: calc(var(--u) * 12);
+    right: calc(var(--u) * 3);
+    z-index: 50;
+    background: rgba(8, 8, 10, 0.92);
+    border: 1px solid var(--gold-mute);
+    border-radius: 12px;
+    padding: 12px 14px;
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--ink-2);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    width: 240px;
+    pointer-events: none;
+    display: none;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+  }
+  .operator.show { display: block; }
+  .operator h4 { color: var(--gold); font-size: 9px; letter-spacing: 0.3em; text-transform: uppercase; font-weight: 400; margin-bottom: 8px; }
+  .operator .row {
+    display: flex; justify-content: space-between;
+    padding: 3px 0;
+    border-bottom: 1px solid var(--ink-5);
+  }
+  .operator .row:last-child { border-bottom: none; }
+  .operator .row .k { color: var(--ink-3); font-size: 10px; letter-spacing: 0.05em; }
+  .operator .row .v { color: var(--ink); font-variant-numeric: tabular-nums; }
+  .operator .row .v.score-hot { color: #74D77B; }
+  .operator .row .v.score-warm { color: var(--gold); }
+  .operator .row .v.score-cool { color: var(--ink-2); }
+  .operator .row .v.score-dead { color: var(--decline); }
+
+  /* Responsive */
+
+  @media (max-width: 640px) {
+    :root { --header-h: 56px; --header-h-active: 48px; }
+    body.has-return { --return-strip-h: 76px; }
+    .return-strip { flex-direction: column; gap: 8px; padding: 8px 16px; }
+    header.top { padding: 0 calc(var(--u) * 2.5); }
+    .brand-tag { display: none; }
+    .stage-cluster { gap: 8px; }
+    .stage-cluster .stage-label { display: none; }
+    .conversation { padding: calc(var(--u) * 3) calc(var(--u) * 2.5) calc(var(--u) * 2); }
+    .smart-chips { padding: calc(var(--u) * 1.5) calc(var(--u) * 2.5) 0; }
+    .composer { padding: calc(var(--u) * 2) calc(var(--u) * 2.5); }
+    .stoic-strip { padding: 0 calc(var(--u) * 2.5) calc(var(--u) * 1.5); }
+    .stoic-strip .quote .author { display: none; }
+    .top-right .lang { display: none; }
+    .nbhd, .listing-card, .service-card, .recent-signed { margin-left: 0; }
+    .pass-card { width: calc(100% - 40px); max-width: 360px; }
+    .frame { display: none; }
+    .composer-prefix { display: none; }
+    .orb { width: 88px; height: 88px; margin-bottom: calc(var(--u) * 4); }
+    .operator { display: none !important; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+</style>
+</head>
+<body class="cursor-on">
+
+<div class="sky" id="sky"></div>
+<div class="grain"></div>
+
+<div class="frame">
+  <div class="corner tl"><svg viewBox="0 0 18 18"><path d="M0 12 V0 H12"/></svg></div>
+  <div class="corner tr"><svg viewBox="0 0 18 18"><path d="M0 12 V0 H12"/></svg></div>
+  <div class="corner bl"><svg viewBox="0 0 18 18"><path d="M0 12 V0 H12"/></svg></div>
+  <div class="corner br"><svg viewBox="0 0 18 18"><path d="M0 12 V0 H12"/></svg></div>
+</div>
+
+<div class="cursor" id="cursor"></div>
+
+<!-- Returning visitor strip (B+C union) -->
+<div class="return-strip" id="return-strip">
+  <span class="summary" id="return-summary">Welcome back. Last time we were exploring <em>Trastevere, 6 months from September</em>.</span>
+  <div class="actions">
+    <button class="btn primary" id="return-continue">Continue</button>
+    <button class="btn" id="return-fresh">Start fresh</button>
+  </div>
+</div>
+
+<header class="top">
+  <div class="brand">
+    <span class="brand-mark">
+      <svg viewBox="0 0 32 32" fill="none">
+        <circle cx="16" cy="16" r="14.5" stroke="#D4AF37" stroke-width="0.6" opacity="0.25"/>
+        <circle cx="16" cy="16" r="9.5"  stroke="#D4AF37" stroke-width="0.6" opacity="0.5"/>
+        <circle cx="16" cy="16" r="4.5"  stroke="#D4AF37" stroke-width="0.6" opacity="0.85"/>
+        <circle cx="16" cy="16" r="1.4"  fill="#D4AF37"/>
+      </svg>
+    </span>
+    <div class="brand-text">
+      <div class="brand-name">BOOM &middot; ROMA</div>
+      <div class="brand-tag" id="brand-tag">MMXXIV &middot; A concierge for those who arrive</div>
+    </div>
+  </div>
+
+  <div class="stage-cluster">
+    <span class="stage-label" id="stage-label">WARMING</span>
+    <div class="stage-bars" id="stage-bars">
+      <span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span>
+    </div>
+  </div>
+
+  <div class="top-right">
+    <span class="clock" id="clock">—<span class="sep">·</span>— Roma</span>
+    <button class="talk-btn" id="talk-btn" title="Talk to Valentino on WhatsApp" aria-label="Talk to Valentino on WhatsApp">
+      <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 0 1-9 8.5 8.5 8.5 0 0 1-3.4-.7L3 21l1.7-5.6A8.38 8.38 0 0 1 4 11.5a8.5 8.5 0 1 1 17 0z"/></svg>
+      <span class="talk-btn-label">Talk to Valentino</span>
+    </button>
+    <span class="lang" id="lang">EN · IT</span>
+    <span class="reset" id="reset">Reset</span>
+  </div>
+</header>
+
+<div class="conversation-wrap" id="conv-wrap">
+  <div class="conversation" id="conversation">
+
+    <div class="hero-state" id="hero-state">
+      <div class="hero-greeting" id="hero-greeting">Buongiorno.</div>
+
+      <div class="orb orb-breathe" id="orb">
+        <svg viewBox="0 0 120 120" fill="none">
+          <g class="ring-3">
+            <circle cx="60" cy="60" r="56" stroke="#D4AF37" stroke-width="0.5" opacity="0.18" stroke-dasharray="3 5"/>
+          </g>
+          <g class="ring-2">
+            <circle cx="60" cy="60" r="42" stroke="#D4AF37" stroke-width="0.6" opacity="0.35"/>
+            <circle cx="102" cy="60" r="1.5" fill="#D4AF37" opacity="0.7"/>
+          </g>
+          <g class="ring-1">
+            <circle cx="60" cy="60" r="28" stroke="#D4AF37" stroke-width="0.7" opacity="0.6"/>
+            <circle cx="88" cy="60" r="2" fill="#D4AF37"/>
+          </g>
+          <circle cx="60" cy="60" r="12" stroke="#D4AF37" stroke-width="0.8" opacity="0.85" fill="none"/>
+          <circle class="core" cx="60" cy="60" r="3" fill="#D4AF37"/>
+        </svg>
+      </div>
+
+      <h1 class="hero-question">When are you arriving in <span class="accent">Roma</span>?</h1>
+      <p class="hero-sub">
+        I'm the BOOM concierge. I'll ask a few short questions, then tell you — <em>honestly</em> — whether we're the right fit. If we are, you'll leave here with a viewing slot in your Apple Wallet.
+      </p>
+    </div>
+
+    <div class="conv-presence" id="conv-presence">
+      <div class="mini-orb">
+        <svg viewBox="0 0 22 22" fill="none">
+          <circle cx="11" cy="11" r="10" stroke="#D4AF37" stroke-width="0.5" opacity="0.3"/>
+          <circle cx="11" cy="11" r="6"  stroke="#D4AF37" stroke-width="0.5" opacity="0.6"/>
+          <circle cx="11" cy="11" r="3"  stroke="#D4AF37" stroke-width="0.6" opacity="0.85"/>
+          <circle cx="11" cy="11" r="1"  fill="#D4AF37"/>
+        </svg>
+      </div>
+      <span class="label">Concierge online</span>
+    </div>
+
+  </div>
+</div>
+
+<div class="composer-zone">
+  <div class="smart-chips empty" id="smart-chips" role="list"></div>
+
+  <div class="composer">
+    <div class="composer-line">
+      <span class="composer-prefix">›</span>
+      <input
+        id="composer-input"
+        class="composer-input"
+        type="text"
+        autocomplete="off"
+        spellcheck="false"
+        maxlength="500"
+        placeholder="Tell me when you're arriving…" />
+      <button class="composer-mic" id="mic" aria-label="Voice input" title="Voice input">
+        <svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+      </button>
+      <button class="composer-send idle" id="send" aria-label="Send">
+        <svg viewBox="0 0 24 24"><path d="M5 12 H19 M13 6 L19 12 L13 18"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="stoic-strip">
+    <div class="quote" id="stoic">"Confine yourself to the present."<span class="author">Marcus Aurelius</span></div>
+    <div class="links"><span id="open-manifesto">Why BOOM exists</span></div>
+  </div>
+</div>
+
+<!-- Manifesto -->
+<div class="manifesto" id="manifesto">
+  <button class="manifesto-close" id="close-manifesto" aria-label="Close">×</button>
+  <div class="manifesto-content">
+    <div class="manifesto-eyebrow">Why BOOM exists</div>
+    <h2>Rome was never meant to be rented through a <em>spreadsheet</em>.</h2>
+    <p>For decades, finding a home in Rome as an outsider has meant the same friction: cash deposits in unfamiliar currencies, contracts in a language you don't yet speak, landlords who won't sign without an Italian guarantor you don't have.</p>
+    <p>BOOM was built for the people the system forgot — <strong>students, researchers, expats, and professionals who arrive with intent and deserve a clean way in.</strong></p>
+    <p>We are a concierge, not a portal. We screen properties, draft compliant Allegato B contracts, register them with the Agenzia delle Entrate, and stand behind every tenant when they need it.</p>
+    <p>We say no when we should. A 3-week stay belongs on Airbnb. A €700 budget in central Rome is a misalignment we'd rather flag than dress up.</p>
+    <div class="signature">Egidi Immobiliare S.r.l. — Rome, since 2024.</div>
+  </div>
+</div>
+
+<!-- Wallet pass -->
+<div class="pass-stage" id="pass-stage">
+  <div class="pass-wrap">
+    <div class="pass-dust" id="pass-dust"></div>
+    <div class="pass-card">
+      <div class="pass-head">
+        <div>
+          <div class="label">Viewing Pass</div>
+          <div class="brand">BOOM ROME</div>
+        </div>
+        <div class="icon">
+          <svg viewBox="0 0 30 30" fill="none">
+            <circle cx="15" cy="15" r="14" stroke="#D4AF37" stroke-width="0.6" opacity="0.3"/>
+            <circle cx="15" cy="15" r="9"  stroke="#D4AF37" stroke-width="0.6" opacity="0.6"/>
+            <circle cx="15" cy="15" r="4"  stroke="#D4AF37" stroke-width="0.6"/>
+            <circle cx="15" cy="15" r="1.3" fill="#D4AF37"/>
+          </svg>
+        </div>
+      </div>
+      <div class="pass-body">
+        <div class="pass-property" id="pass-property">Studio · Borgo Pio</div>
+        <div class="pass-zone" id="pass-zone">Rione Borgo · Vatican</div>
+        <div class="pass-meta">
+          <div class="cell"><div class="k">Date</div><div class="v" id="pass-date">—</div></div>
+          <div class="cell"><div class="k">Time</div><div class="v" id="pass-time">—</div></div>
+          <div class="cell"><div class="k">Concierge</div><div class="v">Valentyne</div></div>
+          <div class="cell"><div class="k">Pass ID</div><div class="v" id="pass-id">—</div></div>
+        </div>
+      </div>
+      <div class="pass-foot"><div class="barcode"></div></div>
+    </div>
+    <div class="pass-hint">Add to Apple Wallet · pass.com.boomrome.proppass</div>
+    <button class="pass-dismiss" id="pass-dismiss">Dismiss</button>
+  </div>
+</div>
+
+<div class="operator" id="operator">
+  <h4>Operator · Live</h4>
+  <div class="row"><span class="k">Stage</span><span class="v" id="op-stage">0 · INTRO</span></div>
+  <div class="row"><span class="k">Score</span><span class="v" id="op-score">0 / 100</span></div>
+  <div class="row"><span class="k">Bracket</span><span class="v" id="op-bracket">—</span></div>
+  <div class="row"><span class="k">Timing</span><span class="v" id="op-timing">—</span></div>
+  <div class="row"><span class="k">Duration</span><span class="v" id="op-duration">—</span></div>
+  <div class="row"><span class="k">Budget</span><span class="v" id="op-budget">—</span></div>
+  <div class="row"><span class="k">Profile</span><span class="v" id="op-profile">—</span></div>
+  <div class="row"><span class="k">Shield</span><span class="v" id="op-shield">—</span></div>
+  <div class="row"><span class="k">Zone</span><span class="v" id="op-zone">—</span></div>
+  <div class="row"><span class="k">Routing</span><span class="v" id="op-routing">pending</span></div>
+</div>
+
+<script>
+/* ════════════════════════════════════════════════════════════════════
+   BOOM CONCIERGE · v5 — DESIGN-LOCKED
+   Listings · Services · Empty-state-as-PFS · Returning visitor
+   Recently-signed peer proof · Surprise-me match
+   ════════════════════════════════════════════════════════════════════ */
+
+(() => {
+  const ROME_TZ = "Europe/Rome";
+  // Distinct keys from the legacy /concierge sibling — prevents stale state
+  // (e.g., GUARANTOR which no longer exists) from polluting this page.
+  const STORAGE_KEY = "boom.chat-concierge.v1";
+  const SESSION_KEY = "boom.chat-concierge.sessionId";
+  const MAX_TURNS = 12;
+  const MAX_INPUT_LEN = 500;
+  const ADMIN_MODE = new URLSearchParams(location.search).get("admin") === "1";
+
+  // Stable session id (per-browser). Used for /api/concierge and /api/concierge-event.
+  let SESSION_ID;
+  try {
+    SESSION_ID = localStorage.getItem(SESSION_KEY);
+    if (!SESSION_ID) {
+      SESSION_ID = (typeof crypto !== "undefined" && crypto.randomUUID)
+        ? crypto.randomUUID()
+        : (Math.random().toString(36).slice(2) + Date.now().toString(36));
+      localStorage.setItem(SESSION_KEY, SESSION_ID);
+    }
+  } catch {
+    SESSION_ID = Math.random().toString(36).slice(2) + Date.now().toString(36);
+  }
+
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, c =>
+      ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+  }
+  function capitalize(s) { return s ? s[0].toUpperCase() + s.slice(1) : ""; }
+
+  /* ═════ STATE ═════ */
+
+  const lead = {
+    timing: null,
+    duration_months: null,
+    budget_max: null,
+    profile: null,
+    has_guarantor: null,
+    needs_shield: null,
+    zone: null,
+    name: null, email: null, phone: null,
+    score: 0,
+    stage: 0,
+    routing: null,
+    declined_reason: null,
+    needs_admin_help: false,    // ← fires DAS recommendation
+    is_remote: false,           // ← fires VV recommendation
+    services_shown: [],         // ← never propose same service twice
+    listingsRenderedCount: 0,   // ← session-cumulative count; gates close action
+    currentState: 'INTRO',      // ← state machine cursor
+    page: 'chat-concierge',     // ← analytics — distinguishes from /concierge sibling
+    lastFallbackTs: 0,          // ← graceful-exit detection if free_response loops
+    wants_browse: false,        // ← browse-intent flag (regex-set)
+    started_at: Date.now(),
+    last_touched: Date.now(),
+    history: []
+  };
+
+  // Whitelist of states valid for restore. If localStorage contains a
+  // currentState outside this set (legacy GUARANTOR, future renames, etc.),
+  // we wipe and start fresh — the bootstrap regression that broke /concierge.
+  const VALID_STATES = new Set([
+    'INTRO', 'TIMING', 'DURATION', 'BUDGET', 'PROFILE', 'ZONE', 'CONTACT',
+    'MATCH', 'ROUTE', 'ROUTE_NO_LISTINGS', 'CLOSE', 'DECLINED'
+  ]);
+
+  /* Restore */
+  let isReturning = false;
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+    if (saved && saved.history && saved.history.length >= 2) {
+      const hoursSince = (Date.now() - (saved.last_touched || 0)) / 3_600_000;
+      const stateValid = !saved.currentState || VALID_STATES.has(saved.currentState);
+      const stageValid = typeof saved.stage !== 'number' || (saved.stage >= 0 && saved.stage <= 6);
+      if (hoursSince < 720 && stateValid && stageValid) {
+        // Within 30 days AND schema-compatible
+        Object.assign(lead, saved);
+        isReturning = true;
+      } else {
+        // Stale or schema-incompatible — wipe and start fresh.
+        try { localStorage.removeItem(STORAGE_KEY); } catch {}
+      }
+    }
+  } catch {
+    try { localStorage.removeItem(STORAGE_KEY); } catch {}
+  }
+
+  function persist() {
+    lead.last_touched = Date.now();
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(lead)); } catch {}
+  }
+
+  /* ═════ Returning-visitor strip ═════ */
+
+  function summarizeReturn() {
+    const parts = [];
+    if (lead.zone) parts.push(lead.zone);
+    if (lead.duration_months) parts.push(`${lead.duration_months} months`);
+    if (lead.timing === "soon" || lead.timing === "urgent") parts.push("near-term arrival");
+    return parts.length ? parts.join(", ") : "your search in Rome";
+  }
+  if (isReturning) {
+    document.body.classList.add("has-return");
+    document.getElementById("return-summary").innerHTML =
+      `Welcome back. Last time we were exploring <em>${summarizeReturn()}</em>.`;
+  }
+  document.getElementById("return-continue").addEventListener("click", () => {
+    document.body.classList.remove("has-return");
+    document.body.classList.add("active");
+    // Restore the state machine to where they left off — falls back to TIMING.
+    setTimeout(() => {
+      const resume = STATE_TABLE[lead.currentState] ? lead.currentState : 'TIMING';
+      enterState(resume);
+    }, 400);
+  });
+  document.getElementById("return-fresh").addEventListener("click", () => {
+    localStorage.removeItem(STORAGE_KEY);
+    location.reload();
+  });
+
+  /* ═════ Time + sky + greeting ═════ */
+
+  function romeNow() {
+    return new Intl.DateTimeFormat("en-GB", {
+      timeZone: ROME_TZ, hour: "2-digit", minute: "2-digit", hour12: false
+    }).format(new Date());
+  }
+  function romeHour() {
+    return parseInt(new Intl.DateTimeFormat("en-GB", {
+      timeZone: ROME_TZ, hour: "2-digit", hour12: false
+    }).format(new Date()), 10);
+  }
+  function skyPalette(h) {
+    if (h >= 5  && h < 7)  return ["rgba(48, 30, 44, 0.55)",  "rgba(28, 28, 50, 0.55)"];
+    if (h >= 7  && h < 10) return ["rgba(70, 50, 40, 0.45)",  "rgba(40, 60, 90, 0.4)"];
+    if (h >= 10 && h < 16) return ["rgba(60, 50, 40, 0.30)",  "rgba(50, 70, 100, 0.32)"];
+    if (h >= 16 && h < 19) return ["rgba(120, 60, 40, 0.55)", "rgba(60, 50, 80, 0.5)"];
+    if (h >= 19 && h < 21) return ["rgba(90, 40, 40, 0.6)",   "rgba(40, 30, 70, 0.6)"];
+    return ["rgba(48, 28, 18, 0.55)", "rgba(18, 22, 38, 0.6)"];
+  }
+  function tickClock() {
+    const t = romeNow();
+    document.getElementById("clock").innerHTML =
+      `${t.replace(":", '<span class="sep">·</span>')} Roma`;
+    const [warm, cool] = skyPalette(romeHour());
+    document.documentElement.style.setProperty("--sky-warm", warm);
+    document.documentElement.style.setProperty("--sky-cool", cool);
+  }
+  tickClock(); setInterval(tickClock, 30_000);
+  (() => {
+    const h = romeHour();
+    let g = "Buongiorno.";
+    if (h >= 12 && h < 18) g = "Buon pomeriggio.";
+    else if (h >= 18 && h < 23) g = "Buonasera.";
+    else if (h >= 23 || h < 5) g = "Buonanotte.";
+    document.getElementById("hero-greeting").textContent = g;
+  })();
+
+  /* ═════ Sky parallax ═════ */
+  let pRaf = null;
+  document.addEventListener("mousemove", e => {
+    if (pRaf) return;
+    pRaf = requestAnimationFrame(() => {
+      const x = (e.clientX / innerWidth - 0.5) * 8;
+      const y = (e.clientY / innerHeight - 0.5) * 8;
+      document.getElementById("sky").style.transform = `translate(${x}px, ${y}px)`;
+      pRaf = null;
+    });
+  });
+
+  /* ═════ Custom cursor ═════ */
+  const cursor = document.getElementById("cursor");
+  let mx = -100, my = -100, cx = -100, cy = -100;
+  let cursorRunning = false;
+  document.addEventListener("mousemove", e => {
+    mx = e.clientX; my = e.clientY;
+    if (!cursorRunning) {
+      cursorRunning = true;
+      requestAnimationFrame(animateCursor);
+    }
+  });
+  function animateCursor() {
+    cx += (mx - cx) * 0.22;
+    cy += (my - cy) * 0.22;
+    cursor.style.transform = `translate(${cx}px, ${cy}px) translate(-50%, -50%)`;
+    if (Math.abs(mx - cx) > 0.3 || Math.abs(my - cy) > 0.3) {
+      requestAnimationFrame(animateCursor);
+    } else cursorRunning = false;
+  }
+  if (matchMedia("(hover: none)").matches) document.body.classList.remove("cursor-on");
+  function bindCursorHover(el) {
+    el.addEventListener("mouseenter", () => cursor.classList.add("hover"));
+    el.addEventListener("mouseleave", () => cursor.classList.remove("hover"));
+  }
+  document.querySelectorAll("button, .chip, input, .lang, .reset, .stoic-strip span").forEach(bindCursorHover);
+  document.addEventListener("mousedown", () => cursor.classList.add("tap"));
+  document.addEventListener("mouseup",   () => cursor.classList.remove("tap"));
+
+  /* ═════ Stoics ═════ */
+  const stoics = [
+    { q: "Confine yourself to the present.",                         a: "Marcus Aurelius" },
+    { q: "Luck is what happens when preparation meets opportunity.", a: "Seneca" },
+    { q: "We suffer more in imagination than in reality.",           a: "Seneca" },
+    { q: "Waste no more time arguing what a good man should be.",    a: "Marcus Aurelius" },
+    { q: "Every new beginning comes from some other beginning's end.", a: "Seneca" }
+  ];
+  function rotateStoic() {
+    const el = document.getElementById("stoic");
+    const pick = stoics[Math.floor(Math.random() * stoics.length)];
+    el.style.opacity = "0";
+    setTimeout(() => {
+      el.innerHTML = `&ldquo;${pick.q}&rdquo;<span class="author">${pick.a}</span>`;
+      el.style.opacity = "1";
+    }, 600);
+  }
+  setInterval(rotateStoic, 24_000);
+
+  /* ════════════════════════════════════════════════════════════════
+     SERVER DATA — populated from /api/concierge and /api/recent-signed
+     ════════════════════════════════════════════════════════════════ */
+
+  // Server-fetched data populated by the page (no LLM in these paths):
+  //   serverListings      ← /api/listings-match (per-MATCH-state call)
+  //   serverRecentSigned  ← /api/recent-signed   (boot fetch)
+  //   serverZones         ← /api/listings-zones  (boot fetch — used by ZONE state chips)
+  let serverListings = [];
+  let serverRecentSigned = [];
+  let serverZones = [];
+
+  function recentForZone(zone) {
+    if (!serverRecentSigned.length) return null;
+    return serverRecentSigned.find(r => r.zone === zone) || serverRecentSigned[0];
+  }
+
+  /* ════════════════════════════════════════════════════════════════
+     EXTRACTION
+     ════════════════════════════════════════════════════════════════ */
+
+  function extractFacts(text) {
+    const t = text.toLowerCase();
+    const updates = {};
+
+    if (/(within|in)\s+(a\s+)?(few|two|2|3)\s+days|asap|immediately|tomorrow|already (in|here)|right now|next week/i.test(t))
+      updates.timing = "urgent";
+    else if (/next month|in (1|one) month|september|october|november|december|january|february|march|april|may|june|july|august|in [0-9]+ months?|in [0-9]+ weeks?/i.test(t))
+      updates.timing = "soon";
+    else if (/next year|in (a )?year|2027|long.term|sometime|eventually|maybe later/i.test(t))
+      updates.timing = "later";
+
+    const monthsMatch = t.match(/(\d+)\s*(month|mese|mesi)/);
+    const weeksMatch  = t.match(/(\d+)\s*(week|settimane?|settimana)/);
+    if (weeksMatch) {
+      const w = parseInt(weeksMatch[1], 10);
+      if (w < 4) updates.duration_months = "short";
+      else updates.duration_months = Math.round(w / 4);
+    }
+    if (monthsMatch) updates.duration_months = parseInt(monthsMatch[1], 10);
+    if (/year|anno|anni/.test(t) && !monthsMatch) updates.duration_months = 12;
+
+    const budgetMatch = t.match(/(?:€|euro|eur)\s*([0-9.,]+)/i) || t.match(/([0-9.,]+)\s*(?:€|euro|eur)/i);
+    if (budgetMatch) {
+      const n = parseInt(budgetMatch[1].replace(/[.,]/g, ""), 10);
+      if (!isNaN(n)) updates.budget_max = n;
+    }
+
+    if (/student|studente|exchange|erasmus|university|università/i.test(t)) updates.profile = "student";
+    else if (/corporate|company|business|relocation|azienda|employer|firm/i.test(t)) updates.profile = "corporate";
+    else if (/freelance|nomad|remote|self.employed|libera professione/i.test(t)) updates.profile = "freelance";
+    else if (/family|famiglia|kids|children|bambini|wife|husband/i.test(t)) updates.profile = "family";
+    else if (/researcher|phd|postdoc|academic|fellowship/i.test(t)) updates.profile = "researcher";
+
+    if (/no italian guarantor|no guarantor|don't have a guarantor|niente garante|need shield/i.test(t)) {
+      updates.has_guarantor = false;
+      updates.needs_shield = true;
+    }
+    if (/i have (a|an) (italian )?guarantor|ho un garante/i.test(t)) updates.has_guarantor = true;
+
+    // Remote / abroad signal — fires VV recommendation
+    if (/abroad|overseas|from (germany|france|spain|uk|us|brazil|india|china|japan|australia|canada|netherlands|berlin|london|paris|madrid|new york|barcelona|amsterdam|toronto|sydney|tokyo)/i.test(t) ||
+        /can'?t (fly|come|visit|travel)|won'?t be in rome|before (i fly|i arrive)/i.test(t)) {
+      updates.is_remote = true;
+    }
+
+    // Admin/bureaucracy signal — fires DAS recommendation
+    if (/codice fiscale|residency|permesso|tax id|registration|registrazione|agenzia delle entrate|cedolare|asseverazione|paperwork|burocrazia|documents/i.test(t)) {
+      updates.needs_admin_help = true;
+    }
+
+    const zones = ["Borgo Pio", "Trastevere", "Parioli", "Salario", "Trieste", "San Lorenzo", "Flaminio", "Ponte Milvio", "Vatican", "Centro"];
+    for (const z of zones) {
+      if (new RegExp("\\b" + z.toLowerCase() + "\\b", "i").test(t)) {
+        updates.zone = z === "Vatican" ? "Borgo Pio" : (z === "Centro" ? "Centro Storico" : z);
+        break;
+      }
+    }
+
+    const emailMatch = text.match(/[\w.+-]+@[\w-]+\.[\w.-]+/);
+    if (emailMatch) updates.email = emailMatch[0];
+    const phoneMatch = text.match(/(\+?\d[\d\s\-]{8,})/);
+    if (phoneMatch) updates.phone = phoneMatch[0].trim();
+
+    // Browse-intent: visitor wants to see the full inventory rather than be
+    // qualified. Routes to /properties via ack_browse_intent in handleUserInput.
+    if (/\b(show|see|view|browse|list)\b.{0,20}\b(apartment|apartments|flat|flats|propert|listing|inventor|option)/i.test(t)
+        || /\bwhat\b.{0,15}\b(apartment|flat|propert|listing|inventor|option|other|else)/i.test(t)
+        || /\b(any|got)\b.{0,12}\b(propert|apartment|flat|listing|inventor)/i.test(t)) {
+      updates.wants_browse = true;
+    }
+
+    // Greeting at TIMING — soft no-op, page handles re-rendering chips so
+    // the visitor's "hello" doesn't trigger a free_response loop.
+    if (/^\s*(hi|hello|hey|yo|ciao|salve|buongiorno|buonasera|buonanotte)\b[\s.!?]*$/i.test(text.trim())) {
+      updates._isGreeting = true;
+    }
+
+    return updates;
+  }
+
+  /* ═════ Score + routing ═════ */
+
+  function recalcScore() {
+    let s = 0;
+    if (typeof lead.budget_max === "number") {
+      if (lead.budget_max >= 900 && lead.budget_max <= 4000) s += 25;
+      else if (lead.budget_max > 4000) s += 22;
+    }
+    if (lead.timing === "urgent" || lead.timing === "soon") s += 20;
+    else if (lead.timing === "later") s += 5;
+    if (typeof lead.duration_months === "number") {
+      if (lead.duration_months >= 3 && lead.duration_months <= 18) s += 15;
+      else if (lead.duration_months > 18) s += 10;
+    }
+    // has_guarantor / needs_shield no longer contribute to score — Shield is
+    // reactive-only after iter 4. Field still tracked when free-text mentions it.
+    if (lead.zone) s += 10;
+    if (lead.email) s += 7;
+    if (lead.phone) s += 8;
+    lead.score = Math.min(100, s);
+  }
+  function decideRouting() {
+    if (lead.declined_reason) return "decline";
+    if (lead.score >= 80) return "hot";
+    if (lead.score >= 50) return "warm";
+    if (lead.score >= 30) return "cool";
+    return null;
+  }
+
+  /* ═════ Decline gates ═════ */
+
+  function checkDeclineGates(text) {
+    const t = text.toLowerCase();
+
+    if (lead.duration_months === "short" ||
+        (typeof lead.duration_months === "number" && lead.duration_months < 1) ||
+        /\b(2|3|4|two|three|four)\s*weeks?\b/.test(t) ||
+        /\b(few|some)\s*days?\b/.test(t)) {
+      lead.declined_reason = "too_short";
+      return {
+        decline: true,
+        reply: "I'd rather be straight with you. BOOM works on stays of one month or longer — that's the contract structure that protects both you and the landlord. For under that, an Airbnb or serviced apartment will serve you better than we can. Come back when you're planning something longer. We'll be here."
+      };
+    }
+
+    if (typeof lead.budget_max === "number" && lead.budget_max < 900) {
+      lead.declined_reason = "budget_low";
+      return {
+        decline: true,
+        reply: "Below €900/month in the neighborhoods we work in, I genuinely can't deliver the standard our clients pay for — clean buildings, real heating, registered contracts, proper screening. I'd rather tell you now than waste your week."
+      };
+    }
+
+    if (/\b(milan|milano|florence|firenze|naples|napoli|venice|venezia|bologna|turin|torino|pisa|verona|barcelona|paris|berlin)\b/.test(t) &&
+        !lead.zone && !/(also|after|then).{0,10}(rome|roma)/i.test(t)) {
+      lead.declined_reason = "out_of_scope";
+      return {
+        decline: true,
+        reply: "BOOM is Rome only — for now. Barcelona is on our roadmap for next year, but I can't help you with other cities today. If your trip includes Rome at any point, I'm here."
+      };
+    }
+
+    return { decline: false };
+  }
+
+  /* ═════ Stage logic ═════ */
+
+  const STAGE_NAMES = ["INTRO", "TIMING", "DURATION", "BUDGET", "PROFILE", "ZONE", "CONTACT", "CLOSE"];
+  const STAGE_GROUPS = ["WARMING", "QUALIFYING", "MATCHING", "CLOSING"];
+  function stageGroup(s) {
+    if (s <= 1) return 0; // INTRO / TIMING
+    if (s <= 3) return 1; // DURATION / BUDGET
+    if (s <= 5) return 2; // PROFILE / ZONE
+    return 3;             // CONTACT / CLOSE
+  }
+  // advanceStage was the LLM-driven progression. Replaced by state machine
+  // below — `lead.stage` is now derived from `lead.currentState` via the
+  // STATE_TABLE entry's `headerStage` property when entering each state.
+  function updateHeader() {
+    const groupIdx = stageGroup(lead.stage);
+    const labelEl = document.getElementById("stage-label");
+    const declined = !!lead.declined_reason;
+    if (declined) {
+      labelEl.textContent = "DECLINED";
+      labelEl.classList.add("declining");
+    } else {
+      labelEl.textContent = STAGE_GROUPS[groupIdx];
+      labelEl.classList.remove("declining");
+    }
+    const bars = document.querySelectorAll(".stage-bars .bar");
+    bars.forEach((b, i) => {
+      b.classList.toggle("on", i <= groupIdx && !declined);
+      b.classList.toggle("declining", declined && i === groupIdx);
+    });
+  }
+  function updateOperator() {
+    if (!ADMIN_MODE) return;
+    const op = document.getElementById("operator");
+    op.classList.add("show");
+    document.getElementById("op-stage").textContent = `${lead.stage} · ${STAGE_NAMES[lead.stage]}`;
+    document.getElementById("op-score").textContent = `${lead.score} / 100`;
+    const r = decideRouting();
+    const bracketEl = document.getElementById("op-bracket");
+    if (r === "hot") { bracketEl.textContent = "HOT"; bracketEl.className = "v score-hot"; }
+    else if (r === "warm") { bracketEl.textContent = "WARM"; bracketEl.className = "v score-warm"; }
+    else if (r === "cool") { bracketEl.textContent = "COOL"; bracketEl.className = "v score-cool"; }
+    else if (r === "decline") { bracketEl.textContent = "DECLINE"; bracketEl.className = "v score-dead"; }
+    else { bracketEl.textContent = "—"; bracketEl.className = "v"; }
+    document.getElementById("op-timing").textContent  = lead.timing || "—";
+    document.getElementById("op-duration").textContent = lead.duration_months ? `${lead.duration_months} mo` : "—";
+    document.getElementById("op-budget").textContent   = lead.budget_max ? `€${lead.budget_max}` : "—";
+    document.getElementById("op-profile").textContent  = lead.profile || "—";
+    document.getElementById("op-shield").textContent   = lead.needs_shield === true ? "needed" : (lead.needs_shield === false ? "not needed" : "—");
+    document.getElementById("op-zone").textContent     = lead.zone || "—";
+    document.getElementById("op-routing").textContent  = r || "pending";
+  }
+
+  /* ═════ Integration — POST /api/concierge-event ═════ */
+
+  async function fireIntegration(eventName, payload) {
+    try {
+      const res = await fetch("/api/concierge-event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: eventName,
+          sessionId: SESSION_ID,
+          lead: { ...lead },
+          payload: payload || {},
+        }),
+      });
+      if (!res.ok) return { ok: false, status: res.status };
+      return await res.json();
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  }
+
+  /* ════════════════════════════════════════════════════════════════
+     CONCIERGE — chip data + neighborhood/service catalogs
+     ════════════════════════════════════════════════════════════════ */
+
+  /* Deterministic chip set per qualification field. Reads from STATE_TABLE
+     to know which set to render in the current state. Items can carry
+     either `q` (synthetic user message → handleUserInput) or `action`
+     (sentinel handled in renderChips, e.g. surpriseMe / openContactForm). */
+  // Deterministic chip set per question. The model is instructed to emit
+  // [ASK:field] on every reply; the page reads the token and shows the matching
+  // chips. If the token is missing, fall back to lead.stage.
+  const CHIPS = {
+    timing: [
+      { l: "September", q: "I'm arriving in September." },
+      { l: "October",   q: "I'm arriving in October." },
+      { l: "Flexible",  q: "My dates are flexible." },
+      { l: "ASAP",      q: "I need something within 2 weeks." }
+    ],
+    duration: [
+      { l: "3 months",  q: "Three months." },
+      { l: "6 months",  q: "Six months." },
+      { l: "12 months", q: "Twelve months." }
+    ],
+    budget: [
+      { l: "€1,000–€1,400", q: "Budget €1,000 to €1,400/mo." },
+      { l: "€1,400–€1,800", q: "Budget €1,400 to €1,800/mo." },
+      { l: "€1,800–€2,500", q: "Budget €1,800 to €2,500/mo." },
+      { l: "Open",          q: "Budget is open." }
+    ],
+    profile: [
+      { l: "Student",   q: "I'm a student." },
+      { l: "Corporate", q: "I'm here for work." },
+      { l: "Freelance", q: "I'm a freelancer / nomad." },
+      { l: "Family",    q: "I'm coming with family." }
+    ],
+    zone: [
+      // Marquee zones; mixed with serverZones at render time via suggestChipsForState.
+      { l: "Borgo Pio",   q: "Borgo Pio, near the Vatican." },
+      { l: "Trastevere",  q: "Trastevere." },
+      { l: "Parioli",     q: "Parioli." },
+      { l: "Surprise me", action: 'surpriseMe' }
+    ],
+    contact: [
+      { l: "Yes, let's begin", action: 'openContactForm' },
+      { l: "Schedule a call",  q: "Can we schedule a call instead?" }
+    ],
+    open: [
+      // "Tell me more" was a dead-end at CLOSE / post-action — removed iter 4.
+      { l: "Next step?",   q: "What's the next step?" }
+    ]
+  };
+
+  // State machine cursor field map — the page reads this to know which chip
+  // set to render and which qualification field is being captured.
+  function suggestChipsForState(stateOrFieldKey, declined) {
+    if (declined) {
+      return [
+        { l: "Got it, thanks",  q: "Got it, thanks for being honest." },
+        { l: "What else fits?", q: "What else might fit my situation?" }
+      ];
+    }
+    if (stateOrFieldKey === 'zone') {
+      // Mix marquee zones with currently-stocked zones from serverZones.
+      const marquee = ['Borgo Pio', 'Trastevere', 'Parioli'];
+      const extras = (serverZones || [])
+        .filter(z => z && !z.includes('/') && !marquee.includes(z))
+        .slice(0, 2);
+      const items = [];
+      for (const z of marquee) items.push({ l: z, q: z + (z === 'Borgo Pio' ? ', near the Vatican.' : '.') });
+      for (const z of extras)  items.push({ l: z, q: z + '.' });
+      items.push({ l: "Surprise me", action: 'surpriseMe' });
+      return items;
+    }
+    return CHIPS[stateOrFieldKey] || CHIPS.open;
+  }
+
+  const NBHD_DATA = {
+    "Borgo Pio":     { zone: "Rione Borgo · Vatican",         price: "€1,200–€1,600/mo", note: "Quiet stone streets, 100m from St. Peter's." },
+    "Trastevere":    { zone: "Rione Trastevere · River",      price: "€1,400–€1,900/mo", note: "Alive in a way no other rione is." },
+    "Parioli":       { zone: "Quartiere Parioli · North",     price: "€1,500–€2,200/mo", note: "Leafy, residential, well-connected." },
+    "Salario":       { zone: "Quartiere Salario · North",     price: "€1,000–€1,500/mo", note: "Universities nearby; calm streets." },
+    "Trieste":       { zone: "Quartiere Trieste · North",     price: "€1,000–€1,500/mo", note: "Student-friendly, metro-served, residential." },
+    "San Lorenzo":   { zone: "Rione San Lorenzo · Tiburtina", price: "€800–€1,200/mo",   note: "The university quarter — energy and grit." },
+    "Flaminio":      { zone: "Quartiere Flaminio · North",    price: "€1,400–€2,000/mo", note: "Stadium quarter — green, well-connected, strong residential anchor." },
+    "Ponte Milvio":  { zone: "Ponte Milvio · North river",    price: "€1,300–€1,900/mo", note: "Bridge area — locals' weekend Rome, river-adjacent, leafy." }
+  };
+
+  const SERVICE_DATA = {
+    VV: {
+      icon: '<polygon points="6 4 18 12 6 20"/>',
+      eyebrow: "Virtual Viewing",
+      name: "Walk through it from your couch.",
+      price: "€89",
+      body: "We're physically at the property, you're on video. Live walkthrough, every angle, every question answered. Most of our overseas tenants commit from a Virtual Viewing alone.",
+      details: "Live walk-through with our agent on WhatsApp video . Real angles, real questions answered live, audio of the street, the floor, the door, the elevator . Recorded if you want to rewatch .",
+      cta_primary: "Book €89",
+      cta_secondary: "Tell me more",
+      event: "service.engaged.vv"
+    },
+    PFS: {
+      icon: '<circle cx="12" cy="12" r="9"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/><circle cx="12" cy="12" r="3"/>',
+      eyebrow: "Property Finder Service",
+      name: "We hunt off-market until we find it.",
+      price: "€350",
+      body: "Two-week active search. We tap our landlord network, off-market inventory, and zones we know but don't list publicly. If we don't find a match in 14 days, we refund.",
+      details: "Two-week active search . We tap landlord network, off-market inventory, zones we know but don't list publicly . If we don't find a match in 14 days, we refund — no questions .",
+      cta_primary: "Engage €350",
+      cta_secondary: "How it works",
+      event: "service.engaged.pfs"
+    },
+    DAS: {
+      icon: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/>',
+      eyebrow: "Document & Administrative Setup",
+      name: "We handle the bureaucracy.",
+      price: "€249",
+      body: "Codice fiscale, contract registration with the Agenzia delle Entrate, asseverazione via our CAF partner, cedolare secca paperwork. You sign the lease — the rest is done.",
+      details: "We handle the bureaucracy you'd otherwise hate . Codice fiscale at the Agenzia delle Entrate, contract registration, asseverazione via our CAF partner, cedolare secca paperwork . You sign the lease — the rest is done .",
+      cta_primary: "Engage €249",
+      cta_secondary: "What's included",
+      event: "service.engaged.das"
+    },
+    SHIELD: {
+      icon: '<path d="M12 2 L20 6 V12 C20 17 16 21 12 22 C8 21 4 17 4 12 V6 Z"/>',
+      eyebrow: "BOOM Shield",
+      name: "We stand behind your lease.",
+      price: "5% of annual rent",
+      body: "Without an Italian guarantor, most landlords decline. Egidi Immobiliare acts as fideiussore — included with our concierge service, structured as a service benefit.",
+      details: "If you don't have an Italian guarantor, we step in as your corporate fideiussore . Egidi Immobiliare guarantees you to the landlord, you pay a small premium, your application moves like everyone else's .",
+      cta_primary: "Add Shield",
+      cta_secondary: "How it works",
+      event: "service.engaged.shield"
+    },
+    MAGICSIGN: {
+      icon: '<path d="M3 17 C 5 14, 7 14, 9 17 S 13 20, 15 17 S 19 14, 21 17"/>',
+      eyebrow: "Magic Sign",
+      name: "Sign now — passwordless.",
+      price: "Included",
+      body: "FES/eIDAS-compliant. Identity check, OTP, signature. Allegato B contract emailed and registered the same day. We send the link, you sign on your phone.",
+      details: "FES/eIDAS-compliant signature flow . Identity check, OTP, signature — done in under a minute on your phone . Allegato B contract emailed and registered the same day .",
+      cta_primary: "Send me the link",
+      cta_secondary: "Skip for now",
+      event: "service.engaged.magicsign"
+    }
+  };
+
+  /* ════════════════════════════════════════════════════════════════
+     RENDERING
+     ════════════════════════════════════════════════════════════════ */
+
+  const conv = document.getElementById("conversation");
+  const wrap = document.getElementById("conv-wrap");
+
+  function scrollToBottom(smooth = true) {
+    requestAnimationFrame(() => {
+      wrap.scrollTo({ top: wrap.scrollHeight, behavior: smooth ? "smooth" : "auto" });
+    });
+  }
+
+  function addUserMsg(text) {
+    const node = document.createElement("div");
+    node.className = "msg user";
+    node.textContent = text;
+    conv.appendChild(node);
+    scrollToBottom();
+  }
+  function addBotShell(declining = false) {
+    const node = document.createElement("div");
+    node.className = "msg bot" + (declining ? " declining" : "");
+    const dots = document.createElement("div");
+    dots.className = "typing";
+    dots.innerHTML = "<span class='d'></span><span class='d'></span><span class='d'></span>";
+    node.appendChild(dots);
+    conv.appendChild(node);
+    scrollToBottom();
+    document.getElementById("orb").classList.add("thinking");
+    return node;
+  }
+  function renderInlineMd(s) {
+    return s
+      .replace(/\*([^*\n]+)\*/g, "<em>$1</em>")
+      .replace(/_([^_\n]+)_/g, "<em>$1</em>")
+      // Auto-link bare boomrome.com URLs (e.g., the ack_browse_intent fallback)
+      .replace(/\b(boomrome\.com\/[a-z0-9\-/]+)/gi, '<a href="https://$1" target="_blank" rel="noopener" style="color:var(--gold);text-decoration:underline;text-underline-offset:3px">$1</a>');
+  }
+  function typeInto(node, text, done) {
+    node.innerHTML = "";
+    let i = 0;
+    function step() {
+      if (i >= text.length) { if (done) done(); return; }
+      const ch = text[i];
+      const pause = ch === "." || ch === "?" || ch === "!" ? 200
+                  : ch === "," ? 70
+                  : ch === " " ? 16
+                  : 13 + Math.random() * 7;
+      node.innerHTML = renderInlineMd(text.slice(0, i + 1)) +
+        '<span style="display:inline-block;width:6px;height:14px;background:var(--gold);margin-left:2px;vertical-align:text-bottom;opacity:0.85"></span>';
+      i++;
+      setTimeout(step, pause);
+    }
+    step();
+  }
+  function finalizeBot(node, text) {
+    node.innerHTML = renderInlineMd(text);
+    document.getElementById("orb").classList.remove("thinking");
+  }
+
+  /* ───── Generic zone illustration — concentric BOOM monogram, works for any zone ───── */
+  function zoneIllustration() {
+    return '<svg viewBox="0 0 320 140" preserveAspectRatio="xMidYMid slice">' +
+      '<g stroke="#D4AF37" stroke-width="0.5" fill="none" opacity="0.45" stroke-dasharray="2 5">' +
+        '<circle cx="160" cy="70" r="62"/>' +
+      '</g>' +
+      '<g stroke="#D4AF37" stroke-width="0.6" fill="none" opacity="0.6">' +
+        '<circle cx="160" cy="70" r="44"/>' +
+        '<circle cx="204" cy="70" r="1.5" fill="#D4AF37" stroke="none"/>' +
+      '</g>' +
+      '<g stroke="#D4AF37" stroke-width="0.7" fill="none" opacity="0.85">' +
+        '<circle cx="160" cy="70" r="24"/>' +
+      '</g>' +
+      '<circle cx="160" cy="70" r="2.5" fill="#D4AF37"/>' +
+      '</svg>';
+  }
+
+  function fmtAvailableFrom(iso) {
+    if (!iso) return "";
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return String(iso); // free-text fallback (some listings have non-ISO availability strings)
+    return new Intl.DateTimeFormat("en-GB", { timeZone: ROME_TZ, day: "2-digit", month: "short" }).format(d);
+  }
+
+  function addListingCards(listings) {
+    const top = listings.slice(0, 3);
+    top.forEach((l, idx) => {
+      const card = document.createElement("div");
+      card.className = "listing-card";
+      card.style.animationDelay = (idx * 80) + "ms";
+      card.innerHTML = `
+        <div class="listing-illustration">
+          <span class="verified"><span class="pip"></span>verified</span>
+          ${zoneIllustration()}
+          <span class="zone-overlay">${esc(l.zone || '')}</span>
+        </div>
+        <div class="listing-body">
+          <div class="listing-headline">
+            <div class="listing-name">${esc(capitalize(l.type || "Apartment"))}${l.sqm ? ' &middot; ' + l.sqm + 'm²' : ''}</div>
+            <div class="listing-price">${typeof l.price === 'number' ? '€' + l.price.toLocaleString() : '—'}<span class="per">/mo</span></div>
+          </div>
+          <div class="listing-meta">
+            ${l.available_from ? 'Available <strong style="color:var(--ink-2)">' + esc(fmtAvailableFrom(l.available_from)) + '</strong><span class="sep">·</span>' : ''}
+            ${l.duration_min}–${l.duration_max} months
+            ${(l.features && l.features.length) ? '<span class="sep">·</span>' + esc(l.features.slice(0, 2).map(f => String(f).replace(/_/g, ' ')).join(" · ")) : ''}
+          </div>
+          <div class="listing-cta">
+            <button class="listing-btn" data-listing="${l.id}">Hold viewing</button>
+            <button class="listing-btn ghost" data-listing-info="${l.id}">More about it</button>
+          </div>
+        </div>
+      `;
+      conv.appendChild(card);
+      card.querySelector("[data-listing]").addEventListener("click", () => {
+        openBooking(l);
+      });
+      card.querySelector("[data-listing-info]").addEventListener("click", () => {
+        // Hand off to the rich detail page (photos, description, video) — opens
+        // in a new tab so the conversation stays where the visitor left it.
+        if (l.id) window.open("/apartment-detail.html?id=" + encodeURIComponent(l.id), "_blank");
+      });
+      bindCursorHover(card.querySelector("[data-listing]"));
+      bindCursorHover(card.querySelector("[data-listing-info]"));
+    });
+
+    if (listings.length > 3) {
+      const tail = document.createElement("div");
+      tail.className = "listings-tail";
+      tail.textContent = `${listings.length - 3} more available`;
+      tail.addEventListener("click", () => handleUserInput("Show me the others.", 'tail'));
+      bindCursorHover(tail);
+      conv.appendChild(tail);
+    }
+    // Track for the close-action gate — [BOOK_VIEWING] is only valid when listings have rendered.
+    lead.listingsRenderedCount = (lead.listingsRenderedCount || 0) + Math.min(top.length, listings.length);
+    persist();
+    scrollToBottom();
+  }
+
+  function addNeighborhoodCard(name) {
+    const data = NBHD_DATA[name];
+    if (!data) return;
+    const card = document.createElement("div");
+    card.className = "nbhd";
+    card.innerHTML = `
+      <div class="map">
+        <svg viewBox="0 0 64 64" fill="none">
+          <circle cx="32" cy="32" r="28" stroke="#D4AF37" stroke-width="0.6" opacity="0.25"/>
+          <circle cx="32" cy="32" r="18" stroke="#D4AF37" stroke-width="0.6" opacity="0.5"/>
+          <path d="M14 38 L24 22 L34 32 L44 18 L52 28" stroke="#D4AF37" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/>
+          <circle cx="32" cy="32" r="2" fill="#D4AF37"/>
+        </svg>
+      </div>
+      <div class="info">
+        <div class="label">${data.zone}</div>
+        <div class="name">${name}</div>
+        <div class="meta">${data.note} <span class="price">${data.price}</span></div>
+      </div>`;
+    conv.appendChild(card);
+    scrollToBottom();
+  }
+
+  function addServiceCard(key) {
+    if (lead.services_shown.includes(key)) return; // never twice
+    const s = SERVICE_DATA[key];
+    if (!s) return;
+    lead.services_shown.push(key);
+    persist();
+    // Analytics: log that the page rendered this service to the visitor.
+    fireIntegration('service.shown', { service: key });
+    const card = document.createElement("div");
+    card.className = "service-card";
+    // Tag with the stage at render time so markStaleCards can fade it later.
+    card.dataset.stage = String(lead.stage || 0);
+    card.innerHTML = `
+      <div class="service-head">
+        <div class="service-icon"><svg viewBox="0 0 24 24">${s.icon}</svg></div>
+        <div class="service-text">
+          <div class="service-eyebrow">${s.eyebrow}</div>
+          <div class="service-name">${s.name}</div>
+        </div>
+        <div class="service-price">${s.price}</div>
+      </div>
+      <div class="service-body">${s.body}</div>
+      <div class="service-cta">
+        <button class="btn primary">${s.cta_primary}</button>
+        <button class="btn ghost">${s.cta_secondary}</button>
+      </div>
+      <div class="service-details">${esc(s.details || s.body)}</div>`;
+    conv.appendChild(card);
+    const primary = card.querySelectorAll(".btn")[0];
+    const secondary = card.querySelectorAll(".btn")[1];
+    primary.addEventListener("click", () => {
+      // Direct WhatsApp handoff — no chat round-trip, no LLM call. Service
+      // engagement deserves a real human, not another bot turn.
+      fireIntegration("service.engaged", { service: key, lead: { ...lead } });
+      const ctx = [];
+      if (lead.timing)          ctx.push(lead.timing);
+      if (lead.duration_months) ctx.push(lead.duration_months + " months");
+      if (lead.budget_max)      ctx.push("€" + lead.budget_max);
+      if (lead.zone)            ctx.push(lead.zone);
+      const lines = [`Hi — I want to engage ${s.eyebrow} (${s.price}).`];
+      if (ctx.length) lines.push(`My situation: ${ctx.join(', ')}.`);
+      lines.push(`Session: ${SESSION_ID}.`);
+      const url = "https://wa.me/393313251961?text=" + encodeURIComponent(lines.join("\n"));
+      window.open(url, "_blank");
+    });
+    // Inline accordion: toggle .expanded on the card. No chat loop, no LLM
+    // call — the details content is local data on SERVICE_DATA[key].details.
+    secondary.addEventListener("click", () => {
+      card.classList.toggle('expanded');
+      scrollToBottom();
+    });
+    bindCursorHover(primary);
+    bindCursorHover(secondary);
+    // Newly-rendered service is the active one; mark earlier services stale.
+    markStaleCards();
+    scrollToBottom();
+  }
+
+  // Fade service cards that are more than 1 stage old. Action cards are
+  // exempt (.action-card class). The most recently rendered card is also
+  // exempt — it's the one the visitor is currently considering.
+  function markStaleCards() {
+    const cards = Array.from(conv.querySelectorAll('.service-card:not(.action-card)'));
+    if (cards.length === 0) return;
+    const currentStage = lead.stage || 0;
+    const lastIdx = cards.length - 1;
+    cards.forEach((card, i) => {
+      const cardStage = parseInt(card.dataset.stage || '0', 10);
+      const stageGap = currentStage - cardStage;
+      if (i !== lastIdx && stageGap >= 2) card.classList.add('stale');
+      else                                 card.classList.remove('stale');
+    });
+  }
+
+  function addAlertSubscribeCard() {
+    const card = document.createElement("div");
+    card.className = "service-card";
+    card.innerHTML = `
+      <div class="service-head">
+        <div class="service-icon"><svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21h4"/></svg></div>
+        <div class="service-text">
+          <div class="service-eyebrow">Inventory Alert</div>
+          <div class="service-name">Ping me when one matches.</div>
+        </div>
+        <div class="service-price">Free</div>
+      </div>
+      <div class="service-body">Send your email — when a property matching your zone, budget and dates appears, you'll be the first to see it. No spam, no nurture, just the match.</div>
+      <div class="service-cta">
+        <button class="btn primary">Subscribe with email</button>
+      </div>`;
+    conv.appendChild(card);
+    const btn = card.querySelector(".btn");
+    btn.addEventListener("click", () => {
+      const email = prompt("Your email — we'll only write when a match comes in.");
+      if (email && /\S+@\S+\.\S+/.test(email)) {
+        lead.email = email;
+        fireIntegration("alert.subscribed", { criteria: { ...lead }, email });
+        handleUserInput("Subscribed at " + email + ".", 'alert-subscribe');
+      }
+    });
+    bindCursorHover(btn);
+    scrollToBottom();
+  }
+
+  function addRecentSignedCard() {
+    if (lead.recent_signed_shown) return;
+    const r = recentForZone(lead.zone || "Trastevere");
+    if (!r) return;
+    const days = (typeof r.daysAgo === "number") ? r.daysAgo : "?";
+    const inner = (r.firstName && r.origin)
+      ? `<strong>${esc(r.firstName)}</strong> from ${esc(r.origin)} → ${esc(r.zone)}. Signed ${days} days ago.`
+      : (r.type
+          ? `<strong>${esc(capitalize(r.type))}</strong> in ${esc(r.zone)}. Signed ${days} days ago.`
+          : `Recently signed in ${esc(r.zone)} · ${days} days ago.`);
+    const card = document.createElement("div");
+    card.className = "recent-signed";
+    card.innerHTML = `<span class="pip"></span><span>${inner}</span>`;
+    conv.appendChild(card);
+    lead.recent_signed_shown = true;
+    persist();
+    scrollToBottom();
+  }
+
+  function addActionCard(kind) {
+    const card = document.createElement("div");
+    card.className = "service-card action-card"; // .action-card exempts it from stale-fade
+    if (kind === "book") {
+      card.innerHTML = `
+        <div class="service-head">
+          <div class="service-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+          <div class="service-text">
+            <div class="service-eyebrow">Next step</div>
+            <div class="service-name">Hold a viewing — pick your slot</div>
+          </div>
+        </div>
+        <div class="service-body">A real date, a real time, a verified property. Pass mints once you confirm.</div>
+        <div class="service-cta"><button class="btn primary">Open booking</button></div>`;
+    } else if (kind === "talk") {
+      card.innerHTML = `
+        <div class="service-head">
+          <div class="service-icon"><svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-9 8.5 8.5 8.5 0 0 1-3.4-.7L3 21l1.7-5.6A8.38 8.38 0 0 1 4 11.5a8.5 8.5 0 1 1 17 0z"/></svg></div>
+          <div class="service-text">
+            <div class="service-eyebrow">Talk to Valentino directly</div>
+            <div class="service-name">He's the one who closes deals.</div>
+          </div>
+        </div>
+        <div class="service-body">One message, real human, real Roma. Your conversation summary goes with you.</div>
+        <div class="service-cta"><button class="btn primary">Open WhatsApp</button></div>`;
+    } else {
+      // intake — the soft container for hesitant visitors
+      card.innerHTML = `
+        <div class="service-head">
+          <div class="service-icon"><svg viewBox="0 0 24 24"><path d="M5 4h14v16l-7-4-7 4z"/></svg></div>
+          <div class="service-text">
+            <div class="service-eyebrow">Next step</div>
+            <div class="service-name">Open intake — six questions</div>
+          </div>
+        </div>
+        <div class="service-cta"><button class="btn primary">Begin</button></div>`;
+    }
+    conv.appendChild(card);
+    const btn = card.querySelector(".btn");
+    btn.addEventListener("click", () => {
+      if (kind === "book") openBooking();
+      else if (kind === "talk") talkValentino();
+      else openIntake();
+    });
+    bindCursorHover(btn);
+    scrollToBottom();
+  }
+
+  function renderChips(items) {
+    const strip = document.getElementById("smart-chips");
+    strip.innerHTML = "";
+    if (!items || !items.length) {
+      strip.classList.add("empty");
+      return;
+    }
+    items.forEach((item, i) => {
+      const c = document.createElement("button");
+      c.className = "chip";
+      c.style.animationDelay = (i * 70) + "ms";
+      c.textContent = item.l;
+      c.addEventListener("click", () => {
+        clearChips();
+        if (item.action === 'surpriseMe')      return runSurpriseMe();
+        if (item.action === 'openContactForm') return addContactMiniForm();
+        handleUserInput(item.q || item.l, 'chip');
+      });
+      bindCursorHover(c);
+      strip.appendChild(c);
+    });
+    strip.classList.remove("empty");
+  }
+  function clearChips() {
+    const strip = document.getElementById("smart-chips");
+    strip.classList.add("empty");
+    setTimeout(() => { strip.innerHTML = ""; }, 500);
+  }
+
+  /* ════════════════════════════════════════════════════════════════
+     STATE MACHINE — page is the conductor, LLM is the voice actor.
+     ════════════════════════════════════════════════════════════════ */
+
+  // Per-state config: which field, which chip set, which phrase kinds, where to
+  // go next, which header bar to light. Single source of truth for the flow.
+  const STATE_TABLE = {
+    TIMING:    { field: 'timing',          chipKey: 'timing',    askKind: 'ask_timing',    extractKind: 'extract_timing',    next: 'DURATION',  headerStage: 1 },
+    DURATION:  { field: 'duration_months', chipKey: 'duration',  askKind: 'ask_duration',  extractKind: 'extract_duration',  next: 'BUDGET',    headerStage: 2 },
+    BUDGET:    { field: 'budget_max',      chipKey: 'budget',    askKind: 'ask_budget',    extractKind: 'extract_budget',    next: 'PROFILE',   headerStage: 3 },
+    PROFILE:   { field: 'profile',         chipKey: 'profile',   askKind: 'ask_profile',   extractKind: 'extract_profile',   next: 'ZONE',      headerStage: 4 },
+    ZONE:      { field: 'zone',            chipKey: 'zone',      askKind: 'ask_zone',      extractKind: 'extract_zone',      next: 'CONTACT',   headerStage: 5 },
+    CONTACT:   { field: '__contact__',     chipKey: 'contact',   askKind: 'ask_contact',   extractKind: 'extract_contact',   next: 'MATCH',     headerStage: 6 },
+  };
+
+  // GUARANTOR state removed (iter 4) — Shield is reactive-only now: surfaces
+  // from free-text mentions of guarantor/cosigner/sponsor in any state.
+  const KEY_FIELDS = ['timing','duration_months','budget_max','profile','zone','email','phone'];
+
+  // Per-kind hand-written fallbacks. The page never breaks if the LLM is
+  // unreachable — every question has a Valentino-voice sentence pre-written.
+  const PHRASE_FALLBACKS = {
+    ask_timing:    () => "When are you landing in Roma — and what's your timing ?",
+    ask_duration:  () => "How long are you staying ?",
+    ask_budget:    () => "Budget per month ?",
+    ask_profile:   () => "Student, work, or freelance ?",
+    ask_zone:      () => "Any neighborhood drawing you, or shall I match you ?",
+    ask_contact:   () => "Send me your name, email, phone — I lock it in .",
+    extract_timing:    () => ({ value: null, phrasedAck: "" }),
+    extract_duration:  () => ({ value: null, phrasedAck: "" }),
+    extract_budget:    () => ({ value: null, phrasedAck: "" }),
+    extract_profile:   () => ({ value: null, phrasedAck: "" }),
+    extract_zone:      () => ({ value: null, phrasedAck: "" }),
+    extract_contact:   () => ({ name: null, email: null, phone: null, phrasedAck: "" }),
+    decline_short:  () => "Under one month, BOOM doesn't fit . Airbnb will serve you better — come back when you're staying longer .",
+    decline_budget: () => "Below €900 in our zones, I can't deliver our standard . Idealista is better below that line .",
+    decline_geo:    () => "Roma only, for now . Barcelona on the roadmap . If Roma's in your trip, I'm here .",
+    ack_listings:        (ctx) => ((ctx?.count || 0) === 1 ? "One fits — shown below ." : `${ctx?.count || 'A few'} fit — shown below .`),
+    ack_no_listings:     (ctx) => `Nothing matches in ${ctx?.lead?.zone || 'that zone'} right now — want us to hunt off-market ?`,
+    ack_multi_capture:   (ctx) => {
+      const lead2 = ctx?.lead || {};
+      const parts = [];
+      if (lead2.timing) parts.push(lead2.timing);
+      if (lead2.duration_months) parts.push(lead2.duration_months + ' months');
+      if (lead2.budget_max) parts.push('€' + lead2.budget_max);
+      if (lead2.zone) parts.push(lead2.zone);
+      return `Got it — ${parts.join(', ')} . Looking now .`;
+    },
+    free_response:       () => "Pick one of the chips below to keep us moving .",
+    ack_browse_intent:   () => "Full inventory at boomrome.com/properties . Or tell me your dates and budget and I'll match you here .",
+  };
+
+  // Single phrase call. 2.5s timeout. Falls back to PHRASE_FALLBACKS on miss.
+  async function callPhrase(kind, context = {}) {
+    const fb = PHRASE_FALLBACKS[kind] ? PHRASE_FALLBACKS[kind](context) : '';
+    const fallbackResult = (typeof fb === 'string')
+      ? { text: fb, extracted: null }
+      : { text: fb?.phrasedAck || '', extracted: fb };
+    try {
+      const ac = new AbortController();
+      const timer = setTimeout(() => ac.abort(), 2500);
+      const res = await fetch('/api/concierge-phrase', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind, context, sessionId: SESSION_ID }),
+        signal: ac.signal,
+      });
+      clearTimeout(timer);
+      if (!res.ok) return fallbackResult;
+      const data = await res.json();
+      if (window.__BOOM__) window.__BOOM__.lastTokens = data.tokens_used || null;
+      return {
+        text: data.text || fallbackResult.text,
+        extracted: data.extracted || fallbackResult.extracted,
+      };
+    } catch {
+      return fallbackResult;
+    }
+  }
+
+  // Helpers: is this state's field captured? apply LLM-extracted value to lead.
+  function isFieldCaptured(field) {
+    if (field === '__contact__') return !!(lead.email || lead.phone);
+    if (field === 'has_guarantor') return lead.has_guarantor !== null && lead.has_guarantor !== undefined;
+    return lead[field] !== null && lead[field] !== undefined && lead[field] !== '';
+  }
+  function applyExtracted(field, ex) {
+    if (!ex) return;
+    if (field === '__contact__') {
+      if (ex.name)  lead.name  = ex.name;
+      if (ex.email) lead.email = ex.email;
+      if (ex.phone) lead.phone = ex.phone;
+      return;
+    }
+    if (ex.value !== null && ex.value !== undefined) lead[field] = ex.value;
+  }
+
+  // Service triggers — fire deterministically when their conditions are met,
+  // BEFORE the next state's question, non-blocking.
+  function shouldFireVV()  { return !lead.services_shown.includes('VV')  && (lead.timing === 'later' || lead.is_remote); }
+  function shouldFireDAS() { return !lead.services_shown.includes('DAS') && ['student','researcher','corporate'].includes(lead.profile || ''); }
+
+  let busy = false;
+
+  // Enter a state. Updates header, fires pre-state services if applicable,
+  // renders chips, asks the question via callPhrase.
+  async function enterState(name) {
+    if (!name) return;
+    lead.currentState = name;
+    if (STATE_TABLE[name]) lead.stage = STATE_TABLE[name].headerStage;
+    persist();
+    updateHeader();
+    updateOperator();
+    markStaleCards(); // fade service cards that are >=2 stages old
+    // Analytics: fire-and-forget, never blocks the UI.
+    fireIntegration('state.transition', { state: name });
+
+    if (name === 'MATCH')              return enterMatch();
+    if (name === 'ROUTE')              return enterRoute();
+    if (name === 'ROUTE_NO_LISTINGS')  return enterRouteNoListings();
+    if (name === 'CLOSE' || name === 'DECLINED') return;
+
+    const cfg = STATE_TABLE[name];
+    if (!cfg) return;
+
+    // Pre-state services (non-blocking — slide in beneath the conversation)
+    if (name === 'DURATION' && shouldFireVV())  addServiceCard('VV');
+    if (name === 'ZONE'     && shouldFireDAS()) addServiceCard('DAS');
+
+    // Render chips immediately so the visitor sees options while we wait for phrasing.
+    renderChips(suggestChipsForState(cfg.chipKey, false));
+
+    // Phrase + type the question.
+    const result = await callPhrase(cfg.askKind, { lead });
+    if (!document.body.classList.contains('active')) document.body.classList.add('active');
+    document.body.classList.remove('has-return');
+    const shell = addBotShell();
+    setTimeout(() => typeInto(shell, result.text, () => {
+      finalizeBot(shell, result.text);
+      armIdleNudge();
+    }), 300);
+  }
+
+  async function enterMatch() {
+    let matches = [];
+    try {
+      const res = await fetch('/api/listings-match', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          zone: lead.zone || '',
+          budget_max: typeof lead.budget_max === 'number' ? lead.budget_max : null,
+          duration_months: typeof lead.duration_months === 'number' ? lead.duration_months : null,
+          profile: lead.profile || '',
+          sessionId: SESSION_ID,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.matches)) matches = data.matches;
+      }
+    } catch { /* network error → 0 matches → routes to PFS path */ }
+
+    serverListings = matches;
+    fireIntegration('match.results', {
+      count: matches.length,
+      zone: lead.zone || '',
+      budget: typeof lead.budget_max === 'number' ? lead.budget_max : 0,
+    });
+
+    if (matches.length === 0) {
+      const ack = await callPhrase('ack_no_listings', { lead });
+      const shell = addBotShell();
+      setTimeout(() => typeInto(shell, ack.text, () => {
+        finalizeBot(shell, ack.text);
+        addServiceCard('PFS');
+        setTimeout(() => addAlertSubscribeCard(), 600);
+        enterRouteNoListings();
+      }), 300);
+      return;
+    }
+
+    const ack = await callPhrase('ack_listings', { lead, count: matches.length });
+    const shell = addBotShell();
+    setTimeout(() => typeInto(shell, ack.text, () => {
+      finalizeBot(shell, ack.text);
+      addListingCards(matches);
+      if ((lead.score || 0) >= 50 && !lead.recent_signed_shown) {
+        setTimeout(() => addRecentSignedCard(), 1200);
+      }
+      enterRoute();
+    }), 300);
+  }
+
+  function enterRoute() {
+    recalcScore();
+    updateHeader();
+    updateOperator();
+    const sc = lead.score || 0;
+    let kind;
+    if      (sc >= 80) kind = 'talk';
+    else if (sc >= 50) kind = 'book';
+    else               kind = 'intake';
+    setTimeout(() => addActionCard(kind), 800);
+    lead.currentState = 'CLOSE';
+    persist();
+    if (sc >= 80 && lead.routing !== 'hot') {
+      lead.routing = 'hot';
+      fireIntegration('lead.hot', { lead: { ...lead } });
+      persist();
+    }
+    busy = false;
+  }
+
+  function enterRouteNoListings() {
+    recalcScore();
+    updateHeader();
+    updateOperator();
+    const sc = lead.score || 0;
+    if (sc >= 60) {
+      // Warm enough for a direct human handoff even without listings.
+      setTimeout(() => addActionCard('talk'), 1200);
+    }
+    // sc < 60: PFS card already showing; alert subscribe handles the rest.
+    lead.currentState = 'CLOSE';
+    persist();
+    busy = false;
+  }
+
+  function enterDecline(reason, replyText) {
+    lead.declined_reason = reason;
+    lead.currentState = 'DECLINED';
+    persist();
+    updateHeader();
+    updateOperator();
+    const shell = addBotShell(true);
+    setTimeout(() => typeInto(shell, replyText, () => {
+      finalizeBot(shell, replyText);
+      fireIntegration('lead.declined', { lead: { ...lead }, reason });
+      renderChips(suggestChipsForState(null, true));
+      busy = false;
+    }), 700);
+  }
+
+  // Surprise-me handler — page picks a zone from real inventory and advances.
+  function runSurpriseMe() {
+    const z = (serverZones && serverZones.length)
+      ? serverZones.find(s => !s.includes('/')) || serverZones[0]
+      : 'Trastevere';
+    addUserMsg(z + ' — surprise me .');
+    lead.zone = z;
+    persist();
+    recalcScore();
+    updateHeader();
+    enterState(STATE_TABLE.ZONE.next);
+  }
+
+  // Inline contact mini-form (CONTACT state, "Yes, let's begin" path).
+  function addContactMiniForm() {
+    if (document.querySelector('.contact-mini-form')) return;
+    const card = document.createElement('div');
+    card.className = 'contact-mini-form';
+    card.innerHTML = `
+      <div class="cf-eyebrow">Lock it in</div>
+      <input class="cf-input" id="cf-name"  type="text"  placeholder="Full name" autocomplete="name" />
+      <input class="cf-input" id="cf-email" type="email" placeholder="Email" autocomplete="email" />
+      <input class="cf-input" id="cf-phone" type="tel"   placeholder="WhatsApp / phone" autocomplete="tel" />
+      <button class="cf-submit" id="cf-submit">Send</button>`;
+    conv.appendChild(card);
+    const submit = () => {
+      const name  = document.getElementById('cf-name').value.trim();
+      const email = document.getElementById('cf-email').value.trim();
+      const phone = document.getElementById('cf-phone').value.trim();
+      if (!email && !phone) return;
+      if (name)  lead.name  = name;
+      if (email) lead.email = email;
+      if (phone) lead.phone = phone;
+      persist();
+      recalcScore();
+      updateHeader();
+      fireIntegration('lead.captured', { fieldsCaptured: ['name','email','phone'].filter(k => lead[k]) });
+      addUserMsg([name, email, phone].filter(Boolean).join(' · '));
+      card.remove();
+      enterState('MATCH');
+    };
+    card.querySelector('#cf-submit').addEventListener('click', submit);
+    card.querySelectorAll('.cf-input').forEach(el => {
+      el.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
+    });
+    bindCursorHover(card.querySelector('#cf-submit'));
+    setTimeout(() => card.querySelector('#cf-name').focus(), 100);
+    scrollToBottom();
+  }
+
+  // Single entry-point for chip clicks AND composer submissions.
+  async function handleUserInput(text, source = 'free') {
+    if (busy) return;
+    busy = true;
+    text = text.trim().slice(0, MAX_INPUT_LEN);
+    if (!text) { busy = false; return; }
+
+    if (!document.body.classList.contains('active')) document.body.classList.add('active');
+    document.body.classList.remove('has-return');
+
+    addUserMsg(text);
+    lead.history.push({ role: 'user', content: text });
+
+    const beforeState = lead.currentState;
+    const beforeFacts = {};
+    for (const k of KEY_FIELDS) beforeFacts[k] = lead[k];
+    const hadGuarantorBefore = lead.has_guarantor;
+    const hadContactBefore = !!(lead.email || lead.phone);
+
+    // Page-side regex pre-extraction (cheap, deterministic, multi-field).
+    const facts = extractFacts(text);
+
+    // Greeting at TIMING with no timing yet → soft no-op. The visitor's bubble
+    // shows their "hello"; the bot's TIMING question is already on screen above
+    // it; we just re-render the chips. No free_response loop, no LLM call.
+    if (facts._isGreeting && lead.currentState === 'TIMING' && !lead.timing) {
+      delete facts._isGreeting;
+      renderChips(suggestChipsForState('timing', false));
+      busy = false;
+      return;
+    }
+    delete facts._isGreeting; // never apply this to lead
+
+    Object.assign(lead, facts);
+
+    // Decline gates — page-level. Fires at every input.
+    const gate = checkDeclineGates(text);
+
+    // Shield is reactive-only (iter 4 product correction). The state machine
+    // no longer asks about guarantor; SHIELD surfaces ONLY when the visitor
+    // mentions guarantor/cosigner in free text and the regex caught a
+    // no-guarantor signal in THIS turn.
+    const guarantorJustCaptured = (hadGuarantorBefore !== false) && (lead.has_guarantor === false);
+    if (guarantorJustCaptured && !lead.services_shown.includes('SHIELD')) {
+      addServiceCard('SHIELD');
+    }
+
+    // Newly-captured contact fields → conversion event (once).
+    if (!hadContactBefore && (lead.email || lead.phone)) {
+      fireIntegration('lead.captured', { fieldsCaptured: ['name','email','phone'].filter(k => lead[k]) });
+    }
+
+    recalcScore();
+    updateHeader();
+    updateOperator();
+    persist();
+    clearChips();
+
+    if (gate.decline) {
+      busy = false;
+      return enterDecline(gate.reason || 'declined', gate.reply);
+    }
+
+    // Multi-field capture: ack with ONE phrase, then auto-advance.
+    const newlyCaptured = KEY_FIELDS.filter(k => {
+      const before = beforeFacts[k];
+      const after = lead[k];
+      const wasUnset = (before === null || before === undefined || before === '');
+      const isSet    = (after  !== null && after  !== undefined && after  !== '');
+      return wasUnset && isSet;
+    });
+    if (newlyCaptured.length >= 2) {
+      const ack = await callPhrase('ack_multi_capture', { lead, captured: newlyCaptured });
+      const shell = addBotShell();
+      setTimeout(() => typeInto(shell, ack.text, () => {
+        finalizeBot(shell, ack.text);
+        busy = false;
+        advanceFromMultiCapture();
+      }), 300);
+      return;
+    }
+
+    // Single state-aware handling.
+    const cfg = STATE_TABLE[beforeState];
+    if (cfg && isFieldCaptured(cfg.field)) {
+      // Regex captured the current field; advance silently to next state.
+      busy = false;
+      return enterState(cfg.next);
+    }
+
+    // Field not regex-captured: try LLM extract for current state's field.
+    if (cfg && cfg.extractKind) {
+      const ex = await callPhrase(cfg.extractKind, { lead, userText: text });
+      if (ex.extracted) {
+        applyExtracted(cfg.field, ex.extracted);
+        if (isFieldCaptured(cfg.field)) {
+          // (Shield trigger lives in the regex-capture block above; LLM
+          // extract path doesn't fire SHIELD because no extract_guarantor
+          // kind exists after the iter-4 product correction.)
+          recalcScore();
+          updateHeader();
+          persist();
+          const ackText = ex.text || '';
+          if (ackText) {
+            const shell = addBotShell();
+            setTimeout(() => typeInto(shell, ackText, () => {
+              finalizeBot(shell, ackText);
+              busy = false;
+              enterState(cfg.next);
+            }), 300);
+          } else {
+            busy = false;
+            enterState(cfg.next);
+          }
+          return;
+        }
+      }
+    }
+
+    // Browse intent: "show me apartments" / "what other flats" → route to
+    // the full inventory page rather than fall to free_response.
+    if (lead.wants_browse) {
+      const ack = await callPhrase('ack_browse_intent', { lead });
+      const shell = addBotShell();
+      setTimeout(() => typeInto(shell, ack.text, () => {
+        finalizeBot(shell, ack.text);
+        // Re-render chips for current state — visitor can keep going here too.
+        renderChips(suggestChipsForState(cfg?.chipKey || 'open', false));
+        // Reset flag so subsequent turns don't loop on the same intent.
+        lead.wants_browse = false;
+        persist();
+        busy = false;
+        armIdleNudge();
+      }), 300);
+      return;
+    }
+
+    // Fallback: free-text not pertaining to the current field.
+    const free = await callPhrase('free_response', { lead, userText: text, currentField: cfg?.field });
+    // Loop-detection: if free_response fires twice within 60s, bail with a
+    // graceful exit instead of a third generic fallback. Surfaces the talk
+    // action card so the visitor has a real path forward.
+    const FALLBACK_PREFIX = "Pick one of the chips below";
+    const isFallback = (free.text || '').startsWith(FALLBACK_PREFIX);
+    const now = Date.now();
+    const tooSoon = isFallback && (now - (lead.lastFallbackTs || 0) < 60_000);
+    if (tooSoon) {
+      const escapeMsg = "I'm here when you're ready . Tell me your timing or budget or zone — or message Valentino directly .";
+      const shell = addBotShell();
+      setTimeout(() => typeInto(shell, escapeMsg, () => {
+        finalizeBot(shell, escapeMsg);
+        setTimeout(() => addActionCard('talk'), 600);
+        renderChips(suggestChipsForState(cfg?.chipKey || 'open', false));
+        lead.lastFallbackTs = now;
+        persist();
+        busy = false;
+        armIdleNudge();
+      }), 300);
+      return;
+    }
+    if (isFallback) { lead.lastFallbackTs = now; persist(); }
+    const shell = addBotShell();
+    setTimeout(() => typeInto(shell, free.text, () => {
+      finalizeBot(shell, free.text);
+      // Re-render chips for current state — visitor still needs to answer.
+      renderChips(suggestChipsForState(cfg?.chipKey || 'open', false));
+      busy = false;
+      armIdleNudge();
+    }), 300);
+  }
+
+  function advanceFromMultiCapture() {
+    if (!lead.timing)                                                return enterState('TIMING');
+    if (lead.duration_months === null || lead.duration_months === undefined || lead.duration_months === '') return enterState('DURATION');
+    if (lead.budget_max === null || lead.budget_max === undefined)   return enterState('BUDGET');
+    if (!lead.profile)                                               return enterState('PROFILE');
+    if (!lead.zone)                                                  return enterState('ZONE');
+    if (!lead.email && !lead.phone)                                  return enterState('CONTACT');
+    return enterState('MATCH');
+  }
+
+  /* ═════ Actions ═════ */
+
+  // Build the standard query-param payload — used by /book and /portal handoffs.
+  function leadParams(extra) {
+    const p = new URLSearchParams();
+    p.set("sessionId", SESSION_ID);
+    if (lead.timing)          p.set("timing",   lead.timing);
+    if (lead.duration_months) p.set("duration", String(lead.duration_months));
+    if (lead.budget_max)      p.set("budget",   String(lead.budget_max));
+    if (lead.profile)         p.set("profile",  lead.profile);
+    if (lead.zone)            p.set("zone",     lead.zone);
+    if (lead.name)            p.set("name",     lead.name);
+    if (lead.email)           p.set("email",    lead.email);
+    if (lead.phone)           p.set("phone",    lead.phone);
+    if (extra) for (const [k, v] of Object.entries(extra)) p.set(k, String(v));
+    return p;
+  }
+
+  // viewing.requested — log the intent, then route to /book where the user
+  // picks date/time. The Apple Wallet pass mints AFTER /book confirms.
+  function openBooking(listing) {
+    const extras = {};
+    if (listing) {
+      if (listing.id)                        extras.listing      = listing.id;
+      if (listing.zone)                      extras.listingZone  = listing.zone;
+      if (typeof listing.price === "number") extras.price        = listing.price;
+      if (listing.type)                      extras.listingType  = listing.type;
+    }
+    fireIntegration("viewing.requested", { lead: { ...lead }, listing });
+    window.location.href = `/book?${leadParams(extras).toString()}`;
+  }
+
+  function openIntake() {
+    fireIntegration("intake.opened", { lead: { ...lead } });
+    window.location.href = `/portal.html?intake=1&${leadParams().toString()}`;
+  }
+
+  // Hot-lead direct line — opens WhatsApp with the conversation summary
+  // pre-filled. Routed only when score >= 80 per the voice prompt.
+  function talkValentino() {
+    fireIntegration("lead.talk_valentino", { lead: { ...lead } });
+    const lines = ["Hello Valentino, I just talked with the BOOM concierge.", ""];
+    if (lead.timing)          lines.push("Arrival: " + lead.timing);
+    if (lead.duration_months) lines.push("Stay: " + lead.duration_months + " months");
+    if (lead.budget_max)      lines.push("Budget: €" + lead.budget_max + "/mo");
+    if (lead.profile)         lines.push("Profile: " + lead.profile);
+    lines.push("Zone: " + (lead.zone || "open"));
+    if (lead.has_guarantor === false) lines.push("Guarantor: no — need Shield");
+    else if (lead.has_guarantor === true) lines.push("Guarantor: yes");
+    lines.push("");
+    lines.push("Session: " + SESSION_ID);
+    lines.push("");
+    lines.push("I'm ready to talk.");
+    const url = "https://wa.me/393313251961?text=" + encodeURIComponent(lines.join("\n"));
+    window.open(url, "_blank");
+  }
+
+  /* ═════ Composer ═════ */
+
+  const inputEl = document.getElementById("composer-input");
+  const sendBtn = document.getElementById("send");
+  const micBtn  = document.getElementById("mic");
+
+  function syncSendBtn() {
+    if (inputEl.value.trim()) sendBtn.classList.remove("idle");
+    else sendBtn.classList.add("idle");
+  }
+  inputEl.addEventListener("input", syncSendBtn);
+  inputEl.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); submit(); } });
+  sendBtn.addEventListener("click", submit);
+  function submit() {
+    const v = inputEl.value.trim();
+    if (!v) return;
+    inputEl.value = "";
+    syncSendBtn();
+    handleUserInput(v, 'composer');
+  }
+
+  let recognition = null;
+  if ("webkitSpeechRecognition" in window || "SpeechRecognition" in window) {
+    const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognition = new Rec();
+    recognition.lang = "en-US";
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    recognition.onresult = (e) => {
+      const t = e.results[0][0].transcript;
+      inputEl.value = t; syncSendBtn(); submit();
+    };
+    recognition.onend = () => micBtn.classList.remove("active");
+  } else { micBtn.style.display = "none"; }
+  micBtn.addEventListener("click", () => {
+    if (!recognition) return;
+    if (micBtn.classList.contains("active")) {
+      recognition.stop(); micBtn.classList.remove("active");
+    } else {
+      micBtn.classList.add("active");
+      try { recognition.start(); } catch {}
+    }
+  });
+
+  /* ═════ Idle nudge ═════ */
+
+  let idleTimer = null;
+  let nudgeShown = false;
+  function armIdleNudge() {
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => {
+      if (nudgeShown || busy || !document.body.classList.contains("active")) return;
+      const nudge = document.createElement("div");
+      nudge.className = "nudge";
+      nudge.textContent = "I'm here when you're ready.";
+      conv.appendChild(nudge);
+      scrollToBottom();
+      nudgeShown = true;
+    }, 35000);
+  }
+  ["click", "keypress", "scroll", "input"].forEach(ev =>
+    document.addEventListener(ev, () => { clearTimeout(idleTimer); armIdleNudge(); })
+  );
+
+  /* ═════ Lang + reset ═════ */
+
+  document.getElementById("lang").addEventListener("click", () => {
+    const el = document.getElementById("lang");
+    const isIT = el.dataset.lang === "it";
+    if (isIT) {
+      el.textContent = "EN · IT"; el.dataset.lang = "en";
+      inputEl.placeholder = "Tell me when you're arriving…";
+      if (recognition) recognition.lang = "en-US";
+    } else {
+      el.textContent = "IT · EN"; el.dataset.lang = "it";
+      inputEl.placeholder = "Dimmi quando arrivi…";
+      if (recognition) recognition.lang = "it-IT";
+    }
+  });
+  document.getElementById("reset").addEventListener("click", () => {
+    if (!confirm("Start a new conversation?")) return;
+    localStorage.removeItem(STORAGE_KEY);
+    location.reload();
+  });
+
+  // Persistent escape-hatch — visible from page load.
+  document.getElementById("talk-btn").addEventListener("click", () => talkValentino());
+  bindCursorHover(document.getElementById("talk-btn"));
+
+  /* ═════ Manifesto + wallet ═════ */
+
+  const manifesto = document.getElementById("manifesto");
+  document.getElementById("open-manifesto").addEventListener("click", () => manifesto.classList.add("open"));
+  document.getElementById("close-manifesto").addEventListener("click", () => manifesto.classList.remove("open"));
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape") {
+      manifesto.classList.remove("open");
+      document.getElementById("pass-stage").classList.remove("show");
+    }
+  });
+
+  function spawnDust() {
+    const dust = document.getElementById("pass-dust");
+    dust.innerHTML = "";
+    const N = 18;
+    for (let i = 0; i < N; i++) {
+      const speck = document.createElement("div");
+      speck.className = "speck";
+      const angle = (i / N) * Math.PI * 2 + Math.random() * 0.4;
+      const dist = 90 + Math.random() * 130;
+      const dx = Math.cos(angle) * dist;
+      const dy = Math.sin(angle) * dist;
+      const cx2 = 50 + (Math.random() - 0.5) * 30;
+      const cy2 = 50 + (Math.random() - 0.5) * 30;
+      speck.style.left = cx2 + "%";
+      speck.style.top  = cy2 + "%";
+      speck.style.setProperty("--dx", dx + "px");
+      speck.style.setProperty("--dy", dy + "px");
+      speck.style.animationDelay = (Math.random() * 0.4) + "s";
+      dust.appendChild(speck);
+    }
+  }
+  function showPass(listing) {
+    const stage = document.getElementById("pass-stage");
+    const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+    document.getElementById("pass-date").textContent =
+      new Intl.DateTimeFormat("en-GB", { timeZone: ROME_TZ, day: "2-digit", month: "short" }).format(tomorrow);
+    document.getElementById("pass-time").textContent = "11:00";
+    document.getElementById("pass-id").textContent =
+      "BR-" + Math.random().toString(36).slice(2, 8).toUpperCase();
+    if (listing) {
+      document.getElementById("pass-property").textContent = listing.type + " · " + listing.zone;
+      document.getElementById("pass-zone").textContent = NBHD_DATA[listing.zone]?.zone || listing.zone;
+    } else if (lead.zone) {
+      document.getElementById("pass-property").textContent = "Studio · " + lead.zone;
+      document.getElementById("pass-zone").textContent = NBHD_DATA[lead.zone]?.zone || lead.zone;
+    }
+    spawnDust();
+    stage.classList.add("show");
+  }
+  document.getElementById("pass-dismiss").addEventListener("click", () =>
+    document.getElementById("pass-stage").classList.remove("show"));
+
+  /* ═════ Opening — bootstraps the state machine into TIMING ═════ */
+
+  function askOpening() {
+    // Time-keyed greeting (page-side, deterministic) + state-machine entry.
+    // Calls enterState('TIMING') after a brief delay so the orb collapses
+    // animation has time to settle.
+    if (!document.body.classList.contains('active')) document.body.classList.add('active');
+    document.body.classList.remove('has-return');
+    setTimeout(() => enterState('TIMING'), 400);
+  }
+
+  if (!isReturning) {
+    setTimeout(() => askOpening(), 1800);
+  }
+
+  // Fetch recently-signed AND distinct available zones once at boot.
+  // recent-signed populates the peer-proof card; zones populates the ZONE
+  // state's chip list with real-inventory options alongside the marquee zones.
+  (async () => {
+    try {
+      const r = await fetch("/api/recent-signed");
+      if (r.ok) {
+        const data = await r.json();
+        if (Array.isArray(data.items)) serverRecentSigned = data.items;
+      }
+    } catch { /* non-fatal */ }
+  })();
+  (async () => {
+    try {
+      const r = await fetch("/api/listings-zones");
+      if (r.ok) {
+        const data = await r.json();
+        if (Array.isArray(data.zones)) serverZones = data.zones;
+      }
+    } catch { /* non-fatal */ }
+  })();
+
+  /* ═════ Boot ═════ */
+  syncSendBtn();
+  updateHeader();
+  updateOperator();
+  setTimeout(() => {
+    if (matchMedia("(hover: hover) and (pointer: fine)").matches && !isReturning) {
+      inputEl.focus();
+    }
+  }, 2200);
+
+  window.__BOOM__ = { lead, ask };
+
+})();
+</script>
+</body>
+</html>

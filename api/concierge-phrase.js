@@ -27,24 +27,32 @@ const VALID_KINDS = new Set([
   'ask_timing','ask_duration','ask_budget','ask_profile','ask_zone','ask_contact',
   'extract_timing','extract_duration','extract_budget','extract_profile','extract_zone','extract_contact',
   'decline_short','decline_budget','decline_geo',
-  'ack_listings','ack_no_listings','ack_multi_capture',
+  'ack_listings','ack_no_listings','ack_multi_capture','ack_browse_intent',
   'free_response',
 ]);
 
 // Server-side guard: catch model drift where it talks to a developer instead
-// of the visitor. If any of these patterns appear in free_response output,
-// substitute the safe fallback. Defensive layer only — the prompt change
-// should make this rare, but production safety > theory.
+// of the visitor. NARROWED iter 5 — prior version had patterns that
+// false-positive on legitimate visitor questions like "what other apartments
+// you have available". These patterns now match ONLY actual developer-talk.
 const BAD_PATTERNS = [
-  /^I (need|require) (the |your |a )?visitor/i,
-  /\boff[- ]?topic\b/i,
-  /could you (clarify|elaborate|specify)/i,
-  /what did (they|the visitor) (write|say|reply|tell)/i,
-  /\bcontext\b[^.!?]{0,40}\bmessage\b/i,
-  /\bdevelopers?\b/i,
-  /\bsystem\b[^.!?]{0,40}\bmessage\b/i,
+  /^I (need|require) (the |your |a )?visitor/i,             // "I need the visitor's actual message"
+  /\boff[- ]?topic\b/i,                                      // meta-language about topicality
+  /^(could you |please )?clarify\b/i,                        // model asks visitor to clarify
+  /what did (they|the visitor) (write|say|reply|tell)/i,     // model talks ABOUT the visitor as 3rd party
+  /\bsystem (prompt|message|instructions?)\b/i,              // explicit system-talk
+  /\bdeveloper (to|will|should|needs|provide)/i,             // developer-talk with verb
+  /^I('m| am) (an? )?AI\b/i,                                 // model identifies as AI (drift)
 ];
 const FREE_RESPONSE_SAFE_FALLBACK = "Pick one of the chips below to keep us moving .";
+
+// Strip any [TOKEN] patterns the model might emit — universal-safe filter
+// runs on every response before BAD_PATTERNS check. Even if the model
+// hallucinates legacy tokens, no visitor sees them.
+function stripTokens(s) {
+  if (!s) return s;
+  return s.replace(/\[(ASK|SERVICE|BOOK_VIEWING|TALK_VALENTINO|OPEN_INTAKE|NBHD|LISTINGS)[^\]]*\]/g, '').trim();
+}
 
 const MAX_TOKENS_ASK = 80;
 const MAX_TOKENS_EXTRACT = 200;
@@ -149,6 +157,8 @@ function buildKindInstruction(kind, context) {
       return `TASK: ack_no_listings\nThe page found zero matches in ${zone || "the visitor's zone"}. Phrase ONE short sentence acknowledging the gap, inviting off-market hunt. Max 12 words. Output the sentence only.`;
     case 'ack_multi_capture':
       return `TASK: ack_multi_capture\nThe visitor gave us multiple fields at once. Recap: "${recap}". Phrase ONE Valentino-voice sentence in this exact rhythm: "Got it — <recap> . Looking now ." Output the sentence only.`;
+    case 'ack_browse_intent':
+      return `TASK: ack_browse_intent\nThe visitor wants to browse the inventory rather than be qualified. Phrase ONE Valentino-voice sentence pointing them to boomrome.com/properties as the full inventory, while inviting them to share dates+budget here for a curated match. Max 18 words. Output the sentence only.`;
 
     case 'free_response':
       return `TASK: free_response
@@ -310,6 +320,15 @@ export default async function handler(req, res) {
       text = '';
       extracted = null;
     }
+  }
+
+  // Universal token strip — runs on every response so legacy tokens
+  // ([ASK:X], [SERVICE:X], etc.) never leak to visitors even if the model
+  // hallucinates them.
+  if (text) {
+    const stripped = stripTokens(text);
+    if (stripped !== text) log('info', { event: 'tokens_stripped', kind });
+    text = stripped;
   }
 
   // Defensive guard for free_response — if the model leaks meta-instructions

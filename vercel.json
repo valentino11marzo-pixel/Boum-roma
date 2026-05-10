@@ -12,6 +12,7 @@
     { "source": "/blog", "destination": "/blog.html" },
     { "source": "/faq", "destination": "/faq.html" },
     { "source": "/concierge", "destination": "/concierge.html" },
+    { "source": "/chat-concierge", "destination": "/chat-concierge.html" },
     { "source": "/privacy", "destination": "/privacy.html" },
     { "source": "/terms", "destination": "/terms.html" },
     { "source": "/how-it-works", "destination": "/how-it-works.html" },
