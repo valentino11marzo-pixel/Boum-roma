@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>BOOM Rome — Concierge</title>
+<title>BOOM Roma · Chat Concierge</title>
 <meta name="description" content="A concierge for those who arrive in Rome with intent." />
 <meta name="theme-color" content="#08080A" />
 
@@ -1414,8 +1414,10 @@
 
 (() => {
   const ROME_TZ = "Europe/Rome";
-  const STORAGE_KEY = "boom.concierge.v5";
-  const SESSION_KEY = "boom.concierge.sessionId";
+  // Distinct keys from the legacy /concierge sibling — prevents stale state
+  // (e.g., GUARANTOR which no longer exists) from polluting this page.
+  const STORAGE_KEY = "boom.chat-concierge.v1";
+  const SESSION_KEY = "boom.chat-concierge.sessionId";
   const MAX_TURNS = 12;
   const MAX_INPUT_LEN = 500;
   const ADMIN_MODE = new URLSearchParams(location.search).get("admin") === "1";
@@ -1460,24 +1462,42 @@
     services_shown: [],         // ← never propose same service twice
     listingsRenderedCount: 0,   // ← session-cumulative count; gates close action
     currentState: 'INTRO',      // ← state machine cursor
+    page: 'chat-concierge',     // ← analytics — distinguishes from /concierge sibling
+    lastFallbackTs: 0,          // ← graceful-exit detection if free_response loops
+    wants_browse: false,        // ← browse-intent flag (regex-set)
     started_at: Date.now(),
     last_touched: Date.now(),
     history: []
   };
+
+  // Whitelist of states valid for restore. If localStorage contains a
+  // currentState outside this set (legacy GUARANTOR, future renames, etc.),
+  // we wipe and start fresh — the bootstrap regression that broke /concierge.
+  const VALID_STATES = new Set([
+    'INTRO', 'TIMING', 'DURATION', 'BUDGET', 'PROFILE', 'ZONE', 'CONTACT',
+    'MATCH', 'ROUTE', 'ROUTE_NO_LISTINGS', 'CLOSE', 'DECLINED'
+  ]);
 
   /* Restore */
   let isReturning = false;
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
     if (saved && saved.history && saved.history.length >= 2) {
-      // Returning visitor with real conversation
       const hoursSince = (Date.now() - (saved.last_touched || 0)) / 3_600_000;
-      if (hoursSince < 720) { // within 30 days
+      const stateValid = !saved.currentState || VALID_STATES.has(saved.currentState);
+      const stageValid = typeof saved.stage !== 'number' || (saved.stage >= 0 && saved.stage <= 6);
+      if (hoursSince < 720 && stateValid && stageValid) {
+        // Within 30 days AND schema-compatible
         Object.assign(lead, saved);
         isReturning = true;
+      } else {
+        // Stale or schema-incompatible — wipe and start fresh.
+        try { localStorage.removeItem(STORAGE_KEY); } catch {}
       }
     }
-  } catch {}
+  } catch {
+    try { localStorage.removeItem(STORAGE_KEY); } catch {}
+  }
 
   function persist() {
     lead.last_touched = Date.now();
@@ -1692,6 +1712,20 @@
     if (emailMatch) updates.email = emailMatch[0];
     const phoneMatch = text.match(/(\+?\d[\d\s\-]{8,})/);
     if (phoneMatch) updates.phone = phoneMatch[0].trim();
+
+    // Browse-intent: visitor wants to see the full inventory rather than be
+    // qualified. Routes to /properties via ack_browse_intent in handleUserInput.
+    if (/\b(show|see|view|browse|list)\b.{0,20}\b(apartment|apartments|flat|flats|propert|listing|inventor|option)/i.test(t)
+        || /\bwhat\b.{0,15}\b(apartment|flat|propert|listing|inventor|option|other|else)/i.test(t)
+        || /\b(any|got)\b.{0,12}\b(propert|apartment|flat|listing|inventor)/i.test(t)) {
+      updates.wants_browse = true;
+    }
+
+    // Greeting at TIMING — soft no-op, page handles re-rendering chips so
+    // the visitor's "hello" doesn't trigger a free_response loop.
+    if (/^\s*(hi|hello|hey|yo|ciao|salve|buongiorno|buonasera|buonanotte)\b[\s.!?]*$/i.test(text.trim())) {
+      updates._isGreeting = true;
+    }
 
     return updates;
   }
@@ -2014,7 +2048,9 @@
   function renderInlineMd(s) {
     return s
       .replace(/\*([^*\n]+)\*/g, "<em>$1</em>")
-      .replace(/_([^_\n]+)_/g, "<em>$1</em>");
+      .replace(/_([^_\n]+)_/g, "<em>$1</em>")
+      // Auto-link bare boomrome.com URLs (e.g., the ack_browse_intent fallback)
+      .replace(/\b(boomrome\.com\/[a-z0-9\-/]+)/gi, '<a href="https://$1" target="_blank" rel="noopener" style="color:var(--gold);text-decoration:underline;text-underline-offset:3px">$1</a>');
   }
   function typeInto(node, text, done) {
     node.innerHTML = "";
@@ -2171,8 +2207,19 @@
     const primary = card.querySelectorAll(".btn")[0];
     const secondary = card.querySelectorAll(".btn")[1];
     primary.addEventListener("click", () => {
+      // Direct WhatsApp handoff — no chat round-trip, no LLM call. Service
+      // engagement deserves a real human, not another bot turn.
       fireIntegration("service.engaged", { service: key, lead: { ...lead } });
-      handleUserInput("Yes, engage " + s.eyebrow + ".", 'service-cta');
+      const ctx = [];
+      if (lead.timing)          ctx.push(lead.timing);
+      if (lead.duration_months) ctx.push(lead.duration_months + " months");
+      if (lead.budget_max)      ctx.push("€" + lead.budget_max);
+      if (lead.zone)            ctx.push(lead.zone);
+      const lines = [`Hi — I want to engage ${s.eyebrow} (${s.price}).`];
+      if (ctx.length) lines.push(`My situation: ${ctx.join(', ')}.`);
+      lines.push(`Session: ${SESSION_ID}.`);
+      const url = "https://wa.me/393313251961?text=" + encodeURIComponent(lines.join("\n"));
+      window.open(url, "_blank");
     });
     // Inline accordion: toggle .expanded on the card. No chat loop, no LLM
     // call — the details content is local data on SERVICE_DATA[key].details.
@@ -2378,6 +2425,7 @@
       return `Got it — ${parts.join(', ')} . Looking now .`;
     },
     free_response:       () => "Pick one of the chips below to keep us moving .",
+    ack_browse_intent:   () => "Full inventory at boomrome.com/properties . Or tell me your dates and budget and I'll match you here .",
   };
 
   // Single phrase call. 2.5s timeout. Falls back to PHRASE_FALLBACKS on miss.
@@ -2643,6 +2691,18 @@
 
     // Page-side regex pre-extraction (cheap, deterministic, multi-field).
     const facts = extractFacts(text);
+
+    // Greeting at TIMING with no timing yet → soft no-op. The visitor's bubble
+    // shows their "hello"; the bot's TIMING question is already on screen above
+    // it; we just re-render the chips. No free_response loop, no LLM call.
+    if (facts._isGreeting && lead.currentState === 'TIMING' && !lead.timing) {
+      delete facts._isGreeting;
+      renderChips(suggestChipsForState('timing', false));
+      busy = false;
+      return;
+    }
+    delete facts._isGreeting; // never apply this to lead
+
     Object.assign(lead, facts);
 
     // Decline gates — page-level. Fires at every input.
@@ -2729,8 +2789,48 @@
       }
     }
 
+    // Browse intent: "show me apartments" / "what other flats" → route to
+    // the full inventory page rather than fall to free_response.
+    if (lead.wants_browse) {
+      const ack = await callPhrase('ack_browse_intent', { lead });
+      const shell = addBotShell();
+      setTimeout(() => typeInto(shell, ack.text, () => {
+        finalizeBot(shell, ack.text);
+        // Re-render chips for current state — visitor can keep going here too.
+        renderChips(suggestChipsForState(cfg?.chipKey || 'open', false));
+        // Reset flag so subsequent turns don't loop on the same intent.
+        lead.wants_browse = false;
+        persist();
+        busy = false;
+        armIdleNudge();
+      }), 300);
+      return;
+    }
+
     // Fallback: free-text not pertaining to the current field.
     const free = await callPhrase('free_response', { lead, userText: text, currentField: cfg?.field });
+    // Loop-detection: if free_response fires twice within 60s, bail with a
+    // graceful exit instead of a third generic fallback. Surfaces the talk
+    // action card so the visitor has a real path forward.
+    const FALLBACK_PREFIX = "Pick one of the chips below";
+    const isFallback = (free.text || '').startsWith(FALLBACK_PREFIX);
+    const now = Date.now();
+    const tooSoon = isFallback && (now - (lead.lastFallbackTs || 0) < 60_000);
+    if (tooSoon) {
+      const escapeMsg = "I'm here when you're ready . Tell me your timing or budget or zone — or message Valentino directly .";
+      const shell = addBotShell();
+      setTimeout(() => typeInto(shell, escapeMsg, () => {
+        finalizeBot(shell, escapeMsg);
+        setTimeout(() => addActionCard('talk'), 600);
+        renderChips(suggestChipsForState(cfg?.chipKey || 'open', false));
+        lead.lastFallbackTs = now;
+        persist();
+        busy = false;
+        armIdleNudge();
+      }), 300);
+      return;
+    }
+    if (isFallback) { lead.lastFallbackTs = now; persist(); }
     const shell = addBotShell();
     setTimeout(() => typeInto(shell, free.text, () => {
       finalizeBot(shell, free.text);
