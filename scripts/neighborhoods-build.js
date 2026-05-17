@@ -118,11 +118,50 @@ nav{position:fixed;width:100%;top:0;z-index:100;padding:20px 50px;background:rgb
 .section-subtitle{font-size:16px;color:var(--text2);max-width:720px;margin-bottom:36px}
 @media(max-width:880px){.section{padding:42px 20px}}
 
-/* WHY LIVE HERE — prose */
-.prose{max-width:780px;font-size:17px;color:var(--text2);line-height:1.85}
-.prose p{margin-bottom:20px}
+/* WHY LIVE HERE — prose, tuned for long-form reading */
+.prose{max-width:720px;font-size:18px;color:var(--text2);line-height:1.85;font-weight:300}
+.prose p{margin-bottom:22px}
 .prose p:last-child{margin-bottom:0}
-.prose p:first-of-type::first-line{color:var(--text);font-weight:400;letter-spacing:.01em}
+.prose p strong{color:var(--text);font-weight:500}
+.prose .lead{font-size:21px;color:var(--text);line-height:1.65;letter-spacing:-.005em}
+/* Drop cap on the lead paragraph */
+.prose .lead::first-letter{
+  float:left;font-size:64px;line-height:.85;color:var(--gold);font-weight:300;
+  padding:6px 14px 0 0;margin-top:2px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;
+}
+
+/* PULL QUOTE — between long sections */
+.pull-quote{max-width:780px;margin:42px 0;padding:18px 0 18px 26px;border-left:2px solid var(--gold);font-size:22px;line-height:1.45;font-weight:300;color:var(--text);letter-spacing:-.01em;font-style:italic}
+.pull-quote::before{content:'\\201C';color:var(--gold);font-size:42px;line-height:0;position:relative;top:18px;margin-right:6px;font-style:normal}
+
+/* BOOM VERDICT — opinionated callout */
+.verdict{max-width:780px;margin:36px 0;padding:24px 28px;background:linear-gradient(135deg,rgba(212,175,55,0.06),rgba(212,175,55,0.01));border:1px solid var(--border-g);border-left:3px solid var(--gold);border-radius:0 14px 14px 0}
+.verdict-label{display:inline-block;font-size:10px;color:var(--gold);text-transform:uppercase;letter-spacing:3px;font-weight:500;margin-bottom:10px}
+.verdict-text{font-size:17px;color:var(--text);line-height:1.6;font-weight:300;letter-spacing:-.005em}
+
+/* COMMUTE MATRIX */
+.commute{max-width:1400px;margin:0 auto;padding:50px;border-top:1px solid var(--border)}
+.commute-title{font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:3px;margin-bottom:22px;font-weight:500}
+.commute-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:14px}
+.commute-row{padding:18px;background:var(--bg2);border:1px solid var(--border);border-radius:14px;text-align:center;transition:border-color .3s}
+.commute-row:hover{border-color:var(--border-g)}
+.commute-where{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px}
+.commute-time{font-size:22px;font-weight:300;color:var(--text);letter-spacing:-.01em}
+.commute-time small{font-size:11px;color:var(--text3);letter-spacing:0;text-transform:none;font-weight:400;margin-left:3px}
+@media(max-width:880px){.commute{padding:36px 20px}.commute-grid{grid-template-columns:repeat(2,1fr)}}
+
+/* READING TIME */
+.reading-time{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--text3);letter-spacing:1.5px;text-transform:uppercase;margin-top:18px}
+.reading-time::before{content:'';width:5px;height:5px;border-radius:50%;background:var(--gold);box-shadow:0 0 6px var(--gold)}
+
+/* RELATED NEIGHBORHOODS */
+.related-section{background:var(--bg1)}
+.related-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+.related-card{padding:24px;background:var(--bg2);border:1px solid var(--border);border-radius:14px;transition:all .3s;display:block;color:var(--text)}
+.related-card:hover{border-color:var(--border-g);transform:translateY(-2px)}
+.related-card-name{font-size:18px;font-weight:400;letter-spacing:-.005em;margin-bottom:8px;color:var(--gold)}
+.related-card-why{font-size:14px;color:var(--text2);line-height:1.6}
+.related-card-cta{display:inline-block;margin-top:14px;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:2px}
 
 /* APARTMENTS GRID */
 .listings-section{background:var(--bg1)}
@@ -270,11 +309,47 @@ function footerHtml() {
 /* ────────────────────────────────────────────────────────────────────
  *  Page composer
  * ──────────────────────────────────────────────────────────────────── */
-function pageHtml(n) {
+function pageHtml(n, allNeighborhoods) {
   const canonical = `https://www.boomrome.com/apartments-in/${n.slug}`;
   const rentRange = `€${n.stats.rentMin.toLocaleString()}–€${n.stats.rentMax.toLocaleString()}`;
   const audienceChips = n.audience.map((a) => `<span class="chip">${ESC(a)}</span>`).join('');
-  const whyParas = n.whyLiveHere.map((p) => `<p>${ESC(p)}</p>`).join('\n');
+
+  // Reading time — ~220 words per minute over body copy
+  const wordCount = [n.summary, ...n.whyLiveHere, ...n.insiderTips, ...n.faqs.map((f) => f.q + ' ' + f.a)]
+    .join(' ')
+    .split(/\s+/).length;
+  const readMin = Math.max(2, Math.round(wordCount / 220));
+
+  // Why-live-here: first paragraph gets the lead/drop-cap treatment, pull-quote
+  // is lifted from the second paragraph, the verdict callout closes the section.
+  const whyParas = n.whyLiveHere.map((p, i) =>
+    i === 0 ? `<p class="lead">${ESC(p)}</p>` : `<p>${ESC(p)}</p>`
+  );
+  // Insert a pull quote after the second paragraph if we have one
+  const pullQuote = n.verdict
+    ? null
+    : (n.whyLiveHere[1] ? n.whyLiveHere[1].split('. ').slice(0, 1)[0] + '.' : null);
+  if (n.whyLiveHere.length >= 3 && pullQuote) {
+    whyParas.splice(2, 0, `<blockquote class="pull-quote">${ESC(pullQuote)}</blockquote>`);
+  }
+  const whyHtml = whyParas.join('\n');
+
+  const verdictHtml = n.verdict
+    ? `<aside class="verdict"><div class="verdict-label">BOOM Verdict</div><div class="verdict-text">${ESC(n.verdict)}</div></aside>`
+    : '';
+
+  const commute = n.commute || {};
+  const commuteHtml = `<section class="commute" aria-label="Commute times from ${ESC(n.name)}">
+    <div class="commute-title">Commute from ${ESC(n.name)}</div>
+    <div class="commute-grid">
+      <div class="commute-row"><div class="commute-where">Termini</div><div class="commute-time">${commute.termini ?? '—'}<small>min</small></div></div>
+      <div class="commute-row"><div class="commute-where">Vatican</div><div class="commute-time">${commute.vatican ?? '—'}<small>min</small></div></div>
+      <div class="commute-row"><div class="commute-where">Colosseum</div><div class="commute-time">${commute.colosseum ?? '—'}<small>min</small></div></div>
+      <div class="commute-row"><div class="commute-where">Pantheon</div><div class="commute-time">${commute.pantheon ?? '—'}<small>min</small></div></div>
+      <div class="commute-row"><div class="commute-where">Fiumicino ✈</div><div class="commute-time">${commute.fiumicino ?? '—'}<small>min</small></div></div>
+    </div>
+  </section>`;
+
   const landmarks = n.landmarks
     .map((l) => `<div class="landmark"><div class="landmark-name">${ESC(l.name)}</div><div class="landmark-blurb">${ESC(l.blurb)}</div></div>`)
     .join('\n');
@@ -286,6 +361,27 @@ function pageHtml(n) {
     )
     .join('\n');
   const matchTermsAttr = n.matchTerms.join('|');
+
+  const byName = Object.fromEntries(allNeighborhoods.map((x) => [x.slug, x]));
+  const relatedHtml = (n.related || [])
+    .map((r) => {
+      const o = byName[r.slug];
+      if (!o) return '';
+      return `<a class="related-card" href="/apartments-in/${o.slug}">
+        <div class="related-card-name">${ESC(o.name)}</div>
+        <div class="related-card-why">${ESC(r.why)}</div>
+        <div class="related-card-cta">Explore ${ESC(o.name)} →</div>
+      </a>`;
+    })
+    .join('\n');
+  const relatedSection = relatedHtml
+    ? `<section class="section related-section" id="related">
+      <span class="section-eyebrow">If you like ${ESC(n.name)}</span>
+      <h2 class="section-title">Also consider…</h2>
+      <p class="section-subtitle">Three neighborhoods with overlapping DNA. Pick the trade-off that matches you.</p>
+      <div class="related-grid">${relatedHtml}</div>
+    </section>`
+    : '';
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -329,6 +425,7 @@ ${navHtml('/apartments-in')}
     <a href="#listings" class="btn btn-primary">See Apartments in ${ESC(n.name)} →</a>
     <a href="/book" class="btn btn-ghost">Book a Viewing</a>
   </div>
+  <div class="reading-time">${readMin} min read · honest take from BOOM</div>
 </header>
 
 <section class="stats" aria-label="${ESC(n.name)} at a glance">
@@ -348,9 +445,12 @@ ${navHtml('/apartments-in')}
   <h2 class="section-title">${ESC(n.name)} in one glance</h2>
   <p class="section-subtitle">${ESC(n.summary)}</p>
   <div class="prose">
-    ${whyParas}
+    ${whyHtml}
   </div>
+  ${verdictHtml}
 </section>
+
+${commuteHtml}
 
 <section class="section listings-section" id="listings">
   <span class="section-eyebrow">Available now</span>
@@ -385,6 +485,8 @@ ${navHtml('/apartments-in')}
     ${faqs}
   </div>
 </section>
+
+${relatedSection}
 
 <section class="cta">
   <h2 class="cta-title">Ready to live in ${ESC(n.name)}?</h2>
@@ -588,15 +690,59 @@ ${footerHtml()}
 }
 
 /* ────────────────────────────────────────────────────────────────────
+ *  Browser-loadable zone → neighborhood-slug helper.
+ *  One source of truth (neighborhoods-data.js) drives both server-side
+ *  page generation and client-side card linking.
+ * ──────────────────────────────────────────────────────────────────── */
+function writeZoneSlugHelper() {
+  const map = NEIGHBORHOODS.map((n) => ({
+    slug: n.slug,
+    name: n.name,
+    terms: n.matchTerms,
+  }));
+  const body = `/* AUTO-GENERATED — do not edit. Source: scripts/neighborhoods-data.js
+ * Run: node scripts/neighborhoods-build.js
+ *
+ * window.BOOM.zoneToSlug(zoneString)   -> "trastevere" | null
+ * window.BOOM.zoneToName(zoneString)   -> "Trastevere" | null
+ * window.BOOM.allNeighborhoods()       -> [{slug,name,terms}]
+ */
+(function () {
+  var N = ${JSON.stringify(map)};
+  function find(input) {
+    if (!input) return null;
+    var s = String(input).toLowerCase();
+    for (var i = 0; i < N.length; i++) {
+      var n = N[i];
+      for (var j = 0; j < n.terms.length; j++) {
+        if (s.indexOf(n.terms[j]) !== -1) return n;
+      }
+    }
+    return null;
+  }
+  window.BOOM = window.BOOM || {};
+  window.BOOM.zoneToSlug = function (z) { var h = find(z); return h ? h.slug : null; };
+  window.BOOM.zoneToName = function (z) { var h = find(z); return h ? h.name : null; };
+  window.BOOM.allNeighborhoods = function () { return N.slice(); };
+})();
+`;
+  const jsDir = path.join(ROOT, 'js');
+  if (!fs.existsSync(jsDir)) fs.mkdirSync(jsDir, { recursive: true });
+  fs.writeFileSync(path.join(jsDir, 'neighborhoods.js'), body, 'utf8');
+  console.log('[✓] /js/neighborhoods.js (zone→slug helper)');
+}
+
+/* ────────────────────────────────────────────────────────────────────
  *  Write everything
  * ──────────────────────────────────────────────────────────────────── */
 let count = 0;
 for (const n of NEIGHBORHOODS) {
   const fp = path.join(OUT_DIR, `${n.slug}.html`);
-  fs.writeFileSync(fp, pageHtml(n), 'utf8');
+  fs.writeFileSync(fp, pageHtml(n, NEIGHBORHOODS), 'utf8');
   console.log(`[✓] /apartments-in/${n.slug}.html`);
   count++;
 }
 fs.writeFileSync(path.join(OUT_DIR, 'index.html'), hubHtml(), 'utf8');
 console.log(`[✓] /apartments-in/index.html (hub)`);
-console.log(`\nWrote ${count} neighborhood pages + hub.`);
+writeZoneSlugHelper();
+console.log(`\nWrote ${count} neighborhood pages + hub + zone-slug helper.`);

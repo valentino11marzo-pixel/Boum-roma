@@ -20,7 +20,7 @@ const NEIGHBORHOODS = [
       'Live in Trastevere — Rome\'s most photogenic district. Verified apartments from €1,400/mo, 48-hour move-in, legal contracts. Bohemian charm, walk-everywhere central.',
     keywords: ['apartment Trastevere', 'rent Trastevere Rome', 'Trastevere apartment expat', 'flats Trastevere'],
     geo: { lat: 41.8896, lng: 12.4695 },
-    matchTerms: ['trastevere'],
+    matchTerms: ['trastevere', 'gianicolo', 'monteverde vecchio'],
     stats: {
       rentMin: 1400, rentMax: 2200, walkScore: 10, vibeScore: 10, transitScore: 8,
     },
@@ -54,6 +54,13 @@ const NEIGHBORHOODS = [
       { q: 'Can I get around Trastevere without a car?', a: 'Easily. Tram 8 connects to Largo Argentina (15 min), tram 3 runs to Termini and Aventino. Buses fill the gaps. Most apartments are inside the ZTL (limited-traffic zone), so a car is more burden than help.' },
       { q: 'Where in Trastevere is best for expats?', a: 'The quieter pockets: south of Viale Trastevere (around Piazza Mastai, Via di Monte Fiore), the streets behind Santa Cecilia, or the Gianicolo slope. Central Trastevere (around Santa Maria) is more vibrant but noisier.' },
     ],
+    commute: { termini: 20, vatican: 15, colosseum: 15, pantheon: 12, fiumicino: 50 },
+    verdict: 'If you can afford it, do it. Just pick a street one or two blocks off the main piazzas — same Trastevere, half the noise.',
+    related: [
+      { slug: 'monti', why: 'Same hip-bohemian energy, slightly less tourist-heavy.' },
+      { slug: 'testaccio', why: 'Similar character without the postcard markup.' },
+      { slug: 'centro-storico', why: 'The polished upgrade if budget allows.' },
+    ],
   },
 
   /* ─────────────────────────────────────────────────────── 2. CENTRO STORICO */
@@ -67,7 +74,7 @@ const NEIGHBORHOODS = [
       'Apartments for rent in Rome\'s Centro Storico — Pantheon, Piazza Navona, Campo de\' Fiori at your door. Video-verified, legal contracts, from €1,800/mo.',
     keywords: ['apartment Centro Storico', 'apartment Pantheon Rome', 'apartment Piazza Navona', 'historic centre Rome rental'],
     geo: { lat: 41.8989, lng: 12.4769 },
-    matchTerms: ['centro storico', 'centro-storico', 'historic centre', 'pantheon', 'navona', 'centro'],
+    matchTerms: ['centro storico', 'centro-storico', 'historic centre', 'historic center', 'pantheon', 'navona', 'centro', 'coronari', 'campo de\' fiori', 'campo dei fiori', 'piazza farnese', 'trevi', 'spanish steps', 'piazza di spagna'],
     stats: {
       rentMin: 1800, rentMax: 3500, walkScore: 10, vibeScore: 9, transitScore: 8,
     },
@@ -101,6 +108,13 @@ const NEIGHBORHOODS = [
       { q: 'Are Centro Storico apartments small?', a: 'Often yes — historic palazzi divide into compact units. Anything over 80m² is rare and priced accordingly. If space matters more than address, Prati or Trieste offer significantly larger floor plans.' },
       { q: 'What\'s the best part of Centro Storico for residents?', a: 'The triangle between Pantheon, Campo de\' Fiori and Piazza Farnese is the residential sweet spot — central, quieter than Navona, walking distance to everything. The area around Via Giulia is one of the most photogenic in the city.' },
     ],
+    commute: { termini: 12, vatican: 10, colosseum: 12, pantheon: 0, fiumicino: 45 },
+    verdict: 'You\'ll either love or resent the tourists. Live behind a piazza, not on one.',
+    related: [
+      { slug: 'trastevere', why: 'Same charm at lower rent, similar walk-everywhere lifestyle.' },
+      { slug: 'monti', why: 'Cooler crowd, half the tourist density.' },
+      { slug: 'prati', why: 'Calmer + 30% cheaper, with the same architectural credibility.' },
+    ],
   },
 
   /* ─────────────────────────────────────────────────────── 3. MONTI */
@@ -114,7 +128,7 @@ const NEIGHBORHOODS = [
       'Live in Monti — Rome\'s most fashionable central rione. Vintage shops, natural-wine bars, steps from the Colosseum. Verified apartments from €1,500/mo, BOOM-managed.',
     keywords: ['apartment Monti Rome', 'rent Monti Rome', 'flats Monti', 'Monti apartment expat'],
     geo: { lat: 41.8946, lng: 12.4926 },
-    matchTerms: ['monti', 'rione monti'],
+    matchTerms: ['monti', 'rione monti', 'colosseo', 'colosseum', 'cavour', 'fori imperiali', 'santa maria maggiore', 'esquilino-monti'],
     stats: {
       rentMin: 1500, rentMax: 2400, walkScore: 10, vibeScore: 10, transitScore: 9,
     },
@@ -148,6 +162,13 @@ const NEIGHBORHOODS = [
       { q: 'Is Monti good for remote work?', a: 'Excellent. Strong third-wave coffee scene (Faro, Tazza d\'Oro), reliable fibre internet in most renovated buildings, and several co-working spaces (Talent Garden, Spaces) within 10 minutes. Quieter than Trastevere during weekday work hours.' },
       { q: 'Where in Monti is best for first-time expats?', a: 'Around Via Panisperna, Via Urbana, and Piazza degli Zingari — central, residential, walking distance to everything. Avoid the Termini side after dark if you\'re solo — not unsafe, just less pleasant.' },
     ],
+    commute: { termini: 8, vatican: 18, colosseum: 5, pantheon: 12, fiumicino: 45 },
+    verdict: 'Best per-euro lifestyle in central Rome. Rents are rising — the window may not stay open.',
+    related: [
+      { slug: 'centro-storico', why: 'The Renaissance-postcard upgrade, twice the tourists.' },
+      { slug: 'pigneto', why: 'Rougher, half the rent, same creative energy.' },
+      { slug: 'san-lorenzo', why: 'Same student-creative crowd at student prices.' },
+    ],
   },
 
   /* ─────────────────────────────────────────────────────── 4. PRATI */
@@ -161,7 +182,7 @@ const NEIGHBORHOODS = [
       'Prati apartments for rent — Rome\'s most elegant residential quarter, near the Vatican. Wide grid streets, premium shopping. Verified, BOOM-managed, from €1,600/mo.',
     keywords: ['apartment Prati Rome', 'apartment Vatican Rome', 'flats Prati', 'Prati apartment expat'],
     geo: { lat: 41.9080, lng: 12.4602 },
-    matchTerms: ['prati', 'mazzini', 'delle vittorie', 'vatican'],
+    matchTerms: ['prati', 'mazzini', 'delle vittorie', 'vatican', 'vaticano', 'cola di rienzo', 'ottaviano', 'lepanto', 'castel sant\'angelo', 'angelico'],
     stats: {
       rentMin: 1600, rentMax: 2600, walkScore: 9, vibeScore: 8, transitScore: 9,
     },
@@ -195,6 +216,13 @@ const NEIGHBORHOODS = [
       { q: 'What\'s the difference between Prati and the Centro Storico?', a: 'Prati is residential, planned, calm; Centro is medieval, dense, touristy. Prati has supermarkets, dry cleaners, hardware stores; Centro has palazzi and piazzas. Prati is a 30% rent discount on Centro for comparable square metres.' },
       { q: 'Is Prati safe?', a: 'Among the safest areas of central Rome. Low petty-crime rates, well-lit streets, a substantial residential population that keeps the area active day and night. Embassy-level safe in the Mazzini/Delle Vittorie sub-area.' },
     ],
+    commute: { termini: 18, vatican: 5, colosseum: 20, pantheon: 12, fiumicino: 40 },
+    verdict: 'Rome on easy mode. Pick this if quiet, space, and a wide pavement matter more than drama.',
+    related: [
+      { slug: 'trieste-coppede', why: 'Same calm + bourgeois feel, slightly further out.' },
+      { slug: 'centro-storico', why: 'The chaotic, more touristic upgrade across the river.' },
+      { slug: 'monti', why: 'Pricier square-metre but cooler crowd, closer to Termini.' },
+    ],
   },
 
   /* ─────────────────────────────────────────────────────── 5. PIGNETO */
@@ -208,7 +236,7 @@ const NEIGHBORHOODS = [
       'Live in Pigneto — Rome\'s most authentic creative district. Street art, indie bars, multicultural food scene. Verified apartments from €900/mo, BOOM-managed.',
     keywords: ['apartment Pigneto', 'rent Pigneto Rome', 'Pigneto apartment expat', 'creative neighborhood Rome'],
     geo: { lat: 41.8867, lng: 12.5257 },
-    matchTerms: ['pigneto'],
+    matchTerms: ['pigneto', 'via del pigneto', 'centocelle', 'casilina'],
     stats: {
       rentMin: 900, rentMax: 1500, walkScore: 8, vibeScore: 10, transitScore: 8,
     },
@@ -242,6 +270,13 @@ const NEIGHBORHOODS = [
       { q: 'Is Pigneto good for families?', a: 'Possible, but better suited to childless professionals. Streets are loud at night, pavements are narrow, and parks are limited inside Pigneto itself (though Centocelle is close). Families typically choose Trieste, Prati, or Monteverde instead.' },
       { q: 'What\'s the food scene like in Pigneto?', a: 'Excellent and diverse. Roman classics (Sant\'Agostino, Da Marcello), international (sushi, Ethiopian, Indian, Bangladeshi), pizza (180g, Sforno), natural-wine bars (Vini e Olii), and one of Rome\'s most varied food markets. Lower prices than Centro for the same quality.' },
     ],
+    commute: { termini: 15, vatican: 30, colosseum: 18, pantheon: 22, fiumicino: 50 },
+    verdict: 'Best rent-to-vibe ratio in Rome — but you\'re betting on the timing of gentrification. Lock in now.',
+    related: [
+      { slug: 'san-lorenzo', why: 'Cheaper, rawer, more student. Same indie energy.' },
+      { slug: 'ostiense', why: 'Street-art twin neighborhood with better metro access.' },
+      { slug: 'testaccio', why: 'The polished older brother — quieter, foodier, more central.' },
+    ],
   },
 
   /* ─────────────────────────────────────────────────────── 6. TESTACCIO */
@@ -255,7 +290,7 @@ const NEIGHBORHOODS = [
       'Testaccio apartments for rent — Rome\'s most genuine working-class quarter. Best food market in the city, original carbonara, no tourists. Verified, from €1,200/mo.',
     keywords: ['apartment Testaccio Rome', 'rent Testaccio', 'Testaccio apartment expat', 'foodie neighborhood Rome'],
     geo: { lat: 41.8782, lng: 12.4753 },
-    matchTerms: ['testaccio'],
+    matchTerms: ['testaccio', 'monte testaccio', 'mattatoio', 'piramide-testaccio'],
     stats: {
       rentMin: 1200, rentMax: 1900, walkScore: 9, vibeScore: 9, transitScore: 9,
     },
@@ -289,6 +324,13 @@ const NEIGHBORHOODS = [
       { q: 'How well-connected is Testaccio?', a: 'Excellent — Piramide metro (line B) on the eastern edge gets you to Colosseum in 5 minutes, Termini in 15. Trams 3 and 8 link to Trastevere and Centro. The bike-share works well over the flat Testaccio geography.' },
       { q: 'What\'s the difference between Testaccio and Ostiense?', a: 'Testaccio is older, more residential, more food-focused. Ostiense (next door, south) is post-industrial, street-art-heavy, more student-aged. Testaccio rents are higher; Ostiense feels rawer.' },
     ],
+    commute: { termini: 15, vatican: 20, colosseum: 10, pantheon: 12, fiumicino: 40 },
+    verdict: 'The Rome locals try to keep secret. Move in fast — there\'s no second Testaccio.',
+    related: [
+      { slug: 'ostiense', why: 'Industrial-cool sibling next door, lower rent.' },
+      { slug: 'trastevere', why: 'Cousin across the river, twice the rent and tourist density.' },
+      { slug: 'pigneto', why: 'Rougher and 30% cheaper, same authentic-Rome credibility.' },
+    ],
   },
 
   /* ─────────────────────────────────────────────────────── 7. OSTIENSE */
@@ -302,7 +344,7 @@ const NEIGHBORHOODS = [
       'Ostiense apartments for rent — Rome\'s post-industrial creative quarter. Legendary street art, warehouse nightlife, Roma Tre university. Verified from €1,000/mo.',
     keywords: ['apartment Ostiense', 'rent Ostiense Rome', 'Ostiense apartment student', 'street art Rome'],
     geo: { lat: 41.8736, lng: 12.4778 },
-    matchTerms: ['ostiense', 'garbatella'],
+    matchTerms: ['ostiense', 'garbatella', 'marconi', 'piramide', 'gazometro', 'roma tre'],
     stats: {
       rentMin: 1000, rentMax: 1600, walkScore: 8, vibeScore: 8, transitScore: 9,
     },
@@ -336,6 +378,13 @@ const NEIGHBORHOODS = [
       { q: 'How connected is Ostiense?', a: 'Very. Metro B (Piramide, Garbatella, Marconi), Ostiense rail station (FL1 to Fiumicino, regional to the rest of Italy), trams 3 and 8, plus reliable bus routes. You can reach almost anywhere in Rome in under 30 minutes.' },
       { q: 'What about Garbatella — same area?', a: 'Garbatella is technically a separate quarter but borders Ostiense. It\'s a small, beloved residential area built in the 1920s with English-garden-city architecture. Quieter, more residential, packed with classic trattorie. Many BOOM clients choose Garbatella for the calm and Ostiense for the access.' },
     ],
+    commute: { termini: 18, vatican: 22, colosseum: 10, pantheon: 18, fiumicino: 32 },
+    verdict: 'Best metro + airport access in Rome. Pick a block near Eataly — not the Gazometro side.',
+    related: [
+      { slug: 'testaccio', why: 'Older, calmer, foodier neighbor — same metro line.' },
+      { slug: 'pigneto', why: 'Similar age and budget profile, better street-art density.' },
+      { slug: 'san-lorenzo', why: 'Same student-creative tilt, less industrial.' },
+    ],
   },
 
   /* ─────────────────────────────────────────────────────── 8. TRIESTE / COPPEDÈ */
@@ -349,7 +398,7 @@ const NEIGHBORHOODS = [
       'Trieste & Coppedè apartments for rent — one of Rome\'s most photogenic and peaceful districts. Liberty-style architecture, leafy streets. Verified from €1,200/mo.',
     keywords: ['apartment Trieste Rome', 'apartment Coppedè', 'rent Trieste Rome', 'Coppedè quarter'],
     geo: { lat: 41.9239, lng: 12.5075 },
-    matchTerms: ['trieste', 'coppedè', 'coppede', 'salario'],
+    matchTerms: ['trieste', 'coppedè', 'coppede', 'salario', 'parioli', 'villa ada', 'villa torlonia', 'nomentano', 'levico'],
     stats: {
       rentMin: 1200, rentMax: 1800, walkScore: 7, vibeScore: 8, transitScore: 7,
     },
@@ -383,6 +432,13 @@ const NEIGHBORHOODS = [
       { q: 'Is Trieste good for families?', a: 'Excellent. Quiet streets, several parks within walking distance (Villa Ada, Villa Torlonia, Villa Glori), good schools (state and international), pediatricians and pharmacies on most blocks. One of Rome\'s most family-friendly neighborhoods.' },
       { q: 'What\'s special about the Coppedè quarter?', a: 'It\'s a tiny architectural enclave (1916–1927) by Gino Coppedè — Liberty, Art Nouveau, Medieval, Greek motifs in one mash-up. Three streets, a central fountain, gargoyles and chandeliers. Most Romans haven\'t seen it.' },
     ],
+    commute: { termini: 15, vatican: 25, colosseum: 22, pantheon: 20, fiumicino: 55 },
+    verdict: 'Calm at the cost of central. Perfect if you commute from home — punishing if you don\'t.',
+    related: [
+      { slug: 'prati', why: 'Similar bourgeois calm, much closer to the river and the Centro.' },
+      { slug: 'esquilino', why: 'Half the rent at the cost of a much edgier setting.' },
+      { slug: 'monti', why: 'Similar Liberty-era buildings, central energy.' },
+    ],
   },
 
   /* ─────────────────────────────────────────────────────── 9. SAN LORENZO */
@@ -396,7 +452,7 @@ const NEIGHBORHOODS = [
       'San Lorenzo apartments for rent — Rome\'s university district, walking distance from Termini and Sapienza. Cheapest central rents, wild nightlife. Verified, from €800/mo.',
     keywords: ['apartment San Lorenzo Rome', 'rent San Lorenzo', 'Sapienza apartment', 'student apartment Rome'],
     geo: { lat: 41.8993, lng: 12.5147 },
-    matchTerms: ['san lorenzo'],
+    matchTerms: ['san lorenzo', 'sapienza', 'verano', 'tiburtina', 'via dei volsci'],
     stats: {
       rentMin: 800, rentMax: 1400, walkScore: 9, vibeScore: 8, transitScore: 8,
     },
@@ -430,6 +486,13 @@ const NEIGHBORHOODS = [
       { q: 'How noisy is San Lorenzo on weekends?', a: 'Very. Friday and Saturday nights see thousands of students on Via dei Volsci and Via degli Equi until 2–3am. If you need quiet sleep, choose an apartment one or two streets back from the main bar arteries.' },
       { q: 'Is San Lorenzo good for families?', a: 'Not really — the demographic and rhythm doesn\'t suit. Families looking for similar prices and central access usually prefer Pigneto (calmer) or Trieste (much quieter, slightly more expensive).' },
     ],
+    commute: { termini: 8, vatican: 25, colosseum: 15, pantheon: 18, fiumicino: 50 },
+    verdict: 'Cheapest central rent in Rome. The trade-off is weekend noise, not safety.',
+    related: [
+      { slug: 'pigneto', why: 'Slightly older crowd, similar budget, more creative scene.' },
+      { slug: 'esquilino', why: 'Same rent range, less student-focused, more diverse.' },
+      { slug: 'monti', why: 'The polished sibling with double the rent.' },
+    ],
   },
 
   /* ─────────────────────────────────────────────────────── 10. ESQUILINO */
@@ -443,7 +506,7 @@ const NEIGHBORHOODS = [
       'Esquilino apartments for rent — Rome\'s most multicultural central district. Termini-adjacent, both metro lines, Santa Maria Maggiore. Verified from €900/mo.',
     keywords: ['apartment Esquilino Rome', 'rent Esquilino', 'Termini apartment Rome', 'central Rome budget'],
     geo: { lat: 41.8954, lng: 12.5021 },
-    matchTerms: ['esquilino', 'piazza vittorio', 'termini'],
+    matchTerms: ['esquilino', 'piazza vittorio', 'termini', 'vittorio emanuele', 'manzoni', 'mercato esquilino'],
     stats: {
       rentMin: 900, rentMax: 1500, walkScore: 10, vibeScore: 7, transitScore: 10,
     },
@@ -476,6 +539,13 @@ const NEIGHBORHOODS = [
       { q: 'How connected is Esquilino?', a: 'The most connected neighborhood in Rome. Termini Station serves every train in Italy and both metro lines. You can be at Fiumicino airport in 32 minutes, Florence in 1h30, the Vatican in 12 minutes by metro.' },
       { q: 'Is Esquilino good for first-time expats?', a: 'It works well for well-traveled, urban-comfortable expats. The diversity and intensity can feel overwhelming for first-time Rome residents — many start in Prati or Trieste before moving to Esquilino once they know the city.' },
       { q: 'What\'s the best part of Esquilino?', a: 'The streets around Piazza Vittorio (Via Carlo Alberto, Via Cairoli, Via Principe Eugenio) — porticoed, leafy, calm. The Umbertine apartments here offer the best floor-plans-per-euro in the central city.' },
+    ],
+    commute: { termini: 0, vatican: 12, colosseum: 8, pantheon: 12, fiumicino: 32 },
+    verdict: 'Best connectivity in Rome. Pick the Piazza Vittorio side, never west of Termini after dark.',
+    related: [
+      { slug: 'monti', why: 'Next-door rione with the same metro access, more polished.' },
+      { slug: 'san-lorenzo', why: 'Same rent range, more student-heavy, less international.' },
+      { slug: 'centro-storico', why: 'Twice the rent, half the rooms — the polished upgrade.' },
     ],
   },
 ];

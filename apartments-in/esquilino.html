@@ -143,11 +143,50 @@ nav{position:fixed;width:100%;top:0;z-index:100;padding:20px 50px;background:rgb
 .section-subtitle{font-size:16px;color:var(--text2);max-width:720px;margin-bottom:36px}
 @media(max-width:880px){.section{padding:42px 20px}}
 
-/* WHY LIVE HERE — prose */
-.prose{max-width:780px;font-size:17px;color:var(--text2);line-height:1.85}
-.prose p{margin-bottom:20px}
+/* WHY LIVE HERE — prose, tuned for long-form reading */
+.prose{max-width:720px;font-size:18px;color:var(--text2);line-height:1.85;font-weight:300}
+.prose p{margin-bottom:22px}
 .prose p:last-child{margin-bottom:0}
-.prose p:first-of-type::first-line{color:var(--text);font-weight:400;letter-spacing:.01em}
+.prose p strong{color:var(--text);font-weight:500}
+.prose .lead{font-size:21px;color:var(--text);line-height:1.65;letter-spacing:-.005em}
+/* Drop cap on the lead paragraph */
+.prose .lead::first-letter{
+  float:left;font-size:64px;line-height:.85;color:var(--gold);font-weight:300;
+  padding:6px 14px 0 0;margin-top:2px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;
+}
+
+/* PULL QUOTE — between long sections */
+.pull-quote{max-width:780px;margin:42px 0;padding:18px 0 18px 26px;border-left:2px solid var(--gold);font-size:22px;line-height:1.45;font-weight:300;color:var(--text);letter-spacing:-.01em;font-style:italic}
+.pull-quote::before{content:'\201C';color:var(--gold);font-size:42px;line-height:0;position:relative;top:18px;margin-right:6px;font-style:normal}
+
+/* BOOM VERDICT — opinionated callout */
+.verdict{max-width:780px;margin:36px 0;padding:24px 28px;background:linear-gradient(135deg,rgba(212,175,55,0.06),rgba(212,175,55,0.01));border:1px solid var(--border-g);border-left:3px solid var(--gold);border-radius:0 14px 14px 0}
+.verdict-label{display:inline-block;font-size:10px;color:var(--gold);text-transform:uppercase;letter-spacing:3px;font-weight:500;margin-bottom:10px}
+.verdict-text{font-size:17px;color:var(--text);line-height:1.6;font-weight:300;letter-spacing:-.005em}
+
+/* COMMUTE MATRIX */
+.commute{max-width:1400px;margin:0 auto;padding:50px;border-top:1px solid var(--border)}
+.commute-title{font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:3px;margin-bottom:22px;font-weight:500}
+.commute-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:14px}
+.commute-row{padding:18px;background:var(--bg2);border:1px solid var(--border);border-radius:14px;text-align:center;transition:border-color .3s}
+.commute-row:hover{border-color:var(--border-g)}
+.commute-where{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px}
+.commute-time{font-size:22px;font-weight:300;color:var(--text);letter-spacing:-.01em}
+.commute-time small{font-size:11px;color:var(--text3);letter-spacing:0;text-transform:none;font-weight:400;margin-left:3px}
+@media(max-width:880px){.commute{padding:36px 20px}.commute-grid{grid-template-columns:repeat(2,1fr)}}
+
+/* READING TIME */
+.reading-time{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--text3);letter-spacing:1.5px;text-transform:uppercase;margin-top:18px}
+.reading-time::before{content:'';width:5px;height:5px;border-radius:50%;background:var(--gold);box-shadow:0 0 6px var(--gold)}
+
+/* RELATED NEIGHBORHOODS */
+.related-section{background:var(--bg1)}
+.related-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+.related-card{padding:24px;background:var(--bg2);border:1px solid var(--border);border-radius:14px;transition:all .3s;display:block;color:var(--text)}
+.related-card:hover{border-color:var(--border-g);transform:translateY(-2px)}
+.related-card-name{font-size:18px;font-weight:400;letter-spacing:-.005em;margin-bottom:8px;color:var(--gold)}
+.related-card-why{font-size:14px;color:var(--text2);line-height:1.6}
+.related-card-cta{display:inline-block;margin-top:14px;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:2px}
 
 /* APARTMENTS GRID */
 .listings-section{background:var(--bg1)}
@@ -444,6 +483,7 @@ footer{background:var(--bg1);border-top:1px solid var(--border);padding:60px 50p
     <a href="#listings" class="btn btn-primary">See Apartments in Esquilino →</a>
     <a href="/book" class="btn btn-ghost">Book a Viewing</a>
   </div>
+  <div class="reading-time">2 min read · honest take from BOOM</div>
 </header>
 
 <section class="stats" aria-label="Esquilino at a glance">
@@ -463,18 +503,30 @@ footer{background:var(--bg1);border-top:1px solid var(--border);padding:60px 50p
   <h2 class="section-title">Esquilino in one glance</h2>
   <p class="section-subtitle">Cheap, central, ridiculously well-connected. Termini = all trains, both metro lines. Asian groceries, African restaurants, the city's real melting pot.</p>
   <div class="prose">
-    <p>Esquilino covers the largest of Rome's seven hills and surrounds Termini Station. It's the most demographically diverse central neighborhood — Chinese, Bangladeshi, Eritrean, Filipino, Romanian, North African communities all rooted here for decades.</p>
+    <p class="lead">Esquilino covers the largest of Rome's seven hills and surrounds Termini Station. It's the most demographically diverse central neighborhood — Chinese, Bangladeshi, Eritrean, Filipino, Romanian, North African communities all rooted here for decades.</p>
 <p>The architecture is severe — late-19th-century Umbertine apartment blocks rather than Renaissance palazzi. The trade-off is huge rooms (8m ceilings, original parquet), central postcodes, and rents 30–40% below comparable Centro space.</p>
 <p>Connectivity is unbeatable in the entire city: Termini (every train in Italy + both metro lines + every airport bus), Vittorio Emanuele metro (line A), Manzoni (line A), the night-bus hub. You can be on a train to Naples or a metro to the Vatican in 5 minutes.</p>
 <p>Best for: well-traveled internationals (the area feels less Italian-claustrophobic than other quarters), budget-conscious workers, anyone whose life involves frequent trains. The grittier blocks west of Termini balance with the calm of the residential Piazza Vittorio side to the east.</p>
   </div>
+  <aside class="verdict"><div class="verdict-label">BOOM Verdict</div><div class="verdict-text">Best connectivity in Rome. Pick the Piazza Vittorio side, never west of Termini after dark.</div></aside>
 </section>
+
+<section class="commute" aria-label="Commute times from Esquilino">
+    <div class="commute-title">Commute from Esquilino</div>
+    <div class="commute-grid">
+      <div class="commute-row"><div class="commute-where">Termini</div><div class="commute-time">0<small>min</small></div></div>
+      <div class="commute-row"><div class="commute-where">Vatican</div><div class="commute-time">12<small>min</small></div></div>
+      <div class="commute-row"><div class="commute-where">Colosseum</div><div class="commute-time">8<small>min</small></div></div>
+      <div class="commute-row"><div class="commute-where">Pantheon</div><div class="commute-time">12<small>min</small></div></div>
+      <div class="commute-row"><div class="commute-where">Fiumicino ✈</div><div class="commute-time">32<small>min</small></div></div>
+    </div>
+  </section>
 
 <section class="section listings-section" id="listings">
   <span class="section-eyebrow">Available now</span>
   <h2 class="section-title">Apartments in Esquilino</h2>
   <p class="section-subtitle">Live from our Firestore — verified by BOOM, ready for viewing.</p>
-  <div class="listings-grid" id="listingsGrid" data-zone-match="esquilino|piazza vittorio|termini">
+  <div class="listings-grid" id="listingsGrid" data-zone-match="esquilino|piazza vittorio|termini|vittorio emanuele|manzoni|mercato esquilino">
     <div class="listings-loading">Loading apartments…</div>
   </div>
 </section>
@@ -515,6 +567,27 @@ footer{background:var(--bg1);border-top:1px solid var(--border);padding:60px 50p
 <details class="faq"><summary class="faq-q">What's the best part of Esquilino?</summary><div class="faq-a">The streets around Piazza Vittorio (Via Carlo Alberto, Via Cairoli, Via Principe Eugenio) — porticoed, leafy, calm. The Umbertine apartments here offer the best floor-plans-per-euro in the central city.</div></details>
   </div>
 </section>
+
+<section class="section related-section" id="related">
+      <span class="section-eyebrow">If you like Esquilino</span>
+      <h2 class="section-title">Also consider…</h2>
+      <p class="section-subtitle">Three neighborhoods with overlapping DNA. Pick the trade-off that matches you.</p>
+      <div class="related-grid"><a class="related-card" href="/apartments-in/monti">
+        <div class="related-card-name">Monti</div>
+        <div class="related-card-why">Next-door rione with the same metro access, more polished.</div>
+        <div class="related-card-cta">Explore Monti →</div>
+      </a>
+<a class="related-card" href="/apartments-in/san-lorenzo">
+        <div class="related-card-name">San Lorenzo</div>
+        <div class="related-card-why">Same rent range, more student-heavy, less international.</div>
+        <div class="related-card-cta">Explore San Lorenzo →</div>
+      </a>
+<a class="related-card" href="/apartments-in/centro-storico">
+        <div class="related-card-name">Centro Storico</div>
+        <div class="related-card-why">Twice the rent, half the rooms — the polished upgrade.</div>
+        <div class="related-card-cta">Explore Centro Storico →</div>
+      </a></div>
+    </section>
 
 <section class="cta">
   <h2 class="cta-title">Ready to live in Esquilino?</h2>

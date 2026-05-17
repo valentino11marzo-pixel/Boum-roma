@@ -124,7 +124,10 @@
         .badge-verified{background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.7);border:1px solid rgba(255,255,255,0.1)}
         .badge-video{background:rgba(255,59,48,0.15);color:#FF3B30;border:1px solid rgba(255,59,48,0.2)}
         .card-body{padding:22px 24px 24px;flex:1;display:flex;flex-direction:column}
-        .card-zone{font-size:11px;text-transform:uppercase;letter-spacing:2px;color:var(--gold);margin-bottom:6px}
+        .card-zone{display:inline-block;font-size:11px;text-transform:uppercase;letter-spacing:2px;color:var(--gold);margin-bottom:8px;text-decoration:none}
+        .card-zone-link{padding:3px 9px;border:1px solid rgba(212,175,55,0.22);border-radius:100px;background:rgba(212,175,55,0.06);font-weight:500;transition:all .25s}
+        .card-zone-link:hover{background:var(--gold);color:#000;border-color:var(--gold);text-decoration:none}
+        .card:focus-visible{outline:2px solid var(--gold);outline-offset:3px;border-radius:20px}
         .card-name{font-size:20px;font-weight:400;margin-bottom:10px;color:#fff}
         .card-specs{display:flex;gap:16px;font-size:13px;color:var(--text-secondary);margin-bottom:16px;flex-wrap:wrap}
         .card-specs span{display:flex;align-items:center;gap:5px}
@@ -567,6 +570,8 @@
         <div class="footer-bottom">© 2025 BOOM — All Rights Reserved</div>
     </footer>
     <!-- FIREBASE -->
+    <!-- Shared zone → neighborhood-slug helper (auto-generated from neighborhoods-data.js) -->
+    <script src="/js/neighborhoods.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
     <script>
@@ -779,14 +784,24 @@
         const name = l.name || l.title || 'Apartment';
         const availDate = l.availableDate ? `<div class="card-avail">Available: ${l.availableDate}</div>` : '';
 
+        // Map zone → neighborhood landing page (single source of truth: /js/neighborhoods.js).
+        // Renders as a real <a> so screen readers + middle-click work; outer card is an
+        // <article> with click handler so nested anchors stay valid.
+        const zoneSlug = (window.BOOM && BOOM.zoneToSlug) ? BOOM.zoneToSlug(zone) : null;
+        const zoneHtml = zone
+          ? (zoneSlug
+              ? `<a class="card-zone card-zone-link" href="/apartments-in/${zoneSlug}" data-stop="1" title="See all apartments in ${zone}">${zone} →</a>`
+              : `<div class="card-zone">${zone}</div>`)
+          : '';
+
         const altText = (name || 'Apartment') + (zone ? ' in ' + zone : '') + ', Rome — BOOM';
-        return `<a href="${link}" class="card">
+        return `<article class="card" data-href="${link}" role="link" tabindex="0" aria-label="${altText}">
             <div class="card-img">
                 <img src="${imgUrl}" alt="${altText}" loading="lazy">
                 <div class="card-badges">${statusBadge}${verifiedBadge}${videoBadge}</div>
             </div>
             <div class="card-body">
-                ${zone ? `<div class="card-zone">${zone}</div>` : ''}
+                ${zoneHtml}
                 <div class="card-name">${name}</div>
                 ${specs.length ? `<div class="card-specs">${specs.join('')}</div>` : ''}
                 ${tagsHTML}
@@ -796,8 +811,28 @@
                 </div>
                 ${availDate}
             </div>
-        </a>`;
+        </article>`;
     }
+
+    // Delegated click + keyboard handlers: card → detail; nested zone link → neighborhood.
+    document.addEventListener('click', function (e) {
+        const zoneLink = e.target.closest('.card-zone-link');
+        if (zoneLink) { /* let the link navigate; stop card from intercepting */ e.stopPropagation(); return; }
+        const card = e.target.closest('article.card[data-href]');
+        if (card) {
+            // ignore clicks that started a text selection
+            if (window.getSelection && window.getSelection().toString().length) return;
+            window.location.href = card.getAttribute('data-href');
+        }
+    });
+    document.addEventListener('keydown', function (e) {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        const card = e.target.closest && e.target.closest('article.card[data-href]');
+        if (card && card === document.activeElement) {
+            e.preventDefault();
+            window.location.href = card.getAttribute('data-href');
+        }
+    });
     // Init
     loadListings();
     </script>

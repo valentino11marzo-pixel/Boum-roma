@@ -143,11 +143,50 @@ nav{position:fixed;width:100%;top:0;z-index:100;padding:20px 50px;background:rgb
 .section-subtitle{font-size:16px;color:var(--text2);max-width:720px;margin-bottom:36px}
 @media(max-width:880px){.section{padding:42px 20px}}
 
-/* WHY LIVE HERE — prose */
-.prose{max-width:780px;font-size:17px;color:var(--text2);line-height:1.85}
-.prose p{margin-bottom:20px}
+/* WHY LIVE HERE — prose, tuned for long-form reading */
+.prose{max-width:720px;font-size:18px;color:var(--text2);line-height:1.85;font-weight:300}
+.prose p{margin-bottom:22px}
 .prose p:last-child{margin-bottom:0}
-.prose p:first-of-type::first-line{color:var(--text);font-weight:400;letter-spacing:.01em}
+.prose p strong{color:var(--text);font-weight:500}
+.prose .lead{font-size:21px;color:var(--text);line-height:1.65;letter-spacing:-.005em}
+/* Drop cap on the lead paragraph */
+.prose .lead::first-letter{
+  float:left;font-size:64px;line-height:.85;color:var(--gold);font-weight:300;
+  padding:6px 14px 0 0;margin-top:2px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;
+}
+
+/* PULL QUOTE — between long sections */
+.pull-quote{max-width:780px;margin:42px 0;padding:18px 0 18px 26px;border-left:2px solid var(--gold);font-size:22px;line-height:1.45;font-weight:300;color:var(--text);letter-spacing:-.01em;font-style:italic}
+.pull-quote::before{content:'\201C';color:var(--gold);font-size:42px;line-height:0;position:relative;top:18px;margin-right:6px;font-style:normal}
+
+/* BOOM VERDICT — opinionated callout */
+.verdict{max-width:780px;margin:36px 0;padding:24px 28px;background:linear-gradient(135deg,rgba(212,175,55,0.06),rgba(212,175,55,0.01));border:1px solid var(--border-g);border-left:3px solid var(--gold);border-radius:0 14px 14px 0}
+.verdict-label{display:inline-block;font-size:10px;color:var(--gold);text-transform:uppercase;letter-spacing:3px;font-weight:500;margin-bottom:10px}
+.verdict-text{font-size:17px;color:var(--text);line-height:1.6;font-weight:300;letter-spacing:-.005em}
+
+/* COMMUTE MATRIX */
+.commute{max-width:1400px;margin:0 auto;padding:50px;border-top:1px solid var(--border)}
+.commute-title{font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:3px;margin-bottom:22px;font-weight:500}
+.commute-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:14px}
+.commute-row{padding:18px;background:var(--bg2);border:1px solid var(--border);border-radius:14px;text-align:center;transition:border-color .3s}
+.commute-row:hover{border-color:var(--border-g)}
+.commute-where{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px}
+.commute-time{font-size:22px;font-weight:300;color:var(--text);letter-spacing:-.01em}
+.commute-time small{font-size:11px;color:var(--text3);letter-spacing:0;text-transform:none;font-weight:400;margin-left:3px}
+@media(max-width:880px){.commute{padding:36px 20px}.commute-grid{grid-template-columns:repeat(2,1fr)}}
+
+/* READING TIME */
+.reading-time{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--text3);letter-spacing:1.5px;text-transform:uppercase;margin-top:18px}
+.reading-time::before{content:'';width:5px;height:5px;border-radius:50%;background:var(--gold);box-shadow:0 0 6px var(--gold)}
+
+/* RELATED NEIGHBORHOODS */
+.related-section{background:var(--bg1)}
+.related-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+.related-card{padding:24px;background:var(--bg2);border:1px solid var(--border);border-radius:14px;transition:all .3s;display:block;color:var(--text)}
+.related-card:hover{border-color:var(--border-g);transform:translateY(-2px)}
+.related-card-name{font-size:18px;font-weight:400;letter-spacing:-.005em;margin-bottom:8px;color:var(--gold)}
+.related-card-why{font-size:14px;color:var(--text2);line-height:1.6}
+.related-card-cta{display:inline-block;margin-top:14px;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:2px}
 
 /* APARTMENTS GRID */
 .listings-section{background:var(--bg1)}
@@ -444,6 +483,7 @@ footer{background:var(--bg1);border-top:1px solid var(--border);padding:60px 50p
     <a href="#listings" class="btn btn-primary">See Apartments in Monti →</a>
     <a href="/book" class="btn btn-ghost">Book a Viewing</a>
   </div>
+  <div class="reading-time">2 min read · honest take from BOOM</div>
 </header>
 
 <section class="stats" aria-label="Monti at a glance">
@@ -463,18 +503,30 @@ footer{background:var(--bg1);border-top:1px solid var(--border);padding:60px 50p
   <h2 class="section-title">Monti in one glance</h2>
   <p class="section-subtitle">Rome's coolest rione — and it knows it. Vintage shops above Roman ruins, natural-wine bars next to the Forum. The neighborhood where every cool restaurant opens first.</p>
   <div class="prose">
-    <p>Monti is the oldest rione (district) of Rome, sandwiched between the Colosseum, the Roman Forum, and Termini. Once a rough working-class quarter, it became the city's style headquarters in the 2010s and never let go.</p>
+    <p class="lead">Monti is the oldest rione (district) of Rome, sandwiched between the Colosseum, the Roman Forum, and Termini. Once a rough working-class quarter, it became the city's style headquarters in the 2010s and never let go.</p>
 <p>The geography is unfair: a 10-minute walk gets you to the Pantheon, the Colosseum, or Termini Station. Two metro stations (Cavour, line B; Termini, lines A+B) put the whole city on a leash. Buses fill in the rest.</p>
 <p>The vibe is independent shops, vintage boutiques, natural-wine bars, third-wave coffee, and a thirty-something crowd that took the day off to spend it at Mercato Monti. Quieter than Trastevere, more residential than Centro Storico.</p>
 <p>Best for: young professionals, creatives, designers, anyone who reads Monocle. Not the cheapest area, but not Centro-expensive either — and the best per-euro lifestyle in central Rome.</p>
   </div>
+  <aside class="verdict"><div class="verdict-label">BOOM Verdict</div><div class="verdict-text">Best per-euro lifestyle in central Rome. Rents are rising — the window may not stay open.</div></aside>
 </section>
+
+<section class="commute" aria-label="Commute times from Monti">
+    <div class="commute-title">Commute from Monti</div>
+    <div class="commute-grid">
+      <div class="commute-row"><div class="commute-where">Termini</div><div class="commute-time">8<small>min</small></div></div>
+      <div class="commute-row"><div class="commute-where">Vatican</div><div class="commute-time">18<small>min</small></div></div>
+      <div class="commute-row"><div class="commute-where">Colosseum</div><div class="commute-time">5<small>min</small></div></div>
+      <div class="commute-row"><div class="commute-where">Pantheon</div><div class="commute-time">12<small>min</small></div></div>
+      <div class="commute-row"><div class="commute-where">Fiumicino ✈</div><div class="commute-time">45<small>min</small></div></div>
+    </div>
+  </section>
 
 <section class="section listings-section" id="listings">
   <span class="section-eyebrow">Available now</span>
   <h2 class="section-title">Apartments in Monti</h2>
   <p class="section-subtitle">Live from our Firestore — verified by BOOM, ready for viewing.</p>
-  <div class="listings-grid" id="listingsGrid" data-zone-match="monti|rione monti">
+  <div class="listings-grid" id="listingsGrid" data-zone-match="monti|rione monti|colosseo|colosseum|cavour|fori imperiali|santa maria maggiore|esquilino-monti">
     <div class="listings-loading">Loading apartments…</div>
   </div>
 </section>
@@ -515,6 +567,27 @@ footer{background:var(--bg1);border-top:1px solid var(--border);padding:60px 50p
 <details class="faq"><summary class="faq-q">Where in Monti is best for first-time expats?</summary><div class="faq-a">Around Via Panisperna, Via Urbana, and Piazza degli Zingari — central, residential, walking distance to everything. Avoid the Termini side after dark if you're solo — not unsafe, just less pleasant.</div></details>
   </div>
 </section>
+
+<section class="section related-section" id="related">
+      <span class="section-eyebrow">If you like Monti</span>
+      <h2 class="section-title">Also consider…</h2>
+      <p class="section-subtitle">Three neighborhoods with overlapping DNA. Pick the trade-off that matches you.</p>
+      <div class="related-grid"><a class="related-card" href="/apartments-in/centro-storico">
+        <div class="related-card-name">Centro Storico</div>
+        <div class="related-card-why">The Renaissance-postcard upgrade, twice the tourists.</div>
+        <div class="related-card-cta">Explore Centro Storico →</div>
+      </a>
+<a class="related-card" href="/apartments-in/pigneto">
+        <div class="related-card-name">Pigneto</div>
+        <div class="related-card-why">Rougher, half the rent, same creative energy.</div>
+        <div class="related-card-cta">Explore Pigneto →</div>
+      </a>
+<a class="related-card" href="/apartments-in/san-lorenzo">
+        <div class="related-card-name">San Lorenzo</div>
+        <div class="related-card-why">Same student-creative crowd at student prices.</div>
+        <div class="related-card-cta">Explore San Lorenzo →</div>
+      </a></div>
+    </section>
 
 <section class="cta">
   <h2 class="cta-title">Ready to live in Monti?</h2>
