@@ -101,6 +101,14 @@
         .filter-btn:hover{border-color:rgba(212,175,55,0.3);color:var(--text-primary)}
         .filter-btn.active{background:var(--gold);color:#000;border-color:var(--gold);font-weight:600}
         .filter-count{margin-left:6px;opacity:.6}
+        /* NEIGHBORHOOD STRIP */
+        .neighborhood-strip{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;align-items:center;margin:0 auto 40px;max-width:1100px;padding:18px 22px;border:1px solid rgba(212,175,55,0.18);border-radius:100px;background:rgba(212,175,55,0.04)}
+        .neighborhood-strip .ns-label{font-size:11px;color:var(--text-fade);text-transform:uppercase;letter-spacing:2px;margin-right:6px}
+        .neighborhood-strip a{font-size:13px;color:var(--text-secondary);padding:6px 14px;border-radius:100px;transition:all .25s;font-weight:300}
+        .neighborhood-strip a:hover{color:#000;background:var(--gold)}
+        .neighborhood-strip .ns-all{color:var(--gold);font-weight:400;letter-spacing:.5px}
+        .neighborhood-strip .ns-all:hover{background:transparent;color:var(--gold);text-decoration:underline}
+        @media(max-width:768px){.neighborhood-strip{border-radius:18px;padding:14px;gap:6px;font-size:12px}.neighborhood-strip a{padding:5px 11px;font-size:12px}}
         /* GRID */
         .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:24px}
         @media(max-width:768px){.grid{grid-template-columns:1fr;gap:20px}}
@@ -367,12 +375,12 @@
                 <span class="logo-text">BOOM</span>
             </a>
             <div class="nav-links">
-                <a href="/apartments.html" class="active">Apartments</a>
-                <a href="/property-finding.html">Property Finding</a>
-                <a href="/deal-assistance.html">Deal Assistance</a>
-                <a href="/virtual-viewing.html">Virtual Viewing</a>
-                <a href="/concierge.html">Concierge</a>
-                <a href="/about.html">About</a>
+                <a href="/apartments" class="active">Apartments</a>
+                <a href="/apartments-in">Neighborhoods</a>
+                <a href="/property-finding">Property Finding</a>
+                <a href="/virtual-viewing">Virtual Viewing</a>
+                <a href="/concierge">Concierge</a>
+                <a href="/about">About</a>
                 <a href="https://wa.me/393313251961" class="wa-link">WhatsApp</a>
             </div>
             <div class="hamburger" id="hamburger"><span></span><span></span><span></span></div>
@@ -380,13 +388,14 @@
     </nav>
     <div class="mobile-menu" id="mobileMenu">
         <a href="/">Home</a>
-        <a href="/apartments.html">Apartments</a>
-        <a href="/property-finding.html">Property Finding</a>
-        <a href="/deal-assistance.html">Deal Assistance</a>
-        <a href="/virtual-viewing.html">Virtual Viewing</a>
-        <a href="/concierge.html">Concierge</a>
-        <a href="/about.html">About</a>
-        <a href="/login.html">Login</a>
+        <a href="/apartments">Apartments</a>
+        <a href="/apartments-in">Neighborhoods</a>
+        <a href="/property-finding">Property Finding</a>
+        <a href="/deal-assistance">Deal Assistance</a>
+        <a href="/virtual-viewing">Virtual Viewing</a>
+        <a href="/concierge">Concierge</a>
+        <a href="/about">About</a>
+        <a href="/login">Login</a>
         <a href="https://wa.me/393313251961" class="wa-mob">WhatsApp Us</a>
     </div>
     <div class="page">
@@ -400,6 +409,21 @@
             <button class="filter-btn" data-filter="available">Available</button>
             <button class="filter-btn" data-filter="waitlist">Coming Soon</button>
         </div>
+
+        <nav class="neighborhood-strip" aria-label="Browse by neighborhood">
+            <span class="ns-label">By neighborhood:</span>
+            <a href="/apartments-in/trastevere">Trastevere</a>
+            <a href="/apartments-in/centro-storico">Centro Storico</a>
+            <a href="/apartments-in/monti">Monti</a>
+            <a href="/apartments-in/prati">Prati</a>
+            <a href="/apartments-in/pigneto">Pigneto</a>
+            <a href="/apartments-in/testaccio">Testaccio</a>
+            <a href="/apartments-in/ostiense">Ostiense</a>
+            <a href="/apartments-in/trieste-coppede">Trieste &amp; Coppedè</a>
+            <a href="/apartments-in/san-lorenzo">San Lorenzo</a>
+            <a href="/apartments-in/esquilino">Esquilino</a>
+            <a href="/apartments-in" class="ns-all">All guides →</a>
+        </nav>
         <div id="listingsContainer">
             <div class="loading-state" id="loadingState">
                 <div class="spinner"></div>

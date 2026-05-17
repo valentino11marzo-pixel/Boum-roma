@@ -419,6 +419,71 @@ function blogIndexJsonLd(canonicalUrl) {
   };
 }
 
+function neighborhoodJsonLd(n, canonicalUrl) {
+  if (!n) return null;
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Place',
+    '@id': canonicalUrl + '#place',
+    name: n.name,
+    description: n.summary,
+    url: canonicalUrl,
+    address: {
+      '@type': 'PostalAddress',
+      streetAddress: n.name,
+      addressLocality: 'Rome',
+      addressRegion: 'Lazio',
+      addressCountry: 'IT',
+    },
+    ...(n.geo ? { geo: { '@type': 'GeoCoordinates', latitude: n.geo.lat, longitude: n.geo.lng } } : {}),
+    containedInPlace: { '@type': 'City', name: 'Rome' },
+    additionalProperty: [
+      { '@type': 'PropertyValue', name: 'Rent (1-bed, EUR/month)', minValue: n.stats.rentMin, maxValue: n.stats.rentMax, unitText: 'EUR' },
+      { '@type': 'PropertyValue', name: 'Walkability', value: `${n.stats.walkScore}/10` },
+      { '@type': 'PropertyValue', name: 'Vibe', value: `${n.stats.vibeScore}/10` },
+      { '@type': 'PropertyValue', name: 'Transit', value: `${n.stats.transitScore}/10` },
+    ],
+  };
+}
+
+function neighborhoodFaqJsonLd(n) {
+  if (!n || !n.faqs) return null;
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: n.faqs.map((f) => ({
+      '@type': 'Question',
+      name: f.q,
+      acceptedAnswer: { '@type': 'Answer', text: f.a },
+    })),
+  };
+}
+
+function neighborhoodsCollectionJsonLd(canonicalUrl) {
+  let items = [];
+  try {
+    items = require('./neighborhoods-data').NEIGHBORHOODS.map((n, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      name: n.name,
+      url: SITE.ORIGIN + '/apartments-in/' + n.slug,
+    }));
+  } catch {}
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'CollectionPage',
+    url: canonicalUrl,
+    name: 'Rome Neighborhoods — Apartment Rentals',
+    description: 'BOOM\'s curated guides to renting in Rome\'s top 10 neighborhoods.',
+    isPartOf: { '@id': SITE.ORIGIN + '/#website' },
+    about: { '@type': 'Place', name: 'Rome' },
+    mainEntity: {
+      '@type': 'ItemList',
+      itemListElement: items,
+    },
+  };
+}
+
 /* ────────────────────────────────────────────────────────────────────────
  * Compose JSON-LD for a single page
  * ──────────────────────────────────────────────────────────────────────── */
@@ -438,15 +503,26 @@ function composeJsonLd(file, cfg, canonicalUrl) {
         blocks.push(localBusinessJsonLd());
         break;
       case 'CollectionPage':
-        blocks.push(collectionPageJsonLd(canonicalUrl));
+        if (key === 'neighborhoods') blocks.push(neighborhoodsCollectionJsonLd(canonicalUrl));
+        else blocks.push(collectionPageJsonLd(canonicalUrl));
+        break;
+      case 'Neighborhood':
+        blocks.push(neighborhoodJsonLd(cfg.neighborhoodData, canonicalUrl));
         break;
       case 'Apartment':
         blocks.push(apartmentJsonLd(cfg.apartmentData, canonicalUrl));
         break;
-      case 'FAQPage':
-        if (key === 'home') blocks.push(faqPageJsonLd());
-        else blocks.push(faqPageJsonLd());
+      case 'FAQPage': {
+        // Per-neighborhood FAQs are sourced from neighborhoodData; otherwise
+        // fall through to the curated brand FAQ.
+        if (cfg.neighborhoodData) {
+          const nf = neighborhoodFaqJsonLd(cfg.neighborhoodData);
+          if (nf) blocks.push(nf);
+        } else {
+          blocks.push(faqPageJsonLd());
+        }
         break;
+      }
       case 'HowTo':
         blocks.push(howToJsonLd());
         break;
