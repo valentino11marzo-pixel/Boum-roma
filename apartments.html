@@ -101,14 +101,6 @@
         .filter-btn:hover{border-color:rgba(212,175,55,0.3);color:var(--text-primary)}
         .filter-btn.active{background:var(--gold);color:#000;border-color:var(--gold);font-weight:600}
         .filter-count{margin-left:6px;opacity:.6}
-        /* NEIGHBORHOOD STRIP */
-        .neighborhood-strip{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;align-items:center;margin:0 auto 40px;max-width:1100px;padding:18px 22px;border:1px solid rgba(212,175,55,0.18);border-radius:100px;background:rgba(212,175,55,0.04)}
-        .neighborhood-strip .ns-label{font-size:11px;color:var(--text-fade);text-transform:uppercase;letter-spacing:2px;margin-right:6px}
-        .neighborhood-strip a{font-size:13px;color:var(--text-secondary);padding:6px 14px;border-radius:100px;transition:all .25s;font-weight:300}
-        .neighborhood-strip a:hover{color:#000;background:var(--gold)}
-        .neighborhood-strip .ns-all{color:var(--gold);font-weight:400;letter-spacing:.5px}
-        .neighborhood-strip .ns-all:hover{background:transparent;color:var(--gold);text-decoration:underline}
-        @media(max-width:768px){.neighborhood-strip{border-radius:18px;padding:14px;gap:6px;font-size:12px}.neighborhood-strip a{padding:5px 11px;font-size:12px}}
         /* GRID */
         .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:24px}
         @media(max-width:768px){.grid{grid-template-columns:1fr;gap:20px}}
@@ -124,9 +116,9 @@
         .badge-verified{background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.7);border:1px solid rgba(255,255,255,0.1)}
         .badge-video{background:rgba(255,59,48,0.15);color:#FF3B30;border:1px solid rgba(255,59,48,0.2)}
         .card-body{padding:22px 24px 24px;flex:1;display:flex;flex-direction:column}
-        .card-zone{display:inline-block;font-size:11px;text-transform:uppercase;letter-spacing:2px;color:var(--gold);margin-bottom:8px;text-decoration:none}
-        .card-zone-link{padding:3px 9px;border:1px solid rgba(212,175,55,0.22);border-radius:100px;background:rgba(212,175,55,0.06);font-weight:500;transition:all .25s}
-        .card-zone-link:hover{background:var(--gold);color:#000;border-color:var(--gold);text-decoration:none}
+        .card-zone{display:inline-block;font-size:11px;text-transform:uppercase;letter-spacing:2px;color:var(--gold);margin-bottom:8px;text-decoration:none;opacity:.92}
+        .card-zone-link{transition:opacity .25s,text-decoration-color .25s;text-decoration:underline transparent;text-underline-offset:3px}
+        .card-zone-link:hover{opacity:1;text-decoration-color:rgba(212,175,55,0.5)}
         .card:focus-visible{outline:2px solid var(--gold);outline-offset:3px;border-radius:20px}
         .card-name{font-size:20px;font-weight:400;margin-bottom:10px;color:#fff}
         .card-specs{display:flex;gap:16px;font-size:13px;color:var(--text-secondary);margin-bottom:16px;flex-wrap:wrap}
@@ -146,6 +138,16 @@
         .empty-state{text-align:center;padding:80px 20px}
         .empty-state h3{font-size:24px;font-weight:200;margin-bottom:12px}
         .empty-state p{color:var(--text-secondary);margin-bottom:24px}
+        /* BROWSE BY NEIGHBORHOOD — refined, minimal text section */
+        .hood-strip{max-width:900px;margin:80px auto 0;padding:48px 24px 0;text-align:center;border-top:1px solid rgba(255,255,255,0.06)}
+        .hood-strip-eyebrow{font-size:10px;color:var(--text-fade);text-transform:uppercase;letter-spacing:3px;margin-bottom:22px;font-weight:400}
+        .hood-strip-links{font-size:14px;line-height:2;color:var(--text-secondary);font-weight:300;letter-spacing:.01em}
+        .hood-strip-links a{color:var(--text-secondary);transition:color .25s;padding:0 4px;text-decoration:none}
+        .hood-strip-links a:hover{color:var(--gold)}
+        .hood-sep{color:var(--text-fade);opacity:.45;margin:0 2px}
+        .hood-strip-all{display:inline-block;margin-top:24px;font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:2.5px;padding:8px 0;border-bottom:1px solid rgba(212,175,55,0.25);transition:border-bottom-color .25s;text-decoration:none}
+        .hood-strip-all:hover{border-bottom-color:var(--gold)}
+        @media(max-width:768px){.hood-strip{margin-top:60px;padding:36px 20px 0}.hood-strip-links{font-size:13px;line-height:2.2}}
         /* UPSELL SECTION */
         .upsell-section{margin-top:80px}
         .upsell-header{text-align:center;margin-bottom:48px}
@@ -412,21 +414,6 @@
             <button class="filter-btn" data-filter="available">Available</button>
             <button class="filter-btn" data-filter="waitlist">Coming Soon</button>
         </div>
-
-        <nav class="neighborhood-strip" aria-label="Browse by neighborhood">
-            <span class="ns-label">By neighborhood:</span>
-            <a href="/apartments-in/trastevere">Trastevere</a>
-            <a href="/apartments-in/centro-storico">Centro Storico</a>
-            <a href="/apartments-in/monti">Monti</a>
-            <a href="/apartments-in/prati">Prati</a>
-            <a href="/apartments-in/pigneto">Pigneto</a>
-            <a href="/apartments-in/testaccio">Testaccio</a>
-            <a href="/apartments-in/ostiense">Ostiense</a>
-            <a href="/apartments-in/trieste-coppede">Trieste &amp; Coppedè</a>
-            <a href="/apartments-in/san-lorenzo">San Lorenzo</a>
-            <a href="/apartments-in/esquilino">Esquilino</a>
-            <a href="/apartments-in" class="ns-all">All guides →</a>
-        </nav>
         <div id="listingsContainer">
             <div class="loading-state" id="loadingState">
                 <div class="spinner"></div>
@@ -534,6 +521,33 @@
                 </div>
             </div>
         </div>
+
+        <!-- Browse by neighborhood — refined, SEO-friendly, no visual rumore -->
+        <section class="hood-strip" aria-label="Browse Rome apartments by neighborhood">
+            <div class="hood-strip-eyebrow">Browse Rome by neighborhood</div>
+            <div class="hood-strip-links">
+                <a href="/apartments-in/trastevere">Trastevere</a>
+                <span class="hood-sep">·</span>
+                <a href="/apartments-in/centro-storico">Centro Storico</a>
+                <span class="hood-sep">·</span>
+                <a href="/apartments-in/monti">Monti</a>
+                <span class="hood-sep">·</span>
+                <a href="/apartments-in/prati">Prati</a>
+                <span class="hood-sep">·</span>
+                <a href="/apartments-in/pigneto">Pigneto</a>
+                <span class="hood-sep">·</span>
+                <a href="/apartments-in/testaccio">Testaccio</a>
+                <span class="hood-sep">·</span>
+                <a href="/apartments-in/ostiense">Ostiense</a>
+                <span class="hood-sep">·</span>
+                <a href="/apartments-in/trieste-coppede">Trieste &amp; Coppedè</a>
+                <span class="hood-sep">·</span>
+                <a href="/apartments-in/san-lorenzo">San Lorenzo</a>
+                <span class="hood-sep">·</span>
+                <a href="/apartments-in/esquilino">Esquilino</a>
+            </div>
+            <a href="/apartments-in" class="hood-strip-all">All neighborhood guides →</a>
+        </section>
     </div>
     <!-- FOOTER -->
     <footer>
@@ -790,7 +804,7 @@
         const zoneSlug = (window.BOOM && BOOM.zoneToSlug) ? BOOM.zoneToSlug(zone) : null;
         const zoneHtml = zone
           ? (zoneSlug
-              ? `<a class="card-zone card-zone-link" href="/apartments-in/${zoneSlug}" data-stop="1" title="See all apartments in ${zone}">${zone} →</a>`
+              ? `<a class="card-zone card-zone-link" href="/apartments-in/${zoneSlug}" data-stop="1" title="See all apartments in ${zone}">${zone}</a>`
               : `<div class="card-zone">${zone}</div>`)
           : '';
 
