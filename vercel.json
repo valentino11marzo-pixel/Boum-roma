@@ -1,5 +1,33 @@
 {
   "version": 2,
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "redirects": [
+    { "source": "/index.html", "destination": "/", "permanent": true },
+    { "source": "/apartments.html", "destination": "/apartments", "permanent": true },
+    { "source": "/about.html", "destination": "/about", "permanent": true },
+    { "source": "/contact.html", "destination": "/contact", "permanent": true },
+    { "source": "/faq.html", "destination": "/faq", "permanent": true },
+    { "source": "/how-it-works.html", "destination": "/how-it-works", "permanent": true },
+    { "source": "/book.html", "destination": "/book", "permanent": true },
+    { "source": "/concierge.html", "destination": "/concierge", "permanent": true },
+    { "source": "/blog.html", "destination": "/blog", "permanent": true },
+    { "source": "/owners.html", "destination": "/owners", "permanent": true },
+    { "source": "/deals.html", "destination": "/deals", "permanent": true },
+    { "source": "/property-finding.html", "destination": "/property-finding", "permanent": true },
+    { "source": "/virtual-viewing.html", "destination": "/virtual-viewing", "permanent": true },
+    { "source": "/deal-assistance.html", "destination": "/deal-assistance", "permanent": true },
+    { "source": "/privacy.html", "destination": "/privacy", "permanent": true },
+    { "source": "/terms.html", "destination": "/terms", "permanent": true },
+    { "source": "/apartment_navona.html", "destination": "/apartment-navona", "permanent": true },
+    { "source": "/apartment_ripetta.html", "destination": "/apartment-ripetta", "permanent": true },
+    { "source": "/apartment_pigneto.html", "destination": "/apartment-pigneto", "permanent": true },
+    { "source": "/apartment_angelico.html", "destination": "/apartment-angelico", "permanent": true },
+    { "source": "/apartment_levico.html", "destination": "/apartment-levico", "permanent": true },
+    { "source": "/apartment_piemonte.html", "destination": "/apartment-piemonte", "permanent": true },
+    { "source": "/faq_page.html", "destination": "/faq", "permanent": true },
+    { "source": "/faq-page", "destination": "/faq", "permanent": true }
+  ],
   "rewrites": [
     { "source": "/book", "destination": "/book.html" },
     { "source": "/apartments", "destination": "/apartments.html" },
@@ -35,12 +63,10 @@
     { "source": "/owner-dashboard", "destination": "/owner-dashboard.html" },
     { "source": "/form-tenant", "destination": "/form-tenant.html" },
     { "source": "/form-landlord", "destination": "/form-landlord.html" },
-    { "source": "/faq-page", "destination": "/faq_page.html" },
     { "source": "/precheck", "destination": "/precheck.html" },
     { "source": "/seed-listings", "destination": "/seed-listings.html" },
     { "source": "/setup-firebase", "destination": "/setup-firebase.html" },
     { "source": "/boom-doc-parser", "destination": "/boom_doc_parser.html" },
-    { "source": "/s", "destination": "/s.html" },
     { "source": "/apartment-marconi", "destination": "/apartment-marconi.html" },
     { "source": "/apartment-angelico", "destination": "/apartment_angelico.html" },
     { "source": "/apartment-levico", "destination": "/apartment_levico.html" },
@@ -48,6 +74,7 @@
     { "source": "/apartment-piemonte", "destination": "/apartment_piemonte.html" },
     { "source": "/apartment-pigneto", "destination": "/apartment_pigneto.html" },
     { "source": "/apartment-ripetta", "destination": "/apartment_ripetta.html" },
+    { "source": "/apartments/:slug", "destination": "/apartment-detail.html?id=:slug" },
     { "source": "/blog-47-steps", "destination": "/blog-47-steps.html" },
     { "source": "/blog-contract-types", "destination": "/blog-contract-types.html" },
     { "source": "/blog-cost-calculator", "destination": "/blog-cost-calculator.html" },
@@ -55,6 +82,71 @@
     { "source": "/blog-scam-bible", "destination": "/blog-scam-bible.html" },
     { "source": "/blog-tenant-rights", "destination": "/blog-tenant-rights.html" },
     { "source": "/blog-visa-residency", "destination": "/blog-visa-residency.html" }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options", "value": "SAMEORIGIN" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=(self), interest-cohort=()" },
+        { "key": "Strict-Transport-Security", "value": "max-age=63072000; includeSubDomains; preload" },
+        { "key": "X-DNS-Prefetch-Control", "value": "on" }
+      ]
+    },
+    {
+      "source": "/(portal|admin|admin-flats|setup-firebase|seed-listings|boom-doc-parser|boom_doc_parser|portal.html|admin.html|admin-flats.html|setup-firebase.html|seed-listings.html|boom_doc_parser.html)(.*)",
+      "headers": [
+        { "key": "X-Robots-Tag", "value": "noindex, nofollow, noarchive, nosnippet" },
+        { "key": "Cache-Control", "value": "private, no-store, max-age=0" }
+      ]
+    },
+    {
+      "source": "/(dashboard|client-portal|owner-dashboard|tenant-registration|login|onboarding|pre-arrival|precheck|thank-you|proppass|pass-delivery|form-tenant|form-landlord)(.*)",
+      "headers": [
+        { "key": "X-Robots-Tag", "value": "noindex, follow" }
+      ]
+    },
+    {
+      "source": "/(.*)\\.(png|jpg|jpeg|svg|webp|avif|ico|woff|woff2|ttf|otf)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "source": "/sitemap.xml",
+      "headers": [
+        { "key": "Content-Type", "value": "application/xml; charset=utf-8" },
+        { "key": "Cache-Control", "value": "public, max-age=3600, s-maxage=86400" }
+      ]
+    },
+    {
+      "source": "/robots.txt",
+      "headers": [
+        { "key": "Content-Type", "value": "text/plain; charset=utf-8" },
+        { "key": "Cache-Control", "value": "public, max-age=86400" }
+      ]
+    },
+    {
+      "source": "/sw.js",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" },
+        { "key": "Service-Worker-Allowed", "value": "/" }
+      ]
+    },
+    {
+      "source": "/manifest.json",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=86400" }
+      ]
+    },
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "X-Robots-Tag", "value": "noindex, nofollow" }
+      ]
+    }
   ],
   "functions": {
     "api/reminder-cron.js": {
