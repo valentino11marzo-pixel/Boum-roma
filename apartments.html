@@ -320,7 +320,17 @@
         .vt-btn:hover{color:var(--text-primary)}
         .vt-btn.active{background:var(--gold);color:#000;font-weight:500}
         .vt-btn svg{width:14px;height:14px}
-        @media(max-width:768px){.apt-controls{padding:0 20px}.filter-pill{padding:8px 14px;font-size:12px}.filter-pill .fp-label{display:none}.apt-toolbar{justify-content:center}}
+        @media(max-width:768px){
+          .apt-controls{padding:0 20px}
+          .filter-pill{padding:8px 12px;font-size:11px;gap:5px}
+          .filter-pill .fp-label{font-size:9px;letter-spacing:1px}
+          .filter-pill .fp-value{font-size:12px}
+          .filter-pill .fp-caret{display:none}
+          .apt-filter-row{gap:6px}
+          .apt-toolbar{justify-content:center;padding-top:14px}
+          .vt-btn{padding:6px 13px;font-size:10px}
+          .vt-btn svg{width:12px;height:12px}
+        }
 
         /* FILTER POPOVERS */
         .filter-popover{position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:8px;width:min(420px,calc(100vw - 40px));background:var(--dark-void);border:1px solid rgba(212,175,55,0.18);border-radius:18px;padding:22px;box-shadow:0 30px 60px rgba(0,0,0,0.6);z-index:100;opacity:0;pointer-events:none;transition:opacity .2s,transform .25s cubic-bezier(.16,1,.3,1)}
@@ -607,7 +617,7 @@
                 <span class="pulse-dot"></span>
                 <span><b id="pulseAvail">—</b> available now · <b id="pulseNew">—</b> new this week · avg <b id="pulseAvg">—</b></span>
             </div>
-            <nav class="apt-hoods" aria-label="Browse by neighborhood">
+            <div class="apt-hoods" role="navigation" aria-label="Browse by neighborhood">
                 <a href="/apartments-in/trastevere">Trastevere</a><span>·</span>
                 <a href="/apartments-in/centro-storico">Centro Storico</a><span>·</span>
                 <a href="/apartments-in/monti">Monti</a><span>·</span>
@@ -619,7 +629,7 @@
                 <a href="/apartments-in/san-lorenzo">San Lorenzo</a><span>·</span>
                 <a href="/apartments-in/esquilino">Esquilino</a>
                 <a href="/apartments-in" class="apt-hoods-all">All guides →</a>
-            </nav>
+            </div>
         </header>
 
         <!-- SMART SEARCH -->
@@ -919,6 +929,32 @@
       compare: new Set(),
       map: null, mapMarkers: [],
     };
+
+    // Zone centroids — fallback when listings don't have lat/lng in Firestore.
+    // Coordinates are central focal points of each Roman neighborhood.
+    const ZONE_COORDS = {
+      'trastevere':      [12.4699, 41.8893],
+      'centro-storico':  [12.4778, 41.8990],
+      'monti':           [12.4946, 41.8945],
+      'prati':           [12.4571, 41.9105],
+      'pigneto':         [12.5306, 41.8842],
+      'testaccio':       [12.4760, 41.8765],
+      'ostiense':        [12.4775, 41.8702],
+      'trieste-coppede': [12.5036, 41.9229],
+      'san-lorenzo':     [12.5183, 41.8975],
+      'esquilino':       [12.5037, 41.8975],
+      'aventino':        [12.4825, 41.8829],
+      'parioli':         [12.4848, 41.9258],
+      'flaminio':        [12.4717, 41.9265],
+      'eur':             [12.4720, 41.8313],
+      'garbatella':      [12.4880, 41.8645],
+      'san-giovanni':    [12.5072, 41.8870],
+    };
+    // Tiny deterministic jitter so multiple listings in same zone don't stack
+    function jitter(seed) {
+      let h = 0; for (let i=0;i<seed.length;i++) h = ((h<<5)-h + seed.charCodeAt(i))|0;
+      return [(((h&0xffff)/0xffff)-0.5)*0.006, ((((h>>16)&0xffff)/0xffff)-0.5)*0.004];
+    }
 
     const FEATURE_KEYWORDS = {
       terrace: ['terrace','terrazz','balcony','balcon'],
@@ -1366,12 +1402,18 @@
         STATE.map = new maplibregl.Map({
           container: 'aptMap',
           style: { version: 8,
-            sources: { osm: { type:'raster',
-              tiles:['https://a.tile.openstreetmap.org/{z}/{x}/{y}.png','https://b.tile.openstreetmap.org/{z}/{x}/{y}.png','https://c.tile.openstreetmap.org/{z}/{x}/{y}.png'],
-              tileSize: 256, attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' } },
-            layers: [{ id:'osm', type:'raster', source:'osm', paint:{ 'raster-saturation':-1, 'raster-brightness-min':0.0, 'raster-brightness-max':0.4, 'raster-contrast':0.25 } }]
+            sources: { carto: { type:'raster',
+              tiles:[
+                'https://a.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}@2x.png',
+                'https://b.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}@2x.png',
+                'https://c.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}@2x.png',
+                'https://d.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}@2x.png'
+              ],
+              tileSize: 256, attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>' } },
+            layers: [{ id:'carto', type:'raster', source:'carto' }]
           },
-          center: [12.4964, 41.9028], zoom: 12.2,
+          center: [12.4900, 41.8950], zoom: 13.2,
+          maxBounds: [[12.30, 41.80],[12.70, 42.00]],  // greater Rome
         });
         STATE.map.addControl(new maplibregl.NavigationControl({showCompass:false}), 'top-right');
       }
@@ -1395,9 +1437,17 @@
       const bounds = new maplibregl.LngLatBounds();
       let added = 0;
       for (const l of list) {
-        const lng = Number(l.lng || l.geo?.lng || l.geo?.[1] || l.location?.lng);
-        const lat = Number(l.lat || l.geo?.lat || l.geo?.[0] || l.location?.lat);
-        if (!isFinite(lng) || !isFinite(lat) || lng === 0 || lat === 0) continue;
+        let lng = Number(l.lng || l.geo?.lng || l.geo?.[1] || l.location?.lng);
+        let lat = Number(l.lat || l.geo?.lat || l.geo?.[0] || l.location?.lat);
+        // Fallback: use zone centroid + small jitter when no real coords
+        if (!isFinite(lng) || !isFinite(lat) || lng === 0 || lat === 0) {
+          const slug = (window.BOOM && BOOM.zoneToSlug) ? BOOM.zoneToSlug(l.zone || l.neighborhood || '') : null;
+          const coords = slug && ZONE_COORDS[slug];
+          if (!coords) continue;
+          const j = jitter(l.id || '');
+          lng = coords[0] + j[0]; lat = coords[1] + j[1];
+        }
+        if (!isFinite(lng) || !isFinite(lat)) continue;
         const el = document.createElement('div');
         el.className = 'map-marker';
         el.textContent = l.price ? '€'+(Number(l.price)/1000).toFixed(1)+'k' : '·';
