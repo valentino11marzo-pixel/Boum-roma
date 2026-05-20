@@ -298,7 +298,9 @@
         @media(max-width:768px){.apt-search-bar{padding:0 20px}.apt-search-wrap input{height:48px;font-size:14px}.apt-search-wrap input::placeholder{font-size:13px}}
 
         /* CONTROLS / FILTER PILLS */
-        .apt-controls{max-width:1400px;margin:30px auto 0;padding:0 50px;position:relative;z-index:50}
+        .apt-controls{max-width:1400px;margin:30px auto 0;padding:14px 50px 0;position:sticky;top:62px;z-index:90;background:rgba(8,8,10,0.82);backdrop-filter:saturate(140%) blur(18px);-webkit-backdrop-filter:saturate(140%) blur(18px)}
+        .apt-controls::after{content:'';position:absolute;left:0;right:0;bottom:0;height:1px;background:rgba(255,255,255,0.05);opacity:0;transition:opacity .3s}
+        .apt-controls.is-stuck::after{opacity:1}
         .apt-filter-row{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-bottom:14px}
         .filter-pill{display:inline-flex;align-items:center;gap:8px;background:var(--dark-void);border:1px solid rgba(255,255,255,0.08);border-radius:100px;padding:10px 18px;color:var(--text-primary);font-family:inherit;font-size:13px;font-weight:300;letter-spacing:.01em;cursor:pointer;transition:all .25s}
         .filter-pill:hover{border-color:rgba(212,175,55,0.35)}
@@ -315,20 +317,29 @@
         .apt-toolbar{display:flex;justify-content:space-between;align-items:center;padding-top:18px;border-top:1px solid rgba(255,255,255,0.04);flex-wrap:wrap;gap:14px}
         .apt-count{font-size:12px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:2px;font-variant-numeric:tabular-nums}
         .apt-count b{color:var(--gold);font-weight:500}
+        .apt-toolbar-right{display:inline-flex;align-items:center;gap:10px}
+        .saved-pill{display:inline-flex;align-items:center;gap:6px;background:transparent;border:1px solid rgba(255,255,255,0.1);border-radius:100px;padding:7px 14px;color:var(--text-secondary);font-family:inherit;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;cursor:pointer;transition:all .25s}
+        .saved-pill:hover{border-color:rgba(212,175,55,0.4);color:var(--text-primary)}
+        .saved-pill.is-on{background:rgba(212,175,55,0.1);border-color:var(--gold);color:var(--gold)}
+        .saved-pill svg{width:13px;height:13px}
+        .saved-pill b{font-weight:600;font-variant-numeric:tabular-nums}
+        .apt-hoods .hood-count{color:var(--gold);font-size:10px;opacity:.65;font-variant-numeric:tabular-nums;font-weight:400;margin-left:1px}
         .apt-view-toggle{display:inline-flex;border:1px solid rgba(255,255,255,0.08);border-radius:100px;padding:3px;gap:2px}
         .vt-btn{display:inline-flex;align-items:center;gap:7px;padding:7px 16px;background:transparent;border:0;border-radius:100px;color:var(--text-secondary);font-family:inherit;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;cursor:pointer;transition:all .25s;font-weight:400}
         .vt-btn:hover{color:var(--text-primary)}
         .vt-btn.active{background:var(--gold);color:#000;font-weight:500}
         .vt-btn svg{width:14px;height:14px}
         @media(max-width:768px){
-          .apt-controls{padding:0 20px}
+          .apt-controls{padding:12px 20px 0;top:52px}
           .filter-pill{padding:8px 12px;font-size:11px;gap:5px}
           .filter-pill .fp-label{font-size:9px;letter-spacing:1px}
           .filter-pill .fp-value{font-size:12px}
           .filter-pill .fp-caret{display:none}
           .apt-filter-row{gap:6px}
-          .apt-toolbar{justify-content:center;padding-top:14px}
-          .vt-btn{padding:6px 13px;font-size:10px}
+          .apt-toolbar{justify-content:space-between;padding-top:14px;gap:8px}
+          .saved-pill{padding:6px 11px;font-size:10px;letter-spacing:1px}
+          .saved-pill span.saved-pill-label{display:none}
+          .vt-btn{padding:6px 12px;font-size:10px}
           .vt-btn svg{width:12px;height:12px}
         }
 
@@ -456,7 +467,8 @@
         .map-popup-price small{color:rgba(255,255,255,0.55);font-size:10px;font-weight:300;margin-left:3px;text-transform:uppercase;letter-spacing:.5px}
         .map-popup-go{display:block;text-align:center;padding:10px;border-top:1px solid rgba(255,255,255,0.06);font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:1.5px;font-weight:500;text-decoration:none;transition:background .2s}
         .map-popup-go:hover{background:rgba(212,175,55,0.08)}
-        .map-cluster{background:var(--gold)!important;color:#000!important;border-radius:50%!important;width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;border:3px solid #000;box-shadow:0 0 0 4px rgba(212,175,55,0.25)}
+        .map-cluster{background:var(--gold);color:#000;border-radius:50%;width:44px;height:44px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;border:3px solid #000;box-shadow:0 0 0 5px rgba(212,175,55,0.22),0 6px 18px rgba(0,0,0,0.5);cursor:pointer;transition:transform .2s,box-shadow .2s;font-variant-numeric:tabular-nums}
+        .map-cluster:hover{transform:scale(1.12);box-shadow:0 0 0 6px rgba(212,175,55,0.35),0 8px 22px rgba(0,0,0,0.6)}
         @media(max-width:880px){.apt-map-section{grid-template-columns:1fr;padding:0 20px 40px}.apt-map-sidebar{max-height:none;position:static;order:2}.apt-map{min-height:50vh;order:1}}
 
         /* COMPACT MAP-SIDEBAR CARDS */
@@ -664,15 +676,21 @@
             <div class="apt-filter-chips" id="aptFilterChips" aria-label="Active filters"></div>
             <div class="apt-toolbar">
                 <div class="apt-count" id="aptCount">Loading…</div>
-                <div class="apt-view-toggle" role="tablist">
-                    <button class="vt-btn active" data-view="grid" role="tab" aria-selected="true">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-                        Grid
+                <div class="apt-toolbar-right">
+                    <button class="saved-pill" id="savedPill" aria-pressed="false" hidden>
+                        <svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M12 21s-7-4.35-9.5-8.5C.5 8.5 3 4 7 4c2 0 3.5 1.2 5 3 1.5-1.8 3-3 5-3 4 0 6.5 4.5 4.5 8.5C19 16.65 12 21 12 21z"/></svg>
+                        <span class="saved-pill-label">Saved</span> <b id="savedPillCount">0</b>
                     </button>
-                    <button class="vt-btn" data-view="map" role="tab" aria-selected="false">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2Z"/><path d="M9 4v14"/><path d="M15 6v14"/></svg>
-                        Map
-                    </button>
+                    <div class="apt-view-toggle" role="tablist">
+                        <button class="vt-btn active" data-view="grid" role="tab" aria-selected="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                            Grid
+                        </button>
+                        <button class="vt-btn" data-view="map" role="tab" aria-selected="false">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2Z"/><path d="M9 4v14"/><path d="M15 6v14"/></svg>
+                            Map
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -923,11 +941,11 @@
     const fmt = n => n != null ? '€' + Number(n).toLocaleString() : '—';
 
     const STATE = {
-      raw: [], view: 'grid', q: '', sort: 'recommended',
+      raw: [], view: 'grid', q: '', sort: 'recommended', savedOnly: false,
       filters: { budgetMin: 500, budgetMax: 4000, hoods: new Set(), beds: 0, features: new Set() },
       saved: new Set(JSON.parse(localStorage.getItem('boom:saved') || '[]')),
       compare: new Set(),
-      map: null, mapMarkers: [],
+      map: null, markers: {}, markersOnScreen: {}, mapWired: false,
     };
 
     // Zone centroids — fallback when listings don't have lat/lng in Firestore.
@@ -992,8 +1010,10 @@
         const snap = await db.collection('listings').get();
         STATE.raw = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         initFilterUI();
+        updateZoneCounts();
         parseURLState();
         updatePulse();
+        updateSavedPill();
         rebuildHistogram();
         applyAndRender();
       } catch (err) {
@@ -1040,6 +1060,33 @@
       ).join('');
     }
 
+    // Live inventory count per neighborhood, shown inline in the hero row
+    function updateZoneCounts() {
+      if (!window.BOOM || !BOOM.zoneToSlug) return;
+      const counts = {};
+      STATE.raw.filter(l => !isRented(l)).forEach(l => {
+        const slug = BOOM.zoneToSlug(l.zone || l.neighborhood || l.address || '');
+        if (slug) counts[slug] = (counts[slug] || 0) + 1;
+      });
+      $$('.apt-hoods a[href^="/apartments-in/"]').forEach(a => {
+        if (a.classList.contains('apt-hoods-all')) return;
+        const m = a.getAttribute('href').match(/\/apartments-in\/([^/?#]+)/);
+        if (!m) return;
+        const n = counts[m[1]] || 0;
+        a.dataset.label = a.dataset.label || a.textContent.trim();
+        a.innerHTML = a.dataset.label + (n > 0 ? ` <span class="hood-count">${n}</span>` : '');
+      });
+    }
+
+    function updateSavedPill() {
+      const pill = $('#savedPill'); const n = STATE.saved.size;
+      if (n === 0) { pill.hidden = true; STATE.savedOnly = false; pill.classList.remove('is-on'); pill.setAttribute('aria-pressed','false'); return; }
+      pill.hidden = false;
+      $('#savedPillCount').textContent = n;
+      pill.classList.toggle('is-on', STATE.savedOnly);
+      pill.setAttribute('aria-pressed', String(STATE.savedOnly));
+    }
+
     /* ── PIPELINE ────────────────────────────────────────────────── */
     function applyAndRender() {
       const list = pipeline(STATE.raw);
@@ -1052,6 +1099,7 @@
 
     function pipeline(input) {
       let list = input.filter(l => !isRented(l));
+      if (STATE.savedOnly) list = list.filter(l => STATE.saved.has(l.id));
       list = list.filter(l => {
         const p = Number(l.price); if (!p) return true;
         return p >= STATE.filters.budgetMin && p <= STATE.filters.budgetMax;
@@ -1420,9 +1468,23 @@
       renderMap(pipeline(STATE.raw));
     }
 
+    // Resolve [lng,lat] for a listing — real coords, else zone centroid + jitter
+    function coordsFor(l) {
+      let lng = Number(l.lng || l.geo?.lng || l.geo?.[1] || l.location?.lng);
+      let lat = Number(l.lat || l.geo?.lat || l.geo?.[0] || l.location?.lat);
+      if (!isFinite(lng) || !isFinite(lat) || lng === 0 || lat === 0) {
+        const slug = (window.BOOM && BOOM.zoneToSlug) ? BOOM.zoneToSlug(l.zone || l.neighborhood || '') : null;
+        const c = slug && ZONE_COORDS[slug];
+        if (!c) return null;
+        const j = jitter(l.id || '');
+        return [c[0] + j[0], c[1] + j[1]];
+      }
+      return [lng, lat];
+    }
+
     function renderMap(list) {
       if (!STATE.map || typeof maplibregl === 'undefined') return;
-      STATE.mapMarkers.forEach(m => m.remove()); STATE.mapMarkers = [];
+      // Sidebar list
       const side = $('#aptMapSidebar');
       side.innerHTML = list.length ? list.map(l => {
         const img = (l.images && l.images[0]) || l.image || '';
@@ -1434,35 +1496,82 @@
             <div class="map-mini-price">${p}<small>/mo</small></div>
           </div></a>`;
       }).join('') : '<div style="padding:30px;text-align:center;color:var(--text-fade);font-size:13px">No apartments match.</div>';
+
+      // GeoJSON for clustering
       const bounds = new maplibregl.LngLatBounds();
-      let added = 0;
+      const features = [];
       for (const l of list) {
-        let lng = Number(l.lng || l.geo?.lng || l.geo?.[1] || l.location?.lng);
-        let lat = Number(l.lat || l.geo?.lat || l.geo?.[0] || l.location?.lat);
-        // Fallback: use zone centroid + small jitter when no real coords
-        if (!isFinite(lng) || !isFinite(lat) || lng === 0 || lat === 0) {
-          const slug = (window.BOOM && BOOM.zoneToSlug) ? BOOM.zoneToSlug(l.zone || l.neighborhood || '') : null;
-          const coords = slug && ZONE_COORDS[slug];
-          if (!coords) continue;
-          const j = jitter(l.id || '');
-          lng = coords[0] + j[0]; lat = coords[1] + j[1];
-        }
-        if (!isFinite(lng) || !isFinite(lat)) continue;
-        const el = document.createElement('div');
-        el.className = 'map-marker';
-        el.textContent = l.price ? '€'+(Number(l.price)/1000).toFixed(1)+'k' : '·';
-        const popup = new maplibregl.Popup({className:'map-popup', offset:[0,-14], maxWidth:'260px'}).setHTML(`
-          <div class="map-popup-img"${((l.images&&l.images[0])||l.image) ? ` style="background-image:url('${(l.images&&l.images[0])||l.image}')"` : ''}></div>
-          <div class="map-popup-body">
-            <div class="map-popup-zone">${l.zone||''}</div>
-            <div class="map-popup-name">${l.name||'Apartment'}</div>
-            <div class="map-popup-price">${l.price?fmt(l.price):'—'}<small>/mo</small></div>
-          </div>
-          <a class="map-popup-go" href="/apartments/${encodeURIComponent(l.id)}">View details →</a>`);
-        const m = new maplibregl.Marker({element:el, anchor:'center'}).setLngLat([lng,lat]).setPopup(popup).addTo(STATE.map);
-        STATE.mapMarkers.push(m); bounds.extend([lng,lat]); added++;
+        const c = coordsFor(l); if (!c) continue;
+        features.push({ type:'Feature', geometry:{ type:'Point', coordinates: c },
+          properties: { id: l.id, name: l.name || 'Apartment', zone: l.zone || '', price: l.price ? Number(l.price) : 0, img: (l.images && l.images[0]) || l.image || '' } });
+        bounds.extend(c);
       }
-      if (added > 0) try { STATE.map.fitBounds(bounds, {padding:60, maxZoom:14, duration:600}); } catch {}
+      const data = { type:'FeatureCollection', features };
+
+      const apply = () => {
+        if (STATE.map.getSource('listings')) {
+          STATE.map.getSource('listings').setData(data);
+        } else {
+          STATE.map.addSource('listings', { type:'geojson', data, cluster:true, clusterRadius:54, clusterMaxZoom:14 });
+          if (!STATE.mapWired) {
+            STATE.map.on('render', () => {
+              if (!STATE.map.getSource('listings') || !STATE.map.isSourceLoaded('listings')) return;
+              syncMapMarkers();
+            });
+            STATE.mapWired = true;
+          }
+        }
+        syncMapMarkers();
+        if (features.length) { try { STATE.map.fitBounds(bounds, {padding:70, maxZoom:15, duration:600}); } catch {} }
+      };
+      if (STATE.map.isStyleLoaded()) apply(); else STATE.map.once('load', apply);
+    }
+
+    // Airbnb-style HTML-marker sync against the clustered GeoJSON source
+    function syncMapMarkers() {
+      const features = STATE.map.querySourceFeatures('listings');
+      const next = {};
+      for (const f of features) {
+        const coords = f.geometry.coordinates;
+        const p = f.properties;
+        let id;
+        if (p.cluster) {
+          id = 'c' + p.cluster_id;
+          if (!STATE.markers[id]) {
+            const el = document.createElement('div');
+            el.className = 'map-cluster';
+            el.textContent = p.point_count_abbreviated || p.point_count;
+            el.addEventListener('click', () => {
+              const src = STATE.map.getSource('listings');
+              const res = src.getClusterExpansionZoom(p.cluster_id);
+              const go = z => STATE.map.easeTo({ center: coords, zoom: z });
+              if (res && typeof res.then === 'function') res.then(go).catch(()=>{});
+              else src.getClusterExpansionZoom(p.cluster_id, (err, z) => { if (!err) go(z); });
+            });
+            STATE.markers[id] = new maplibregl.Marker({ element: el }).setLngLat(coords);
+          }
+        } else {
+          id = 'p' + p.id;
+          if (!STATE.markers[id]) {
+            const el = document.createElement('div');
+            el.className = 'map-marker';
+            el.textContent = p.price ? '€' + (p.price/1000).toFixed(1) + 'k' : '·';
+            const popup = new maplibregl.Popup({ className:'map-popup', offset:[0,-14], maxWidth:'260px' }).setHTML(
+              `<div class="map-popup-img"${p.img?` style="background-image:url('${p.img}')"`:''}></div>
+               <div class="map-popup-body">
+                 <div class="map-popup-zone">${p.zone||''}</div>
+                 <div class="map-popup-name">${p.name||'Apartment'}</div>
+                 <div class="map-popup-price">${p.price?fmt(p.price):'—'}<small>/mo</small></div>
+               </div>
+               <a class="map-popup-go" href="/apartments/${encodeURIComponent(p.id)}">View details →</a>`);
+            STATE.markers[id] = new maplibregl.Marker({ element: el, anchor:'center' }).setLngLat(coords).setPopup(popup);
+          }
+        }
+        next[id] = STATE.markers[id];
+        if (!STATE.markersOnScreen[id]) STATE.markers[id].addTo(STATE.map);
+      }
+      for (const id in STATE.markersOnScreen) if (!next[id]) STATE.markersOnScreen[id].remove();
+      STATE.markersOnScreen = next;
     }
 
     /* ── ACTIONS: SAVE / COMPARE / SHARE ──────────────────────────── */
@@ -1474,6 +1583,8 @@
         const path = b.querySelector('path');
         if (path) path.setAttribute('fill', STATE.saved.has(id) ? 'currentColor' : 'none');
       });
+      updateSavedPill();
+      if (STATE.savedOnly) applyAndRender();  // a removed favourite should drop out of the saved view
     }
     function toggleCompare(id) {
       if (STATE.compare.has(id)) STATE.compare.delete(id);
@@ -1580,6 +1691,18 @@
     });
     // View toggle
     $$('.vt-btn').forEach(b => b.addEventListener('click', () => setView(b.dataset.view)));
+    // Saved-only toggle
+    $('#savedPill').addEventListener('click', () => {
+      STATE.savedOnly = !STATE.savedOnly;
+      updateSavedPill();
+      applyAndRender();
+    });
+    // Sticky controls: add shadow line once the bar is pinned
+    const controlsEl = $('.apt-controls');
+    const stickyTop = parseInt(getComputedStyle(controlsEl).top, 10) || 62;
+    window.addEventListener('scroll', () => {
+      controlsEl.classList.toggle('is-stuck', controlsEl.getBoundingClientRect().top <= stickyTop + 1);
+    }, { passive: true });
     // NL search (debounced)
     let searchT;
     $('#aptSearch').addEventListener('input', e => {
