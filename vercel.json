@@ -5,7 +5,6 @@
   "redirects": [
     { "source": "/index.html", "destination": "/", "permanent": true },
     { "source": "/apartments.html", "destination": "/apartments", "permanent": true },
-    { "source": "/apartments-list", "destination": "/apartments", "permanent": true },
     { "source": "/about.html", "destination": "/about", "permanent": true },
     { "source": "/contact.html", "destination": "/contact", "permanent": true },
     { "source": "/faq.html", "destination": "/faq", "permanent": true },
@@ -30,7 +29,7 @@
     { "source": "/faq-page", "destination": "/faq", "permanent": true }
   ],
   "rewrites": [
-    { "source": "/apartments", "destination": "/apartments-list.html" },
+    { "source": "/apartments", "destination": "/apartments-list" },
     { "source": "/apartments/:id", "destination": "/apartment-detail" },
     { "source": "/book", "destination": "/book.html" },
     { "source": "/about", "destination": "/about.html" },
