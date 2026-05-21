@@ -399,6 +399,11 @@
         .apt-grid-section{max-width:1400px;margin:36px auto 0;padding:0 50px 60px}
         .apt-results-anim{animation:fadeIn .35s ease-out both}
         @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+        @media (prefers-reduced-motion: reduce){
+          .apt-results-anim,.pulse-dot,.skel-img,.skel-line{animation:none!important}
+          .card-img-dots,.card-actions{transition:none!important}
+          *{scroll-behavior:auto!important}
+        }
 
         /* Premium card overlays */
         .card{position:relative}
@@ -415,6 +420,10 @@
         .card-act svg{width:16px;height:16px}
         .card-match{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:1.5px;font-weight:500;margin-top:4px}
         .card-match::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--gold);box-shadow:0 0 6px var(--gold)}
+        .card-price-wrap{display:flex;flex-direction:column;gap:3px}
+        .price-insight{font-size:10px;letter-spacing:.3px;font-weight:400}
+        .price-insight.good{color:#00FF88}
+        .price-insight.high{color:var(--text-fade)}
         .card-signal-row{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px}
         .card-signal{display:inline-flex;align-items:center;gap:4px;font-size:9px;letter-spacing:1px;text-transform:uppercase;padding:3px 8px;border-radius:100px;font-weight:500;line-height:1}
         .signal-new{background:rgba(0,255,136,0.12);color:#00FF88}
@@ -443,6 +452,45 @@
         .compare-bar-clear{background:transparent;border:0;color:var(--text-fade);font-size:18px;cursor:pointer;padding:0 8px;line-height:1}
         .compare-bar-clear:hover{color:var(--text-primary)}
         @media(max-width:768px){.compare-bar{padding:6px 6px 6px 16px;gap:10px;font-size:12px}.compare-bar-thumb{width:24px;height:24px}.compare-bar-label{display:none}}
+
+        /* COMPARE MODAL */
+        .compare-modal{position:fixed;inset:0;z-index:400;display:flex;align-items:center;justify-content:center;padding:24px;opacity:0;transition:opacity .25s}
+        .compare-modal[hidden]{display:none}
+        .compare-modal.open{opacity:1}
+        .compare-modal-backdrop{position:absolute;inset:0;background:rgba(0,0,0,0.78);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+        .compare-modal-panel{position:relative;width:min(1100px,100%);max-height:88vh;display:flex;flex-direction:column;background:var(--dark-void,#0A0A0A);border:1px solid rgba(212,175,55,0.2);border-radius:22px;box-shadow:0 40px 100px rgba(0,0,0,0.7);overflow:hidden;transform:scale(.97);transition:transform .3s cubic-bezier(.16,1,.3,1)}
+        .compare-modal.open .compare-modal-panel{transform:scale(1)}
+        .compare-modal-head{display:flex;justify-content:space-between;align-items:center;padding:22px 26px;border-bottom:1px solid rgba(255,255,255,0.06);flex-shrink:0}
+        .compare-modal-head h2{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:22px;font-weight:200;letter-spacing:-.01em}
+        .compare-modal-close{background:transparent;border:0;color:var(--text-secondary);font-size:30px;line-height:1;cursor:pointer;transition:color .2s;padding:0 6px}
+        .compare-modal-close:hover{color:var(--gold)}
+        .compare-modal-scroll{overflow:auto;padding:6px 0}
+        .compare-grid{--cmp-cols:2;min-width:max-content}
+        .cmp-row{display:grid;grid-template-columns:150px repeat(var(--cmp-cols),minmax(150px,1fr));align-items:center;border-bottom:1px solid rgba(255,255,255,0.04)}
+        .cmp-row:last-child{border-bottom:0}
+        .cmp-label{padding:13px 26px;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-fade);position:sticky;left:0;background:var(--dark-void,#0A0A0A);z-index:2}
+        .cmp-val{padding:13px 18px;font-size:14px;color:var(--text-primary);text-align:center;font-variant-numeric:tabular-nums}
+        .cmp-row-head{align-items:end;border-bottom:1px solid rgba(255,255,255,0.08)}
+        .cmp-head-cell{position:relative;padding:18px;display:flex;flex-direction:column;align-items:center;gap:10px}
+        .cmp-photo{display:block;width:100%;height:96px;border-radius:10px;background:#1A1A1D center/cover no-repeat}
+        .cmp-name{font-size:14px;color:var(--text-primary);text-align:center;line-height:1.3;font-weight:400}
+        .cmp-name:hover{color:var(--gold)}
+        .cmp-remove{position:absolute;top:6px;right:6px;width:24px;height:24px;border-radius:50%;background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.12);color:#fff;font-size:14px;line-height:1;cursor:pointer;transition:all .2s}
+        .cmp-remove:hover{background:#FF453A;border-color:#FF453A}
+        .cmp-best{color:var(--gold);font-weight:600}
+        .cmp-best::after{content:' ★';font-size:9px;vertical-align:top}
+        .cmp-yes{color:#00FF88}
+        .cmp-no{color:var(--text-fade)}
+        .cmp-row-cta .cmp-val{padding:18px}
+        .cmp-view{display:inline-block;padding:10px 22px;background:var(--gold);color:#000;border-radius:100px;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;font-weight:600;text-decoration:none;transition:transform .2s}
+        .cmp-view:hover{transform:scale(1.05)}
+        @media(max-width:768px){
+          .compare-modal{padding:0}
+          .compare-modal-panel{max-height:100vh;height:100vh;border-radius:0;border:0;width:100%}
+          .cmp-label{padding:13px 16px;font-size:10px}
+          .cmp-val{padding:11px 12px;font-size:13px}
+          .cmp-row{grid-template-columns:118px repeat(var(--cmp-cols),minmax(130px,1fr))}
+        }
 
         /* MAP VIEW */
         .apt-map-section{max-width:1400px;margin:36px auto 0;padding:0 50px 60px;display:grid;grid-template-columns:380px 1fr;gap:20px;min-height:70vh}
@@ -882,6 +930,18 @@
         <button class="compare-bar-clear" id="compareBarClear" aria-label="Clear comparison">×</button>
     </div>
 
+    <!-- COMPARE MODAL -->
+    <div class="compare-modal" id="compareModal" role="dialog" aria-modal="true" aria-label="Compare apartments" hidden>
+        <div class="compare-modal-backdrop" data-close-compare></div>
+        <div class="compare-modal-panel">
+            <div class="compare-modal-head">
+                <h2>Compare apartments</h2>
+                <button class="compare-modal-close" data-close-compare aria-label="Close comparison">×</button>
+            </div>
+            <div class="compare-modal-scroll"><div class="compare-grid" id="compareModalBody"></div></div>
+        </div>
+    </div>
+
     <!-- FOOTER -->
     <footer>
         <div class="footer-content">
@@ -945,6 +1005,7 @@
       filters: { budgetMin: 500, budgetMax: 4000, hoods: new Set(), beds: 0, features: new Set() },
       saved: new Set(JSON.parse(localStorage.getItem('boom:saved') || '[]')),
       compare: new Set(),
+      zoneAvg: {},
       map: null, markers: {}, markersOnScreen: {}, mapWired: false,
     };
 
@@ -1010,6 +1071,7 @@
         const snap = await db.collection('listings').get();
         STATE.raw = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         initFilterUI();
+        computeZoneAverages();
         updateZoneCounts();
         parseURLState();
         updatePulse();
@@ -1076,6 +1138,31 @@
         a.dataset.label = a.dataset.label || a.textContent.trim();
         a.innerHTML = a.dataset.label + (n > 0 ? ` <span class="hood-count">${n}</span>` : '');
       });
+    }
+
+    // Average asking price per neighborhood — drives the price-intelligence badge
+    function computeZoneAverages() {
+      const acc = {};
+      STATE.raw.filter(l => !isRented(l) && Number(l.price)).forEach(l => {
+        const slug = (window.BOOM && BOOM.zoneToSlug) ? BOOM.zoneToSlug(l.zone || l.neighborhood || l.address || '') : null;
+        if (!slug) return;
+        (acc[slug] = acc[slug] || { sum: 0, n: 0, name: l.zone || l.neighborhood || slug }).sum += Number(l.price);
+        acc[slug].n++;
+      });
+      STATE.zoneAvg = {};
+      for (const s in acc) STATE.zoneAvg[s] = { avg: acc[s].sum / acc[s].n, n: acc[s].n, name: acc[s].name };
+    }
+
+    // "€X below Trastevere avg" — only when the zone has a meaningful sample
+    function priceInsight(l) {
+      const p = Number(l.price); if (!p) return '';
+      const slug = (window.BOOM && BOOM.zoneToSlug) ? BOOM.zoneToSlug(l.zone || l.neighborhood || '') : null;
+      const z = slug && STATE.zoneAvg[slug];
+      if (!z || z.n < 3) return '';
+      const diff = Math.round(p - z.avg);
+      if (diff <= -75) return `<span class="price-insight good">€${Math.abs(diff).toLocaleString()} below ${z.name} avg</span>`;
+      if (diff >= 150) return `<span class="price-insight high">€${diff.toLocaleString()} above ${z.name} avg</span>`;
+      return '';
     }
 
     function updateSavedPill() {
@@ -1170,7 +1257,22 @@
 
     function renderGrid(list) {
       const grid = $('#aptGrid');
-      if (!list.length) { grid.innerHTML=''; $('#aptEmpty').hidden = false; return; }
+      if (!list.length) {
+        grid.innerHTML = '';
+        const e = $('#aptEmpty'); e.hidden = false;
+        const icon = e.querySelector('.apt-empty-icon'), h = e.querySelector('h3'), p = e.querySelector('p');
+        const reset = $('#aptEmptyReset');
+        if (STATE.savedOnly && STATE.saved.size === 0) {
+          icon.textContent = '♡'; h.textContent = 'No saved apartments yet';
+          p.textContent = 'Tap the heart on any apartment to keep it here for later.';
+          reset.textContent = 'Browse all apartments';
+        } else {
+          icon.textContent = '⌕'; h.textContent = 'No apartments match your filters';
+          p.textContent = 'Try widening your budget, removing a feature, or letting BOOM find one for you.';
+          reset.textContent = 'Reset filters';
+        }
+        return;
+      }
       $('#aptEmpty').hidden = true;
       grid.innerHTML = list.map(makeCard).join('');
       grid.classList.remove('apt-results-anim'); void grid.offsetWidth; grid.classList.add('apt-results-anim');
@@ -1233,7 +1335,10 @@
           <div class="card-name">${name}</div>
           ${specs.length ? `<div class="card-specs">${specs.join('')}</div>` : ''}
           <div class="card-bottom">
-            <div class="card-price">${price} <small>/month</small></div>
+            <div class="card-price-wrap">
+              <div class="card-price">${price} <small>/month</small></div>
+              ${priceInsight(l)}
+            </div>
             ${matchHtml}
           </div>
         </div>
@@ -1468,6 +1573,18 @@
       renderMap(pipeline(STATE.raw));
     }
 
+    // Hover sync between sidebar list and map markers (Airbnb-style)
+    function highlightMarker(id, on) {
+      const m = STATE.markers['p' + id];
+      if (m) m.getElement().classList.toggle('is-active', on);
+    }
+    function highlightMini(id, on) {
+      const card = document.querySelector(`#aptMapSidebar .map-mini-card[data-id="${id}"]`);
+      if (!card) return;
+      card.classList.toggle('is-active', on);
+      if (on) card.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+
     // Resolve [lng,lat] for a listing — real coords, else zone centroid + jitter
     function coordsFor(l) {
       let lng = Number(l.lng || l.geo?.lng || l.geo?.[1] || l.location?.lng);
@@ -1555,7 +1672,10 @@
           if (!STATE.markers[id]) {
             const el = document.createElement('div');
             el.className = 'map-marker';
+            el.dataset.id = p.id;
             el.textContent = p.price ? '€' + (p.price/1000).toFixed(1) + 'k' : '·';
+            el.addEventListener('mouseenter', () => highlightMini(p.id, true));
+            el.addEventListener('mouseleave', () => highlightMini(p.id, false));
             const popup = new maplibregl.Popup({ className:'map-popup', offset:[0,-14], maxWidth:'260px' }).setHTML(
               `<div class="map-popup-img"${p.img?` style="background-image:url('${p.img}')"`:''}></div>
                <div class="map-popup-body">
@@ -1697,6 +1817,18 @@
       updateSavedPill();
       applyAndRender();
     });
+    // Sidebar card hover → highlight its map marker
+    const mapSidebar = $('#aptMapSidebar');
+    mapSidebar.addEventListener('mouseover', e => { const c = e.target.closest('.map-mini-card'); if (c) highlightMarker(c.dataset.id, true); });
+    mapSidebar.addEventListener('mouseout', e => { const c = e.target.closest('.map-mini-card'); if (c) highlightMarker(c.dataset.id, false); });
+    // Escape closes the compare modal, then any open filter popover
+    document.addEventListener('keydown', e => {
+      if (e.key !== 'Escape') return;
+      const modal = $('#compareModal');
+      if (modal && !modal.hidden) { closeCompare(); return; }
+      const open = $('.filter-popover.open');
+      if (open) { open.classList.remove('open'); open.hidden = true; $$('.filter-pill').forEach(b => b.setAttribute('aria-expanded','false')); }
+    });
     // Sticky controls: add shadow line once the bar is pinned
     const controlsEl = $('.apt-controls');
     const stickyTop = parseInt(getComputedStyle(controlsEl).top, 10) || 62;
@@ -1732,7 +1864,9 @@
     });
     // Hover-cycle through card images
     let cardImgTimer;
+    const REDUCE_MOTION = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     document.addEventListener('mouseover', e => {
+      if (REDUCE_MOTION) return;
       const cardImg = e.target.closest('.card-img[data-images]');
       if (!cardImg || cardImg.dataset.cycling) return;
       let images; try { images = JSON.parse(cardImg.dataset.images); } catch { return; }
@@ -1740,7 +1874,7 @@
       cardImg.dataset.cycling = '1';
       const img = cardImg.querySelector('img'); const dots = cardImg.querySelectorAll('.card-img-dot');
       let i = 0;
-      cardImg._timer = setInterval(() => { i = (i+1) % images.length; img.src = images[i]; dots.forEach((d,di) => d.classList.toggle('active', di === i)); }, 1400);
+      cardImg._timer = setInterval(() => { i = (i+1) % images.length; img.src = images[i]; dots.forEach((d,di) => d.classList.toggle('active', di === i)); }, 850);
     });
     document.addEventListener('mouseout', e => {
       const cardImg = e.target.closest('.card-img[data-images]');
@@ -1753,10 +1887,54 @@
       const img = cardImg.querySelector('img'); const dots = cardImg.querySelectorAll('.card-img-dot');
       img.src = images[0]; dots.forEach((d,di) => d.classList.toggle('active', di === 0));
     });
-    // Compare bar
-    $('#compareBarGo').addEventListener('click', () => {
-      if (STATE.compare.size < 2) return showToast('Pick at least 2 apartments to compare');
-      showToast('Compare view coming soon — selected ' + STATE.compare.size);
+    // Compare bar → open the side-by-side modal
+    const CMP_FEATURES = [['terrace','Terrace / balcony'],['lift','Lift'],['furnished','Furnished'],['petfriendly','Pet-friendly'],['parking','Parking'],['airconditioning','Air conditioning'],['washer','Washing machine'],['dishwasher','Dishwasher'],['wifi','Wi-Fi'],['video','Video tour']];
+    function openCompare() {
+      const items = [...STATE.compare].map(id => STATE.raw.find(l => l.id === id)).filter(Boolean);
+      if (items.length < 2) return showToast('Pick at least 2 apartments to compare');
+      const minPrice = Math.min(...items.map(l => Number(l.price) || Infinity));
+      const maxSqm = Math.max(...items.map(l => Number(l.sqm || l.size) || 0));
+      const row = (label, vals) => `<div class="cmp-row"><div class="cmp-label">${label}</div>${vals.map(v => `<div class="cmp-val">${v}</div>`).join('')}</div>`;
+      let html = `<div class="cmp-row cmp-row-head"><div class="cmp-label"></div>${items.map(l => {
+        const img = (l.images && l.images[0]) || l.image || '';
+        const u = `/apartments/${encodeURIComponent(l.id)}`;
+        return `<div class="cmp-val cmp-head-cell">
+          <button class="cmp-remove" data-cmp-remove="${l.id}" aria-label="Remove">×</button>
+          <a href="${u}" class="cmp-photo"${img?` style="background-image:url('${img}')"`:''}></a>
+          <a href="${u}" class="cmp-name">${l.name || 'Apartment'}</a>
+        </div>`;
+      }).join('')}</div>`;
+      html += row('Neighborhood', items.map(l => l.zone || l.neighborhood || '—'));
+      html += row('Price / month', items.map(l => { const p = Number(l.price); return p ? `<span class="${p===minPrice?'cmp-best':''}">${fmt(p)}</span>` : '—'; }));
+      html += row('Size', items.map(l => { const s = Number(l.sqm || l.size); return s ? `<span class="${s===maxSqm?'cmp-best':''}">${s} m²</span>` : '—'; }));
+      html += row('€ per m²', items.map(l => { const p = Number(l.price), s = Number(l.sqm || l.size); return (p && s) ? '€' + Math.round(p/s) : '—'; }));
+      html += row('Bedrooms', items.map(l => l.beds || l.bedrooms || '—'));
+      html += row('Bathrooms', items.map(l => l.bathrooms || '—'));
+      html += row('Status', items.map(l => isAvail(l) ? '<span class="cmp-yes">Available</span>' : (l.status || l.availabilityStatus || '—')));
+      CMP_FEATURES.forEach(([k, label]) => html += row(label, items.map(l => hasFeature(l, k) ? '<span class="cmp-yes">✓</span>' : '<span class="cmp-no">—</span>')));
+      html += `<div class="cmp-row cmp-row-cta"><div class="cmp-label"></div>${items.map(l => `<div class="cmp-val"><a class="cmp-view" href="/apartments/${encodeURIComponent(l.id)}">View →</a></div>`).join('')}</div>`;
+      const body = $('#compareModalBody');
+      body.style.setProperty('--cmp-cols', items.length);
+      body.innerHTML = html;
+      const modal = $('#compareModal');
+      modal.hidden = false; document.body.style.overflow = 'hidden';
+      requestAnimationFrame(() => modal.classList.add('open'));
+    }
+    function closeCompare() {
+      const m = $('#compareModal'); m.classList.remove('open'); document.body.style.overflow = '';
+      setTimeout(() => { m.hidden = true; }, 250);
+    }
+    $('#compareBarGo').addEventListener('click', openCompare);
+    document.addEventListener('click', e => {
+      if (e.target.closest('[data-close-compare]')) { closeCompare(); return; }
+      const rm = e.target.closest('[data-cmp-remove]');
+      if (rm) {
+        const id = rm.dataset.cmpRemove;
+        STATE.compare.delete(id);
+        $$(`.card-act[data-act="compare"][data-id="${id}"]`).forEach(b => b.classList.remove('is-on'));
+        updateCompareBar();
+        if (STATE.compare.size < 2) closeCompare(); else openCompare();
+      }
     });
     $('#compareBarClear').addEventListener('click', () => {
       STATE.compare.clear();
@@ -1767,12 +1945,13 @@
     $('#aptEmptyReset').addEventListener('click', () => {
       STATE.filters.budgetMin=500; STATE.filters.budgetMax=4000;
       STATE.filters.hoods.clear(); STATE.filters.beds=0; STATE.filters.features.clear();
-      STATE.q=''; STATE.sort='recommended';
+      STATE.q=''; STATE.sort='recommended'; STATE.savedOnly=false;
       $('#aptSearch').value=''; $('#aptSearchClear').hidden = true;
       $('#popBudgetMin').value=500; $('#popBudgetMax').value=4000; updateBudgetUI();
       $('#popBedsV').textContent='Any';
       $$('.pop-option').forEach(o => o.classList.remove('is-on'));
       $$('.pop-sort-item').forEach(s => s.classList.toggle('is-on', s.dataset.sort === 'recommended'));
+      updateSavedPill();
       applyAndRender();
     });
 
