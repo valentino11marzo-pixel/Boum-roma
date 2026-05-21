@@ -29,6 +29,7 @@
     { "source": "/faq-page", "destination": "/faq", "permanent": true }
   ],
   "rewrites": [
+    { "source": "/apartments/:id", "destination": "/apartment-detail.html?id=:id" },
     { "source": "/book", "destination": "/book.html" },
     { "source": "/apartments", "destination": "/apartments.html" },
     { "source": "/about", "destination": "/about.html" },
@@ -74,7 +75,6 @@
     { "source": "/apartment-piemonte", "destination": "/apartment_piemonte.html" },
     { "source": "/apartment-pigneto", "destination": "/apartment_pigneto.html" },
     { "source": "/apartment-ripetta", "destination": "/apartment_ripetta.html" },
-    { "source": "/apartments/:slug", "destination": "/apartment-detail.html?id=:slug" },
     { "source": "/blog-47-steps", "destination": "/blog-47-steps.html" },
     { "source": "/blog-contract-types", "destination": "/blog-contract-types.html" },
     { "source": "/blog-cost-calculator", "destination": "/blog-cost-calculator.html" },

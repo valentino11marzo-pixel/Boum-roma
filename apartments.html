@@ -410,7 +410,7 @@
         .card-img{position:relative}
         .card-img-dots{position:absolute;bottom:8px;left:0;right:0;display:flex;justify-content:center;gap:5px;opacity:0;transition:opacity .25s;z-index:3}
         .card:hover .card-img-dots{opacity:1}
-        .card-img-dot{width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,0.4);transition:all .25s}
+        .card-img-dot{width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,0.4);transition:width .15s,background .15s}
         .card-img-dot.active{background:var(--gold);width:14px;border-radius:3px}
         .card-actions{position:absolute;top:12px;right:12px;display:flex;flex-direction:column;gap:8px;opacity:0;transform:translateX(8px);transition:all .25s;z-index:3}
         .card:hover .card-actions,.card:focus-within .card-actions{opacity:1;transform:none}
@@ -1873,8 +1873,14 @@
       if (!images || images.length < 2) return;
       cardImg.dataset.cycling = '1';
       const img = cardImg.querySelector('img'); const dots = cardImg.querySelectorAll('.card-img-dot');
+      // Preload all images once so the photo swap is instant and stays locked to the dot
+      if (!cardImg.dataset.preloaded) { images.forEach(src => { const p = new Image(); p.src = src; }); cardImg.dataset.preloaded = '1'; }
       let i = 0;
-      cardImg._timer = setInterval(() => { i = (i+1) % images.length; img.src = images[i]; dots.forEach((d,di) => d.classList.toggle('active', di === i)); }, 850);
+      cardImg._timer = setInterval(() => {
+        i = (i+1) % images.length;
+        img.src = images[i];
+        dots.forEach((d,di) => d.classList.toggle('active', di === i));
+      }, 850);
     });
     document.addEventListener('mouseout', e => {
       const cardImg = e.target.closest('.card-img[data-images]');

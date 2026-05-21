@@ -631,6 +631,7 @@
                     <div class="inquiry-success" id="inquirySuccess">✓ Sent! We'll contact you within 2 hours.</div>
                 </div>
             </div>
+        </div><!-- /.apt-content -->
 
         <!-- More apartments in this neighborhood — auto-populated from Firestore -->
         <section class="zone-footer" id="zoneFooter" hidden></section>
@@ -771,7 +772,9 @@
     let aptAddress='',currentSlide=0,totalSlides=0,galleryImgs=[],lbIndex=0;
 
     document.addEventListener('DOMContentLoaded',()=>{
-        const id=new URLSearchParams(window.location.search).get('id');
+        const params=new URLSearchParams(window.location.search);
+        let id=params.get('id');
+        if(!id){ const m=window.location.pathname.match(/\/apartments\/([^\/?#]+)/); if(m) id=decodeURIComponent(m[1]); }
         if(!id){showError();return}
         loadApartment(id);
     });
