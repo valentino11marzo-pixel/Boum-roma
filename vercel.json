@@ -32,7 +32,6 @@
   "rewrites": [
     { "source": "/apartments", "destination": "/apartments-list.html" },
     { "source": "/apartments/:id", "destination": "/apartment-detail" },
-    { "source": "/listingdiag/:id", "destination": "/apartment-detail.html" },
     { "source": "/book", "destination": "/book.html" },
     { "source": "/about", "destination": "/about.html" },
     { "source": "/contact", "destination": "/contact.html" },
