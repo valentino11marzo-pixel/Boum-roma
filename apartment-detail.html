@@ -361,6 +361,40 @@
             .carousel-slide img,.carousel-slide.video-slide iframe{height:240px}
         }
         @media(max-width:1024px){footer{padding-bottom:100px}}
+
+        /* ── Detail v2 additions ───────────────────────────────── */
+        .apt-actions{display:flex;gap:10px;margin-top:16px}
+        .apt-act{display:inline-flex;align-items:center;gap:7px;background:transparent;border:1px solid rgba(255,255,255,0.12);border-radius:100px;padding:9px 16px;color:var(--text-secondary);font-family:inherit;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;cursor:pointer;transition:all .25s}
+        .apt-act:hover{border-color:rgba(212,175,55,0.45);color:var(--text-primary)}
+        .apt-act svg{width:15px;height:15px}
+        .apt-act.is-on{background:rgba(212,175,55,0.1);border-color:var(--gold);color:var(--gold)}
+        .apt-price-insight{font-size:12px;margin-top:8px;letter-spacing:.2px}
+        .apt-price-insight.good{color:var(--green)}
+        .apt-price-insight.high{color:var(--text-fade)}
+
+        /* Carousel image is clickable → lightbox */
+        .carousel-slide img,.single-hero-img{cursor:zoom-in}
+        .carousel-expand{position:absolute;top:14px;left:14px;z-index:5;display:inline-flex;align-items:center;gap:6px;background:rgba(0,0,0,0.6);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.14);color:#fff;border-radius:100px;padding:8px 14px;font-size:11px;letter-spacing:1px;text-transform:uppercase;cursor:pointer;transition:all .2s}
+        .carousel-expand:hover{background:var(--gold);color:#000;border-color:var(--gold)}
+        .carousel-expand svg{width:13px;height:13px}
+
+        /* LIGHTBOX */
+        .lightbox{position:fixed;inset:0;z-index:600;background:rgba(5,5,7,0.97);display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .25s}
+        .lightbox[hidden]{display:none}
+        .lightbox.open{opacity:1}
+        .lightbox-img{max-width:92vw;max-height:86vh;object-fit:contain;border-radius:6px;box-shadow:0 30px 90px rgba(0,0,0,0.7);user-select:none}
+        .lightbox-close{position:absolute;top:22px;right:26px;background:transparent;border:0;color:rgba(255,255,255,0.7);font-size:38px;line-height:1;cursor:pointer;transition:color .2s;z-index:2}
+        .lightbox-close:hover{color:var(--gold)}
+        .lightbox-nav{position:absolute;top:50%;transform:translateY(-50%);width:56px;height:56px;border-radius:50%;background:rgba(0,0,0,0.45);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.14);color:#fff;font-size:30px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s}
+        .lightbox-nav:hover{background:var(--gold);color:#000;border-color:var(--gold)}
+        .lightbox-prev{left:24px}.lightbox-next{right:24px}
+        .lightbox-counter{position:absolute;bottom:26px;left:50%;transform:translateX(-50%);font-size:13px;color:rgba(255,255,255,0.7);letter-spacing:2px;font-variant-numeric:tabular-nums}
+        @media(max-width:768px){.lightbox-nav{width:44px;height:44px;font-size:24px}.lightbox-prev{left:10px}.lightbox-next{right:10px}.lightbox-close{top:14px;right:16px}}
+
+        @media (prefers-reduced-motion: reduce){
+          .lightbox,.apt-act,.carousel-track{transition:none!important}
+          *{scroll-behavior:auto!important}
+        }
     </style>
 <!-- BOOM_JSONLD:START -->
   <script type="application/ld+json">
@@ -501,7 +535,7 @@
 
     <!-- APARTMENT PAGE -->
     <div class="apartment-page" id="apartmentPage">
-        <div class="breadcrumb"><a href="/">Home</a><span class="sep">/</span><a href="/apartments.html">Apartments</a><span class="sep">/</span><span class="current" id="breadcrumbName">—</span></div>
+        <div class="breadcrumb"><a href="/">Home</a><span class="sep">/</span><a href="/apartments.html">Apartments</a><span id="breadcrumbZoneWrap" hidden><span class="sep">/</span><a href="#" id="breadcrumbZone"></a></span><span class="sep">/</span><span class="current" id="breadcrumbName">—</span></div>
 
         <div class="apt-header">
             <div class="apt-header-top">
@@ -510,10 +544,21 @@
                     <p class="apt-address" id="aptAddress"></p>
                     <a class="apt-zone" id="aptZone" style="display:none" href="#"></a>
                     <div class="apt-badges" id="aptBadges"></div>
+                    <div class="apt-actions">
+                        <button class="apt-act" id="actSave" aria-pressed="false">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M12 21s-7-4.35-9.5-8.5C.5 8.5 3 4 7 4c2 0 3.5 1.2 5 3 1.5-1.8 3-3 5-3 4 0 6.5 4.5 4.5 8.5C19 16.65 12 21 12 21z"/></svg>
+                            <span id="actSaveLabel">Save</span>
+                        </button>
+                        <button class="apt-act" id="actShare">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="m8 11 8-4M8 13l8 4"/></svg>
+                            <span>Share</span>
+                        </button>
+                    </div>
                 </div>
                 <div class="apt-price-block">
                     <div class="apt-price" id="aptPrice"></div>
                     <div class="apt-price-label">per month</div>
+                    <div class="apt-price-insight" id="aptPriceInsight"></div>
                 </div>
             </div>
             <div class="apt-specs" id="aptSpecs"></div>
@@ -685,6 +730,15 @@
         </div>
     </div>
 
+    <!-- LIGHTBOX -->
+    <div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Photo viewer" hidden>
+        <button class="lightbox-close" id="lbClose" aria-label="Close">×</button>
+        <button class="lightbox-nav lightbox-prev" id="lbPrev" aria-label="Previous">‹</button>
+        <img class="lightbox-img" id="lbImg" src="" alt="">
+        <button class="lightbox-nav lightbox-next" id="lbNext" aria-label="Next">›</button>
+        <div class="lightbox-counter" id="lbCounter"></div>
+    </div>
+
     <!-- MOBILE CTA -->
     <div class="mobile-cta" id="mobileCta">
         <div class="mobile-cta-price" id="mobileCTAPrice"><small>per month</small></div>
@@ -714,7 +768,7 @@
     <script>
     firebase.initializeApp({apiKey:"AIzaSyDDb8UeSc8RhO_VxQrhLrupu1aPD4rwRso",authDomain:"boom-property-dashboards.firebaseapp.com",projectId:"boom-property-dashboards",storageBucket:"boom-property-dashboards.firebasestorage.app",messagingSenderId:"937269017440",appId:"1:937269017440:web:41c1a0b1e1633c2f373c05"});
     const db=firebase.firestore();
-    let aptAddress='',currentSlide=0,totalSlides=0;
+    let aptAddress='',currentSlide=0,totalSlides=0,galleryImgs=[],lbIndex=0;
 
     document.addEventListener('DOMContentLoaded',()=>{
         const id=new URLSearchParams(window.location.search).get('id');
@@ -732,7 +786,7 @@
     /* Render "more apartments in {zone}" footer. Fires once we know
      * which neighborhood this listing belongs to; queries Firestore for
      * up to 4 other live listings in the same zone. */
-    async function renderZoneFooter(zoneLabel, slug, currentId){
+    async function renderZoneFooter(zoneLabel, slug, currentId, currentPrice){
       const el = document.getElementById('zoneFooter');
       if(!el || !zoneLabel) return;
       try{
@@ -740,17 +794,18 @@
         const terms = (window.BOOM && BOOM.allNeighborhoods)
           ? (BOOM.allNeighborhoods().find(n=>n.slug===slug) || {}).terms
           : null;
-        const sameZone = snap.docs
+        const inZone = snap.docs
           .map(d=>({id:d.id, ...d.data()}))
           .filter(l=>{
-            if(l.id===currentId) return false;
             const s=(l.status||l.availabilityStatus||'').toLowerCase();
             if(s==='rented'||s==='affittato'||s==='off_market') return false;
             const blob=((l.zone||'')+' '+(l.neighborhood||'')+' '+(l.address||'')+' '+(l.name||'')).toLowerCase();
             if(terms && terms.length) return terms.some(t=>blob.includes(t));
             return blob.includes(zoneLabel.toLowerCase());
-          })
-          .slice(0,4);
+          });
+        // Price intelligence: compare this listing to the neighborhood mean
+        renderPriceInsight(inZone, currentPrice, zoneLabel);
+        const sameZone = inZone.filter(l=>l.id!==currentId).slice(0,4);
         if(!sameZone.length) return;
         const hubLink = slug ? `/apartments-in/${slug}` : '/apartments';
         const hubLabel = slug ? `All apartments in ${zoneLabel}` : 'Browse all apartments';
@@ -784,6 +839,51 @@
       }catch(e){
         console.warn('zone footer load failed:', e);
       }
+    }
+
+    /* Price intelligence — compare this listing to the neighborhood mean */
+    function renderPriceInsight(inZone, price, zoneLabel){
+      const el = document.getElementById('aptPriceInsight');
+      if(!el || !price) return;
+      const priced = inZone.map(l=>Number(l.price)).filter(p=>p>0);
+      if(priced.length < 3) return;  // need a meaningful sample
+      const avg = priced.reduce((a,b)=>a+b,0)/priced.length;
+      const diff = Math.round(price - avg);
+      if(diff <= -75){ el.className='apt-price-insight good'; el.textContent=`€${Math.abs(diff).toLocaleString()} below ${zoneLabel} average`; }
+      else if(diff >= 150){ el.className='apt-price-insight high'; el.textContent=`€${diff.toLocaleString()} above ${zoneLabel} average`; }
+      else { el.className='apt-price-insight high'; el.textContent=`At ${zoneLabel} market rate`; }
+    }
+
+    /* Save / Share — shares the same localStorage key as /apartments */
+    function setupActions(d,id){
+      const saved = new Set(JSON.parse(localStorage.getItem('boom:saved')||'[]'));
+      const btn = document.getElementById('actSave');
+      const lbl = document.getElementById('actSaveLabel');
+      const paint = () => {
+        const on = saved.has(id);
+        btn.classList.toggle('is-on', on);
+        btn.setAttribute('aria-pressed', String(on));
+        lbl.textContent = on ? 'Saved' : 'Save';
+        btn.querySelector('path').setAttribute('fill', on ? 'currentColor' : 'none');
+      };
+      paint();
+      btn.addEventListener('click', () => {
+        saved.has(id) ? saved.delete(id) : saved.add(id);
+        localStorage.setItem('boom:saved', JSON.stringify([...saved]));
+        paint();
+      });
+      document.getElementById('actShare').addEventListener('click', async () => {
+        const url = location.origin + '/apartments/' + encodeURIComponent(id);
+        const title = (d.name||'Apartment') + ' — BOOM Rome';
+        const text = `${d.name||'Apartment'} in ${d.zone||'Rome'}${d.price?' — €'+Number(d.price).toLocaleString()+'/mo':''}. Verified by BOOM.`;
+        if(navigator.share){ try{ await navigator.share({title,text,url}); }catch(_){} }
+        else { try{ await navigator.clipboard.writeText(url); toast('Link copied'); }catch(_){ toast(url); } }
+      });
+    }
+    function toast(msg){
+      const t=document.createElement('div'); t.textContent=msg;
+      t.style.cssText='position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.92);color:#fff;padding:10px 22px;border:1px solid rgba(212,175,55,0.25);border-radius:100px;font-size:13px;z-index:700';
+      document.body.appendChild(t); setTimeout(()=>t.remove(),2400);
     }
 
     /* ───── SEO: dynamic head injection from Firestore data ───── */
@@ -922,12 +1022,15 @@
           if(slug){
             z.href='/apartments-in/'+slug;
             z.title='See all apartments in '+d.zone;
+            const bz=document.getElementById('breadcrumbZone');
+            bz.textContent=d.zone; bz.href='/apartments-in/'+slug;
+            document.getElementById('breadcrumbZoneWrap').hidden=false;
           }else{
             z.setAttribute('href','#');
             z.removeAttribute('title');
           }
-          // Render the "More in this zone" footer once we know the slug
-          renderZoneFooter(d.zone,slug,id);
+          // Render the "More in this zone" footer + price insight once we know the slug
+          renderZoneFooter(d.zone,slug,id,Number(d.price)||0);
         }
 
         const price=d.price?`€${Number(d.price).toLocaleString()}`:'—';
@@ -954,6 +1057,7 @@
 
         buildMedia(d);
         buildMap(d);
+        setupActions(d,id);
 
         document.getElementById('pageLoading').style.display='none';
         var ap=document.getElementById('apartmentPage');ap.style.display='block';ap.classList.add('show');
@@ -995,24 +1099,62 @@
     function buildMedia(d){
         const sec=document.getElementById('mediaSection');
         const imgs=d.images||(d.image?[d.image]:[]);
+        galleryImgs=[...imgs];
         // Check both videoUrl and youtubeUrl (portal uses youtubeUrl)
         const vUrl=d.videoUrl||d.youtubeUrl,hasV=!!vUrl,vId=hasV?exYT(vUrl):null;
 
         if(!imgs.length&&!hasV){sec.innerHTML='<div class="media-placeholder"><span>📷</span><p>Photos coming soon</p></div>';return}
-        if(imgs.length===1&&!hasV){sec.innerHTML=`<img src="${imgs[0]}" alt="Apartment photo" class="single-hero-img" loading="lazy">`;return}
-        if(imgs.length===1&&hasV&&vId){sec.innerHTML=`<img src="${imgs[0]}" alt="Apartment photo" class="single-hero-img" loading="lazy"><div class="video-section"><div class="video-section-label">Video Tour</div><div class="video-embed"><iframe src="https://www.youtube.com/embed/${vId}?rel=0" allowfullscreen loading="lazy"></iframe></div></div>`;return}
+        if(imgs.length===1&&!hasV){sec.innerHTML=`<img src="${imgs[0]}" alt="Apartment photo" class="single-hero-img" loading="lazy" onclick="openLightbox(0)">`;return}
+        if(imgs.length===1&&hasV&&vId){sec.innerHTML=`<img src="${imgs[0]}" alt="Apartment photo" class="single-hero-img" loading="lazy" onclick="openLightbox(0)"><div class="video-section"><div class="video-section-label">Video Tour</div><div class="video-embed"><iframe src="https://www.youtube.com/embed/${vId}?rel=0" allowfullscreen loading="lazy"></iframe></div></div>`;return}
 
         const slides=[...imgs];const hasVS=hasV&&vId;
-        let sH=slides.map((img,i)=>`<div class="carousel-slide"><img src="${img}" alt="Photo ${i+1}" loading="lazy"></div>`).join('');
+        let sH=slides.map((img,i)=>`<div class="carousel-slide"><img src="${img}" alt="Photo ${i+1}" loading="lazy" onclick="openLightbox(${i})"></div>`).join('');
         if(hasVS)sH+=`<div class="carousel-slide video-slide"><iframe src="https://www.youtube.com/embed/${vId}?rel=0" allowfullscreen loading="lazy"></iframe></div>`;
         totalSlides=slides.length+(hasVS?1:0);
 
         let tH=slides.map((img,i)=>`<div class="carousel-thumb ${i===0?'active':''}" onclick="goTo(${i})"><img src="${img}" alt="Thumb ${i+1}"></div>`).join('');
         if(hasVS)tH+=`<div class="carousel-thumb video-thumb" onclick="goTo(${slides.length})"></div>`;
 
-        sec.innerHTML=`<div class="carousel" id="carousel">${hasVS?'<div class="carousel-video-badge" style="display:block">▶ Video Tour</div>':''}<div class="carousel-track" id="carouselTrack">${sH}</div><button class="carousel-btn carousel-prev" onclick="prev()">‹</button><button class="carousel-btn carousel-next" onclick="next()">›</button><div class="carousel-counter" id="carouselCounter">1 / ${totalSlides}</div></div><div class="carousel-thumbs" id="carouselThumbs">${tH}</div>`;
+        const expandBtn=`<button class="carousel-expand" onclick="openLightbox(currentSlide<${slides.length}?currentSlide:0)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M8 3H3v5M16 3h5v5M21 16v5h-5M3 16v5h5"/></svg>${slides.length} photos</button>`;
+        sec.innerHTML=`<div class="carousel" id="carousel">${expandBtn}${hasVS?'<div class="carousel-video-badge" style="display:block">▶ Video Tour</div>':''}<div class="carousel-track" id="carouselTrack">${sH}</div><button class="carousel-btn carousel-prev" onclick="prev()">‹</button><button class="carousel-btn carousel-next" onclick="next()">›</button><div class="carousel-counter" id="carouselCounter">1 / ${totalSlides}</div></div><div class="carousel-thumbs" id="carouselThumbs">${tH}</div>`;
         initSwipe();
     }
+
+    /* ── LIGHTBOX ── */
+    function openLightbox(i){
+      if(!galleryImgs.length) return;
+      lbIndex=Math.max(0,Math.min(galleryImgs.length-1,i));
+      const lb=document.getElementById('lightbox');
+      paintLightbox();
+      lb.hidden=false; document.body.style.overflow='hidden';
+      requestAnimationFrame(()=>lb.classList.add('open'));
+    }
+    function paintLightbox(){
+      document.getElementById('lbImg').src=galleryImgs[lbIndex];
+      document.getElementById('lbCounter').textContent=`${lbIndex+1} / ${galleryImgs.length}`;
+      const multi=galleryImgs.length>1;
+      document.getElementById('lbPrev').style.display=multi?'flex':'none';
+      document.getElementById('lbNext').style.display=multi?'flex':'none';
+    }
+    function lbNext(){lbIndex=(lbIndex+1)%galleryImgs.length;paintLightbox()}
+    function lbPrev(){lbIndex=(lbIndex-1+galleryImgs.length)%galleryImgs.length;paintLightbox()}
+    function closeLightbox(){const lb=document.getElementById('lightbox');lb.classList.remove('open');document.body.style.overflow='';setTimeout(()=>lb.hidden=true,250)}
+    (function wireLightbox(){
+      document.getElementById('lbClose').addEventListener('click',closeLightbox);
+      document.getElementById('lbNext').addEventListener('click',lbNext);
+      document.getElementById('lbPrev').addEventListener('click',lbPrev);
+      document.getElementById('lightbox').addEventListener('click',e=>{if(e.target.id==='lightbox')closeLightbox()});
+      document.addEventListener('keydown',e=>{
+        if(document.getElementById('lightbox').hidden) return;
+        if(e.key==='Escape')closeLightbox();
+        else if(e.key==='ArrowRight')lbNext();
+        else if(e.key==='ArrowLeft')lbPrev();
+      });
+      let sX=0,dX=0;const lb=document.getElementById('lightbox');
+      lb.addEventListener('touchstart',e=>{sX=e.touches[0].clientX},{passive:true});
+      lb.addEventListener('touchmove',e=>{dX=e.touches[0].clientX-sX},{passive:true});
+      lb.addEventListener('touchend',()=>{if(Math.abs(dX)>50){dX<0?lbNext():lbPrev()}dX=0});
+    })();
 
     function exYT(u){if(!u)return null;const m=u.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/);return m?m[1]:null}
     function goTo(i){currentSlide=i;updC()}
@@ -1032,7 +1174,7 @@
         c.addEventListener('touchmove',e=>{dX=e.touches[0].clientX-sX},{passive:true});
         c.addEventListener('touchend',()=>{if(Math.abs(dX)>50){dX<0?next():prev()}dX=0});
     }
-    document.addEventListener('keydown',e=>{if(e.key==='ArrowRight')next();if(e.key==='ArrowLeft')prev()});
+    document.addEventListener('keydown',e=>{if(!document.getElementById('lightbox').hidden)return;if(e.key==='ArrowRight')next();if(e.key==='ArrowLeft')prev()});
 
     function buildMap(d){
         const c=document.getElementById('mapContainer');
