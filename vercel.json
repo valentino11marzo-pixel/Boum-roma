@@ -154,6 +154,9 @@
     },
     "api/listing.js": {
       "includeFiles": "apartment-detail.html"
+    },
+    "api/geocode-all.js": {
+      "maxDuration": 60
     }
   },
   "crons": [
