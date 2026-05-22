@@ -29,7 +29,8 @@
     { "source": "/faq-page", "destination": "/faq", "permanent": true }
   ],
   "rewrites": [
-    { "source": "/listing/:id", "destination": "/apartment-detail" },
+    { "source": "/listing/:id", "destination": "/api/listing" },
+    { "source": "/listings-sitemap.xml", "destination": "/api/sitemap-listings" },
     { "source": "/book", "destination": "/book.html" },
     { "source": "/about", "destination": "/about.html" },
     { "source": "/contact", "destination": "/contact.html" },
@@ -150,6 +151,9 @@
   "functions": {
     "api/reminder-cron.js": {
       "maxDuration": 60
+    },
+    "api/listing.js": {
+      "includeFiles": "apartment-detail.html"
     }
   },
   "crons": [
