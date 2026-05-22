@@ -9,18 +9,48 @@
     <link rel="manifest" href="/site.webmanifest">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Apartments in Rome — BOOM</title>
-    <meta name="description" content="Browse video-verified apartments for rent in Rome. Updated daily. No hidden fees. Move in within 48 hours.">
-    <link rel="canonical" href="https://www.boomrome.com/apartments">
-    <meta property="og:title" content="Apartments in Rome — BOOM">
-    <meta property="og:description" content="Browse video-verified apartments for rent in Rome. Updated daily. No hidden fees. Move in within 48 hours.">
-    <meta property="og:image" content="https://www.boomrome.com/BOOMsocialprofile.png">
-    <meta property="og:type" content="website">
-    <meta property="og:url" content="https://www.boomrome.com/apartments">
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="Apartments in Rome — BOOM">
-    <meta name="twitter:description" content="Browse video-verified apartments for rent in Rome. Updated daily. No hidden fees.">
-    <meta name="twitter:image" content="https://www.boomrome.com/BOOMsocialprofile.png">
+    <title>Apartments for Rent in Rome — Video-Verified Listings | BOOM</title>
+<!-- BOOM_SEO:START -->
+  <meta name="description" content="Browse video-verified apartments for rent in Rome. Centro Storico, Trastevere, Pigneto, Monti and more. 48-hour move-in, no broker fees, legal contracts. Updated daily.">
+  <meta name="keywords" content="apartments Rome, flats for rent Rome, apartments Trastevere, apartments Centro Storico, rent flat Rome, Rome apartments expat, short-term apartment Rome">
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+  <meta name="googlebot" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+  <meta name="author" content="BOOM Rome">
+  <meta name="publisher" content="BOOM Rome">
+  <meta name="theme-color" content="#08080A">
+  <meta name="color-scheme" content="dark">
+  <meta name="format-detection" content="telephone=no">
+  <meta name="application-name" content="BOOM Rome">
+  <meta name="apple-mobile-web-app-title" content="BOOM">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="msapplication-TileColor" content="#08080A">
+  <link rel="canonical" href="https://www.boomrome.com/apartments">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="BOOM Rome">
+  <meta property="og:locale" content="en_US">
+  <meta property="og:locale:alternate" content="it_IT">
+  <meta property="og:title" content="Apartments for Rent in Rome — Video-Verified Listings | BOOM">
+  <meta property="og:description" content="Browse video-verified apartments for rent in Rome. Centro Storico, Trastevere, Pigneto, Monti and more. 48-hour move-in, no broker fees, legal contracts. Updated daily.">
+  <meta property="og:url" content="https://www.boomrome.com/apartments">
+  <meta property="og:image" content="https://www.boomrome.com/BOOMsocialprofile.png">
+  <meta property="og:image:secure_url" content="https://www.boomrome.com/BOOMsocialprofile.png">
+  <meta property="og:image:type" content="image/png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Apartments for Rent in Rome — Video-Verified Listings | BOOM">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:site" content="@boomrome">
+  <meta name="twitter:creator" content="@boomrome">
+  <meta name="twitter:title" content="Apartments for Rent in Rome — Video-Verified Listings | BOOM">
+  <meta name="twitter:description" content="Browse video-verified apartments for rent in Rome. Centro Storico, Trastevere, Pigneto, Monti and more. 48-hour move-in, no broker fees, legal contracts. Updated daily.">
+  <meta name="twitter:image" content="https://www.boomrome.com/BOOMsocialprofile.png">
+  <meta name="twitter:image:alt" content="Apartments for Rent in Rome — Video-Verified Listings | BOOM">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="dns-prefetch" href="https://www.googletagmanager.com">
+  <link rel="dns-prefetch" href="https://www.google-analytics.com">
+<!-- BOOM_SEO:END -->
     <link rel="icon" type="image/png" href="https://www.boomrome.com/BOOMlogogoldicon512.png">
     <link rel="apple-touch-icon" href="https://www.boomrome.com/BOOMlogogoldicon512.png">
     <!-- Google Analytics -->
@@ -86,7 +116,10 @@
         .badge-verified{background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.7);border:1px solid rgba(255,255,255,0.1)}
         .badge-video{background:rgba(255,59,48,0.15);color:#FF3B30;border:1px solid rgba(255,59,48,0.2)}
         .card-body{padding:22px 24px 24px;flex:1;display:flex;flex-direction:column}
-        .card-zone{font-size:11px;text-transform:uppercase;letter-spacing:2px;color:var(--gold);margin-bottom:6px}
+        .card-zone{display:inline-block;font-size:11px;text-transform:uppercase;letter-spacing:2px;color:var(--gold);margin-bottom:8px;text-decoration:none;opacity:.92}
+        .card-zone-link{transition:opacity .25s,text-decoration-color .25s;text-decoration:underline transparent;text-underline-offset:3px}
+        .card-zone-link:hover{opacity:1;text-decoration-color:rgba(212,175,55,0.5)}
+        .card:focus-visible{outline:2px solid var(--gold);outline-offset:3px;border-radius:20px}
         .card-name{font-size:20px;font-weight:400;margin-bottom:10px;color:#fff}
         .card-specs{display:flex;gap:16px;font-size:13px;color:var(--text-secondary);margin-bottom:16px;flex-wrap:wrap}
         .card-specs span{display:flex;align-items:center;gap:5px}
@@ -105,6 +138,16 @@
         .empty-state{text-align:center;padding:80px 20px}
         .empty-state h3{font-size:24px;font-weight:200;margin-bottom:12px}
         .empty-state p{color:var(--text-secondary);margin-bottom:24px}
+        /* BROWSE BY NEIGHBORHOOD — refined, minimal text section */
+        .hood-strip{max-width:900px;margin:80px auto 0;padding:48px 24px 0;text-align:center;border-top:1px solid rgba(255,255,255,0.06)}
+        .hood-strip-eyebrow{font-size:10px;color:var(--text-fade);text-transform:uppercase;letter-spacing:3px;margin-bottom:22px;font-weight:400}
+        .hood-strip-links{font-size:14px;line-height:2;color:var(--text-secondary);font-weight:300;letter-spacing:.01em}
+        .hood-strip-links a{color:var(--text-secondary);transition:color .25s;padding:0 4px;text-decoration:none}
+        .hood-strip-links a:hover{color:var(--gold)}
+        .hood-sep{color:var(--text-fade);opacity:.45;margin:0 2px}
+        .hood-strip-all{display:inline-block;margin-top:24px;font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:2.5px;padding:8px 0;border-bottom:1px solid rgba(212,175,55,0.25);transition:border-bottom-color .25s;text-decoration:none}
+        .hood-strip-all:hover{border-bottom-color:var(--gold)}
+        @media(max-width:768px){.hood-strip{margin-top:60px;padding:36px 20px 0}.hood-strip-links{font-size:13px;line-height:2.2}}
         /* UPSELL SECTION */
         .upsell-section{margin-top:80px}
         .upsell-header{text-align:center;margin-bottom:48px}
@@ -220,7 +263,368 @@
         .footer-col a{display:block;font-size:13px;color:var(--text-fade);margin-bottom:10px;transition:color .3s}
         .footer-col a:hover{color:var(--gold)}
         .footer-bottom{max-width:1400px;margin:30px auto 0;padding-top:20px;border-top:1px solid rgba(255,255,255,0.05);text-align:center;font-size:12px;color:var(--text-fade)}
+
+        /* ════════════════════════════════════════════════════════════
+           APARTMENTS V2 — premium discovery experience
+           ════════════════════════════════════════════════════════════ */
+
+        /* HERO */
+        .apt-hero{max-width:1400px;margin:0 auto;padding:120px 50px 30px;text-align:center}
+        .apt-h1{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:clamp(36px,6vw,68px);font-weight:200;line-height:1.05;letter-spacing:-1px;margin-bottom:14px}
+        .apt-lede{font-size:15px;color:var(--text-secondary);max-width:540px;margin:0 auto 22px;font-weight:300}
+        .apt-pulse{display:inline-flex;align-items:center;gap:8px;padding:8px 18px;border:1px solid rgba(212,175,55,0.18);border-radius:100px;background:rgba(212,175,55,0.05);font-size:12px;letter-spacing:.3px;color:var(--text-secondary);font-weight:300;margin-bottom:18px;font-variant-numeric:tabular-nums}
+        .apt-pulse b{color:var(--gold);font-weight:500}
+        .pulse-dot{width:6px;height:6px;border-radius:50%;background:#00FF88;box-shadow:0 0 8px rgba(0,255,136,0.7);animation:pulse 2.2s ease-in-out infinite}
+        @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.55;transform:scale(.85)}}
+        .apt-hoods{max-width:920px;margin:0 auto;padding-top:8px;display:flex;flex-wrap:wrap;justify-content:center;align-items:center;column-gap:6px;row-gap:4px;font-size:12px;line-height:2}
+        .apt-hoods a{color:var(--text-secondary);transition:color .25s;padding:2px 4px;text-decoration:none;font-weight:300;letter-spacing:.01em}
+        .apt-hoods a:hover{color:var(--gold)}
+        .apt-hoods > span{color:var(--text-fade);opacity:.4}
+        .apt-hoods-all{color:var(--gold)!important;font-weight:500;letter-spacing:1px;text-transform:uppercase;font-size:10px;margin-left:8px;border-bottom:1px solid rgba(212,175,55,0.25);padding-bottom:1px!important}
+        .apt-hoods-all:hover{border-bottom-color:var(--gold)}
+        @media(max-width:768px){.apt-hero{padding:100px 20px 24px}.apt-pulse{font-size:11px;padding:6px 14px}.apt-hoods{font-size:11px}.apt-hoods > span{display:none}}
+
+        /* SEARCH HERO */
+        .apt-search-bar{max-width:760px;margin:0 auto;padding:0 50px}
+        .apt-search-wrap{position:relative;display:flex;align-items:center;background:var(--dark-void);border:1px solid rgba(255,255,255,0.08);border-radius:100px;padding:0 22px;transition:border-color .3s,box-shadow .3s}
+        .apt-search-wrap:focus-within{border-color:rgba(212,175,55,0.4);box-shadow:0 0 0 4px rgba(212,175,55,0.06)}
+        .apt-search-icon{width:18px;height:18px;color:var(--text-fade);flex-shrink:0;margin-right:12px}
+        .apt-search-wrap input{flex:1;height:56px;background:transparent;border:0;outline:0;color:var(--text-primary);font-family:inherit;font-size:15px;font-weight:300;letter-spacing:.005em;padding:0}
+        .apt-search-wrap input::placeholder{color:var(--text-fade);font-weight:300}
+        .apt-search-clear{background:transparent;border:0;color:var(--text-fade);font-size:22px;cursor:pointer;padding:8px;line-height:1;transition:color .25s}
+        .apt-search-clear:hover{color:var(--text-primary)}
+        .apt-search-hint{text-align:center;font-size:11px;color:var(--text-fade);letter-spacing:.5px;margin-top:10px;font-weight:300}
+        .apt-search-hint b{color:var(--text-secondary);font-weight:400}
+        @media(max-width:768px){.apt-search-bar{padding:0 20px}.apt-search-wrap input{height:48px;font-size:14px}.apt-search-wrap input::placeholder{font-size:13px}}
+
+        /* CONTROLS / FILTER PILLS */
+        .apt-controls{max-width:1400px;margin:30px auto 0;padding:14px 50px 0;position:sticky;top:62px;z-index:90;background:rgba(8,8,10,0.82);backdrop-filter:saturate(140%) blur(18px);-webkit-backdrop-filter:saturate(140%) blur(18px)}
+        .apt-controls::after{content:'';position:absolute;left:0;right:0;bottom:0;height:1px;background:rgba(255,255,255,0.05);opacity:0;transition:opacity .3s}
+        .apt-controls.is-stuck::after{opacity:1}
+        .apt-filter-row{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-bottom:14px}
+        .filter-pill{display:inline-flex;align-items:center;gap:8px;background:var(--dark-void);border:1px solid rgba(255,255,255,0.08);border-radius:100px;padding:10px 18px;color:var(--text-primary);font-family:inherit;font-size:13px;font-weight:300;letter-spacing:.01em;cursor:pointer;transition:all .25s}
+        .filter-pill:hover{border-color:rgba(212,175,55,0.35)}
+        .filter-pill.is-active{border-color:var(--gold);background:rgba(212,175,55,0.07)}
+        .filter-pill .fp-label{color:var(--text-fade);text-transform:uppercase;letter-spacing:1.5px;font-size:10px}
+        .filter-pill .fp-value{color:var(--text-primary);font-weight:400}
+        .filter-pill.is-active .fp-value{color:var(--gold)}
+        .filter-pill .fp-caret{color:var(--text-fade);font-size:9px;margin-left:2px}
+        .apt-filter-chips{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-bottom:14px;min-height:0;transition:min-height .25s}
+        .apt-filter-chips:not(:empty){min-height:30px}
+        .active-chip{display:inline-flex;align-items:center;gap:7px;background:rgba(212,175,55,0.08);border:1px solid rgba(212,175,55,0.3);border-radius:100px;padding:5px 8px 5px 14px;color:var(--gold);font-size:11px;text-transform:uppercase;letter-spacing:1.5px;font-weight:500}
+        .active-chip button{background:transparent;border:0;color:var(--gold);font-size:16px;line-height:1;cursor:pointer;padding:0 4px;transition:opacity .2s}
+        .active-chip button:hover{opacity:.65}
+        .apt-toolbar{display:flex;justify-content:space-between;align-items:center;padding-top:18px;border-top:1px solid rgba(255,255,255,0.04);flex-wrap:wrap;gap:14px}
+        .apt-count{font-size:12px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:2px;font-variant-numeric:tabular-nums}
+        .apt-count b{color:var(--gold);font-weight:500}
+        .apt-toolbar-right{display:inline-flex;align-items:center;gap:10px}
+        .saved-pill{display:inline-flex;align-items:center;gap:6px;background:transparent;border:1px solid rgba(255,255,255,0.1);border-radius:100px;padding:7px 14px;color:var(--text-secondary);font-family:inherit;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;cursor:pointer;transition:all .25s}
+        .saved-pill:hover{border-color:rgba(212,175,55,0.4);color:var(--text-primary)}
+        .saved-pill.is-on{background:rgba(212,175,55,0.1);border-color:var(--gold);color:var(--gold)}
+        .saved-pill svg{width:13px;height:13px}
+        .saved-pill b{font-weight:600;font-variant-numeric:tabular-nums}
+        .apt-hoods .hood-count{color:var(--gold);font-size:10px;opacity:.65;font-variant-numeric:tabular-nums;font-weight:400;margin-left:1px}
+        .apt-view-toggle{display:inline-flex;border:1px solid rgba(255,255,255,0.08);border-radius:100px;padding:3px;gap:2px}
+        .vt-btn{display:inline-flex;align-items:center;gap:7px;padding:7px 16px;background:transparent;border:0;border-radius:100px;color:var(--text-secondary);font-family:inherit;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;cursor:pointer;transition:all .25s;font-weight:400}
+        .vt-btn:hover{color:var(--text-primary)}
+        .vt-btn.active{background:var(--gold);color:#000;font-weight:500}
+        .vt-btn svg{width:14px;height:14px}
+        @media(max-width:768px){
+          .apt-controls{padding:12px 20px 0;top:52px}
+          .filter-pill{padding:8px 12px;font-size:11px;gap:5px}
+          .filter-pill .fp-label{font-size:9px;letter-spacing:1px}
+          .filter-pill .fp-value{font-size:12px}
+          .filter-pill .fp-caret{display:none}
+          .apt-filter-row{gap:6px}
+          .apt-toolbar{justify-content:space-between;padding-top:14px;gap:8px}
+          .saved-pill{padding:6px 11px;font-size:10px;letter-spacing:1px}
+          .saved-pill span.saved-pill-label{display:none}
+          .vt-btn{padding:6px 12px;font-size:10px}
+          .vt-btn svg{width:12px;height:12px}
+        }
+
+        /* FILTER POPOVERS */
+        .filter-popover{position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:8px;width:min(420px,calc(100vw - 40px));background:var(--dark-void);border:1px solid rgba(212,175,55,0.18);border-radius:18px;padding:22px;box-shadow:0 30px 60px rgba(0,0,0,0.6);z-index:100;opacity:0;pointer-events:none;transition:opacity .2s,transform .25s cubic-bezier(.16,1,.3,1)}
+        .filter-popover.open{opacity:1;pointer-events:auto;transform:translateX(-50%) translateY(0)}
+        .filter-popover[hidden]{display:none}
+        .pop-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+        .pop-title{font-size:13px;text-transform:uppercase;letter-spacing:2px;color:var(--text-secondary);font-weight:400}
+        .pop-clear{background:transparent;border:0;color:var(--text-fade);font-size:11px;text-transform:uppercase;letter-spacing:1.5px;cursor:pointer;transition:color .25s}
+        .pop-clear:hover{color:var(--gold)}
+        .pop-row{display:flex;align-items:center;gap:14px;padding:8px 0}
+        .pop-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+        .pop-option{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid rgba(255,255,255,0.06);border-radius:10px;cursor:pointer;transition:all .25s;font-size:13px;color:var(--text-primary)}
+        .pop-option:hover{border-color:rgba(212,175,55,0.3)}
+        .pop-option.is-on{border-color:var(--gold);background:rgba(212,175,55,0.06);color:var(--gold)}
+        .pop-option input{position:absolute;opacity:0;pointer-events:none}
+        .pop-option-tick{width:14px;height:14px;border-radius:4px;border:1.5px solid var(--text-fade);transition:all .2s;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+        .pop-option.is-on .pop-option-tick{border-color:var(--gold);background:var(--gold)}
+        .pop-option.is-on .pop-option-tick::after{content:'';width:6px;height:3px;border-left:2px solid #000;border-bottom:2px solid #000;transform:rotate(-45deg) translate(1px,-1px)}
+
+        /* Budget slider */
+        .pop-slider{padding:18px 6px 6px;position:relative}
+        .pop-slider-track{position:relative;height:4px;background:rgba(255,255,255,0.06);border-radius:4px}
+        .pop-slider-fill{position:absolute;top:0;bottom:0;background:var(--gold);border-radius:4px}
+        .pop-slider input[type="range"]{position:absolute;left:0;right:0;top:-9px;width:100%;height:22px;background:transparent;-webkit-appearance:none;appearance:none;pointer-events:auto;margin:0}
+        .pop-slider input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:18px;height:18px;border-radius:50%;background:#fff;border:2px solid var(--gold);box-shadow:0 2px 6px rgba(0,0,0,0.4);cursor:pointer}
+        .pop-slider input[type="range"]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:#fff;border:2px solid var(--gold);box-shadow:0 2px 6px rgba(0,0,0,0.4);cursor:pointer}
+        .pop-slider input[type="range"]::-webkit-slider-runnable-track{background:transparent}
+        .pop-slider-values{display:flex;justify-content:space-between;margin-top:18px;font-size:13px;color:var(--text-primary);font-variant-numeric:tabular-nums;letter-spacing:.01em}
+        .pop-slider-values b{color:var(--gold);font-weight:500}
+        .pop-histo{display:flex;align-items:flex-end;gap:2px;height:32px;margin-bottom:14px}
+        .pop-histo-bar{flex:1;background:rgba(212,175,55,0.18);border-radius:2px 2px 0 0;min-height:3px;transition:background .25s}
+        .pop-histo-bar.in-range{background:var(--gold)}
+        /* Stepper */
+        .pop-stepper{display:inline-flex;align-items:center;gap:14px;border:1px solid rgba(255,255,255,0.08);border-radius:100px;padding:6px 8px}
+        .pop-stepper button{width:32px;height:32px;border-radius:50%;background:rgba(212,175,55,0.08);border:1px solid rgba(212,175,55,0.2);color:var(--gold);font-size:18px;font-weight:300;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;font-family:inherit}
+        .pop-stepper button:hover{background:var(--gold);color:#000;border-color:var(--gold)}
+        .pop-stepper button:disabled{opacity:.3;cursor:not-allowed;background:transparent}
+        .pop-stepper-value{font-size:15px;min-width:60px;text-align:center;font-weight:300;color:var(--text-primary)}
+        .pop-sort-list{display:flex;flex-direction:column;gap:4px}
+        .pop-sort-item{padding:12px 14px;border:1px solid rgba(255,255,255,0.06);border-radius:10px;cursor:pointer;transition:all .25s;display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--text-primary)}
+        .pop-sort-item:hover{border-color:rgba(212,175,55,0.3)}
+        .pop-sort-item.is-on{border-color:var(--gold);color:var(--gold)}
+        .pop-sort-item.is-on::after{content:'✓';color:var(--gold)}
+
+        /* SKELETON LOADER */
+        .skeleton-card{background:var(--dark-void);border:1px solid rgba(255,255,255,0.05);border-radius:20px;overflow:hidden;display:flex;flex-direction:column}
+        .skel-img{height:220px;background:linear-gradient(110deg,rgba(255,255,255,0.02) 30%,rgba(255,255,255,0.05) 50%,rgba(255,255,255,0.02) 70%);background-size:200% 100%;animation:shimmer 1.6s ease-in-out infinite}
+        .skel-line{height:12px;background:linear-gradient(110deg,rgba(255,255,255,0.02) 30%,rgba(255,255,255,0.06) 50%,rgba(255,255,255,0.02) 70%);background-size:200% 100%;border-radius:6px;animation:shimmer 1.6s ease-in-out infinite}
+        .skel-body{padding:20px;display:flex;flex-direction:column;gap:10px}
+        .skel-line.w-40{width:40%}.skel-line.w-70{width:70%}.skel-line.w-50{width:50%}.skel-line.w-30{width:30%}
+        .skel-line.h-18{height:18px}
+        @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+        /* RESULTS GRID — preserve existing .card styles, just upgrade */
+        .apt-grid-section{max-width:1400px;margin:36px auto 0;padding:0 50px 60px}
+        .apt-results-anim{animation:fadeIn .35s ease-out both}
+        @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+        @media (prefers-reduced-motion: reduce){
+          .apt-results-anim,.pulse-dot,.skel-img,.skel-line{animation:none!important}
+          .card-img-dots,.card-actions{transition:none!important}
+          *{scroll-behavior:auto!important}
+        }
+
+        /* Premium card overlays */
+        .card{position:relative}
+        .card-img{position:relative}
+        .card-img-dots{position:absolute;bottom:8px;left:0;right:0;display:flex;justify-content:center;gap:5px;opacity:0;transition:opacity .25s;z-index:3}
+        .card:hover .card-img-dots{opacity:1}
+        .card-img-dot{width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,0.4);transition:width .15s,background .15s}
+        .card-img-dot.active{background:var(--gold);width:14px;border-radius:3px}
+        .card-actions{position:absolute;top:12px;right:12px;display:flex;flex-direction:column;gap:8px;opacity:0;transform:translateX(8px);transition:all .25s;z-index:3}
+        .card:hover .card-actions,.card:focus-within .card-actions{opacity:1;transform:none}
+        .card-act{width:36px;height:36px;border-radius:50%;background:rgba(0,0,0,0.6);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.12);color:#fff;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s}
+        .card-act:hover{background:var(--gold);color:#000;border-color:var(--gold);transform:scale(1.08)}
+        .card-act.is-on{background:var(--gold);color:#000;border-color:var(--gold)}
+        .card-act svg{width:16px;height:16px}
+        .card-match{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:1.5px;font-weight:500;margin-top:4px}
+        .card-match::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--gold);box-shadow:0 0 6px var(--gold)}
+        .card-price-wrap{display:flex;flex-direction:column;gap:3px}
+        .price-insight{font-size:10px;letter-spacing:.3px;font-weight:400}
+        .price-insight.good{color:#00FF88}
+        .price-insight.high{color:var(--text-fade)}
+        .card-signal-row{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px}
+        .card-signal{display:inline-flex;align-items:center;gap:4px;font-size:9px;letter-spacing:1px;text-transform:uppercase;padding:3px 8px;border-radius:100px;font-weight:500;line-height:1}
+        .signal-new{background:rgba(0,255,136,0.12);color:#00FF88}
+        .signal-fresh{background:rgba(0,206,209,0.12);color:#00CED1}
+
+        /* EMPTY STATE */
+        .apt-empty{max-width:560px;margin:50px auto;padding:48px 24px;text-align:center}
+        .apt-empty-icon{font-size:38px;color:var(--gold);margin-bottom:16px;opacity:.7}
+        .apt-empty h3{font-size:22px;font-weight:200;margin-bottom:10px;letter-spacing:-.01em}
+        .apt-empty p{font-size:14px;color:var(--text-secondary);margin-bottom:24px;line-height:1.6}
+        .apt-empty .btn{display:inline-flex;align-items:center;gap:8px;padding:12px 26px;background:var(--gold);color:#000;border-radius:100px;font-size:11px;text-transform:uppercase;letter-spacing:2px;font-weight:600;text-decoration:none;transition:all .25s;border:0;cursor:pointer;font-family:inherit;margin:4px}
+        .apt-empty .btn:hover{transform:translateY(-2px);box-shadow:0 12px 30px rgba(212,175,55,0.25)}
+        .apt-empty .btn.btn-ghost{background:transparent;color:var(--text-primary);border:1px solid rgba(255,255,255,0.12)}
+        .apt-empty .btn.btn-ghost:hover{border-color:var(--gold);color:var(--gold);box-shadow:none}
+
+        /* COMPARE BAR */
+        .compare-bar{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(120%);background:var(--dark-void);border:1px solid rgba(212,175,55,0.25);border-radius:100px;padding:8px 8px 8px 22px;display:flex;align-items:center;gap:14px;box-shadow:0 24px 60px rgba(0,0,0,0.6);z-index:200;transition:transform .35s cubic-bezier(.16,1,.3,1);font-size:13px;max-width:calc(100vw - 32px)}
+        .compare-bar.is-on{transform:translateX(-50%) translateY(0)}
+        .compare-bar-count{color:var(--gold);font-weight:500;font-variant-numeric:tabular-nums}
+        .compare-bar-label{color:var(--text-secondary)}
+        .compare-bar-thumbs{display:flex;gap:-6px}
+        .compare-bar-thumb{width:30px;height:30px;border-radius:50%;background-size:cover;background-position:center;border:2px solid var(--dark-void);margin-left:-8px;background-color:#222}
+        .compare-bar-thumb:first-child{margin-left:0}
+        .compare-bar-go{display:inline-flex;align-items:center;gap:6px;padding:10px 20px;background:var(--gold);color:#000;border-radius:100px;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;font-weight:600;border:0;cursor:pointer;font-family:inherit;transition:transform .2s}
+        .compare-bar-go:hover{transform:scale(1.05)}
+        .compare-bar-clear{background:transparent;border:0;color:var(--text-fade);font-size:18px;cursor:pointer;padding:0 8px;line-height:1}
+        .compare-bar-clear:hover{color:var(--text-primary)}
+        @media(max-width:768px){.compare-bar{padding:6px 6px 6px 16px;gap:10px;font-size:12px}.compare-bar-thumb{width:24px;height:24px}.compare-bar-label{display:none}}
+
+        /* COMPARE MODAL */
+        .compare-modal{position:fixed;inset:0;z-index:400;display:flex;align-items:center;justify-content:center;padding:24px;opacity:0;transition:opacity .25s}
+        .compare-modal[hidden]{display:none}
+        .compare-modal.open{opacity:1}
+        .compare-modal-backdrop{position:absolute;inset:0;background:rgba(0,0,0,0.78);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+        .compare-modal-panel{position:relative;width:min(1100px,100%);max-height:88vh;display:flex;flex-direction:column;background:var(--dark-void,#0A0A0A);border:1px solid rgba(212,175,55,0.2);border-radius:22px;box-shadow:0 40px 100px rgba(0,0,0,0.7);overflow:hidden;transform:scale(.97);transition:transform .3s cubic-bezier(.16,1,.3,1)}
+        .compare-modal.open .compare-modal-panel{transform:scale(1)}
+        .compare-modal-head{display:flex;justify-content:space-between;align-items:center;padding:22px 26px;border-bottom:1px solid rgba(255,255,255,0.06);flex-shrink:0}
+        .compare-modal-head h2{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:22px;font-weight:200;letter-spacing:-.01em}
+        .compare-modal-close{background:transparent;border:0;color:var(--text-secondary);font-size:30px;line-height:1;cursor:pointer;transition:color .2s;padding:0 6px}
+        .compare-modal-close:hover{color:var(--gold)}
+        .compare-modal-scroll{overflow:auto;padding:6px 0}
+        .compare-grid{--cmp-cols:2;min-width:max-content}
+        .cmp-row{display:grid;grid-template-columns:150px repeat(var(--cmp-cols),minmax(150px,1fr));align-items:center;border-bottom:1px solid rgba(255,255,255,0.04)}
+        .cmp-row:last-child{border-bottom:0}
+        .cmp-label{padding:13px 26px;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-fade);position:sticky;left:0;background:var(--dark-void,#0A0A0A);z-index:2}
+        .cmp-val{padding:13px 18px;font-size:14px;color:var(--text-primary);text-align:center;font-variant-numeric:tabular-nums}
+        .cmp-row-head{align-items:end;border-bottom:1px solid rgba(255,255,255,0.08)}
+        .cmp-head-cell{position:relative;padding:18px;display:flex;flex-direction:column;align-items:center;gap:10px}
+        .cmp-photo{display:block;width:100%;height:96px;border-radius:10px;background:#1A1A1D center/cover no-repeat}
+        .cmp-name{font-size:14px;color:var(--text-primary);text-align:center;line-height:1.3;font-weight:400}
+        .cmp-name:hover{color:var(--gold)}
+        .cmp-remove{position:absolute;top:6px;right:6px;width:24px;height:24px;border-radius:50%;background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.12);color:#fff;font-size:14px;line-height:1;cursor:pointer;transition:all .2s}
+        .cmp-remove:hover{background:#FF453A;border-color:#FF453A}
+        .cmp-best{color:var(--gold);font-weight:600}
+        .cmp-best::after{content:' ★';font-size:9px;vertical-align:top}
+        .cmp-yes{color:#00FF88}
+        .cmp-no{color:var(--text-fade)}
+        .cmp-row-cta .cmp-val{padding:18px}
+        .cmp-view{display:inline-block;padding:10px 22px;background:var(--gold);color:#000;border-radius:100px;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;font-weight:600;text-decoration:none;transition:transform .2s}
+        .cmp-view:hover{transform:scale(1.05)}
+        @media(max-width:768px){
+          .compare-modal{padding:0}
+          .compare-modal-panel{max-height:100vh;height:100vh;border-radius:0;border:0;width:100%}
+          .cmp-label{padding:13px 16px;font-size:10px}
+          .cmp-val{padding:11px 12px;font-size:13px}
+          .cmp-row{grid-template-columns:118px repeat(var(--cmp-cols),minmax(130px,1fr))}
+        }
+
+        /* MAP VIEW */
+        .apt-map-section{max-width:1400px;margin:36px auto 0;padding:0 50px 60px;display:grid;grid-template-columns:380px 1fr;gap:20px;min-height:70vh}
+        .apt-map-sidebar{overflow:auto;max-height:calc(100vh - 200px);position:sticky;top:120px;display:flex;flex-direction:column;gap:14px;padding-right:6px}
+        .apt-map-sidebar::-webkit-scrollbar{width:6px}
+        .apt-map-sidebar::-webkit-scrollbar-thumb{background:rgba(212,175,55,0.2);border-radius:3px}
+        .apt-map{border-radius:18px;overflow:hidden;border:1px solid rgba(212,175,55,0.15);min-height:600px;background:#0A0A0A}
+        .apt-map .maplibregl-map{font-family:inherit!important}
+        .apt-map .maplibregl-ctrl-attrib{background:rgba(0,0,0,.5)!important;color:rgba(255,255,255,0.4)!important;font-size:9px!important}
+        .apt-map .maplibregl-ctrl-attrib a{color:rgba(255,255,255,0.55)!important}
+        .map-marker{width:46px;height:32px;background:var(--gold);color:#000;border-radius:100px;font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;letter-spacing:-.01em;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,0.5);transition:transform .2s,box-shadow .2s;border:2px solid #000;font-variant-numeric:tabular-nums}
+        .map-marker:hover,.map-marker.is-active{transform:scale(1.15);background:#fff;box-shadow:0 8px 22px rgba(212,175,55,0.5);z-index:10}
+        .map-popup{font-family:inherit;color:#fff}
+        .map-popup .maplibregl-popup-content{background:var(--dark-void)!important;border:1px solid rgba(212,175,55,0.25)!important;border-radius:14px!important;padding:0!important;box-shadow:0 20px 50px rgba(0,0,0,0.6)!important;overflow:hidden;min-width:240px}
+        .map-popup .maplibregl-popup-tip{border-top-color:var(--dark-void)!important;border-bottom-color:var(--dark-void)!important}
+        .map-popup .maplibregl-popup-close-button{color:rgba(255,255,255,0.55)!important;font-size:20px!important;padding:6px 10px!important}
+        .map-popup-img{height:120px;background-size:cover;background-position:center;background-color:#1A1A1D}
+        .map-popup-body{padding:14px 16px}
+        .map-popup-zone{font-size:10px;color:var(--gold);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px}
+        .map-popup-name{font-size:14px;font-weight:400;margin-bottom:6px;color:#fff}
+        .map-popup-price{font-size:14px;color:var(--gold);font-weight:500}
+        .map-popup-price small{color:rgba(255,255,255,0.55);font-size:10px;font-weight:300;margin-left:3px;text-transform:uppercase;letter-spacing:.5px}
+        .map-popup-go{display:block;text-align:center;padding:10px;border-top:1px solid rgba(255,255,255,0.06);font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:1.5px;font-weight:500;text-decoration:none;transition:background .2s}
+        .map-popup-go:hover{background:rgba(212,175,55,0.08)}
+        .map-cluster{background:var(--gold);color:#000;border-radius:50%;width:44px;height:44px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;border:3px solid #000;box-shadow:0 0 0 5px rgba(212,175,55,0.22),0 6px 18px rgba(0,0,0,0.5);cursor:pointer;transition:transform .2s,box-shadow .2s;font-variant-numeric:tabular-nums}
+        .map-cluster:hover{transform:scale(1.12);box-shadow:0 0 0 6px rgba(212,175,55,0.35),0 8px 22px rgba(0,0,0,0.6)}
+        @media(max-width:880px){.apt-map-section{grid-template-columns:1fr;padding:0 20px 40px}.apt-map-sidebar{max-height:none;position:static;order:2}.apt-map{min-height:50vh;order:1}}
+
+        /* COMPACT MAP-SIDEBAR CARDS */
+        .map-mini-card{display:flex;gap:12px;padding:10px;background:var(--bg-card,#0A0A0A);border:1px solid rgba(255,255,255,0.06);border-radius:12px;text-decoration:none;color:var(--text-primary);transition:all .25s}
+        .map-mini-card:hover,.map-mini-card.is-active{border-color:var(--gold);background:rgba(212,175,55,0.05)}
+        .map-mini-img{width:80px;height:80px;background-size:cover;background-position:center;background-color:#1A1A1D;border-radius:8px;flex-shrink:0}
+        .map-mini-body{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:space-between;padding:2px 0}
+        .map-mini-zone{font-size:9px;color:var(--gold);text-transform:uppercase;letter-spacing:1.5px}
+        .map-mini-name{font-size:13px;font-weight:400;line-height:1.3;margin:3px 0;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+        .map-mini-price{font-size:13px;color:var(--gold);font-weight:500}
+        .map-mini-price small{font-size:9px;color:var(--text-fade);font-weight:300;letter-spacing:.5px;margin-left:2px;text-transform:uppercase}
     </style>
+<!-- BOOM_JSONLD:START -->
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "RealEstateAgent",
+  "@id": "https://www.boomrome.com/#organization",
+  "name": "BOOM Rome",
+  "legalName": "BOOM Rome",
+  "url": "https://www.boomrome.com",
+  "logo": {
+    "@type": "ImageObject",
+    "url": "https://www.boomrome.com/android-chrome-512x512.png",
+    "width": 512,
+    "height": 512
+  },
+  "image": "https://www.boomrome.com/BOOMsocialprofile.png",
+  "description": "Premium mid-term apartment rentals in Rome with full property management, legal contracts, and 48-hour move-in.",
+  "sameAs": [
+    "https://www.instagram.com/boomrome",
+    "https://www.linkedin.com/company/boomrome",
+    "https://wa.me/393331234567"
+  ],
+  "address": {
+    "@type": "PostalAddress",
+    "addressLocality": "Rome",
+    "addressRegion": "Lazio",
+    "addressCountry": "IT"
+  },
+  "areaServed": {
+    "@type": "City",
+    "name": "Rome"
+  },
+  "priceRange": "€€-€€€"
+}
+  </script>
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "@id": "https://www.boomrome.com/#website",
+  "url": "https://www.boomrome.com",
+  "name": "BOOM Rome",
+  "publisher": {
+    "@id": "https://www.boomrome.com/#organization"
+  },
+  "potentialAction": {
+    "@type": "SearchAction",
+    "target": {
+      "@type": "EntryPoint",
+      "urlTemplate": "https://www.boomrome.com/apartments?q={search_term_string}"
+    },
+    "query-input": "required name=search_term_string"
+  },
+  "inLanguage": [
+    "en",
+    "it"
+  ]
+}
+  </script>
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Home",
+      "item": "https://www.boomrome.com/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "Apartments",
+      "item": "https://www.boomrome.com/apartments"
+    }
+  ]
+}
+  </script>
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  "url": "https://www.boomrome.com/apartments",
+  "name": "Apartments for rent in Rome",
+  "description": "Video-verified apartments for rent in Rome across Centro Storico, Trastevere, Pigneto, Monti, Prati and more.",
+  "isPartOf": {
+    "@id": "https://www.boomrome.com/#website"
+  },
+  "about": {
+    "@type": "Place",
+    "name": "Rome"
+  }
+}
+  </script>
+<!-- BOOM_JSONLD:END -->
 </head>
 <body>
     <!-- NAV -->
@@ -241,12 +645,12 @@
                 <span class="logo-text">BOOM</span>
             </a>
             <div class="nav-links">
-                <a href="/apartments.html" class="active">Apartments</a>
-                <a href="/property-finding.html">Property Finding</a>
-                <a href="/deal-assistance.html">Deal Assistance</a>
-                <a href="/virtual-viewing.html">Virtual Viewing</a>
-                <a href="/concierge.html">Concierge</a>
-                <a href="/about.html">About</a>
+                <a href="/apartments" class="active">Apartments</a>
+                <a href="/apartments-in">Neighborhoods</a>
+                <a href="/property-finding">Property Finding</a>
+                <a href="/virtual-viewing">Virtual Viewing</a>
+                <a href="/concierge">Concierge</a>
+                <a href="/about">About</a>
                 <a href="https://wa.me/393313251961" class="wa-link">WhatsApp</a>
             </div>
             <div class="hamburger" id="hamburger"><span></span><span></span><span></span></div>
@@ -254,31 +658,165 @@
     </nav>
     <div class="mobile-menu" id="mobileMenu">
         <a href="/">Home</a>
-        <a href="/apartments.html">Apartments</a>
-        <a href="/property-finding.html">Property Finding</a>
-        <a href="/deal-assistance.html">Deal Assistance</a>
-        <a href="/virtual-viewing.html">Virtual Viewing</a>
-        <a href="/concierge.html">Concierge</a>
-        <a href="/about.html">About</a>
-        <a href="/login.html">Login</a>
+        <a href="/apartments">Apartments</a>
+        <a href="/apartments-in">Neighborhoods</a>
+        <a href="/property-finding">Property Finding</a>
+        <a href="/deal-assistance">Deal Assistance</a>
+        <a href="/virtual-viewing">Virtual Viewing</a>
+        <a href="/concierge">Concierge</a>
+        <a href="/about">About</a>
+        <a href="/login">Login</a>
         <a href="https://wa.me/393313251961" class="wa-mob">WhatsApp Us</a>
     </div>
-    <div class="page">
-        <div class="page-header">
-            <div class="page-tag">Available Now</div>
-            <h1 class="page-title">Apartments in Rome</h1>
-            <p class="page-subtitle">All verified. All real. All ready. Updated daily from our portfolio.</p>
-        </div>
-        <div class="filters" id="filters">
-            <button class="filter-btn active" data-filter="all">All</button>
-            <button class="filter-btn" data-filter="available">Available</button>
-            <button class="filter-btn" data-filter="waitlist">Coming Soon</button>
-        </div>
-        <div id="listingsContainer">
-            <div class="loading-state" id="loadingState">
-                <div class="spinner"></div>
-                <p style="color:var(--text-secondary)">Loading apartments…</p>
+    <div class="page" style="padding-top:0">
+        <!-- HERO -->
+        <header class="apt-hero">
+            <h1 class="apt-h1">Apartments in Rome</h1>
+            <p class="apt-lede">Video-verified. Legally registered. Move-in within 48 hours.</p>
+            <div class="apt-pulse" aria-live="polite">
+                <span class="pulse-dot"></span>
+                <span><b id="pulseAvail">—</b> available now · <b id="pulseNew">—</b> new this week · avg <b id="pulseAvg">—</b></span>
             </div>
+            <div class="apt-hoods" role="navigation" aria-label="Browse by neighborhood">
+                <a href="/apartments-in/trastevere">Trastevere</a><span>·</span>
+                <a href="/apartments-in/centro-storico">Centro Storico</a><span>·</span>
+                <a href="/apartments-in/monti">Monti</a><span>·</span>
+                <a href="/apartments-in/prati">Prati</a><span>·</span>
+                <a href="/apartments-in/pigneto">Pigneto</a><span>·</span>
+                <a href="/apartments-in/testaccio">Testaccio</a><span>·</span>
+                <a href="/apartments-in/ostiense">Ostiense</a><span>·</span>
+                <a href="/apartments-in/trieste-coppede">Trieste &amp; Coppedè</a><span>·</span>
+                <a href="/apartments-in/san-lorenzo">San Lorenzo</a><span>·</span>
+                <a href="/apartments-in/esquilino">Esquilino</a>
+                <a href="/apartments-in" class="apt-hoods-all">All guides →</a>
+            </div>
+        </header>
+
+        <!-- SMART SEARCH -->
+        <section class="apt-search-bar" aria-label="Smart search">
+            <div class="apt-search-wrap">
+                <svg class="apt-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                <input id="aptSearch" type="text" placeholder="Try: 2 bedrooms in Trastevere under 2000 with terrace" autocomplete="off" spellcheck="false" inputmode="search">
+                <button class="apt-search-clear" id="aptSearchClear" aria-label="Clear search" hidden>×</button>
+            </div>
+            <div class="apt-search-hint">Smart search — say it in <b>English or Italian</b>. Tries to read budget, neighborhood, bedrooms, features.</div>
+        </section>
+
+        <!-- CONTROLS / FILTERS -->
+        <section class="apt-controls" aria-label="Filter and view controls">
+            <div class="apt-filter-row">
+                <button class="filter-pill" id="fpill-budget" data-pop="budget" aria-haspopup="dialog" aria-expanded="false">
+                    <span class="fp-label">Budget</span><span class="fp-value" id="fp-budget">Any</span><span class="fp-caret">▾</span>
+                </button>
+                <button class="filter-pill" id="fpill-hoods" data-pop="hoods" aria-haspopup="dialog" aria-expanded="false">
+                    <span class="fp-label">Neighborhood</span><span class="fp-value" id="fp-hoods">All</span><span class="fp-caret">▾</span>
+                </button>
+                <button class="filter-pill" id="fpill-beds" data-pop="beds" aria-haspopup="dialog" aria-expanded="false">
+                    <span class="fp-label">Bedrooms</span><span class="fp-value" id="fp-beds">Any</span><span class="fp-caret">▾</span>
+                </button>
+                <button class="filter-pill" id="fpill-features" data-pop="features" aria-haspopup="dialog" aria-expanded="false">
+                    <span class="fp-label">Features</span><span class="fp-value" id="fp-features">Any</span><span class="fp-caret">▾</span>
+                </button>
+                <button class="filter-pill" id="fpill-sort" data-pop="sort" aria-haspopup="dialog" aria-expanded="false">
+                    <span class="fp-label">Sort</span><span class="fp-value" id="fp-sort">Recommended</span><span class="fp-caret">▾</span>
+                </button>
+            </div>
+            <div class="apt-filter-chips" id="aptFilterChips" aria-label="Active filters"></div>
+            <div class="apt-toolbar">
+                <div class="apt-count" id="aptCount">Loading…</div>
+                <div class="apt-toolbar-right">
+                    <button class="saved-pill" id="savedPill" aria-pressed="false" hidden>
+                        <svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M12 21s-7-4.35-9.5-8.5C.5 8.5 3 4 7 4c2 0 3.5 1.2 5 3 1.5-1.8 3-3 5-3 4 0 6.5 4.5 4.5 8.5C19 16.65 12 21 12 21z"/></svg>
+                        <span class="saved-pill-label">Saved</span> <b id="savedPillCount">0</b>
+                    </button>
+                    <div class="apt-view-toggle" role="tablist">
+                        <button class="vt-btn active" data-view="grid" role="tab" aria-selected="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                            Grid
+                        </button>
+                        <button class="vt-btn" data-view="map" role="tab" aria-selected="false">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2Z"/><path d="M9 4v14"/><path d="M15 6v14"/></svg>
+                            Map
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- POPOVERS -->
+            <div class="filter-popover" id="pop-budget" role="dialog" aria-label="Budget filter" hidden>
+                <div class="pop-head"><span class="pop-title">Monthly budget</span><button class="pop-clear" data-clear="budget">Reset</button></div>
+                <div class="pop-histo" id="popHisto" aria-hidden="true"></div>
+                <div class="pop-slider">
+                    <div class="pop-slider-track"><div class="pop-slider-fill" id="popBudgetFill"></div></div>
+                    <input type="range" id="popBudgetMin" min="500" max="4000" step="50" value="500">
+                    <input type="range" id="popBudgetMax" min="500" max="4000" step="50" value="4000">
+                    <div class="pop-slider-values">
+                        <span>From <b id="popBudgetMinV">€500</b></span><span>to <b id="popBudgetMaxV">€4,000</b></span>
+                    </div>
+                </div>
+            </div>
+            <div class="filter-popover" id="pop-hoods" role="dialog" aria-label="Neighborhood filter" hidden>
+                <div class="pop-head"><span class="pop-title">Neighborhood</span><button class="pop-clear" data-clear="hoods">Reset</button></div>
+                <div class="pop-grid" id="popHoodsGrid"></div>
+            </div>
+            <div class="filter-popover" id="pop-beds" role="dialog" aria-label="Bedrooms filter" hidden>
+                <div class="pop-head"><span class="pop-title">Minimum bedrooms</span><button class="pop-clear" data-clear="beds">Reset</button></div>
+                <div class="pop-row" style="justify-content:center;padding:18px 0 6px">
+                    <div class="pop-stepper">
+                        <button id="popBedsDec" aria-label="Less">−</button>
+                        <span class="pop-stepper-value" id="popBedsV">Any</span>
+                        <button id="popBedsInc" aria-label="More">+</button>
+                    </div>
+                </div>
+                <p style="text-align:center;font-size:11px;color:var(--text-fade);margin-top:8px;letter-spacing:.5px">Studios match Any. Steps from 1 to 4+.</p>
+            </div>
+            <div class="filter-popover" id="pop-features" role="dialog" aria-label="Features filter" hidden>
+                <div class="pop-head"><span class="pop-title">Must-have features</span><button class="pop-clear" data-clear="features">Reset</button></div>
+                <div class="pop-grid" id="popFeaturesGrid">
+                    <label class="pop-option" data-feat="terrace"><input type="checkbox"><span class="pop-option-tick"></span>Terrace / balcony</label>
+                    <label class="pop-option" data-feat="lift"><input type="checkbox"><span class="pop-option-tick"></span>Lift / elevator</label>
+                    <label class="pop-option" data-feat="furnished"><input type="checkbox"><span class="pop-option-tick"></span>Furnished</label>
+                    <label class="pop-option" data-feat="petfriendly"><input type="checkbox"><span class="pop-option-tick"></span>Pet-friendly</label>
+                    <label class="pop-option" data-feat="parking"><input type="checkbox"><span class="pop-option-tick"></span>Parking</label>
+                    <label class="pop-option" data-feat="airconditioning"><input type="checkbox"><span class="pop-option-tick"></span>Air conditioning</label>
+                    <label class="pop-option" data-feat="washer"><input type="checkbox"><span class="pop-option-tick"></span>Washing machine</label>
+                    <label class="pop-option" data-feat="dishwasher"><input type="checkbox"><span class="pop-option-tick"></span>Dishwasher</label>
+                    <label class="pop-option" data-feat="wifi"><input type="checkbox"><span class="pop-option-tick"></span>Wi-Fi included</label>
+                    <label class="pop-option" data-feat="video"><input type="checkbox"><span class="pop-option-tick"></span>Has video tour</label>
+                </div>
+            </div>
+            <div class="filter-popover" id="pop-sort" role="dialog" aria-label="Sort filter" hidden>
+                <div class="pop-head"><span class="pop-title">Sort apartments by</span></div>
+                <div class="pop-sort-list" id="popSortList">
+                    <div class="pop-sort-item is-on" data-sort="recommended">Recommended</div>
+                    <div class="pop-sort-item" data-sort="price-asc">Price: low to high</div>
+                    <div class="pop-sort-item" data-sort="price-desc">Price: high to low</div>
+                    <div class="pop-sort-item" data-sort="newest">Newest first</div>
+                    <div class="pop-sort-item" data-sort="movein">Move-in date</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- RESULTS — GRID -->
+        <section class="apt-grid-section" id="aptGridSection">
+            <div class="grid" id="aptGrid">
+                <!-- skeletons rendered initially -->
+            </div>
+        </section>
+
+        <!-- RESULTS — MAP (lazy-init) -->
+        <section class="apt-map-section" id="aptMapSection" hidden aria-label="Map view">
+            <aside class="apt-map-sidebar" id="aptMapSidebar"></aside>
+            <div class="apt-map" id="aptMap"></div>
+        </section>
+
+        <!-- EMPTY STATE -->
+        <div class="apt-empty" id="aptEmpty" hidden>
+            <div class="apt-empty-icon">⌕</div>
+            <h3>No apartments match your filters</h3>
+            <p>Try widening your budget, removing a feature, or letting BOOM find one for you.</p>
+            <button class="btn" id="aptEmptyReset">Reset filters</button>
+            <a class="btn btn-ghost" href="/property-finding">Have BOOM find me one →</a>
         </div>
         <!-- UPSELL SECTION -->
         <div class="upsell-section">
@@ -381,7 +919,29 @@
                 </div>
             </div>
         </div>
+
     </div>
+
+    <!-- COMPARE BAR (floating, appears with 2+ apartments selected) -->
+    <div class="compare-bar" id="compareBar" role="region" aria-label="Compare apartments">
+        <div class="compare-bar-thumbs" id="compareBarThumbs"></div>
+        <span><b class="compare-bar-count" id="compareBarCount">0</b> <span class="compare-bar-label">selected</span></span>
+        <button class="compare-bar-go" id="compareBarGo">Compare →</button>
+        <button class="compare-bar-clear" id="compareBarClear" aria-label="Clear comparison">×</button>
+    </div>
+
+    <!-- COMPARE MODAL -->
+    <div class="compare-modal" id="compareModal" role="dialog" aria-modal="true" aria-label="Compare apartments" hidden>
+        <div class="compare-modal-backdrop" data-close-compare></div>
+        <div class="compare-modal-panel">
+            <div class="compare-modal-head">
+                <h2>Compare apartments</h2>
+                <button class="compare-modal-close" data-close-compare aria-label="Close comparison">×</button>
+            </div>
+            <div class="compare-modal-scroll"><div class="compare-grid" id="compareModalBody"></div></div>
+        </div>
+    </div>
+
     <!-- FOOTER -->
     <footer>
         <div class="footer-content">
@@ -417,10 +977,15 @@
         <div class="footer-bottom">© 2025 BOOM — All Rights Reserved</div>
     </footer>
     <!-- FIREBASE -->
+    <!-- Shared zone → neighborhood-slug helper (auto-generated from neighborhoods-data.js) -->
+    <script src="/js/neighborhoods.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
     <script>
-    // Same Firebase project as portal.html (boom-property-dashboards)
+    /* ═══════════════════════════════════════════════════════════════════
+       BOOM /apartments — discovery engine v2
+       State-driven · URL-synced · NL search · Lazy map · Save & compare
+       ═══════════════════════════════════════════════════════════════════ */
     firebase.initializeApp({
         apiKey:"AIzaSyDDb8UeSc8RhO_VxQrhLrupu1aPD4rwRso",
         authDomain:"boom-property-dashboards.firebaseapp.com",
@@ -430,175 +995,973 @@
         appId:"1:937269017440:web:41c1a0b1e1633c2f373c05"
     });
     const db = firebase.firestore();
-    let allListings = [];
-    let currentFilter = 'all';
 
-    // Helper function to get status from either field
-    function getStatus(l) {
-        const s1 = (l.status || '').toString().toLowerCase().trim();
-        const s2 = (l.availabilityStatus || '').toString().toLowerCase().trim();
-        return s1 || s2 || '';
+    const $ = (s, r=document) => r.querySelector(s);
+    const $$ = (s, r=document) => [...r.querySelectorAll(s)];
+    const fmt = n => n != null ? '€' + Number(n).toLocaleString() : '—';
+
+    const STATE = {
+      raw: [], view: 'grid', q: '', sort: 'recommended', savedOnly: false,
+      filters: { budgetMin: 500, budgetMax: 4000, hoods: new Set(), beds: 0, features: new Set() },
+      saved: new Set(JSON.parse(localStorage.getItem('boom:saved') || '[]')),
+      compare: new Set(),
+      zoneAvg: {},
+      map: null, markers: {}, markersOnScreen: {}, mapWired: false,
+    };
+
+    // Zone centroids — fallback when listings don't have lat/lng in Firestore.
+    // Coordinates are central focal points of each Roman neighborhood.
+    const ZONE_COORDS = {
+      'trastevere':      [12.4699, 41.8893],
+      'centro-storico':  [12.4778, 41.8990],
+      'monti':           [12.4946, 41.8945],
+      'prati':           [12.4571, 41.9105],
+      'pigneto':         [12.5306, 41.8842],
+      'testaccio':       [12.4760, 41.8765],
+      'ostiense':        [12.4775, 41.8702],
+      'trieste-coppede': [12.5036, 41.9229],
+      'san-lorenzo':     [12.5183, 41.8975],
+      'esquilino':       [12.5037, 41.8975],
+      'aventino':        [12.4825, 41.8829],
+      'parioli':         [12.4848, 41.9258],
+      'flaminio':        [12.4717, 41.9265],
+      'eur':             [12.4720, 41.8313],
+      'garbatella':      [12.4880, 41.8645],
+      'san-giovanni':    [12.5072, 41.8870],
+    };
+    // Tiny deterministic jitter so multiple listings in same zone don't stack
+    function jitter(seed) {
+      let h = 0; for (let i=0;i<seed.length;i++) h = ((h<<5)-h + seed.charCodeAt(i))|0;
+      return [(((h&0xffff)/0xffff)-0.5)*0.006, ((((h>>16)&0xffff)/0xffff)-0.5)*0.004];
     }
-    // Hamburger
-    document.getElementById('hamburger').addEventListener('click', () => {
-        document.getElementById('mobileMenu').classList.toggle('open');
-    });
-    document.querySelectorAll('.mobile-menu a').forEach(a => {
-        a.addEventListener('click', () => document.getElementById('mobileMenu').classList.remove('open'));
-    });
-    // Filters
-    document.querySelectorAll('.filter-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            currentFilter = btn.dataset.filter;
-            renderListings();
-        });
-    });
-    // Load listings from Firebase - using 'listings' collection (same as Admin Flats)
+
+    const FEATURE_KEYWORDS = {
+      terrace: ['terrace','terrazz','balcony','balcon'],
+      lift: ['lift','elevator','ascensore'],
+      furnished: ['furnished','arredato','arredata'],
+      petfriendly: ['pet-friendly','pet friendly','animali ammessi'],
+      parking: ['parking','garage','posto auto'],
+      airconditioning: ['air conditioning','aria condizionata','a/c'],
+      washer: ['washing machine','washer','lavatrice'],
+      dishwasher: ['dishwasher','lavastoviglie'],
+      wifi: ['wi-fi','wifi','internet'],
+      video: [],  // matched via videoUrl
+    };
+
+    const getStatus = l => (l.status || l.availabilityStatus || 'available').toString().toLowerCase();
+    const isAvail = l => /^(available|disponibile|active|free|)$/.test(getStatus(l));
+    const isRented = l => /^(rented|affittato|off_market)$/.test(getStatus(l));
+    const isNewThisWeek = l => {
+      const c = l.createdAt;
+      if (!c) return false;
+      const t = c.toMillis ? c.toMillis() : (c.seconds ? c.seconds*1000 : new Date(c).getTime());
+      return Date.now() - t < 7 * 24 * 60 * 60 * 1000;
+    };
+    const hasFeature = (l, key) => {
+      if (key === 'video') return !!(l.videoUrl || l.youtubeUrl);
+      const kws = FEATURE_KEYWORDS[key] || [];
+      const blob = JSON.stringify(l).toLowerCase();
+      return kws.some(kw => blob.includes(kw));
+    };
+
+    /* ── DATA LOAD ───────────────────────────────────────────────── */
     async function loadListings() {
-        try {
-            const snapshot = await db.collection('listings').get();
-            allListings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-            // Update filter counts
-            const available = allListings.filter(l => {
-                const status = getStatus(l);
-                return status === 'available' || status === 'disponibile' || status === 'active' || status === 'free' || status === '';
-            }).length;
-            const waitlist = allListings.filter(l => {
-                const status = getStatus(l);
-                return status === 'waitlist' || status === 'negotiation' || status === 'coming soon' || status === 'in trattativa';
-            }).length;
-            // Count ALL visible (non-rented) properties
-            const allVisible = allListings.filter(l => {
-                const status = getStatus(l);
-                return status !== 'rented' && status !== 'affittato' && status !== 'off_market';
-            }).length;
-
-            document.querySelectorAll('.filter-btn').forEach(btn => {
-                const f = btn.dataset.filter;
-                let count = 0;
-                if (f === 'all') count = allVisible;
-                else if (f === 'available') count = available;
-                else if (f === 'waitlist') count = waitlist;
-                // Add count badge
-                const existing = btn.querySelector('.filter-count');
-                if (existing) existing.remove();
-                if (count > 0) {
-                    const span = document.createElement('span');
-                    span.className = 'filter-count';
-                    span.textContent = count;
-                    btn.appendChild(span);
-                }
-            });
-            renderListings();
-        } catch (err) {
-            console.error('Error loading listings:', err);
-            document.getElementById('listingsContainer').innerHTML = `
-                <div class="empty-state">
-                    <h3>Connection Error</h3>
-                    <p>Could not load apartments. Please refresh the page.</p>
-                </div>`;
-        }
+      renderSkeleton(8);
+      try {
+        const snap = await db.collection('listings').get();
+        STATE.raw = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        initFilterUI();
+        computeZoneAverages();
+        updateZoneCounts();
+        parseURLState();
+        updatePulse();
+        updateSavedPill();
+        rebuildHistogram();
+        applyAndRender();
+      } catch (err) {
+        console.error('listings:', err);
+        $('#aptGrid').innerHTML = '';
+        $('#aptEmpty').hidden = false;
+        $('#aptEmpty').querySelector('h3').textContent = 'Connection error';
+        $('#aptEmpty').querySelector('p').textContent = 'Could not load apartments. Please refresh.';
+        $('#aptCount').textContent = 'Error';
+      }
     }
-    function renderListings() {
-        const container = document.getElementById('listingsContainer');
 
-        // Show ALL properties except explicitly rented ones
-        let filtered = allListings.filter(l => {
-            const status = getStatus(l);
-            return status !== 'rented' && status !== 'affittato' && status !== 'off_market';
+    function updatePulse() {
+      const all = STATE.raw.filter(l => !isRented(l));
+      const avail = all.filter(isAvail);
+      const newOnes = all.filter(isNewThisWeek);
+      const avg = avail.length ? Math.round(avail.reduce((s,l)=> s + (Number(l.price)||0), 0) / avail.filter(l=>l.price).length) : 0;
+      $('#pulseAvail').textContent = avail.length;
+      $('#pulseNew').textContent = newOnes.length;
+      $('#pulseAvg').textContent = avg ? '€'+avg.toLocaleString() : '—';
+    }
+
+    function rebuildHistogram() {
+      const bins = 16, lo = 500, hi = 4000;
+      const counts = new Array(bins).fill(0);
+      for (const l of STATE.raw) {
+        const p = Number(l.price); if (!p) continue;
+        const idx = Math.max(0, Math.min(bins-1, Math.floor((p - lo) / (hi - lo) * bins)));
+        counts[idx]++;
+      }
+      const max = Math.max(1, ...counts);
+      $('#popHisto').innerHTML = counts.map((c,i) => {
+        const binLo = lo + (hi-lo) * i / bins;
+        const binHi = lo + (hi-lo) * (i+1) / bins;
+        const inRange = binHi >= STATE.filters.budgetMin && binLo <= STATE.filters.budgetMax;
+        return `<div class="pop-histo-bar${inRange ? ' in-range' : ''}" style="height:${(c/max*100).toFixed(1)}%"></div>`;
+      }).join('');
+    }
+
+    function initFilterUI() {
+      const hoods = (window.BOOM && BOOM.allNeighborhoods) ? BOOM.allNeighborhoods() : [];
+      $('#popHoodsGrid').innerHTML = hoods.map(h =>
+        `<label class="pop-option" data-hood="${h.slug}"><input type="checkbox"><span class="pop-option-tick"></span>${h.name}</label>`
+      ).join('');
+    }
+
+    // Live inventory count per neighborhood, shown inline in the hero row
+    function updateZoneCounts() {
+      if (!window.BOOM || !BOOM.zoneToSlug) return;
+      const counts = {};
+      STATE.raw.filter(l => !isRented(l)).forEach(l => {
+        const slug = BOOM.zoneToSlug(l.zone || l.neighborhood || l.address || '');
+        if (slug) counts[slug] = (counts[slug] || 0) + 1;
+      });
+      $$('.apt-hoods a[href^="/apartments-in/"]').forEach(a => {
+        if (a.classList.contains('apt-hoods-all')) return;
+        const m = a.getAttribute('href').match(/\/apartments-in\/([^/?#]+)/);
+        if (!m) return;
+        const n = counts[m[1]] || 0;
+        a.dataset.label = a.dataset.label || a.textContent.trim();
+        a.innerHTML = a.dataset.label + (n > 0 ? ` <span class="hood-count">${n}</span>` : '');
+      });
+    }
+
+    // Average asking price per neighborhood — drives the price-intelligence badge
+    function computeZoneAverages() {
+      const acc = {};
+      STATE.raw.filter(l => !isRented(l) && Number(l.price)).forEach(l => {
+        const slug = (window.BOOM && BOOM.zoneToSlug) ? BOOM.zoneToSlug(l.zone || l.neighborhood || l.address || '') : null;
+        if (!slug) return;
+        (acc[slug] = acc[slug] || { sum: 0, n: 0, name: l.zone || l.neighborhood || slug }).sum += Number(l.price);
+        acc[slug].n++;
+      });
+      STATE.zoneAvg = {};
+      for (const s in acc) STATE.zoneAvg[s] = { avg: acc[s].sum / acc[s].n, n: acc[s].n, name: acc[s].name };
+    }
+
+    // "€X below Trastevere avg" — only when the zone has a meaningful sample
+    function priceInsight(l) {
+      const p = Number(l.price); if (!p) return '';
+      const slug = (window.BOOM && BOOM.zoneToSlug) ? BOOM.zoneToSlug(l.zone || l.neighborhood || '') : null;
+      const z = slug && STATE.zoneAvg[slug];
+      if (!z || z.n < 3) return '';
+      const diff = Math.round(p - z.avg);
+      if (diff <= -75) return `<span class="price-insight good">€${Math.abs(diff).toLocaleString()} below ${z.name} avg</span>`;
+      if (diff >= 150) return `<span class="price-insight high">€${diff.toLocaleString()} above ${z.name} avg</span>`;
+      return '';
+    }
+
+    function updateSavedPill() {
+      const pill = $('#savedPill'); const n = STATE.saved.size;
+      if (n === 0) { pill.hidden = true; STATE.savedOnly = false; pill.classList.remove('is-on'); pill.setAttribute('aria-pressed','false'); return; }
+      pill.hidden = false;
+      $('#savedPillCount').textContent = n;
+      pill.classList.toggle('is-on', STATE.savedOnly);
+      pill.setAttribute('aria-pressed', String(STATE.savedOnly));
+    }
+
+    /* ── PIPELINE ────────────────────────────────────────────────── */
+    function applyAndRender() {
+      const list = pipeline(STATE.raw);
+      renderGrid(list);
+      if (STATE.view === 'map') renderMap(list);
+      updateCount(list.length);
+      updateChips();
+      syncURL();
+    }
+
+    function pipeline(input) {
+      let list = input.filter(l => !isRented(l));
+      if (STATE.savedOnly) list = list.filter(l => STATE.saved.has(l.id));
+      list = list.filter(l => {
+        const p = Number(l.price); if (!p) return true;
+        return p >= STATE.filters.budgetMin && p <= STATE.filters.budgetMax;
+      });
+      if (STATE.filters.hoods.size && window.BOOM && BOOM.zoneToSlug) {
+        list = list.filter(l => {
+          const slug = BOOM.zoneToSlug(l.zone || l.neighborhood || l.address || '');
+          return slug && STATE.filters.hoods.has(slug);
         });
-
-        if (currentFilter === 'available') {
-            filtered = filtered.filter(l => {
-                const status = getStatus(l);
-                return status === 'available' || status === 'disponibile' || status === 'active' || status === 'free' || status === '';
-            });
-        } else if (currentFilter === 'waitlist') {
-            filtered = filtered.filter(l => {
-                const status = getStatus(l);
-                return status === 'waitlist' || status === 'negotiation' || status === 'coming soon' || status === 'in trattativa';
-            });
-        }
-        // Sort: available first, then by price ascending
-        filtered.sort((a, b) => {
-            const aStatus = getStatus(a);
-            const bStatus = getStatus(b);
-            const aAvail = aStatus === 'available' || aStatus === 'disponibile' || aStatus === '' || aStatus === 'active';
-            const bAvail = bStatus === 'available' || bStatus === 'disponibile' || bStatus === '' || bStatus === 'active';
-            if (aAvail && !bAvail) return -1;
-            if (!aAvail && bAvail) return 1;
-            return (a.price || a.rent || 0) - (b.price || b.rent || 0);
+      }
+      if (STATE.filters.beds > 0) {
+        list = list.filter(l => {
+          const b = Number(l.beds || l.bedrooms || 0);
+          return STATE.filters.beds >= 4 ? b >= 4 : b === STATE.filters.beds;
         });
-        if (filtered.length === 0) {
-            container.innerHTML = `
-                <div class="empty-state">
-                    <h3>No apartments available right now</h3>
-                    <p>New listings are added frequently. Try our Property Finding Service and we'll search for you.</p>
-                    <a href="/property-finding.html" style="display:inline-block;margin-top:16px;padding:14px 32px;background:var(--gold);color:#000;border-radius:12px;font-weight:600;font-size:14px">Start Property Finding →</a>
-                </div>`;
-            return;
+      }
+      if (STATE.filters.features.size) {
+        list = list.filter(l => [...STATE.filters.features].every(f => hasFeature(l, f)));
+      }
+      if (STATE.q) {
+        const tokens = STATE.q.toLowerCase().split(/\s+/).filter(t => t.length > 2);
+        if (tokens.length) {
+          list = list.filter(l => {
+            const blob = ((l.name||'')+' '+(l.zone||'')+' '+(l.address||'')+' '+(l.description||'')+' '+(l.neighborhood||'')).toLowerCase();
+            return tokens.every(t => blob.includes(t));
+          });
         }
-        container.innerHTML = `<div class="grid">${filtered.map(l => cardHTML(l)).join('')}</div>`;
+      }
+      return applySort(list);
     }
-    function cardHTML(l) {
-        const imgUrl = l.image || l.photos?.[0] || 'https://via.placeholder.com/400x220/111111/333333?text=Photo+Coming+Soon';
-        const beds = l.beds || l.bedrooms || (l.rooms ? l.rooms + ' Rooms' : '');
-        const bedsDisplay = beds === 0 ? 'Studio' : (beds ? beds + ' Bed' : '');
-        const sqm = l.size || (l.sqm ? l.sqm + 'm²' : '');
-        const price = l.price || l.rent;
-        const priceDisplay = price ? `€${Number(price).toLocaleString()}` : '—';
 
-        // ALWAYS use dynamic apartment-detail.html (ignore old static file field)
-        const link = `/apartment-detail.html?id=${l.id}`;
-
-        // Status badge - use global getStatus helper
-        const status = getStatus(l);
-        const isAvailable = status === 'available' || status === 'disponibile' || status === 'active' || status === 'free' || status === '';
-        const statusBadge = isAvailable
-            ? '<span class="badge badge-available">Available</span>'
-            : '<span class="badge badge-waitlist">Coming Soon</span>';
-
-        const verifiedBadge = '<span class="badge badge-verified">✓ Verified</span>';
-        const videoBadge = (l.videoUrl || l.youtubeUrl) ? '<span class="badge badge-video">▶ Video</span>' : '';
-
-        // Tags (max 3)
-        const tags = Array.isArray(l.tags) ? l.tags.slice(0, 3) : [];
-        const tagsHTML = tags.length ? `<div class="card-tags">${tags.map(t => `<span class="card-tag">${t}</span>`).join('')}</div>` : '';
-
-        // Specs
-        const specs = [];
-        if (bedsDisplay) specs.push(`<span>🛏️ ${bedsDisplay}</span>`);
-        if (sqm) specs.push(`<span>📐 ${sqm}</span>`);
-        if (l.floor) specs.push(`<span>🏢 ${l.floor}</span>`);
-        if (l.type || l.propertyType) specs.push(`<span>${l.type || l.propertyType}</span>`);
-
-        const zone = l.zone || l.neighborhood || l.address || '';
-        const name = l.name || l.title || 'Apartment';
-        const availDate = l.availableDate ? `<div class="card-avail">Available: ${l.availableDate}</div>` : '';
-
-        const altText = (name || 'Apartment') + (zone ? ' in ' + zone : '') + ', Rome — BOOM';
-        return `<a href="${link}" class="card">
-            <div class="card-img">
-                <img src="${imgUrl}" alt="${altText}" loading="lazy">
-                <div class="card-badges">${statusBadge}${verifiedBadge}${videoBadge}</div>
-            </div>
-            <div class="card-body">
-                ${zone ? `<div class="card-zone">${zone}</div>` : ''}
-                <div class="card-name">${name}</div>
-                ${specs.length ? `<div class="card-specs">${specs.join('')}</div>` : ''}
-                ${tagsHTML}
-                <div class="card-bottom">
-                    <div class="card-price">${priceDisplay} <small>/month</small></div>
-                    <div class="card-cta">View Details</div>
-                </div>
-                ${availDate}
-            </div>
-        </a>`;
+    function applySort(list) {
+      const cp = [...list];
+      switch (STATE.sort) {
+        case 'price-asc':  return cp.sort((a,b) => (Number(a.price)||9999) - (Number(b.price)||9999));
+        case 'price-desc': return cp.sort((a,b) => (Number(b.price)||0) - (Number(a.price)||0));
+        case 'newest': return cp.sort((a,b) => {
+          const ta = a.createdAt?.toMillis?.() || (a.createdAt?.seconds||0)*1000 || 0;
+          const tb = b.createdAt?.toMillis?.() || (b.createdAt?.seconds||0)*1000 || 0;
+          return tb - ta;
+        });
+        case 'movein': return cp.sort((a,b) => {
+          const da = new Date(a.availableDate || '2099-12-31').getTime();
+          const db_ = new Date(b.availableDate || '2099-12-31').getTime();
+          return da - db_;
+        });
+        default: return cp.sort((a,b) => {
+          const av=isAvail(a), bv=isAvail(b); if (av !== bv) return av ? -1 : 1;
+          const an=isNewThisWeek(a), bn=isNewThisWeek(b); if (an !== bn) return an ? -1 : 1;
+          return (Number(a.price)||9999) - (Number(b.price)||9999);
+        });
+      }
     }
-    // Init
+
+    /* ── RENDER ──────────────────────────────────────────────────── */
+    function renderSkeleton(n=8) {
+      $('#aptGrid').innerHTML = Array.from({length:n}, () => `
+        <article class="skeleton-card">
+          <div class="skel-img"></div>
+          <div class="skel-body">
+            <div class="skel-line w-30"></div>
+            <div class="skel-line h-18 w-70"></div>
+            <div class="skel-line w-50"></div>
+            <div class="skel-line w-40"></div>
+          </div>
+        </article>`).join('');
+    }
+
+    function renderGrid(list) {
+      const grid = $('#aptGrid');
+      if (!list.length) {
+        grid.innerHTML = '';
+        const e = $('#aptEmpty'); e.hidden = false;
+        const icon = e.querySelector('.apt-empty-icon'), h = e.querySelector('h3'), p = e.querySelector('p');
+        const reset = $('#aptEmptyReset');
+        if (STATE.savedOnly && STATE.saved.size === 0) {
+          icon.textContent = '♡'; h.textContent = 'No saved apartments yet';
+          p.textContent = 'Tap the heart on any apartment to keep it here for later.';
+          reset.textContent = 'Browse all apartments';
+        } else {
+          icon.textContent = '⌕'; h.textContent = 'No apartments match your filters';
+          p.textContent = 'Try widening your budget, removing a feature, or letting BOOM find one for you.';
+          reset.textContent = 'Reset filters';
+        }
+        return;
+      }
+      $('#aptEmpty').hidden = true;
+      grid.innerHTML = list.map(makeCard).join('');
+      grid.classList.remove('apt-results-anim'); void grid.offsetWidth; grid.classList.add('apt-results-anim');
+      injectListingsJsonLd(list);  // keep ItemList JSON-LD in sync
+    }
+
+    function makeCard(l) {
+      const id = l.id;
+      const name = l.name || l.title || 'Apartment';
+      const price = l.price ? fmt(l.price) : '—';
+      const zone = l.zone || l.neighborhood || l.address || '';
+      const zoneSlug = (window.BOOM && BOOM.zoneToSlug) ? BOOM.zoneToSlug(zone) : null;
+      const beds = l.beds || l.bedrooms;
+      const sqm = l.sqm || l.size;
+      const link = `/listing/${encodeURIComponent(id)}`;
+      const images = (Array.isArray(l.images) && l.images.length) ? l.images : (l.image ? [l.image] : []);
+      const imgUrl = images[0] || '';
+      const alt = name + (zone ? ' in ' + zone : '') + ', Rome — BOOM';
+      const signals = [];
+      if (isAvail(l)) signals.push('<span class="card-signal signal-fresh">● Available</span>');
+      if (isNewThisWeek(l)) signals.push('<span class="card-signal signal-new">★ New this week</span>');
+      if (l.videoUrl || l.youtubeUrl) signals.push('<span class="card-signal" style="background:rgba(255,69,58,0.12);color:#FF453A">▶ Video</span>');
+      const specs = [];
+      if (sqm) specs.push(`<span>${sqm}m²</span>`);
+      if (beds) specs.push(`<span>${beds} bed${beds>1?'s':''}</span>`);
+      if (l.bathrooms) specs.push(`<span>${l.bathrooms} bath${l.bathrooms>1?'s':''}</span>`);
+      const zoneHtml = zone
+        ? (zoneSlug
+            ? `<a class="card-zone card-zone-link" href="/apartments-in/${zoneSlug}" data-stop="1" title="See all in ${zone}">${zone}</a>`
+            : `<div class="card-zone">${zone}</div>`)
+        : '';
+      const matchScore = computeMatchScore(l);
+      const matchHtml = matchScore != null
+        ? `<div class="card-match">${matchScore}% match</div>`
+        : `<div class="card-cta">View →</div>`;
+      const savedOn = STATE.saved.has(id) ? ' is-on' : '';
+      const cmpOn = STATE.compare.has(id) ? ' is-on' : '';
+      const imagesAttr = JSON.stringify(images).replace(/'/g, '&#39;');
+      const dots = images.length > 1
+        ? `<div class="card-img-dots">${images.map((_,i) => `<span class="card-img-dot${i===0?' active':''}"></span>`).join('')}</div>` : '';
+      return `<article class="card" data-id="${id}" data-href="${link}" role="link" tabindex="0" aria-label="${alt}">
+        <div class="card-img" data-images='${imagesAttr}'>
+          <img src="${imgUrl}" alt="${alt}" loading="lazy" onerror="this.style.opacity=0">
+          ${dots}
+          <div class="card-actions">
+            <button class="card-act${savedOn}" data-act="save" data-id="${id}" aria-label="Save" title="Save">
+              <svg viewBox="0 0 24 24" fill="${STATE.saved.has(id)?'currentColor':'none'}" stroke="currentColor" stroke-width="1.6"><path d="M12 21s-7-4.35-9.5-8.5C.5 8.5 3 4 7 4c2 0 3.5 1.2 5 3 1.5-1.8 3-3 5-3 4 0 6.5 4.5 4.5 8.5C19 16.65 12 21 12 21z"/></svg>
+            </button>
+            <button class="card-act${cmpOn}" data-act="compare" data-id="${id}" aria-label="Compare" title="Compare">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 7h11M18 7l-3-3M18 7l-3 3"/><path d="M17 17H6M6 17l3-3M6 17l3 3"/></svg>
+            </button>
+            <button class="card-act" data-act="share" data-id="${id}" aria-label="Share" title="Share">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="m8 11 8-4M8 13l8 4"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="card-body">
+          ${signals.length ? `<div class="card-signal-row">${signals.join('')}</div>` : ''}
+          ${zoneHtml}
+          <div class="card-name">${name}</div>
+          ${specs.length ? `<div class="card-specs">${specs.join('')}</div>` : ''}
+          <div class="card-bottom">
+            <div class="card-price-wrap">
+              <div class="card-price">${price} <small>/month</small></div>
+              ${priceInsight(l)}
+            </div>
+            ${matchHtml}
+          </div>
+        </div>
+      </article>`;
+    }
+
+    function computeMatchScore(l) {
+      let total = 0, hit = 0;
+      if (STATE.filters.budgetMin > 500 || STATE.filters.budgetMax < 4000) {
+        total++; const p = Number(l.price);
+        if (p && p >= STATE.filters.budgetMin && p <= STATE.filters.budgetMax) hit++;
+      }
+      if (STATE.filters.hoods.size > 0) {
+        total++;
+        const slug = (window.BOOM && BOOM.zoneToSlug) ? BOOM.zoneToSlug(l.zone || l.neighborhood || '') : null;
+        if (slug && STATE.filters.hoods.has(slug)) hit++;
+      }
+      if (STATE.filters.beds > 0) {
+        total++; const b = Number(l.beds || l.bedrooms || 0);
+        if (STATE.filters.beds >= 4 ? b >= 4 : b === STATE.filters.beds) hit++;
+      }
+      if (STATE.filters.features.size > 0) {
+        total += STATE.filters.features.size;
+        STATE.filters.features.forEach(f => { if (hasFeature(l, f)) hit++; });
+      }
+      return total === 0 ? null : Math.round(hit / total * 100);
+    }
+
+    function updateCount(n) {
+      const total = STATE.raw.filter(l => !isRented(l)).length;
+      $('#aptCount').innerHTML = n === total
+        ? `<b>${n}</b> ${n === 1 ? 'apartment' : 'apartments'}`
+        : `<b>${n}</b> of ${total} matching`;
+    }
+
+    function updateChips() {
+      const chips = []; const f = STATE.filters;
+      if (f.budgetMin > 500 || f.budgetMax < 4000) {
+        chips.push(`<span class="active-chip">€${f.budgetMin.toLocaleString()}–€${f.budgetMax.toLocaleString()}<button data-clear-chip="budget" aria-label="Clear">×</button></span>`);
+      }
+      if (f.hoods.size > 0 && window.BOOM) {
+        BOOM.allNeighborhoods().filter(h => f.hoods.has(h.slug)).forEach(h => {
+          chips.push(`<span class="active-chip">${h.name}<button data-clear-chip="hood:${h.slug}" aria-label="Clear">×</button></span>`);
+        });
+      }
+      if (f.beds > 0) chips.push(`<span class="active-chip">${f.beds}${f.beds>=4?'+':''} bed${f.beds>1?'s':''}<button data-clear-chip="beds" aria-label="Clear">×</button></span>`);
+      f.features.forEach(feat => chips.push(`<span class="active-chip">${feat}<button data-clear-chip="feat:${feat}" aria-label="Clear">×</button></span>`));
+      if (STATE.q) chips.push(`<span class="active-chip">"${STATE.q}"<button data-clear-chip="q" aria-label="Clear">×</button></span>`);
+      $('#aptFilterChips').innerHTML = chips.join('');
+      $('#fp-budget').textContent = (f.budgetMin > 500 || f.budgetMax < 4000) ? `€${(f.budgetMin/1000).toFixed(1)}–${(f.budgetMax/1000).toFixed(1)}k` : 'Any';
+      $('#fpill-budget').classList.toggle('is-active', f.budgetMin > 500 || f.budgetMax < 4000);
+      $('#fp-hoods').textContent = f.hoods.size > 0 ? (f.hoods.size === 1 ? '1 area' : `${f.hoods.size} areas`) : 'All';
+      $('#fpill-hoods').classList.toggle('is-active', f.hoods.size > 0);
+      $('#fp-beds').textContent = f.beds > 0 ? `${f.beds}${f.beds>=4?'+':''}` : 'Any';
+      $('#fpill-beds').classList.toggle('is-active', f.beds > 0);
+      $('#fp-features').textContent = f.features.size > 0 ? `${f.features.size}` : 'Any';
+      $('#fpill-features').classList.toggle('is-active', f.features.size > 0);
+      const sortLabels = {'recommended':'Recommended','price-asc':'Price ↑','price-desc':'Price ↓','newest':'Newest','movein':'Move-in'};
+      $('#fp-sort').textContent = sortLabels[STATE.sort];
+      $('#fpill-sort').classList.toggle('is-active', STATE.sort !== 'recommended');
+    }
+
+    /* ── ItemList JSON-LD — keep in sync with filtered list ─────── */
+    function injectListingsJsonLd(listings) {
+      const SENTINEL = 'data-seo-listings';
+      document.head.querySelectorAll(`script[${SENTINEL}]`).forEach(s => s.remove());
+      const visible = listings.slice(0, 30);
+      if (!visible.length) return;
+      const data = {
+        "@context":"https://schema.org","@type":"ItemList",
+        "numberOfItems": visible.length,
+        "itemListElement": visible.map((l,i) => ({
+          "@type":"ListItem","position":i+1,
+          "url":`https://www.boomrome.com/listing/${encodeURIComponent(l.id)}`,
+          "name": l.name || 'Rome apartment',
+          "item": {
+            "@type":"Apartment","name": l.name || 'Rome apartment',
+            "url":`https://www.boomrome.com/listing/${encodeURIComponent(l.id)}`,
+            ...(l.image || (l.images && l.images[0]) ? {"image": l.image || l.images[0]} : {}),
+            "address": {"@type":"PostalAddress","streetAddress": l.address || l.zone || 'Rome',"addressLocality":"Rome","addressRegion":"Lazio","addressCountry":"IT"},
+            ...(l.price ? {"offers":{"@type":"Offer","price":Number(l.price),"priceCurrency":"EUR","availability":"https://schema.org/InStock"}} : {})
+          }
+        }))
+      };
+      const s = document.createElement('script');
+      s.type = 'application/ld+json'; s.setAttribute(SENTINEL,'');
+      s.textContent = JSON.stringify(data);
+      document.head.appendChild(s);
+    }
+
+    /* ── URL STATE ───────────────────────────────────────────────── */
+    function syncURL() {
+      const p = new URLSearchParams();
+      if (STATE.filters.budgetMin > 500) p.set('bmin', STATE.filters.budgetMin);
+      if (STATE.filters.budgetMax < 4000) p.set('bmax', STATE.filters.budgetMax);
+      if (STATE.filters.hoods.size) p.set('zone', [...STATE.filters.hoods].join(','));
+      if (STATE.filters.beds > 0) p.set('beds', STATE.filters.beds);
+      if (STATE.filters.features.size) p.set('feat', [...STATE.filters.features].join(','));
+      if (STATE.sort !== 'recommended') p.set('sort', STATE.sort);
+      if (STATE.q) p.set('q', STATE.q);
+      if (STATE.view !== 'grid') p.set('view', STATE.view);
+      const qs = p.toString();
+      const newUrl = location.pathname + (qs ? '?' + qs : '');
+      if (newUrl !== location.pathname + location.search) history.replaceState(null, '', newUrl);
+    }
+
+    function parseURLState() {
+      const p = new URLSearchParams(location.search);
+      if (p.has('bmin')) STATE.filters.budgetMin = Math.max(500, Number(p.get('bmin')) || 500);
+      if (p.has('bmax')) STATE.filters.budgetMax = Math.min(4000, Number(p.get('bmax')) || 4000);
+      if (p.has('zone')) p.get('zone').split(',').forEach(s => STATE.filters.hoods.add(s));
+      if (p.has('beds')) STATE.filters.beds = Math.max(0, Math.min(4, Number(p.get('beds')) || 0));
+      if (p.has('feat')) p.get('feat').split(',').forEach(s => STATE.filters.features.add(s));
+      if (p.has('sort')) STATE.sort = p.get('sort');
+      if (p.has('q')) STATE.q = p.get('q');
+      if (p.get('view') === 'map') STATE.view = 'map';
+      $('#popBudgetMin').value = STATE.filters.budgetMin;
+      $('#popBudgetMax').value = STATE.filters.budgetMax;
+      updateBudgetUI();
+      $('#popBedsV').textContent = STATE.filters.beds > 0 ? STATE.filters.beds + (STATE.filters.beds >= 4 ? '+' : '') : 'Any';
+      $$('.pop-option[data-hood]').forEach(o => { if (STATE.filters.hoods.has(o.dataset.hood)) o.classList.add('is-on'); });
+      $$('.pop-option[data-feat]').forEach(o => { if (STATE.filters.features.has(o.dataset.feat)) o.classList.add('is-on'); });
+      $$('.pop-sort-item').forEach(o => o.classList.toggle('is-on', o.dataset.sort === STATE.sort));
+      if (STATE.q) { $('#aptSearch').value = STATE.q; $('#aptSearchClear').hidden = false; }
+      if (STATE.view === 'map') setView('map');
+    }
+
+    /* ── NL SEARCH PARSER ─────────────────────────────────────────── */
+    function parseNL(text) {
+      if (!text || !text.trim()) return null;
+      const s = text.toLowerCase().trim();
+      const applied = {};
+      let m;
+      if ((m = s.match(/(\d+)\s*(?:bedroom|bedrooms|bed|beds|stanze|stanza|camere|camera|locali|locale)/))) applied.beds = Math.min(4, Math.max(1, parseInt(m[1],10)));
+      else if (/monolocal|studio/.test(s)) applied.beds = 1;
+      if ((m = s.match(/€?\s*(\d{3,5})\s*(?:to|-|–)\s*€?\s*(\d{3,5})/))) { applied.budgetMin = parseInt(m[1],10); applied.budgetMax = parseInt(m[2],10); }
+      else {
+        if ((m = s.match(/(?:under|sotto|max|below|<)\s*€?\s*(\d{3,5})/))) applied.budgetMax = parseInt(m[1],10);
+        if ((m = s.match(/(?:over|sopra|above|>|min)\s*€?\s*(\d{3,5})/))) applied.budgetMin = parseInt(m[1],10);
+      }
+      if (window.BOOM) {
+        const matched = [];
+        for (const h of BOOM.allNeighborhoods()) {
+          if (h.terms.some(t => s.includes(t))) matched.push(h.slug);
+        }
+        if (matched.length) applied.hoods = matched;
+      }
+      const features = [];
+      for (const [key, kws] of Object.entries(FEATURE_KEYWORDS)) {
+        if (kws.length && kws.some(kw => s.includes(kw))) features.push(key);
+      }
+      if (features.length) applied.features = features;
+      return applied;
+    }
+
+    function applyNLSearch(text) {
+      STATE.q = text.trim();
+      const parsed = parseNL(text);
+      if (parsed) {
+        if (parsed.beds) STATE.filters.beds = parsed.beds;
+        if (parsed.budgetMin) STATE.filters.budgetMin = Math.max(500, parsed.budgetMin);
+        if (parsed.budgetMax) STATE.filters.budgetMax = Math.min(4000, parsed.budgetMax);
+        if (parsed.hoods) parsed.hoods.forEach(s => STATE.filters.hoods.add(s));
+        if (parsed.features) parsed.features.forEach(f => STATE.filters.features.add(f));
+        $('#popBudgetMin').value = STATE.filters.budgetMin;
+        $('#popBudgetMax').value = STATE.filters.budgetMax;
+        updateBudgetUI();
+        $('#popBedsV').textContent = STATE.filters.beds > 0 ? STATE.filters.beds + (STATE.filters.beds >= 4 ? '+' : '') : 'Any';
+        $$('.pop-option[data-hood]').forEach(o => o.classList.toggle('is-on', STATE.filters.hoods.has(o.dataset.hood)));
+        $$('.pop-option[data-feat]').forEach(o => o.classList.toggle('is-on', STATE.filters.features.has(o.dataset.feat)));
+      }
+      applyAndRender();
+    }
+
+    /* ── BUDGET SLIDER UI ─────────────────────────────────────────── */
+    function updateBudgetUI() {
+      const min = Number($('#popBudgetMin').value);
+      const max = Number($('#popBudgetMax').value);
+      STATE.filters.budgetMin = min; STATE.filters.budgetMax = max;
+      $('#popBudgetMinV').textContent = '€' + min.toLocaleString();
+      $('#popBudgetMaxV').textContent = '€' + max.toLocaleString();
+      const fill = $('#popBudgetFill');
+      if (fill) {
+        const lp = (min - 500) / (4000 - 500) * 100;
+        const rp = (max - 500) / (4000 - 500) * 100;
+        fill.style.left = lp + '%'; fill.style.width = (rp - lp) + '%';
+      }
+      rebuildHistogram();
+    }
+
+    /* ── VIEW TOGGLE + MAP ─────────────────────────────────────────── */
+    function setView(v) {
+      STATE.view = v;
+      $('#aptGridSection').hidden = v !== 'grid';
+      $('#aptMapSection').hidden = v !== 'map';
+      $$('.vt-btn').forEach(b => {
+        const on = b.dataset.view === v;
+        b.classList.toggle('active', on); b.setAttribute('aria-selected', on);
+      });
+      if (v === 'map') initMapLazy();
+      syncURL();
+    }
+
+    let mapLibreLoaded = false;
+    async function initMapLazy() {
+      if (!mapLibreLoaded) {
+        await Promise.all([
+          new Promise((res,rej) => { const c=document.createElement('link'); c.rel='stylesheet'; c.href='https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css'; c.onload=res; c.onerror=rej; document.head.appendChild(c); }),
+          new Promise((res,rej) => { const s=document.createElement('script'); s.src='https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js'; s.onload=res; s.onerror=rej; document.head.appendChild(s); })
+        ]);
+        mapLibreLoaded = true;
+      }
+      if (!STATE.map) {
+        STATE.map = new maplibregl.Map({
+          container: 'aptMap',
+          style: { version: 8,
+            sources: { carto: { type:'raster',
+              tiles:[
+                'https://a.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}@2x.png',
+                'https://b.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}@2x.png',
+                'https://c.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}@2x.png',
+                'https://d.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}@2x.png'
+              ],
+              tileSize: 256, attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>' } },
+            layers: [{ id:'carto', type:'raster', source:'carto' }]
+          },
+          center: [12.4900, 41.8950], zoom: 13.2,
+          maxBounds: [[12.30, 41.80],[12.70, 42.00]],  // greater Rome
+        });
+        STATE.map.addControl(new maplibregl.NavigationControl({showCompass:false}), 'top-right');
+      }
+      renderMap(pipeline(STATE.raw));
+    }
+
+    // Hover sync between sidebar list and map markers (Airbnb-style)
+    function highlightMarker(id, on) {
+      const m = STATE.markers['p' + id];
+      if (m) m.getElement().classList.toggle('is-active', on);
+    }
+    function highlightMini(id, on) {
+      const card = document.querySelector(`#aptMapSidebar .map-mini-card[data-id="${id}"]`);
+      if (!card) return;
+      card.classList.toggle('is-active', on);
+      if (on) card.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+
+    // Resolve [lng,lat] for a listing — real coords, else zone centroid + jitter
+    function coordsFor(l) {
+      let lng = Number(l.lng || l.geo?.lng || l.geo?.[1] || l.location?.lng);
+      let lat = Number(l.lat || l.geo?.lat || l.geo?.[0] || l.location?.lat);
+      if (!isFinite(lng) || !isFinite(lat) || lng === 0 || lat === 0) {
+        const slug = (window.BOOM && BOOM.zoneToSlug) ? BOOM.zoneToSlug(l.zone || l.neighborhood || '') : null;
+        const c = slug && ZONE_COORDS[slug];
+        if (!c) return null;
+        const j = jitter(l.id || '');
+        return [c[0] + j[0], c[1] + j[1]];
+      }
+      return [lng, lat];
+    }
+
+    function renderMap(list) {
+      if (!STATE.map || typeof maplibregl === 'undefined') return;
+      // Sidebar list
+      const side = $('#aptMapSidebar');
+      side.innerHTML = list.length ? list.map(l => {
+        const img = (l.images && l.images[0]) || l.image || '';
+        const p = l.price ? fmt(l.price) : '—';
+        return `<a class="map-mini-card" href="/listing/${encodeURIComponent(l.id)}" data-id="${l.id}">
+          <div class="map-mini-img"${img?` style="background-image:url('${img}')"`:''}></div>
+          <div class="map-mini-body">
+            <div><div class="map-mini-zone">${l.zone||''}</div><div class="map-mini-name">${l.name||'Apartment'}</div></div>
+            <div class="map-mini-price">${p}<small>/mo</small></div>
+          </div></a>`;
+      }).join('') : '<div style="padding:30px;text-align:center;color:var(--text-fade);font-size:13px">No apartments match.</div>';
+
+      // GeoJSON for clustering
+      const bounds = new maplibregl.LngLatBounds();
+      const features = [];
+      for (const l of list) {
+        const c = coordsFor(l); if (!c) continue;
+        features.push({ type:'Feature', geometry:{ type:'Point', coordinates: c },
+          properties: { id: l.id, name: l.name || 'Apartment', zone: l.zone || '', price: l.price ? Number(l.price) : 0, img: (l.images && l.images[0]) || l.image || '' } });
+        bounds.extend(c);
+      }
+      const data = { type:'FeatureCollection', features };
+
+      const apply = () => {
+        if (STATE.map.getSource('listings')) {
+          STATE.map.getSource('listings').setData(data);
+        } else {
+          STATE.map.addSource('listings', { type:'geojson', data, cluster:true, clusterRadius:54, clusterMaxZoom:14 });
+          if (!STATE.mapWired) {
+            STATE.map.on('render', () => {
+              if (!STATE.map.getSource('listings') || !STATE.map.isSourceLoaded('listings')) return;
+              syncMapMarkers();
+            });
+            STATE.mapWired = true;
+          }
+        }
+        syncMapMarkers();
+        if (features.length) { try { STATE.map.fitBounds(bounds, {padding:70, maxZoom:15, duration:600}); } catch {} }
+      };
+      if (STATE.map.isStyleLoaded()) apply(); else STATE.map.once('load', apply);
+    }
+
+    // Airbnb-style HTML-marker sync against the clustered GeoJSON source
+    function syncMapMarkers() {
+      const features = STATE.map.querySourceFeatures('listings');
+      const next = {};
+      for (const f of features) {
+        const coords = f.geometry.coordinates;
+        const p = f.properties;
+        let id;
+        if (p.cluster) {
+          id = 'c' + p.cluster_id;
+          if (!STATE.markers[id]) {
+            const el = document.createElement('div');
+            el.className = 'map-cluster';
+            el.textContent = p.point_count_abbreviated || p.point_count;
+            el.addEventListener('click', () => {
+              const src = STATE.map.getSource('listings');
+              const res = src.getClusterExpansionZoom(p.cluster_id);
+              const go = z => STATE.map.easeTo({ center: coords, zoom: z });
+              if (res && typeof res.then === 'function') res.then(go).catch(()=>{});
+              else src.getClusterExpansionZoom(p.cluster_id, (err, z) => { if (!err) go(z); });
+            });
+            STATE.markers[id] = new maplibregl.Marker({ element: el }).setLngLat(coords);
+          }
+        } else {
+          id = 'p' + p.id;
+          if (!STATE.markers[id]) {
+            const el = document.createElement('div');
+            el.className = 'map-marker';
+            el.dataset.id = p.id;
+            el.textContent = p.price ? '€' + (p.price/1000).toFixed(1) + 'k' : '·';
+            el.addEventListener('mouseenter', () => highlightMini(p.id, true));
+            el.addEventListener('mouseleave', () => highlightMini(p.id, false));
+            const popup = new maplibregl.Popup({ className:'map-popup', offset:[0,-14], maxWidth:'260px' }).setHTML(
+              `<div class="map-popup-img"${p.img?` style="background-image:url('${p.img}')"`:''}></div>
+               <div class="map-popup-body">
+                 <div class="map-popup-zone">${p.zone||''}</div>
+                 <div class="map-popup-name">${p.name||'Apartment'}</div>
+                 <div class="map-popup-price">${p.price?fmt(p.price):'—'}<small>/mo</small></div>
+               </div>
+               <a class="map-popup-go" href="/listing/${encodeURIComponent(p.id)}">View details →</a>`);
+            STATE.markers[id] = new maplibregl.Marker({ element: el, anchor:'center' }).setLngLat(coords).setPopup(popup);
+          }
+        }
+        next[id] = STATE.markers[id];
+        if (!STATE.markersOnScreen[id]) STATE.markers[id].addTo(STATE.map);
+      }
+      for (const id in STATE.markersOnScreen) if (!next[id]) STATE.markersOnScreen[id].remove();
+      STATE.markersOnScreen = next;
+    }
+
+    /* ── ACTIONS: SAVE / COMPARE / SHARE ──────────────────────────── */
+    function toggleSave(id) {
+      if (STATE.saved.has(id)) STATE.saved.delete(id); else STATE.saved.add(id);
+      localStorage.setItem('boom:saved', JSON.stringify([...STATE.saved]));
+      $$(`.card-act[data-act="save"][data-id="${id}"]`).forEach(b => {
+        b.classList.toggle('is-on', STATE.saved.has(id));
+        const path = b.querySelector('path');
+        if (path) path.setAttribute('fill', STATE.saved.has(id) ? 'currentColor' : 'none');
+      });
+      updateSavedPill();
+      if (STATE.savedOnly) applyAndRender();  // a removed favourite should drop out of the saved view
+    }
+    function toggleCompare(id) {
+      if (STATE.compare.has(id)) STATE.compare.delete(id);
+      else if (STATE.compare.size < 4) STATE.compare.add(id);
+      else return showToast('You can compare up to 4 apartments');
+      $$(`.card-act[data-act="compare"][data-id="${id}"]`).forEach(b => b.classList.toggle('is-on', STATE.compare.has(id)));
+      updateCompareBar();
+    }
+    async function shareListing(id) {
+      const l = STATE.raw.find(x => x.id === id); if (!l) return;
+      const url = `${location.origin}/listing/${encodeURIComponent(id)}`;
+      const title = (l.name || 'Apartment') + ' — BOOM Rome';
+      const text = `${l.name||'Apartment'} in ${l.zone||'Rome'} — ${l.price?fmt(l.price)+'/mo':''}. Verified by BOOM.`;
+      if (navigator.share) { try { await navigator.share({title, text, url}); } catch {} }
+      else { try { await navigator.clipboard.writeText(url); showToast('Link copied'); } catch { showToast(url); } }
+    }
+    function updateCompareBar() {
+      const bar = $('#compareBar'); const n = STATE.compare.size;
+      if (n === 0) { bar.classList.remove('is-on'); return; }
+      $('#compareBarCount').textContent = n;
+      $('#compareBarThumbs').innerHTML = [...STATE.compare].slice(0,4).map(id => {
+        const l = STATE.raw.find(x => x.id === id);
+        const img = (l?.images && l.images[0]) || l?.image || '';
+        return `<div class="compare-bar-thumb"${img?` style="background-image:url('${img}')"`:''} title="${l?.name||''}"></div>`;
+      }).join('');
+      bar.classList.add('is-on');
+    }
+    function showToast(msg) {
+      const t = document.createElement('div'); t.textContent = msg;
+      t.style.cssText = 'position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.92);color:#fff;padding:10px 22px;border:1px solid rgba(212,175,55,0.25);border-radius:100px;font-size:13px;letter-spacing:.3px;z-index:300;animation:fadeIn .25s';
+      document.body.appendChild(t); setTimeout(() => t.remove(), 2500);
+    }
+
+    /* ── EVENTS ────────────────────────────────────────────────────── */
+    document.addEventListener('click', e => {
+      // Filter pill → toggle popover
+      const pill = e.target.closest('[data-pop]');
+      if (pill) {
+        const which = pill.dataset.pop;
+        const target = $('#pop-'+which);
+        const isOpen = target && !target.hidden;
+        $$('.filter-popover').forEach(p => { p.hidden = true; p.classList.remove('open'); });
+        $$('.filter-pill').forEach(b => b.setAttribute('aria-expanded','false'));
+        if (target && !isOpen) {
+          target.hidden = false; setTimeout(() => target.classList.add('open'), 10);
+          pill.setAttribute('aria-expanded','true');
+        }
+        return;
+      }
+      if (!e.target.closest('.filter-popover')) {
+        $$('.filter-popover').forEach(p => { p.classList.remove('open'); p.hidden = true; });
+        $$('.filter-pill').forEach(b => b.setAttribute('aria-expanded','false'));
+      }
+    });
+    // Pop clear buttons
+    document.addEventListener('click', e => {
+      const c = e.target.closest('[data-clear]'); if (!c) return;
+      const w = c.dataset.clear;
+      if (w === 'budget') { STATE.filters.budgetMin=500; STATE.filters.budgetMax=4000; $('#popBudgetMin').value=500; $('#popBudgetMax').value=4000; updateBudgetUI(); }
+      else if (w === 'hoods') { STATE.filters.hoods.clear(); $$('.pop-option[data-hood]').forEach(o => o.classList.remove('is-on')); }
+      else if (w === 'beds') { STATE.filters.beds = 0; $('#popBedsV').textContent = 'Any'; }
+      else if (w === 'features') { STATE.filters.features.clear(); $$('.pop-option[data-feat]').forEach(o => o.classList.remove('is-on')); }
+      applyAndRender();
+    });
+    // Chips clear
+    document.addEventListener('click', e => {
+      const c = e.target.closest('[data-clear-chip]'); if (!c) return;
+      const w = c.dataset.clearChip;
+      if (w === 'budget') { STATE.filters.budgetMin=500; STATE.filters.budgetMax=4000; $('#popBudgetMin').value=500; $('#popBudgetMax').value=4000; updateBudgetUI(); }
+      else if (w.startsWith('hood:')) { STATE.filters.hoods.delete(w.slice(5)); const o = $(`.pop-option[data-hood="${w.slice(5)}"]`); if(o) o.classList.remove('is-on'); }
+      else if (w === 'beds') { STATE.filters.beds = 0; $('#popBedsV').textContent = 'Any'; }
+      else if (w.startsWith('feat:')) { STATE.filters.features.delete(w.slice(5)); const o = $(`.pop-option[data-feat="${w.slice(5)}"]`); if(o) o.classList.remove('is-on'); }
+      else if (w === 'q') { STATE.q=''; $('#aptSearch').value=''; $('#aptSearchClear').hidden = true; }
+      applyAndRender();
+    });
+    // Budget sliders
+    ['popBudgetMin','popBudgetMax'].forEach(idStr => {
+      const el = $('#'+idStr);
+      el.addEventListener('input', () => {
+        const minEl = $('#popBudgetMin'), maxEl = $('#popBudgetMax');
+        let min = Number(minEl.value), max = Number(maxEl.value);
+        if (idStr === 'popBudgetMin' && min > max - 100) minEl.value = max - 100;
+        if (idStr === 'popBudgetMax' && max < min + 100) maxEl.value = min + 100;
+        updateBudgetUI();
+      });
+      el.addEventListener('change', applyAndRender);
+    });
+    // Hood / feature options
+    document.addEventListener('click', e => {
+      const oh = e.target.closest('.pop-option[data-hood]');
+      if (oh) { const k = oh.dataset.hood; STATE.filters.hoods.has(k) ? STATE.filters.hoods.delete(k) : STATE.filters.hoods.add(k); oh.classList.toggle('is-on'); applyAndRender(); return; }
+      const of_ = e.target.closest('.pop-option[data-feat]');
+      if (of_) { const k = of_.dataset.feat; STATE.filters.features.has(k) ? STATE.filters.features.delete(k) : STATE.filters.features.add(k); of_.classList.toggle('is-on'); applyAndRender(); }
+    });
+    // Beds stepper
+    $('#popBedsInc').addEventListener('click', () => { STATE.filters.beds = Math.min(4, STATE.filters.beds + 1); $('#popBedsV').textContent = STATE.filters.beds + (STATE.filters.beds >= 4 ? '+' : ''); applyAndRender(); });
+    $('#popBedsDec').addEventListener('click', () => { STATE.filters.beds = Math.max(0, STATE.filters.beds - 1); $('#popBedsV').textContent = STATE.filters.beds === 0 ? 'Any' : STATE.filters.beds + (STATE.filters.beds >= 4 ? '+' : ''); applyAndRender(); });
+    // Sort
+    document.addEventListener('click', e => {
+      const it = e.target.closest('.pop-sort-item'); if (!it) return;
+      STATE.sort = it.dataset.sort;
+      $$('.pop-sort-item').forEach(s => s.classList.toggle('is-on', s === it));
+      applyAndRender();
+    });
+    // View toggle
+    $$('.vt-btn').forEach(b => b.addEventListener('click', () => setView(b.dataset.view)));
+    // Saved-only toggle
+    $('#savedPill').addEventListener('click', () => {
+      STATE.savedOnly = !STATE.savedOnly;
+      updateSavedPill();
+      applyAndRender();
+    });
+    // Sidebar card hover → highlight its map marker
+    const mapSidebar = $('#aptMapSidebar');
+    mapSidebar.addEventListener('mouseover', e => { const c = e.target.closest('.map-mini-card'); if (c) highlightMarker(c.dataset.id, true); });
+    mapSidebar.addEventListener('mouseout', e => { const c = e.target.closest('.map-mini-card'); if (c) highlightMarker(c.dataset.id, false); });
+    // Escape closes the compare modal, then any open filter popover
+    document.addEventListener('keydown', e => {
+      if (e.key !== 'Escape') return;
+      const modal = $('#compareModal');
+      if (modal && !modal.hidden) { closeCompare(); return; }
+      const open = $('.filter-popover.open');
+      if (open) { open.classList.remove('open'); open.hidden = true; $$('.filter-pill').forEach(b => b.setAttribute('aria-expanded','false')); }
+    });
+    // Sticky controls: add shadow line once the bar is pinned
+    const controlsEl = $('.apt-controls');
+    const stickyTop = parseInt(getComputedStyle(controlsEl).top, 10) || 62;
+    window.addEventListener('scroll', () => {
+      controlsEl.classList.toggle('is-stuck', controlsEl.getBoundingClientRect().top <= stickyTop + 1);
+    }, { passive: true });
+    // NL search (debounced)
+    let searchT;
+    $('#aptSearch').addEventListener('input', e => {
+      $('#aptSearchClear').hidden = !e.target.value;
+      clearTimeout(searchT); searchT = setTimeout(() => applyNLSearch(e.target.value), 250);
+    });
+    $('#aptSearchClear').addEventListener('click', () => { $('#aptSearch').value=''; $('#aptSearchClear').hidden = true; STATE.q=''; applyAndRender(); });
+    $('#aptSearch').addEventListener('keydown', e => { if (e.key === 'Enter') applyNLSearch(e.target.value); });
+    // Card click + actions delegated
+    document.addEventListener('click', e => {
+      const zoneLink = e.target.closest('.card-zone-link');
+      if (zoneLink) { e.stopPropagation(); return; }
+      const act = e.target.closest('.card-act');
+      if (act) { e.stopPropagation(); e.preventDefault();
+        const id = act.dataset.id;
+        if (act.dataset.act === 'save') toggleSave(id);
+        else if (act.dataset.act === 'compare') toggleCompare(id);
+        else if (act.dataset.act === 'share') shareListing(id);
+        return; }
+      const card = e.target.closest('article.card[data-href]');
+      if (card) { if (window.getSelection && window.getSelection().toString().length) return; window.location.href = card.getAttribute('data-href'); }
+    });
+    document.addEventListener('keydown', e => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      const card = e.target.closest && e.target.closest('article.card[data-href]');
+      if (card && card === document.activeElement) { e.preventDefault(); window.location.href = card.getAttribute('data-href'); }
+    });
+    // Hover-cycle through card images
+    let cardImgTimer;
+    const REDUCE_MOTION = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    document.addEventListener('mouseover', e => {
+      if (REDUCE_MOTION) return;
+      const cardImg = e.target.closest('.card-img[data-images]');
+      if (!cardImg || cardImg.dataset.cycling) return;
+      let images; try { images = JSON.parse(cardImg.dataset.images); } catch { return; }
+      if (!images || images.length < 2) return;
+      cardImg.dataset.cycling = '1';
+      const img = cardImg.querySelector('img'); const dots = cardImg.querySelectorAll('.card-img-dot');
+      // Preload all images once so the photo swap is instant and stays locked to the dot
+      if (!cardImg.dataset.preloaded) { images.forEach(src => { const p = new Image(); p.src = src; }); cardImg.dataset.preloaded = '1'; }
+      let i = 0;
+      cardImg._timer = setInterval(() => {
+        i = (i+1) % images.length;
+        img.src = images[i];
+        dots.forEach((d,di) => d.classList.toggle('active', di === i));
+      }, 850);
+    });
+    document.addEventListener('mouseout', e => {
+      const cardImg = e.target.closest('.card-img[data-images]');
+      if (!cardImg || !cardImg._timer) return;
+      // Only stop when leaving the card-img entirely
+      if (cardImg.contains(e.relatedTarget)) return;
+      clearInterval(cardImg._timer); cardImg._timer = null; delete cardImg.dataset.cycling;
+      let images; try { images = JSON.parse(cardImg.dataset.images); } catch { return; }
+      if (!images || !images.length) return;
+      const img = cardImg.querySelector('img'); const dots = cardImg.querySelectorAll('.card-img-dot');
+      img.src = images[0]; dots.forEach((d,di) => d.classList.toggle('active', di === 0));
+    });
+    // Compare bar → open the side-by-side modal
+    const CMP_FEATURES = [['terrace','Terrace / balcony'],['lift','Lift'],['furnished','Furnished'],['petfriendly','Pet-friendly'],['parking','Parking'],['airconditioning','Air conditioning'],['washer','Washing machine'],['dishwasher','Dishwasher'],['wifi','Wi-Fi'],['video','Video tour']];
+    function openCompare() {
+      const items = [...STATE.compare].map(id => STATE.raw.find(l => l.id === id)).filter(Boolean);
+      if (items.length < 2) return showToast('Pick at least 2 apartments to compare');
+      const minPrice = Math.min(...items.map(l => Number(l.price) || Infinity));
+      const maxSqm = Math.max(...items.map(l => Number(l.sqm || l.size) || 0));
+      const row = (label, vals) => `<div class="cmp-row"><div class="cmp-label">${label}</div>${vals.map(v => `<div class="cmp-val">${v}</div>`).join('')}</div>`;
+      let html = `<div class="cmp-row cmp-row-head"><div class="cmp-label"></div>${items.map(l => {
+        const img = (l.images && l.images[0]) || l.image || '';
+        const u = `/listing/${encodeURIComponent(l.id)}`;
+        return `<div class="cmp-val cmp-head-cell">
+          <button class="cmp-remove" data-cmp-remove="${l.id}" aria-label="Remove">×</button>
+          <a href="${u}" class="cmp-photo"${img?` style="background-image:url('${img}')"`:''}></a>
+          <a href="${u}" class="cmp-name">${l.name || 'Apartment'}</a>
+        </div>`;
+      }).join('')}</div>`;
+      html += row('Neighborhood', items.map(l => l.zone || l.neighborhood || '—'));
+      html += row('Price / month', items.map(l => { const p = Number(l.price); return p ? `<span class="${p===minPrice?'cmp-best':''}">${fmt(p)}</span>` : '—'; }));
+      html += row('Size', items.map(l => { const s = Number(l.sqm || l.size); return s ? `<span class="${s===maxSqm?'cmp-best':''}">${s} m²</span>` : '—'; }));
+      html += row('€ per m²', items.map(l => { const p = Number(l.price), s = Number(l.sqm || l.size); return (p && s) ? '€' + Math.round(p/s) : '—'; }));
+      html += row('Bedrooms', items.map(l => l.beds || l.bedrooms || '—'));
+      html += row('Bathrooms', items.map(l => l.bathrooms || '—'));
+      html += row('Status', items.map(l => isAvail(l) ? '<span class="cmp-yes">Available</span>' : (l.status || l.availabilityStatus || '—')));
+      CMP_FEATURES.forEach(([k, label]) => html += row(label, items.map(l => hasFeature(l, k) ? '<span class="cmp-yes">✓</span>' : '<span class="cmp-no">—</span>')));
+      html += `<div class="cmp-row cmp-row-cta"><div class="cmp-label"></div>${items.map(l => `<div class="cmp-val"><a class="cmp-view" href="/listing/${encodeURIComponent(l.id)}">View →</a></div>`).join('')}</div>`;
+      const body = $('#compareModalBody');
+      body.style.setProperty('--cmp-cols', items.length);
+      body.innerHTML = html;
+      const modal = $('#compareModal');
+      modal.hidden = false; document.body.style.overflow = 'hidden';
+      requestAnimationFrame(() => modal.classList.add('open'));
+    }
+    function closeCompare() {
+      const m = $('#compareModal'); m.classList.remove('open'); document.body.style.overflow = '';
+      setTimeout(() => { m.hidden = true; }, 250);
+    }
+    $('#compareBarGo').addEventListener('click', openCompare);
+    document.addEventListener('click', e => {
+      if (e.target.closest('[data-close-compare]')) { closeCompare(); return; }
+      const rm = e.target.closest('[data-cmp-remove]');
+      if (rm) {
+        const id = rm.dataset.cmpRemove;
+        STATE.compare.delete(id);
+        $$(`.card-act[data-act="compare"][data-id="${id}"]`).forEach(b => b.classList.remove('is-on'));
+        updateCompareBar();
+        if (STATE.compare.size < 2) closeCompare(); else openCompare();
+      }
+    });
+    $('#compareBarClear').addEventListener('click', () => {
+      STATE.compare.clear();
+      $$('.card-act[data-act="compare"]').forEach(b => b.classList.remove('is-on'));
+      updateCompareBar();
+    });
+    // Empty state reset
+    $('#aptEmptyReset').addEventListener('click', () => {
+      STATE.filters.budgetMin=500; STATE.filters.budgetMax=4000;
+      STATE.filters.hoods.clear(); STATE.filters.beds=0; STATE.filters.features.clear();
+      STATE.q=''; STATE.sort='recommended'; STATE.savedOnly=false;
+      $('#aptSearch').value=''; $('#aptSearchClear').hidden = true;
+      $('#popBudgetMin').value=500; $('#popBudgetMax').value=4000; updateBudgetUI();
+      $('#popBedsV').textContent='Any';
+      $$('.pop-option').forEach(o => o.classList.remove('is-on'));
+      $$('.pop-sort-item').forEach(s => s.classList.toggle('is-on', s.dataset.sort === 'recommended'));
+      updateSavedPill();
+      applyAndRender();
+    });
+
+    // Boot
     loadListings();
     </script>
     <!-- Video — Firestore-powered, autoplay on scroll, cinema on click -->

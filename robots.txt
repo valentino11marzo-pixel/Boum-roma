@@ -1,9 +1,95 @@
+# BOOM Rome — robots.txt
+# https://www.boomrome.com
+
 User-agent: *
 Allow: /
+
+# Internal admin / authenticated tools (never index)
 Disallow: /portal
+Disallow: /portal.html
 Disallow: /admin
+Disallow: /admin.html
+Disallow: /admin-flats
+Disallow: /admin-flats.html
 Disallow: /setup-firebase
+Disallow: /setup-firebase.html
 Disallow: /seed-listings
+Disallow: /seed-listings.html
 Disallow: /boom-doc-parser
 Disallow: /boom_doc_parser.html
+
+# Authenticated user surfaces (noindex via meta, blocked here as belt-and-braces)
+Disallow: /dashboard
+Disallow: /dashboard.html
+Disallow: /client-portal
+Disallow: /client-portal.html
+Disallow: /owner-dashboard
+Disallow: /owner-dashboard.html
+Disallow: /tenant-registration
+Disallow: /tenant-registration.html
+Disallow: /login
+Disallow: /login.html
+
+# Transactional / one-shot pages
+Disallow: /onboarding
+Disallow: /onboarding.html
+Disallow: /pre-arrival
+Disallow: /pre-arrival.html
+Disallow: /precheck
+Disallow: /precheck.html
+Disallow: /thank-you
+Disallow: /thank-you.html
+Disallow: /proppass
+Disallow: /proppass.html
+Disallow: /pass-delivery
+Disallow: /pass-delivery.html
+
+# Forms (require user input — not useful as landing pages)
+Disallow: /form-tenant
+Disallow: /form-tenant.html
+Disallow: /form-landlord
+Disallow: /form-landlord.html
+
+# Legacy / test artefacts (slated for removal)
+Disallow: /s
+Disallow: /s.html
+Disallow: /faq-page
+Disallow: /faq_page.html
+Disallow: /booking
+Disallow: /booking.html
+
+# API endpoints — never index
+Disallow: /api/
+
+# Avoid crawling listing query-string permutations
+Disallow: /apartments?
+Disallow: /apartment-detail?
+
+# Aggressive crawlers — slow them down
+User-agent: AhrefsBot
+Crawl-delay: 10
+
+User-agent: SemrushBot
+Crawl-delay: 10
+
+User-agent: MJ12bot
+Crawl-delay: 10
+
+# AI training crawlers — opt out by default
+User-agent: GPTBot
+Disallow: /
+
+User-agent: ChatGPT-User
+Disallow: /
+
+User-agent: CCBot
+Disallow: /
+
+User-agent: anthropic-ai
+Disallow: /
+
+User-agent: Google-Extended
+Disallow: /
+
+# Sitemaps
 Sitemap: https://www.boomrome.com/sitemap.xml
