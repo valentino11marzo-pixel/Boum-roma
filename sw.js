@@ -3,7 +3,7 @@
 // Cache-first for static assets (icons, manifest).
 // Skips Firebase / EmailJS / 3rd-party traffic entirely.
 
-const CACHE_VERSION = 'boom-v3';
+const CACHE_VERSION = 'boom-v4';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const STATIC_ASSETS = [
     '/portal.html',
@@ -48,8 +48,11 @@ self.addEventListener('fetch', (event) => {
                        'cdn.jsdelivr.net', 'cdnjs.cloudflare.com'];
     if (skipHosts.some(h => url.hostname.includes(h))) return;
 
-    // Network-first for HTML and API endpoints (sempre fresh)
-    if (url.pathname.endsWith('.html') || url.pathname.startsWith('/api/')) {
+    // Network-first for page navigations and HTML/API (always fresh).
+    // request.mode === 'navigate' covers clean URLs (/apartments, /listing/x,
+    // /) that don't end in .html, so a new deploy is reflected immediately;
+    // the cache is used only as an offline fallback.
+    if (event.request.mode === 'navigate' || url.pathname.endsWith('.html') || url.pathname.startsWith('/api/')) {
         event.respondWith(
             fetch(event.request).catch(() => caches.match(event.request))
         );

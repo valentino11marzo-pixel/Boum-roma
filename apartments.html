@@ -1326,7 +1326,7 @@
         ? `<div class="card-img-dots">${images.map((_,i) => `<span class="card-img-dot${i===0?' active':''}"></span>`).join('')}</div>` : '';
       return `<article class="card" data-id="${id}" data-href="${link}" role="link" tabindex="0" aria-label="${alt}">
         <div class="card-img" data-images='${imagesAttr}'>
-          <img src="${imgUrl}" alt="${alt}" loading="lazy" onerror="this.style.opacity=0">
+          <img src="${imgUrl}" alt="${alt}" loading="lazy" decoding="async" onerror="this.style.opacity=0">
           ${dots}
           <div class="card-actions">
             <button class="card-act${savedOn}" data-act="save" data-id="${id}" aria-label="Save" title="Save">
@@ -1818,6 +1818,16 @@
     });
     $('#aptSearchClear').addEventListener('click', () => { $('#aptSearch').value=''; $('#aptSearchClear').hidden = true; STATE.q=''; applyAndRender(); });
     $('#aptSearch').addEventListener('keydown', e => { if (e.key === 'Enter') applyNLSearch(e.target.value); });
+    // ── Conversion tracking (GA4) ──────────────────────────────────
+    function boomTrack(name, params) { try { if (typeof gtag === 'function') gtag('event', name, params || {}); } catch (e) {} }
+    function listingParams(id) {
+      const l = (STATE.raw || []).find(x => x.id === id) || {};
+      return { item_id: id, item_name: l.name || 'Apartment', item_category: l.zone || l.neighborhood || '', value: l.price ? Number(l.price) : undefined, currency: 'EUR' };
+    }
+    document.addEventListener('click', e => {
+      const wa = e.target.closest && e.target.closest('a[href*="wa.me"],a[href*="api.whatsapp.com"]');
+      if (wa) boomTrack('generate_lead', { method: 'whatsapp', page_location: location.pathname });
+    }, true);
     // Card click + actions delegated
     document.addEventListener('click', e => {
       const zoneLink = e.target.closest('.card-zone-link');
@@ -1830,7 +1840,9 @@
         else if (act.dataset.act === 'share') shareListing(id);
         return; }
       const card = e.target.closest('article.card[data-href]');
-      if (card) { if (window.getSelection && window.getSelection().toString().length) return; window.location.href = card.getAttribute('data-href'); }
+      if (card) { if (window.getSelection && window.getSelection().toString().length) return;
+        boomTrack('select_item', { items: [listingParams(card.dataset.id)] });
+        window.location.href = card.getAttribute('data-href'); }
     });
     document.addEventListener('keydown', e => {
       if (e.key !== 'Enter' && e.key !== ' ') return;
