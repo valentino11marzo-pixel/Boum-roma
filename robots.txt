@@ -93,3 +93,4 @@ Disallow: /
 
 # Sitemaps
 Sitemap: https://www.boomrome.com/sitemap.xml
+Sitemap: https://www.boomrome.com/listings-sitemap.xml
