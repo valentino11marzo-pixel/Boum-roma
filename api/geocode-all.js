@@ -29,10 +29,18 @@ async function geocode(query) {
 export default async function handler(req, res) {
   const coords = {};
   const misses = [];
+  // Optional slicing so a single request stays well under the gateway/tool
+  // timeout: /api/geocode-all?from=0&to=5 geocodes docs[0..5). Omit for all.
+  const q = req.query || {};
+  const from = q.from != null ? Math.max(0, parseInt(q.from, 10) || 0) : 0;
+  const to = q.to != null ? (parseInt(q.to, 10) || 0) : null;
+  let total = 0;
   try {
     const r = await fetch(`https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents/listings?pageSize=300&key=${API_KEY}`);
     const j = await r.json();
-    const docs = j.documents || [];
+    const allDocs = j.documents || [];
+    total = allDocs.length;
+    const docs = to != null ? allDocs.slice(from, to) : allDocs.slice(from);
     for (const doc of docs) {
       const id = doc.name.split('/').pop();
       const f = doc.fields || {};
@@ -61,5 +69,5 @@ export default async function handler(req, res) {
 
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=604800, stale-while-revalidate=86400');
-  res.status(200).json({ generated: new Date().toISOString(), count: Object.keys(coords).length, coords, misses });
+  res.status(200).json({ generated: new Date().toISOString(), total, from, to, count: Object.keys(coords).length, coords, misses });
 }
