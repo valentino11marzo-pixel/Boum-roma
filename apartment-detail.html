@@ -774,7 +774,7 @@
     document.addEventListener('DOMContentLoaded',()=>{
         const params=new URLSearchParams(window.location.search);
         let id=params.get('id');
-        if(!id){ const m=window.location.pathname.match(/\/apartments\/([^\/?#]+)/); if(m) id=decodeURIComponent(m[1]); }
+        if(!id){ const m=window.location.pathname.match(/\/listing\/([^\/?#]+)/); if(m) id=decodeURIComponent(m[1]); }
         if(!id){showError();return}
         loadApartment(id);
     });
@@ -827,7 +827,7 @@
               const beds = l.beds||l.bedrooms;
               const meta = [sqm&&sqm+'m²', beds&&(beds+' bed'+(beds>1?'s':''))].filter(Boolean).join(' · ');
               const img = l.image||(l.images&&l.images[0])||'';
-              return `<a class="zone-card" href="/apartments/${encodeURIComponent(l.id)}">
+              return `<a class="zone-card" href="/listing/${encodeURIComponent(l.id)}">
                 <div class="zone-card-img"${img?` style="background-image:url('${img}')"`:''}></div>
                 <div class="zone-card-body">
                   <div class="zone-card-name">${(l.name||'Apartment')}</div>
@@ -876,7 +876,7 @@
         paint();
       });
       document.getElementById('actShare').addEventListener('click', async () => {
-        const url = location.origin + '/apartments/' + encodeURIComponent(id);
+        const url = location.origin + '/listing/' + encodeURIComponent(id);
         const title = (d.name||'Apartment') + ' — BOOM Rome';
         const text = `${d.name||'Apartment'} in ${d.zone||'Rome'}${d.price?' — €'+Number(d.price).toLocaleString()+'/mo':''}. Verified by BOOM.`;
         if(navigator.share){ try{ await navigator.share({title,text,url}); }catch(_){} }
@@ -896,7 +896,7 @@
         const sqm  = d.sqm || d.size;
         const beds = d.beds || d.bedrooms;
         const price = d.price ? Number(d.price) : null;
-        const canonical = `https://www.boomrome.com/apartments/${encodeURIComponent(id)}`;
+        const canonical = `https://www.boomrome.com/listing/${encodeURIComponent(id)}`;
 
         const titleParts = [name];
         if (zone) titleParts.push(zone);

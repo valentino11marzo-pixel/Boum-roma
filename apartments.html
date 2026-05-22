@@ -1287,7 +1287,7 @@
       const zoneSlug = (window.BOOM && BOOM.zoneToSlug) ? BOOM.zoneToSlug(zone) : null;
       const beds = l.beds || l.bedrooms;
       const sqm = l.sqm || l.size;
-      const link = `/apartments/${encodeURIComponent(id)}`;
+      const link = `/listing/${encodeURIComponent(id)}`;
       const images = (Array.isArray(l.images) && l.images.length) ? l.images : (l.image ? [l.image] : []);
       const imgUrl = images[0] || '';
       const alt = name + (zone ? ' in ' + zone : '') + ', Rome — BOOM';
@@ -1412,11 +1412,11 @@
         "numberOfItems": visible.length,
         "itemListElement": visible.map((l,i) => ({
           "@type":"ListItem","position":i+1,
-          "url":`https://www.boomrome.com/apartments/${encodeURIComponent(l.id)}`,
+          "url":`https://www.boomrome.com/listing/${encodeURIComponent(l.id)}`,
           "name": l.name || 'Rome apartment',
           "item": {
             "@type":"Apartment","name": l.name || 'Rome apartment',
-            "url":`https://www.boomrome.com/apartments/${encodeURIComponent(l.id)}`,
+            "url":`https://www.boomrome.com/listing/${encodeURIComponent(l.id)}`,
             ...(l.image || (l.images && l.images[0]) ? {"image": l.image || l.images[0]} : {}),
             "address": {"@type":"PostalAddress","streetAddress": l.address || l.zone || 'Rome',"addressLocality":"Rome","addressRegion":"Lazio","addressCountry":"IT"},
             ...(l.price ? {"offers":{"@type":"Offer","price":Number(l.price),"priceCurrency":"EUR","availability":"https://schema.org/InStock"}} : {})
@@ -1606,7 +1606,7 @@
       side.innerHTML = list.length ? list.map(l => {
         const img = (l.images && l.images[0]) || l.image || '';
         const p = l.price ? fmt(l.price) : '—';
-        return `<a class="map-mini-card" href="/apartments/${encodeURIComponent(l.id)}" data-id="${l.id}">
+        return `<a class="map-mini-card" href="/listing/${encodeURIComponent(l.id)}" data-id="${l.id}">
           <div class="map-mini-img"${img?` style="background-image:url('${img}')"`:''}></div>
           <div class="map-mini-body">
             <div><div class="map-mini-zone">${l.zone||''}</div><div class="map-mini-name">${l.name||'Apartment'}</div></div>
@@ -1683,7 +1683,7 @@
                  <div class="map-popup-name">${p.name||'Apartment'}</div>
                  <div class="map-popup-price">${p.price?fmt(p.price):'—'}<small>/mo</small></div>
                </div>
-               <a class="map-popup-go" href="/apartments/${encodeURIComponent(p.id)}">View details →</a>`);
+               <a class="map-popup-go" href="/listing/${encodeURIComponent(p.id)}">View details →</a>`);
             STATE.markers[id] = new maplibregl.Marker({ element: el, anchor:'center' }).setLngLat(coords).setPopup(popup);
           }
         }
@@ -1715,7 +1715,7 @@
     }
     async function shareListing(id) {
       const l = STATE.raw.find(x => x.id === id); if (!l) return;
-      const url = `${location.origin}/apartments/${encodeURIComponent(id)}`;
+      const url = `${location.origin}/listing/${encodeURIComponent(id)}`;
       const title = (l.name || 'Apartment') + ' — BOOM Rome';
       const text = `${l.name||'Apartment'} in ${l.zone||'Rome'} — ${l.price?fmt(l.price)+'/mo':''}. Verified by BOOM.`;
       if (navigator.share) { try { await navigator.share({title, text, url}); } catch {} }
@@ -1903,7 +1903,7 @@
       const row = (label, vals) => `<div class="cmp-row"><div class="cmp-label">${label}</div>${vals.map(v => `<div class="cmp-val">${v}</div>`).join('')}</div>`;
       let html = `<div class="cmp-row cmp-row-head"><div class="cmp-label"></div>${items.map(l => {
         const img = (l.images && l.images[0]) || l.image || '';
-        const u = `/apartments/${encodeURIComponent(l.id)}`;
+        const u = `/listing/${encodeURIComponent(l.id)}`;
         return `<div class="cmp-val cmp-head-cell">
           <button class="cmp-remove" data-cmp-remove="${l.id}" aria-label="Remove">×</button>
           <a href="${u}" class="cmp-photo"${img?` style="background-image:url('${img}')"`:''}></a>
@@ -1918,7 +1918,7 @@
       html += row('Bathrooms', items.map(l => l.bathrooms || '—'));
       html += row('Status', items.map(l => isAvail(l) ? '<span class="cmp-yes">Available</span>' : (l.status || l.availabilityStatus || '—')));
       CMP_FEATURES.forEach(([k, label]) => html += row(label, items.map(l => hasFeature(l, k) ? '<span class="cmp-yes">✓</span>' : '<span class="cmp-no">—</span>')));
-      html += `<div class="cmp-row cmp-row-cta"><div class="cmp-label"></div>${items.map(l => `<div class="cmp-val"><a class="cmp-view" href="/apartments/${encodeURIComponent(l.id)}">View →</a></div>`).join('')}</div>`;
+      html += `<div class="cmp-row cmp-row-cta"><div class="cmp-label"></div>${items.map(l => `<div class="cmp-val"><a class="cmp-view" href="/listing/${encodeURIComponent(l.id)}">View →</a></div>`).join('')}</div>`;
       const body = $('#compareModalBody');
       body.style.setProperty('--cmp-cols', items.length);
       body.innerHTML = html;

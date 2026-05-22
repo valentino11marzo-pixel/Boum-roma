@@ -29,8 +29,7 @@
     { "source": "/faq-page", "destination": "/faq", "permanent": true }
   ],
   "rewrites": [
-    { "source": "/apartments", "destination": "/apartments-list" },
-    { "source": "/apartments/:id", "destination": "/apartment-detail" },
+    { "source": "/listing/:id", "destination": "/apartment-detail" },
     { "source": "/book", "destination": "/book.html" },
     { "source": "/about", "destination": "/about.html" },
     { "source": "/contact", "destination": "/contact.html" },
