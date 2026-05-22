@@ -1029,6 +1029,17 @@
       'garbatella':      [12.4880, 41.8645],
       'san-giovanni':    [12.5072, 41.8870],
     };
+    // Extra zones the neighborhood matcher doesn't cover, matched by substring.
+    const ROME_CENTER = [12.4964, 41.9028];
+    const EXTRA_ZONE_COORDS = {
+      'flaminio':        [12.4717, 41.9265],
+      'ponte milvio':    [12.4667, 41.9356],
+      "conca d'oro":     [12.5328, 41.9430],
+      'vittorio veneto': [12.4889, 41.9072],
+      'africano':        [12.5108, 41.9258],
+      'nomentano':       [12.5160, 41.9170],
+      'salario':         [12.5010, 41.9190],
+    };
     // Tiny deterministic jitter so multiple listings in same zone don't stack
     function jitter(seed) {
       let h = 0; for (let i=0;i<seed.length;i++) h = ((h<<5)-h + seed.charCodeAt(i))|0;
@@ -1590,13 +1601,23 @@
       let lng = Number(l.lng || l.geo?.lng || l.geo?.[1] || l.location?.lng);
       let lat = Number(l.lat || l.geo?.lat || l.geo?.[0] || l.location?.lat);
       if (!isFinite(lng) || !isFinite(lat) || lng === 0 || lat === 0) {
-        const slug = (window.BOOM && BOOM.zoneToSlug) ? BOOM.zoneToSlug(l.zone || l.neighborhood || '') : null;
-        const c = slug && ZONE_COORDS[slug];
-        if (!c) return null;
+        const zoneStr = (l.zone || l.neighborhood || '').toString();
+        const slug = (window.BOOM && BOOM.zoneToSlug) ? BOOM.zoneToSlug(zoneStr) : null;
+        let c = slug && ZONE_COORDS[slug];
+        if (!c) {
+          const z = zoneStr.toLowerCase();
+          for (const k in EXTRA_ZONE_COORDS) { if (z.indexOf(k) !== -1) { c = EXTRA_ZONE_COORDS[k]; break; } }
+        }
+        if (!c) c = ROME_CENTER;  // last resort: still drop the pin in Rome rather than hide the listing
         const j = jitter(l.id || '');
         return [c[0] + j[0], c[1] + j[1]];
       }
       return [lng, lat];
+    }
+
+    function clearMapMarkers() {
+      for (const id in STATE.markersOnScreen) { try { STATE.markersOnScreen[id].remove(); } catch {} }
+      STATE.markers = {}; STATE.markersOnScreen = {};
     }
 
     function renderMap(list) {
@@ -1614,84 +1635,38 @@
           </div></a>`;
       }).join('') : '<div style="padding:30px;text-align:center;color:var(--text-fade);font-size:13px">No apartments match.</div>';
 
-      // GeoJSON for clustering
-      const bounds = new maplibregl.LngLatBounds();
-      const features = [];
-      for (const l of list) {
-        const c = coordsFor(l); if (!c) continue;
-        features.push({ type:'Feature', geometry:{ type:'Point', coordinates: c },
-          properties: { id: l.id, name: l.name || 'Apartment', zone: l.zone || '', price: l.price ? Number(l.price) : 0, img: (l.images && l.images[0]) || l.image || '' } });
-        bounds.extend(c);
-      }
-      const data = { type:'FeatureCollection', features };
-
-      const apply = () => {
-        if (STATE.map.getSource('listings')) {
-          STATE.map.getSource('listings').setData(data);
-        } else {
-          STATE.map.addSource('listings', { type:'geojson', data, cluster:true, clusterRadius:54, clusterMaxZoom:14 });
-          if (!STATE.mapWired) {
-            STATE.map.on('render', () => {
-              if (!STATE.map.getSource('listings') || !STATE.map.isSourceLoaded('listings')) return;
-              syncMapMarkers();
-            });
-            STATE.mapWired = true;
-          }
+      // Direct HTML markers — one per listing. No clustering/querySourceFeatures
+      // dependency, so pins always render even for the small (~20) inventory.
+      const place = () => {
+        clearMapMarkers();
+        const bounds = new maplibregl.LngLatBounds();
+        let n = 0;
+        for (const l of list) {
+          const c = coordsFor(l); if (!c) continue;
+          const img = (l.images && l.images[0]) || l.image || '';
+          const el = document.createElement('div');
+          el.className = 'map-marker';
+          el.dataset.id = l.id;
+          el.textContent = l.price ? '€' + (Number(l.price)/1000).toFixed(1) + 'k' : '·';
+          el.addEventListener('mouseenter', () => highlightMini(l.id, true));
+          el.addEventListener('mouseleave', () => highlightMini(l.id, false));
+          const popup = new maplibregl.Popup({ className:'map-popup', offset:[0,-14], maxWidth:'260px' }).setHTML(
+            `<div class="map-popup-img"${img?` style="background-image:url('${img}')"`:''}></div>
+             <div class="map-popup-body">
+               <div class="map-popup-zone">${l.zone||''}</div>
+               <div class="map-popup-name">${l.name||'Apartment'}</div>
+               <div class="map-popup-price">${l.price?fmt(l.price):'—'}<small>/mo</small></div>
+             </div>
+             <a class="map-popup-go" href="/listing/${encodeURIComponent(l.id)}">View details →</a>`);
+          const m = new maplibregl.Marker({ element: el, anchor:'center' }).setLngLat(c).setPopup(popup).addTo(STATE.map);
+          STATE.markers['p' + l.id] = m;
+          STATE.markersOnScreen['p' + l.id] = m;
+          bounds.extend(c); n++;
         }
-        syncMapMarkers();
-        if (features.length) { try { STATE.map.fitBounds(bounds, {padding:70, maxZoom:15, duration:600}); } catch {} }
+        STATE.map.resize();  // container may have been display:none when the map was created
+        if (n) { try { STATE.map.fitBounds(bounds, { padding:70, maxZoom:15, duration:600 }); } catch {} }
       };
-      if (STATE.map.isStyleLoaded()) apply(); else STATE.map.once('load', apply);
-    }
-
-    // Airbnb-style HTML-marker sync against the clustered GeoJSON source
-    function syncMapMarkers() {
-      const features = STATE.map.querySourceFeatures('listings');
-      const next = {};
-      for (const f of features) {
-        const coords = f.geometry.coordinates;
-        const p = f.properties;
-        let id;
-        if (p.cluster) {
-          id = 'c' + p.cluster_id;
-          if (!STATE.markers[id]) {
-            const el = document.createElement('div');
-            el.className = 'map-cluster';
-            el.textContent = p.point_count_abbreviated || p.point_count;
-            el.addEventListener('click', () => {
-              const src = STATE.map.getSource('listings');
-              const res = src.getClusterExpansionZoom(p.cluster_id);
-              const go = z => STATE.map.easeTo({ center: coords, zoom: z });
-              if (res && typeof res.then === 'function') res.then(go).catch(()=>{});
-              else src.getClusterExpansionZoom(p.cluster_id, (err, z) => { if (!err) go(z); });
-            });
-            STATE.markers[id] = new maplibregl.Marker({ element: el }).setLngLat(coords);
-          }
-        } else {
-          id = 'p' + p.id;
-          if (!STATE.markers[id]) {
-            const el = document.createElement('div');
-            el.className = 'map-marker';
-            el.dataset.id = p.id;
-            el.textContent = p.price ? '€' + (p.price/1000).toFixed(1) + 'k' : '·';
-            el.addEventListener('mouseenter', () => highlightMini(p.id, true));
-            el.addEventListener('mouseleave', () => highlightMini(p.id, false));
-            const popup = new maplibregl.Popup({ className:'map-popup', offset:[0,-14], maxWidth:'260px' }).setHTML(
-              `<div class="map-popup-img"${p.img?` style="background-image:url('${p.img}')"`:''}></div>
-               <div class="map-popup-body">
-                 <div class="map-popup-zone">${p.zone||''}</div>
-                 <div class="map-popup-name">${p.name||'Apartment'}</div>
-                 <div class="map-popup-price">${p.price?fmt(p.price):'—'}<small>/mo</small></div>
-               </div>
-               <a class="map-popup-go" href="/listing/${encodeURIComponent(p.id)}">View details →</a>`);
-            STATE.markers[id] = new maplibregl.Marker({ element: el, anchor:'center' }).setLngLat(coords).setPopup(popup);
-          }
-        }
-        next[id] = STATE.markers[id];
-        if (!STATE.markersOnScreen[id]) STATE.markers[id].addTo(STATE.map);
-      }
-      for (const id in STATE.markersOnScreen) if (!next[id]) STATE.markersOnScreen[id].remove();
-      STATE.markersOnScreen = next;
+      if (STATE.map.isStyleLoaded()) place(); else STATE.map.once('load', place);
     }
 
     /* ── ACTIONS: SAVE / COMPARE / SHARE ──────────────────────────── */
