@@ -48,10 +48,14 @@ export default async function handler(req, res) {
       const zone = (sv(f, 'zone') || sv(f, 'neighborhood')).trim();
       if (!address) { misses.push({ id, reason: 'no address' }); continue; }
 
-      // Try most specific query first, then progressively looser.
+      // Try most specific query first, then progressively looser. Some
+      // listings store address as "Street, Neighborhood" — Nominatim then
+      // interprets the suffix as a city, so we also try the bare street.
+      const street = address.split(',')[0].trim();
       const queries = [
         `${address}, Roma, Italia`,
         zone ? `${address}, ${zone}, Roma, Italia` : null,
+        street !== address ? `${street}, Roma, Italia` : null,
       ].filter(Boolean);
 
       let hit = null;
