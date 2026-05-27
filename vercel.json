@@ -76,6 +76,7 @@
     { "source": "/seed-listings", "destination": "/seed-listings.html" },
     { "source": "/setup-firebase", "destination": "/setup-firebase.html" },
     { "source": "/boom-doc-parser", "destination": "/boom_doc_parser.html" },
+    { "source": "/cockpit-preview", "destination": "/cockpit-preview.html" },
     { "source": "/blog-47-steps", "destination": "/blog-47-steps.html" },
     { "source": "/blog-contract-types", "destination": "/blog-contract-types.html" },
     { "source": "/blog-cost-calculator", "destination": "/blog-cost-calculator.html" },
@@ -97,7 +98,7 @@
       ]
     },
     {
-      "source": "/(portal|admin|admin-flats|setup-firebase|seed-listings|boom-doc-parser|boom_doc_parser|portal.html|admin.html|admin-flats.html|setup-firebase.html|seed-listings.html|boom_doc_parser.html)(.*)",
+      "source": "/(portal|admin|admin-flats|setup-firebase|seed-listings|boom-doc-parser|boom_doc_parser|cockpit-preview|portal.html|admin.html|admin-flats.html|setup-firebase.html|seed-listings.html|boom_doc_parser.html|cockpit-preview.html)(.*)",
       "headers": [
         { "key": "X-Robots-Tag", "value": "noindex, nofollow, noarchive, nosnippet" },
         { "key": "Cache-Control", "value": "private, no-store, max-age=0" }
