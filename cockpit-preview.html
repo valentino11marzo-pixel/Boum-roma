@@ -671,6 +671,227 @@
   }
 
   /* ═════════════════════════════════════════════════════════════
+     LEAD INBOX
+     ═════════════════════════════════════════════════════════════ */
+  .lead-toolbar {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 16px; flex-wrap: wrap;
+    margin-bottom: 18px;
+  }
+  .lead-filters {
+    display: inline-flex; gap: 4px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--r-pill);
+    padding: 4px;
+  }
+  .lead-filter-btn {
+    padding: 6px 14px;
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.4px;
+    border-radius: var(--r-pill);
+    cursor: pointer;
+    transition: all 0.16s var(--ease-out);
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .lead-filter-btn:hover { color: var(--text); }
+  .lead-filter-btn.is-active {
+    background: var(--gold-soft);
+    color: var(--gold);
+  }
+  .lead-filter-count {
+    font-size: 10px;
+    padding: 1px 6px;
+    background: var(--bg-card);
+    border-radius: 10px;
+    color: var(--text-muted);
+  }
+  .lead-filter-btn.is-active .lead-filter-count {
+    background: rgba(212,175,55,0.2);
+    color: var(--gold);
+  }
+
+  .lead-summary {
+    display: flex; align-items: center; gap: 12px;
+    font-size: 11px;
+    color: var(--text-muted);
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+  }
+  .lead-summary strong { color: var(--text); font-weight: 500; }
+
+  .lead-list {
+    display: flex; flex-direction: column;
+    gap: 10px;
+  }
+
+  .lead-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    padding: 16px 18px;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 16px;
+    align-items: flex-start;
+    transition: border-color 0.16s, transform 0.16s;
+    position: relative;
+    overflow: hidden;
+  }
+  .lead-card::before {
+    content: '';
+    position: absolute; left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: var(--border);
+    transition: background 0.16s;
+  }
+  .lead-card:hover { border-color: var(--border-strong); }
+  .lead-card.is-fresh::before { background: var(--gold); }
+  .lead-card.is-warning::before { background: var(--warning); }
+  .lead-card.is-late::before { background: var(--danger); }
+  .lead-card.is-discarded { opacity: 0.45; }
+  .lead-card.is-converted::before { background: var(--success); }
+
+  .lead-grade {
+    width: 38px; height: 38px;
+    border-radius: var(--r-md);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-mono);
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: 0;
+    border: 1px solid var(--border-strong);
+    flex-shrink: 0;
+  }
+  .lead-grade.grade-A { background: rgba(212,175,55,0.14); color: var(--gold); border-color: rgba(212,175,55,0.4); }
+  .lead-grade.grade-B { background: rgba(46,143,255,0.12); color: #6FB1FF; border-color: rgba(46,143,255,0.35); }
+  .lead-grade.grade-C { background: rgba(255,255,255,0.05); color: var(--text-secondary); }
+  .lead-grade.grade-dead { background: rgba(255,255,255,0.03); color: var(--text-muted); font-size: 12px; }
+
+  .lead-body { min-width: 0; }
+  .lead-row-1 {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    margin-bottom: 4px;
+  }
+  .lead-name {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text);
+    letter-spacing: 0.2px;
+  }
+  .lead-flag { font-size: 12px; }
+
+  .lead-pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 8px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--r-pill);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+  }
+  .lead-pill.is-new { background: var(--gold-soft); color: var(--gold); border-color: var(--border-gold); }
+  .lead-pill.is-responded { background: rgba(46,143,255,0.1); color: #6FB1FF; border-color: rgba(46,143,255,0.3); }
+  .lead-pill.is-converted { background: rgba(34,197,94,0.1); color: var(--success); border-color: rgba(34,197,94,0.3); }
+  .lead-pill.is-discarded { background: rgba(255,255,255,0.03); color: var(--text-muted); }
+  .lead-pill.is-source { background: transparent; }
+
+  .lead-row-2 {
+    font-size: 12.5px;
+    color: var(--text-secondary);
+    line-height: 1.55;
+    display: flex; flex-wrap: wrap; gap: 4px 14px;
+  }
+  .lead-row-2 .data { display: inline-flex; align-items: center; gap: 4px; }
+  .lead-row-2 .data .gold { color: var(--gold); font-weight: 500; }
+
+  .lead-note {
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.5;
+    font-style: italic;
+    border-left: 2px solid var(--border);
+    padding-left: 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+
+  .lead-actions {
+    margin-top: 10px;
+    display: flex; gap: 6px; flex-wrap: wrap;
+  }
+  .lead-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 5px 10px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+    color: var(--text-secondary);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.14s var(--ease-out);
+  }
+  .lead-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text);
+    border-color: var(--border-strong);
+  }
+  .lead-btn.primary {
+    background: var(--gold-soft);
+    color: var(--gold);
+    border-color: var(--border-gold);
+  }
+  .lead-btn.primary:hover { background: rgba(212,175,55,0.22); color: var(--gold); }
+  .lead-btn.success { color: var(--success); border-color: rgba(34,197,94,0.3); }
+  .lead-btn.success:hover { background: rgba(34,197,94,0.1); }
+  .lead-btn.muted { color: var(--text-muted); }
+  .lead-btn.danger { color: var(--text-muted); }
+  .lead-btn.danger:hover { color: var(--danger); border-color: rgba(255,59,48,0.3); }
+
+  .lead-meta {
+    text-align: right;
+    font-size: 11px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    display: flex; flex-direction: column; align-items: flex-end; gap: 6px;
+    flex-shrink: 0;
+  }
+  .lead-time { font-family: var(--font-mono); }
+  .lead-sla {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 8px;
+    border-radius: var(--r-pill);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.4px;
+    font-family: var(--font-mono);
+  }
+  .lead-sla.is-fresh { background: var(--gold-soft); color: var(--gold); }
+  .lead-sla.is-warning { background: rgba(247,159,31,0.1); color: var(--warning); }
+  .lead-sla.is-late { background: rgba(255,59,48,0.1); color: var(--danger); }
+  .lead-sla.is-night { background: rgba(255,255,255,0.04); color: var(--text-muted); }
+  .lead-sla.is-done { background: rgba(34,197,94,0.1); color: var(--success); }
+
+  @media (max-width: 720px) {
+    .lead-card { grid-template-columns: auto 1fr; }
+    .lead-meta { grid-column: 2; text-align: left; align-items: flex-start; margin-top: 4px; }
+    .lead-toolbar { flex-direction: column; align-items: stretch; }
+  }
+
+  /* ═════════════════════════════════════════════════════════════
      MOBILE / RESPONSIVE
      ═════════════════════════════════════════════════════════════ */
   @media (max-width: 880px) {
@@ -875,7 +1096,12 @@
     heartbeatUnsub: null,
     cmdkOpen: false,
     cmdkSelected: 0,
-    cmdkFiltered: []
+    cmdkFiltered: [],
+    // Lead inbox
+    leads: [],
+    leadsUnsub: null,
+    leadsFilter: 'new',
+    leadsTimerId: null
   };
 
   // ───────────────────────────────────────────────────────────
@@ -993,6 +1219,9 @@
     // Heartbeat
     Heartbeat.start();
 
+    // Lead inbox listener (always-on so the sidebar badge stays live)
+    LeadStore.start();
+
     // CmdK
     CmdK.init();
 
@@ -1067,14 +1296,13 @@
         </div>
       `;
     },
-    'lead-inbox': () => `
-      <div class="empty-state">
-        <div class="empty-icon">📨</div>
-        <div class="empty-title">In attesa di lead da Homie</div>
-        <div class="empty-desc">Quando Homie filtra un nuovo lead (Immobiliare, Idealista, WhatsApp), comparirà qui in tempo reale.<br>Grade A → 5 min · B → 30 min · C → 2h · dead → trigger-only · notte 23-07 → queue.</div>
-        <div class="empty-hint">listener: onSnapshot('leads').orderBy('createdAt','desc').limit(50) — non ancora attivato</div>
-      </div>
-    `,
+    'lead-inbox': () => {
+      // Defer the actual rendering: container is filled by LeadStore.renderPanel()
+      // (runs on snapshot updates + SLA tick). On route entry, force a paint
+      // with whatever is in cache so the user sees something immediately.
+      setTimeout(() => LeadStore.renderPanel(), 0);
+      return `<div id="lead-panel"><div class="empty-state"><div class="empty-icon">📨</div><div class="empty-title">Connessione live…</div><div class="empty-desc">Sto caricando i lead da Firestore.</div></div></div>`;
+    },
     'action-queue': () => `
       <div class="empty-state">
         <div class="empty-icon">⚡</div>
@@ -1115,6 +1343,322 @@
         <div class="empty-hint">whitelist attiva: ${esc(COCKPIT.whitelist.join(', '))}</div>
       </div>
     `
+  };
+
+  // ───────────────────────────────────────────────────────────
+  // LEAD STORE — Firestore listener + grade/SLA logic + actions
+  // ───────────────────────────────────────────────────────────
+  const LeadStore = {
+    /** Start the global listener. Always-on after bootApp(): updates the
+     *  sidebar badge in real time even when you're not on this panel. */
+    start() {
+      try {
+        STATE.leadsUnsub = db.collection('leads')
+          .orderBy('createdAt', 'desc')
+          .limit(50)
+          .onSnapshot(snap => {
+            STATE.leads = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            this.updateBadge();
+            if (STATE.route === 'lead-inbox') this.renderPanel();
+          }, err => {
+            console.warn('[LeadStore]', err);
+            const panel = $('#lead-panel');
+            if (panel) panel.innerHTML = `
+              <div class="empty-state">
+                <div class="empty-icon">⚠</div>
+                <div class="empty-title">Errore di accesso a Firestore</div>
+                <div class="empty-desc">${esc(err.message || err)}</div>
+                <div class="empty-hint">collection: leads · verifica regole sicurezza</div>
+              </div>`;
+          });
+
+        // SLA countdown re-render every 30s (no re-fetch)
+        STATE.leadsTimerId = setInterval(() => {
+          if (STATE.route === 'lead-inbox') this.renderPanel();
+        }, 30000);
+      } catch (e) {
+        console.error('[LeadStore.start]', e);
+      }
+    },
+
+    /** Heuristic grade: A/B/C/dead, calculated client-side.
+     *  Real Homie pipeline will eventually write this server-side. */
+    gradeOf(l) {
+      if (l.grade) return l.grade; // honor server-set value when present
+      if (l.status === 'discarded') return 'dead';
+      const hasContact = !!(l.email || l.leadEmail || l.phone || l.leadPhone);
+      if (!hasContact) return 'dead';
+      const budget = Number(l.budget) || 0;
+      const hasDetail = !!(l.intakeForm || l.zone || l.situation || l.notes || l.propertyTitle);
+      // Worker + high budget + filled intake → A
+      if (budget >= 1500 && hasDetail) return 'A';
+      if (l.situation === 'worker' && budget >= 1000 && hasDetail) return 'A';
+      if (budget >= 1000 || (hasDetail && budget >= 700)) return 'B';
+      return 'C';
+    },
+
+    /** SLA target by grade (minutes). dead → no target. */
+    slaTarget(grade) {
+      return ({ A: 5, B: 30, C: 120, dead: null })[grade];
+    },
+
+    /** Compute SLA state for a lead. Returns { state, label } where state ∈
+     *  fresh|warning|late|night|done. Respects the 23:00–07:00 night queue
+     *  rule: late leads received at night are treated as 'night' not 'late'. */
+    slaInfo(l, grade) {
+      if (l.status === 'responded' || l.status === 'converted') return { state: 'done', label: 'risposto' };
+      if (l.status === 'discarded') return { state: 'night', label: 'scartato' };
+      const target = this.slaTarget(grade);
+      if (target == null) return { state: 'night', label: 'no SLA' };
+      const created = l.createdAt?.toDate ? l.createdAt.toDate() : (l.createdAt ? new Date(l.createdAt) : null);
+      if (!created) return { state: 'night', label: '—' };
+      const now = new Date();
+      const elapsedMs = now - created;
+      const elapsedMin = elapsedMs / 60000;
+      const hourReceived = created.getHours();
+      const isNight = hourReceived >= 23 || hourReceived < 7;
+      const remainingMin = target - elapsedMin;
+      if (remainingMin >= 0) {
+        const m = Math.ceil(remainingMin);
+        return { state: m <= Math.max(1, target * 0.3) ? 'warning' : 'fresh', label: `${m}m left` };
+      }
+      // Past SLA
+      if (isNight) return { state: 'night', label: 'night queue' };
+      const lateMin = Math.floor(-remainingMin);
+      return { state: 'late', label: lateMin < 60 ? `+${lateMin}m late` : `+${Math.floor(lateMin / 60)}h late` };
+    },
+
+    /** Phone number normalization for WhatsApp deep-link. */
+    waLink(phone) {
+      if (!phone) return null;
+      const clean = String(phone).replace(/[^0-9+]/g, '').replace(/^\+/, '');
+      return clean ? `https://wa.me/${clean}` : null;
+    },
+
+    /** Friendly relative time: "5m fa", "2h fa", "ieri". */
+    timeAgo(ts) {
+      if (!ts) return '';
+      const d = ts?.toDate ? ts.toDate() : new Date(ts);
+      const diff = Date.now() - d.getTime();
+      const m = Math.floor(diff / 60000);
+      if (m < 1) return 'adesso';
+      if (m < 60) return `${m}m fa`;
+      const h = Math.floor(m / 60);
+      if (h < 24) return `${h}h fa`;
+      const days = Math.floor(h / 24);
+      if (days === 1) return 'ieri';
+      if (days < 7) return `${days}g fa`;
+      return d.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
+    },
+
+    /** Update sidebar badge with count of NEW leads (status='new' or undefined). */
+    updateBadge() {
+      const el = $('#badge-leads');
+      if (!el) return;
+      const count = STATE.leads.filter(l => !l.status || l.status === 'new').length;
+      el.textContent = count;
+      el.style.display = count > 0 ? '' : 'none';
+    },
+
+    /** Counts per status, for the filter pills. */
+    counts() {
+      const c = { all: STATE.leads.length, new: 0, responded: 0, converted: 0, discarded: 0 };
+      for (const l of STATE.leads) {
+        const s = l.status || 'new';
+        if (c[s] != null) c[s]++;
+      }
+      return c;
+    },
+
+    /** Filter the current leads list according to STATE.leadsFilter. */
+    filtered() {
+      const f = STATE.leadsFilter;
+      if (f === 'all') return STATE.leads;
+      return STATE.leads.filter(l => (l.status || 'new') === f);
+    },
+
+    /** Detect source: Homie / Immobiliare / Idealista / Intake Form / Web. */
+    sourceOf(l) {
+      const s = (l.source || l.service || '').toLowerCase();
+      if (l.intakeForm) return 'Intake';
+      if (s.includes('homie')) return 'Homie';
+      if (s.includes('immobiliare')) return 'Immobiliare';
+      if (s.includes('idealista')) return 'Idealista';
+      if (s.includes('whats')) return 'WhatsApp';
+      if (l.propertyTitle) return 'Property';
+      return l.source || 'Web';
+    },
+
+    /** Render one lead card. */
+    renderCard(l) {
+      const status = l.status || 'new';
+      const grade = this.gradeOf(l);
+      const sla = this.slaInfo(l, grade);
+      const cardClass = ['lead-card'];
+      if (status === 'discarded') cardClass.push('is-discarded');
+      else if (status === 'converted') cardClass.push('is-converted');
+      else if (sla.state === 'late') cardClass.push('is-late');
+      else if (sla.state === 'warning') cardClass.push('is-warning');
+      else if (sla.state === 'fresh') cardClass.push('is-fresh');
+
+      const name = l.name || l.leadName || 'Sconosciuto';
+      const flag = (l.language === 'en' || l.language === 'EN') ? '🇬🇧' : '🇮🇹';
+      const source = this.sourceOf(l);
+
+      const budget = Number(l.budget) || null;
+      const zone = l.zone;
+      const situation = l.situation;
+      const sitIcon = situation === 'worker' ? '💼' : situation === 'student' ? '🎓' : situation === 'visitor' || situation === 'tourist' ? '✈️' : '';
+
+      const propTitle = l.propertyTitle;
+      const propPrice = l.propertyPrice ? Number(l.propertyPrice) : null;
+
+      const note = l.notes || l.message || l.leadMessage;
+      const phone = l.phone || l.leadPhone;
+      const email = l.email || l.leadEmail;
+      const wa = this.waLink(phone);
+
+      return `
+        <div class="${cardClass.join(' ')}" data-lead-id="${esc(l.id)}">
+          <div class="lead-grade grade-${grade}" title="Grade ${grade} · SLA ${this.slaTarget(grade) ?? '∞'}min">
+            ${grade === 'dead' ? '·' : grade}
+          </div>
+          <div class="lead-body">
+            <div class="lead-row-1">
+              <span class="lead-flag">${flag}</span>
+              <span class="lead-name">${esc(name)}</span>
+              <span class="lead-pill is-${status}">${status}</span>
+              <span class="lead-pill is-source">${esc(source)}</span>
+              ${l.linkedViewingId ? '<span class="lead-pill" style="color:var(--gold)">📅 viewing</span>' : ''}
+            </div>
+            <div class="lead-row-2">
+              ${budget ? `<span class="data"><span class="gold">€${budget}</span>/mo</span>` : ''}
+              ${zone ? `<span class="data">📍 ${esc(zone)}</span>` : ''}
+              ${sitIcon ? `<span class="data">${sitIcon} ${esc(situation)}</span>` : ''}
+              ${propTitle ? `<span class="data">🏠 ${esc(propTitle)}${propPrice ? ` · €${propPrice.toLocaleString('it-IT')}` : ''}</span>` : ''}
+              ${!budget && !zone && !situation && !propTitle ? `<span class="data" style="color:var(--text-muted)">— nessun dettaglio</span>` : ''}
+            </div>
+            ${note ? `<div class="lead-note">"${esc(String(note).slice(0, 180))}${String(note).length > 180 ? '…' : ''}"</div>` : ''}
+            <div class="lead-actions">
+              ${wa ? `<a href="${wa}" target="_blank" rel="noopener" class="lead-btn primary" onclick="event.stopPropagation()">💬 WhatsApp</a>` : ''}
+              ${email ? `<a href="mailto:${esc(email)}" class="lead-btn" onclick="event.stopPropagation()">📧 Email</a>` : ''}
+              ${status === 'new' ? `<button class="lead-btn success" onclick="LeadActions.markResponded('${esc(l.id)}')">✓ Risposto</button>` : ''}
+              ${status === 'new' || status === 'responded' ? `<button class="lead-btn danger" onclick="LeadActions.discard('${esc(l.id)}')">✕ Scarta</button>` : ''}
+              ${status === 'discarded' ? `<button class="lead-btn muted" onclick="LeadActions.reopen('${esc(l.id)}')">↺ Riapri</button>` : ''}
+              <a class="lead-btn muted" href="/portal#leads" target="_blank" rel="noopener" onclick="event.stopPropagation()">🔗 Portal</a>
+            </div>
+          </div>
+          <div class="lead-meta">
+            <span class="lead-time">${esc(this.timeAgo(l.createdAt))}</span>
+            <span class="lead-sla is-${sla.state}">${esc(sla.label)}</span>
+          </div>
+        </div>
+      `;
+    },
+
+    /** Full panel render: toolbar + list. */
+    renderPanel() {
+      const panel = $('#lead-panel');
+      if (!panel) return;
+      const c = this.counts();
+      const filter = STATE.leadsFilter;
+      const items = this.filtered();
+      const stats = {
+        graded: { A: 0, B: 0, C: 0, dead: 0 },
+        breached: 0
+      };
+      for (const l of STATE.leads) {
+        if (l.status === 'discarded') continue;
+        const g = this.gradeOf(l);
+        stats.graded[g]++;
+        if (!l.status || l.status === 'new') {
+          const sla = this.slaInfo(l, g);
+          if (sla.state === 'late') stats.breached++;
+        }
+      }
+
+      const filterBtn = (key, label) => `
+        <button class="lead-filter-btn ${filter === key ? 'is-active' : ''}" onclick="LeadActions.setFilter('${key}')">
+          ${label}
+          <span class="lead-filter-count">${c[key]}</span>
+        </button>
+      `;
+
+      panel.innerHTML = `
+        <div class="lead-toolbar">
+          <div class="lead-filters">
+            ${filterBtn('new', 'Nuovi')}
+            ${filterBtn('responded', 'Risposti')}
+            ${filterBtn('converted', 'Convertiti')}
+            ${filterBtn('discarded', 'Scartati')}
+            ${filterBtn('all', 'Tutti')}
+          </div>
+          <div class="lead-summary">
+            <span><strong style="color:var(--gold)">${stats.graded.A}</strong> A</span>
+            <span><strong>${stats.graded.B}</strong> B</span>
+            <span><strong>${stats.graded.C}</strong> C</span>
+            ${stats.breached > 0 ? `<span style="color:var(--danger)"><strong>${stats.breached}</strong> SLA scaduti</span>` : '<span style="color:var(--success)">SLA ok</span>'}
+          </div>
+        </div>
+        ${items.length === 0 ? `
+          <div class="empty-state">
+            <div class="empty-icon">📨</div>
+            <div class="empty-title">${filter === 'new' ? 'Nessun nuovo lead' : 'Nessun lead in questo filtro'}</div>
+            <div class="empty-desc">${filter === 'new'
+              ? 'Quando Homie filtra un lead da Immobiliare, Idealista o WhatsApp comparirà qui in tempo reale.<br>Grade A → 5 min · B → 30 min · C → 2h · dead → trigger-only · notte 23-07 → queue.'
+              : 'Cambia filtro per vedere altri lead.'}</div>
+            <div class="empty-hint">listener live · ${STATE.leads.length} lead totali in cache</div>
+          </div>
+        ` : `
+          <div class="lead-list">
+            ${items.map(l => this.renderCard(l)).join('')}
+          </div>
+        `}
+      `;
+    }
+  };
+  window.LeadStore = LeadStore;
+
+  // Global handlers used by inline onclick attributes in lead cards.
+  window.LeadActions = {
+    setFilter(f) {
+      STATE.leadsFilter = f;
+      LeadStore.renderPanel();
+    },
+    async markResponded(id) {
+      try {
+        await db.collection('leads').doc(id).update({
+          status: 'responded',
+          respondedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          respondedBy: STATE.user?.email || null
+        });
+        Toast.show({ type: 'success', title: 'Lead segnato come risposto' });
+      } catch (e) {
+        Toast.show({ type: 'danger', title: 'Errore', desc: e.message });
+      }
+    },
+    async discard(id) {
+      try {
+        await db.collection('leads').doc(id).update({
+          status: 'discarded',
+          discardedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        Toast.show({ type: 'info', title: 'Lead scartato' });
+      } catch (e) {
+        Toast.show({ type: 'danger', title: 'Errore', desc: e.message });
+      }
+    },
+    async reopen(id) {
+      try {
+        await db.collection('leads').doc(id).update({
+          status: 'new',
+          discardedAt: null
+        });
+        Toast.show({ type: 'success', title: 'Lead riaperto' });
+      } catch (e) {
+        Toast.show({ type: 'danger', title: 'Errore', desc: e.message });
+      }
+    }
   };
 
   // ───────────────────────────────────────────────────────────
