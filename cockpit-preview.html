@@ -892,6 +892,183 @@
   }
 
   /* ═════════════════════════════════════════════════════════════
+     CONTRACTS
+     ═════════════════════════════════════════════════════════════ */
+  .ct-stat-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+  .ct-stat {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    padding: 14px 16px;
+    transition: border-color 0.16s, transform 0.12s;
+    cursor: pointer;
+  }
+  .ct-stat:hover { border-color: var(--border-strong); transform: translateY(-1px); }
+  .ct-stat.is-active { border-color: var(--border-gold); background: var(--gold-soft); }
+  .ct-stat.is-warn { border-left: 3px solid var(--warning); }
+  .ct-stat.is-danger { border-left: 3px solid var(--danger); }
+  .ct-stat-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+  .ct-stat-value {
+    margin-top: 4px;
+    font-size: 22px;
+    font-weight: 300;
+    color: var(--text);
+    font-family: var(--font-mono);
+  }
+  .ct-stat-sub {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+  }
+
+  .ct-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    padding: 16px 18px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 18px;
+    align-items: flex-start;
+    transition: border-color 0.16s;
+    position: relative;
+    overflow: hidden;
+  }
+  .ct-card::before {
+    content: '';
+    position: absolute; left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: var(--border);
+  }
+  .ct-card.is-active::before { background: var(--success); }
+  .ct-card.is-soon::before { background: var(--warning); }
+  .ct-card.is-urgent::before { background: var(--danger); }
+  .ct-card.is-expired::before { background: var(--text-muted); }
+  .ct-card.is-expired { opacity: 0.6; }
+  .ct-card:hover { border-color: var(--border-strong); }
+
+  .ct-head {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    margin-bottom: 6px;
+  }
+  .ct-title {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text);
+  }
+  .ct-type {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--gold);
+    padding: 2px 8px;
+    background: var(--gold-soft);
+    border-radius: var(--r-pill);
+  }
+  .ct-sig {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: var(--r-pill);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+  }
+  .ct-sig.is-complete { background: rgba(34,197,94,0.1); color: var(--success); border-color: rgba(34,197,94,0.3); }
+  .ct-sig.is-partial { background: rgba(247,159,31,0.1); color: var(--warning); border-color: rgba(247,159,31,0.3); }
+  .ct-sig.is-none { background: rgba(255,59,48,0.08); color: var(--danger); border-color: rgba(255,59,48,0.25); }
+
+  .ct-meta {
+    font-size: 12.5px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    display: flex; flex-wrap: wrap; gap: 4px 16px;
+  }
+  .ct-meta .data { display: inline-flex; align-items: center; gap: 4px; }
+  .ct-meta .gold { color: var(--gold); font-weight: 500; }
+
+  .ct-actions {
+    margin-top: 12px;
+    display: flex; gap: 6px; flex-wrap: wrap;
+  }
+
+  .ct-rent {
+    text-align: right;
+    flex-shrink: 0;
+    min-width: 100px;
+  }
+  .ct-rent-amount {
+    font-size: 22px;
+    font-weight: 300;
+    color: var(--gold);
+    font-family: var(--font-mono);
+    letter-spacing: -0.5px;
+  }
+  .ct-rent-sub {
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+  .ct-rent-days {
+    margin-top: 8px;
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: var(--r-pill);
+    font-family: var(--font-mono);
+    display: inline-block;
+  }
+  .ct-rent-days.is-soon { background: rgba(247,159,31,0.12); color: var(--warning); }
+  .ct-rent-days.is-urgent { background: rgba(255,59,48,0.12); color: var(--danger); }
+  .ct-rent-days.is-active { background: rgba(34,197,94,0.1); color: var(--success); }
+  .ct-rent-days.is-expired { background: rgba(255,255,255,0.04); color: var(--text-muted); }
+
+  /* Magic-link side drawer (revealed inline) */
+  .ct-mlink {
+    margin-top: 10px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--r-sm);
+    padding: 10px 12px;
+    display: flex; align-items: center; gap: 10px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+  }
+  .ct-mlink-label {
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    font-size: 10px;
+    font-family: var(--font-sans);
+  }
+  .ct-mlink-url {
+    flex: 1;
+    color: var(--text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    user-select: all;
+  }
+
+  @media (max-width: 720px) {
+    .ct-card { grid-template-columns: 1fr; }
+    .ct-rent { text-align: left; }
+  }
+
+  /* ═════════════════════════════════════════════════════════════
      MOBILE / RESPONSIVE
      ═════════════════════════════════════════════════════════════ */
   @media (max-width: 880px) {
@@ -1101,7 +1278,15 @@
     leads: [],
     leadsUnsub: null,
     leadsFilter: 'new',
-    leadsTimerId: null
+    leadsTimerId: null,
+    // Contracts
+    contracts: [],
+    contractsUnsub: null,
+    contractsFilter: 'all',
+    usersById: {},      // lazy populated when entering contracts panel
+    propertiesById: {}, // lazy populated when entering contracts panel
+    ctxLoaded: false,
+    revealedLinks: {}   // contractId+role -> visible flag
   };
 
   // ───────────────────────────────────────────────────────────
@@ -1222,6 +1407,10 @@
     // Lead inbox listener (always-on so the sidebar badge stays live)
     LeadStore.start();
 
+    // Contracts listener (always-on for sidebar badge; context users+properties
+    // loaded lazily on first panel entry)
+    ContractStore.startListener();
+
     // CmdK
     CmdK.init();
 
@@ -1319,14 +1508,10 @@
         <div class="empty-hint">query: deadlines.where('dueAt','&lt;=', now+7d).where('status','==','open') — non ancora attivata</div>
       </div>
     `,
-    'contracts': () => `
-      <div class="empty-state">
-        <div class="empty-icon">📝</div>
-        <div class="empty-title">Magic-link signing</div>
-        <div class="empty-desc">Sezione contratti: lista contracts esistenti + bottone per generare 2 magic link (tenant + landlord) copia-incolla.<br>Status real-time, audit log immutabile, pre-arrival pack auto (contratto firmato + RLI + welcome + Apple Wallet pass) al completamento.</div>
-        <div class="empty-hint">extend collection: contracts (32 refs) + magicLinks (3 refs) — già esistenti, UI da costruire</div>
-      </div>
-    `,
+    'contracts': () => {
+      setTimeout(() => ContractStore.enter(), 0);
+      return `<div id="contracts-panel"><div class="empty-state"><div class="empty-icon">📝</div><div class="empty-title">Connessione live…</div><div class="empty-desc">Carico contratti, properties, utenti.</div></div></div>`;
+    },
     'deal-composer': () => `
       <div class="empty-state">
         <div class="empty-icon">📊</div>
@@ -1655,6 +1840,334 @@
           discardedAt: null
         });
         Toast.show({ type: 'success', title: 'Lead riaperto' });
+      } catch (e) {
+        Toast.show({ type: 'danger', title: 'Errore', desc: e.message });
+      }
+    }
+  };
+
+  // ───────────────────────────────────────────────────────────
+  // CONTRACT STORE — list + magic-link reveal
+  // ───────────────────────────────────────────────────────────
+  const ContractStore = {
+    /** Called on route entry: lazy-load context (users, properties),
+     *  then start the contracts listener if not already running. */
+    async enter() {
+      if (!STATE.ctxLoaded) await this.loadContext();
+      this.startListener();
+      this.renderPanel();
+    },
+
+    /** One-shot load of users + properties for name lookup. Re-entering
+     *  the panel won't refetch unless STATE.ctxLoaded is reset. */
+    async loadContext() {
+      try {
+        const [us, ps] = await Promise.all([
+          db.collection('users').get(),
+          db.collection('properties').get()
+        ]);
+        STATE.usersById = {};
+        us.docs.forEach(d => { STATE.usersById[d.id] = { id: d.id, ...d.data() }; });
+        STATE.propertiesById = {};
+        ps.docs.forEach(d => { STATE.propertiesById[d.id] = { id: d.id, ...d.data() }; });
+        STATE.ctxLoaded = true;
+      } catch (e) {
+        console.warn('[ContractStore.loadContext]', e);
+      }
+    },
+
+    /** Start the contracts listener. Idempotent — no-op if already running. */
+    startListener() {
+      if (STATE.contractsUnsub) return;
+      try {
+        STATE.contractsUnsub = db.collection('contracts')
+          .orderBy('endDate', 'asc')
+          .limit(100)
+          .onSnapshot(snap => {
+            STATE.contracts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            this.updateBadge();
+            if (STATE.route === 'contracts') this.renderPanel();
+          }, err => {
+            // orderBy on endDate may fail if some docs miss the field; fallback
+            console.warn('[ContractStore] ordered query failed, fallback:', err);
+            db.collection('contracts').limit(100).onSnapshot(s => {
+              STATE.contracts = s.docs.map(d => ({ id: d.id, ...d.data() }));
+              this.updateBadge();
+              if (STATE.route === 'contracts') this.renderPanel();
+            });
+          });
+      } catch (e) {
+        console.error('[ContractStore.startListener]', e);
+      }
+    },
+
+    /** Days until endDate. Positive = future, negative = expired. */
+    daysUntil(c) {
+      if (!c.endDate) return null;
+      const end = new Date(c.endDate);
+      if (isNaN(end)) return null;
+      const ms = end - new Date();
+      return Math.ceil(ms / (1000 * 60 * 60 * 24));
+    },
+
+    /** Urgency band based on days-until-end. */
+    bandOf(c) {
+      const status = c.status;
+      const days = this.daysUntil(c);
+      if (status && status !== 'active') return 'expired';
+      if (days == null) return 'active';
+      if (days < 0) return 'expired';
+      if (days <= 30) return 'urgent';
+      if (days <= 60) return 'soon';
+      return 'active';
+    },
+
+    /** Property name resolver — falls back to address, then propertyId. */
+    propertyLabel(c) {
+      const p = STATE.propertiesById[c.propertyId];
+      if (!p) return c.propertyId ? `[${String(c.propertyId).slice(0,8)}…]` : 'Immobile non collegato';
+      return p.name || p.address || p.title || `Property ${p.id?.slice(0,6)}`;
+    },
+
+    /** User name resolver. */
+    userLabel(uid) {
+      if (!uid) return '—';
+      const u = STATE.usersById[uid];
+      if (!u) return `[${String(uid).slice(0,8)}…]`;
+      return u.name || u.fullName || u.displayName || u.email || `User ${u.id?.slice(0,6)}`;
+    },
+
+    /** Landlord resolution via property.ownerId (not stored on contract). */
+    landlordLabel(c) {
+      const p = STATE.propertiesById[c.propertyId];
+      if (!p?.ownerId) return c.landlordName || '—';
+      return this.userLabel(p.ownerId);
+    },
+
+    /** Format ISO date as "12 Mar 2025" */
+    fmtDate(iso) {
+      if (!iso) return '—';
+      try {
+        const d = new Date(iso);
+        if (isNaN(d)) return iso;
+        return d.toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric' });
+      } catch { return iso; }
+    },
+
+    /** Sidebar badge = contracts expiring in <30 days OR with partial signature. */
+    updateBadge() {
+      const el = $('#badge-contracts');
+      if (!el) return;
+      let count = 0;
+      for (const c of STATE.contracts) {
+        if (c.status !== 'active' && c.status) continue;
+        const d = this.daysUntil(c);
+        if (d != null && d <= 30) count++;
+        else if (c.signatureStatus === 'partial' || c.signatureStatus === 'none') {
+          // Only counts as "attention needed" if missing signatures AND active
+          if (c.tenantSignToken || c.landlordSignToken) count++;
+        }
+      }
+      el.textContent = count;
+      el.style.display = count > 0 ? '' : 'none';
+    },
+
+    /** Counts for filter pills. */
+    counts() {
+      const c = { all: STATE.contracts.length, active: 0, urgent: 0, soon: 0, expired: 0, unsigned: 0 };
+      for (const x of STATE.contracts) {
+        const band = this.bandOf(x);
+        if (band === 'active') c.active++;
+        else if (band === 'urgent') c.urgent++;
+        else if (band === 'soon') c.soon++;
+        else if (band === 'expired') c.expired++;
+        if (x.signatureStatus !== 'complete' && (x.tenantSignToken || x.landlordSignToken)) c.unsigned++;
+      }
+      return c;
+    },
+
+    /** Apply filter. */
+    filtered() {
+      const f = STATE.contractsFilter;
+      if (f === 'all') return STATE.contracts;
+      if (f === 'unsigned') {
+        return STATE.contracts.filter(c =>
+          c.signatureStatus !== 'complete' && (c.tenantSignToken || c.landlordSignToken)
+        );
+      }
+      return STATE.contracts.filter(c => this.bandOf(c) === f);
+    },
+
+    /** Build the magic-link URL for a role (tenant|landlord). */
+    magicUrl(c, role) {
+      const token = role === 'tenant' ? c.tenantSignToken : c.landlordSignToken;
+      if (!token) return null;
+      const origin = window.location.origin || 'https://boomrome.com';
+      return `${origin}/portal.html?sign=${token}`;
+    },
+
+    /** Render one contract card. */
+    renderCard(c) {
+      const band = this.bandOf(c);
+      const days = this.daysUntil(c);
+      const sig = c.signatureStatus || 'none';
+      const cardClass = ['ct-card', `is-${band}`];
+
+      const tenant = this.userLabel(c.tenantId);
+      const landlord = this.landlordLabel(c);
+      const property = this.propertyLabel(c);
+      const type = c.type ? c.type[0].toUpperCase() + c.type.slice(1) : '';
+
+      const tenantLink = this.magicUrl(c, 'tenant');
+      const landlordLink = this.magicUrl(c, 'landlord');
+      const showTenantLink = STATE.revealedLinks[`${c.id}|tenant`];
+      const showLandlordLink = STATE.revealedLinks[`${c.id}|landlord`];
+
+      const sigSummary = sig === 'complete'
+        ? '✓ entrambe firmate'
+        : sig === 'partial'
+          ? (c.tenantSignature ? 'tenant ok · landlord pendente' : 'landlord ok · tenant pendente')
+          : 'firma da raccogliere';
+
+      let daysLabel = '—';
+      let daysBand = band;
+      if (days == null) daysLabel = c.endDate || 'no end date';
+      else if (days < 0) { daysLabel = `scaduto ${-days}g`; daysBand = 'expired'; }
+      else if (days === 0) { daysLabel = 'scade oggi'; daysBand = 'urgent'; }
+      else { daysLabel = `${days}g residui`; }
+
+      return `
+        <div class="${cardClass.join(' ')}" data-contract-id="${esc(c.id)}">
+          <div class="ct-body">
+            <div class="ct-head">
+              <span class="ct-title">${esc(property)}</span>
+              ${type ? `<span class="ct-type">${esc(type)}</span>` : ''}
+              <span class="ct-sig is-${sig}">${sigSummary}</span>
+            </div>
+            <div class="ct-meta">
+              <span class="data">👤 <span class="gold">${esc(tenant)}</span></span>
+              <span class="data">🏠 ${esc(landlord)}</span>
+              <span class="data">📅 ${esc(this.fmtDate(c.startDate))} → ${esc(this.fmtDate(c.endDate))}</span>
+              ${c.deposit ? `<span class="data">💼 dep €${Number(c.deposit).toLocaleString('it-IT')}</span>` : ''}
+              ${c.linkedLeadId ? `<span class="data" style="color:var(--gold)">↗ da lead</span>` : ''}
+            </div>
+            ${showTenantLink && tenantLink ? `
+              <div class="ct-mlink">
+                <span class="ct-mlink-label">tenant link</span>
+                <span class="ct-mlink-url">${esc(tenantLink)}</span>
+                <button class="lead-btn primary" onclick="ContractActions.copyLink('${esc(c.id)}','tenant')">📋 Copia</button>
+              </div>` : ''}
+            ${showLandlordLink && landlordLink ? `
+              <div class="ct-mlink">
+                <span class="ct-mlink-label">landlord link</span>
+                <span class="ct-mlink-url">${esc(landlordLink)}</span>
+                <button class="lead-btn primary" onclick="ContractActions.copyLink('${esc(c.id)}','landlord')">📋 Copia</button>
+              </div>` : ''}
+            <div class="ct-actions">
+              ${tenantLink
+                ? `<button class="lead-btn ${showTenantLink ? '' : 'primary'}" onclick="ContractActions.toggleLink('${esc(c.id)}','tenant')">${showTenantLink ? '× Nascondi tenant' : '🔗 Magic-link tenant'}</button>`
+                : `<button class="lead-btn muted" onclick="ContractActions.regenerate('${esc(c.id)}','tenant')">↻ Genera link tenant</button>`}
+              ${landlordLink
+                ? `<button class="lead-btn ${showLandlordLink ? '' : 'primary'}" onclick="ContractActions.toggleLink('${esc(c.id)}','landlord')">${showLandlordLink ? '× Nascondi landlord' : '🔗 Magic-link landlord'}</button>`
+                : `<button class="lead-btn muted" onclick="ContractActions.regenerate('${esc(c.id)}','landlord')">↻ Genera link landlord</button>`}
+              <a class="lead-btn muted" href="/portal#contracts" target="_blank" rel="noopener">📂 Portal</a>
+            </div>
+          </div>
+          <div class="ct-rent">
+            <div class="ct-rent-amount">€${Number(c.rent || 0).toLocaleString('it-IT')}</div>
+            <div class="ct-rent-sub">/mese</div>
+            <div class="ct-rent-days is-${daysBand}">${daysLabel}</div>
+          </div>
+        </div>
+      `;
+    },
+
+    /** Full panel render: filters + stat cards + list. */
+    renderPanel() {
+      const panel = $('#contracts-panel');
+      if (!panel) return;
+      const c = this.counts();
+      const filter = STATE.contractsFilter;
+      const items = this.filtered();
+      const totalMRR = STATE.contracts
+        .filter(x => this.bandOf(x) === 'active' || this.bandOf(x) === 'soon' || this.bandOf(x) === 'urgent')
+        .reduce((sum, x) => sum + (Number(x.rent) || 0), 0);
+
+      const stat = (key, label, value, sub, cls) => `
+        <div class="ct-stat ${cls || ''} ${filter === key ? 'is-active' : ''}" onclick="ContractActions.setFilter('${key}')">
+          <div class="ct-stat-label">${label}</div>
+          <div class="ct-stat-value">${value}</div>
+          ${sub ? `<div class="ct-stat-sub">${sub}</div>` : ''}
+        </div>
+      `;
+
+      panel.innerHTML = `
+        <div class="ct-stat-row">
+          ${stat('all', 'Tutti', c.all, `€${totalMRR.toLocaleString('it-IT')} / mese attivi`)}
+          ${stat('active', 'Attivi', c.active, '>60g residui')}
+          ${stat('soon', 'In scadenza', c.soon, '30–60g', c.soon > 0 ? 'is-warn' : '')}
+          ${stat('urgent', 'Urgenti', c.urgent, '<30g residui', c.urgent > 0 ? 'is-danger' : '')}
+          ${stat('unsigned', 'Firme pendenti', c.unsigned, 'token ancora attivo', c.unsigned > 0 ? 'is-warn' : '')}
+          ${stat('expired', 'Scaduti', c.expired, 'archivio')}
+        </div>
+        ${items.length === 0 ? `
+          <div class="empty-state">
+            <div class="empty-icon">📝</div>
+            <div class="empty-title">Nessun contratto in questo filtro</div>
+            <div class="empty-desc">${filter === 'all'
+              ? 'Quando creerai un contratto dal portal apparirà qui in tempo reale, con magic-link tenant + landlord copia-incolla.'
+              : 'Prova un altro filtro.'}</div>
+            <div class="empty-hint">collection: contracts · ${STATE.contracts.length} totali in cache</div>
+          </div>
+        ` : `
+          <div class="lead-list">
+            ${items.map(x => this.renderCard(x)).join('')}
+          </div>
+        `}
+      `;
+    }
+  };
+  window.ContractStore = ContractStore;
+
+  window.ContractActions = {
+    setFilter(f) {
+      STATE.contractsFilter = f;
+      ContractStore.renderPanel();
+    },
+    toggleLink(contractId, role) {
+      const key = `${contractId}|${role}`;
+      STATE.revealedLinks[key] = !STATE.revealedLinks[key];
+      ContractStore.renderPanel();
+    },
+    async copyLink(contractId, role) {
+      const c = STATE.contracts.find(x => x.id === contractId);
+      if (!c) return;
+      const url = ContractStore.magicUrl(c, role);
+      if (!url) return Toast.show({ type: 'warning', title: 'Nessun token attivo' });
+      try {
+        await navigator.clipboard.writeText(url);
+        Toast.show({ type: 'success', title: 'Link copiato', desc: `Magic-link ${role} pronto per il share.` });
+      } catch {
+        // Fallback: select + execCommand
+        const ta = document.createElement('textarea');
+        ta.value = url; document.body.appendChild(ta); ta.select();
+        try { document.execCommand('copy'); Toast.show({ type: 'success', title: 'Link copiato' }); }
+        catch { Toast.show({ type: 'danger', title: 'Copia manuale', desc: url }); }
+        finally { ta.remove(); }
+      }
+    },
+    async regenerate(contractId, role) {
+      try {
+        const token = (crypto.randomUUID && crypto.randomUUID()) ||
+          (Date.now().toString(36) + Math.random().toString(36).slice(2, 10));
+        const field = role === 'tenant' ? 'tenantSignToken' : 'landlordSignToken';
+        await db.collection('contracts').doc(contractId).update({
+          [field]: token,
+          [`${field}RegeneratedAt`]: firebase.firestore.FieldValue.serverTimestamp(),
+          [`${field}RegeneratedBy`]: STATE.user?.email || null
+        });
+        STATE.revealedLinks[`${contractId}|${role}`] = true;
+        Toast.show({ type: 'success', title: `Nuovo token ${role}`, desc: 'Click su Copia per condividerlo.' });
       } catch (e) {
         Toast.show({ type: 'danger', title: 'Errore', desc: e.message });
       }
