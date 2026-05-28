@@ -97,6 +97,9 @@ ANTHROPIC_API_KEY
 
 # Cron auth
 CRON_SECRET
+
+# Homie Mac bridge (inbound webhooks)
+HOMIE_SECRET                 # shared secret sent as X-Homie-Secret header
 ```
 
 ## API Endpoints
@@ -109,6 +112,12 @@ Proxies to Anthropic Claude API for document extraction. Accepts up to 20MB payl
 
 ### GET `/api/reminder-cron`
 Triggered by Vercel cron every 15 min. Authenticates with Firebase, queries pending reminders, sends emails via Nodemailer.
+
+### POST `/api/homie/inbound`
+Webhook called by the Mac-side Homie agent when it filters a new lead from Immobiliare/Idealista/WhatsApp/intake. Auth via `X-Homie-Secret` header. Writes to the `leads` collection. Same schema cockpit-preview.html + portal.html already read — no fork.
+
+### POST `/api/homie/action`
+Webhook for Homie's proposed actions (reply draft, schedule viewing, qualify, archive). Writes to `action_queue` collection. Supports idempotent retries via `contextHash` field and auto-apply for high-confidence tier-1 actions.
 
 ## Conventions
 
