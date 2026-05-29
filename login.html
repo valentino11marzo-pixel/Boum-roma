@@ -584,6 +584,18 @@
         
         // Detect Safari
         const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+
+        // Honour ?next= for redirect destination (internal paths only, no open redirect)
+        function getNextDest() {
+            try {
+                const raw = new URLSearchParams(location.search).get('next');
+                if (!raw) return '/portal.html';
+                // Must be a single-leading-slash path, not protocol-relative, no scheme
+                if (!raw.startsWith('/') || raw.startsWith('//') || raw.includes(':')) return '/portal.html';
+                return raw;
+            } catch { return '/portal.html'; }
+        }
+        const NEXT_DEST = getNextDest();
         
         // Set persistence with fallback
         (async () => {
@@ -602,7 +614,7 @@
         // Check if already logged in
         auth.onAuthStateChanged(user => {
             if (user) {
-                window.location.href = '/portal.html';
+                window.location.href = NEXT_DEST;
             }
         });
         
@@ -645,7 +657,7 @@
                 showMessage('Success! Redirecting...', 'success');
                 // Small delay for Safari to save auth state
                 setTimeout(() => {
-                    window.location.href = '/portal.html';
+                    window.location.href = NEXT_DEST;
                 }, isSafari ? 500 : 100);
             } catch (err) {
                 const msg = {
