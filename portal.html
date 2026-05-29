@@ -251,6 +251,22 @@
             .ms-ed-side{width:100%;border-right:none;border-bottom:1px solid var(--border);max-height:42%}
             .ms-editor{width:100vw;height:100vh;border-radius:0}
         }
+
+        /* ─── Property Finder comparator ───────────────────────────────────── */
+        .finder-compare{display:flex;gap:12px;overflow-x:auto;padding-bottom:10px}
+        .finder-col{flex:0 0 220px;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+        .finder-col-labels{flex:0 0 110px;background:transparent;border:none}
+        .finder-photo-cell{height:130px;background-size:cover;background-position:center;background-color:var(--bg-elevated);display:flex;align-items:center;justify-content:center;font-size:32px;position:relative;color:var(--text-muted)}
+        .finder-col-labels .finder-photo-cell{background:transparent}
+        .finder-remove{position:absolute;top:6px;right:6px;width:26px;height:26px;border-radius:50%;background:rgba(0,0,0,0.6);border:none;color:#fff;cursor:pointer;font-size:12px}
+        .finder-title{padding:10px 12px;font-size:12px;font-weight:400;line-height:1.4;min-height:54px;border-bottom:1px solid var(--border)}
+        .finder-title a{color:var(--text);text-decoration:none}
+        .finder-title a:hover{color:var(--gold)}
+        .finder-metric{padding:10px 12px;font-size:13px;border-bottom:1px solid var(--border);min-height:42px;display:flex;align-items:center;gap:6px}
+        .finder-metric-label{padding:10px 12px;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-muted);min-height:42px;display:flex;align-items:center}
+        .finder-col-labels .finder-metric-label{border-bottom:1px solid transparent}
+        .finder-best{color:var(--gold);font-weight:600}
+        .finder-best-tag{font-size:8px;background:var(--gold);color:#000;padding:1px 5px;border-radius:3px;letter-spacing:1px;text-transform:uppercase}
         .stat-card{background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:20px;position:relative;overflow:hidden;cursor:pointer;transition:all .2s}
         .stat-card:hover{border-color:var(--gold);transform:translateY(-2px)}
         .stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
@@ -1396,6 +1412,7 @@ Valentyne - BOOM Rome`
         leads: [], // Incoming leads from Immobiliare/Idealista via Homie
         actionQueue: [], // Proposed actions from Homie/agents awaiting review (action_queue collection)
         signRequests: [], // Magic Sign Custom — drag-and-drop signature requests on uploaded PDFs
+        radarSearches: [], // Property Radar — saved searches (fixed zones + per-client)
         activityLog: [], // Audit trail
         rules: [], ruleExecutions: [], // Rules Engine
         registrations: [], registrationStatuses: {}, regPending: 0,
@@ -1404,7 +1421,8 @@ Valentyne - BOOM Rome`
         notifListener: null, // Real-time listener reference
         contractsListener: null,
         actionQueueListener: null,
-        signRequestsListener: null
+        signRequestsListener: null,
+        radarListener: null
     };
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -3501,6 +3519,23 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             S.signRequestsListener = null;
         }
     }
+
+    // Real-time listener for Property Radar saved searches.
+    function startRadarListener() {
+        if (!S.profile?.id || !isAdmin()) return;
+        if (S.radarListener) S.radarListener();
+        S.radarListener = db.collection('radarSearches')
+            .orderBy('createdAt', 'desc')
+            .limit(50)
+            .onSnapshot(snapshot => {
+                S.radarSearches = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                if (S.page === 'property-radar') renderPage();
+            }, err => console.error('Radar listener error:', err));
+    }
+
+    function stopRadarListener() {
+        if (S.radarListener) { S.radarListener(); S.radarListener = null; }
+    }
     
     function isRecent(timestamp, seconds = 30) {
         if (!timestamp) return false;
@@ -4047,6 +4082,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             stopContractsListener();
             stopActionQueueListener();
             stopSignRequestsListener();
+            stopRadarListener();
             // Clear data cache
             localStorage.removeItem('boom_data_cache');
             try {
@@ -4087,6 +4123,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         startContractsListener();
         startActionQueueListener();
         startSignRequestsListener();
+        startRadarListener();
         
         // Check scheduled notifications (admin only, once per session)
         if (isAdmin() && !window.scheduledNotifChecked) {
@@ -4127,6 +4164,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const newLeads = (S.leads || []).filter(l => l.status === 'new' || !l.status).length;
             const pendingViewings = (S.viewingRequests || []).filter(v => v.status === 'pending').length;
             const pendingActions = (S.actionQueue || []).filter(a => a.status === 'pending').length;
+            const radarFound = (S.leads || []).filter(l => (l.source || '').startsWith('radar') && (l.status === 'new' || !l.status)).length;
             
             sb.innerHTML = `
                 <div class="nav-section"><div class="nav-label">Operativo</div>
@@ -4146,6 +4184,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <div class="nav-item ${S.page==='documents'?'active':''}" onclick="goTo('documents')"><span class="nav-icon">📁</span> Documenti</div>
                 </div>
                 <div class="nav-section"><div class="nav-label">Tools</div>
+                    <div class="nav-item ${S.page==='property-radar'?'active':''}" onclick="goTo('property-radar')"><span class="nav-icon">📡</span> Property Radar ${radarFound?`<span class="nav-badge gold">${radarFound}</span>`:''}</div>
+                    <div class="nav-item ${S.page==='property-finder'?'active':''}" onclick="goTo('property-finder')"><span class="nav-icon">🔍</span> Property Finder</div>
                     <div class="nav-item ${S.page==='boom-tools'?'active':''}" onclick="goTo('boom-tools')"><span class="nav-icon">🛠️</span> Tools <span class="nav-badge gold">PRO</span></div>
                     <div class="nav-item ${S.page==='zone-intel'?'active':''}" onclick="goTo('zone-intel')"><span class="nav-icon">🎯</span> Zone Intelligence</div>
                     <div class="nav-item ${S.page==='burocrazia'?'active':''}" onclick="goTo('burocrazia')"><span class="nav-icon">📝</span> Burocrazia ${S.regPending?`<span class="nav-badge orange">${S.regPending}</span>`:''}</div>
@@ -4247,6 +4287,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             case 'asseverazioni': S.page = 'burocrazia'; goTo('burocrazia'); break;
             // === Tools ===
             case 'boom-tools': m.innerHTML = isAdmin() ? boomToolsPage() : accessDenied(); break;
+            case 'property-radar': m.innerHTML = isAdmin() ? propertyRadarPage() : accessDenied(); break;
+            case 'property-finder': m.innerHTML = isAdmin() ? propertyFinderPage() : accessDenied(); break;
             case 'zone-intel': m.innerHTML = isAdmin() ? zoneIntelPage() : accessDenied(); break;
             case 'landlords': m.innerHTML = isAdmin() ? landlordDatabasePage() : accessDenied(); break;
             // === Landlord/Tenant ===
@@ -4263,6 +4305,14 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         // Post-render hooks
         setTimeout(() => loadChartJS().then(() => initDashboardCharts()), 50);
         if (S.page === 'settings' && isAdmin()) setTimeout(() => loadCAFSettings(), 100);
+        // Property Radar — auto-scan stale searches once per session when the page opens.
+        if (S.page === 'property-radar' && !window._radarAutoScanned) {
+            const stale = (S.radarSearches || []).filter(s => s.enabled !== false && (!s.lastScanAt || (Date.now() - (s.lastScanAt.toDate ? s.lastScanAt.toDate().getTime() : 0)) > 6 * 3600 * 1000));
+            if (stale.length) {
+                window._radarAutoScanned = true;
+                setTimeout(() => { scanAllRadar(); }, 1200);
+            }
+        }
         // Magic Sign Custom deep-link (?csign=<id>&role=<role>) — open the sign
         // modal once, for a logged-in tenant/landlord/admin arriving via link.
         if (!window._csignHandled) {
@@ -18851,6 +18901,452 @@ IBAN: ${l.iban || '-'}`;
         const roomsM = html.match(/(\d+)\s*(?:local|stanz|camer|vani|room)/i); if (roomsM) r.rooms = roomsM[1];
         r.photos = [];
         return r;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // PROPERTY FINDER + COMPARATOR  &  PROPERTY RADAR
+    // Shared scraper (reuses the preserved parsers above) → normalized listings.
+    // Finder: paste URLs → side-by-side comparison → import as lead.
+    // Radar:  saved searches (fixed zones + per-client) → scan → new-listing /
+    //         price-drop alerts that land in the `leads` collection.
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    function _toInt(v) { if (v == null) return null; const n = parseInt(String(v).replace(/[^\d]/g, ''), 10); return isNaN(n) ? null : n; }
+
+    function _listingPortal(url) {
+        const u = (url || '').toLowerCase();
+        if (u.includes('immobiliare.it')) return 'immobiliare';
+        if (u.includes('idealista.it') || u.includes('idealista.com')) return 'idealista';
+        if (u.includes('subito.it')) return 'subito';
+        if (u.includes('casafari')) return 'casafari';
+        return 'generic';
+    }
+
+    // Fetch any URL's HTML through the CORS proxies, trying each in turn.
+    async function _proxyFetch(url) {
+        for (const proxy of CORS_PROXIES) {
+            try {
+                const resp = await fetch(proxy + encodeURIComponent(url));
+                if (resp.ok) { const t = await resp.text(); if (t && t.length > 200) return t; }
+            } catch (e) { /* try next proxy */ }
+        }
+        return null;
+    }
+
+    // Scrape a single listing URL → normalized object (reuses preserved parsers).
+    async function boomScrapeListing(url) {
+        const portal = _listingPortal(url);
+        const html = await _proxyFetch(url);
+        if (!html) throw new Error('Pagina non scaricabile (proxy CORS). Riprova o inserisci a mano.');
+        let r;
+        if (portal === 'immobiliare') r = parseImmobiliare(html, url);
+        else if (portal === 'idealista') r = parseIdealista(html, url);
+        else if (portal === 'subito') r = parseSubito(html, url);
+        else if (portal === 'casafari') r = parseCasafari(html, url);
+        else r = parseGeneric(html, url);
+        r = enrichWithMeta(html, r);
+        const price = _toInt(r.price);
+        const size = _toInt(r.size);
+        let zone = r.zone || '';
+        for (const [slug, z] of Object.entries(PRE_ZONES)) {
+            if ((r.zone && r.zone.toLowerCase().includes(z.name.toLowerCase())) || url.toLowerCase().includes(slug)) { zone = z.name; break; }
+        }
+        return {
+            url, portal,
+            title: (r.title || 'Annuncio').slice(0, 120),
+            price, size,
+            rooms: _toInt(r.rooms),
+            bathrooms: _toInt(r.bathrooms),
+            zone,
+            address: r.address || '',
+            photo: (r.photos && r.photos[0]) || '',
+            pricePerSqm: (price && size) ? Math.round(price / size) : null
+        };
+    }
+
+    // Extract individual listing URLs from a search-results page (best-effort).
+    function _radarExtractUrls(html, portal) {
+        const urls = new Set();
+        let re;
+        if (portal === 'immobiliare') re = /https?:\/\/www\.immobiliare\.it\/annunci\/\d+\/?/gi;
+        else if (portal === 'idealista') re = /https?:\/\/www\.idealista\.it\/immobile\/\d+\/?/gi;
+        else re = /https?:\/\/[^"'\s]+\/(?:annunci|immobile)\/\d+\/?/gi;
+        let m; while ((m = re.exec(html)) && urls.size < 60) urls.add(m[0].replace(/\/$/, ''));
+        // Relative immobiliare links
+        if (portal === 'immobiliare') {
+            const rel = /href="(\/annunci\/\d+\/?)"/gi; let r2;
+            while ((r2 = rel.exec(html)) && urls.size < 60) urls.add('https://www.immobiliare.it' + r2[1].replace(/\/$/, ''));
+        }
+        return [...urls];
+    }
+
+    // ── Property Finder + Comparator ────────────────────────────────────────────
+    const _finderState = { listings: [], loading: false };
+
+    function propertyFinderPage() {
+        const L = _finderState.listings;
+        const metrics = [
+            { k: 'price', label: 'Prezzo', fmt: v => v != null ? '€' + v.toLocaleString('it-IT') : '—', best: 'min' },
+            { k: 'pricePerSqm', label: '€/m²', fmt: v => v != null ? '€' + v.toLocaleString('it-IT') : '—', best: 'min' },
+            { k: 'size', label: 'Superficie', fmt: v => v != null ? v + ' m²' : '—', best: 'max' },
+            { k: 'rooms', label: 'Locali', fmt: v => v != null ? v : '—', best: 'max' },
+            { k: 'bathrooms', label: 'Bagni', fmt: v => v != null ? v : '—', best: 'max' },
+            { k: 'zone', label: 'Zona', fmt: v => v || '—', best: null }
+        ];
+        const bestOf = (k, dir) => {
+            const vals = L.map(x => x[k]).filter(v => typeof v === 'number');
+            if (!vals.length) return null;
+            return dir === 'min' ? Math.min(...vals) : Math.max(...vals);
+        };
+
+        return `
+            <div class="dash-hero">
+                <div class="dash-hero-text">
+                    <h1 class="dash-hero-title">Property Finder<span style="color:var(--gold)">.</span></h1>
+                    <p class="dash-hero-sub">Incolla gli URL degli annunci (Immobiliare, Idealista, Subito) · confronto affiancato · importa come lead</p>
+                </div>
+                ${L.length ? `<div class="dash-hero-actions"><button class="btn btn-sm btn-secondary" onclick="finderClear()">Svuota</button></div>` : ''}
+            </div>
+
+            <div class="card" style="margin-bottom:18px;padding:16px">
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                    <input id="finderUrl" class="ms-ed-input" style="flex:1;min-width:260px" placeholder="https://www.immobiliare.it/annunci/…  oppure  idealista.it/immobile/…" onkeydown="if(event.key==='Enter')finderAddUrl()">
+                    <button class="btn" id="finderAddBtn" onclick="finderAddUrl()">+ Aggiungi & analizza</button>
+                </div>
+                <div class="dash-extras-hint" style="margin-top:8px">Recupero via proxy CORS — alcuni portali possono bloccare; in tal caso riprova o usa un altro annuncio.</div>
+            </div>
+
+            ${L.length === 0
+                ? `<div class="dash-empty">Nessun annuncio. Incolla un URL qui sopra per iniziare il confronto.</div>`
+                : `<div class="finder-compare">
+                    <div class="finder-col finder-col-labels">
+                        <div class="finder-photo-cell"></div>
+                        ${metrics.map(m => `<div class="finder-metric-label">${m.label}</div>`).join('')}
+                        <div class="finder-metric-label"></div>
+                    </div>
+                    ${L.map((l, i) => {
+                        return `<div class="finder-col">
+                            <div class="finder-photo-cell" style="${l.photo ? `background-image:url('${l.photo}')` : ''}">
+                                ${!l.photo ? '🏠' : ''}
+                                <button class="finder-remove" onclick="finderRemove(${i})" title="Rimuovi">✕</button>
+                            </div>
+                            <div class="finder-title"><a href="${l.url}" target="_blank">${esc(l.title)}</a></div>
+                            ${metrics.map(m => {
+                                const v = l[m.k];
+                                const best = m.best ? bestOf(m.k, m.best) : null;
+                                const isBest = best != null && typeof v === 'number' && v === best && L.length > 1;
+                                return `<div class="finder-metric ${isBest ? 'finder-best' : ''}">${m.fmt(v)}${isBest ? ' <span class="finder-best-tag">migliore</span>' : ''}</div>`;
+                            }).join('')}
+                            <div class="finder-metric"><button class="dash-act dash-act-primary" style="width:100%" onclick="finderImportLead(${i})">→ Importa lead</button></div>
+                        </div>`;
+                    }).join('')}
+                </div>`
+            }`;
+    }
+
+    async function finderAddUrl() {
+        const input = document.getElementById('finderUrl');
+        const url = (input?.value || '').trim();
+        if (!url) return;
+        if (!/^https?:\/\//.test(url)) return toast('error', 'URL non valido');
+        if (_finderState.listings.some(l => l.url === url.replace(/\/$/, ''))) return toast('info', 'Già aggiunto');
+        const btn = document.getElementById('finderAddBtn');
+        btn.disabled = true; btn.textContent = 'Analisi…';
+        try {
+            const listing = await boomScrapeListing(url);
+            _finderState.listings.push(listing);
+            if (input) input.value = '';
+            renderPage();
+            toast('success', 'Annuncio aggiunto', listing.title);
+        } catch (e) {
+            toast('error', 'Errore', e.message);
+            btn.disabled = false; btn.textContent = '+ Aggiungi & analizza';
+        }
+    }
+
+    function finderRemove(i) { _finderState.listings.splice(i, 1); renderPage(); }
+    function finderClear() { _finderState.listings = []; renderPage(); }
+
+    async function finderImportLead(i) {
+        const l = _finderState.listings[i];
+        if (!l) return;
+        try {
+            await db.collection('leads').add({
+                name: l.title,
+                source: 'finder',
+                propertyTitle: l.title,
+                propertyPrice: l.price || null,
+                propertyUrl: l.url,
+                zone: l.zone || '',
+                size: l.size || null,
+                rooms: l.rooms || null,
+                pricePerSqm: l.pricePerSqm || null,
+                photo: l.photo || '',
+                status: 'new',
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            logActivity('Lead importato da Finder', 'lead', { title: l.title, url: l.url });
+            toast('success', 'Importato come lead', 'Lo trovi in Lead e in Dashboard');
+        } catch (e) { toast('error', 'Errore', e.message); }
+    }
+
+    // ── Property Radar ──────────────────────────────────────────────────────────
+    function _immobiliareSearchUrl(zoneSlug, maxPrice, minRooms) {
+        const z = PRE_ZONES[zoneSlug];
+        const seg = z?.immobiliare || zoneSlug;
+        let u = `https://www.immobiliare.it/affitto-case/roma/${seg}/`;
+        const qs = [];
+        if (maxPrice) qs.push('prezzoMassimo=' + maxPrice);
+        if (minRooms) qs.push('localiMinimo=' + minRooms);
+        if (qs.length) u += '?' + qs.join('&');
+        return u;
+    }
+
+    function propertyRadarPage() {
+        const searches = S.radarSearches || [];
+        const fixed = searches.filter(s => s.type === 'fixed');
+        const radarLeads = (S.leads || []).filter(l => (l.source || '').startsWith('radar')).slice(0, 8);
+        const lastScan = searches.reduce((m, s) => { const t = s.lastScanAt?.toDate ? s.lastScanAt.toDate().getTime() : 0; return Math.max(m, t); }, 0);
+
+        const searchRow = (s) => {
+            const z = s.zone && PRE_ZONES[s.zone] ? PRE_ZONES[s.zone].name : (s.zone || '');
+            const client = s.clientId ? (S.pfsClients || []).concat(S.clients || []).find(c => c.id === s.clientId) : null;
+            const known = s.knownListings ? Object.keys(s.knownListings).length : 0;
+            return `<div class="dash-row" data-tone="${s.enabled === false ? 'orange' : 'gold'}">
+                <span class="dash-row-icon">${s.type === 'client' ? '👤' : '📡'}</span>
+                <div class="dash-row-body">
+                    <div class="dash-row-primary"><strong>${esc(s.name)}</strong> ${s.enabled === false ? '<span class="badge gray" style="font-size:9px">in pausa</span>' : ''}</div>
+                    <div class="dash-row-secondary">${z ? '📍 ' + esc(z) + ' · ' : ''}${s.portal || 'immobiliare'}${s.maxPrice ? ' · max €' + Number(s.maxPrice).toLocaleString('it-IT') : ''}${client ? ' · ' + esc(client.name) : ''} · ${known} visti${s.lastScanAt ? ' · scan ' + _humanAgo(s.lastScanAt) : ' · mai scansionato'}</div>
+                </div>
+                <div class="dash-row-actions">
+                    <button class="dash-act dash-act-primary" onclick="scanRadarSearch('${s.id}')" title="Scansiona ora">⟳</button>
+                    <a class="dash-act" href="${s.searchUrl}" target="_blank" title="Apri ricerca">↗</a>
+                    <button class="dash-act" onclick="toggleRadarSearch('${s.id}')" title="${s.enabled === false ? 'Riattiva' : 'Pausa'}">${s.enabled === false ? '▶' : '⏸'}</button>
+                    <button class="dash-act dash-act-danger" onclick="deleteRadarSearch('${s.id}')">✕</button>
+                </div>
+            </div>`;
+        };
+
+        return `
+            <div class="dash-hero">
+                <div class="dash-hero-text">
+                    <h1 class="dash-hero-title">Property Radar<span style="color:var(--gold)">.</span></h1>
+                    <p class="dash-hero-sub">Ricerche permanenti + per-cliente · nuovi annunci e cali prezzo finiscono nei Lead${lastScan ? ' · ultima scansione ' + _humanAgo(lastScan) : ''}</p>
+                </div>
+                <div class="dash-hero-actions">
+                    ${searches.filter(s => s.enabled !== false).length ? `<button class="btn btn-sm" onclick="scanAllRadar()">⟳ Scansiona tutte</button>` : ''}
+                    <button class="btn btn-sm btn-secondary" onclick="openRadarEditor()">+ Ricerca</button>
+                </div>
+            </div>
+
+            ${fixed.length === 0 ? `
+            <div class="card" style="margin-bottom:18px;padding:18px;border-color:rgba(212,175,55,0.3);background:linear-gradient(135deg,rgba(212,175,55,0.06),transparent)">
+                <div style="font-weight:300;font-size:15px;margin-bottom:6px">Avvia le 3 ricerche permanenti</div>
+                <div class="dash-extras-hint" style="margin-bottom:12px">Corso Trieste · Parioli · Pinciano-Sallustiano — le zone storiche BOOM. Puoi modificarle dopo.</div>
+                <button class="btn" onclick="seedFixedRadar()">📡 Crea ricerche fisse</button>
+            </div>` : ''}
+
+            <section class="dash-section">
+                <div class="dash-section-head"><h2 class="dash-section-title">Ricerche attive</h2><span class="dash-section-count">${searches.length}</span></div>
+                ${searches.length === 0 ? `<div class="dash-empty">Nessuna ricerca. Crea le ricerche fisse o aggiungine una.</div>`
+                    : `<div class="dash-list">${searches.map(searchRow).join('')}</div>`}
+            </section>
+
+            <section class="dash-section">
+                <div class="dash-section-head"><h2 class="dash-section-title">Trovati di recente</h2><button class="dash-section-link" onclick="goTo('leads')">Tutti i lead →</button></div>
+                ${radarLeads.length === 0 ? `<div class="dash-empty">Nessun annuncio trovato ancora. Lancia una scansione.</div>`
+                    : `<div class="dash-list">${radarLeads.map(l => `<div class="dash-row" data-tone="${l.priceDrop ? 'red' : 'gold'}">
+                        <span class="dash-row-icon">${l.priceDrop ? '📉' : '🆕'}</span>
+                        <div class="dash-row-body">
+                            <div class="dash-row-primary"><strong>${esc(l.propertyTitle || l.name || 'Annuncio')}</strong>${l.priceDrop ? ` <span class="badge red" style="font-size:9px">−€${Number(l.priceDrop).toLocaleString('it-IT')}</span>` : ''}</div>
+                            <div class="dash-row-secondary">${l.zone ? '📍 ' + esc(l.zone) + ' · ' : ''}${l.propertyPrice ? '€' + Number(l.propertyPrice).toLocaleString('it-IT') : ''}${l.createdAt ? ' · ' + _humanAgo(l.createdAt) : ''}</div>
+                        </div>
+                        <div class="dash-row-actions">
+                            <a class="dash-act" href="${l.propertyUrl || '#'}" target="_blank">↗</a>
+                            <button class="dash-act dash-act-primary" onclick="convertLeadToClient('${l.id}')">Convert</button>
+                        </div>
+                    </div>`).join('')}</div>`}
+            </section>`;
+    }
+
+    function openRadarEditor(prefill) {
+        const p = prefill || {};
+        const pfs = (S.pfsClients || []).filter(c => c.stage !== 'placed');
+        const zoneOpts = Object.entries(PRE_ZONES).map(([slug, z]) => `<option value="${slug}" ${p.zone === slug ? 'selected' : ''}>${esc(z.name)}</option>`).join('');
+        document.getElementById('modals').innerHTML = `
+        <div class="modal-overlay active"><div class="modal" style="max-width:520px">
+            <div class="card-header"><h3 class="card-title">📡 Nuova ricerca Radar</h3><button class="dash-act" onclick="closeModal()">✕</button></div>
+            <div class="card-body">
+                <label class="ms-ed-label">Nome</label>
+                <input class="ms-ed-input" id="radName" value="${esc(p.name || '')}" placeholder="Es. Corso Trieste 2 locali">
+                <label class="ms-ed-label">Cliente PFS (opzionale)</label>
+                <select class="ms-ed-input" id="radClient" onchange="_radClientPick()">
+                    <option value="">— Ricerca fissa (nessun cliente) —</option>
+                    ${pfs.map(c => `<option value="${c.id}" data-zone="${c.zone || ''}" data-budget="${c.budget || ''}" data-rooms="${c.bedrooms || ''}">${esc(c.name)}${c.zone ? ' · ' + esc(c.zone) : ''}</option>`).join('')}
+                </select>
+                <label class="ms-ed-label">Zona</label>
+                <select class="ms-ed-input" id="radZone"><option value="">— Seleziona —</option>${zoneOpts}</select>
+                <div style="display:flex;gap:10px">
+                    <div style="flex:1"><label class="ms-ed-label">Prezzo max €</label><input class="ms-ed-input" id="radMax" type="number" value="${p.maxPrice || ''}" placeholder="1200"></div>
+                    <div style="flex:1"><label class="ms-ed-label">Locali min</label><input class="ms-ed-input" id="radRooms" type="number" value="${p.minRooms || ''}" placeholder="2"></div>
+                </div>
+                <label class="ms-ed-label">URL ricerca (opzionale — generato dalla zona se vuoto)</label>
+                <input class="ms-ed-input" id="radUrl" placeholder="https://www.immobiliare.it/affitto-case/roma/…">
+                <button class="ms-cta" style="margin-top:18px" onclick="saveRadarSearch()">Crea ricerca</button>
+            </div>
+        </div></div>`;
+    }
+
+    function _radClientPick() {
+        const sel = document.getElementById('radClient');
+        const opt = sel.options[sel.selectedIndex];
+        if (!opt || !opt.value) return;
+        const zone = opt.dataset.zone, budget = opt.dataset.budget, rooms = opt.dataset.rooms;
+        // Try to map free-text zone to a PRE_ZONES slug
+        if (zone) {
+            const slug = Object.entries(PRE_ZONES).find(([s, z]) => z.name.toLowerCase() === zone.toLowerCase() || s === zone.toLowerCase())?.[0];
+            if (slug) document.getElementById('radZone').value = slug;
+        }
+        if (budget) document.getElementById('radMax').value = budget;
+        if (rooms) document.getElementById('radRooms').value = rooms;
+        if (!document.getElementById('radName').value) document.getElementById('radName').value = opt.text.split(' · ')[0] + ' — ricerca';
+    }
+
+    async function saveRadarSearch() {
+        const name = (document.getElementById('radName').value || '').trim();
+        const zone = document.getElementById('radZone').value || '';
+        const clientId = document.getElementById('radClient').value || null;
+        const maxPrice = _toInt(document.getElementById('radMax').value);
+        const minRooms = _toInt(document.getElementById('radRooms').value);
+        let searchUrl = (document.getElementById('radUrl').value || '').trim();
+        if (!name) return toast('error', 'Dai un nome alla ricerca');
+        if (!searchUrl && !zone) return toast('error', 'Scegli una zona o incolla un URL');
+        if (!searchUrl) searchUrl = _immobiliareSearchUrl(zone, maxPrice, minRooms);
+        try {
+            await db.collection('radarSearches').add({
+                name, type: clientId ? 'client' : 'fixed', clientId,
+                portal: _listingPortal(searchUrl), zone, maxPrice, minRooms,
+                searchUrl, enabled: true, knownListings: {}, lastScanAt: null, lastFound: 0,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(), createdBy: S.profile.id
+            });
+            logActivity('Radar — ricerca creata', 'radar', { name, zone });
+            closeModal();
+            toast('success', 'Ricerca creata', 'Premi ⟳ per scansionare ora');
+        } catch (e) { toast('error', 'Errore', e.message); }
+    }
+
+    async function seedFixedRadar() {
+        const seeds = [
+            { name: 'Corso Trieste', zone: 'trieste' },
+            { name: 'Parioli', zone: 'parioli' },
+            { name: 'Pinciano-Sallustiano', zone: 'sallustiano' }
+        ];
+        try {
+            for (const s of seeds) {
+                if ((S.radarSearches || []).some(x => x.name === s.name)) continue;
+                await db.collection('radarSearches').add({
+                    name: s.name, type: 'fixed', clientId: null, portal: 'immobiliare',
+                    zone: s.zone, maxPrice: null, minRooms: null,
+                    searchUrl: _immobiliareSearchUrl(s.zone, null, null),
+                    enabled: true, knownListings: {}, lastScanAt: null, lastFound: 0,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(), createdBy: S.profile.id
+                });
+            }
+            logActivity('Radar — ricerche fisse create', 'radar', {});
+            toast('success', 'Ricerche fisse create', 'Premi “Scansiona tutte”');
+        } catch (e) { toast('error', 'Errore', e.message); }
+    }
+
+    function toggleRadarSearch(id) {
+        const s = (S.radarSearches || []).find(x => x.id === id); if (!s) return;
+        db.collection('radarSearches').doc(id).update({ enabled: s.enabled === false }).catch(e => toast('error', 'Errore', e.message));
+    }
+
+    async function deleteRadarSearch(id) {
+        if (!confirm('Eliminare questa ricerca?')) return;
+        await db.collection('radarSearches').doc(id).delete().catch(e => toast('error', 'Errore', e.message));
+    }
+
+    // Scan one search: diff results vs known listings → emit new / price-drop leads.
+    async function scanRadarSearch(id, silent) {
+        const s = (S.radarSearches || []).find(x => x.id === id);
+        if (!s) return;
+        if (!silent) toast('info', 'Scansione…', s.name);
+        try {
+            const html = await _proxyFetch(s.searchUrl);
+            if (!html) throw new Error('Pagina ricerca non scaricabile');
+            const portal = s.portal || _listingPortal(s.searchUrl);
+            const urls = _radarExtractUrls(html, portal);
+            const known = Object.assign({}, s.knownListings || {});
+            let newCount = 0, dropCount = 0, deep = 0;
+            const DEEP_CAP = 10;
+            for (const url of urls) {
+                const isNew = !known[url];
+                if (isNew && deep < DEEP_CAP) {
+                    deep++;
+                    let listing = null;
+                    try { listing = await boomScrapeListing(url); } catch (e) {}
+                    known[url] = { price: listing?.price || null, firstSeen: Date.now() };
+                    if (s.maxPrice && listing?.price && listing.price > s.maxPrice) continue; // over budget — track but don't lead
+                    newCount++;
+                    await db.collection('leads').add({
+                        name: listing?.title || 'Nuovo annuncio',
+                        source: 'radar:' + s.name,
+                        propertyTitle: listing?.title || 'Nuovo annuncio',
+                        propertyPrice: listing?.price || null,
+                        propertyUrl: url, zone: listing?.zone || (PRE_ZONES[s.zone]?.name || s.zone || ''),
+                        size: listing?.size || null, rooms: listing?.rooms || null,
+                        pricePerSqm: listing?.pricePerSqm || null, photo: listing?.photo || '',
+                        radarSearchId: id, status: 'new',
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                } else if (isNew) {
+                    known[url] = { price: null, firstSeen: Date.now() };
+                } else if (known[url]?.price && deep < DEEP_CAP) {
+                    // Re-check price for a possible drop (bounded)
+                    deep++;
+                    let listing = null;
+                    try { listing = await boomScrapeListing(url); } catch (e) {}
+                    if (listing?.price && listing.price < known[url].price) {
+                        const drop = known[url].price - listing.price;
+                        dropCount++;
+                        await db.collection('leads').add({
+                            name: listing.title || 'Calo prezzo',
+                            source: 'radar:' + s.name,
+                            propertyTitle: listing.title || 'Calo prezzo',
+                            propertyPrice: listing.price, priceDrop: drop,
+                            propertyUrl: url, zone: listing.zone || '',
+                            size: listing.size || null, rooms: listing.rooms || null,
+                            photo: listing.photo || '', radarSearchId: id, status: 'new',
+                            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                        known[url].price = listing.price;
+                    }
+                }
+            }
+            await db.collection('radarSearches').doc(id).update({
+                knownListings: known, lastScanAt: firebase.firestore.FieldValue.serverTimestamp(), lastFound: urls.length
+            });
+            if (newCount || dropCount) {
+                const admins = S.users.filter(u => u.role === 'admin');
+                for (const a of admins) await createNotification(a.id, 'radar', 'Radar: ' + s.name, `${newCount} nuovi · ${dropCount} cali prezzo`, { page: 'property-radar' });
+            }
+            logActivity('Radar — scansione', 'radar', { name: s.name, found: urls.length, newCount, dropCount });
+            if (!silent) toast(newCount || dropCount ? 'success' : 'info', s.name, `${urls.length} annunci · ${newCount} nuovi · ${dropCount} cali`);
+            return { newCount, dropCount, total: urls.length };
+        } catch (e) { if (!silent) toast('error', 'Scan fallito', e.message); return null; }
+    }
+
+    async function scanAllRadar() {
+        const active = (S.radarSearches || []).filter(s => s.enabled !== false);
+        if (!active.length) return toast('info', 'Nessuna ricerca attiva');
+        toast('info', 'Scansione di ' + active.length + ' ricerche…');
+        let totNew = 0, totDrop = 0;
+        for (const s of active) {
+            const r = await scanRadarSearch(s.id, true);
+            if (r) { totNew += r.newCount; totDrop += r.dropCount; }
+        }
+        toast(totNew || totDrop ? 'success' : 'info', 'Radar aggiornato', `${totNew} nuovi · ${totDrop} cali prezzo`);
     }
 
 
