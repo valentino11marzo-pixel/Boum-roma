@@ -129,6 +129,82 @@
         .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
         @media(max-width:1200px){.stats-grid{grid-template-columns:repeat(2,1fr)}}
         @media(max-width:600px){.stats-grid{grid-template-columns:1fr}}
+
+        /* ─── Dashboard First Line ─────────────────────────────────────────── */
+        .dash-hero{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin:0 0 24px;padding:0 0 18px;border-bottom:1px solid var(--border)}
+        .dash-hero-title{font-size:32px;font-weight:300;letter-spacing:-0.5px;margin:0 0 6px;line-height:1.1}
+        .dash-hero-sub{color:var(--text-secondary);font-size:13px;letter-spacing:0.3px;margin:0}
+        .dash-hero-sub strong{font-weight:600}
+        .dash-hero-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+        .dash-section{margin:0 0 22px}
+        .dash-section-head{display:flex;align-items:baseline;gap:12px;margin:0 0 12px}
+        .dash-section-title{font-size:11px;font-weight:600;letter-spacing:4px;text-transform:uppercase;color:var(--text-secondary);margin:0}
+        .dash-section-count{font-size:11px;color:var(--gold);font-weight:600;letter-spacing:2px}
+        .dash-section-link{margin-left:auto;background:none;border:none;color:var(--text-muted);font-size:12px;cursor:pointer;letter-spacing:1px;font-family:inherit;padding:0;transition:color .15s}
+        .dash-section-link:hover{color:var(--gold)}
+        .dash-list{display:flex;flex-direction:column;gap:8px}
+        .dash-row{display:flex;align-items:center;gap:14px;padding:14px 16px;background:var(--bg-card);border:1px solid var(--border);border-left:3px solid var(--border);border-radius:10px;transition:border-color .15s,transform .15s}
+        .dash-row:hover{border-color:rgba(212,175,55,0.4);transform:translateX(2px)}
+        .dash-row[data-tone="gold"]{border-left-color:var(--gold)}
+        .dash-row[data-tone="orange"]{border-left-color:var(--orange)}
+        .dash-row[data-tone="red"]{border-left-color:var(--red)}
+        .dash-row[data-tone="blue"]{border-left-color:var(--blue)}
+        .dash-row-icon{font-size:18px;width:28px;text-align:center;flex-shrink:0}
+        .dash-row-body{flex:1;min-width:0}
+        .dash-row-primary{font-size:13px;font-weight:400;color:var(--text);margin-bottom:2px;overflow:hidden;text-overflow:ellipsis}
+        .dash-row-secondary{font-size:11px;color:var(--text-muted);letter-spacing:0.3px}
+        .dash-row-actions{display:flex;gap:6px;flex-shrink:0}
+        .dash-row-agent .dash-agent-draft{margin-top:8px;padding:10px 12px;background:var(--bg-elevated);border-radius:6px;font-size:12px;color:var(--text-secondary);line-height:1.5;font-style:italic;border-left:2px solid var(--gold)}
+        .dash-act{min-width:44px;height:36px;padding:0 12px;background:var(--bg-elevated);border:1px solid var(--border);color:var(--text-secondary);font-size:12px;letter-spacing:1px;border-radius:8px;cursor:pointer;font-family:inherit;transition:all .15s}
+        .dash-act:hover{border-color:var(--gold);color:var(--gold)}
+        .dash-act-primary{background:var(--gold);color:#000;border-color:var(--gold);font-weight:600}
+        .dash-act-primary:hover{background:#e8c14a;color:#000}
+        .dash-act-danger:hover{border-color:var(--red);color:var(--red)}
+        .dash-empty{padding:24px;text-align:center;color:var(--text-muted);font-size:13px;background:var(--bg-card);border:1px dashed var(--border);border-radius:10px;letter-spacing:0.5px}
+        .dash-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+        .dash-kpi{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:16px 18px;cursor:pointer;display:flex;flex-direction:column;gap:4px;transition:border-color .15s}
+        .dash-kpi:hover{border-color:var(--gold)}
+        .dash-kpi-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text-muted)}
+        .dash-kpi-value{font-size:28px;font-weight:300;color:var(--text);letter-spacing:-0.5px;line-height:1}
+        .dash-kpi-sub{font-size:11px;color:var(--text-muted);letter-spacing:0.3px}
+        .dash-money{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+        .dash-money-cell{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:18px;cursor:pointer;display:flex;flex-direction:column;gap:6px;transition:border-color .15s}
+        .dash-money-cell:hover{border-color:var(--gold)}
+        .dash-money-hero{background:linear-gradient(135deg,rgba(212,175,55,0.12),rgba(212,175,55,0.02));border-color:rgba(212,175,55,0.3)}
+        .dash-money-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text-muted)}
+        .dash-money-value{font-size:26px;font-weight:300;letter-spacing:-0.5px;line-height:1}
+        .dash-money-sub{font-size:11px;color:var(--text-muted)}
+        .dash-money-bar{background:var(--bg-elevated);border-radius:3px;height:4px;overflow:hidden}
+        .dash-money-bar > div{height:100%;transition:width .5s}
+        .dash-mini-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:8px 0 16px}
+        .dash-mini{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px;transition:border-color .15s}
+        .dash-mini:hover{border-color:var(--gold)}
+        .dash-mini span{font-size:11px;color:var(--text-muted);letter-spacing:0.3px}
+        .dash-mini strong{font-size:18px;font-weight:600;letter-spacing:-0.3px}
+        .dash-pill{padding:8px 16px;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;color:var(--text-secondary);font-size:12px;cursor:pointer;font-family:inherit;letter-spacing:0.5px;transition:all .2s}
+        .dash-pill:hover{border-color:var(--gold);color:var(--gold)}
+        .dash-pill-gold{background:rgba(212,175,55,0.08);border-color:rgba(212,175,55,0.2);color:var(--gold);font-weight:500}
+        .dash-pill-gold:hover{background:rgba(212,175,55,0.15)}
+        .dash-extras{margin:24px 0 0;border-top:1px solid var(--border);padding-top:18px}
+        .dash-extras > summary{cursor:pointer;list-style:none;padding:6px 0;display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;outline:none}
+        .dash-extras > summary::-webkit-details-marker{display:none}
+        .dash-extras-summary > span:first-child{font-size:12px;font-weight:600;letter-spacing:3px;text-transform:uppercase;color:var(--gold)}
+        .dash-extras-summary::after{content:"▾";color:var(--gold);transition:transform .2s}
+        .dash-extras[open] .dash-extras-summary::after{transform:rotate(180deg);display:inline-block}
+        .dash-extras-hint{font-size:11px;color:var(--text-muted);letter-spacing:0.5px}
+        .dash-charts{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin:16px 0 20px}
+        .dash-extras-grid{display:grid;grid-template-columns:2fr 1fr;gap:20px}
+        @media(max-width:900px){
+            .dash-charts,.dash-extras-grid{grid-template-columns:1fr}
+            .dash-hero-title{font-size:26px}
+            .dash-money-value,.dash-kpi-value{font-size:22px}
+            .dash-row{padding:12px;gap:10px}
+        }
+        @media(max-width:520px){
+            .dash-hero{align-items:flex-start;flex-direction:column}
+            .dash-row-actions{flex-direction:column;gap:4px}
+            .dash-row-primary{font-size:12px}
+        }
         .stat-card{background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:20px;position:relative;overflow:hidden;cursor:pointer;transition:all .2s}
         .stat-card:hover{border-color:var(--gold);transform:translateY(-2px)}
         .stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
@@ -1272,12 +1348,15 @@ Valentyne - BOOM Rome`
         userNotifications: [], // Persistent notifications from Firestore
         listings: [], // For adminflats
         leads: [], // Incoming leads from Immobiliare/Idealista via Homie
+        actionQueue: [], // Proposed actions from Homie/agents awaiting review (action_queue collection)
         activityLog: [], // Audit trail
         rules: [], ruleExecutions: [], // Rules Engine
         registrations: [], registrationStatuses: {}, regPending: 0,
         lastActivity: Date.now(),
         isOnline: navigator.onLine,
-        notifListener: null // Real-time listener reference
+        notifListener: null, // Real-time listener reference
+        contractsListener: null,
+        actionQueueListener: null
     };
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -3330,6 +3409,30 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             S.contractsListener = null;
         }
     }
+
+    // Real-time action_queue listener — Homie (and other agents) write proposed
+    // actions to Firestore via /api/homie/action. The dashboard "Azioni Agenti"
+    // strip and the Command Center page both read S.actionQueue, so we keep it
+    // live: new pending actions surface within seconds, no reload.
+    function startActionQueueListener() {
+        if (!S.profile?.id || !isAdmin()) return;
+        if (S.actionQueueListener) S.actionQueueListener();
+        S.actionQueueListener = db.collection('action_queue')
+            .orderBy('createdAt', 'desc')
+            .limit(100)
+            .onSnapshot(snapshot => {
+                S.actionQueue = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                buildNav();
+                if (S.page === 'dashboard' || S.page === 'command-center') renderPage();
+            }, err => console.error('Action queue listener error:', err));
+    }
+
+    function stopActionQueueListener() {
+        if (S.actionQueueListener) {
+            S.actionQueueListener();
+            S.actionQueueListener = null;
+        }
+    }
     
     function isRecent(timestamp, seconds = 30) {
         if (!timestamp) return false;
@@ -3874,6 +3977,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             stopSessionCheck();
             stopNotificationListener();
             stopContractsListener();
+            stopActionQueueListener();
             // Clear data cache
             localStorage.removeItem('boom_data_cache');
             try {
@@ -3912,6 +4016,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         // Start notification listener
         startNotificationListener();
         startContractsListener();
+        startActionQueueListener();
         
         // Check scheduled notifications (admin only, once per session)
         if (isAdmin() && !window.scheduledNotifChecked) {
@@ -3951,10 +4056,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const urgentPFS = (S.pfsClients || []).filter(c => c.stage !== 'placed' && calculatePFSPriority && calculatePFSPriority(c) >= 70).length;
             const newLeads = (S.leads || []).filter(l => l.status === 'new' || !l.status).length;
             const pendingViewings = (S.viewingRequests || []).filter(v => v.status === 'pending').length;
+            const pendingActions = (S.actionQueue || []).filter(a => a.status === 'pending').length;
             
             sb.innerHTML = `
                 <div class="nav-section"><div class="nav-label">Operativo</div>
                     <div class="nav-item ${S.page==='dashboard'?'active':''}" onclick="goTo('dashboard')"><span class="nav-icon">📊</span> Dashboard ${urgentDeadlines?`<span class="nav-badge orange">${urgentDeadlines}</span>`:''}</div>
+                    <div class="nav-item ${S.page==='command-center'?'active':''}" onclick="goTo('command-center')"><span class="nav-icon">⚡</span> Command Center ${pendingActions?`<span class="nav-badge gold">${pendingActions}</span>`:''}</div>
                     <div class="nav-item ${S.page==='leads'?'active':''}" onclick="goTo('leads')"><span class="nav-icon">📬</span> Lead ${newLeads?`<span class="nav-badge green">${newLeads}</span>`:''}</div>
                     <div class="nav-item ${S.page==='clienti'?'active':''}" onclick="goTo('clienti')"><span class="nav-icon">👥</span> Clienti ${(activeClients+urgentPFS)?`<span class="nav-badge gold">${activeClients+urgentPFS}</span>`:''}</div>
                     <div class="nav-item ${S.page==='viewings'?'active':''}" onclick="goTo('viewings')"><span class="nav-icon">📅</span> Viewings ${pendingViewings?`<span class="nav-badge gold">${pendingViewings}</span>`:''}</div>
@@ -4033,6 +4140,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             case 'dashboard': m.innerHTML = r === 'admin' ? adminDashboard() : r === 'landlord' ? landlordDashboard() : tenantDashboard(); break;
             // === UNIFIED CLIENTI (merges CRM + PFS Pipeline) ===
             case 'clienti': m.innerHTML = isAdmin() ? clientiPage() : accessDenied(); break;
+            case 'command-center': m.innerHTML = isAdmin() ? commandCenterPage() : accessDenied(); break;
             case 'leads': m.innerHTML = isAdmin() ? leadsPage() : accessDenied(); break;
             case 'viewings': m.innerHTML = isAdmin() ? viewingsPage() : accessDenied(); break;
             // === Legacy redirects ===
@@ -4284,6 +4392,35 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const recentPayments = S.payments.filter(p => p.status === 'paid' && daysSince(p.paidDate) <= 7).slice(0, 3);
         const recentMaint = S.maintenance.filter(m => daysSince(m.createdAt) <= 7).slice(0, 3);
 
+        // === FIRST LINE COMPUTED VALUES ===
+        // Today's viewings — checks scheduledAt / date / dateStart
+        const todayViewings = (S.viewingRequests || []).filter(v => {
+            if (v.status === 'cancelled' || v.status === 'done') return false;
+            return isToday(v.scheduledAt) || isToday(v.date) || isToday(v.dateStart);
+        }).sort((a, b) => {
+            const ta = a.scheduledAt?.toDate ? a.scheduledAt.toDate() : new Date(a.scheduledAt || a.date || a.dateStart || 0);
+            const tb = b.scheduledAt?.toDate ? b.scheduledAt.toDate() : new Date(b.scheduledAt || b.date || b.dateStart || 0);
+            return ta - tb;
+        });
+        const paymentsDueToday = S.payments.filter(p => p.status === 'pending' && isToday(p.dueDate));
+        // Pending agent actions (Homie + others)
+        const pendingActionsList = (S.actionQueue || []).filter(a => a.status === 'pending');
+        // Lead funnel (rolling 30d)
+        const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+        const leads30d = (S.leads || []).filter(l => {
+            const t = l.createdAt?.toDate ? l.createdAt.toDate().getTime() : new Date(l.createdAt || 0).getTime();
+            return t >= thirtyDaysAgo;
+        });
+        const convertedLeads30d = leads30d.filter(l => l.status === 'converted');
+        const conversionRate30d = leads30d.length > 0 ? Math.round((convertedLeads30d.length / leads30d.length) * 100) : 0;
+        const newLeadsList = (S.leads || []).filter(l => l.status === 'new' || !l.status);
+        const newLeadsToday = newLeadsList.filter(l => isToday(l.createdAt));
+        const inNegotiationClients = (S.clients || []).filter(c => ['contacted', 'qualified', 'searching', 'found', 'closing'].includes(c.stage));
+        // Today's to-do count for the hero strip
+        const todayCount = todayViewings.length + pendingSignatures.length + paymentsDueToday.length + urgentMaint.length;
+        // Hottest lead (most recent new)
+        const hotLead = newLeadsList[0];
+
         // === BUILD CRITICAL ALERTS ===
         let criticalAlerts = '';
 
@@ -4320,156 +4457,83 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div>`;
         }
 
+        const heroParts = [];
+        if (todayCount > 0) heroParts.push(`<strong style="color:var(--gold)">${todayCount}</strong> ${todayCount === 1 ? 'cosa' : 'cose'} oggi`);
+        if (pendingActionsList.length > 0) heroParts.push(`<strong style="color:var(--gold)">${pendingActionsList.length}</strong> azion${pendingActionsList.length === 1 ? 'e' : 'i'} agenti`);
+        if (newLeadsList.length > 0) heroParts.push(`<strong style="color:var(--gold)">${newLeadsList.length}</strong> lead nuov${newLeadsList.length === 1 ? 'o' : 'i'}`);
+        const heroLine = heroParts.length ? heroParts.join(' · ') : '<span style="color:var(--text-muted)">Niente di urgente in agenda. Goditi la giornata.</span>';
+        const firstName = (S.profile?.name || '').split(' ')[0] || 'BOOM';
+        const greet = (() => { const h = new Date().getHours(); return h < 5 ? 'Buonanotte' : h < 12 ? 'Buongiorno' : h < 18 ? 'Buon pomeriggio' : 'Buonasera'; })();
+
         return `
-            <!-- HEADER PREMIUM -->
-            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;flex-wrap:wrap;gap:16px">
-                <div>
-                    <h1 style="font-size:28px;font-weight:300;margin-bottom:6px">
-                        <span style="color:var(--gold)">●</span> Dashboard
-                    </h1>
-                    <p style="color:var(--text-secondary);font-size:13px">
-                        ${new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} ·
-                        <span style="color:var(--green)">●</span> Sistema Online
-                    </p>
+            <!-- HERO STRIP -->
+            <div class="dash-hero">
+                <div class="dash-hero-text">
+                    <h1 class="dash-hero-title">${greet}, ${esc(firstName)}<span style="color:var(--gold)">.</span></h1>
+                    <p class="dash-hero-sub">${new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })} · ${heroLine}</p>
                 </div>
-                <div style="display:flex;gap:8px;align-items:center">
-                    <div class="lang-selector">
-                        <button class="lang-btn ${S.lang === 'IT' ? 'active' : ''}" onclick="setLang('IT')">🇮🇹</button>
-                        <button class="lang-btn ${S.lang === 'EN' ? 'active' : ''}" onclick="setLang('EN')">🇬🇧</button>
-                    </div>
+                <div class="dash-hero-actions">
+                    <div class="lang-selector"><button class="lang-btn ${S.lang === 'IT' ? 'active' : ''}" onclick="setLang('IT')">🇮🇹</button><button class="lang-btn ${S.lang === 'EN' ? 'active' : ''}" onclick="setLang('EN')">🇬🇧</button></div>
                     <button class="btn btn-sm btn-secondary" onclick="forceRefreshData()" title="Ricarica">🔄</button>
-                    <button class="btn btn-sm" onclick="goTo('rules')">⚡ ${activeRules} Regole</button>
+                    <button class="btn btn-sm" onclick="goTo('rules')">⚡ ${activeRules}</button>
                 </div>
             </div>
 
-            <!-- CRITICAL ALERTS -->
+            <!-- CRITICAL ALERTS (kept — same data, terser visual treatment) -->
             ${criticalAlerts}
 
-            <!-- QUICK LINKS — Copy & Send -->
-            <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap">
-                <button onclick="navigator.clipboard.writeText('https://boomrome.com/portal.html?intake=1');this.innerHTML='✅ Copied!';setTimeout(()=>this.innerHTML='📋 Intake Lead',1500)" style="padding:8px 16px;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;color:var(--text-secondary);font-size:12px;font-weight:400;cursor:pointer;font-family:inherit;transition:all .2s" onmouseover="this.style.borderColor='var(--gold)';this.style.color='var(--gold)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-secondary)'">📋 Intake Lead</button>
-                <button onclick="navigator.clipboard.writeText('https://boomrome.com/portal.html?intake=pfs');this.innerHTML='✅ Copied!';setTimeout(()=>this.innerHTML='🏆 Intake PFS',1500)" style="padding:8px 16px;background:rgba(212,175,55,0.08);border:1px solid rgba(212,175,55,0.2);border-radius:8px;color:var(--gold);font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;transition:all .2s" onmouseover="this.style.background='rgba(212,175,55,0.15)'" onmouseout="this.style.background='rgba(212,175,55,0.08)'">🏆 Intake PFS</button>
+            <!-- SECTION 1 — OGGI -->
+            ${renderDashToday(todayViewings, pendingSignatures, paymentsDueToday, urgentMaint)}
+
+            <!-- SECTION 2 — AZIONI AGENTI -->
+            ${renderDashAgentInbox(pendingActionsList)}
+
+            <!-- SECTION 3 — LEAD & PIPELINE -->
+            ${renderDashLeadsPipeline(newLeadsList, newLeadsToday, inNegotiationClients, conversionRate30d, leads30d.length, hotLead)}
+
+            <!-- SECTION 4 — SOLDI -->
+            ${renderDashMoney({ thisMonthRev, revGrowth, collectionRate, paidThisMonth, expectedThisMonth, pipeline, activeClientsCount: activeClients.length, overdueTotal, overduePaymentsCount: overduePayments.length, occupancyRate, rentedProperties, availableProps, expiringContractsCount: expiringContracts.length })}
+
+            <!-- QUICK LINKS — share intake URLs -->
+            <div style="display:flex;gap:8px;margin:24px 0 16px;flex-wrap:wrap">
+                <button onclick="navigator.clipboard.writeText('https://boomrome.com/portal.html?intake=1');this.innerHTML='✅ Copied!';setTimeout(()=>this.innerHTML='📋 Intake Lead',1500)" class="dash-pill">📋 Intake Lead</button>
+                <button onclick="navigator.clipboard.writeText('https://boomrome.com/portal.html?intake=pfs');this.innerHTML='✅ Copied!';setTimeout(()=>this.innerHTML='🏆 Intake PFS',1500)" class="dash-pill dash-pill-gold">🏆 Intake PFS</button>
             </div>
 
-            <!-- MAIN KPI CARDS - Premium Design -->
-            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px">
-                <!-- Revenue Card -->
-                <div class="card" style="padding:20px;background:linear-gradient(135deg,rgba(212,175,55,0.15),rgba(212,175,55,0.02));border-color:rgba(212,175,55,0.3);cursor:pointer" onclick="goTo('invoices')">
-                    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
-                        <span style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px">Fatturato Mese</span>
-                        <span style="font-size:20px">💰</span>
-                    </div>
-                    <div style="font-size:32px;font-weight:700;color:var(--gold);margin-bottom:4px">€${thisMonthRev.toLocaleString('it-IT')}</div>
-                    <div style="display:flex;align-items:center;gap:6px">
-                        <span class="badge ${revGrowth >= 0 ? 'green' : 'red'}" style="font-size:10px">${revGrowth >= 0 ? '↑' : '↓'} ${Math.abs(revGrowth)}%</span>
-                        <span style="font-size:11px;color:var(--text-muted)">vs mese scorso</span>
-                    </div>
-                </div>
-
-                <!-- Collection Rate -->
-                <div class="card" style="padding:20px;cursor:pointer" onclick="goTo('payments')">
-                    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
-                        <span style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px">Affitti Incassati</span>
-                        <span style="font-size:20px">💳</span>
-                    </div>
-                    <div style="font-size:32px;font-weight:700;color:var(--${collectionRate >= 80 ? 'green' : collectionRate >= 50 ? 'orange' : 'red'});margin-bottom:8px">${collectionRate}%</div>
-                    <div style="background:var(--bg-elevated);border-radius:4px;height:6px;overflow:hidden">
-                        <div style="background:var(--${collectionRate >= 80 ? 'green' : collectionRate >= 50 ? 'orange' : 'red'});height:100%;width:${collectionRate}%;transition:width .5s"></div>
-                    </div>
-                    <div style="font-size:11px;color:var(--text-muted);margin-top:6px">€${paidThisMonth.toLocaleString('it-IT')} / €${expectedThisMonth.toLocaleString('it-IT')}</div>
-                </div>
-
-                <!-- Occupancy -->
-                <div class="card" style="padding:20px;cursor:pointer" onclick="goTo('properties')">
-                    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
-                        <span style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px">Occupazione</span>
-                        <span style="font-size:20px">🏠</span>
-                    </div>
-                    <div style="font-size:32px;font-weight:700;color:var(--${occupancyRate >= 80 ? 'green' : occupancyRate >= 50 ? 'orange' : 'red'});margin-bottom:8px">${occupancyRate}%</div>
-                    <div style="display:flex;gap:12px">
-                        <span style="font-size:11px"><span style="color:var(--green)">●</span> ${rentedProperties} affittati</span>
-                        <span style="font-size:11px"><span style="color:var(--text-muted)">●</span> ${availableProps} liberi</span>
-                    </div>
-                </div>
-
-                <!-- Pipeline -->
-                <div class="card" style="padding:20px;cursor:pointer" onclick="goTo('clienti')">
-                    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
-                        <span style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px">Pipeline Clienti</span>
-                        <span style="font-size:20px">📈</span>
-                    </div>
-                    <div style="font-size:32px;font-weight:700;color:var(--blue);margin-bottom:4px">€${pipeline.toLocaleString('it-IT')}</div>
-                    <div style="font-size:11px;color:var(--text-muted)">${activeClients.length} clienti attivi</div>
-                </div>
+            <!-- SECONDARY METRICS ROW (terser, mobile-fluid) -->
+            <div class="dash-mini-grid">
+                <div class="dash-mini" onclick="goTo('properties')"><span>🟢 Disponibili</span><strong style="color:var(--green)">${availableProps}</strong></div>
+                <div class="dash-mini" onclick="goTo('properties')"><span>🟡 Trattativa</span><strong style="color:var(--orange)">${inNegotiation}</strong></div>
+                <div class="dash-mini" onclick="goTo('contracts')"><span>📋 Scad. 60g</span><strong style="color:var(--blue)">${expiringContracts.length}</strong></div>
+                <div class="dash-mini" onclick="goTo('maintenance')"><span>🔧 Manutenz.</span><strong style="color:var(--${openMaint.length > 0 ? 'orange' : 'green'})">${openMaint.length}</strong></div>
+                <div class="dash-mini" onclick="goTo('invoices')"><span>⏳ Fatture</span><strong style="color:var(--orange)">${pendingInv.length}</strong></div>
+                <div class="dash-mini" onclick="showReminders()"><span>🔔 Promemoria</span><strong style="color:var(--${reminderCount > 0 ? 'red' : 'green'})">${reminderCount}</strong></div>
             </div>
 
-            <!-- SECONDARY METRICS ROW -->
-            <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:24px">
-                <div class="card" style="padding:14px;text-align:center;cursor:pointer" onclick="goTo('properties')">
-                    <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">🟢 Disponibili</div>
-                    <div style="font-size:22px;font-weight:700;color:var(--green)">${availableProps}</div>
-                </div>
-                <div class="card" style="padding:14px;text-align:center;cursor:pointer" onclick="goTo('properties')">
-                    <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">🟡 Trattativa</div>
-                    <div style="font-size:22px;font-weight:700;color:var(--orange)">${inNegotiation}</div>
-                </div>
-                <div class="card" style="padding:14px;text-align:center;cursor:pointer" onclick="goTo('contracts')">
-                    <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">📋 Scadenza 60g</div>
-                    <div style="font-size:22px;font-weight:700;color:var(--blue)">${expiringContracts.length}</div>
-                </div>
-                <div class="card" style="padding:14px;text-align:center;cursor:pointer" onclick="goTo('maintenance')">
-                    <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">🔧 Manutenzioni</div>
-                    <div style="font-size:22px;font-weight:700;color:var(--${openMaint.length > 0 ? 'orange' : 'green'})">${openMaint.length}</div>
-                </div>
-                <div class="card" style="padding:14px;text-align:center;cursor:pointer" onclick="goTo('invoices')">
-                    <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">⏳ Fatture Pending</div>
-                    <div style="font-size:22px;font-weight:700;color:var(--orange)">${pendingInv.length}</div>
-                </div>
-                <div class="card" style="padding:14px;text-align:center;cursor:pointer" onclick="showReminders()">
-                    <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">🔔 Promemoria</div>
-                    <div style="font-size:22px;font-weight:700;color:var(--${reminderCount > 0 ? 'red' : 'green'})">${reminderCount}</div>
-                </div>
-            </div>
+            <!-- COLLAPSIBLE: Strumenti & Riepilogo (Focus Mode, Quick Invoice, Pipeline, Activity, Quick Actions, Financials, System) -->
+            <details class="dash-extras">
+                <summary class="dash-extras-summary">
+                    <span>Strumenti &amp; Riepilogo</span>
+                    <span class="dash-extras-hint">Focus · Fatture rapide · Pipeline · Riepilogo finanziario · Sistema</span>
+                </summary>
 
-            <!-- MAIN CONTENT GRID -->
-            ${(S.leads || []).filter(l => l.status === 'new' || !l.status).length > 0 ? `
-            <div class="card" style="margin-bottom:20px;border-color:rgba(212,175,55,0.3);background:linear-gradient(135deg,rgba(212,175,55,0.05),transparent)">
-                <div class="card-header"><h3 class="card-title">📬 Nuovi Lead <span class="badge gold">${(S.leads || []).filter(l => l.status === 'new' || !l.status).length}</span></h3><button class="btn btn-sm" onclick="goTo('leads')">Vedi Tutti →</button></div>
-                <div class="card-body flush">
-                    ${(S.leads || []).filter(l => l.status === 'new' || !l.status).slice(0, 3).map(l => {
-                        const lang = l.language === 'en' ? '🇬🇧' : '🇮🇹';
-                        return `<div class="list-item" style="padding:12px 16px">
-                            <div class="list-icon" style="background:var(--gold-light)">📬</div>
-                            <div class="list-content">
-                                <div class="list-title">${lang} ${esc(l.name || l.leadName || 'Sconosciuto')}</div>
-                                <div class="list-subtitle">${l.propertyTitle ? '🏠 ' + esc(l.propertyTitle) : esc(l.source || 'web')}${l.propertyPrice ? ' · €' + l.propertyPrice.toLocaleString('it-IT') : ''}</div>
-                            </div>
-                            <div style="display:flex;gap:6px">
-                                <button class="btn btn-xs" onclick="convertLeadToClient('${l.id}')">→ Converti</button>
-                                <button class="btn btn-xs btn-secondary" onclick="discardLead('${l.id}')" style="color:var(--text-muted)">✕</button>
-                            </div>
-                        </div>`;
-                    }).join('')}
+                <!-- ANALYTICS CHARTS -->
+                <div class="dash-charts">
+                    <div class="card" style="padding:16px">
+                        <h3 style="font-size:13px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--text-secondary);margin-bottom:12px">Revenue Trend</h3>
+                        <div style="position:relative;height:140px"><canvas id="revenueChart"></canvas></div>
+                    </div>
+                    <div class="card" style="padding:16px">
+                        <h3 style="font-size:13px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--text-secondary);margin-bottom:12px">Occupancy</h3>
+                        <div style="position:relative;height:140px"><canvas id="occupancyChart"></canvas></div>
+                    </div>
                 </div>
-            </div>` : ''}
-            
-            <!-- ANALYTICS CHARTS -->
-            <div style="display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:20px">
-                <div class="card" style="padding:16px">
-                    <h3 style="font-size:14px;font-weight:600;margin-bottom:12px">📈 Revenue Trend</h3>
-                    <div style="position:relative;height:140px"><canvas id="revenueChart"></canvas></div>
-                </div>
-                <div class="card" style="padding:16px">
-                    <h3 style="font-size:14px;font-weight:600;margin-bottom:12px">🏠 Occupancy</h3>
-                    <div style="position:relative;height:140px"><canvas id="occupancyChart"></canvas></div>
-                </div>
-            </div>
-            
-            <div style="display:grid;grid-template-columns:2fr 1fr;gap:20px">
-                <!-- LEFT COLUMN -->
-                <div>
-                    <!-- 🧠 FOCUS MODE (absorbed from Command Center) -->
-                    ${renderDashFocusMode()}
+
+                <div class="dash-extras-grid">
+                    <!-- LEFT COLUMN -->
+                    <div>
+                        <!-- 🧠 FOCUS MODE (absorbed from Command Center) -->
+                        ${renderDashFocusMode()}
                     
                     <!-- Quick Invoice Creation -->
                     <div class="card" style="margin-bottom:20px;background:linear-gradient(135deg,rgba(0,122,255,0.08),transparent)">
@@ -4628,7 +4692,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                         </div>
                     </div>
                 </div>
-            </div>`;
+            </div>
+            </details>`;
     }
 
     // Dashboard Focus Mode (absorbed from Command Center)
@@ -4689,6 +4754,355 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     </div>
                 </div>`;
         } catch(e) { console.error('Focus mode error:', e); return ''; }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // DASHBOARD FIRST-LINE RENDERERS
+    // Order: Oggi → Azioni Agenti → Lead/Pipeline → Soldi.
+    // Each section is its own card so the layout stacks cleanly on mobile.
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    function _fmtTime(ts) {
+        if (!ts) return '';
+        const d = ts.toDate ? ts.toDate() : new Date(ts);
+        if (isNaN(d.getTime())) return '';
+        return d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function renderDashToday(viewings, pendingSigs, paymentsDue, urgentMaint) {
+        const items = [];
+        viewings.forEach(v => {
+            const prop = S.properties.find(p => p.id === v.propertyId);
+            const client = S.users.find(u => u.id === v.userId) || S.clients.find(c => c.id === v.clientId);
+            const time = _fmtTime(v.scheduledAt || v.date || v.dateStart) || '—';
+            items.push({
+                icon: '⏰', tone: 'gold',
+                primary: `<strong>${time}</strong> · Viewing · ${esc(prop?.name || v.propertyName || 'Immobile')}`,
+                secondary: esc(client?.name || v.name || v.clientName || 'Cliente'),
+                action: `<button class="dash-act" onclick="goTo('viewings')">Apri</button>`
+            });
+        });
+        pendingSigs.slice(0, 3).forEach(c => {
+            const prop = S.properties.find(p => p.id === c.propertyId);
+            const who = !c.landlordSignature && !c.tenantSignature ? 'Entrambe le firme' : !c.landlordSignature ? 'Firma locatore' : 'Firma inquilino';
+            items.push({
+                icon: '✍️', tone: 'orange',
+                primary: `<strong>Contratto da firmare</strong> · ${esc(prop?.name || 'Immobile')}`,
+                secondary: who,
+                action: `<button class="dash-act" onclick="goTo('contracts')">Vedi</button>`
+            });
+        });
+        paymentsDue.forEach(p => {
+            const contract = S.contracts.find(c => c.id === p.contractId);
+            const prop = contract ? S.properties.find(x => x.id === contract.propertyId) : null;
+            items.push({
+                icon: '💳', tone: 'gold',
+                primary: `<strong>Pagamento atteso oggi</strong> · €${(p.amount || 0).toLocaleString('it-IT')}`,
+                secondary: esc(prop?.name || 'Immobile') + (p.month ? ' · ' + esc(p.month) : ''),
+                action: `<button class="dash-act" onclick="goTo('payments')">Conferma</button>`
+            });
+        });
+        urgentMaint.slice(0, 3).forEach(m => {
+            const prop = S.properties.find(p => p.id === m.propertyId);
+            items.push({
+                icon: '🔧', tone: 'red',
+                primary: `<strong>Urgente</strong> · ${esc(m.title || 'Manutenzione')}`,
+                secondary: esc(prop?.name || 'Immobile'),
+                action: `<button class="dash-act" onclick="goTo('maintenance')">Gestisci</button>`
+            });
+        });
+
+        return `<section class="dash-section">
+            <div class="dash-section-head">
+                <h2 class="dash-section-title">Oggi</h2>
+                <span class="dash-section-count">${items.length}</span>
+            </div>
+            ${items.length === 0
+                ? `<div class="dash-empty">Nessuna scadenza per oggi. Tutto sotto controllo.</div>`
+                : `<div class="dash-list">${items.map(it => `
+                    <div class="dash-row" data-tone="${it.tone}">
+                        <span class="dash-row-icon">${it.icon}</span>
+                        <div class="dash-row-body">
+                            <div class="dash-row-primary">${it.primary}</div>
+                            <div class="dash-row-secondary">${it.secondary}</div>
+                        </div>
+                        ${it.action}
+                    </div>`).join('')}</div>`
+            }
+        </section>`;
+    }
+
+    function renderDashAgentInbox(pending) {
+        const shown = pending.slice(0, 3);
+        const KIND_META = {
+            reply: { icon: '📨', label: 'Bozza risposta' },
+            schedule_viewing: { icon: '📅', label: 'Pianifica viewing' },
+            qualify: { icon: '🎯', label: 'Qualifica lead' },
+            archive: { icon: '🗄', label: 'Archivia' },
+            note: { icon: '📝', label: 'Nota' },
+            other: { icon: '⚙', label: 'Azione' }
+        };
+        return `<section class="dash-section">
+            <div class="dash-section-head">
+                <h2 class="dash-section-title">Azioni agenti</h2>
+                <span class="dash-section-count">${pending.length}${pending.length > shown.length ? ` · ${shown.length} mostrate` : ''}</span>
+                ${pending.length > 0 ? `<button class="dash-section-link" onclick="goTo('command-center')">Vai al Command Center →</button>` : ''}
+            </div>
+            ${pending.length === 0
+                ? `<div class="dash-empty">Nessuna azione in attesa. Homie non ha proposte pendenti.</div>`
+                : `<div class="dash-list">${shown.map(a => {
+                    const meta = KIND_META[a.kind] || KIND_META.other;
+                    const lead = (S.leads || []).find(l => l.id === a.leadId);
+                    const conf = typeof a.confidence === 'number' ? Math.round(a.confidence * 100) : null;
+                    const draftPreview = a.kind === 'reply' && a.payload?.draft ? `<div class="dash-agent-draft">${esc(String(a.payload.draft).slice(0, 180))}${String(a.payload.draft).length > 180 ? '…' : ''}</div>` : '';
+                    return `<div class="dash-row dash-row-agent" data-tone="gold">
+                        <span class="dash-row-icon">${meta.icon}</span>
+                        <div class="dash-row-body">
+                            <div class="dash-row-primary"><strong>${meta.label}</strong> · ${esc(a.summary || '')}</div>
+                            <div class="dash-row-secondary">${lead ? esc(lead.name || lead.leadName || 'Lead') + ' · ' : ''}${esc(a.proposedBy || 'agent')}${conf !== null ? ` · <span style="color:var(--gold)">${conf}%</span>` : ''}</div>
+                            ${draftPreview}
+                        </div>
+                        <div class="dash-row-actions">
+                            <button class="dash-act dash-act-primary" onclick="approveAgentAction('${a.id}')" title="Approva e applica">✓</button>
+                            ${a.kind === 'reply' ? `<button class="dash-act" onclick="editAgentAction('${a.id}')" title="Modifica bozza">✎</button>` : ''}
+                            <button class="dash-act dash-act-danger" onclick="rejectAgentAction('${a.id}')" title="Rifiuta">✕</button>
+                        </div>
+                    </div>`;
+                }).join('')}</div>`
+            }
+        </section>`;
+    }
+
+    function renderDashLeadsPipeline(newLeads, newToday, inNeg, convRate, leadsCount30d, hot) {
+        return `<section class="dash-section">
+            <div class="dash-section-head">
+                <h2 class="dash-section-title">Lead &amp; pipeline</h2>
+                <button class="dash-section-link" onclick="goTo('leads')">Vedi tutti →</button>
+            </div>
+            <div class="dash-kpis">
+                <div class="dash-kpi" onclick="goTo('leads')">
+                    <span class="dash-kpi-label">Nuovi oggi</span>
+                    <span class="dash-kpi-value">${newToday.length}</span>
+                    <span class="dash-kpi-sub">${newLeads.length} totali da lavorare</span>
+                </div>
+                <div class="dash-kpi" onclick="goTo('clienti')">
+                    <span class="dash-kpi-label">In trattativa</span>
+                    <span class="dash-kpi-value">${inNeg.length}</span>
+                    <span class="dash-kpi-sub">clienti attivi</span>
+                </div>
+                <div class="dash-kpi">
+                    <span class="dash-kpi-label">Conv. 30g</span>
+                    <span class="dash-kpi-value">${convRate}<span style="font-size:18px;color:var(--text-muted)">%</span></span>
+                    <span class="dash-kpi-sub">${leadsCount30d} lead · ${Math.round(leadsCount30d * convRate / 100)} convertiti</span>
+                </div>
+            </div>
+            ${newLeads.length > 0 ? `<div class="dash-list" style="margin-top:14px">
+                ${newLeads.slice(0, 3).map(l => {
+                    const lang = l.language === 'en' ? '🇬🇧' : '🇮🇹';
+                    const when = l.createdAt ? _humanAgo(l.createdAt) : '';
+                    return `<div class="dash-row" data-tone="gold">
+                        <span class="dash-row-icon">${lang}</span>
+                        <div class="dash-row-body">
+                            <div class="dash-row-primary"><strong>${esc(l.name || l.leadName || 'Sconosciuto')}</strong>${l === hot ? ' · <span style="color:var(--gold)">caldo</span>' : ''}</div>
+                            <div class="dash-row-secondary">${l.propertyTitle ? '🏠 ' + esc(l.propertyTitle) : esc(l.source || 'web')}${l.propertyPrice ? ' · €' + Number(l.propertyPrice).toLocaleString('it-IT') : ''}${when ? ' · ' + when : ''}</div>
+                        </div>
+                        <div class="dash-row-actions">
+                            <button class="dash-act dash-act-primary" onclick="convertLeadToClient('${l.id}')">Convert</button>
+                            <button class="dash-act" onclick="discardLead('${l.id}')">✕</button>
+                        </div>
+                    </div>`;
+                }).join('')}
+            </div>` : ''}
+        </section>`;
+    }
+
+    function _humanAgo(ts) {
+        const d = ts?.toDate ? ts.toDate() : new Date(ts);
+        if (isNaN(d.getTime())) return '';
+        const mins = Math.floor((Date.now() - d.getTime()) / 60000);
+        if (mins < 1) return 'ora';
+        if (mins < 60) return mins + ' min fa';
+        const hrs = Math.floor(mins / 60);
+        if (hrs < 24) return hrs + 'h fa';
+        const days = Math.floor(hrs / 24);
+        return days === 1 ? 'ieri' : days + 'g fa';
+    }
+
+    function renderDashMoney(d) {
+        const arrow = d.revGrowth >= 0 ? '↑' : '↓';
+        const collTone = d.collectionRate >= 80 ? 'green' : d.collectionRate >= 50 ? 'orange' : 'red';
+        const occTone = d.occupancyRate >= 80 ? 'green' : d.occupancyRate >= 50 ? 'orange' : 'red';
+        return `<section class="dash-section">
+            <div class="dash-section-head">
+                <h2 class="dash-section-title">Soldi · questo mese</h2>
+                <button class="dash-section-link" onclick="goTo('invoices')">Fatture →</button>
+            </div>
+            <div class="dash-money">
+                <div class="dash-money-cell dash-money-hero" onclick="goTo('invoices')">
+                    <span class="dash-money-label">Fatturato</span>
+                    <span class="dash-money-value" style="color:var(--gold)">€${d.thisMonthRev.toLocaleString('it-IT')}</span>
+                    <span class="dash-money-sub"><span style="color:var(--${d.revGrowth >= 0 ? 'green' : 'red'})">${arrow} ${Math.abs(d.revGrowth)}%</span> vs mese scorso</span>
+                </div>
+                <div class="dash-money-cell" onclick="goTo('payments')">
+                    <span class="dash-money-label">Incassi</span>
+                    <span class="dash-money-value" style="color:var(--${collTone})">${d.collectionRate}<span style="font-size:18px;color:var(--text-muted)">%</span></span>
+                    <div class="dash-money-bar"><div style="width:${d.collectionRate}%;background:var(--${collTone})"></div></div>
+                    <span class="dash-money-sub">€${d.paidThisMonth.toLocaleString('it-IT')} / €${d.expectedThisMonth.toLocaleString('it-IT')}</span>
+                </div>
+                <div class="dash-money-cell" onclick="goTo('clienti')">
+                    <span class="dash-money-label">Pipeline</span>
+                    <span class="dash-money-value" style="color:var(--blue)">€${d.pipeline.toLocaleString('it-IT')}</span>
+                    <span class="dash-money-sub">${d.activeClientsCount} clienti attivi</span>
+                </div>
+                <div class="dash-money-cell" onclick="goTo('payments')">
+                    <span class="dash-money-label">In ritardo</span>
+                    <span class="dash-money-value" style="color:var(--${d.overdueTotal > 0 ? 'red' : 'green'})">€${d.overdueTotal.toLocaleString('it-IT')}</span>
+                    <span class="dash-money-sub">${d.overduePaymentsCount} pagament${d.overduePaymentsCount === 1 ? 'o' : 'i'}</span>
+                </div>
+                <div class="dash-money-cell" onclick="goTo('properties')">
+                    <span class="dash-money-label">Occupazione</span>
+                    <span class="dash-money-value" style="color:var(--${occTone})">${d.occupancyRate}<span style="font-size:18px;color:var(--text-muted)">%</span></span>
+                    <span class="dash-money-sub">${d.rentedProperties} affittati · ${d.availableProps} liberi</span>
+                </div>
+                <div class="dash-money-cell" onclick="goTo('contracts')">
+                    <span class="dash-money-label">Scad. 60g</span>
+                    <span class="dash-money-value" style="color:var(--blue)">${d.expiringContractsCount}</span>
+                    <span class="dash-money-sub">contratti</span>
+                </div>
+            </div>
+        </section>`;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // AGENT ACTION HANDLERS — Approve / Edit / Reject for action_queue items
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    async function approveAgentAction(actionId) {
+        const action = (S.actionQueue || []).find(a => a.id === actionId);
+        if (!action) { toast('error', 'Azione', 'Non trovata'); return; }
+        const label = action.kind === 'reply' ? 'inviare questa risposta' : action.kind === 'schedule_viewing' ? 'confermare il viewing proposto' : action.kind === 'qualify' ? 'inviare le domande di qualifica' : action.kind === 'archive' ? 'archiviare il lead' : 'applicare questa azione';
+        if (!confirm(`Vuoi ${label}?`)) return;
+        try {
+            await db.collection('action_queue').doc(actionId).update({
+                status: 'approved',
+                approvedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                approvedBy: S.profile?.id || 'unknown'
+            });
+            logActivity('agent_action_approved', 'agent', { actionId, kind: action.kind, leadId: action.leadId });
+            toast('success', 'Approvata', 'L\'agente la eseguirà a breve');
+        } catch (e) { toast('error', 'Errore', e.message); }
+    }
+
+    async function rejectAgentAction(actionId) {
+        const action = (S.actionQueue || []).find(a => a.id === actionId);
+        if (!action) { toast('error', 'Azione', 'Non trovata'); return; }
+        if (!confirm('Rifiutare questa azione?')) return;
+        try {
+            await db.collection('action_queue').doc(actionId).update({
+                status: 'rejected',
+                rejectedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                rejectedBy: S.profile?.id || 'unknown'
+            });
+            logActivity('agent_action_rejected', 'agent', { actionId, kind: action.kind, leadId: action.leadId });
+            toast('info', 'Rifiutata');
+        } catch (e) { toast('error', 'Errore', e.message); }
+    }
+
+    function editAgentAction(actionId) {
+        const a = (S.actionQueue || []).find(x => x.id === actionId);
+        if (!a) return;
+        const current = a.payload?.draft || '';
+        const edited = prompt('Modifica la bozza prima di approvarla:', current);
+        if (edited === null) return;
+        const trimmed = edited.trim();
+        if (!trimmed) { toast('error', 'Bozza vuota'); return; }
+        db.collection('action_queue').doc(actionId).update({
+            'payload.draft': trimmed,
+            editedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            editedBy: S.profile?.id || 'unknown'
+        }).then(() => {
+            toast('success', 'Bozza aggiornata', 'Ora puoi approvarla');
+        }).catch(e => toast('error', 'Errore', e.message));
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // COMMAND CENTER PAGE — full Agent action queue (live)
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    function commandCenterPage() {
+        const all = S.actionQueue || [];
+        const pending = all.filter(a => a.status === 'pending');
+        const autoApplied = all.filter(a => a.status === 'auto-applied');
+        const handled = all.filter(a => ['approved', 'rejected'].includes(a.status));
+        const tier1Auto = autoApplied.filter(a => a.tier === 1).length;
+
+        const KIND_META = {
+            reply: { icon: '📨', label: 'Bozza risposta' },
+            schedule_viewing: { icon: '📅', label: 'Pianifica viewing' },
+            qualify: { icon: '🎯', label: 'Qualifica lead' },
+            archive: { icon: '🗄', label: 'Archivia' },
+            note: { icon: '📝', label: 'Nota' },
+            other: { icon: '⚙', label: 'Azione' }
+        };
+
+        const renderAction = (a, withActions) => {
+            const meta = KIND_META[a.kind] || KIND_META.other;
+            const lead = (S.leads || []).find(l => l.id === a.leadId);
+            const conf = typeof a.confidence === 'number' ? Math.round(a.confidence * 100) : null;
+            const when = a.createdAt ? _humanAgo(a.createdAt) : '';
+            const draft = a.kind === 'reply' && a.payload?.draft ? `<div class="dash-agent-draft">${esc(String(a.payload.draft))}</div>` : '';
+            const slots = a.kind === 'schedule_viewing' && Array.isArray(a.payload?.proposedSlots) ? `<div class="dash-agent-draft">${a.payload.proposedSlots.map(s => esc(String(s))).join(' · ')}</div>` : '';
+            const statusBadge = a.status === 'pending' ? '' : a.status === 'auto-applied' ? '<span class="badge gold" style="font-size:10px">AUTO</span>' : a.status === 'approved' ? '<span class="badge green" style="font-size:10px">✓</span>' : '<span class="badge red" style="font-size:10px">✕</span>';
+            return `<div class="dash-row dash-row-agent" data-tone="${a.tier === 1 ? 'gold' : 'blue'}">
+                <span class="dash-row-icon">${meta.icon}</span>
+                <div class="dash-row-body">
+                    <div class="dash-row-primary"><strong>${meta.label}</strong> · ${esc(a.summary || '')} ${statusBadge}</div>
+                    <div class="dash-row-secondary">${lead ? esc(lead.name || lead.leadName || 'Lead') + ' · ' : ''}${esc(a.proposedBy || 'agent')} · tier ${a.tier}${conf !== null ? ` · ${conf}%` : ''}${when ? ' · ' + when : ''}</div>
+                    ${draft}${slots}
+                </div>
+                ${withActions ? `<div class="dash-row-actions">
+                    <button class="dash-act dash-act-primary" onclick="approveAgentAction('${a.id}')">✓</button>
+                    ${a.kind === 'reply' ? `<button class="dash-act" onclick="editAgentAction('${a.id}')">✎</button>` : ''}
+                    <button class="dash-act dash-act-danger" onclick="rejectAgentAction('${a.id}')">✕</button>
+                </div>` : ''}
+            </div>`;
+        };
+
+        return `
+            <div class="dash-hero">
+                <div class="dash-hero-text">
+                    <h1 class="dash-hero-title">Command Center<span style="color:var(--gold)">.</span></h1>
+                    <p class="dash-hero-sub">Azioni proposte dagli agenti · ${pending.length} in attesa · ${tier1Auto} auto-applicate oggi</p>
+                </div>
+            </div>
+
+            <section class="dash-section">
+                <div class="dash-section-head">
+                    <h2 class="dash-section-title">In attesa di approvazione</h2>
+                    <span class="dash-section-count">${pending.length}</span>
+                </div>
+                ${pending.length === 0
+                    ? `<div class="dash-empty">Tutto evaso. Gli agenti non hanno proposte pendenti.</div>`
+                    : `<div class="dash-list">${pending.map(a => renderAction(a, true)).join('')}</div>`
+                }
+            </section>
+
+            ${autoApplied.length > 0 ? `<section class="dash-section">
+                <div class="dash-section-head">
+                    <h2 class="dash-section-title">Auto-applicate</h2>
+                    <span class="dash-section-count">${autoApplied.length}</span>
+                </div>
+                <div class="dash-list">${autoApplied.slice(0, 10).map(a => renderAction(a, false)).join('')}</div>
+            </section>` : ''}
+
+            ${handled.length > 0 ? `<section class="dash-section">
+                <div class="dash-section-head">
+                    <h2 class="dash-section-title">Storico recente</h2>
+                    <span class="dash-section-count">${handled.length}</span>
+                </div>
+                <div class="dash-list">${handled.slice(0, 15).map(a => renderAction(a, false)).join('')}</div>
+            </section>` : ''}
+        `;
     }
 
     // Helper for last month check
