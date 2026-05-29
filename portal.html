@@ -841,6 +841,51 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js" onload="onFirebaseScriptLoad()" onerror="onFirebaseScriptError(event)"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-storage-compat.js" onload="onFirebaseScriptLoad()" onerror="onFirebaseScriptError(event)"></script>
     <script>
+    /* ═══════════════════════════════════════════════════════════════════════════
+     ║  BOOM ROMA — PORTAL  ·  MAIN APPLICATION SCRIPT
+     ║  Single-file SPA (no build step). All code shares one closure scope; inline
+     ║  onclick handlers call top-level functions directly. This is intentional —
+     ║  see CLAUDE.md ("standalone HTML, no bundler").
+     ║
+     ║  SECTION MAP — jump by searching the ALL-CAPS banner title (Ctrl/Cmd-F).
+     ║  Line numbers are approximate hints; the searchable title is the anchor.
+     ║
+     ║   ≈845    FIREBASE LOADING CHECK            SDK guard, config, init (auth/db/storage)
+     ║   ≈1014   ROME ZONES                        zone normalization + matching helpers
+     ║   ≈1403   STATE MANAGEMENT                  the global `S` object (all app state)
+     ║   ≈1429   TRANSLATIONS (IT/EN)              LANG dictionary
+     ║   ≈1579   DATE & ALERT UTILITIES            daysUntil/daysSince/isToday/isOverdue…
+     ║   ≈1617   AUTH                              login, magic-link boot, ?sign / ?welcome
+     ║   ≈1665   MAGIC SIGN (built-in templates)   passwordless signing for the 2 contract types
+     ║   ≈2204   POST-SIGNATURE AUTOMATION         lead closure, payments, CAF, welcome email
+     ║   ≈2358   BRIDGE Lead/Client → Contract     pre-fill contract from intake
+     ║   ≈2474   CONTRACT EXPIRY / AUTOMATIONS     90/60/30 alerts, runBoomAutomations
+     ║   ≈2522   RLI / CAF AUTO-DRAFT              registration + asseverazione drafts
+     ║   ≈2760   INTAKE FORM                       no-login lead qualification (?intake=)
+     ║   ≈2949   APP BOOT / onAuthStateChanged     setupApp, data load, listener start
+     ║   ≈3418   NOTIFICATION SYSTEM               persistent + real-time notifications
+     ║   ≈3458   REAL-TIME LISTENERS               contracts · action_queue · signRequests · radar
+     ║   ≈3776   REMINDER SYSTEM                   aggregated reminders
+     ║   ≈3940   SIDEBAR / NAV (buildNav)          sidebar markup + live badge counts
+     ║   ≈4206   ROUTER (renderPage)               page dispatch by S.page + post-render hooks
+     ║   ≈4263   DASHBOARD (adminDashboard)        first-line: Oggi · Agenti · Lead · Soldi
+     ║   ≈4760   DASHBOARD RENDERERS               renderDashToday/AgentInbox/LeadsPipeline/Money
+     ║   ≈4979   AGENT ACTION HANDLERS             approve/edit/reject action_queue
+     ║   ≈5031   COMMAND CENTER PAGE               full agent action queue
+     ║   ≈6443   LEADS / CRM                       convertLeadToClient, lead pages
+     ║   ≈7072   CONTRACTS PAGE                    contractsPage + Magic Sign requests section
+     ║   ≈11700  SIGNATURE PAD + SIGN MODALS       SignaturePadCanvas, openSignContractModal
+     ║   ≈12225  CONTRACT PDF GENERATION           jsPDF Allegato B/C generators
+     ║   ≈12290  MAGIC SIGN CUSTOM                 drop-PDF + drag-drop fields + pdf-lib embed
+     ║   ≈18705  LISTING PARSERS (preserved)       parseImmobiliare/Idealista/Subito/Casafari/Generic
+     ║   ≈18860  PROPERTY FINDER + RADAR           shared scraper, comparator, saved searches/scan
+     ║   ≈19074  PRE_ZONES                         Rome zone catalogue (slugs, avg price, portal segs)
+     ║   ≈19770  CORS_PROXIES + BoomCard           proxy list, listing-card generator
+     ║
+     ║  COLLECTIONS (Firestore): users, properties, contracts, payments, maintenance,
+     ║  documents, clients, pfsClients, invoices, leads, deadlines, tasks, rules,
+     ║  notifications, activityLog, magicLinks, action_queue, signRequests, radarSearches.
+     ═══════════════════════════════════════════════════════════════════════════ */
     // ═══════════════════════════════════════════════════════════════════════════
     // FIREBASE LOADING CHECK
     // ═══════════════════════════════════════════════════════════════════════════
