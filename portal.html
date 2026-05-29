@@ -3259,9 +3259,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
     function updateNotifBadge() {
         const btn = document.getElementById('notifBtn');
-        const systemCount = S.notifications.length;
-        const userUnread = S.userNotifications.filter(n => !n.read).length;
-        const count = systemCount + userUnread;
+        // Badge counts ONLY actionable unread user notifications, so it can actually
+        // reach zero. System conditions (S.notifications: expiring contracts, overdue
+        // payments, urgent maintenance) are recomputed live and can't be "dismissed" —
+        // they already surface in the Dashboard Critical Alerts and the reminder badge,
+        // so counting them here made the bell impossible to clear.
+        const count = S.userNotifications.filter(n => !n.read).length;
         btn.innerHTML = count > 0 ? `🔔<span class="notif-badge">${count > 9 ? '9+' : count}</span>` : '🔔';
         btn.style.position = 'relative';
     }
@@ -3304,6 +3307,27 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (S.notifListener) {
             S.notifListener();
             S.notifListener = null;
+        }
+    }
+
+    // Real-time contracts listener — a signature applied via magic-link (by the tenant
+    // or landlord) writes to Firestore, but the admin's local copy used to stay stale
+    // until cache expiry/reload, so "Contratti da Firmare" never cleared. Keep it live.
+    function startContractsListener() {
+        if (!S.profile?.id) return;
+        if (S.contractsListener) S.contractsListener();
+        S.contractsListener = db.collection('contracts')
+            .onSnapshot(snapshot => {
+                S.contracts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                checkAlerts();
+                if (S.page === 'dashboard' || S.page === 'contracts') renderPage();
+            }, err => console.error('Contracts listener error:', err));
+    }
+
+    function stopContractsListener() {
+        if (S.contractsListener) {
+            S.contractsListener();
+            S.contractsListener = null;
         }
     }
     
@@ -3849,6 +3873,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (confirm('Vuoi uscire?')) {
             stopSessionCheck();
             stopNotificationListener();
+            stopContractsListener();
             // Clear data cache
             localStorage.removeItem('boom_data_cache');
             try {
@@ -3886,6 +3911,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
         // Start notification listener
         startNotificationListener();
+        startContractsListener();
         
         // Check scheduled notifications (admin only, once per session)
         if (isAdmin() && !window.scheduledNotifChecked) {
