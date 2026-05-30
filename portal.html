@@ -5157,6 +5157,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (!action) { toast('error', 'Azione', 'Non trovata'); return; }
         const label = action.kind === 'reply' ? 'inviare questa risposta' : action.kind === 'schedule_viewing' ? 'confermare il viewing proposto' : action.kind === 'qualify' ? 'inviare le domande di qualifica' : action.kind === 'archive' ? 'archiviare il lead' : 'applicare questa azione';
         if (!confirm(`Vuoi ${label}?`)) return;
+        // Mark approved immediately for snappy UI; the executor will flip to
+        // 'executed' / 'failed' when the tool returns.
         try {
             await db.collection('action_queue').doc(actionId).update({
                 status: 'approved',
@@ -5164,8 +5166,31 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 approvedBy: S.profile?.id || 'unknown'
             });
             logActivity('agent_action_approved', 'agent', { actionId, kind: action.kind, leadId: action.leadId });
-            toast('success', 'Approvata', 'L\'agente la eseguirà a breve');
-        } catch (e) { toast('error', 'Errore', e.message); }
+        } catch (e) { return toast('error', 'Errore', e.message); }
+        // Then trigger the executor server-side. The user's Firebase ID
+        // token authenticates the call; the server verifies it's an admin.
+        try {
+            const idToken = await auth.currentUser.getIdToken();
+            const r = await fetch('/api/agent/execute', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Firebase-Token': idToken },
+                body: JSON.stringify({ id: actionId })
+            });
+            const data = await r.json().catch(() => ({}));
+            if (data?.ok && data.status === 'executed') {
+                toast('success', 'Eseguita', action.kind === 'reply' ? 'Messaggio inviato' : 'Azione applicata');
+            } else if (data?.error === 'no_executor_for_kind:other' || data?.error?.startsWith('no_executor_for_kind')) {
+                toast('info', 'Approvata', 'Azione manuale — segna come fatto a mano dopo');
+            } else if (data?.ok === false) {
+                toast('error', 'Executor', data.error || 'Esecuzione fallita');
+            } else {
+                toast('info', 'In coda', 'L\'agente la eseguirà a breve');
+            }
+        } catch (e) {
+            // Executor unreachable (offline, env not configured) — leave the
+            // action as 'approved' so a future executor sweep can pick it up.
+            toast('info', 'Approvata', 'Executor non raggiungibile, sarà eseguita appena disponibile');
+        }
     }
 
     async function rejectAgentAction(actionId) {
@@ -5208,7 +5233,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const all = S.actionQueue || [];
         const pending = all.filter(a => a.status === 'pending');
         const autoApplied = all.filter(a => a.status === 'auto-applied');
-        const handled = all.filter(a => ['approved', 'rejected'].includes(a.status));
+        const handled = all.filter(a => ['approved', 'executed', 'rejected', 'failed'].includes(a.status));
         const tier1Auto = autoApplied.filter(a => a.tier === 1).length;
 
         const KIND_META = {
@@ -5227,7 +5252,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const when = a.createdAt ? _humanAgo(a.createdAt) : '';
             const draft = a.kind === 'reply' && a.payload?.draft ? `<div class="dash-agent-draft">${esc(String(a.payload.draft))}</div>` : '';
             const slots = a.kind === 'schedule_viewing' && Array.isArray(a.payload?.proposedSlots) ? `<div class="dash-agent-draft">${a.payload.proposedSlots.map(s => esc(String(s))).join(' · ')}</div>` : '';
-            const statusBadge = a.status === 'pending' ? '' : a.status === 'auto-applied' ? '<span class="badge gold" style="font-size:10px">AUTO</span>' : a.status === 'approved' ? '<span class="badge green" style="font-size:10px">✓</span>' : '<span class="badge red" style="font-size:10px">✕</span>';
+            const statusBadge = a.status === 'pending' ? ''
+                : a.status === 'auto-applied' ? '<span class="badge gold" style="font-size:10px">AUTO</span>'
+                : a.status === 'executed' ? '<span class="badge green" style="font-size:10px">✓ eseguita</span>'
+                : a.status === 'approved' ? '<span class="badge blue" style="font-size:10px">in esecuzione…</span>'
+                : a.status === 'failed' ? `<span class="badge red" style="font-size:10px" title="${esc(a.executionError || '')}">✕ errore</span>`
+                : a.status === 'rejected' ? '<span class="badge red" style="font-size:10px">rifiutata</span>'
+                : '<span class="badge red" style="font-size:10px">' + esc(a.status) + '</span>';
             return `<div class="dash-row dash-row-agent" data-tone="${a.tier === 1 ? 'gold' : 'blue'}">
                 <span class="dash-row-icon">${meta.icon}</span>
                 <div class="dash-row-body">

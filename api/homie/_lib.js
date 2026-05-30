@@ -152,3 +152,74 @@ export async function readJson(req) {
     });
   });
 }
+
+// ─── Reading helpers (used by the agent layer + executor) ─────────────────
+
+// Convert a Firestore REST "Value" back to a plain JS value.
+export function fsValToJs(v) {
+  if (!v || typeof v !== 'object') return null;
+  if ('nullValue' in v)      return null;
+  if ('stringValue' in v)    return v.stringValue;
+  if ('booleanValue' in v)   return v.booleanValue;
+  if ('integerValue' in v)   return parseInt(v.integerValue, 10);
+  if ('doubleValue' in v)    return v.doubleValue;
+  if ('timestampValue' in v) return v.timestampValue;
+  if ('arrayValue' in v)     return (v.arrayValue.values || []).map(fsValToJs);
+  if ('mapValue' in v) {
+    const out = {};
+    for (const [k, val] of Object.entries(v.mapValue.fields || {})) out[k] = fsValToJs(val);
+    return out;
+  }
+  return null;
+}
+
+// Convert a Firestore REST document into a plain JS object (with id).
+export function fsDocToJs(doc) {
+  if (!doc || !doc.name) return null;
+  const id = doc.name.split('/').pop();
+  const out = { id };
+  for (const [k, v] of Object.entries(doc.fields || {})) out[k] = fsValToJs(v);
+  return out;
+}
+
+// Fetch a single doc by path "collection/docId". Returns null if missing.
+export async function fsGet(docPath) {
+  const token = await getAdminToken();
+  const res = await fetch(`${FS_BASE}/${docPath}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`Firestore get failed (${res.status}): ${await res.text()}`);
+  return fsDocToJs(await res.json());
+}
+
+// List up to `limit` docs from a collection, optionally filtered + ordered.
+// filter: { field, op: 'EQUAL'|'GREATER_THAN'|..., value }
+// orderBy: { field, direction: 'ASCENDING'|'DESCENDING' }
+export async function fsList(collection, { filter, orderBy, limit = 50 } = {}) {
+  const token = await getAdminToken();
+  const structuredQuery = { from: [{ collectionId: collection }], limit };
+  if (filter) structuredQuery.where = { fieldFilter: { field: { fieldPath: filter.field }, op: filter.op, value: toFsValue(filter.value) } };
+  if (orderBy) structuredQuery.orderBy = [{ field: { fieldPath: orderBy.field }, direction: orderBy.direction || 'DESCENDING' }];
+  const res = await fetch(`${FS_BASE}:runQuery`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ structuredQuery }),
+  });
+  if (!res.ok) throw new Error(`Firestore list failed (${res.status}): ${await res.text()}`);
+  const arr = await res.json();
+  return (Array.isArray(arr) ? arr : []).filter(r => r.document).map(r => fsDocToJs(r.document));
+}
+
+// Append an entry to the activityLog collection. Every agent tool call MUST
+// pass through here so the human operator can audit Homie's behaviour.
+export async function logActivity(action, category, details = {}, actor = 'homie') {
+  try {
+    await fsCreate('activityLog', {
+      action, category, details, actor,
+      createdAt: new Date(),
+    });
+  } catch (e) {
+    console.warn('[logActivity] failed:', e.message);
+  }
+}
