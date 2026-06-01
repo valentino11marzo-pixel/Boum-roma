@@ -80,6 +80,12 @@ export default async function handler(req, res) {
         output: { generatedAt: 'iso', counts: '{high,med,total}', items: 'array<{sev,cat,title,detail,days,ref}>' },
       },
       {
+        name: 'digest', method: 'POST', path: '/digest',
+        tier: 1, side_effects: 'read-only + optional email send',
+        input: { email: 'string? (send the briefing there)', window: 'number? (risk horizon days, default 60)' },
+        output: { generatedAt: 'iso', summary: '{leadsNew,pendingNew,gradeA,risksHigh,risksMed}', text: 'string', html: 'string', sent: 'object?' },
+      },
+      {
         name: 'execute', method: 'POST', path: '/execute',
         tier: 2, side_effects: 'runs the dispatched tool + writes:action_queue',
         input: { id: 'string (action_queue doc id)', override: 'object?' },

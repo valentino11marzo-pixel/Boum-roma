@@ -1294,6 +1294,9 @@
       criticalMs: 5 * 60 * 1000,     // > 5min → red
       offlineMs: 15 * 60 * 1000      // > 15min → offline
     },
+    // SLA response targets per grade, in minutes (editable in Settings,
+    // persisted to settings/cockpit). null = no SLA (dead).
+    sla: { A: 5, B: 30, C: 120 },
     routes: {
       'lead-inbox':    { title: 'Lead Inbox',     icon: '📨', subtitle: 'Live ingestion da Homie · grade A/B/C cadenza differenziata' },
       'action-queue':  { title: 'Action Queue',   icon: '⚡', subtitle: 'Decisioni umane in coda · 1-tap approve / reject / edit' },
@@ -1521,6 +1524,13 @@
     // Heartbeat
     Heartbeat.start();
 
+    // Shared config (heartbeat thresholds + SLA cadences) from settings/cockpit.
+    // Applies live once loaded; safe no-op if the doc doesn't exist yet.
+    CockpitConfig.load().then(() => {
+      Heartbeat.updateBadge();
+      if (STATE.route === 'lead-inbox') LeadStore.renderPanel();
+    });
+
     // Lead inbox listener (always-on so the sidebar badge stays live)
     LeadStore.start();
 
@@ -1689,7 +1699,8 @@
 
     /** SLA target by grade (minutes). dead → no target. */
     slaTarget(grade) {
-      return ({ A: 5, B: 30, C: 120, dead: null })[grade];
+      if (grade === 'dead') return null;
+      return (COCKPIT.sla && COCKPIT.sla[grade]) ?? ({ A: 5, B: 30, C: 120 })[grade];
     },
 
     /** Compute SLA state for a lead. Returns { state, label } where state ∈
@@ -2693,7 +2704,44 @@
   window.DealComposer = DealComposer;
 
   // ───────────────────────────────────────────────────────────
-  // SETTINGS — live config view + agent spec + connectivity tests
+  // COCKPIT CONFIG — single source of truth, persisted to settings/cockpit.
+  // Operational knobs only (heartbeat thresholds + SLA cadences). The auth
+  // whitelist stays in code on purpose: editing who-can-log-in from an
+  // unauthenticated browser would be a security hole.
+  // ───────────────────────────────────────────────────────────
+  const CockpitConfig = {
+    async load() {
+      try {
+        const snap = await db.doc('settings/cockpit').get();
+        if (!snap.exists) return;
+        const d = snap.data() || {};
+        if (d.heartbeat) {
+          if (d.heartbeat.warningMin)  COCKPIT.heartbeat.warningMs  = d.heartbeat.warningMin * 60000;
+          if (d.heartbeat.criticalMin) COCKPIT.heartbeat.criticalMs = d.heartbeat.criticalMin * 60000;
+          if (d.heartbeat.offlineMin)  COCKPIT.heartbeat.offlineMs  = d.heartbeat.offlineMin * 60000;
+        }
+        if (d.sla) {
+          ['A', 'B', 'C'].forEach(g => { if (typeof d.sla[g] === 'number') COCKPIT.sla[g] = d.sla[g]; });
+        }
+      } catch (e) { console.warn('[CockpitConfig.load]', e.message); }
+    },
+    async save(cfg) {
+      await db.doc('settings/cockpit').set({
+        heartbeat: cfg.heartbeat, sla: cfg.sla,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedBy: STATE.user?.email || 'cockpit'
+      }, { merge: true });
+      // Apply live
+      COCKPIT.heartbeat.warningMs  = cfg.heartbeat.warningMin * 60000;
+      COCKPIT.heartbeat.criticalMs = cfg.heartbeat.criticalMin * 60000;
+      COCKPIT.heartbeat.offlineMs  = cfg.heartbeat.offlineMin * 60000;
+      COCKPIT.sla = { ...COCKPIT.sla, ...cfg.sla };
+    }
+  };
+  window.CockpitConfig = CockpitConfig;
+
+  // ───────────────────────────────────────────────────────────
+  // SETTINGS — editable config (persisted) + agent spec + connectivity tests
   // ───────────────────────────────────────────────────────────
   const SettingsPanel = {
     async renderPanel() {
@@ -2711,17 +2759,25 @@
               <div><span>Modello</span><strong>${esc(hb.model || '—')}</strong></div>
               <div><span>Coda Mac</span><strong>${hb.queueLen ?? '—'}</strong></div>
             </div>
-            <div class="deal-lines" style="margin-top:10px">
-              <div><span>Soglia warning</span><strong>${COCKPIT.heartbeat.warningMs/60000}m</strong></div>
-              <div><span>Soglia critical</span><strong>${COCKPIT.heartbeat.criticalMs/60000}m</strong></div>
-              <div><span>Soglia offline</span><strong>${COCKPIT.heartbeat.offlineMs/60000}m</strong></div>
+            <div class="deal-card-title" style="margin-top:16px">Soglie heartbeat (minuti)</div>
+            <label class="deal-field"><span>Warning (giallo) oltre</span><input type="number" id="cfg-hb-warn" min="1" value="${COCKPIT.heartbeat.warningMs/60000}"></label>
+            <label class="deal-field"><span>Critical (rosso) oltre</span><input type="number" id="cfg-hb-crit" min="1" value="${COCKPIT.heartbeat.criticalMs/60000}"></label>
+            <label class="deal-field"><span>Offline oltre</span><input type="number" id="cfg-hb-off" min="1" value="${COCKPIT.heartbeat.offlineMs/60000}"></label>
+            <div class="deal-card-title" style="margin-top:8px">Cadenza SLA per grade (minuti)</div>
+            <label class="deal-field"><span>Grade A</span><input type="number" id="cfg-sla-a" min="1" value="${COCKPIT.sla.A}"></label>
+            <label class="deal-field"><span>Grade B</span><input type="number" id="cfg-sla-b" min="1" value="${COCKPIT.sla.B}"></label>
+            <label class="deal-field"><span>Grade C</span><input type="number" id="cfg-sla-c" min="1" value="${COCKPIT.sla.C}"></label>
+            <div class="lead-actions" style="margin-top:6px">
+              <button class="lead-btn primary" onclick="SettingsPanel.saveConfig()">💾 Salva configurazione</button>
             </div>
+            <div class="deal-disclaimer">Salvato in <code>settings/cockpit</code> · si applica subito e ad ogni dispositivo.</div>
           </div>
           <div class="deal-card">
             <div class="deal-card-title">Agent Layer</div>
             <div id="settings-spec"><span class="data" style="color:var(--text-muted)">Carico /api/agent/spec…</span></div>
             <div class="lead-actions" style="margin-top:12px">
               <button class="lead-btn" onclick="SettingsPanel.testSnapshot()">▶ Test state.snapshot</button>
+              <button class="lead-btn" onclick="SettingsPanel.testDigest()">📰 Test digest</button>
               <a class="lead-btn muted" href="/api/agent/spec" target="_blank" rel="noopener">📄 spec.json</a>
             </div>
             <div id="settings-test" style="margin-top:10px"></div>
@@ -2731,8 +2787,9 @@
             <div class="deal-lines">
               <div><span>Utente</span><strong>${esc(STATE.user?.email || '—')}</strong></div>
             </div>
-            <div style="margin-top:8px"><span class="data" style="color:var(--text-muted)">Whitelist:</span></div>
+            <div style="margin-top:8px"><span class="data" style="color:var(--text-muted)">Whitelist (gestita nel codice):</span></div>
             ${COCKPIT.whitelist.map(e => `<div class="data" style="margin-top:4px">· ${esc(e)}</div>`).join('')}
+            <div class="deal-disclaimer">La whitelist resta nel codice per sicurezza: modificarla dal browser sarebbe un rischio.</div>
           </div>
         </div>
       `;
@@ -2748,22 +2805,43 @@
         const box = $('#settings-spec'); if (box) box.innerHTML = `<span class="data" style="color:var(--danger)">spec non raggiungibile (deploy in corso?)</span>`;
       }
     },
-    async testSnapshot() {
+    async saveConfig() {
+      const num = (id, def) => { const v = parseInt($('#' + id)?.value, 10); return isNaN(v) || v < 1 ? def : v; };
+      const cfg = {
+        heartbeat: {
+          warningMin:  num('cfg-hb-warn', 2),
+          criticalMin: num('cfg-hb-crit', 5),
+          offlineMin:  num('cfg-hb-off', 15),
+        },
+        sla: { A: num('cfg-sla-a', 5), B: num('cfg-sla-b', 30), C: num('cfg-sla-c', 120) },
+      };
+      try {
+        await CockpitConfig.save(cfg);
+        Toast.show({ type: 'success', title: 'Configurazione salvata', desc: 'Applicata su tutti i dispositivi' });
+        Heartbeat.updateBadge();
+        if (STATE.route === 'lead-inbox') LeadStore.renderPanel();
+      } catch (e) {
+        Toast.show({ type: 'danger', title: 'Errore', desc: e.message });
+      }
+    },
+    async _callAgent(path, payload, label) {
       const box = $('#settings-test');
-      if (box) box.innerHTML = '<span class="data">⏳ chiamo state.snapshot…</span>';
+      if (box) box.innerHTML = `<span class="data">⏳ chiamo ${esc(label)}…</span>`;
       try {
         const idToken = await auth.currentUser.getIdToken();
-        const r = await fetch('/api/agent/state.snapshot', {
+        const r = await fetch(path, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'X-Firebase-Token': idToken },
-          body: JSON.stringify({ scope: 'all' })
+          body: JSON.stringify(payload)
         });
         const data = await r.json();
-        if (box) box.innerHTML = `<pre class="settings-pre">${esc(JSON.stringify(data, null, 2).slice(0, 1200))}</pre>`;
+        if (box) box.innerHTML = `<pre class="settings-pre">${esc(JSON.stringify(data, null, 2).slice(0, 1400))}</pre>`;
       } catch (e) {
         if (box) box.innerHTML = `<span class="data" style="color:var(--danger)">${esc(e.message)}</span>`;
       }
-    }
+    },
+    testSnapshot() { return this._callAgent('/api/agent/state.snapshot', { scope: 'all' }, 'state.snapshot'); },
+    testDigest()   { return this._callAgent('/api/agent/digest', {}, 'digest'); }
   };
   window.SettingsPanel = SettingsPanel;
 
