@@ -3249,10 +3249,12 @@
       { group: 'Navigate', icon: '📊', label: 'Deal Composer',  hint: 'Canone OMI', action: () => Router.go('deal-composer') },
       { group: 'Navigate', icon: '⚙️', label: 'Settings',       hint: 'Cockpit config', action: () => Router.go('settings') },
       // Actions
-      { group: 'Actions', icon: '➕', label: 'New contract',    hint: 'Generate magic links', action: () => { Router.go('contracts'); Toast.show({ type: 'info', title: 'Coming soon', desc: 'UI Contract magic link in arrivo nel prossimo turno.' }); } },
-      { group: 'Actions', icon: '💰', label: 'New deal',        hint: 'Compose canone', action: () => { Router.go('deal-composer'); Toast.show({ type: 'info', title: 'Coming soon', desc: 'Deal Composer in arrivo nel prossimo turno.' }); } },
-      { group: 'Actions', icon: '🔄', label: 'Reload cockpit',  hint: 'Hard refresh', action: () => location.reload() },
-      { group: 'Actions', icon: '🚪', label: 'Sign out',        hint: 'Disconnetti', action: () => auth.signOut() },
+      { group: 'Actions', icon: '💰', label: 'Componi canone',    hint: 'Deal Composer', action: () => Router.go('deal-composer') },
+      { group: 'Actions', icon: '✓✓', label: 'Approva tutte le azioni', hint: 'Bulk approve', action: () => { Router.go('action-queue'); setTimeout(() => ActionActions.bulkApprove(), 200); } },
+      { group: 'Actions', icon: '📰', label: 'Genera briefing',   hint: 'Digest del giorno', action: () => { Router.go('settings'); setTimeout(() => SettingsPanel.testDigest(), 250); } },
+      { group: 'Actions', icon: '🔎', label: 'Cerca lead',        hint: 'Filtra inbox', action: () => { Router.go('lead-inbox'); setTimeout(() => { const s = $('#lead-search'); if (s) s.focus(); }, 200); } },
+      { group: 'Actions', icon: '🔄', label: 'Ricarica cockpit',  hint: 'Hard refresh', action: () => location.reload() },
+      { group: 'Actions', icon: '🚪', label: 'Disconnetti',       hint: 'Sign out', action: () => auth.signOut() },
       // External
       { group: 'External', icon: '🏠', label: 'Open Portal',    hint: '/portal', action: () => window.open('/portal', '_blank') },
       { group: 'External', icon: '🌐', label: 'Open boomrome.com', hint: 'Public site', action: () => window.open('/', '_blank') },
