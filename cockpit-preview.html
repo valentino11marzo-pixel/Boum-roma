@@ -549,6 +549,26 @@
   .settings-tool code { color: var(--gold); font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
   .settings-pre { background: #0b0b0b; border: 1px solid var(--border); border-radius: 8px; padding: 12px; font-size: 11px; color: var(--text-secondary); overflow: auto; max-height: 320px; white-space: pre-wrap; word-break: break-word; }
 
+  /* ── Lead search ── */
+  .lead-search { background: var(--bg-input, #1A1A1A); border: 1px solid var(--border); border-radius: var(--r-pill, 999px); color: var(--text); padding: 7px 14px; font-size: 13px; min-width: 220px; }
+  .lead-search:focus { outline: none; border-color: var(--gold); }
+
+  /* ── Detail drawer ── */
+  .drawer-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(3px); opacity: 0; pointer-events: none; transition: opacity .22s ease; z-index: 200; }
+  .drawer-backdrop.is-open { opacity: 1; pointer-events: auto; }
+  .drawer { position: absolute; top: 0; right: 0; height: 100%; width: min(440px, 92vw); background: var(--bg-card, #0A0A0A); border-left: 1px solid var(--border-gold, rgba(212,175,55,0.25)); box-shadow: -20px 0 60px rgba(0,0,0,0.5); transform: translateX(100%); transition: transform .26s cubic-bezier(.4,0,.2,1); display: flex; flex-direction: column; }
+  .drawer-backdrop.is-open .drawer { transform: translateX(0); }
+  .drawer-head { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; border-bottom: 1px solid var(--border); }
+  .drawer-head h3 { margin: 0; font-size: 16px; font-weight: 500; color: var(--text); }
+  .drawer-close { background: none; border: none; color: var(--text-secondary); font-size: 26px; line-height: 1; cursor: pointer; }
+  .drawer-close:hover { color: var(--text); }
+  .drawer-body { padding: 18px 20px; overflow-y: auto; }
+  .drawer-badges { display: flex; gap: 8px; align-items: center; margin-bottom: 16px; }
+  .drawer-row { display: flex; justify-content: space-between; gap: 16px; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text-secondary); }
+  .drawer-row strong { color: var(--text); font-weight: 600; text-align: right; }
+  .drawer-note { margin: 14px 0; padding: 12px 14px; background: var(--bg-elevated, #141414); border-radius: 8px; font-style: italic; color: var(--text); font-size: 13px; line-height: 1.5; }
+  .drawer-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+
   /* ═════════════════════════════════════════════════════════════
      CMDK PALETTE
      ═════════════════════════════════════════════════════════════ */
@@ -1311,6 +1331,7 @@
     leads: [],
     leadsUnsub: null,
     leadsFilter: 'new',
+    leadsSearch: '',
     leadsTimerId: null,
     // Contracts
     contracts: [],
@@ -1339,6 +1360,21 @@
       return Math.floor(diff/86_400_000) + 'd ago';
     }
   };
+
+  // Lazy-load jsPDF from CDN (only when the Deal Composer exports a PDF).
+  let _jspdfPromise = null;
+  function loadJsPDF() {
+    if (window.jspdf) return Promise.resolve();
+    if (_jspdfPromise) return _jspdfPromise;
+    _jspdfPromise = new Promise((resolve, reject) => {
+      const sc = document.createElement('script');
+      sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+      sc.onload = () => resolve();
+      sc.onerror = () => reject(new Error('jsPDF non caricato'));
+      document.head.appendChild(sc);
+    });
+    return _jspdfPromise;
+  }
 
   // ───────────────────────────────────────────────────────────
   // TOAST
@@ -1676,11 +1712,16 @@
       return c;
     },
 
-    /** Filter the current leads list according to STATE.leadsFilter. */
+    /** Filter the current leads list according to STATE.leadsFilter + search. */
     filtered() {
       const f = STATE.leadsFilter;
-      if (f === 'all') return STATE.leads;
-      return STATE.leads.filter(l => (l.status || 'new') === f);
+      let list = f === 'all' ? STATE.leads : STATE.leads.filter(l => (l.status || 'new') === f);
+      const q = (STATE.leadsSearch || '').trim().toLowerCase();
+      if (q) {
+        list = list.filter(l => [l.name, l.email, l.phone, l.zone, l.propertyTitle, l.notes, l.message]
+          .filter(Boolean).join(' ').toLowerCase().includes(q));
+      }
+      return list;
     },
 
     /** Detect source: Homie / Immobiliare / Idealista / Intake Form / Web. */
@@ -1746,6 +1787,7 @@
             </div>
             ${note ? `<div class="lead-note">"${esc(String(note).slice(0, 180))}${String(note).length > 180 ? '…' : ''}"</div>` : ''}
             <div class="lead-actions">
+              <button class="lead-btn" onclick="LeadActions.detail('${esc(l.id)}')">👁 Dettaglio</button>
               ${wa ? `<a href="${wa}" target="_blank" rel="noopener" class="lead-btn primary" onclick="event.stopPropagation()">💬 WhatsApp</a>` : ''}
               ${email ? `<a href="mailto:${esc(email)}" class="lead-btn" onclick="event.stopPropagation()">📧 Email</a>` : ''}
               ${status === 'new' ? `<button class="lead-btn success" onclick="LeadActions.markResponded('${esc(l.id)}')">✓ Risposto</button>` : ''}
@@ -1800,6 +1842,7 @@
             ${filterBtn('all', 'Tutti')}
           </div>
           <div class="lead-summary">
+            <input type="search" id="lead-search" class="lead-search" placeholder="🔎 cerca nome, zona, email…" value="${esc(STATE.leadsSearch || '')}">
             <span><strong style="color:var(--gold)">${stats.graded.A}</strong> A</span>
             <span><strong>${stats.graded.B}</strong> B</span>
             <span><strong>${stats.graded.C}</strong> C</span>
@@ -1821,12 +1864,80 @@
           </div>
         `}
       `;
+      // Wire the search box (debounced, focus + caret preserved across re-render).
+      const search = $('#lead-search');
+      if (search) {
+        search.oninput = (e) => {
+          STATE.leadsSearch = e.target.value;
+          clearTimeout(this._searchTimer);
+          this._searchTimer = setTimeout(() => {
+            this.renderPanel();
+            const s2 = $('#lead-search');
+            if (s2) { s2.focus(); const v = s2.value; s2.setSelectionRange(v.length, v.length); }
+          }, 180);
+        };
+      }
     }
   };
   window.LeadStore = LeadStore;
 
+  // Slide-in detail drawer (shared element, reused for every lead).
+  function openDrawer(title, bodyHtml) {
+    let bd = $('#cockpit-drawer-backdrop');
+    if (!bd) {
+      bd = document.createElement('div');
+      bd.id = 'cockpit-drawer-backdrop';
+      bd.className = 'drawer-backdrop';
+      bd.innerHTML = `<div class="drawer" onclick="event.stopPropagation()"><div class="drawer-head"><h3 id="drawer-title"></h3><button class="drawer-close" onclick="closeDrawer()">×</button></div><div class="drawer-body" id="drawer-body"></div></div>`;
+      bd.onclick = (e) => { if (e.target === bd) closeDrawer(); };
+      document.body.appendChild(bd);
+    }
+    $('#drawer-title').textContent = title;
+    $('#drawer-body').innerHTML = bodyHtml;
+    requestAnimationFrame(() => bd.classList.add('is-open'));
+  }
+  window.closeDrawer = function () { const bd = $('#cockpit-drawer-backdrop'); if (bd) bd.classList.remove('is-open'); };
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawer(); });
+
   // Global handlers used by inline onclick attributes in lead cards.
   window.LeadActions = {
+    detail(id) {
+      const l = STATE.leads.find(x => x.id === id);
+      if (!l) return;
+      const grade = LeadStore.gradeOf(l);
+      const wa = LeadStore.waLink(l.phone);
+      const row = (k, v) => v ? `<div class="drawer-row"><span>${esc(k)}</span><strong>${esc(String(v))}</strong></div>` : '';
+      const acts = (l.activity || l.timeline || []);
+      const body = `
+        <div class="drawer-badges">
+          <span class="lead-grade grade-${grade}">${grade === 'dead' ? '·' : grade}</span>
+          <span class="lead-pill is-${l.status || 'new'}">${esc(l.status || 'new')}</span>
+          <span class="lead-pill is-source">${esc(LeadStore.sourceOf(l))}</span>
+        </div>
+        ${row('Nome', l.name)}
+        ${row('Email', l.email)}
+        ${row('Telefono', l.phone)}
+        ${row('Budget', l.budget ? '€' + Number(l.budget).toLocaleString('it-IT') + '/mese' : '')}
+        ${row('Zona', l.zone)}
+        ${row('Situazione', l.situation)}
+        ${row('Lingua', l.language)}
+        ${row('Immobile', l.propertyTitle)}
+        ${row('Prezzo immobile', l.propertyPrice ? '€' + Number(l.propertyPrice).toLocaleString('it-IT') : '')}
+        ${row('Intent', l.intent)}
+        ${row('Confidence', typeof l.confidence === 'number' ? Math.round(l.confidence * 100) + '%' : '')}
+        ${row('Fonte tecnica', l.source)}
+        ${row('Creato', l.createdAt ? (l.createdAt.toDate ? l.createdAt.toDate() : new Date(l.createdAt)).toLocaleString('it-IT') : '')}
+        ${(l.notes || l.message) ? `<div class="drawer-note">"${esc(l.notes || l.message)}"</div>` : ''}
+        <div class="drawer-actions">
+          ${wa ? `<a class="lead-btn primary" href="${wa}" target="_blank" rel="noopener">💬 WhatsApp</a>` : ''}
+          ${l.email ? `<a class="lead-btn" href="mailto:${esc(l.email)}">📧 Email</a>` : ''}
+          ${(l.status || 'new') === 'new' ? `<button class="lead-btn success" onclick="LeadActions.markResponded('${esc(l.id)}');closeDrawer()">✓ Risposto</button>` : ''}
+          ${((l.status || 'new') === 'new' || l.status === 'responded') ? `<button class="lead-btn danger" onclick="LeadActions.discard('${esc(l.id)}');closeDrawer()">✕ Scarta</button>` : ''}
+          <a class="lead-btn muted" href="/portal#leads" target="_blank" rel="noopener">🔗 Apri nel Portal</a>
+        </div>
+      `;
+      openDrawer(l.name || 'Lead', body);
+    },
     setFilter(f) {
       STATE.leadsFilter = f;
       LeadStore.renderPanel();
@@ -2349,7 +2460,7 @@
       'Pigneto / Prenestino':  { min: 9,  max: 14 },
       'Periferia':             { min: 6,  max: 10 },
     },
-    state: { zone: 'Centro Storico', sqm: 50, band: 'mid', furnished: true, topFloor: false, renovated: false, cedolare: true },
+    state: { zone: 'Centro Storico', sqm: 50, band: 'mid', furnished: true, topFloor: false, renovated: false, cedolare: true, propertyId: '', tenantId: '', startDate: '', type: 'transitorio' },
 
     calc() {
       const s = this.state;
@@ -2368,14 +2479,23 @@
       return { perSqm: perSqm.toFixed(1), monthly, yearly, cedolareTax, deposit, mods, base };
     },
 
-    renderPanel() {
+    async renderPanel() {
       const panel = $('#deal-panel');
       if (!panel) return;
+      // Lazy-load properties + tenants for the "save as draft" pickers.
+      if (!STATE.ctxLoaded) await ContractStore.loadContext().catch(() => {});
       const s = this.state;
       const r = this.calc();
       const today = new Date();
       const rliDeadline = new Date(today.getTime() + 30 * 86400000);
       const zoneOpts = Object.keys(this.zones).map(z => `<option value="${esc(z)}" ${z === s.zone ? 'selected' : ''}>${esc(z)}</option>`).join('');
+      const propOpts = ['<option value="">— scegli immobile —</option>'].concat(
+        Object.values(STATE.propertiesById || {}).map(p => `<option value="${esc(p.id)}" ${p.id === s.propertyId ? 'selected' : ''}>${esc(p.title || p.name || p.nickname || p.address || p.id)}</option>`)
+      ).join('');
+      const tenantOpts = ['<option value="">— scegli inquilino —</option>'].concat(
+        Object.values(STATE.usersById || {}).filter(u => !u.role || u.role === 'tenant' || u.role === 'user').map(u => `<option value="${esc(u.id)}" ${u.id === s.tenantId ? 'selected' : ''}>${esc(u.name || u.displayName || u.email || u.id)}</option>`)
+      ).join('');
+      if (!s.startDate) s.startDate = today.toISOString().slice(0, 10);
 
       panel.innerHTML = `
         <div class="deal-grid">
@@ -2414,6 +2534,23 @@
             <div class="deal-deadline">📌 Registrazione RLI entro <strong>${rliDeadline.toLocaleDateString('it-IT')}</strong> (30gg da decorrenza). Cedolare: acconto novembre, saldo giugno.</div>
             <div class="deal-disclaimer">Stima indicativa su fasce concordato Roma. Per validità legale serve asseverazione di un'associazione firmataria dell'Accordo Territoriale.</div>
           </div>
+          <div class="deal-card">
+            <div class="deal-card-title">Genera contratto</div>
+            <label class="deal-field"><span>Tipo</span>
+              <select id="deal-type">
+                <option value="transitorio" ${s.type==='transitorio'?'selected':''}>Transitorio</option>
+                <option value="studenti" ${s.type==='studenti'?'selected':''}>Studenti</option>
+              </select>
+            </label>
+            <label class="deal-field"><span>Immobile</span><select id="deal-prop">${propOpts}</select></label>
+            <label class="deal-field"><span>Inquilino</span><select id="deal-tenant">${tenantOpts}</select></label>
+            <label class="deal-field"><span>Decorrenza</span><input type="date" id="deal-start" value="${esc(s.startDate)}"></label>
+            <div class="lead-actions" style="margin-top:6px">
+              <button class="lead-btn primary" onclick="DealComposer.saveDraft()">📝 Salva come bozza</button>
+              <button class="lead-btn" onclick="DealComposer.exportPDF()">📄 Esporta PDF</button>
+            </div>
+            <div class="deal-disclaimer">La bozza finisce in <code>contracts</code> (status draft); aprila nel Portal per generare l'Allegato e mandarla in firma.</div>
+          </div>
         </div>
       `;
       // Bind
@@ -2422,6 +2559,7 @@
       $('#deal-band').onchange = upd;
       $('#deal-sqm').oninput = () => { this.readForm(); this.updateResultOnly(); };
       ['deal-furnished','deal-topfloor','deal-renovated','deal-cedolare'].forEach(id => { const el = $('#'+id); if (el) el.onchange = upd; });
+      ['deal-type','deal-prop','deal-tenant','deal-start'].forEach(id => { const el = $('#'+id); if (el) el.onchange = () => this.readForm(); });
     },
     readForm() {
       this.state.zone = $('#deal-zone')?.value || this.state.zone;
@@ -2431,6 +2569,72 @@
       this.state.topFloor = !!$('#deal-topfloor')?.checked;
       this.state.renovated = !!$('#deal-renovated')?.checked;
       this.state.cedolare = !!$('#deal-cedolare')?.checked;
+      if ($('#deal-type')) this.state.type = $('#deal-type').value;
+      if ($('#deal-prop')) this.state.propertyId = $('#deal-prop').value;
+      if ($('#deal-tenant')) this.state.tenantId = $('#deal-tenant').value;
+      if ($('#deal-start')) this.state.startDate = $('#deal-start').value;
+    },
+
+    async saveDraft() {
+      this.readForm();
+      const s = this.state, r = this.calc();
+      if (!s.propertyId) { Toast.show({ type: 'warning', title: 'Manca l\'immobile', desc: 'Scegli un immobile' }); return; }
+      if (!s.tenantId)   { Toast.show({ type: 'warning', title: 'Manca l\'inquilino', desc: 'Scegli un inquilino' }); return; }
+      try {
+        const idToken = await auth.currentUser.getIdToken();
+        const res = await fetch('/api/agent/contracts.draft', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Firebase-Token': idToken },
+          body: JSON.stringify({
+            type: s.type, propertyId: s.propertyId, tenantId: s.tenantId,
+            startDate: s.startDate, rent: r.monthly, deposit: r.deposit,
+            cedolareSecca: s.cedolare,
+            notes: `Bozza da Deal Composer · ${s.zone} · ${s.sqm}m² · ${r.perSqm}€/m²`
+          })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (data?.ok) Toast.show({ type: 'success', title: 'Bozza creata', desc: `Contratto ${s.type} · €${r.monthly}/mese · apri nel Portal` });
+        else Toast.show({ type: 'danger', title: 'Errore', desc: data.error || 'Salvataggio fallito' });
+      } catch (e) {
+        Toast.show({ type: 'danger', title: 'Errore', desc: e.message });
+      }
+    },
+
+    async exportPDF() {
+      this.readForm();
+      const s = this.state, r = this.calc();
+      try {
+        await loadJsPDF();
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        const propName = (STATE.propertiesById[s.propertyId] || {});
+        const gold = [184, 150, 12];
+        doc.setFillColor(8, 8, 10); doc.rect(0, 0, 210, 32, 'F');
+        doc.setTextColor(...gold); doc.setFontSize(20); doc.text('BOOM Roma', 14, 16);
+        doc.setTextColor(255, 255, 255); doc.setFontSize(11); doc.text('Scheda canone concordato', 14, 24);
+        let y = 46;
+        doc.setTextColor(20, 20, 20); doc.setFontSize(12);
+        const line = (k, v) => { doc.setFont(undefined, 'normal'); doc.setTextColor(110,110,110); doc.text(k, 14, y); doc.setTextColor(20,20,20); doc.setFont(undefined, 'bold'); doc.text(String(v), 120, y); y += 9; };
+        line('Zona OMI', s.zone);
+        line('Superficie', s.sqm + ' m²');
+        line('Fascia', s.band === 'low' ? 'Minima' : s.band === 'high' ? 'Massima' : 'Media');
+        line('Canone €/m²', r.perSqm + ' €/m²');
+        if (r.mods.length) line('Modificatori', r.mods.map(m => m[0] + ' ' + m[1]).join(', '));
+        y += 4; doc.setDrawColor(220,220,220); doc.line(14, y, 196, y); y += 12;
+        doc.setFontSize(22); doc.setTextColor(...gold); doc.setFont(undefined, 'bold');
+        doc.text('Euro ' + r.monthly.toLocaleString('it-IT') + ' / mese', 14, y); y += 14;
+        doc.setFontSize(12);
+        line('Canone annuo', '€ ' + r.yearly.toLocaleString('it-IT'));
+        line('Deposito (2 mensilità)', '€ ' + r.deposit.toLocaleString('it-IT'));
+        if (s.cedolare) line('Imposta cedolare 10%/anno', '€ ' + r.cedolareTax.toLocaleString('it-IT'));
+        y += 6; doc.setTextColor(110,110,110); doc.setFont(undefined, 'normal'); doc.setFontSize(9);
+        doc.text('Stima indicativa su fasce concordato Roma. Per validità legale serve asseverazione', 14, y); y += 5;
+        doc.text("di un'associazione firmataria dell'Accordo Territoriale.", 14, y);
+        const fname = `canone-${(propName.title || s.zone).replace(/\W+/g, '-').toLowerCase()}.pdf`;
+        doc.save(fname);
+      } catch (e) {
+        Toast.show({ type: 'danger', title: 'PDF', desc: e.message });
+      }
     },
     updateResultOnly() {
       const r = this.calc();
