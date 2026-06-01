@@ -568,6 +568,10 @@
   .drawer-row strong { color: var(--text); font-weight: 600; text-align: right; }
   .drawer-note { margin: 14px 0; padding: 12px 14px; background: var(--bg-elevated, #141414); border-radius: 8px; font-style: italic; color: var(--text); font-size: 13px; line-height: 1.5; }
   .drawer-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+  .ai-reply { margin-top: 14px; padding: 12px 14px; background: var(--bg-elevated, #141414); border: 1px solid var(--border-gold, rgba(212,175,55,0.25)); border-radius: 10px; }
+  .ai-reply-head { font-size: 12px; letter-spacing: .5px; color: var(--gold); margin-bottom: 8px; }
+  .ai-reply-text { width: 100%; min-height: 120px; resize: vertical; background: #0b0b0b; border: 1px solid var(--border); border-radius: 8px; color: var(--text); padding: 10px 12px; font-size: 13px; line-height: 1.55; font-family: inherit; }
+  .ai-reply-text:focus { outline: none; border-color: var(--gold); }
 
   /* ═════════════════════════════════════════════════════════════
      CMDK PALETTE
@@ -2006,14 +2010,47 @@
         ${row('Creato', l.createdAt ? (l.createdAt.toDate ? l.createdAt.toDate() : new Date(l.createdAt)).toLocaleString('it-IT') : '')}
         ${(l.notes || l.message) ? `<div class="drawer-note">"${esc(l.notes || l.message)}"</div>` : ''}
         <div class="drawer-actions">
-          ${wa ? `<a class="lead-btn primary" href="${wa}" target="_blank" rel="noopener">💬 WhatsApp</a>` : ''}
+          <button class="lead-btn primary" onclick="LeadActions.aiReply('${esc(l.id)}')">✨ Bozza AI</button>
+          ${wa ? `<a class="lead-btn" href="${wa}" target="_blank" rel="noopener">💬 WhatsApp</a>` : ''}
           ${l.email ? `<a class="lead-btn" href="mailto:${esc(l.email)}">📧 Email</a>` : ''}
           ${(l.status || 'new') === 'new' ? `<button class="lead-btn success" onclick="LeadActions.markResponded('${esc(l.id)}');closeDrawer()">✓ Risposto</button>` : ''}
           ${((l.status || 'new') === 'new' || l.status === 'responded') ? `<button class="lead-btn danger" onclick="LeadActions.discard('${esc(l.id)}');closeDrawer()">✕ Scarta</button>` : ''}
           <a class="lead-btn muted" href="/portal#leads" target="_blank" rel="noopener">🔗 Apri nel Portal</a>
         </div>
+        <div id="ai-reply-box"></div>
       `;
       openDrawer(l.name || 'Lead', body);
+    },
+    async aiReply(id) {
+      const box = $('#ai-reply-box');
+      if (box) box.innerHTML = '<div class="ai-reply"><span class="data">✨ Claude sta scrivendo la bozza…</span></div>';
+      try {
+        const idToken = await auth.currentUser.getIdToken();
+        const r = await fetch('/api/agent/ai.reply', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Firebase-Token': idToken },
+          body: JSON.stringify({ leadId: id })
+        });
+        const data = await r.json();
+        if (!data?.ok) { if (box) box.innerHTML = `<div class="ai-reply"><span class="data" style="color:var(--danger)">${esc(data.error || 'errore')}</span></div>`; return; }
+        const l = STATE.leads.find(x => x.id === id) || {};
+        const wa = LeadStore.waLink(l.phone);
+        const text = data.body || '';
+        STATE._aiDraft = text;
+        if (box) box.innerHTML = `
+          <div class="ai-reply">
+            <div class="ai-reply-head">✨ Bozza Claude${data.subject ? ` · <span style="color:var(--text-secondary)">${esc(data.subject)}</span>` : ''}</div>
+            <textarea class="ai-reply-text" id="ai-reply-text">${esc(text)}</textarea>
+            <div class="lead-actions" style="margin-top:8px">
+              <button class="lead-btn" onclick="navigator.clipboard.writeText(document.getElementById('ai-reply-text').value);Toast.show({type:'success',title:'Copiata'})">📋 Copia</button>
+              ${wa ? `<a class="lead-btn primary" target="_blank" rel="noopener" href="${wa.split('?')[0]}?text=" onclick="this.href='${wa.split('?')[0]}?text='+encodeURIComponent(document.getElementById('ai-reply-text').value)">💬 Invia su WhatsApp</a>` : ''}
+              ${l.email ? `<a class="lead-btn" href="mailto:${esc(l.email)}?subject=${encodeURIComponent(data.subject||'')}&body=" onclick="this.href='mailto:${esc(l.email)}?subject=${encodeURIComponent(data.subject||'')}&body='+encodeURIComponent(document.getElementById('ai-reply-text').value)">📧 Apri email</a>` : ''}
+              <button class="lead-btn muted" onclick="LeadActions.aiReply('${esc(id)}')">↻ Rigenera</button>
+            </div>
+          </div>`;
+      } catch (e) {
+        if (box) box.innerHTML = `<div class="ai-reply"><span class="data" style="color:var(--danger)">${esc(e.message)}</span></div>`;
+      }
     },
     setFilter(f) {
       STATE.leadsFilter = f;

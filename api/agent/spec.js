@@ -86,6 +86,12 @@ export default async function handler(req, res) {
         output: { generatedAt: 'iso', summary: '{leadsNew,pendingNew,gradeA,risksHigh,risksMed}', text: 'string', html: 'string', sent: 'object?' },
       },
       {
+        name: 'ai.reply', method: 'POST', path: '/ai.reply',
+        tier: 1, side_effects: 'draft-only (calls Claude; does not send)',
+        input: { leadId: 'string?', lead: 'object?', tone: 'warm|professional|concise?', language: 'it|en?', goal: 'string?' },
+        output: { subject: 'string', body: 'string', language: 'string', usage: 'object?' },
+      },
+      {
         name: 'execute', method: 'POST', path: '/execute',
         tier: 2, side_effects: 'runs the dispatched tool + writes:action_queue',
         input: { id: 'string (action_queue doc id)', override: 'object?' },
