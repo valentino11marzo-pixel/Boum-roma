@@ -1428,6 +1428,32 @@
     }
   }
 
+  // Decide whether a signed-in user may enter. Mirrors portal.html: an email
+  // in the fast-path whitelist OR any user whose Firestore profile role is
+  // 'admin'. This keeps the two surfaces consistent — if the Portal lets you
+  // in as admin, so does the Cockpit.
+  async function decideAccess(user) {
+    if (!user) {
+      showAuthMsg('Devi essere autenticato per accedere al cockpit.', 'Accedi al Portal', () => { location.href = '/login?next=%2Fcockpit-preview'; });
+      return;
+    }
+    if (user.isAnonymous) {
+      showAuthMsg('Sessione anonima non valida per il cockpit.', 'Accedi al Portal', () => { location.href = '/login?next=%2Fcockpit-preview'; });
+      return;
+    }
+    const email = (user.email || '').toLowerCase().trim();
+    if (COCKPIT.whitelist.includes(email)) { enterApp(user); return; }
+    // Mirror the portal: allow any admin-role profile.
+    try {
+      const doc = await db.collection('users').doc(user.uid).get();
+      const role = doc.exists ? (doc.data().role || '') : '';
+      if (role === 'admin') { enterApp(user); return; }
+      showAuthMsg(`Accesso riservato agli admin.<br><strong style="color:var(--text)">${esc(email)}</strong> ha ruolo "${esc(role || 'nessuno')}".`, 'Disconnetti', () => auth.signOut());
+    } catch (e) {
+      showAuthMsg('Impossibile verificare il ruolo:<br><code>' + esc(e.message) + '</code>', 'Riprova', () => location.reload());
+    }
+  }
+
   function bootAuth() {
     // Guard: if the Firebase SDK / config didn't load, never sit silently on
     // "Verifico autenticazione…" — say so and offer a reload.
@@ -1440,16 +1466,7 @@
     try {
       auth.onAuthStateChanged((user) => {
         settled = true;
-        if (!user) {
-          showAuthMsg('Devi essere autenticato per accedere al cockpit.', 'Accedi al Portal', () => { location.href = '/login?next=%2Fcockpit-preview'; });
-          return;
-        }
-        const email = (user.email || '').toLowerCase().trim();
-        if (!COCKPIT.whitelist.includes(email)) {
-          showAuthMsg(`Accesso non autorizzato per <strong style="color:var(--text)">${esc(email)}</strong>.<br>Questa preview è ristretta.`, 'Disconnetti', () => auth.signOut());
-          return;
-        }
-        enterApp(user);
+        decideAccess(user);
       }, (err) => {
         settled = true;
         showAuthMsg('Errore di autenticazione:<br><code>' + esc(err && err.message || 'unknown') + '</code>', 'Riprova', () => location.reload());
@@ -1459,12 +1476,13 @@
       return;
     }
 
-    // Watchdog: if onAuthStateChanged never resolves (network / SDK stall) but a
-    // session is already cached, enter anyway instead of hanging.
+    // Watchdog: if onAuthStateChanged never resolves (network / SDK stall) but
+    // a session is already cached, run the same access decision instead of
+    // hanging on the shield.
     setTimeout(() => {
       if (settled) return;
       const u = auth.currentUser;
-      if (u && COCKPIT.whitelist.includes((u.email || '').toLowerCase().trim())) enterApp(u);
+      if (u) decideAccess(u);
       else showAuthMsg('L\'autenticazione sta impiegando troppo tempo.<br>Controlla la connessione.', 'Riprova', () => location.reload());
     }, 7000);
   }
