@@ -829,6 +829,8 @@
 
         /* Buttons */
         .btn {
+            position: relative;
+            overflow: hidden;
             display: inline-flex;
             align-items: center;
             justify-content: center;
@@ -837,9 +839,26 @@
             font-weight: 600;
             letter-spacing: 2px;
             text-transform: uppercase;
-            transition: all 0.4s var(--ease-out);
+            border-radius: 100px;
+            border: 1px solid transparent;
+            transition: transform 0.4s var(--ease-out), box-shadow 0.4s var(--ease-out), border-color 0.4s var(--ease-out), background 0.4s var(--ease-out);
             cursor: pointer;
-            border: none;
+            will-change: transform;
+        }
+
+        /* Gold light sheen sweeping across on hover */
+        .btn::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, 0.45), transparent 70%);
+            transform: translateX(-130%);
+            transition: transform 0.7s var(--ease-out);
+            pointer-events: none;
+        }
+
+        .btn:hover::after {
+            transform: translateX(130%);
         }
 
         .btn-primary {
@@ -2295,19 +2314,22 @@
            ═══════════════════════════════════════════════════════════ */
         .reveal {
             opacity: 0;
-            transform: translateY(30px);
-            transition: opacity 0.8s var(--ease-out), transform 0.8s var(--ease-out);
+            transform: translateY(34px) scale(0.985);
+            filter: blur(6px);
+            transition: opacity 1s var(--ease-out), transform 1s var(--ease-out), filter 1s var(--ease-out);
         }
 
         .reveal.active {
             opacity: 1;
-            transform: translateY(0);
+            transform: none;
+            filter: none;
         }
 
         .reveal-stagger > * {
             opacity: 0;
-            transform: translateY(20px);
-            transition: opacity 0.6s var(--ease-out), transform 0.6s var(--ease-out);
+            transform: translateY(24px);
+            filter: blur(5px);
+            transition: opacity 0.7s var(--ease-out), transform 0.7s var(--ease-out), filter 0.7s var(--ease-out);
         }
 
         .reveal-stagger.active > *:nth-child(1) { transition-delay: 0.1s; }
@@ -2319,7 +2341,135 @@
 
         .reveal-stagger.active > * {
             opacity: 1;
-            transform: translateY(0);
+            transform: none;
+            filter: none;
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           SMOOTH INERTIA SCROLL (Lenis) — minimal required styles
+           ═══════════════════════════════════════════════════════════ */
+        html.lenis, html.lenis body { height: auto; }
+        .lenis.lenis-smooth { scroll-behavior: auto !important; }
+        .lenis.lenis-smooth [data-lenis-prevent] { overscroll-behavior: contain; }
+        .lenis.lenis-stopped { overflow: hidden; }
+
+        /* ═══════════════════════════════════════════════════════════
+           HOW BOOM WORKS — pinned scroll story
+           ═══════════════════════════════════════════════════════════ */
+        .how-pin-wrap { position: relative; height: 320vh; }
+        .how-pin {
+            position: sticky;
+            top: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            overflow: hidden;
+            background: var(--surface);
+            border-top: 1px solid var(--border-subtle);
+            border-bottom: 1px solid var(--border-subtle);
+        }
+        .how-pin-inner {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: var(--space-2xl);
+            align-items: center;
+            width: 100%;
+        }
+        @media (min-width: 900px) {
+            .how-pin-inner { grid-template-columns: 1.1fr 0.9fr; gap: var(--space-4xl); }
+        }
+        .how-steps { position: relative; min-height: 240px; }
+        .how-step {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            opacity: 0;
+            transform: translateY(36px);
+            filter: blur(6px);
+            transition: opacity 0.6s var(--ease-out), transform 0.6s var(--ease-out), filter 0.6s var(--ease-out);
+            pointer-events: none;
+        }
+        .how-step.on { opacity: 1; transform: none; filter: none; pointer-events: auto; }
+        .how-k {
+            font-family: var(--font-display);
+            font-size: clamp(48px, 9vw, 96px);
+            font-weight: 100;
+            line-height: 1;
+            color: var(--gold);
+            letter-spacing: -0.04em;
+        }
+        .how-title {
+            font-family: var(--font-display);
+            font-size: clamp(28px, 4vw, 44px);
+            font-weight: 200;
+            letter-spacing: -0.02em;
+            margin-top: var(--space-md);
+        }
+        .how-desc {
+            font-size: clamp(15px, 2vw, 18px);
+            color: var(--text-secondary);
+            max-width: 460px;
+            margin-top: var(--space-md);
+        }
+        .how-track { display: flex; gap: 8px; margin-top: var(--space-2xl); }
+        .how-track span {
+            flex: 1;
+            height: 3px;
+            background: var(--border-default);
+            border-radius: 2px;
+            overflow: hidden;
+            position: relative;
+        }
+        .how-track span i {
+            position: absolute;
+            inset: 0;
+            background: var(--gold);
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform 0.4s var(--ease-out);
+        }
+        .how-track span.done i { transform: scaleX(1); }
+        .how-visual {
+            position: relative;
+            aspect-ratio: 4 / 5;
+            border-radius: 20px;
+            background: linear-gradient(160deg, var(--surface-elevated), var(--surface-card));
+            border: 1px solid var(--border-default);
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .how-visual-fill {
+            position: absolute;
+            left: 0; bottom: 0;
+            width: 100%;
+            height: 0%;
+            background: linear-gradient(0deg, rgba(255, 215, 0, 0.16), rgba(255, 215, 0, 0.02));
+            transition: height 0.15s linear;
+        }
+        .how-visual-num {
+            position: relative;
+            font-family: var(--font-display);
+            font-size: clamp(120px, 20vw, 220px);
+            font-weight: 100;
+            color: rgba(255, 215, 0, 0.10);
+            letter-spacing: -0.05em;
+            transition: color 0.4s var(--ease-out);
+        }
+        /* Mobile: unpin and stack all steps as a normal list */
+        @media (max-width: 899px) {
+            .how-pin-wrap { height: auto; }
+            .how-pin { position: static; min-height: 0; padding: var(--space-4xl) 0; }
+            .how-steps { min-height: 0; display: flex; flex-direction: column; gap: var(--space-2xl); }
+            .how-step { position: static; opacity: 1; transform: none; filter: none; pointer-events: auto; }
+            .how-visual { display: none; }
+            .how-track { display: none; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .how-step { opacity: 1 !important; transform: none !important; filter: none !important; }
         }
     </style>
 <!-- BOOM_JSONLD:START -->
@@ -2925,6 +3075,46 @@
         </div>
     </section>
 
+    <!-- How BOOM Works — pinned scroll story -->
+    <section class="how-pin-wrap" id="howPinWrap" aria-label="How BOOM works">
+        <div class="how-pin">
+            <div class="container how-pin-inner">
+                <div class="how-pin-text">
+                    <span class="section-eyebrow">How BOOM Works</span>
+                    <div class="how-steps" id="howSteps">
+                        <div class="how-step on" data-step="0">
+                            <div class="how-k">01</div>
+                            <h2 class="how-title">Browse &amp; choose</h2>
+                            <p class="how-desc">Every apartment is video-verified with transparent pricing. What you see is exactly what you get — no surprises.</p>
+                        </div>
+                        <div class="how-step" data-step="1">
+                            <div class="how-k">02</div>
+                            <h2 class="how-title">Apply in 2 minutes</h2>
+                            <p class="how-desc">A simple online application and a real human on the other side. You get an answer fast, not in weeks.</p>
+                        </div>
+                        <div class="how-step" data-step="2">
+                            <div class="how-k">03</div>
+                            <h2 class="how-title">Sign &amp; pay securely</h2>
+                            <p class="how-desc">A proper legal contract, deposit protection and zero hidden fees. Everything in order, everything clear.</p>
+                        </div>
+                        <div class="how-step" data-step="3">
+                            <div class="how-k">04</div>
+                            <h2 class="how-title">Move in within 48h</h2>
+                            <p class="how-desc">Keys in your hand, utilities ready. From first click to first night, in days — not months.</p>
+                        </div>
+                    </div>
+                    <div class="how-track" id="howTrack">
+                        <span class="done"><i></i></span><span><i></i></span><span><i></i></span><span><i></i></span>
+                    </div>
+                </div>
+                <div class="how-visual">
+                    <div class="how-visual-fill" id="howFill"></div>
+                    <div class="how-visual-num" id="howNum">01</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <!-- Property Finding Service -->
     <section class="section">
         <div class="container">
@@ -3312,6 +3502,8 @@
         </div>
     </footer>
 
+    <!-- Smooth inertia scroll (degrades gracefully to native scroll if it fails to load) -->
+    <script src="https://unpkg.com/lenis@1.1.13/dist/lenis.min.js"></script>
     <script>
         // ═══════════════════════════════════════════════════════════
         // Interactive Mouse Glow
@@ -3402,6 +3594,89 @@
         revealElements.forEach(el => revealObserver.observe(el));
 
         // ═══════════════════════════════════════════════════════════
+        // Premium motion: smooth scroll · count-up · magnetic · pinned story
+        // ═══════════════════════════════════════════════════════════
+        const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const canHover = window.matchMedia('(hover: hover)').matches;
+
+        // 1) Smooth inertia scroll (Lenis). Native 'scroll' events keep firing,
+        //    so the existing scroll-progress + nav listeners are unaffected.
+        let lenis = null;
+        if (!prefersReduced && window.Lenis) {
+            lenis = new Lenis({
+                duration: 1.1,
+                easing: t => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+                smoothWheel: true
+            });
+            const lenisRaf = (time) => { lenis.raf(time); requestAnimationFrame(lenisRaf); };
+            requestAnimationFrame(lenisRaf);
+        }
+        const getScrollY = () => lenis ? lenis.scroll : window.scrollY;
+
+        // 2) Count-up — animates the leading number, keeps prefix/suffix (€, %, h, +, min)
+        function countUp(el) {
+            if (el.dataset.counted) return;
+            const text = (el.dataset.final || el.textContent).trim();
+            el.dataset.final = text;
+            const m = text.match(/^(\D*)(\d+)(.*)$/s);
+            if (!m) return;
+            el.dataset.counted = '1';
+            const pre = m[1], end = parseInt(m[2], 10), suf = m[3];
+            if (prefersReduced || end === 0) { el.textContent = text; return; }
+            const dur = 1300, t0 = performance.now();
+            (function tick(now) {
+                const p = Math.min(1, (now - t0) / dur);
+                const e = 1 - Math.pow(1 - p, 3);
+                el.textContent = pre + Math.round(end * e) + suf;
+                if (p < 1) requestAnimationFrame(tick);
+            })(t0);
+        }
+        const countObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) { countUp(entry.target); countObserver.unobserve(entry.target); }
+            });
+        }, { threshold: 0.4 });
+        document.querySelectorAll('.hero-stat-value, .feature-stat-value').forEach(el => countObserver.observe(el));
+
+        // 3) Magnetic buttons (pointer devices only)
+        if (!prefersReduced && canHover) {
+            document.querySelectorAll('.btn').forEach(btn => {
+                btn.addEventListener('mousemove', e => {
+                    const r = btn.getBoundingClientRect();
+                    const x = e.clientX - r.left - r.width / 2;
+                    const y = e.clientY - r.top - r.height / 2;
+                    btn.style.transform = `translate(${x * 0.2}px, ${y * 0.3}px)`;
+                });
+                btn.addEventListener('mouseleave', () => { btn.style.transform = ''; });
+            });
+        }
+
+        // 4) Pinned "How BOOM Works" story — steps advance as the section scrolls past
+        const howWrap = document.getElementById('howPinWrap');
+        const howSteps = [...document.querySelectorAll('.how-step')];
+        const howTracks = [...document.querySelectorAll('#howTrack span')];
+        const howFill = document.getElementById('howFill');
+        const howNum = document.getElementById('howNum');
+        if (howWrap && howSteps.length) {
+            const isPinned = () => window.matchMedia('(min-width: 900px)').matches;
+            const updateHow = () => {
+                if (isPinned()) {
+                    const y = getScrollY();
+                    const h = howWrap.offsetHeight - window.innerHeight;
+                    let p = h > 0 ? (y - howWrap.offsetTop) / h : 0;
+                    p = Math.max(0, Math.min(1, p));
+                    if (howFill) howFill.style.height = (p * 100) + '%';
+                    const idx = Math.min(howSteps.length - 1, Math.floor(p * howSteps.length));
+                    howSteps.forEach((s, i) => s.classList.toggle('on', i === idx));
+                    howTracks.forEach((t, i) => t.classList.toggle('done', i <= idx));
+                    if (howNum) howNum.textContent = String(idx + 1).padStart(2, '0');
+                }
+                requestAnimationFrame(updateHow);
+            };
+            requestAnimationFrame(updateHow);
+        }
+
+        // ═══════════════════════════════════════════════════════════
         // Smooth anchor scrolling
         // ═══════════════════════════════════════════════════════════
         document.querySelectorAll('a[href^="#"]').forEach(anchor => {
@@ -3409,7 +3684,8 @@
                 e.preventDefault();
                 const target = document.querySelector(this.getAttribute('href'));
                 if (target) {
-                    target.scrollIntoView({ behavior: 'smooth' });
+                    if (lenis) { lenis.scrollTo(target, { offset: -80 }); }
+                    else { target.scrollIntoView({ behavior: 'smooth' }); }
                 }
             });
         });
