@@ -526,6 +526,29 @@
     color: var(--gold);
   }
 
+  /* ── Deal Composer + Settings panels ── */
+  .deal-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+  .deal-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r-lg, 14px); padding: 18px 20px; }
+  .deal-card-title { font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 14px; }
+  .deal-field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; font-size: 12px; color: var(--text-secondary); }
+  .deal-field select, .deal-field input { background: var(--bg-input, #1A1A1A); border: 1px solid var(--border); border-radius: 8px; color: var(--text); padding: 9px 11px; font-size: 14px; }
+  .deal-field select:focus, .deal-field input:focus { outline: none; border-color: var(--gold); }
+  .deal-toggles { display: flex; flex-direction: column; gap: 9px; margin-top: 6px; }
+  .deal-toggles label { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text); cursor: pointer; }
+  .deal-toggles input { accent-color: var(--gold); width: 15px; height: 15px; }
+  .deal-result { background: linear-gradient(160deg, var(--bg-elevated, #141414), var(--bg-card)); border-color: var(--border-gold, rgba(212,175,55,0.25)); }
+  .deal-big { font-size: 40px; font-weight: 300; color: var(--gold); letter-spacing: -1px; line-height: 1.1; }
+  .deal-big span { font-size: 16px; color: var(--text-secondary); margin-left: 4px; }
+  .deal-sub { font-size: 12px; color: var(--text-secondary); margin: 4px 0 14px; }
+  .deal-lines > div { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text-secondary); }
+  .deal-lines > div strong { color: var(--text); font-weight: 600; }
+  .deal-lines .deal-mods { border: none; flex-wrap: wrap; gap: 6px; padding-top: 10px; }
+  .deal-deadline { margin-top: 14px; padding: 10px 12px; background: var(--gold-soft, rgba(212,175,55,0.08)); border-radius: 8px; font-size: 12px; color: var(--text); line-height: 1.5; }
+  .deal-disclaimer { margin-top: 10px; font-size: 11px; color: var(--text-muted, #777); line-height: 1.5; }
+  .settings-tool { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 13px; }
+  .settings-tool code { color: var(--gold); font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
+  .settings-pre { background: #0b0b0b; border: 1px solid var(--border); border-radius: 8px; padding: 12px; font-size: 11px; color: var(--text-secondary); overflow: auto; max-height: 320px; white-space: pre-wrap; word-break: break-word; }
+
   /* ═════════════════════════════════════════════════════════════
      CMDK PALETTE
      ═════════════════════════════════════════════════════════════ */
@@ -1180,7 +1203,7 @@
         <a class="nav-item" data-route="risk-radar">
           <span class="nav-icon">🎯</span>
           <span class="nav-label">Risk Radar</span>
-          <span class="nav-badge" id="badge-risks">0</span>
+          <span class="nav-badge" id="badge-risks" style="display:none">0</span>
         </a>
       </div>
 
@@ -1270,7 +1293,15 @@
     route: null,
     sidebarCollapsed: false,
     heartbeatLast: null,
+    heartbeatMeta: null,
     heartbeatUnsub: null,
+    // Action queue
+    actions: [],
+    actionsUnsub: null,
+    actionsFilter: 'pending',
+    actionsBusy: {},      // actionId -> true while executor runs
+    // Risk radar
+    riskItems: [],
     cmdkOpen: false,
     cmdkSelected: 0,
     cmdkFiltered: [],
@@ -1407,6 +1438,10 @@
     // Lead inbox listener (always-on so the sidebar badge stays live)
     LeadStore.start();
 
+    // Action queue listener (always-on so the sidebar badge counts pending
+    // decisions even when you're on another panel)
+    ActionStore.start();
+
     // Contracts listener (always-on for sidebar badge; context users+properties
     // loaded lazily on first panel entry)
     ContractStore.startListener();
@@ -1460,7 +1495,7 @@
             <p class="page-subtitle">${esc(meta.subtitle)}</p>
           </div>
           <div class="page-actions">
-            <span class="soon-banner">Preview · shell</span>
+            <span class="soon-banner" style="background:rgba(47,211,122,0.08);border-color:rgba(47,211,122,0.3);color:var(--success)">● Live</span>
           </div>
         </div>
         ${Panels[route] ? Panels[route]() : Panels.placeholder(meta)}
@@ -1492,42 +1527,26 @@
       setTimeout(() => LeadStore.renderPanel(), 0);
       return `<div id="lead-panel"><div class="empty-state"><div class="empty-icon">📨</div><div class="empty-title">Connessione live…</div><div class="empty-desc">Sto caricando i lead da Firestore.</div></div></div>`;
     },
-    'action-queue': () => `
-      <div class="empty-state">
-        <div class="empty-icon">⚡</div>
-        <div class="empty-title">Nessuna decisione in coda</div>
-        <div class="empty-desc">Le azioni che richiedono il tuo OK arriveranno qui da Tier 2 (Sonnet/Opus quando un lead è A o Homie segnala un caso flagged).<br>1-tap: <span class="gold">Approve</span> · <span class="gold">Reject</span> · <span class="gold">Edit & approve</span>.</div>
-        <div class="empty-hint">listener: onSnapshot('action_queue').where('status','==','pending') — non ancora attivato</div>
-      </div>
-    `,
-    'risk-radar': () => `
-      <div class="empty-state">
-        <div class="empty-icon">🎯</div>
-        <div class="empty-title">Nessun rischio aperto</div>
-        <div class="empty-desc">RLI in scadenza, contratti silenziosi, asseverazioni mancanti, lead grade A senza follow-up &gt; 24h.<br>Quando un deadline è &lt; 7gg, l'item compare qui con priorità rossa.</div>
-        <div class="empty-hint">query: deadlines.where('dueAt','&lt;=', now+7d).where('status','==','open') — non ancora attivata</div>
-      </div>
-    `,
+    'action-queue': () => {
+      setTimeout(() => ActionStore.renderPanel(), 0);
+      return `<div id="action-panel"><div class="empty-state"><div class="empty-icon">⚡</div><div class="empty-title">Connessione live…</div><div class="empty-desc">Carico la coda azioni da Firestore.</div></div></div>`;
+    },
+    'risk-radar': () => {
+      setTimeout(() => RiskStore.renderPanel(), 0);
+      return `<div id="risk-panel"><div class="empty-state"><div class="empty-icon">🎯</div><div class="empty-title">Calcolo rischi…</div><div class="empty-desc">Analizzo contratti, pagamenti e lead.</div></div></div>`;
+    },
     'contracts': () => {
       setTimeout(() => ContractStore.enter(), 0);
       return `<div id="contracts-panel"><div class="empty-state"><div class="empty-icon">📝</div><div class="empty-title">Connessione live…</div><div class="empty-desc">Carico contratti, properties, utenti.</div></div></div>`;
     },
-    'deal-composer': () => `
-      <div class="empty-state">
-        <div class="empty-icon">📊</div>
-        <div class="empty-title">Deal Composer · canone concordato Roma</div>
-        <div class="empty-desc">Calcolatore canone con zone OMI complete, fascia A/B/C, requisiti, modificatori (+15% ammobiliato, +10% attico…), scheda CAF Allegato B stampabile, scadenzario fiscale (RLI D+30, cedolare nov/giugno).<br>Output: PDF + JSON salvato in contracts.</div>
-        <div class="empty-hint">net new module — nessun calcolo canone OMI in api/ oggi</div>
-      </div>
-    `,
-    'settings': () => `
-      <div class="empty-state">
-        <div class="empty-icon">⚙️</div>
-        <div class="empty-title">Configurazione cockpit</div>
-        <div class="empty-desc">Whitelist email · soglie heartbeat · cadenza grade A/B/C/dead · LLM tiers e budget mensile · template notifiche EmailJS · scadenzario fiscale defaults.</div>
-        <div class="empty-hint">whitelist attiva: ${esc(COCKPIT.whitelist.join(', '))}</div>
-      </div>
-    `
+    'deal-composer': () => {
+      setTimeout(() => DealComposer.renderPanel(), 0);
+      return `<div id="deal-panel"></div>`;
+    },
+    'settings': () => {
+      setTimeout(() => SettingsPanel.renderPanel(), 0);
+      return `<div id="settings-panel"></div>`;
+    }
   };
 
   // ───────────────────────────────────────────────────────────
@@ -1845,6 +1864,562 @@
       }
     }
   };
+
+  // ───────────────────────────────────────────────────────────
+  // ACTION STORE — action_queue listener + approve/reject/execute
+  // Mirrors portal.html's Command Center: approving calls the server-side
+  // executor at /api/agent/execute (authenticated with the admin's Firebase
+  // ID token), which dispatches the action to its tool and flips the status.
+  // ───────────────────────────────────────────────────────────
+  const ActionStore = {
+    start() {
+      if (STATE.actionsUnsub) return;
+      try {
+        STATE.actionsUnsub = db.collection('action_queue')
+          .orderBy('createdAt', 'desc')
+          .limit(80)
+          .onSnapshot(snap => {
+            STATE.actions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            updateActionBadge();
+            if (STATE.route === 'action-queue') this.renderPanel();
+          }, err => {
+            // orderBy may fail if createdAt missing on old docs — fallback.
+            console.warn('[ActionStore] ordered listener failed, fallback:', err.message);
+            STATE.actionsUnsub = db.collection('action_queue').limit(80).onSnapshot(s2 => {
+              STATE.actions = s2.docs.map(d => ({ id: d.id, ...d.data() }));
+              updateActionBadge();
+              if (STATE.route === 'action-queue') this.renderPanel();
+            });
+          });
+      } catch (e) { console.warn('[ActionStore.start]', e); }
+    },
+
+    ts(v) { return v && v.toMillis ? v.toMillis() : (typeof v === 'string' ? Date.parse(v) : v) || null; },
+
+    kindMeta(kind) {
+      return ({
+        reply:            { icon: '✉️', label: 'Risposta',  verb: 'Invia risposta' },
+        schedule_viewing: { icon: '📅', label: 'Viewing',   verb: 'Conferma viewing' },
+        qualify:          { icon: '❓', label: 'Qualifica', verb: 'Invia domande' },
+        archive:          { icon: '🗄️', label: 'Archivia',  verb: 'Archivia lead' },
+        note:             { icon: '📝', label: 'Nota',      verb: 'Salva nota' },
+        other:            { icon: '•',  label: 'Azione',    verb: 'Applica' },
+      })[kind] || { icon: '•', label: kind || 'azione', verb: 'Applica' };
+    },
+
+    filtered() {
+      const f = STATE.actionsFilter;
+      if (f === 'all') return STATE.actions;
+      if (f === 'pending') return STATE.actions.filter(a => a.status === 'pending' || a.status === 'approved');
+      if (f === 'done') return STATE.actions.filter(a => ['executed', 'auto-applied'].includes(a.status));
+      if (f === 'failed') return STATE.actions.filter(a => ['failed', 'rejected'].includes(a.status));
+      return STATE.actions.filter(a => a.status === f);
+    },
+
+    counts() {
+      const c = { pending: 0, done: 0, failed: 0, all: STATE.actions.length };
+      for (const a of STATE.actions) {
+        if (a.status === 'pending' || a.status === 'approved') c.pending++;
+        else if (['executed', 'auto-applied'].includes(a.status)) c.done++;
+        else if (['failed', 'rejected'].includes(a.status)) c.failed++;
+      }
+      return c;
+    },
+
+    leadName(a) {
+      const l = STATE.leads.find(x => x.id === a.leadId);
+      return l ? (l.name || l.leadName || a.leadId) : (a.leadId || '—');
+    },
+
+    statusPill(a) {
+      const map = {
+        pending:        ['is-warning', 'in attesa'],
+        approved:       ['is-source', 'in esecuzione…'],
+        executed:       ['is-converted', '✓ eseguita'],
+        'auto-applied': ['is-source', 'auto'],
+        failed:         ['is-discarded', '✕ errore'],
+        rejected:       ['is-discarded', 'rifiutata'],
+      };
+      const [cls, lbl] = map[a.status] || ['', a.status || '—'];
+      return `<span class="lead-pill ${cls}">${esc(lbl)}</span>`;
+    },
+
+    renderCard(a) {
+      const km = this.kindMeta(a.kind);
+      const busy = !!STATE.actionsBusy[a.id];
+      const conf = typeof a.confidence === 'number' ? Math.round(a.confidence * 100) + '%' : null;
+      const p = a.payload || {};
+      const preview = p.draft || p.body || (p.questions && [].concat(p.questions).join(' · ')) || p.reason || a.summary || '';
+      const slots = p.proposedSlots || p.slots;
+      const canDecide = a.status === 'pending';
+      const cardClass = ['lead-card'];
+      if (a.status === 'failed' || a.status === 'rejected') cardClass.push('is-discarded');
+      else if (a.status === 'executed' || a.status === 'auto-applied') cardClass.push('is-converted');
+      else if (a.status === 'pending') cardClass.push('is-warning');
+
+      return `
+        <div class="${cardClass.join(' ')}" data-action-id="${esc(a.id)}">
+          <div class="lead-grade" style="background:var(--bg-elevated);font-size:18px">${km.icon}</div>
+          <div class="lead-body">
+            <div class="lead-row-1">
+              <span class="lead-name">${esc(km.label)} · ${esc(this.leadName(a))}</span>
+              ${this.statusPill(a)}
+              <span class="lead-pill is-source">${esc(a.proposedBy || 'homie')}</span>
+              ${a.tier ? `<span class="lead-pill">T${esc(a.tier)}</span>` : ''}
+              ${conf ? `<span class="lead-pill" style="color:var(--gold)">${conf}</span>` : ''}
+            </div>
+            ${a.summary ? `<div class="lead-row-2"><span class="data">${esc(a.summary)}</span></div>` : ''}
+            ${preview ? `<div class="lead-note" id="action-preview-${esc(a.id)}">"${esc(String(preview).slice(0, 300))}${String(preview).length > 300 ? '…' : ''}"</div>` : ''}
+            ${slots && slots.length ? `<div class="lead-row-2">${slots.map(s => `<span class="data">📅 ${esc(new Date(s).toLocaleString('it-IT', {weekday:'short', day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'}))}</span>`).join('')}</div>` : ''}
+            ${a.executionError ? `<div class="lead-note" style="color:var(--danger)">⚠ ${esc(a.executionError)}</div>` : ''}
+            <div class="lead-actions">
+              ${canDecide ? `<button class="lead-btn success" ${busy ? 'disabled' : ''} onclick="ActionActions.approve('${esc(a.id)}')">${busy ? '⏳ eseguo…' : '✓ ' + esc(km.verb)}</button>` : ''}
+              ${canDecide && (a.kind === 'reply' || a.kind === 'note') ? `<button class="lead-btn" ${busy ? 'disabled' : ''} onclick="ActionActions.editApprove('${esc(a.id)}')">✎ Modifica & approva</button>` : ''}
+              ${canDecide ? `<button class="lead-btn danger" ${busy ? 'disabled' : ''} onclick="ActionActions.reject('${esc(a.id)}')">✕ Rifiuta</button>` : ''}
+              ${a.status === 'failed' ? `<button class="lead-btn" onclick="ActionActions.retry('${esc(a.id)}')">↻ Riprova</button>` : ''}
+              ${a.leadId ? `<a class="lead-btn muted" href="/portal#leads" target="_blank" rel="noopener">🔗 Portal</a>` : ''}
+            </div>
+          </div>
+          <div class="lead-meta">
+            <span class="lead-time">${esc(fmt.relTime(this.ts(a.createdAt)))}</span>
+          </div>
+        </div>
+      `;
+    },
+
+    renderPanel() {
+      const panel = $('#action-panel');
+      if (!panel) return;
+      this.start();
+      const c = this.counts();
+      const filter = STATE.actionsFilter;
+      const items = this.filtered();
+      const fb = (key, label) => `<button class="lead-filter-btn ${filter === key ? 'is-active' : ''}" onclick="ActionActions.setFilter('${key}')">${label}<span class="lead-filter-count">${c[key] ?? 0}</span></button>`;
+
+      panel.innerHTML = `
+        <div class="lead-toolbar">
+          <div class="lead-filters">
+            ${fb('pending', 'Da decidere')}
+            ${fb('done', 'Fatte')}
+            ${fb('failed', 'Errori')}
+            ${fb('all', 'Tutte')}
+          </div>
+          <div class="lead-summary">
+            ${c.pending > 0 ? `<span style="color:var(--warning)"><strong>${c.pending}</strong> in attesa</span>` : '<span style="color:var(--success)">coda pulita</span>'}
+            <span><strong>${c.done}</strong> eseguite</span>
+            ${c.failed > 0 ? `<span style="color:var(--danger)"><strong>${c.failed}</strong> errori</span>` : ''}
+          </div>
+        </div>
+        ${items.length === 0 ? `
+          <div class="empty-state">
+            <div class="empty-icon">⚡</div>
+            <div class="empty-title">${filter === 'pending' ? 'Nessuna decisione in coda' : 'Niente in questo filtro'}</div>
+            <div class="empty-desc">${filter === 'pending'
+              ? 'Quando Homie propone un\'azione Tier 2 (rispondere a un lead A, confermare un viewing, archiviare) compare qui.<br>Approvi con 1 tap → l\'executor la esegue davvero e ti mostra l\'esito.'
+              : 'Cambia filtro per vedere altre azioni.'}</div>
+            <div class="empty-hint">listener live · ${STATE.actions.length} azioni in cache</div>
+          </div>
+        ` : `<div class="lead-list">${items.map(a => this.renderCard(a)).join('')}</div>`}
+      `;
+    }
+  };
+  window.ActionStore = ActionStore;
+
+  window.ActionActions = {
+    setFilter(f) { STATE.actionsFilter = f; ActionStore.renderPanel(); },
+
+    async _execute(id, override) {
+      const action = STATE.actions.find(a => a.id === id);
+      if (!action) return;
+      STATE.actionsBusy[id] = true;
+      ActionStore.renderPanel();
+      try {
+        // 1) mark approved for snappy feedback
+        await db.collection('action_queue').doc(id).update({
+          status: 'approved',
+          approvedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          approvedBy: STATE.user?.email || 'cockpit'
+        });
+        // 2) trigger the server-side executor with the admin's ID token
+        const idToken = await auth.currentUser.getIdToken();
+        const r = await fetch('/api/agent/execute', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Firebase-Token': idToken },
+          body: JSON.stringify(override ? { id, override } : { id })
+        });
+        const data = await r.json().catch(() => ({}));
+        if (data?.ok && data.status === 'executed') {
+          Toast.show({ type: 'success', title: 'Eseguita', desc: action.kind === 'reply' ? 'Messaggio inviato' : 'Azione applicata' });
+        } else if (typeof data?.error === 'string' && data.error.startsWith('no_executor_for_kind')) {
+          Toast.show({ type: 'info', title: 'Approvata', desc: 'Azione manuale — segnala come fatta a mano' });
+        } else if (data?.ok === false) {
+          Toast.show({ type: 'danger', title: 'Executor', desc: data.error || 'Esecuzione fallita' });
+        } else {
+          Toast.show({ type: 'info', title: 'In coda', desc: 'Sarà eseguita a breve' });
+        }
+      } catch (e) {
+        Toast.show({ type: 'warning', title: 'Approvata', desc: 'Executor non raggiungibile, ritenterà' });
+      } finally {
+        STATE.actionsBusy[id] = false;
+        ActionStore.renderPanel();
+      }
+    },
+
+    approve(id) {
+      const a = STATE.actions.find(x => x.id === id);
+      const km = ActionStore.kindMeta(a?.kind);
+      if (!confirm(`${km.verb}?`)) return;
+      this._execute(id);
+    },
+
+    editApprove(id) {
+      const a = STATE.actions.find(x => x.id === id);
+      if (!a) return;
+      const p = a.payload || {};
+      const current = p.draft || p.body || p.text || a.summary || '';
+      const edited = prompt('Modifica il testo prima di inviare:', current);
+      if (edited === null) return;
+      const override = a.kind === 'reply' ? { body: edited, draft: edited } : { text: edited, note: edited };
+      this._execute(id, override);
+    },
+
+    retry(id) { this._execute(id); },
+
+    async reject(id) {
+      if (!confirm('Rifiutare questa azione?')) return;
+      try {
+        await db.collection('action_queue').doc(id).update({
+          status: 'rejected',
+          rejectedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          rejectedBy: STATE.user?.email || 'cockpit'
+        });
+        Toast.show({ type: 'info', title: 'Rifiutata' });
+      } catch (e) { Toast.show({ type: 'danger', title: 'Errore', desc: e.message }); }
+    }
+  };
+
+  function updateActionBadge() {
+    const c = ActionStore.counts();
+    const el = $('#badge-actions');
+    if (el) {
+      el.textContent = c.pending;
+      el.style.display = c.pending > 0 ? '' : 'none';
+      const nav = el.closest('.nav-item');
+      if (nav) nav.classList.toggle('has-urgent', c.pending > 0);
+    }
+  }
+
+  // ───────────────────────────────────────────────────────────
+  // RISK STORE — derives an at-risk list from contracts + payments + leads
+  // already loaded in cache. No new collection: pure client-side scoring so
+  // the panel is instant. /api/agent/risk.scan exposes the same logic to
+  // Homie/Telegram server-side.
+  // ───────────────────────────────────────────────────────────
+  const RiskStore = {
+    ts(v) { return v && v.toMillis ? v.toMillis() : (typeof v === 'string' ? Date.parse(v) : v) || null; },
+    daysUntil(d) { if (!d) return null; const t = this.ts(d) || Date.parse(d); return isNaN(t) ? null : Math.round((t - Date.now()) / 86400000); },
+
+    async compute() {
+      // Ensure we have contracts + context loaded (reuse ContractStore cache).
+      if (!STATE.ctxLoaded) await ContractStore.loadContext().catch(() => {});
+      let contracts = STATE.contracts;
+      if (!contracts || !contracts.length) {
+        try { const s = await db.collection('contracts').limit(200).get(); contracts = s.docs.map(d => ({ id: d.id, ...d.data() })); STATE.contracts = contracts; } catch { contracts = []; }
+      }
+      let payments = [];
+      try { const s = await db.collection('payments').limit(300).get(); payments = s.docs.map(d => ({ id: d.id, ...d.data() })); } catch {}
+
+      const items = [];
+      const propLabel = (c) => {
+        const p = STATE.propertiesById[c.propertyId];
+        return (p && (p.title || p.name || p.nickname)) || c.propertyName || c.propertyTitle || c.propertyId || 'Contratto';
+      };
+
+      // 1) Expiring contracts (renewal / RLI window)
+      for (const c of contracts) {
+        if (c.status === 'expired' || c.status === 'terminated' || c.status === 'draft') continue;
+        const d = this.daysUntil(c.endDate);
+        if (d == null) continue;
+        if (d < 0) items.push({ sev: 'high', cat: 'Contratto scaduto', title: propLabel(c), detail: `Scaduto da ${Math.abs(d)} giorni — rinnovo o disdetta non registrati`, days: d, link: '/portal#contracts' });
+        else if (d <= 30) items.push({ sev: 'high', cat: 'Scadenza contratto', title: propLabel(c), detail: `Scade tra ${d} giorni — preavviso/rinnovo`, days: d, link: '/portal#contracts' });
+        else if (d <= 60) items.push({ sev: 'med', cat: 'Scadenza vicina', title: propLabel(c), detail: `Scade tra ${d} giorni`, days: d, link: '/portal#contracts' });
+      }
+
+      // 2) Unsigned active contracts
+      for (const c of contracts) {
+        if (c.status === 'draft' || c.status === 'expired') continue;
+        const missing = [];
+        if (!c.tenantSignature) missing.push('inquilino');
+        if (!c.landlordSignature) missing.push('locatore');
+        if (missing.length) items.push({ sev: c.status === 'active' ? 'high' : 'med', cat: 'Firma mancante', title: propLabel(c), detail: `Manca firma: ${missing.join(' + ')}`, days: 0, link: '/portal#contracts' });
+      }
+
+      // 3) Overdue payments
+      const now = Date.now();
+      for (const p of payments) {
+        if (p.status === 'paid' || p.status === 'cancelled') continue;
+        const due = this.ts(p.dueDate);
+        if (due && due < now) {
+          const late = Math.round((now - due) / 86400000);
+          items.push({ sev: late > 7 ? 'high' : 'med', cat: 'Pagamento in ritardo', title: p.tenantName || p.description || 'Pagamento', detail: `€${(p.amount || 0).toLocaleString('it-IT')} · ${late}gg di ritardo`, days: -late, link: '/portal#payments' });
+        }
+      }
+
+      // 4) Grade-A leads without follow-up > 24h
+      for (const l of STATE.leads) {
+        if ((l.status && l.status !== 'new')) continue;
+        const grade = LeadStore.gradeOf ? LeadStore.gradeOf(l) : l.grade;
+        if (grade !== 'A') continue;
+        const age = now - (this.ts(l.createdAt) || now);
+        if (age > 24 * 3600 * 1000) items.push({ sev: 'med', cat: 'Lead A senza follow-up', title: l.name || 'Lead', detail: `Grade A in attesa da ${Math.round(age / 3600000)}h`, days: 0, link: '/cockpit-preview#lead-inbox' });
+      }
+
+      const sevRank = { high: 0, med: 1, low: 2 };
+      items.sort((a, b) => (sevRank[a.sev] - sevRank[b.sev]) || (a.days - b.days));
+      STATE.riskItems = items;
+      // Reflect urgent count on the sidebar badge.
+      const high = items.filter(i => i.sev === 'high').length;
+      const el = $('#badge-risks');
+      if (el) {
+        el.textContent = high;
+        el.style.display = high > 0 ? '' : 'none';
+        const nav = el.closest('.nav-item');
+        if (nav) nav.classList.toggle('has-urgent', high > 0);
+      }
+      return items;
+    },
+
+    async renderPanel() {
+      const panel = $('#risk-panel');
+      if (!panel) return;
+      const items = await this.compute();
+      const high = items.filter(i => i.sev === 'high').length;
+      const med = items.filter(i => i.sev === 'med').length;
+      const sevMeta = { high: ['is-late', '🔴'], med: ['is-warning', '🟠'], low: ['is-fresh', '🟡'] };
+
+      panel.innerHTML = `
+        <div class="lead-toolbar">
+          <div class="lead-summary">
+            ${high > 0 ? `<span style="color:var(--danger)"><strong>${high}</strong> urgenti</span>` : '<span style="color:var(--success)">nessuna urgenza</span>'}
+            ${med > 0 ? `<span style="color:var(--warning)"><strong>${med}</strong> da seguire</span>` : ''}
+            <span><strong>${items.length}</strong> totali</span>
+          </div>
+          <div class="page-actions"><button class="lead-btn muted" onclick="RiskStore.renderPanel()">↻ Ricalcola</button></div>
+        </div>
+        ${items.length === 0 ? `
+          <div class="empty-state">
+            <div class="empty-icon">✅</div>
+            <div class="empty-title">Tutto sotto controllo</div>
+            <div class="empty-desc">Nessun contratto in scadenza, nessuna firma mancante, nessun pagamento in ritardo, nessun lead A trascurato.</div>
+          </div>
+        ` : `<div class="lead-list">${items.map(i => {
+          const [cls, dot] = sevMeta[i.sev] || sevMeta.low;
+          return `
+            <div class="lead-card ${cls}">
+              <div class="lead-grade" style="background:transparent;font-size:18px">${dot}</div>
+              <div class="lead-body">
+                <div class="lead-row-1">
+                  <span class="lead-name">${esc(i.title)}</span>
+                  <span class="lead-pill is-source">${esc(i.cat)}</span>
+                </div>
+                <div class="lead-row-2"><span class="data">${esc(i.detail)}</span></div>
+                <div class="lead-actions">
+                  <a class="lead-btn muted" href="${esc(i.link)}" target="_blank" rel="noopener">🔗 Apri</a>
+                </div>
+              </div>
+            </div>`;
+        }).join('')}</div>`}
+      `;
+    }
+  };
+  window.RiskStore = RiskStore;
+
+  // ───────────────────────────────────────────────────────────
+  // DEAL COMPOSER — canone concordato Roma calculator
+  // OMI zone bands (Roma "Accordo Territoriale" indicative €/m²/month ranges).
+  // Values are advisory midpoints for a quick estimate, not legal certification.
+  // ───────────────────────────────────────────────────────────
+  const DealComposer = {
+    // Indicative concordato €/m²/month midpoints by macro-zona.
+    zones: {
+      'Centro Storico':        { min: 14, max: 22 },
+      'Prati / Borgo':         { min: 12, max: 19 },
+      'Parioli / Pinciano':    { min: 12, max: 18 },
+      'Trastevere / Testaccio':{ min: 13, max: 20 },
+      'Esquilino / San Lorenzo':{ min: 10, max: 16 },
+      'Nomentano / Salario':   { min: 10, max: 15 },
+      'Ostiense / Garbatella': { min: 9,  max: 14 },
+      'Aurelio / Gianicolense':{ min: 9,  max: 13 },
+      'Tuscolano / Appio':     { min: 8,  max: 13 },
+      'EUR / Marconi':         { min: 9,  max: 14 },
+      'Pigneto / Prenestino':  { min: 9,  max: 14 },
+      'Periferia':             { min: 6,  max: 10 },
+    },
+    state: { zone: 'Centro Storico', sqm: 50, band: 'mid', furnished: true, topFloor: false, renovated: false, cedolare: true },
+
+    calc() {
+      const s = this.state;
+      const z = this.zones[s.zone] || { min: 8, max: 14 };
+      let base = s.band === 'low' ? z.min : s.band === 'high' ? z.max : (z.min + z.max) / 2;
+      let perSqm = base;
+      const mods = [];
+      if (s.furnished) { perSqm *= 1.15; mods.push(['Ammobiliato', '+15%']); }
+      if (s.topFloor)  { perSqm *= 1.08; mods.push(['Attico/ultimo piano', '+8%']); }
+      if (s.renovated) { perSqm *= 1.10; mods.push(['Ristrutturato', '+10%']); }
+      const monthly = Math.round(perSqm * s.sqm);
+      const yearly = monthly * 12;
+      // Cedolare secca canone concordato = 10% (vs IRPEF ordinario ~ uses ~23%+ marginal)
+      const cedolareTax = Math.round(yearly * 0.10);
+      const deposit = monthly * 2;
+      return { perSqm: perSqm.toFixed(1), monthly, yearly, cedolareTax, deposit, mods, base };
+    },
+
+    renderPanel() {
+      const panel = $('#deal-panel');
+      if (!panel) return;
+      const s = this.state;
+      const r = this.calc();
+      const today = new Date();
+      const rliDeadline = new Date(today.getTime() + 30 * 86400000);
+      const zoneOpts = Object.keys(this.zones).map(z => `<option value="${esc(z)}" ${z === s.zone ? 'selected' : ''}>${esc(z)}</option>`).join('');
+
+      panel.innerHTML = `
+        <div class="deal-grid">
+          <div class="deal-card">
+            <div class="deal-card-title">Parametri immobile</div>
+            <label class="deal-field"><span>Zona OMI</span>
+              <select id="deal-zone">${zoneOpts}</select>
+            </label>
+            <label class="deal-field"><span>Superficie (m²)</span>
+              <input type="number" id="deal-sqm" value="${s.sqm}" min="10" max="500">
+            </label>
+            <label class="deal-field"><span>Fascia canone</span>
+              <select id="deal-band">
+                <option value="low" ${s.band==='low'?'selected':''}>Minima</option>
+                <option value="mid" ${s.band==='mid'?'selected':''}>Media</option>
+                <option value="high" ${s.band==='high'?'selected':''}>Massima</option>
+              </select>
+            </label>
+            <div class="deal-toggles">
+              <label><input type="checkbox" id="deal-furnished" ${s.furnished?'checked':''}> Ammobiliato (+15%)</label>
+              <label><input type="checkbox" id="deal-topfloor" ${s.topFloor?'checked':''}> Attico/ultimo piano (+8%)</label>
+              <label><input type="checkbox" id="deal-renovated" ${s.renovated?'checked':''}> Ristrutturato (+10%)</label>
+              <label><input type="checkbox" id="deal-cedolare" ${s.cedolare?'checked':''}> Cedolare secca 10%</label>
+            </div>
+          </div>
+          <div class="deal-card deal-result">
+            <div class="deal-card-title">Stima canone concordato</div>
+            <div class="deal-big">€${r.monthly.toLocaleString('it-IT')}<span>/mese</span></div>
+            <div class="deal-sub">${r.perSqm} €/m² · base ${r.base.toFixed(1)} €/m²</div>
+            <div class="deal-lines">
+              <div><span>Canone annuo</span><strong>€${r.yearly.toLocaleString('it-IT')}</strong></div>
+              <div><span>Deposito (2 mensilità)</span><strong>€${r.deposit.toLocaleString('it-IT')}</strong></div>
+              ${s.cedolare ? `<div><span>Imposta cedolare 10%/anno</span><strong>€${r.cedolareTax.toLocaleString('it-IT')}</strong></div>` : ''}
+              ${r.mods.length ? `<div class="deal-mods">${r.mods.map(m => `<span class="lead-pill">${esc(m[0])} ${esc(m[1])}</span>`).join('')}</div>` : ''}
+            </div>
+            <div class="deal-deadline">📌 Registrazione RLI entro <strong>${rliDeadline.toLocaleDateString('it-IT')}</strong> (30gg da decorrenza). Cedolare: acconto novembre, saldo giugno.</div>
+            <div class="deal-disclaimer">Stima indicativa su fasce concordato Roma. Per validità legale serve asseverazione di un'associazione firmataria dell'Accordo Territoriale.</div>
+          </div>
+        </div>
+      `;
+      // Bind
+      const upd = () => { this.readForm(); this.renderPanel(); };
+      $('#deal-zone').onchange = upd;
+      $('#deal-band').onchange = upd;
+      $('#deal-sqm').oninput = () => { this.readForm(); this.updateResultOnly(); };
+      ['deal-furnished','deal-topfloor','deal-renovated','deal-cedolare'].forEach(id => { const el = $('#'+id); if (el) el.onchange = upd; });
+    },
+    readForm() {
+      this.state.zone = $('#deal-zone')?.value || this.state.zone;
+      this.state.sqm = Math.max(5, parseInt($('#deal-sqm')?.value, 10) || this.state.sqm);
+      this.state.band = $('#deal-band')?.value || this.state.band;
+      this.state.furnished = !!$('#deal-furnished')?.checked;
+      this.state.topFloor = !!$('#deal-topfloor')?.checked;
+      this.state.renovated = !!$('#deal-renovated')?.checked;
+      this.state.cedolare = !!$('#deal-cedolare')?.checked;
+    },
+    updateResultOnly() {
+      const r = this.calc();
+      const big = $('.deal-big'); if (big) big.innerHTML = `€${r.monthly.toLocaleString('it-IT')}<span>/mese</span>`;
+      const sub = $('.deal-sub'); if (sub) sub.textContent = `${r.perSqm} €/m² · base ${r.base.toFixed(1)} €/m²`;
+    }
+  };
+  window.DealComposer = DealComposer;
+
+  // ───────────────────────────────────────────────────────────
+  // SETTINGS — live config view + agent spec + connectivity tests
+  // ───────────────────────────────────────────────────────────
+  const SettingsPanel = {
+    async renderPanel() {
+      const panel = $('#settings-panel');
+      if (!panel) return;
+      const hb = STATE.heartbeatMeta || {};
+      panel.innerHTML = `
+        <div class="deal-grid">
+          <div class="deal-card">
+            <div class="deal-card-title">Bridge & Heartbeat</div>
+            <div class="deal-lines">
+              <div><span>Stato Mac</span><strong>${esc(hb.status || (STATE.heartbeatLast ? 'live' : 'offline'))}</strong></div>
+              <div><span>Ultimo ping</span><strong>${esc(fmt.relTime(STATE.heartbeatLast))}</strong></div>
+              <div><span>Tool attivo</span><strong>${esc(hb.activeTool || '—')}</strong></div>
+              <div><span>Modello</span><strong>${esc(hb.model || '—')}</strong></div>
+              <div><span>Coda Mac</span><strong>${hb.queueLen ?? '—'}</strong></div>
+            </div>
+            <div class="deal-lines" style="margin-top:10px">
+              <div><span>Soglia warning</span><strong>${COCKPIT.heartbeat.warningMs/60000}m</strong></div>
+              <div><span>Soglia critical</span><strong>${COCKPIT.heartbeat.criticalMs/60000}m</strong></div>
+              <div><span>Soglia offline</span><strong>${COCKPIT.heartbeat.offlineMs/60000}m</strong></div>
+            </div>
+          </div>
+          <div class="deal-card">
+            <div class="deal-card-title">Agent Layer</div>
+            <div id="settings-spec"><span class="data" style="color:var(--text-muted)">Carico /api/agent/spec…</span></div>
+            <div class="lead-actions" style="margin-top:12px">
+              <button class="lead-btn" onclick="SettingsPanel.testSnapshot()">▶ Test state.snapshot</button>
+              <a class="lead-btn muted" href="/api/agent/spec" target="_blank" rel="noopener">📄 spec.json</a>
+            </div>
+            <div id="settings-test" style="margin-top:10px"></div>
+          </div>
+          <div class="deal-card">
+            <div class="deal-card-title">Accesso</div>
+            <div class="deal-lines">
+              <div><span>Utente</span><strong>${esc(STATE.user?.email || '—')}</strong></div>
+            </div>
+            <div style="margin-top:8px"><span class="data" style="color:var(--text-muted)">Whitelist:</span></div>
+            ${COCKPIT.whitelist.map(e => `<div class="data" style="margin-top:4px">· ${esc(e)}</div>`).join('')}
+          </div>
+        </div>
+      `;
+      // Load spec
+      try {
+        const spec = await fetch('/api/agent/spec').then(r => r.json());
+        const box = $('#settings-spec');
+        if (box && spec?.tools) {
+          box.innerHTML = `<div class="data" style="margin-bottom:6px">v${esc(spec.version)} · ${spec.tools.length} tool</div>` +
+            spec.tools.map(t => `<div class="settings-tool"><span class="lead-pill ${t.tier===2?'is-warning':t.tier===1?'is-fresh':''}">T${t.tier}</span> <code>${esc(t.name)}</code></div>`).join('');
+        }
+      } catch (e) {
+        const box = $('#settings-spec'); if (box) box.innerHTML = `<span class="data" style="color:var(--danger)">spec non raggiungibile (deploy in corso?)</span>`;
+      }
+    },
+    async testSnapshot() {
+      const box = $('#settings-test');
+      if (box) box.innerHTML = '<span class="data">⏳ chiamo state.snapshot…</span>';
+      try {
+        const idToken = await auth.currentUser.getIdToken();
+        const r = await fetch('/api/agent/state.snapshot', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Firebase-Token': idToken },
+          body: JSON.stringify({ scope: 'all' })
+        });
+        const data = await r.json();
+        if (box) box.innerHTML = `<pre class="settings-pre">${esc(JSON.stringify(data, null, 2).slice(0, 1200))}</pre>`;
+      } catch (e) {
+        if (box) box.innerHTML = `<span class="data" style="color:var(--danger)">${esc(e.message)}</span>`;
+      }
+    }
+  };
+  window.SettingsPanel = SettingsPanel;
 
   // ───────────────────────────────────────────────────────────
   // CONTRACT STORE — list + magic-link reveal
@@ -2185,8 +2760,12 @@
         STATE.heartbeatUnsub = db.doc(COCKPIT.heartbeat.doc).onSnapshot(snap => {
           if (snap.exists) {
             const data = snap.data() || {};
-            const ts = data.lastPingAt && data.lastPingAt.toMillis ? data.lastPingAt.toMillis() : (data.lastPingAt || null);
-            STATE.heartbeatLast = ts;
+            // Accept either field name — the agent layer writes lastSeenAt +
+            // lastPingAt; older Mac bridge builds may write only lastPingAt.
+            const raw = data.lastSeenAt || data.lastPingAt || null;
+            const ts = raw && raw.toMillis ? raw.toMillis() : (typeof raw === 'string' ? Date.parse(raw) : raw);
+            STATE.heartbeatLast = ts || null;
+            STATE.heartbeatMeta = { status: data.status, activeTool: data.activeTool, model: data.model, queueLen: data.queueLen, lastEvent: data.lastEvent };
             this.updateBadge();
           } else {
             STATE.heartbeatLast = null;
@@ -2221,6 +2800,15 @@
       else if (diff > COCKPIT.heartbeat.criticalMs) badge.classList.add('is-critical');
       else if (diff > COCKPIT.heartbeat.warningMs) badge.classList.add('is-warning');
       else badge.classList.add('is-live');
+      // Enrich the tooltip with what the Mac bridge is doing right now.
+      const m = STATE.heartbeatMeta || {};
+      const parts = [`Mac bridge · ${fmt.relTime(STATE.heartbeatLast)}`];
+      if (m.status) parts.push('status: ' + m.status);
+      if (m.activeTool) parts.push('tool: ' + m.activeTool);
+      if (m.model) parts.push('model: ' + m.model);
+      if (typeof m.queueLen === 'number') parts.push('queue: ' + m.queueLen);
+      if (m.lastEvent) parts.push(m.lastEvent);
+      badge.title = parts.join(' · ');
     }
   };
 

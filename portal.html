@@ -18298,8 +18298,112 @@ IBAN: ${l.iban || '-'}`;
     }
 
     function openPFSEditClient(id) {
-        // For now, show a message. Full edit would be a separate modal
-        toast('info', 'Edit coming soon', 'Use delete and re-add for now');
+        const c = (S.pfsClients || []).find(x => x.id === id);
+        if (!c) { toast('error', 'Errore', 'Cliente non trovato'); return; }
+        const serviceOptions = Object.entries(PFS_SERVICES).map(([key, svc]) =>
+            `<option value="${key}" ${c.service === key ? 'selected' : ''}>${svc.icon} ${svc.name} (€${svc.price})</option>`
+        ).join('');
+        const sourceOptions = [
+            ['website','🌐 Website'],['instagram','📸 Instagram'],['referral','👥 Referral'],
+            ['google','🔍 Google'],['tiktok','🎵 TikTok'],['word-of-mouth','💬 Word of Mouth'],['other','📌 Other']
+        ].map(([v,l]) => `<option value="${v}" ${c.source === v ? 'selected' : ''}>${l}</option>`).join('');
+        const bedOptions = [['',''],['1','1 bedroom'],['2','2 bedrooms'],['3','3+ bedrooms']]
+            .map(([v,l]) => `<option value="${v}" ${String(c.bedrooms||'') === v ? 'selected' : ''}>${l || 'Any'}</option>`).join('');
+
+        document.getElementById('modals').innerHTML = `
+            <div class="modal-overlay active" onclick="if(event.target===this)closeModal()">
+                <div class="modal lg" onclick="event.stopPropagation()">
+                    <div class="modal-header">
+                        <h3 class="modal-title">✏️ Modifica cliente PFS</h3>
+                        <button class="modal-close" onclick="closeModal()">×</button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="pfsEditForm" onsubmit="updatePFSClient(event,'${id}')">
+                            <div class="section-box">
+                                <div class="section-title">👤 Client Information</div>
+                                <div class="form-row">
+                                    <div class="form-group"><label class="form-label">Full Name *</label>
+                                        <input type="text" class="form-input" name="name" required value="${esc(c.name||'')}"></div>
+                                    <div class="form-group"><label class="form-label">Service Package *</label>
+                                        <select class="form-select" name="service" required>${serviceOptions}</select></div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group"><label class="form-label">Email</label>
+                                        <input type="email" class="form-input" name="email" value="${esc(c.email||'')}"></div>
+                                    <div class="form-group"><label class="form-label">WhatsApp Phone *</label>
+                                        <input type="text" class="form-input" name="phone" required value="${esc(c.phone||'')}"></div>
+                                </div>
+                            </div>
+                            <div class="section-box">
+                                <div class="section-title">🔍 Search Criteria</div>
+                                <div class="form-row">
+                                    <div class="form-group"><label class="form-label">Min Budget (€/month)</label>
+                                        <input type="number" class="form-input" name="minBudget" value="${c.minBudget||''}"></div>
+                                    <div class="form-group"><label class="form-label">Max Budget (€/month) *</label>
+                                        <input type="number" class="form-input" name="budget" required value="${c.budget||''}"></div>
+                                    <div class="form-group"><label class="form-label">Move-in Date</label>
+                                        <input type="date" class="form-input" name="moveIn" value="${esc((c.moveIn||'').slice(0,10))}"></div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group"><label class="form-label">Preferred Zones</label>
+                                        <input type="text" class="form-input" name="zone" value="${esc(c.zone||'')}"></div>
+                                    <div class="form-group"><label class="form-label">Bedrooms</label>
+                                        <select class="form-select" name="bedrooms">${bedOptions}</select></div>
+                                </div>
+                                <div class="form-group"><label class="form-label">Must-Haves</label>
+                                    <input type="text" class="form-input" name="mustHaves" value="${esc(c.mustHaves||'')}"></div>
+                                <div class="form-group"><label class="form-label">Deal-Breakers</label>
+                                    <input type="text" class="form-input" name="dealBreakers" value="${esc(c.dealBreakers||'')}"></div>
+                            </div>
+                            <div class="section-box">
+                                <div class="section-title">📊 Status</div>
+                                <div class="form-group"><label class="form-label">Lead Source</label>
+                                    <select class="form-select" name="source">${sourceOptions}</select></div>
+                                <div class="form-group"><label class="form-label">Notes</label>
+                                    <textarea class="form-textarea" name="notes" rows="3">${esc(c.notes||'')}</textarea></div>
+                            </div>
+                            <div class="modal-footer" style="padding:0;border:none;margin-top:20px">
+                                <button type="button" class="btn btn-secondary" onclick="closeModal()">Annulla</button>
+                                <button type="submit" class="btn">💾 Salva modifiche</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    async function updatePFSClient(e, id) {
+        e.preventDefault();
+        const form = new FormData(e.target);
+        const c = (S.pfsClients || []).find(x => x.id === id);
+        if (!c) { toast('error', 'Errore', 'Cliente non trovato'); return; }
+        const update = {
+            name: form.get('name'),
+            email: form.get('email') || '',
+            phone: form.get('phone') || '',
+            service: form.get('service'),
+            minBudget: parseInt(form.get('minBudget')) || 0,
+            budget: parseInt(form.get('budget')) || 0,
+            zone: form.get('zone') || '',
+            bedrooms: form.get('bedrooms') || '',
+            mustHaves: form.get('mustHaves') || '',
+            dealBreakers: form.get('dealBreakers') || '',
+            moveIn: form.get('moveIn') || '',
+            source: form.get('source') || 'website',
+            notes: form.get('notes') || '',
+            lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        try {
+            await db.collection('pfsClients').doc(id).update(update);
+            Object.assign(c, update, { lastUpdated: new Date() });
+            await logPFSActivity(`✏️ Aggiornato cliente: ${update.name}`, 'info');
+            closeModal();
+            toast('success', 'Salvato', `${update.name} aggiornato`);
+            renderPage();
+        } catch (err) {
+            toast('error', 'Errore', err.message);
+        }
     }
 
     function openPFSStageChange(id) {

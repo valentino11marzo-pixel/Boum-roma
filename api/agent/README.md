@@ -31,6 +31,7 @@ Public, returns the JSON manifest of every tool with its input/output shape and 
 | `magicsign.create` | 2 | Create a signature request on a custom PDF |
 | `radar.scan` | 1 | Scan saved Radar searches, emit lead diffs |
 | `state.snapshot` | 1 | Read-only portal state for quick answers |
+| `risk.scan` | 1 | At-risk list (expiries, unsigned, overdue, stale A-leads) |
 | `execute` | 2 | Run a previously-proposed action_queue item |
 | `heartbeat` | 0 | Keep the Cockpit's live indicator green |
 

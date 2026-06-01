@@ -74,6 +74,12 @@ export default async function handler(req, res) {
         output: { ts: 'iso', leads: 'object?', contracts: 'object?', payments: 'object?', agenda: 'object?', actionQueue: 'object?' },
       },
       {
+        name: 'risk.scan', method: 'POST', path: '/risk.scan',
+        tier: 1, side_effects: 'none (read-only)',
+        input: { window: 'number? (days-ahead horizon, default 60)' },
+        output: { generatedAt: 'iso', counts: '{high,med,total}', items: 'array<{sev,cat,title,detail,days,ref}>' },
+      },
+      {
         name: 'execute', method: 'POST', path: '/execute',
         tier: 2, side_effects: 'runs the dispatched tool + writes:action_queue',
         input: { id: 'string (action_queue doc id)', override: 'object?' },

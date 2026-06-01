@@ -19,6 +19,7 @@ import { fsPatch, guardPost, okJson, errJson } from './_lib.js';
 export default async function handler(req, res) {
   const body = await guardPost(req, res); if (!body) return;
   try {
+    const now = new Date();
     const update = {
       status: body.status || 'live',
       activeTool: body.activeTool || null,
@@ -27,9 +28,13 @@ export default async function handler(req, res) {
       model: body.model || null,
       version: body.version || null,
       meta: body.meta || null,
-      lastSeenAt: new Date(),
+      // Write BOTH field names: the cockpit's heartbeat listener reads
+      // `lastPingAt`; the agent layer's own response uses `lastSeenAt`.
+      // Keeping both avoids a silent "always offline" dot on the cockpit.
+      lastSeenAt: now,
+      lastPingAt: now,
     };
     await fsPatch('heartbeat/mac', update);
-    return okJson(res, { ok: true, lastSeenAt: update.lastSeenAt });
+    return okJson(res, { ok: true, lastSeenAt: now });
   } catch (e) { return errJson(res, 500, e.message); }
 }
