@@ -4488,11 +4488,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
         // Search tasks
         (S.tasks || []).filter(t => (t.title||'').toLowerCase().includes(ql)).forEach(t =>
-            results.push({ type: '✅', label: t.title, sub: `${t.status || 'pending'} · ${t.priority || ''}`, action: `goTo('commandCenter')` }));
+            results.push({ type: '✅', label: t.title, sub: `${t.status || 'pending'} · ${t.priority || ''}`, action: `goTo('command-center')` }));
 
         // Search deadlines
         (S.deadlines || []).filter(d => (d.title||'').toLowerCase().includes(ql)).forEach(d =>
-            results.push({ type: '📅', label: d.title, sub: `${d.type || ''} · ${fmtDate(d.date)}`, action: `goTo('commandCenter')` }));
+            results.push({ type: '📅', label: d.title, sub: `${d.type || ''} · ${fmtDate(d.date)}`, action: `goTo('command-center')` }));
 
         // Render dropdown
         let dd = document.getElementById('searchResults');
@@ -5328,8 +5328,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const serviceName = type !== 'custom' ? (SERVICES[type]?.name || type) : '';
 
         S.modal = { type: 'quickInvoice', service: type };
-        document.getElementById('modalOverlay').innerHTML = `
-            <div class="modal" style="max-width:480px">
+        document.getElementById('modals').innerHTML = `
+          <div class="modal-overlay active" onclick="if(event.target===this)closeModal()">
+            <div class="modal" style="max-width:480px" onclick="event.stopPropagation()">
                 <div class="modal-header">
                     <h2>⚡ Fattura Rapida ${type !== 'custom' ? '- ' + type : ''}</h2>
                     <button class="modal-close" onclick="closeModal()">×</button>
@@ -5374,8 +5375,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <button class="btn btn-secondary" onclick="closeModal()">Annulla</button>
                     <button class="btn" onclick="createQuickInvoice()">Crea Fattura →</button>
                 </div>
-            </div>`;
-        document.getElementById('modalOverlay').classList.add('open');
+            </div>
+          </div>`;
     }
 
     function prefillQuickInvoice() {
@@ -8090,8 +8091,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         ).join('');
 
         S.modal = { type: 'rule', editId: ruleId };
-        document.getElementById('modalOverlay').innerHTML = `
-            <div class="modal" style="max-width:500px">
+        document.getElementById('modals').innerHTML = `
+          <div class="modal-overlay active" onclick="if(event.target===this)closeModal()">
+            <div class="modal" style="max-width:500px" onclick="event.stopPropagation()">
                 <div class="modal-header">
                     <h2>${isEdit ? '✏️ Modifica' : '⚡ Nuova'} Regola</h2>
                     <button class="modal-close" onclick="closeModal()">×</button>
@@ -8137,8 +8139,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <button class="btn btn-secondary" onclick="closeModal()">Annulla</button>
                     <button class="btn" onclick="saveRule()">${isEdit ? 'Salva Modifiche' : 'Crea Regola'}</button>
                 </div>
-            </div>`;
-        document.getElementById('modalOverlay').classList.add('open');
+            </div>
+          </div>`;
         updateTriggerInfo();
         updateActionInfo();
     }
