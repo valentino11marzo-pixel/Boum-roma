@@ -1302,6 +1302,8 @@
     actionsBusy: {},      // actionId -> true while executor runs
     // Risk radar
     riskItems: [],
+    riskSnoozedCount: 0,
+    showSnoozed: false,
     cmdkOpen: false,
     cmdkSelected: 0,
     cmdkFiltered: [],
@@ -2008,6 +2010,7 @@
             ${c.pending > 0 ? `<span style="color:var(--warning)"><strong>${c.pending}</strong> in attesa</span>` : '<span style="color:var(--success)">coda pulita</span>'}
             <span><strong>${c.done}</strong> eseguite</span>
             ${c.failed > 0 ? `<span style="color:var(--danger)"><strong>${c.failed}</strong> errori</span>` : ''}
+            ${c.pending > 1 ? `<button class="lead-btn success" style="margin-left:10px" onclick="ActionActions.bulkApprove()">✓✓ Approva tutte (${c.pending})</button>` : ''}
           </div>
         </div>
         ${items.length === 0 ? `
@@ -2072,15 +2075,54 @@
       this._execute(id);
     },
 
+    // Edit-before-approve, tailored per action kind.
     editApprove(id) {
       const a = STATE.actions.find(x => x.id === id);
       if (!a) return;
       const p = a.payload || {};
-      const current = p.draft || p.body || p.text || a.summary || '';
-      const edited = prompt('Modifica il testo prima di inviare:', current);
-      if (edited === null) return;
-      const override = a.kind === 'reply' ? { body: edited, draft: edited } : { text: edited, note: edited };
+      let override = null;
+      if (a.kind === 'reply') {
+        const edited = prompt('Modifica il messaggio prima di inviarlo:', p.draft || p.body || '');
+        if (edited === null) return;
+        override = { body: edited, draft: edited };
+      } else if (a.kind === 'note') {
+        const edited = prompt('Modifica la nota:', p.text || p.note || a.summary || '');
+        if (edited === null) return;
+        override = { text: edited, note: edited };
+      } else if (a.kind === 'schedule_viewing') {
+        const cur = (p.proposedSlots || p.slots || []).join(', ');
+        const edited = prompt('Slot proposti (date ISO separate da virgola):', cur);
+        if (edited === null) return;
+        const slots = edited.split(',').map(s => s.trim()).filter(Boolean);
+        override = { proposedSlots: slots, slots };
+      } else if (a.kind === 'archive') {
+        const edited = prompt('Motivo archiviazione:', p.reason || '');
+        if (edited === null) return;
+        override = { reason: edited };
+      } else if (a.kind === 'qualify') {
+        const cur = [].concat(p.questions || []).join(' | ');
+        const edited = prompt('Domande di qualifica (separate da |):', cur);
+        if (edited === null) return;
+        override = { questions: edited.split('|').map(s => s.trim()).filter(Boolean) };
+      } else {
+        const edited = prompt('Modifica:', p.text || a.summary || '');
+        if (edited === null) return;
+        override = { text: edited };
+      }
       this._execute(id, override);
+    },
+
+    // Approve every pending action in one go (sequential to respect rate
+    // limits and keep the toast feedback readable).
+    async bulkApprove() {
+      const pending = STATE.actions.filter(a => a.status === 'pending');
+      if (!pending.length) return;
+      if (!confirm(`Approvare ed eseguire ${pending.length} azioni in attesa?`)) return;
+      let ok = 0, fail = 0;
+      for (const a of pending) {
+        try { await this._execute(a.id); ok++; } catch { fail++; }
+      }
+      Toast.show({ type: fail ? 'warning' : 'success', title: 'Coda processata', desc: `${ok} eseguite${fail ? `, ${fail} con problemi` : ''}` });
     },
 
     retry(id) { this._execute(id); },
@@ -2176,9 +2218,16 @@
 
       const sevRank = { high: 0, med: 1, low: 2 };
       items.sort((a, b) => (sevRank[a.sev] - sevRank[b.sev]) || (a.days - b.days));
-      STATE.riskItems = items;
-      // Reflect urgent count on the sidebar badge.
-      const high = items.filter(i => i.sev === 'high').length;
+      // Stable key per risk (for snooze) + drop snoozed (unless showing them).
+      const snz = this.snoozeMap();
+      const nowMs = Date.now();
+      items.forEach(i => { i.key = `${i.cat}|${i.title}`; });
+      const active = items.filter(i => !(snz[i.key] && snz[i.key] > nowMs));
+      STATE.riskSnoozedCount = items.length - active.length;
+      const visible = STATE.showSnoozed ? items : active;
+      STATE.riskItems = visible;
+      // Sidebar badge reflects urgent count among the *active* (non-snoozed) ones.
+      const high = active.filter(i => i.sev === 'high').length;
       const el = $('#badge-risks');
       if (el) {
         el.textContent = high;
@@ -2186,7 +2235,41 @@
         const nav = el.closest('.nav-item');
         if (nav) nav.classList.toggle('has-urgent', high > 0);
       }
-      return items;
+      return visible;
+    },
+
+    // ── Snooze (local to this browser; 7-day default) ──
+    snoozeMap() { try { return JSON.parse(localStorage.getItem('cockpit.risk.snooze') || '{}'); } catch { return {}; } },
+    snooze(key, days = 7) {
+      const m = this.snoozeMap();
+      m[key] = Date.now() + days * 86400000;
+      try { localStorage.setItem('cockpit.risk.snooze', JSON.stringify(m)); } catch {}
+      Toast.show({ type: 'info', title: 'Rinviato', desc: `Nascosto per ${days} giorni` });
+      this.renderPanel();
+    },
+    clearSnoozes() {
+      try { localStorage.removeItem('cockpit.risk.snooze'); } catch {}
+      STATE.showSnoozed = false;
+      Toast.show({ type: 'info', title: 'Rinvii azzerati' });
+      this.renderPanel();
+    },
+    toggleSnoozed() { STATE.showSnoozed = !STATE.showSnoozed; this.renderPanel(); },
+    snoozeByIndex(idx) { const i = (STATE.riskItems || [])[idx]; if (i) this.snooze(i.key); },
+
+    // Resolution actions per category → exact portal tool deep-links.
+    actionsFor(i) {
+      const a = [];
+      if (/scadenz|scaduto/i.test(i.cat)) {
+        a.push({ label: '🔄 Proponi rinnovo', href: '/portal#contracts' });
+        a.push({ label: '📋 Genera RLI', href: '/portal#burocrazia' });
+      } else if (/firma/i.test(i.cat)) {
+        a.push({ label: '✍️ Apri firma', href: '/portal#contracts' });
+      } else if (/pagamento/i.test(i.cat)) {
+        a.push({ label: '💸 Sollecita', href: '/portal#payments' });
+      } else if (/lead/i.test(i.cat)) {
+        a.push({ label: '📨 Vai al lead', href: '#lead-inbox', internal: true });
+      }
+      return a;
     },
 
     async renderPanel() {
@@ -2195,6 +2278,7 @@
       const items = await this.compute();
       const high = items.filter(i => i.sev === 'high').length;
       const med = items.filter(i => i.sev === 'med').length;
+      const snoozed = STATE.riskSnoozedCount || 0;
       const sevMeta = { high: ['is-late', '🔴'], med: ['is-warning', '🟠'], low: ['is-fresh', '🟡'] };
 
       panel.innerHTML = `
@@ -2202,29 +2286,39 @@
           <div class="lead-summary">
             ${high > 0 ? `<span style="color:var(--danger)"><strong>${high}</strong> urgenti</span>` : '<span style="color:var(--success)">nessuna urgenza</span>'}
             ${med > 0 ? `<span style="color:var(--warning)"><strong>${med}</strong> da seguire</span>` : ''}
-            <span><strong>${items.length}</strong> totali</span>
+            <span><strong>${items.length}</strong> visibili</span>
           </div>
-          <div class="page-actions"><button class="lead-btn muted" onclick="RiskStore.renderPanel()">↻ Ricalcola</button></div>
+          <div class="page-actions">
+            ${snoozed > 0 ? `<button class="lead-btn muted" onclick="RiskStore.toggleSnoozed()">${STATE.showSnoozed ? '🙈 Nascondi rinviati' : `👁 Mostra rinviati (${snoozed})`}</button>` : ''}
+            ${STATE.showSnoozed && snoozed > 0 ? `<button class="lead-btn muted" onclick="RiskStore.clearSnoozes()">♻ Azzera rinvii</button>` : ''}
+            <button class="lead-btn muted" onclick="RiskStore.renderPanel()">↻ Ricalcola</button>
+          </div>
         </div>
         ${items.length === 0 ? `
           <div class="empty-state">
             <div class="empty-icon">✅</div>
             <div class="empty-title">Tutto sotto controllo</div>
-            <div class="empty-desc">Nessun contratto in scadenza, nessuna firma mancante, nessun pagamento in ritardo, nessun lead A trascurato.</div>
+            <div class="empty-desc">Nessun contratto in scadenza, nessuna firma mancante, nessun pagamento in ritardo, nessun lead A trascurato.${snoozed > 0 ? `<br><br>${snoozed} rischi rinviati.` : ''}</div>
           </div>
-        ` : `<div class="lead-list">${items.map(i => {
+        ` : `<div class="lead-list">${items.map((i, idx) => {
           const [cls, dot] = sevMeta[i.sev] || sevMeta.low;
+          const acts = this.actionsFor(i);
+          const isSnoozed = STATE.showSnoozed && (this.snoozeMap()[i.key] || 0) > Date.now();
           return `
-            <div class="lead-card ${cls}">
+            <div class="lead-card ${cls}" ${isSnoozed ? 'style="opacity:.5"' : ''}>
               <div class="lead-grade" style="background:transparent;font-size:18px">${dot}</div>
               <div class="lead-body">
                 <div class="lead-row-1">
                   <span class="lead-name">${esc(i.title)}</span>
                   <span class="lead-pill is-source">${esc(i.cat)}</span>
+                  ${isSnoozed ? '<span class="lead-pill">rinviato</span>' : ''}
                 </div>
                 <div class="lead-row-2"><span class="data">${esc(i.detail)}</span></div>
                 <div class="lead-actions">
-                  <a class="lead-btn muted" href="${esc(i.link)}" target="_blank" rel="noopener">🔗 Apri</a>
+                  ${acts.map(act => act.internal
+                    ? `<a class="lead-btn primary" href="${esc(act.href)}">${act.label}</a>`
+                    : `<a class="lead-btn primary" href="${esc(act.href)}" target="_blank" rel="noopener">${act.label}</a>`).join('')}
+                  <button class="lead-btn muted" onclick="RiskStore.snoozeByIndex(${idx})">⏰ Rinvia 7g</button>
                 </div>
               </div>
             </div>`;
