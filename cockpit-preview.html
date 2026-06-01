@@ -1287,7 +1287,7 @@
   // CONFIG
   // ───────────────────────────────────────────────────────────
   const COCKPIT = {
-    whitelist: ['valentino11marzo@gmail.com', 'valentino@boom-rome.com'],
+    whitelist: ['valentino11marzo@gmail.com', 'valentino@boomrome.com', 'valentino@boom-rome.com'],
     heartbeat: {
       doc: 'heartbeat/mac',          // Firestore path
       warningMs: 2 * 60 * 1000,      // > 2min → yellow
@@ -1402,32 +1402,80 @@
   // ───────────────────────────────────────────────────────────
   // AUTH GATE
   // ───────────────────────────────────────────────────────────
-  function bootAuth() {
+  function enterApp(user) {
+    STATE.user = user;
     const shield = $('#auth-shield');
-    const msg = $('#auth-msg');
-    const cta = $('#auth-cta');
-
-    auth.onAuthStateChanged((user) => {
-      if (!user) {
-        msg.textContent = 'Devi essere autenticato per accedere al cockpit.';
-        cta.hidden = false;
-        cta.textContent = 'Accedi al Portal';
-        return;
-      }
-      const email = (user.email || '').toLowerCase().trim();
-      if (!COCKPIT.whitelist.includes(email)) {
-        msg.innerHTML = `Accesso non autorizzato per <strong style="color:var(--text)">${esc(email)}</strong>.<br>Questa preview è ristretta.`;
-        cta.hidden = false;
-        cta.textContent = 'Disconnetti';
-        cta.onclick = (e) => { e.preventDefault(); auth.signOut(); };
-        return;
-      }
-      STATE.user = user;
+    if (shield) {
       shield.style.transition = 'opacity .3s';
       shield.style.opacity = '0';
-      setTimeout(() => { shield.remove(); $('#app').hidden = false; bootApp(); }, 280);
-    });
+      setTimeout(() => { try { shield.remove(); } catch {} }, 280);
+    }
+    const app = $('#app'); if (app) app.hidden = false;
+    try { bootApp(); }
+    catch (e) { console.error('[bootApp]', e); try { Toast.show({ type: 'danger', title: 'Errore avvio', desc: e.message }); } catch {} }
   }
+
+  function showAuthMsg(html, ctaText, ctaFn) {
+    const msg = $('#auth-msg'), cta = $('#auth-cta');
+    if (msg) msg.innerHTML = html;
+    if (cta) {
+      cta.hidden = false;
+      if (ctaText) cta.textContent = ctaText;
+      if (ctaFn) cta.onclick = (e) => { e.preventDefault(); ctaFn(); };
+    }
+  }
+
+  function bootAuth() {
+    // Guard: if the Firebase SDK / config didn't load, never sit silently on
+    // "Verifico autenticazione…" — say so and offer a reload.
+    if (typeof firebase === 'undefined' || typeof auth === 'undefined' || !auth) {
+      showAuthMsg('Impossibile inizializzare Firebase su questo dominio.<br>Ricarica la pagina o verifica la connessione.', 'Ricarica', () => location.reload());
+      return;
+    }
+
+    let settled = false;
+    try {
+      auth.onAuthStateChanged((user) => {
+        settled = true;
+        if (!user) {
+          showAuthMsg('Devi essere autenticato per accedere al cockpit.', 'Accedi al Portal', () => { location.href = '/login?next=%2Fcockpit-preview'; });
+          return;
+        }
+        const email = (user.email || '').toLowerCase().trim();
+        if (!COCKPIT.whitelist.includes(email)) {
+          showAuthMsg(`Accesso non autorizzato per <strong style="color:var(--text)">${esc(email)}</strong>.<br>Questa preview è ristretta.`, 'Disconnetti', () => auth.signOut());
+          return;
+        }
+        enterApp(user);
+      }, (err) => {
+        settled = true;
+        showAuthMsg('Errore di autenticazione:<br><code>' + esc(err && err.message || 'unknown') + '</code>', 'Riprova', () => location.reload());
+      });
+    } catch (e) {
+      showAuthMsg('Errore: <code>' + esc(e.message) + '</code>', 'Ricarica', () => location.reload());
+      return;
+    }
+
+    // Watchdog: if onAuthStateChanged never resolves (network / SDK stall) but a
+    // session is already cached, enter anyway instead of hanging.
+    setTimeout(() => {
+      if (settled) return;
+      const u = auth.currentUser;
+      if (u && COCKPIT.whitelist.includes((u.email || '').toLowerCase().trim())) enterApp(u);
+      else showAuthMsg('L\'autenticazione sta impiegando troppo tempo.<br>Controlla la connessione.', 'Riprova', () => location.reload());
+    }, 7000);
+  }
+
+  // Never let an uncaught error leave the shield stuck silently — surface it.
+  window.addEventListener('error', (ev) => {
+    const shield = $('#auth-shield');
+    if (shield && document.body.contains(shield)) {
+      const msg = $('#auth-msg');
+      if (msg) msg.innerHTML = 'Errore di caricamento:<br><code>' + esc((ev && ev.message) || 'unknown') + '</code>';
+      const cta = $('#auth-cta');
+      if (cta) { cta.hidden = false; cta.textContent = 'Ricarica'; cta.onclick = (e) => { e.preventDefault(); location.reload(); }; }
+    }
+  });
 
   // ───────────────────────────────────────────────────────────
   // APP BOOT
@@ -3249,7 +3297,8 @@
   // ───────────────────────────────────────────────────────────
   // BOOT
   // ───────────────────────────────────────────────────────────
-  document.addEventListener('DOMContentLoaded', bootAuth);
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bootAuth);
+  else bootAuth();
 
 })();
 </script>
