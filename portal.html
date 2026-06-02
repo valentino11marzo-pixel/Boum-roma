@@ -7665,22 +7665,30 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
     async function sendBulkReminders() {
         const overdue = S.payments.filter(p => p.status === 'pending' && isOverdue(p.dueDate));
+        if (!overdue.length) return toast('info', 'Nessun pagamento in ritardo');
         if (!confirm(`Inviare solleciti a ${overdue.length} pagamenti in ritardo?`)) return;
 
-        let sent = 0;
+        let sent = 0, failed = 0;
         for (const p of overdue) {
             const c = S.contracts.find(x => x.id === p.contractId);
             const t = c ? S.users.find(x => x.id === c.tenantId) : null;
-            if (!t) continue;
-
-            const remindersSent = (p.remindersSent || 0) + 1;
-            await db.collection('payments').doc(p.id).update({
-                remindersSent,
-                lastReminderDate: firebase.firestore.FieldValue.serverTimestamp()
-            });
-            sent++;
+            if (!t) { failed++; continue; }
+            try {
+                const remindersSent = (p.remindersSent || 0) + 1;
+                await db.collection('payments').doc(p.id).update({
+                    remindersSent,
+                    lastReminderDate: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                const prop = c ? S.properties.find(x => x.id === c.propertyId) : null;
+                // Same real delivery as the single reminder: notification + email
+                await createNotification(t.id, 'payment', '⏰ Promemoria Pagamento',
+                    `Pagamento di €${p.amount} per ${prop?.name || 'immobile'} (${p.month}) è in ritardo.`,
+                    { paymentId: p.id, amount: p.amount, skipEmail: true });
+                await sendPaymentReminderEmail(t, c, prop, p);
+                sent++;
+            } catch (e) { console.warn('[bulkReminder]', p.id, e); failed++; }
         }
-        toast('success', `${sent} solleciti inviati`);
+        toast(failed ? 'warning' : 'success', `${sent} solleciti inviati${failed ? `, ${failed} non riusciti` : ''}`);
         goTo('payments');
     }
 
