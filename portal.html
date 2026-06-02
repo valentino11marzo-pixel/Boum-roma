@@ -8763,57 +8763,104 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // daysUntil defined in core utils (line ~1300)
 
     function documentsPage() {
-        const landlords = S.users.filter(u => u.role === 'landlord');
-        const tenants = S.users.filter(u => u.role === 'tenant');
+        const all = S.documents || [];
+        const byType = (t) => all.filter(d => d.type === t).length;
+        const stats = {
+            all: all.length,
+            contract: byType('contract'),
+            receipt: byType('receipt'),
+            id: byType('id'),
+            utility: byType('utility'),
+            shared: all.filter(d => d.shared === true || d.shared === 'true').length,
+            deal: byType('deal-archive'),
+        };
+
+        const docRow = (d) => {
+            const u = S.users.find(x => x.id === d.userId);
+            const prop = S.properties.find(x => x.id === d.propertyId);
+            const search = [d.name, u?.name, prop?.name, d.type].filter(Boolean).join(' ').toLowerCase();
+            return `<div class="list-item clickable doc-item" data-type="${d.type || 'other'}" data-shared="${d.shared}" data-search="${esc(search)}" onclick="${d.fileUrl ? `window.open('${d.fileUrl}','_blank')` : `editDocModal('${d.id}')`}" style="padding:14px 16px">
+                <div class="list-icon" style="background:var(--gold-light)">${docIcon(d.type)}</div>
+                <div class="list-content" style="flex:1;min-width:0">
+                    <div class="list-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                        <span style="font-weight:600">${d.name}</span>
+                        ${d.shared ? '<span class="badge blue" style="font-size:9px">🔗 Condiviso</span>' : ''}
+                    </div>
+                    <div class="list-subtitle" style="margin-top:4px">
+                        ${u ? `<span style="background:${u.role==='landlord'?'var(--gold-light)':'var(--blue-light)'};padding:2px 8px;border-radius:4px;font-size:11px">${u.role === 'landlord' ? '🏠' : '👤'} ${u.name}</span>` : ''}
+                        ${prop ? `<span style="margin-left:8px">🏠 ${prop.name}</span>` : ''}
+                        <span style="margin-left:8px">📅 ${fmtDate(d.createdAt)}</span>
+                    </div>
+                </div>
+                <div style="display:flex;gap:4px" onclick="event.stopPropagation()">
+                    ${d.fileUrl ? `<button class="btn btn-xs btn-secondary" onclick="window.open('${d.fileUrl}','_blank')" title="Scarica">📥</button>` : ''}
+                    <button class="btn btn-xs btn-secondary" onclick="editDocModal('${d.id}')" title="Modifica">✏️</button>
+                    <button class="btn btn-xs btn-danger" onclick="confirmDelete('document','${d.id}','${d.name}')" title="Elimina">🗑</button>
+                </div>
+            </div>`;
+        };
+
         return `<div class="page-header">
-                <div><h1 class="page-title">📁 Documenti</h1><p class="page-subtitle">${S.documents.length} documenti · Assegna documenti a proprietari/inquilini</p></div>
-                <div class="page-actions"><button class="btn" onclick="openDocUploadModal()">+ Carica Documento</button></div>
+                <div><h1 class="page-title">📁 Documenti</h1><p class="page-subtitle">${stats.all} documenti · Archivio condiviso con proprietari e inquilini</p></div>
+                <div class="page-actions">
+                    <button class="btn btn-secondary btn-sm" onclick="exportDocumentsCSV()">📊 Export</button>
+                    <button class="btn" onclick="openDocUploadModal()">+ Carica</button>
+                </div>
             </div>
-            <div class="card" style="margin-bottom:20px">
-                <div style="display:flex;gap:8px;padding:12px;border-bottom:1px solid var(--border);flex-wrap:wrap">
-                    <button class="btn btn-sm" onclick="filterDocs('all',this)">Tutti (${S.documents.length})</button>
-                    <button class="btn btn-sm btn-secondary" onclick="filterDocs('contract',this)">📋 Contratti</button>
-                    <button class="btn btn-sm btn-secondary" onclick="filterDocs('receipt',this)">🧾 Ricevute</button>
-                    <button class="btn btn-sm btn-secondary" onclick="filterDocs('id',this)">🪪 ID</button>
-                    <button class="btn btn-sm btn-secondary" onclick="filterDocs('shared',this)">🔗 Condivisi</button>
-                    <button class="btn btn-sm btn-secondary" onclick="filterDocs('deal',this)">📦 Deal Archive</button>
+            <div class="stats-grid" style="grid-template-columns:repeat(4,1fr)">
+                <div class="stat-card" style="cursor:pointer" onclick="filterDocs('all', this.closest('.stats-grid').nextElementSibling.querySelector('[data-filter=all]'))"><div class="stat-label">Tutti</div><div class="stat-value">${stats.all}</div></div>
+                <div class="stat-card" style="cursor:pointer" onclick="filterDocs('contract', this.closest('.stats-grid').nextElementSibling.querySelector('[data-filter=contract]'))"><div class="stat-label">Contratti</div><div class="stat-value">${stats.contract}</div></div>
+                <div class="stat-card" style="cursor:pointer" onclick="filterDocs('receipt', this.closest('.stats-grid').nextElementSibling.querySelector('[data-filter=receipt]'))"><div class="stat-label">Ricevute</div><div class="stat-value">${stats.receipt}</div></div>
+                <div class="stat-card" style="cursor:pointer" onclick="filterDocs('shared', this.closest('.stats-grid').nextElementSibling.querySelector('[data-filter=shared]'))"><div class="stat-label">Condivisi</div><div class="stat-value text-blue">${stats.shared}</div></div>
+            </div>
+            <div class="card">
+                <div style="display:flex;gap:6px;padding:12px 16px;border-bottom:1px solid var(--border);flex-wrap:wrap;align-items:center">
+                    <button class="btn btn-sm" data-filter="all" onclick="filterDocs('all', this)">Tutti</button>
+                    <button class="btn btn-sm btn-secondary" data-filter="contract" onclick="filterDocs('contract', this)">📋 Contratti</button>
+                    <button class="btn btn-sm btn-secondary" data-filter="receipt" onclick="filterDocs('receipt', this)">🧾 Ricevute</button>
+                    <button class="btn btn-sm btn-secondary" data-filter="id" onclick="filterDocs('id', this)">🪪 ID</button>
+                    <button class="btn btn-sm btn-secondary" data-filter="utility" onclick="filterDocs('utility', this)">💡 Utenze</button>
+                    <button class="btn btn-sm btn-secondary" data-filter="shared" onclick="filterDocs('shared', this)">🔗 Condivisi</button>
+                    <button class="btn btn-sm btn-secondary" data-filter="deal" onclick="filterDocs('deal', this)">📦 Deal Archive</button>
+                    <input type="search" id="docSearch" class="form-input" placeholder="🔎 Cerca nome, persona, immobile…" oninput="searchDocs(this.value)" style="flex:1;min-width:200px;margin-left:auto">
                 </div>
                 <div class="card-body flush" id="docsContainer">
-                    ${S.documents.map(d => {
-                        const u = S.users.find(x => x.id === d.userId);
-                        const prop = S.properties.find(x => x.id === d.propertyId);
-                        return `<div class="list-item doc-item" data-type="${d.type}" data-shared="${d.shared}">
-                            <div class="list-icon">${docIcon(d.type)}</div>
-                            <div class="list-content">
-                                <div class="list-title">${d.name} ${d.shared ? '<span class="badge blue">🔗 Condiviso</span>' : ''}</div>
-                                <div class="list-subtitle">
-                                    ${u ? `<span style="background:${u.role==='landlord'?'var(--gold-light)':'var(--blue-light)'};padding:2px 8px;border-radius:4px;font-size:11px">${u.role === 'landlord' ? '🏠' : '👤'} ${u.name}</span>` : ''}
-                                    ${prop ? ` · ${prop.name}` : ''} · ${fmtDate(d.createdAt)}
-                                </div>
-                            </div>
-                            <div style="display:flex;gap:4px">
-                                ${d.fileUrl ? `<button class="btn btn-xs btn-secondary" onclick="window.open('${d.fileUrl}','_blank')" title="Scarica">📥</button>` : ''}
-                                <button class="btn btn-xs btn-secondary" onclick="editDocModal('${d.id}')" title="Modifica">✏️</button>
-                                <button class="btn btn-xs btn-danger" onclick="confirmDelete('document','${d.id}','${d.name}')" title="Elimina">🗑</button>
-                            </div>
-                        </div>`;
-                    }).join('') || '<div class="empty-state"><div class="empty-icon">📁</div><div class="empty-title">Nessun documento</div><button class="btn" onclick="openDocUploadModal()">+ Carica</button></div>'}
+                    ${all.length === 0
+                        ? '<div class="empty-state"><div class="empty-icon">📁</div><div class="empty-title">Nessun documento</div><div class="empty-subtitle">Carica contratti, ricevute, documenti d\\'identità</div><button class="btn" onclick="openDocUploadModal()" style="margin-top:12px">+ Carica primo documento</button></div>'
+                        : all.map(docRow).join('')
+                    }
                 </div>
             </div>`;
     }
-    
+
     function filterDocs(type, btn) {
-        // Reset all sibling filter buttons to secondary, then mark active.
-        if (btn?.parentElement) {
-            btn.parentElement.querySelectorAll('button.btn-sm').forEach(b => b.classList.add('btn-secondary'));
-        }
+        if (btn?.parentElement) btn.parentElement.querySelectorAll('button.btn-sm[data-filter]').forEach(b => b.classList.add('btn-secondary'));
         btn?.classList.remove('btn-secondary');
         document.querySelectorAll('.doc-item').forEach(item => {
-            if (type === 'all') item.style.display = '';
-            else if (type === 'shared') item.style.display = item.dataset.shared === 'true' ? '' : 'none';
-            else if (type === 'deal') item.style.display = item.dataset.type === 'deal-archive' ? '' : 'none';
-            else item.style.display = item.dataset.type === type ? '' : 'none';
+            let show = false;
+            if (type === 'all') show = true;
+            else if (type === 'shared') show = item.dataset.shared === 'true';
+            else if (type === 'deal') show = item.dataset.type === 'deal-archive';
+            else show = item.dataset.type === type;
+            // Compose with search
+            const term = (document.getElementById('docSearch')?.value || '').toLowerCase().trim();
+            if (show && term) show = (item.dataset.search || '').includes(term);
+            item.style.display = show ? '' : 'none';
         });
+    }
+    function searchDocs(q) {
+        const active = document.querySelector('button.btn-sm[data-filter]:not(.btn-secondary)');
+        const filter = active?.dataset.filter || 'all';
+        filterDocs(filter, active);
+    }
+    function exportDocumentsCSV() {
+        let csv = 'Nome,Tipo,Persona,Ruolo,Immobile,Condiviso,Data\n';
+        S.documents.forEach(d => {
+            const u = S.users.find(x => x.id === d.userId);
+            const prop = S.properties.find(x => x.id === d.propertyId);
+            csv += `"${(d.name || '').replace(/"/g, '""')}","${d.type || ''}","${u?.name || ''}","${u?.role || ''}","${prop?.name || ''}","${d.shared ? 'sì' : 'no'}","${fmtDate(d.createdAt)}"\n`;
+        });
+        downloadCSV(csv, 'BOOM_Documenti.csv');
     }
     
     function openDocUploadModal() {
