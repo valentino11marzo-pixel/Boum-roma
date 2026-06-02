@@ -13094,7 +13094,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 ${c.status === 'active' ? `<button class="btn btn-sm" style="background:var(--purple);color:white" onclick="generateDeadlinesForContract('${c.id}')" title="Genera scadenze automatiche">📅 Genera Scadenze</button>` : ''}
                 ${c.status === 'active' ? `<button class="btn btn-sm" style="background:var(--red);color:white" onclick="const cid='${c.id}';closeModal();setTimeout(()=>openModal('terminateContract',S.contracts.find(x=>x.id===cid)),250)">⛔ Termina</button>` : ''}
                 ${c.status === 'active' ? `<button class="btn btn-sm" style="background:var(--green);color:white" onclick="const cid='${c.id}';closeModal();setTimeout(()=>openModal('renewContract',S.contracts.find(x=>x.id===cid)),250)">🔄 Rinnova</button>` : ''}
-                <button class="btn btn-sm" style="background:var(--gold);color:#000;font-weight:600" onclick="closeModal();openShareHub('${c.id}')" title="Tutti i link condivisibili: firma, dati, pass, immobile">🔗 Link da condividere</button>
+                <button class="btn btn-sm" style="background:var(--gold);color:#000;font-weight:600" onclick="const cid='${c.id}';closeModal();setTimeout(()=>openShareHub(cid),260)" title="Tutti i link condivisibili: firma, dati, pass, immobile">🔗 Link da condividere</button>
                 <button class="btn btn-secondary btn-sm" onclick="previewContractPDF('${c.id}')">👁 Anteprima</button>
                 <button class="btn btn-secondary btn-sm" onclick="downloadContractPDF('${c.id}')">📥 PDF</button>
                 <button class="btn btn-secondary btn-sm" onclick="regenerateContractPDF('${c.id}')" title="Rigenera Allegato B con dati aggiornati">🔄 Rigenera PDF</button>
@@ -18364,6 +18364,18 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const prop = (S.properties || []).find(p => p.id === c.propertyId);
         const tenant = (S.users || []).find(u => u.id === c.tenantId);
         const landlord = prop ? (S.users || []).find(u => u.id === prop.ownerId) : null;
+
+        // Mount a placeholder immediately so the modal is visible while the
+        // Firestore backfill is in flight. If a previous closeModal() is still
+        // waiting to clear #modals, this paint will be overwritten — so we
+        // re-paint after the backfill completes as the final write below.
+        const modalsEl = document.getElementById('modals');
+        if (modalsEl) modalsEl.innerHTML = `<div class="modal-overlay active"><div class="modal lg">
+            <div class="modal-header"><h3 class="modal-title">🔗 Link da condividere</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+            <div class="modal-body" style="text-align:center;padding:40px 20px;color:var(--text-muted)">
+                <div style="font-size:24px;margin-bottom:8px">⏳</div>
+                <div>Preparazione link…</div>
+            </div></div></div>`;
 
         // Backfill any missing token in a single Firestore write
         const mk = () => (crypto.randomUUID ? crypto.randomUUID() : 'tk-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10));
