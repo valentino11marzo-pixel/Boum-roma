@@ -8305,14 +8305,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 </div>
             </div>
 
-            ${overdue.length > 0 ? `<div class="alert danger" style="margin-bottom:16px">
-                <span class="alert-icon">⚠️</span>
-                <div class="alert-content">
-                    <div class="alert-title">${overdue.length} Pagamenti in Ritardo · €${overdueTotal.toLocaleString('it-IT')}</div>
-                    <div class="alert-text">Alcuni inquilini hanno pagamenti scaduti. Considera di inviare solleciti.</div>
-                </div>
-                <button class="btn btn-sm btn-danger" onclick="sendBulkReminders()">📧 Invia Solleciti</button>
-            </div>` : ''}
+            ${overdue.length > 0 ? renderRecoveryPanel(overdue, overdueTotal) : ''}
 
             <!-- Stats Grid -->
             <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:16px">
@@ -8395,7 +8388,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         });
     }
 
-    async function sendPaymentReminder(paymentId) {
+    async function sendPaymentReminder(paymentId, level) {
         const p = S.payments.find(x => x.id === paymentId);
         if (!p) return;
         const c = S.contracts.find(x => x.id === p.contractId);
@@ -8403,24 +8396,210 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const prop = c ? S.properties.find(x => x.id === c.propertyId) : null;
         if (!t) return toast('error', 'Inquilino non trovato');
 
-        if (!confirm(`Inviare sollecito a ${t.name} per €${p.amount} (${p.month})?`)) return;
+        // Default to the level suggested by days-late
+        if (!level) level = suggestedDunningLevel(p) || 1;
+        const levelLabel = dunningLevelLabel(level);
 
-        // Update reminder count
+        if (!confirm(`Inviare ${levelLabel} a ${t.name} per €${p.amount} (${p.month})?`)) return;
+
         const remindersSent = (p.remindersSent || 0) + 1;
+        const history = Array.isArray(p.dunningHistory) ? p.dunningHistory.slice() : [];
+        history.push({ level, at: new Date().toISOString(), channel: 'email' });
+
         await db.collection('payments').doc(paymentId).update({
             remindersSent,
+            dunningStage: level,
+            dunningHistory: history,
             lastReminderDate: firebase.firestore.FieldValue.serverTimestamp()
         });
+        // Mirror locally so the UI updates without a full refetch
+        Object.assign(p, { remindersSent, dunningStage: level, dunningHistory: history });
 
-        // Create notification
-        await createNotification(t.id, 'payment', '⏰ Promemoria Pagamento',
+        await createNotification(t.id, 'payment', '⏰ ' + levelLabel,
             `Pagamento di €${p.amount} per ${prop?.name || 'immobile'} (${p.month}) è in ritardo.`,
-            { paymentId, amount: p.amount, skipEmail: true });
+            { paymentId, amount: p.amount, level, skipEmail: true });
 
-        // Send email
-        await sendPaymentReminderEmail(t, c, prop, p);
-        toast('success', `Sollecito #${remindersSent} inviato a ${t.name}`);
-        goTo('payments');
+        await sendPaymentReminderEmail(t, c, prop, p, level);
+        toast('success', `${levelLabel} inviato a ${t.name}`);
+        if (typeof refreshPaymentsView === 'function') refreshPaymentsView(); else goTo('payments');
+    }
+
+    // Open WhatsApp with the right escalation template for a payment.
+    function sendDunningWA(paymentId, level) {
+        const p = S.payments.find(x => x.id === paymentId);
+        if (!p) return;
+        const c = S.contracts.find(x => x.id === p.contractId);
+        const t = c ? S.users.find(x => x.id === c.tenantId) : null;
+        const prop = c ? S.properties.find(x => x.id === c.propertyId) : null;
+        if (!t?.phone) return toast('warning', 'Numero WhatsApp inquilino mancante');
+        if (!level) level = suggestedDunningLevel(p) || 1;
+        const num = t.phone.replace(/[^0-9]/g, '');
+        const msg = encodeURIComponent(whatsappReminderText(t, p, prop, level));
+        window.open(`https://wa.me/${num}?text=${msg}`, '_blank');
+        // Track silently as a logged outreach (no email send)
+        const history = Array.isArray(p.dunningHistory) ? p.dunningHistory.slice() : [];
+        history.push({ level, at: new Date().toISOString(), channel: 'whatsapp' });
+        db.collection('payments').doc(paymentId).update({
+            dunningStage: Math.max(p.dunningStage || 0, level),
+            dunningHistory: history,
+            lastReminderDate: firebase.firestore.FieldValue.serverTimestamp()
+        }).catch(() => {});
+        Object.assign(p, { dunningStage: Math.max(p.dunningStage || 0, level), dunningHistory: history });
+    }
+
+    function refreshPaymentsView() {
+        if (S.page === 'payments') { try { renderPage(); } catch (_) { goTo('payments'); } }
+    }
+
+    // 🔥 Recovery Dashboard — escalation cockpit for overdue rent
+    function renderRecoveryPanel(overdue, overdueTotal) {
+        // Bucket by escalation stage (suggested by days late)
+        const buckets = { 1: [], 2: [], 3: [] };
+        overdue.forEach(p => {
+            const lvl = suggestedDunningLevel(p);
+            if (lvl >= 1 && lvl <= 3) buckets[lvl].push(p);
+        });
+
+        const bucketCard = (lvl, list) => {
+            const label = dunningLevelLabel(lvl);
+            const color = dunningLevelColor(lvl);
+            const icon = ({1:'📧',2:'⚠️',3:'🚨'})[lvl];
+            const window_ = ({1:'5–14 giorni',2:'15–29 giorni',3:'30+ giorni'})[lvl];
+            // How many in this bucket have NOT yet received a reminder at this level
+            const toContact = list.filter(p => (p.dunningStage || 0) < lvl).length;
+            const total = list.reduce((s, p) => s + (p.amount || 0), 0);
+
+            return `<div class="card" style="padding:16px;border-left:4px solid var(--${color})">
+                <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px">
+                    <div>
+                        <div style="font-size:11px;color:var(--text-muted);letter-spacing:1px">${icon} ${window_.toUpperCase()}</div>
+                        <div style="font-size:18px;font-weight:700;color:var(--${color});margin-top:2px">${label}</div>
+                    </div>
+                    <div style="text-align:right">
+                        <div style="font-size:22px;font-weight:700">${list.length}</div>
+                        <div style="font-size:10px;color:var(--text-muted)">€${total.toLocaleString('it-IT')}</div>
+                    </div>
+                </div>
+                ${toContact > 0
+                    ? `<button class="btn btn-sm" style="width:100%;background:var(--${color});color:#000;font-weight:600" onclick="sendBulkRemindersAtLevel(${lvl})">${icon} Invia ${label} a ${toContact}</button>`
+                    : `<div style="font-size:11px;color:var(--text-muted);text-align:center;padding:6px 0">✓ Tutti contattati a questo livello</div>`}
+            </div>`;
+        };
+
+        // Recovery row — one line per overdue payment with quick actions
+        const recoveryRow = (p) => {
+            const c = S.contracts.find(x => x.id === p.contractId);
+            const prop = c ? S.properties.find(x => x.id === c.propertyId) : null;
+            const t = c ? S.users.find(x => x.id === c.tenantId) : null;
+            const days = daysSince(p.dueDate);
+            const suggested = suggestedDunningLevel(p);
+            const lastStage = p.dunningStage || 0;
+            const needsAction = lastStage < suggested;
+            const lastSent = p.lastReminderDate
+                ? (p.lastReminderDate.toDate ? p.lastReminderDate.toDate() : new Date(p.lastReminderDate))
+                : null;
+            const historyCount = (p.dunningHistory || []).length;
+
+            return `<div class="list-item" style="padding:12px 14px;border-left:3px solid var(--${dunningLevelColor(suggested)})">
+                <div style="flex:1;min-width:0">
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                        <strong>${t?.name || 'Inquilino'}</strong>
+                        <span style="color:var(--text-muted)">·</span>
+                        <span>${prop?.name || ''}</span>
+                        <span class="badge gray" style="font-size:9px">${p.month || ''}</span>
+                        <span class="badge red" style="font-size:9px">${days}gg di ritardo</span>
+                        <span class="badge ${dunningLevelColor(suggested)}" style="font-size:9px">${needsAction ? '→ ' : '✓ '}${dunningLevelLabel(suggested)}</span>
+                        ${historyCount > 0 ? `<span style="font-size:10px;color:var(--text-muted)">📧 ${historyCount} invii${lastSent ? ' · ult. ' + fmtDate(lastSent) : ''}</span>` : ''}
+                    </div>
+                    ${(p.dunningHistory && p.dunningHistory.length)
+                        ? `<div style="margin-top:4px;font-size:10px;color:var(--text-muted)">${p.dunningHistory.slice(-3).map(h => `${({email:'📧',whatsapp:'💬'})[h.channel]||'•'} L${h.level} ${fmtDate(h.at)}`).join(' · ')}</div>`
+                        : ''}
+                </div>
+                <div style="display:flex;align-items:center;gap:10px">
+                    <div style="text-align:right;min-width:80px">
+                        <div class="text-red" style="font-size:16px;font-weight:700">€${(p.amount||0).toLocaleString('it-IT')}</div>
+                    </div>
+                    <div style="display:flex;gap:4px;flex-wrap:wrap;max-width:280px;justify-content:flex-end">
+                        <button class="btn btn-xs ${suggested===1?'':'btn-secondary'}" onclick="sendPaymentReminder('${p.id}',1)" title="1° Sollecito (email)">1️⃣</button>
+                        <button class="btn btn-xs ${suggested===2?'':'btn-secondary'}" onclick="sendPaymentReminder('${p.id}',2)" title="2° Sollecito formale (email)">2️⃣</button>
+                        <button class="btn btn-xs ${suggested===3?'btn-danger':'btn-secondary'}" onclick="sendPaymentReminder('${p.id}',3)" title="Diffida ad adempiere (email)">🚨</button>
+                        ${t?.phone ? `<button class="btn btn-xs btn-secondary" onclick="sendDunningWA('${p.id}',${suggested})" title="WhatsApp livello ${suggested}">💬</button>` : ''}
+                        <button class="btn btn-xs btn-success" onclick="markPaymentPaid('${p.id}')" title="Segna pagato">✔</button>
+                        ${t?.id ? `<button class="btn btn-xs btn-secondary" onclick="openPerson('${t.id}','user')" title="Apri scheda 360°">📂</button>` : ''}
+                    </div>
+                </div>
+            </div>`;
+        };
+
+        // Default visibility: show only rows that need action today (i.e. stage < suggested)
+        // Toggle exposes the full overdue list.
+        const sorted = overdue.slice().sort((a, b) => daysSince(b.dueDate) - daysSince(a.dueDate));
+
+        return `<div class="card" style="margin-bottom:16px;border:1px solid var(--red);background:linear-gradient(180deg,rgba(220,38,38,0.06),transparent)">
+            <div style="padding:16px 18px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border)">
+                <div>
+                    <div style="font-size:11px;color:var(--red);letter-spacing:2px;font-weight:600">🔥 RECUPERO CREDITI</div>
+                    <div style="font-size:20px;font-weight:700;margin-top:2px">${overdue.length} pagamenti in ritardo · €${overdueTotal.toLocaleString('it-IT')}</div>
+                </div>
+                <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-muted);cursor:pointer">
+                    <input type="checkbox" id="recoveryShowAll" onchange="toggleRecoveryShowAll(this.checked)"> Mostra tutti
+                </label>
+            </div>
+            <div style="padding:14px;display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+                ${[1,2,3].map(l => bucketCard(l, buckets[l])).join('')}
+            </div>
+            <div id="recoveryList" style="border-top:1px solid var(--border)">
+                ${sorted.map(p => recoveryRow(p)).join('')}
+            </div>
+        </div>`;
+    }
+
+    function toggleRecoveryShowAll(showAll) {
+        document.querySelectorAll('#recoveryList .list-item').forEach(item => {
+            // The "needs action" rows already render with → arrow; "already contacted" with ✓.
+            // We keep all rendered, but hide the "✓" ones unless showAll is on.
+            const badge = item.querySelector('.badge.gold, .badge.orange, .badge.red');
+            // Simpler approach: only show rows whose suggested-level badge starts with "→"
+            const needAction = (item.textContent || '').includes('→ ');
+            item.style.display = (showAll || needAction) ? '' : 'none';
+        });
+    }
+
+    async function sendBulkRemindersAtLevel(level) {
+        const targets = S.payments.filter(p =>
+            p.status === 'pending' && isOverdue(p.dueDate) &&
+            suggestedDunningLevel(p) >= level && (p.dunningStage || 0) < level
+        );
+        if (!targets.length) return toast('info', 'Nessun pagamento da sollecitare a questo livello');
+        const label = dunningLevelLabel(level);
+        if (!confirm(`Inviare ${label} a ${targets.length} inquilini?`)) return;
+
+        let sent = 0, failed = 0;
+        for (const p of targets) {
+            const c = S.contracts.find(x => x.id === p.contractId);
+            const t = c ? S.users.find(x => x.id === c.tenantId) : null;
+            if (!t) { failed++; continue; }
+            try {
+                const remindersSent = (p.remindersSent || 0) + 1;
+                const history = Array.isArray(p.dunningHistory) ? p.dunningHistory.slice() : [];
+                history.push({ level, at: new Date().toISOString(), channel: 'email' });
+                await db.collection('payments').doc(p.id).update({
+                    remindersSent,
+                    dunningStage: level,
+                    dunningHistory: history,
+                    lastReminderDate: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                Object.assign(p, { remindersSent, dunningStage: level, dunningHistory: history });
+                const prop = c ? S.properties.find(x => x.id === c.propertyId) : null;
+                await createNotification(t.id, 'payment', '⏰ ' + label,
+                    `Pagamento di €${p.amount} per ${prop?.name || 'immobile'} (${p.month}) è in ritardo.`,
+                    { paymentId: p.id, amount: p.amount, level, skipEmail: true });
+                await sendPaymentReminderEmail(t, c, prop, p, level);
+                sent++;
+            } catch (e) { console.warn('[bulkDunning]', p.id, e); failed++; }
+        }
+        toast(failed ? 'warning' : 'success', `${label}: ${sent} inviati${failed ? `, ${failed} non riusciti` : ''}`);
+        refreshPaymentsView();
     }
 
     async function sendBulkReminders() {
@@ -15637,25 +15816,104 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         return sent;
     }
     
-    async function sendPaymentReminderEmail(tenant, contract, property, payment) {
+    async function sendPaymentReminderEmail(tenant, contract, property, payment, level) {
         if (!tenant?.email) return false;
         const dueDate = new Date(payment.dueDate);
-        const daysLeft = Math.ceil((dueDate - new Date()) / (1000*60*60*24));
+        const today = new Date();
+        const daysLate = Math.max(0, Math.ceil((today - dueDate) / (1000*60*60*24)));
+        const daysLeft = Math.ceil((dueDate - today) / (1000*60*60*24));
+        const amount = '€' + (payment.amount || contract?.rent || 0).toLocaleString('it-IT');
+        const firstName = (tenant.name || '').split(' ')[0];
+        const propName = property?.name || 'your property';
+
+        // Escalation level: 0 = pre-due, 1 = friendly (5-14gg), 2 = firm (15-29gg), 3 = formal demand (30gg+)
+        let cfg;
+        if (level === 3) {
+            cfg = {
+                heading: 'DIFFIDA AD ADEMPIERE',
+                subheading: 'Pagamento scaduto da ' + daysLate + ' giorni — ' + (payment.month || ''),
+                intro: 'Gentile ' + firstName + ', constatato il mancato pagamento del canone di ' + amount + ' relativo a ' + propName + ' (scadenza ' + fmtDate(payment.dueDate) + '), con la presente ai sensi dell\'art. 1454 c.c. La diffidiamo ad adempiere entro 15 giorni dal ricevimento. In difetto, il contratto si intenderà risolto di diritto e si procederà al recupero del credito maggiorato di interessi di mora e spese legali.',
+                card_color: '#DC2626',
+                closing: 'Confidiamo nel Suo immediato adempimento per evitare ulteriori conseguenze.',
+                cta_text: 'Regolarizza ora →'
+            };
+        } else if (level === 2) {
+            cfg = {
+                heading: 'Sollecito formale — pagamento scaduto',
+                subheading: 'Ritardo di ' + daysLate + ' giorni — ' + (payment.month || ''),
+                intro: 'Gentile ' + firstName + ', risulta tuttora insoluto il canone di ' + amount + ' per ' + propName + ', scaduto il ' + fmtDate(payment.dueDate) + '. La invitiamo a provvedere senza ulteriore indugio. Decorsi i termini, saranno applicati gli interessi di mora ex art. 1224 c.c. e si procederà con la diffida formale.',
+                card_color: '#EA580C',
+                closing: 'In caso di pagamento già effettuato, La preghiamo di trasmetterci la contabile.',
+                cta_text: 'Paga ora →'
+            };
+        } else if (level === 1) {
+            cfg = {
+                heading: 'Promemoria pagamento scaduto',
+                subheading: 'Ritardo di ' + daysLate + ' giorn' + (daysLate === 1 ? 'o' : 'i') + ' — ' + (payment.month || ''),
+                intro: 'Ciao ' + firstName + ', il canone di ' + amount + ' per ' + propName + ' risulta scaduto il ' + fmtDate(payment.dueDate) + '. Potrebbe trattarsi di una svista — ti chiediamo gentilmente di provvedere al saldo.',
+                card_color: '#F5A623',
+                closing: 'Se hai già pagato, ignora questo messaggio e inviaci la contabile. Grazie!',
+                cta_text: 'Paga ora →'
+            };
+        } else {
+            cfg = {
+                heading: 'Rent reminder.',
+                subheading: 'Due in ' + daysLeft + ' days — ' + (payment.month || ''),
+                intro: 'Your rent of ' + amount + ' for ' + propName + ' is due on ' + fmtDate(payment.dueDate) + '.',
+                card_color: '#F5A623',
+                closing: '',
+                cta_text: 'View in portal →'
+            };
+        }
+
         return sendBoomEmail(EMAILJS_CONFIG.templates.notification, tenant.email, {
-            heading: 'Rent reminder.',
-            subheading: 'Due in ' + daysLeft + ' days — ' + (payment.month || ''),
-            name: (tenant.name || '').split(' ')[0],
-            intro: 'Your rent of €' + (payment.amount || contract.rent || 0).toLocaleString('it-IT') + ' for ' + (property?.name || 'your property') + ' is due on ' + fmtDate(payment.dueDate) + '.',
-            card_title: 'PAYMENT DETAILS',
-            card_color: '#F5A623',
-            r1_icon: '💰', r1_label: 'Amount', r1_value: '€' + (payment.amount || contract.rent || 0).toLocaleString('it-IT'),
-            r2_icon: '📅', r2_label: 'Due Date', r2_value: fmtDate(payment.dueDate),
+            heading: cfg.heading,
+            subheading: cfg.subheading,
+            name: firstName,
+            intro: cfg.intro,
+            card_title: 'DETTAGLI PAGAMENTO',
+            card_color: cfg.card_color,
+            r1_icon: '💰', r1_label: 'Importo', r1_value: amount,
+            r2_icon: '📅', r2_label: 'Scadenza', r2_value: fmtDate(payment.dueDate),
             r3_icon: '🏦', r3_label: 'IBAN', r3_value: COMPANY.iban,
-            r4_icon: '📝', r4_label: 'Reference', r4_value: 'Affitto ' + (property?.name || ''),
-            closing: '',
-            cta_text: 'View in portal →',
+            r4_icon: '📝', r4_label: 'Causale', r4_value: 'Affitto ' + (property?.name || '') + ' ' + (payment.month || ''),
+            closing: cfg.closing,
+            cta_text: cfg.cta_text,
             portal_link: window.location.origin + window.location.pathname
         });
+    }
+
+    // Compute the dunning level we *should* be at for an overdue payment,
+    // based on days late. Used to suggest the next action in the recovery dashboard.
+    function suggestedDunningLevel(payment) {
+        if (!payment || payment.status !== 'pending') return 0;
+        const days = daysSince(payment.dueDate);
+        if (days >= 30) return 3;
+        if (days >= 15) return 2;
+        if (days >= 5)  return 1;
+        if (days >= 1)  return 1;
+        return 0;
+    }
+    function dunningLevelLabel(level) {
+        return ({1:'1° Sollecito',2:'2° Sollecito',3:'Diffida'})[level] || 'Promemoria';
+    }
+    function dunningLevelColor(level) {
+        return ({1:'gold',2:'orange',3:'red'})[level] || 'blue';
+    }
+
+    function whatsappReminderText(tenant, payment, property, level) {
+        const amount = '€' + (payment.amount || 0).toLocaleString('it-IT');
+        const firstName = (tenant?.name || '').split(' ')[0];
+        const propName = property?.name || 'l\'immobile';
+        const due = fmtDate(payment.dueDate);
+        const days = daysSince(payment.dueDate);
+        if (level === 3) {
+            return `Gentile ${firstName}, le abbiamo inviato via email DIFFIDA AD ADEMPIERE per il canone ${amount} di ${propName} (scaduto da ${days} giorni — ${due}). Termine: 15 giorni. Per chiarimenti chiamaci. — BOOM Roma`;
+        }
+        if (level === 2) {
+            return `${firstName}, ti scriviamo perché il canone ${amount} di ${propName} (scaduto il ${due}, ${days}gg di ritardo) risulta ancora insoluto. Provvedi al pagamento e inviaci la contabile per evitare il sollecito formale con interessi di mora. — BOOM Roma`;
+        }
+        return `Ciao ${firstName}, ti ricordiamo che il canone ${amount} di ${propName} è scaduto il ${due} (${days}gg di ritardo). Se hai già pagato ignora pure! IBAN: ${COMPANY.iban}. Grazie — BOOM Roma`;
     }
     
     async function sendPaymentConfirmEmail(tenant, contract, property, payment) {
