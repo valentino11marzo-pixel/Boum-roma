@@ -2492,13 +2492,17 @@
         .how-scene.on .how-wel { animation: howSlide 0.6s var(--ease-out) 1s forwards; }
         @keyframes howSlide { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
         /* Mobile: unpin and stack all steps as a normal list */
+        /* Mobile: keep the film — device pinned on top, steps cross-fade beneath as you scroll */
         @media (max-width: 899px) {
-            .how-pin-wrap { height: auto; }
-            .how-pin { position: static; min-height: 0; padding: var(--space-4xl) 0; }
-            .how-steps { min-height: 0; display: flex; flex-direction: column; gap: var(--space-2xl); }
-            .how-step { position: static; opacity: 1; transform: none; filter: none; pointer-events: auto; }
-            .how-visual { display: none; }
-            .how-track { display: none; }
+            .how-pin-wrap { height: 520vh; }
+            .how-pin { padding: 70px 0 22px; }
+            .how-pin-inner { gap: 16px; }
+            .how-pin-text { order: 2; }
+            .how-visual { order: 1; max-width: 360px; margin: 0 auto; }
+            .how-screen { height: 40vh; }
+            .how-scene { padding: 16px; }
+            .how-steps { min-height: 22vh; }
+            .how-k { font-size: 44px; }
         }
         @media (prefers-reduced-motion: reduce) {
             .how-step { opacity: 1 !important; transform: none !important; filter: none !important; }
@@ -3724,7 +3728,6 @@
         const howScenes = [...document.querySelectorAll('.how-scene')];
         if (howWrap && howSteps.length) {
             let howCur = -1;
-            const isPinned = () => window.matchMedia('(min-width: 900px)').matches;
             const howType = (el, text, sp, done) => {
                 el.textContent = ''; el.classList.add('focus');
                 const c = document.createElement('span'); c.className = 'how-caret'; el.appendChild(c);
@@ -3748,13 +3751,11 @@
                 howTrigger(idx);
             };
             const updateHow = () => {
-                if (isPinned()) {
-                    const y = getScrollY();
-                    const h = howWrap.offsetHeight - window.innerHeight;
-                    let p = h > 0 ? (y - howWrap.offsetTop) / h : 0;
-                    p = Math.max(0, Math.min(0.9999, p));
-                    setHow(Math.floor(p * howSteps.length));
-                }
+                const y = getScrollY();
+                const h = howWrap.offsetHeight - window.innerHeight;
+                let p = h > 0 ? (y - howWrap.offsetTop) / h : 0;
+                p = Math.max(0, Math.min(0.9999, p));
+                setHow(Math.floor(p * howSteps.length));
                 requestAnimationFrame(updateHow);
             };
             requestAnimationFrame(updateHow);

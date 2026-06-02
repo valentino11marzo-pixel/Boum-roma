@@ -2584,15 +2584,23 @@
 .hiw-scene.on .hiw-spark{animation:hiwSpark 1.8s ease forwards}
 @keyframes hiwSpark{0%{opacity:0;transform:translateY(10px) scale(.5)}30%{opacity:1}100%{opacity:0;transform:translateY(-40px) scale(1)}}
 
+/* Mobile: keep the film — device pinned on top, steps cross-fade beneath as you scroll */
 @media(max-width:899px){
-  .hiw-journey{height:auto!important}
-  .hiw-stage{position:static;min-height:0;display:block}
-  .hiw-device{display:none}
-  .hiw-steps{padding-left:28px}
-  .hiw-sbody{max-height:none;opacity:1;margin-top:10px}
-  .hiw-t,.hiw-n{color:var(--text-primary)!important}
+  .hiw-journey{height:640vh}
+  .hiw-stage{grid-template-columns:1fr;gap:16px;align-content:center;padding:74px 0 16px}
+  .hiw-eyebrow,.hiw-h2{display:none}
+  .hiw-left{order:2}
+  .hiw-device{order:1;max-width:420px;margin:0 auto}
+  .hiw-screen{height:42vh}
+  .hiw-scene{padding:16px}
+  .hiw-steps{padding-left:0;min-height:21vh}
+  .hiw-steps::before,.hiw-railfill{display:none}
+  .hiw-step{position:absolute;inset:0;padding:0;opacity:0;transform:translateY(16px);transition:opacity .5s var(--ease-out),transform .5s var(--ease-out)}
+  .hiw-step::before{display:none}
+  .hiw-step.on{opacity:1;transform:none}
+  .hiw-t,.hiw-n{color:var(--text-primary)}
   .hiw-dur{opacity:1;color:var(--gold)}
-  .hiw-railfill{display:none}
+  .hiw-sbody{max-height:none;opacity:1;margin-top:8px}
 }
 
 /* ── Services ── */
@@ -3205,11 +3213,9 @@
   }
   if(journey && steps.length){
     (function loop(){
-      if(matchMedia('(min-width:900px)').matches){
-        const h = journey.offsetHeight - innerHeight;
-        let p = h>0 ? (getY() - journey.offsetTop)/h : 0; p = Math.max(0, Math.min(.9999, p));
-        set(Math.floor(p*N));
-      }
+      const h = journey.offsetHeight - innerHeight;
+      let p = h>0 ? (getY() - journey.offsetTop)/h : 0; p = Math.max(0, Math.min(.9999, p));
+      set(Math.floor(p*N));
       requestAnimationFrame(loop);
     })();
   }
