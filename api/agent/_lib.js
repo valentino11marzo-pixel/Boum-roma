@@ -12,7 +12,11 @@
 // double the env surface without any real isolation benefit — the same
 // agent runtime calls both sets of endpoints.
 
-import nodemailer from 'nodemailer';
+// Note: nodemailer is dynamically imported inside getMailer() rather than at
+// the top of the file. This keeps endpoints that don't send email
+// (heartbeat, state.snapshot, risk.scan, leads.*, etc.) functional even if
+// the nodemailer dep is unavailable — the load only happens when sendEmail
+// is actually called.
 
 export {
   FS_BASE, getAdminToken, fsCreate, fsPatch, fsGet, fsList,
@@ -23,8 +27,9 @@ export {
 // ─── Email transport (Gmail via Nodemailer, same as reminder-cron.js) ───
 
 let _transporter = null;
-export function getMailer() {
+async function getMailer() {
   if (_transporter) return _transporter;
+  const nodemailer = (await import('nodemailer')).default;
   _transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASS },
@@ -35,7 +40,7 @@ export function getMailer() {
 // Send a single email. Returns { messageId }.
 export async function sendEmail({ to, subject, html, text, from }) {
   if (!to || !subject || (!html && !text)) throw new Error('to, subject and html|text required');
-  const m = getMailer();
+  const m = await getMailer();
   const info = await m.sendMail({
     from: from || `BOOM Rome <${process.env.GMAIL_USER}>`,
     to, subject, html, text,
