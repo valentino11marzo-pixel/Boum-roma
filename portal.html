@@ -7732,7 +7732,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             else if (isDueSoon) statusConfig = { color: 'orange', bg: 'orange-light', icon: '⏰' };
             else if (p.status === 'pending') statusConfig = { color: 'gold', bg: 'gold-light', icon: '⏳' };
 
-            return `<div class="list-item clickable payment-item" data-status="${p.status}" data-overdue="${isOverdueNow}" data-duesoon="${isDueSoon}" onclick="openModal('editPayment',S.payments.find(x=>x.id==='${p.id}'))" style="padding:14px 16px">
+            const _searchPay = [prop?.name, t?.name, p.month, p.amount, p.stripeSessionId ? 'stripe' : 'manuale'].filter(Boolean).join(' ').toLowerCase();
+            return `<div class="list-item clickable payment-item" data-status="${p.status}" data-overdue="${isOverdueNow}" data-duesoon="${isDueSoon}" data-stripe="${!!p.stripeSessionId}" data-search="${esc(_searchPay)}" onclick="openModal('editPayment',S.payments.find(x=>x.id==='${p.id}'))" style="padding:14px 16px">
                 <div class="list-icon" style="background:var(--${statusConfig.bg});font-size:16px">${statusConfig.icon}</div>
                 <div class="list-content" style="flex:1;min-width:0">
                     <div class="list-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
@@ -7814,13 +7815,15 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 </div>
             </div>
 
-            <!-- Filter Tabs -->
-            <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap">
-                <button class="btn btn-sm payment-filter active" onclick="filterPayments('all')">Tutti</button>
-                <button class="btn btn-sm btn-secondary payment-filter" onclick="filterPayments('paid')">✓ Pagati</button>
-                <button class="btn btn-sm btn-secondary payment-filter" onclick="filterPayments('pending')">⏳ In Attesa</button>
-                ${dueSoon.length > 0 ? `<button class="btn btn-sm btn-warning payment-filter" onclick="filterPayments('duesoon')">⏰ Prossimi (${dueSoon.length})</button>` : ''}
-                ${overdue.length > 0 ? `<button class="btn btn-sm btn-danger payment-filter" onclick="filterPayments('overdue')">⚠️ In Ritardo (${overdue.length})</button>` : ''}
+            <!-- Filter Tabs + Search -->
+            <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
+                <button class="btn btn-sm payment-filter active" data-filter="all" onclick="filterPayments('all', this)">Tutti</button>
+                <button class="btn btn-sm btn-secondary payment-filter" data-filter="paid" onclick="filterPayments('paid', this)">✓ Pagati</button>
+                <button class="btn btn-sm btn-secondary payment-filter" data-filter="pending" onclick="filterPayments('pending', this)">⏳ In Attesa</button>
+                ${dueSoon.length > 0 ? `<button class="btn btn-sm btn-warning payment-filter" data-filter="duesoon" onclick="filterPayments('duesoon', this)">⏰ Prossimi (${dueSoon.length})</button>` : ''}
+                ${overdue.length > 0 ? `<button class="btn btn-sm btn-danger payment-filter" data-filter="overdue" onclick="filterPayments('overdue', this)">⚠️ In Ritardo (${overdue.length})</button>` : ''}
+                <button class="btn btn-sm btn-secondary payment-filter" data-filter="stripe" onclick="filterPayments('stripe', this)">💳 Stripe</button>
+                <input type="search" id="paymentSearch" class="form-input" placeholder="🔎 Cerca inquilino, immobile, mese…" oninput="searchPayments(this.value)" style="flex:1;min-width:200px;margin-left:auto">
             </div>
 
             <div class="card"><div class="card-body flush" id="paymentsContainer">${S.payments.sort((a,b) => {
@@ -7835,18 +7838,32 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             }).map(p => paymentRow(p)).join('') || '<div class="empty-state"><div class="empty-icon">💳</div><div class="empty-title">Nessun pagamento</div><button class="btn" onclick="openModal(\'bulkPayments\')">📅 Genera Pagamenti</button></div>'}</div></div>`;
     }
 
-    function filterPayments(filter) {
-        document.querySelectorAll('.payment-filter').forEach(b => { b.classList.remove('active'); b.classList.add('btn-secondary'); });
-        event.target.classList.add('active'); event.target.classList.remove('btn-secondary');
+    const paymentFilters = { kind: 'all', search: '' };
+    function filterPayments(filter, btn) {
+        paymentFilters.kind = filter;
+        // Safely highlight active pill (works whether called from click, kbd, or programmatically).
+        document.querySelectorAll('.payment-filter').forEach(b => {
+            b.classList.add('btn-secondary'); b.classList.remove('active');
+        });
+        const active = btn || document.querySelector(`.payment-filter[data-filter="${filter}"]`);
+        if (active) { active.classList.remove('btn-secondary'); active.classList.add('active'); }
+        applyPaymentFilters();
+    }
+    function searchPayments(q) { paymentFilters.search = (q || '').toLowerCase().trim(); applyPaymentFilters(); }
+    function applyPaymentFilters() {
+        const { kind, search } = paymentFilters;
         document.querySelectorAll('.payment-item').forEach(item => {
             const status = item.dataset.status;
             const overdue = item.dataset.overdue === 'true';
             const duesoon = item.dataset.duesoon === 'true';
-            let show = filter === 'all';
-            if (filter === 'paid') show = status === 'paid';
-            if (filter === 'pending') show = status === 'pending';
-            if (filter === 'overdue') show = overdue;
-            if (filter === 'duesoon') show = duesoon;
+            const stripe = item.dataset.stripe === 'true';
+            let show = kind === 'all';
+            if (kind === 'paid')    show = status === 'paid';
+            if (kind === 'pending') show = status === 'pending';
+            if (kind === 'overdue') show = overdue;
+            if (kind === 'duesoon') show = duesoon;
+            if (kind === 'stripe')  show = stripe;
+            if (show && search) show = (item.dataset.search || '').includes(search);
             item.style.display = show ? '' : 'none';
         });
     }
