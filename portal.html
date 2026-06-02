@@ -17697,34 +17697,241 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // BUROCRAZIA PAGE (merges Registrazioni + Asseverazioni)
+    // BUROCRAZIA PAGE (merges Registrazioni + Asseverazioni + Archivio)
     // ═══════════════════════════════════════════════════════════════════════════
-    
-    let burocraziaTab = 'registrazioni'; // registrazioni | asseverazioni
-    
+
+    let burocraziaTab = 'archivio'; // archivio | registrazioni | asseverazioni
+    let burocraziaFilter = 'all';  // all | toSign | toRegister | overdue | done
+    let burocraziaSearch = '';
+
     function burocraziaPage() {
+        // Aggregated KPI across all real contracts
+        const contracts = (S.contracts || []);
+        const toSign = contracts.filter(c => c.status === 'active' && (!c.tenantSignature || !c.landlordSignature));
+        const toRegister = contracts.filter(c => c.tenantSignature && c.landlordSignature && (c.registrationStatus || 'pending') !== 'registered');
+        const rliDeadlines = (S.deadlines || []).filter(d => d.type === 'contract_registration' && d.status === 'pending');
+        const overdueRli = rliDeadlines.filter(d => isOverdue(d.date));
+        const completed = contracts.filter(c => c.registrationStatus === 'registered');
+
         return `
             <div class="page-header">
                 <div>
                     <h1 class="page-title" style="font-weight:300;letter-spacing:1px">
                         <span style="color:var(--gold)">●</span> Burocrazia
                     </h1>
-                    <p class="page-subtitle">Registrazioni AdE, asseverazioni e compliance</p>
+                    <p class="page-subtitle">Archivio contratti · Registrazioni RLI · Asseverazioni · Compliance CAF / AdE</p>
                 </div>
                 <div class="page-actions">
-                    <button class="btn btn-secondary" onclick="openModal('addRegistration')">📝 + Registrazione</button>
+                    <button class="btn btn-secondary" onclick="openNewRegistration()">📝 + Registrazione manuale</button>
                 </div>
             </div>
-            
-            <div class="tabs" style="margin-bottom:20px">
-                <div class="tab ${burocraziaTab === 'registrazioni' ? 'active' : ''}" onclick="burocraziaTab='registrazioni';renderPage()">📝 Registrazioni</div>
-                <div class="tab ${burocraziaTab === 'asseverazioni' ? 'active' : ''}" onclick="burocraziaTab='asseverazioni';renderPage()">📋 Asseverazioni</div>
+
+            <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px">
+                <div class="stat-card clickable" onclick="burocraziaTab='archivio';burocraziaFilter='toSign';renderPage()"><div class="stat-label">Da firmare</div><div class="stat-value ${toSign.length ? 'text-orange' : ''}">${toSign.length}</div></div>
+                <div class="stat-card clickable" onclick="burocraziaTab='archivio';burocraziaFilter='toRegister';renderPage()"><div class="stat-label">Da registrare</div><div class="stat-value ${toRegister.length ? 'text-orange' : ''}">${toRegister.length}</div></div>
+                <div class="stat-card clickable" onclick="burocraziaTab='archivio';burocraziaFilter='overdue';renderPage()"><div class="stat-label">RLI scadute</div><div class="stat-value ${overdueRli.length ? 'text-red' : ''}">${overdueRli.length}</div></div>
+                <div class="stat-card clickable" onclick="burocraziaTab='archivio';burocraziaFilter='done';renderPage()"><div class="stat-label">Registrate</div><div class="stat-value text-green">${completed.length}</div></div>
             </div>
-            
-            ${burocraziaTab === 'registrazioni' ? burocraziaRegistrazioni() : burocraziaAsseverazioni()}
+
+            <div class="tabs" style="margin-bottom:20px">
+                <div class="tab ${burocraziaTab === 'archivio' ? 'active' : ''}" onclick="burocraziaTab='archivio';renderPage()">📁 Archivio contratti</div>
+                <div class="tab ${burocraziaTab === 'registrazioni' ? 'active' : ''}" onclick="burocraziaTab='registrazioni';renderPage()">📝 Form dati clienti</div>
+                <div class="tab ${burocraziaTab === 'asseverazioni' ? 'active' : ''}" onclick="burocraziaTab='asseverazioni';renderPage()">📋 Asseverazioni · Checklist</div>
+            </div>
+
+            ${burocraziaTab === 'archivio' ? burocraziaArchivio()
+              : burocraziaTab === 'registrazioni' ? burocraziaRegistrazioni()
+              : burocraziaAsseverazioni()}
         `;
     }
     
+    // ── ARCHIVIO CONTRATTI: one row per real contract, with full bureaucratic state
+    function burocraziaArchivio() {
+        const contracts = (S.contracts || []).slice().sort((a, b) => {
+            const ta = a.createdAt?.toDate?.()?.getTime?.() || 0;
+            const tb = b.createdAt?.toDate?.()?.getTime?.() || 0;
+            return tb - ta;
+        });
+
+        const matchesSearch = (c) => {
+            if (!burocraziaSearch) return true;
+            const q = burocraziaSearch.toLowerCase();
+            const prop = (S.properties || []).find(p => p.id === c.propertyId);
+            const tenant = (S.users || []).find(u => u.id === c.tenantId);
+            return (prop?.name || '').toLowerCase().includes(q)
+                || (prop?.address || '').toLowerCase().includes(q)
+                || (tenant?.name || '').toLowerCase().includes(q)
+                || (tenant?.email || '').toLowerCase().includes(q);
+        };
+
+        const matchesFilter = (c) => {
+            const signed = c.tenantSignature && c.landlordSignature;
+            const registered = c.registrationStatus === 'registered';
+            const rliDue = (S.deadlines || []).find(d => d.linkedContractId === c.id && d.type === 'contract_registration' && d.status === 'pending');
+            const rliOverdue = rliDue && isOverdue(rliDue.date);
+            if (burocraziaFilter === 'toSign') return c.status === 'active' && !signed;
+            if (burocraziaFilter === 'toRegister') return signed && !registered;
+            if (burocraziaFilter === 'overdue') return !!rliOverdue;
+            if (burocraziaFilter === 'done') return registered;
+            return true;
+        };
+
+        const filtered = contracts.filter(c => matchesSearch(c) && matchesFilter(c));
+
+        const filterChip = (key, label, count) => `<button class="btn btn-xs ${burocraziaFilter === key ? '' : 'btn-secondary'}" onclick="burocraziaFilter='${key}';renderPage()">${label}${count != null ? ` <span style="opacity:.6">·${count}</span>` : ''}</button>`;
+
+        if (contracts.length === 0) {
+            return `<div class="empty-state"><div class="empty-icon">📁</div><div class="empty-title">Nessun contratto in archivio</div><div class="empty-text">Crea un contratto dal wizard 🚀 Nuovo cliente per popolare l'archivio.</div></div>`;
+        }
+
+        return `
+            <div class="card" style="margin-bottom:16px;padding:12px 16px">
+                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                    <input type="text" class="form-input" placeholder="🔍 Cerca per immobile, indirizzo, inquilino, email…" value="${esc(burocraziaSearch)}" oninput="burocraziaSearch=this.value;clearTimeout(window._bSrc);window._bSrc=setTimeout(renderPage,200)" style="flex:1;min-width:240px;background:var(--bg-input)">
+                    <div style="display:flex;gap:6px;flex-wrap:wrap">
+                        ${filterChip('all', 'Tutti', contracts.length)}
+                        ${filterChip('toSign', '✍️ Da firmare')}
+                        ${filterChip('toRegister', '📝 Da registrare')}
+                        ${filterChip('overdue', '⚠️ RLI scaduta')}
+                        ${filterChip('done', '✓ Registrate')}
+                    </div>
+                </div>
+            </div>
+
+            <div class="card"><div class="card-body flush">
+                ${filtered.length === 0 ? `<div class="empty-state" style="padding:32px"><div class="empty-title" style="font-size:14px;color:var(--text-muted)">Nessun contratto corrisponde al filtro</div></div>` :
+                  filtered.map(c => renderContractRow(c)).join('')}
+            </div></div>
+
+            <div class="card" style="margin-top:16px;padding:14px 16px;background:rgba(212,175,55,0.04);border:1px dashed rgba(212,175,55,0.3)">
+                <div style="font-size:12px;color:var(--text-muted)">
+                    <strong style="color:var(--gold)">🔌 Integrazioni AdE / CAF</strong> · Oggi puoi <em>generare la bozza RLI</em> in PDF e <em>copiare i dati per RLI Web</em>. L'invio telematico diretto richiede credenziali Entratel/Fisconline o un mandato CAF — quando deciderai con quale CAF lavorare, aggiungiamo il loro endpoint qui (basta che ci diano un'API o un'email strutturata).
+                </div>
+            </div>
+        `;
+    }
+
+    // ── Single contract row in the archive
+    function renderContractRow(c) {
+        const prop = (S.properties || []).find(p => p.id === c.propertyId) || {};
+        const tenant = (S.users || []).find(u => u.id === c.tenantId) || {};
+        const landlord = (S.users || []).find(u => u.id === prop.ownerId) || (S.users || []).find(u => u.id === c.landlordId) || {};
+        const signedT = !!c.tenantSignature, signedL = !!c.landlordSignature;
+        const fullySigned = signedT && signedL;
+        const regStatus = c.registrationStatus || 'pending';
+        const regBadge = { pending: '<span class="badge orange" style="font-size:10px">Da registrare</span>', sent: '<span class="badge blue" style="font-size:10px">Inviato AdE</span>', registered: '<span class="badge green" style="font-size:10px">✓ Registrato</span>' }[regStatus] || '';
+        const asseveBadge = (c.type === 'studenti' || c.type === 'transitorio')
+            ? (c.asseverazioneStatus === 'done' ? '<span class="badge green" style="font-size:10px">CAF ✓</span>'
+                : c.requiresAsseverazione === false ? '<span class="badge gray" style="font-size:10px">Non richiesta</span>'
+                : '<span class="badge orange" style="font-size:10px">Asseverazione CAF</span>') : '';
+        const rliDue = (S.deadlines || []).find(d => d.linkedContractId === c.id && d.type === 'contract_registration' && d.status === 'pending');
+        const rliBadge = rliDue ? (isOverdue(rliDue.date)
+            ? `<span class="badge red" style="font-size:10px">⚠️ RLI scaduta ${Math.abs(daysUntil(rliDue.date))}gg fa</span>`
+            : daysUntil(rliDue.date) <= 7 ? `<span class="badge orange" style="font-size:10px">⏱ RLI tra ${daysUntil(rliDue.date)}gg</span>` : '') : '';
+
+        // Missing-info detection — what we still need from tenant/landlord to file RLI
+        const tMiss = [];
+        if (!tenant.codiceFiscale) tMiss.push('CF');
+        if (!tenant.address && !tenant.residenceAddress) tMiss.push('residenza');
+        if (!tenant.birthDate) tMiss.push('nascita');
+        if (!tenant.idDocNumber) tMiss.push('documento');
+        const lMiss = [];
+        if (!landlord.codiceFiscale) lMiss.push('CF');
+        if (!landlord.iban) lMiss.push('IBAN');
+        if (!prop.catFoglio && !prop.cadastral) lMiss.push('catastale');
+        const hasMissing = (tMiss.length + lMiss.length) > 0;
+
+        return `<div class="list-item" style="padding:14px 16px;align-items:flex-start">
+            <div class="list-icon" style="font-size:20px">${fullySigned && regStatus === 'registered' ? '✅' : fullySigned ? '📝' : signedT || signedL ? '✍️' : '⏳'}</div>
+            <div class="list-content" style="min-width:0">
+                <div class="list-title" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                    <span>${esc(prop.name || 'Immobile')} · ${esc(tenant.name || 'Inquilino')}</span>
+                    <span class="badge ${signedT ? 'green' : 'gray'}" style="font-size:9px">T${signedT ? '✓' : '·'}</span>
+                    <span class="badge ${signedL ? 'green' : 'gray'}" style="font-size:9px">L${signedL ? '✓' : '·'}</span>
+                    ${regBadge} ${asseveBadge} ${rliBadge}
+                </div>
+                <div class="list-subtitle" style="margin-top:4px">
+                    ${esc(c.type || '—')} · €${c.rent || 0}/mo · ${fmtDate(c.startDate)} → ${fmtDate(c.endDate)}
+                    ${hasMissing ? ` · <span style="color:var(--orange)">📋 mancano: ${[tMiss.length ? 'inquilino(' + tMiss.join(',') + ')' : '', lMiss.length ? 'locatore(' + lMiss.join(',') + ')' : ''].filter(Boolean).join(' + ')}</span>` : ''}
+                </div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">
+                    <button class="btn btn-xs btn-secondary" onclick="viewContract('${c.id}')" title="Apri dettaglio contratto">📄 Dettaglio</button>
+                    <button class="btn btn-xs btn-secondary" onclick="downloadContractPDF('${c.id}')" title="Scarica PDF firmato/da firmare">⬇️ PDF</button>
+                    ${hasMissing ? `<button class="btn btn-xs" onclick="sendMissingInfoLink('${c.id}','tenant')">📨 Link dati inquilino</button>` : ''}
+                    ${lMiss.length ? `<button class="btn btn-xs" onclick="sendMissingInfoLink('${c.id}','landlord')">📨 Link dati locatore</button>` : ''}
+                    ${fullySigned && regStatus !== 'registered' ? `<button class="btn btn-xs" onclick="generateRLIDraft('${c.id}')">📝 Bozza RLI</button>` : ''}
+                    ${fullySigned && regStatus !== 'registered' ? `<button class="btn btn-xs btn-success" onclick="markRegistered('${c.id}')">✓ Segna registrato</button>` : ''}
+                    ${tenant.id ? `<button class="btn btn-xs btn-secondary" onclick="openPerson('${tenant.id}','user')">📂 360°</button>` : ''}
+                </div>
+            </div>
+        </div>`;
+    }
+
+    // ── Send the right pre-filled form link via WhatsApp/email to the tenant/landlord
+    function sendMissingInfoLink(contractId, who) {
+        const c = (S.contracts || []).find(x => x.id === contractId);
+        if (!c) return toast('error', 'Contratto non trovato');
+        const isTenant = who === 'tenant';
+        const target = isTenant
+            ? (S.users || []).find(u => u.id === c.tenantId)
+            : (S.users || []).find(u => u.id === (S.properties || []).find(p => p.id === c.propertyId)?.ownerId);
+        const token = isTenant ? c.tenantSignToken : c.landlordSignToken;
+        const url = `${window.location.origin}/${isTenant ? 'form-tenant.html' : 'form-landlord.html'}?contract=${encodeURIComponent(contractId)}${token ? '&t=' + encodeURIComponent(token) : ''}`;
+        const name = target?.name || (isTenant ? 'inquilino' : 'proprietario');
+        const phone = target?.phone || '';
+        const email = target?.email || '';
+        const msg = isTenant
+            ? `Ciao ${name}, per completare la registrazione del contratto ho bisogno di qualche dato in più. Lo puoi compilare qui (è veloce): ${url}`
+            : `Ciao ${name}, per la registrazione del contratto AdE servono ancora un paio di dati. Lo puoi compilare qui: ${url}`;
+
+        const waUrl = phone ? `https://wa.me/${String(phone).replace(/\D/g, '')}?text=${encodeURIComponent(msg)}` : null;
+        const mailtoUrl = email ? `mailto:${email}?subject=${encodeURIComponent('BOOM · Dati per registrazione contratto')}&body=${encodeURIComponent(msg)}` : null;
+
+        document.getElementById('modals').innerHTML = `<div class="modal-overlay active" onclick="if(event.target===this)closeModal()"><div class="modal">
+            <div class="modal-header"><h3 class="modal-title">📨 Link compila dati — ${isTenant ? 'Inquilino' : 'Locatore'}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+            <div class="modal-body">
+                <div style="margin-bottom:14px;font-size:13px;color:var(--text-muted)">Manda questo link a <strong style="color:var(--text)">${esc(name)}</strong>. Quando compila il form, i dati arrivano automaticamente nel portal e sbloccano la registrazione RLI.</div>
+                <div class="form-group"><label class="form-label">Link pre-compilato</label><div style="display:flex;gap:6px"><input type="text" class="form-input" readonly value="${url}" id="missInfoUrl" style="flex:1;font-family:monospace;font-size:11px"><button class="btn btn-sm" onclick="navigator.clipboard.writeText(document.getElementById('missInfoUrl').value);toast('success','Copiato')">📋</button></div></div>
+                <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+                    ${waUrl ? `<a href="${waUrl}" target="_blank" class="btn btn-success">💬 Manda via WhatsApp</a>` : '<span style="font-size:12px;color:var(--text-muted)">⚠️ Nessun telefono</span>'}
+                    ${mailtoUrl ? `<a href="${mailtoUrl}" class="btn btn-secondary">📧 Manda via email</a>` : ''}
+                </div>
+            </div>
+            <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Chiudi</button></div>
+        </div></div>`;
+    }
+    window.sendMissingInfoLink = sendMissingInfoLink;
+
+    // ── Download the contract PDF (reuses the existing generator at line 13792)
+    async function downloadContractPDF(contractId) {
+        try { await generateContractPDF(contractId); }
+        catch (e) { console.error(e); toast('error', 'Errore PDF: ' + e.message); }
+    }
+    window.downloadContractPDF = downloadContractPDF;
+
+    // ── Mark contract as successfully registered in AdE
+    async function markRegistered(contractId) {
+        const code = prompt('Inserisci il codice di registrazione AdE (lascia vuoto se non lo hai ora):');
+        if (code === null) return; // cancelled
+        try {
+            await db.collection('contracts').doc(contractId).update({
+                registrationStatus: 'registered',
+                registrationCode: code || '',
+                registeredAt: firebase.firestore.FieldValue.serverTimestamp(),
+            });
+            // Close any matching RLI deadline
+            const due = (S.deadlines || []).find(d => d.linkedContractId === contractId && d.type === 'contract_registration' && d.status === 'pending');
+            if (due) await db.collection('deadlines').doc(due.id).update({ status: 'done', completedAt: firebase.firestore.FieldValue.serverTimestamp() });
+            const local = (S.contracts || []).find(c => c.id === contractId);
+            if (local) { local.registrationStatus = 'registered'; local.registrationCode = code || ''; }
+            if (due) { due.status = 'done'; }
+            toast('success', 'Contratto segnato come registrato' + (code ? ` (${code})` : ''));
+            try { if (typeof logActivity === 'function') await logActivity('contract_registered', 'contract', { contractId, registrationCode: code }); } catch {}
+            renderPage();
+        } catch (e) { console.error(e); toast('error', 'Errore: ' + e.message); }
+    }
+    window.markRegistered = markRegistered;
+
     function burocraziaRegistrazioni() {
         // Re-use existing registrations page content but without the page header
         try {
