@@ -722,6 +722,378 @@
 
 /* Expanded modal */
 .modal.xxl { width: 1100px; max-width: 95vw; }
+
+/* ════════════════════════════════════════════════════════════════════════════
+ * ✦ BOOM Design v2 — Premium Refinement Layer
+ * ────────────────────────────────────────────────────────────────────────────
+ * Additive only. Elevates every existing pattern (.page-header, .card,
+ * .stat-card, .btn, .list-item, .modal, .form-input, .badge, scrollbars,
+ * focus rings, typography) without touching any individual page render. The
+ * 30+ pages that still use .page-header inherit the dash-hero luxury feel
+ * automatically. Touch nothing inside the body — restyle the chrome only.
+ * ════════════════════════════════════════════════════════════════════════ */
+
+/* — Design tokens v2 (additive, fall back gracefully) — */
+:root{
+    --radius-sm:8px; --radius-md:12px; --radius-lg:16px; --radius-xl:20px; --radius-2xl:24px;
+    --shadow-xs:0 1px 2px rgba(0,0,0,0.18);
+    --shadow-sm:0 2px 8px rgba(0,0,0,0.25);
+    --shadow-md:0 8px 24px rgba(0,0,0,0.35);
+    --shadow-lg:0 18px 56px rgba(0,0,0,0.45);
+    --shadow-gold-soft:0 8px 28px rgba(212,175,55,0.18);
+    --shadow-gold-strong:0 12px 36px rgba(212,175,55,0.32);
+    --ease-out:cubic-bezier(0.2,0.8,0.2,1);
+    --ease-spring:cubic-bezier(0.34,1.56,0.64,1);
+    --dur-fast:120ms; --dur-base:200ms; --dur-slow:320ms;
+    /* Refined surface scale — small cool shift so layers separate visually */
+    --bg-deep:#050507;
+    --surface-1:#0B0B0E;
+    --surface-2:#131318;
+    --surface-3:#1B1B22;
+    --border-soft:rgba(255,255,255,0.05);
+    --border-strong:rgba(255,255,255,0.12);
+    --text-faint:rgba(255,255,255,0.45);
+}
+
+/* — Numbers use tabular figures so KPIs and money align column-perfectly — */
+.stat-value,.dash-kpi-value,.dash-money-value,.list-value,.detail-value,
+.dash-mini strong,.ms-stat-v,.text-gold,.text-green,.text-red,.text-orange,
+.text-blue,.text-purple,.badge,.list-meta{
+    font-variant-numeric:tabular-nums;
+    font-feature-settings:"tnum" 1,"lnum" 1;
+}
+
+/* — Selection + custom scrollbar — */
+::selection{background:rgba(212,175,55,0.28);color:#FFF}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.08);border-radius:10px;border:2px solid transparent;background-clip:padding-box}
+::-webkit-scrollbar-thumb:hover{background:rgba(212,175,55,0.45);background-clip:padding-box;border:2px solid transparent}
+*{scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.10) transparent}
+
+/* — Accessible focus ring on every interactive element (kept subtle) — */
+.btn:focus-visible,.nav-item:focus-visible,.form-input:focus-visible,
+.form-select:focus-visible,.form-textarea:focus-visible,
+.dash-act:focus-visible,.modal-close:focus-visible,
+.ms-cta:focus-visible,.dash-pill:focus-visible,
+.list-item.clickable:focus-visible,.card[onclick]:focus-visible{
+    outline:2px solid rgba(212,175,55,0.55);
+    outline-offset:2px;
+}
+
+/* — .page-header: legacy class lifted to the dash-hero luxury feel —
+   30+ legacy pages render <h1 class="page-title"> — they all inherit
+   this without touching the JS. */
+.page-header{
+    padding:0 0 18px;
+    margin-bottom:24px;
+    border-bottom:1px solid var(--border);
+    align-items:flex-end;
+}
+.page-title{
+    font-size:30px !important;
+    font-weight:300 !important;
+    letter-spacing:-0.5px;
+    line-height:1.1;
+    margin:0 0 6px;
+}
+.page-subtitle{
+    font-size:13px;
+    color:var(--text-secondary);
+    letter-spacing:0.3px;
+    margin-top:0;
+}
+@media(max-width:600px){
+    .page-header{flex-direction:column;align-items:flex-start;gap:12px}
+    .page-title{font-size:24px !important}
+    .page-actions{width:100%}
+    .page-actions .btn{flex:1}
+}
+
+/* — .card: subtle elevation + gradient sheen on hover, no jarring move — */
+.card{
+    background:linear-gradient(180deg,var(--bg-card) 0%,var(--surface-1,#0A0A0A) 100%);
+    border:1px solid var(--border);
+    transition:border-color var(--dur-base) var(--ease-out),box-shadow var(--dur-base) var(--ease-out);
+}
+.card[onclick]{cursor:pointer}
+.card[onclick]:hover{
+    border-color:rgba(212,175,55,0.28);
+    box-shadow:var(--shadow-sm);
+}
+
+/* — .stat-card: luxury number weight, refined hover + gold lift — */
+.stat-card{
+    transition:transform var(--dur-base) var(--ease-out),
+               border-color var(--dur-base) var(--ease-out),
+               box-shadow var(--dur-base) var(--ease-out);
+}
+.stat-card:hover{
+    transform:translateY(-3px);
+    border-color:rgba(212,175,55,0.5);
+    box-shadow:var(--shadow-gold-soft);
+}
+.stat-card .stat-value{
+    font-weight:300;
+    letter-spacing:-0.5px;
+    font-size:28px;
+}
+.stat-card .stat-label{
+    font-size:10px;
+    letter-spacing:1.8px;
+    text-transform:uppercase;
+    color:var(--text-muted);
+    font-weight:500;
+}
+
+/* — .btn polish: spring lift, refined active press, ghost variant — */
+.btn{
+    transition:transform var(--dur-fast) var(--ease-out),
+               box-shadow var(--dur-base) var(--ease-out),
+               background var(--dur-fast) var(--ease-out),
+               border-color var(--dur-fast) var(--ease-out);
+    will-change:transform;
+}
+.btn:hover:not(:disabled){box-shadow:var(--shadow-gold-soft)}
+.btn:active:not(:disabled){transform:translateY(0) scale(0.98)}
+.btn-secondary:hover:not(:disabled){background:rgba(212,175,55,0.04)}
+.btn-ghost{
+    background:transparent;border:1px solid transparent;color:var(--text-secondary);
+}
+.btn-ghost:hover{background:var(--bg-elevated);color:var(--text);border-color:var(--border)}
+
+/* — .list-item: subtle slide on hover + gradient bg, luxury — */
+.list-item{
+    transition:background var(--dur-fast) var(--ease-out),
+               border-color var(--dur-fast) var(--ease-out),
+               transform var(--dur-fast) var(--ease-out);
+}
+.list-item.clickable:hover{
+    background:linear-gradient(90deg,rgba(212,175,55,0.05),transparent);
+}
+
+/* — .badge: softer 1px ring instead of harsh tinted bg — */
+.badge{
+    font-weight:500;
+    letter-spacing:0.4px;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,0.04);
+}
+
+/* — .form-input refinement: focus ring soft gold halo — */
+.form-input,.form-select,.form-textarea{
+    transition:border-color var(--dur-fast) var(--ease-out),
+               box-shadow var(--dur-fast) var(--ease-out),
+               background var(--dur-fast) var(--ease-out);
+}
+.form-input:hover:not(:focus):not(:disabled),
+.form-select:hover:not(:focus):not(:disabled){border-color:rgba(255,255,255,0.16)}
+.form-input:focus,.form-select:focus,.form-textarea:focus{
+    box-shadow:0 0 0 3px rgba(212,175,55,0.12);
+}
+
+/* — .modal: deeper backdrop blur + ring shadow — */
+.modal-overlay{
+    backdrop-filter:blur(14px) saturate(120%);
+    -webkit-backdrop-filter:blur(14px) saturate(120%);
+    background:rgba(0,0,0,0.78);
+}
+.modal{
+    box-shadow:var(--shadow-lg),0 0 0 1px var(--border-soft) inset;
+}
+.modal-header{padding-top:24px;padding-bottom:18px}
+.modal-title{font-weight:400;letter-spacing:-0.2px}
+
+/* — Sidebar nav active state: gradient fade instead of flat color — */
+.nav-item.active{
+    background:linear-gradient(90deg,rgba(212,175,55,0.16),rgba(212,175,55,0.02));
+    box-shadow:inset 2px 0 0 var(--gold);
+}
+.nav-item{transition:all var(--dur-fast) var(--ease-out)}
+
+/* — Empty states: cleaner luxury empty patterns — */
+.empty-state{
+    padding:48px 24px;
+    text-align:center;
+}
+.empty-icon{
+    font-size:42px;
+    opacity:0.5;
+    margin-bottom:14px;
+    filter:grayscale(0.4);
+}
+.empty-title{
+    font-size:15px;
+    font-weight:400;
+    letter-spacing:0.5px;
+    color:var(--text-secondary);
+    margin-bottom:6px;
+}
+.empty-subtitle,.empty-text{
+    font-size:12px;
+    color:var(--text-muted);
+    letter-spacing:0.3px;
+    line-height:1.6;
+    max-width:380px;
+    margin:0 auto;
+}
+
+/* — Toast polish — */
+.toast{
+    backdrop-filter:blur(20px) saturate(130%);
+    -webkit-backdrop-filter:blur(20px) saturate(130%);
+    background:rgba(20,20,24,0.88);
+    box-shadow:var(--shadow-md);
+    border-radius:14px;
+}
+
+/* — Tool grid card hover (used by boomToolsPage + similar) — */
+.tool-card{
+    background:linear-gradient(180deg,var(--bg-card),var(--surface-1,#0A0A0A));
+    border:1px solid var(--border);
+    border-radius:var(--radius-lg);
+    padding:24px;
+    text-align:left;
+    cursor:pointer;
+    transition:transform var(--dur-base) var(--ease-out),
+               border-color var(--dur-base) var(--ease-out),
+               box-shadow var(--dur-base) var(--ease-out);
+    position:relative;
+    overflow:hidden;
+}
+.tool-card::before{
+    content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+    background:radial-gradient(circle at top right,rgba(212,175,55,0.10),transparent 60%);
+    opacity:0;transition:opacity var(--dur-base) var(--ease-out);
+}
+.tool-card:hover{
+    transform:translateY(-4px);
+    border-color:rgba(212,175,55,0.4);
+    box-shadow:var(--shadow-gold-soft);
+}
+.tool-card:hover::before{opacity:1}
+.tool-card .tool-icon{
+    font-size:32px;margin-bottom:14px;
+    display:inline-flex;align-items:center;justify-content:center;
+    width:54px;height:54px;border-radius:14px;
+    background:linear-gradient(135deg,rgba(212,175,55,0.15),rgba(212,175,55,0.04));
+    border:1px solid rgba(212,175,55,0.18);
+}
+.tool-card .tool-title{
+    font-size:16px;font-weight:400;letter-spacing:-0.1px;
+    color:var(--text);margin-bottom:6px;
+}
+.tool-card .tool-desc{
+    font-size:12px;color:var(--text-muted);
+    line-height:1.55;letter-spacing:0.2px;
+}
+.tool-card .tool-meta{
+    margin-top:14px;display:flex;gap:6px;flex-wrap:wrap;
+}
+.tool-tag{
+    font-size:10px;letter-spacing:1px;text-transform:uppercase;
+    padding:3px 9px;border-radius:100px;
+    background:rgba(212,175,55,0.10);color:var(--gold);
+    box-shadow:inset 0 0 0 1px rgba(212,175,55,0.18);
+}
+.tool-tag.blue{background:rgba(0,122,255,0.10);color:var(--blue);box-shadow:inset 0 0 0 1px rgba(0,122,255,0.18)}
+.tool-tag.purple{background:rgba(175,82,222,0.10);color:var(--purple);box-shadow:inset 0 0 0 1px rgba(175,82,222,0.18)}
+.tool-tag.green{background:rgba(52,199,89,0.10);color:var(--green);box-shadow:inset 0 0 0 1px rgba(52,199,89,0.18)}
+
+/* — Page hero pattern reusable beyond dash-hero (used by upgraded my-pages) — */
+.hero-summary{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+    gap:12px;
+    margin:0 0 22px;
+}
+.hero-tile{
+    background:var(--bg-card);
+    border:1px solid var(--border);
+    border-radius:var(--radius-md);
+    padding:14px 16px;
+    display:flex;flex-direction:column;gap:4px;
+    transition:border-color var(--dur-base) var(--ease-out);
+}
+.hero-tile:hover{border-color:rgba(212,175,55,0.35)}
+.hero-tile-label{
+    font-size:10px;letter-spacing:1.8px;text-transform:uppercase;
+    color:var(--text-muted);font-weight:500;
+}
+.hero-tile-value{
+    font-size:22px;font-weight:300;letter-spacing:-0.4px;
+    color:var(--text);line-height:1.1;
+    font-variant-numeric:tabular-nums;
+}
+.hero-tile-sub{font-size:11px;color:var(--text-muted)}
+.hero-tile.gold{border-left:2px solid var(--gold)}
+.hero-tile.green{border-left:2px solid var(--green)}
+.hero-tile.orange{border-left:2px solid var(--orange)}
+.hero-tile.red{border-left:2px solid var(--red)}
+.hero-tile.blue{border-left:2px solid var(--blue)}
+
+/* — Tenant/landlord prop card — used by upgraded my-properties / my-contracts — */
+.prop-card{
+    background:var(--bg-card);
+    border:1px solid var(--border);
+    border-radius:var(--radius-lg);
+    overflow:hidden;
+    transition:transform var(--dur-base) var(--ease-out),
+               border-color var(--dur-base) var(--ease-out),
+               box-shadow var(--dur-base) var(--ease-out);
+    cursor:pointer;
+}
+.prop-card:hover{
+    transform:translateY(-3px);
+    border-color:rgba(212,175,55,0.35);
+    box-shadow:var(--shadow-md);
+}
+.prop-card-cover{
+    aspect-ratio:16/10;
+    background-size:cover;background-position:center;
+    background-color:var(--bg-elevated);
+    position:relative;display:flex;align-items:flex-end;
+}
+.prop-card-cover::after{
+    content:'';position:absolute;inset:0;
+    background:linear-gradient(180deg,transparent 50%,rgba(0,0,0,0.85));
+    pointer-events:none;
+}
+.prop-card-cover .prop-card-status{
+    position:absolute;top:12px;right:12px;z-index:1;
+}
+.prop-card-cover .prop-card-rent{
+    position:absolute;bottom:12px;left:14px;z-index:1;
+    font-size:20px;font-weight:300;color:var(--gold);
+    text-shadow:0 2px 6px rgba(0,0,0,0.6);
+    letter-spacing:-0.3px;font-variant-numeric:tabular-nums;
+}
+.prop-card-body{padding:14px 16px}
+.prop-card-title{
+    font-size:14px;font-weight:500;color:var(--text);
+    margin-bottom:4px;letter-spacing:-0.1px;
+}
+.prop-card-meta{font-size:11px;color:var(--text-muted);letter-spacing:0.3px}
+
+/* — Timeline pattern — used by maintenance + activity — */
+.timeline{position:relative;padding-left:22px}
+.timeline::before{
+    content:'';position:absolute;left:7px;top:6px;bottom:6px;
+    width:1px;background:var(--border);
+}
+.timeline-item{position:relative;padding:0 0 18px 14px}
+.timeline-item::before{
+    content:'';position:absolute;left:-21px;top:6px;
+    width:14px;height:14px;border-radius:50%;
+    background:var(--bg-card);border:2px solid var(--gold);
+}
+.timeline-item.done::before{background:var(--gold)}
+.timeline-item.urgent::before{border-color:var(--red);background:var(--red)}
+
+/* — Reduce visual cost on motion-sensitive users — */
+@media (prefers-reduced-motion:reduce){
+    *,*::before,*::after{animation-duration:0.01ms !important;transition-duration:0.01ms !important}
+    .stat-card:hover,.tool-card:hover,.prop-card:hover{transform:none}
+}
 </style>
 </head>
 <body>
@@ -10008,23 +10380,153 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function myPropertiesPage() {
         const props = getMyProperties();
         const contracts = getMyContracts();
-        return `<div class="page-header"><h1 class="page-title">🏠 I Miei Immobili</h1></div>
-            <div class="card"><div class="card-body flush">${props.map(p => {
-                const c = contracts.find(x => x.propertyId === p.id && x.status === 'active');
-                const t = c ? S.users.find(u => u.id === c.tenantId) : null;
-                return `<div class="list-item clickable" onclick="viewPropertyLandlord('${p.id}')"><div class="list-icon">🏠</div><div class="list-content"><div class="list-title">${p.name} <span class="badge ${c ? 'green' : 'gray'}">${c ? 'Affittato' : 'Libero'}</span></div><div class="list-subtitle">${c ? t?.name + ' · ' + t?.email : 'Nessun inquilino'}</div></div><div class="list-value text-gold">€${p.rent || 0}/mese</div></div>`;
-            }).join('') || '<div class="empty-state"><div class="empty-icon">🏠</div><div class="empty-title">Nessun immobile</div></div>'}</div></div>`;
+        const rented = props.filter(p => contracts.some(c => c.propertyId === p.id && c.status === 'active'));
+        const vacant = props.filter(p => !contracts.some(c => c.propertyId === p.id && c.status === 'active'));
+        const monthlyIncome = rented.reduce((s, p) => {
+            const c = contracts.find(x => x.propertyId === p.id && x.status === 'active');
+            return s + (c?.rent || p.rent || 0);
+        }, 0);
+        const occupancy = props.length ? Math.round((rented.length / props.length) * 100) : 0;
+
+        const propCard = (p) => {
+            const c = contracts.find(x => x.propertyId === p.id && x.status === 'active');
+            const t = c ? S.users.find(u => u.id === c.tenantId) : null;
+            const days = c ? daysUntil(c.endDate) : null;
+            const cover = p.coverImage || (Array.isArray(p.images) ? p.images[0] : '') || '';
+            const statusBadge = c
+                ? `<span class="badge green">✓ Affittato</span>`
+                : `<span class="badge gold">⚪ Libero</span>`;
+            const tenantLine = c
+                ? `${esc(t?.name || 'Inquilino')} · contratto fino al ${fmtDate(c.endDate)}${days !== null && days <= 90 ? ` · <span style="color:var(--orange)">${days}gg</span>` : ''}`
+                : `Pronto per nuovo inquilino`;
+            return `<div class="prop-card" onclick="viewPropertyLandlord('${p.id}')">
+                <div class="prop-card-cover" style="${cover ? `background-image:url('${esc(cover)}')` : ''}">
+                    ${!cover ? '<div style="font-size:48px;opacity:0.25;margin:auto;align-self:center;justify-self:center;width:100%;text-align:center">🏠</div>' : ''}
+                    <div class="prop-card-status">${statusBadge}</div>
+                    <div class="prop-card-rent">€${(c?.rent || p.rent || 0).toLocaleString('it-IT')}<span style="font-size:11px;color:var(--text-secondary);letter-spacing:1px;margin-left:4px">/mese</span></div>
+                </div>
+                <div class="prop-card-body">
+                    <div class="prop-card-title">${esc(p.name || 'Immobile')}</div>
+                    <div class="prop-card-meta">${tenantLine}</div>
+                </div>
+            </div>`;
+        };
+
+        return `<div class="page-header">
+                <div>
+                    <h1 class="page-title">🏠 I Miei Immobili</h1>
+                    <p class="page-subtitle">${props.length} immobili · ${rented.length} affittati · ${vacant.length} liberi</p>
+                </div>
+            </div>
+
+            <div class="hero-summary">
+                <div class="hero-tile gold">
+                    <div class="hero-tile-label">Income mensile</div>
+                    <div class="hero-tile-value">€${monthlyIncome.toLocaleString('it-IT')}</div>
+                    <div class="hero-tile-sub">da contratti attivi</div>
+                </div>
+                <div class="hero-tile green">
+                    <div class="hero-tile-label">Occupancy</div>
+                    <div class="hero-tile-value">${occupancy}%</div>
+                    <div class="hero-tile-sub">${rented.length}/${props.length} affittati</div>
+                </div>
+                <div class="hero-tile ${vacant.length ? 'orange' : 'green'}">
+                    <div class="hero-tile-label">Liberi</div>
+                    <div class="hero-tile-value">${vacant.length}</div>
+                    <div class="hero-tile-sub">${vacant.length ? 'da rilocare' : 'tutti affittati ✓'}</div>
+                </div>
+                <div class="hero-tile blue">
+                    <div class="hero-tile-label">Annuale (proiezione)</div>
+                    <div class="hero-tile-value">€${(monthlyIncome * 12).toLocaleString('it-IT')}</div>
+                    <div class="hero-tile-sub">a regime corrente</div>
+                </div>
+            </div>
+
+            ${props.length > 0 ? `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px">
+                ${props.map(propCard).join('')}
+            </div>` : `<div class="card"><div class="empty-state">
+                <div class="empty-icon">🏠</div>
+                <div class="empty-title">Nessun immobile registrato</div>
+                <div class="empty-subtitle">Gli immobili che BOOM gestisce per te appariranno qui con foto, stato e tenant.</div>
+            </div></div>`}`;
     }
 
     function myContractsPage() {
         const contracts = getMyContracts();
-        return `<div class="page-header"><h1 class="page-title">📋 I Miei Contratti</h1></div>
-            <div class="card"><div class="card-body flush">${contracts.map(c => {
-                const p = S.properties.find(x => x.id === c.propertyId);
-                const t = S.users.find(x => x.id === c.tenantId);
-                const days = daysUntil(c.endDate);
-                return `<div class="list-item clickable" onclick="viewContractLandlord('${c.id}')"><div class="list-icon">📋</div><div class="list-content"><div class="list-title">${p?.name || ''} ${contractBadge(c)}</div><div class="list-subtitle">${t?.name || ''} · ${fmtDate(c.startDate)} → ${fmtDate(c.endDate)}${days !== null && days <= 60 && days >= 0 ? ' · <span class="text-orange">' + days + ' giorni</span>' : ''}</div></div><div class="list-meta"><div class="list-value text-gold">€${c.rent || 0}</div><div class="stat-sub">Dep: €${c.deposit || 0}</div></div></div>`;
-            }).join('') || '<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">Nessun contratto</div></div>'}</div></div>`;
+        const active = contracts.filter(c => c.status === 'active');
+        const expiringSoon = active.filter(c => { const d = daysUntil(c.endDate); return d !== null && d <= 90 && d >= 0; });
+        const pendingSignature = contracts.filter(c => c.signatureStatus === 'none' || c.signatureStatus === 'partial');
+        const totalRent = active.reduce((s, c) => s + (c.rent || 0), 0);
+
+        const contractCard = (c) => {
+            const p = S.properties.find(x => x.id === c.propertyId);
+            const t = S.users.find(x => x.id === c.tenantId);
+            const days = daysUntil(c.endDate);
+            const urgency = days !== null ? (days < 0 ? 'red' : days <= 30 ? 'red' : days <= 90 ? 'orange' : 'green') : 'gray';
+            const sigStatus = c.signatureStatus || 'none';
+            const sigLabel = { complete: '✓ Firmato', partial: '◐ Firma parziale', none: '○ Da firmare' }[sigStatus] || 'N/A';
+            const sigColor = { complete: 'green', partial: 'gold', none: 'orange' }[sigStatus] || 'gray';
+            const period = `${fmtDate(c.startDate)} → ${fmtDate(c.endDate)}`;
+
+            return `<div class="card" style="margin-bottom:14px;cursor:pointer;border-left:3px solid var(--${urgency})" onclick="viewContractLandlord('${c.id}')">
+                <div style="padding:18px 22px">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap">
+                        <div style="flex:1;min-width:220px">
+                            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px">
+                                <h3 style="margin:0;font-size:17px;font-weight:400;letter-spacing:-0.2px">${esc(p?.name || 'Immobile')}</h3>
+                                ${contractBadge(c)}
+                                <span class="badge ${sigColor}" style="font-size:9px">${sigLabel}</span>
+                            </div>
+                            <div style="font-size:12px;color:var(--text-muted);letter-spacing:0.3px">${esc(t?.name || 'Inquilino')} · ${period}</div>
+                        </div>
+                        <div style="text-align:right">
+                            <div style="font-size:24px;font-weight:300;letter-spacing:-0.4px;color:var(--gold);font-variant-numeric:tabular-nums">€${(c.rent || 0).toLocaleString('it-IT')}<span style="font-size:11px;color:var(--text-muted);margin-left:3px;letter-spacing:1px">/m</span></div>
+                            <div style="font-size:11px;color:var(--text-muted);margin-top:2px">Deposito €${(c.deposit || 0).toLocaleString('it-IT')}</div>
+                        </div>
+                    </div>
+                    ${days !== null && days <= 90 ? `<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border-soft,rgba(255,255,255,0.05));display:flex;align-items:center;gap:8px;font-size:12px;color:var(--${urgency})">
+                        <span>${days < 0 ? '⚠️' : '⏰'}</span>
+                        <span>${days < 0 ? `Scaduto da ${Math.abs(days)} giorni — pianifica rinnovo o disdetta` : days === 0 ? 'Scade oggi' : `Scade tra ${days} giorni`}</span>
+                    </div>` : ''}
+                </div>
+            </div>`;
+        };
+
+        return `<div class="page-header">
+                <div>
+                    <h1 class="page-title">📋 I Miei Contratti</h1>
+                    <p class="page-subtitle">${contracts.length} totali · ${active.length} attivi · €${totalRent.toLocaleString('it-IT')}/mese</p>
+                </div>
+            </div>
+
+            <div class="hero-summary">
+                <div class="hero-tile gold">
+                    <div class="hero-tile-label">Canone mensile</div>
+                    <div class="hero-tile-value">€${totalRent.toLocaleString('it-IT')}</div>
+                    <div class="hero-tile-sub">${active.length} contratti attivi</div>
+                </div>
+                <div class="hero-tile green">
+                    <div class="hero-tile-label">Attivi</div>
+                    <div class="hero-tile-value">${active.length}</div>
+                    <div class="hero-tile-sub">tutti firmati: ${contracts.length - pendingSignature.length}/${contracts.length}</div>
+                </div>
+                <div class="hero-tile ${expiringSoon.length ? 'orange' : 'green'}">
+                    <div class="hero-tile-label">In scadenza ≤90gg</div>
+                    <div class="hero-tile-value">${expiringSoon.length}</div>
+                    <div class="hero-tile-sub">${expiringSoon.length ? 'pianifica rinnovo' : 'nessuna urgenza'}</div>
+                </div>
+                ${pendingSignature.length > 0 ? `<div class="hero-tile orange">
+                    <div class="hero-tile-label">Da firmare</div>
+                    <div class="hero-tile-value">${pendingSignature.length}</div>
+                    <div class="hero-tile-sub">attesa firma</div>
+                </div>` : ''}
+            </div>
+
+            ${contracts.length > 0 ? contracts.map(contractCard).join('') : `<div class="card"><div class="empty-state">
+                <div class="empty-icon">📋</div>
+                <div class="empty-title">Nessun contratto</div>
+                <div class="empty-subtitle">I contratti dei tuoi immobili appariranno qui con stato firma, canone e scadenze.</div>
+            </div></div>`}`;
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -10177,11 +10679,105 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
     function myMaintenancePage() {
         const maint = getMyMaintenance();
-        return `<div class="page-header"><h1 class="page-title">🔧 Manutenzione</h1><div class="page-actions">${isTenant() ? '<button class="btn" onclick="openModal(\'addTenantMaintenance\')">+ Richiedi</button>' : ''}</div></div>
-            <div class="card"><div class="card-body flush">${maint.length ? maint.map(m => {
-                const p = S.properties.find(x => x.id === m.propertyId);
-                return `<div class="list-item clickable" onclick="viewMaintenanceUser('${m.id}')"><div class="list-icon" style="background:${m.status === 'resolved' ? 'var(--green-light)' : m.priority === 'urgent' ? 'var(--red-light)' : 'var(--orange-light)'}">${m.status === 'resolved' ? '✔' : m.priority === 'urgent' ? '🚨' : '🔧'}</div><div class="list-content"><div class="list-title">${m.title}</div><div class="list-subtitle">${p?.name || ''} · ${fmtDate(m.createdAt)}</div></div><span class="badge ${statusColor(m.status)}">${statusLabel(m.status)}</span></div>`;
-            }).join('') : '<div class="empty-state"><div class="empty-icon">🔧</div><div class="empty-title">Nessuna richiesta</div>' + (isTenant() ? '<button class="btn" onclick="openModal(\'addTenantMaintenance\')">+ Richiedi</button>' : '') + '</div>'}</div></div>`;
+        const open = maint.filter(m => m.status === 'open' || !m.status);
+        const inProgress = maint.filter(m => m.status === 'in_progress');
+        const resolved = maint.filter(m => m.status === 'resolved');
+        const urgent = maint.filter(m => m.priority === 'urgent' && m.status !== 'resolved');
+        const tFilter = S.myMaintFilter || 'all';
+        const filtered = tFilter === 'all' ? maint
+                       : tFilter === 'open' ? maint.filter(m => m.status !== 'resolved')
+                       : tFilter === 'resolved' ? resolved
+                       : tFilter === 'urgent' ? urgent
+                       : maint;
+        const isEN = isTenant();
+        // sort: open + urgent first, then by createdAt desc
+        const sorted = [...filtered].sort((a, b) => {
+            const aOpen = a.status !== 'resolved' ? 1 : 0;
+            const bOpen = b.status !== 'resolved' ? 1 : 0;
+            if (aOpen !== bOpen) return bOpen - aOpen;
+            const aU = a.priority === 'urgent' ? 1 : 0;
+            const bU = b.priority === 'urgent' ? 1 : 0;
+            if (aU !== bU) return bU - aU;
+            const aT = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : new Date(a.createdAt || 0).getTime();
+            const bT = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : new Date(b.createdAt || 0).getTime();
+            return bT - aT;
+        });
+
+        const maintCard = (m) => {
+            const p = S.properties.find(x => x.id === m.propertyId);
+            const isResolved = m.status === 'resolved';
+            const isUrgent = m.priority === 'urgent';
+            const tone = isResolved ? 'green' : isUrgent ? 'red' : m.status === 'in_progress' ? 'blue' : 'orange';
+            const icon = isResolved ? '✔' : isUrgent ? '🚨' : m.status === 'in_progress' ? '🛠' : '🔧';
+            const photoCount = Array.isArray(m.photos) ? m.photos.length : 0;
+            return `<div class="card" style="margin-bottom:12px;cursor:pointer;border-left:3px solid var(--${tone})" onclick="viewMaintenanceUser('${m.id}')">
+                <div style="padding:16px 20px;display:flex;align-items:flex-start;gap:14px">
+                    <div style="width:42px;height:42px;border-radius:11px;background:var(--${tone}-light);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${icon}</div>
+                    <div style="flex:1;min-width:0">
+                        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
+                            <strong style="font-size:14px;font-weight:500">${esc(m.title || 'Richiesta')}</strong>
+                            <span class="badge ${statusColor(m.status)}">${statusLabel(m.status)}</span>
+                            ${isUrgent ? '<span class="badge red" style="font-size:9px">🚨 URGENT</span>' : ''}
+                            ${photoCount > 0 ? `<span class="badge gray" style="font-size:9px">📷 ${photoCount}</span>` : ''}
+                        </div>
+                        <div style="font-size:12px;color:var(--text-muted);letter-spacing:0.3px">${esc(p?.name || (isEN ? 'Property' : 'Immobile'))} · ${fmtDate(m.createdAt)}${m.resolvedAt ? ` → risolto ${fmtDate(m.resolvedAt)}` : ''}</div>
+                        ${m.description ? `<div style="font-size:12px;color:var(--text-secondary);margin-top:6px;line-height:1.5">${esc((m.description || '').slice(0, 140))}${(m.description || '').length > 140 ? '…' : ''}</div>` : ''}
+                    </div>
+                </div>
+            </div>`;
+        };
+
+        const filterPill = (key, label, count) => `
+            <button class="btn btn-sm ${tFilter === key ? '' : 'btn-secondary'}" onclick="S.myMaintFilter='${key}';renderPage()">
+                ${label}${count !== undefined ? ` <span style="opacity:0.7;margin-left:4px">${count}</span>` : ''}
+            </button>`;
+
+        return `<div class="page-header">
+                <div>
+                    <h1 class="page-title">🔧 ${isEN ? 'Maintenance' : 'Manutenzione'}</h1>
+                    <p class="page-subtitle">${maint.length} ${isEN ? 'requests total' : 'richieste totali'}${urgent.length ? ` · <span style="color:var(--red)">⚠️ ${urgent.length} ${isEN ? 'urgent' : 'urgenti'}</span>` : ''}</p>
+                </div>
+                <div class="page-actions">
+                    ${isTenant() ? `<button class="btn" onclick="openModal('addTenantMaintenance')">+ ${isEN ? 'New Request' : 'Nuova Richiesta'}</button>` : ''}
+                </div>
+            </div>
+
+            <div class="hero-summary">
+                <div class="hero-tile ${urgent.length ? 'red' : 'green'}">
+                    <div class="hero-tile-label">${isEN ? 'Urgent' : 'Urgenti'}</div>
+                    <div class="hero-tile-value">${urgent.length}</div>
+                    <div class="hero-tile-sub">${urgent.length ? (isEN ? 'need immediate attention' : 'attenzione immediata') : (isEN ? 'all calm ✓' : 'tutto tranquillo ✓')}</div>
+                </div>
+                <div class="hero-tile orange">
+                    <div class="hero-tile-label">${isEN ? 'Open' : 'Aperte'}</div>
+                    <div class="hero-tile-value">${open.length}</div>
+                    <div class="hero-tile-sub">${isEN ? 'awaiting action' : 'in attesa'}</div>
+                </div>
+                <div class="hero-tile blue">
+                    <div class="hero-tile-label">${isEN ? 'In Progress' : 'In Corso'}</div>
+                    <div class="hero-tile-value">${inProgress.length}</div>
+                    <div class="hero-tile-sub">${isEN ? 'being handled' : 'in gestione'}</div>
+                </div>
+                <div class="hero-tile green">
+                    <div class="hero-tile-label">${isEN ? 'Resolved' : 'Risolte'}</div>
+                    <div class="hero-tile-value">${resolved.length}</div>
+                    <div class="hero-tile-sub">${isEN ? 'completed' : 'completate'}</div>
+                </div>
+            </div>
+
+            <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap">
+                ${filterPill('all', isEN ? 'All' : 'Tutte', maint.length)}
+                ${filterPill('open', isEN ? '⏳ Open' : '⏳ Aperte', open.length + inProgress.length)}
+                ${filterPill('resolved', isEN ? '✓ Resolved' : '✓ Risolte', resolved.length)}
+                ${urgent.length > 0 ? filterPill('urgent', '🚨 Urgent', urgent.length) : ''}
+            </div>
+
+            ${sorted.length > 0 ? sorted.map(maintCard).join('') : `<div class="card"><div class="empty-state">
+                <div class="empty-icon">🔧</div>
+                <div class="empty-title">${isEN ? 'No maintenance requests' : 'Nessuna richiesta'}</div>
+                <div class="empty-subtitle">${isEN ? 'Report any issue with photos. BOOM handles it from there — you get notified at every step.' : 'Segnala qualsiasi problema con foto. BOOM gestisce tutto e ti aggiorna a ogni step.'}</div>
+                ${isTenant() ? `<button class="btn" onclick="openModal('addTenantMaintenance')" style="margin-top:16px">+ ${isEN ? 'Create First Request' : 'Crea Prima Richiesta'}</button>` : ''}
+            </div></div>`}`;
     }
 
     function myDocumentsPage() {
@@ -20862,56 +21458,70 @@ IBAN: ${l.iban || '-'}`;
     // ==========================================
 
     function boomToolsPage() {
+        // Each tool maps to an existing entrypoint. Anything we don't already
+        // ship is gated behind isAdmin() so we don't expose half-built features.
+        const tools = [
+            { icon:'✉️', title:'Portal Message Generator', desc:'Genera messaggi professionali per Immobiliare, Idealista, Subito da inviare come cliente. Italiano.', action:"openMessageGeneratorLandlord()", tags:[{label:'IT · As client'}] },
+            { icon:'💬', title:'Client Message Generator', desc:'Messaggi WhatsApp ai clienti — update annunci, conferme viewing, follow-up. English.', action:"openMessageGeneratorClient()", tags:[{label:'EN · WhatsApp', cls:'blue'}] },
+            { icon:'📡', title:'Property Radar', desc:'Ricerche permanenti su Immobiliare/Idealista. Nuovi annunci e cali prezzo finiscono in Lead.', action:"goTo('property-radar')", tags:[{label:'Auto-scan'},{label:'Lead pipeline', cls:'purple'}] },
+            { icon:'🔍', title:'Property Finder', desc:'Incolla URL di annunci e confronta side-by-side. Importa come lead in un click.', action:"goTo('property-finder')", tags:[{label:'Side-by-side'}] },
+            { icon:'🗺️', title:'Zone Intel', desc:'Statistiche zone Roma: prezzi medi, occupazione, trend per quartiere.', action:"goTo('zone-intel')", tags:[{label:'Live data', cls:'green'}] },
+            { icon:'📑', title:'Doc Parser AI', desc:'Estrai dati da contratti, fatture, ricevute con Claude AI. Pre-popola form.', action:"window.open('/boom_doc_parser.html','_blank')", tags:[{label:'AI', cls:'purple'}] },
+        ];
+
+        const toolGrid = tools.map(t => `
+            <div class="tool-card" onclick="${t.action}" role="button" tabindex="0">
+                <div class="tool-icon">${t.icon}</div>
+                <div class="tool-title">${t.title}</div>
+                <div class="tool-desc">${t.desc}</div>
+                <div class="tool-meta">
+                    ${t.tags.map(tag => `<span class="tool-tag${tag.cls ? ' ' + tag.cls : ''}">${tag.label}</span>`).join('')}
+                </div>
+            </div>
+        `).join('');
+
+        // Group zones by popularity — popular ones get gold treatment up top
+        const popular = (ROME_ZONES || []).filter(z => z.popular);
+        const other = (ROME_ZONES || []).filter(z => !z.popular);
+        const zoneCard = (z, isPop) => `
+            <div style="padding:14px 16px;background:var(--bg-card);border:1px solid var(--border);border-left:3px solid ${isPop ? 'var(--gold)' : 'var(--border-strong)'};border-radius:var(--radius-md);transition:border-color var(--dur-base) var(--ease-out)"
+                 onmouseover="this.style.borderColor='rgba(212,175,55,0.4)'"
+                 onmouseout="this.style.borderLeftColor='${isPop ? 'var(--gold)' : 'var(--border-strong)'}';this.style.borderTopColor='var(--border)';this.style.borderRightColor='var(--border)';this.style.borderBottomColor='var(--border)'">
+                <div style="font-size:13px;font-weight:500;letter-spacing:-0.1px">${esc(z.name)}</div>
+                <div style="font-size:11px;color:var(--text-muted);margin-top:4px;letter-spacing:0.3px;font-variant-numeric:tabular-nums">Avg <strong style="color:${isPop ? 'var(--gold)' : 'var(--text-secondary)'};font-weight:500">€${z.avgPrice}</strong>/mese</div>
+            </div>
+        `;
+
         return `
-            <div class="page-header">
-                <div>
-                    <h1 class="page-title">🛠️ Tools</h1>
-                    <p class="page-subtitle">Message generators for landlords and clients</p>
+            <div class="dash-hero">
+                <div class="dash-hero-text">
+                    <h1 class="dash-hero-title">BOOM Tools<span style="color:var(--gold)">.</span></h1>
+                    <p class="dash-hero-sub">Console operativa BOOM — generatori messaggi, scraper portali, AI document parsing</p>
                 </div>
             </div>
 
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px">
-                <!-- Message Generator - Landlords -->
-                <div class="card" style="cursor:pointer" onclick="openMessageGeneratorLandlord()">
-                    <div class="card-body" style="text-align:center;padding:32px">
-                        <div style="font-size:48px;margin-bottom:16px">✉️</div>
-                        <h3 style="margin-bottom:8px">Portal Message Generator</h3>
-                        <p style="color:var(--text-muted);font-size:13px">Generate professional inquiry messages for Immobiliare, Idealista, Subito</p>
-                        <div style="margin-top:16px">
-                            <span style="background:var(--gold-light);color:var(--gold);padding:4px 12px;border-radius:20px;font-size:11px">Italian · As Client</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Message Generator - Clients -->
-                <div class="card" style="cursor:pointer" onclick="openMessageGeneratorClient()">
-                    <div class="card-body" style="text-align:center;padding:32px">
-                        <div style="font-size:48px;margin-bottom:16px">💬</div>
-                        <h3 style="margin-bottom:8px">Client Message Generator</h3>
-                        <p style="color:var(--text-muted);font-size:13px">Generate WhatsApp messages for clients - property updates, viewings, etc.</p>
-                        <div style="margin-top:16px">
-                            <span style="background:var(--blue-light);color:var(--blue);padding:4px 12px;border-radius:20px;font-size:11px">English · WhatsApp</span>
-                        </div>
-                    </div>
-                </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-bottom:24px">
+                ${toolGrid}
             </div>
 
-            <!-- Rome Zones Reference -->
-            <div class="card" style="margin-top:24px">
-                <div class="card-header">
-                    <h3 class="card-title">🗺️ Rome Zones Reference</h3>
+            <section class="dash-section">
+                <div class="dash-section-head">
+                    <h2 class="dash-section-title">Roma · Zone Reference</h2>
+                    <span class="dash-section-count">${(ROME_ZONES || []).length}</span>
                 </div>
-                <div class="card-body">
-                    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px">
-                        ${ROME_ZONES.map(z => `
-                            <div style="padding:12px;background:var(--bg-elevated);border-radius:8px;border-left:3px solid ${z.popular ? 'var(--gold)' : 'var(--border)'}">
-                                <div style="font-weight:500;font-size:13px">${z.name}</div>
-                                <div style="font-size:11px;color:var(--text-muted);margin-top:4px">Avg: €${z.avgPrice}/mo</div>
-                            </div>
-                        `).join('')}
+                ${popular.length ? `
+                    <div style="font-size:10px;letter-spacing:1.8px;text-transform:uppercase;color:var(--gold);margin:6px 0 8px;font-weight:500">⭐ Top BOOM</div>
+                    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-bottom:18px">
+                        ${popular.map(z => zoneCard(z, true)).join('')}
                     </div>
-                </div>
-            </div>
+                ` : ''}
+                ${other.length ? `
+                    <div style="font-size:10px;letter-spacing:1.8px;text-transform:uppercase;color:var(--text-muted);margin:0 0 8px;font-weight:500">Tutte le zone</div>
+                    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px">
+                        ${other.map(z => zoneCard(z, false)).join('')}
+                    </div>
+                ` : ''}
+            </section>
         `;
     }
     // ═══════════════════════════════════════════════════════════════════════════
