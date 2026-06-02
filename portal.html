@@ -20877,12 +20877,25 @@ IBAN: ${l.iban || '-'}`;
     }
 
     // Fetch any URL's HTML through the CORS proxies, trying each in turn.
+    // Each attempt is hard-capped at 12s so a single slow proxy can't freeze
+    // a whole radar scan. Returns the HTML body, or null on total failure.
     async function _proxyFetch(url) {
         for (const proxy of CORS_PROXIES) {
+            const ctl = new AbortController();
+            const timer = setTimeout(() => ctl.abort(), 12000);
             try {
-                const resp = await fetch(proxy + encodeURIComponent(url));
-                if (resp.ok) { const t = await resp.text(); if (t && t.length > 200) return t; }
-            } catch (e) { /* try next proxy */ }
+                // thingproxy needs the raw URL (not encoded), the others need encoded
+                const target = proxy.includes('thingproxy') ? (proxy + url) : (proxy + encodeURIComponent(url));
+                const resp = await fetch(target, { signal: ctl.signal });
+                clearTimeout(timer);
+                if (resp.ok) {
+                    const t = await resp.text();
+                    if (t && t.length > 200) return t;
+                }
+            } catch (e) {
+                clearTimeout(timer);
+                console.debug('[proxyFetch] fail', proxy, e?.name || e?.message);
+            }
         }
         return null;
     }
@@ -22217,8 +22230,11 @@ IBAN: ${l.iban || '-'}`;
 
     // CORS Proxy for fetching external URLs
     const CORS_PROXIES = [
+        'https://corsproxy.io/?',
         'https://api.allorigins.win/raw?url=',
-        'https://corsproxy.io/?'
+        'https://api.codetabs.com/v1/proxy?quest=',
+        'https://thingproxy.freeboard.io/fetch/',
+        'https://cors.eu.org/'
     ];
 
     function preOpenBoomCardGenerator() {
