@@ -1975,10 +1975,14 @@ Valentyne - BOOM Rome`
             if (firstEmpty) firstEmpty.focus();
             return;
         }
-        var cf = (document.getElementById('mpCf')||{}).value||'';
-        if (cf.replace(/\s/g,'').length !== 16) {
-            document.getElementById('mpCf').style.borderColor = 'rgba(255,59,48,0.5)';
-            document.getElementById('mpCf').focus();
+        var cf = ((document.getElementById('mpCf')||{}).value||'').replace(/\s/g, '').toUpperCase();
+        if (cf.length !== 16 || !validateCodiceFiscale(cf)) {
+            var cfEl = document.getElementById('mpCf');
+            if (cfEl) {
+                cfEl.style.borderColor = 'rgba(255,59,48,0.5)';
+                cfEl.focus();
+            }
+            toast('error', 'Codice Fiscale non valido', 'Controlla i 16 caratteri (il carattere di controllo non torna).');
             return;
         }
         // Save identity data
@@ -2032,7 +2036,7 @@ Valentyne - BOOM Rome`
                 '</div>' +
                 '<div id="otpMsg" style="display:none;margin-top:12px;padding:10px 14px;border-radius:10px;font-size:11px;font-weight:300"></div>' +
             '</div>' +
-            '<div style="text-align:center;margin-bottom:40px"><a href="#" onclick="event.preventDefault();otpSkipStep()" style="font-size:11px;color:var(--text-muted);text-decoration:none;font-weight:300">Skip phone verification</a></div>' +
+            '<div style="text-align:center;margin-bottom:40px;font-size:10px;color:var(--text-muted);font-weight:300;letter-spacing:0.5px">Phone verification is required for FES compliance</div>' +
         '</div>';
         window.scrollTo({top: 0, behavior: 'smooth'});
         // Init reCAPTCHA once
@@ -2140,9 +2144,11 @@ Valentyne - BOOM Rome`
         }
     }
 
+    // OTP skip removed for FES compliance — Sprint A S6.
+    // Kept as no-op so any stale onclick references don't throw, but it now
+    // surfaces a toast instead of letting the user bypass phone verification.
     function otpSkipStep() {
-        if (window._msIdData) { window._msIdData.phoneVerified = false; window._msIdData.phoneSkipped = true; }
-        msPassStep3();
+        toast('warning', 'Verifica telefonica obbligatoria', 'Necessaria per la validità legale della firma (FES — Art. 21 CAD)');
     }
 
     // ★ MAGIC SIGN PASSWORDLESS — Step 3: Signature
@@ -2211,6 +2217,11 @@ Valentyne - BOOM Rome`
         window.scrollTo({top: 0, behavior: 'smooth'});
     }
 
+    // Exact text of the consent checkbox shown to the signer in msPassStep3.
+    // Hashed and stored alongside the signature so we can prove which legal
+    // statement the user agreed to, even if we later reword the UI.
+    const MS_CONSENT_TEXT = 'I confirm my identity and accept all lease terms. This digital signature is legally valid (FES — Art. 21 CAD).';
+
     async function submitMagicSign(contractId, role, token) {
         var btn = document.getElementById('magicSignBtn');
         if (!btn || btn.disabled) return;
@@ -2219,6 +2230,12 @@ Valentyne - BOOM Rome`
             var sigData = window._magicPad ? window._magicPad.toDataURL() : null;
             if (!sigData || (window._magicPad && window._magicPad.isEmpty())) { btn.disabled = false; btn.textContent = 'Sign Contract'; return; }
             var now = new Date().toISOString();
+            // Capture real IP via our own /api/get-ip (best-effort, 4s timeout).
+            // Falls back to 'unknown' so a transient endpoint hiccup never
+            // blocks a signature.
+            var signerIP = await fetchSignerIP();
+            // Structured consent: text + SHA-256 hash + accept timestamp.
+            var consentHash = await generateDocHash(MS_CONSENT_TEXT);
             var upd = { updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
             // Save identity data from Step 2
             var idD = window._msIdData || {};
@@ -2244,9 +2261,15 @@ Valentyne - BOOM Rome`
                 if (llId) db.collection('landlords').doc(llId).set({codiceFiscale:idD.cf||'',birthDate:idD.dob||'',birthPlace:idD.pob||'',address:idD.address||'',idDocType:idD.docType||'',idDocNumber:idD.docNum||''},{merge:true}).catch(function(e){console.error('Landlord save:',e);});
             }
             if (role === 'tenant') {
-                upd.tenantSignature = sigData; upd.tenantSignedAt = now; upd.tenantSignedIP = 'collected'; upd.tenantSignedUA = navigator.userAgent.substring(0, 200); upd.tenantSignToken = null;
+                upd.tenantSignature = sigData; upd.tenantSignedAt = now;
+                upd.tenantSignedIP = signerIP; upd.tenantSignedUA = navigator.userAgent.substring(0, 200);
+                upd.tenantConsentText = MS_CONSENT_TEXT; upd.tenantConsentHash = consentHash; upd.tenantConsentAt = now;
+                upd.tenantSignToken = null;
             } else {
-                upd.landlordSignature = sigData; upd.landlordSignedAt = now; upd.landlordSignedIP = 'collected'; upd.landlordSignedUA = navigator.userAgent.substring(0, 200); upd.landlordSignToken = null;
+                upd.landlordSignature = sigData; upd.landlordSignedAt = now;
+                upd.landlordSignedIP = signerIP; upd.landlordSignedUA = navigator.userAgent.substring(0, 200);
+                upd.landlordConsentText = MS_CONSENT_TEXT; upd.landlordConsentHash = consentHash; upd.landlordConsentAt = now;
+                upd.landlordSignToken = null;
             }
             var freshDoc = await db.collection('contracts').doc(contractId).get();
             if (!freshDoc.exists) throw new Error('Contract not found');
@@ -15045,14 +15068,66 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             return false;
         }
     }
+    // Deterministic SHA-256 of `content`. Same input → same hash, every time.
+    // Used as the immutable fingerprint of the contract that the firmatario
+    // is committing to. Returning only 16 hex chars (64 bits) so it fits the
+    // PDF watermark while still being collision-resistant for our scale.
     async function generateDocHash(content) {
         try {
-            const encoder = new TextEncoder();
-            const data = encoder.encode(content + Date.now());
-            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-            const hashArray = Array.from(new Uint8Array(hashBuffer));
-            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 16);
-        } catch(e) { return 'hash_' + Date.now().toString(36); }
+            const data = new TextEncoder().encode(String(content));
+            const buf = await crypto.subtle.digest('SHA-256', data);
+            return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 16);
+        } catch (e) {
+            console.warn('[generateDocHash] subtle.digest fail', e);
+            // Stable string-fold fallback so legacy environments still get
+            // a deterministic value (no Date.now()).
+            let h = 0; const s = String(content);
+            for (let i = 0; i < s.length; i++) { h = ((h << 5) - h + s.charCodeAt(i)) | 0; }
+            return 'fb_' + (h >>> 0).toString(16).padStart(8, '0');
+        }
+    }
+
+    // ── Italian Codice Fiscale checksum validator (16-char fisica) ──
+    // Implements the official algorithm: 15 chars + 1 control char computed
+    // by summing odd/even positional values mod 26. Returns true only for
+    // structurally valid CFs. Skipped for empty inputs (caller decides).
+    function validateCodiceFiscale(cf) {
+        if (!cf) return false;
+        const s = String(cf).toUpperCase().trim();
+        if (s.length !== 16) return false;
+        if (!/^[A-Z0-9]{15}[A-Z]$/.test(s)) return false;
+        const oddMap  = { '0':1,'1':0,'2':5,'3':7,'4':9,'5':13,'6':15,'7':17,'8':19,'9':21,
+                          'A':1,'B':0,'C':5,'D':7,'E':9,'F':13,'G':15,'H':17,'I':19,'J':21,
+                          'K':2,'L':4,'M':18,'N':20,'O':11,'P':3,'Q':6,'R':8,'S':12,'T':14,
+                          'U':16,'V':10,'W':22,'X':25,'Y':24,'Z':23 };
+        const evenMap = { '0':0,'1':1,'2':2,'3':3,'4':4,'5':5,'6':6,'7':7,'8':8,'9':9,
+                          'A':0,'B':1,'C':2,'D':3,'E':4,'F':5,'G':6,'H':7,'I':8,'J':9,
+                          'K':10,'L':11,'M':12,'N':13,'O':14,'P':15,'Q':16,'R':17,'S':18,
+                          'T':19,'U':20,'V':21,'W':22,'X':23,'Y':24,'Z':25 };
+        let sum = 0;
+        for (let i = 0; i < 15; i++) {
+            const ch = s[i];
+            sum += (i % 2 === 0) ? oddMap[ch] : evenMap[ch];
+            if (oddMap[ch] === undefined || evenMap[ch] === undefined) return false;
+        }
+        const expected = String.fromCharCode('A'.charCodeAt(0) + (sum % 26));
+        return expected === s[15];
+    }
+    window.validateCodiceFiscale = validateCodiceFiscale;
+
+    // Best-effort: fetch caller IP via our own /api/get-ip endpoint. Falls back
+    // to 'unknown' on any failure (offline, edge function cold start, etc).
+    // Capped at 4s so signing flow can't hang on it.
+    async function fetchSignerIP() {
+        try {
+            const ctl = new AbortController();
+            const timer = setTimeout(() => ctl.abort(), 4000);
+            const r = await fetch('/api/get-ip', { signal: ctl.signal });
+            clearTimeout(timer);
+            if (!r.ok) return 'unknown';
+            const j = await r.json();
+            return (j.ip || 'unknown').toString().slice(0, 64);
+        } catch (e) { return 'unknown'; }
     }
     
     // ═══════════════════════════════════════════════════════════════════════════
