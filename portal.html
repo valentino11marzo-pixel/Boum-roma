@@ -4354,7 +4354,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         }
     }
 
-    function goTo(p) { S.page = p; window.location.hash = p; localStorage.setItem('boom_lastPage', p); buildNav(); renderPage(); closeSidebar(); window.scrollTo(0, 0); }
+    function goTo(p, arg) { S.page = p; S.pageArg = arg || null; window.location.hash = p; localStorage.setItem('boom_lastPage', p); buildNav(); renderPage(); closeSidebar(); window.scrollTo(0, 0); }
+    // Open the 360° person hub. kind: 'lead' | 'pfsClient' | 'crmClient' | 'user'.
+    function openPerson(id, kind) { goTo('person', { id, kind: kind || 'user' }); }
+    window.openPerson = openPerson;
     window.addEventListener('popstate', () => { const page = window.location.hash.slice(1); if (page && page !== S.page) { S.page = page; buildNav(); renderPage(); } });
     function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); document.getElementById('sidebarOverlay').classList.toggle('open'); }
     function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebarOverlay').classList.remove('open'); }
@@ -4387,6 +4390,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             case 'documents': m.innerHTML = isAdmin() ? documentsPage() : accessDenied(); break;
             case 'activity-log': m.innerHTML = isAdmin() ? activityLogPage() : accessDenied(); break;
             case 'adminflats': m.innerHTML = isAdmin() ? adminflatsPage() : accessDenied(); break;
+            // === SCHEDA 360° (cliente unico hub) ===
+            case 'person': m.innerHTML = isAdmin() ? personPage(S.pageArg) : accessDenied(); break;
             // === BUROCRAZIA (merges Registrazioni + Asseverazioni) ===
             case 'burocrazia':
                 if (!isAdmin()) { m.innerHTML = accessDenied(); break; }
@@ -6595,6 +6600,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             '<div class="modal-footer">' +
                 '<button class="btn btn-danger btn-sm" onclick="discardLead(\'' + l.id + '\');closeModal();">\u2715 Scarta</button>' +
                 (l.phone ? '<a href="https://wa.me/' + (l.phone || '').replace(/[^0-9+]/g, '') + '" target="_blank" class="btn btn-success btn-sm">\uD83D\uDCAC WhatsApp</a>' : '') +
+                '<button class="btn btn-secondary btn-sm" onclick="closeModal();openPerson(\'' + l.id + '\',\'lead\')">\uD83D\uDCC2 Scheda 360\u00B0</button>' +
                 '<button class="btn" onclick="convertLeadToClient(\'' + l.id + '\');closeModal();">\u2192 Converti in Client</button>' +
             '</div>' +
         '</div></div>';
@@ -6723,7 +6729,167 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // ═══════════════════════════════════════════════════════════════════════════
     
     let clientiView = 'overview'; // overview | pipeline | list | analytics
-    
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // PERSON 360° HUB — single place that shows everything about one person
+    // (contracts, payments, documents, invoices, maintenance, timeline).
+    // Works across 4 kinds: lead, pfsClient, crmClient, user — each kind has
+    // different anchors but the layout is the same so it feels uniform.
+    // ═══════════════════════════════════════════════════════════════════════
+    function personPage(arg) {
+        const id = arg?.id;
+        const kind = arg?.kind || 'user';
+        if (!id) return `<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-title">Scheda non trovata</div><button class="btn" onclick="goTo('clienti')">← Torna ai clienti</button></div>`;
+
+        // Resolve the entity + a normalised identity (the four kinds carry
+        // different field shapes so we map them onto one common shape here).
+        let entity, name, email, phone, language, badge, subtitle;
+        if (kind === 'user') {
+            entity = (S.users || []).find(u => u.id === id);
+            if (entity) { name = entity.name; email = entity.email; phone = entity.phone; language = entity.language || 'it'; badge = entity.role === 'landlord' ? '🏠 Proprietario' : entity.role === 'tenant' ? '👤 Inquilino' : '👁 Admin'; subtitle = entity.codiceFiscale || entity.address || ''; }
+        } else if (kind === 'lead') {
+            entity = (S.leads || []).find(l => l.id === id);
+            if (entity) { name = entity.name; email = entity.email; phone = entity.phone; language = entity.language || 'it'; badge = '📨 Lead' + (entity.grade ? ` · ${entity.grade}` : ''); subtitle = entity.zone || entity.propertyTitle || entity.message?.slice(0, 60) || ''; }
+        } else if (kind === 'pfsClient') {
+            entity = (S.pfsClients || []).find(c => c.id === id);
+            if (entity) { name = entity.name; email = entity.email; phone = entity.phone; language = entity.language || 'it'; badge = '💼 PFS · ' + (entity.stage || 'lead'); subtitle = `${entity.service || ''} · €${entity.budget || 0}/mo${entity.zone ? ' · ' + entity.zone : ''}`; }
+        } else if (kind === 'crmClient') {
+            entity = (S.clients || []).find(c => c.id === id);
+            if (entity) { name = entity.name; email = entity.email; phone = entity.phone; language = entity.language || 'it'; badge = '🤝 CRM · ' + (entity.stage || 'lead'); subtitle = entity.service || entity.budget ? `${entity.service || ''} €${entity.budget || ''}` : ''; }
+        }
+        if (!entity) return `<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-title">Persona non trovata</div><div class="empty-subtitle">${esc(kind)} · ${esc(id)}</div><button class="btn" onclick="goTo('clienti')">← Torna ai clienti</button></div>`;
+
+        // ── Related records (only meaningful when kind = 'user') ─────────────
+        const userId = kind === 'user' ? id : (entity.convertedUserId || null);
+        const contracts = userId ? (S.contracts || []).filter(c => c.tenantId === userId || c.landlordId === userId) : [];
+        const activeContract = contracts.find(c => c.status === 'active');
+        const payments = userId ? (S.payments || []).filter(p => {
+            const c = (S.contracts || []).find(x => x.id === p.contractId);
+            return c && (c.tenantId === userId || c.landlordId === userId);
+        }) : [];
+        const documents = userId ? (S.documents || []).filter(d => d.userId === userId) : [];
+        const invoices = (S.invoices || []).filter(i => (i.recipientId || i.clientId) === id || (i.recipientId || i.clientId) === userId);
+        const maintenance = userId ? (S.maintenance || []).filter(m => m.userId === userId) : [];
+        const viewings = (S.viewingRequests || []).filter(v => v.email === email || v.phone === phone || v.leadId === id);
+
+        // Pre-computed money + status
+        const paid = payments.filter(p => p.status === 'paid');
+        const overduePayments = payments.filter(p => p.status === 'pending' && isOverdue(p.dueDate));
+        const totalPaid = paid.reduce((s, p) => s + (p.amount || 0), 0);
+        const totalOverdue = overduePayments.reduce((s, p) => s + (p.amount || 0), 0);
+        const unsignedContracts = contracts.filter(c => c.status === 'active' && (!c.tenantSignature || !c.landlordSignature));
+        const openMaint = maintenance.filter(m => m.status !== 'resolved');
+
+        // ── Timeline: unified chronological feed ─────────────────────────────
+        const events = [];
+        if (entity.createdAt) events.push({ ts: entity.createdAt, icon: '✨', text: `Creato come ${badge.toLowerCase()}` });
+        if (entity.respondedAt) events.push({ ts: entity.respondedAt, icon: '↩️', text: 'Risposto al lead' });
+        if (entity.convertedAt) events.push({ ts: entity.convertedAt, icon: '🎯', text: 'Convertito in cliente' });
+        contracts.forEach(c => {
+            if (c.createdAt) events.push({ ts: c.createdAt, icon: '📋', text: `Contratto creato: ${(S.properties.find(p=>p.id===c.propertyId)||{}).name || 'Immobile'}`, link: () => viewContract(c.id) });
+            if (c.tenantSignedAt) events.push({ ts: c.tenantSignedAt, icon: '✍️', text: `Firma inquilino`, link: () => viewContract(c.id) });
+            if (c.landlordSignedAt) events.push({ ts: c.landlordSignedAt, icon: '✍️', text: `Firma proprietario`, link: () => viewContract(c.id) });
+        });
+        payments.forEach(p => {
+            if (p.paidDate) events.push({ ts: p.paidDate, icon: '💰', text: `Pagato €${p.amount} (${p.month || ''})` });
+        });
+        invoices.forEach(i => { if (i.createdAt) events.push({ ts: i.createdAt, icon: '🧾', text: `Fattura ${i.number} · €${i.amount}`, link: () => viewInvoice(i.id) }); });
+        documents.forEach(d => { if (d.createdAt) events.push({ ts: d.createdAt, icon: '📁', text: `Documento: ${d.name}` }); });
+        maintenance.forEach(m => { if (m.createdAt) events.push({ ts: m.createdAt, icon: '🔧', text: `Richiesta manutenzione: ${m.title}`, link: () => viewMaintenance(m.id) }); });
+        // Pull activityLog entries that reference this person
+        (S.activityLog || []).filter(a => {
+            const d = a.details || {};
+            return d.userId === id || d.userId === userId || d.leadId === id || d.clientId === id || d.tenantId === userId || (a.details && JSON.stringify(d).includes(id));
+        }).forEach(a => events.push({ ts: a.createdAt, icon: '📝', text: a.action || a.category || 'evento' }));
+        events.sort((a, b) => {
+            const ta = a.ts?.toDate ? a.ts.toDate().getTime() : (a.ts?._seconds ? a.ts._seconds*1000 : new Date(a.ts || 0).getTime());
+            const tb = b.ts?.toDate ? b.ts.toDate().getTime() : (b.ts?._seconds ? b.ts._seconds*1000 : new Date(b.ts || 0).getTime());
+            return tb - ta;
+        });
+
+        // ── Quick-action buttons depending on kind / phase ────────────────────
+        const wa = phone ? `https://wa.me/${String(phone).replace(/\D/g, '')}` : null;
+        const mailto = email ? `mailto:${email}` : null;
+        const quickActions = [];
+        if (wa) quickActions.push(`<a class="btn btn-sm" href="${wa}" target="_blank">💬 WhatsApp</a>`);
+        if (mailto) quickActions.push(`<a class="btn btn-sm btn-secondary" href="${mailto}">📧 Email</a>`);
+        if (kind === 'user' && entity.role === 'tenant') quickActions.push(`<button class="btn btn-sm btn-secondary" onclick="openModal('addPayment',{tenantId:'${id}'})">💳 Registra pagamento</button>`);
+        if (kind === 'user' && entity.role === 'tenant') quickActions.push(`<button class="btn btn-sm btn-secondary" onclick="openDocUploadModal('${id}')">📁 Carica documento</button>`);
+        if (kind === 'lead' || kind === 'pfsClient' || kind === 'crmClient') quickActions.push(`<button class="btn btn-sm" onclick="openNewClientWizard('${kind}','${id}')">🚀 Crea contratto</button>`);
+
+        // ── Promotion shortcuts (separate-but-linked phases) ─────────────────
+        const promotion = [];
+        if (kind === 'lead') {
+            if (entity.convertedUserId) promotion.push(`<a class="btn btn-sm btn-secondary" onclick="openPerson('${entity.convertedUserId}','user')">→ Apri inquilino collegato</a>`);
+            else promotion.push(`<span class="badge orange" style="font-size:10px">Lead non ancora convertito</span>`);
+        } else if (kind === 'user' && entity.linkedLeadId) {
+            promotion.push(`<a class="btn btn-sm btn-secondary" onclick="openPerson('${entity.linkedLeadId}','lead')">← Apri lead originale</a>`);
+        }
+
+        // ── KPI tiles + section cards ────────────────────────────────────────
+        const kpi = (label, value, color) => `<div class="stat-card"><div class="stat-label">${label}</div><div class="stat-value ${color || ''}">${value}</div></div>`;
+        const sectionCard = (title, icon, count, body, cta) => `<div class="card" style="margin-bottom:14px"><div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border)"><div style="font-weight:600">${icon} ${title}${count != null ? ` <span style="color:var(--text-muted);font-weight:400">(${count})</span>` : ''}</div>${cta || ''}</div><div style="padding:${body ? '8px 0' : '14px 16px'}">${body || '<div style="color:var(--text-muted);font-size:13px">Nessun record</div>'}</div></div>`;
+
+        const contractsBody = contracts.length ? contracts.map(c => {
+            const prop = (S.properties || []).find(p => p.id === c.propertyId);
+            const days = daysUntil(c.endDate);
+            const exp = days !== null ? (days < 0 ? `<span class="badge red" style="font-size:10px">scaduto ${Math.abs(days)}gg</span>` : days <= 30 ? `<span class="badge orange" style="font-size:10px">scade tra ${days}gg</span>` : '') : '';
+            const sigOk = c.tenantSignature && c.landlordSignature;
+            return `<div class="list-item clickable" onclick="viewContract('${c.id}')"><div class="list-icon">📋</div><div class="list-content"><div class="list-title">${prop?.name || 'Immobile'} ${sigOk ? '<span class="badge green" style="font-size:9px">✓ firmato</span>' : '<span class="badge orange" style="font-size:9px">in attesa firma</span>'} ${exp}</div><div class="list-subtitle">${c.type || 'contratto'} · €${c.rent}/mo · ${fmtDate(c.startDate)} → ${fmtDate(c.endDate)}</div></div></div>`;
+        }).join('') : null;
+
+        const paymentsBody = payments.length ? payments.slice(0, 8).map(p => {
+            const overdue = p.status === 'pending' && isOverdue(p.dueDate);
+            return `<div class="list-item clickable" onclick="openModal('editPayment',S.payments.find(x=>x.id==='${p.id}'))"><div class="list-icon">${p.status === 'paid' ? '✓' : overdue ? '⚠️' : '⏳'}</div><div class="list-content"><div class="list-title">${p.month || ''} · €${p.amount}</div><div class="list-subtitle">${p.status === 'paid' ? 'Pagato il ' + fmtDate(p.paidDate) : 'Scadenza ' + fmtDate(p.dueDate)}${overdue ? ' · in ritardo' : ''}</div></div></div>`;
+        }).join('') + (payments.length > 8 ? `<div style="padding:8px 16px;color:var(--text-muted);font-size:12px">+${payments.length - 8} altri</div>` : '') : null;
+
+        const invoicesBody = invoices.length ? invoices.slice(0, 6).map(i => `<div class="list-item clickable" onclick="viewInvoice('${i.id}')"><div class="list-icon">🧾</div><div class="list-content"><div class="list-title">${i.number} · €${i.amount} <span class="badge ${i.status === 'paid' ? 'green' : 'orange'}" style="font-size:9px">${i.status === 'paid' ? 'pagata' : 'in attesa'}</span></div><div class="list-subtitle">${i.service || ''} · ${fmtDate(i.date || i.createdAt)}</div></div></div>`).join('') : null;
+
+        const documentsBody = documents.length ? documents.slice(0, 6).map(d => `<div class="list-item clickable" onclick="${d.fileUrl ? `window.open('${d.fileUrl}','_blank')` : `editDocModal('${d.id}')`}"><div class="list-icon">${docIcon(d.type)}</div><div class="list-content"><div class="list-title">${d.name}</div><div class="list-subtitle">${d.type || ''} · ${fmtDate(d.createdAt)}</div></div></div>`).join('') : null;
+
+        const maintBody = maintenance.length ? maintenance.slice(0, 6).map(m => `<div class="list-item clickable" onclick="viewMaintenance('${m.id}')"><div class="list-icon">🔧</div><div class="list-content"><div class="list-title">${m.title} <span class="badge ${m.status === 'resolved' ? 'green' : m.priority === 'urgent' ? 'red' : 'orange'}" style="font-size:9px">${m.status}</span></div><div class="list-subtitle">${fmtDate(m.createdAt)}</div></div></div>`).join('') : null;
+
+        const timelineBody = events.length ? `<div style="padding:0 16px">${events.slice(0, 30).map(ev => `<div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px"><span style="flex-shrink:0">${ev.icon}</span><div style="flex:1"><div>${esc(ev.text)}</div><div style="font-size:11px;color:var(--text-muted)">${fmtDate(ev.ts)}</div></div>${ev.link ? `<a class="btn btn-xs btn-secondary" onclick="event.stopPropagation()">apri</a>` : ''}</div>`).join('')}</div>` : null;
+
+        const personLanguageFlag = language === 'en' || language === 'EN' ? '🇬🇧' : '🇮🇹';
+
+        return `<div class="page-header">
+            <div>
+                <a class="btn btn-xs btn-secondary" onclick="history.back()" style="margin-bottom:8px">← Indietro</a>
+                <h1 class="page-title" style="display:flex;align-items:center;gap:10px">${personLanguageFlag} ${esc(name || 'Senza nome')}</h1>
+                <p class="page-subtitle">${badge}${subtitle ? ' · ' + esc(subtitle) : ''}</p>
+            </div>
+            <div class="page-actions" style="flex-wrap:wrap;gap:6px">${quickActions.join('')}</div>
+        </div>
+
+        <div class="card" style="margin-bottom:14px;padding:12px 16px">
+            <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;font-size:13px">
+                ${phone ? `<span>📞 <a href="tel:${esc(phone)}" style="color:var(--text)">${esc(phone)}</a></span>` : ''}
+                ${email ? `<span>📧 <a href="${mailto}" style="color:var(--text)">${esc(email)}</a></span>` : ''}
+                ${kind === 'user' && entity.codiceFiscale ? `<span>🆔 ${esc(entity.codiceFiscale)}</span>` : ''}
+                ${kind === 'user' && entity.address ? `<span>📍 ${esc(entity.address)}</span>` : ''}
+                ${promotion.length ? `<div style="margin-left:auto;display:flex;gap:6px">${promotion.join('')}</div>` : ''}
+            </div>
+        </div>
+
+        <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px">
+            ${kpi('Contratti', contracts.length, activeContract ? 'text-green' : '')}
+            ${kpi('Pagati', '€' + totalPaid.toLocaleString('it-IT'), 'text-green')}
+            ${kpi('In ritardo', totalOverdue > 0 ? '€' + totalOverdue.toLocaleString('it-IT') : '0', totalOverdue > 0 ? 'text-red' : '')}
+            ${kpi('Documenti', documents.length, '')}
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:14px">
+            ${sectionCard('Contratti', '📋', contracts.length, contractsBody, kind === 'user' ? `<button class="btn btn-xs" onclick="openModal('addContract',{tenantId:'${id}'})">+ Nuovo</button>` : '')}
+            ${sectionCard('Pagamenti', '💳', payments.length, paymentsBody)}
+            ${sectionCard('Fatture', '🧾', invoices.length, invoicesBody, `<button class="btn btn-xs" onclick="openModal('addInvoice',{recipientId:'${id}'})">+ Nuova</button>`)}
+            ${sectionCard('Documenti', '📁', documents.length, documentsBody, kind === 'user' ? `<button class="btn btn-xs" onclick="openDocUploadModal('${id}')">+ Carica</button>` : '')}
+            ${sectionCard('Manutenzione', '🔧', maintenance.length, maintBody)}
+            ${sectionCard('Timeline', '🕒', events.length, timelineBody)}
+        </div>`;
+    }
+    window.personPage = personPage;
+
     function clientiPage() {
         const crmClients = (S.clients || []).filter(c => !c.intakeForm);
         const pfsClients = S.pfsClients || [];
@@ -7395,6 +7561,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 </div>
                 <div style="display:flex;align-items:center;gap:8px">
                     ${u.phone ? `<a href="https://wa.me/${u.phone.replace(/[^0-9]/g,'')}" target="_blank" class="btn btn-xs btn-secondary" onclick="event.stopPropagation()" title="WhatsApp">💬</a>` : ''}
+                    <button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();openPerson('${u.id}','user')" title="Apri scheda 360°">📂</button>
                     <span class="badge ${r.color}">${r.icon} ${r.label}</span>
                 </div>
             </div>`;
@@ -11773,6 +11940,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             <div class="modal-footer">
                 <button class="btn btn-danger btn-sm" onclick="confirmDelete('client','${c.id}','${c.name}')">🗑 Elimina</button>
                 <button class="btn btn-secondary" onclick="generateServiceContractPDF('${c.id}')">📜 Contratto PDF</button>
+                <button class="btn btn-secondary" onclick="closeModal();openPerson('${c.id}','crmClient')">📂 Scheda 360°</button>
                 <button class="btn" onclick="closeModal()">Chiudi</button>
             </div>
         </div></div>`;
@@ -18665,6 +18833,7 @@ IBAN: ${l.iban || '-'}`;
                     <div class="modal-footer">
                         <button class="btn btn-danger" onclick="deletePFSClient('${id}')">🗑️ Delete</button>
                         <button class="btn btn-secondary" onclick="openPFSEditClient('${id}')">✏️ Edit</button>
+                        <button class="btn btn-secondary" onclick="closeModal();openPerson('${id}','pfsClient')">📂 Scheda 360°</button>
                         <button class="btn" onclick="quickAdvanceStage('${id}');closeModal()">→ Advance Stage</button>
                     </div>
                 </div>
