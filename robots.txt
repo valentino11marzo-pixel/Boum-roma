@@ -75,21 +75,12 @@ Crawl-delay: 10
 User-agent: MJ12bot
 Crawl-delay: 10
 
-# AI training crawlers — opt out by default
-User-agent: GPTBot
-Disallow: /
-
-User-agent: ChatGPT-User
-Disallow: /
-
-User-agent: CCBot
-Disallow: /
-
-User-agent: anthropic-ai
-Disallow: /
-
-User-agent: Google-Extended
-Disallow: /
+# AI search & answer engines — welcome.
+# BOOM wants to be discoverable and citable in AI search (ChatGPT Search,
+# Perplexity, Gemini, Claude, etc.). These crawlers follow the default
+# "User-agent: *" policy above: they may read every public page, but not the
+# internal/authenticated surfaces listed under Disallow.
+# LLM-friendly summary of the site: https://www.boomrome.com/llms.txt
 
 # Sitemaps
 Sitemap: https://www.boomrome.com/sitemap.xml
