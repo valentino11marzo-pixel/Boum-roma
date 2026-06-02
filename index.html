@@ -2431,34 +2431,66 @@
             transition: transform 0.4s var(--ease-out);
         }
         .how-track span.done i { transform: scaleX(1); }
+        /* In-device product film (mirrors /how-it-works) */
         .how-visual {
             position: relative;
             aspect-ratio: 4 / 5;
-            border-radius: 20px;
-            background: linear-gradient(160deg, var(--surface-elevated), var(--surface-card));
+            border-radius: 16px;
+            background: var(--surface-elevated);
             border: 1px solid var(--border-default);
             overflow: hidden;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            box-shadow: 0 40px 100px rgba(0,0,0,0.55);
         }
-        .how-visual-fill {
-            position: absolute;
-            left: 0; bottom: 0;
-            width: 100%;
-            height: 0%;
-            background: linear-gradient(0deg, rgba(255, 215, 0, 0.16), rgba(255, 215, 0, 0.02));
-            transition: height 0.15s linear;
-        }
-        .how-visual-num {
-            position: relative;
-            font-family: var(--font-display);
-            font-size: clamp(120px, 20vw, 220px);
-            font-weight: 100;
-            color: rgba(255, 215, 0, 0.10);
-            letter-spacing: -0.05em;
-            transition: color 0.4s var(--ease-out);
-        }
+        .how-bar { display: flex; align-items: center; gap: 7px; padding: 12px 14px; background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border-default); }
+        .how-bar i { width: 10px; height: 10px; border-radius: 50%; background: #2a2a30; }
+        .how-url { margin-left: 12px; flex: 1; height: 24px; border-radius: 6px; background: rgba(0,0,0,0.4); display: flex; align-items: center; padding: 0 11px; font-size: 11px; color: var(--text-tertiary); letter-spacing: 0.5px; }
+        .how-url::before { content: '🔒'; font-size: 8px; margin-right: 6px; filter: grayscale(1); }
+        .how-screen { position: relative; width: 100%; height: calc(100% - 49px); background: linear-gradient(170deg, var(--surface-card), #070708); overflow: hidden; }
+        .how-scene { position: absolute; inset: 0; padding: 20px; opacity: 0; transform: translateY(20px) scale(0.98); transition: opacity 0.6s var(--ease-out), transform 0.6s var(--ease-out); pointer-events: none; }
+        .how-scene.on { opacity: 1; transform: none; }
+        .how-aptgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; }
+        .how-apt { border-radius: 11px; overflow: hidden; border: 1px solid var(--border-default); background: var(--surface); }
+        .how-ph { height: 66px; background: linear-gradient(135deg, #1b1b20, #0e0e12); position: relative; }
+        .how-ph::after { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 75% 25%, rgba(255,215,0,0.14), transparent 55%); }
+        .how-live { position: absolute; top: 7px; left: 7px; z-index: 2; font-size: 8.5px; letter-spacing: 0.5px; color: #fff; background: rgba(0,0,0,0.55); border: 1px solid rgba(0,255,136,0.4); padding: 3px 6px; border-radius: 100px; }
+        .how-pr { padding: 8px 10px; font-family: var(--font-display); color: var(--gold); font-size: 13px; }
+        .how-apt.feat { border-color: var(--border-gold); box-shadow: 0 0 0 1px var(--border-gold); }
+        .how-scene.on .how-apt { animation: howRise 0.55s var(--ease-out) backwards; }
+        .how-scene.on .how-apt:nth-child(2) { animation-delay: 0.07s; }
+        .how-scene.on .how-apt:nth-child(3) { animation-delay: 0.14s; }
+        .how-scene.on .how-apt:nth-child(4) { animation-delay: 0.21s; }
+        @keyframes howRise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+        .how-field { margin-bottom: 12px; }
+        .how-field label { display: block; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 5px; }
+        .how-inp { height: 36px; border-radius: 9px; border: 1px solid var(--border-default); background: rgba(0,0,0,0.3); display: flex; align-items: center; padding: 0 12px; font-size: 13px; color: var(--text-primary); }
+        .how-inp.focus { border-color: var(--border-gold); box-shadow: 0 0 0 3px var(--gold-muted); }
+        .how-caret { display: inline-block; width: 1.5px; height: 15px; background: var(--gold); margin-left: 1px; animation: howBlink 1s steps(1) infinite; }
+        @keyframes howBlink { 50% { opacity: 0; } }
+        .how-submit { margin-top: 4px; height: 40px; border-radius: 10px; background: var(--gold); color: #000; font-weight: 600; font-size: 12.5px; display: flex; align-items: center; justify-content: center; letter-spacing: 0.5px; opacity: 0.4; transition: opacity 0.4s; }
+        .how-submit.ready { opacity: 1; }
+        .how-contract { border-radius: 12px; border: 1px solid var(--border-default); background: var(--surface); padding: 16px; }
+        .how-ln { height: 7px; border-radius: 4px; background: rgba(255,255,255,0.06); margin-bottom: 8px; }
+        .how-ln.s { width: 60%; } .how-ln.m { width: 85%; }
+        .how-sig { margin-top: 12px; border-top: 1px dashed var(--border-default); padding-top: 11px; }
+        .how-sig svg { display: block; height: 46px; }
+        .how-sig path { fill: none; stroke: var(--gold); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 560; stroke-dashoffset: 560; transition: stroke-dashoffset 1.5s var(--ease-out) 0.3s; }
+        .how-scene.on .how-sig path { stroke-dashoffset: 0; }
+        .how-pay { margin-top: 12px; display: flex; align-items: center; justify-content: space-between; }
+        .how-amt { font-family: var(--font-display); font-size: 14px; } .how-amt b { color: var(--gold); font-weight: 500; }
+        .how-paybtn { height: 38px; padding: 0 18px; border-radius: 10px; background: #635BFF; color: #fff; font-weight: 600; font-size: 12.5px; display: flex; align-items: center; gap: 7px; transition: all 0.4s; }
+        .how-paybtn.paid { background: var(--green); color: #000; }
+        .how-pass { margin: 6px auto 0; max-width: 240px; border-radius: 16px; padding: 20px; background: linear-gradient(160deg, #16140a, #0c0b07); border: 1px solid var(--border-gold); position: relative; overflow: hidden; }
+        .how-pass::after { content: ''; position: absolute; top: -40%; left: -30%; width: 80%; height: 180%; background: linear-gradient(115deg, transparent, rgba(255,215,0,0.16), transparent); transform: translateX(-120%) rotate(8deg); }
+        .how-scene.on .how-pass::after { animation: howSwipe 2.4s var(--ease-out) 1.2s infinite; }
+        @keyframes howSwipe { 0% { transform: translateX(-120%) rotate(8deg); } 60%, 100% { transform: translateX(320%) rotate(8deg); } }
+        .how-ptop { display: flex; align-items: center; justify-content: space-between; }
+        .how-pbrand { font-family: var(--font-display); letter-spacing: 2px; color: var(--gold); font-size: 13px; }
+        .how-pbig { font-family: var(--font-display); font-weight: 200; font-size: 26px; margin: 14px 0 4px; }
+        .how-pmeta { font-size: 11px; color: var(--text-tertiary); }
+        .how-qr { margin-top: 13px; height: 54px; width: 54px; border-radius: 7px; background-color: #fff; background-image: repeating-conic-gradient(#000 0 25%, #1a1a1a 0 50%); background-size: 8px 8px; border: 3px solid #000; }
+        .how-wel { text-align: center; margin-top: 13px; font-family: var(--font-display); font-weight: 300; font-size: 16px; opacity: 0; }
+        .how-scene.on .how-wel { animation: howSlide 0.6s var(--ease-out) 1s forwards; }
+        @keyframes howSlide { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
         /* Mobile: unpin and stack all steps as a normal list */
         @media (max-width: 899px) {
             .how-pin-wrap { height: auto; }
@@ -2470,6 +2502,8 @@
         }
         @media (prefers-reduced-motion: reduce) {
             .how-step { opacity: 1 !important; transform: none !important; filter: none !important; }
+            .how-scene { transition: none; }
+            .how-pass::after, .how-caret { animation: none !important; }
         }
     </style>
 <!-- BOOM_JSONLD:START -->
@@ -3108,8 +3142,40 @@
                     </div>
                 </div>
                 <div class="how-visual">
-                    <div class="how-visual-fill" id="howFill"></div>
-                    <div class="how-visual-num" id="howNum">01</div>
+                    <div class="how-bar"><i></i><i></i><i></i><span class="how-url">app.boomrome.com</span></div>
+                    <div class="how-screen">
+                        <div class="how-scene on" data-step="0">
+                            <div class="how-aptgrid">
+                                <div class="how-apt feat"><div class="how-ph"><span class="how-live">● LIVE 360°</span></div><div class="how-pr">€1.850</div></div>
+                                <div class="how-apt"><div class="how-ph"></div><div class="how-pr">€1.450</div></div>
+                                <div class="how-apt"><div class="how-ph"></div><div class="how-pr">€2.300</div></div>
+                                <div class="how-apt"><div class="how-ph"></div><div class="how-pr">€1.690</div></div>
+                            </div>
+                        </div>
+                        <div class="how-scene" data-step="1">
+                            <div class="how-form">
+                                <div class="how-field"><label>Full name</label><div class="how-inp" id="howName"></div></div>
+                                <div class="how-field"><label>Email</label><div class="how-inp" id="howEmail"></div></div>
+                                <div class="how-submit" id="howSubmit">Submit application</div>
+                            </div>
+                        </div>
+                        <div class="how-scene" data-step="2">
+                            <div class="how-contract">
+                                <div class="how-ln m"></div><div class="how-ln"></div><div class="how-ln s"></div>
+                                <div class="how-sig"><svg viewBox="0 0 240 54"><path d="M6 40 C 26 8, 40 8, 48 34 S 72 54, 86 30 C 96 14, 110 14, 116 36 C 134 6, 150 50, 176 22 C 192 6, 214 16, 232 30"/></svg></div>
+                                <div class="how-pay"><div class="how-amt">Total <b>€2.770</b></div><div class="how-paybtn" id="howPay">Pay with Stripe</div></div>
+                            </div>
+                        </div>
+                        <div class="how-scene" data-step="3">
+                            <div class="how-pass">
+                                <div class="how-ptop"><span class="how-pbrand">● BOOM</span><span>🔑</span></div>
+                                <div class="how-pbig">Apt. Ripetta</div>
+                                <div class="how-pmeta">Move-in confirmed · 48h</div>
+                                <div class="how-qr"></div>
+                            </div>
+                            <div class="how-wel">Welcome home. 🏛️</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -3651,25 +3717,43 @@
             });
         }
 
-        // 4) Pinned "How BOOM Works" story — steps advance as the section scrolls past
+        // 4) Pinned "How BOOM Works" — steps + in-device product film advance on scroll
         const howWrap = document.getElementById('howPinWrap');
         const howSteps = [...document.querySelectorAll('.how-step')];
         const howTracks = [...document.querySelectorAll('#howTrack span')];
-        const howFill = document.getElementById('howFill');
-        const howNum = document.getElementById('howNum');
+        const howScenes = [...document.querySelectorAll('.how-scene')];
         if (howWrap && howSteps.length) {
+            let howCur = -1;
             const isPinned = () => window.matchMedia('(min-width: 900px)').matches;
+            const howType = (el, text, sp, done) => {
+                el.textContent = ''; el.classList.add('focus');
+                const c = document.createElement('span'); c.className = 'how-caret'; el.appendChild(c);
+                let i = 0; (function st(){ if (i < text.length){ c.insertAdjacentText('beforebegin', text[i++]); setTimeout(st, sp); } else { el.classList.remove('focus'); c.remove(); done && done(); } })();
+            };
+            const howTrigger = (idx) => {
+                if (idx === 1) {
+                    const n = document.getElementById('howName'), e = document.getElementById('howEmail'), s = document.getElementById('howSubmit');
+                    if (n) { s.classList.remove('ready');
+                        if (prefersReduced) { n.textContent = 'Marco Rossi'; e.textContent = 'marco@email.com'; s.classList.add('ready'); }
+                        else howType(n, 'Marco Rossi', 70, () => howType(e, 'marco@email.com', 55, () => s.classList.add('ready')));
+                    }
+                }
+                if (idx === 2) { const p = document.getElementById('howPay'); if (p) { p.classList.remove('paid'); p.textContent = 'Pay with Stripe'; if (!prefersReduced) setTimeout(() => { p.classList.add('paid'); p.textContent = '✓ Paid'; }, 2400); } }
+            };
+            const setHow = (idx) => {
+                if (idx === howCur) return; howCur = idx;
+                howSteps.forEach((s, i) => s.classList.toggle('on', i === idx));
+                howScenes.forEach((s, i) => s.classList.toggle('on', i === idx));
+                howTracks.forEach((t, i) => t.classList.toggle('done', i <= idx));
+                howTrigger(idx);
+            };
             const updateHow = () => {
                 if (isPinned()) {
                     const y = getScrollY();
                     const h = howWrap.offsetHeight - window.innerHeight;
                     let p = h > 0 ? (y - howWrap.offsetTop) / h : 0;
-                    p = Math.max(0, Math.min(1, p));
-                    if (howFill) howFill.style.height = (p * 100) + '%';
-                    const idx = Math.min(howSteps.length - 1, Math.floor(p * howSteps.length));
-                    howSteps.forEach((s, i) => s.classList.toggle('on', i === idx));
-                    howTracks.forEach((t, i) => t.classList.toggle('done', i <= idx));
-                    if (howNum) howNum.textContent = String(idx + 1).padStart(2, '0');
+                    p = Math.max(0, Math.min(0.9999, p));
+                    setHow(Math.floor(p * howSteps.length));
                 }
                 requestAnimationFrame(updateHow);
             };
