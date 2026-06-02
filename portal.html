@@ -13248,7 +13248,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             
             // 3.7. Generate CAF asseverazione draft (if canone concordato)
             try { await generateCAFDraft(contractId); } catch(cafErr) { console.error('CAF draft:', cafErr); }
-            
+
+            // 3.8. Generate Apple Wallet pass for the tenant (best-effort)
+            let passGenerated = false;
+            try { await generateContractPasses(contractId); passGenerated = true; } catch (passErr) { console.error('Pass generation:', passErr); }
+
             // 4. Update contract with activation data
             await db.collection('contracts').doc(contractId).update({
                 paymentsGenerated: true,
@@ -13256,6 +13260,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 welcomeEmailSent: emailSent,
                 rliDraftGenerated: true,
                 cafDraftGenerated: (contract.cedolareSecca || 'si') !== 'no',
+                passGenerated: passGenerated,
                 activatedAt: firebase.firestore.FieldValue.serverTimestamp()
             });
             
@@ -17708,7 +17713,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         // Aggregated KPI across all real contracts
         const contracts = (S.contracts || []);
         const toSign = contracts.filter(c => c.status === 'active' && (!c.tenantSignature || !c.landlordSignature));
-        const toRegister = contracts.filter(c => c.tenantSignature && c.landlordSignature && (c.registrationStatus || 'pending') !== 'registered');
+        const fullySigned = contracts.filter(c => c.tenantSignature && c.landlordSignature);
+        const onboardingIncomplete = fullySigned.filter(c => !c.paymentsGenerated || !c.welcomeEmailSent);
+        const toRegister = fullySigned.filter(c => (c.registrationStatus || 'pending') !== 'registered');
         const rliDeadlines = (S.deadlines || []).filter(d => d.type === 'contract_registration' && d.status === 'pending');
         const overdueRli = rliDeadlines.filter(d => isOverdue(d.date));
         const completed = contracts.filter(c => c.registrationStatus === 'registered');
@@ -17726,8 +17733,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 </div>
             </div>
 
-            <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px">
+            <div class="stats-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:16px">
                 <div class="stat-card clickable" onclick="burocraziaTab='archivio';burocraziaFilter='toSign';renderPage()"><div class="stat-label">Da firmare</div><div class="stat-value ${toSign.length ? 'text-orange' : ''}">${toSign.length}</div></div>
+                <div class="stat-card clickable" onclick="burocraziaTab='archivio';burocraziaFilter='onboarding';renderPage()"><div class="stat-label">Onboarding incompleto</div><div class="stat-value ${onboardingIncomplete.length ? 'text-orange' : ''}">${onboardingIncomplete.length}</div></div>
                 <div class="stat-card clickable" onclick="burocraziaTab='archivio';burocraziaFilter='toRegister';renderPage()"><div class="stat-label">Da registrare</div><div class="stat-value ${toRegister.length ? 'text-orange' : ''}">${toRegister.length}</div></div>
                 <div class="stat-card clickable" onclick="burocraziaTab='archivio';burocraziaFilter='overdue';renderPage()"><div class="stat-label">RLI scadute</div><div class="stat-value ${overdueRli.length ? 'text-red' : ''}">${overdueRli.length}</div></div>
                 <div class="stat-card clickable" onclick="burocraziaTab='archivio';burocraziaFilter='done';renderPage()"><div class="stat-label">Registrate</div><div class="stat-value text-green">${completed.length}</div></div>
@@ -17770,6 +17778,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const rliDue = (S.deadlines || []).find(d => d.linkedContractId === c.id && d.type === 'contract_registration' && d.status === 'pending');
             const rliOverdue = rliDue && isOverdue(rliDue.date);
             if (burocraziaFilter === 'toSign') return c.status === 'active' && !signed;
+            if (burocraziaFilter === 'onboarding') return signed && (!c.paymentsGenerated || !c.welcomeEmailSent);
             if (burocraziaFilter === 'toRegister') return signed && !registered;
             if (burocraziaFilter === 'overdue') return !!rliOverdue;
             if (burocraziaFilter === 'done') return registered;
@@ -17791,6 +17800,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <div style="display:flex;gap:6px;flex-wrap:wrap">
                         ${filterChip('all', 'Tutti', contracts.length)}
                         ${filterChip('toSign', '✍️ Da firmare')}
+                        ${filterChip('onboarding', '🚀 Onboarding incompleto')}
                         ${filterChip('toRegister', '📝 Da registrare')}
                         ${filterChip('overdue', '⚠️ RLI scaduta')}
                         ${filterChip('done', '✓ Registrate')}
@@ -17828,6 +17838,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const rliBadge = rliDue ? (isOverdue(rliDue.date)
             ? `<span class="badge red" style="font-size:10px">⚠️ RLI scaduta ${Math.abs(daysUntil(rliDue.date))}gg fa</span>`
             : daysUntil(rliDue.date) <= 7 ? `<span class="badge orange" style="font-size:10px">⏱ RLI tra ${daysUntil(rliDue.date)}gg</span>` : '') : '';
+        const onbBadge = fullySigned && (!c.paymentsGenerated || !c.welcomeEmailSent)
+            ? `<span class="badge orange" style="font-size:10px" title="Pagamenti: ${c.paymentsGenerated ? '✓' : '·'} · Welcome: ${c.welcomeEmailSent ? '✓' : '·'} · Pass: ${c.passGenerated ? '✓' : '·'}">🚀 Onboarding incompleto</span>`
+            : '';
 
         // Missing-info detection — what we still need from tenant/landlord to file RLI
         const tMiss = [];
@@ -17848,7 +17861,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <span>${esc(prop.name || 'Immobile')} · ${esc(tenant.name || 'Inquilino')}</span>
                     <span class="badge ${signedT ? 'green' : 'gray'}" style="font-size:9px">T${signedT ? '✓' : '·'}</span>
                     <span class="badge ${signedL ? 'green' : 'gray'}" style="font-size:9px">L${signedL ? '✓' : '·'}</span>
-                    ${regBadge} ${asseveBadge} ${rliBadge}
+                    ${regBadge} ${asseveBadge} ${rliBadge} ${onbBadge}
                 </div>
                 <div class="list-subtitle" style="margin-top:4px">
                     ${esc(c.type || '—')} · €${c.rent || 0}/mo · ${fmtDate(c.startDate)} → ${fmtDate(c.endDate)}
@@ -17861,6 +17874,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     ${lMiss.length ? `<button class="btn btn-xs" onclick="sendMissingInfoLink('${c.id}','landlord')">📨 Link dati locatore</button>` : ''}
                     ${fullySigned && regStatus !== 'registered' ? `<button class="btn btn-xs" onclick="generateRLIDraft('${c.id}')">📝 Bozza RLI</button>` : ''}
                     ${fullySigned && regStatus !== 'registered' ? `<button class="btn btn-xs btn-success" onclick="markRegistered('${c.id}')">✓ Segna registrato</button>` : ''}
+                    ${fullySigned && !c.paymentsGenerated ? `<button class="btn btn-xs" style="background:var(--gold);color:#000;font-weight:600" onclick="reactivateContract('${c.id}')" title="Esegui di nuovo: pagamenti, welcome mail, RLI, CAF, Apple Pass">🚀 Ri-attiva onboarding</button>` : ''}
                     ${tenant.id ? `<button class="btn btn-xs btn-secondary" onclick="openPerson('${tenant.id}','user')">📂 360°</button>` : ''}
                 </div>
             </div>
@@ -17931,6 +17945,16 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         } catch (e) { console.error(e); toast('error', 'Errore: ' + e.message); }
     }
     window.markRegistered = markRegistered;
+
+    // ── Re-run the activation pipeline (payments + welcome + PDF + RLI + CAF + Pass)
+    // Useful when an auto-activation step failed silently (network, mail, signing device)
+    async function reactivateContract(contractId) {
+        if (!confirm('Ri-eseguire l’onboarding per questo contratto?\n\nVerranno (ri)generati: pagamenti mensili, PDF firmato, welcome mail, bozza RLI, bozza CAF, Apple Wallet pass.\n\nI passi già eseguiti potrebbero creare duplicati — controlla dopo.')) return;
+        toast('info', '⚡ Ri-attivazione in corso…');
+        try { await activateContract(contractId); }
+        catch (e) { console.error(e); toast('error', 'Errore: ' + e.message); }
+    }
+    window.reactivateContract = reactivateContract;
 
     function burocraziaRegistrazioni() {
         // Re-use existing registrations page content but without the page header
