@@ -7195,7 +7195,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const days = daysUntil(c.endDate);
             const exp = days !== null ? (days < 0 ? `<span class="badge red" style="font-size:10px">scaduto ${Math.abs(days)}gg</span>` : days <= 30 ? `<span class="badge orange" style="font-size:10px">scade tra ${days}gg</span>` : '') : '';
             const sigOk = c.tenantSignature && c.landlordSignature;
-            return `<div class="list-item clickable" onclick="viewContract('${c.id}')"><div class="list-icon">📋</div><div class="list-content"><div class="list-title">${prop?.name || 'Immobile'} ${sigOk ? '<span class="badge green" style="font-size:9px">✓ firmato</span>' : '<span class="badge orange" style="font-size:9px">in attesa firma</span>'} ${exp}</div><div class="list-subtitle">${c.type || 'contratto'} · €${c.rent}/mo · ${fmtDate(c.startDate)} → ${fmtDate(c.endDate)}</div></div></div>`;
+            return `<div class="list-item clickable" onclick="viewContract('${c.id}')"><div class="list-icon">📋</div><div class="list-content"><div class="list-title">${prop?.name || 'Immobile'} ${sigOk ? '<span class="badge green" style="font-size:9px">✓ firmato</span>' : '<span class="badge orange" style="font-size:9px">in attesa firma</span>'} ${exp}</div><div class="list-subtitle">${c.type || 'contratto'} · €${c.rent}/mo · ${fmtDate(c.startDate)} → ${fmtDate(c.endDate)}</div></div><button class="btn btn-xs" style="background:var(--gold);color:#000;font-weight:600;margin-right:8px" onclick="event.stopPropagation();openShareHub('${c.id}')" title="Tutti i link condivisibili">🔗</button></div>`;
         }).join('') : null;
 
         const paymentsBody = payments.length ? payments.slice(0, 8).map(p => {
@@ -12915,6 +12915,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 ${c.status === 'active' ? `<button class="btn btn-sm" style="background:var(--purple);color:white" onclick="generateDeadlinesForContract('${c.id}')" title="Genera scadenze automatiche">📅 Genera Scadenze</button>` : ''}
                 ${c.status === 'active' ? `<button class="btn btn-sm" style="background:var(--red);color:white" onclick="const cid='${c.id}';closeModal();setTimeout(()=>openModal('terminateContract',S.contracts.find(x=>x.id===cid)),250)">⛔ Termina</button>` : ''}
                 ${c.status === 'active' ? `<button class="btn btn-sm" style="background:var(--green);color:white" onclick="const cid='${c.id}';closeModal();setTimeout(()=>openModal('renewContract',S.contracts.find(x=>x.id===cid)),250)">🔄 Rinnova</button>` : ''}
+                <button class="btn btn-sm" style="background:var(--gold);color:#000;font-weight:600" onclick="closeModal();openShareHub('${c.id}')" title="Tutti i link condivisibili: firma, dati, pass, immobile">🔗 Link da condividere</button>
                 <button class="btn btn-secondary btn-sm" onclick="previewContractPDF('${c.id}')">👁 Anteprima</button>
                 <button class="btn btn-secondary btn-sm" onclick="downloadContractPDF('${c.id}')">📥 PDF</button>
                 <button class="btn btn-secondary btn-sm" onclick="regenerateContractPDF('${c.id}')" title="Rigenera Allegato B con dati aggiornati">🔄 Rigenera PDF</button>
@@ -18128,8 +18129,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">
                     <button class="btn btn-xs btn-secondary" onclick="viewContract('${c.id}')" title="Apri dettaglio contratto">📄 Dettaglio</button>
                     <button class="btn btn-xs btn-secondary" onclick="downloadContractPDF('${c.id}')" title="Scarica PDF firmato/da firmare">⬇️ PDF</button>
-                    ${hasMissing ? `<button class="btn btn-xs" onclick="sendMissingInfoLink('${c.id}','tenant')">📨 Link dati inquilino</button>` : ''}
-                    ${lMiss.length ? `<button class="btn btn-xs" onclick="sendMissingInfoLink('${c.id}','landlord')">📨 Link dati locatore</button>` : ''}
+                    <button class="btn btn-xs" style="background:var(--gold);color:#000;font-weight:600" onclick="openShareHub('${c.id}')" title="Tutti i link condivisibili: firma, dati, pass, immobile">🔗 Link</button>
+                    ${hasMissing ? `<button class="btn btn-xs btn-secondary" onclick="sendMissingInfoLink('${c.id}','tenant')" title="Solo link form dati inquilino">📨 Solo dati T</button>` : ''}
+                    ${lMiss.length ? `<button class="btn btn-xs btn-secondary" onclick="sendMissingInfoLink('${c.id}','landlord')" title="Solo link form dati locatore">📨 Solo dati L</button>` : ''}
                     ${fullySigned && regStatus !== 'registered' ? `<button class="btn btn-xs" onclick="generateRLIDraft('${c.id}')">📝 Bozza RLI</button>` : ''}
                     ${fullySigned && regStatus !== 'registered' ? `<button class="btn btn-xs btn-success" onclick="markRegistered('${c.id}')">✓ Segna registrato</button>` : ''}
                     ${fullySigned && !c.paymentsGenerated ? `<button class="btn btn-xs" style="background:var(--gold);color:#000;font-weight:600" onclick="reactivateContract('${c.id}')" title="Esegui di nuovo: pagamenti, welcome mail, RLI, CAF, Apple Pass">🚀 Ri-attiva onboarding</button>` : ''}
@@ -18173,6 +18175,193 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         </div></div>`;
     }
     window.sendMissingInfoLink = sendMissingInfoLink;
+
+    // 🔗 Share Hub — single place that surfaces every shareable link for a contract
+    // and *backfills missing tokens on the fly* so legacy contracts (created before
+    // the wizard) also get magic-sign + form links without manual fix-ups.
+    async function openShareHub(contractId) {
+        const c = (S.contracts || []).find(x => x.id === contractId);
+        if (!c) return toast('error', 'Contratto non trovato');
+        const prop = (S.properties || []).find(p => p.id === c.propertyId);
+        const tenant = (S.users || []).find(u => u.id === c.tenantId);
+        const landlord = prop ? (S.users || []).find(u => u.id === prop.ownerId) : null;
+
+        // Backfill any missing token in a single Firestore write
+        const mk = () => (crypto.randomUUID ? crypto.randomUUID() : 'tk-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10));
+        const updates = {};
+        if (!c.tenantSignToken && !c.tenantSignature)   { updates.tenantSignToken   = mk(); c.tenantSignToken   = updates.tenantSignToken; }
+        if (!c.landlordSignToken && !c.landlordSignature) { updates.landlordSignToken = mk(); c.landlordSignToken = updates.landlordSignToken; }
+        if (Object.keys(updates).length) {
+            try { await db.collection('contracts').doc(contractId).update(updates); }
+            catch (e) { console.warn('[shareHub backfill]', e); }
+        }
+
+        const base = window.location.origin;
+        // ---- Build the link catalogue ----
+        const links = [];
+
+        // Tenant: magic-sign
+        if (!c.tenantSignature && c.tenantSignToken) {
+            links.push({
+                audience: 'tenant', icon: '🖋️', title: 'Firma il contratto',
+                subtitle: 'Magic Sign — firma da telefono, accetta termini, genera PDF',
+                url: `${base}/portal.html?sign=${encodeURIComponent(c.tenantSignToken)}`,
+                target: tenant,
+                waText: (n) => `Ciao ${n}, ecco il link per firmare il contratto di locazione per ${prop?.name || 'l\'immobile'}. Si firma direttamente dal telefono: {URL}\n\n— BOOM Roma`,
+                emailSubj: `BOOM · Firma contratto ${prop?.name || ''}`.trim(),
+                emailBody: (n) => `Ciao ${n},\n\nti inviamo il link per la firma digitale del contratto di locazione per ${prop?.name || 'l\'immobile'}.\nPuoi firmare direttamente dal tuo telefono o computer:\n\n{URL}\n\nGrazie,\nBOOM Roma`
+            });
+        }
+        // Tenant: anagrafica form
+        if (tenant) {
+            const t = c.tenantSignToken ? `&t=${encodeURIComponent(c.tenantSignToken)}` : '';
+            links.push({
+                audience: 'tenant', icon: '📋', title: 'Compila i tuoi dati',
+                subtitle: 'CF, indirizzo, documento — sblocca la registrazione AdE',
+                url: `${base}/form-tenant.html?contract=${encodeURIComponent(contractId)}${t}`,
+                target: tenant,
+                waText: (n) => `Ciao ${n}, per la registrazione del contratto AdE servono ancora qualche dato in più. Lo compili qui in 2 min: {URL}\n\n— BOOM Roma`,
+                emailSubj: 'BOOM · Dati per registrazione contratto',
+                emailBody: (n) => `Ciao ${n},\n\nper completare la registrazione del contratto all'Agenzia delle Entrate ci servono ancora alcuni dati anagrafici.\nLi puoi inserire qui (2 minuti):\n\n{URL}\n\nGrazie,\nBOOM Roma`
+            });
+        }
+        // Tenant: Apple Wallet pass (if already generated during onboarding)
+        if (tenant && c.tenantPassUrl) {
+            links.push({
+                audience: 'tenant', icon: '🎟️', title: 'Apple Wallet pass',
+                subtitle: 'Pass digitale con codice, IBAN e scadenza affitto',
+                url: c.tenantPassUrl,
+                target: tenant,
+                waText: (n) => `${n}, ecco il tuo pass BOOM per Apple Wallet — IBAN, scadenze e dettagli sempre con te: {URL}`,
+                emailSubj: 'BOOM · Il tuo Apple Wallet pass',
+                emailBody: (n) => `Ciao ${n},\n\necco il tuo pass digitale BOOM. Aprilo sul tuo iPhone per aggiungerlo al Wallet:\n\n{URL}\n\nBOOM Roma`
+            });
+        }
+        // Public property link (useful for both)
+        if (prop) {
+            const slug = prop.slug || prop.id;
+            links.push({
+                audience: 'tenant', icon: '🏠', title: 'Pagina pubblica immobile',
+                subtitle: 'Foto, descrizione, contatti — da condividere o linkare',
+                url: `${base}/apartment-detail.html?id=${encodeURIComponent(slug)}`,
+                target: tenant,
+                waText: (n) => `Ciao ${n}, ecco la pagina del tuo nuovo appartamento ${prop.name}: {URL}`,
+                emailSubj: `BOOM · ${prop.name}`,
+                emailBody: (n) => `Ciao ${n},\n\necco la pagina dedicata a ${prop.name}:\n\n{URL}\n\nBOOM Roma`
+            });
+        }
+
+        // Landlord: magic-sign
+        if (!c.landlordSignature && c.landlordSignToken) {
+            links.push({
+                audience: 'landlord', icon: '🖋️', title: 'Firma il contratto',
+                subtitle: 'Firma da telefono come locatore',
+                url: `${base}/portal.html?sign=${encodeURIComponent(c.landlordSignToken)}`,
+                target: landlord,
+                waText: (n) => `Ciao ${n}, ecco il link per firmare il contratto di locazione di ${prop?.name || 'l\'immobile'} come proprietario. Si firma dal telefono: {URL}\n\n— BOOM Roma`,
+                emailSubj: `BOOM · Firma contratto ${prop?.name || ''}`.trim(),
+                emailBody: (n) => `Gentile ${n},\n\ntrova allegato il link per la firma digitale del contratto di locazione di ${prop?.name || 'l\'immobile'}.\nPuò firmare dal Suo telefono o computer:\n\n{URL}\n\nCordiali saluti,\nBOOM Roma`
+            });
+        }
+        // Landlord: anagrafica form
+        if (landlord) {
+            const l = c.landlordSignToken ? `&t=${encodeURIComponent(c.landlordSignToken)}` : '';
+            links.push({
+                audience: 'landlord', icon: '📋', title: 'Compila i tuoi dati',
+                subtitle: 'CF, IBAN, dati catastali — necessari per RLI',
+                url: `${base}/form-landlord.html?contract=${encodeURIComponent(contractId)}${l}`,
+                target: landlord,
+                waText: (n) => `Gentile ${n}, per la registrazione del contratto all'AdE ci servono i Suoi dati anagrafici e l'IBAN. Li può inserire qui: {URL}\n\n— BOOM Roma`,
+                emailSubj: 'BOOM · Dati per registrazione contratto',
+                emailBody: (n) => `Gentile ${n},\n\nper completare la registrazione del contratto all'Agenzia delle Entrate ci servono i Suoi dati anagrafici e bancari (IBAN per gli incassi affitto).\nLi può inserire qui:\n\n{URL}\n\nCordiali saluti,\nBOOM Roma`
+            });
+        }
+        // Landlord: Apple Wallet pass
+        if (landlord && c.landlordPassUrl) {
+            links.push({
+                audience: 'landlord', icon: '🎟️', title: 'Apple Wallet pass',
+                subtitle: 'Pass digitale con dati contratto e contatto inquilino',
+                url: c.landlordPassUrl,
+                target: landlord,
+                waText: (n) => `${n}, ecco il pass BOOM proprietario per Apple Wallet: {URL}`,
+                emailSubj: 'BOOM · Il Suo Apple Wallet pass',
+                emailBody: (n) => `Gentile ${n},\n\necco il pass digitale BOOM proprietario. Lo apra dal Suo iPhone per aggiungerlo al Wallet:\n\n{URL}\n\nBOOM Roma`
+            });
+        }
+        // Landlord: portal access
+        if (landlord) {
+            links.push({
+                audience: 'landlord', icon: '📊', title: 'Accedi al portale proprietari',
+                subtitle: 'Dashboard incassi, contratti, manutenzioni',
+                url: `${base}/portal.html`,
+                target: landlord,
+                waText: (n) => `Gentile ${n}, può accedere al portale BOOM proprietari qui (login con email ${landlord.email || ''}): {URL}`,
+                emailSubj: 'BOOM · Accesso portale proprietari',
+                emailBody: (n) => `Gentile ${n},\n\npuò accedere al portale BOOM proprietari per vedere incassi, contratti e manutenzioni:\n\n{URL}\n\nLogin con la Sua email: ${landlord.email || ''}\n\nBOOM Roma`
+            });
+        }
+
+        // ---- Render ----
+        const cardHtml = (lk, idx) => {
+            const t = lk.target || {};
+            const name = (t.name || '').split(' ')[0] || (lk.audience === 'tenant' ? 'amico' : 'gentile cliente');
+            const phone = (t.phone || '').replace(/\D/g, '');
+            const waMsg = lk.waText(name).replace('{URL}', lk.url);
+            const emailBody = lk.emailBody(name).replace('{URL}', lk.url);
+            const waUrl   = phone ? `https://wa.me/${phone}?text=${encodeURIComponent(waMsg)}` : '';
+            const mailUrl = t.email ? `mailto:${t.email}?subject=${encodeURIComponent(lk.emailSubj)}&body=${encodeURIComponent(emailBody)}` : '';
+            const inputId = 'shareUrl_' + idx;
+            return `<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px">
+                <div style="display:flex;align-items:start;gap:10px;margin-bottom:8px">
+                    <div style="font-size:22px;line-height:1">${lk.icon}</div>
+                    <div style="flex:1;min-width:0">
+                        <div style="font-weight:600;font-size:13px">${esc(lk.title)}</div>
+                        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">${esc(lk.subtitle)}</div>
+                    </div>
+                </div>
+                <div style="display:flex;gap:6px;margin-bottom:8px">
+                    <input type="text" id="${inputId}" class="form-input" readonly value="${esc(lk.url)}" style="flex:1;font-family:monospace;font-size:10px;padding:6px 8px">
+                    <button class="btn btn-xs" onclick="(function(){var el=document.getElementById('${inputId}');navigator.clipboard.writeText(el.value).then(()=>{el.style.borderColor='var(--green)';toast('success','Link copiato');setTimeout(()=>el.style.borderColor='',1200);});})()" title="Copia link">📋</button>
+                </div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap">
+                    ${waUrl
+                        ? `<a href="${waUrl}" target="_blank" class="btn btn-xs btn-success">💬 WhatsApp</a>`
+                        : `<span class="btn btn-xs btn-secondary" style="opacity:0.4;cursor:not-allowed" title="Manca il telefono">💬 WA</span>`}
+                    ${mailUrl
+                        ? `<a href="${mailUrl}" class="btn btn-xs btn-secondary">📧 Email</a>`
+                        : `<span class="btn btn-xs btn-secondary" style="opacity:0.4;cursor:not-allowed" title="Manca l'email">📧 Email</span>`}
+                    <button class="btn btn-xs btn-secondary" onclick="window.open('${lk.url}','_blank')">🔗 Apri</button>
+                </div>
+            </div>`;
+        };
+
+        const tenantLinks  = links.filter(l => l.audience === 'tenant');
+        const landlordLinks = links.filter(l => l.audience === 'landlord');
+
+        const colHtml = (title, who, list) => `<div>
+            <div style="font-size:11px;letter-spacing:1.5px;color:var(--gold);margin-bottom:10px;display:flex;align-items:center;gap:6px">
+                ${title} ${who ? `<span style="color:var(--text-muted);letter-spacing:0">· ${esc(who.name || '')}</span>` : ''}
+            </div>
+            ${list.length ? list.map((l, i) => cardHtml(l, title.charAt(0) + i)).join('') : '<div style="font-size:12px;color:var(--text-muted);padding:14px;text-align:center;border:1px dashed var(--border);border-radius:10px">Nessun link disponibile</div>'}
+        </div>`;
+
+        const propLabel = prop?.name || 'contratto';
+        document.getElementById('modals').innerHTML = `<div class="modal-overlay active" onclick="if(event.target===this)closeModal()"><div class="modal lg">
+            <div class="modal-header">
+                <h3 class="modal-title">🔗 Link da condividere — ${esc(propLabel)}</h3>
+                <button class="modal-close" onclick="closeModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div style="margin-bottom:14px;font-size:12px;color:var(--text-muted)">Tutti i link sono pronti all'uso. I token mancanti sono stati generati automaticamente. Per ogni link puoi copiare, mandare via WhatsApp o aprire un'email pre-compilata.</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
+                    ${colHtml('👤 INQUILINO',  tenant,   tenantLinks)}
+                    ${colHtml('🏠 LOCATORE',  landlord, landlordLinks)}
+                </div>
+            </div>
+            <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Chiudi</button></div>
+        </div></div>`;
+    }
+    window.openShareHub = openShareHub;
 
     // ── Download the contract PDF (reuses the existing generator at line 13792)
     async function downloadContractPDF(contractId) {
