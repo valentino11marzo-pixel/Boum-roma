@@ -2505,8 +2505,9 @@
 .pfs-match{display:flex;align-items:center;gap:12px;padding:12px 13px;border-radius:11px;border:1px solid var(--border-default);background:rgba(255,255,255,0.02);opacity:0;transform:translateY(10px)}
 .pfs-match.show{animation:pfsRise .55s var(--ease-out) forwards}
 @keyframes pfsRise{to{opacity:1;transform:none}}
-.pfs-mph{width:46px;height:46px;border-radius:9px;background:linear-gradient(135deg,#1b1b20,#0e0e12);position:relative;flex-shrink:0}
-.pfs-mph::after{content:'';position:absolute;inset:0;border-radius:9px;background:radial-gradient(circle at 70% 25%,rgba(255,215,0,.16),transparent 60%)}
+.pfs-mph{width:46px;height:46px;border-radius:9px;background:linear-gradient(135deg,#1b1b20,#0e0e12);position:relative;flex-shrink:0;overflow:hidden}
+.pfs-mph::after{content:'';position:absolute;inset:0;z-index:1;border-radius:9px;background:radial-gradient(circle at 70% 25%,rgba(255,215,0,.16),transparent 60%)}
+.pfs-mph img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}
 .pfs-minfo{flex:1;min-width:0}
 .pfs-mtitle{font-size:13px;display:flex;align-items:center;gap:7px}
 .pfs-tag-off{font-size:9px;letter-spacing:.5px;text-transform:uppercase;color:var(--green);border:1px solid rgba(0,255,136,.3);padding:2px 6px;border-radius:100px}
@@ -2783,9 +2784,9 @@
                 <div class="pfs-reqs"><span class="pfs-req">Parioli · Trieste</span><span class="pfs-req">€1.5–2.2k</span><span class="pfs-req">2 bed</span><span class="pfs-req">Balcony</span><span class="pfs-req">Pet-friendly</span></div>
                 <div class="pfs-scan"><span class="pfs-scanbar"></span>Scanning off-market network…</div>
                 <div class="pfs-matches" id="pfsMatches">
-                    <div class="pfs-match"><div class="pfs-mph"></div><div class="pfs-minfo"><div class="pfs-mtitle">Corso Trieste <span class="pfs-tag-off">Off-market</span></div><div class="pfs-mmeta">2 bed · 78 m² · balcony</div></div><div class="pfs-mprice">€1.850</div></div>
-                    <div class="pfs-match"><div class="pfs-mph"></div><div class="pfs-minfo"><div class="pfs-mtitle">Pinciano <span class="pfs-tag-off">Off-market</span></div><div class="pfs-mmeta">2 bed · 85 m² · elevator</div></div><div class="pfs-mprice">€2.050</div></div>
-                    <div class="pfs-match"><div class="pfs-mph"></div><div class="pfs-minfo"><div class="pfs-mtitle">Salario <span class="pfs-tag-off">Curated</span></div><div class="pfs-mmeta">2 bed · 72 m² · renovated</div></div><div class="pfs-mprice">€1.690</div></div>
+                    <div class="pfs-match"><div class="pfs-mph"><img src="https://i.imgur.com/hxai5bz.jpeg" alt="" loading="lazy" decoding="async" onerror="this.style.display='none'"></div><div class="pfs-minfo"><div class="pfs-mtitle">Corso Trieste <span class="pfs-tag-off">Off-market</span></div><div class="pfs-mmeta">2 bed · 78 m² · balcony</div></div><div class="pfs-mprice">€1.850</div></div>
+                    <div class="pfs-match"><div class="pfs-mph"><img src="https://i.imgur.com/8LVxrhs.jpeg" alt="" loading="lazy" decoding="async" onerror="this.style.display='none'"></div><div class="pfs-minfo"><div class="pfs-mtitle">Pinciano <span class="pfs-tag-off">Off-market</span></div><div class="pfs-mmeta">2 bed · 85 m² · elevator</div></div><div class="pfs-mprice">€2.050</div></div>
+                    <div class="pfs-match"><div class="pfs-mph"><img src="https://i.imgur.com/tJnYADn.jpeg" alt="" loading="lazy" decoding="async" onerror="this.style.display='none'"></div><div class="pfs-minfo"><div class="pfs-mtitle">Salario <span class="pfs-tag-off">Curated</span></div><div class="pfs-mmeta">2 bed · 72 m² · renovated</div></div><div class="pfs-mprice">€1.690</div></div>
                 </div>
             </div>
         </div>

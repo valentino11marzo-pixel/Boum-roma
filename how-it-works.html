@@ -2483,7 +2483,10 @@
 .hiw-aptgrid{display:grid;grid-template-columns:1fr 1fr;gap:13px;margin-top:6px}
 .hiw-apt{border-radius:12px;overflow:hidden;border:1px solid var(--border-default);background:var(--surface)}
 .hiw-ph{height:74px;background:linear-gradient(135deg,#1b1b20,#0e0e12);position:relative}
-.hiw-ph::after{content:'';position:absolute;inset:0;background:radial-gradient(circle at 75% 25%,rgba(255,215,0,.14),transparent 55%)}
+.hiw-ph::after{content:'';position:absolute;inset:0;z-index:1;background:radial-gradient(circle at 75% 25%,rgba(255,215,0,.14),transparent 55%)}
+.hiw-ph img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}
+.hiw-scene.on .hiw-ph img{animation:hiwKen 9s ease-out both}
+@keyframes hiwKen{from{transform:scale(1.12)}to{transform:scale(1.02)}}
 .hiw-live{position:absolute;top:8px;left:8px;z-index:2;font-size:9px;letter-spacing:.5px;color:#fff;background:rgba(0,0,0,.55);border:1px solid rgba(0,255,136,.4);padding:3px 7px;border-radius:100px}
 .hiw-am{padding:9px 11px;display:flex;flex-direction:column;gap:2px}
 .hiw-price{font-family:var(--font-display);color:var(--gold);font-size:14px}
@@ -2633,7 +2636,8 @@
 /* vv app */
 .hiw-vv{position:relative;height:180px;margin:0;background:linear-gradient(135deg,#1a1a20,#0c0c10);display:flex;align-items:center;justify-content:center}
 .hiw-svc-card .hiw-vv{border-radius:0}
-.hiw-vv::after{content:'';position:absolute;inset:0;background:radial-gradient(circle at 50% 60%,rgba(255,215,0,.12),transparent 60%)}
+.hiw-vv::after{content:'';position:absolute;inset:0;z-index:1;background:radial-gradient(circle at 50% 60%,rgba(255,215,0,.12),transparent 60%),linear-gradient(180deg,rgba(0,0,0,.1),rgba(0,0,0,.35))}
+.hiw-vv img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;filter:brightness(.9)}
 .hiw-live{position:absolute;top:12px;left:12px}
 .hiw-play{position:relative;z-index:2;width:52px;height:52px;border-radius:50%;border:none;background:rgba(255,215,0,.92);color:#000;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 0 rgba(255,215,0,.5);animation:hiwPing 2.2s infinite}
 @keyframes hiwPing{0%{box-shadow:0 0 0 0 rgba(255,215,0,.45)}70%{box-shadow:0 0 0 16px rgba(255,215,0,0)}100%{box-shadow:0 0 0 0 rgba(255,215,0,0)}}
@@ -2843,10 +2847,10 @@
                         <!-- 1 browse + virtual viewing -->
                         <div class="hiw-scene on" data-i="0"><span class="hiw-slabel">Listings · 360° tour</span>
                             <div class="hiw-aptgrid">
-                                <div class="hiw-apt feat"><div class="hiw-ph"><span class="hiw-live">● LIVE 360°</span></div><div class="hiw-am"><span class="hiw-price">€1.850</span><span class="hiw-addr">Ripetta · Centro</span></div></div>
-                                <div class="hiw-apt"><div class="hiw-ph"></div><div class="hiw-am"><span class="hiw-price">€1.450</span><span class="hiw-addr">Pigneto</span></div></div>
-                                <div class="hiw-apt"><div class="hiw-ph"></div><div class="hiw-am"><span class="hiw-price">€2.300</span><span class="hiw-addr">Navona</span></div></div>
-                                <div class="hiw-apt"><div class="hiw-ph"></div><div class="hiw-am"><span class="hiw-price">€1.690</span><span class="hiw-addr">Trastevere</span></div></div>
+                                <div class="hiw-apt feat"><div class="hiw-ph"><img src="https://i.imgur.com/hxai5bz.jpeg" alt="" loading="lazy" decoding="async" onerror="this.style.display='none'"><span class="hiw-live">● LIVE 360°</span></div><div class="hiw-am"><span class="hiw-price">€1.850</span><span class="hiw-addr">Ripetta · Centro</span></div></div>
+                                <div class="hiw-apt"><div class="hiw-ph"><img src="https://i.imgur.com/tJnYADn.jpeg" alt="" loading="lazy" decoding="async" onerror="this.style.display='none'"></div><div class="hiw-am"><span class="hiw-price">€1.450</span><span class="hiw-addr">Pigneto</span></div></div>
+                                <div class="hiw-apt"><div class="hiw-ph"><img src="https://i.imgur.com/8LVxrhs.jpeg" alt="" loading="lazy" decoding="async" onerror="this.style.display='none'"></div><div class="hiw-am"><span class="hiw-price">€2.300</span><span class="hiw-addr">Navona</span></div></div>
+                                <div class="hiw-apt"><div class="hiw-ph"><img src="https://i.imgur.com/s2es0MN.jpeg" alt="" loading="lazy" decoding="async" onerror="this.style.display='none'"></div><div class="hiw-am"><span class="hiw-price">€1.690</span><span class="hiw-addr">Marconi</span></div></div>
                             </div>
                         </div>
 
@@ -2962,7 +2966,7 @@
                 <a class="hiw-svc-card" href="/virtual-viewing.html">
                     <div class="hiw-svc-app">
                         <div class="hiw-bar small"><i></i><i></i><i></i><span class="hiw-url">app.boomrome.com/viewing</span></div>
-                        <div class="hiw-vv"><span class="hiw-live">● LIVE 360°</span><button class="hiw-play" aria-hidden="true">▶</button><span class="hiw-vv-time">04:12</span></div>
+                        <div class="hiw-vv"><img src="https://i.imgur.com/9CI1JnI.jpeg" alt="" loading="lazy" decoding="async" onerror="this.style.display='none'"><span class="hiw-live">● LIVE 360°</span><button class="hiw-play" aria-hidden="true">▶</button><span class="hiw-vv-time">04:12</span></div>
                     </div>
                     <div class="hiw-svc-meta">
                         <h3 class="hiw-svc-h">Virtual Viewing</h3>
