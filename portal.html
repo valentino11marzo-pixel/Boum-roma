@@ -4724,6 +4724,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <p class="dash-hero-sub">${new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })} · ${heroLine}</p>
                 </div>
                 <div class="dash-hero-actions">
+                    <button class="btn btn-sm" onclick="openNewClientWizard()" title="Workflow guidato: anagrafica → immobile → firma" style="background:var(--gold);color:#000;font-weight:600">🚀 Nuovo cliente</button>
                     <div class="lang-selector"><button class="lang-btn ${S.lang === 'IT' ? 'active' : ''}" onclick="setLang('IT')">🇮🇹</button><button class="lang-btn ${S.lang === 'EN' ? 'active' : ''}" onclick="setLang('EN')">🇬🇧</button></div>
                     <button class="btn btn-sm btn-secondary" onclick="forceRefreshData()" title="Ricarica">🔄</button>
                     <button class="btn btn-sm" onclick="goTo('rules')">⚡ ${activeRules}</button>
@@ -6601,7 +6602,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 '<button class="btn btn-danger btn-sm" onclick="discardLead(\'' + l.id + '\');closeModal();">\u2715 Scarta</button>' +
                 (l.phone ? '<a href="https://wa.me/' + (l.phone || '').replace(/[^0-9+]/g, '') + '" target="_blank" class="btn btn-success btn-sm">\uD83D\uDCAC WhatsApp</a>' : '') +
                 '<button class="btn btn-secondary btn-sm" onclick="closeModal();openPerson(\'' + l.id + '\',\'lead\')">\uD83D\uDCC2 Scheda 360\u00B0</button>' +
-                '<button class="btn" onclick="convertLeadToClient(\'' + l.id + '\');closeModal();">\u2192 Converti in Client</button>' +
+                '<button class="btn" onclick="closeModal();openNewClientWizard(\'lead\',\'' + l.id + '\')">\uD83D\uDE80 Lead \u2192 contratto</button>' +
             '</div>' +
         '</div></div>';
     }
@@ -6729,6 +6730,365 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // ═══════════════════════════════════════════════════════════════════════════
     
     let clientiView = 'overview'; // overview | pipeline | list | analytics
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // WIZARD: "Nuovo cliente → contratto firmato"
+    // Guided 4-step flow that takes a lead/pfsClient/crmClient (or nothing)
+    // through Anagrafica → Immobile + canone → Conferma → Crea & manda firma.
+    // Reuses saveContract + crypto-randomUUID() tokens. No new collections.
+    // ═══════════════════════════════════════════════════════════════════════
+
+    // Wizard state. Populated by openNewClientWizard() and step transitions.
+    let _newClientWizard = null;
+
+    function openNewClientWizard(sourceKind, sourceId) {
+        // sourceKind: 'lead' | 'pfsClient' | 'crmClient' | undefined (blank)
+        let prefill = { name: '', email: '', phone: '', language: 'it', zone: '', budget: 0, propertyId: '', propertyTitle: '', codiceFiscale: '', address: '' };
+        if (sourceKind === 'lead' && sourceId) {
+            const l = (S.leads || []).find(x => x.id === sourceId) || {};
+            Object.assign(prefill, { name: l.name || '', email: l.email || '', phone: l.phone || '', language: (l.language || 'it').toLowerCase(), zone: l.zone || '', budget: l.budget || 0, propertyTitle: l.propertyTitle || '' });
+        } else if (sourceKind === 'pfsClient' && sourceId) {
+            const c = (S.pfsClients || []).find(x => x.id === sourceId) || {};
+            Object.assign(prefill, { name: c.name || '', email: c.email || '', phone: c.phone || '', zone: c.zone || '', budget: c.budget || 0 });
+        } else if (sourceKind === 'crmClient' && sourceId) {
+            const c = (S.clients || []).find(x => x.id === sourceId) || {};
+            Object.assign(prefill, { name: c.name || '', email: c.email || '', phone: c.phone || '' });
+        }
+        _newClientWizard = {
+            step: 1, sourceKind: sourceKind || null, sourceId: sourceId || null,
+            // Step 2 — tenant identity
+            name: prefill.name, email: prefill.email, phone: prefill.phone, language: prefill.language,
+            codiceFiscale: '', birthDate: '', birthPlace: '', address: '', idDocType: '', idDocNumber: '',
+            // Step 3 — property + contract terms
+            propertyId: prefill.propertyId, type: 'transitorio',
+            startDate: new Date().toISOString().slice(0, 10),
+            endDate: '',
+            rent: prefill.budget || 0,
+            depositMonths: 2,
+            paymentDay: 5,
+            paymentMethod: 'bonifico bancario',
+            cedolareSecca: 'si',
+        };
+        renderNewClientWizard();
+    }
+    window.openNewClientWizard = openNewClientWizard;
+
+    function renderNewClientWizard() {
+        const w = _newClientWizard;
+        if (!w) return;
+        const dot = (n) => `<div style="width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;background:${w.step >= n ? 'var(--gold)' : 'var(--bg-elevated)'};color:${w.step >= n ? '#000' : 'var(--text-muted)'}">${n}</div>`;
+        const stepper = `<div style="display:flex;align-items:center;gap:6px;padding:0 4px 14px;font-size:12px;color:var(--text-muted)">
+            ${dot(1)} <span style="${w.step===1?'color:var(--gold);font-weight:600':''}">Origine</span>
+            <span>—</span>
+            ${dot(2)} <span style="${w.step===2?'color:var(--gold);font-weight:600':''}">Anagrafica</span>
+            <span>—</span>
+            ${dot(3)} <span style="${w.step===3?'color:var(--gold);font-weight:600':''}">Immobile + canone</span>
+            <span>—</span>
+            ${dot(4)} <span style="${w.step===4?'color:var(--gold);font-weight:600':''}">Conferma & firma</span>
+        </div>`;
+
+        let body = '', footer = '';
+
+        if (w.step === 1) {
+            const sourceLabel = w.sourceKind === 'lead' ? '📨 Lead' : w.sourceKind === 'pfsClient' ? '💼 Cliente PFS' : w.sourceKind === 'crmClient' ? '🤝 Cliente CRM' : null;
+            body = `
+                <div style="background:var(--bg-elevated);padding:14px;border-radius:10px;margin-bottom:12px">
+                    <div style="font-weight:600;margin-bottom:6px">Da dove parti?</div>
+                    <div style="font-size:13px;color:var(--text-muted)">${sourceLabel
+                        ? `Stai partendo da <strong style="color:var(--gold)">${sourceLabel}</strong>: i dati sono già pre-compilati nei prossimi step.`
+                        : 'Partirai da zero. Puoi anche tornare indietro e selezionare un lead o un cliente PFS esistente.'}</div>
+                </div>
+                <div class="form-group"><label class="form-label">Nome cliente *</label><input type="text" class="form-input" id="wzName" value="${esc(w.name)}" placeholder="Mario Rossi"></div>
+                <div class="form-row">
+                    <div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" id="wzEmail" value="${esc(w.email)}"></div>
+                    <div class="form-group"><label class="form-label">Telefono *</label><input type="tel" class="form-input" id="wzPhone" value="${esc(w.phone)}" placeholder="+39 333 1234567"></div>
+                </div>
+                <div class="form-group"><label class="form-label">Lingua preferita</label><select class="form-select" id="wzLang"><option value="it" ${w.language==='it'?'selected':''}>🇮🇹 Italiano</option><option value="en" ${w.language==='en'?'selected':''}>🇬🇧 English</option></select></div>
+            `;
+            footer = `<button class="btn btn-secondary" onclick="closeWizard()">Annulla</button><button class="btn" onclick="wizardStep1Next()">Avanti →</button>`;
+        }
+
+        else if (w.step === 2) {
+            body = `
+                <div style="background:rgba(212,175,55,0.08);border:1px solid rgba(212,175,55,0.3);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:var(--text-muted)">
+                    <strong style="color:var(--gold)">📋 Anagrafica CAF</strong> · I campi marcati * servono per generare contratti CAF-compliant. Se non li hai ora, puoi compilarli più tardi nella scheda inquilino.
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label class="form-label">Codice Fiscale</label><input type="text" class="form-input" id="wzCF" value="${esc(w.codiceFiscale)}" maxlength="16" style="text-transform:uppercase" placeholder="RSSMRA85M01H501Z"></div>
+                    <div class="form-group"><label class="form-label">Indirizzo residenza</label><input type="text" class="form-input" id="wzAddress" value="${esc(w.address)}" placeholder="Via Roma 123, 00100 Roma"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label class="form-label">Data di nascita</label><input type="date" class="form-input" id="wzBirthDate" value="${esc(w.birthDate)}"></div>
+                    <div class="form-group"><label class="form-label">Luogo di nascita</label><input type="text" class="form-input" id="wzBirthPlace" value="${esc(w.birthPlace)}" placeholder="Roma (RM)"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label class="form-label">Tipo documento</label><select class="form-select" id="wzIdType"><option value="">—</option>${['Carta d’identità','Passaporto','Patente','Permesso di soggiorno'].map(x=>`<option value="${x}" ${w.idDocType===x?'selected':''}>${x}</option>`).join('')}</select></div>
+                    <div class="form-group"><label class="form-label">N° documento</label><input type="text" class="form-input" id="wzIdNum" value="${esc(w.idDocNumber)}"></div>
+                </div>
+            `;
+            footer = `<button class="btn btn-secondary" onclick="wizardBack()">← Indietro</button><button class="btn" onclick="wizardStep2Next()">Avanti →</button>`;
+        }
+
+        else if (w.step === 3) {
+            const propOptions = (S.properties || []).filter(p => p.availabilityStatus !== 'rented').map(p => `<option value="${p.id}" data-rent="${p.rent || 0}" ${w.propertyId===p.id?'selected':''}>${esc(p.name)} · €${p.rent || 0}/mo · ${p.address || ''}</option>`).join('');
+            // Auto-compute endDate based on type if not set
+            if (!w.endDate && w.startDate) {
+                const months = w.type === 'studenti' ? 12 : 18;
+                const d = new Date(w.startDate); d.setMonth(d.getMonth() + months);
+                w.endDate = d.toISOString().slice(0, 10);
+            }
+            body = `
+                <div class="form-group"><label class="form-label">Immobile *</label><select class="form-select" id="wzProp" onchange="wizardSyncRent()">${propOptions ? '<option value="">Seleziona...</option>' + propOptions : '<option value="">⚠️ Nessun immobile disponibile — aggiungine uno prima</option>'}</select></div>
+                <div class="form-row">
+                    <div class="form-group"><label class="form-label">Tipo contratto</label><select class="form-select" id="wzType" onchange="wizardSyncDates()"><option value="transitorio" ${w.type==='transitorio'?'selected':''}>Transitorio (18 mesi)</option><option value="studenti" ${w.type==='studenti'?'selected':''}>Studenti (12 mesi)</option></select></div>
+                    <div class="form-group"><label class="form-label">Canone mensile €</label><input type="number" class="form-input" id="wzRent" value="${w.rent}"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label class="form-label">Decorrenza</label><input type="date" class="form-input" id="wzStart" value="${w.startDate}" onchange="wizardSyncDates()"></div>
+                    <div class="form-group"><label class="form-label">Fine</label><input type="date" class="form-input" id="wzEnd" value="${w.endDate}"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label class="form-label">Mesi di deposito</label><input type="number" class="form-input" id="wzDepM" value="${w.depositMonths}" min="0" max="6"></div>
+                    <div class="form-group"><label class="form-label">Giorno pagamento</label><input type="number" class="form-input" id="wzPayDay" value="${w.paymentDay}" min="1" max="28"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label class="form-label">Modalità</label><select class="form-select" id="wzPayMethod"><option value="bonifico bancario" ${w.paymentMethod==='bonifico bancario'?'selected':''}>Bonifico bancario</option><option value="contanti" ${w.paymentMethod==='contanti'?'selected':''}>Contanti</option><option value="assegno" ${w.paymentMethod==='assegno'?'selected':''}>Assegno</option></select></div>
+                    <div class="form-group"><label class="form-label">Cedolare secca</label><select class="form-select" id="wzCedolare"><option value="si" ${w.cedolareSecca==='si'?'selected':''}>Sì (10%)</option><option value="no" ${w.cedolareSecca==='no'?'selected':''}>No (IRPEF)</option></select></div>
+                </div>
+            `;
+            footer = `<button class="btn btn-secondary" onclick="wizardBack()">← Indietro</button><button class="btn" onclick="wizardStep3Next()">Avanti →</button>`;
+        }
+
+        else if (w.step === 4) {
+            const prop = (S.properties || []).find(p => p.id === w.propertyId);
+            const deposit = (parseInt(w.rent) || 0) * (parseInt(w.depositMonths) || 2);
+            body = `
+                <div style="background:var(--bg-elevated);padding:16px;border-radius:10px;margin-bottom:14px">
+                    <div style="font-weight:600;margin-bottom:10px;color:var(--gold)">Riepilogo</div>
+                    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;font-size:13px">
+                        <div><div style="color:var(--text-muted);font-size:11px">Inquilino</div><div>${esc(w.name)} · ${esc(w.email || w.phone)}</div></div>
+                        <div><div style="color:var(--text-muted);font-size:11px">Lingua</div><div>${w.language === 'en' ? '🇬🇧 English' : '🇮🇹 Italiano'}</div></div>
+                        <div><div style="color:var(--text-muted);font-size:11px">Immobile</div><div>${prop ? esc(prop.name) : '—'}</div></div>
+                        <div><div style="color:var(--text-muted);font-size:11px">Tipo</div><div>${w.type === 'studenti' ? 'Studenti' : 'Transitorio'}</div></div>
+                        <div><div style="color:var(--text-muted);font-size:11px">Durata</div><div>${fmtDate(w.startDate)} → ${fmtDate(w.endDate)}</div></div>
+                        <div><div style="color:var(--text-muted);font-size:11px">Canone</div><div><strong style="color:var(--gold)">€${w.rent}/mese</strong></div></div>
+                        <div><div style="color:var(--text-muted);font-size:11px">Deposito</div><div>€${deposit} (${w.depositMonths} mensilità)</div></div>
+                        <div><div style="color:var(--text-muted);font-size:11px">Cedolare</div><div>${w.cedolareSecca === 'si' ? '10%' : 'No (IRPEF)'}</div></div>
+                    </div>
+                </div>
+                <div style="background:rgba(212,175,55,0.08);border:1px solid rgba(212,175,55,0.3);border-radius:10px;padding:12px;font-size:12px;color:var(--text-muted)">
+                    Cliccando <strong style="color:var(--gold)">Crea contratto & manda firma</strong> il sistema farà tutto questo in automatico:
+                    <ul style="margin:8px 0 0 18px;padding:0;line-height:1.7">
+                        <li>Crea l'utente inquilino in BOOM</li>
+                        <li>Crea il contratto (status: <em>active</em>, non ancora firmato)</li>
+                        <li>Genera i magic-link di firma per inquilino e proprietario</li>
+                        <li>Spedisce i link via email${w.phone ? ' + apre WhatsApp pronto' : ''}</li>
+                        <li>${w.sourceKind === 'lead' ? 'Marca il lead originale come <em>converted</em>' : 'Logga l’evento nell’Activity Log'}</li>
+                    </ul>
+                </div>
+                <div id="wzProgress" style="margin-top:12px;font-size:13px;color:var(--text-muted)"></div>
+            `;
+            footer = `<button class="btn btn-secondary" onclick="wizardBack()" id="wzBackBtn">← Indietro</button><button class="btn" onclick="wizardFinish()" id="wzFinishBtn">🚀 Crea contratto & manda firma</button>`;
+        }
+
+        document.getElementById('modals').innerHTML = `<div class="modal-overlay active" onclick="if(event.target===this)closeWizard()">
+            <div class="modal lg" onclick="event.stopPropagation()">
+                <div class="modal-header"><h3 class="modal-title">🚀 Nuovo cliente → contratto firmato</h3><button class="modal-close" onclick="closeWizard()">×</button></div>
+                <div class="modal-body">${stepper}${body}</div>
+                <div class="modal-footer">${footer}</div>
+            </div>
+        </div>`;
+    }
+    function closeWizard() { _newClientWizard = null; closeModal(); }
+    function wizardBack() { if (_newClientWizard?.step > 1) { _newClientWizard.step--; renderNewClientWizard(); } }
+    function wizardSyncDates() {
+        const w = _newClientWizard; if (!w) return;
+        const start = document.getElementById('wzStart')?.value || w.startDate;
+        const type = document.getElementById('wzType')?.value || w.type;
+        if (start) {
+            const months = type === 'studenti' ? 12 : 18;
+            const d = new Date(start); d.setMonth(d.getMonth() + months);
+            const endEl = document.getElementById('wzEnd');
+            if (endEl) endEl.value = d.toISOString().slice(0, 10);
+        }
+    }
+    function wizardSyncRent() {
+        const sel = document.getElementById('wzProp');
+        const rentEl = document.getElementById('wzRent');
+        if (sel && rentEl) {
+            const opt = sel.options[sel.selectedIndex];
+            const r = opt?.dataset?.rent;
+            if (r && parseInt(r) > 0 && parseInt(rentEl.value) === 0) rentEl.value = r;
+        }
+    }
+    function wizardStep1Next() {
+        const w = _newClientWizard;
+        w.name = document.getElementById('wzName').value.trim();
+        w.email = document.getElementById('wzEmail').value.trim();
+        w.phone = document.getElementById('wzPhone').value.trim();
+        w.language = document.getElementById('wzLang').value;
+        if (!w.name) return toast('error', 'Manca il nome');
+        if (!w.phone && !w.email) return toast('error', 'Serve almeno telefono o email');
+        w.step = 2; renderNewClientWizard();
+    }
+    function wizardStep2Next() {
+        const w = _newClientWizard;
+        w.codiceFiscale = document.getElementById('wzCF').value.trim().toUpperCase();
+        w.address = document.getElementById('wzAddress').value.trim();
+        w.birthDate = document.getElementById('wzBirthDate').value;
+        w.birthPlace = document.getElementById('wzBirthPlace').value.trim();
+        w.idDocType = document.getElementById('wzIdType').value;
+        w.idDocNumber = document.getElementById('wzIdNum').value.trim();
+        w.step = 3; renderNewClientWizard();
+    }
+    function wizardStep3Next() {
+        const w = _newClientWizard;
+        w.propertyId = document.getElementById('wzProp').value;
+        w.type = document.getElementById('wzType').value;
+        w.rent = parseInt(document.getElementById('wzRent').value) || 0;
+        w.startDate = document.getElementById('wzStart').value;
+        w.endDate = document.getElementById('wzEnd').value;
+        w.depositMonths = parseInt(document.getElementById('wzDepM').value) || 2;
+        w.paymentDay = parseInt(document.getElementById('wzPayDay').value) || 5;
+        w.paymentMethod = document.getElementById('wzPayMethod').value;
+        w.cedolareSecca = document.getElementById('wzCedolare').value;
+        if (!w.propertyId) return toast('error', 'Scegli un immobile');
+        if (!w.rent || w.rent <= 0) return toast('error', 'Canone non valido');
+        if (!w.startDate || !w.endDate) return toast('error', 'Mancano le date');
+        w.step = 4; renderNewClientWizard();
+    }
+
+    async function wizardFinish() {
+        const w = _newClientWizard;
+        const progress = (msg) => { const el = document.getElementById('wzProgress'); if (el) el.innerHTML = msg; };
+        const finishBtn = document.getElementById('wzFinishBtn');
+        const backBtn = document.getElementById('wzBackBtn');
+        if (finishBtn) finishBtn.disabled = true;
+        if (backBtn) backBtn.disabled = true;
+        try {
+            // 1) Create tenant user
+            progress('1/4 · Creo l’utente inquilino…');
+            const userRef = await db.collection('users').add({
+                name: w.name, email: w.email || '', phone: w.phone || '',
+                role: 'tenant', language: w.language,
+                codiceFiscale: w.codiceFiscale || '', address: w.address || '',
+                birthDate: w.birthDate || '', birthPlace: w.birthPlace || '',
+                idDocType: w.idDocType || '', idDocNumber: w.idDocNumber || '',
+                linkedLeadId: w.sourceKind === 'lead' ? w.sourceId : null,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                createdVia: 'newClientWizard',
+            });
+            const userId = userRef.id;
+
+            // 2) Create contract (mirrors saveContract shape — see ~10852)
+            progress('2/4 · Creo il contratto…');
+            const monthly = parseInt(w.rent) || 0;
+            const months = w.type === 'studenti' ? 12 : 18;
+            const total = monthly * 12;
+            const newToken = () => (crypto.randomUUID ? crypto.randomUUID() : 'tk-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10));
+            const contractRef = await db.collection('contracts').add({
+                propertyId: w.propertyId,
+                tenantId: userId,
+                type: w.type,
+                startDate: w.startDate,
+                endDate: w.endDate,
+                rent: monthly,
+                deposit: monthly * (w.depositMonths || 2),
+                depositMonths: w.depositMonths || 2,
+                paymentMethod: w.paymentMethod,
+                paymentDay: w.paymentDay,
+                canone: { monthly, total, installments: 12, paymentDay: w.paymentDay, paymentMethod: w.paymentMethod, cedolareSecca: w.cedolareSecca !== 'no', oneriMode: 'tabella_allegato_d' },
+                durata: { startDate: w.startDate, endDate: w.endDate, text: `${w.startDate} → ${w.endDate}` },
+                cedolareSecca: w.cedolareSecca,
+                status: 'active',
+                signatureStatus: 'none',
+                tenantSignToken: newToken(),
+                landlordSignToken: newToken(),
+                paymentsGenerated: false,
+                welcomeEmailSent: false,
+                linkedLeadId: w.sourceKind === 'lead' ? w.sourceId : null,
+                createdVia: 'newClientWizard',
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            });
+            const contractId = contractRef.id;
+
+            // 3) Mark source lead as converted
+            if (w.sourceKind === 'lead' && w.sourceId) {
+                try {
+                    progress('3/4 · Aggiorno il lead originale…');
+                    await db.collection('leads').doc(w.sourceId).update({
+                        status: 'converted', convertedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        convertedUserId: userId, convertedContractId: contractId,
+                    });
+                } catch (e) { console.warn('[wizard] lead update', e); }
+            }
+
+            // 4) Send magic-sign links via email (tenant + landlord)
+            progress('4/4 · Invio i link di firma…');
+            const ctrDoc = (await db.collection('contracts').doc(contractId).get()).data();
+            const baseUrl = window.location.origin + window.location.pathname;
+            const tenantLink = `${baseUrl}?sign=${ctrDoc.tenantSignToken}`;
+            const property = (S.properties || []).find(p => p.id === w.propertyId) || {};
+            const landlord = property.ownerId ? (S.users || []).find(u => u.id === property.ownerId) : null;
+            let emailsSent = 0;
+            if (w.email && typeof createNotification === 'function') {
+                try {
+                    await createNotification(userId, 'contract', '✍️ Firma il tuo contratto',
+                        `Ciao ${w.name}, il contratto per ${property.name || 'la tua casa'} è pronto: clicca per firmarlo.`,
+                        { contractId, magicLink: tenantLink });
+                    emailsSent++;
+                } catch (e) { console.warn('[wizard] tenant notify', e); }
+            }
+            if (landlord?.email && typeof createNotification === 'function') {
+                const landlordLink = `${baseUrl}?sign=${ctrDoc.landlordSignToken}`;
+                try {
+                    await createNotification(landlord.id, 'contract', '✍️ Firma contratto inquilino',
+                        `Un nuovo inquilino (${w.name}) è pronto a firmare per ${property.name || 'l’immobile'}. Firma da locatore qui.`,
+                        { contractId, magicLink: landlordLink });
+                    emailsSent++;
+                } catch (e) { console.warn('[wizard] landlord notify', e); }
+            }
+
+            try { if (typeof logActivity === 'function') await logActivity('newClient_wizard_completed', 'contract', { userId, contractId, sourceKind: w.sourceKind, sourceId: w.sourceId }); } catch {}
+
+            // Success screen
+            const waUrl = w.phone ? `https://wa.me/${String(w.phone).replace(/\D/g, '')}?text=${encodeURIComponent(`Ciao ${w.name}! Il contratto è pronto, puoi firmarlo qui: ${tenantLink}`)}` : null;
+            document.getElementById('modals').innerHTML = `<div class="modal-overlay active"><div class="modal lg">
+                <div class="modal-header"><h3 class="modal-title">✅ Contratto creato</h3><button class="modal-close" onclick="closeWizard()">×</button></div>
+                <div class="modal-body">
+                    <div style="text-align:center;padding:18px 0">
+                        <div style="font-size:48px">🎉</div>
+                        <div style="font-weight:600;font-size:18px;margin-top:6px">Tutto fatto.</div>
+                        <div style="color:var(--text-muted);font-size:13px;margin-top:4px">${emailsSent > 0 ? `Email di firma inviate (${emailsSent}).` : 'Contratto creato. Le email di firma non sono partite — usa il link copiabile qui sotto.'}</div>
+                    </div>
+                    <div style="background:var(--bg-elevated);padding:14px;border-radius:10px;font-size:13px">
+                        <div style="font-weight:600;margin-bottom:8px">🔗 Link di firma inquilino</div>
+                        <div style="display:flex;gap:8px"><input type="text" class="form-input" value="${tenantLink}" readonly id="wzTLink" style="flex:1;font-family:monospace;font-size:11px"><button class="btn btn-sm" onclick="navigator.clipboard.writeText(document.getElementById('wzTLink').value);toast('success','Copiato')">📋</button>${waUrl ? `<a class="btn btn-sm btn-success" href="${waUrl}" target="_blank">💬 WhatsApp</a>` : ''}</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="closeWizard()">Chiudi</button>
+                    <button class="btn" onclick="closeWizard();openPerson('${userId}','user')">📂 Apri scheda 360°</button>
+                </div>
+            </div></div>`;
+            _newClientWizard = null;
+            toast('success', 'Contratto creato', `${w.name} · €${monthly}/mese`);
+        } catch (e) {
+            console.error('[wizard]', e);
+            progress(`<span style="color:var(--red)">Errore: ${esc(e.message)}</span>`);
+            if (finishBtn) finishBtn.disabled = false;
+            if (backBtn) backBtn.disabled = false;
+            toast('error', 'Errore', e.message);
+        }
+    }
+    window.closeWizard = closeWizard;
+    window.wizardBack = wizardBack;
+    window.wizardStep1Next = wizardStep1Next;
+    window.wizardStep2Next = wizardStep2Next;
+    window.wizardStep3Next = wizardStep3Next;
+    window.wizardSyncRent = wizardSyncRent;
+    window.wizardSyncDates = wizardSyncDates;
+    window.wizardFinish = wizardFinish;
 
     // ═══════════════════════════════════════════════════════════════════════
     // PERSON 360° HUB — single place that shows everything about one person
@@ -18834,6 +19194,7 @@ IBAN: ${l.iban || '-'}`;
                         <button class="btn btn-danger" onclick="deletePFSClient('${id}')">🗑️ Delete</button>
                         <button class="btn btn-secondary" onclick="openPFSEditClient('${id}')">✏️ Edit</button>
                         <button class="btn btn-secondary" onclick="closeModal();openPerson('${id}','pfsClient')">📂 Scheda 360°</button>
+                        <button class="btn btn-secondary" onclick="closeModal();openNewClientWizard('pfsClient','${id}')">🚀 Crea contratto</button>
                         <button class="btn" onclick="quickAdvanceStage('${id}');closeModal()">→ Advance Stage</button>
                     </div>
                 </div>
