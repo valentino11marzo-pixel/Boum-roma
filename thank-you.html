@@ -289,7 +289,24 @@
 <!-- BOOM_JSONLD:END -->
 </head>
 <body>
-    <div class="thank-you-container">
+    <style>
+    @keyframes typop{0%{transform:scale(.3);opacity:0}60%{transform:scale(1.12)}100%{transform:scale(1);opacity:1}}
+    .thank-you-container .success-icon{position:relative;z-index:2;animation:typop .7s cubic-bezier(.16,1,.3,1) both}
+    .ty-sparks{position:relative;height:0;z-index:1}
+    .ty-spark{position:absolute;left:50%;top:0;width:7px;height:7px;border-radius:50%;background:linear-gradient(#FFE55C,#FFA500);opacity:0;pointer-events:none}
+    .ty-go .ty-spark{animation:tyspark 1.5s cubic-bezier(.16,1,.3,1) .25s forwards}
+    @keyframes tyspark{0%{opacity:0;transform:translate(-50%,8px) scale(.4)}30%{opacity:1}100%{opacity:0;transform:translate(calc(-50% + var(--x)),var(--y)) scale(1)}}
+    @media(prefers-reduced-motion:reduce){.thank-you-container .success-icon{animation:none}.ty-spark{display:none}}
+    </style>
+    <div class="thank-you-container" id="tyc">
+        <div class="ty-sparks" aria-hidden="true">
+            <span class="ty-spark" style="--x:-72px;--y:-60px"></span>
+            <span class="ty-spark" style="--x:64px;--y:-74px"></span>
+            <span class="ty-spark" style="--x:-30px;--y:-92px"></span>
+            <span class="ty-spark" style="--x:38px;--y:-52px"></span>
+            <span class="ty-spark" style="--x:-92px;--y:-38px"></span>
+            <span class="ty-spark" style="--x:92px;--y:-44px"></span>
+        </div>
         <div class="success-icon">✓</div>
         
         <h1>Thank You!</h1>
@@ -329,6 +346,12 @@
             <span>Need urgent help? WhatsApp us now</span>
         </a>
     </div>
+    <script>
+    (function(){
+      var c=document.getElementById('tyc'); if(c) c.classList.add('ty-go');
+      try{ if(typeof gtag==='function'){ gtag('event','generate_lead',{event_category:'conversion',page_path:location.pathname}); } }catch(e){}
+    })();
+    </script>
     <script defer src="/js/boom-track.js"></script>
 </body>
 </html>
