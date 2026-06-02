@@ -1,0 +1,174 @@
+#!/usr/bin/env node
+// boom — Homie's command-line bridge to the BOOM Roma portal.
+//
+// Thin wrapper over https://boomrome.com/api/agent/* (+ /api/homie/*). Homie
+// (the WhatsApp agent on the Mac) calls these to keep the portal accurate.
+// Conservative by design: Tier-1 commands act directly; Tier-2 ('action')
+// only PROPOSES — a human approves it in the cockpit / Telegram.
+//
+// Setup (once):
+//   export HOMIE_SECRET="<the same value set in Vercel>"
+//   export BOOM_BASE_URL="https://boomrome.com"   # optional, this is the default
+//   chmod +x boom
+//
+// Usage:
+//   boom heartbeat --status live --tool watching-whatsapp
+//   boom snapshot
+//   boom risk
+//   boom digest [--email valentino@boomrome.com]
+//   boom lead-create --name "Anna" --phone "+39..." --source whatsapp --zone Trastevere --budget 1200 --message "..." --grade B --confidence 0.8 [--dedup]
+//   boom lead-update --id <leadId> --status responded --notes "..."
+//   boom note --lead <leadId> --text "..."
+//   boom action --kind reply --lead <leadId> --summary "..." --draft "..."
+//   boom ai-reply --lead <leadId>
+//   echo '{"name":"Anna","phone":"+39..."}' | boom lead-create -
+//
+// Requires Node 18+ (global fetch).
+
+'use strict';
+
+const BASE = process.env.BOOM_BASE_URL || 'https://boomrome.com';
+const SECRET = process.env.HOMIE_SECRET;
+
+function die(msg, code = 1) { process.stderr.write(`boom: ${msg}\n`); process.exit(code); }
+if (!SECRET) die('HOMIE_SECRET not set. export HOMIE_SECRET="..." (same value as in Vercel).');
+
+// ── arg parsing: --key value (and bare --flag → true) ──
+function parseArgs(argv) {
+  const out = { _: [] };
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a.startsWith('--')) {
+      const key = a.slice(2);
+      const next = argv[i + 1];
+      if (next === undefined || next.startsWith('--')) { out[key] = true; }
+      else { out[key] = next; i++; }
+    } else out._.push(a);
+  }
+  return out;
+}
+
+async function readStdin() {
+  if (process.stdin.isTTY) return null;
+  const chunks = [];
+  for await (const c of process.stdin) chunks.push(c);
+  const s = Buffer.concat(chunks).toString('utf8').trim();
+  if (!s) return null;
+  try { return JSON.parse(s); } catch { die('stdin is not valid JSON'); }
+}
+
+async function call(path, body, method = 'POST') {
+  const res = await fetch(`${BASE}/api/${path}`, {
+    method,
+    headers: { 'Content-Type': 'application/json', 'X-Homie-Secret': SECRET },
+    body: method === 'GET' ? undefined : JSON.stringify(body || {}),
+  });
+  let data; try { data = await res.json(); } catch { data = { ok: false, error: `http_${res.status}` }; }
+  if (!res.ok || data.ok === false) {
+    die(`${path} → ${res.status} ${data.error || ''}${data.details ? ' ' + JSON.stringify(data.details) : ''}`, 2);
+  }
+  return data;
+}
+
+function num(v) { const n = parseFloat(v); return isNaN(n) ? undefined : n; }
+function out(o) { process.stdout.write(JSON.stringify(o, null, 2) + '\n'); }
+
+(async () => {
+  const [cmd, ...rest] = process.argv.slice(2);
+  const a = parseArgs(rest);
+  const stdin = await readStdin();
+
+  switch (cmd) {
+    case 'heartbeat':
+      return out(await call('agent/heartbeat', {
+        status: a.status || 'live', activeTool: a.tool || null,
+        lastEvent: a.event || null, model: a.model || 'homie', version: a.version || 'bridge-1',
+      }));
+
+    case 'snapshot':
+      return out(await call('agent/state.snapshot', { scope: a.scope || 'all' }));
+
+    case 'risk':
+      return out(await call('agent/risk.scan', { window: num(a.window) }));
+
+    case 'digest':
+      return out(await call('agent/digest', { email: a.email || undefined }));
+
+    case 'lead-create': {
+      const body = stdin || {
+        source: a.source || 'whatsapp',
+        name: a.name, email: a.email, phone: a.phone,
+        message: a.message, language: a.language,
+        budget: num(a.budget), zone: a.zone, situation: a.situation,
+        propertyTitle: a.property, propertyUrl: a.url,
+        grade: a.grade, intent: a.intent, confidence: num(a.confidence),
+        sourceRef: a.ref,
+      };
+      // Dedup by contact
+      if (a.dedup && (body.phone || body.email)) {
+        const snap = await call('agent/state.snapshot', { scope: 'leads' });
+        const recent = (snap.leads && snap.leads.recent) || [];
+        const norm = s => String(s || '').replace(/\D/g, '').slice(-9);
+        const hit = recent.find(l => (body.phone && norm(l.phone) && norm(l.phone) === norm(body.phone)));
+        if (hit) return out({ ok: true, dedup: true, id: hit.id, note: 'lead already exists, skipped' });
+      }
+      return out(await call('agent/leads.create', body));
+    }
+
+    case 'lead-update':
+      if (!a.id && !(stdin && stdin.id)) die('--id required');
+      return out(await call('agent/leads.update', stdin || {
+        id: a.id, status: a.status, notes: a.notes, grade: a.grade,
+        intent: a.intent, confidence: num(a.confidence),
+      }));
+
+    case 'note':
+      if (!a.lead) die('--lead <leadId> required');
+      return out(await call('agent/leads.update', { id: a.lead, notes: a.text || a.note }));
+
+    case 'action': {
+      // Tier-2 proposal → action_queue (human approves). Uses /api/homie/action.
+      if (!a.kind) die('--kind required (reply|schedule_viewing|qualify|archive|note)');
+      const payload = {};
+      if (a.draft) payload.draft = a.draft;
+      if (a.channel) payload.channel = a.channel;
+      if (a.slots) payload.proposedSlots = String(a.slots).split(',').map(s => s.trim());
+      if (a.reason) payload.reason = a.reason;
+      return out(await call('homie/action', stdin || {
+        leadId: a.lead, kind: a.kind, summary: a.summary || '',
+        tier: 2, confidence: num(a.confidence) || 0.8,
+        proposedBy: 'homie', payload,
+        contextHash: a.hash,
+      }));
+    }
+
+    case 'ai-reply':
+      if (!a.lead && !(stdin && (stdin.leadId || stdin.lead))) die('--lead <leadId> required');
+      return out(await call('agent/ai.reply', stdin || {
+        leadId: a.lead, tone: a.tone, language: a.language, goal: a.goal,
+      }));
+
+    case 'spec':
+      return out(await call('agent/spec', null, 'GET'));
+
+    default:
+      process.stdout.write(`boom — Homie ↔ BOOM Roma portal bridge
+
+Commands:
+  heartbeat   keep the cockpit indicator alive (run every ~30s)
+  snapshot    portal state (leads/contracts/payments)
+  risk        what's at risk right now
+  digest      daily briefing  [--email <addr>]
+  lead-create create a lead (Tier 1)            [--dedup]
+  lead-update update a lead (Tier 1)            --id ...
+  note        add a note to a lead             --lead ...
+  action      PROPOSE a Tier-2 action (needs approval)  --kind reply|schedule_viewing|...
+  ai-reply    get a Claude-drafted reply       --lead ...
+  spec        list available portal tools
+
+Env: HOMIE_SECRET (required), BOOM_BASE_URL (default https://boomrome.com)
+See HOMIE.md for the operating policy (quality not quantity, Tier-1 vs Tier-2).
+`);
+      process.exit(cmd ? 1 : 0);
+  }
+})().catch(e => die(e.message || String(e), 3));

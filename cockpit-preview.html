@@ -1,0 +1,3442 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="robots" content="noindex,nofollow,noarchive,nosnippet">
+<meta name="theme-color" content="#08080A">
+<meta name="color-scheme" content="dark">
+<title>BOOM Cockpit · Preview</title>
+
+<link rel="icon" type="image/png" href="https://www.boomrome.com/BOOMlogogoldicon512.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="/js/firebase-config.js"></script>
+
+<style>
+  /* ═════════════════════════════════════════════════════════════
+     DESIGN TOKENS
+     ═════════════════════════════════════════════════════════════ */
+  :root {
+    /* Brand */
+    --gold: #D4AF37;
+    --gold-bright: #E8C863;
+    --gold-dark: #B8960C;
+    --gold-soft: rgba(212, 175, 55, 0.12);
+    --gold-glow: rgba(212, 175, 55, 0.35);
+
+    /* Surfaces */
+    --bg: #08080A;
+    --bg-card: #0E0E11;
+    --bg-elevated: #16161A;
+    --bg-input: #1C1C21;
+    --bg-hover: rgba(255, 255, 255, 0.035);
+    --bg-active: rgba(255, 255, 255, 0.06);
+    --bg-overlay: rgba(0, 0, 0, 0.72);
+
+    /* Borders */
+    --border: rgba(255, 255, 255, 0.06);
+    --border-strong: rgba(255, 255, 255, 0.14);
+    --border-gold: rgba(212, 175, 55, 0.30);
+
+    /* Text */
+    --text: #FAFAFB;
+    --text-secondary: #A0A0A8;
+    --text-muted: #5A5A66;
+    --text-disabled: #3A3A44;
+
+    /* States */
+    --success: #2FD37A;
+    --success-soft: rgba(47, 211, 122, 0.14);
+    --warning: #F5A524;
+    --warning-soft: rgba(245, 165, 36, 0.14);
+    --danger: #F03B3B;
+    --danger-soft: rgba(240, 59, 59, 0.14);
+    --info: #4D9BFF;
+    --info-soft: rgba(77, 155, 255, 0.14);
+
+    /* Radii */
+    --r-xs: 4px;
+    --r-sm: 6px;
+    --r-md: 8px;
+    --r-lg: 12px;
+    --r-xl: 16px;
+    --r-pill: 100px;
+
+    /* Shadows */
+    --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.35);
+    --shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.6), 0 6px 12px rgba(0, 0, 0, 0.4);
+    --shadow-gold: 0 0 0 1px var(--border-gold), 0 8px 24px var(--gold-glow);
+
+    /* Easings */
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+    --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+    /* Layout */
+    --topbar-h: 56px;
+    --sidebar-w: 240px;
+    --sidebar-w-collapsed: 64px;
+
+    /* Typography */
+    --font-sans: 'HelveticaNeue', 'Helvetica Neue', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  }
+
+  /* ═════════════════════════════════════════════════════════════
+     RESET & BASE
+     ═════════════════════════════════════════════════════════════ */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: var(--font-sans);
+    font-weight: 300;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--text);
+    background: var(--bg);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow: hidden;
+  }
+  ::selection { background: var(--gold); color: #000; }
+  a { color: inherit; text-decoration: none; }
+  button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+  input, textarea { font: inherit; color: inherit; }
+  kbd {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 2px 6px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--r-xs);
+    color: var(--text-secondary);
+    box-shadow: 0 1px 0 var(--border);
+  }
+
+  /* ═════════════════════════════════════════════════════════════
+     AUTH SHIELD (pre-auth + access denied states)
+     ═════════════════════════════════════════════════════════════ */
+  #auth-shield {
+    position: fixed; inset: 0;
+    background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 9999;
+    flex-direction: column;
+    gap: 24px;
+    padding: 24px;
+  }
+  #auth-shield .shield-logo {
+    width: 56px; height: 56px;
+    background: linear-gradient(135deg, var(--gold-bright), var(--gold-dark));
+    border-radius: 50%;
+    box-shadow: 0 0 32px var(--gold-glow);
+    animation: pulse-glow 2.4s ease-in-out infinite;
+  }
+  @keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 32px var(--gold-glow); }
+    50% { box-shadow: 0 0 56px var(--gold-glow); }
+  }
+  #auth-shield .shield-title {
+    font-size: 22px;
+    font-weight: 400;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: var(--text);
+  }
+  #auth-shield .shield-subtitle {
+    font-size: 12px;
+    letter-spacing: 2px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    margin-top: -16px;
+  }
+  #auth-shield .shield-msg {
+    font-size: 14px;
+    color: var(--text-secondary);
+    text-align: center;
+    max-width: 360px;
+    line-height: 1.6;
+  }
+  #auth-shield .shield-cta {
+    margin-top: 8px;
+    padding: 12px 28px;
+    background: var(--gold);
+    color: #000;
+    border-radius: var(--r-md);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    transition: transform 0.18s var(--ease-spring), box-shadow 0.18s var(--ease-out);
+  }
+  #auth-shield .shield-cta:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px var(--gold-glow);
+  }
+
+  /* ═════════════════════════════════════════════════════════════
+     APP LAYOUT
+     ═════════════════════════════════════════════════════════════ */
+  .app {
+    display: grid;
+    grid-template-rows: var(--topbar-h) 1fr;
+    height: 100vh;
+  }
+  .app[hidden] { display: none; }
+  .app-body {
+    display: grid;
+    grid-template-columns: var(--sidebar-w) 1fr;
+    overflow: hidden;
+    transition: grid-template-columns 0.28s var(--ease-out);
+  }
+  .app.sidebar-collapsed .app-body {
+    grid-template-columns: var(--sidebar-w-collapsed) 1fr;
+  }
+
+  /* ═════════════════════════════════════════════════════════════
+     TOP BAR
+     ═════════════════════════════════════════════════════════════ */
+  .top-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 20px;
+    background: rgba(8, 8, 10, 0.85);
+    backdrop-filter: saturate(180%) blur(16px);
+    -webkit-backdrop-filter: saturate(180%) blur(16px);
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    z-index: 50;
+  }
+  .top-bar-left, .top-bar-right {
+    display: flex; align-items: center; gap: 16px;
+  }
+  .top-bar-center {
+    display: flex; align-items: center; gap: 12px;
+  }
+  .sidebar-toggle {
+    width: 32px; height: 32px;
+    border-radius: var(--r-md);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-secondary);
+    transition: background 0.16s, color 0.16s;
+  }
+  .sidebar-toggle:hover { background: var(--bg-hover); color: var(--text); }
+  .sidebar-toggle svg { width: 16px; height: 16px; }
+
+  .logo {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .logo-circle {
+    width: 28px; height: 28px;
+    background: linear-gradient(135deg, var(--gold-bright), var(--gold-dark));
+    border-radius: 50%;
+    box-shadow: 0 0 14px var(--gold-glow);
+  }
+  .logo-text {
+    font-size: 14px;
+    font-weight: 400;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+  }
+  .logo-label {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: var(--gold);
+    padding: 3px 7px;
+    background: var(--gold-soft);
+    border-radius: var(--r-xs);
+    margin-left: 4px;
+    vertical-align: middle;
+  }
+
+  /* Heartbeat badge */
+  .heartbeat-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 6px 12px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--r-pill);
+    font-size: 12px;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .heartbeat-badge .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    box-shadow: 0 0 0 0 transparent;
+    transition: background 0.3s, box-shadow 0.3s;
+  }
+  .heartbeat-badge .label {
+    color: var(--text-secondary);
+    font-weight: 500;
+    letter-spacing: 0.4px;
+  }
+  .heartbeat-badge .time {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+  .heartbeat-badge.is-live { border-color: rgba(47, 211, 122, 0.22); background: rgba(47, 211, 122, 0.04); }
+  .heartbeat-badge.is-live .dot { background: var(--success); box-shadow: 0 0 0 4px rgba(47, 211, 122, 0.18); animation: pulse-dot 1.6s ease-in-out infinite; }
+  .heartbeat-badge.is-live .time { color: var(--success); }
+  .heartbeat-badge.is-warning { border-color: rgba(245, 165, 36, 0.30); background: rgba(245, 165, 36, 0.04); }
+  .heartbeat-badge.is-warning .dot { background: var(--warning); box-shadow: 0 0 0 4px rgba(245, 165, 36, 0.20); }
+  .heartbeat-badge.is-warning .time { color: var(--warning); }
+  .heartbeat-badge.is-critical { border-color: rgba(240, 59, 59, 0.35); background: rgba(240, 59, 59, 0.05); }
+  .heartbeat-badge.is-critical .dot { background: var(--danger); box-shadow: 0 0 0 4px rgba(240, 59, 59, 0.22); animation: pulse-dot 1s ease-in-out infinite; }
+  .heartbeat-badge.is-critical .time { color: var(--danger); }
+  .heartbeat-badge.is-offline { opacity: 0.6; }
+  @keyframes pulse-dot {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.4); }
+  }
+
+  /* CmdK trigger */
+  .cmdk-trigger {
+    display: inline-flex; align-items: center; gap: 10px;
+    padding: 6px 12px 6px 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    font-size: 12px;
+    color: var(--text-secondary);
+    min-width: 180px;
+    transition: border-color 0.18s, background 0.18s;
+  }
+  .cmdk-trigger:hover { border-color: var(--border-strong); background: var(--bg-elevated); }
+  .cmdk-trigger svg { width: 13px; height: 13px; opacity: 0.7; }
+  .cmdk-trigger span:first-of-type { flex: 1; text-align: left; }
+
+  /* User chip */
+  .user-chip {
+    display: flex; align-items: center; gap: 10px;
+    padding: 4px 10px 4px 4px;
+    border-radius: var(--r-pill);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+  }
+  .user-avatar {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--gold-bright), var(--gold-dark));
+    color: #000;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700;
+  }
+  .user-email {
+    font-size: 12px;
+    color: var(--text-secondary);
+    max-width: 200px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+
+  /* ═════════════════════════════════════════════════════════════
+     SIDEBAR
+     ═════════════════════════════════════════════════════════════ */
+  .sidebar {
+    background: var(--bg);
+    border-right: 1px solid var(--border);
+    padding: 16px 12px;
+    display: flex; flex-direction: column;
+    gap: 24px;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+  .nav-section { display: flex; flex-direction: column; gap: 2px; }
+  .nav-section-bottom { margin-top: auto; }
+  .nav-section-title {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    padding: 8px 12px 4px;
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 12px;
+    border-radius: var(--r-md);
+    font-size: 13px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: background 0.14s, color 0.14s;
+    position: relative;
+    white-space: nowrap;
+  }
+  .nav-item:hover { background: var(--bg-hover); color: var(--text); }
+  .nav-item.is-active {
+    background: var(--gold-soft);
+    color: var(--gold);
+  }
+  .nav-item.is-active::before {
+    content: '';
+    position: absolute; left: 0; top: 8px; bottom: 8px;
+    width: 2px;
+    background: var(--gold);
+    border-radius: 0 2px 2px 0;
+    margin-left: -12px;
+  }
+  .nav-icon {
+    font-size: 16px;
+    width: 20px; text-align: center;
+    flex-shrink: 0;
+  }
+  .nav-label {
+    flex: 1;
+    transition: opacity 0.2s;
+  }
+  .nav-badge {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    padding: 2px 7px;
+    background: var(--bg-elevated);
+    border-radius: var(--r-pill);
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+  .nav-item.is-active .nav-badge { background: var(--gold); color: #000; }
+  .nav-item.has-urgent .nav-badge { background: var(--danger); color: #fff; animation: pulse-dot 1.8s ease-in-out infinite; }
+
+  /* Collapsed sidebar */
+  .app.sidebar-collapsed .nav-label,
+  .app.sidebar-collapsed .nav-badge,
+  .app.sidebar-collapsed .nav-section-title {
+    opacity: 0;
+    pointer-events: none;
+  }
+  .app.sidebar-collapsed .nav-item {
+    padding: 10px;
+    justify-content: center;
+  }
+  .app.sidebar-collapsed .nav-item.is-active::before { margin-left: -10px; }
+
+  /* ═════════════════════════════════════════════════════════════
+     MAIN PANE
+     ═════════════════════════════════════════════════════════════ */
+  .main-pane {
+    background: var(--bg-card);
+    overflow-y: auto;
+    padding: 24px 32px;
+  }
+  .page-header {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    gap: 16px;
+    padding-bottom: 20px;
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+  }
+  .page-title {
+    font-size: 24px;
+    font-weight: 400;
+    letter-spacing: 0.3px;
+    color: var(--text);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .page-title-icon {
+    font-size: 22px;
+    opacity: 0.85;
+  }
+  .page-subtitle {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-top: 4px;
+  }
+  .page-actions { display: flex; gap: 8px; }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 9px 16px;
+    border-radius: var(--r-md);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.4px;
+    transition: all 0.16s var(--ease-out);
+    border: 1px solid transparent;
+  }
+  .btn-primary { background: var(--gold); color: #000; font-weight: 600; }
+  .btn-primary:hover { background: var(--gold-bright); transform: translateY(-1px); box-shadow: 0 8px 20px var(--gold-glow); }
+  .btn-secondary { background: var(--bg-elevated); color: var(--text); border-color: var(--border); }
+  .btn-secondary:hover { background: var(--bg-input); border-color: var(--border-strong); }
+  .btn-ghost { background: transparent; color: var(--text-secondary); }
+  .btn-ghost:hover { background: var(--bg-hover); color: var(--text); }
+  .btn-sm { padding: 6px 12px; font-size: 11px; }
+
+  /* Empty state */
+  .empty-state {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 80px 24px;
+    text-align: center;
+    gap: 16px;
+  }
+  .empty-icon {
+    width: 72px; height: 72px;
+    border-radius: 20px;
+    background: linear-gradient(135deg, var(--bg-elevated), var(--bg-card));
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 32px;
+    box-shadow: var(--shadow-md);
+  }
+  .empty-title {
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--text);
+    margin-top: 8px;
+  }
+  .empty-desc {
+    font-size: 13px;
+    color: var(--text-secondary);
+    max-width: 440px;
+    line-height: 1.7;
+  }
+  .empty-hint {
+    margin-top: 16px;
+    padding: 10px 16px;
+    background: var(--bg-elevated);
+    border: 1px dashed var(--border-strong);
+    border-radius: var(--r-md);
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    letter-spacing: 0.4px;
+    max-width: 480px;
+  }
+
+  /* Coming-soon banner inside empty pane */
+  .soon-banner {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px;
+    background: var(--gold-soft);
+    border: 1px solid var(--border-gold);
+    border-radius: var(--r-pill);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--gold);
+  }
+
+  /* ── Deal Composer + Settings panels ── */
+  .deal-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+  .deal-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r-lg, 14px); padding: 18px 20px; }
+  .deal-card-title { font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 14px; }
+  .deal-field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; font-size: 12px; color: var(--text-secondary); }
+  .deal-field select, .deal-field input { background: var(--bg-input, #1A1A1A); border: 1px solid var(--border); border-radius: 8px; color: var(--text); padding: 9px 11px; font-size: 14px; }
+  .deal-field select:focus, .deal-field input:focus { outline: none; border-color: var(--gold); }
+  .deal-toggles { display: flex; flex-direction: column; gap: 9px; margin-top: 6px; }
+  .deal-toggles label { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text); cursor: pointer; }
+  .deal-toggles input { accent-color: var(--gold); width: 15px; height: 15px; }
+  .deal-result { background: linear-gradient(160deg, var(--bg-elevated, #141414), var(--bg-card)); border-color: var(--border-gold, rgba(212,175,55,0.25)); }
+  .deal-big { font-size: 40px; font-weight: 300; color: var(--gold); letter-spacing: -1px; line-height: 1.1; }
+  .deal-big span { font-size: 16px; color: var(--text-secondary); margin-left: 4px; }
+  .deal-sub { font-size: 12px; color: var(--text-secondary); margin: 4px 0 14px; }
+  .deal-lines > div { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text-secondary); }
+  .deal-lines > div strong { color: var(--text); font-weight: 600; }
+  .deal-lines .deal-mods { border: none; flex-wrap: wrap; gap: 6px; padding-top: 10px; }
+  .deal-deadline { margin-top: 14px; padding: 10px 12px; background: var(--gold-soft, rgba(212,175,55,0.08)); border-radius: 8px; font-size: 12px; color: var(--text); line-height: 1.5; }
+  .deal-disclaimer { margin-top: 10px; font-size: 11px; color: var(--text-muted, #777); line-height: 1.5; }
+  .settings-tool { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 13px; }
+  .settings-tool code { color: var(--gold); font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
+  .settings-pre { background: #0b0b0b; border: 1px solid var(--border); border-radius: 8px; padding: 12px; font-size: 11px; color: var(--text-secondary); overflow: auto; max-height: 320px; white-space: pre-wrap; word-break: break-word; }
+
+  /* ── Lead search ── */
+  .lead-search { background: var(--bg-input, #1A1A1A); border: 1px solid var(--border); border-radius: var(--r-pill, 999px); color: var(--text); padding: 7px 14px; font-size: 13px; min-width: 220px; }
+  .lead-search:focus { outline: none; border-color: var(--gold); }
+
+  /* ── Detail drawer ── */
+  .drawer-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(3px); opacity: 0; pointer-events: none; transition: opacity .22s ease; z-index: 200; }
+  .drawer-backdrop.is-open { opacity: 1; pointer-events: auto; }
+  .drawer { position: absolute; top: 0; right: 0; height: 100%; width: min(440px, 92vw); background: var(--bg-card, #0A0A0A); border-left: 1px solid var(--border-gold, rgba(212,175,55,0.25)); box-shadow: -20px 0 60px rgba(0,0,0,0.5); transform: translateX(100%); transition: transform .26s cubic-bezier(.4,0,.2,1); display: flex; flex-direction: column; }
+  .drawer-backdrop.is-open .drawer { transform: translateX(0); }
+  .drawer-head { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; border-bottom: 1px solid var(--border); }
+  .drawer-head h3 { margin: 0; font-size: 16px; font-weight: 500; color: var(--text); }
+  .drawer-close { background: none; border: none; color: var(--text-secondary); font-size: 26px; line-height: 1; cursor: pointer; }
+  .drawer-close:hover { color: var(--text); }
+  .drawer-body { padding: 18px 20px; overflow-y: auto; }
+  .drawer-badges { display: flex; gap: 8px; align-items: center; margin-bottom: 16px; }
+  .drawer-row { display: flex; justify-content: space-between; gap: 16px; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text-secondary); }
+  .drawer-row strong { color: var(--text); font-weight: 600; text-align: right; }
+  .drawer-note { margin: 14px 0; padding: 12px 14px; background: var(--bg-elevated, #141414); border-radius: 8px; font-style: italic; color: var(--text); font-size: 13px; line-height: 1.5; }
+  .drawer-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+  .ai-reply { margin-top: 14px; padding: 12px 14px; background: var(--bg-elevated, #141414); border: 1px solid var(--border-gold, rgba(212,175,55,0.25)); border-radius: 10px; }
+  .ai-reply-head { font-size: 12px; letter-spacing: .5px; color: var(--gold); margin-bottom: 8px; }
+  .ai-reply-text { width: 100%; min-height: 120px; resize: vertical; background: #0b0b0b; border: 1px solid var(--border); border-radius: 8px; color: var(--text); padding: 10px 12px; font-size: 13px; line-height: 1.55; font-family: inherit; }
+  .ai-reply-text:focus { outline: none; border-color: var(--gold); }
+
+  /* ═════════════════════════════════════════════════════════════
+     CMDK PALETTE
+     ═════════════════════════════════════════════════════════════ */
+  #cmdk-overlay {
+    position: fixed; inset: 0;
+    background: var(--bg-overlay);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    display: flex; align-items: flex-start; justify-content: center;
+    padding-top: 12vh;
+    z-index: 1000;
+    animation: fade-in 0.16s var(--ease-out);
+  }
+  #cmdk-overlay[hidden] { display: none; }
+  @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+  .cmdk-modal {
+    width: min(640px, 90vw);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+    animation: slide-down 0.22s var(--ease-out);
+  }
+  @keyframes slide-down {
+    from { transform: translateY(-12px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  .cmdk-input {
+    width: 100%;
+    padding: 18px 20px;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-size: 16px;
+    font-weight: 300;
+    color: var(--text);
+    border-bottom: 1px solid var(--border);
+  }
+  .cmdk-input::placeholder { color: var(--text-muted); font-weight: 300; }
+  .cmdk-results {
+    max-height: 50vh;
+    overflow-y: auto;
+    padding: 8px 0;
+  }
+  .cmdk-group-label {
+    padding: 10px 20px 6px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+  .cmdk-item {
+    display: flex; align-items: center; gap: 14px;
+    padding: 11px 20px;
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+  .cmdk-item:hover, .cmdk-item.is-selected {
+    background: var(--bg-hover);
+  }
+  .cmdk-item.is-selected {
+    background: var(--gold-soft);
+  }
+  .cmdk-item-icon {
+    font-size: 16px;
+    width: 22px; text-align: center;
+    flex-shrink: 0;
+    opacity: 0.85;
+  }
+  .cmdk-item-label {
+    flex: 1;
+    font-size: 13px;
+    color: var(--text);
+  }
+  .cmdk-item-hint {
+    font-size: 11px;
+    color: var(--text-muted);
+    letter-spacing: 0.4px;
+  }
+  .cmdk-item mark {
+    background: transparent;
+    color: var(--gold);
+    font-weight: 500;
+  }
+  .cmdk-empty {
+    padding: 32px 20px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 13px;
+  }
+  .cmdk-footer {
+    padding: 10px 20px;
+    border-top: 1px solid var(--border);
+    display: flex; gap: 16px; align-items: center;
+    font-size: 11px;
+    color: var(--text-muted);
+    letter-spacing: 0.4px;
+  }
+  .cmdk-footer kbd { margin: 0 2px; }
+
+  /* ═════════════════════════════════════════════════════════════
+     TOASTS
+     ═════════════════════════════════════════════════════════════ */
+  #toast-stack {
+    position: fixed; top: 72px; right: 20px;
+    display: flex; flex-direction: column; gap: 10px;
+    z-index: 2000;
+    max-width: 360px;
+    pointer-events: none;
+  }
+  .toast {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-strong);
+    border-left: 3px solid var(--gold);
+    border-radius: var(--r-md);
+    padding: 12px 16px;
+    box-shadow: var(--shadow-md);
+    display: flex; align-items: flex-start; gap: 12px;
+    pointer-events: auto;
+    animation: slide-in-right 0.28s var(--ease-out);
+  }
+  .toast.toast-success { border-left-color: var(--success); }
+  .toast.toast-warning { border-left-color: var(--warning); }
+  .toast.toast-danger { border-left-color: var(--danger); }
+  .toast.toast-info { border-left-color: var(--info); }
+  .toast-icon { font-size: 16px; flex-shrink: 0; }
+  .toast-body { flex: 1; }
+  .toast-title { font-size: 13px; font-weight: 500; color: var(--text); }
+  .toast-desc { font-size: 12px; color: var(--text-secondary); margin-top: 2px; line-height: 1.5; }
+  .toast-close {
+    color: var(--text-muted);
+    font-size: 14px; line-height: 1;
+    padding: 0;
+    transition: color 0.12s;
+  }
+  .toast-close:hover { color: var(--text); }
+  @keyframes slide-in-right {
+    from { transform: translateX(20px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+
+  /* ═════════════════════════════════════════════════════════════
+     LEAD INBOX
+     ═════════════════════════════════════════════════════════════ */
+  .lead-toolbar {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 16px; flex-wrap: wrap;
+    margin-bottom: 18px;
+  }
+  .lead-filters {
+    display: inline-flex; gap: 4px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--r-pill);
+    padding: 4px;
+  }
+  .lead-filter-btn {
+    padding: 6px 14px;
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.4px;
+    border-radius: var(--r-pill);
+    cursor: pointer;
+    transition: all 0.16s var(--ease-out);
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .lead-filter-btn:hover { color: var(--text); }
+  .lead-filter-btn.is-active {
+    background: var(--gold-soft);
+    color: var(--gold);
+  }
+  .lead-filter-count {
+    font-size: 10px;
+    padding: 1px 6px;
+    background: var(--bg-card);
+    border-radius: 10px;
+    color: var(--text-muted);
+  }
+  .lead-filter-btn.is-active .lead-filter-count {
+    background: rgba(212,175,55,0.2);
+    color: var(--gold);
+  }
+
+  .lead-summary {
+    display: flex; align-items: center; gap: 12px;
+    font-size: 11px;
+    color: var(--text-muted);
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+  }
+  .lead-summary strong { color: var(--text); font-weight: 500; }
+
+  .lead-list {
+    display: flex; flex-direction: column;
+    gap: 10px;
+  }
+
+  .lead-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    padding: 16px 18px;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 16px;
+    align-items: flex-start;
+    transition: border-color 0.16s, transform 0.16s;
+    position: relative;
+    overflow: hidden;
+  }
+  .lead-card::before {
+    content: '';
+    position: absolute; left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: var(--border);
+    transition: background 0.16s;
+  }
+  .lead-card:hover { border-color: var(--border-strong); }
+  .lead-card.is-fresh::before { background: var(--gold); }
+  .lead-card.is-warning::before { background: var(--warning); }
+  .lead-card.is-late::before { background: var(--danger); }
+  .lead-card.is-discarded { opacity: 0.45; }
+  .lead-card.is-converted::before { background: var(--success); }
+
+  .lead-grade {
+    width: 38px; height: 38px;
+    border-radius: var(--r-md);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-mono);
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: 0;
+    border: 1px solid var(--border-strong);
+    flex-shrink: 0;
+  }
+  .lead-grade.grade-A { background: rgba(212,175,55,0.14); color: var(--gold); border-color: rgba(212,175,55,0.4); }
+  .lead-grade.grade-B { background: rgba(46,143,255,0.12); color: #6FB1FF; border-color: rgba(46,143,255,0.35); }
+  .lead-grade.grade-C { background: rgba(255,255,255,0.05); color: var(--text-secondary); }
+  .lead-grade.grade-dead { background: rgba(255,255,255,0.03); color: var(--text-muted); font-size: 12px; }
+
+  .lead-body { min-width: 0; }
+  .lead-row-1 {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    margin-bottom: 4px;
+  }
+  .lead-name {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text);
+    letter-spacing: 0.2px;
+  }
+  .lead-flag { font-size: 12px; }
+
+  .lead-pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 8px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--r-pill);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+  }
+  .lead-pill.is-new { background: var(--gold-soft); color: var(--gold); border-color: var(--border-gold); }
+  .lead-pill.is-responded { background: rgba(46,143,255,0.1); color: #6FB1FF; border-color: rgba(46,143,255,0.3); }
+  .lead-pill.is-converted { background: rgba(34,197,94,0.1); color: var(--success); border-color: rgba(34,197,94,0.3); }
+  .lead-pill.is-discarded { background: rgba(255,255,255,0.03); color: var(--text-muted); }
+  .lead-pill.is-source { background: transparent; }
+
+  .lead-row-2 {
+    font-size: 12.5px;
+    color: var(--text-secondary);
+    line-height: 1.55;
+    display: flex; flex-wrap: wrap; gap: 4px 14px;
+  }
+  .lead-row-2 .data { display: inline-flex; align-items: center; gap: 4px; }
+  .lead-row-2 .data .gold { color: var(--gold); font-weight: 500; }
+
+  .lead-note {
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.5;
+    font-style: italic;
+    border-left: 2px solid var(--border);
+    padding-left: 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+
+  .lead-actions {
+    margin-top: 10px;
+    display: flex; gap: 6px; flex-wrap: wrap;
+  }
+  .lead-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 5px 10px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+    color: var(--text-secondary);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.14s var(--ease-out);
+  }
+  .lead-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text);
+    border-color: var(--border-strong);
+  }
+  .lead-btn.primary {
+    background: var(--gold-soft);
+    color: var(--gold);
+    border-color: var(--border-gold);
+  }
+  .lead-btn.primary:hover { background: rgba(212,175,55,0.22); color: var(--gold); }
+  .lead-btn.success { color: var(--success); border-color: rgba(34,197,94,0.3); }
+  .lead-btn.success:hover { background: rgba(34,197,94,0.1); }
+  .lead-btn.muted { color: var(--text-muted); }
+  .lead-btn.danger { color: var(--text-muted); }
+  .lead-btn.danger:hover { color: var(--danger); border-color: rgba(255,59,48,0.3); }
+
+  .lead-meta {
+    text-align: right;
+    font-size: 11px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    display: flex; flex-direction: column; align-items: flex-end; gap: 6px;
+    flex-shrink: 0;
+  }
+  .lead-time { font-family: var(--font-mono); }
+  .lead-sla {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 8px;
+    border-radius: var(--r-pill);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.4px;
+    font-family: var(--font-mono);
+  }
+  .lead-sla.is-fresh { background: var(--gold-soft); color: var(--gold); }
+  .lead-sla.is-warning { background: rgba(247,159,31,0.1); color: var(--warning); }
+  .lead-sla.is-late { background: rgba(255,59,48,0.1); color: var(--danger); }
+  .lead-sla.is-night { background: rgba(255,255,255,0.04); color: var(--text-muted); }
+  .lead-sla.is-done { background: rgba(34,197,94,0.1); color: var(--success); }
+
+  @media (max-width: 720px) {
+    .lead-card { grid-template-columns: auto 1fr; }
+    .lead-meta { grid-column: 2; text-align: left; align-items: flex-start; margin-top: 4px; }
+    .lead-toolbar { flex-direction: column; align-items: stretch; }
+  }
+
+  /* ═════════════════════════════════════════════════════════════
+     CONTRACTS
+     ═════════════════════════════════════════════════════════════ */
+  .ct-stat-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+  .ct-stat {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    padding: 14px 16px;
+    transition: border-color 0.16s, transform 0.12s;
+    cursor: pointer;
+  }
+  .ct-stat:hover { border-color: var(--border-strong); transform: translateY(-1px); }
+  .ct-stat.is-active { border-color: var(--border-gold); background: var(--gold-soft); }
+  .ct-stat.is-warn { border-left: 3px solid var(--warning); }
+  .ct-stat.is-danger { border-left: 3px solid var(--danger); }
+  .ct-stat-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+  .ct-stat-value {
+    margin-top: 4px;
+    font-size: 22px;
+    font-weight: 300;
+    color: var(--text);
+    font-family: var(--font-mono);
+  }
+  .ct-stat-sub {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+  }
+
+  .ct-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    padding: 16px 18px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 18px;
+    align-items: flex-start;
+    transition: border-color 0.16s;
+    position: relative;
+    overflow: hidden;
+  }
+  .ct-card::before {
+    content: '';
+    position: absolute; left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: var(--border);
+  }
+  .ct-card.is-active::before { background: var(--success); }
+  .ct-card.is-soon::before { background: var(--warning); }
+  .ct-card.is-urgent::before { background: var(--danger); }
+  .ct-card.is-expired::before { background: var(--text-muted); }
+  .ct-card.is-expired { opacity: 0.6; }
+  .ct-card:hover { border-color: var(--border-strong); }
+
+  .ct-head {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    margin-bottom: 6px;
+  }
+  .ct-title {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text);
+  }
+  .ct-type {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--gold);
+    padding: 2px 8px;
+    background: var(--gold-soft);
+    border-radius: var(--r-pill);
+  }
+  .ct-sig {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: var(--r-pill);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+  }
+  .ct-sig.is-complete { background: rgba(34,197,94,0.1); color: var(--success); border-color: rgba(34,197,94,0.3); }
+  .ct-sig.is-partial { background: rgba(247,159,31,0.1); color: var(--warning); border-color: rgba(247,159,31,0.3); }
+  .ct-sig.is-none { background: rgba(255,59,48,0.08); color: var(--danger); border-color: rgba(255,59,48,0.25); }
+
+  .ct-meta {
+    font-size: 12.5px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    display: flex; flex-wrap: wrap; gap: 4px 16px;
+  }
+  .ct-meta .data { display: inline-flex; align-items: center; gap: 4px; }
+  .ct-meta .gold { color: var(--gold); font-weight: 500; }
+
+  .ct-actions {
+    margin-top: 12px;
+    display: flex; gap: 6px; flex-wrap: wrap;
+  }
+
+  .ct-rent {
+    text-align: right;
+    flex-shrink: 0;
+    min-width: 100px;
+  }
+  .ct-rent-amount {
+    font-size: 22px;
+    font-weight: 300;
+    color: var(--gold);
+    font-family: var(--font-mono);
+    letter-spacing: -0.5px;
+  }
+  .ct-rent-sub {
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+  .ct-rent-days {
+    margin-top: 8px;
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: var(--r-pill);
+    font-family: var(--font-mono);
+    display: inline-block;
+  }
+  .ct-rent-days.is-soon { background: rgba(247,159,31,0.12); color: var(--warning); }
+  .ct-rent-days.is-urgent { background: rgba(255,59,48,0.12); color: var(--danger); }
+  .ct-rent-days.is-active { background: rgba(34,197,94,0.1); color: var(--success); }
+  .ct-rent-days.is-expired { background: rgba(255,255,255,0.04); color: var(--text-muted); }
+
+  /* Magic-link side drawer (revealed inline) */
+  .ct-mlink {
+    margin-top: 10px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--r-sm);
+    padding: 10px 12px;
+    display: flex; align-items: center; gap: 10px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+  }
+  .ct-mlink-label {
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    font-size: 10px;
+    font-family: var(--font-sans);
+  }
+  .ct-mlink-url {
+    flex: 1;
+    color: var(--text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    user-select: all;
+  }
+
+  @media (max-width: 720px) {
+    .ct-card { grid-template-columns: 1fr; }
+    .ct-rent { text-align: left; }
+  }
+
+  /* ═════════════════════════════════════════════════════════════
+     MOBILE / RESPONSIVE
+     ═════════════════════════════════════════════════════════════ */
+  @media (max-width: 880px) {
+    .top-bar-center { display: none; }
+    .cmdk-trigger { min-width: auto; }
+    .cmdk-trigger span:first-of-type { display: none; }
+    .user-email { display: none; }
+    .user-chip { padding: 4px; }
+    .main-pane { padding: 20px 16px; }
+    .page-header { flex-direction: column; align-items: flex-start; }
+  }
+  @media (max-width: 720px) {
+    .app-body { grid-template-columns: 0 1fr; }
+    .sidebar {
+      position: fixed; left: 0; top: var(--topbar-h); bottom: 0;
+      width: var(--sidebar-w);
+      z-index: 60;
+      transform: translateX(-100%);
+      transition: transform 0.28s var(--ease-out);
+    }
+    .app.sidebar-mobile-open .sidebar { transform: translateX(0); }
+    .app.sidebar-mobile-open::after {
+      content: '';
+      position: fixed; inset: var(--topbar-h) 0 0 0;
+      background: var(--bg-overlay);
+      z-index: 55;
+    }
+  }
+
+  /* ═════════════════════════════════════════════════════════════
+     UTILITIES
+     ═════════════════════════════════════════════════════════════ */
+  .mono { font-family: var(--font-mono); }
+  .text-secondary { color: var(--text-secondary); }
+  .text-muted { color: var(--text-muted); }
+  .gold { color: var(--gold); }
+  [hidden] { display: none !important; }
+</style>
+</head>
+
+<body>
+
+<!-- ═════════════════════════════════════════════════════════════
+     AUTH SHIELD
+     ═════════════════════════════════════════════════════════════ -->
+<div id="auth-shield">
+  <div class="shield-logo"></div>
+  <div class="shield-title">BOOM</div>
+  <div class="shield-subtitle">Cockpit · Preview</div>
+  <div class="shield-msg" id="auth-msg">Verifico autenticazione...</div>
+  <a href="/login?next=%2Fcockpit-preview" class="shield-cta" id="auth-cta" hidden>Accedi</a>
+</div>
+
+<!-- ═════════════════════════════════════════════════════════════
+     APP
+     ═════════════════════════════════════════════════════════════ -->
+<div class="app" id="app" hidden>
+
+  <!-- TOP BAR -->
+  <header class="top-bar">
+    <div class="top-bar-left">
+      <button class="sidebar-toggle" id="sidebar-toggle" title="Toggle sidebar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div class="logo">
+        <div class="logo-circle"></div>
+        <div class="logo-text">BOOM<span class="logo-label">COCKPIT</span></div>
+      </div>
+    </div>
+
+    <div class="top-bar-center">
+      <div class="heartbeat-badge is-offline" id="heartbeat-badge" title="Mac Mini bridge status">
+        <span class="dot"></span>
+        <span class="label">Mac&nbsp;Bridge</span>
+        <span class="time" id="heartbeat-time">—</span>
+      </div>
+    </div>
+
+    <div class="top-bar-right">
+      <button class="cmdk-trigger" id="cmdk-trigger" title="Command palette">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <span>Search · navigate</span>
+        <kbd id="cmdk-kbd">⌘K</kbd>
+      </button>
+      <div class="user-chip">
+        <div class="user-avatar" id="user-avatar">V</div>
+        <div class="user-email" id="user-email"></div>
+      </div>
+    </div>
+  </header>
+
+  <!-- BODY -->
+  <div class="app-body">
+
+    <!-- SIDEBAR -->
+    <nav class="sidebar">
+      <div class="nav-section">
+        <div class="nav-section-title">Workspace</div>
+        <a class="nav-item" data-route="lead-inbox">
+          <span class="nav-icon">📨</span>
+          <span class="nav-label">Lead Inbox</span>
+          <span class="nav-badge" id="badge-leads">0</span>
+        </a>
+        <a class="nav-item" data-route="action-queue">
+          <span class="nav-icon">⚡</span>
+          <span class="nav-label">Action Queue</span>
+          <span class="nav-badge" id="badge-actions">0</span>
+        </a>
+        <a class="nav-item" data-route="risk-radar">
+          <span class="nav-icon">🎯</span>
+          <span class="nav-label">Risk Radar</span>
+          <span class="nav-badge" id="badge-risks" style="display:none">0</span>
+        </a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-title">Documents</div>
+        <a class="nav-item" data-route="contracts">
+          <span class="nav-icon">📝</span>
+          <span class="nav-label">Contracts</span>
+          <span class="nav-badge" id="badge-contracts">0</span>
+        </a>
+        <a class="nav-item" data-route="deal-composer">
+          <span class="nav-icon">📊</span>
+          <span class="nav-label">Deal Composer</span>
+        </a>
+      </div>
+
+      <div class="nav-section nav-section-bottom">
+        <a class="nav-item" data-route="settings">
+          <span class="nav-icon">⚙️</span>
+          <span class="nav-label">Settings</span>
+        </a>
+      </div>
+    </nav>
+
+    <!-- MAIN PANE -->
+    <main class="main-pane" id="main-pane">
+      <!-- rendered by router -->
+    </main>
+
+  </div>
+</div>
+
+<!-- ═════════════════════════════════════════════════════════════
+     CMDK PALETTE
+     ═════════════════════════════════════════════════════════════ -->
+<div id="cmdk-overlay" hidden>
+  <div class="cmdk-modal" role="dialog" aria-label="Command palette">
+    <input class="cmdk-input" id="cmdk-input" placeholder="Cerca o naviga..." autocomplete="off" spellcheck="false">
+    <div class="cmdk-results" id="cmdk-results"></div>
+    <div class="cmdk-footer">
+      <span><kbd>↑</kbd><kbd>↓</kbd> navigate</span>
+      <span><kbd>↵</kbd> open</span>
+      <span><kbd>ESC</kbd> close</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═════════════════════════════════════════════════════════════
+     TOAST STACK
+     ═════════════════════════════════════════════════════════════ -->
+<div id="toast-stack" aria-live="polite"></div>
+
+<!-- ═════════════════════════════════════════════════════════════
+     SCRIPTS
+     ═════════════════════════════════════════════════════════════ -->
+<script>
+(function(){
+  'use strict';
+
+  // ───────────────────────────────────────────────────────────
+  // CONFIG
+  // ───────────────────────────────────────────────────────────
+  const COCKPIT = {
+    whitelist: ['valentino11marzo@gmail.com', 'valentino@boomrome.com', 'valentino@boom-rome.com'],
+    heartbeat: {
+      doc: 'heartbeat/mac',          // Firestore path
+      warningMs: 2 * 60 * 1000,      // > 2min → yellow
+      criticalMs: 5 * 60 * 1000,     // > 5min → red
+      offlineMs: 15 * 60 * 1000      // > 15min → offline
+    },
+    // SLA response targets per grade, in minutes (editable in Settings,
+    // persisted to settings/cockpit). null = no SLA (dead).
+    sla: { A: 5, B: 30, C: 120 },
+    routes: {
+      'lead-inbox':    { title: 'Lead Inbox',     icon: '📨', subtitle: 'Live ingestion da Homie · grade A/B/C cadenza differenziata' },
+      'action-queue':  { title: 'Action Queue',   icon: '⚡', subtitle: 'Decisioni umane in coda · 1-tap approve / reject / edit' },
+      'risk-radar':    { title: 'Risk Radar',     icon: '🎯', subtitle: 'RLI · contratti silenti · documenti mancanti · scadenze 7gg' },
+      'contracts':     { title: 'Contracts',      icon: '📝', subtitle: 'Magic link signing · status real-time · audit log immutabile' },
+      'deal-composer': { title: 'Deal Composer',  icon: '📊', subtitle: 'Canone OMI · scheda CAF Allegato B · scadenzario fiscale' },
+      'settings':      { title: 'Settings',       icon: '⚙️', subtitle: 'Bridge config · LLM tiers · notifiche EmailJS · whitelist' }
+    },
+    defaultRoute: 'lead-inbox'
+  };
+
+  // ───────────────────────────────────────────────────────────
+  // STATE
+  // ───────────────────────────────────────────────────────────
+  const STATE = {
+    user: null,
+    route: null,
+    sidebarCollapsed: false,
+    heartbeatLast: null,
+    heartbeatMeta: null,
+    heartbeatUnsub: null,
+    // Action queue
+    actions: [],
+    actionsUnsub: null,
+    actionsFilter: 'pending',
+    actionsBusy: {},      // actionId -> true while executor runs
+    // Risk radar
+    riskItems: [],
+    riskSnoozedCount: 0,
+    showSnoozed: false,
+    cmdkOpen: false,
+    cmdkSelected: 0,
+    cmdkFiltered: [],
+    // Lead inbox
+    leads: [],
+    leadsUnsub: null,
+    leadsFilter: 'new',
+    leadsSearch: '',
+    leadsTimerId: null,
+    // Contracts
+    contracts: [],
+    contractsUnsub: null,
+    contractsFilter: 'all',
+    usersById: {},      // lazy populated when entering contracts panel
+    propertiesById: {}, // lazy populated when entering contracts panel
+    ctxLoaded: false,
+    revealedLinks: {}   // contractId+role -> visible flag
+  };
+
+  // ───────────────────────────────────────────────────────────
+  // DOM HELPERS
+  // ───────────────────────────────────────────────────────────
+  const $ = (sel) => document.querySelector(sel);
+  const $$ = (sel) => document.querySelectorAll(sel);
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const fmt = {
+    relTime(ts) {
+      if (!ts) return '—';
+      const diff = Date.now() - ts;
+      if (diff < 1000) return 'now';
+      if (diff < 60_000) return Math.floor(diff/1000) + 's ago';
+      if (diff < 3_600_000) return Math.floor(diff/60_000) + 'm ago';
+      if (diff < 86_400_000) return Math.floor(diff/3_600_000) + 'h ago';
+      return Math.floor(diff/86_400_000) + 'd ago';
+    }
+  };
+
+  // Lazy-load jsPDF from CDN (only when the Deal Composer exports a PDF).
+  let _jspdfPromise = null;
+  function loadJsPDF() {
+    if (window.jspdf) return Promise.resolve();
+    if (_jspdfPromise) return _jspdfPromise;
+    _jspdfPromise = new Promise((resolve, reject) => {
+      const sc = document.createElement('script');
+      sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+      sc.onload = () => resolve();
+      sc.onerror = () => reject(new Error('jsPDF non caricato'));
+      document.head.appendChild(sc);
+    });
+    return _jspdfPromise;
+  }
+
+  // ───────────────────────────────────────────────────────────
+  // TOAST
+  // ───────────────────────────────────────────────────────────
+  const Toast = {
+    show({ type = 'info', title, desc, duration = 4000 } = {}) {
+      const icons = { success: '✓', warning: '⚠', danger: '✕', info: 'ℹ' };
+      const el = document.createElement('div');
+      el.className = `toast toast-${type}`;
+      el.innerHTML = `
+        <div class="toast-icon">${icons[type] || icons.info}</div>
+        <div class="toast-body">
+          <div class="toast-title">${esc(title || '')}</div>
+          ${desc ? `<div class="toast-desc">${esc(desc)}</div>` : ''}
+        </div>
+        <button class="toast-close" aria-label="Close">×</button>
+      `;
+      el.querySelector('.toast-close').onclick = () => el.remove();
+      $('#toast-stack').appendChild(el);
+      if (duration) setTimeout(() => { el.style.opacity = '0'; el.style.transform = 'translateX(20px)'; el.style.transition = 'all .24s'; setTimeout(() => el.remove(), 240); }, duration);
+    }
+  };
+  window.Toast = Toast;
+
+  // ───────────────────────────────────────────────────────────
+  // AUTH GATE
+  // ───────────────────────────────────────────────────────────
+  function enterApp(user) {
+    STATE.user = user;
+    const shield = $('#auth-shield');
+    if (shield) {
+      shield.style.transition = 'opacity .3s';
+      shield.style.opacity = '0';
+      setTimeout(() => { try { shield.remove(); } catch {} }, 280);
+    }
+    const app = $('#app'); if (app) app.hidden = false;
+    try { bootApp(); }
+    catch (e) { console.error('[bootApp]', e); try { Toast.show({ type: 'danger', title: 'Errore avvio', desc: e.message }); } catch {} }
+  }
+
+  function showAuthMsg(html, ctaText, ctaFn) {
+    const msg = $('#auth-msg'), cta = $('#auth-cta');
+    if (msg) msg.innerHTML = html;
+    if (cta) {
+      cta.hidden = false;
+      if (ctaText) cta.textContent = ctaText;
+      if (ctaFn) cta.onclick = (e) => { e.preventDefault(); ctaFn(); };
+    }
+  }
+
+  // Decide whether a signed-in user may enter. Mirrors portal.html: an email
+  // in the fast-path whitelist OR any user whose Firestore profile role is
+  // 'admin'. This keeps the two surfaces consistent — if the Portal lets you
+  // in as admin, so does the Cockpit.
+  async function decideAccess(user) {
+    if (!user) {
+      showAuthMsg('Devi essere autenticato per accedere al cockpit.', 'Accedi al Portal', () => { location.href = '/login?next=%2Fcockpit-preview'; });
+      return;
+    }
+    if (user.isAnonymous) {
+      showAuthMsg('Sessione anonima non valida per il cockpit.', 'Accedi al Portal', () => { location.href = '/login?next=%2Fcockpit-preview'; });
+      return;
+    }
+    const email = (user.email || '').toLowerCase().trim();
+    if (COCKPIT.whitelist.includes(email)) { enterApp(user); return; }
+    // Mirror the portal: allow any admin-role profile.
+    try {
+      const doc = await db.collection('users').doc(user.uid).get();
+      const role = doc.exists ? (doc.data().role || '') : '';
+      if (role === 'admin') { enterApp(user); return; }
+      showAuthMsg(`Accesso riservato agli admin.<br><strong style="color:var(--text)">${esc(email)}</strong> ha ruolo "${esc(role || 'nessuno')}".`, 'Disconnetti', () => auth.signOut());
+    } catch (e) {
+      showAuthMsg('Impossibile verificare il ruolo:<br><code>' + esc(e.message) + '</code>', 'Riprova', () => location.reload());
+    }
+  }
+
+  function bootAuth() {
+    // Guard: if the Firebase SDK / config didn't load, never sit silently on
+    // "Verifico autenticazione…" — say so and offer a reload.
+    if (typeof firebase === 'undefined' || typeof auth === 'undefined' || !auth) {
+      showAuthMsg('Impossibile inizializzare Firebase su questo dominio.<br>Ricarica la pagina o verifica la connessione.', 'Ricarica', () => location.reload());
+      return;
+    }
+
+    let settled = false;
+    try {
+      auth.onAuthStateChanged((user) => {
+        settled = true;
+        decideAccess(user);
+      }, (err) => {
+        settled = true;
+        showAuthMsg('Errore di autenticazione:<br><code>' + esc(err && err.message || 'unknown') + '</code>', 'Riprova', () => location.reload());
+      });
+    } catch (e) {
+      showAuthMsg('Errore: <code>' + esc(e.message) + '</code>', 'Ricarica', () => location.reload());
+      return;
+    }
+
+    // Watchdog: if onAuthStateChanged never resolves (network / SDK stall) but
+    // a session is already cached, run the same access decision instead of
+    // hanging on the shield.
+    setTimeout(() => {
+      if (settled) return;
+      const u = auth.currentUser;
+      if (u) decideAccess(u);
+      else showAuthMsg('L\'autenticazione sta impiegando troppo tempo.<br>Controlla la connessione.', 'Riprova', () => location.reload());
+    }, 7000);
+  }
+
+  // Never let an uncaught error leave the shield stuck silently — surface it.
+  window.addEventListener('error', (ev) => {
+    const shield = $('#auth-shield');
+    if (shield && document.body.contains(shield)) {
+      const msg = $('#auth-msg');
+      if (msg) msg.innerHTML = 'Errore di caricamento:<br><code>' + esc((ev && ev.message) || 'unknown') + '</code>';
+      const cta = $('#auth-cta');
+      if (cta) { cta.hidden = false; cta.textContent = 'Ricarica'; cta.onclick = (e) => { e.preventDefault(); location.reload(); }; }
+    }
+  });
+
+  // ───────────────────────────────────────────────────────────
+  // APP BOOT
+  // ───────────────────────────────────────────────────────────
+  function bootApp() {
+    // User chip
+    const email = STATE.user.email || '';
+    $('#user-email').textContent = email;
+    $('#user-avatar').textContent = (email[0] || '?').toUpperCase();
+
+    // Detect platform for ⌘ / Ctrl
+    const isMac = navigator.platform.toLowerCase().includes('mac');
+    $('#cmdk-kbd').textContent = isMac ? '⌘K' : 'Ctrl+K';
+
+    // Sidebar toggle
+    $('#sidebar-toggle').onclick = () => {
+      const app = $('#app');
+      const isMobile = window.innerWidth <= 720;
+      if (isMobile) {
+        app.classList.toggle('sidebar-mobile-open');
+      } else {
+        app.classList.toggle('sidebar-collapsed');
+        STATE.sidebarCollapsed = app.classList.contains('sidebar-collapsed');
+        try { localStorage.setItem('cockpit.sidebar.collapsed', STATE.sidebarCollapsed ? '1' : '0'); } catch {}
+      }
+    };
+    // Restore sidebar
+    try {
+      if (localStorage.getItem('cockpit.sidebar.collapsed') === '1') {
+        $('#app').classList.add('sidebar-collapsed');
+        STATE.sidebarCollapsed = true;
+      }
+    } catch {}
+
+    // Nav items
+    $$('.nav-item[data-route]').forEach(el => {
+      el.onclick = (e) => { e.preventDefault(); Router.go(el.dataset.route); };
+    });
+
+    // Router
+    Router.init();
+
+    // Heartbeat
+    Heartbeat.start();
+
+    // Shared config (heartbeat thresholds + SLA cadences) from settings/cockpit.
+    // Applies live once loaded; safe no-op if the doc doesn't exist yet.
+    CockpitConfig.load().then(() => {
+      Heartbeat.updateBadge();
+      if (STATE.route === 'lead-inbox') LeadStore.renderPanel();
+    });
+
+    // Lead inbox listener (always-on so the sidebar badge stays live)
+    LeadStore.start();
+
+    // Action queue listener (always-on so the sidebar badge counts pending
+    // decisions even when you're on another panel)
+    ActionStore.start();
+
+    // Contracts listener (always-on for sidebar badge; context users+properties
+    // loaded lazily on first panel entry)
+    ContractStore.startListener();
+
+    // CmdK
+    CmdK.init();
+
+    // Greeting toast
+    Toast.show({
+      type: 'success',
+      title: 'Cockpit pronto',
+      desc: `Benvenuto ${(email.split('@')[0] || '')}. Mac Mini bridge non ancora attivo: heartbeat in attesa.`,
+      duration: 5000
+    });
+  }
+
+  // ───────────────────────────────────────────────────────────
+  // ROUTER (hash-based)
+  // ───────────────────────────────────────────────────────────
+  const Router = {
+    init() {
+      window.addEventListener('hashchange', () => this.render());
+      const initial = location.hash.slice(1) || COCKPIT.defaultRoute;
+      this.go(initial);
+    },
+    go(route) {
+      if (!COCKPIT.routes[route]) route = COCKPIT.defaultRoute;
+      if (location.hash !== '#' + route) {
+        location.hash = route;
+        return; // hashchange will trigger render
+      }
+      this.render();
+    },
+    render() {
+      const route = location.hash.slice(1) || COCKPIT.defaultRoute;
+      STATE.route = route;
+      const meta = COCKPIT.routes[route];
+
+      // Update nav active
+      $$('.nav-item').forEach(el => el.classList.toggle('is-active', el.dataset.route === route));
+
+      // Render main
+      const main = $('#main-pane');
+      main.innerHTML = `
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">
+              <span class="page-title-icon">${meta.icon}</span>
+              ${esc(meta.title)}
+            </h1>
+            <p class="page-subtitle">${esc(meta.subtitle)}</p>
+          </div>
+          <div class="page-actions">
+            <span class="soon-banner" style="background:rgba(47,211,122,0.08);border-color:rgba(47,211,122,0.3);color:var(--success)">● Live</span>
+          </div>
+        </div>
+        ${Panels[route] ? Panels[route]() : Panels.placeholder(meta)}
+      `;
+
+      // Close mobile drawer
+      $('#app').classList.remove('sidebar-mobile-open');
+    }
+  };
+
+  // ───────────────────────────────────────────────────────────
+  // PANELS (empty states for now)
+  // ───────────────────────────────────────────────────────────
+  const Panels = {
+    placeholder(meta) {
+      return `
+        <div class="empty-state">
+          <div class="empty-icon">${meta.icon}</div>
+          <div class="empty-title">${esc(meta.title)} pannello in arrivo</div>
+          <div class="empty-desc">${esc(meta.subtitle)}<br><br>Questo riquadro sarà popolato in un turno successivo, dopo che lo shell è stato approvato. La struttura, il routing e il design system sono pronti — manca solo il contenuto live.</div>
+          <div class="empty-hint">route: <span class="gold">#${esc(STATE.route)}</span> · status: shell-only</div>
+        </div>
+      `;
+    },
+    'lead-inbox': () => {
+      // Defer the actual rendering: container is filled by LeadStore.renderPanel()
+      // (runs on snapshot updates + SLA tick). On route entry, force a paint
+      // with whatever is in cache so the user sees something immediately.
+      setTimeout(() => LeadStore.renderPanel(), 0);
+      return `<div id="lead-panel"><div class="empty-state"><div class="empty-icon">📨</div><div class="empty-title">Connessione live…</div><div class="empty-desc">Sto caricando i lead da Firestore.</div></div></div>`;
+    },
+    'action-queue': () => {
+      setTimeout(() => ActionStore.renderPanel(), 0);
+      return `<div id="action-panel"><div class="empty-state"><div class="empty-icon">⚡</div><div class="empty-title">Connessione live…</div><div class="empty-desc">Carico la coda azioni da Firestore.</div></div></div>`;
+    },
+    'risk-radar': () => {
+      setTimeout(() => RiskStore.renderPanel(), 0);
+      return `<div id="risk-panel"><div class="empty-state"><div class="empty-icon">🎯</div><div class="empty-title">Calcolo rischi…</div><div class="empty-desc">Analizzo contratti, pagamenti e lead.</div></div></div>`;
+    },
+    'contracts': () => {
+      setTimeout(() => ContractStore.enter(), 0);
+      return `<div id="contracts-panel"><div class="empty-state"><div class="empty-icon">📝</div><div class="empty-title">Connessione live…</div><div class="empty-desc">Carico contratti, properties, utenti.</div></div></div>`;
+    },
+    'deal-composer': () => {
+      setTimeout(() => DealComposer.renderPanel(), 0);
+      return `<div id="deal-panel"></div>`;
+    },
+    'settings': () => {
+      setTimeout(() => SettingsPanel.renderPanel(), 0);
+      return `<div id="settings-panel"></div>`;
+    }
+  };
+
+  // ───────────────────────────────────────────────────────────
+  // LEAD STORE — Firestore listener + grade/SLA logic + actions
+  // ───────────────────────────────────────────────────────────
+  const LeadStore = {
+    /** Start the global listener. Always-on after bootApp(): updates the
+     *  sidebar badge in real time even when you're not on this panel. */
+    start() {
+      try {
+        STATE.leadsUnsub = db.collection('leads')
+          .orderBy('createdAt', 'desc')
+          .limit(50)
+          .onSnapshot(snap => {
+            STATE.leads = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            this.updateBadge();
+            if (STATE.route === 'lead-inbox') this.renderPanel();
+          }, err => {
+            console.warn('[LeadStore]', err);
+            const panel = $('#lead-panel');
+            if (panel) panel.innerHTML = `
+              <div class="empty-state">
+                <div class="empty-icon">⚠</div>
+                <div class="empty-title">Errore di accesso a Firestore</div>
+                <div class="empty-desc">${esc(err.message || err)}</div>
+                <div class="empty-hint">collection: leads · verifica regole sicurezza</div>
+              </div>`;
+          });
+
+        // SLA countdown re-render every 30s (no re-fetch)
+        STATE.leadsTimerId = setInterval(() => {
+          if (STATE.route === 'lead-inbox') this.renderPanel();
+        }, 30000);
+      } catch (e) {
+        console.error('[LeadStore.start]', e);
+      }
+    },
+
+    /** Heuristic grade: A/B/C/dead, calculated client-side.
+     *  Real Homie pipeline will eventually write this server-side. */
+    gradeOf(l) {
+      if (l.grade) return l.grade; // honor server-set value when present
+      if (l.status === 'discarded') return 'dead';
+      const hasContact = !!(l.email || l.leadEmail || l.phone || l.leadPhone);
+      if (!hasContact) return 'dead';
+      const budget = Number(l.budget) || 0;
+      const hasDetail = !!(l.intakeForm || l.zone || l.situation || l.notes || l.propertyTitle);
+      // Worker + high budget + filled intake → A
+      if (budget >= 1500 && hasDetail) return 'A';
+      if (l.situation === 'worker' && budget >= 1000 && hasDetail) return 'A';
+      if (budget >= 1000 || (hasDetail && budget >= 700)) return 'B';
+      return 'C';
+    },
+
+    /** SLA target by grade (minutes). dead → no target. */
+    slaTarget(grade) {
+      if (grade === 'dead') return null;
+      return (COCKPIT.sla && COCKPIT.sla[grade]) ?? ({ A: 5, B: 30, C: 120 })[grade];
+    },
+
+    /** Compute SLA state for a lead. Returns { state, label } where state ∈
+     *  fresh|warning|late|night|done. Respects the 23:00–07:00 night queue
+     *  rule: late leads received at night are treated as 'night' not 'late'. */
+    slaInfo(l, grade) {
+      if (l.status === 'responded' || l.status === 'converted') return { state: 'done', label: 'risposto' };
+      if (l.status === 'discarded') return { state: 'night', label: 'scartato' };
+      const target = this.slaTarget(grade);
+      if (target == null) return { state: 'night', label: 'no SLA' };
+      const created = l.createdAt?.toDate ? l.createdAt.toDate() : (l.createdAt ? new Date(l.createdAt) : null);
+      if (!created) return { state: 'night', label: '—' };
+      const now = new Date();
+      const elapsedMs = now - created;
+      const elapsedMin = elapsedMs / 60000;
+      const hourReceived = created.getHours();
+      const isNight = hourReceived >= 23 || hourReceived < 7;
+      const remainingMin = target - elapsedMin;
+      if (remainingMin >= 0) {
+        const m = Math.ceil(remainingMin);
+        return { state: m <= Math.max(1, target * 0.3) ? 'warning' : 'fresh', label: `${m}m left` };
+      }
+      // Past SLA
+      if (isNight) return { state: 'night', label: 'night queue' };
+      const lateMin = Math.floor(-remainingMin);
+      return { state: 'late', label: lateMin < 60 ? `+${lateMin}m late` : `+${Math.floor(lateMin / 60)}h late` };
+    },
+
+    /** Phone number normalization for WhatsApp deep-link. */
+    waLink(phone) {
+      if (!phone) return null;
+      const clean = String(phone).replace(/[^0-9+]/g, '').replace(/^\+/, '');
+      return clean ? `https://wa.me/${clean}` : null;
+    },
+
+    /** Friendly relative time: "5m fa", "2h fa", "ieri". */
+    timeAgo(ts) {
+      if (!ts) return '';
+      const d = ts?.toDate ? ts.toDate() : new Date(ts);
+      const diff = Date.now() - d.getTime();
+      const m = Math.floor(diff / 60000);
+      if (m < 1) return 'adesso';
+      if (m < 60) return `${m}m fa`;
+      const h = Math.floor(m / 60);
+      if (h < 24) return `${h}h fa`;
+      const days = Math.floor(h / 24);
+      if (days === 1) return 'ieri';
+      if (days < 7) return `${days}g fa`;
+      return d.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
+    },
+
+    /** Update sidebar badge with count of NEW leads (status='new' or undefined). */
+    updateBadge() {
+      const el = $('#badge-leads');
+      if (!el) return;
+      const count = STATE.leads.filter(l => !l.status || l.status === 'new').length;
+      el.textContent = count;
+      el.style.display = count > 0 ? '' : 'none';
+    },
+
+    /** Counts per status, for the filter pills. */
+    counts() {
+      const c = { all: STATE.leads.length, new: 0, responded: 0, converted: 0, discarded: 0 };
+      for (const l of STATE.leads) {
+        const s = l.status || 'new';
+        if (c[s] != null) c[s]++;
+      }
+      return c;
+    },
+
+    /** Filter the current leads list according to STATE.leadsFilter + search. */
+    filtered() {
+      const f = STATE.leadsFilter;
+      let list = f === 'all' ? STATE.leads : STATE.leads.filter(l => (l.status || 'new') === f);
+      const q = (STATE.leadsSearch || '').trim().toLowerCase();
+      if (q) {
+        list = list.filter(l => [l.name, l.email, l.phone, l.zone, l.propertyTitle, l.notes, l.message]
+          .filter(Boolean).join(' ').toLowerCase().includes(q));
+      }
+      return list;
+    },
+
+    /** Detect source: Homie / Immobiliare / Idealista / Intake Form / Web. */
+    sourceOf(l) {
+      const s = (l.source || l.service || '').toLowerCase();
+      if (l.intakeForm) return 'Intake';
+      if (s.includes('homie')) return 'Homie';
+      if (s.includes('immobiliare')) return 'Immobiliare';
+      if (s.includes('idealista')) return 'Idealista';
+      if (s.includes('whats')) return 'WhatsApp';
+      if (l.propertyTitle) return 'Property';
+      return l.source || 'Web';
+    },
+
+    /** Render one lead card. */
+    renderCard(l) {
+      const status = l.status || 'new';
+      const grade = this.gradeOf(l);
+      const sla = this.slaInfo(l, grade);
+      const cardClass = ['lead-card'];
+      if (status === 'discarded') cardClass.push('is-discarded');
+      else if (status === 'converted') cardClass.push('is-converted');
+      else if (sla.state === 'late') cardClass.push('is-late');
+      else if (sla.state === 'warning') cardClass.push('is-warning');
+      else if (sla.state === 'fresh') cardClass.push('is-fresh');
+
+      const name = l.name || l.leadName || 'Sconosciuto';
+      const flag = (l.language === 'en' || l.language === 'EN') ? '🇬🇧' : '🇮🇹';
+      const source = this.sourceOf(l);
+
+      const budget = Number(l.budget) || null;
+      const zone = l.zone;
+      const situation = l.situation;
+      const sitIcon = situation === 'worker' ? '💼' : situation === 'student' ? '🎓' : situation === 'visitor' || situation === 'tourist' ? '✈️' : '';
+
+      const propTitle = l.propertyTitle;
+      const propPrice = l.propertyPrice ? Number(l.propertyPrice) : null;
+
+      const note = l.notes || l.message || l.leadMessage;
+      const phone = l.phone || l.leadPhone;
+      const email = l.email || l.leadEmail;
+      const wa = this.waLink(phone);
+
+      return `
+        <div class="${cardClass.join(' ')}" data-lead-id="${esc(l.id)}">
+          <div class="lead-grade grade-${grade}" title="Grade ${grade} · SLA ${this.slaTarget(grade) ?? '∞'}min">
+            ${grade === 'dead' ? '·' : grade}
+          </div>
+          <div class="lead-body">
+            <div class="lead-row-1">
+              <span class="lead-flag">${flag}</span>
+              <span class="lead-name">${esc(name)}</span>
+              <span class="lead-pill is-${status}">${status}</span>
+              <span class="lead-pill is-source">${esc(source)}</span>
+              ${l.linkedViewingId ? '<span class="lead-pill" style="color:var(--gold)">📅 viewing</span>' : ''}
+            </div>
+            <div class="lead-row-2">
+              ${budget ? `<span class="data"><span class="gold">€${budget}</span>/mo</span>` : ''}
+              ${zone ? `<span class="data">📍 ${esc(zone)}</span>` : ''}
+              ${sitIcon ? `<span class="data">${sitIcon} ${esc(situation)}</span>` : ''}
+              ${propTitle ? `<span class="data">🏠 ${esc(propTitle)}${propPrice ? ` · €${propPrice.toLocaleString('it-IT')}` : ''}</span>` : ''}
+              ${!budget && !zone && !situation && !propTitle ? `<span class="data" style="color:var(--text-muted)">— nessun dettaglio</span>` : ''}
+            </div>
+            ${note ? `<div class="lead-note">"${esc(String(note).slice(0, 180))}${String(note).length > 180 ? '…' : ''}"</div>` : ''}
+            <div class="lead-actions">
+              <button class="lead-btn" onclick="LeadActions.detail('${esc(l.id)}')">👁 Dettaglio</button>
+              ${wa ? `<a href="${wa}" target="_blank" rel="noopener" class="lead-btn primary" onclick="event.stopPropagation()">💬 WhatsApp</a>` : ''}
+              ${email ? `<a href="mailto:${esc(email)}" class="lead-btn" onclick="event.stopPropagation()">📧 Email</a>` : ''}
+              ${status === 'new' ? `<button class="lead-btn success" onclick="LeadActions.markResponded('${esc(l.id)}')">✓ Risposto</button>` : ''}
+              ${status === 'new' || status === 'responded' ? `<button class="lead-btn danger" onclick="LeadActions.discard('${esc(l.id)}')">✕ Scarta</button>` : ''}
+              ${status === 'discarded' ? `<button class="lead-btn muted" onclick="LeadActions.reopen('${esc(l.id)}')">↺ Riapri</button>` : ''}
+              <a class="lead-btn muted" href="/portal#leads" target="_blank" rel="noopener" onclick="event.stopPropagation()">🔗 Portal</a>
+            </div>
+          </div>
+          <div class="lead-meta">
+            <span class="lead-time">${esc(this.timeAgo(l.createdAt))}</span>
+            <span class="lead-sla is-${sla.state}">${esc(sla.label)}</span>
+          </div>
+        </div>
+      `;
+    },
+
+    /** Full panel render: toolbar + list. */
+    renderPanel() {
+      const panel = $('#lead-panel');
+      if (!panel) return;
+      const c = this.counts();
+      const filter = STATE.leadsFilter;
+      const items = this.filtered();
+      const stats = {
+        graded: { A: 0, B: 0, C: 0, dead: 0 },
+        breached: 0
+      };
+      for (const l of STATE.leads) {
+        if (l.status === 'discarded') continue;
+        const g = this.gradeOf(l);
+        stats.graded[g]++;
+        if (!l.status || l.status === 'new') {
+          const sla = this.slaInfo(l, g);
+          if (sla.state === 'late') stats.breached++;
+        }
+      }
+
+      const filterBtn = (key, label) => `
+        <button class="lead-filter-btn ${filter === key ? 'is-active' : ''}" onclick="LeadActions.setFilter('${key}')">
+          ${label}
+          <span class="lead-filter-count">${c[key]}</span>
+        </button>
+      `;
+
+      panel.innerHTML = `
+        <div class="lead-toolbar">
+          <div class="lead-filters">
+            ${filterBtn('new', 'Nuovi')}
+            ${filterBtn('responded', 'Risposti')}
+            ${filterBtn('converted', 'Convertiti')}
+            ${filterBtn('discarded', 'Scartati')}
+            ${filterBtn('all', 'Tutti')}
+          </div>
+          <div class="lead-summary">
+            <input type="search" id="lead-search" class="lead-search" placeholder="🔎 cerca nome, zona, email…" value="${esc(STATE.leadsSearch || '')}">
+            <span><strong style="color:var(--gold)">${stats.graded.A}</strong> A</span>
+            <span><strong>${stats.graded.B}</strong> B</span>
+            <span><strong>${stats.graded.C}</strong> C</span>
+            ${stats.breached > 0 ? `<span style="color:var(--danger)"><strong>${stats.breached}</strong> SLA scaduti</span>` : '<span style="color:var(--success)">SLA ok</span>'}
+          </div>
+        </div>
+        ${items.length === 0 ? `
+          <div class="empty-state">
+            <div class="empty-icon">📨</div>
+            <div class="empty-title">${filter === 'new' ? 'Nessun nuovo lead' : 'Nessun lead in questo filtro'}</div>
+            <div class="empty-desc">${filter === 'new'
+              ? 'Quando Homie filtra un lead da Immobiliare, Idealista o WhatsApp comparirà qui in tempo reale.<br>Grade A → 5 min · B → 30 min · C → 2h · dead → trigger-only · notte 23-07 → queue.'
+              : 'Cambia filtro per vedere altri lead.'}</div>
+            <div class="empty-hint">listener live · ${STATE.leads.length} lead totali in cache</div>
+          </div>
+        ` : `
+          <div class="lead-list">
+            ${items.map(l => this.renderCard(l)).join('')}
+          </div>
+        `}
+      `;
+      // Wire the search box (debounced, focus + caret preserved across re-render).
+      const search = $('#lead-search');
+      if (search) {
+        search.oninput = (e) => {
+          STATE.leadsSearch = e.target.value;
+          clearTimeout(this._searchTimer);
+          this._searchTimer = setTimeout(() => {
+            this.renderPanel();
+            const s2 = $('#lead-search');
+            if (s2) { s2.focus(); const v = s2.value; s2.setSelectionRange(v.length, v.length); }
+          }, 180);
+        };
+      }
+    }
+  };
+  window.LeadStore = LeadStore;
+
+  // Slide-in detail drawer (shared element, reused for every lead).
+  function openDrawer(title, bodyHtml) {
+    let bd = $('#cockpit-drawer-backdrop');
+    if (!bd) {
+      bd = document.createElement('div');
+      bd.id = 'cockpit-drawer-backdrop';
+      bd.className = 'drawer-backdrop';
+      bd.innerHTML = `<div class="drawer" onclick="event.stopPropagation()"><div class="drawer-head"><h3 id="drawer-title"></h3><button class="drawer-close" onclick="closeDrawer()">×</button></div><div class="drawer-body" id="drawer-body"></div></div>`;
+      bd.onclick = (e) => { if (e.target === bd) closeDrawer(); };
+      document.body.appendChild(bd);
+    }
+    $('#drawer-title').textContent = title;
+    $('#drawer-body').innerHTML = bodyHtml;
+    requestAnimationFrame(() => bd.classList.add('is-open'));
+  }
+  window.closeDrawer = function () { const bd = $('#cockpit-drawer-backdrop'); if (bd) bd.classList.remove('is-open'); };
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawer(); });
+
+  // Global handlers used by inline onclick attributes in lead cards.
+  window.LeadActions = {
+    detail(id) {
+      const l = STATE.leads.find(x => x.id === id);
+      if (!l) return;
+      const grade = LeadStore.gradeOf(l);
+      const wa = LeadStore.waLink(l.phone);
+      const row = (k, v) => v ? `<div class="drawer-row"><span>${esc(k)}</span><strong>${esc(String(v))}</strong></div>` : '';
+      const acts = (l.activity || l.timeline || []);
+      const body = `
+        <div class="drawer-badges">
+          <span class="lead-grade grade-${grade}">${grade === 'dead' ? '·' : grade}</span>
+          <span class="lead-pill is-${l.status || 'new'}">${esc(l.status || 'new')}</span>
+          <span class="lead-pill is-source">${esc(LeadStore.sourceOf(l))}</span>
+        </div>
+        ${row('Nome', l.name)}
+        ${row('Email', l.email)}
+        ${row('Telefono', l.phone)}
+        ${row('Budget', l.budget ? '€' + Number(l.budget).toLocaleString('it-IT') + '/mese' : '')}
+        ${row('Zona', l.zone)}
+        ${row('Situazione', l.situation)}
+        ${row('Lingua', l.language)}
+        ${row('Immobile', l.propertyTitle)}
+        ${row('Prezzo immobile', l.propertyPrice ? '€' + Number(l.propertyPrice).toLocaleString('it-IT') : '')}
+        ${row('Intent', l.intent)}
+        ${row('Confidence', typeof l.confidence === 'number' ? Math.round(l.confidence * 100) + '%' : '')}
+        ${row('Fonte tecnica', l.source)}
+        ${row('Creato', l.createdAt ? (l.createdAt.toDate ? l.createdAt.toDate() : new Date(l.createdAt)).toLocaleString('it-IT') : '')}
+        ${(l.notes || l.message) ? `<div class="drawer-note">"${esc(l.notes || l.message)}"</div>` : ''}
+        <div class="drawer-actions">
+          <button class="lead-btn primary" onclick="LeadActions.aiReply('${esc(l.id)}')">✨ Bozza AI</button>
+          ${wa ? `<a class="lead-btn" href="${wa}" target="_blank" rel="noopener">💬 WhatsApp</a>` : ''}
+          ${l.email ? `<a class="lead-btn" href="mailto:${esc(l.email)}">📧 Email</a>` : ''}
+          ${(l.status || 'new') === 'new' ? `<button class="lead-btn success" onclick="LeadActions.markResponded('${esc(l.id)}');closeDrawer()">✓ Risposto</button>` : ''}
+          ${((l.status || 'new') === 'new' || l.status === 'responded') ? `<button class="lead-btn danger" onclick="LeadActions.discard('${esc(l.id)}');closeDrawer()">✕ Scarta</button>` : ''}
+          <a class="lead-btn muted" href="/portal#leads" target="_blank" rel="noopener">🔗 Apri nel Portal</a>
+        </div>
+        <div id="ai-reply-box"></div>
+      `;
+      openDrawer(l.name || 'Lead', body);
+    },
+    async aiReply(id) {
+      const box = $('#ai-reply-box');
+      if (box) box.innerHTML = '<div class="ai-reply"><span class="data">✨ Claude sta scrivendo la bozza…</span></div>';
+      try {
+        const idToken = await auth.currentUser.getIdToken();
+        const r = await fetch('/api/agent/ai.reply', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Firebase-Token': idToken },
+          body: JSON.stringify({ leadId: id })
+        });
+        const data = await r.json();
+        if (!data?.ok) { if (box) box.innerHTML = `<div class="ai-reply"><span class="data" style="color:var(--danger)">${esc(data.error || 'errore')}</span></div>`; return; }
+        const l = STATE.leads.find(x => x.id === id) || {};
+        const wa = LeadStore.waLink(l.phone);
+        const text = data.body || '';
+        STATE._aiDraft = text;
+        if (box) box.innerHTML = `
+          <div class="ai-reply">
+            <div class="ai-reply-head">✨ Bozza Claude${data.subject ? ` · <span style="color:var(--text-secondary)">${esc(data.subject)}</span>` : ''}</div>
+            <textarea class="ai-reply-text" id="ai-reply-text">${esc(text)}</textarea>
+            <div class="lead-actions" style="margin-top:8px">
+              <button class="lead-btn" onclick="navigator.clipboard.writeText(document.getElementById('ai-reply-text').value);Toast.show({type:'success',title:'Copiata'})">📋 Copia</button>
+              ${wa ? `<a class="lead-btn primary" target="_blank" rel="noopener" href="${wa.split('?')[0]}?text=" onclick="this.href='${wa.split('?')[0]}?text='+encodeURIComponent(document.getElementById('ai-reply-text').value)">💬 Invia su WhatsApp</a>` : ''}
+              ${l.email ? `<a class="lead-btn" href="mailto:${esc(l.email)}?subject=${encodeURIComponent(data.subject||'')}&body=" onclick="this.href='mailto:${esc(l.email)}?subject=${encodeURIComponent(data.subject||'')}&body='+encodeURIComponent(document.getElementById('ai-reply-text').value)">📧 Apri email</a>` : ''}
+              <button class="lead-btn muted" onclick="LeadActions.aiReply('${esc(id)}')">↻ Rigenera</button>
+            </div>
+          </div>`;
+      } catch (e) {
+        if (box) box.innerHTML = `<div class="ai-reply"><span class="data" style="color:var(--danger)">${esc(e.message)}</span></div>`;
+      }
+    },
+    setFilter(f) {
+      STATE.leadsFilter = f;
+      LeadStore.renderPanel();
+    },
+    async markResponded(id) {
+      try {
+        await db.collection('leads').doc(id).update({
+          status: 'responded',
+          respondedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          respondedBy: STATE.user?.email || null
+        });
+        Toast.show({ type: 'success', title: 'Lead segnato come risposto' });
+      } catch (e) {
+        Toast.show({ type: 'danger', title: 'Errore', desc: e.message });
+      }
+    },
+    async discard(id) {
+      try {
+        await db.collection('leads').doc(id).update({
+          status: 'discarded',
+          discardedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        Toast.show({ type: 'info', title: 'Lead scartato' });
+      } catch (e) {
+        Toast.show({ type: 'danger', title: 'Errore', desc: e.message });
+      }
+    },
+    async reopen(id) {
+      try {
+        await db.collection('leads').doc(id).update({
+          status: 'new',
+          discardedAt: null
+        });
+        Toast.show({ type: 'success', title: 'Lead riaperto' });
+      } catch (e) {
+        Toast.show({ type: 'danger', title: 'Errore', desc: e.message });
+      }
+    }
+  };
+
+  // ───────────────────────────────────────────────────────────
+  // ACTION STORE — action_queue listener + approve/reject/execute
+  // Mirrors portal.html's Command Center: approving calls the server-side
+  // executor at /api/agent/execute (authenticated with the admin's Firebase
+  // ID token), which dispatches the action to its tool and flips the status.
+  // ───────────────────────────────────────────────────────────
+  const ActionStore = {
+    start() {
+      if (STATE.actionsUnsub) return;
+      try {
+        STATE.actionsUnsub = db.collection('action_queue')
+          .orderBy('createdAt', 'desc')
+          .limit(80)
+          .onSnapshot(snap => {
+            STATE.actions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            updateActionBadge();
+            if (STATE.route === 'action-queue') this.renderPanel();
+          }, err => {
+            // orderBy may fail if createdAt missing on old docs — fallback.
+            console.warn('[ActionStore] ordered listener failed, fallback:', err.message);
+            STATE.actionsUnsub = db.collection('action_queue').limit(80).onSnapshot(s2 => {
+              STATE.actions = s2.docs.map(d => ({ id: d.id, ...d.data() }));
+              updateActionBadge();
+              if (STATE.route === 'action-queue') this.renderPanel();
+            });
+          });
+      } catch (e) { console.warn('[ActionStore.start]', e); }
+    },
+
+    ts(v) { return v && v.toMillis ? v.toMillis() : (typeof v === 'string' ? Date.parse(v) : v) || null; },
+
+    kindMeta(kind) {
+      return ({
+        reply:            { icon: '✉️', label: 'Risposta',  verb: 'Invia risposta' },
+        schedule_viewing: { icon: '📅', label: 'Viewing',   verb: 'Conferma viewing' },
+        qualify:          { icon: '❓', label: 'Qualifica', verb: 'Invia domande' },
+        archive:          { icon: '🗄️', label: 'Archivia',  verb: 'Archivia lead' },
+        note:             { icon: '📝', label: 'Nota',      verb: 'Salva nota' },
+        other:            { icon: '•',  label: 'Azione',    verb: 'Applica' },
+      })[kind] || { icon: '•', label: kind || 'azione', verb: 'Applica' };
+    },
+
+    filtered() {
+      const f = STATE.actionsFilter;
+      if (f === 'all') return STATE.actions;
+      if (f === 'pending') return STATE.actions.filter(a => a.status === 'pending' || a.status === 'approved');
+      if (f === 'done') return STATE.actions.filter(a => ['executed', 'auto-applied'].includes(a.status));
+      if (f === 'failed') return STATE.actions.filter(a => ['failed', 'rejected'].includes(a.status));
+      return STATE.actions.filter(a => a.status === f);
+    },
+
+    counts() {
+      const c = { pending: 0, done: 0, failed: 0, all: STATE.actions.length };
+      for (const a of STATE.actions) {
+        if (a.status === 'pending' || a.status === 'approved') c.pending++;
+        else if (['executed', 'auto-applied'].includes(a.status)) c.done++;
+        else if (['failed', 'rejected'].includes(a.status)) c.failed++;
+      }
+      return c;
+    },
+
+    leadName(a) {
+      const l = STATE.leads.find(x => x.id === a.leadId);
+      return l ? (l.name || l.leadName || a.leadId) : (a.leadId || '—');
+    },
+
+    statusPill(a) {
+      const map = {
+        pending:        ['is-warning', 'in attesa'],
+        approved:       ['is-source', 'in esecuzione…'],
+        executed:       ['is-converted', '✓ eseguita'],
+        'auto-applied': ['is-source', 'auto'],
+        failed:         ['is-discarded', '✕ errore'],
+        rejected:       ['is-discarded', 'rifiutata'],
+      };
+      const [cls, lbl] = map[a.status] || ['', a.status || '—'];
+      return `<span class="lead-pill ${cls}">${esc(lbl)}</span>`;
+    },
+
+    renderCard(a) {
+      const km = this.kindMeta(a.kind);
+      const busy = !!STATE.actionsBusy[a.id];
+      const conf = typeof a.confidence === 'number' ? Math.round(a.confidence * 100) + '%' : null;
+      const p = a.payload || {};
+      const preview = p.draft || p.body || (p.questions && [].concat(p.questions).join(' · ')) || p.reason || a.summary || '';
+      const slots = p.proposedSlots || p.slots;
+      const canDecide = a.status === 'pending';
+      const cardClass = ['lead-card'];
+      if (a.status === 'failed' || a.status === 'rejected') cardClass.push('is-discarded');
+      else if (a.status === 'executed' || a.status === 'auto-applied') cardClass.push('is-converted');
+      else if (a.status === 'pending') cardClass.push('is-warning');
+
+      return `
+        <div class="${cardClass.join(' ')}" data-action-id="${esc(a.id)}">
+          <div class="lead-grade" style="background:var(--bg-elevated);font-size:18px">${km.icon}</div>
+          <div class="lead-body">
+            <div class="lead-row-1">
+              <span class="lead-name">${esc(km.label)} · ${esc(this.leadName(a))}</span>
+              ${this.statusPill(a)}
+              <span class="lead-pill is-source">${esc(a.proposedBy || 'homie')}</span>
+              ${a.tier ? `<span class="lead-pill">T${esc(a.tier)}</span>` : ''}
+              ${conf ? `<span class="lead-pill" style="color:var(--gold)">${conf}</span>` : ''}
+            </div>
+            ${a.summary ? `<div class="lead-row-2"><span class="data">${esc(a.summary)}</span></div>` : ''}
+            ${preview ? `<div class="lead-note" id="action-preview-${esc(a.id)}">"${esc(String(preview).slice(0, 300))}${String(preview).length > 300 ? '…' : ''}"</div>` : ''}
+            ${slots && slots.length ? `<div class="lead-row-2">${slots.map(s => `<span class="data">📅 ${esc(new Date(s).toLocaleString('it-IT', {weekday:'short', day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'}))}</span>`).join('')}</div>` : ''}
+            ${a.executionError ? `<div class="lead-note" style="color:var(--danger)">⚠ ${esc(a.executionError)}</div>` : ''}
+            <div class="lead-actions">
+              ${canDecide ? `<button class="lead-btn success" ${busy ? 'disabled' : ''} onclick="ActionActions.approve('${esc(a.id)}')">${busy ? '⏳ eseguo…' : '✓ ' + esc(km.verb)}</button>` : ''}
+              ${canDecide && (a.kind === 'reply' || a.kind === 'note') ? `<button class="lead-btn" ${busy ? 'disabled' : ''} onclick="ActionActions.editApprove('${esc(a.id)}')">✎ Modifica & approva</button>` : ''}
+              ${canDecide ? `<button class="lead-btn danger" ${busy ? 'disabled' : ''} onclick="ActionActions.reject('${esc(a.id)}')">✕ Rifiuta</button>` : ''}
+              ${a.status === 'failed' ? `<button class="lead-btn" onclick="ActionActions.retry('${esc(a.id)}')">↻ Riprova</button>` : ''}
+              ${a.leadId ? `<a class="lead-btn muted" href="/portal#leads" target="_blank" rel="noopener">🔗 Portal</a>` : ''}
+            </div>
+          </div>
+          <div class="lead-meta">
+            <span class="lead-time">${esc(fmt.relTime(this.ts(a.createdAt)))}</span>
+          </div>
+        </div>
+      `;
+    },
+
+    renderPanel() {
+      const panel = $('#action-panel');
+      if (!panel) return;
+      this.start();
+      const c = this.counts();
+      const filter = STATE.actionsFilter;
+      const items = this.filtered();
+      const fb = (key, label) => `<button class="lead-filter-btn ${filter === key ? 'is-active' : ''}" onclick="ActionActions.setFilter('${key}')">${label}<span class="lead-filter-count">${c[key] ?? 0}</span></button>`;
+
+      panel.innerHTML = `
+        <div class="lead-toolbar">
+          <div class="lead-filters">
+            ${fb('pending', 'Da decidere')}
+            ${fb('done', 'Fatte')}
+            ${fb('failed', 'Errori')}
+            ${fb('all', 'Tutte')}
+          </div>
+          <div class="lead-summary">
+            ${c.pending > 0 ? `<span style="color:var(--warning)"><strong>${c.pending}</strong> in attesa</span>` : '<span style="color:var(--success)">coda pulita</span>'}
+            <span><strong>${c.done}</strong> eseguite</span>
+            ${c.failed > 0 ? `<span style="color:var(--danger)"><strong>${c.failed}</strong> errori</span>` : ''}
+            ${c.pending > 1 ? `<button class="lead-btn success" style="margin-left:10px" onclick="ActionActions.bulkApprove()">✓✓ Approva tutte (${c.pending})</button>` : ''}
+          </div>
+        </div>
+        ${items.length === 0 ? `
+          <div class="empty-state">
+            <div class="empty-icon">⚡</div>
+            <div class="empty-title">${filter === 'pending' ? 'Nessuna decisione in coda' : 'Niente in questo filtro'}</div>
+            <div class="empty-desc">${filter === 'pending'
+              ? 'Quando Homie propone un\'azione Tier 2 (rispondere a un lead A, confermare un viewing, archiviare) compare qui.<br>Approvi con 1 tap → l\'executor la esegue davvero e ti mostra l\'esito.'
+              : 'Cambia filtro per vedere altre azioni.'}</div>
+            <div class="empty-hint">listener live · ${STATE.actions.length} azioni in cache</div>
+          </div>
+        ` : `<div class="lead-list">${items.map(a => this.renderCard(a)).join('')}</div>`}
+      `;
+    }
+  };
+  window.ActionStore = ActionStore;
+
+  window.ActionActions = {
+    setFilter(f) { STATE.actionsFilter = f; ActionStore.renderPanel(); },
+
+    async _execute(id, override) {
+      const action = STATE.actions.find(a => a.id === id);
+      if (!action) return;
+      STATE.actionsBusy[id] = true;
+      ActionStore.renderPanel();
+      try {
+        // 1) mark approved for snappy feedback
+        await db.collection('action_queue').doc(id).update({
+          status: 'approved',
+          approvedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          approvedBy: STATE.user?.email || 'cockpit'
+        });
+        // 2) trigger the server-side executor with the admin's ID token
+        const idToken = await auth.currentUser.getIdToken();
+        const r = await fetch('/api/agent/execute', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Firebase-Token': idToken },
+          body: JSON.stringify(override ? { id, override } : { id })
+        });
+        const data = await r.json().catch(() => ({}));
+        if (data?.ok && data.status === 'executed') {
+          Toast.show({ type: 'success', title: 'Eseguita', desc: action.kind === 'reply' ? 'Messaggio inviato' : 'Azione applicata' });
+        } else if (typeof data?.error === 'string' && data.error.startsWith('no_executor_for_kind')) {
+          Toast.show({ type: 'info', title: 'Approvata', desc: 'Azione manuale — segnala come fatta a mano' });
+        } else if (data?.ok === false) {
+          Toast.show({ type: 'danger', title: 'Executor', desc: data.error || 'Esecuzione fallita' });
+        } else {
+          Toast.show({ type: 'info', title: 'In coda', desc: 'Sarà eseguita a breve' });
+        }
+      } catch (e) {
+        Toast.show({ type: 'warning', title: 'Approvata', desc: 'Executor non raggiungibile, ritenterà' });
+      } finally {
+        STATE.actionsBusy[id] = false;
+        ActionStore.renderPanel();
+      }
+    },
+
+    approve(id) {
+      const a = STATE.actions.find(x => x.id === id);
+      const km = ActionStore.kindMeta(a?.kind);
+      if (!confirm(`${km.verb}?`)) return;
+      this._execute(id);
+    },
+
+    // Edit-before-approve, tailored per action kind.
+    editApprove(id) {
+      const a = STATE.actions.find(x => x.id === id);
+      if (!a) return;
+      const p = a.payload || {};
+      let override = null;
+      if (a.kind === 'reply') {
+        const edited = prompt('Modifica il messaggio prima di inviarlo:', p.draft || p.body || '');
+        if (edited === null) return;
+        override = { body: edited, draft: edited };
+      } else if (a.kind === 'note') {
+        const edited = prompt('Modifica la nota:', p.text || p.note || a.summary || '');
+        if (edited === null) return;
+        override = { text: edited, note: edited };
+      } else if (a.kind === 'schedule_viewing') {
+        const cur = (p.proposedSlots || p.slots || []).join(', ');
+        const edited = prompt('Slot proposti (date ISO separate da virgola):', cur);
+        if (edited === null) return;
+        const slots = edited.split(',').map(s => s.trim()).filter(Boolean);
+        override = { proposedSlots: slots, slots };
+      } else if (a.kind === 'archive') {
+        const edited = prompt('Motivo archiviazione:', p.reason || '');
+        if (edited === null) return;
+        override = { reason: edited };
+      } else if (a.kind === 'qualify') {
+        const cur = [].concat(p.questions || []).join(' | ');
+        const edited = prompt('Domande di qualifica (separate da |):', cur);
+        if (edited === null) return;
+        override = { questions: edited.split('|').map(s => s.trim()).filter(Boolean) };
+      } else {
+        const edited = prompt('Modifica:', p.text || a.summary || '');
+        if (edited === null) return;
+        override = { text: edited };
+      }
+      this._execute(id, override);
+    },
+
+    // Approve every pending action in one go (sequential to respect rate
+    // limits and keep the toast feedback readable).
+    async bulkApprove() {
+      const pending = STATE.actions.filter(a => a.status === 'pending');
+      if (!pending.length) return;
+      if (!confirm(`Approvare ed eseguire ${pending.length} azioni in attesa?`)) return;
+      let ok = 0, fail = 0;
+      for (const a of pending) {
+        try { await this._execute(a.id); ok++; } catch { fail++; }
+      }
+      Toast.show({ type: fail ? 'warning' : 'success', title: 'Coda processata', desc: `${ok} eseguite${fail ? `, ${fail} con problemi` : ''}` });
+    },
+
+    retry(id) { this._execute(id); },
+
+    async reject(id) {
+      if (!confirm('Rifiutare questa azione?')) return;
+      try {
+        await db.collection('action_queue').doc(id).update({
+          status: 'rejected',
+          rejectedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          rejectedBy: STATE.user?.email || 'cockpit'
+        });
+        Toast.show({ type: 'info', title: 'Rifiutata' });
+      } catch (e) { Toast.show({ type: 'danger', title: 'Errore', desc: e.message }); }
+    }
+  };
+
+  function updateActionBadge() {
+    const c = ActionStore.counts();
+    const el = $('#badge-actions');
+    if (el) {
+      el.textContent = c.pending;
+      el.style.display = c.pending > 0 ? '' : 'none';
+      const nav = el.closest('.nav-item');
+      if (nav) nav.classList.toggle('has-urgent', c.pending > 0);
+    }
+  }
+
+  // ───────────────────────────────────────────────────────────
+  // RISK STORE — derives an at-risk list from contracts + payments + leads
+  // already loaded in cache. No new collection: pure client-side scoring so
+  // the panel is instant. /api/agent/risk.scan exposes the same logic to
+  // Homie/Telegram server-side.
+  // ───────────────────────────────────────────────────────────
+  const RiskStore = {
+    ts(v) { return v && v.toMillis ? v.toMillis() : (typeof v === 'string' ? Date.parse(v) : v) || null; },
+    daysUntil(d) { if (!d) return null; const t = this.ts(d) || Date.parse(d); return isNaN(t) ? null : Math.round((t - Date.now()) / 86400000); },
+
+    async compute() {
+      // Ensure we have contracts + context loaded (reuse ContractStore cache).
+      if (!STATE.ctxLoaded) await ContractStore.loadContext().catch(() => {});
+      let contracts = STATE.contracts;
+      if (!contracts || !contracts.length) {
+        try { const s = await db.collection('contracts').limit(200).get(); contracts = s.docs.map(d => ({ id: d.id, ...d.data() })); STATE.contracts = contracts; } catch { contracts = []; }
+      }
+      let payments = [];
+      try { const s = await db.collection('payments').limit(300).get(); payments = s.docs.map(d => ({ id: d.id, ...d.data() })); } catch {}
+
+      const items = [];
+      const propLabel = (c) => {
+        const p = STATE.propertiesById[c.propertyId];
+        return (p && (p.title || p.name || p.nickname)) || c.propertyName || c.propertyTitle || c.propertyId || 'Contratto';
+      };
+
+      // 1) Expiring contracts (renewal / RLI window)
+      for (const c of contracts) {
+        if (c.status === 'expired' || c.status === 'terminated' || c.status === 'draft') continue;
+        const d = this.daysUntil(c.endDate);
+        if (d == null) continue;
+        if (d < 0) items.push({ sev: 'high', cat: 'Contratto scaduto', title: propLabel(c), detail: `Scaduto da ${Math.abs(d)} giorni — rinnovo o disdetta non registrati`, days: d, link: '/portal#contracts' });
+        else if (d <= 30) items.push({ sev: 'high', cat: 'Scadenza contratto', title: propLabel(c), detail: `Scade tra ${d} giorni — preavviso/rinnovo`, days: d, link: '/portal#contracts' });
+        else if (d <= 60) items.push({ sev: 'med', cat: 'Scadenza vicina', title: propLabel(c), detail: `Scade tra ${d} giorni`, days: d, link: '/portal#contracts' });
+      }
+
+      // 2) Unsigned active contracts
+      for (const c of contracts) {
+        if (c.status === 'draft' || c.status === 'expired') continue;
+        const missing = [];
+        if (!c.tenantSignature) missing.push('inquilino');
+        if (!c.landlordSignature) missing.push('locatore');
+        if (missing.length) items.push({ sev: c.status === 'active' ? 'high' : 'med', cat: 'Firma mancante', title: propLabel(c), detail: `Manca firma: ${missing.join(' + ')}`, days: 0, link: '/portal#contracts' });
+      }
+
+      // 3) Overdue payments
+      const now = Date.now();
+      for (const p of payments) {
+        if (p.status === 'paid' || p.status === 'cancelled') continue;
+        const due = this.ts(p.dueDate);
+        if (due && due < now) {
+          const late = Math.round((now - due) / 86400000);
+          items.push({ sev: late > 7 ? 'high' : 'med', cat: 'Pagamento in ritardo', title: p.tenantName || p.description || 'Pagamento', detail: `€${(p.amount || 0).toLocaleString('it-IT')} · ${late}gg di ritardo`, days: -late, link: '/portal#payments' });
+        }
+      }
+
+      // 4) Grade-A leads without follow-up > 24h
+      for (const l of STATE.leads) {
+        if ((l.status && l.status !== 'new')) continue;
+        const grade = LeadStore.gradeOf ? LeadStore.gradeOf(l) : l.grade;
+        if (grade !== 'A') continue;
+        const age = now - (this.ts(l.createdAt) || now);
+        if (age > 24 * 3600 * 1000) items.push({ sev: 'med', cat: 'Lead A senza follow-up', title: l.name || 'Lead', detail: `Grade A in attesa da ${Math.round(age / 3600000)}h`, days: 0, link: '/cockpit-preview#lead-inbox' });
+      }
+
+      const sevRank = { high: 0, med: 1, low: 2 };
+      items.sort((a, b) => (sevRank[a.sev] - sevRank[b.sev]) || (a.days - b.days));
+      // Stable key per risk (for snooze) + drop snoozed (unless showing them).
+      const snz = this.snoozeMap();
+      const nowMs = Date.now();
+      items.forEach(i => { i.key = `${i.cat}|${i.title}`; });
+      const active = items.filter(i => !(snz[i.key] && snz[i.key] > nowMs));
+      STATE.riskSnoozedCount = items.length - active.length;
+      const visible = STATE.showSnoozed ? items : active;
+      STATE.riskItems = visible;
+      // Sidebar badge reflects urgent count among the *active* (non-snoozed) ones.
+      const high = active.filter(i => i.sev === 'high').length;
+      const el = $('#badge-risks');
+      if (el) {
+        el.textContent = high;
+        el.style.display = high > 0 ? '' : 'none';
+        const nav = el.closest('.nav-item');
+        if (nav) nav.classList.toggle('has-urgent', high > 0);
+      }
+      return visible;
+    },
+
+    // ── Snooze (local to this browser; 7-day default) ──
+    snoozeMap() { try { return JSON.parse(localStorage.getItem('cockpit.risk.snooze') || '{}'); } catch { return {}; } },
+    snooze(key, days = 7) {
+      const m = this.snoozeMap();
+      m[key] = Date.now() + days * 86400000;
+      try { localStorage.setItem('cockpit.risk.snooze', JSON.stringify(m)); } catch {}
+      Toast.show({ type: 'info', title: 'Rinviato', desc: `Nascosto per ${days} giorni` });
+      this.renderPanel();
+    },
+    clearSnoozes() {
+      try { localStorage.removeItem('cockpit.risk.snooze'); } catch {}
+      STATE.showSnoozed = false;
+      Toast.show({ type: 'info', title: 'Rinvii azzerati' });
+      this.renderPanel();
+    },
+    toggleSnoozed() { STATE.showSnoozed = !STATE.showSnoozed; this.renderPanel(); },
+    snoozeByIndex(idx) { const i = (STATE.riskItems || [])[idx]; if (i) this.snooze(i.key); },
+
+    // Resolution actions per category → exact portal tool deep-links.
+    actionsFor(i) {
+      const a = [];
+      if (/scadenz|scaduto/i.test(i.cat)) {
+        a.push({ label: '🔄 Proponi rinnovo', href: '/portal#contracts' });
+        a.push({ label: '📋 Genera RLI', href: '/portal#burocrazia' });
+      } else if (/firma/i.test(i.cat)) {
+        a.push({ label: '✍️ Apri firma', href: '/portal#contracts' });
+      } else if (/pagamento/i.test(i.cat)) {
+        a.push({ label: '💸 Sollecita', href: '/portal#payments' });
+      } else if (/lead/i.test(i.cat)) {
+        a.push({ label: '📨 Vai al lead', href: '#lead-inbox', internal: true });
+      }
+      return a;
+    },
+
+    async renderPanel() {
+      const panel = $('#risk-panel');
+      if (!panel) return;
+      const items = await this.compute();
+      const high = items.filter(i => i.sev === 'high').length;
+      const med = items.filter(i => i.sev === 'med').length;
+      const snoozed = STATE.riskSnoozedCount || 0;
+      const sevMeta = { high: ['is-late', '🔴'], med: ['is-warning', '🟠'], low: ['is-fresh', '🟡'] };
+
+      panel.innerHTML = `
+        <div class="lead-toolbar">
+          <div class="lead-summary">
+            ${high > 0 ? `<span style="color:var(--danger)"><strong>${high}</strong> urgenti</span>` : '<span style="color:var(--success)">nessuna urgenza</span>'}
+            ${med > 0 ? `<span style="color:var(--warning)"><strong>${med}</strong> da seguire</span>` : ''}
+            <span><strong>${items.length}</strong> visibili</span>
+          </div>
+          <div class="page-actions">
+            ${snoozed > 0 ? `<button class="lead-btn muted" onclick="RiskStore.toggleSnoozed()">${STATE.showSnoozed ? '🙈 Nascondi rinviati' : `👁 Mostra rinviati (${snoozed})`}</button>` : ''}
+            ${STATE.showSnoozed && snoozed > 0 ? `<button class="lead-btn muted" onclick="RiskStore.clearSnoozes()">♻ Azzera rinvii</button>` : ''}
+            <button class="lead-btn muted" onclick="RiskStore.renderPanel()">↻ Ricalcola</button>
+          </div>
+        </div>
+        ${items.length === 0 ? `
+          <div class="empty-state">
+            <div class="empty-icon">✅</div>
+            <div class="empty-title">Tutto sotto controllo</div>
+            <div class="empty-desc">Nessun contratto in scadenza, nessuna firma mancante, nessun pagamento in ritardo, nessun lead A trascurato.${snoozed > 0 ? `<br><br>${snoozed} rischi rinviati.` : ''}</div>
+          </div>
+        ` : `<div class="lead-list">${items.map((i, idx) => {
+          const [cls, dot] = sevMeta[i.sev] || sevMeta.low;
+          const acts = this.actionsFor(i);
+          const isSnoozed = STATE.showSnoozed && (this.snoozeMap()[i.key] || 0) > Date.now();
+          return `
+            <div class="lead-card ${cls}" ${isSnoozed ? 'style="opacity:.5"' : ''}>
+              <div class="lead-grade" style="background:transparent;font-size:18px">${dot}</div>
+              <div class="lead-body">
+                <div class="lead-row-1">
+                  <span class="lead-name">${esc(i.title)}</span>
+                  <span class="lead-pill is-source">${esc(i.cat)}</span>
+                  ${isSnoozed ? '<span class="lead-pill">rinviato</span>' : ''}
+                </div>
+                <div class="lead-row-2"><span class="data">${esc(i.detail)}</span></div>
+                <div class="lead-actions">
+                  ${acts.map(act => act.internal
+                    ? `<a class="lead-btn primary" href="${esc(act.href)}">${act.label}</a>`
+                    : `<a class="lead-btn primary" href="${esc(act.href)}" target="_blank" rel="noopener">${act.label}</a>`).join('')}
+                  <button class="lead-btn muted" onclick="RiskStore.snoozeByIndex(${idx})">⏰ Rinvia 7g</button>
+                </div>
+              </div>
+            </div>`;
+        }).join('')}</div>`}
+      `;
+    }
+  };
+  window.RiskStore = RiskStore;
+
+  // ───────────────────────────────────────────────────────────
+  // DEAL COMPOSER — canone concordato Roma calculator
+  // OMI zone bands (Roma "Accordo Territoriale" indicative €/m²/month ranges).
+  // Values are advisory midpoints for a quick estimate, not legal certification.
+  // ───────────────────────────────────────────────────────────
+  const DealComposer = {
+    // Indicative concordato €/m²/month midpoints by macro-zona.
+    zones: {
+      'Centro Storico':        { min: 14, max: 22 },
+      'Prati / Borgo':         { min: 12, max: 19 },
+      'Parioli / Pinciano':    { min: 12, max: 18 },
+      'Trastevere / Testaccio':{ min: 13, max: 20 },
+      'Esquilino / San Lorenzo':{ min: 10, max: 16 },
+      'Nomentano / Salario':   { min: 10, max: 15 },
+      'Ostiense / Garbatella': { min: 9,  max: 14 },
+      'Aurelio / Gianicolense':{ min: 9,  max: 13 },
+      'Tuscolano / Appio':     { min: 8,  max: 13 },
+      'EUR / Marconi':         { min: 9,  max: 14 },
+      'Pigneto / Prenestino':  { min: 9,  max: 14 },
+      'Periferia':             { min: 6,  max: 10 },
+    },
+    state: { zone: 'Centro Storico', sqm: 50, band: 'mid', furnished: true, topFloor: false, renovated: false, cedolare: true, propertyId: '', tenantId: '', startDate: '', type: 'transitorio' },
+
+    calc() {
+      const s = this.state;
+      const z = this.zones[s.zone] || { min: 8, max: 14 };
+      let base = s.band === 'low' ? z.min : s.band === 'high' ? z.max : (z.min + z.max) / 2;
+      let perSqm = base;
+      const mods = [];
+      if (s.furnished) { perSqm *= 1.15; mods.push(['Ammobiliato', '+15%']); }
+      if (s.topFloor)  { perSqm *= 1.08; mods.push(['Attico/ultimo piano', '+8%']); }
+      if (s.renovated) { perSqm *= 1.10; mods.push(['Ristrutturato', '+10%']); }
+      const monthly = Math.round(perSqm * s.sqm);
+      const yearly = monthly * 12;
+      // Cedolare secca canone concordato = 10% (vs IRPEF ordinario ~ uses ~23%+ marginal)
+      const cedolareTax = Math.round(yearly * 0.10);
+      const deposit = monthly * 2;
+      return { perSqm: perSqm.toFixed(1), monthly, yearly, cedolareTax, deposit, mods, base };
+    },
+
+    async renderPanel() {
+      const panel = $('#deal-panel');
+      if (!panel) return;
+      // Lazy-load properties + tenants for the "save as draft" pickers.
+      if (!STATE.ctxLoaded) await ContractStore.loadContext().catch(() => {});
+      const s = this.state;
+      const r = this.calc();
+      const today = new Date();
+      const rliDeadline = new Date(today.getTime() + 30 * 86400000);
+      const zoneOpts = Object.keys(this.zones).map(z => `<option value="${esc(z)}" ${z === s.zone ? 'selected' : ''}>${esc(z)}</option>`).join('');
+      const propOpts = ['<option value="">— scegli immobile —</option>'].concat(
+        Object.values(STATE.propertiesById || {}).map(p => `<option value="${esc(p.id)}" ${p.id === s.propertyId ? 'selected' : ''}>${esc(p.title || p.name || p.nickname || p.address || p.id)}</option>`)
+      ).join('');
+      const tenantOpts = ['<option value="">— scegli inquilino —</option>'].concat(
+        Object.values(STATE.usersById || {}).filter(u => !u.role || u.role === 'tenant' || u.role === 'user').map(u => `<option value="${esc(u.id)}" ${u.id === s.tenantId ? 'selected' : ''}>${esc(u.name || u.displayName || u.email || u.id)}</option>`)
+      ).join('');
+      if (!s.startDate) s.startDate = today.toISOString().slice(0, 10);
+
+      panel.innerHTML = `
+        <div class="deal-grid">
+          <div class="deal-card">
+            <div class="deal-card-title">Parametri immobile</div>
+            <label class="deal-field"><span>Zona OMI</span>
+              <select id="deal-zone">${zoneOpts}</select>
+            </label>
+            <label class="deal-field"><span>Superficie (m²)</span>
+              <input type="number" id="deal-sqm" value="${s.sqm}" min="10" max="500">
+            </label>
+            <label class="deal-field"><span>Fascia canone</span>
+              <select id="deal-band">
+                <option value="low" ${s.band==='low'?'selected':''}>Minima</option>
+                <option value="mid" ${s.band==='mid'?'selected':''}>Media</option>
+                <option value="high" ${s.band==='high'?'selected':''}>Massima</option>
+              </select>
+            </label>
+            <div class="deal-toggles">
+              <label><input type="checkbox" id="deal-furnished" ${s.furnished?'checked':''}> Ammobiliato (+15%)</label>
+              <label><input type="checkbox" id="deal-topfloor" ${s.topFloor?'checked':''}> Attico/ultimo piano (+8%)</label>
+              <label><input type="checkbox" id="deal-renovated" ${s.renovated?'checked':''}> Ristrutturato (+10%)</label>
+              <label><input type="checkbox" id="deal-cedolare" ${s.cedolare?'checked':''}> Cedolare secca 10%</label>
+            </div>
+          </div>
+          <div class="deal-card deal-result">
+            <div class="deal-card-title">Stima canone concordato</div>
+            <div class="deal-big">€${r.monthly.toLocaleString('it-IT')}<span>/mese</span></div>
+            <div class="deal-sub">${r.perSqm} €/m² · base ${r.base.toFixed(1)} €/m²</div>
+            <div class="deal-lines">
+              <div><span>Canone annuo</span><strong>€${r.yearly.toLocaleString('it-IT')}</strong></div>
+              <div><span>Deposito (2 mensilità)</span><strong>€${r.deposit.toLocaleString('it-IT')}</strong></div>
+              ${s.cedolare ? `<div><span>Imposta cedolare 10%/anno</span><strong>€${r.cedolareTax.toLocaleString('it-IT')}</strong></div>` : ''}
+              ${r.mods.length ? `<div class="deal-mods">${r.mods.map(m => `<span class="lead-pill">${esc(m[0])} ${esc(m[1])}</span>`).join('')}</div>` : ''}
+            </div>
+            <div class="deal-deadline">📌 Registrazione RLI entro <strong>${rliDeadline.toLocaleDateString('it-IT')}</strong> (30gg da decorrenza). Cedolare: acconto novembre, saldo giugno.</div>
+            <div class="deal-disclaimer">Stima indicativa su fasce concordato Roma. Per validità legale serve asseverazione di un'associazione firmataria dell'Accordo Territoriale.</div>
+          </div>
+          <div class="deal-card">
+            <div class="deal-card-title">Genera contratto</div>
+            <label class="deal-field"><span>Tipo</span>
+              <select id="deal-type">
+                <option value="transitorio" ${s.type==='transitorio'?'selected':''}>Transitorio</option>
+                <option value="studenti" ${s.type==='studenti'?'selected':''}>Studenti</option>
+              </select>
+            </label>
+            <label class="deal-field"><span>Immobile</span><select id="deal-prop">${propOpts}</select></label>
+            <label class="deal-field"><span>Inquilino</span><select id="deal-tenant">${tenantOpts}</select></label>
+            <label class="deal-field"><span>Decorrenza</span><input type="date" id="deal-start" value="${esc(s.startDate)}"></label>
+            <div class="lead-actions" style="margin-top:6px">
+              <button class="lead-btn primary" onclick="DealComposer.saveDraft()">📝 Salva come bozza</button>
+              <button class="lead-btn" onclick="DealComposer.exportPDF()">📄 Esporta PDF</button>
+            </div>
+            <div class="deal-disclaimer">La bozza finisce in <code>contracts</code> (status draft); aprila nel Portal per generare l'Allegato e mandarla in firma.</div>
+          </div>
+        </div>
+      `;
+      // Bind
+      const upd = () => { this.readForm(); this.renderPanel(); };
+      $('#deal-zone').onchange = upd;
+      $('#deal-band').onchange = upd;
+      $('#deal-sqm').oninput = () => { this.readForm(); this.updateResultOnly(); };
+      ['deal-furnished','deal-topfloor','deal-renovated','deal-cedolare'].forEach(id => { const el = $('#'+id); if (el) el.onchange = upd; });
+      ['deal-type','deal-prop','deal-tenant','deal-start'].forEach(id => { const el = $('#'+id); if (el) el.onchange = () => this.readForm(); });
+    },
+    readForm() {
+      this.state.zone = $('#deal-zone')?.value || this.state.zone;
+      this.state.sqm = Math.max(5, parseInt($('#deal-sqm')?.value, 10) || this.state.sqm);
+      this.state.band = $('#deal-band')?.value || this.state.band;
+      this.state.furnished = !!$('#deal-furnished')?.checked;
+      this.state.topFloor = !!$('#deal-topfloor')?.checked;
+      this.state.renovated = !!$('#deal-renovated')?.checked;
+      this.state.cedolare = !!$('#deal-cedolare')?.checked;
+      if ($('#deal-type')) this.state.type = $('#deal-type').value;
+      if ($('#deal-prop')) this.state.propertyId = $('#deal-prop').value;
+      if ($('#deal-tenant')) this.state.tenantId = $('#deal-tenant').value;
+      if ($('#deal-start')) this.state.startDate = $('#deal-start').value;
+    },
+
+    async saveDraft() {
+      this.readForm();
+      const s = this.state, r = this.calc();
+      if (!s.propertyId) { Toast.show({ type: 'warning', title: 'Manca l\'immobile', desc: 'Scegli un immobile' }); return; }
+      if (!s.tenantId)   { Toast.show({ type: 'warning', title: 'Manca l\'inquilino', desc: 'Scegli un inquilino' }); return; }
+      try {
+        const idToken = await auth.currentUser.getIdToken();
+        const res = await fetch('/api/agent/contracts.draft', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Firebase-Token': idToken },
+          body: JSON.stringify({
+            type: s.type, propertyId: s.propertyId, tenantId: s.tenantId,
+            startDate: s.startDate, rent: r.monthly, deposit: r.deposit,
+            cedolareSecca: s.cedolare,
+            notes: `Bozza da Deal Composer · ${s.zone} · ${s.sqm}m² · ${r.perSqm}€/m²`
+          })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (data?.ok) Toast.show({ type: 'success', title: 'Bozza creata', desc: `Contratto ${s.type} · €${r.monthly}/mese · apri nel Portal` });
+        else Toast.show({ type: 'danger', title: 'Errore', desc: data.error || 'Salvataggio fallito' });
+      } catch (e) {
+        Toast.show({ type: 'danger', title: 'Errore', desc: e.message });
+      }
+    },
+
+    async exportPDF() {
+      this.readForm();
+      const s = this.state, r = this.calc();
+      try {
+        await loadJsPDF();
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        const propName = (STATE.propertiesById[s.propertyId] || {});
+        const gold = [184, 150, 12];
+        doc.setFillColor(8, 8, 10); doc.rect(0, 0, 210, 32, 'F');
+        doc.setTextColor(...gold); doc.setFontSize(20); doc.text('BOOM Roma', 14, 16);
+        doc.setTextColor(255, 255, 255); doc.setFontSize(11); doc.text('Scheda canone concordato', 14, 24);
+        let y = 46;
+        doc.setTextColor(20, 20, 20); doc.setFontSize(12);
+        const line = (k, v) => { doc.setFont(undefined, 'normal'); doc.setTextColor(110,110,110); doc.text(k, 14, y); doc.setTextColor(20,20,20); doc.setFont(undefined, 'bold'); doc.text(String(v), 120, y); y += 9; };
+        line('Zona OMI', s.zone);
+        line('Superficie', s.sqm + ' m²');
+        line('Fascia', s.band === 'low' ? 'Minima' : s.band === 'high' ? 'Massima' : 'Media');
+        line('Canone €/m²', r.perSqm + ' €/m²');
+        if (r.mods.length) line('Modificatori', r.mods.map(m => m[0] + ' ' + m[1]).join(', '));
+        y += 4; doc.setDrawColor(220,220,220); doc.line(14, y, 196, y); y += 12;
+        doc.setFontSize(22); doc.setTextColor(...gold); doc.setFont(undefined, 'bold');
+        doc.text('Euro ' + r.monthly.toLocaleString('it-IT') + ' / mese', 14, y); y += 14;
+        doc.setFontSize(12);
+        line('Canone annuo', '€ ' + r.yearly.toLocaleString('it-IT'));
+        line('Deposito (2 mensilità)', '€ ' + r.deposit.toLocaleString('it-IT'));
+        if (s.cedolare) line('Imposta cedolare 10%/anno', '€ ' + r.cedolareTax.toLocaleString('it-IT'));
+        y += 6; doc.setTextColor(110,110,110); doc.setFont(undefined, 'normal'); doc.setFontSize(9);
+        doc.text('Stima indicativa su fasce concordato Roma. Per validità legale serve asseverazione', 14, y); y += 5;
+        doc.text("di un'associazione firmataria dell'Accordo Territoriale.", 14, y);
+        const fname = `canone-${(propName.title || s.zone).replace(/\W+/g, '-').toLowerCase()}.pdf`;
+        doc.save(fname);
+      } catch (e) {
+        Toast.show({ type: 'danger', title: 'PDF', desc: e.message });
+      }
+    },
+    updateResultOnly() {
+      const r = this.calc();
+      const big = $('.deal-big'); if (big) big.innerHTML = `€${r.monthly.toLocaleString('it-IT')}<span>/mese</span>`;
+      const sub = $('.deal-sub'); if (sub) sub.textContent = `${r.perSqm} €/m² · base ${r.base.toFixed(1)} €/m²`;
+    }
+  };
+  window.DealComposer = DealComposer;
+
+  // ───────────────────────────────────────────────────────────
+  // COCKPIT CONFIG — single source of truth, persisted to settings/cockpit.
+  // Operational knobs only (heartbeat thresholds + SLA cadences). The auth
+  // whitelist stays in code on purpose: editing who-can-log-in from an
+  // unauthenticated browser would be a security hole.
+  // ───────────────────────────────────────────────────────────
+  const CockpitConfig = {
+    async load() {
+      try {
+        const snap = await db.doc('settings/cockpit').get();
+        if (!snap.exists) return;
+        const d = snap.data() || {};
+        if (d.heartbeat) {
+          if (d.heartbeat.warningMin)  COCKPIT.heartbeat.warningMs  = d.heartbeat.warningMin * 60000;
+          if (d.heartbeat.criticalMin) COCKPIT.heartbeat.criticalMs = d.heartbeat.criticalMin * 60000;
+          if (d.heartbeat.offlineMin)  COCKPIT.heartbeat.offlineMs  = d.heartbeat.offlineMin * 60000;
+        }
+        if (d.sla) {
+          ['A', 'B', 'C'].forEach(g => { if (typeof d.sla[g] === 'number') COCKPIT.sla[g] = d.sla[g]; });
+        }
+      } catch (e) { console.warn('[CockpitConfig.load]', e.message); }
+    },
+    async save(cfg) {
+      await db.doc('settings/cockpit').set({
+        heartbeat: cfg.heartbeat, sla: cfg.sla,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedBy: STATE.user?.email || 'cockpit'
+      }, { merge: true });
+      // Apply live
+      COCKPIT.heartbeat.warningMs  = cfg.heartbeat.warningMin * 60000;
+      COCKPIT.heartbeat.criticalMs = cfg.heartbeat.criticalMin * 60000;
+      COCKPIT.heartbeat.offlineMs  = cfg.heartbeat.offlineMin * 60000;
+      COCKPIT.sla = { ...COCKPIT.sla, ...cfg.sla };
+    }
+  };
+  window.CockpitConfig = CockpitConfig;
+
+  // ───────────────────────────────────────────────────────────
+  // SETTINGS — editable config (persisted) + agent spec + connectivity tests
+  // ───────────────────────────────────────────────────────────
+  const SettingsPanel = {
+    async renderPanel() {
+      const panel = $('#settings-panel');
+      if (!panel) return;
+      const hb = STATE.heartbeatMeta || {};
+      panel.innerHTML = `
+        <div class="deal-grid">
+          <div class="deal-card">
+            <div class="deal-card-title">Bridge & Heartbeat</div>
+            <div class="deal-lines">
+              <div><span>Stato Mac</span><strong>${esc(hb.status || (STATE.heartbeatLast ? 'live' : 'offline'))}</strong></div>
+              <div><span>Ultimo ping</span><strong>${esc(fmt.relTime(STATE.heartbeatLast))}</strong></div>
+              <div><span>Tool attivo</span><strong>${esc(hb.activeTool || '—')}</strong></div>
+              <div><span>Modello</span><strong>${esc(hb.model || '—')}</strong></div>
+              <div><span>Coda Mac</span><strong>${hb.queueLen ?? '—'}</strong></div>
+            </div>
+            <div class="deal-card-title" style="margin-top:16px">Soglie heartbeat (minuti)</div>
+            <label class="deal-field"><span>Warning (giallo) oltre</span><input type="number" id="cfg-hb-warn" min="1" value="${COCKPIT.heartbeat.warningMs/60000}"></label>
+            <label class="deal-field"><span>Critical (rosso) oltre</span><input type="number" id="cfg-hb-crit" min="1" value="${COCKPIT.heartbeat.criticalMs/60000}"></label>
+            <label class="deal-field"><span>Offline oltre</span><input type="number" id="cfg-hb-off" min="1" value="${COCKPIT.heartbeat.offlineMs/60000}"></label>
+            <div class="deal-card-title" style="margin-top:8px">Cadenza SLA per grade (minuti)</div>
+            <label class="deal-field"><span>Grade A</span><input type="number" id="cfg-sla-a" min="1" value="${COCKPIT.sla.A}"></label>
+            <label class="deal-field"><span>Grade B</span><input type="number" id="cfg-sla-b" min="1" value="${COCKPIT.sla.B}"></label>
+            <label class="deal-field"><span>Grade C</span><input type="number" id="cfg-sla-c" min="1" value="${COCKPIT.sla.C}"></label>
+            <div class="lead-actions" style="margin-top:6px">
+              <button class="lead-btn primary" onclick="SettingsPanel.saveConfig()">💾 Salva configurazione</button>
+            </div>
+            <div class="deal-disclaimer">Salvato in <code>settings/cockpit</code> · si applica subito e ad ogni dispositivo.</div>
+          </div>
+          <div class="deal-card">
+            <div class="deal-card-title">Agent Layer</div>
+            <div id="settings-spec"><span class="data" style="color:var(--text-muted)">Carico /api/agent/spec…</span></div>
+            <div class="lead-actions" style="margin-top:12px">
+              <button class="lead-btn" onclick="SettingsPanel.testSnapshot()">▶ Test state.snapshot</button>
+              <button class="lead-btn" onclick="SettingsPanel.testDigest()">📰 Test digest</button>
+              <a class="lead-btn muted" href="/api/agent/spec" target="_blank" rel="noopener">📄 spec.json</a>
+            </div>
+            <div id="settings-test" style="margin-top:10px"></div>
+          </div>
+          <div class="deal-card">
+            <div class="deal-card-title">Accesso</div>
+            <div class="deal-lines">
+              <div><span>Utente</span><strong>${esc(STATE.user?.email || '—')}</strong></div>
+            </div>
+            <div style="margin-top:8px"><span class="data" style="color:var(--text-muted)">Whitelist (gestita nel codice):</span></div>
+            ${COCKPIT.whitelist.map(e => `<div class="data" style="margin-top:4px">· ${esc(e)}</div>`).join('')}
+            <div class="deal-disclaimer">La whitelist resta nel codice per sicurezza: modificarla dal browser sarebbe un rischio.</div>
+          </div>
+        </div>
+      `;
+      // Load spec
+      try {
+        const spec = await fetch('/api/agent/spec').then(r => r.json());
+        const box = $('#settings-spec');
+        if (box && spec?.tools) {
+          box.innerHTML = `<div class="data" style="margin-bottom:6px">v${esc(spec.version)} · ${spec.tools.length} tool</div>` +
+            spec.tools.map(t => `<div class="settings-tool"><span class="lead-pill ${t.tier===2?'is-warning':t.tier===1?'is-fresh':''}">T${t.tier}</span> <code>${esc(t.name)}</code></div>`).join('');
+        }
+      } catch (e) {
+        const box = $('#settings-spec'); if (box) box.innerHTML = `<span class="data" style="color:var(--danger)">spec non raggiungibile (deploy in corso?)</span>`;
+      }
+    },
+    async saveConfig() {
+      const num = (id, def) => { const v = parseInt($('#' + id)?.value, 10); return isNaN(v) || v < 1 ? def : v; };
+      const cfg = {
+        heartbeat: {
+          warningMin:  num('cfg-hb-warn', 2),
+          criticalMin: num('cfg-hb-crit', 5),
+          offlineMin:  num('cfg-hb-off', 15),
+        },
+        sla: { A: num('cfg-sla-a', 5), B: num('cfg-sla-b', 30), C: num('cfg-sla-c', 120) },
+      };
+      try {
+        await CockpitConfig.save(cfg);
+        Toast.show({ type: 'success', title: 'Configurazione salvata', desc: 'Applicata su tutti i dispositivi' });
+        Heartbeat.updateBadge();
+        if (STATE.route === 'lead-inbox') LeadStore.renderPanel();
+      } catch (e) {
+        Toast.show({ type: 'danger', title: 'Errore', desc: e.message });
+      }
+    },
+    async _callAgent(path, payload, label) {
+      const box = $('#settings-test');
+      if (box) box.innerHTML = `<span class="data">⏳ chiamo ${esc(label)}…</span>`;
+      try {
+        const idToken = await auth.currentUser.getIdToken();
+        const r = await fetch(path, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Firebase-Token': idToken },
+          body: JSON.stringify(payload)
+        });
+        const data = await r.json();
+        if (box) box.innerHTML = `<pre class="settings-pre">${esc(JSON.stringify(data, null, 2).slice(0, 1400))}</pre>`;
+      } catch (e) {
+        if (box) box.innerHTML = `<span class="data" style="color:var(--danger)">${esc(e.message)}</span>`;
+      }
+    },
+    testSnapshot() { return this._callAgent('/api/agent/state.snapshot', { scope: 'all' }, 'state.snapshot'); },
+    testDigest()   { return this._callAgent('/api/agent/digest', {}, 'digest'); }
+  };
+  window.SettingsPanel = SettingsPanel;
+
+  // ───────────────────────────────────────────────────────────
+  // CONTRACT STORE — list + magic-link reveal
+  // ───────────────────────────────────────────────────────────
+  const ContractStore = {
+    /** Called on route entry: lazy-load context (users, properties),
+     *  then start the contracts listener if not already running. */
+    async enter() {
+      if (!STATE.ctxLoaded) await this.loadContext();
+      this.startListener();
+      this.renderPanel();
+    },
+
+    /** One-shot load of users + properties for name lookup. Re-entering
+     *  the panel won't refetch unless STATE.ctxLoaded is reset. */
+    async loadContext() {
+      try {
+        const [us, ps] = await Promise.all([
+          db.collection('users').get(),
+          db.collection('properties').get()
+        ]);
+        STATE.usersById = {};
+        us.docs.forEach(d => { STATE.usersById[d.id] = { id: d.id, ...d.data() }; });
+        STATE.propertiesById = {};
+        ps.docs.forEach(d => { STATE.propertiesById[d.id] = { id: d.id, ...d.data() }; });
+        STATE.ctxLoaded = true;
+      } catch (e) {
+        console.warn('[ContractStore.loadContext]', e);
+      }
+    },
+
+    /** Start the contracts listener. Idempotent — no-op if already running. */
+    startListener() {
+      if (STATE.contractsUnsub) return;
+      try {
+        STATE.contractsUnsub = db.collection('contracts')
+          .orderBy('endDate', 'asc')
+          .limit(100)
+          .onSnapshot(snap => {
+            STATE.contracts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            this.updateBadge();
+            if (STATE.route === 'contracts') this.renderPanel();
+          }, err => {
+            // orderBy on endDate may fail if some docs miss the field; fallback
+            console.warn('[ContractStore] ordered query failed, fallback:', err);
+            db.collection('contracts').limit(100).onSnapshot(s => {
+              STATE.contracts = s.docs.map(d => ({ id: d.id, ...d.data() }));
+              this.updateBadge();
+              if (STATE.route === 'contracts') this.renderPanel();
+            });
+          });
+      } catch (e) {
+        console.error('[ContractStore.startListener]', e);
+      }
+    },
+
+    /** Days until endDate. Positive = future, negative = expired. */
+    daysUntil(c) {
+      if (!c.endDate) return null;
+      const end = new Date(c.endDate);
+      if (isNaN(end)) return null;
+      const ms = end - new Date();
+      return Math.ceil(ms / (1000 * 60 * 60 * 24));
+    },
+
+    /** Urgency band based on days-until-end. */
+    bandOf(c) {
+      const status = c.status;
+      const days = this.daysUntil(c);
+      if (status && status !== 'active') return 'expired';
+      if (days == null) return 'active';
+      if (days < 0) return 'expired';
+      if (days <= 30) return 'urgent';
+      if (days <= 60) return 'soon';
+      return 'active';
+    },
+
+    /** Property name resolver — falls back to address, then propertyId. */
+    propertyLabel(c) {
+      const p = STATE.propertiesById[c.propertyId];
+      if (!p) return c.propertyId ? `[${String(c.propertyId).slice(0,8)}…]` : 'Immobile non collegato';
+      return p.name || p.address || p.title || `Property ${p.id?.slice(0,6)}`;
+    },
+
+    /** User name resolver. */
+    userLabel(uid) {
+      if (!uid) return '—';
+      const u = STATE.usersById[uid];
+      if (!u) return `[${String(uid).slice(0,8)}…]`;
+      return u.name || u.fullName || u.displayName || u.email || `User ${u.id?.slice(0,6)}`;
+    },
+
+    /** Landlord resolution via property.ownerId (not stored on contract). */
+    landlordLabel(c) {
+      const p = STATE.propertiesById[c.propertyId];
+      if (!p?.ownerId) return c.landlordName || '—';
+      return this.userLabel(p.ownerId);
+    },
+
+    /** Format ISO date as "12 Mar 2025" */
+    fmtDate(iso) {
+      if (!iso) return '—';
+      try {
+        const d = new Date(iso);
+        if (isNaN(d)) return iso;
+        return d.toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric' });
+      } catch { return iso; }
+    },
+
+    /** Sidebar badge = contracts expiring in <30 days OR with partial signature. */
+    updateBadge() {
+      const el = $('#badge-contracts');
+      if (!el) return;
+      let count = 0;
+      for (const c of STATE.contracts) {
+        if (c.status !== 'active' && c.status) continue;
+        const d = this.daysUntil(c);
+        if (d != null && d <= 30) count++;
+        else if (c.signatureStatus === 'partial' || c.signatureStatus === 'none') {
+          // Only counts as "attention needed" if missing signatures AND active
+          if (c.tenantSignToken || c.landlordSignToken) count++;
+        }
+      }
+      el.textContent = count;
+      el.style.display = count > 0 ? '' : 'none';
+    },
+
+    /** Counts for filter pills. */
+    counts() {
+      const c = { all: STATE.contracts.length, active: 0, urgent: 0, soon: 0, expired: 0, unsigned: 0 };
+      for (const x of STATE.contracts) {
+        const band = this.bandOf(x);
+        if (band === 'active') c.active++;
+        else if (band === 'urgent') c.urgent++;
+        else if (band === 'soon') c.soon++;
+        else if (band === 'expired') c.expired++;
+        if (x.signatureStatus !== 'complete' && (x.tenantSignToken || x.landlordSignToken)) c.unsigned++;
+      }
+      return c;
+    },
+
+    /** Apply filter. */
+    filtered() {
+      const f = STATE.contractsFilter;
+      if (f === 'all') return STATE.contracts;
+      if (f === 'unsigned') {
+        return STATE.contracts.filter(c =>
+          c.signatureStatus !== 'complete' && (c.tenantSignToken || c.landlordSignToken)
+        );
+      }
+      return STATE.contracts.filter(c => this.bandOf(c) === f);
+    },
+
+    /** Build the magic-link URL for a role (tenant|landlord). */
+    magicUrl(c, role) {
+      const token = role === 'tenant' ? c.tenantSignToken : c.landlordSignToken;
+      if (!token) return null;
+      const origin = window.location.origin || 'https://boomrome.com';
+      return `${origin}/portal.html?sign=${token}`;
+    },
+
+    /** Render one contract card. */
+    renderCard(c) {
+      const band = this.bandOf(c);
+      const days = this.daysUntil(c);
+      const sig = c.signatureStatus || 'none';
+      const cardClass = ['ct-card', `is-${band}`];
+
+      const tenant = this.userLabel(c.tenantId);
+      const landlord = this.landlordLabel(c);
+      const property = this.propertyLabel(c);
+      const type = c.type ? c.type[0].toUpperCase() + c.type.slice(1) : '';
+
+      const tenantLink = this.magicUrl(c, 'tenant');
+      const landlordLink = this.magicUrl(c, 'landlord');
+      const showTenantLink = STATE.revealedLinks[`${c.id}|tenant`];
+      const showLandlordLink = STATE.revealedLinks[`${c.id}|landlord`];
+
+      const sigSummary = sig === 'complete'
+        ? '✓ entrambe firmate'
+        : sig === 'partial'
+          ? (c.tenantSignature ? 'tenant ok · landlord pendente' : 'landlord ok · tenant pendente')
+          : 'firma da raccogliere';
+
+      let daysLabel = '—';
+      let daysBand = band;
+      if (days == null) daysLabel = c.endDate || 'no end date';
+      else if (days < 0) { daysLabel = `scaduto ${-days}g`; daysBand = 'expired'; }
+      else if (days === 0) { daysLabel = 'scade oggi'; daysBand = 'urgent'; }
+      else { daysLabel = `${days}g residui`; }
+
+      return `
+        <div class="${cardClass.join(' ')}" data-contract-id="${esc(c.id)}">
+          <div class="ct-body">
+            <div class="ct-head">
+              <span class="ct-title">${esc(property)}</span>
+              ${type ? `<span class="ct-type">${esc(type)}</span>` : ''}
+              <span class="ct-sig is-${sig}">${sigSummary}</span>
+            </div>
+            <div class="ct-meta">
+              <span class="data">👤 <span class="gold">${esc(tenant)}</span></span>
+              <span class="data">🏠 ${esc(landlord)}</span>
+              <span class="data">📅 ${esc(this.fmtDate(c.startDate))} → ${esc(this.fmtDate(c.endDate))}</span>
+              ${c.deposit ? `<span class="data">💼 dep €${Number(c.deposit).toLocaleString('it-IT')}</span>` : ''}
+              ${c.linkedLeadId ? `<span class="data" style="color:var(--gold)">↗ da lead</span>` : ''}
+            </div>
+            ${showTenantLink && tenantLink ? `
+              <div class="ct-mlink">
+                <span class="ct-mlink-label">tenant link</span>
+                <span class="ct-mlink-url">${esc(tenantLink)}</span>
+                <button class="lead-btn primary" onclick="ContractActions.copyLink('${esc(c.id)}','tenant')">📋 Copia</button>
+              </div>` : ''}
+            ${showLandlordLink && landlordLink ? `
+              <div class="ct-mlink">
+                <span class="ct-mlink-label">landlord link</span>
+                <span class="ct-mlink-url">${esc(landlordLink)}</span>
+                <button class="lead-btn primary" onclick="ContractActions.copyLink('${esc(c.id)}','landlord')">📋 Copia</button>
+              </div>` : ''}
+            <div class="ct-actions">
+              ${tenantLink
+                ? `<button class="lead-btn ${showTenantLink ? '' : 'primary'}" onclick="ContractActions.toggleLink('${esc(c.id)}','tenant')">${showTenantLink ? '× Nascondi tenant' : '🔗 Magic-link tenant'}</button>`
+                : `<button class="lead-btn muted" onclick="ContractActions.regenerate('${esc(c.id)}','tenant')">↻ Genera link tenant</button>`}
+              ${landlordLink
+                ? `<button class="lead-btn ${showLandlordLink ? '' : 'primary'}" onclick="ContractActions.toggleLink('${esc(c.id)}','landlord')">${showLandlordLink ? '× Nascondi landlord' : '🔗 Magic-link landlord'}</button>`
+                : `<button class="lead-btn muted" onclick="ContractActions.regenerate('${esc(c.id)}','landlord')">↻ Genera link landlord</button>`}
+              <a class="lead-btn muted" href="/portal#contracts" target="_blank" rel="noopener">📂 Portal</a>
+            </div>
+          </div>
+          <div class="ct-rent">
+            <div class="ct-rent-amount">€${Number(c.rent || 0).toLocaleString('it-IT')}</div>
+            <div class="ct-rent-sub">/mese</div>
+            <div class="ct-rent-days is-${daysBand}">${daysLabel}</div>
+          </div>
+        </div>
+      `;
+    },
+
+    /** Full panel render: filters + stat cards + list. */
+    renderPanel() {
+      const panel = $('#contracts-panel');
+      if (!panel) return;
+      const c = this.counts();
+      const filter = STATE.contractsFilter;
+      const items = this.filtered();
+      const totalMRR = STATE.contracts
+        .filter(x => this.bandOf(x) === 'active' || this.bandOf(x) === 'soon' || this.bandOf(x) === 'urgent')
+        .reduce((sum, x) => sum + (Number(x.rent) || 0), 0);
+
+      const stat = (key, label, value, sub, cls) => `
+        <div class="ct-stat ${cls || ''} ${filter === key ? 'is-active' : ''}" onclick="ContractActions.setFilter('${key}')">
+          <div class="ct-stat-label">${label}</div>
+          <div class="ct-stat-value">${value}</div>
+          ${sub ? `<div class="ct-stat-sub">${sub}</div>` : ''}
+        </div>
+      `;
+
+      panel.innerHTML = `
+        <div class="ct-stat-row">
+          ${stat('all', 'Tutti', c.all, `€${totalMRR.toLocaleString('it-IT')} / mese attivi`)}
+          ${stat('active', 'Attivi', c.active, '>60g residui')}
+          ${stat('soon', 'In scadenza', c.soon, '30–60g', c.soon > 0 ? 'is-warn' : '')}
+          ${stat('urgent', 'Urgenti', c.urgent, '<30g residui', c.urgent > 0 ? 'is-danger' : '')}
+          ${stat('unsigned', 'Firme pendenti', c.unsigned, 'token ancora attivo', c.unsigned > 0 ? 'is-warn' : '')}
+          ${stat('expired', 'Scaduti', c.expired, 'archivio')}
+        </div>
+        ${items.length === 0 ? `
+          <div class="empty-state">
+            <div class="empty-icon">📝</div>
+            <div class="empty-title">Nessun contratto in questo filtro</div>
+            <div class="empty-desc">${filter === 'all'
+              ? 'Quando creerai un contratto dal portal apparirà qui in tempo reale, con magic-link tenant + landlord copia-incolla.'
+              : 'Prova un altro filtro.'}</div>
+            <div class="empty-hint">collection: contracts · ${STATE.contracts.length} totali in cache</div>
+          </div>
+        ` : `
+          <div class="lead-list">
+            ${items.map(x => this.renderCard(x)).join('')}
+          </div>
+        `}
+      `;
+    }
+  };
+  window.ContractStore = ContractStore;
+
+  window.ContractActions = {
+    setFilter(f) {
+      STATE.contractsFilter = f;
+      ContractStore.renderPanel();
+    },
+    toggleLink(contractId, role) {
+      const key = `${contractId}|${role}`;
+      STATE.revealedLinks[key] = !STATE.revealedLinks[key];
+      ContractStore.renderPanel();
+    },
+    async copyLink(contractId, role) {
+      const c = STATE.contracts.find(x => x.id === contractId);
+      if (!c) return;
+      const url = ContractStore.magicUrl(c, role);
+      if (!url) return Toast.show({ type: 'warning', title: 'Nessun token attivo' });
+      try {
+        await navigator.clipboard.writeText(url);
+        Toast.show({ type: 'success', title: 'Link copiato', desc: `Magic-link ${role} pronto per il share.` });
+      } catch {
+        // Fallback: select + execCommand
+        const ta = document.createElement('textarea');
+        ta.value = url; document.body.appendChild(ta); ta.select();
+        try { document.execCommand('copy'); Toast.show({ type: 'success', title: 'Link copiato' }); }
+        catch { Toast.show({ type: 'danger', title: 'Copia manuale', desc: url }); }
+        finally { ta.remove(); }
+      }
+    },
+    async regenerate(contractId, role) {
+      try {
+        const token = (crypto.randomUUID && crypto.randomUUID()) ||
+          (Date.now().toString(36) + Math.random().toString(36).slice(2, 10));
+        const field = role === 'tenant' ? 'tenantSignToken' : 'landlordSignToken';
+        await db.collection('contracts').doc(contractId).update({
+          [field]: token,
+          [`${field}RegeneratedAt`]: firebase.firestore.FieldValue.serverTimestamp(),
+          [`${field}RegeneratedBy`]: STATE.user?.email || null
+        });
+        STATE.revealedLinks[`${contractId}|${role}`] = true;
+        Toast.show({ type: 'success', title: `Nuovo token ${role}`, desc: 'Click su Copia per condividerlo.' });
+      } catch (e) {
+        Toast.show({ type: 'danger', title: 'Errore', desc: e.message });
+      }
+    }
+  };
+
+  // ───────────────────────────────────────────────────────────
+  // HEARTBEAT
+  // ───────────────────────────────────────────────────────────
+  const Heartbeat = {
+    timer: null,
+    start() {
+      // Listen to heartbeat doc
+      try {
+        STATE.heartbeatUnsub = db.doc(COCKPIT.heartbeat.doc).onSnapshot(snap => {
+          if (snap.exists) {
+            const data = snap.data() || {};
+            // Accept either field name — the agent layer writes lastSeenAt +
+            // lastPingAt; older Mac bridge builds may write only lastPingAt.
+            const raw = data.lastSeenAt || data.lastPingAt || null;
+            const ts = raw && raw.toMillis ? raw.toMillis() : (typeof raw === 'string' ? Date.parse(raw) : raw);
+            STATE.heartbeatLast = ts || null;
+            STATE.heartbeatMeta = { status: data.status, activeTool: data.activeTool, model: data.model, queueLen: data.queueLen, lastEvent: data.lastEvent };
+            this.updateBadge();
+          } else {
+            STATE.heartbeatLast = null;
+            this.updateBadge();
+          }
+        }, err => {
+          console.warn('Heartbeat listener error:', err);
+          STATE.heartbeatLast = null;
+          this.updateBadge();
+        });
+      } catch (err) {
+        console.warn('Heartbeat init error:', err);
+      }
+      // Re-render label every 15s
+      this.timer = setInterval(() => this.updateBadge(), 15000);
+      this.updateBadge();
+    },
+    updateBadge() {
+      const badge = $('#heartbeat-badge');
+      const timeEl = $('#heartbeat-time');
+      if (!badge || !timeEl) return;
+
+      badge.classList.remove('is-live', 'is-warning', 'is-critical', 'is-offline');
+      if (!STATE.heartbeatLast) {
+        badge.classList.add('is-offline');
+        timeEl.textContent = 'offline';
+        return;
+      }
+      const diff = Date.now() - STATE.heartbeatLast;
+      timeEl.textContent = fmt.relTime(STATE.heartbeatLast);
+      if (diff > COCKPIT.heartbeat.offlineMs) badge.classList.add('is-offline');
+      else if (diff > COCKPIT.heartbeat.criticalMs) badge.classList.add('is-critical');
+      else if (diff > COCKPIT.heartbeat.warningMs) badge.classList.add('is-warning');
+      else badge.classList.add('is-live');
+      // Enrich the tooltip with what the Mac bridge is doing right now.
+      const m = STATE.heartbeatMeta || {};
+      const parts = [`Mac bridge · ${fmt.relTime(STATE.heartbeatLast)}`];
+      if (m.status) parts.push('status: ' + m.status);
+      if (m.activeTool) parts.push('tool: ' + m.activeTool);
+      if (m.model) parts.push('model: ' + m.model);
+      if (typeof m.queueLen === 'number') parts.push('queue: ' + m.queueLen);
+      if (m.lastEvent) parts.push(m.lastEvent);
+      badge.title = parts.join(' · ');
+    }
+  };
+
+  // ───────────────────────────────────────────────────────────
+  // CMDK PALETTE
+  // ───────────────────────────────────────────────────────────
+  const CmdK = {
+    items: [
+      // Navigation
+      { group: 'Navigate', icon: '📨', label: 'Lead Inbox',     hint: 'View leads', action: () => Router.go('lead-inbox') },
+      { group: 'Navigate', icon: '⚡', label: 'Action Queue',   hint: 'Pending decisions', action: () => Router.go('action-queue') },
+      { group: 'Navigate', icon: '🎯', label: 'Risk Radar',     hint: 'Deadlines & risks', action: () => Router.go('risk-radar') },
+      { group: 'Navigate', icon: '📝', label: 'Contracts',      hint: 'Magic link signing', action: () => Router.go('contracts') },
+      { group: 'Navigate', icon: '📊', label: 'Deal Composer',  hint: 'Canone OMI', action: () => Router.go('deal-composer') },
+      { group: 'Navigate', icon: '⚙️', label: 'Settings',       hint: 'Cockpit config', action: () => Router.go('settings') },
+      // Actions
+      { group: 'Actions', icon: '💰', label: 'Componi canone',    hint: 'Deal Composer', action: () => Router.go('deal-composer') },
+      { group: 'Actions', icon: '✓✓', label: 'Approva tutte le azioni', hint: 'Bulk approve', action: () => { Router.go('action-queue'); setTimeout(() => ActionActions.bulkApprove(), 200); } },
+      { group: 'Actions', icon: '📰', label: 'Genera briefing',   hint: 'Digest del giorno', action: () => { Router.go('settings'); setTimeout(() => SettingsPanel.testDigest(), 250); } },
+      { group: 'Actions', icon: '🔎', label: 'Cerca lead',        hint: 'Filtra inbox', action: () => { Router.go('lead-inbox'); setTimeout(() => { const s = $('#lead-search'); if (s) s.focus(); }, 200); } },
+      { group: 'Actions', icon: '🔄', label: 'Ricarica cockpit',  hint: 'Hard refresh', action: () => location.reload() },
+      { group: 'Actions', icon: '🚪', label: 'Disconnetti',       hint: 'Sign out', action: () => auth.signOut() },
+      // External
+      { group: 'External', icon: '🏠', label: 'Open Portal',    hint: '/portal', action: () => window.open('/portal', '_blank') },
+      { group: 'External', icon: '🌐', label: 'Open boomrome.com', hint: 'Public site', action: () => window.open('/', '_blank') },
+      { group: 'External', icon: '📊', label: 'Stripe Dashboard',  hint: 'Payments', action: () => window.open('https://dashboard.stripe.com', '_blank') },
+      { group: 'External', icon: '🔥', label: 'Firebase Console',  hint: 'Firestore', action: () => window.open('https://console.firebase.google.com/project/boom-property-dashboards', '_blank') }
+    ],
+    init() {
+      // Trigger
+      $('#cmdk-trigger').onclick = () => this.open();
+      // Keyboard
+      document.addEventListener('keydown', (e) => {
+        const isCmd = (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k';
+        if (isCmd) { e.preventDefault(); this.toggle(); return; }
+        if (!STATE.cmdkOpen) return;
+        if (e.key === 'Escape') { this.close(); return; }
+        if (e.key === 'ArrowDown') { e.preventDefault(); this.select(STATE.cmdkSelected + 1); return; }
+        if (e.key === 'ArrowUp') { e.preventDefault(); this.select(STATE.cmdkSelected - 1); return; }
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const item = STATE.cmdkFiltered[STATE.cmdkSelected];
+          if (item) { this.close(); setTimeout(() => item.action(), 50); }
+        }
+      });
+      // Overlay click to close
+      $('#cmdk-overlay').addEventListener('click', (e) => {
+        if (e.target.id === 'cmdk-overlay') this.close();
+      });
+      // Input
+      $('#cmdk-input').addEventListener('input', (e) => this.filter(e.target.value));
+    },
+    open() {
+      STATE.cmdkOpen = true;
+      $('#cmdk-overlay').hidden = false;
+      $('#cmdk-input').value = '';
+      this.filter('');
+      setTimeout(() => $('#cmdk-input').focus(), 30);
+    },
+    close() {
+      STATE.cmdkOpen = false;
+      $('#cmdk-overlay').hidden = true;
+    },
+    toggle() { STATE.cmdkOpen ? this.close() : this.open(); },
+    fuzzy(query, label) {
+      query = (query || '').toLowerCase().trim();
+      label = label.toLowerCase();
+      if (!query) return { match: true, parts: [{ text: label, hit: false }] };
+      let qi = 0, parts = [], buf = '', bufHit = false;
+      for (let i = 0; i < label.length; i++) {
+        const c = label[i];
+        const isHit = qi < query.length && c === query[qi];
+        if (isHit !== bufHit) {
+          if (buf) parts.push({ text: buf, hit: bufHit });
+          buf = ''; bufHit = isHit;
+        }
+        buf += c;
+        if (isHit) qi++;
+      }
+      if (buf) parts.push({ text: buf, hit: bufHit });
+      return qi === query.length ? { match: true, parts } : { match: false };
+    },
+    filter(query) {
+      const results = [];
+      this.items.forEach(item => {
+        const r = this.fuzzy(query, item.label);
+        if (r.match) results.push({ ...item, parts: r.parts });
+      });
+      STATE.cmdkFiltered = results;
+      STATE.cmdkSelected = 0;
+      this.render();
+    },
+    render() {
+      const out = $('#cmdk-results');
+      if (!STATE.cmdkFiltered.length) {
+        out.innerHTML = `<div class="cmdk-empty">Nessun risultato</div>`;
+        return;
+      }
+      // Group by group
+      const grouped = {};
+      STATE.cmdkFiltered.forEach((it, idx) => {
+        (grouped[it.group] = grouped[it.group] || []).push({ ...it, _idx: idx });
+      });
+      let html = '';
+      Object.keys(grouped).forEach(group => {
+        html += `<div class="cmdk-group-label">${esc(group)}</div>`;
+        grouped[group].forEach(it => {
+          const labelHtml = (it.parts || [{ text: it.label, hit: false }])
+            .map(p => p.hit ? `<mark>${esc(p.text)}</mark>` : esc(p.text)).join('');
+          const sel = it._idx === STATE.cmdkSelected ? ' is-selected' : '';
+          html += `
+            <div class="cmdk-item${sel}" data-idx="${it._idx}">
+              <div class="cmdk-item-icon">${it.icon || '·'}</div>
+              <div class="cmdk-item-label">${labelHtml}</div>
+              <div class="cmdk-item-hint">${esc(it.hint || '')}</div>
+            </div>
+          `;
+        });
+      });
+      out.innerHTML = html;
+      // Click handlers
+      out.querySelectorAll('.cmdk-item').forEach(el => {
+        el.onclick = () => {
+          const idx = parseInt(el.dataset.idx, 10);
+          const item = STATE.cmdkFiltered[idx];
+          if (item) { this.close(); setTimeout(() => item.action(), 50); }
+        };
+        el.onmouseenter = () => this.select(parseInt(el.dataset.idx, 10));
+      });
+    },
+    select(idx) {
+      const n = STATE.cmdkFiltered.length;
+      if (!n) return;
+      STATE.cmdkSelected = ((idx % n) + n) % n;
+      this.render();
+      // Scroll selected into view
+      const el = $('#cmdk-results .cmdk-item.is-selected');
+      if (el) el.scrollIntoView({ block: 'nearest' });
+    }
+  };
+
+  // ───────────────────────────────────────────────────────────
+  // BOOT
+  // ───────────────────────────────────────────────────────────
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bootAuth);
+  else bootAuth();
+
+})();
+</script>
+
+</body>
+</html>
