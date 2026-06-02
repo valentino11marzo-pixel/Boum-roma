@@ -7005,32 +7005,158 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
 
     function invoicesPage() {
-        const pending = S.invoices.filter(i => i.status === 'pending');
-        const paid = S.invoices.filter(i => i.status === 'paid');
-        
-        const getRecipientName = (inv) => {
-            if (inv.recipientName) return inv.recipientName;
-            const client = S.clients.find(c => c.id === inv.clientId || c.id === inv.recipientId);
-            const user = S.users.find(u => u.id === inv.clientId || u.id === inv.recipientId);
-            return client?.name || user?.name || 'N/A';
+        const all = S.invoices || [];
+        const pending = all.filter(i => i.status === 'pending');
+        const paid = all.filter(i => i.status === 'paid');
+        const thisYear = new Date().getFullYear();
+        const ytdRevenue = paid.filter(i => new Date(i.date || i.createdAt).getFullYear() === thisYear).reduce((s, i) => s + (i.amount || 0), 0);
+
+        const getRecipient = (inv) => {
+            const rid = inv.recipientId || inv.clientId;
+            const client = S.clients.find(c => c.id === rid);
+            const user = !client ? S.users.find(u => u.id === rid) : null;
+            const name = inv.recipientName || client?.name || user?.name || 'N/A';
+            const kind = client ? 'client' : (user?.role === 'landlord' ? 'landlord' : user?.role === 'tenant' ? 'tenant' : (inv.recipientType || 'other'));
+            const email = user?.email || client?.email || null;
+            return { name, kind, email };
         };
-        
-        const getRecipientBadge = (inv) => {
-            if (inv.recipientType === 'landlord') return '<span class="badge gold" style="font-size:10px">🏠</span>';
-            if (inv.recipientType === 'tenant') return '<span class="badge blue" style="font-size:10px">👤</span>';
-            return '<span class="badge purple" style="font-size:10px">💼</span>';
+        const recipientBadge = (kind) => ({
+            landlord: '<span class="badge gold" style="font-size:10px" title="Proprietario">🏠</span>',
+            tenant:   '<span class="badge blue" style="font-size:10px" title="Inquilino">👤</span>',
+            client:   '<span class="badge purple" style="font-size:10px" title="Cliente CRM">💼</span>',
+        })[kind] || '<span class="badge" style="font-size:10px">📄</span>';
+
+        const invoiceRow = (inv) => {
+            const r = getRecipient(inv);
+            const year = new Date(inv.date || inv.createdAt).getFullYear();
+            const search = [inv.number, r.name, inv.service, inv.description].filter(Boolean).join(' ').toLowerCase();
+            const reminders = inv.remindersSent || 0;
+            return `<div class="list-item clickable invoice-item" data-status="${inv.status}" data-kind="${r.kind}" data-year="${year}" data-search="${esc(search)}" onclick="viewInvoice('${inv.id}')" style="padding:14px 16px">
+                <div class="list-icon" style="background:${inv.status === 'paid' ? 'var(--green-light)' : 'var(--orange-light)'}">🧾</div>
+                <div class="list-content" style="flex:1;min-width:0">
+                    <div class="list-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                        <span style="font-weight:600">${inv.number}</span>
+                        <span style="color:var(--text-secondary)">·</span>
+                        <span>${r.name}</span>
+                        ${recipientBadge(r.kind)}
+                        ${reminders > 0 ? `<span class="badge orange" style="font-size:9px" title="${reminders} solleciti">📧 ×${reminders}</span>` : ''}
+                    </div>
+                    <div class="list-subtitle" style="margin-top:4px">${inv.service || ''} · ${fmtDate(inv.date || inv.createdAt)}</div>
+                </div>
+                <div class="list-meta"><div class="list-value ${inv.status === 'paid' ? 'text-green' : 'text-gold'}">€${(inv.amount || 0).toLocaleString('it-IT')}</div><span class="badge ${inv.status === 'paid' ? 'green' : 'orange'}">${inv.status === 'paid' ? 'Pagata' : 'In Attesa'}</span></div>
+                <div style="display:flex;gap:4px">
+                    ${inv.status === 'pending' && r.email ? `<button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();sendInvoiceReminder('${inv.id}')" title="Invia sollecito email">📧</button>` : ''}
+                    <button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();downloadInvoicePDF('${inv.id}')" title="Scarica PDF">📥</button>
+                </div>
+            </div>`;
         };
-        
-        return `
-            <div class="page-header"><div><h1 class="page-title">Fatture</h1></div><div class="page-actions"><button class="btn btn-secondary btn-sm" onclick="exportInvoicesCSV()">📊 Export</button><button class="btn" onclick="openModal('addInvoice')">+ Nuova</button></div></div>
-            <div class="stats-grid" style="grid-template-columns:repeat(3,1fr)">
-                <div class="stat-card green"><div class="stat-value">€${paid.reduce((s,i)=>s+(i.amount||0),0).toLocaleString('it-IT')}</div><div class="stat-label">Incassate (${paid.length})</div></div>
-                <div class="stat-card orange"><div class="stat-value">€${pending.reduce((s,i)=>s+(i.amount||0),0).toLocaleString('it-IT')}</div><div class="stat-label">Da Incassare (${pending.length})</div></div>
-                <div class="stat-card blue"><div class="stat-value">${S.invoices.length}</div><div class="stat-label">Totale</div></div>
+
+        const years = [...new Set(all.map(i => new Date(i.date || i.createdAt).getFullYear()))].sort((a, b) => b - a);
+        const yearTabs = years.map(y => `<button class="btn btn-sm btn-secondary" data-filter="year-${y}" onclick="filterInvoices('year-${y}', this)">${y}</button>`).join('');
+
+        return `<div class="page-header">
+            <div><h1 class="page-title">Fatture</h1><div class="page-subtitle">${all.length} totali · €${ytdRevenue.toLocaleString('it-IT')} incassati nel ${thisYear}</div></div>
+            <div class="page-actions">
+                <button class="btn btn-secondary btn-sm" onclick="exportInvoicesCSV()">📊 Export</button>
+                <button class="btn" onclick="openModal('addInvoice')">+ Nuova</button>
             </div>
-            <div class="card"><div class="card-body flush">${S.invoices.length ? S.invoices.map(inv => {
-                return `<div class="list-item clickable" onclick="viewInvoice('${inv.id}')"><div class="list-icon" style="background:${inv.status === 'paid' ? 'var(--green-light)' : 'var(--orange-light)'}">🧾</div><div class="list-content"><div class="list-title">${inv.number} - ${getRecipientName(inv)} ${getRecipientBadge(inv)}</div><div class="list-subtitle">${inv.service || ''} · ${fmtDate(inv.date || inv.createdAt)}</div></div><div class="list-meta"><div class="list-value ${inv.status === 'paid' ? 'text-green' : 'text-gold'}">€${(inv.amount || 0).toLocaleString('it-IT')}</div><span class="badge ${inv.status === 'paid' ? 'green' : 'orange'}">${inv.status === 'paid' ? 'Pagata' : 'In Attesa'}</span></div><button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();downloadInvoicePDF('${inv.id}')">📥</button></div>`;
-            }).join('') : '<div class="empty-state"><div class="empty-icon">🧾</div><div class="empty-title">Nessuna fattura</div><button class="btn" onclick="openModal(\'addInvoice\')">+ Crea</button></div>'}</div></div>`;
+        </div>
+        <div class="stats-grid" style="grid-template-columns:repeat(4,1fr)">
+            <div class="stat-card" style="cursor:pointer" onclick="filterInvoices('all', this.closest('.stats-grid').nextElementSibling.querySelector('[data-filter=all]'))"><div class="stat-label">Totale</div><div class="stat-value">${all.length}</div></div>
+            <div class="stat-card" style="cursor:pointer" onclick="filterInvoices('pending', this.closest('.stats-grid').nextElementSibling.querySelector('[data-filter=pending]'))"><div class="stat-label">Da Incassare</div><div class="stat-value text-gold">€${pending.reduce((s,i)=>s+(i.amount||0),0).toLocaleString('it-IT')}</div></div>
+            <div class="stat-card" style="cursor:pointer" onclick="filterInvoices('paid', this.closest('.stats-grid').nextElementSibling.querySelector('[data-filter=paid]'))"><div class="stat-label">Incassate</div><div class="stat-value text-green">€${paid.reduce((s,i)=>s+(i.amount||0),0).toLocaleString('it-IT')}</div></div>
+            <div class="stat-card"><div class="stat-label">Anno corrente</div><div class="stat-value">€${ytdRevenue.toLocaleString('it-IT')}</div></div>
+        </div>
+        <div class="card">
+            <div style="display:flex;gap:6px;padding:12px 16px;border-bottom:1px solid var(--border);flex-wrap:wrap;align-items:center">
+                <button class="btn btn-sm" data-filter="all" onclick="filterInvoices('all', this)">Tutte</button>
+                <button class="btn btn-sm btn-secondary" data-filter="pending" onclick="filterInvoices('pending', this)">⏳ Da incassare</button>
+                <button class="btn btn-sm btn-secondary" data-filter="paid" onclick="filterInvoices('paid', this)">✓ Pagate</button>
+                <span style="color:var(--text-muted);font-size:11px;margin:0 4px">|</span>
+                <button class="btn btn-sm btn-secondary" data-filter="kind-landlord" onclick="filterInvoices('kind-landlord', this)">🏠 Proprietari</button>
+                <button class="btn btn-sm btn-secondary" data-filter="kind-tenant" onclick="filterInvoices('kind-tenant', this)">👤 Inquilini</button>
+                <button class="btn btn-sm btn-secondary" data-filter="kind-client" onclick="filterInvoices('kind-client', this)">💼 CRM</button>
+                ${years.length > 1 ? `<span style="color:var(--text-muted);font-size:11px;margin:0 4px">|</span>${yearTabs}` : ''}
+                <input type="search" id="invoiceSearch" class="form-input" placeholder="🔎 Cerca numero, destinatario, servizio…" oninput="searchInvoices(this.value)" style="flex:1;min-width:200px;margin-left:auto">
+            </div>
+            <div class="card-body flush">${all.length === 0
+                ? '<div class="empty-state"><div class="empty-icon">🧾</div><div class="empty-title">Nessuna fattura</div><div class="empty-subtitle">Crea la prima fattura per iniziare</div><button class="btn" onclick="openModal(\'addInvoice\')" style="margin-top:12px">+ Crea prima fattura</button></div>'
+                : all.map(invoiceRow).join('')
+            }</div>
+        </div>`;
+    }
+
+    // Active filter state for invoices (combinable: status + kind + year + search).
+    const invoiceFilters = { status: 'all', kind: 'all', year: 'all', search: '' };
+
+    function filterInvoices(filter, btn) {
+        if (filter === 'all' || filter === 'pending' || filter === 'paid') {
+            invoiceFilters.status = filter;
+        } else if (filter.startsWith('kind-')) {
+            const k = filter.slice(5);
+            invoiceFilters.kind = (invoiceFilters.kind === k) ? 'all' : k;
+        } else if (filter.startsWith('year-')) {
+            const y = filter.slice(5);
+            invoiceFilters.year = (invoiceFilters.year === y) ? 'all' : y;
+        }
+        // Refresh pill visuals from state (status pills are a group; kind/year toggle individually).
+        if (btn?.parentElement) {
+            btn.parentElement.querySelectorAll('button.btn-sm[data-filter]').forEach(b => {
+                const f = b.dataset.filter;
+                let active = false;
+                if (['all','pending','paid'].includes(f)) active = (f === invoiceFilters.status);
+                else if (f.startsWith('kind-')) active = (f.slice(5) === invoiceFilters.kind);
+                else if (f.startsWith('year-')) active = (f.slice(5) === invoiceFilters.year);
+                b.classList.toggle('btn-secondary', !active);
+            });
+        }
+        applyInvoiceFilters();
+    }
+    function searchInvoices(q) { invoiceFilters.search = (q || '').toLowerCase().trim(); applyInvoiceFilters(); }
+    function applyInvoiceFilters() {
+        document.querySelectorAll('.invoice-item').forEach(item => {
+            const okStatus = invoiceFilters.status === 'all' || item.dataset.status === invoiceFilters.status;
+            const okKind   = invoiceFilters.kind === 'all'   || item.dataset.kind === invoiceFilters.kind;
+            const okYear   = invoiceFilters.year === 'all'   || item.dataset.year === invoiceFilters.year;
+            const okSearch = !invoiceFilters.search || (item.dataset.search || '').includes(invoiceFilters.search);
+            item.style.display = (okStatus && okKind && okYear && okSearch) ? '' : 'none';
+        });
+    }
+
+    async function sendInvoiceReminder(id) {
+        const inv = S.invoices.find(x => x.id === id);
+        if (!inv) return;
+        const rid = inv.recipientId || inv.clientId;
+        const client = S.clients.find(c => c.id === rid);
+        const user = !client ? S.users.find(u => u.id === rid) : null;
+        const email = user?.email || client?.email;
+        const name = inv.recipientName || client?.name || user?.name || 'cliente';
+        if (!email) return toast('warning', 'Email mancante', 'Nessun indirizzo email per il destinatario');
+        if (!confirm(`Inviare sollecito a ${name} (${email}) per la fattura ${inv.number}?`)) return;
+        try {
+            const remindersSent = (inv.remindersSent || 0) + 1;
+            await db.collection('invoices').doc(id).update({
+                remindersSent, lastReminderAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            // Use the same notification engine as payments — auto-emails the recipient + you (owner).
+            const recipientUid = user?.id || (client ? client.id : null);
+            if (recipientUid && user) {
+                await createNotification(recipientUid, 'invoice', `🧾 Sollecito fattura ${inv.number}`,
+                    `Hai una fattura di €${inv.amount} (${inv.service || ''}) ancora da saldare.`,
+                    { invoiceId: id, amount: inv.amount });
+            } else {
+                // Recipient isn't a portal user — fall back to forwarding to the owner only.
+                if (typeof forwardNotificationToOwner === 'function') {
+                    await forwardNotificationToOwner('invoice', `🧾 Sollecito fattura ${inv.number}`,
+                        `Sollecito da inviare a ${name} (${email}) — €${inv.amount}, ${inv.service || ''}.`,
+                        { invoiceId: id }, { name, email });
+                }
+            }
+            toast('success', `Sollecito #${remindersSent} registrato`, `${name} è stato avvisato`);
+            renderPage();
+        } catch (e) {
+            toast('error', 'Errore', e.message);
+        }
     }
 
     function templatesPage() {
