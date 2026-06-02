@@ -2052,6 +2052,86 @@
         </div>
     </section>
 
+    <!-- Owner Dashboard showcase (supply-side product cell) -->
+    <style>
+    .own-dash{position:relative;z-index:1;padding:96px 24px}
+    .own-dash-wrap{max-width:1180px;margin:0 auto;display:grid;grid-template-columns:1fr;gap:46px;align-items:center}
+    @media(min-width:960px){.own-dash-wrap{grid-template-columns:1fr 1fr;gap:64px}}
+    .own-eyebrow{display:inline-block;color:#FFD700;font-size:12px;letter-spacing:3px;text-transform:uppercase;margin-bottom:16px}
+    .own-dash h2{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-weight:200;font-size:clamp(30px,4.4vw,52px);line-height:1.05;letter-spacing:-.02em}
+    .own-dash h2 .g{color:#FFD700}
+    .own-dash .d{color:rgba(255,255,255,.7);font-size:clamp(15px,2vw,18px);margin:20px 0 28px;max-width:480px;line-height:1.7}
+    .own-cta{display:inline-flex;align-items:center;gap:8px;padding:15px 28px;border-radius:100px;background:linear-gradient(135deg,#FFD700,#FFA500);color:#000;font-weight:600;font-size:15px;text-decoration:none;transition:transform .3s,box-shadow .3s}
+    .own-cta:hover{transform:translateY(-2px);box-shadow:0 12px 38px rgba(255,215,0,.32)}
+    .own-device{position:relative;width:100%;max-width:520px;justify-self:center;border-radius:18px;overflow:hidden;border:1px solid rgba(255,255,255,.08);background:linear-gradient(160deg,#141416,#0b0b0d);box-shadow:0 40px 110px rgba(0,0,0,.6)}
+    .own-tbar{display:flex;align-items:center;gap:7px;padding:13px 15px;background:rgba(255,255,255,.03);border-bottom:1px solid rgba(255,255,255,.08)}
+    .own-tbar i{width:10px;height:10px;border-radius:50%;background:#2a2a30}
+    .own-turl{margin-left:12px;flex:1;height:24px;border-radius:6px;background:rgba(0,0,0,.4);display:flex;align-items:center;padding:0 11px;font-size:11px;color:rgba(255,255,255,.45);letter-spacing:.4px}
+    .own-turl::before{content:'🔒';font-size:8px;margin-right:7px;filter:grayscale(1)}
+    .own-screen{padding:18px;display:flex;flex-direction:column;gap:13px}
+    .own-row{display:flex;gap:13px}
+    .own-card{flex:1;border:1px solid rgba(255,255,255,.08);border-radius:13px;padding:16px;background:rgba(255,255,255,.02)}
+    .own-k{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:rgba(255,255,255,.45)}
+    .own-v{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-weight:200;font-size:30px;color:#FFD700;line-height:1;margin-top:8px}
+    .own-paid{font-size:11.5px;color:#00FF88;margin-top:8px;display:flex;align-items:center;gap:5px}
+    .own-ringwrap{position:relative;width:84px;height:84px;margin:2px auto 0}
+    .own-ringsvg{width:84px;height:84px;transform:rotate(-90deg)}
+    .own-ringsvg circle{fill:none;stroke-width:6}
+    .own-ringsvg .rbg{stroke:rgba(255,255,255,.08)}
+    .own-ringsvg .rfg{stroke:#FFD700;stroke-linecap:round;stroke-dasharray:226;stroke-dashoffset:226;transition:stroke-dashoffset 1.4s cubic-bezier(.16,1,.3,1)}
+    .own-device.on .own-ringsvg .rfg{stroke-dashoffset:9}
+    .own-ringnum{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'Helvetica Neue';font-weight:300;font-size:19px;color:#fff}
+    .own-ringcap{text-align:center;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:rgba(255,255,255,.45);margin-top:6px}
+    .own-tenant{display:flex;align-items:center;gap:12px;border:1px solid rgba(0,255,136,.22);border-radius:13px;padding:14px 16px;background:rgba(0,255,136,.05)}
+    .own-av{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#2a2a30,#15151a);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+    .own-tname{font-size:14px;color:#fff}
+    .own-tmeta{font-size:11.5px;color:#00FF88;margin-top:2px}
+    .own-bars{display:flex;align-items:flex-end;gap:6px;height:54px;margin-top:12px}
+    .own-bars span{flex:1;background:linear-gradient(180deg,#FFD700,#E5C200);border-radius:4px 4px 0 0;height:6px;transition:height 1s cubic-bezier(.16,1,.3,1)}
+    .own-device.on .own-bars span{height:var(--h)}
+    .own-bars span:nth-child(2){transition-delay:.08s}.own-bars span:nth-child(3){transition-delay:.16s}.own-bars span:nth-child(4){transition-delay:.24s}.own-bars span:nth-child(5){transition-delay:.32s}.own-bars span:nth-child(6){transition-delay:.4s}
+    .own-foot{display:flex;align-items:center;justify-content:space-between;font-size:11.5px;color:rgba(255,255,255,.5);padding-top:2px}
+    .own-foot b{color:#FFD700;font-weight:500}
+    @media(prefers-reduced-motion:reduce){.own-ringsvg .rfg,.own-bars span{transition:none}}
+    </style>
+    <section class="own-dash">
+        <div class="own-dash-wrap reveal-up">
+            <div class="own-dash-copy">
+                <span class="own-eyebrow">La tua dashboard</span>
+                <h2>Tutto sotto controllo.<br><span class="g">In tempo reale.</span></h2>
+                <p class="d">Canoni puntuali, inquilini verificati, zero sfitto da gestire. Tu guardi i numeri salire — al resto pensiamo noi. E se un inquilino non paga, è un problema nostro: la solvibilità è garantita.</p>
+                <a class="own-cta" href="https://wa.me/393313251961" target="_blank">Parliamone su WhatsApp →</a>
+            </div>
+            <div class="own-device svc-device">
+                <div class="own-tbar"><i></i><i></i><i></i><span class="own-turl">app.boomrome.com/proprietari</span></div>
+                <div class="own-screen">
+                    <div class="own-row">
+                        <div class="own-card"><div class="own-k">Canone questo mese</div><div class="own-v" data-own-count="1850" data-pre="€">€0</div><div class="own-paid">● Accreditato</div></div>
+                        <div class="own-card"><div class="own-k">Occupazione</div><div class="own-ringwrap"><svg class="own-ringsvg" viewBox="0 0 84 84"><circle class="rbg" cx="42" cy="42" r="36"/><circle class="rfg" cx="42" cy="42" r="36"/></svg><div class="own-ringnum" data-own-count="96" data-suf="%">0%</div></div><div class="own-ringcap">media annua</div></div>
+                    </div>
+                    <div class="own-tenant"><div class="own-av">👤</div><div><div class="own-tname">Marco R. — inquilino</div><div class="own-tmeta">✓ Verificato · solvibilità garantita BOOM</div></div></div>
+                    <div class="own-card"><div class="own-k">Ultimi 6 mesi</div><div class="own-bars"><span style="--h:62%"></span><span style="--h:70%"></span><span style="--h:58%"></span><span style="--h:84%"></span><span style="--h:76%"></span><span style="--h:92%"></span></div></div>
+                    <div class="own-foot"><span>Prossimo accredito</span><b>tra 3 giorni</b></div>
+                </div>
+            </div>
+        </div>
+    </section>
+    <script>
+    (function(){
+      var dev=document.querySelector('.own-device'); if(!dev) return;
+      var reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+      function cnt(el){
+        var end=+el.getAttribute('data-own-count'), pre=el.getAttribute('data-pre')||'', suf=el.getAttribute('data-suf')||'';
+        if(reduce){el.textContent=pre+end.toLocaleString('it-IT')+suf;return;}
+        var t0=performance.now(),d=1300;
+        (function tick(n){var p=Math.min(1,(n-t0)/d),e=1-Math.pow(1-p,3);el.textContent=pre+Math.round(end*e).toLocaleString('it-IT')+suf;if(p<1)requestAnimationFrame(tick);})(t0);
+      }
+      var done=false;
+      var io=new IntersectionObserver(function(ents){ents.forEach(function(x){if(x.isIntersecting&&!done){done=true;dev.classList.add('on');dev.querySelectorAll('[data-own-count]').forEach(cnt);io.disconnect();}});},{threshold:.3});
+      io.observe(dev);
+    })();
+    </script>
+
     <div class="section-divider"></div>
 
     <!-- Problem Section -->
