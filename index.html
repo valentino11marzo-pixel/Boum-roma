@@ -2440,7 +2440,21 @@
             border: 1px solid var(--border-default);
             overflow: hidden;
             box-shadow: 0 40px 100px rgba(0,0,0,0.55);
+            transform-style: preserve-3d;
+            transition: transform 0.35s var(--ease-out);
         }
+        .how-visual::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            z-index: 20;
+            pointer-events: none;
+            background: linear-gradient(120deg, transparent 38%, rgba(255,255,255,0.06) 50%, transparent 62%);
+            transform: translateX(-120%);
+            animation: howSweep 7s ease-in-out infinite;
+        }
+        @keyframes howSweep { 0%, 100% { transform: translateX(-120%); } 55% { transform: translateX(120%); } }
+        @media (prefers-reduced-motion: reduce) { .how-visual::before { animation: none; } }
         .how-bar { display: flex; align-items: center; gap: 7px; padding: 12px 14px; background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border-default); }
         .how-bar i { width: 10px; height: 10px; border-radius: 50%; background: #2a2a30; }
         .how-url { margin-left: 12px; flex: 1; height: 24px; border-radius: 6px; background: rgba(0,0,0,0.4); display: flex; align-items: center; padding: 0 11px; font-size: 11px; color: var(--text-tertiary); letter-spacing: 0.5px; }
@@ -3762,6 +3776,21 @@
                 requestAnimationFrame(updateHow);
             };
             requestAnimationFrame(updateHow);
+        }
+
+        // ═══════════════════════════════════════════════════════════
+        // Premium device tilt — the film device leans toward the cursor (desktop)
+        if (!prefersReduced && canHover) {
+            const howDev = document.querySelector('.how-visual');
+            if (howDev) {
+                howDev.addEventListener('mousemove', (e) => {
+                    const r = howDev.getBoundingClientRect();
+                    const px = (e.clientX - r.left) / r.width - 0.5;
+                    const py = (e.clientY - r.top) / r.height - 0.5;
+                    howDev.style.transform = `perspective(1200px) rotateY(${(px * 4).toFixed(2)}deg) rotateX(${(-py * 4).toFixed(2)}deg)`;
+                });
+                howDev.addEventListener('mouseleave', () => { howDev.style.transform = ''; });
+            }
         }
 
         // ═══════════════════════════════════════════════════════════

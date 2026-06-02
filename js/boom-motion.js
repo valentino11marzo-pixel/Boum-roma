@@ -44,7 +44,13 @@
     '.boom-btn::after{content:"";position:absolute;inset:0;pointer-events:none;' +
        'background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.40),transparent 70%);' +
        'transform:translateX(-130%);transition:transform .7s ' + EASE + '}' +
-    '.boom-btn:hover::after{transform:translateX(130%)}';
+    '.boom-btn:hover::after{transform:translateX(130%)}' +
+    /* Premium device: subtle 3D tilt + glass light-sweep across the screen */
+    '.svc-device,.pfs-finder,.hiw-browser{position:relative;transition:transform .35s ' + EASE + ';transform-style:preserve-3d;will-change:transform}' +
+    '.svc-device::before,.pfs-finder::before,.hiw-browser::before{content:"";position:absolute;inset:0;z-index:20;pointer-events:none;' +
+       'background:linear-gradient(120deg,transparent 38%,rgba(255,255,255,.06) 50%,transparent 62%);transform:translateX(-120%);animation:boomSweep 7s ease-in-out infinite}' +
+    '@keyframes boomSweep{0%,100%{transform:translateX(-120%)}55%{transform:translateX(120%)}}' +
+    '@media(prefers-reduced-motion:reduce){.svc-device::before,.pfs-finder::before,.hiw-browser::before{animation:none}}';
   var style = document.createElement('style');
   style.setAttribute('data-boom-motion', '');
   style.textContent = css;
@@ -140,5 +146,22 @@
     Array.prototype.forEach.call(nodes, function (el) { io.observe(el); });
   }
 
-  ready(function () { enhanceButtons(); setupCounts(); });
+  // ── 4) Premium device tilt (pointer devices only) ──────────────────────────
+  function enhanceDevices() {
+    if (reduce || !canHover) return;
+    var nodes = document.querySelectorAll('.svc-device,.pfs-finder,.hiw-browser');
+    Array.prototype.forEach.call(nodes, function (d) {
+      if (d.dataset.boomTilt) return;
+      d.dataset.boomTilt = '1';
+      d.addEventListener('mousemove', function (e) {
+        var r = d.getBoundingClientRect();
+        var px = (e.clientX - r.left) / r.width - 0.5;
+        var py = (e.clientY - r.top) / r.height - 0.5;
+        d.style.transform = 'perspective(1200px) rotateY(' + (px * 5).toFixed(2) + 'deg) rotateX(' + (-py * 5).toFixed(2) + 'deg)';
+      });
+      d.addEventListener('mouseleave', function () { d.style.transform = ''; });
+    });
+  }
+
+  ready(function () { enhanceButtons(); setupCounts(); enhanceDevices(); });
 })();
