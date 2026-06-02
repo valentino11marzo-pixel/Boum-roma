@@ -7714,9 +7714,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 resolved: { color: 'green', bg: 'green-light', icon: '✔', text: 'Risolta' }
             };
             const priorityConfig = {
-                low: { color: 'gray', icon: '🔵', text: 'Bassa' },
-                normal: { color: 'blue', icon: '🟡', text: 'Normale' },
-                urgent: { color: 'red', icon: '🔴', text: 'Urgente' }
+                low:    { color: 'gray',   icon: '⚪', text: 'Bassa' },
+                normal: { color: 'blue',   icon: '🔵', text: 'Normale' },
+                medium: { color: 'blue',   icon: '🟡', text: 'Media' },
+                high:   { color: 'orange', icon: '🟠', text: 'Alta' },
+                urgent: { color: 'red',    icon: '🔴', text: 'Urgente' }
             };
             const s = statusConfig[m.status] || statusConfig.open;
             const pr = priorityConfig[m.priority] || priorityConfig.normal;
@@ -8585,8 +8587,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
     
     function filterDocs(type, btn) {
-        document.querySelectorAll('.card button.btn-sm').forEach(b => { b.classList.remove('btn-secondary'); b.classList.add('btn-secondary'); });
-        btn.classList.remove('btn-secondary');
+        // Reset all sibling filter buttons to secondary, then mark active.
+        if (btn?.parentElement) {
+            btn.parentElement.querySelectorAll('button.btn-sm').forEach(b => b.classList.add('btn-secondary'));
+        }
+        btn?.classList.remove('btn-secondary');
         document.querySelectorAll('.doc-item').forEach(item => {
             if (type === 'all') item.style.display = '';
             else if (type === 'shared') item.style.display = item.dataset.shared === 'true' ? '' : 'none';
@@ -11645,12 +11650,17 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
     function viewInvoice(id) {
         const inv = S.invoices.find(x => x.id === id); if (!inv) return;
-        const client = S.clients.find(c => c.id === inv.clientId);
+        // Resolve recipient across clients (CRM) + users (landlord/tenant).
+        const rid = inv.recipientId || inv.clientId;
+        const client = S.clients.find(c => c.id === rid);
+        const user = !client ? S.users.find(u => u.id === rid) : null;
+        const recipientName = client?.name || user?.name || 'N/A';
+        const recipientRole = client ? 'Cliente CRM' : (user?.role === 'landlord' ? 'Proprietario' : user?.role === 'tenant' ? 'Inquilino' : '');
         document.getElementById('modals').innerHTML = `<div class="modal-overlay active"><div class="modal">
             <div class="modal-header"><h3 class="modal-title">🧾 ${inv.number}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
             <div class="modal-body">
                 <div class="detail-grid">
-                    <div><div class="detail-label">Cliente</div><div class="detail-value">${client?.name || 'N/A'}</div></div>
+                    <div><div class="detail-label">Destinatario${recipientRole ? ' · ' + recipientRole : ''}</div><div class="detail-value">${recipientName}</div></div>
                     <div><div class="detail-label">Servizio</div><div class="detail-value">${inv.service || 'N/A'}</div></div>
                     <div><div class="detail-label">Importo</div><div class="detail-value text-gold" style="font-size:20px">€${inv.amount || 0}</div></div>
                     <div><div class="detail-label">Stato</div><div class="detail-value"><span class="badge ${inv.status === 'paid' ? 'green' : 'orange'}">${inv.status === 'paid' ? 'Pagata' : 'In Attesa'}</span></div></div>
@@ -16734,10 +16744,14 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // EXPORT FUNCTIONS
     // ═══════════════════════════════════════════════════════════════════════════
     function exportInvoicesCSV() {
-        let csv = 'Numero,Cliente,Servizio,Importo,Stato,Data\n';
+        let csv = 'Numero,Destinatario,Tipo,Servizio,Importo,Stato,Data\n';
         S.invoices.forEach(i => {
-            const client = S.clients.find(c => c.id === i.clientId);
-            csv += `"${i.number}","${client?.name || ''}","${i.service || ''}",${i.amount || 0},"${i.status}","${fmtDate(i.createdAt)}"\n`;
+            const rid = i.recipientId || i.clientId;
+            const client = S.clients.find(c => c.id === rid);
+            const user = !client ? S.users.find(u => u.id === rid) : null;
+            const name = client?.name || user?.name || '';
+            const kind = client ? 'CRM' : (user?.role === 'landlord' ? 'Proprietario' : user?.role === 'tenant' ? 'Inquilino' : '');
+            csv += `"${i.number}","${name}","${kind}","${i.service || ''}",${i.amount || 0},"${i.status}","${fmtDate(i.date || i.createdAt)}"\n`;
         });
         downloadCSV(csv, 'BOOM_Fatture.csv');
     }
