@@ -2460,3 +2460,14 @@
             .how-scene { transition: none; }
             .how-pass::after, .how-caret { animation: none !important; }
         }
+
+/* ── Shared FAQ accordion (native <details>, accessible, SEO/AEO-friendly) ── */
+.boom-faq{max-width:800px;margin:0 auto}
+.boom-faq details{border:1px solid var(--border-default);border-radius:14px;background:var(--surface-card);margin-bottom:12px;overflow:hidden;transition:border-color .3s var(--ease-out)}
+.boom-faq details[open]{border-color:var(--border-gold)}
+.boom-faq summary{list-style:none;cursor:pointer;padding:20px 22px;font-size:16px;font-weight:400;color:var(--text-primary);display:flex;justify-content:space-between;align-items:center;gap:16px;transition:color .3s}
+.boom-faq summary:hover{color:var(--gold)}
+.boom-faq summary::-webkit-details-marker{display:none}
+.boom-faq summary::after{content:'+';color:var(--gold);font-size:24px;font-weight:200;line-height:1;transition:transform .3s var(--ease-out);flex-shrink:0}
+.boom-faq details[open] summary::after{transform:rotate(45deg)}
+.boom-faq .faq-a{padding:0 22px 20px;color:var(--text-secondary);font-size:14.5px;line-height:1.7;max-width:680px}
