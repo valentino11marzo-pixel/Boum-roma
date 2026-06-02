@@ -54,8 +54,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --gold: #D4AF37;
-            --gold-light: rgba(212, 175, 55, 0.15);
+            --gold: #FFD700;
+            --gold-light: rgba(255, 215, 0, 0.15);
             --bg: #0a0a0a;
             --surface: #111111;
             --surface-2: #1a1a1a;
@@ -1018,7 +1018,7 @@
         
         // Check Firebase loaded
         if (typeof firebase === 'undefined') {
-            document.body.innerHTML = '<div style="padding:40px;text-align:center;color:#fff;"><h2>Errore Caricamento</h2><p>Ricarica la pagina o controlla la connessione internet.</p><button onclick="location.reload()" style="margin-top:20px;padding:12px 24px;background:#D4AF37;color:#000;border:none;border-radius:8px;cursor:pointer;">Ricarica</button></div>';
+            document.body.innerHTML = '<div style="padding:40px;text-align:center;color:#fff;"><h2>Errore Caricamento</h2><p>Ricarica la pagina o controlla la connessione internet.</p><button onclick="location.reload()" style="margin-top:20px;padding:12px 24px;background:#FFD700;color:#000;border:none;border-radius:8px;cursor:pointer;">Ricarica</button></div>';
         } else {
             firebase.initializeApp(firebaseConfig);
         }

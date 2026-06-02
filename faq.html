@@ -50,8 +50,8 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
-  --gold:#D4AF37;--gold-b:#E8C547;--gold-d:#B8960C;--gold-dim:rgba(212,175,55,0.12);
-  --bg:#000;--bg1:#0A0A0A;--bg2:#0E0D0B;--border:rgba(255,255,255,0.06);--border-h:rgba(255,255,255,0.1);--border-g:rgba(212,175,55,0.2);
+  --gold:#FFD700;--gold-b:#E8C547;--gold-d:#B8960C;--gold-dim:rgba(255, 215, 0,0.12);
+  --bg:#000;--bg1:#0A0A0A;--bg2:#0E0D0B;--border:rgba(255,255,255,0.06);--border-h:rgba(255,255,255,0.1);--border-g:rgba(255, 215, 0,0.2);
   --text:#fff;--text2:rgba(255,255,255,0.55);--text3:rgba(255,255,255,0.2);
   --f:'Helvetica Neue','HelveticaNeue','Outfit','Helvetica',-apple-system,sans-serif;
   --radius:12px;--ease:cubic-bezier(0.16,1,0.3,1)
@@ -66,7 +66,7 @@ strong{font-weight:500;color:var(--gold-b)}
 /* ─── SCROLLBAR ─── */
 ::-webkit-scrollbar{width:6px}
 ::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:rgba(212,175,55,0.2);border-radius:3px}
+::-webkit-scrollbar-thumb{background:rgba(255, 215, 0,0.2);border-radius:3px}
 
 /* ─── CANVAS BG ─── */
 #geoCanvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none;opacity:0.35}
@@ -94,7 +94,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:0 40px;height:60px;d
 /* ─── SEARCH BAR ─── */
 .search-wrap{margin-top:40px;width:100%;max-width:520px;opacity:0;animation:fadeDown 0.8s var(--ease) 0.55s forwards}
 .search-bar{display:flex;align-items:center;gap:10px;background:var(--bg1);border:1px solid var(--border);border-radius:50px;padding:12px 20px;transition:all 0.3s}
-.search-bar:focus-within{border-color:var(--border-g);box-shadow:0 0 0 1px rgba(212,175,55,0.08),0 8px 32px rgba(0,0,0,0.3)}
+.search-bar:focus-within{border-color:var(--border-g);box-shadow:0 0 0 1px rgba(255, 215, 0,0.08),0 8px 32px rgba(0,0,0,0.3)}
 .search-bar svg{width:18px;height:18px;stroke:var(--text3);stroke-width:1.5;fill:none;flex-shrink:0}
 .search-bar input{flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--f);font-size:14px;font-weight:300}
 .search-bar input::placeholder{color:var(--text3)}
@@ -112,7 +112,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:0 40px;height:60px;d
 .tabs::-webkit-scrollbar{display:none}
 .tab{padding:8px 16px;border-radius:8px;font-size:12px;font-weight:400;letter-spacing:0.5px;color:var(--text2);cursor:pointer;white-space:nowrap;border:1px solid transparent;transition:all 0.25s;user-select:none;-webkit-tap-highlight-color:transparent}
 .tab:hover{color:var(--text);background:rgba(255,255,255,0.03)}
-.tab.active{color:var(--gold);background:var(--gold-dim);border-color:rgba(212,175,55,0.12);font-weight:500}
+.tab.active{color:var(--gold);background:var(--gold-dim);border-color:rgba(255, 215, 0,0.12);font-weight:500}
 .tab-count{font-size:10px;color:var(--text3);margin-left:4px;font-weight:400}
 .tab.active .tab-count{color:var(--gold-d)}
 
@@ -128,7 +128,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:0 40px;height:60px;d
 .q-card:hover::before{opacity:0.25}
 .q-card.open{border-color:var(--border-g);background:var(--bg2)}
 .q-card.open::before{opacity:1}
-.q-card.flash{box-shadow:0 0 0 2px var(--gold),0 0 24px rgba(212,175,55,0.15)}
+.q-card.flash{box-shadow:0 0 0 2px var(--gold),0 0 24px rgba(255, 215, 0,0.15)}
 .q-head{padding:18px 22px;cursor:pointer;display:flex;align-items:flex-start;gap:14px;user-select:none;-webkit-tap-highlight-color:transparent}
 .q-head-content{flex:1;min-width:0}
 .q-head h3{font-size:14px;font-weight:400;color:var(--text);line-height:1.55;letter-spacing:0.01em;transition:all 0.25s}
@@ -151,7 +151,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:0 40px;height:60px;d
 .q-related{margin-top:14px;padding-top:12px;border-top:1px solid var(--border);display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .q-related-label{font-size:10px;font-weight:500;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);margin-right:4px}
 .q-related a{font-size:11px;font-weight:400;color:var(--gold);background:var(--gold-dim);padding:4px 10px;border-radius:20px;cursor:pointer;transition:all 0.2s}
-.q-related a:hover{background:rgba(212,175,55,0.2)}
+.q-related a:hover{background:rgba(255, 215, 0,0.2)}
 
 /* ─── BADGES ─── */
 .badge{display:inline-block;font-size:10px;font-weight:500;letter-spacing:0.5px;padding:3px 10px;border-radius:20px;vertical-align:middle;margin-left:4px}
@@ -161,7 +161,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:0 40px;height:60px;d
 /* ─── SPOTLIGHT ─── */
 .spot-overlay{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.8);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);display:none;align-items:flex-start;justify-content:center;padding-top:min(20vh,160px)}
 .spot-overlay.open{display:flex}
-.spot{width:90%;max-width:560px;background:var(--bg1);border:1px solid var(--border-g);border-radius:16px;overflow:hidden;box-shadow:0 24px 80px rgba(0,0,0,0.6),0 0 0 1px rgba(212,175,55,0.06)}
+.spot{width:90%;max-width:560px;background:var(--bg1);border:1px solid var(--border-g);border-radius:16px;overflow:hidden;box-shadow:0 24px 80px rgba(0,0,0,0.6),0 0 0 1px rgba(255, 215, 0,0.06)}
 .spot-input-wrap{display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--border)}
 .spot-input-wrap svg{width:18px;height:18px;stroke:var(--gold);stroke-width:1.5;fill:none;flex-shrink:0}
 .spot-input{flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--f);font-size:15px;font-weight:300}
@@ -169,7 +169,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:0 40px;height:60px;d
 .spot-esc{font-size:10px;color:var(--text3);border:1px solid var(--border);border-radius:4px;padding:2px 6px;font-weight:400}
 .spot-results{max-height:400px;overflow-y:auto;padding:8px}
 .spot-results::-webkit-scrollbar{width:4px}
-.spot-results::-webkit-scrollbar-thumb{background:rgba(212,175,55,0.15);border-radius:2px}
+.spot-results::-webkit-scrollbar-thumb{background:rgba(255, 215, 0,0.15);border-radius:2px}
 .spot-item{padding:10px 14px;border-radius:8px;cursor:pointer;transition:background 0.15s}
 .spot-item:hover,.spot-item.active{background:var(--gold-dim)}
 .spot-item-q{font-size:13px;font-weight:400;color:var(--text);margin-bottom:2px}
@@ -183,7 +183,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:0 40px;height:60px;d
 .cta h2 em{font-style:normal;color:var(--gold);font-weight:300}
 .cta p{font-size:14px;font-weight:300;color:var(--text2);margin-bottom:32px}
 .cta-btn{display:inline-flex;align-items:center;gap:10px;background:var(--gold);color:#000;font-family:var(--f);font-size:14px;font-weight:500;letter-spacing:0.5px;padding:14px 36px;border-radius:50px;border:none;cursor:pointer;transition:all 0.3s}
-.cta-btn:hover{background:var(--gold-b);transform:translateY(-1px);box-shadow:0 8px 24px rgba(212,175,55,0.25)}
+.cta-btn:hover{background:var(--gold-b);transform:translateY(-1px);box-shadow:0 8px 24px rgba(255, 215, 0,0.25)}
 .cta-btn svg{width:18px;height:18px;fill:none;stroke:#000;stroke-width:2}
 
 /* ─── FOOTER ─── */
@@ -850,7 +850,7 @@ function drawCanvas() {
   const t = frame * 0.005;
 
   // Layer 1: Roman grid (Cardo/Decumanus)
-  ctx.strokeStyle = 'rgba(212,175,55,0.03)';
+  ctx.strokeStyle = 'rgba(255, 215, 0,0.03)';
   ctx.lineWidth = 0.5;
   const gridSize = 120;
   const offsetX = Math.sin(t * 0.3) * 8;
@@ -869,7 +869,7 @@ function drawCanvas() {
       const dist = Math.hypot(x - cx, y - cy);
       if (dist < 400) {
         const alpha = (1 - dist / 400) * 0.08;
-        ctx.fillStyle = `rgba(212,175,55,${alpha})`;
+        ctx.fillStyle = `rgba(255, 215, 0,${alpha})`;
         ctx.beginPath();
         ctx.arc(x, y, 2, 0, Math.PI * 2);
         ctx.fill();
@@ -883,7 +883,7 @@ function drawCanvas() {
     for (let i = 0; i < archCount; i++) {
       const r = 100 + i * 90 + Math.sin(t + i) * 15;
       const alpha = 0.02 + (1 - i / archCount) * 0.02;
-      ctx.strokeStyle = `rgba(212,175,55,${alpha})`;
+      ctx.strokeStyle = `rgba(255, 215, 0,${alpha})`;
       ctx.lineWidth = 0.5;
       ctx.beginPath();
       ctx.arc(cx, cy + 60, r, Math.PI, 0);
@@ -892,7 +892,7 @@ function drawCanvas() {
   }
 
   // Layer 4: Golden spiral
-  ctx.strokeStyle = 'rgba(212,175,55,0.025)';
+  ctx.strokeStyle = 'rgba(255, 215, 0,0.025)';
   ctx.lineWidth = 0.8;
   ctx.beginPath();
   const phi = 1.618;
@@ -917,7 +917,7 @@ function drawCanvas() {
     if (p.y < 0) p.y = H;
     if (p.y > H) p.y = 0;
     const flick = p.o * (0.6 + 0.4 * Math.sin(p.flicker));
-    ctx.fillStyle = `rgba(212,175,55,${flick})`;
+    ctx.fillStyle = `rgba(255, 215, 0,${flick})`;
     ctx.beginPath();
     ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
     ctx.fill();
