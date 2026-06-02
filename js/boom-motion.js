@@ -163,5 +163,24 @@
     });
   }
 
-  ready(function () { enhanceButtons(); setupCounts(); enhanceDevices(); });
+  // ── 5) Hero micro-parallax — copy drifts up & fades as the hero scrolls away ──
+  function heroParallax() {
+    if (reduce) return;
+    var els = document.querySelectorAll('.svc-hero-copy, .pfs-hero-copy');
+    if (!els.length) return;
+    var ticking = false;
+    function update() {
+      var y = window.__boomLenis ? window.__boomLenis.scroll : window.scrollY;
+      var d = Math.min(y, 700);
+      Array.prototype.forEach.call(els, function (el) {
+        el.style.transform = 'translateY(' + (d * 0.10).toFixed(1) + 'px)';
+        el.style.opacity = String(Math.max(0, 1 - d / 900));
+      });
+      ticking = false;
+    }
+    addEventListener('scroll', function () { if (!ticking) { requestAnimationFrame(update); ticking = true; } }, { passive: true });
+    update();
+  }
+
+  ready(function () { enhanceButtons(); setupCounts(); enhanceDevices(); heroParallax(); });
 })();
