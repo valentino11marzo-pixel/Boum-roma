@@ -8003,6 +8003,16 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             return Math.round((onTime / payments.length) * 100);
         };
 
+        // Landlord database health — % completeness + missing landlords list
+        const landlordsIncomplete = landlords.map(l => ({ l, c: landlordCompleteness(l) })).filter(x => !x.c.complete);
+        const avgLandlordCompleteness = landlords.length ? Math.round(landlords.reduce((s, l) => s + landlordCompleteness(l).pct, 0) / landlords.length) : 100;
+        // Total monthly revenue across active contracts (for landlord row enrichment)
+        const monthlyRevenue = (lordId) => {
+            const owned = S.properties.filter(p => p.ownerId === lordId).map(p => p.id);
+            const active = S.contracts.filter(c => owned.includes(c.propertyId) && c.status === 'active');
+            return active.reduce((s, c) => s + (c.rent || 0), 0);
+        };
+
         // User row generator
         const userRow = (u) => {
             const contract = S.contracts.find(c => c.tenantId === u.id && c.status === 'active');
@@ -8013,20 +8023,26 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const roleConfig = { tenant: { icon: '👤', color: 'blue', label: 'Inquilino' }, landlord: { icon: '🏠', color: 'gold', label: 'Proprietario' }, admin: { icon: '👁', color: 'purple', label: 'Admin' } };
             const r = roleConfig[u.role] || roleConfig.tenant;
 
+            // Landlord-specific enrichment: completeness, monthly revenue
+            const lc = u.role === 'landlord' ? landlordCompleteness(u) : null;
+            const lRev = u.role === 'landlord' ? monthlyRevenue(u.id) : 0;
+
             let extraInfo = '';
             if (u.role === 'tenant' && property) {
                 extraInfo = `<span style="background:var(--bg);padding:2px 8px;border-radius:4px;font-size:11px;margin-left:8px">🏠 ${property.name} · €${contract.rent}/m</span>`;
             } else if (u.role === 'landlord' && ownedProps.length > 0) {
-                extraInfo = `<span style="background:var(--bg);padding:2px 8px;border-radius:4px;font-size:11px;margin-left:8px">🏢 ${ownedProps.length} immobili</span>`;
+                extraInfo = `<span style="background:var(--bg);padding:2px 8px;border-radius:4px;font-size:11px;margin-left:8px">🏢 ${ownedProps.length} immobili${lRev > 0 ? ' · €' + lRev.toLocaleString('it-IT') + '/m' : ''}</span>`;
             }
 
-            return `<div class="list-item clickable user-item" data-role="${u.role}" data-overdue="${overduePayments.length > 0}" onclick="viewUser('${u.id}')" style="padding:14px 16px">
+            return `<div class="list-item clickable user-item" data-role="${u.role}" data-overdue="${overduePayments.length > 0}" data-incomplete="${lc && !lc.complete}" onclick="viewUser('${u.id}')" style="padding:14px 16px">
                 <div class="avatar ${r.color}" style="width:44px;height:44px">${initials(u.name)}</div>
                 <div class="list-content" style="min-width:0">
                     <div class="list-title" style="display:flex;align-items:center;flex-wrap:wrap;gap:6px">
                         ${u.name}
                         ${u.id === S.profile.id ? '<span class="badge gray" style="font-size:9px">Tu</span>' : ''}
                         ${overduePayments.length > 0 ? '<span class="badge red" style="font-size:9px">⚠️ RITARDO</span>' : ''}
+                        ${lc && !lc.complete ? `<span class="badge orange" style="font-size:9px" title="Mancano: ${esc(lc.missing.join(', '))}">⚠️ Dati ${lc.pct}%</span>` : ''}
+                        ${lc && lc.complete ? '<span class="badge green" style="font-size:9px">✓ Completo</span>' : ''}
                         ${extraInfo}
                     </div>
                     <div class="list-subtitle" style="display:flex;align-items:center;gap:8px;margin-top:4px">
@@ -8037,6 +8053,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 </div>
                 <div style="display:flex;align-items:center;gap:8px">
                     ${u.phone ? `<a href="https://wa.me/${u.phone.replace(/[^0-9]/g,'')}" target="_blank" class="btn btn-xs btn-secondary" onclick="event.stopPropagation()" title="WhatsApp">💬</a>` : ''}
+                    ${lc && !lc.complete && u.email ? `<button class="btn btn-xs" style="background:var(--gold);color:#000" onclick="event.stopPropagation();sendLandlordDataRequest('${u.id}')" title="Chiedi al proprietario di completare i suoi dati">📨</button>` : ''}
                     <button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();openPerson('${u.id}','user')" title="Apri scheda 360°">📂</button>
                     <span class="badge ${r.color}">${r.icon} ${r.label}</span>
                 </div>
@@ -8068,6 +8085,25 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <div class="card" style="padding:12px;text-align:center;cursor:pointer;${tenantsWithOverdue.length > 0 ? 'background:var(--red-light)' : ''}" onclick="filterUsers('overdue')"><div style="font-size:22px;font-weight:700;color:var(--red)">${tenantsWithOverdue.length}</div><div style="font-size:10px;color:var(--text-muted)">⚠️ Ritardo</div></div>
             </div>
 
+            ${landlords.length > 0 ? `<div class="card" style="margin-bottom:16px;padding:14px 16px;border:1px solid ${avgLandlordCompleteness < 70 ? 'var(--orange)' : 'var(--border)'};background:linear-gradient(180deg,rgba(212,175,55,0.04),transparent)">
+                <div style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:14px">
+                    <div>
+                        <div style="font-size:11px;letter-spacing:1.5px;color:var(--gold);font-weight:600">🏠 SALUTE DATABASE PROPRIETARI</div>
+                        <div style="font-size:13px;color:var(--text-muted);margin-top:4px">${landlords.length} proprietari · ${landlords.length - landlordsIncomplete.length} pronti per go-live · ${landlordsIncomplete.length} con dati incompleti</div>
+                    </div>
+                    <div style="text-align:right">
+                        <div style="font-size:28px;font-weight:700;color:var(--${avgLandlordCompleteness >= 90 ? 'green' : avgLandlordCompleteness >= 70 ? 'gold' : 'orange'})">${avgLandlordCompleteness}%</div>
+                        <div style="font-size:10px;color:var(--text-muted)">completezza media</div>
+                    </div>
+                </div>
+                ${landlordsIncomplete.length > 0 ? `<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);display:flex;gap:6px;flex-wrap:wrap">
+                    <span style="font-size:11px;color:var(--text-muted);align-self:center">Da completare:</span>
+                    ${landlordsIncomplete.slice(0, 6).map(({l, c}) => `<button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();viewUser('${l.id}')" title="Mancano: ${esc(c.missing.join(', '))}">${esc(l.name)} <span style="color:var(--orange);margin-left:4px">${c.pct}%</span></button>`).join('')}
+                    ${landlordsIncomplete.length > 6 ? `<span style="font-size:11px;color:var(--text-muted);align-self:center">+${landlordsIncomplete.length - 6} altri</span>` : ''}
+                    <button class="btn btn-xs" style="background:var(--gold);color:#000;margin-left:auto" onclick="bulkRequestLandlordData()">📨 Richiedi dati a tutti</button>
+                </div>` : ''}
+            </div>` : ''}
+
             <!-- Filter Tabs -->
             <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap">
                 <button class="btn btn-sm user-filter active" onclick="filterUsers('all')">Tutti</button>
@@ -8075,6 +8111,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <button class="btn btn-sm btn-secondary user-filter" onclick="filterUsers('landlord')">🏠 Proprietari</button>
                 <button class="btn btn-sm btn-secondary user-filter" onclick="filterUsers('admin')">👁 Admin</button>
                 ${tenantsWithOverdue.length > 0 ? `<button class="btn btn-sm btn-danger user-filter" onclick="filterUsers('overdue')">⚠️ In Ritardo (${tenantsWithOverdue.length})</button>` : ''}
+                ${landlordsIncomplete.length > 0 ? `<button class="btn btn-sm user-filter" style="border:1px solid var(--orange);color:var(--orange)" onclick="filterUsers('landlord-incomplete')">⚠️ Proprietari incompleti (${landlordsIncomplete.length})</button>` : ''}
             </div>
 
             <div class="card"><div class="card-body flush" id="usersContainer">${S.users.map(u => userRow(u)).join('') || '<div class="empty-state"><div class="empty-icon">👥</div><div class="empty-title">Nessun utente</div></div>'}</div></div>`;
@@ -8086,10 +8123,75 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         document.querySelectorAll('.user-item').forEach(item => {
             const role = item.dataset.role;
             const overdue = item.dataset.overdue === 'true';
-            let show = filter === 'all' || role === filter || (filter === 'overdue' && overdue);
+            const incomplete = item.dataset.incomplete === 'true';
+            let show = filter === 'all'
+                    || role === filter
+                    || (filter === 'overdue' && overdue)
+                    || (filter === 'landlord-incomplete' && role === 'landlord' && incomplete);
             item.style.display = show ? '' : 'none';
         });
     }
+
+    // Ask a single landlord to complete their profile via the existing form-landlord.html.
+    // Reuses the same backfill-token pattern as openShareHub so legacy landlords
+    // also get a working link immediately.
+    async function sendLandlordDataRequest(userId) {
+        const u = S.users.find(x => x.id === userId);
+        if (!u || u.role !== 'landlord') return toast('error', 'Proprietario non trovato');
+        // Pick any of this landlord's properties + an active contract to scope the request
+        const ownedProps = S.properties.filter(p => p.ownerId === userId);
+        const linkedContract = S.contracts.find(c => ownedProps.some(p => p.id === c.propertyId));
+        const c = landlordCompleteness(u);
+        const url = linkedContract
+            ? `${window.location.origin}/form-landlord.html?contract=${encodeURIComponent(linkedContract.id)}${linkedContract.landlordSignToken ? '&t=' + encodeURIComponent(linkedContract.landlordSignToken) : ''}`
+            : `${window.location.origin}/form-landlord.html?landlord=${encodeURIComponent(userId)}`;
+        const name = (u.name || '').split(' ')[0] || 'gentile';
+        const msg = `Gentile ${name}, per completare il Suo profilo BOOM ci servono ancora ${c.missing.length} dati (${c.missing.slice(0,4).join(', ')}${c.missing.length > 4 ? '…' : ''}). Li può inserire qui in 2 minuti:\n\n${url}\n\nGrazie,\nBOOM Roma`;
+        const phone = (u.phone || '').replace(/\D/g, '');
+        const waUrl = phone ? `https://wa.me/${phone}?text=${encodeURIComponent(msg)}` : null;
+        const mailUrl = u.email ? `mailto:${u.email}?subject=${encodeURIComponent('BOOM · Completa il tuo profilo proprietario')}&body=${encodeURIComponent(msg)}` : null;
+
+        document.getElementById('modals').innerHTML = `<div class="modal-overlay active" onclick="if(event.target===this)closeModal()"><div class="modal">
+            <div class="modal-header"><h3 class="modal-title">📨 Richiedi dati — ${esc(u.name)}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+            <div class="modal-body">
+                <div style="margin-bottom:14px;font-size:13px;color:var(--text-muted)">Completezza attuale: <strong style="color:var(--orange)">${c.pct}%</strong>. Mancano: ${esc(c.missing.join(', '))}.</div>
+                <div class="form-group"><label class="form-label">Link pre-compilato</label><div style="display:flex;gap:6px"><input type="text" class="form-input" readonly value="${esc(url)}" id="ldReqUrl" style="flex:1;font-family:monospace;font-size:11px"><button class="btn btn-sm" onclick="navigator.clipboard.writeText(document.getElementById('ldReqUrl').value);toast('success','Copiato')">📋</button></div></div>
+                <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+                    ${waUrl ? `<a href="${waUrl}" target="_blank" class="btn btn-success">💬 Manda via WhatsApp</a>` : '<span style="font-size:12px;color:var(--text-muted)">⚠️ Nessun telefono</span>'}
+                    ${mailUrl ? `<a href="${mailUrl}" class="btn btn-secondary">📧 Manda via email</a>` : ''}
+                </div>
+            </div>
+            <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Chiudi</button></div>
+        </div></div>`;
+    }
+
+    // Opens WA tabs in burst for every incomplete landlord that has a phone.
+    // Emails-only landlords are listed but skipped (browser blocks bulk mailto).
+    async function bulkRequestLandlordData() {
+        const incomplete = (S.users || []).filter(u => u.role === 'landlord' && !landlordCompleteness(u).complete);
+        if (!incomplete.length) return toast('info', 'Nessun proprietario incompleto');
+        const withPhone = incomplete.filter(l => l.phone);
+        if (!withPhone.length) return toast('warning', 'Nessuno dei proprietari incompleti ha telefono salvato');
+        if (!confirm(`Aprire ${withPhone.length} chat WhatsApp con link pre-compilato per ognuno?\n\n(Apri uno per uno via 📨 nella riga per email-only.)`)) return;
+        let i = 0;
+        for (const u of withPhone) {
+            const ownedProps = S.properties.filter(p => p.ownerId === u.id);
+            const linkedContract = S.contracts.find(c => ownedProps.some(p => p.id === c.propertyId));
+            const url = linkedContract
+                ? `${window.location.origin}/form-landlord.html?contract=${encodeURIComponent(linkedContract.id)}${linkedContract.landlordSignToken ? '&t=' + encodeURIComponent(linkedContract.landlordSignToken) : ''}`
+                : `${window.location.origin}/form-landlord.html?landlord=${encodeURIComponent(u.id)}`;
+            const name = (u.name || '').split(' ')[0] || 'gentile';
+            const c = landlordCompleteness(u);
+            const msg = `Gentile ${name}, per completare il Suo profilo BOOM mancano ${c.missing.length} dati. Li può inserire qui: ${url}\n\n— BOOM Roma`;
+            const phone = u.phone.replace(/\D/g, '');
+            const waUrl = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
+            setTimeout(() => window.open(waUrl, '_blank'), i * 350); // staggered so popup blocker is less aggressive
+            i++;
+        }
+        toast('success', `Apro ${withPhone.length} chat WhatsApp…`);
+    }
+    window.sendLandlordDataRequest = sendLandlordDataRequest;
+    window.bulkRequestLandlordData = bulkRequestLandlordData;
 
     function copyOnboardingLink() {
         const input = document.getElementById('onboardingLink');
@@ -11244,7 +11346,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
         if (type === 'addUser') return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">👥 Nuovo Utente</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="saveUser(event)"><div style="background:linear-gradient(135deg,rgba(212,175,55,0.10),rgba(212,175,55,0.03));border:1px solid rgba(212,175,55,0.3);border-radius:10px;padding:10px 14px;margin-bottom:14px"><div style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:var(--gold);margin-bottom:4px">📋 DATI PER CONTRATTI CAF</div><div style="font-size:11px;color:var(--text-muted);line-height:1.5">Compila Data/Luogo nascita, CF, indirizzo e (se inquilino) il documento. Sono obbligatori per generare contratti CAF-compliant.</div></div><div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="name" required></div><div class="form-group"><label class="form-label">Email *</label><input type="email" class="form-input" name="email" required></div></div><div class="form-row"><div class="form-group"><label class="form-label">Ruolo</label><select class="form-select" name="role"><option value="tenant">🔘 Inquilino</option><option value="landlord">🏠 Proprietario</option><option value="admin">👁 Admin</option></select></div><div class="form-group"><label class="form-label">Password *</label><input type="password" class="form-input" name="password" required minlength="6"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Telefono</label><input type="tel" class="form-input" name="phone" placeholder="+39..."></div><div class="form-group"><label class="form-label">Codice Fiscale</label><input type="text" class="form-input" name="codiceFiscale" placeholder="RSSMRA85M01H501Z" maxlength="16" style="text-transform:uppercase"></div></div><div class="form-group"><label class="form-label">Indirizzo</label><input type="text" class="form-input" name="address" placeholder="Via Roma 123, 00100 Roma"></div><div class="form-row"><div class="form-group"><label class="form-label">Data di Nascita</label><input type="date" class="form-input" name="birthDate"></div><div class="form-group"><label class="form-label">Luogo di Nascita</label><input type="text" class="form-input" name="birthPlace" placeholder="Roma (RM)"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Tipo Documento</label><select class="form-select" name="idDocType"><option value="">—</option><option value="Carta d'identità">Carta d'identità</option><option value="Passaporto">Passaporto</option><option value="Patente">Patente</option><option value="Permesso di soggiorno">Permesso di soggiorno</option></select></div><div class="form-group"><label class="form-label">N° Documento</label><input type="text" class="form-input" name="idDocNumber" placeholder="CA12345AB"></div></div><div class="form-group"><label class="form-label">IBAN</label><input type="text" class="form-input" name="iban" placeholder="IT60X0542811101000000123456"></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes" rows="2" placeholder="Note interne..."></textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').requestSubmit()">Crea</button></div></div></div>`;
 
-        if (type === 'editUser') { const u = data; if (!u) return ''; return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">✏️ Modifica Utente</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="updateUser(event)">${u.role === 'tenant' ? `<div style="background:linear-gradient(135deg,rgba(170,170,175,0.10),rgba(170,170,175,0.04));border:1px solid rgba(170,170,175,0.4);border-radius:10px;padding:10px 14px;margin-bottom:12px"><label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px"><input type="checkbox" name="isPremium" ${u.isPremium ? 'checked' : ''} style="width:18px;height:18px"><span><strong style="color:#C5C5C8">⭐ Premium VIP (Silver Card)</strong><br><span style="font-size:11px;color:var(--text-muted)">Genera pass Apple Wallet con design Silver invece di Tenant Black</span></span></label></div>` : ''}<input type="hidden" name="id" value="${u.id}">${(!u.birthDate || !u.birthPlace || !u.codiceFiscale) ? '<div style="background:rgba(245,166,35,0.12);border:1px solid rgba(245,166,35,0.4);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#f5a623">⚠️ Compila i dati anagrafici (data/luogo nascita, CF) per generare contratti CAF-compliant</div>' : ''}<div style="background:linear-gradient(135deg,rgba(212,175,55,0.10),rgba(212,175,55,0.03));border:1px solid rgba(212,175,55,0.3);border-radius:10px;padding:10px 14px;margin-bottom:14px"><div style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:var(--gold);margin-bottom:4px">📋 DATI PER CONTRATTI CAF</div><div style="font-size:11px;color:var(--text-muted);line-height:1.5">Questi dati sono obbligatori per generare contratti CAF-compliant. Inseriscili una volta sola.</div></div><div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="name" value="${u.name || ''}" required></div><div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" value="${u.email || ''}" disabled style="opacity:0.6"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Ruolo</label><select class="form-select" name="role"><option value="tenant" ${u.role === 'tenant' ? 'selected' : ''}>🔘 Inquilino</option><option value="landlord" ${u.role === 'landlord' ? 'selected' : ''}>🏠 Proprietario</option><option value="admin" ${u.role === 'admin' ? 'selected' : ''}>👁 Admin</option></select></div><div class="form-group"><label class="form-label">Telefono</label><input type="tel" class="form-input" name="phone" value="${u.phone || ''}" placeholder="+39..."></div></div><div class="form-row"><div class="form-group"><label class="form-label">Codice Fiscale</label><input type="text" class="form-input" name="codiceFiscale" value="${u.codiceFiscale || ''}" placeholder="RSSMRA85M01H501Z" maxlength="16" style="text-transform:uppercase"></div><div class="form-group"><label class="form-label">IBAN</label><input type="text" class="form-input" name="iban" value="${u.iban || ''}" placeholder="IT60X0542811101000000123456"></div></div><div class="form-group"><label class="form-label">Indirizzo</label><input type="text" class="form-input" name="address" value="${u.address || ''}" placeholder="Via Roma 123, 00100 Roma"></div><div class="form-row"><div class="form-group"><label class="form-label">Data di Nascita</label><input type="date" class="form-input" name="birthDate" value="${u.birthDate || ''}"></div><div class="form-group"><label class="form-label">Luogo di Nascita</label><input type="text" class="form-input" name="birthPlace" value="${u.birthPlace || ''}"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Tipo Documento</label><select class="form-select" name="idDocType"><option value="">—</option><option value="Carta d'identità" ${u.idDocType === "Carta d'identità" ? 'selected' : ''}>Carta d'identità</option><option value="Passaporto" ${u.idDocType === 'Passaporto' ? 'selected' : ''}>Passaporto</option><option value="Patente" ${u.idDocType === 'Patente' ? 'selected' : ''}>Patente</option><option value="Permesso di soggiorno" ${u.idDocType === 'Permesso di soggiorno' ? 'selected' : ''}>Permesso di soggiorno</option></select></div><div class="form-group"><label class="form-label">N° Documento</label><input type="text" class="form-input" name="idDocNumber" value="${u.idDocNumber || ''}"></div></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes" rows="2" placeholder="Note interne...">${u.notes || ''}</textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').requestSubmit()">Salva</button></div></div></div>`; }
+        if (type === 'editUser') { const u = data; if (!u) return ''; return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">✏️ Modifica Utente</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="updateUser(event)">${u.role === 'tenant' ? `<div style="background:linear-gradient(135deg,rgba(170,170,175,0.10),rgba(170,170,175,0.04));border:1px solid rgba(170,170,175,0.4);border-radius:10px;padding:10px 14px;margin-bottom:12px"><label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px"><input type="checkbox" name="isPremium" ${u.isPremium ? 'checked' : ''} style="width:18px;height:18px"><span><strong style="color:#C5C5C8">⭐ Premium VIP (Silver Card)</strong><br><span style="font-size:11px;color:var(--text-muted)">Genera pass Apple Wallet con design Silver invece di Tenant Black</span></span></label></div>` : ''}<input type="hidden" name="id" value="${u.id}">${(!u.birthDate || !u.birthPlace || !u.codiceFiscale) ? '<div style="background:rgba(245,166,35,0.12);border:1px solid rgba(245,166,35,0.4);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#f5a623">⚠️ Compila i dati anagrafici (data/luogo nascita, CF) per generare contratti CAF-compliant</div>' : ''}<div style="background:linear-gradient(135deg,rgba(212,175,55,0.10),rgba(212,175,55,0.03));border:1px solid rgba(212,175,55,0.3);border-radius:10px;padding:10px 14px;margin-bottom:14px"><div style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:var(--gold);margin-bottom:4px">📋 DATI PER CONTRATTI CAF</div><div style="font-size:11px;color:var(--text-muted);line-height:1.5">Questi dati sono obbligatori per generare contratti CAF-compliant. Inseriscili una volta sola.</div></div><div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="name" value="${u.name || ''}" required></div><div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" value="${u.email || ''}" disabled style="opacity:0.6"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Ruolo</label><select class="form-select" name="role"><option value="tenant" ${u.role === 'tenant' ? 'selected' : ''}>🔘 Inquilino</option><option value="landlord" ${u.role === 'landlord' ? 'selected' : ''}>🏠 Proprietario</option><option value="admin" ${u.role === 'admin' ? 'selected' : ''}>👁 Admin</option></select></div><div class="form-group"><label class="form-label">Telefono</label><input type="tel" class="form-input" name="phone" value="${u.phone || ''}" placeholder="+39..."></div></div><div class="form-row"><div class="form-group"><label class="form-label">Codice Fiscale</label><input type="text" class="form-input" name="codiceFiscale" value="${u.codiceFiscale || ''}" placeholder="RSSMRA85M01H501Z" maxlength="16" style="text-transform:uppercase"></div><div class="form-group"><label class="form-label">IBAN</label><input type="text" class="form-input" name="iban" value="${u.iban || ''}" placeholder="IT60X0542811101000000123456"></div></div><div class="form-group"><label class="form-label">Indirizzo</label><input type="text" class="form-input" name="address" value="${u.address || ''}" placeholder="Via Roma 123, 00100 Roma"></div><div class="form-row"><div class="form-group"><label class="form-label">Data di Nascita</label><input type="date" class="form-input" name="birthDate" value="${u.birthDate || ''}"></div><div class="form-group"><label class="form-label">Luogo di Nascita</label><input type="text" class="form-input" name="birthPlace" value="${u.birthPlace || ''}"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Tipo Documento</label><select class="form-select" name="idDocType"><option value="">—</option><option value="Carta d'identità" ${u.idDocType === "Carta d'identità" ? 'selected' : ''}>Carta d'identità</option><option value="Passaporto" ${u.idDocType === 'Passaporto' ? 'selected' : ''}>Passaporto</option><option value="Patente" ${u.idDocType === 'Patente' ? 'selected' : ''}>Patente</option><option value="Permesso di soggiorno" ${u.idDocType === 'Permesso di soggiorno' ? 'selected' : ''}>Permesso di soggiorno</option></select></div><div class="form-group"><label class="form-label">N° Documento</label><input type="text" class="form-input" name="idDocNumber" value="${u.idDocNumber || ''}"></div></div>${u.role === 'landlord' ? `<div style="background:rgba(212,175,55,0.06);border:1px solid rgba(212,175,55,0.25);border-radius:10px;padding:10px 14px;margin:14px 0"><div style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:var(--gold);margin-bottom:4px">🏠 DATI BUSINESS PROPRIETARIO</div><div style="font-size:11px;color:var(--text-muted)">Necessari per fatturazione elettronica + registrazione contratti AdE. Compila se il proprietario è impresa o ha P.IVA.</div></div><div class="form-row"><div class="form-group"><label class="form-label">Ragione sociale (se impresa)</label><input type="text" class="form-input" name="businessName" value="${u.businessName || ''}" placeholder="Es. Rossi Immobili Srl"></div><div class="form-group"><label class="form-label">Partita IVA</label><input type="text" class="form-input" name="partitaIva" value="${u.partitaIva || ''}" placeholder="12345678901" maxlength="11"></div></div><div class="form-row"><div class="form-group"><label class="form-label">PEC</label><input type="email" class="form-input" name="pecEmail" value="${u.pecEmail || ''}" placeholder="pec@dominio.it"></div><div class="form-group"><label class="form-label">Codice SDI</label><input type="text" class="form-input" name="sdiCode" value="${u.sdiCode || ''}" placeholder="7 caratteri" maxlength="7" style="text-transform:uppercase"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Regime fiscale</label><select class="form-select" name="taxRegime"><option value="">—</option><option value="cedolare_secca" ${u.taxRegime === 'cedolare_secca' ? 'selected' : ''}>Cedolare secca (21%)</option><option value="ordinario" ${u.taxRegime === 'ordinario' ? 'selected' : ''}>IRPEF ordinario</option><option value="forfettario" ${u.taxRegime === 'forfettario' ? 'selected' : ''}>Forfettario (RF19)</option><option value="impresa" ${u.taxRegime === 'impresa' ? 'selected' : ''}>Impresa (RF01)</option></select></div><div class="form-group"><label class="form-label">% Proprietà</label><input type="number" class="form-input" name="ownershipPct" value="${u.ownershipPct || 100}" min="1" max="100" placeholder="100"></div></div>` : ''}<div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes" rows="2" placeholder="Note interne...">${u.notes || ''}</textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').requestSubmit()">Salva</button></div></div></div>`; }
 
         if (type === 'addProperty') { const landlords = S.users.filter(u => u.role === 'landlord'); return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">🏠 Nuovo Immobile</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body" style="max-height:70vh;overflow-y:auto"><form id="mForm" onsubmit="saveProperty(event)"><div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="name" required placeholder="Es: Trastevere Terrace"></div><div class="form-group"><label class="form-label">Proprietario *</label><select class="form-select" name="ownerId" required><option value="">Seleziona...</option>${landlords.map(l => `<option value="${l.id}">${l.name}</option>`).join('')}</select></div></div><div class="form-group"><label class="form-label">Indirizzo</label><input type="text" class="form-input" name="address" placeholder="Via Roma 123, 00100 Roma"></div><div class="form-row"><div class="form-group"><label class="form-label">Affitto €/mese *</label><input type="number" class="form-input" name="rent" required></div><div class="form-group"><label class="form-label">Superficie m²</label><input type="number" class="form-input" name="sqm" placeholder="65"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Stanze</label><input type="number" class="form-input" name="rooms" placeholder="3"></div><div class="form-group"><label class="form-label">Bagni</label><input type="number" class="form-input" name="bathrooms" placeholder="1"></div><div class="form-group"><label class="form-label">Piano</label><input type="text" class="form-input" name="floor" placeholder="3° / 5"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Anno Costruzione</label><input type="number" class="form-input" name="yearBuilt" placeholder="1965"></div><div class="form-group"><label class="form-label">Tipo</label><select class="form-select" name="propertyType"><option value="apartment">Appartamento</option><option value="studio">Monolocale</option><option value="room">Stanza</option><option value="house">Casa</option><option value="loft">Loft</option></select></div></div><div style="background:var(--bg);padding:12px;border-radius:8px;margin:12px 0"><div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--gold);margin-bottom:10px">📊 Disponibilità & Media</div><div class="form-row"><div class="form-group"><label class="form-label">Stato Disponibilità</label><select class="form-select" name="availabilityStatus"><option value="available">🟢 Disponibile</option><option value="negotiation">🟡 In Trattativa</option><option value="rented">🔴 Affittato</option><option value="off_market">⚫ Fuori Mercato</option></select></div><div class="form-group"><label class="form-label">Disponibile Dal</label><input type="date" class="form-input" name="availableSince" value="${new Date().toISOString().split('T')[0]}"></div></div><div class="form-group"><label class="form-label">📺 YouTube Video Tour</label><input type="url" class="form-input" name="youtubeUrl" placeholder="https://www.youtube.com/watch?v=..."></div></div><div style="background:var(--bg);padding:12px;border-radius:8px;margin:12px 0"><div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--gold);margin-bottom:6px">📋 Dati Catastali e Tecnici (CAF)</div><div style="font-size:11px;color:var(--text-muted);margin-bottom:10px">Obbligatori per contratti CAF-compliant. Compilali una volta sola.</div><div class="form-row"><div class="form-group"><label class="form-label">Scala</label><input type="text" class="form-input" name="scala" placeholder="A"></div><div class="form-group"><label class="form-label">Interno</label><input type="text" class="form-input" name="interno" placeholder="12"></div><div class="form-group"><label class="form-label">Ammobiliato</label><select class="form-select" name="furnished"><option value="">Non specificato</option><option value="true">Sì</option><option value="false">No</option></select></div></div><div class="form-group"><label class="form-label">Dati Catastali</label><input type="text" class="form-input" name="cadastralData" placeholder="Foglio 123, Part. 456, Sub. 7, Cat. A/2"></div><div class="form-row"><div class="form-group"><label class="form-label">Classe Energetica</label><select class="form-select" name="energyClass"><option value="">—</option><option value="A4">A4</option><option value="A3">A3</option><option value="A2">A2</option><option value="A1">A1</option><option value="B">B</option><option value="C">C</option><option value="D">D</option><option value="E">E</option><option value="F">F</option><option value="G">G</option></select></div><div class="form-group"><label class="form-label">Certificazione APE (testo)</label><input type="text" class="form-input" name="energyCert" placeholder="prot. n. XXX"></div></div><div class="form-group"><label class="form-label">Conformità Impianti</label><input type="text" class="form-input" name="safetyImplants" placeholder="Dichiarazione di conformità ai sensi DM 37/08"></div><div class="form-group"><label class="form-label">Accessori</label><input type="text" class="form-input" name="accessories" placeholder="cantina, posto auto, soffitta..."></div></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes" rows="2" placeholder="Caratteristiche, condizioni..."></textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').requestSubmit()">Crea</button></div></div></div>`; }
 
@@ -11594,7 +11696,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const userId = data.id;
         if (!userId) { toast('error', 'ID utente mancante'); return; }
         try {
-            await db.collection('users').doc(userId).update({
+            const payload = {
                 name: data.name,
                 phone: data.phone || '',
                 codiceFiscale: data.codiceFiscale?.toUpperCase() || '',
@@ -11608,9 +11710,40 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 role: data.role,
                 isPremium: !!data.isPremium,
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
+            };
+            // Landlord-only business fields (fatturazione + registrazione contratti)
+            if (data.role === 'landlord') {
+                payload.businessName = (data.businessName || '').trim();
+                payload.partitaIva   = (data.partitaIva   || '').replace(/\s/g, '');
+                payload.pecEmail     = (data.pecEmail     || '').trim().toLowerCase();
+                payload.sdiCode      = (data.sdiCode      || '').trim().toUpperCase();
+                payload.taxRegime    = data.taxRegime || '';
+                payload.ownershipPct = data.ownershipPct ? parseInt(data.ownershipPct, 10) : 100;
+            }
+            await db.collection('users').doc(userId).update(payload);
             closeModal(); await refreshOnly('users'); toast('success', 'Utente aggiornato!', data.name);
         } catch (err) { toast('error', 'Errore', err.message); }
+    }
+
+    // ── Landlord data completeness (used for the database health KPI + per-row badges) ──
+    function landlordCompleteness(u) {
+        if (!u) return { pct: 0, missing: [], complete: false };
+        // Core fields that every landlord MUST have for contracts + RLI + payouts + invoicing
+        const required = [
+            { key: 'name',          label: 'Nome' },
+            { key: 'email',         label: 'Email' },
+            { key: 'phone',         label: 'Telefono' },
+            { key: 'codiceFiscale', label: 'CF' },
+            { key: 'iban',          label: 'IBAN' },
+            { key: 'address',       label: 'Residenza' },
+            { key: 'birthDate',     label: 'Data nascita' },
+            { key: 'birthPlace',    label: 'Luogo nascita' },
+            { key: 'idDocNumber',   label: 'Documento' },
+            { key: 'taxRegime',     label: 'Regime fiscale' }
+        ];
+        const missing = required.filter(f => !u[f.key]).map(f => f.label);
+        const pct = Math.round(((required.length - missing.length) / required.length) * 100);
+        return { pct, missing, complete: missing.length === 0 };
     }
 
     async function saveProperty(e) {
