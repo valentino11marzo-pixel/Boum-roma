@@ -7334,17 +7334,107 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
 
     function propertiesPage() {
-        const availStats = { available: S.properties.filter(p => p.availabilityStatus === 'available' || !p.availabilityStatus).length, negotiation: S.properties.filter(p => p.availabilityStatus === 'negotiation').length, rented: S.properties.filter(p => p.availabilityStatus === 'rented').length };
-        const availBadge = (status) => { const badges = { available: { color: 'green', icon: '🟢', text: 'Disponibile' }, negotiation: { color: 'orange', icon: '🟡', text: 'Trattativa' }, rented: { color: 'red', icon: '🔴', text: 'Affittato' }, off_market: { color: 'gray', icon: '⚫', text: 'Fuori Mercato' } }; return badges[status] || badges.available; };
-        return `<div class="page-header"><h1 class="page-title">Immobili</h1><div class="page-actions"><span class="badge green" style="margin-right:4px">${availStats.available} 🟢</span><span class="badge orange" style="margin-right:4px">${availStats.negotiation} 🟡</span><span class="badge red" style="margin-right:8px">${availStats.rented} 🔴</span><button class="btn" onclick="openModal('addProperty')">+ Nuovo</button></div></div>
-            <div class="card"><div class="card-body flush">${S.properties.map(p => {
-                const c = S.contracts.find(x => x.propertyId === p.id && x.status === 'active');
-                const owner = S.users.find(u => u.id === p.ownerId);
-                const tenant = c ? S.users.find(u => u.id === c.tenantId) : null;
-                const avail = availBadge(p.availabilityStatus);
-                const hasVideo = p.youtubeUrl ? '📺' : '';
-                return `<div class="list-item clickable" onclick="viewProperty('${p.id}')"><div class="list-icon">🏠</div><div class="list-content"><div class="list-title">${p.name} <span class="badge ${avail.color}">${avail.icon} ${avail.text}</span> ${hasVideo}</div><div class="list-subtitle">${owner?.name || 'N/A'}${c ? ' → ' + (tenant?.name || '') : ''} · ${p.address || 'Roma'}</div></div><div class="list-value text-gold">€${p.rent || 0}/mese</div></div>`;
-            }).join('') || '<div class="empty-state"><div class="empty-icon">🏠</div><div class="empty-title">Nessun immobile</div></div>'}</div></div>`;
+        const all = S.properties || [];
+        const stats = {
+            all: all.length,
+            available: all.filter(p => p.availabilityStatus === 'available' || !p.availabilityStatus).length,
+            negotiation: all.filter(p => p.availabilityStatus === 'negotiation').length,
+            rented: all.filter(p => p.availabilityStatus === 'rented').length,
+            off_market: all.filter(p => p.availabilityStatus === 'off_market').length,
+        };
+        const monthlyRent = all.reduce((s, p) => {
+            const c = S.contracts.find(x => x.propertyId === p.id && x.status === 'active');
+            return s + (c ? (c.rent || 0) : 0);
+        }, 0);
+        const availBadge = (status) => ({
+            available:   { color: 'green',  icon: '🟢', text: 'Disponibile' },
+            negotiation: { color: 'orange', icon: '🟡', text: 'Trattativa' },
+            rented:      { color: 'red',    icon: '🔴', text: 'Affittato' },
+            off_market:  { color: 'gray',   icon: '⚫', text: 'Fuori mercato' }
+        })[status] || { color: 'green', icon: '🟢', text: 'Disponibile' };
+
+        const propertyRow = (p) => {
+            const c = S.contracts.find(x => x.propertyId === p.id && x.status === 'active');
+            const owner = S.users.find(u => u.id === p.ownerId);
+            const tenant = c ? S.users.find(u => u.id === c.tenantId) : null;
+            const avail = availBadge(p.availabilityStatus);
+            const search = [p.name, p.address, owner?.name, tenant?.name, p.zone].filter(Boolean).join(' ').toLowerCase();
+            return `<div class="list-item clickable property-item" data-avail="${p.availabilityStatus || 'available'}" data-search="${esc(search)}" onclick="viewProperty('${p.id}')">
+                <div class="list-icon" style="background:var(--gold-light)">🏠</div>
+                <div class="list-content" style="flex:1;min-width:0">
+                    <div class="list-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                        <span style="font-weight:600">${p.name}</span>
+                        <span class="badge ${avail.color}">${avail.icon} ${avail.text}</span>
+                        ${p.youtubeUrl ? '<span title="Video tour disponibile">📺</span>' : ''}
+                    </div>
+                    <div class="list-subtitle" style="margin-top:4px">
+                        ${owner ? `<span>🏠 ${owner.name}</span>` : ''}
+                        ${tenant ? `<span style="margin-left:8px">→ 👤 ${tenant.name}</span>` : ''}
+                        ${p.address ? `<span style="margin-left:8px">📍 ${p.address}</span>` : ''}
+                        ${p.sqm ? `<span style="margin-left:8px">📐 ${p.sqm}m²</span>` : ''}
+                    </div>
+                </div>
+                <div class="list-value text-gold">€${(p.rent || 0).toLocaleString('it-IT')}<span style="font-size:11px;color:var(--text-muted)">/mese</span></div>
+            </div>`;
+        };
+
+        return `<div class="page-header">
+            <div><h1 class="page-title">Immobili</h1><div class="page-subtitle">${stats.all} immobili · €${monthlyRent.toLocaleString('it-IT')}/mese affittati</div></div>
+            <div class="page-actions">
+                <button class="btn btn-secondary btn-sm" onclick="exportPropertiesCSV()">📊 Export</button>
+                <button class="btn" onclick="openModal('addProperty')">+ Nuovo</button>
+            </div>
+        </div>
+        <div class="stats-grid" style="margin-bottom:16px">
+            <div class="stat-card" style="cursor:pointer" onclick="filterProperties('all', this.closest('.stats-grid').nextElementSibling.querySelector('[data-filter=all]'))"><div class="stat-label">Tutti</div><div class="stat-value">${stats.all}</div></div>
+            <div class="stat-card" style="cursor:pointer" onclick="filterProperties('available', this.closest('.stats-grid').nextElementSibling.querySelector('[data-filter=available]'))"><div class="stat-label">Disponibili</div><div class="stat-value text-green">${stats.available}</div></div>
+            <div class="stat-card" style="cursor:pointer" onclick="filterProperties('negotiation', this.closest('.stats-grid').nextElementSibling.querySelector('[data-filter=negotiation]'))"><div class="stat-label">In trattativa</div><div class="stat-value text-orange">${stats.negotiation}</div></div>
+            <div class="stat-card" style="cursor:pointer" onclick="filterProperties('rented', this.closest('.stats-grid').nextElementSibling.querySelector('[data-filter=rented]'))"><div class="stat-label">Affittati</div><div class="stat-value text-red">${stats.rented}</div></div>
+            <div class="stat-card" style="cursor:pointer" onclick="filterProperties('off_market', this.closest('.stats-grid').nextElementSibling.querySelector('[data-filter=off_market]'))"><div class="stat-label">Fuori mercato</div><div class="stat-value" style="color:var(--text-muted)">${stats.off_market}</div></div>
+        </div>
+        <div class="card">
+            <div style="display:flex;gap:8px;padding:12px 16px;border-bottom:1px solid var(--border);flex-wrap:wrap;align-items:center">
+                <button class="btn btn-sm" data-filter="all" onclick="filterProperties('all', this)">Tutti</button>
+                <button class="btn btn-sm btn-secondary" data-filter="available" onclick="filterProperties('available', this)">🟢 Disp.</button>
+                <button class="btn btn-sm btn-secondary" data-filter="negotiation" onclick="filterProperties('negotiation', this)">🟡 Tratt.</button>
+                <button class="btn btn-sm btn-secondary" data-filter="rented" onclick="filterProperties('rented', this)">🔴 Aff.</button>
+                <button class="btn btn-sm btn-secondary" data-filter="off_market" onclick="filterProperties('off_market', this)">⚫ Off</button>
+                <input type="search" id="propertySearch" class="form-input" placeholder="🔎 Cerca nome, indirizzo, zona, proprietario, inquilino…" oninput="searchProperties(this.value)" style="flex:1;min-width:200px;margin-left:auto">
+            </div>
+            <div class="card-body flush">${all.length === 0
+                ? '<div class="empty-state"><div class="empty-icon">🏠</div><div class="empty-title">Nessun immobile</div><div class="empty-subtitle">Inizia aggiungendo il tuo primo immobile</div><button class="btn" onclick="openModal(\'addProperty\')" style="margin-top:12px">+ Aggiungi primo immobile</button></div>'
+                : all.map(propertyRow).join('')
+            }</div>
+        </div>`;
+    }
+
+    function filterProperties(filter, btn) {
+        if (btn?.parentElement) btn.parentElement.querySelectorAll('button.btn-sm').forEach(b => b.classList.add('btn-secondary'));
+        btn?.classList.remove('btn-secondary');
+        document.querySelectorAll('.property-item').forEach(item => {
+            const avail = item.dataset.avail || 'available';
+            item.style.display = (filter === 'all' || avail === filter) ? '' : 'none';
+        });
+    }
+
+    function searchProperties(q) {
+        const term = (q || '').toLowerCase().trim();
+        document.querySelectorAll('.property-item').forEach(item => {
+            if (!term) { item.style.display = ''; return; }
+            item.style.display = (item.dataset.search || '').includes(term) ? '' : 'none';
+        });
+    }
+
+    function exportPropertiesCSV() {
+        let csv = 'Nome,Indirizzo,Zona,Stato,Proprietario,Inquilino,Canone,Mq,Camere\n';
+        S.properties.forEach(p => {
+            const c = S.contracts.find(x => x.propertyId === p.id && x.status === 'active');
+            const owner = S.users.find(u => u.id === p.ownerId);
+            const tenant = c ? S.users.find(u => u.id === c.tenantId) : null;
+            const stato = ({available:'Disponibile',negotiation:'Trattativa',rented:'Affittato',off_market:'Fuori mercato'})[p.availabilityStatus] || 'Disponibile';
+            csv += `"${p.name || ''}","${p.address || ''}","${p.zone || ''}","${stato}","${owner?.name || ''}","${tenant?.name || ''}",${p.rent || 0},${p.sqm || ''},${p.rooms || ''}\n`;
+        });
+        downloadCSV(csv, 'BOOM_Immobili.csv');
     }
 
     function contractsPage() {
