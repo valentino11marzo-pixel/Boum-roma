@@ -66,15 +66,15 @@
 
     <style>
         *{margin:0;padding:0;box-sizing:border-box;-webkit-font-smoothing:antialiased}
-        :root{--gold:#D4AF37;--gold-dark:#D4AF37;--gold-light:#FFD54F;--cyan:#00CED1;--green:#00FF88;--pure-black:#08080A;--dark-void:#0A0A0A;--dark-surface:#111;--text-primary:#FFF;--text-fade:#666;--text-secondary:#999}
+        :root{--gold:#FFD700;--gold-dark:#FFD700;--gold-light:#FFD54F;--cyan:#00CED1;--green:#00FF88;--pure-black:#08080A;--dark-void:#0A0A0A;--dark-surface:#111;--text-primary:#FFF;--text-fade:#666;--text-secondary:#999}
         body{font-family:'Helvetica Neue',Helvetica,'Inter',-apple-system,sans-serif;background:var(--pure-black);color:var(--text-primary);font-weight:300;line-height:1.6}
 
         /* ===== NAV — matches live site ===== */
-        nav{position:fixed;width:100%;top:0;z-index:100;padding:20px 50px;background:rgba(8,8,10,0.98);backdrop-filter:blur(20px);border-bottom:1px solid rgba(212,175,55,0.1)}
+        nav{position:fixed;width:100%;top:0;z-index:100;padding:20px 50px;background:rgba(8,8,10,0.98);backdrop-filter:blur(20px);border-bottom:1px solid rgba(255, 215, 0,0.1)}
         .nav-container{max-width:1400px;margin:0 auto;display:flex;justify-content:space-between;align-items:center}
         .logo{display:flex;align-items:center;gap:15px;text-decoration:none;color:#fff}
-        .logo-svg{width:80px;height:80px;filter:drop-shadow(0 0 20px rgba(212,175,55,0.5));transition:filter .3s}
-        .logo:hover .logo-svg{filter:drop-shadow(0 0 35px rgba(212,175,55,0.8))}
+        .logo-svg{width:80px;height:80px;filter:drop-shadow(0 0 20px rgba(255, 215, 0,0.5));transition:filter .3s}
+        .logo:hover .logo-svg{filter:drop-shadow(0 0 35px rgba(255, 215, 0,0.8))}
         .logo-text{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:32px;font-weight:300;letter-spacing:4px;text-transform:uppercase}
         .nav-links{display:flex;gap:30px;align-items:center}
         .nav-links a{color:rgba(255,255,255,0.6);text-decoration:none;font-size:13px;font-weight:300;text-transform:uppercase;letter-spacing:1px;transition:color .3s}
@@ -102,7 +102,7 @@
         .page-error h2{font-size:48px;font-weight:100;text-transform:uppercase}
         .page-error p{color:var(--text-secondary);font-size:16px}
         .page-error a{display:inline-block;margin-top:10px;padding:14px 40px;background:var(--gold);color:#000;text-decoration:none;font-weight:600;font-size:13px;text-transform:uppercase;letter-spacing:2px;transition:all .3s}
-        .page-error a:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(212,175,55,0.3)}
+        .page-error a:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(255, 215, 0,0.3)}
 
         /* ===== PAGE WRAPPER ===== */
         .apartment-page{display:none;padding-top:120px}
@@ -124,11 +124,11 @@
         .badge-available{background:rgba(0,255,136,0.1);color:#00FF88}
         .badge-waitlist{background:rgba(255,149,0,0.1);color:#FF9500}
         .badge-rented{background:rgba(255,59,48,0.1);color:#FF3B30}
-        .badge-verified{background:rgba(212,175,55,0.1);color:var(--gold)}
+        .badge-verified{background:rgba(255, 215, 0,0.1);color:var(--gold)}
         .badge-video{background:rgba(255,59,48,0.1);color:#FF3B30}
         .apt-name{font-size:clamp(32px,5vw,56px);font-weight:100;text-transform:uppercase;letter-spacing:-1px;line-height:1.1;margin-bottom:10px}
         .apt-address{font-size:15px;color:var(--text-secondary);margin-bottom:10px}
-        .apt-zone{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;background:rgba(212,175,55,0.08);border:1px solid rgba(212,175,55,0.22);border-radius:100px;font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:1.5px;font-weight:500;transition:all .25s;text-decoration:none}
+        .apt-zone{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;background:rgba(255, 215, 0,0.08);border:1px solid rgba(255, 215, 0,0.22);border-radius:100px;font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:1.5px;font-weight:500;transition:all .25s;text-decoration:none}
         .apt-zone:hover{background:var(--gold);color:#000;border-color:var(--gold)}
         .apt-zone::before{content:'';width:5px;height:5px;border-radius:50%;background:currentColor;opacity:.7}
         .apt-zone[href="#"]{pointer-events:none;background:rgba(255,255,255,0.05);border-color:rgba(255,255,255,0.08);color:var(--text-secondary)}
@@ -181,14 +181,14 @@
         /* ===== TWO COLUMN ===== */
         .apt-content{max-width:1400px;margin:0 auto;padding:0 50px 80px;display:grid;grid-template-columns:1fr 380px;gap:50px;align-items:start}
         .content-section{margin-bottom:50px}
-        .content-section-title{font-size:11px;text-transform:uppercase;letter-spacing:3px;color:var(--gold);font-weight:600;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid rgba(212,175,55,0.15)}
+        .content-section-title{font-size:11px;text-transform:uppercase;letter-spacing:3px;color:var(--gold);font-weight:600;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid rgba(255, 215, 0,0.15)}
         .apt-description{font-size:16px;line-height:1.8;color:var(--text-secondary);font-weight:300}
 
         /* Features */
         .features-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
         .feature-item{display:flex;align-items:center;gap:10px;padding:12px 16px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:10px;font-size:14px;color:var(--text-secondary);transition:all .3s}
-        .feature-item:hover{border-color:rgba(212,175,55,0.2);background:rgba(212,175,55,0.03)}
-        .feature-icon{width:32px;height:32px;display:flex;align-items:center;justify-content:center;background:rgba(212,175,55,0.08);border-radius:8px;font-size:16px;flex-shrink:0}
+        .feature-item:hover{border-color:rgba(255, 215, 0,0.2);background:rgba(255, 215, 0,0.03)}
+        .feature-icon{width:32px;height:32px;display:flex;align-items:center;justify-content:center;background:rgba(255, 215, 0,0.08);border-radius:8px;font-size:16px;flex-shrink:0}
 
         /* Tags */
         .tags-wrap{display:flex;gap:8px;flex-wrap:wrap}
@@ -207,10 +207,10 @@
         .distance-input:focus{border-color:var(--gold)}
         .distance-input::placeholder{color:var(--text-fade)}
         .distance-btn{padding:12px 24px;background:var(--gold);border:none;border-radius:10px;color:#000;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;text-transform:uppercase;letter-spacing:1px;transition:all .3s;white-space:nowrap}
-        .distance-btn:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(212,175,55,0.3)}
+        .distance-btn:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(255, 215, 0,0.3)}
         .quick-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
         .quick-chip{padding:6px 14px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:100px;font-size:11px;color:var(--text-secondary);cursor:pointer;transition:all .3s}
-        .quick-chip:hover{border-color:var(--gold);color:var(--gold);background:rgba(212,175,55,0.05)}
+        .quick-chip:hover{border-color:var(--gold);color:var(--gold);background:rgba(255, 215, 0,0.05)}
         .route-results{display:none;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:16px}
         .route-results.active{display:grid}
         .route-link{display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;text-decoration:none;color:var(--text-secondary);font-size:11px;text-transform:uppercase;letter-spacing:.5px;transition:all .3s}
@@ -227,15 +227,23 @@
         .sidebar-cta svg{width:22px;height:22px}
         .sidebar-secondary{display:block;width:100%;padding:14px;margin-top:12px;background:transparent;border:1px solid rgba(255,255,255,0.08);border-radius:12px;color:var(--text-secondary);font-family:inherit;font-size:13px;font-weight:400;text-decoration:none;text-align:center;transition:all .3s}
         .sidebar-secondary:hover{border-color:var(--gold);color:var(--gold)}
-        .inquiry-card{background:var(--dark-void);border:1px solid rgba(212,175,55,0.15);border-radius:20px;padding:30px}
+        .inquiry-card{background:var(--dark-void);border:1px solid rgba(255, 215, 0,0.15);border-radius:20px;padding:30px}
         .inquiry-card h3{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-weight:200;font-size:20px;margin-bottom:4px;color:#fff}
         .inquiry-card p{font-size:13px;color:var(--text-fade);margin-bottom:20px}
-        .inquiry-card input,.inquiry-card textarea{width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:12px 14px;color:#fff;font-family:inherit;font-size:14px;margin-bottom:12px;outline:none;transition:border .3s;box-sizing:border-box}
+        .inquiry-card input,.inquiry-card textarea,.inquiry-card select{width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:12px 14px;color:#fff;font-family:inherit;font-size:14px;margin-bottom:12px;outline:none;transition:border .3s;box-sizing:border-box}
         .inquiry-card input:focus,.inquiry-card textarea:focus{border-color:var(--gold)}
         .inquiry-card textarea{resize:vertical;min-height:80px}
-        .inquiry-card button{width:100%;padding:14px;background:linear-gradient(135deg,#D4AF37,#FFA500);border:none;border-radius:12px;color:#000;font-family:inherit;font-size:15px;font-weight:600;cursor:pointer;transition:all .3s}
-        .inquiry-card button:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(212,175,55,0.3)}
+        .inquiry-card button{width:100%;padding:14px;background:linear-gradient(135deg,#FFD700,#FFA500);border:none;border-radius:12px;color:#000;font-family:inherit;font-size:15px;font-weight:600;cursor:pointer;transition:all .3s}
+        .inquiry-card button:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(255, 215, 0,0.3)}
         .inquiry-card button:disabled{opacity:.5;cursor:not-allowed;transform:none}
+        .apply-badge{display:inline-block;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold);background:rgba(255,215,0,0.10);border:1px solid rgba(255,215,0,0.25);padding:5px 11px;border-radius:100px;margin-bottom:14px}
+        .inquiry-card select{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23FFD700' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:34px;cursor:pointer}
+        .inquiry-card select option{background:#0e0e12;color:#fff}
+        .apply-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+        .apply-row>*{margin-bottom:0!important}
+        .apply-reassure{margin-top:12px;text-align:center;font-size:11.5px;color:var(--text-fade)}
+        .sidebar-apply{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:16px;margin-bottom:12px;background:linear-gradient(135deg,#FFD700,#FFA500);border:none;border-radius:12px;color:#000;font-family:inherit;font-size:15px;font-weight:600;text-decoration:none;cursor:pointer;transition:all .3s}
+        .sidebar-apply:hover{transform:translateY(-2px);box-shadow:0 10px 34px rgba(255,215,0,0.32)}
         .inquiry-success{display:none;text-align:center;padding:20px 0;color:#25D366;font-size:14px}
         .sidebar-trust{display:flex;flex-direction:column;gap:12px;margin-top:24px;padding-top:24px;border-top:1px solid rgba(255,255,255,0.06)}
         .trust-item{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--text-secondary)}
@@ -249,11 +257,11 @@
         .zone-footer-head{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:20px;margin-bottom:24px}
         .zone-footer-eyebrow{font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:3px;font-weight:500;margin-bottom:8px}
         .zone-footer-title{font-size:clamp(24px,3vw,34px);font-weight:200;letter-spacing:-.01em;color:var(--text-primary)}
-        .zone-footer-cta{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--gold);text-transform:uppercase;letter-spacing:2px;border-bottom:1px solid rgba(212,175,55,0.3);padding-bottom:4px;transition:all .25s}
+        .zone-footer-cta{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--gold);text-transform:uppercase;letter-spacing:2px;border-bottom:1px solid rgba(255, 215, 0,0.3);padding-bottom:4px;transition:all .25s}
         .zone-footer-cta:hover{color:var(--gold-light,#FFD54F);border-bottom-color:var(--gold)}
         .zone-footer-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:18px}
         .zone-card{display:block;background:var(--dark-void);border:1px solid rgba(255,255,255,0.06);border-radius:14px;overflow:hidden;transition:all .3s;color:var(--text-primary)}
-        .zone-card:hover{transform:translateY(-3px);border-color:rgba(212,175,55,0.2);box-shadow:0 12px 36px rgba(0,0,0,0.4)}
+        .zone-card:hover{transform:translateY(-3px);border-color:rgba(255, 215, 0,0.2);box-shadow:0 12px 36px rgba(0,0,0,0.4)}
         .zone-card-img{height:160px;background:linear-gradient(135deg,#1a1a1d,#0e0e10);background-size:cover;background-position:center}
         .zone-card-body{padding:18px}
         .zone-card-name{font-size:15px;font-weight:400;margin-bottom:4px;letter-spacing:-.005em}
@@ -267,16 +275,16 @@
         .upsell-subtitle{font-size:15px;color:var(--text-secondary);max-width:520px;margin:14px auto 0;line-height:1.6}
 
         /* Notify banner */
-        .notify-banner{background:linear-gradient(135deg,rgba(212,175,55,0.05) 0%,rgba(0,206,209,0.04) 100%);border:1px solid rgba(212,175,55,0.12);border-radius:20px;padding:32px 36px;margin-bottom:32px;display:flex;align-items:center;gap:28px;transition:border-color .3s}
-        .notify-banner:hover{border-color:rgba(212,175,55,0.25)}
-        .notify-icon{width:56px;height:56px;background:rgba(212,175,55,0.08);border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0}
+        .notify-banner{background:linear-gradient(135deg,rgba(255, 215, 0,0.05) 0%,rgba(0,206,209,0.04) 100%);border:1px solid rgba(255, 215, 0,0.12);border-radius:20px;padding:32px 36px;margin-bottom:32px;display:flex;align-items:center;gap:28px;transition:border-color .3s}
+        .notify-banner:hover{border-color:rgba(255, 215, 0,0.25)}
+        .notify-icon{width:56px;height:56px;background:rgba(255, 215, 0,0.08);border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0}
         .notify-text{flex:1}
         .notify-text h3{font-size:17px;font-weight:500;margin-bottom:4px}
         .notify-text p{font-size:13px;color:var(--text-secondary);line-height:1.5}
         .notify-actions{display:flex;gap:10px;flex-shrink:0}
         .notify-actions .nbtn{padding:12px 24px;border-radius:10px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:all .3s;text-decoration:none;display:inline-flex;align-items:center;gap:8px;white-space:nowrap;border:none}
         .nbtn-primary{background:var(--gold);color:#000}
-        .nbtn-primary:hover{box-shadow:0 6px 24px rgba(212,175,55,0.25);transform:translateY(-1px)}
+        .nbtn-primary:hover{box-shadow:0 6px 24px rgba(255, 215, 0,0.25);transform:translateY(-1px)}
         .nbtn-wa{background:#25D366;color:#fff}
         .nbtn-wa:hover{box-shadow:0 6px 24px rgba(37,211,102,0.25);transform:translateY(-1px)}
         @media(max-width:900px){.notify-banner{flex-direction:column;text-align:center;gap:18px;padding:28px 24px}.notify-actions{width:100%;flex-direction:column}.notify-actions .nbtn{justify-content:center}}
@@ -285,13 +293,13 @@
         .upsell-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
         .upsell-card{position:relative;padding:0;background:var(--dark-void);border:1px solid rgba(255,255,255,0.05);border-radius:20px;overflow:hidden;transition:all .4s;display:flex;flex-direction:column}
         .upsell-card:hover{transform:translateY(-6px);box-shadow:0 24px 60px rgba(0,0,0,0.5)}
-        .upsell-card.featured{border-color:rgba(212,175,55,0.15)}
-        .upsell-card.featured:hover{border-color:rgba(212,175,55,0.35)}
+        .upsell-card.featured{border-color:rgba(255, 215, 0,0.15)}
+        .upsell-card.featured:hover{border-color:rgba(255, 215, 0,0.35)}
         .upsell-card-popular{position:absolute;top:0;left:0;right:0;padding:6px;text-align:center;background:var(--gold);color:#000;font-size:10px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase}
         .upsell-card-top{padding:32px 28px 0;flex:1}
         .upsell-card.featured .upsell-card-top{padding-top:44px}
         .upsell-card-badge{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:8px;font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin-bottom:16px}
-        .badge-pfs{background:rgba(212,175,55,0.1);color:var(--gold)}
+        .badge-pfs{background:rgba(255, 215, 0,0.1);color:var(--gold)}
         .badge-das{background:rgba(0,206,209,0.1);color:#00CED1}
         .badge-vv{background:rgba(255,107,107,0.1);color:#FF6B6B}
         .upsell-card-title{font-size:22px;font-weight:400;margin-bottom:6px}
@@ -305,12 +313,12 @@
         .upsell-card-bottom{padding:20px 28px;border-top:1px solid rgba(255,255,255,0.04);margin-top:auto}
         .upsell-card-cta{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:14px;border-radius:12px;font-size:14px;font-weight:600;text-decoration:none;transition:all .3s;border:none;cursor:pointer;font-family:inherit}
         .cta-gold{background:var(--gold);color:#000}
-        .cta-gold:hover{box-shadow:0 8px 30px rgba(212,175,55,0.3);transform:translateY(-1px)}
+        .cta-gold:hover{box-shadow:0 8px 30px rgba(255, 215, 0,0.3);transform:translateY(-1px)}
         .cta-outline{background:transparent;border:1px solid rgba(255,255,255,0.1);color:var(--text-secondary)}
         .cta-outline:hover{border-color:var(--gold);color:var(--gold)}
 
         /* ===== MOBILE CTA ===== */
-        .mobile-cta{display:none;position:fixed;bottom:0;left:0;right:0;padding:16px 20px;background:rgba(0,0,0,0.95);backdrop-filter:blur(20px);border-top:1px solid rgba(212,175,55,0.15);z-index:90;align-items:center;justify-content:space-between;gap:16px}
+        .mobile-cta{display:none;position:fixed;bottom:0;left:0;right:0;padding:16px 20px;background:rgba(0,0,0,0.95);backdrop-filter:blur(20px);border-top:1px solid rgba(255, 215, 0,0.15);z-index:90;align-items:center;justify-content:space-between;gap:16px}
         .mobile-cta-price{font-size:22px;font-weight:200;color:var(--gold)}
         .mobile-cta-price small{font-size:12px;color:var(--text-fade);display:block}
         .mobile-cta-btn{display:flex;align-items:center;gap:8px;padding:14px 28px;background:#25D366;border:none;border-radius:12px;color:#fff;font-family:inherit;font-size:14px;font-weight:600;text-decoration:none;white-space:nowrap}
@@ -365,9 +373,9 @@
         /* ── Detail v2 additions ───────────────────────────────── */
         .apt-actions{display:flex;gap:10px;margin-top:16px}
         .apt-act{display:inline-flex;align-items:center;gap:7px;background:transparent;border:1px solid rgba(255,255,255,0.12);border-radius:100px;padding:9px 16px;color:var(--text-secondary);font-family:inherit;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;cursor:pointer;transition:all .25s}
-        .apt-act:hover{border-color:rgba(212,175,55,0.45);color:var(--text-primary)}
+        .apt-act:hover{border-color:rgba(255, 215, 0,0.45);color:var(--text-primary)}
         .apt-act svg{width:15px;height:15px}
-        .apt-act.is-on{background:rgba(212,175,55,0.1);border-color:var(--gold);color:var(--gold)}
+        .apt-act.is-on{background:rgba(255, 215, 0,0.1);border-color:var(--gold);color:var(--gold)}
         .apt-price-insight{font-size:12px;margin-top:8px;letter-spacing:.2px}
         .apt-price-insight.good{color:var(--green)}
         .apt-price-insight.high{color:var(--text-fade)}
@@ -493,7 +501,7 @@
                     <defs>
                       <linearGradient id="goldGradientNav" x1="0%" y1="0%" x2="0%" y2="100%">
                         <stop offset="0%" stop-color="#FFD54F"/>
-                        <stop offset="100%" stop-color="#D4AF37"/>
+                        <stop offset="100%" stop-color="#FFD700"/>
                       </linearGradient>
                     </defs>
                     <g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#goldGradientNav)">
@@ -606,6 +614,7 @@
                 <div class="sidebar-card">
                     <div class="sidebar-price" id="sidebarPrice"></div>
                     <div class="sidebar-price-label">per month · all fees included</div>
+                    <a class="sidebar-apply" href="#inquiryCard" onclick="setTimeout(function(){var n=document.getElementById('iqName');if(n)n.focus();},450)">Apply for this apartment →</a>
                     <a class="sidebar-cta" id="sidebarWhatsApp" href="https://wa.me/393313251961" target="_blank">
                         <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.125.553 4.12 1.52 5.855L.052 23.709l5.997-1.573A11.94 11.94 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.82c-1.956 0-3.83-.528-5.47-1.528l-.392-.233-4.065 1.066 1.084-3.964-.256-.407A9.787 9.787 0 012.18 12c0-5.414 4.406-9.82 9.82-9.82 5.414 0 9.82 4.406 9.82 9.82 0 5.414-4.406 9.82-9.82 9.82z"/></svg>
                         Message on WhatsApp
@@ -616,25 +625,79 @@
                         <div class="trust-item"><span class="ti">✓</span> No hidden fees</div>
                         <div class="trust-item"><span class="ti">✓</span> English contract available</div>
                         <div class="trust-item"><span class="ti">✓</span> 24/7 WhatsApp support</div>
+                        <div class="trust-item"><span class="ti">✓</span> 48-hour move-in</div>
                     </div>
                 </div>
                 <div class="sidebar-card inquiry-card" id="inquiryCard">
-                    <h3>Interested?</h3>
-                    <p>Send us your details and we'll get back to you within 2 hours.</p>
+                    <span class="apply-badge">2-minute application</span>
+                    <h3>Apply for this apartment</h3>
+                    <p>No fee to apply. We reply within 2 hours — and you could be moved in within 48.</p>
                     <form id="inquiryForm">
                         <input type="text" name="name" id="iqName" placeholder="Your name" required>
                         <input type="email" name="email" id="iqEmail" placeholder="Your email" required>
                         <input type="tel" name="phone" id="iqPhone" placeholder="WhatsApp number (optional)">
-                        <textarea name="message" id="formMessage" placeholder="When do you want to move in? Any questions?"></textarea>
-                        <button type="submit" id="inquiryBtn">Send Inquiry</button>
+                        <div class="apply-row">
+                            <input type="date" name="movein" id="iqMoveIn" aria-label="Preferred move-in date">
+                            <select name="duration" id="iqDuration" aria-label="Length of stay">
+                                <option value="">Length of stay</option>
+                                <option>1–3 months</option>
+                                <option>3–6 months</option>
+                                <option>6–12 months</option>
+                                <option>12+ months</option>
+                            </select>
+                        </div>
+                        <select name="occupants" id="iqOccupants" aria-label="Number of occupants">
+                            <option value="">How many people?</option>
+                            <option>Just me</option>
+                            <option>2 people</option>
+                            <option>3 people</option>
+                            <option>4+ people</option>
+                        </select>
+                        <textarea name="message" id="formMessage" placeholder="Anything we should know? (optional)"></textarea>
+                        <button type="submit" id="inquiryBtn">Submit application</button>
+                        <div class="apply-reassure">🔒 Private &amp; no commitment. A real person reviews every application.</div>
                     </form>
-                    <div class="inquiry-success" id="inquirySuccess">✓ Sent! We'll contact you within 2 hours.</div>
+                    <div class="inquiry-success" id="inquirySuccess">✓ Application received! Our team will contact you within 2 hours.</div>
                 </div>
             </div>
         </div><!-- /.apt-content -->
 
         <!-- More apartments in this neighborhood — auto-populated from Firestore -->
         <section class="zone-footer" id="zoneFooter" hidden></section>
+
+        <!-- 48-hour move-in timeline -->
+        <style>
+        .m48{max-width:1100px;margin:50px auto 10px;padding:0 50px}
+        @media(max-width:768px){.m48{padding:0 20px}}
+        .m48-head{text-align:center;margin-bottom:42px}
+        .m48-lbl{display:inline-block;color:#FFD700;font-size:11px;letter-spacing:3px;text-transform:uppercase;margin-bottom:10px}
+        .m48-head h2{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-weight:200;font-size:clamp(24px,3.4vw,40px);color:#fff;letter-spacing:-.01em}
+        .m48-track{position:relative;display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+        .m48-line{position:absolute;top:7px;left:12%;right:12%;height:2px;background:rgba(255,255,255,.1);overflow:hidden}
+        .m48-line i{display:block;height:100%;width:0;background:linear-gradient(90deg,#FFD700,#FFA500);transition:width 1.8s cubic-bezier(.16,1,.3,1)}
+        .m48.on .m48-line i{width:100%}
+        .m48-step{position:relative;text-align:center;padding-top:24px}
+        .m48-dot{position:absolute;top:0;left:50%;transform:translateX(-50%) scale(.4);width:16px;height:16px;border-radius:50%;background:#0A0A0A;border:2px solid rgba(255,255,255,.2);transition:all .5s cubic-bezier(.16,1,.3,1)}
+        .m48.on .m48-step .m48-dot{border-color:#FFD700;background:#FFD700;transform:translateX(-50%) scale(1);box-shadow:0 0 0 5px rgba(255,215,0,.12)}
+        .m48.on .m48-step:nth-child(3) .m48-dot{transition-delay:.35s}
+        .m48.on .m48-step:nth-child(4) .m48-dot{transition-delay:.75s}
+        .m48.on .m48-step:nth-child(5) .m48-dot{transition-delay:1.15s}
+        .m48-t{font-size:15px;color:#fff;font-weight:500}
+        .m48-s{font-size:12px;color:rgba(255,255,255,.5);margin-top:3px}
+        @media(max-width:600px){.m48-track{grid-template-columns:1fr 1fr;gap:28px 16px}.m48-line{display:none}}
+        @media(prefers-reduced-motion:reduce){.m48-line i{transition:none}.m48-step .m48-dot{transition:none}}
+        </style>
+        <section class="m48" id="m48">
+            <div class="m48-head"><span class="m48-lbl">Your move-in</span><h2>From application to keys — in 48 hours.</h2></div>
+            <div class="m48-track">
+                <div class="m48-line"><i></i></div>
+                <div class="m48-step"><span class="m48-dot"></span><div class="m48-t">Apply</div><div class="m48-s">2-minute form</div></div>
+                <div class="m48-step"><span class="m48-dot"></span><div class="m48-t">Approved</div><div class="m48-s">within 2 hours</div></div>
+                <div class="m48-step"><span class="m48-dot"></span><div class="m48-t">Sign &amp; pay</div><div class="m48-s">secure, in English</div></div>
+                <div class="m48-step"><span class="m48-dot"></span><div class="m48-t">Keys in hand</div><div class="m48-s">within 48 hours</div></div>
+            </div>
+        </section>
+        <script>(function(){var m=document.getElementById('m48');if(!m)return;var io=new IntersectionObserver(function(e){e.forEach(function(x){if(x.isIntersecting){m.classList.add('on');io.disconnect();}});},{threshold:.4});io.observe(m);})();</script>
 
         <div class="upsell-section">
             <div class="upsell-header">
@@ -885,7 +948,7 @@
     }
     function toast(msg){
       const t=document.createElement('div'); t.textContent=msg;
-      t.style.cssText='position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.92);color:#fff;padding:10px 22px;border:1px solid rgba(212,175,55,0.25);border-radius:100px;font-size:13px;z-index:700';
+      t.style.cssText='position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.92);color:#fff;padding:10px 22px;border:1px solid rgba(255, 215, 0,0.25);border-radius:100px;font-size:13px;z-index:700';
       document.body.appendChild(t); setTimeout(()=>t.remove(),2400);
     }
 
@@ -1079,19 +1142,24 @@
         if(typeof gtag==='function')gtag('event','view_listing',{listing_id:id,listing_name:name,listing_price:d.price});
 
         // Inquiry form → Firestore leads
-        document.getElementById('formMessage').placeholder=`I'm interested in ${name}. When can I move in?`;
+        document.getElementById('formMessage').placeholder=`Anything we should know about your move to ${name}? (optional)`;
         const iqForm=document.getElementById('inquiryForm');
         iqForm.addEventListener('submit',async function(e){
             e.preventDefault();
             const btn=document.getElementById('inquiryBtn');
             btn.disabled=true;btn.textContent='Sending…';
             try{
+                const _v=(elId)=>{const el=document.getElementById(elId);return el?el.value:'';};
                 await db.collection('leads').add({
                     name: document.getElementById('iqName').value,
                     email: document.getElementById('iqEmail').value,
                     phone: document.getElementById('iqPhone').value||'',
+                    moveIn: _v('iqMoveIn'),
+                    duration: _v('iqDuration'),
+                    occupants: _v('iqOccupants'),
                     message: document.getElementById('formMessage').value||'',
                     source: 'apartment-detail',
+                    type: 'application',
                     listingId: id,
                     listingName: name,
                     status: 'new',
@@ -1213,5 +1281,6 @@
     hb.addEventListener('click',()=>{hb.classList.toggle('active');mm.classList.toggle('active');document.body.style.overflow=mm.classList.contains('active')?'hidden':''});
     mm.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>{hb.classList.remove('active');mm.classList.remove('active');document.body.style.overflow=''}));
     </script>
+    <script defer src="/js/boom-track.js"></script>
 </body>
 </html>

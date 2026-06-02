@@ -772,6 +772,29 @@
         <div class="cta-btns r" data-d="2"><a href="/apartments.html" class="btn btn-gold">View Apartments</a><a href="https://wa.me/393313251961" class="btn btn-outline" target="_blank" rel="noopener">WhatsApp Us</a></div>
     </div></section>
 
+    <!-- ROMAN SIGNATURE — self-drawing Colosseum arcade -->
+    <style>
+    .rome-band{position:relative;z-index:1;padding:110px 24px 100px;text-align:center;opacity:0;transform:translateY(22px);transition:opacity .8s cubic-bezier(.16,1,.3,1),transform .8s cubic-bezier(.16,1,.3,1)}
+    .rome-band.on{opacity:1;transform:none}
+    .rome-band .rb-lbl{display:inline-block;color:#FFD700;font-size:12px;letter-spacing:4px;text-transform:uppercase;margin-bottom:16px}
+    .rome-band h2{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-weight:200;font-size:clamp(30px,5vw,58px);line-height:1.05;letter-spacing:-.02em}
+    .rome-band h2 .g{background:linear-gradient(120deg,#E5C200,#FFD700,#FFF1A8,#FFD700);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+    .rome-band p{color:rgba(255,255,255,.62);font-size:15px;margin:14px auto 0;max-width:520px;line-height:1.7}
+    .rome-skyline{display:block;width:100%;max-width:560px;height:auto;margin:36px auto 0}
+    .rome-skyline path{fill:none;stroke:#FFD700;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:2000;stroke-dashoffset:2000;transition:stroke-dashoffset 2.6s cubic-bezier(.16,1,.3,1) .15s}
+    .rome-band.on .rome-skyline path{stroke-dashoffset:0}
+    @media(prefers-reduced-motion:reduce){.rome-band{opacity:1;transform:none}.rome-skyline path{transition:none;stroke-dashoffset:0}}
+    </style>
+    <section class="rome-band" id="romeBand">
+        <span class="rb-lbl">Eccellenza italiana</span>
+        <h2>Built in Rome.<br><span class="g">For Rome.</span></h2>
+        <p>Six years on these streets. Every contract in order, every detail handled the Italian way — the city we know by heart, now working for you.</p>
+        <svg class="rome-skyline" viewBox="0 0 492 100" aria-hidden="true"><path d="M0 80 H472 M20 80 V50 A28 28 0 0 1 76 50 V80 M86 80 V50 A28 28 0 0 1 142 50 V80 M152 80 V50 A28 28 0 0 1 208 50 V80 M218 80 V50 A28 28 0 0 1 274 50 V80 M284 80 V50 A28 28 0 0 1 340 50 V80 M350 80 V50 A28 28 0 0 1 406 50 V80 M416 80 V50 A28 28 0 0 1 472 50 V80"/></svg>
+    </section>
+    <script>
+    (function(){var b=document.getElementById('romeBand');if(!b)return;var io=new IntersectionObserver(function(e){e.forEach(function(x){if(x.isIntersecting){b.classList.add('on');io.disconnect();}});},{threshold:.3});io.observe(b);})();
+    </script>
+
     <!-- FOOTER -->
     <footer><div class="f-grid">
         <div class="f-brand">
@@ -806,5 +829,7 @@
         window.addEventListener('scroll',onScroll,{passive:true});onScroll();
     })();
     </script>
+    <script defer src="/js/boom-motion.js"></script>
+    <script defer src="/js/boom-track.js"></script>
 </body>
 </html>
