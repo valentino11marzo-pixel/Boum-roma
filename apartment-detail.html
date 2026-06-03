@@ -328,10 +328,14 @@
         .cta-outline:hover{border-color:var(--gold);color:var(--gold)}
 
         /* ===== MOBILE CTA ===== */
-        .mobile-cta{display:none;position:fixed;bottom:0;left:0;right:0;padding:16px 20px;background:rgba(0,0,0,0.95);backdrop-filter:blur(20px);border-top:1px solid rgba(255, 215, 0,0.15);z-index:90;align-items:center;justify-content:space-between;gap:16px}
-        .mobile-cta-price{font-size:22px;font-weight:200;color:var(--gold)}
-        .mobile-cta-price small{font-size:12px;color:var(--text-fade);display:block}
-        .mobile-cta-btn{display:flex;align-items:center;gap:8px;padding:14px 28px;background:#25D366;border:none;border-radius:12px;color:#fff;font-family:inherit;font-size:14px;font-weight:600;text-decoration:none;white-space:nowrap}
+        .mobile-cta{display:none;position:fixed;bottom:0;left:0;right:0;padding:14px 18px calc(14px + env(safe-area-inset-bottom));background:rgba(0,0,0,0.95);backdrop-filter:blur(20px);border-top:1px solid rgba(255, 215, 0,0.15);z-index:90;align-items:center;justify-content:space-between;gap:14px;transform:translateY(120%);transition:transform .45s cubic-bezier(.16,1,.3,1)}
+        .mobile-cta.in{transform:none}
+        .mobile-cta-price{font-size:21px;font-weight:200;color:var(--gold);line-height:1.05}
+        .mobile-cta-price small{font-size:11px;color:var(--text-fade);display:block}
+        .mobile-cta-actions{display:flex;align-items:center;gap:10px}
+        .mcta-apply{display:flex;align-items:center;justify-content:center;padding:14px 26px;background:linear-gradient(135deg,#FFD700,#FFA500);border-radius:12px;color:#000;font-family:inherit;font-size:15px;font-weight:600;text-decoration:none;white-space:nowrap}
+        .mobile-cta-btn{display:flex;align-items:center;justify-content:center;gap:8px;padding:14px 17px;background:#25D366;border:none;border-radius:12px;color:#fff;font-family:inherit;font-size:18px;font-weight:600;text-decoration:none;white-space:nowrap}
+        @media(prefers-reduced-motion:reduce){.mobile-cta{transition:none}}
 
         /* ===== FOOTER — matches live site ===== */
         footer{padding:80px 50px 30px;background:var(--dark-void);border-top:1px solid rgba(255,255,255,0.05)}
@@ -825,7 +829,10 @@
     <!-- MOBILE CTA -->
     <div class="mobile-cta" id="mobileCta">
         <div class="mobile-cta-price" id="mobileCTAPrice"><small>per month</small></div>
-        <a class="mobile-cta-btn" href="https://wa.me/393313251961" target="_blank" id="mobileCTABtn">💬 WhatsApp Us</a>
+        <div class="mobile-cta-actions">
+            <a class="mcta-apply" href="#inquiryCard" onclick="setTimeout(function(){var n=document.getElementById('iqName');if(n)n.focus();},450)">Apply</a>
+            <a class="mobile-cta-btn" href="https://wa.me/393313251961" target="_blank" id="mobileCTABtn" aria-label="WhatsApp">💬</a>
+        </div>
     </div>
 
     <!-- FOOTER -->
@@ -1331,6 +1338,10 @@
     const hb=document.getElementById('hamburger'),mm=document.getElementById('mobileMenu');
     hb.addEventListener('click',()=>{hb.classList.toggle('active');mm.classList.toggle('active');document.body.style.overflow=mm.classList.contains('active')?'hidden':''});
     mm.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>{hb.classList.remove('active');mm.classList.remove('active');document.body.style.overflow=''}));
+    </script>
+    <script>
+    /* Mobile CTA bar: slide up once the user is engaged (immersive, not on load) */
+    (function(){var bar=document.getElementById('mobileCta');if(!bar)return;function t(){bar.classList.toggle('in',window.scrollY>320);}addEventListener('scroll',t,{passive:true});t();})();
     </script>
     <script defer src="/js/boom-track.js"></script>
 </body>
