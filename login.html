@@ -68,7 +68,6 @@
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin>
   <link rel="dns-prefetch" href="https://securetoken.googleapis.com">
-  <!-- Inter is only a fallback for Helvetica Neue on devices that lack it -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 
   <!-- Firebase Auth — deferred so it never blocks first paint. -->
@@ -79,177 +78,187 @@
     *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 
     :root{
-      --gold:#D8B45A;            /* refined, muted imperial gold (not neon) */
-      --gold-bright:#E8CF8C;
-      --gold-deep:#A8842F;
-      --black:#000;
-      --ink:#050506;
-      --panel:#0A0A0B;
-      --field:#0E0E10;
-      --field-2:#131316;
-      --text:#F4F3F1;
-      --text-2:rgba(244,243,241,.58);
-      --text-3:rgba(244,243,241,.34);
-      --text-4:rgba(244,243,241,.18);
-      --line:rgba(255,255,255,.07);
-      --line-2:rgba(255,255,255,.045);
-      --red:#E06666;
-      --green:#5FD0A0;
+      --gold:#E9C766; --gold-bright:#FBE9A8; --gold-deep:#B58A2E;
+      --black:#000; --ink:#060608;
+      --text:#F6F5F3; --text-2:rgba(246,245,243,.60); --text-3:rgba(246,245,243,.36); --text-4:rgba(246,245,243,.20);
+      --line:rgba(255,255,255,.10); --line-2:rgba(255,255,255,.06);
+      --red:#F08585; --green:#67D7A6;
 
-      /* Helvetica Neue 300 is the brand voice; Inter is only a fallback */
       --display:'Helvetica Neue','Helvetica Neue LT','Arial Nova',Helvetica,Arial,'Inter',sans-serif;
       --sans:'Inter','Helvetica Neue',Helvetica,Arial,sans-serif;
       --ease:cubic-bezier(.22,1,.36,1);
+      --spring:cubic-bezier(.34,1.4,.5,1);
     }
 
     html{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;height:100%}
     body{
-      font-family:var(--display);
-      background:var(--black);
-      color:var(--text);
-      font-weight:300;
-      min-height:100svh;
-      display:flex;align-items:center;justify-content:center;
-      padding:max(24px,env(safe-area-inset-top)) 24px max(24px,env(safe-area-inset-bottom));
-      position:relative;overflow:hidden;line-height:1.6;
+      font-family:var(--display); background:var(--black); color:var(--text); font-weight:300;
+      min-height:100svh; display:flex; align-items:center; justify-content:center;
+      padding:max(24px,env(safe-area-inset-top)) 22px max(24px,env(safe-area-inset-bottom));
+      position:relative; overflow:hidden; line-height:1.55;
     }
 
-    /* ── Quiet atmosphere: one slow gold aura + arch watermark + vignette ── */
-    .aura{
-      position:fixed;left:50%;top:42%;transform:translate(-50%,-50%);
-      width:760px;height:760px;border-radius:50%;z-index:0;pointer-events:none;
-      background:radial-gradient(circle, rgba(216,180,90,.10) 0%, rgba(216,180,90,.03) 36%, transparent 68%);
-      filter:blur(8px);
-      animation:breathe 11s ease-in-out infinite;
-    }
-    @keyframes breathe{0%,100%{opacity:.55}50%{opacity:1}}
-
-    .arch{
-      position:fixed;left:50%;top:50%;transform:translate(-50%,-52%);
-      width:min(560px,92vw);z-index:0;pointer-events:none;opacity:.07;
-      color:var(--gold);
-    }
+    /* ════ Premium ambient gradient field (smooth, not busy) ════ */
+    .bg{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none}
+    .bloom{position:absolute;border-radius:50%;filter:blur(110px);will-change:transform,opacity}
+    .b-gold{width:60vw;height:60vw;max-width:760px;max-height:760px;
+      background:radial-gradient(circle, rgba(233,199,102,.20), transparent 66%);
+      top:-14vh;left:50%;transform:translateX(-58%);animation:drift1 22s ease-in-out infinite}
+    .b-amber{width:48vw;height:48vw;max-width:620px;max-height:620px;
+      background:radial-gradient(circle, rgba(181,138,46,.18), transparent 66%);
+      bottom:-18vh;right:-6vw;animation:drift2 28s ease-in-out infinite}
+    .b-cool{width:44vw;height:44vw;max-width:560px;max-height:560px;
+      background:radial-gradient(circle, rgba(70,84,140,.16), transparent 66%);
+      bottom:-12vh;left:-8vw;animation:drift3 32s ease-in-out infinite}
+    @keyframes drift1{0%,100%{transform:translateX(-58%) translateY(0)}50%{transform:translateX(-52%) translateY(34px)}}
+    @keyframes drift2{0%,100%{transform:translate(0,0)}50%{transform:translate(-32px,-30px)}}
+    @keyframes drift3{0%,100%{transform:translate(0,0)}50%{transform:translate(30px,-24px)}}
+    .spot{position:fixed;inset:0;z-index:0;pointer-events:none;
+      background:radial-gradient(ellipse 60% 50% at 50% 38%, rgba(255,255,255,.05), transparent 60%)}
     .vignette{position:fixed;inset:0;z-index:0;pointer-events:none;
-      background:radial-gradient(ellipse 85% 75% at 50% 45%, transparent 46%, rgba(0,0,0,.85) 100%)}
-    .grain{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.018;
+      background:radial-gradient(ellipse 90% 80% at 50% 45%, transparent 48%, rgba(0,0,0,.78) 100%)}
+    .grain{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.02;
       background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
 
     /* ── Back link ── */
-    .back{position:fixed;top:max(28px,env(safe-area-inset-top));left:32px;z-index:10;
+    .back{position:fixed;top:max(26px,env(safe-area-inset-top));left:30px;z-index:10;
       display:inline-flex;align-items:center;gap:9px;color:var(--text-3);text-decoration:none;
-      font-size:11px;font-weight:400;letter-spacing:2px;text-transform:uppercase;
+      font-family:var(--sans);font-size:11px;font-weight:500;letter-spacing:1.4px;text-transform:uppercase;
       transition:color .4s var(--ease)}
     .back svg{transition:transform .4s var(--ease)}
     .back:hover{color:var(--gold)} .back:hover svg{transform:translateX(-4px)}
-    .back:focus-visible{outline:1px solid var(--line);outline-offset:5px}
+    .back:focus-visible{outline:1px solid var(--line);outline-offset:5px;border-radius:4px}
 
-    /* ── Card ── */
+    /* ════ Glass card ════ */
     .card{
-      position:relative;z-index:2;width:100%;max-width:380px;
-      animation:enter 1s var(--ease) both;
+      position:relative;z-index:2;width:100%;max-width:404px;padding:42px 40px 34px;
+      border-radius:28px;
+      background:
+        radial-gradient(120% 80% at 50% 0%, rgba(233,199,102,.07), transparent 60%),
+        linear-gradient(180deg, rgba(255,255,255,.055), rgba(255,255,255,.018));
+      border:1px solid var(--line);
+      backdrop-filter:blur(34px) saturate(1.4);
+      -webkit-backdrop-filter:blur(34px) saturate(1.4);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.16),
+        inset 0 0 0 1px rgba(255,255,255,.02),
+        0 30px 70px -20px rgba(0,0,0,.75),
+        0 0 90px -30px rgba(233,199,102,.18);
+      overflow:hidden;
+      animation:enter 1s var(--spring) both;
     }
-    @keyframes enter{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+    /* pointer-follow sheen */
+    .card::before{content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;
+      background:radial-gradient(420px 320px at var(--mx,50%) var(--my,0%), rgba(255,255,255,.10), transparent 60%);
+      transition:opacity .5s var(--ease)}
+    .card:hover::before{opacity:1}
+    /* top edge light */
+    .card::after{content:'';position:absolute;top:0;left:18%;right:18%;height:1px;pointer-events:none;
+      background:linear-gradient(90deg,transparent,rgba(255,255,255,.5),transparent)}
+    @keyframes enter{from{opacity:0;transform:translateY(18px) scale(.97)}to{opacity:1;transform:none}}
 
     /* ── Header ── */
-    .head{text-align:center;margin-bottom:44px}
-    .mark{width:46px;height:46px;margin:0 auto 26px;display:block;
-      filter:drop-shadow(0 0 18px rgba(216,180,90,.32))}
-    .wordmark{
-      font-family:var(--display);font-weight:300;
-      font-size:30px;letter-spacing:13px;text-transform:uppercase;
-      color:var(--text);margin:0 0 0 13px;line-height:1; /* tracking optical centering */
+    .head{text-align:center;margin-bottom:30px;position:relative}
+    .appicon{
+      width:62px;height:62px;margin:0 auto 18px;border-radius:18px;display:grid;place-items:center;position:relative;
+      background:
+        radial-gradient(120% 120% at 50% 0%, rgba(255,255,255,.10), transparent 55%),
+        linear-gradient(180deg, #15151a, #08080a);
+      border:1px solid rgba(255,255,255,.12);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.18),
+        0 10px 26px -8px rgba(0,0,0,.8),
+        0 0 28px -8px rgba(233,199,102,.35);
     }
-    /* imperial inscribed rule */
-    .rule{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:18px}
-    .rule .ln{height:1px;width:46px;background:linear-gradient(90deg,transparent,var(--gold-deep))}
-    .rule .ln.r{background:linear-gradient(90deg,var(--gold-deep),transparent)}
-    .rule .lozenge{width:5px;height:5px;background:var(--gold);transform:rotate(45deg);opacity:.9}
-    .rule span{font-size:9.5px;font-weight:500;letter-spacing:4px;text-transform:uppercase;color:var(--text-3);
-      font-family:var(--sans)}
+    .appicon::after{content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+      background:linear-gradient(180deg, rgba(255,255,255,.10), transparent 42%)}
+    .appicon svg{width:34px;height:34px;filter:drop-shadow(0 0 10px rgba(233,199,102,.45));position:relative;z-index:1}
 
-    /* ── Intro ── */
-    .intro{text-align:center;margin-bottom:34px}
-    .intro h1{font-family:var(--display);font-weight:300;font-size:23px;letter-spacing:.2px;color:var(--text);margin-bottom:7px}
-    .intro p{font-size:13px;font-weight:300;letter-spacing:.2px;color:var(--text-3);font-family:var(--sans)}
+    .wordmark{font-family:var(--display);font-weight:300;font-size:21px;letter-spacing:9px;text-transform:uppercase;
+      color:var(--text);margin-left:9px;line-height:1}
+    .h1{font-family:var(--display);font-weight:300;font-size:25px;letter-spacing:.2px;margin-top:22px}
+    .sub{font-family:var(--sans);font-size:13px;font-weight:300;letter-spacing:.2px;color:var(--text-3);margin-top:6px}
 
     /* ── Messages ── */
-    .msg{display:none;align-items:flex-start;gap:9px;padding:12px 14px;border-radius:11px;
-      font-size:12.5px;line-height:1.5;margin-bottom:22px;font-family:var(--sans);
-      animation:enter .35s var(--ease)}
+    .msg{display:none;align-items:flex-start;gap:9px;padding:12px 14px;border-radius:12px;
+      font-family:var(--sans);font-size:12.5px;line-height:1.5;margin:22px 0 0;animation:fade .35s var(--ease)}
     .msg.show{display:flex}
     .msg svg{flex-shrink:0;margin-top:1px}
-    .msg.error{background:rgba(224,102,102,.07);border:1px solid rgba(224,102,102,.24);color:#E89090}
-    .msg.success{background:rgba(95,208,160,.07);border:1px solid rgba(95,208,160,.24);color:#8FE0BF}
+    .msg.error{background:rgba(240,133,133,.09);border:1px solid rgba(240,133,133,.26);color:#F2A0A0}
+    .msg.success{background:rgba(103,215,166,.09);border:1px solid rgba(103,215,166,.26);color:#92E4C2}
+    @keyframes fade{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:none}}
 
-    /* ── Fields (clean, no clutter) ── */
-    .field{position:relative;margin-bottom:14px}
+    form{margin-top:26px}
+    /* ── Fields ── */
+    .field{position:relative;margin-bottom:13px}
     .field input{
-      width:100%;height:56px;padding:21px 16px 7px;
-      background:var(--field);border:1px solid var(--line);border-radius:13px;
+      width:100%;height:55px;padding:20px 16px 6px;
+      background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:14px;
       color:var(--text);font-family:var(--sans);font-size:15px;font-weight:400;letter-spacing:.2px;outline:none;
       transition:border-color .3s var(--ease),background .3s var(--ease),box-shadow .3s var(--ease)}
-    #password{padding-right:64px}
-    .field input:hover{border-color:rgba(255,255,255,.13)}
-    .field input:focus{border-color:var(--gold);background:var(--field-2);box-shadow:0 0 0 3px rgba(216,180,90,.10)}
-    .field label{position:absolute;left:16px;top:28px;transform:translateY(-50%);
+    #password{padding-right:62px}
+    .field input:hover{border-color:rgba(255,255,255,.18)}
+    .field input:focus{border-color:rgba(233,199,102,.65);background:rgba(255,255,255,.06);
+      box-shadow:0 0 0 3px rgba(233,199,102,.14)}
+    .field label{position:absolute;left:16px;top:27px;transform:translateY(-50%);
       color:var(--text-4);font-family:var(--sans);font-size:15px;font-weight:400;letter-spacing:.2px;
       pointer-events:none;transition:all .22s var(--ease)}
     .field input:focus ~ label,
     .field input:not(:placeholder-shown) ~ label{
-      top:14px;font-size:9.5px;font-weight:600;letter-spacing:1.8px;text-transform:uppercase;color:var(--text-3)}
+      top:13px;font-size:9.5px;font-weight:600;letter-spacing:1.6px;text-transform:uppercase;color:var(--text-3)}
     .field input:focus ~ label{color:var(--gold)}
     .field input:disabled{opacity:.5;cursor:not-allowed}
     .field input:-webkit-autofill,.field input:-webkit-autofill:focus{
-      -webkit-text-fill-color:var(--text);-webkit-box-shadow:0 0 0 1000px var(--field) inset;caret-color:var(--text)}
+      -webkit-text-fill-color:var(--text);-webkit-box-shadow:0 0 0 1000px rgba(20,20,22,1) inset;caret-color:var(--text)}
 
-    .reveal{position:absolute;right:12px;top:11px;height:34px;padding:0 8px;display:grid;place-items:center;
-      background:transparent;border:none;cursor:pointer;color:var(--text-4);border-radius:8px;
-      font-family:var(--sans);font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;
-      transition:color .3s var(--ease)}
-    .reveal:hover{color:var(--text-2)}
+    .reveal{position:absolute;right:11px;top:10.5px;height:34px;padding:0 9px;display:grid;place-items:center;
+      background:transparent;border:none;cursor:pointer;color:var(--text-4);border-radius:9px;
+      font-family:var(--sans);font-size:10px;font-weight:600;letter-spacing:1.4px;text-transform:uppercase;
+      transition:color .3s var(--ease),background .3s var(--ease)}
+    .reveal:hover{color:var(--text-2);background:rgba(255,255,255,.05)}
     .reveal:focus-visible{outline:1px solid var(--line);outline-offset:1px}
 
-    .caps{display:none;margin:9px 2px 0;font-size:11px;letter-spacing:.3px;color:var(--gold);font-family:var(--sans)}
+    .caps{display:none;margin:9px 2px 0;font-family:var(--sans);font-size:11px;letter-spacing:.3px;color:var(--gold)}
     .caps.show{display:block}
 
-    .row{display:flex;justify-content:flex-end;margin:4px 0 24px}
+    .row{display:flex;justify-content:flex-end;margin:4px 0 22px}
     .link{background:none;border:none;cursor:pointer;font-family:var(--sans);
       font-size:11.5px;font-weight:400;letter-spacing:.3px;color:var(--text-3);transition:color .3s var(--ease)}
     .link:hover{color:var(--gold)}
-    .link:focus-visible{outline:1px solid var(--line);outline-offset:3px}
+    .link:focus-visible{outline:1px solid var(--line);outline-offset:3px;border-radius:4px}
 
-    /* ── Submit: flat, calm, precise ── */
-    .submit{position:relative;width:100%;height:54px;border:none;border-radius:13px;cursor:pointer;
-      background:var(--gold);color:#1a1304;
-      font-family:var(--sans);font-size:12px;font-weight:600;letter-spacing:2.2px;text-transform:uppercase;
-      transition:background .3s var(--ease),transform .15s var(--ease)}
-    .submit:hover:not(:disabled){background:var(--gold-bright)}
-    .submit:active:not(:disabled){transform:scale(.99)}
+    /* ── Submit ── */
+    .submit{position:relative;width:100%;height:54px;border:none;border-radius:14px;cursor:pointer;overflow:hidden;
+      background:linear-gradient(180deg, var(--gold-bright) 0%, var(--gold) 42%, var(--gold-deep) 100%);
+      color:#1c1503;font-family:var(--sans);font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;
+      box-shadow:0 8px 24px -10px rgba(233,199,102,.5), inset 0 1px 0 rgba(255,255,255,.45);
+      transition:transform .18s var(--ease),box-shadow .3s var(--ease),filter .3s var(--ease)}
+    .submit:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 14px 34px -10px rgba(233,199,102,.6), inset 0 1px 0 rgba(255,255,255,.5);filter:brightness(1.04)}
+    .submit:active:not(:disabled){transform:translateY(0) scale(.992)}
     .submit:focus-visible{outline:2px solid var(--gold-bright);outline-offset:3px}
-    .submit:disabled{cursor:wait;opacity:.85}
+    .submit:disabled{cursor:wait;opacity:.9}
     .submit .t{transition:opacity .2s ease}
     .submit.loading .t{opacity:0}
     .spin{position:absolute;top:50%;left:50%;width:18px;height:18px;margin:-9px 0 0 -9px;opacity:0;
-      border:2px solid rgba(26,19,4,.3);border-top-color:#1a1304;border-radius:50%;animation:rot .7s linear infinite}
+      border:2px solid rgba(28,21,3,.3);border-top-color:#1c1503;border-radius:50%;animation:rot .7s linear infinite}
     .submit.loading .spin{opacity:1}
     @keyframes rot{to{transform:rotate(360deg)}}
 
-    /* ── Secondary actions: quiet, Apple-style text links ── */
-    .alt{margin-top:26px;text-align:center}
-    .alt a{color:var(--text-2);text-decoration:none;font-family:var(--sans);font-size:12.5px;font-weight:400;
-      letter-spacing:.2px;transition:color .3s var(--ease)}
+    /* ── Secondary ── */
+    .alt{margin-top:24px;text-align:center}
+    .alt a{color:var(--text-2);text-decoration:none;font-family:var(--sans);font-size:12.5px;font-weight:400;letter-spacing:.2px;transition:color .3s var(--ease)}
     .alt a:hover{color:var(--gold)}
-    .alt a:focus-visible{outline:1px solid var(--line);outline-offset:3px}
-    .alt .dot{color:var(--text-4);margin:0 10px}
+    .alt a:focus-visible{outline:1px solid var(--line);outline-offset:3px;border-radius:4px}
+    .alt .dot{color:var(--text-4);margin:0 9px}
 
-    .foot{margin-top:30px;padding-top:22px;border-top:1px solid var(--line-2);text-align:center}
+    .foot{margin-top:26px;padding-top:20px;border-top:1px solid var(--line-2);text-align:center}
     .badge{display:inline-flex;align-items:center;gap:7px;font-family:var(--sans);
-      font-size:10px;font-weight:500;letter-spacing:1.4px;text-transform:uppercase;color:var(--text-4)}
-    .badge svg{color:var(--green);opacity:.7}
+      font-size:10px;font-weight:500;letter-spacing:1.3px;text-transform:uppercase;color:var(--text-4)}
+    .badge svg{color:var(--green);opacity:.75}
 
-    @media (max-width:420px){
+    @media (max-width:430px){
       .back{left:18px}
-      .wordmark{font-size:27px;letter-spacing:11px;margin-left:11px}
+      .card{padding:36px 26px 30px;border-radius:24px}
     }
     @media (prefers-reduced-motion:reduce){
       *,*::before,*::after{animation:none!important;transition-duration:.01ms!important}
@@ -258,57 +267,33 @@
   </style>
 </head>
 <body>
-  <div class="aura" aria-hidden="true"></div>
-
-  <!-- Roman triumphal arch — whisper-quiet line-art watermark (Empire × tech) -->
-  <svg class="arch" viewBox="0 0 560 440" fill="none" stroke="currentColor" stroke-width="1.1" aria-hidden="true">
-    <!-- ground -->
-    <line x1="40" y1="416" x2="520" y2="416"/>
-    <line x1="60" y1="404" x2="500" y2="404" stroke-opacity=".5"/>
-    <!-- stepped plinths -->
-    <rect x="92" y="372" width="92" height="32"/><rect x="376" y="372" width="92" height="32"/>
-    <!-- piers -->
-    <rect x="104" y="150" width="68" height="222"/><rect x="388" y="150" width="68" height="222"/>
-    <!-- engaged columns -->
-    <line x1="138" y1="172" x2="138" y2="372" stroke-opacity=".55"/><line x1="422" y1="172" x2="422" y2="372" stroke-opacity=".55"/>
-    <!-- central arch opening -->
-    <path d="M172 372 V250 a108 108 0 0 1 216 0 V372"/>
-    <!-- keystone -->
-    <path d="M268 142 h24 l8 22 h-40 z"/>
-    <!-- entablature -->
-    <rect x="92" y="120" width="376" height="30"/>
-    <line x1="92" y1="134" x2="468" y2="134" stroke-opacity=".4"/>
-    <!-- attic -->
-    <rect x="120" y="78" width="320" height="42"/>
-    <!-- inscription line (tech nuance: fine ticks) -->
-    <line x1="150" y1="99" x2="410" y2="99" stroke-opacity=".35" stroke-dasharray="2 7"/>
-    <!-- cornice -->
-    <line x1="108" y1="78" x2="452" y2="78"/>
-  </svg>
-
+  <div class="bg" aria-hidden="true">
+    <div class="bloom b-gold"></div>
+    <div class="bloom b-amber"></div>
+    <div class="bloom b-cool"></div>
+  </div>
+  <div class="spot" aria-hidden="true"></div>
   <div class="vignette" aria-hidden="true"></div>
   <div class="grain" aria-hidden="true"></div>
 
   <a href="/" class="back">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
     <span>Home</span>
   </a>
 
-  <main class="card">
+  <main class="card" id="card">
     <div class="head">
-      <svg class="mark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="BOOM Rome">
-        <defs><linearGradient id="g" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#E8CF8C"/><stop offset="100%" stop-color="#A8842F"/></linearGradient></defs>
-        <g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#g)">
-          <path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z m610 -144 c743 -103 1436 -459 1919 -985 338 -367 562 -751 704 -1205 276 -879 132 -1858 -388 -2640 -242 -364 -493 -615 -900 -900 l-70 -49 109 104 c413 396 679 919 767 1505 33 217 33 558 0 765 -75 476 -257 896 -549 1265 -127 161 -363 380 -549 511 -300 211 -689 363 -1079 420 -172 26 -604 26 -764 0 -296 -47 -545 -128 -808 -262 -236 -122 -440 -271 -632 -464 -486 -485 -749 -1121 -751 -1815 -1 -611 170 -1148 515 -1608 100 -134 286 -335 382 -413 33 -27 -8 -2 -91 55 -513 351 -904 805 -1143 1331 -71 156 -136 336 -168 465 -9 33 -19 76 -24 95 -5 19 -20 100 -34 180 -59 343 -60 740 0 1070 81 456 229 826 479 1200 246 368 558 669 949 917 386 245 881 418 1321 462 61 6 124 13 140 15 73 10 556 -4 665 -19z m-60 -1329 c105 -16 258 -49 335 -72 82 -26 197 -66 240 -84 149 -65 190 -84 266 -126 677 -379 1129 -1049 1246 -1849 27 -182 24 -517 -5 -695 -75 -458 -225 -813 -500 -1179 -116 -154 -340 -369 -527 -506 -44 -32 -87 -63 -95 -69 -8 -6 35 39 96 99 178 177 283 321 397 550 161 322 231 676 205 1045 -32 467 -223 902 -542 1237 -239 251 -521 426 -873 542 -79 26 -273 67 -383 81 -108 13 -349 13 -465 0 -276 -32 -597 -145 -834 -293 -224 -140 -466 -378 -613 -602 -307 -470 -407 -1055 -273 -1599 80 -327 217 -589 454 -871 71 -84 73 -88 31 -56 -293 225 -547 535 -718 877 -34 68 -65 143 -122 294 -42 112 -101 383 -120 555 -14 127 -14 401 0 534 51 482 223 912 516 1288 269 344 654 620 1085 778 160 59 400 115 574 134 121 13 508 5 625 -13z m-30 -1165 c401 -81 721 -242 992 -499 643 -612 769 -1607 300 -2367 -118 -190 -291 -386 -463 -524 -137 -111 -148 -113 -49 -12 110 112 206 248 275 386 67 137 98 222 132 367 24 103 26 132 27 323 0 182 -3 224 -22 310 -47 211 -126 394 -245 569 -126 186 -358 387 -564 490 -384 191 -823 225 -1218 95 -482 -160 -854 -541 -1004 -1029 -117 -379 -81 -810 96 -1165 37 -72 130 -215 166 -252 17 -18 26 -33 20 -33 -6 0 -61 52 -121 116 -259 272 -424 575 -511 934 -111 459 -18 1006 245 1430 298 483 791 797 1379 880 110 16 448 4 565 -19z m-239 -911 c360 -28 680 -171 925 -415 194 -193 317 -415 382 -688 24 -102 26 -130 26 -312 0 -191 -1 -205 -30 -320 -53 -205 -132 -372 -251 -535 -58 -79 -263 -288 -323 -330 -31 -22 -29 -18 18 35 195 220 312 519 312 795 0 325 -121 614 -350 841 -369 364 -926 453 -1385 222 -336 -170 -578 -499 -636 -865 -19 -126 -7 -371 25 -490 44 -162 97 -284 173 -398 9 -14 -4 -5 -30 20 -26 24 -45 51 -42 58 2 7 1 11 -4 7 -11 -6 -58 51 -118 140 -109 163 -183 347 -219 545 -23 127 -23 351 -1 489 55 335 248 677 492 871 261 208 530 311 881 338 11 1 81 -3 155 -8z m29 -714 c459 -74 823 -428 895 -869 58 -358 -60 -696 -345 -987 l-34 -35 22 35 c115 182 179 403 168 575 -14 235 -104 433 -268 591 -137 134 -287 209 -472 239 -115 19 -187 19 -303 0 -337 -55 -612 -302 -704 -635 -32 -113 -34 -325 -5 -440 23 -92 70 -213 98 -254 l21 -31 -31 29 c-39 36 -120 152 -155 221 -35 71 -81 215 -102 319 -25 130 -17 357 17 476 102 354 357 618 706 730 152 49 331 62 492 36z m-73 -567 c178 -24 327 -101 454 -236 137 -143 199 -303 201 -513 1 -162 -42 -309 -135 -453 -52 -82 -73 -97 -38 -28 51 99 67 290 36 412 -57 219 -251 413 -466 464 -75 17 -236 20 -311 4 -213 -44 -422 -247 -473 -460 -31 -133 -13 -325 41 -431 35 -70 8 -47 -52 43 -58 88 -90 167 -114 286 -25 121 -25 220 -1 331 33 146 84 243 186 351 171 183 413 266 672 230z m15 -470 c80 -17 186 -76 248 -139 106 -107 158 -248 147 -398 -6 -92 -25 -152 -79 -250 -45 -82 -60 -91 -27 -17 18 41 21 62 17 149 -4 89 -8 108 -35 162 -43 82 -126 165 -209 205 -58 29 -80 34 -158 37 -112 5 -184 -12 -259 -62 -182 -121 -251 -323 -171 -506 l24 -55 -25 30 c-36 44 -92 162 -104 223 -39 189 14 369 146 492 105 99 204 139 345 139 48 1 111 -4 140 -10z"/>
-        </g>
-      </svg>
-      <h1 class="wordmark">BOOM</h1>
-      <div class="rule"><span class="ln"></span><span class="lozenge"></span><span>Roma · Aeterna</span><span class="lozenge"></span><span class="ln r"></span></div>
-    </div>
-
-    <div class="intro">
-      <h1>Sign in</h1>
-      <p>Tenants, landlords &amp; administrators</p>
+      <div class="appicon">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="BOOM Rome">
+          <defs><linearGradient id="g" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#FBE9A8"/><stop offset="100%" stop-color="#B58A2E"/></linearGradient></defs>
+          <g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#g)">
+            <path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z m610 -144 c743 -103 1436 -459 1919 -985 338 -367 562 -751 704 -1205 276 -879 132 -1858 -388 -2640 -242 -364 -493 -615 -900 -900 l-70 -49 109 104 c413 396 679 919 767 1505 33 217 33 558 0 765 -75 476 -257 896 -549 1265 -127 161 -363 380 -549 511 -300 211 -689 363 -1079 420 -172 26 -604 26 -764 0 -296 -47 -545 -128 -808 -262 -236 -122 -440 -271 -632 -464 -486 -485 -749 -1121 -751 -1815 -1 -611 170 -1148 515 -1608 100 -134 286 -335 382 -413 33 -27 -8 -2 -91 55 -513 351 -904 805 -1143 1331 -71 156 -136 336 -168 465 -9 33 -19 76 -24 95 -5 19 -20 100 -34 180 -59 343 -60 740 0 1070 81 456 229 826 479 1200 246 368 558 669 949 917 386 245 881 418 1321 462 61 6 124 13 140 15 73 10 556 -4 665 -19z m-60 -1329 c105 -16 258 -49 335 -72 82 -26 197 -66 240 -84 149 -65 190 -84 266 -126 677 -379 1129 -1049 1246 -1849 27 -182 24 -517 -5 -695 -75 -458 -225 -813 -500 -1179 -116 -154 -340 -369 -527 -506 -44 -32 -87 -63 -95 -69 -8 -6 35 39 96 99 178 177 283 321 397 550 161 322 231 676 205 1045 -32 467 -223 902 -542 1237 -239 251 -521 426 -873 542 -79 26 -273 67 -383 81 -108 13 -349 13 -465 0 -276 -32 -597 -145 -834 -293 -224 -140 -466 -378 -613 -602 -307 -470 -407 -1055 -273 -1599 80 -327 217 -589 454 -871 71 -84 73 -88 31 -56 -293 225 -547 535 -718 877 -34 68 -65 143 -122 294 -42 112 -101 383 -120 555 -14 127 -14 401 0 534 51 482 223 912 516 1288 269 344 654 620 1085 778 160 59 400 115 574 134 121 13 508 5 625 -13z m-30 -1165 c401 -81 721 -242 992 -499 643 -612 769 -1607 300 -2367 -118 -190 -291 -386 -463 -524 -137 -111 -148 -113 -49 -12 110 112 206 248 275 386 67 137 98 222 132 367 24 103 26 132 27 323 0 182 -3 224 -22 310 -47 211 -126 394 -245 569 -126 186 -358 387 -564 490 -384 191 -823 225 -1218 95 -482 -160 -854 -541 -1004 -1029 -117 -379 -81 -810 96 -1165 37 -72 130 -215 166 -252 17 -18 26 -33 20 -33 -6 0 -61 52 -121 116 -259 272 -424 575 -511 934 -111 459 -18 1006 245 1430 298 483 791 797 1379 880 110 16 448 4 565 -19z m-239 -911 c360 -28 680 -171 925 -415 194 -193 317 -415 382 -688 24 -102 26 -130 26 -312 0 -191 -1 -205 -30 -320 -53 -205 -132 -372 -251 -535 -58 -79 -263 -288 -323 -330 -31 -22 -29 -18 18 35 195 220 312 519 312 795 0 325 -121 614 -350 841 -369 364 -926 453 -1385 222 -336 -170 -578 -499 -636 -865 -19 -126 -7 -371 25 -490 44 -162 97 -284 173 -398 9 -14 -4 -5 -30 20 -26 24 -45 51 -42 58 2 7 1 11 -4 7 -11 -6 -58 51 -118 140 -109 163 -183 347 -219 545 -23 127 -23 351 -1 489 55 335 248 677 492 871 261 208 530 311 881 338 11 1 81 -3 155 -8z m29 -714 c459 -74 823 -428 895 -869 58 -358 -60 -696 -345 -987 l-34 -35 22 35 c115 182 179 403 168 575 -14 235 -104 433 -268 591 -137 134 -287 209 -472 239 -115 19 -187 19 -303 0 -337 -55 -612 -302 -704 -635 -32 -113 -34 -325 -5 -440 23 -92 70 -213 98 -254 l21 -31 -31 29 c-39 36 -120 152 -155 221 -35 71 -81 215 -102 319 -25 130 -17 357 17 476 102 354 357 618 706 730 152 49 331 62 492 36z m-73 -567 c178 -24 327 -101 454 -236 137 -143 199 -303 201 -513 1 -162 -42 -309 -135 -453 -52 -82 -73 -97 -38 -28 51 99 67 290 36 412 -57 219 -251 413 -466 464 -75 17 -236 20 -311 4 -213 -44 -422 -247 -473 -460 -31 -133 -13 -325 41 -431 35 -70 8 -47 -52 43 -58 88 -90 167 -114 286 -25 121 -25 220 -1 331 33 146 84 243 186 351 171 183 413 266 672 230z m15 -470 c80 -17 186 -76 248 -139 106 -107 158 -248 147 -398 -6 -92 -25 -152 -79 -250 -45 -82 -60 -91 -27 -17 18 41 21 62 17 149 -4 89 -8 108 -35 162 -43 82 -126 165 -209 205 -58 29 -80 34 -158 37 -112 5 -184 -12 -259 -62 -182 -121 -251 -323 -171 -506 l24 -55 -25 30 c-36 44 -92 162 -104 223 -39 189 14 369 146 492 105 99 204 139 345 139 48 1 111 -4 140 -10z"/>
+          </g>
+        </svg>
+      </div>
+      <div class="wordmark">BOOM</div>
+      <h1 class="h1">Welcome back</h1>
+      <p class="sub">Sign in to your account</p>
     </div>
 
     <div class="msg" id="message" role="alert" aria-live="assertive"></div>
@@ -349,6 +334,18 @@
   </main>
 
   <script>
+    // Pointer-follow sheen on the glass card (desktop, motion-on only)
+    (function(){
+      if(window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      if(window.matchMedia('(hover: none)').matches) return;
+      const card=document.getElementById('card'); if(!card) return;
+      card.addEventListener('pointermove',(e)=>{
+        const r=card.getBoundingClientRect();
+        card.style.setProperty('--mx', ((e.clientX-r.left)/r.width*100)+'%');
+        card.style.setProperty('--my', ((e.clientY-r.top)/r.height*100)+'%');
+      },{passive:true});
+    })();
+
     document.addEventListener('DOMContentLoaded',()=>{
       firebase.initializeApp({
         apiKey:"AIzaSyDDb8UeSc8RhO_VxQrhLrupu1aPD4rwRso",
