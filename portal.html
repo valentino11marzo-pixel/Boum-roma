@@ -1149,6 +1149,7 @@
     </div>
     <div id="magicSign" class="hidden" style="min-height:100vh;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:20px"></div>
     <div id="intakeForm" class="hidden" style="min-height:100vh;background:#08080A;display:flex;align-items:center;justify-content:center;padding:20px;font-family:'Helvetica Neue','Helvetica',-apple-system,BlinkMacSystemFont,sans-serif;font-weight:300;color:#fff;-webkit-font-smoothing:antialiased;flex-direction:column"></div>
+    <div id="pfsPortal" class="hidden" style="min-height:100vh;background:#08080A;display:flex;align-items:flex-start;justify-content:center;padding:24px 16px 56px;font-family:'Helvetica Neue','Helvetica',-apple-system,BlinkMacSystemFont,sans-serif;font-weight:300;color:#fff;-webkit-font-smoothing:antialiased"></div>
     <div class="app" id="app">
         <header class="header">
             <div class="header-left">
@@ -2092,6 +2093,7 @@ Valentyne - BOOM Rome`
     // ═══════════════════════════════════════════════════════════════════════
     let isMagicSign = false;
     let isPostSign = false;
+    let isPfsPortal = false;
 
     // Welcome banner — shown after a successful magic-link sign-in (?welcome=1&cid=...)
     document.addEventListener('DOMContentLoaded', function() {
@@ -3241,6 +3243,164 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             _ifRender();
         })();
     }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // ★ PFS CLIENT PORTAL — passwordless dashboard for paid Property-Finding clients
+    //   URL ?pfs=TOKEN  →  pfsClients where portal_token == TOKEN (written by
+    //   api/stripe-webhook.js on checkout.session.completed). Read-only client view:
+    //   journey timeline · next step · curated shortlist · search brief · contact.
+    // ═══════════════════════════════════════════════════════════════════════
+    const pfsPortalToken = new URLSearchParams(window.location.search).get('pfs');
+    if (pfsPortalToken) {
+        isPfsPortal = true;
+        (async function initPfsPortal() {
+            const elc = document.getElementById('pfsPortal');
+            const esc = function(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(ch){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch];}); };
+            const pick = function(){ for (var i=0;i<arguments.length;i++){ var v=arguments[i]; if (v!==undefined&&v!==null&&String(v).trim()!=='') return v; } return ''; };
+            const email = (typeof COMPANY!=='undefined' && COMPANY.email) ? COMPANY.email : 'valentino@boom-rome.com';
+            const wa = '393313251961';
+            const showShell = function(inner){
+                document.getElementById('loading').classList.add('hidden');
+                elc.classList.remove('hidden'); elc.style.display = 'flex';
+                elc.innerHTML = inner;
+            };
+            const errBox = function(icon, title, msg){
+                showShell('<div style="max-width:420px;margin:8vh auto 0;text-align:center"><div style="font-size:44px;margin-bottom:14px">'+icon+'</div><div style="font-size:22px;font-weight:300;margin-bottom:8px">'+title+'</div><p style="color:#8a8a8a;font-size:14px;line-height:1.6">'+msg+'</p><a href="mailto:'+esc(email)+'" style="display:inline-block;margin-top:18px;color:#D4AF37;font-size:13px;text-decoration:none">'+esc(email)+'</a></div>');
+            };
+            try {
+                try { await auth.signInAnonymously(); } catch (e) { console.warn('[pfs] anon auth', e); }
+                const snap = await db.collection('pfsClients').where('portal_token','==',pfsPortalToken).limit(1).get();
+                if (snap.empty) {
+                    errBox('🔗', 'Link not valid', 'This dashboard link is invalid or has expired. Please use the link from your welcome email, or get in touch and we will send a fresh one.');
+                    return;
+                }
+                const c = Object.assign({ id: snap.docs[0].id }, snap.docs[0].data());
+                try { window.history.replaceState({}, '', window.location.pathname); } catch (e) {}
+                renderPfs(c);
+            } catch (e) {
+                console.error('[pfs] load failed', e);
+                errBox('⚠️', 'Something went wrong', 'We could not load your dashboard right now. Please try again in a moment, or contact us directly.');
+            }
+
+            function renderPfs(c) {
+                var firstName = (pick(c.name).split(' ')[0]) || 'there';
+                var stage = pick(c.stage) || 'payment_confirmed';
+                var service = pick(c.service) || 'PFS';
+                var serviceName = ({ PFS:'Property Finding Service', DAS:'Deal Assistance', VV:'Virtual Viewing', RELOCATION:'Full Relocation' })[service] || 'Property Finding Service';
+
+                var STEPS = [
+                    { t:'Payment confirmed', d:'Your service is active' },
+                    { t:'Onboarding',        d:'We capture your exact needs' },
+                    { t:'Curated shortlist', d:'Hand-picked options for you' },
+                    { t:'Viewings',          d:'Booked & attended with you' },
+                    { t:'Negotiation',       d:'We secure the best terms' },
+                    { t:'Contract & keys',   d:'Signed, registered, move in' }
+                ];
+                var IDX = { payment_confirmed:1, lead:1, qualified:1, onboarded:1, searching:2, sent:2, viewing:3, negotiating:4, closing:5, placed:6 };
+                var active = (IDX[stage] != null) ? IDX[stage] : 1;
+
+                var NEXT = {
+                    payment_confirmed: 'Payment received — welcome aboard. Your BOOM specialist will reach out within 24 hours to capture your exact needs.',
+                    lead:        'We are reviewing your profile and will be in touch very shortly.',
+                    qualified:   'We are finalising your search brief — your first options are on the way.',
+                    onboarded:   'We are building your personalised search. Your first curated options are coming soon.',
+                    searching:   'We are actively searching Immobiliare, Idealista and our private landlord network for your match.',
+                    sent:        'Your curated shortlist is ready below — tell us which ones you would like to view.',
+                    viewing:     'Viewings are being scheduled. We attend each one with you, in person or by video.',
+                    negotiating: 'We are negotiating the best possible terms with the landlord on your behalf.',
+                    closing:     'Your lease is being prepared and registered. Almost home.',
+                    placed:      '🎉 You are placed — welcome to your new home in Rome!'
+                };
+                var nextMsg = pick(c.next_step) || NEXT[stage] || NEXT.payment_confirmed;
+
+                var timeline = STEPS.map(function(s, i){
+                    var done = i < active, cur = i === active;
+                    var bg = done ? '#D4AF37' : 'rgba(255,255,255,0.05)';
+                    var ring = cur ? '2px solid #D4AF37' : '2px solid transparent';
+                    var icon = done ? '<span style="color:#0a0a0a;font-size:12px">✓</span>' : (cur ? '<span style="width:7px;height:7px;border-radius:50%;background:#D4AF37;display:block"></span>' : '');
+                    var tc = (done||cur) ? '#fff' : '#6a6a6a';
+                    var sc = (done||cur) ? '#9a9a9a' : '#5a5a5a';
+                    var last = i === STEPS.length - 1;
+                    return '<div style="display:flex;gap:14px;align-items:flex-start;position:relative;padding-bottom:'+(last?'0':'18px')+'">'
+                        + (last ? '' : '<div style="position:absolute;left:13px;top:26px;bottom:0;width:2px;background:'+(done?'#D4AF37':'rgba(255,255,255,0.07)')+'"></div>')
+                        + '<div style="width:28px;height:28px;border-radius:50%;background:'+bg+';border:'+ring+';flex:none;display:flex;align-items:center;justify-content:center;z-index:1">'+icon+'</div>'
+                        + '<div style="padding-top:3px"><div style="font-size:14px;color:'+tc+'">'+esc(s.t)+(cur?' <span style="color:#D4AF37;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;margin-left:6px">Now</span>':'')+'</div>'
+                        + '<div style="font-size:12px;color:'+sc+';margin-top:2px">'+esc(s.d)+'</div></div>'
+                    + '</div>';
+                }).join('');
+
+                var brief = [
+                    ['Move-in',         pick(c.move_in_date, c.moveIn, c.arrival)],
+                    ['Budget',          pick(c.budget)],
+                    ['Bedrooms',        pick(c.bedrooms, c.rooms)],
+                    ['Preferred areas', pick(c.preferred_areas, c.zone)],
+                    ['Must-haves',      pick(c.must_haves, c.musthaves)],
+                    ['Notes',           pick(c.additional_info, c.notes)]
+                ].filter(function(r){ return r[1]; }).map(function(r){
+                    return '<div style="display:flex;justify-content:space-between;gap:16px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,0.05)"><div style="font-size:12px;color:#8a8a8a;flex:none">'+esc(r[0])+'</div><div style="font-size:13px;color:#e6e6e6;text-align:right">'+esc(r[1])+'</div></div>';
+                }).join('');
+
+                var sl = Array.isArray(c.shortlist) ? c.shortlist : [];
+                var shortlistHtml;
+                if (sl.length) {
+                    shortlistHtml = sl.map(function(it){
+                        if (!it || typeof it !== 'object') return '';
+                        var title = pick(it.name, it.title, 'Property');
+                        var area = pick(it.area, it.zone, it.neighborhood);
+                        var rent = pick(it.rent, it.price);
+                        var beds = pick(it.bedrooms, it.rooms);
+                        var img = pick(it.image, it.photo, it.img);
+                        var link = pick(it.link, it.url);
+                        var note = pick(it.note, it.notes);
+                        var status = pick(it.status);
+                        var meta = [area, beds ? (beds + ' bed') : ''].filter(function(x){ return x; }).join(' · ');
+                        var rentStr = rent ? (String(rent).indexOf('€') > -1 ? String(rent) : '€' + rent) : '';
+                        return '<div style="display:flex;gap:13px;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:12px;margin-bottom:10px">'
+                            + (img ? '<img src="'+esc(img)+'" alt="" loading="lazy" style="width:84px;height:84px;border-radius:10px;flex:none;object-fit:cover;background:#1a1a1a">' : '')
+                            + '<div style="flex:1;min-width:0">'
+                                + '<div style="display:flex;justify-content:space-between;gap:8px"><span style="font-size:14px;color:#fff">'+esc(title)+'</span>'+(rentStr?'<span style="font-size:14px;color:#D4AF37;flex:none">'+esc(rentStr)+'</span>':'')+'</div>'
+                                + (meta ? '<div style="font-size:12px;color:#9a9a9a;margin-top:3px">'+esc(meta)+'</div>' : '')
+                                + (note ? '<div style="font-size:12px;color:#c9c9c9;margin-top:6px;line-height:1.5">'+esc(note)+'</div>' : '')
+                                + (status ? '<span style="display:inline-block;margin-top:8px;font-size:9px;letter-spacing:1px;text-transform:uppercase;color:#D4AF37;border:1px solid rgba(212,175,55,0.4);border-radius:20px;padding:2px 9px">'+esc(status)+'</span>' : '')
+                                + (link ? '<div style="margin-top:8px"><a href="'+esc(link)+'" target="_blank" rel="noopener" style="font-size:12px;color:#D4AF37;text-decoration:none">View details →</a></div>' : '')
+                            + '</div></div>';
+                    }).join('');
+                } else {
+                    var ph = active >= 2
+                        ? 'We are hand-picking properties that match your brief. Your shortlist will appear here as soon as it is ready.'
+                        : 'Your curated shortlist will appear here once we have captured your needs and started the search.';
+                    shortlistHtml = '<div style="text-align:center;padding:26px 16px;color:#8a8a8a;font-size:13px;line-height:1.6;border:1px dashed rgba(255,255,255,0.12);border-radius:14px">🔍<br><span style="display:inline-block;margin-top:8px">'+ph+'</span></div>';
+                }
+
+                var waMsg = encodeURIComponent('Hi BOOM, this is ' + pick(c.name, 'a PFS client') + ' — I have a question about my apartment search.');
+                var card = 'background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.07);border-radius:18px;padding:22px;margin-bottom:16px';
+                var label = 'font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#8a8a8a';
+
+                var html = '<div style="width:100%;max-width:560px">'
+                    + '<div style="text-align:center;margin-bottom:26px">'
+                        + '<div style="font-size:18px;letter-spacing:6px;color:#fff">BOOM</div>'
+                        + '<div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#D4AF37;margin-top:5px">'+esc(serviceName)+'</div>'
+                    + '</div>'
+                    + '<div style="'+card+'">'
+                        + '<div style="font-size:24px;font-weight:300;color:#fff">Welcome back, '+esc(firstName)+'.</div>'
+                        + '<div style="font-size:13px;color:#9a9a9a;margin-top:8px;line-height:1.6">'+esc(nextMsg)+'</div>'
+                        + (active >= 6 ? '' : '<div style="margin-top:16px"><a href="https://wa.me/'+wa+'?text='+waMsg+'" target="_blank" rel="noopener" style="display:inline-block;background:#D4AF37;color:#0a0a0a;font-size:13px;font-weight:400;padding:10px 18px;border-radius:30px;text-decoration:none">💬 Message your specialist</a></div>')
+                    + '</div>'
+                    + '<div style="'+card+'"><div style="'+label+';margin-bottom:18px">Your journey</div>'+timeline+'</div>'
+                    + '<div style="'+card+'"><div style="'+label+';margin-bottom:16px">Your shortlist</div>'+shortlistHtml+'</div>'
+                    + (brief ? ('<div style="'+card+'"><div style="'+label+';margin-bottom:8px">Your search brief</div>'+brief+'<div style="font-size:11px;color:#6a6a6a;margin-top:12px">Something changed? <a href="https://wa.me/'+wa+'" target="_blank" rel="noopener" style="color:#D4AF37;text-decoration:none">Tell us</a> and we will update your search.</div></div>') : '')
+                    + '<div style="text-align:center;padding:6px 0 0">'
+                        + '<div style="font-size:12px;color:#8a8a8a;margin-bottom:11px">Your BOOM team is here for you</div>'
+                        + '<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">'
+                            + '<a href="https://wa.me/'+wa+'" target="_blank" rel="noopener" style="font-size:13px;color:#fff;border:1px solid rgba(255,255,255,0.14);border-radius:30px;padding:9px 18px;text-decoration:none">WhatsApp</a>'
+                            + '<a href="mailto:'+esc(email)+'" style="font-size:13px;color:#fff;border:1px solid rgba(255,255,255,0.14);border-radius:30px;padding:9px 18px;text-decoration:none">Email</a>'
+                        + '</div>'
+                    + '</div>'
+                + '</div>';
+                showShell(html);
+            }
+        })();
+    }
     
     // ── Helpers ──
     function _ifSync() {
@@ -3477,7 +3637,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     
     // Auth timeout - reduced for better UX
     let authTimeout = setTimeout(() => {
-        if (!authProcessed && !isMagicSign && !isIntakeForm && !isPostSign) {
+        if (!authProcessed && !isMagicSign && !isIntakeForm && !isPostSign && !isPfsPortal) {
             console.log('Auth timeout - no response');
             hideLoading();
             showAuth();
@@ -3485,7 +3645,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }, isSafari ? 12000 : 8000);
     
     auth.onAuthStateChanged(async u => {
-        if (isMagicSign || isIntakeForm) return;
+        if (isMagicSign || isIntakeForm || isPfsPortal) return;
         if (isPostSign) return; // postSign boot handler handles its own auth
         if (authProcessed && u) return;
         
@@ -20732,6 +20892,20 @@ IBAN: ${l.iban || '-'}`;
         }
     }
 
+    // Passwordless client dashboard link (read by portal.html?pfs=TOKEN).
+    // Token is written by api/stripe-webhook.js on a paid PFS checkout.
+    function copyPfsDashboardLink(id) {
+        const c = (S.pfsClients || []).find(x => x.id === id);
+        if (!c || !c.portal_token) { toast('error', 'Nessun token dashboard per questo cliente (creato al pagamento Stripe)'); return; }
+        const link = 'https://www.boomrome.com/portal.html?pfs=' + c.portal_token;
+        const done = () => toast('success', '🔗 Link dashboard cliente copiato');
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(link).then(done).catch(() => window.prompt('Copia il link dashboard del cliente:', link));
+        } else {
+            window.prompt('Copia il link dashboard del cliente:', link);
+        }
+    }
+
     function openPFSClientDetail(id) {
         const c = (S.pfsClients || []).find(x => x.id === id);
         if (!c) return;
@@ -20796,6 +20970,7 @@ IBAN: ${l.iban || '-'}`;
                                     <div class="info-box-row"><span class="info-box-label">Phone</span><span class="info-box-value">${esc(c.phone) || '-'}</span></div>
                                     <div class="info-box-row"><span class="info-box-label">Email</span><span class="info-box-value">${esc(c.email) || '-'}</span></div>
                                     <div class="info-box-row"><span class="info-box-label">Last Contact</span><span class="info-box-value" style="color:${daysSinceContact >= 3 ? 'var(--orange)' : 'inherit'}">${daysSinceContact !== null ? daysSinceContact + ' days ago' : 'Never contacted'}</span></div>
+                                    ${c.portal_token ? `<div class="info-box-row"><span class="info-box-label">Dashboard</span><span class="info-box-value"><button class="btn btn-xs btn-secondary" onclick="copyPfsDashboardLink('${id}')">🔗 Copy client link</button></span></div>` : ''}
                                 </div>
 
                                 <!-- Search Criteria -->

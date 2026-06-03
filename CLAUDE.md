@@ -110,6 +110,9 @@ Generates `.pkpass` files. Body: `{ passType, fields }` where passType is `viewi
 ### POST `/api/parse-docs`
 Proxies to Anthropic Claude API for document extraction. Accepts up to 20MB payload.
 
+### POST `/api/concierge`
+**Public**, tenant-facing 24/7 AI concierge. Proxies to Anthropic Messages API (Haiku, raw fetch — like parse-docs). Model + system prompt (BOOM services/prices/process/neighborhoods/blog links) are pinned server-side and prompt-cached; bilingual IT/EN. No bearer — hardened with per-IP rate limiting (25/5min), CORS to boomrome.com, and strict `messages[]` validation. Body: `{ messages: [{role,content}] }` → `{ reply }`. Driven by the floating widget `js/boom-concierge.js` (self-injecting, included on the main public pages; skips portal/sign/pfs flows).
+
 ### GET `/api/reminder-cron`
 Triggered by Vercel cron every 15 min. Authenticates with Firebase, queries pending reminders, sends emails via Nodemailer.
 
@@ -134,5 +137,7 @@ Webhook for Homie's proposed actions (reply draft, schedule viewing, qualify, ar
 **Add a new apartment page**: Copy an existing `apartment_*.html`, update content and Firestore document ID.
 
 **Add a new API endpoint**: Create a file in `/api/`, export a default handler `(req, res) => {}`. It auto-deploys as a serverless function.
+
+**PFS client dashboard**: `portal.html?pfs=TOKEN` is a passwordless, read-only client view for paid Property-Finding clients (token = `pfsClients/{id}.portal_token`, written by `stripe-webhook.js`). It renders a journey timeline (mapped from `stage`), the client's intake brief, an optional curated `shortlist` array + `next_step` string (admin-managed), and contact CTAs — mirroring the `?sign=` Magic Sign boot pattern. Admins copy a client's link via the 🔗 button in `openPFSClientDetail`.
 
 **Modify pass design**: Edit pass type config in `/api/generate-pass.js`. Assets in `/pass-assets/[type]/`.
