@@ -56,7 +56,7 @@ export default async function handler(req, res) {
         move_in_date: clip(move_in_date),
         amount_eur: String(eur),
       },
-      success_url: 'https://www.boomrome.com/thank-you.html?reserved=1&session_id={CHECKOUT_SESSION_ID}',
+      success_url: 'https://www.boomrome.com/thank-you.html?reserved=1&amt=' + eur + '&session_id={CHECKOUT_SESSION_ID}',
       cancel_url: 'https://www.boomrome.com/apartment-detail?id=' + encodeURIComponent(clip(listingId)),
     });
 
