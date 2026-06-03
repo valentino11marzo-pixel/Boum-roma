@@ -111,7 +111,7 @@ Generates `.pkpass` files. Body: `{ passType, fields }` where passType is `viewi
 Proxies to Anthropic Claude API for document extraction. Accepts up to 20MB payload.
 
 ### POST `/api/concierge`
-**Public**, tenant-facing 24/7 AI concierge. Proxies to Anthropic Messages API (Haiku, raw fetch — like parse-docs). Model + system prompt (BOOM services/prices/process/neighborhoods/blog links) are pinned server-side and prompt-cached; bilingual IT/EN. No bearer — hardened with per-IP rate limiting (25/5min), CORS to boomrome.com, and strict `messages[]` validation. Body: `{ messages: [{role,content}] }` → `{ reply }`. Driven by the floating widget `js/boom-concierge.js` (self-injecting, included on the main public pages; skips portal/sign/pfs flows).
+**Public**, tenant-facing 24/7 AI concierge. Proxies to Anthropic Messages API (Haiku, raw fetch — like parse-docs). Model + system prompt (BOOM services/prices/process/neighborhoods/blog links) are pinned server-side and prompt-cached; a live snapshot of available `listings` (public Firestore read, 5-min cached) is appended as a second, non-cached system block so the bot recommends real apartments with links; bilingual IT/EN. No bearer — hardened with per-IP rate limiting (25/5min), CORS to boomrome.com, and strict `messages[]` validation. Body: `{ messages: [{role,content}] }` → `{ reply }`. Driven by the floating widget `js/boom-concierge.js` (self-injecting, included on the main public pages; skips portal/sign/pfs flows).
 
 ### GET `/api/reminder-cron`
 Triggered by Vercel cron every 15 min. Authenticates with Firebase, queries pending reminders, sends emails via Nodemailer.

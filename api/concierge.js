@@ -36,6 +36,13 @@ const MAX_TOKENS = 700;
 const RATE_LIMIT_MAX = 25;
 const RATE_LIMIT_WINDOW_MS = 5 * 60_000;
 
+// Live listings snapshot (public Firestore read, same source as sitemap-listings.js).
+const FB_PROJECT = process.env.FIREBASE_PROJECT_ID || 'boom-property-dashboards';
+const FB_API_KEY = process.env.FIREBASE_API_KEY || 'AIzaSyDDb8UeSc8RhO_VxQrhLrupu1aPD4rwRso';
+const LISTINGS_TTL_MS = 5 * 60_000;
+const LISTINGS_MAX = 40;
+let listingsCache = { ts: 0, text: '' };
+
 // Input guards — keep the endpoint from being used as a free general-purpose LLM.
 const MAX_MESSAGES = 24;        // ~12 turns of back-and-forth
 const MAX_MSG_CHARS = 4000;     // per message
@@ -97,6 +104,9 @@ Detect the language of the user's message and reply in that language. Default to
 - Trieste / Coppedè / Parioli: upscale, quiet, leafy.
 - Esquilino / Termini: central and very well-connected, mixed, good transport hub.
 For specifics, point to the neighborhood guide (/blog-neighborhood-guide) and live listings (/apartments).
+
+# Live listings
+A snapshot of BOOM's currently available apartments may be appended after this prompt as "CURRENT LISTINGS". When a visitor asks what is available, or about budget/zones/bedrooms, or seems ready to browse, recommend 1–3 specific matches from that snapshot — give the name, zone, monthly rent and the link. If nothing in the snapshot fits their brief, say so honestly and suggest the Property Finding Service (we search far beyond our own listings) plus /apartments. Only ever recommend listings that appear in the snapshot; if no snapshot is present, point to /apartments for current availability — never invent a listing.
 
 # When to hand off to a human
 For anything you can't answer confidently, anything about a specific apartment's current price/availability, or when the visitor is ready to act, point them to:
@@ -178,6 +188,62 @@ function sanitizeMessages(raw) {
   return { ok: true, messages: out };
 }
 
+// Firestore REST value → plain JS value.
+function fv(v) {
+  if (v == null) return undefined;
+  const k = Object.keys(v)[0];
+  const x = v[k];
+  switch (k) {
+    case 'integerValue':
+    case 'doubleValue': return Number(x);
+    case 'booleanValue': return x;
+    case 'nullValue': return null;
+    case 'arrayValue': return ((x && x.values) || []).map(fv);
+    default: return x;
+  }
+}
+
+// Compact snapshot of currently-available listings, cached on the warm instance.
+// Public read with the API key — same source as sitemap-listings.js / listing.js.
+async function getListingsBlock() {
+  const now = Date.now();
+  // Serve cached result (incl. a cached empty/negative result) within the TTL.
+  if (listingsCache.ts && now - listingsCache.ts < LISTINGS_TTL_MS) return listingsCache.text;
+  let text = '';
+  try {
+    const r = await fetch(`https://firestore.googleapis.com/v1/projects/${FB_PROJECT}/databases/(default)/documents/listings?pageSize=300&key=${FB_API_KEY}`);
+    if (r.ok) {
+      const j = await r.json();
+      const rows = [];
+      for (const doc of (j.documents || [])) {
+        const id = doc.name.split('/').pop();
+        const f = doc.fields || {};
+        const d = {};
+        for (const k in f) d[k] = fv(f[k]);
+        const status = String(d.status || 'available').toLowerCase();
+        if (/rented|affittato|off_market|hidden|draft|archived|unavailable/.test(status)) continue;
+        const name = d.name || 'Apartment';
+        const zone = d.zone || d.neighborhood || '';
+        const price = (d.price != null && d.price !== '') ? d.price : (d.rent != null ? d.rent : '');
+        const beds = (d.beds != null) ? d.beds : d.bedrooms;
+        const sqm = (d.sqm != null) ? d.sqm : d.size;
+        const parts = [];
+        if (zone) parts.push(String(zone));
+        if (beds) parts.push(beds + 'BR');
+        if (sqm) parts.push(sqm + 'm²');
+        if (price) parts.push('€' + price + '/mo');
+        rows.push('- ' + name + (parts.length ? ' (' + parts.join(', ') + ')' : '') + ' → https://www.boomrome.com/listing/' + id);
+        if (rows.length >= LISTINGS_MAX) break;
+      }
+      if (rows.length) text = 'CURRENT LISTINGS (live snapshot — only recommend apartments from this list):\n' + rows.join('\n');
+    }
+  } catch {
+    /* leave empty — the system prompt covers the no-snapshot case */
+  }
+  listingsCache = { ts: now, text };
+  return text;
+}
+
 export default async function handler(req, res) {
   setCorsHeaders(req, res);
 
@@ -215,15 +281,18 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'invalid_messages', detail: sanitized.reason });
   }
 
+  // Cached static prompt first (stable prefix), then the volatile live-listings
+  // block with NO cache_control so it never invalidates the cached prefix.
+  const listingsBlock = await getListingsBlock();
+  const system = [
+    { type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } },
+  ];
+  if (listingsBlock) system.push({ type: 'text', text: listingsBlock });
+
   const upstreamBody = {
     model: MODEL,
     max_tokens: MAX_TOKENS,
-    // Array form so we can attach the cache breakpoint. Prompt caching is GA;
-    // no beta header needed — just anthropic-version. Caches once the prompt
-    // exceeds the model's minimum cacheable prefix.
-    system: [
-      { type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } },
-    ],
+    system,
     messages: sanitized.messages,
   };
 

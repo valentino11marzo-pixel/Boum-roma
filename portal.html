@@ -21041,6 +21041,7 @@ IBAN: ${l.iban || '-'}`;
                     <div class="modal-footer">
                         <button class="btn btn-danger" onclick="deletePFSClient('${id}')">🗑️ Delete</button>
                         <button class="btn btn-secondary" onclick="openPFSEditClient('${id}')">✏️ Edit</button>
+                        <button class="btn btn-secondary" onclick="openPFSShortlistEditor('${id}')">🏠 Shortlist</button>
                         <button class="btn btn-secondary" onclick="closeModal();openPerson('${id}','pfsClient')">📂 Scheda 360°</button>
                         <button class="btn btn-secondary" onclick="closeModal();openNewClientWizard('pfsClient','${id}')">🚀 Crea contratto</button>
                         <button class="btn" onclick="quickAdvanceStage('${id}');closeModal()">→ Advance Stage</button>
@@ -21153,6 +21154,94 @@ IBAN: ${l.iban || '-'}`;
             await logPFSActivity(`✏️ Aggiornato cliente: ${update.name}`, 'info');
             closeModal();
             toast('success', 'Salvato', `${update.name} aggiornato`);
+            renderPage();
+        } catch (err) {
+            toast('error', 'Errore', err.message);
+        }
+    }
+
+    // ── PFS curated shortlist + next-step editor ──
+    // Writes pfsClients.{shortlist[], next_step} — both surfaced on the
+    // client's passwordless dashboard (portal.html?pfs=TOKEN).
+    function openPFSShortlistEditor(id) {
+        const c = (S.pfsClients || []).find(x => x.id === id);
+        if (!c) { toast('error', 'Errore', 'Cliente non trovato'); return; }
+        window._pfsSlDraft = Array.isArray(c.shortlist) ? c.shortlist.map(function(it){ return {
+            name: (it && (it.name||it.title)) || '', area: (it && (it.area||it.zone||it.neighborhood)) || '',
+            rent: (it && (it.rent||it.price)) || '', bedrooms: (it && (it.bedrooms||it.rooms)) || '',
+            image: (it && (it.image||it.photo||it.img)) || '', link: (it && (it.link||it.url)) || '',
+            note: (it && (it.note||it.notes)) || '', status: (it && it.status) || ''
+        }; }) : [];
+        document.getElementById('modals').innerHTML =
+            '<div class="modal-overlay active" onclick="if(event.target===this)closeModal()">'
+            + '<div class="modal lg" onclick="event.stopPropagation()">'
+            + '<div class="modal-header"><h3 class="modal-title">🏠 Shortlist & next step — ' + esc(c.name||'') + '</h3><button class="modal-close" onclick="closeModal()">×</button></div>'
+            + '<div class="modal-body">'
+            + '<div style="background:rgba(212,175,55,0.08);border:1px solid rgba(212,175,55,0.25);border-radius:10px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:var(--text-muted);line-height:1.5">Shown on the client\'s private dashboard (<strong>portal.html?pfs=…</strong>): the shortlist renders as property cards, the next-step note appears at the top.</div>'
+            + '<div class="form-group"><label class="form-label">Next step (client-facing)</label><textarea class="form-textarea" id="pfsNextStep" rows="2" placeholder="e.g. Your shortlist is ready — tell us which ones you would like to view.">' + esc(c.next_step||'') + '</textarea></div>'
+            + '<div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-muted);margin:18px 0 10px">Curated shortlist</div>'
+            + '<div id="pfsSlRows">' + _pfsRenderShortlistRows() + '</div>'
+            + '<button type="button" class="btn btn-sm btn-secondary" onclick="_pfsAddShortlistRow()">+ Add property</button>'
+            + '</div>'
+            + '<div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="savePFSShortlist(\'' + id + '\')">💾 Save & publish</button></div>'
+            + '</div></div>';
+    }
+
+    function _pfsRenderShortlistRows() {
+        const rows = window._pfsSlDraft || [];
+        if (!rows.length) return '<div style="color:var(--text-muted);font-size:12px;padding:8px 0 12px">No properties yet — add the ones you want the client to see.</div>';
+        return rows.map(function(it, i){
+            return '<div class="pfs-sl-row" style="border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px">'
+                + '<div class="form-row"><div class="form-group"><label class="form-label">Title</label><input class="form-input sl-name" value="' + esc(it.name) + '"></div>'
+                + '<div class="form-group"><label class="form-label">Area / zone</label><input class="form-input sl-area" value="' + esc(it.area) + '"></div></div>'
+                + '<div class="form-row"><div class="form-group"><label class="form-label">Rent (€/mo)</label><input class="form-input sl-rent" value="' + esc(it.rent) + '"></div>'
+                + '<div class="form-group"><label class="form-label">Bedrooms</label><input class="form-input sl-beds" value="' + esc(it.bedrooms) + '"></div>'
+                + '<div class="form-group"><label class="form-label">Status badge</label><input class="form-input sl-status" placeholder="e.g. Viewing booked" value="' + esc(it.status) + '"></div></div>'
+                + '<div class="form-row"><div class="form-group"><label class="form-label">Image URL</label><input class="form-input sl-image" value="' + esc(it.image) + '"></div>'
+                + '<div class="form-group"><label class="form-label">Link (Immobiliare/listing)</label><input class="form-input sl-link" value="' + esc(it.link) + '"></div></div>'
+                + '<div class="form-group"><label class="form-label">Note to client</label><input class="form-input sl-note" value="' + esc(it.note) + '"></div>'
+                + '<button type="button" class="btn btn-xs btn-secondary" onclick="_pfsRemoveShortlistRow(' + i + ')">🗑️ Remove</button>'
+            + '</div>';
+        }).join('');
+    }
+
+    function _pfsSyncShortlistDraft() {
+        const out = [];
+        document.querySelectorAll('#pfsSlRows .pfs-sl-row').forEach(function(row){
+            const g = function(sel){ const el = row.querySelector(sel); return el ? el.value.trim() : ''; };
+            out.push({ name:g('.sl-name'), area:g('.sl-area'), rent:g('.sl-rent'), bedrooms:g('.sl-beds'),
+                       status:g('.sl-status'), image:g('.sl-image'), link:g('.sl-link'), note:g('.sl-note') });
+        });
+        window._pfsSlDraft = out;
+    }
+
+    function _pfsAddShortlistRow() {
+        _pfsSyncShortlistDraft();
+        (window._pfsSlDraft = window._pfsSlDraft || []).push({ name:'',area:'',rent:'',bedrooms:'',status:'',image:'',link:'',note:'' });
+        document.getElementById('pfsSlRows').innerHTML = _pfsRenderShortlistRows();
+    }
+
+    function _pfsRemoveShortlistRow(i) {
+        _pfsSyncShortlistDraft();
+        (window._pfsSlDraft || []).splice(i, 1);
+        document.getElementById('pfsSlRows').innerHTML = _pfsRenderShortlistRows();
+    }
+
+    async function savePFSShortlist(id) {
+        const c = (S.pfsClients || []).find(x => x.id === id);
+        if (!c) { toast('error', 'Errore', 'Cliente non trovato'); return; }
+        _pfsSyncShortlistDraft();
+        const shortlist = (window._pfsSlDraft || []).filter(function(it){
+            return it.name || it.area || it.rent || it.link || it.note;
+        });
+        const nextStep = ((document.getElementById('pfsNextStep')||{}).value || '').trim();
+        const update = { shortlist: shortlist, next_step: nextStep, lastUpdated: firebase.firestore.FieldValue.serverTimestamp() };
+        try {
+            await db.collection('pfsClients').doc(id).update(update);
+            Object.assign(c, { shortlist: shortlist, next_step: nextStep });
+            await logPFSActivity('🏠 Shortlist aggiornata (' + shortlist.length + ') per ' + (c.name||''), 'info');
+            closeModal();
+            toast('success', 'Pubblicato', 'Shortlist visibile nella dashboard cliente');
             renderPage();
         } catch (err) {
             toast('error', 'Errore', err.message);

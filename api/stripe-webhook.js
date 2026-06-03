@@ -155,7 +155,7 @@ export default async function handler(req, res) {
       r4_icon: '✓',
       r4_label: 'Contract signing',
       r4_value: 'Guided end-to-end',
-      closing: 'Questions? Just reply to this email and I will personally get back to you.',
+      closing: `Track your search anytime in your private dashboard: ${portalLink} — your timeline, curated shortlist and next steps, all in one place. Questions? Just reply to this email and I will personally get back to you.`,
       cta_text: 'Access your dashboard',
       portal_link: portalLink,
     });
