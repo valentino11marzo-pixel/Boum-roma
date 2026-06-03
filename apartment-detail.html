@@ -1166,12 +1166,10 @@
         document.getElementById('sidebarPrice').textContent=price;
         document.getElementById('mobileCTAPrice').innerHTML=`${price}<small>per month</small>`;
 
-        // Refundable holding deposit: per-listing override, else ~1 week of rent, clamped €150–600
+        // Refundable holding deposit: flat €300 (per-listing override via holdingDeposit), clamped €100–2000
         (function(){
-          const rent=Number(d.price)||0;
           const override=Number(d.holdingDeposit||d.reservationFee||0);
-          const dep = override>0 ? Math.min(2000,Math.max(100,Math.round(override)))
-                    : (rent>0 ? Math.min(600,Math.max(150,Math.round((rent/4)/10)*10)) : 300);
+          const dep = override>0 ? Math.min(2000,Math.max(100,Math.round(override))) : 300;
           window.__boomListing={ id:id, name:d.name||'Apartment', deposit:dep };
           const a=document.getElementById('reserveAmt'); if(a) a.textContent='€'+dep.toLocaleString('en-US');
           const b=document.getElementById('reserveBox'); if(b) b.classList.add('show');
