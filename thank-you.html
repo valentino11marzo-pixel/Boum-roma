@@ -349,7 +349,16 @@
     <script>
     (function(){
       var c=document.getElementById('tyc'); if(c) c.classList.add('ty-go');
-      try{ if(typeof gtag==='function'){ gtag('event','generate_lead',{event_category:'conversion',page_path:location.pathname}); } }catch(e){}
+      try{
+        var p=new URLSearchParams(location.search);
+        if(typeof gtag==='function'){
+          gtag('event','generate_lead',{event_category:'conversion',page_path:location.pathname});
+          if(p.get('reserved')){
+            var amt=parseFloat(p.get('amt'))||0;
+            gtag('event','purchase',{transaction_id:p.get('session_id')||('res_'+Date.now()),value:amt,currency:'EUR',items:[{item_name:'Apartment holding deposit',price:amt,quantity:1}]});
+          }
+        }
+      }catch(e){}
     })();
     </script>
     <script defer src="/js/boom-track.js"></script>
