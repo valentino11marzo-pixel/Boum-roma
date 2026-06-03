@@ -8,28 +8,28 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
     <link rel="manifest" href="/site.webmanifest">
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login — BOOM Rome</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Sign In — BOOM Rome</title>
 <!-- BOOM_SEO:START -->
   <meta name="description" content="Secure login for tenants, landlords and admins.">
   <meta name="robots" content="noindex, follow">
   <meta name="googlebot" content="noindex, follow">
   <meta name="author" content="BOOM Rome">
   <meta name="publisher" content="BOOM Rome">
-  <meta name="theme-color" content="#08080A">
+  <meta name="theme-color" content="#030303">
   <meta name="color-scheme" content="dark">
   <meta name="format-detection" content="telephone=no">
   <meta name="application-name" content="BOOM Rome">
   <meta name="apple-mobile-web-app-title" content="BOOM">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="msapplication-TileColor" content="#08080A">
+  <meta name="msapplication-TileColor" content="#030303">
   <link rel="canonical" href="https://www.boomrome.com/login">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="BOOM Rome">
   <meta property="og:locale" content="en_US">
   <meta property="og:locale:alternate" content="it_IT">
-  <meta property="og:title" content="Login — BOOM Rome">
+  <meta property="og:title" content="Sign In — BOOM Rome">
   <meta property="og:description" content="Secure login for tenants, landlords and admins.">
   <meta property="og:url" content="https://www.boomrome.com/login">
   <meta property="og:image" content="https://www.boomrome.com/BOOMsocialprofile.png">
@@ -37,663 +37,677 @@
   <meta property="og:image:type" content="image/png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="Login — BOOM Rome">
+  <meta property="og:image:alt" content="Sign In — BOOM Rome">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:site" content="@boomrome">
   <meta name="twitter:creator" content="@boomrome">
-  <meta name="twitter:title" content="Login — BOOM Rome">
+  <meta name="twitter:title" content="Sign In — BOOM Rome">
   <meta name="twitter:description" content="Secure login for tenants, landlords and admins.">
   <meta name="twitter:image" content="https://www.boomrome.com/BOOMsocialprofile.png">
-  <meta name="twitter:image:alt" content="Login — BOOM Rome">
+  <meta name="twitter:image:alt" content="Sign In — BOOM Rome">
+<!-- BOOM_SEO:END -->
+
+  <!-- Content Security Policy — scoped hardening for the auth surface.
+       Allows only the origins this page genuinely talks to (Firebase Auth,
+       Google Fonts). Blocks injected/third-party script & connect targets. -->
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    base-uri 'self';
+    object-src 'none';
+    frame-ancestors 'self';
+    form-action 'self';
+    script-src 'self' 'unsafe-inline' https://www.gstatic.com;
+    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+    font-src 'self' https://fonts.gstatic.com;
+    img-src 'self' data: https:;
+    connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com https://*.googleapis.com https://boom-property-dashboards.firebaseapp.com;
+    frame-src https://boom-property-dashboards.firebaseapp.com;
+    upgrade-insecure-requests;
+  ">
+
+  <!-- Performance: warm up the connections this page uses before they're needed -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="dns-prefetch" href="https://www.googletagmanager.com">
-  <link rel="dns-prefetch" href="https://www.google-analytics.com">
-<!-- BOOM_SEO:END -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin>
+  <link rel="dns-prefetch" href="https://securetoken.googleapis.com">
+  <link rel="preload" as="image" href="/favicon.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Firebase Auth — deferred so it never blocks first paint.
+       Deferred scripts run in order, after HTML parse, before DOMContentLoaded,
+       so firebase is guaranteed defined inside our DOMContentLoaded handler. -->
+  <script defer src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-font-smoothing: antialiased; }
-        
+        *,
+        *::before,
+        *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
         :root {
+            /* Brand — aligned with the live BOOM palette */
             --gold: #FFD700;
-            --gold-dark: #F5A623;
+            --gold-light: #FFE55C;
+            --gold-dark: #E5C200;
+            --gold-deep: #C9A400;
+            --violet: #635BFF;
             --green: #00FF88;
-            --red: #FF4444;
-            --black: #000000;
-            --surface: #0A0A0A;
-            --card: #111111;
-            --border: rgba(255, 215, 0, 0.15);
-            --text: #FFFFFF;
-            --text-muted: #888888;
-            --text-dim: #555555;
+            --red: #FF5C5C;
+
+            --black: #030303;
+            --void: #060607;
+            --surface: #0B0B0C;
+            --surface-card: #0E0E10;
+            --surface-input: #121214;
+            --surface-input-focus: #161618;
+
+            --text-primary: #FAFAFA;
+            --text-secondary: rgba(250, 250, 250, 0.72);
+            --text-tertiary: rgba(250, 250, 250, 0.44);
+            --text-muted: rgba(250, 250, 250, 0.26);
+
+            --border-subtle: rgba(255, 255, 255, 0.05);
+            --border-default: rgba(255, 255, 255, 0.09);
+            --border-gold: rgba(255, 215, 0, 0.30);
+
+            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            --font-display: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+
+            --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+            --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+            --radius: 20px;
+            --radius-input: 13px;
         }
-        
-        html, body {
-            height: 100%;
-        }
-        
+
+        html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; height: 100%; }
+
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            font-family: var(--font-sans);
             background: var(--black);
-            color: var(--text);
+            color: var(--text-primary);
+            font-weight: 300;
+            min-height: 100svh;
             display: flex;
             align-items: center;
             justify-content: center;
-            min-height: 100vh;
-            padding: 20px;
+            padding: max(20px, env(safe-area-inset-top)) 20px max(20px, env(safe-area-inset-bottom));
             position: relative;
             overflow: hidden;
+            line-height: 1.6;
         }
-        
-        /* Background effects */
-        .bg-glow {
-            position: fixed;
-            top: 50%;
-            left: 50%;
+
+        /* ─── Atmospheric background ──────────────────────────────────── */
+        .bg { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+
+        .orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(90px);
+            will-change: transform;
+        }
+        .orb-gold {
+            width: 620px; height: 620px;
+            background: radial-gradient(circle, var(--gold) 0%, transparent 70%);
+            opacity: 0.07;
+            top: -240px; right: -120px;
+            animation: drift-a 24s ease-in-out infinite;
+        }
+        .orb-violet {
+            width: 520px; height: 520px;
+            background: radial-gradient(circle, var(--violet) 0%, transparent 70%);
+            opacity: 0.05;
+            bottom: -200px; left: -140px;
+            animation: drift-b 30s ease-in-out infinite;
+        }
+        .orb-center {
+            width: 760px; height: 760px;
+            background: radial-gradient(circle, rgba(255,215,0,0.05) 0%, transparent 65%);
+            top: 50%; left: 50%;
             transform: translate(-50%, -50%);
-            width: 800px;
-            height: 800px;
-            background: radial-gradient(circle, rgba(255, 215, 0, 0.06) 0%, transparent 70%);
-            pointer-events: none;
-            z-index: 0;
         }
-        
-        .bg-grid {
-            position: fixed;
-            inset: 0;
-            background-image: 
-                linear-gradient(rgba(255,215,0,0.03) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255,215,0,0.03) 1px, transparent 1px);
-            background-size: 60px 60px;
-            pointer-events: none;
-            z-index: 0;
+
+        @keyframes drift-a {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(-50px, 60px) scale(1.08); }
         }
-        
-        /* Back link */
+        @keyframes drift-b {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(60px, -40px) scale(1.12); }
+        }
+
+        .grid {
+            position: fixed; inset: 0; z-index: 0; pointer-events: none;
+            background-image:
+                linear-gradient(rgba(255,215,0,0.025) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,215,0,0.025) 1px, transparent 1px);
+            background-size: 64px 64px;
+            mask-image: radial-gradient(ellipse 80% 70% at 50% 50%, #000 30%, transparent 80%);
+            -webkit-mask-image: radial-gradient(ellipse 80% 70% at 50% 50%, #000 30%, transparent 80%);
+        }
+
+        /* Fine film-grain for premium depth */
+        .grain {
+            position: fixed; inset: 0; z-index: 1; pointer-events: none;
+            opacity: 0.018;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+        }
+
+        /* ─── Back link ───────────────────────────────────────────────── */
         .back-link {
-            position: fixed;
-            top: 30px;
-            left: 30px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            color: var(--text-muted);
+            position: fixed; top: max(24px, env(safe-area-inset-top)); left: 24px;
+            display: inline-flex; align-items: center; gap: 8px;
+            color: var(--text-tertiary);
             text-decoration: none;
-            font-size: 12px;
-            font-weight: 400;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-            transition: all 0.3s ease;
+            font-size: 11px; font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase;
+            padding: 8px 4px;
+            transition: color 0.3s var(--ease-out), transform 0.3s var(--ease-out);
             z-index: 10;
         }
-        
-        .back-link:hover {
-            color: var(--gold);
-            transform: translateX(-4px);
-        }
-        
-        /* Login card */
+        .back-link svg { transition: transform 0.3s var(--ease-out); }
+        .back-link:hover { color: var(--gold); }
+        .back-link:hover svg { transform: translateX(-4px); }
+        .back-link:focus-visible { outline: 2px solid var(--border-gold); outline-offset: 4px; border-radius: 6px; }
+
+        /* ─── Card ────────────────────────────────────────────────────── */
         .login-card {
             position: relative;
-            z-index: 1;
+            z-index: 2;
             width: 100%;
-            max-width: 420px;
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 24px;
-            padding: 50px 40px;
-            box-shadow: 0 40px 80px rgba(0,0,0,0.5);
+            max-width: 430px;
+            background:
+                linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0)) ,
+                var(--surface-card);
+            border: 1px solid var(--border-default);
+            border-radius: var(--radius);
+            padding: 52px 44px 40px;
+            box-shadow:
+                0 1px 0 rgba(255,255,255,0.04) inset,
+                0 40px 80px -20px rgba(0,0,0,0.7),
+                0 0 120px -40px rgba(255,215,0,0.12);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            animation: card-in 0.7s var(--ease-out) both;
         }
-        
-        /* Header */
-        .header {
-            text-align: center;
-            margin-bottom: 40px;
+        /* Gold hairline along the top edge */
+        .login-card::before {
+            content: '';
+            position: absolute; top: -1px; left: 24px; right: 24px; height: 1px;
+            background: linear-gradient(90deg, transparent, var(--gold), transparent);
+            opacity: 0.5;
         }
-        
+
+        @keyframes card-in {
+            from { opacity: 0; transform: translateY(16px) scale(0.985); }
+            to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        /* ─── Header ──────────────────────────────────────────────────── */
+        .header { text-align: center; margin-bottom: 36px; }
+
+        .logo-ring {
+            width: 76px; height: 76px;
+            margin: 0 auto 22px;
+            display: grid; place-items: center;
+            border-radius: 50%;
+            border: 1px solid var(--border-gold);
+            background: radial-gradient(circle at 50% 30%, rgba(255,215,0,0.10), transparent 70%);
+            position: relative;
+            animation: halo 5s ease-in-out infinite;
+        }
+        @keyframes halo {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(255,215,0,0.0), 0 0 30px -6px rgba(255,215,0,0.35); }
+            50%      { box-shadow: 0 0 0 6px rgba(255,215,0,0.03), 0 0 44px -6px rgba(255,215,0,0.55); }
+        }
         .logo-svg {
-            width: 85px;
-            height: 85px;
-            margin: 0 auto 20px;
-            display: block;
-            filter: drop-shadow(0 0 25px rgba(255, 215, 0, 0.4));
+            width: 46px; height: 46px; display: block;
+            filter: drop-shadow(0 0 12px rgba(255, 215, 0, 0.45));
         }
-        
+
         .brand-name {
-            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-            font-size: 38px;
-            font-weight: 300;
-            letter-spacing: 6px;
-            text-transform: uppercase;
-            color: var(--text);
-            margin-bottom: 8px;
+            font-family: var(--font-display);
+            font-size: 34px; font-weight: 300;
+            letter-spacing: 8px; text-transform: uppercase;
+            color: var(--text-primary);
+            margin: 0 0 10px;
+            padding-left: 8px; /* optical centering for tracked caps */
         }
-        
         .brand-sub {
-            font-size: 11px;
-            font-weight: 400;
-            letter-spacing: 3px;
-            text-transform: uppercase;
-            color: var(--text-muted);
+            font-size: 10.5px; font-weight: 500; letter-spacing: 3px; text-transform: uppercase;
+            color: var(--text-tertiary);
         }
-        
-        /* Messages */
+        .brand-sub b { color: var(--gold); font-weight: 600; }
+
+        /* ─── Messages ────────────────────────────────────────────────── */
         .message {
-            padding: 14px 18px;
-            border-radius: 12px;
-            font-size: 13px;
-            font-weight: 400;
-            margin-bottom: 20px;
+            padding: 13px 16px; border-radius: 12px;
+            font-size: 13px; font-weight: 400; line-height: 1.5;
+            margin-bottom: 22px;
             display: none;
-            animation: fadeIn 0.3s ease;
+            align-items: flex-start; gap: 10px;
+            animation: msg-in 0.35s var(--ease-out);
         }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-5px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        
-        .message.error {
-            display: block;
-            background: rgba(255, 68, 68, 0.1);
-            border: 1px solid rgba(255, 68, 68, 0.3);
-            color: var(--red);
-        }
-        
-        .message.success {
-            display: block;
-            background: rgba(0, 255, 136, 0.1);
-            border: 1px solid rgba(0, 255, 136, 0.3);
-            color: var(--green);
-        }
-        
-        /* Form */
-        .form-group {
-            margin-bottom: 24px;
-        }
-        
+        .message.show { display: flex; }
+        .message svg { flex-shrink: 0; margin-top: 1px; }
+        @keyframes msg-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+        .message.error   { background: rgba(255, 92, 92, 0.08); border: 1px solid rgba(255, 92, 92, 0.28); color: #FF8A8A; }
+        .message.success { background: rgba(0, 255, 136, 0.08); border: 1px solid rgba(0, 255, 136, 0.28); color: #6BFFB4; }
+
+        /* ─── Form ────────────────────────────────────────────────────── */
+        .form-group { margin-bottom: 20px; }
+
         .form-label {
             display: block;
-            font-size: 11px;
-            font-weight: 500;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            color: var(--text-dim);
-            margin-bottom: 10px;
+            font-size: 10.5px; font-weight: 600; letter-spacing: 1.8px; text-transform: uppercase;
+            color: var(--text-tertiary);
+            margin-bottom: 9px;
         }
-        
+
+        .input-wrap { position: relative; display: flex; align-items: center; }
+        .input-icon {
+            position: absolute; left: 16px;
+            color: var(--text-muted);
+            pointer-events: none;
+            display: flex;
+            transition: color 0.3s var(--ease-out);
+        }
+        .input-wrap:focus-within .input-icon { color: var(--gold); }
+
         .form-input {
             width: 100%;
-            padding: 16px 18px;
-            background: var(--black);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 12px;
-            color: var(--text);
+            padding: 15px 16px 15px 46px;
+            background: var(--surface-input);
+            border: 1px solid var(--border-default);
+            border-radius: var(--radius-input);
+            color: var(--text-primary);
             font-family: inherit;
-            font-size: 15px;
-            font-weight: 300;
-            transition: all 0.3s ease;
+            font-size: 15px; font-weight: 400;
+            transition: border-color 0.25s var(--ease-out), box-shadow 0.25s var(--ease-out), background 0.25s var(--ease-out);
             outline: none;
         }
-        
+        /* room for the reveal toggle on the password field */
+        #password { padding-right: 48px; }
+
+        .form-input::placeholder { color: var(--text-muted); font-weight: 300; }
+        .form-input:hover { border-color: rgba(255,255,255,0.16); }
         .form-input:focus {
             border-color: var(--gold);
-            box-shadow: 0 0 0 3px rgba(255, 215, 0, 0.1);
+            background: var(--surface-input-focus);
+            box-shadow: 0 0 0 4px rgba(255, 215, 0, 0.12);
         }
-        
-        .form-input::placeholder {
-            color: var(--text-dim);
+        .form-input:disabled { opacity: 0.5; cursor: not-allowed; }
+        .form-input:-webkit-autofill,
+        .form-input:-webkit-autofill:focus {
+            -webkit-text-fill-color: var(--text-primary);
+            -webkit-box-shadow: 0 0 0 1000px var(--surface-input) inset;
+            caret-color: var(--text-primary);
         }
-        
-        .form-input:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
+
+        .reveal-btn {
+            position: absolute; right: 8px;
+            width: 34px; height: 34px;
+            display: grid; place-items: center;
+            background: transparent; border: none; cursor: pointer;
+            color: var(--text-muted); border-radius: 8px;
+            transition: color 0.25s var(--ease-out), background 0.25s var(--ease-out);
         }
-        
-        /* Forgot link */
-        .forgot-row {
-            text-align: right;
-            margin-top: -16px;
-            margin-bottom: 24px;
+        .reveal-btn:hover { color: var(--text-secondary); background: rgba(255,255,255,0.04); }
+        .reveal-btn:focus-visible { outline: 2px solid var(--border-gold); outline-offset: 1px; }
+
+        .caps-hint {
+            display: none;
+            margin-top: 8px;
+            font-size: 11px; letter-spacing: 0.3px;
+            color: var(--gold-light);
         }
-        
+        .caps-hint.show { display: block; animation: msg-in 0.25s var(--ease-out); }
+
+        .forgot-row { text-align: right; margin: -6px 0 24px; }
         .forgot-link {
-            font-size: 11px;
-            font-weight: 400;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-            color: var(--text-dim);
-            text-decoration: none;
-            transition: color 0.3s ease;
+            font-size: 11px; font-weight: 500; letter-spacing: 0.5px;
+            color: var(--text-tertiary); text-decoration: none;
+            background: none; border: none; cursor: pointer; font-family: inherit;
+            transition: color 0.25s var(--ease-out);
         }
-        
-        .forgot-link:hover {
-            color: var(--gold);
-        }
-        
-        /* Submit button */
+        .forgot-link:hover { color: var(--gold); }
+        .forgot-link:focus-visible { outline: 2px solid var(--border-gold); outline-offset: 3px; border-radius: 4px; }
+
+        /* ─── Submit ──────────────────────────────────────────────────── */
         .submit-btn {
             width: 100%;
-            padding: 18px 24px;
-            background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dark) 100%);
-            border: none;
-            border-radius: 12px;
-            color: var(--black);
-            font-family: inherit;
-            font-size: 13px;
-            font-weight: 700;
-            letter-spacing: 3px;
-            text-transform: uppercase;
-            cursor: pointer;
-            transition: all 0.4s ease;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .submit-btn:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 15px 40px rgba(255, 215, 0, 0.3);
-        }
-        
-        .submit-btn:active:not(:disabled) {
-            transform: translateY(0);
-        }
-        
-        .submit-btn:disabled {
-            opacity: 0.7;
-            cursor: wait;
-        }
-        
-        .submit-btn .btn-text {
-            transition: opacity 0.2s ease;
-        }
-        
-        .submit-btn.loading .btn-text {
-            opacity: 0;
-        }
-        
-        .submit-btn .spinner {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 22px;
-            height: 22px;
-            border: 2px solid transparent;
-            border-top-color: var(--black);
-            border-radius: 50%;
-            opacity: 0;
-            animation: spin 0.8s linear infinite;
-        }
-        
-        .submit-btn.loading .spinner {
-            opacity: 1;
-        }
-        
-        @keyframes spin {
-            to { transform: translate(-50%, -50%) rotate(360deg); }
-        }
-        
-        /* Divider */
-        .divider {
-            display: flex;
-            align-items: center;
-            margin: 32px 0;
-        }
-        
-        .divider::before,
-        .divider::after {
-            content: '';
-            flex: 1;
-            height: 1px;
-            background: rgba(255, 255, 255, 0.08);
-        }
-        
-        .divider span {
-            padding: 0 16px;
-            font-size: 11px;
-            font-weight: 400;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            color: var(--text-dim);
-        }
-        
-        /* WhatsApp button */
-        .whatsapp-btn {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 12px;
-            width: 100%;
             padding: 16px 24px;
-            background: transparent;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 12px;
-            color: var(--text);
-            text-decoration: none;
-            font-size: 12px;
-            font-weight: 500;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            transition: all 0.3s ease;
+            background: linear-gradient(135deg, var(--gold-light) 0%, var(--gold) 45%, var(--gold-dark) 100%);
+            border: none; border-radius: var(--radius-input);
+            color: #1a1500;
+            font-family: inherit;
+            font-size: 12.5px; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase;
+            cursor: pointer;
+            position: relative; overflow: hidden;
+            transition: transform 0.25s var(--ease-out), box-shadow 0.3s var(--ease-out), filter 0.25s var(--ease-out);
         }
-        
-        .whatsapp-btn:hover {
-            border-color: var(--green);
-            background: rgba(0, 255, 136, 0.05);
-            color: var(--green);
+        /* shimmer sweep */
+        .submit-btn::after {
+            content: '';
+            position: absolute; top: 0; left: -120%;
+            width: 60%; height: 100%;
+            background: linear-gradient(100deg, transparent, rgba(255,255,255,0.55), transparent);
+            transform: skewX(-18deg);
+            transition: left 0.7s var(--ease-out);
         }
-        
-        /* Footer link */
-        .footer-link {
-            text-align: center;
-            margin-top: 32px;
-            padding-top: 24px;
-            border-top: 1px solid rgba(255, 255, 255, 0.05);
-        }
-        
-        .footer-link a {
-            color: var(--gold);
-            text-decoration: none;
-            font-size: 12px;
-            font-weight: 500;
-            letter-spacing: 1px;
-            transition: opacity 0.3s ease;
-        }
-        
-        .footer-link a:hover {
-            opacity: 0.8;
-        }
-        
-        /* Responsive */
-        @media (max-width: 480px) {
-            .login-card {
-                padding: 40px 28px;
-                border-radius: 20px;
-            }
-            
-            .back-link {
-                top: 20px;
-                left: 20px;
-            }
-            
-            .brand-name {
-                font-size: 32px;
-                letter-spacing: 5px;
-            }
-        }
-    </style>
-<!-- BOOM_JSONLD:START -->
-  <script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "RealEstateAgent",
-  "@id": "https://www.boomrome.com/#organization",
-  "name": "BOOM Rome",
-  "legalName": "BOOM Rome",
-  "url": "https://www.boomrome.com",
-  "logo": {
-    "@type": "ImageObject",
-    "url": "https://www.boomrome.com/android-chrome-512x512.png",
-    "width": 512,
-    "height": 512
-  },
-  "image": "https://www.boomrome.com/BOOMsocialprofile.png",
-  "description": "Premium mid-term apartment rentals in Rome with full property management, legal contracts, and 48-hour move-in.",
-  "sameAs": [
-    "https://www.instagram.com/boomrome",
-    "https://www.linkedin.com/company/boomrome",
-    "https://wa.me/393313251961"
-  ],
-  "address": {
-    "@type": "PostalAddress",
-    "addressLocality": "Rome",
-    "addressRegion": "Lazio",
-    "addressCountry": "IT"
-  },
-  "areaServed": {
-    "@type": "City",
-    "name": "Rome"
-  },
-  "priceRange": "€€-€€€"
-}
-  </script>
-  <script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "WebSite",
-  "@id": "https://www.boomrome.com/#website",
-  "url": "https://www.boomrome.com",
-  "name": "BOOM Rome",
-  "publisher": {
-    "@id": "https://www.boomrome.com/#organization"
-  },
-  "potentialAction": {
-    "@type": "SearchAction",
-    "target": {
-      "@type": "EntryPoint",
-      "urlTemplate": "https://www.boomrome.com/apartments?q={search_term_string}"
-    },
-    "query-input": "required name=search_term_string"
-  },
-  "inLanguage": [
-    "en",
-    "it"
-  ]
-}
-  </script>
-<!-- BOOM_JSONLD:END -->
+        .submit-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 14px 36px -10px rgba(255, 215, 0, 0.5); }
+        .submit-btn:hover:not(:disabled)::after { left: 130%; }
+        .submit-btn:active:not(:disabled) { transform: translateY(0); }
+        .submit-btn:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+        .submit-btn:disabled { cursor: wait; filter: saturate(0.7); }
 
-    <style data-boom-polish>
-    .form-input{transition:border-color .25s ease,box-shadow .25s ease}
-    .form-input:focus{outline:none;border-color:#FFD700!important;box-shadow:0 0 0 4px rgba(255,215,0,.14)}
-    .submit-btn{transition:transform .25s ease,box-shadow .25s ease}
-    .submit-btn:hover{transform:translateY(-1px);box-shadow:0 10px 30px rgba(255,215,0,.25)}
+        .btn-text { transition: opacity 0.2s ease; }
+        .submit-btn.loading .btn-text { opacity: 0; }
+        .spinner {
+            position: absolute; top: 50%; left: 50%;
+            width: 20px; height: 20px; margin: -10px 0 0 -10px;
+            border: 2px solid rgba(26,21,0,0.25); border-top-color: #1a1500;
+            border-radius: 50%; opacity: 0;
+            animation: spin 0.7s linear infinite;
+        }
+        .submit-btn.loading .spinner { opacity: 1; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ─── Divider + secondary ─────────────────────────────────────── */
+        .divider { display: flex; align-items: center; margin: 28px 0; }
+        .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border-default); }
+        .divider span { padding: 0 14px; font-size: 10px; font-weight: 500; letter-spacing: 2px; text-transform: uppercase; color: var(--text-muted); }
+
+        .whatsapp-btn {
+            display: flex; align-items: center; justify-content: center; gap: 11px;
+            width: 100%; padding: 14px 24px;
+            background: transparent;
+            border: 1px solid var(--border-default); border-radius: var(--radius-input);
+            color: var(--text-secondary); text-decoration: none;
+            font-size: 11.5px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase;
+            transition: border-color 0.3s var(--ease-out), color 0.3s var(--ease-out), background 0.3s var(--ease-out);
+        }
+        .whatsapp-btn:hover { border-color: rgba(0,255,136,0.4); color: var(--green); background: rgba(0,255,136,0.04); }
+        .whatsapp-btn:focus-visible { outline: 2px solid rgba(0,255,136,0.5); outline-offset: 2px; }
+
+        /* ─── Footer ──────────────────────────────────────────────────── */
+        .footer {
+            margin-top: 28px; padding-top: 22px;
+            border-top: 1px solid var(--border-subtle);
+            display: flex; flex-direction: column; align-items: center; gap: 14px;
+        }
+        .footer-link { color: var(--gold); text-decoration: none; font-size: 12px; font-weight: 500; letter-spacing: 0.5px; transition: opacity 0.25s ease; }
+        .footer-link:hover { opacity: 0.75; }
+        .footer-link:focus-visible { outline: 2px solid var(--border-gold); outline-offset: 3px; border-radius: 4px; }
+
+        .secure-badge {
+            display: inline-flex; align-items: center; gap: 7px;
+            font-size: 10px; font-weight: 500; letter-spacing: 1px; text-transform: uppercase;
+            color: var(--text-muted);
+        }
+        .secure-badge svg { color: var(--green); opacity: 0.8; }
+
+        /* ─── Responsive ──────────────────────────────────────────────── */
+        @media (max-width: 480px) {
+            .login-card { padding: 40px 26px 32px; border-radius: 18px; }
+            .back-link { left: 16px; }
+            .brand-name { font-size: 30px; letter-spacing: 6px; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { animation: none !important; transition-duration: 0.01ms !important; }
+            .submit-btn::after { display: none; }
+        }
     </style>
 </head>
 <body>
-    <div class="bg-glow"></div>
-    <div class="bg-grid"></div>
-    
+    <div class="bg" aria-hidden="true">
+        <div class="orb orb-gold"></div>
+        <div class="orb orb-violet"></div>
+        <div class="orb orb-center"></div>
+    </div>
+    <div class="grid" aria-hidden="true"></div>
+    <div class="grain" aria-hidden="true"></div>
+
     <a href="/" class="back-link">
-        <span>←</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
         <span>Home</span>
     </a>
-    
-    <div class="login-card">
+
+    <main class="login-card">
         <div class="header">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" class="logo-svg">
-                <defs>
-                    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                        <stop offset="0%" stop-color="#FFD54F"/>
-                        <stop offset="100%" stop-color="#F5A623"/>
-                    </linearGradient>
-                </defs>
-                <g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#goldGrad)">
-                    <path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z m610 -144 c743 -103 1436 -459 1919 -985 338 -367 562 -751 704 -1205 276 -879 132 -1858 -388 -2640 -242 -364 -493 -615 -900 -900 l-70 -49 109 104 c413 396 679 919 767 1505 33 217 33 558 0 765 -75 476 -257 896 -549 1265 -127 161 -363 380 -549 511 -300 211 -689 363 -1079 420 -172 26 -604 26 -764 0 -296 -47 -545 -128 -808 -262 -236 -122 -440 -271 -632 -464 -486 -485 -749 -1121 -751 -1815 -1 -611 170 -1148 515 -1608 100 -134 286 -335 382 -413 33 -27 -8 -2 -91 55 -513 351 -904 805 -1143 1331 -71 156 -136 336 -168 465 -9 33 -19 76 -24 95 -5 19 -20 100 -34 180 -59 343 -60 740 0 1070 81 456 229 826 479 1200 246 368 558 669 949 917 386 245 881 418 1321 462 61 6 124 13 140 15 73 10 556 -4 665 -19z m-60 -1329 c105 -16 258 -49 335 -72 82 -26 197 -66 240 -84 149 -65 190 -84 266 -126 677 -379 1129 -1049 1246 -1849 27 -182 24 -517 -5 -695 -75 -458 -225 -813 -500 -1179 -116 -154 -340 -369 -527 -506 -44 -32 -87 -63 -95 -69 -8 -6 35 39 96 99 178 177 283 321 397 550 161 322 231 676 205 1045 -32 467 -223 902 -542 1237 -239 251 -521 426 -873 542 -79 26 -273 67 -383 81 -108 13 -349 13 -465 0 -276 -32 -597 -145 -834 -293 -224 -140 -466 -378 -613 -602 -307 -470 -407 -1055 -273 -1599 80 -327 217 -589 454 -871 71 -84 73 -88 31 -56 -293 225 -547 535 -718 877 -34 68 -65 143 -122 294 -42 112 -101 383 -120 555 -14 127 -14 401 0 534 51 482 223 912 516 1288 269 344 654 620 1085 778 160 59 400 115 574 134 121 13 508 5 625 -13z m-30 -1165 c401 -81 721 -242 992 -499 643 -612 769 -1607 300 -2367 -118 -190 -291 -386 -463 -524 -137 -111 -148 -113 -49 -12 110 112 206 248 275 386 67 137 98 222 132 367 24 103 26 132 27 323 0 182 -3 224 -22 310 -47 211 -126 394 -245 569 -126 186 -358 387 -564 490 -384 191 -823 225 -1218 95 -482 -160 -854 -541 -1004 -1029 -117 -379 -81 -810 96 -1165 37 -72 130 -215 166 -252 17 -18 26 -33 20 -33 -6 0 -61 52 -121 116 -259 272 -424 575 -511 934 -111 459 -18 1006 245 1430 298 483 791 797 1379 880 110 16 448 4 565 -19z m-239 -911 c360 -28 680 -171 925 -415 194 -193 317 -415 382 -688 24 -102 26 -130 26 -312 0 -191 -1 -205 -30 -320 -53 -205 -132 -372 -251 -535 -58 -79 -263 -288 -323 -330 -31 -22 -29 -18 18 35 195 220 312 519 312 795 0 325 -121 614 -350 841 -369 364 -926 453 -1385 222 -336 -170 -578 -499 -636 -865 -19 -126 -7 -371 25 -490 44 -162 97 -284 173 -398 9 -14 -4 -5 -30 20 -26 24 -45 51 -42 58 2 7 1 11 -4 7 -11 -6 -58 51 -118 140 -109 163 -183 347 -219 545 -23 127 -23 351 -1 489 55 335 248 677 492 871 261 208 530 311 881 338 11 1 81 -3 155 -8z m29 -714 c459 -74 823 -428 895 -869 58 -358 -60 -696 -345 -987 l-34 -35 22 35 c115 182 179 403 168 575 -14 235 -104 433 -268 591 -137 134 -287 209 -472 239 -115 19 -187 19 -303 0 -337 -55 -612 -302 -704 -635 -32 -113 -34 -325 -5 -440 23 -92 70 -213 98 -254 l21 -31 -31 29 c-39 36 -120 152 -155 221 -35 71 -81 215 -102 319 -25 130 -17 357 17 476 102 354 357 618 706 730 152 49 331 62 492 36z m-73 -567 c178 -24 327 -101 454 -236 137 -143 199 -303 201 -513 1 -162 -42 -309 -135 -453 -52 -82 -73 -97 -38 -28 51 99 67 290 36 412 -57 219 -251 413 -466 464 -75 17 -236 20 -311 4 -213 -44 -422 -247 -473 -460 -31 -133 -13 -325 41 -431 35 -70 8 -47 -52 43 -58 88 -90 167 -114 286 -25 121 -25 220 -1 331 33 146 84 243 186 351 171 183 413 266 672 230z m15 -470 c80 -17 186 -76 248 -139 106 -107 158 -248 147 -398 -6 -92 -25 -152 -79 -250 -45 -82 -60 -91 -27 -17 18 41 21 62 17 149 -4 89 -8 108 -35 162 -43 82 -126 165 -209 205 -58 29 -80 34 -158 37 -112 5 -184 -12 -259 -62 -182 -121 -251 -323 -171 -506 l24 -55 -25 30 c-36 44 -92 162 -104 223 -39 189 14 369 146 492 105 99 204 139 345 139 48 1 111 -4 140 -10z"/>
-                </g>
-            </svg>
+            <div class="logo-ring">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" class="logo-svg" role="img" aria-label="BOOM Rome">
+                    <defs>
+                        <linearGradient id="goldGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stop-color="#FFE55C"/>
+                            <stop offset="100%" stop-color="#E5C200"/>
+                        </linearGradient>
+                    </defs>
+                    <g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#goldGrad)">
+                        <path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z m610 -144 c743 -103 1436 -459 1919 -985 338 -367 562 -751 704 -1205 276 -879 132 -1858 -388 -2640 -242 -364 -493 -615 -900 -900 l-70 -49 109 104 c413 396 679 919 767 1505 33 217 33 558 0 765 -75 476 -257 896 -549 1265 -127 161 -363 380 -549 511 -300 211 -689 363 -1079 420 -172 26 -604 26 -764 0 -296 -47 -545 -128 -808 -262 -236 -122 -440 -271 -632 -464 -486 -485 -749 -1121 -751 -1815 -1 -611 170 -1148 515 -1608 100 -134 286 -335 382 -413 33 -27 -8 -2 -91 55 -513 351 -904 805 -1143 1331 -71 156 -136 336 -168 465 -9 33 -19 76 -24 95 -5 19 -20 100 -34 180 -59 343 -60 740 0 1070 81 456 229 826 479 1200 246 368 558 669 949 917 386 245 881 418 1321 462 61 6 124 13 140 15 73 10 556 -4 665 -19z m-60 -1329 c105 -16 258 -49 335 -72 82 -26 197 -66 240 -84 149 -65 190 -84 266 -126 677 -379 1129 -1049 1246 -1849 27 -182 24 -517 -5 -695 -75 -458 -225 -813 -500 -1179 -116 -154 -340 -369 -527 -506 -44 -32 -87 -63 -95 -69 -8 -6 35 39 96 99 178 177 283 321 397 550 161 322 231 676 205 1045 -32 467 -223 902 -542 1237 -239 251 -521 426 -873 542 -79 26 -273 67 -383 81 -108 13 -349 13 -465 0 -276 -32 -597 -145 -834 -293 -224 -140 -466 -378 -613 -602 -307 -470 -407 -1055 -273 -1599 80 -327 217 -589 454 -871 71 -84 73 -88 31 -56 -293 225 -547 535 -718 877 -34 68 -65 143 -122 294 -42 112 -101 383 -120 555 -14 127 -14 401 0 534 51 482 223 912 516 1288 269 344 654 620 1085 778 160 59 400 115 574 134 121 13 508 5 625 -13z m-30 -1165 c401 -81 721 -242 992 -499 643 -612 769 -1607 300 -2367 -118 -190 -291 -386 -463 -524 -137 -111 -148 -113 -49 -12 110 112 206 248 275 386 67 137 98 222 132 367 24 103 26 132 27 323 0 182 -3 224 -22 310 -47 211 -126 394 -245 569 -126 186 -358 387 -564 490 -384 191 -823 225 -1218 95 -482 -160 -854 -541 -1004 -1029 -117 -379 -81 -810 96 -1165 37 -72 130 -215 166 -252 17 -18 26 -33 20 -33 -6 0 -61 52 -121 116 -259 272 -424 575 -511 934 -111 459 -18 1006 245 1430 298 483 791 797 1379 880 110 16 448 4 565 -19z m-239 -911 c360 -28 680 -171 925 -415 194 -193 317 -415 382 -688 24 -102 26 -130 26 -312 0 -191 -1 -205 -30 -320 -53 -205 -132 -372 -251 -535 -58 -79 -263 -288 -323 -330 -31 -22 -29 -18 18 35 195 220 312 519 312 795 0 325 -121 614 -350 841 -369 364 -926 453 -1385 222 -336 -170 -578 -499 -636 -865 -19 -126 -7 -371 25 -490 44 -162 97 -284 173 -398 9 -14 -4 -5 -30 20 -26 24 -45 51 -42 58 2 7 1 11 -4 7 -11 -6 -58 51 -118 140 -109 163 -183 347 -219 545 -23 127 -23 351 -1 489 55 335 248 677 492 871 261 208 530 311 881 338 11 1 81 -3 155 -8z m29 -714 c459 -74 823 -428 895 -869 58 -358 -60 -696 -345 -987 l-34 -35 22 35 c115 182 179 403 168 575 -14 235 -104 433 -268 591 -137 134 -287 209 -472 239 -115 19 -187 19 -303 0 -337 -55 -612 -302 -704 -635 -32 -113 -34 -325 -5 -440 23 -92 70 -213 98 -254 l21 -31 -31 29 c-39 36 -120 152 -155 221 -35 71 -81 215 -102 319 -25 130 -17 357 17 476 102 354 357 618 706 730 152 49 331 62 492 36z m-73 -567 c178 -24 327 -101 454 -236 137 -143 199 -303 201 -513 1 -162 -42 -309 -135 -453 -52 -82 -73 -97 -38 -28 51 99 67 290 36 412 -57 219 -251 413 -466 464 -75 17 -236 20 -311 4 -213 -44 -422 -247 -473 -460 -31 -133 -13 -325 41 -431 35 -70 8 -47 -52 43 -58 88 -90 167 -114 286 -25 121 -25 220 -1 331 33 146 84 243 186 351 171 183 413 266 672 230z m15 -470 c80 -17 186 -76 248 -139 106 -107 158 -248 147 -398 -6 -92 -25 -152 -79 -250 -45 -82 -60 -91 -27 -17 18 41 21 62 17 149 -4 89 -8 108 -35 162 -43 82 -126 165 -209 205 -58 29 -80 34 -158 37 -112 5 -184 -12 -259 -62 -182 -121 -251 -323 -171 -506 l24 -55 -25 30 c-36 44 -92 162 -104 223 -39 189 14 369 146 492 105 99 204 139 345 139 48 1 111 -4 140 -10z"/>
+                    </g>
+                </svg>
+            </div>
             <h1 class="brand-name">BOOM</h1>
-            <p class="brand-sub">Client Portal</p>
+            <p class="brand-sub">Tenants · Landlords · <b>Admins</b></p>
         </div>
-        
-        <div class="message" id="message"></div>
-        
-        <form id="loginForm" autocomplete="on">
+
+        <div class="message" id="message" role="alert" aria-live="assertive"></div>
+
+        <form id="loginForm" autocomplete="on" novalidate>
             <div class="form-group">
                 <label class="form-label" for="email">Email</label>
-                <input 
-                    type="email" 
-                    id="email" 
-                    name="email"
-                    class="form-input" 
-                    placeholder="your@email.com" 
-                    required
-                    autocomplete="email"
-                >
+                <div class="input-wrap">
+                    <span class="input-icon" aria-hidden="true">
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                    </span>
+                    <input type="email" id="email" name="email" class="form-input"
+                           placeholder="your@email.com" required autocomplete="email"
+                           inputmode="email" autocapitalize="none" spellcheck="false" autofocus>
+                </div>
             </div>
-            
+
             <div class="form-group">
                 <label class="form-label" for="password">Password</label>
-                <input 
-                    type="password" 
-                    id="password" 
-                    name="password"
-                    class="form-input" 
-                    placeholder="••••••••" 
-                    required
-                    autocomplete="current-password"
-                >
+                <div class="input-wrap">
+                    <span class="input-icon" aria-hidden="true">
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    </span>
+                    <input type="password" id="password" name="password" class="form-input"
+                           placeholder="••••••••" required autocomplete="current-password">
+                    <button type="button" class="reveal-btn" id="revealBtn" aria-label="Show password" aria-pressed="false">
+                        <svg id="eyeIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                    </button>
+                </div>
+                <p class="caps-hint" id="capsHint" aria-live="polite">⇪ Caps Lock is on</p>
             </div>
-            
+
             <div class="forgot-row">
-                <a href="#" class="forgot-link" id="forgotBtn">Forgot Password?</a>
+                <button type="button" class="forgot-link" id="forgotBtn">Forgot password?</button>
             </div>
-            
+
             <button type="submit" class="submit-btn" id="submitBtn">
                 <span class="btn-text">Sign In</span>
-                <div class="spinner"></div>
+                <span class="spinner" aria-hidden="true"></span>
             </button>
         </form>
-        
-        <div class="divider">
-            <span>or</span>
-        </div>
-        
-        <a href="https://wa.me/393313251961" class="whatsapp-btn" target="_blank">
-            <span>💬</span>
+
+        <div class="divider"><span>or</span></div>
+
+        <a href="https://wa.me/393313251961" class="whatsapp-btn" target="_blank" rel="noopener noreferrer">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38a9.9 9.9 0 0 0 4.79 1.22h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2Zm5.8 14.16c-.24.69-1.42 1.32-1.95 1.36-.5.04-.5.4-3.15-.66-2.66-1.05-4.31-3.77-4.44-3.95-.13-.18-1.06-1.41-1.06-2.68 0-1.28.67-1.9.91-2.16.24-.26.52-.33.69-.33.17 0 .35.002.5.01.16.007.38-.06.59.45.24.58.81 2 .88 2.14.07.14.12.31.02.49-.09.18-.14.29-.27.45-.14.16-.29.36-.41.48-.14.14-.28.29-.12.57.16.28.71 1.17 1.52 1.9 1.05.93 1.93 1.22 2.21 1.36.28.14.44.12.6-.07.16-.18.69-.81.88-1.09.18-.28.37-.23.62-.14.25.09 1.59.75 1.86.89.27.14.45.21.52.32.07.12.07.66-.17 1.35Z"/></svg>
             <span>Contact Support</span>
         </a>
-        
-        <div class="footer-link">
-            <a href="/apartments.html">← Browse Apartments</a>
-        </div>
-    </div>
 
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
-    
+        <div class="footer">
+            <a href="/apartments.html" class="footer-link">← Browse Apartments</a>
+            <span class="secure-badge">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg>
+                Encrypted · Firebase Auth
+            </span>
+        </div>
+    </main>
+
     <script>
         // ═══════════════════════════════════════════════════════════════
-        // BOOM LOGIN - WITH SAFARI FIX
+        // BOOM LOGIN — runs after deferred Firebase scripts have executed
         // ═══════════════════════════════════════════════════════════════
-        
-        // Initialize Firebase
-        firebase.initializeApp({
-            apiKey: "AIzaSyDDb8UeSc8RhO_VxQrhLrupu1aPD4rwRso",
-            authDomain: "boom-property-dashboards.firebaseapp.com",
-            projectId: "boom-property-dashboards"
-        });
-        
-        const auth = firebase.auth();
-        
-        // Detect Safari
-        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initialize Firebase Auth (public web config — not a secret)
+            firebase.initializeApp({
+                apiKey: "AIzaSyDDb8UeSc8RhO_VxQrhLrupu1aPD4rwRso",
+                authDomain: "boom-property-dashboards.firebaseapp.com",
+                projectId: "boom-property-dashboards"
+            });
+            const auth = firebase.auth();
 
-        // Honour ?next= for redirect destination (internal paths only, no open redirect)
-        function getNextDest() {
-            try {
-                const raw = new URLSearchParams(location.search).get('next');
-                if (!raw) return '/portal.html';
-                // Must be a single-leading-slash path, not protocol-relative, no scheme
-                if (!raw.startsWith('/') || raw.startsWith('//') || raw.includes(':')) return '/portal.html';
-                return raw;
-            } catch { return '/portal.html'; }
-        }
-        const NEXT_DEST = getNextDest();
-        
-        // Set persistence with fallback
-        (async () => {
-            try {
-                await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
-            } catch (e) {
-                console.log('LOCAL failed, trying SESSION');
+            const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+
+            // Honour ?next= for redirect destination — internal paths only.
+            // Hardened against open-redirect: must be a single-leading-slash
+            // path, never protocol-relative (//), never backslash-tricked,
+            // never carrying a scheme. Falls back to the portal.
+            function getNextDest() {
                 try {
-                    await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
-                } catch (e2) {
-                    console.log('Persistence setup failed:', e2);
+                    const raw = new URLSearchParams(location.search).get('next');
+                    if (!raw) return '/portal.html';
+                    const v = raw.trim();
+                    if (v.length > 512) return '/portal.html';
+                    if (!v.startsWith('/')) return '/portal.html';
+                    if (v.startsWith('//') || v.startsWith('/\\')) return '/portal.html';
+                    if (v.includes('\\') || v.includes(':')) return '/portal.html';
+                    return v;
+                } catch { return '/portal.html'; }
+            }
+            const NEXT_DEST = getNextDest();
+
+            // Persistence with graceful fallback
+            (async () => {
+                try {
+                    await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+                } catch {
+                    try { await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION); } catch {}
                 }
+            })();
+
+            // Already signed in → straight to destination
+            auth.onAuthStateChanged(user => { if (user) window.location.href = NEXT_DEST; });
+
+            // ── DOM refs ──
+            const form        = document.getElementById('loginForm');
+            const emailInput  = document.getElementById('email');
+            const pwInput     = document.getElementById('password');
+            const submitBtn   = document.getElementById('submitBtn');
+            const messageEl   = document.getElementById('message');
+            const revealBtn   = document.getElementById('revealBtn');
+            const eyeIcon     = document.getElementById('eyeIcon');
+            const capsHint    = document.getElementById('capsHint');
+            const forgotBtn   = document.getElementById('forgotBtn');
+
+            const EYE  = '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>';
+            const EYE_OFF = '<path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c6.5 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.5 13.5 0 0 0 2 12s3.5 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" y1="2" x2="22" y2="22"/>';
+
+            function showMessage(html, type) {
+                messageEl.innerHTML =
+                    (type === 'error'
+                        ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>'
+                        : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>'
+                    ) + '<span>' + html + '</span>';
+                messageEl.className = 'message show ' + type;
             }
-        })();
-        
-        // Check if already logged in
-        auth.onAuthStateChanged(user => {
-            if (user) {
-                window.location.href = NEXT_DEST;
+            function clearMessage() { messageEl.className = 'message'; messageEl.innerHTML = ''; }
+
+            function setLoading(on) {
+                submitBtn.disabled = on;
+                submitBtn.classList.toggle('loading', on);
+                emailInput.disabled = on;
+                pwInput.disabled = on;
             }
-        });
-        
-        // DOM
-        const form = document.getElementById('loginForm');
-        const emailInput = document.getElementById('email');
-        const passwordInput = document.getElementById('password');
-        const submitBtn = document.getElementById('submitBtn');
-        const messageEl = document.getElementById('message');
-        
-        // Show message
-        function showMessage(text, type) {
-            messageEl.textContent = text;
-            messageEl.className = 'message ' + type;
-        }
-        
-        // Set loading
-        function setLoading(on) {
-            submitBtn.disabled = on;
-            submitBtn.classList.toggle('loading', on);
-        }
-        
-        // Form submit
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const email = emailInput.value.trim();
-            const password = passwordInput.value;
-            
-            if (!email || !password) {
-                showMessage('Enter email and password', 'error');
-                return;
+
+            // ── Password reveal ──
+            revealBtn.addEventListener('click', () => {
+                const show = pwInput.type === 'password';
+                pwInput.type = show ? 'text' : 'password';
+                eyeIcon.innerHTML = show ? EYE_OFF : EYE;
+                revealBtn.setAttribute('aria-pressed', String(show));
+                revealBtn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+                pwInput.focus();
+            });
+
+            // ── Caps Lock awareness ──
+            function capsCheck(e) {
+                const on = e.getModifierState && e.getModifierState('CapsLock');
+                capsHint.classList.toggle('show', !!on);
             }
-            
-            setLoading(true);
-            messageEl.className = 'message';
-            
-            try {
-                await auth.signInWithEmailAndPassword(email, password);
-                showMessage('Success! Redirecting...', 'success');
-                // Small delay for Safari to save auth state
-                setTimeout(() => {
-                    window.location.href = NEXT_DEST;
-                }, isSafari ? 500 : 100);
-            } catch (err) {
-                const msg = {
-                    'auth/invalid-email': 'Invalid email',
-                    'auth/user-not-found': 'User not found',
-                    'auth/wrong-password': 'Wrong password',
-                    'auth/invalid-credential': 'Invalid credentials',
-                    'auth/too-many-requests': 'Too many attempts'
-                }[err.code] || 'Login failed';
-                
-                showMessage(msg, 'error');
-                setLoading(false);
-            }
-        });
-        
-        // Forgot password
-        document.getElementById('forgotBtn').addEventListener('click', async (e) => {
-            e.preventDefault();
-            const email = emailInput.value.trim();
-            if (!email) {
-                showMessage('Enter email first', 'error');
-                return;
-            }
-            try {
-                await auth.sendPasswordResetEmail(email);
-                showMessage('Reset email sent!', 'success');
-            } catch (e) {
-                showMessage('Error sending email', 'error');
-            }
+            pwInput.addEventListener('keydown', capsCheck);
+            pwInput.addEventListener('keyup', capsCheck);
+            pwInput.addEventListener('blur', () => capsHint.classList.remove('show'));
+
+            // ── Sign in ──
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const email = emailInput.value.trim();
+                const password = pwInput.value;
+
+                if (!email || !password) {
+                    showMessage('Please enter your email and password.', 'error');
+                    return;
+                }
+
+                setLoading(true);
+                clearMessage();
+
+                try {
+                    await auth.signInWithEmailAndPassword(email, password);
+                    showMessage('Welcome back — signing you in…', 'success');
+                    setTimeout(() => { window.location.href = NEXT_DEST; }, isSafari ? 500 : 120);
+                } catch (err) {
+                    // Generic message to avoid account enumeration. The only
+                    // codes we surface specifically are non-enumerating ones.
+                    let msg = 'Incorrect email or password. Please try again.';
+                    if (err.code === 'auth/too-many-requests') {
+                        msg = 'Too many attempts. Please wait a moment and try again.';
+                    } else if (err.code === 'auth/network-request-failed') {
+                        msg = 'Network error. Check your connection and try again.';
+                    } else if (err.code === 'auth/user-disabled') {
+                        msg = 'This account has been disabled. Contact support.';
+                    }
+                    showMessage(msg, 'error');
+                    setLoading(false);
+                    pwInput.focus();
+                    pwInput.select();
+                }
+            });
+
+            // ── Forgot password (non-enumerating confirmation) ──
+            forgotBtn.addEventListener('click', async () => {
+                const email = emailInput.value.trim();
+                if (!email) {
+                    showMessage('Enter your email above, then tap “Forgot password?” again.', 'error');
+                    emailInput.focus();
+                    return;
+                }
+                forgotBtn.disabled = true;
+                try {
+                    await auth.sendPasswordResetEmail(email);
+                } catch (err) {
+                    // Swallow user-not-found so we don't reveal whether the
+                    // email is registered. Only surface hard errors.
+                    if (err.code === 'auth/invalid-email') {
+                        showMessage('That doesn’t look like a valid email address.', 'error');
+                        forgotBtn.disabled = false;
+                        return;
+                    }
+                    if (err.code === 'auth/too-many-requests') {
+                        showMessage('Too many requests. Please wait a moment.', 'error');
+                        forgotBtn.disabled = false;
+                        return;
+                    }
+                }
+                showMessage('If an account exists for that email, a reset link is on its way.', 'success');
+                setTimeout(() => { forgotBtn.disabled = false; }, 4000);
+            });
         });
     </script>
 </body>
