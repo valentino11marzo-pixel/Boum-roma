@@ -77,6 +77,98 @@ async function sendEmailJS(templateParams) {
   return r.text();
 }
 
+// Generic Firestore write (idempotent on docId; 409 = already written, ignore)
+async function writeDoc(collection, docId, data) {
+  const token = await firebaseIdToken();
+  const pid = process.env.FIREBASE_PROJECT_ID;
+  const url = `https://firestore.googleapis.com/v1/projects/${pid}/databases/(default)/documents/${collection}?documentId=${docId}`;
+  const r = await fetch(url, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fields: toFirestoreFields(data) }),
+  });
+  if (!r.ok) {
+    if (r.status === 409) return { exists: true };
+    throw new Error(`Firestore write failed: ${r.status} ${await r.text()}`);
+  }
+  return r.json();
+}
+
+// RESERVE — a tenant paid a refundable holding deposit to reserve an apartment.
+async function handleReserve(res, session, m) {
+  const docId = session.id.replace(/[^a-zA-Z0-9]/g, '').substring(0, 30);
+  const now = new Date().toISOString();
+  const amountEur = (session.amount_total || 0) / 100;
+  const email = m.email || session.customer_email || '';
+  const lead = {
+    type: 'reservation',
+    service: 'RESERVE',
+    status: 'reserved',
+    paid: true,
+    source: 'reserve-deposit',
+    name: m.name || '',
+    email,
+    phone: m.phone || '',
+    moveIn: m.move_in_date || '',
+    listingId: m.listingId || '',
+    listingName: m.listingName || 'Apartment',
+    amount_paid: session.amount_total || 0,
+    amount_eur: amountEur,
+    currency: session.currency || 'eur',
+    stripe_session_id: session.id,
+    paid_at: now,
+    createdAt: now,
+  };
+
+  // Surface it in the existing lead pipeline (cockpit/portal read `leads`)
+  try { await writeDoc('leads', 'res_' + docId, lead); }
+  catch (err) { console.error('Firestore reservation write error:', err); }
+
+  const firstName = (m.name || '').split(' ')[0] || 'there';
+
+  // Owner notification (same channel as PFS)
+  try {
+    await sendEmailJS({
+      to_email: 'valentino@boom-rome.com',
+      heading: `🔒 RESERVED — €${amountEur} deposit`,
+      subheading: m.listingName || 'Apartment reserved',
+      name: 'Valentino',
+      intro: 'A tenant just paid a refundable holding deposit to reserve an apartment. Take it off-market and process the application.',
+      card_color: '#D4AF37',
+      card_title: 'Reservation',
+      r1_icon: '🏠', r1_label: 'Apartment', r1_value: m.listingName || '—',
+      r2_icon: '📧', r2_label: 'Email', r2_value: email || '—',
+      r3_icon: '📱', r3_label: 'Phone', r3_value: lead.phone || '—',
+      r4_icon: '📅', r4_label: 'Move-in', r4_value: lead.moveIn || '—',
+      closing: `Deposit: €${amountEur} (refundable, deduct from 1st month). Listing: ${m.listingId || '—'}. Stripe: ${session.id}. Record: leads/res_${docId}.`,
+      cta_text: 'Open portal',
+      portal_link: 'https://www.boomrome.com/portal.html#leads',
+    });
+  } catch (err) { console.error('Admin reservation email error:', err); }
+
+  // Client confirmation
+  try {
+    if (email) await sendEmailJS({
+      to_email: email,
+      heading: 'Your apartment is on hold',
+      subheading: m.listingName || 'Reservation confirmed',
+      name: firstName,
+      intro: `We've received your refundable holding deposit and taken ${m.listingName || 'the apartment'} off-market while we process your application. Here's what happens next:`,
+      card_color: '#D4AF37',
+      card_title: 'What happens next',
+      r1_icon: '✓', r1_label: 'We review your application', r1_value: 'Within 2 hours',
+      r2_icon: '✓', r2_label: 'Apartment held for you', r2_value: 'Off-market, just for you',
+      r3_icon: '✓', r3_label: 'If approved', r3_value: 'Deposit deducted from 1st month',
+      r4_icon: '✓', r4_label: 'If not approved', r4_value: 'Full refund, no questions',
+      closing: 'Questions? Just reply to this email or message us on WhatsApp.',
+      cta_text: 'Back to BOOM',
+      portal_link: 'https://www.boomrome.com/apartments.html',
+    });
+  } catch (err) { console.error('Client reservation email error:', err); }
+
+  return res.status(200).json({ received: true, reservationId: 'res_' + docId });
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).send('Method not allowed');
 
@@ -98,8 +190,12 @@ export default async function handler(req, res) {
   const session = event.data.object;
   const m = session.metadata || {};
 
+  if (m.service === 'RESERVE') {
+    return handleReserve(res, session, m);
+  }
+
   if (m.service !== 'PFS') {
-    return res.status(200).json({ received: true, skipped: 'non-PFS' });
+    return res.status(200).json({ received: true, skipped: m.service || 'none' });
   }
 
   const docId = session.id.replace(/[^a-zA-Z0-9]/g, '').substring(0, 30);
