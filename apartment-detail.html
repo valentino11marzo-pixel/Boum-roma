@@ -180,6 +180,18 @@
 
         /* ===== TWO COLUMN ===== */
         .apt-content{max-width:1400px;margin:0 auto;padding:0 50px 80px;display:grid;grid-template-columns:1fr 380px;gap:50px;align-items:start}
+        .apt-cta-inline{max-width:1400px;margin:14px auto 0;padding:0 50px}
+        .aci-box{display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;border:1px solid rgba(255,215,0,0.18);border-radius:20px;padding:24px 30px;background:linear-gradient(135deg,rgba(255,215,0,0.07),rgba(255,255,255,0.02))}
+        .aci-text h3{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-weight:200;font-size:clamp(20px,2.4vw,28px);color:#fff}
+        .aci-text p{font-size:12.5px;color:var(--text-fade);margin-top:8px;display:flex;gap:16px;flex-wrap:wrap}
+        .aci-text p span{display:flex;align-items:center;gap:6px}
+        .aci-text p span::before{content:'✓';color:#00FF88}
+        .aci-btns{display:flex;gap:12px;flex-wrap:wrap}
+        .aci-apply{padding:14px 26px;border-radius:12px;background:linear-gradient(135deg,#FFD700,#FFA500);color:#000;font-weight:600;font-size:15px;text-decoration:none;white-space:nowrap;transition:transform .3s,box-shadow .3s}
+        .aci-apply:hover{transform:translateY(-2px);box-shadow:0 10px 30px rgba(255,215,0,0.3)}
+        .aci-reserve{padding:14px 24px;border-radius:12px;border:1px solid var(--gold);color:var(--gold);background:transparent;font-weight:600;font-size:15px;text-decoration:none;white-space:nowrap;transition:all .3s}
+        .aci-reserve:hover{background:rgba(255,215,0,0.08)}
+        @media(max-width:768px){.apt-cta-inline{padding:0 20px}.aci-box{padding:20px}.aci-btns{width:100%}.aci-apply,.aci-reserve{flex:1;text-align:center}}
         .content-section{margin-bottom:50px}
         .content-section-title{font-size:11px;text-transform:uppercase;letter-spacing:3px;color:var(--gold);font-weight:600;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid rgba(255, 215, 0,0.15)}
         .apt-description{font-size:16px;line-height:1.8;color:var(--text-secondary);font-weight:300}
@@ -245,6 +257,16 @@
         .sidebar-apply{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:16px;margin-bottom:12px;background:linear-gradient(135deg,#FFD700,#FFA500);border:none;border-radius:12px;color:#000;font-family:inherit;font-size:15px;font-weight:600;text-decoration:none;cursor:pointer;transition:all .3s}
         .sidebar-apply:hover{transform:translateY(-2px);box-shadow:0 10px 34px rgba(255,215,0,0.32)}
         .inquiry-success{display:none;text-align:center;padding:20px 0;color:#25D366;font-size:14px}
+        .reserve-box{margin-top:18px;padding-top:18px;border-top:1px solid rgba(255,255,255,0.07);display:none}
+        .reserve-box.show{display:block}
+        .reserve-h{font-size:13px;color:var(--text-secondary);margin-bottom:10px}
+        .reserve-h b{color:#fff;font-weight:500}
+        .reserve-btn{width:100%;padding:14px;border:1px solid var(--gold);border-radius:12px;background:rgba(255,215,0,0.06);color:var(--gold);font-family:inherit;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .3s}
+        .reserve-btn:hover{background:var(--gold);color:#000;transform:translateY(-2px);box-shadow:0 10px 30px rgba(255,215,0,0.28)}
+        .reserve-btn:disabled{opacity:.6;cursor:default;transform:none;background:rgba(255,215,0,0.06);color:var(--gold)}
+        .reserve-note{margin-top:11px;display:flex;flex-direction:column;gap:6px}
+        .reserve-note span{font-size:11.5px;color:var(--text-fade);display:flex;align-items:center;gap:7px}
+        .reserve-note span::before{content:'✓';color:#00FF88}
         .sidebar-trust{display:flex;flex-direction:column;gap:12px;margin-top:24px;padding-top:24px;border-top:1px solid rgba(255,255,255,0.06)}
         .trust-item{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--text-secondary)}
         .trust-item .ti{color:#00FF88;font-size:14px}
@@ -318,10 +340,14 @@
         .cta-outline:hover{border-color:var(--gold);color:var(--gold)}
 
         /* ===== MOBILE CTA ===== */
-        .mobile-cta{display:none;position:fixed;bottom:0;left:0;right:0;padding:16px 20px;background:rgba(0,0,0,0.95);backdrop-filter:blur(20px);border-top:1px solid rgba(255, 215, 0,0.15);z-index:90;align-items:center;justify-content:space-between;gap:16px}
-        .mobile-cta-price{font-size:22px;font-weight:200;color:var(--gold)}
-        .mobile-cta-price small{font-size:12px;color:var(--text-fade);display:block}
-        .mobile-cta-btn{display:flex;align-items:center;gap:8px;padding:14px 28px;background:#25D366;border:none;border-radius:12px;color:#fff;font-family:inherit;font-size:14px;font-weight:600;text-decoration:none;white-space:nowrap}
+        .mobile-cta{display:none;position:fixed;bottom:0;left:0;right:0;padding:14px 18px calc(14px + env(safe-area-inset-bottom));background:rgba(0,0,0,0.95);backdrop-filter:blur(20px);border-top:1px solid rgba(255, 215, 0,0.15);z-index:90;align-items:center;justify-content:space-between;gap:14px;transform:translateY(120%);transition:transform .45s cubic-bezier(.16,1,.3,1)}
+        .mobile-cta.in{transform:none}
+        .mobile-cta-price{font-size:21px;font-weight:200;color:var(--gold);line-height:1.05}
+        .mobile-cta-price small{font-size:11px;color:var(--text-fade);display:block}
+        .mobile-cta-actions{display:flex;align-items:center;gap:10px}
+        .mcta-apply{display:flex;align-items:center;justify-content:center;padding:14px 26px;background:linear-gradient(135deg,#FFD700,#FFA500);border-radius:12px;color:#000;font-family:inherit;font-size:15px;font-weight:600;text-decoration:none;white-space:nowrap}
+        .mobile-cta-btn{display:flex;align-items:center;justify-content:center;gap:8px;padding:14px 17px;background:#25D366;border:none;border-radius:12px;color:#fff;font-family:inherit;font-size:18px;font-weight:600;text-decoration:none;white-space:nowrap}
+        @media(prefers-reduced-motion:reduce){.mobile-cta{transition:none}}
 
         /* ===== FOOTER — matches live site ===== */
         footer{padding:80px 50px 30px;background:var(--dark-void);border-top:1px solid rgba(255,255,255,0.05)}
@@ -574,6 +600,19 @@
 
         <div class="media-section" id="mediaSection"></div>
 
+        <div class="apt-cta-inline">
+            <div class="aci-box">
+                <div class="aci-text">
+                    <h3>Love this one?</h3>
+                    <p><span>48-hour move-in</span><span>Video-verified</span><span>No hidden fees</span></p>
+                </div>
+                <div class="aci-btns">
+                    <a class="aci-apply" href="#inquiryCard" onclick="setTimeout(function(){var n=document.getElementById('iqName');if(n)n.focus();},450)">Apply in 2 minutes</a>
+                    <a class="aci-reserve" href="#inquiryCard" onclick="setTimeout(function(){var b=document.getElementById('reserveBox');if(b)b.scrollIntoView({behavior:'smooth',block:'center'});},500)">🔒 Reserve &amp; hold</a>
+                </div>
+            </div>
+        </div>
+
         <div class="apt-content">
             <div class="apt-main">
                 <div class="content-section" id="availSection" style="display:none"><div class="available-date-box"><span>📅</span><span>Available from <strong id="availDate"></strong></span></div></div>
@@ -658,6 +697,15 @@
                         <div class="apply-reassure">🔒 Private &amp; no commitment. A real person reviews every application.</div>
                     </form>
                     <div class="inquiry-success" id="inquirySuccess">✓ Application received! Our team will contact you within 2 hours.</div>
+                    <div class="reserve-box" id="reserveBox">
+                        <div class="reserve-h">Want to lock it in? <b>Reserve &amp; hold this apartment.</b></div>
+                        <button class="reserve-btn" id="reserveBtn" type="button">🔒 Reserve &amp; hold — <span id="reserveAmt">€300</span></button>
+                        <div class="reserve-note">
+                            <span>100% refundable if not approved</span>
+                            <span>Deducted from your first month</span>
+                            <span>Off-market hold while we process your application</span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div><!-- /.apt-content -->
@@ -806,7 +854,10 @@
     <!-- MOBILE CTA -->
     <div class="mobile-cta" id="mobileCta">
         <div class="mobile-cta-price" id="mobileCTAPrice"><small>per month</small></div>
-        <a class="mobile-cta-btn" href="https://wa.me/393313251961" target="_blank" id="mobileCTABtn">💬 WhatsApp Us</a>
+        <div class="mobile-cta-actions">
+            <a class="mcta-apply" href="#inquiryCard" onclick="setTimeout(function(){var n=document.getElementById('iqName');if(n)n.focus();},450)">Apply</a>
+            <a class="mobile-cta-btn" href="https://wa.me/393313251961" target="_blank" id="mobileCTABtn" aria-label="WhatsApp">💬</a>
+        </div>
     </div>
 
     <!-- FOOTER -->
@@ -1115,6 +1166,15 @@
         document.getElementById('sidebarPrice').textContent=price;
         document.getElementById('mobileCTAPrice').innerHTML=`${price}<small>per month</small>`;
 
+        // Refundable holding deposit: flat €300 (per-listing override via holdingDeposit), clamped €100–2000
+        (function(){
+          const override=Number(d.holdingDeposit||d.reservationFee||0);
+          const dep = override>0 ? Math.min(2000,Math.max(100,Math.round(override))) : 300;
+          window.__boomListing={ id:id, name:d.name||'Apartment', deposit:dep };
+          const a=document.getElementById('reserveAmt'); if(a) a.textContent='€'+dep.toLocaleString('en-US');
+          const b=document.getElementById('reserveBox'); if(b) b.classList.add('show');
+        })();
+
         // Specs
         const sEl=document.getElementById('aptSpecs'),specs=[];
         const beds=d.beds||d.bedrooms;
@@ -1168,6 +1228,27 @@
                 iqForm.style.display='none';document.getElementById('inquirySuccess').style.display='block';
                 if(typeof gtag==='function')gtag('event','inquiry_sent',{listing_id:id,listing_name:name});
             }catch(err){btn.textContent='Error — try again';btn.disabled=false;console.error('Inquiry error:',err)}
+        });
+
+        // Reserve & hold → Stripe checkout (refundable holding deposit)
+        const reserveBtn=document.getElementById('reserveBtn');
+        if(reserveBtn) reserveBtn.addEventListener('click',async function(){
+            const fname=(document.getElementById('iqName').value||'').trim();
+            const femail=(document.getElementById('iqEmail').value||'').trim();
+            const fphone=(document.getElementById('iqPhone').value||'').trim();
+            if(!fname||!femail||!fphone){ toast('Add your name, email & phone above to reserve'); const n=document.getElementById('iqName'); if(n)n.focus(); return; }
+            reserveBtn.disabled=true; const old=reserveBtn.innerHTML; reserveBtn.textContent='Opening secure checkout…';
+            try{
+                if(typeof gtag==='function')gtag('event','begin_checkout',{service:'reserve',listing_id:id,listing_name:name});
+                const resp=await fetch('/api/reserve-checkout',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+                    listingId:id, listingName:name,
+                    amount:(window.__boomListing&&window.__boomListing.deposit)||300,
+                    name:fname, email:femail, phone:fphone,
+                    move_in_date:(document.getElementById('iqMoveIn')||{}).value||''
+                })});
+                const data=await resp.json();
+                if(data&&data.url){ location.href=data.url; } else { throw new Error((data&&data.error)||'no url'); }
+            }catch(err){ console.error('Reserve error:',err); reserveBtn.disabled=false; reserveBtn.innerHTML=old; toast('Could not open checkout — message us on WhatsApp'); }
         });
     }
 
@@ -1280,6 +1361,10 @@
     const hb=document.getElementById('hamburger'),mm=document.getElementById('mobileMenu');
     hb.addEventListener('click',()=>{hb.classList.toggle('active');mm.classList.toggle('active');document.body.style.overflow=mm.classList.contains('active')?'hidden':''});
     mm.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>{hb.classList.remove('active');mm.classList.remove('active');document.body.style.overflow=''}));
+    </script>
+    <script>
+    /* Mobile CTA bar: slide up once the user is engaged (immersive, not on load) */
+    (function(){var bar=document.getElementById('mobileCta');if(!bar)return;function t(){bar.classList.toggle('in',window.scrollY>320);}addEventListener('scroll',t,{passive:true});t();})();
     </script>
     <script defer src="/js/boom-track.js"></script>
 </body>
