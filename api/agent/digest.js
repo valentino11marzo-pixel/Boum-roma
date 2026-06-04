@@ -12,6 +12,7 @@
 // Output: { generatedAt, text, html, summary:{leadsNew,pending,risksHigh,...}, sent? }
 
 import { fsList, sendEmail, logActivity, guardPost, okJson, errJson } from './_lib.js';
+import COMPLIANCE from '../../js/compliance-rules.js';
 
 function daysUntil(d) {
   if (!d) return null;
@@ -24,13 +25,17 @@ export default async function handler(req, res) {
   const horizon = typeof body.window === 'number' ? body.window : 60;
 
   try {
-    const [leads, contracts, payments, properties] = await Promise.all([
+    const [leads, contracts, payments, properties, users, stateDocs] = await Promise.all([
       fsList('leads', { orderBy: { field: 'createdAt', direction: 'DESCENDING' }, limit: 80 }),
       fsList('contracts', { limit: 200 }),
       fsList('payments', { limit: 300 }),
       fsList('properties', { limit: 200 }),
+      fsList('users', { limit: 1000 }).catch(() => []),
+      fsList('complianceState', { limit: 500 }).catch(() => []),
     ]);
     const propById = {}; properties.forEach(p => { propById[p.id] = p; });
+    const userById = {}; users.forEach(u => { userById[u.id] = u; });
+    const stateById = {}; stateDocs.forEach(d => { stateById[d.id] = d.items || {}; });
     const now = Date.now();
     const startToday = new Date(); startToday.setHours(0, 0, 0, 0);
 
@@ -58,7 +63,22 @@ export default async function handler(req, res) {
       if (due && due < now) { const late = Math.round((now - due) / 86400000); pushRisk(late > 7 ? 'high' : 'med', `${p.tenantName || 'Pagamento'} — €${(p.amount || 0).toLocaleString('it-IT')} in ritardo ${late}gg`); }
     }
 
-    const summary = { leadsNew: newToday, pendingNew, gradeA, risksHigh, risksMed };
+    // Bureaucracy / compliance deadlines (same engine as /compliance)
+    let buroOverdue = 0, buroSoon = 0;
+    const todayD = new Date();
+    for (const c of contracts) {
+      if (['expired', 'terminated', 'draft'].includes(c.status)) continue;
+      const tenant = userById[c.tenantId || c.tenant || c.tenantUid] || {};
+      const doneMap = stateById[c.id] || {};
+      let obligations; try { obligations = COMPLIANCE.obligationsFor(c, { tenant, today: todayD }); } catch { continue; }
+      for (const it of obligations) {
+        const st = COMPLIANCE.statusOf(it, doneMap, todayD, 14);
+        if (st === 'overdue') { buroOverdue++; pushRisk(it.severity === 'low' ? 'med' : 'high', `${propLabel(c)} — ${it.label} (scaduto)`); }
+        else if (st === 'due_soon') { buroSoon++; pushRisk(it.severity === 'high' ? 'high' : 'med', `${propLabel(c)} — ${it.label} (in scadenza)`); }
+      }
+    }
+
+    const summary = { leadsNew: newToday, pendingNew, gradeA, risksHigh, risksMed, buroOverdue, buroSoon };
     const dateStr = new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' });
 
     const textLines = [
@@ -66,6 +86,7 @@ export default async function handler(req, res) {
       ``,
       `📨 Lead: ${newToday} nuovi oggi · ${pendingNew} in attesa${gradeA ? ` · ${gradeA} grade A` : ''}`,
       `🎯 Rischi: ${risksHigh} urgenti · ${risksMed} da seguire`,
+      `🏛️ Burocrazia: ${buroOverdue} scadut${buroOverdue === 1 ? 'a' : 'e'} · ${buroSoon} in scadenza`,
       ``,
       ...(top.length ? ['Top priorità:', ...top.map(t => '· ' + t)] : ['Nessun rischio aperto ✅']),
     ];
@@ -75,6 +96,7 @@ export default async function handler(req, res) {
       <div style="border:1px solid #eee;border-top:none;padding:18px 22px;border-radius:0 0 10px 10px">
         <p style="font-size:15px"><strong>📨 Lead:</strong> ${newToday} nuovi oggi · ${pendingNew} in attesa${gradeA ? ` · <span style="color:#B8960C">${gradeA} grade A</span>` : ''}</p>
         <p style="font-size:15px"><strong>🎯 Rischi:</strong> ${risksHigh} urgenti · ${risksMed} da seguire</p>
+        <p style="font-size:15px"><strong>🏛️ Burocrazia:</strong> ${buroOverdue} scadute · ${buroSoon} in scadenza</p>
         ${top.length ? `<p style="font-weight:bold;margin-top:16px">Top priorità</p><ul style="line-height:1.7;font-size:14px;color:#333">${top.map(t => `<li>${t.replace(/^🔴 |^🟠 /, '')}</li>`).join('')}</ul>` : '<p style="color:#2a8">Nessun rischio aperto ✅</p>'}
       </div></div>`;
 

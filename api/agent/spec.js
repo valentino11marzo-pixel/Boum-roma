@@ -80,6 +80,12 @@ export default async function handler(req, res) {
         output: { generatedAt: 'iso', counts: '{high,med,total}', items: 'array<{sev,cat,title,detail,days,ref}>' },
       },
       {
+        name: 'compliance.scan', method: 'POST', path: '/compliance.scan',
+        tier: 1, side_effects: 'none (read-only)',
+        input: { window: 'number? (due-soon horizon days, default 14)' },
+        output: { generatedAt: 'iso', counts: '{high,med,total}', items: 'array<{sev,cat,title,detail,days,ref,code,owner}>' },
+      },
+      {
         name: 'digest', method: 'POST', path: '/digest',
         tier: 1, side_effects: 'read-only + optional email send',
         input: { email: 'string? (send the briefing there)', window: 'number? (risk horizon days, default 60)' },

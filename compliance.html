@@ -209,6 +209,12 @@ async function loadAndRender(){
   buildModels();
   renderKPIs();
   renderList();
+  // Deep-link: /compliance?contract=<id> opens that contract's passport directly
+  const want = new URLSearchParams(location.search).get('contract');
+  if(want){
+    const idx = MODELS.findIndex(m=>m.c.id===want);
+    if(idx>=0){ FILTER='all'; document.querySelectorAll('#filters .pill').forEach(p=>p.classList.toggle('on',p.dataset.f==='all')); renderList(); togglePassport(idx); const el=$('pp-'+idx); if(el) el.scrollIntoView({behavior:'smooth',block:'center'}); }
+  }
   $('legal').innerHTML='⚠️ <b>Nota</b>: gli adempimenti, gli importi e le scadenze qui mostrati seguono lo schema standard della locazione residenziale italiana e vanno confermati col tuo CAF / commercialista. Le bozze generate sono modelli da verificare prima dell\'invio. Le regole sono versionate in <code>/js/compliance-rules.js</code>.';
 }
 
