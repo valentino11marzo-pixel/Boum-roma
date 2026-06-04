@@ -3615,14 +3615,17 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         console.log('Loading data...');
         const startTime = performance.now();
         
-        // Check cache first (5 min expiry)
+        // Check cache first (5 min expiry). Cache is tagged with the owning
+        // uid + role so a different user on a shared device never loads
+        // someone else's data dump from localStorage.
         const cacheKey = 'boom_data_cache';
         const cacheExpiry = 5 * 60 * 1000; // 5 minutes
         const cached = localStorage.getItem(cacheKey);
         if (cached) {
             try {
-                const { data, timestamp } = JSON.parse(cached);
-                if (Date.now() - timestamp < cacheExpiry) {
+                const { data, timestamp, uid, role } = JSON.parse(cached);
+                const sameUser = uid === S.profile?.id && role === S.profile?.role;
+                if (sameUser && Date.now() - timestamp < cacheExpiry) {
                     console.log('Using cached data');
                     Object.assign(S, data);
                     checkAlerts();
@@ -3630,14 +3633,126 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     setTimeout(() => loadDataFresh(true), 2000);
                     return;
                 }
+                if (!sameUser) localStorage.removeItem(cacheKey);
             } catch (e) { console.log('Cache invalid'); }
         }
         
         await loadDataFresh(false);
     }
     
+    // Firestore `in` queries cap at 30 values — chunk + merge so a landlord
+    // with many properties (or a query over many ids) doesn't throw.
+    async function fetchByIdsChunked(collection, ids) {
+        const out = [];
+        const unique = Array.from(new Set(ids)).filter(Boolean);
+        for (let i = 0; i < unique.length; i += 30) {
+            const chunk = unique.slice(i, i + 30);
+            if (!chunk.length) continue;
+            const snap = await db.collection(collection)
+                .where(firebase.firestore.FieldPath.documentId(), 'in', chunk).get();
+            snap.docs.forEach(d => out.push({ id: d.id, ...d.data() }));
+        }
+        return out;
+    }
+    async function fetchWhereInChunked(collection, field, values) {
+        const out = [];
+        const unique = Array.from(new Set(values)).filter(Boolean);
+        for (let i = 0; i < unique.length; i += 30) {
+            const chunk = unique.slice(i, i + 30);
+            if (!chunk.length) continue;
+            const snap = await db.collection(collection).where(field, 'in', chunk).get();
+            snap.docs.forEach(d => out.push({ id: d.id, ...d.data() }));
+        }
+        return out;
+    }
+
+    // Non-admin loader: scoped to exactly what the role may read, so the
+    // queries pass Firestore Security Rules (which reject unconstrained
+    // collection reads for landlord/tenant). Admin-only ops collections are
+    // emptied, never fetched.
+    async function loadDataScoped(silent, startTime) {
+        const myUid = S.profile.id;
+        // Admin-only collections: stay empty for landlord/tenant.
+        S.clients = []; S.invoices = []; S.rules = []; S.ruleExecutions = [];
+        S.listings = []; S.leads = []; S.activityLog = []; S.deadlines = [];
+        S.tasks = []; S.pfsClients = []; S.pfsProperties = []; S.pfsActivities = [];
+        S.landlords = []; S.viewingRequests = [];
+        // The viewer needs their own user doc (+ admin contacts surface lazily).
+        S.users = [{ id: myUid, ...S.profile }];
+
+        if (isLandlord()) {
+            const props = await db.collection('properties').where('ownerId', '==', myUid).get();
+            S.properties = props.docs.map(d => ({ id: d.id, ...d.data() }));
+            const propIds = S.properties.map(p => p.id);
+            const [contracts, payments, maint] = await Promise.all([
+                fetchWhereInChunked('contracts', 'propertyId', propIds),
+                fetchWhereInChunked('payments', 'propertyId', propIds),
+                fetchWhereInChunked('maintenance', 'propertyId', propIds)
+            ]);
+            S.contracts = contracts;
+            S.payments = payments;
+            S.maintenance = maint;
+            // Tenants on those contracts (so names render) — read-allowed since
+            // admin rule covers users; landlords read tenant docs via rules only
+            // if permitted. Keep minimal: skip cross-user fetch, render by id.
+        } else { // tenant
+            const contracts = await db.collection('contracts').where('tenantId', '==', myUid).get();
+            S.contracts = contracts.docs.map(d => ({ id: d.id, ...d.data() }));
+            const propIds = S.contracts.map(c => c.propertyId);
+            const [props, payments, maint] = await Promise.all([
+                fetchByIdsChunked('properties', propIds),
+                db.collection('payments').where('tenantId', '==', myUid).get()
+                    .then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))),
+                db.collection('maintenance').where('userId', '==', myUid).get()
+                    .then(s => s.docs.map(d => ({ id: d.id, ...d.data() })))
+            ]);
+            S.properties = props;
+            S.payments = payments;
+            S.maintenance = maint;
+        }
+
+        // Own documents (both roles).
+        const docs = await db.collection('documents').where('userId', '==', myUid).get();
+        S.documents = docs.docs.map(d => ({ id: d.id, ...d.data() }));
+
+        // Auto-overdue marking on the viewer's own pending payments.
+        const today = new Date().toISOString().split('T')[0];
+        S.payments.forEach(function (p) {
+            if (p.status === 'pending' && p.dueDate && p.dueDate < today) p.status = 'overdue';
+        });
+
+        cacheData();
+        if (!silent) checkAlerts();
+        console.log('Scoped data loaded in', (performance.now() - startTime).toFixed(0), 'ms');
+    }
+
+    function cacheData() {
+        try {
+            localStorage.setItem('boom_data_cache', JSON.stringify({
+                timestamp: Date.now(),
+                uid: S.profile?.id,
+                role: S.profile?.role,
+                data: {
+                    users: S.users, properties: S.properties, contracts: S.contracts,
+                    payments: S.payments, maintenance: S.maintenance, clients: S.clients,
+                    documents: S.documents, invoices: S.invoices, rules: S.rules, ruleExecutions: S.ruleExecutions
+                }
+            }));
+        } catch (e) { console.log('Cache save failed:', e.message); }
+    }
+
     async function loadDataFresh(silent) {
         const startTime = performance.now();
+        // Landlord / tenant take the scoped path so their queries satisfy
+        // Firestore rules; admin keeps the full bulk load below.
+        if (!isAdmin()) {
+            try { return await loadDataScoped(silent, startTime); }
+            catch (e) {
+                console.error('Scoped load error:', e);
+                if (!silent) toast('error', 'Errore caricamento', e.message);
+                return;
+            }
+        }
         try {
             // BATCH 1: Critical data (always load first)
             console.log('Loading batch 1...');
@@ -3694,17 +3809,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             S.ruleExecutions = ruleExecs.docs.map(d => ({ id: d.id, ...d.data() }));
             console.log('Batch 3 done:', (performance.now() - startTime).toFixed(0), 'ms');
             
-            // Cache core data
-            try {
-                localStorage.setItem('boom_data_cache', JSON.stringify({
-                    timestamp: Date.now(),
-                    data: {
-                        users: S.users, properties: S.properties, contracts: S.contracts,
-                        payments: S.payments, maintenance: S.maintenance, clients: S.clients,
-                        documents: S.documents, invoices: S.invoices, rules: S.rules, ruleExecutions: S.ruleExecutions
-                    }
-                }));
-            } catch (e) { console.log('Cache save failed:', e.message); }
+            // Cache core data (tagged with uid + role for shared-device safety)
+            cacheData();
             
             // LAZY LOAD: Non-critical data (load after app is shown)
             setTimeout(async () => {
@@ -12282,6 +12388,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
     async function saveUser(e) {
         e.preventDefault();
+        // Defense-in-depth: only admins create accounts (and assign roles).
+        // Firestore rules enforce the same on the users/{uid} write.
+        if (!isAdmin()) { toast('error', 'Operazione non consentita'); return; }
         const data = Object.fromEntries(new FormData(e.target));
         try {
             const cred = await auth.createUserWithEmailAndPassword(data.email, data.password);
@@ -13323,6 +13432,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
 
     async function deleteRecord(type, id) {
+        // Defense-in-depth: deletion is an admin-only operation. Firestore
+        // rules enforce this server-side too, but the UI must never even try.
+        if (!isAdmin()) { toast('error', 'Operazione non consentita'); return; }
         // Map singular type → Firestore collection name (handles irregular plurals)
         var COLLECTION_MAP = {
             listing: 'listings', property: 'properties', propert: 'properties',
