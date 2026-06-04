@@ -1,0 +1,140 @@
+/* ════════════════════════════════════════════════════════════════════
+   BOOM · Product film — an auto-playing screencast of the BOOM dashboard
+   running a whole move: lead → match → viewing → contract → move-in.
+   Self-contained; pairs with /js/boom-film.js. Reduced-motion safe.
+   ════════════════════════════════════════════════════════════════════ */
+
+.boom-film{position:relative;z-index:1}
+.bf-frame{
+  max-width:940px;margin:0 auto;border-radius:18px;overflow:hidden;
+  border:1px solid var(--border-default);background:var(--surface-elevated);
+  box-shadow:0 50px 140px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.02) inset;
+  position:relative;
+}
+/* Browser chrome */
+.bf-bar{display:flex;align-items:center;gap:8px;padding:12px 15px;background:rgba(255,255,255,.03);border-bottom:1px solid var(--border-default)}
+.bf-dot{width:11px;height:11px;border-radius:50%;background:#2a2a30}
+.bf-url{margin-left:10px;flex:1;max-width:340px;height:26px;border-radius:7px;background:rgba(0,0,0,.42);display:flex;align-items:center;padding:0 12px;font-size:11px;color:var(--text-tertiary);letter-spacing:.3px}
+.bf-url::before{content:'🔒';font-size:8px;margin-right:7px;filter:grayscale(1)}
+.bf-live{margin-left:auto;font-size:10px;letter-spacing:.5px;color:var(--green);border:1px solid rgba(0,255,136,.3);padding:3px 9px;border-radius:100px}
+.bf-live b{animation:bfBlink 1.5s infinite}
+@keyframes bfBlink{50%{opacity:.25}}
+
+/* Layout: sidebar + stage */
+.bf-body{display:grid;grid-template-columns:172px 1fr;min-height:440px}
+.bf-side{border-right:1px solid var(--border-default);padding:16px 12px;background:rgba(0,0,0,.18);display:flex;flex-direction:column;gap:4px}
+.bf-brand{display:flex;align-items:center;gap:8px;padding:4px 8px 14px;font-size:13px;letter-spacing:3px;color:#fff;font-weight:600}
+.bf-brand i{width:18px;height:18px;border-radius:5px;background:linear-gradient(135deg,#FFE55C,#E5C200)}
+.bf-nav{display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:9px;font-size:12.5px;color:var(--text-tertiary);transition:background .35s,color .35s;position:relative}
+.bf-nav .ic{font-size:13px;width:16px;text-align:center}
+.bf-nav.active{background:var(--gold-muted);color:#fff}
+.bf-nav.active::before{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);width:3px;height:18px;border-radius:2px;background:var(--gold)}
+.bf-nav .dotk{margin-left:auto;width:6px;height:6px;border-radius:50%;background:var(--green);opacity:0;transition:opacity .3s}
+.bf-nav.done .dotk{opacity:1}
+
+/* Stage */
+.bf-stage{position:relative;overflow:hidden;background:linear-gradient(170deg,var(--surface-card),#070708)}
+.bf-scene{position:absolute;inset:0;padding:24px 26px;opacity:0;transform:translateY(14px) scale(.99);transition:opacity .55s var(--ease-out),transform .55s var(--ease-out);pointer-events:none}
+.bf-scene.show{opacity:1;transform:none}
+.bf-h{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:16px;display:flex;align-items:center;gap:9px}
+.bf-h .step{width:20px;height:20px;border-radius:50%;background:var(--gold);color:#000;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;letter-spacing:0}
+
+/* Caption strip */
+.bf-cap{position:absolute;left:0;right:0;bottom:0;padding:13px 20px;background:linear-gradient(0deg,rgba(0,0,0,.55),transparent);display:flex;align-items:center;gap:10px;font-size:13px;color:#fff}
+.bf-cap .pill{font-size:10px;letter-spacing:.5px;text-transform:uppercase;color:var(--gold);border:1px solid var(--border-gold);padding:3px 9px;border-radius:100px;white-space:nowrap}
+
+/* Simulated cursor */
+.bf-cursor{position:absolute;z-index:9;top:50%;left:50%;width:20px;height:20px;pointer-events:none;transition:transform .85s var(--ease-out);filter:drop-shadow(0 2px 4px rgba(0,0,0,.5))}
+.bf-cursor svg{display:block}
+.bf-cursor.click::after{content:'';position:absolute;left:-3px;top:-3px;width:22px;height:22px;border-radius:50%;border:2px solid var(--gold);animation:bfClick .5s ease-out}
+@keyframes bfClick{from{transform:scale(.2);opacity:.9}to{transform:scale(1.7);opacity:0}}
+
+/* ── Scene 1 · Lead intake ── */
+.bf-lead{border:1px solid var(--border-default);border-radius:13px;padding:16px;background:rgba(255,255,255,.02);max-width:430px}
+.bf-lead-top{display:flex;align-items:center;gap:11px;margin-bottom:14px}
+.bf-av{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#FFE55C,#E5C200);color:#000;font-weight:700;display:flex;align-items:center;justify-content:center;font-size:14px}
+.bf-lead-name{font-size:14px;color:#fff;font-weight:600}
+.bf-lead-sub{font-size:11.5px;color:var(--text-tertiary);margin-top:2px}
+.bf-field{height:30px;border-radius:7px;border:1px solid var(--border-default);background:rgba(0,0,0,.25);margin-bottom:9px;display:flex;align-items:center;padding:0 11px;font-size:12px;color:var(--text-secondary);overflow:hidden;white-space:nowrap}
+.bf-field .v{color:#fff;border-right:1.5px solid var(--gold);padding-right:1px}
+.bf-tag{display:inline-flex;align-items:center;gap:6px;margin-top:6px;font-size:11px;color:var(--green);border:1px solid rgba(0,255,136,.3);padding:5px 11px;border-radius:100px}
+
+/* ── Scene 2 · Match ── */
+.bf-scan{display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--text-tertiary);margin-bottom:14px}
+.bf-scanbar{position:relative;flex:1;max-width:230px;height:4px;border-radius:2px;background:rgba(255,255,255,.08);overflow:hidden}
+.bf-scanbar::after{content:'';position:absolute;left:0;top:0;bottom:0;width:30%;border-radius:2px;background:linear-gradient(90deg,transparent,var(--gold));animation:bfScan 1.5s var(--ease-out) infinite}
+@keyframes bfScan{0%{left:-30%}100%{left:100%}}
+.bf-matches{display:flex;flex-direction:column;gap:10px;max-width:440px}
+.bf-match{display:flex;align-items:center;gap:12px;padding:11px;border:1px solid var(--border-default);border-radius:11px;background:rgba(255,255,255,.02);opacity:0;transform:translateX(-10px)}
+.bf-match.in{animation:bfIn .5s var(--ease-out) forwards}
+@keyframes bfIn{to{opacity:1;transform:none}}
+.bf-mph{width:48px;height:48px;border-radius:8px;background:linear-gradient(135deg,#1b1b20,#0e0e12);flex-shrink:0;overflow:hidden;position:relative}
+.bf-mph img{width:100%;height:100%;object-fit:cover}
+.bf-minfo{flex:1;min-width:0}
+.bf-mt{font-size:12.5px;color:#fff;display:flex;align-items:center;gap:7px}
+.bf-mm{font-size:11px;color:var(--text-tertiary);margin-top:2px}
+.bf-mscore{font-size:11px;color:var(--green);border:1px solid rgba(0,255,136,.3);padding:2px 7px;border-radius:100px;white-space:nowrap}
+.bf-mprice{font-family:var(--font-display);color:var(--gold);font-size:14px}
+
+/* ── Scene 3 · Viewing ── */
+.bf-video{position:relative;border-radius:12px;overflow:hidden;max-width:440px;aspect-ratio:16/9;background:linear-gradient(135deg,#1a1a22,#0c0c11)}
+.bf-video img{width:100%;height:100%;object-fit:cover;filter:brightness(.82)}
+.bf-video::after{content:'';position:absolute;inset:0;background:radial-gradient(circle at 60% 35%,rgba(255,215,0,.10),transparent 55%),linear-gradient(180deg,transparent,rgba(0,0,0,.45))}
+.bf-rec{position:absolute;top:11px;left:11px;z-index:2;font-size:10px;color:#fff;background:rgba(0,0,0,.55);border:1px solid rgba(0,255,136,.4);padding:4px 9px;border-radius:100px}
+.bf-rec b{color:var(--green);animation:bfBlink 1.4s infinite}
+.bf-play{position:absolute;z-index:2;top:50%;left:50%;transform:translate(-50%,-50%);width:50px;height:50px;border-radius:50%;background:rgba(255,215,0,.92);color:#000;display:flex;align-items:center;justify-content:center;font-size:16px;animation:bfPing 2.2s infinite}
+@keyframes bfPing{0%{box-shadow:0 0 0 0 rgba(255,215,0,.45)}70%{box-shadow:0 0 0 16px rgba(255,215,0,0)}100%{box-shadow:0 0 0 0 rgba(255,215,0,0)}}
+.bf-vscrub{position:absolute;left:11px;right:11px;bottom:11px;z-index:2;height:4px;border-radius:2px;background:rgba(255,255,255,.2);overflow:hidden}
+.bf-vscrub::after{content:'';position:absolute;left:0;top:0;bottom:0;width:0;background:var(--gold);border-radius:2px;animation:bfPlay 3.4s linear infinite}
+@keyframes bfPlay{to{width:100%}}
+
+/* ── Scene 4 · Contract + deposit ── */
+.bf-doc{border:1px solid var(--border-default);border-radius:11px;background:rgba(255,255,255,.03);padding:16px;max-width:380px}
+.bf-doc-h{font-size:12.5px;color:#fff;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.bf-line{height:7px;border-radius:4px;background:rgba(255,255,255,.09);margin-bottom:8px}
+.bf-line.s{width:55%}.bf-line.m{width:80%}
+.bf-sign{margin-top:14px;border-top:1px dashed var(--border-default);padding-top:12px;display:flex;align-items:flex-end;justify-content:space-between}
+.bf-sign small{font-size:10px;color:var(--text-tertiary);letter-spacing:.5px}
+.bf-sign svg{width:120px;height:38px}
+.bf-sign path{fill:none;stroke:var(--gold);stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:340;stroke-dashoffset:340}
+.bf-sign.go path{animation:bfDraw 1.5s var(--ease-out) forwards}
+@keyframes bfDraw{to{stroke-dashoffset:0}}
+.bf-badges{display:flex;gap:9px;margin-top:14px;flex-wrap:wrap}
+.bf-ok{font-size:11px;color:var(--green);border:1px solid rgba(0,255,136,.3);padding:5px 11px;border-radius:100px;opacity:0;transform:translateY(6px)}
+.bf-ok.in{animation:bfIn .45s var(--ease-out) forwards}
+
+/* ── Scene 5 · Move-in pass ── */
+.bf-pass{max-width:300px;border-radius:16px;padding:18px;background:linear-gradient(160deg,#15140f,#0b0b0d);border:1px solid var(--border-gold);position:relative;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.5)}
+.bf-pass::after{content:'';position:absolute;top:-40%;left:-30%;width:80%;height:180%;background:linear-gradient(115deg,transparent 40%,rgba(255,215,0,.14),transparent 60%);animation:bfSweep 3.4s var(--ease-out) infinite}
+@keyframes bfSweep{0%{transform:translateX(-60%)}100%{transform:translateX(220%)}}
+.bf-pass-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.bf-pass-top b{font-size:13px;letter-spacing:3px;color:#fff}
+.bf-pass-type{font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--gold)}
+.bf-pass-h{font-family:var(--font-display);font-weight:300;font-size:22px;color:#fff;margin-bottom:3px}
+.bf-pass-sub{font-size:11px;color:var(--text-secondary);margin-bottom:16px}
+.bf-pass-row{display:flex;gap:18px}
+.bf-pass-row .k{font-size:9px;letter-spacing:.5px;text-transform:uppercase;color:var(--text-tertiary)}
+.bf-pass-row .val{font-size:12px;color:#fff;margin-top:2px}
+.bf-pass-qr{position:absolute;right:16px;bottom:16px;width:42px;height:42px;border-radius:7px;background:
+  repeating-linear-gradient(0deg,#fff 0 3px,transparent 3px 6px),
+  repeating-linear-gradient(90deg,#fff 0 3px,transparent 3px 6px);background-color:#000;opacity:.92}
+.bf-delivered{display:inline-flex;align-items:center;gap:7px;margin-top:18px;font-size:11px;color:var(--green);border:1px solid rgba(0,255,136,.3);padding:6px 12px;border-radius:100px}
+
+/* Progress dots under the frame */
+.bf-track{display:flex;justify-content:center;gap:8px;margin-top:20px}
+.bf-tick{width:30px;height:3px;border-radius:2px;background:rgba(255,255,255,.12);overflow:hidden;position:relative}
+.bf-tick.active::after{content:'';position:absolute;inset:0;background:var(--gold);transform-origin:left;transform:scaleX(0);animation:bfTick var(--bf-dur,3600ms) linear forwards}
+.bf-tick.done::after{content:'';position:absolute;inset:0;background:var(--gold)}
+@keyframes bfTick{to{transform:scaleX(1)}}
+
+@media(max-width:640px){
+  .bf-body{grid-template-columns:1fr;min-height:400px}
+  .bf-side{display:none}
+  .bf-scene{padding:20px}
+}
+
+@media(prefers-reduced-motion:reduce){
+  .bf-scene{transition:none}
+  .bf-cursor,.bf-scanbar::after,.bf-vscrub::after,.bf-pass::after,.bf-play{animation:none}
+  .bf-tick.active::after{animation:none;transform:scaleX(1)}
+}

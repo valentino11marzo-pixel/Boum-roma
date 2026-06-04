@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Pass Delivery — BOOM Rome</title>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-EYCD59RDVJ"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-EYCD59RDVJ');
+</script>
 <!-- BOOM_SEO:START -->
   <meta name="description" content="Your BOOM pass.">
   <meta name="robots" content="noindex, follow">
@@ -223,6 +230,44 @@ body{
   letter-spacing:0.04em;font-weight:300;
 }
 
+/* Review CTA (tenant move-in only) */
+.review-wrap{
+  margin-top:1.6rem;display:none;flex-direction:column;align-items:center;
+  opacity:0;animation:ctaIn 0.8s var(--ease) 3.1s forwards;
+}
+.review-wrap.show{display:flex}
+.review-stars{
+  display:flex;gap:0.25rem;margin-bottom:0.7rem;
+}
+.review-stars span{
+  color:var(--gold);font-size:0.95rem;line-height:1;
+  filter:drop-shadow(0 0 6px rgba(212,175,55,0.4));
+  opacity:0;animation:starPop 0.4s var(--ease) forwards;
+}
+.review-stars span:nth-child(1){animation-delay:3.2s}
+.review-stars span:nth-child(2){animation-delay:3.3s}
+.review-stars span:nth-child(3){animation-delay:3.4s}
+.review-stars span:nth-child(4){animation-delay:3.5s}
+.review-stars span:nth-child(5){animation-delay:3.6s}
+@keyframes starPop{from{opacity:0;transform:scale(0.4)}to{opacity:1;transform:scale(1)}}
+.review-prompt{
+  font-size:0.74rem;color:rgba(255,255,255,0.55);font-weight:300;
+  letter-spacing:0.04em;margin-bottom:0.9rem;text-align:center;max-width:300px;
+}
+.review-btn{
+  display:inline-flex;align-items:center;gap:0.5rem;
+  padding:0.7rem 1.5rem;background:transparent;color:var(--gold);
+  border:1px solid rgba(212,175,55,0.4);border-radius:10px;
+  font-size:0.68rem;font-weight:500;letter-spacing:0.12em;text-transform:uppercase;
+  cursor:pointer;font-family:inherit;text-decoration:none;
+  transition:all 0.3s var(--ease);
+}
+.review-btn:hover{
+  background:rgba(212,175,55,0.1);border-color:var(--gold);
+  transform:translateY(-2px);
+  box-shadow:0 6px 22px rgba(212,175,55,0.18);
+}
+
 /* Footer */
 .foot{
   position:fixed;bottom:0;left:0;right:0;padding:1.5rem;text-align:center;z-index:2;
@@ -283,7 +328,8 @@ body{
   "sameAs": [
     "https://www.instagram.com/boomrome",
     "https://www.linkedin.com/company/boomrome",
-    "https://wa.me/393313251961"
+    "https://wa.me/393313251961",
+    "https://share.google/xikmVxQCRuKOdWcND"
   ],
   "address": {
     "@type": "PostalAddress",
@@ -381,6 +427,14 @@ body{
     <div class="cta-sub">Works with iPhone and Apple Watch</div>
   </div>
 
+  <div class="review-wrap" id="review-wrap">
+    <div class="review-stars" aria-hidden="true">
+      <span>★</span><span>★</span><span>★</span><span>★</span><span>★</span>
+    </div>
+    <div class="review-prompt">Settling in? A 20-second Google review helps the next international find a home they can trust.</div>
+    <a class="review-btn" id="review-btn" href="#" target="_blank" rel="noopener">Leave a review</a>
+  </div>
+
   <div class="success-check" id="success-check">
     <svg viewBox="0 0 24 24" fill="none" stroke="#D4AF37" stroke-width="2" stroke-linecap="round">
       <polyline points="20 6 9 17 4 12"/>
@@ -427,6 +481,21 @@ const cfg = typeConfig[passType] || typeConfig.viewing;
 document.getElementById('greeting-title').textContent = cfg.title;
 document.getElementById('greeting-sub').textContent = cfg.sub;
 document.getElementById('pm-type').textContent = cfg.label;
+
+// Review CTA — only for the move-in (tenant) pass, the genuine "happy customer" moment.
+// Swap REVIEW_LINK for the one-tap g.page/r/.../review link once available (see docs/reviews.md).
+const REVIEW_LINK = 'https://share.google/xikmVxQCRuKOdWcND';
+if(passType === 'tenant'){
+  const rw = document.getElementById('review-wrap');
+  const rb = document.getElementById('review-btn');
+  rb.href = REVIEW_LINK;
+  rw.classList.add('show');
+  rb.addEventListener('click', function(){
+    if(typeof gtag === 'function'){
+      gtag('event', 'review_click', { source_page: 'pass-delivery', pass_type: 'tenant' });
+    }
+  });
+}
 
 // Add to Wallet action
 async function addToWallet(){

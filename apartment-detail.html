@@ -51,6 +51,10 @@
   <link rel="dns-prefetch" href="https://www.googletagmanager.com">
   <link rel="dns-prefetch" href="https://www.google-analytics.com">
 <!-- BOOM_SEO:END -->
+    <!-- Perf: early-connect to the hosts that gate the LCP photo (Firebase data + imgur images) -->
+    <link rel="preconnect" href="https://i.imgur.com" crossorigin>
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
     <link rel="icon" type="image/png" href="https://www.boomrome.com/BOOMlogogoldicon512.png">
     <link rel="apple-touch-icon" href="https://www.boomrome.com/BOOMlogogoldicon512.png">
     <!-- Google tag (gtag.js) -->
@@ -180,6 +184,20 @@
 
         /* ===== TWO COLUMN ===== */
         .apt-content{max-width:1400px;margin:0 auto;padding:0 50px 80px;display:grid;grid-template-columns:1fr 380px;gap:50px;align-items:start}
+        .apt-cta-inline{max-width:1400px;margin:14px auto 0;padding:0 50px}
+        .aci-box{display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;border:1px solid rgba(255,215,0,0.18);border-radius:20px;padding:24px 30px;background:linear-gradient(135deg,rgba(255,215,0,0.07),rgba(255,255,255,0.02))}
+        .aci-text h3{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-weight:200;font-size:clamp(20px,2.4vw,28px);color:#fff}
+        .aci-text p{font-size:12.5px;color:var(--text-fade);margin-top:8px;display:flex;gap:16px;flex-wrap:wrap}
+        .aci-text p span{display:flex;align-items:center;gap:6px}
+        .aci-text p span::before{content:'✓';color:#00FF88}
+        .aci-text p span.aci-rate::before{content:'★';color:#FFD700}
+        .aci-text p span.aci-rate{color:#fff;font-weight:600}
+        .aci-btns{display:flex;gap:12px;flex-wrap:wrap}
+        .aci-apply{padding:14px 26px;border-radius:12px;background:linear-gradient(135deg,#FFD700,#FFA500);color:#000;font-weight:600;font-size:15px;text-decoration:none;white-space:nowrap;transition:transform .3s,box-shadow .3s}
+        .aci-apply:hover{transform:translateY(-2px);box-shadow:0 10px 30px rgba(255,215,0,0.3)}
+        .aci-reserve{padding:14px 24px;border-radius:12px;border:1px solid var(--gold);color:var(--gold);background:transparent;font-weight:600;font-size:15px;text-decoration:none;white-space:nowrap;transition:all .3s}
+        .aci-reserve:hover{background:rgba(255,215,0,0.08)}
+        @media(max-width:768px){.apt-cta-inline{padding:0 20px}.aci-box{padding:20px}.aci-btns{width:100%}.aci-apply,.aci-reserve{flex:1;text-align:center}}
         .content-section{margin-bottom:50px}
         .content-section-title{font-size:11px;text-transform:uppercase;letter-spacing:3px;color:var(--gold);font-weight:600;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid rgba(255, 215, 0,0.15)}
         .apt-description{font-size:16px;line-height:1.8;color:var(--text-secondary);font-weight:300}
@@ -221,7 +239,12 @@
         .apt-sidebar{position:sticky;top:130px}
         .sidebar-card{background:var(--dark-void);border:1px solid rgba(255,255,255,0.06);border-radius:20px;padding:30px;margin-bottom:20px}
         .sidebar-price{font-size:36px;font-weight:200;color:var(--gold);margin-bottom:4px}
-        .sidebar-price-label{font-size:13px;color:var(--text-fade);margin-bottom:24px}
+        .sidebar-price-label{font-size:13px;color:var(--text-fade);margin-bottom:14px}
+        .sidebar-rating{display:flex;align-items:center;gap:9px;margin-bottom:20px;text-decoration:none}
+        .sidebar-rating .sr-stars{color:#FFD700;font-size:14px;letter-spacing:1.5px;filter:drop-shadow(0 0 6px rgba(255,215,0,.3))}
+        .sidebar-rating .sr-score{font-size:12.5px;color:var(--text-secondary)}
+        .sidebar-rating .sr-score b{color:#fff;font-weight:600}
+        .sidebar-rating:hover .sr-score{color:#fff}
         .sidebar-cta{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:16px;background:#25D366;border:none;border-radius:12px;color:#fff;font-family:inherit;font-size:15px;font-weight:600;text-decoration:none;cursor:pointer;transition:all .3s}
         .sidebar-cta:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(37,211,102,0.3)}
         .sidebar-cta svg{width:22px;height:22px}
@@ -245,6 +268,16 @@
         .sidebar-apply{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:16px;margin-bottom:12px;background:linear-gradient(135deg,#FFD700,#FFA500);border:none;border-radius:12px;color:#000;font-family:inherit;font-size:15px;font-weight:600;text-decoration:none;cursor:pointer;transition:all .3s}
         .sidebar-apply:hover{transform:translateY(-2px);box-shadow:0 10px 34px rgba(255,215,0,0.32)}
         .inquiry-success{display:none;text-align:center;padding:20px 0;color:#25D366;font-size:14px}
+        .reserve-box{margin-top:18px;padding-top:18px;border-top:1px solid rgba(255,255,255,0.07);display:none}
+        .reserve-box.show{display:block}
+        .reserve-h{font-size:13px;color:var(--text-secondary);margin-bottom:10px}
+        .reserve-h b{color:#fff;font-weight:500}
+        .reserve-btn{width:100%;padding:14px;border:1px solid var(--gold);border-radius:12px;background:rgba(255,215,0,0.06);color:var(--gold);font-family:inherit;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .3s}
+        .reserve-btn:hover{background:var(--gold);color:#000;transform:translateY(-2px);box-shadow:0 10px 30px rgba(255,215,0,0.28)}
+        .reserve-btn:disabled{opacity:.6;cursor:default;transform:none;background:rgba(255,215,0,0.06);color:var(--gold)}
+        .reserve-note{margin-top:11px;display:flex;flex-direction:column;gap:6px}
+        .reserve-note span{font-size:11.5px;color:var(--text-fade);display:flex;align-items:center;gap:7px}
+        .reserve-note span::before{content:'✓';color:#00FF88}
         .sidebar-trust{display:flex;flex-direction:column;gap:12px;margin-top:24px;padding-top:24px;border-top:1px solid rgba(255,255,255,0.06)}
         .trust-item{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--text-secondary)}
         .trust-item .ti{color:#00FF88;font-size:14px}
@@ -318,10 +351,14 @@
         .cta-outline:hover{border-color:var(--gold);color:var(--gold)}
 
         /* ===== MOBILE CTA ===== */
-        .mobile-cta{display:none;position:fixed;bottom:0;left:0;right:0;padding:16px 20px;background:rgba(0,0,0,0.95);backdrop-filter:blur(20px);border-top:1px solid rgba(255, 215, 0,0.15);z-index:90;align-items:center;justify-content:space-between;gap:16px}
-        .mobile-cta-price{font-size:22px;font-weight:200;color:var(--gold)}
-        .mobile-cta-price small{font-size:12px;color:var(--text-fade);display:block}
-        .mobile-cta-btn{display:flex;align-items:center;gap:8px;padding:14px 28px;background:#25D366;border:none;border-radius:12px;color:#fff;font-family:inherit;font-size:14px;font-weight:600;text-decoration:none;white-space:nowrap}
+        .mobile-cta{display:none;position:fixed;bottom:0;left:0;right:0;padding:14px 18px calc(14px + env(safe-area-inset-bottom));background:rgba(0,0,0,0.95);backdrop-filter:blur(20px);border-top:1px solid rgba(255, 215, 0,0.15);z-index:90;align-items:center;justify-content:space-between;gap:14px;transform:translateY(120%);transition:transform .45s cubic-bezier(.16,1,.3,1)}
+        .mobile-cta.in{transform:none}
+        .mobile-cta-price{font-size:21px;font-weight:200;color:var(--gold);line-height:1.05}
+        .mobile-cta-price small{font-size:11px;color:var(--text-fade);display:block}
+        .mobile-cta-actions{display:flex;align-items:center;gap:10px}
+        .mcta-apply{display:flex;align-items:center;justify-content:center;padding:14px 26px;background:linear-gradient(135deg,#FFD700,#FFA500);border-radius:12px;color:#000;font-family:inherit;font-size:15px;font-weight:600;text-decoration:none;white-space:nowrap}
+        .mobile-cta-btn{display:flex;align-items:center;justify-content:center;gap:8px;padding:14px 17px;background:#25D366;border:none;border-radius:12px;color:#fff;font-family:inherit;font-size:18px;font-weight:600;text-decoration:none;white-space:nowrap}
+        @media(prefers-reduced-motion:reduce){.mobile-cta{transition:none}}
 
         /* ===== FOOTER — matches live site ===== */
         footer{padding:80px 50px 30px;background:var(--dark-void);border-top:1px solid rgba(255,255,255,0.05)}
@@ -424,7 +461,8 @@
   "sameAs": [
     "https://www.instagram.com/boomrome",
     "https://www.linkedin.com/company/boomrome",
-    "https://wa.me/393313251961"
+    "https://wa.me/393313251961",
+    "https://share.google/xikmVxQCRuKOdWcND"
   ],
   "address": {
     "@type": "PostalAddress",
@@ -574,6 +612,19 @@
 
         <div class="media-section" id="mediaSection"></div>
 
+        <div class="apt-cta-inline">
+            <div class="aci-box">
+                <div class="aci-text">
+                    <h3>Love this one?</h3>
+                    <p><span class="aci-rate">4.9 · 47 Google reviews</span><span>48-hour move-in</span><span>Video-verified</span><span>No hidden fees</span></p>
+                </div>
+                <div class="aci-btns">
+                    <a class="aci-apply" href="#inquiryCard" onclick="setTimeout(function(){var n=document.getElementById('iqName');if(n)n.focus();},450)">Apply in 2 minutes</a>
+                    <a class="aci-reserve" href="#inquiryCard" onclick="setTimeout(function(){var b=document.getElementById('reserveBox');if(b)b.scrollIntoView({behavior:'smooth',block:'center'});},500)">🔒 Reserve &amp; hold</a>
+                </div>
+            </div>
+        </div>
+
         <div class="apt-content">
             <div class="apt-main">
                 <div class="content-section" id="availSection" style="display:none"><div class="available-date-box"><span>📅</span><span>Available from <strong id="availDate"></strong></span></div></div>
@@ -614,6 +665,10 @@
                 <div class="sidebar-card">
                     <div class="sidebar-price" id="sidebarPrice"></div>
                     <div class="sidebar-price-label">per month · all fees included</div>
+                    <a class="sidebar-rating" href="https://share.google/xikmVxQCRuKOdWcND" target="_blank" rel="noopener" aria-label="BOOM is rated 4.9 out of 5 from 47 Google reviews — read them" onclick="if(window.gtag)gtag('event','reviews_view',{source_page:'apartment-detail'})">
+                        <span class="sr-stars" aria-hidden="true">★★★★★</span>
+                        <span class="sr-score"><b>4.9</b> · 47 Google reviews</span>
+                    </a>
                     <a class="sidebar-apply" href="#inquiryCard" onclick="setTimeout(function(){var n=document.getElementById('iqName');if(n)n.focus();},450)">Apply for this apartment →</a>
                     <a class="sidebar-cta" id="sidebarWhatsApp" href="https://wa.me/393313251961" target="_blank">
                         <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.125.553 4.12 1.52 5.855L.052 23.709l5.997-1.573A11.94 11.94 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.82c-1.956 0-3.83-.528-5.47-1.528l-.392-.233-4.065 1.066 1.084-3.964-.256-.407A9.787 9.787 0 012.18 12c0-5.414 4.406-9.82 9.82-9.82 5.414 0 9.82 4.406 9.82 9.82 0 5.414-4.406 9.82-9.82 9.82z"/></svg>
@@ -658,6 +713,15 @@
                         <div class="apply-reassure">🔒 Private &amp; no commitment. A real person reviews every application.</div>
                     </form>
                     <div class="inquiry-success" id="inquirySuccess">✓ Application received! Our team will contact you within 2 hours.</div>
+                    <div class="reserve-box" id="reserveBox">
+                        <div class="reserve-h">Want to lock it in? <b>Reserve &amp; hold this apartment.</b></div>
+                        <button class="reserve-btn" id="reserveBtn" type="button">🔒 Reserve &amp; hold — <span id="reserveAmt">€300</span></button>
+                        <div class="reserve-note">
+                            <span>100% refundable if not approved</span>
+                            <span>Deducted from your first month</span>
+                            <span>Off-market hold while we process your application</span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div><!-- /.apt-content -->
@@ -806,7 +870,10 @@
     <!-- MOBILE CTA -->
     <div class="mobile-cta" id="mobileCta">
         <div class="mobile-cta-price" id="mobileCTAPrice"><small>per month</small></div>
-        <a class="mobile-cta-btn" href="https://wa.me/393313251961" target="_blank" id="mobileCTABtn">💬 WhatsApp Us</a>
+        <div class="mobile-cta-actions">
+            <a class="mcta-apply" href="#inquiryCard" onclick="setTimeout(function(){var n=document.getElementById('iqName');if(n)n.focus();},450)">Apply</a>
+            <a class="mobile-cta-btn" href="https://wa.me/393313251961" target="_blank" id="mobileCTABtn" aria-label="WhatsApp">💬</a>
+        </div>
     </div>
 
     <!-- FOOTER -->
@@ -817,7 +884,10 @@
                 <p>Built in Rome, for Rome. If we can make Rome's rental market work, we can make it work anywhere.<br><br><strong>Egidi Immobiliare S.r.l.</strong><br>P.IVA 17322991005<br>REA RM - 1710623<br>Rome, Italy</p>
             </div>
             <div class="footer-links"><h4>Services</h4><ul><li><a href="/apartments.html">Apartments</a></li><li><a href="/property-finding.html">Property Finding</a></li><li><a href="/deal-assistance.html">Deal Assistance</a></li><li><a href="/virtual-viewing.html">Virtual Viewing</a></li><li><a href="/concierge.html">Concierge</a></li></ul></div>
-            <div class="footer-links"><h4>Company</h4><ul><li><a href="/about.html">About</a></li><li><a href="/how-it-works.html">How It Works</a></li><li><a href="/owners.html">For Owners</a></li><li><a href="/blog.html">Blog</a></li><li><a href="/faq.html">FAQ</a></li><li><a href="/contact.html">Contact</a></li></ul></div>
+            <div class="footer-links"><h4>Company</h4><ul><li><a href="/about.html">About</a></li><li><a href="/how-it-works.html">How It Works</a></li><li><a href="/universities.html">For Universities</a></li>
+<li><a href="/corporate.html">For Companies</a></li>
+<li><a href="/research.html">For Research</a></li>
+<li><a href="/owners.html">For Owners</a></li><li><a href="/blog.html">Blog</a></li><li><a href="/faq.html">FAQ</a></li><li><a href="/contact.html">Contact</a></li></ul></div>
             <div class="footer-links"><h4>Legal</h4><ul><li><a href="/terms.html">Terms</a></li><li><a href="/privacy.html">Privacy</a></li><li><a href="/login.html">Login</a></li></ul></div>
         </div>
         <div class="footer-bottom"><span>© 2025 BOOM — All Rights Reserved</span><span>Status: Operational</span></div>
@@ -1115,6 +1185,15 @@
         document.getElementById('sidebarPrice').textContent=price;
         document.getElementById('mobileCTAPrice').innerHTML=`${price}<small>per month</small>`;
 
+        // Refundable holding deposit: flat €300 (per-listing override via holdingDeposit), clamped €100–2000
+        (function(){
+          const override=Number(d.holdingDeposit||d.reservationFee||0);
+          const dep = override>0 ? Math.min(2000,Math.max(100,Math.round(override))) : 300;
+          window.__boomListing={ id:id, name:d.name||'Apartment', deposit:dep };
+          const a=document.getElementById('reserveAmt'); if(a) a.textContent='€'+dep.toLocaleString('en-US');
+          const b=document.getElementById('reserveBox'); if(b) b.classList.add('show');
+        })();
+
         // Specs
         const sEl=document.getElementById('aptSpecs'),specs=[];
         const beds=d.beds||d.bedrooms;
@@ -1168,6 +1247,27 @@
                 iqForm.style.display='none';document.getElementById('inquirySuccess').style.display='block';
                 if(typeof gtag==='function')gtag('event','inquiry_sent',{listing_id:id,listing_name:name});
             }catch(err){btn.textContent='Error — try again';btn.disabled=false;console.error('Inquiry error:',err)}
+        });
+
+        // Reserve & hold → Stripe checkout (refundable holding deposit)
+        const reserveBtn=document.getElementById('reserveBtn');
+        if(reserveBtn) reserveBtn.addEventListener('click',async function(){
+            const fname=(document.getElementById('iqName').value||'').trim();
+            const femail=(document.getElementById('iqEmail').value||'').trim();
+            const fphone=(document.getElementById('iqPhone').value||'').trim();
+            if(!fname||!femail||!fphone){ toast('Add your name, email & phone above to reserve'); const n=document.getElementById('iqName'); if(n)n.focus(); return; }
+            reserveBtn.disabled=true; const old=reserveBtn.innerHTML; reserveBtn.textContent='Opening secure checkout…';
+            try{
+                if(typeof gtag==='function')gtag('event','begin_checkout',{service:'reserve',listing_id:id,listing_name:name});
+                const resp=await fetch('/api/reserve-checkout',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+                    listingId:id, listingName:name,
+                    amount:(window.__boomListing&&window.__boomListing.deposit)||300,
+                    name:fname, email:femail, phone:fphone,
+                    move_in_date:(document.getElementById('iqMoveIn')||{}).value||''
+                })});
+                const data=await resp.json();
+                if(data&&data.url){ location.href=data.url; } else { throw new Error((data&&data.error)||'no url'); }
+            }catch(err){ console.error('Reserve error:',err); reserveBtn.disabled=false; reserveBtn.innerHTML=old; toast('Could not open checkout — message us on WhatsApp'); }
         });
     }
 
@@ -1280,6 +1380,10 @@
     const hb=document.getElementById('hamburger'),mm=document.getElementById('mobileMenu');
     hb.addEventListener('click',()=>{hb.classList.toggle('active');mm.classList.toggle('active');document.body.style.overflow=mm.classList.contains('active')?'hidden':''});
     mm.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>{hb.classList.remove('active');mm.classList.remove('active');document.body.style.overflow=''}));
+    </script>
+    <script>
+    /* Mobile CTA bar: slide up once the user is engaged (immersive, not on load) */
+    (function(){var bar=document.getElementById('mobileCta');if(!bar)return;function t(){bar.classList.toggle('in',window.scrollY>320);}addEventListener('scroll',t,{passive:true});t();})();
     </script>
     <script defer src="/js/boom-track.js"></script>
 </body>
