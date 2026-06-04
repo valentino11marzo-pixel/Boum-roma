@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Homie → PFS Bridge · Test Harness — BOOM</title>
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="theme-color" content="#08080A">
+    <link rel="icon" href="/favicon.ico">
+    <link rel="manifest" href="/site.webmanifest">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js" defer></script>
+    <script src="/js/firebase-config.js" defer></script>
+    <script src="/js/boom-portal.js" defer></script>
+
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --gold: #FFD700;
+            --gold-dim: rgba(255,215,0,0.15);
+            --green: #00FF88;
+            --red: #FF3B3B;
+            --cyan: #00CED1;
+            --orange: #FF6B35;
+            --bg: #050506;
+            --surface: #0C0C0E;
+            --elevated: #15151A;
+            --border: rgba(255,255,255,0.08);
+            --text: #FAFAFA;
+            --text-2: rgba(255,255,255,0.6);
+            --text-3: rgba(255,255,255,0.35);
+        }
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            font-weight: 300;
+            min-height: 100vh;
+            padding: 32px 24px 80px;
+            -webkit-font-smoothing: antialiased;
+        }
+        .wrap { max-width: 1100px; margin: 0 auto; }
+
+        header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 32px; flex-wrap: wrap; gap: 12px; }
+        h1 { font-size: 24px; font-weight: 400; letter-spacing: -0.5px; }
+        h1 span { color: var(--gold); font-weight: 600; }
+        .subtitle { font-size: 12px; color: var(--text-3); letter-spacing: 2px; text-transform: uppercase; }
+        .who { font-size: 11px; color: var(--text-2); }
+        .who a { color: var(--gold); text-decoration: none; }
+
+        .grid { display: grid; grid-template-columns: minmax(360px, 1fr) 2fr; gap: 24px; }
+        @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+
+        .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 24px; }
+        .card h2 { font-size: 11px; letter-spacing: 2.5px; text-transform: uppercase; color: var(--text-2); margin-bottom: 18px; font-weight: 500; }
+
+        .field { margin-bottom: 16px; }
+        .field label { display: block; font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-3); margin-bottom: 6px; font-weight: 500; }
+        .field label .req { color: var(--gold); }
+        .field input, .field select, .field textarea {
+            width: 100%; padding: 11px 13px; background: var(--elevated); border: 1px solid var(--border);
+            border-radius: 8px; color: var(--text); font-family: inherit; font-size: 13px; font-weight: 400;
+            transition: border-color 0.15s;
+        }
+        .field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: var(--gold); }
+        .field textarea { min-height: 70px; resize: vertical; }
+        .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .field-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+        .hint { font-size: 10px; color: var(--text-3); margin-top: 4px; }
+
+        .threshold-row { display: flex; align-items: center; gap: 12px; }
+        .threshold-row input[type=range] { flex: 1; }
+        .threshold-row output { font-family: 'JetBrains Mono', monospace; color: var(--gold); font-size: 14px; min-width: 30px; text-align: right; }
+
+        .actions { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+        .btn {
+            padding: 12px 20px; border: none; border-radius: 8px; font-family: inherit;
+            font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase;
+            cursor: pointer; transition: all 0.15s; flex: 1;
+        }
+        .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .btn-preview { background: var(--elevated); color: var(--text); border: 1px solid var(--border); }
+        .btn-preview:hover:not(:disabled) { border-color: var(--gold); color: var(--gold); }
+        .btn-push { background: var(--gold); color: #000; }
+        .btn-push:hover:not(:disabled) { box-shadow: 0 0 24px var(--gold-dim); }
+
+        .results { min-height: 200px; }
+        .results-empty { color: var(--text-3); font-size: 13px; text-align: center; padding: 60px 20px; }
+        .results-summary {
+            display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px;
+            font-family: 'JetBrains Mono', monospace; font-size: 11px;
+        }
+        .pill { padding: 4px 10px; border-radius: 100px; font-weight: 500; letter-spacing: 0.5px; }
+        .pill-mode { background: var(--gold-dim); color: var(--gold); }
+        .pill-mode.live { background: rgba(255,59,59,0.18); color: var(--red); }
+        .pill-stat { background: var(--elevated); color: var(--text-2); border: 1px solid var(--border); }
+
+        .row { display: grid; grid-template-columns: 60px 1fr 90px 100px; gap: 12px; align-items: start; padding: 14px 0; border-top: 1px solid var(--border); font-size: 13px; }
+        .row:first-of-type { border-top: 1px solid var(--border); }
+        .row .score { font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 18px; text-align: center; align-self: center; }
+        .row.high .score { color: var(--green); }
+        .row.mid .score { color: var(--gold); }
+        .row.low .score { color: var(--text-3); }
+        .row.rejected .score { color: var(--red); text-decoration: line-through; }
+        .row-name { font-weight: 500; font-size: 14px; }
+        .row-meta { font-size: 11px; color: var(--text-3); margin-top: 2px; }
+        .row-criteria { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-2); margin-top: 4px; }
+        .row-reasons { margin-top: 6px; display: flex; flex-direction: column; gap: 2px; }
+        .reason { font-size: 11px; }
+        .reason.ok { color: var(--green); }
+        .reason.near { color: var(--gold); }
+        .reason.no { color: var(--text-3); }
+        .badge {
+            font-size: 9px; letter-spacing: 1.5px; padding: 4px 8px; border-radius: 4px;
+            text-transform: uppercase; font-weight: 600; text-align: center; align-self: center;
+        }
+        .badge-push { background: rgba(0,255,136,0.15); color: var(--green); border: 1px solid rgba(0,255,136,0.4); }
+        .badge-already { background: var(--elevated); color: var(--text-2); border: 1px solid var(--border); }
+        .badge-skip { background: rgba(255,255,255,0.04); color: var(--text-3); border: 1px solid var(--border); }
+        .badge-rej { background: rgba(255,59,59,0.15); color: var(--red); border: 1px solid rgba(255,59,59,0.4); }
+        .stage-pill { font-size: 9px; padding: 2px 6px; border-radius: 3px; background: var(--elevated); color: var(--text-2); border: 1px solid var(--border); text-transform: uppercase; letter-spacing: 1px; }
+
+        .raw-json {
+            margin-top: 16px; padding: 14px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+            font-family: 'JetBrains Mono', monospace; font-size: 11px; line-height: 1.5; color: var(--text-2);
+            max-height: 280px; overflow: auto; white-space: pre-wrap; word-break: break-word;
+        }
+        .raw-toggle { font-size: 10px; color: var(--text-3); cursor: pointer; user-select: none; margin-top: 14px; letter-spacing: 1px; text-transform: uppercase; }
+        .raw-toggle:hover { color: var(--gold); }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <header>
+            <div>
+                <h1>Homie · <span>PFS bridge</span> · test harness</h1>
+                <p class="subtitle">Score a property against active clients, then push if it's worth it</p>
+            </div>
+            <div class="who">
+                Signed in as <span id="who">…</span> · <a href="/portal.html">← back to portal</a>
+            </div>
+        </header>
+
+        <div class="grid">
+            <form class="card" id="form">
+                <h2>Property input</h2>
+
+                <div class="field">
+                    <label>Source URL <span class="req">*</span></label>
+                    <input type="url" id="sourceUrl" placeholder="https://www.immobiliare.it/annunci/..." required>
+                    <div class="hint">Used as dedup key — same URL won't push twice to the same client.</div>
+                </div>
+
+                <div class="field-row">
+                    <div class="field">
+                        <label>Source <span class="req">*</span></label>
+                        <select id="source" required>
+                            <option value="manual">manual</option>
+                            <option value="immobiliare">immobiliare</option>
+                            <option value="idealista">idealista</option>
+                            <option value="subito">subito</option>
+                            <option value="whatsapp">whatsapp</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label>Price (€/mo) <span class="req">*</span></label>
+                        <input type="number" id="price" min="0" step="50" required placeholder="1200">
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label>Address</label>
+                    <input type="text" id="address" placeholder="Via del Corso 45, Trastevere">
+                </div>
+
+                <div class="field-row-3">
+                    <div class="field">
+                        <label>Zone</label>
+                        <input type="text" id="zone" placeholder="Trastevere">
+                    </div>
+                    <div class="field">
+                        <label>Bedrooms</label>
+                        <input type="number" id="bedrooms" min="0" max="10" placeholder="1">
+                    </div>
+                    <div class="field">
+                        <label>Sqm</label>
+                        <input type="number" id="sqm" min="0" placeholder="55">
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label>Image URLs (comma or newline separated)</label>
+                    <textarea id="images" placeholder="https://...jpg, https://...jpg"></textarea>
+                </div>
+
+                <div class="field">
+                    <label>Title</label>
+                    <input type="text" id="title" placeholder="Bright 1-bed in Trastevere">
+                </div>
+
+                <div class="field">
+                    <label>Description</label>
+                    <textarea id="description" placeholder="Quiet street, elevator, fully furnished..."></textarea>
+                </div>
+
+                <div class="field">
+                    <label>Match threshold <span class="hint" style="display:inline">(default 60)</span></label>
+                    <div class="threshold-row">
+                        <input type="range" id="threshold" min="0" max="100" value="60" step="5">
+                        <output id="thresholdOut">60</output>
+                    </div>
+                </div>
+
+                <div class="actions">
+                    <button type="button" class="btn btn-preview" id="btnPreview">🔍 Preview matches</button>
+                    <button type="button" class="btn btn-push" id="btnPush" disabled>📤 Push live</button>
+                </div>
+            </form>
+
+            <div class="card">
+                <h2>Results</h2>
+                <div id="results" class="results">
+                    <div class="results-empty">Fill the form and click <strong>Preview</strong> to score against active PFS clients.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let lastDryRun = null; // last server response, kept so "Push live" can replay
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            BoomPortal.registerServiceWorker();
+            BoomPortal.showLoader('Signing in');
+            try {
+                const { user, profile } = await BoomPortal.requireAuth(
+                    ['admin', 'owner', 'landlord'],
+                    { loginUrl: '/login.html' }
+                );
+                document.getElementById('who').textContent = profile.name || profile.email || user.email || 'admin';
+            } catch (_) { return; }
+            BoomPortal.hideLoader();
+            wireUp();
+        });
+
+        function wireUp() {
+            const $ = (id) => document.getElementById(id);
+
+            $('threshold').addEventListener('input', (e) => { $('thresholdOut').value = e.target.value; });
+
+            $('btnPreview').addEventListener('click', () => callBridge(true));
+            $('btnPush').addEventListener('click', async () => {
+                const ok = await BoomPortal.confirm(
+                    'Push to ' + lastDryRun.results.filter(r => r.wouldPush).length +
+                    ' matched client(s)?\nProperty will appear live in their swipe deck.',
+                    { title: 'Confirm live push', confirmLabel: 'Push' }
+                );
+                if (ok) callBridge(false);
+            });
+        }
+
+        function parseImages(raw) {
+            return String(raw || '').split(/[\n,]/).map(s => s.trim()).filter(s => /^https?:\/\//.test(s));
+        }
+
+        async function callBridge(dryRun) {
+            const $ = (id) => document.getElementById(id);
+
+            const payload = {
+                dryRun,
+                sourceUrl: $('sourceUrl').value.trim(),
+                source: $('source').value,
+                price: parseFloat($('price').value),
+                address: $('address').value.trim() || null,
+                zone: $('zone').value.trim() || null,
+                bedrooms: $('bedrooms').value ? parseInt($('bedrooms').value, 10) : null,
+                sqm: $('sqm').value ? parseInt($('sqm').value, 10) : null,
+                title: $('title').value.trim() || null,
+                description: $('description').value.trim() || null,
+                images: parseImages($('images').value),
+                threshold: parseInt($('threshold').value, 10),
+            };
+            if (!payload.sourceUrl || !payload.price) {
+                BoomPortal.toast('sourceUrl and price are required', { type: 'warning' });
+                return;
+            }
+
+            BoomPortal.showLoader(dryRun ? 'Scoring' : 'Pushing');
+            try {
+                const idToken = await firebase.auth().currentUser.getIdToken();
+                const r = await fetch('/api/admin/match-test', {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + idToken, 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+                const data = await r.json();
+                if (!r.ok || !data.ok) {
+                    BoomPortal.showError('Server error: ' + (data.error || r.status) + (data.detail ? ' — ' + data.detail : ''));
+                    return;
+                }
+                lastDryRun = data;
+                renderResults(data);
+                BoomPortal.toast(
+                    dryRun
+                        ? 'Scored ' + data.totalActiveClients + ' active client(s)'
+                        : 'Pushed to ' + (data.pushedTo || []).length + ' client(s)',
+                    { type: 'success' }
+                );
+                if (dryRun) {
+                    const willPush = (data.results || []).filter(r => r.wouldPush).length;
+                    document.getElementById('btnPush').disabled = willPush === 0;
+                } else {
+                    document.getElementById('btnPush').disabled = true;
+                }
+            } catch (err) {
+                BoomPortal.showError('Request failed: ' + err.message);
+            } finally {
+                BoomPortal.hideLoader();
+            }
+        }
+
+        function renderResults(data) {
+            const esc = BoomPortal.escapeHtml;
+            const results = document.getElementById('results');
+            const rows = (data.results || data.allScores || []);
+
+            if (!rows.length) {
+                results.innerHTML = '<div class="results-empty">No active PFS clients to score against right now.</div>';
+                return;
+            }
+
+            const summaryParts = [
+                '<span class="pill ' + (data.dryRun ? 'pill-mode' : 'pill-mode live') + '">' + (data.dryRun ? '◊ DRY RUN' : '● LIVE') + '</span>',
+                '<span class="pill pill-stat">' + data.totalActiveClients + ' active client(s)</span>',
+                '<span class="pill pill-stat">threshold ≥ ' + data.threshold + '</span>',
+            ];
+            if (!data.dryRun) {
+                summaryParts.push('<span class="pill pill-stat">pushed: ' + (data.pushedTo || []).length + '</span>');
+                if ((data.errors || []).length) summaryParts.push('<span class="pill pill-stat" style="color:var(--red)">errors: ' + data.errors.length + '</span>');
+            }
+
+            const rowHtml = rows.map(r => {
+                const cls = r.reject ? 'rejected' : (r.score >= data.threshold ? 'high' : r.score >= 30 ? 'mid' : 'low');
+                let badge;
+                if (r.alreadyHasIt) badge = '<span class="badge badge-already">already</span>';
+                else if (r.reject) badge = '<span class="badge badge-rej">reject</span>';
+                else if (r.wouldPush) badge = '<span class="badge badge-push">push</span>';
+                else badge = '<span class="badge badge-skip">below</span>';
+
+                const reasonsHtml = (r.reasons || []).map(reason => {
+                    const cls = reason.includes('✓') ? 'ok' : reason.includes('≈') ? 'near' : 'no';
+                    return '<div class="reason ' + cls + '">' + esc(reason) + '</div>';
+                }).join('');
+
+                const crit = r.criteria || {};
+                const critLine = [
+                    crit.budget ? '€' + esc(crit.budget) : null,
+                    crit.bedrooms ? esc(crit.bedrooms) + ' bed' : null,
+                    crit.preferred_areas ? esc(crit.preferred_areas) : null,
+                ].filter(Boolean).join(' · ');
+
+                return '<div class="row ' + cls + '">' +
+                    '<div class="score">' + r.score + '</div>' +
+                    '<div>' +
+                        '<div class="row-name">' + esc(r.name || '(no name)') +
+                            (r.stage ? ' <span class="stage-pill">' + esc(r.stage) + '</span>' : '') +
+                        '</div>' +
+                        (r.email ? '<div class="row-meta">' + esc(r.email) + '</div>' : '') +
+                        (critLine ? '<div class="row-criteria">' + critLine + '</div>' : '') +
+                        (reasonsHtml ? '<div class="row-reasons">' + reasonsHtml + '</div>' : '') +
+                    '</div>' +
+                    badge +
+                    '<div style="font-family:JetBrains Mono,monospace;font-size:10px;color:var(--text-3);text-align:right">' + esc(r.clientId.slice(0, 12)) + '…</div>' +
+                '</div>';
+            }).join('');
+
+            results.innerHTML =
+                '<div class="results-summary">' + summaryParts.join('') + '</div>' +
+                '<div>' + rowHtml + '</div>' +
+                '<div class="raw-toggle" id="rawToggle">▸ raw response</div>' +
+                '<pre class="raw-json" id="rawJson" style="display:none">' + esc(JSON.stringify(data, null, 2)) + '</pre>';
+
+            document.getElementById('rawToggle').addEventListener('click', () => {
+                const j = document.getElementById('rawJson');
+                const t = document.getElementById('rawToggle');
+                if (j.style.display === 'none') { j.style.display = 'block'; t.textContent = '▾ raw response'; }
+                else { j.style.display = 'none'; t.textContent = '▸ raw response'; }
+            });
+        }
+    </script>
+</body>
+</html>
