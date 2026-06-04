@@ -69,7 +69,7 @@
   <link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin>
   <link rel="preconnect" href="https://i.imgur.com" crossorigin>
   <link rel="dns-prefetch" href="https://securetoken.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
   <!-- Firebase Auth — deferred so it never blocks first paint. -->
   <script defer src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -79,86 +79,88 @@
     *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 
     :root{
-      --bg:#08080A;
-      --card:rgba(14,14,17,.72);
-      --field:rgba(255,255,255,.035);
-      --field-hover:rgba(255,255,255,.055);
-      --field-focus:rgba(255,255,255,.07);
-      --text:#ECECEE; --text-2:rgba(236,236,238,.60); --text-3:rgba(236,236,238,.40); --text-4:rgba(236,236,238,.24);
+      --bg:#08080A; --panel:rgba(11,11,14,.82);
+      --field:rgba(255,255,255,.04); --field-hover:rgba(255,255,255,.06); --field-focus:rgba(255,255,255,.08);
+      --text:#F1F1F3; --text-2:rgba(241,241,243,.64); --text-3:rgba(241,241,243,.42); --text-4:rgba(241,241,243,.24);
       --line:rgba(255,255,255,.10); --line-2:rgba(255,255,255,.06);
       --gold:#E9C766; --gold-bright:#F6E4A6; --gold-deep:#B98E2E;
       --red:#F08585; --green:#5FD08C;
-
       --font:'Inter','Helvetica Neue',Helvetica,Arial,sans-serif;
       --ease:cubic-bezier(.22,1,.36,1);
     }
 
-    html{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;height:100%}
-    body{
-      font-family:var(--font); background:var(--bg); color:var(--text); font-weight:400;
-      min-height:100svh; display:flex; align-items:center; justify-content:center;
-      padding:max(24px,env(safe-area-inset-top)) 22px max(24px,env(safe-area-inset-bottom));
-      position:relative; overflow:hidden; line-height:1.5; letter-spacing:-.01em;
-    }
+    html{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+    body{font-family:var(--font);background:var(--bg);color:var(--text);font-weight:400;
+      min-height:100svh;line-height:1.5;letter-spacing:-.011em;position:relative;overflow-x:hidden}
 
-    /* ════ Subtle dark Rome photo backdrop (atmosphere only) ════ */
+    /* ════ Full-bleed dark Rome backdrop ════ */
     .photo{position:fixed;inset:0;z-index:0;pointer-events:none;
       background:#08080A url('https://i.imgur.com/hxai5bz.jpeg') center/cover no-repeat;
-      filter:grayscale(.45) brightness(.42) contrast(1.04) saturate(.85);
-      opacity:.22}
-    .photo-tint{position:fixed;inset:0;z-index:0;pointer-events:none;
+      filter:grayscale(.4) brightness(.5) contrast(1.05) saturate(.9)}
+    .tint{position:fixed;inset:0;z-index:0;pointer-events:none;
       background:
-        radial-gradient(120% 90% at 50% -10%, rgba(233,199,102,.10), transparent 45%),
-        linear-gradient(180deg, rgba(8,8,10,.55) 0%, rgba(8,8,10,.78) 55%, rgba(8,8,10,.95) 100%)}
-    .spot{position:fixed;inset:0;z-index:0;pointer-events:none;
-      background:radial-gradient(60% 45% at 50% 32%, rgba(255,255,255,.045), transparent 60%);
-      animation:breathe 12s ease-in-out infinite}
-    @keyframes breathe{0%,100%{opacity:.7}50%{opacity:1}}
+        radial-gradient(80% 60% at 18% 12%, rgba(233,199,102,.10), transparent 50%),
+        linear-gradient(100deg, rgba(8,8,10,.62) 0%, rgba(8,8,10,.74) 46%, rgba(8,8,10,.92) 72%, rgba(8,8,10,.97) 100%),
+        linear-gradient(0deg, rgba(8,8,10,.85), transparent 60%)}
     .grain{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.025;
       background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
 
-    /* ── Back link ── */
-    .back{position:fixed;top:max(24px,env(safe-area-inset-top));left:28px;z-index:10;
-      display:inline-flex;align-items:center;gap:8px;color:var(--text-3);text-decoration:none;
-      font-size:13px;font-weight:500;letter-spacing:-.01em;transition:color .3s var(--ease)}
-    .back svg{transition:transform .3s var(--ease)}
-    .back:hover{color:var(--text)} .back:hover svg{transform:translateX(-3px)}
-    .back:focus-visible{outline:1px solid var(--line);outline-offset:5px;border-radius:4px}
+    /* ════ Layout ════ */
+    .app{position:relative;z-index:2;display:grid;grid-template-columns:1fr minmax(420px,40%);min-height:100svh}
 
-    /* ════ Card — solid dark with gradient hairline border (Linear/Vercel) ════ */
-    .card{
-      position:relative;z-index:2;width:100%;max-width:400px;padding:38px 36px 30px;border-radius:20px;
-      background:var(--card);
-      backdrop-filter:blur(20px) saturate(1.2);-webkit-backdrop-filter:blur(20px) saturate(1.2);
-      box-shadow:0 1px 0 rgba(255,255,255,.04) inset, 0 24px 60px -22px rgba(0,0,0,.85), 0 6px 18px -10px rgba(0,0,0,.6);
-      animation:enter .7s var(--ease) both;
-    }
-    /* gradient border (top-lit, faint gold catch) */
-    .card::before{content:'';position:absolute;inset:0;border-radius:inherit;padding:1px;pointer-events:none;
-      background:linear-gradient(180deg, rgba(246,228,166,.40), rgba(255,255,255,.10) 22%, rgba(255,255,255,.02) 55%, rgba(255,255,255,0) 100%);
-      -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-      -webkit-mask-composite:xor;mask-composite:exclude}
-    /* subtle pointer glow */
-    .card::after{content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;
-      background:radial-gradient(300px 220px at var(--mx,50%) var(--my,0%), rgba(233,199,102,.10), transparent 60%);
-      transition:opacity .5s var(--ease)}
-    .card:hover::after{opacity:1}
-    @keyframes enter{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+    /* ── Brand bar ── */
+    .brandbar{position:absolute;top:0;left:0;right:0;z-index:5;display:flex;align-items:center;justify-content:space-between;
+      padding:26px clamp(28px,5vw,72px)}
+    .brand{display:inline-flex;align-items:center;gap:11px;text-decoration:none}
+    .brand .logo{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;flex-shrink:0;
+      background:linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.02));border:1px solid var(--line)}
+    .brand .logo svg{width:21px;height:21px}
+    .brand .txt{font-size:15px;font-weight:700;letter-spacing:.01em;color:var(--text)}
+    .brand .txt .roma{color:var(--text-4);font-weight:500;margin-left:6px}
+    .home{display:inline-flex;align-items:center;gap:8px;color:var(--text-3);text-decoration:none;
+      font-size:13px;font-weight:500;transition:color .3s var(--ease)}
+    .home svg{transition:transform .3s var(--ease)}
+    .home:hover{color:var(--text)} .home:hover svg{transform:translateX(-3px)}
 
-    /* ── Header ── */
-    .head{margin-bottom:26px}
-    .brandrow{display:flex;align-items:center;gap:11px;margin-bottom:26px}
-    .logo{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;flex-shrink:0;
-      background:linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.02));
-      border:1px solid var(--line)}
-    .logo svg{width:21px;height:21px}
-    .brandtxt{font-size:15px;font-weight:600;letter-spacing:.02em;color:var(--text)}
-    .brandtxt .roma{color:var(--text-4);font-weight:500;margin-left:6px}
+    /* ── Hero (explanatory side) ── */
+    .hero{position:relative;display:flex;flex-direction:column;justify-content:center;
+      padding:120px clamp(28px,5vw,72px) 64px;overflow:hidden}
+    .hero-inner{max-width:600px}
 
-    .title{font-size:22px;font-weight:600;letter-spacing:-.02em;color:var(--text)}
-    .subtitle{margin-top:5px;font-size:13.5px;font-weight:400;color:var(--text-3)}
+    .eyebrow{display:inline-flex;align-items:center;gap:9px;margin-bottom:24px;padding:6px 12px;border-radius:999px;
+      border:1px solid var(--line);background:rgba(255,255,255,.03);
+      font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--text-2)}
+    .eyebrow .pip{width:6px;height:6px;border-radius:50%;background:var(--gold);box-shadow:0 0 9px var(--gold)}
 
-    /* ── Messages ── */
+    .h1{font-size:clamp(34px,4.4vw,56px);font-weight:700;line-height:1.04;letter-spacing:-.03em;color:#fff}
+    .h1 .grad{background:linear-gradient(120deg,#F6E4A6,#E9C766 45%,#B98E2E);
+      -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+    .lede{margin-top:22px;max-width:50ch;font-size:16px;font-weight:400;line-height:1.65;color:var(--text-2)}
+
+    /* feature grid */
+    .feats{margin-top:42px;display:grid;grid-template-columns:1fr 1fr;gap:18px 30px;max-width:560px}
+    .feat{display:flex;gap:13px}
+    .feat .ic{width:38px;height:38px;flex-shrink:0;border-radius:10px;display:grid;place-items:center;
+      background:linear-gradient(180deg, rgba(233,199,102,.14), rgba(233,199,102,.04));
+      border:1px solid rgba(233,199,102,.22);color:var(--gold)}
+    .feat h3{font-size:13.5px;font-weight:600;color:var(--text);margin-bottom:3px;letter-spacing:-.01em}
+    .feat p{font-size:12.5px;font-weight:400;color:var(--text-3);line-height:1.5}
+
+    .trust{margin-top:46px;display:flex;align-items:center;gap:14px;color:var(--text-4);font-size:12px;font-weight:500}
+    .trust .ln{height:1px;width:30px;background:var(--line)}
+
+    /* ── Auth panel ── */
+    .auth{position:relative;display:flex;align-items:center;justify-content:center;
+      padding:40px clamp(28px,3.4vw,56px);background:var(--panel);
+      backdrop-filter:blur(26px) saturate(1.25);-webkit-backdrop-filter:blur(26px) saturate(1.25)}
+    .auth::before{content:'';position:absolute;top:0;bottom:0;left:0;width:1px;pointer-events:none;
+      background:linear-gradient(180deg, rgba(246,228,166,.45), rgba(255,255,255,.12) 20%, rgba(255,255,255,.03) 55%, transparent)}
+    .auth-inner{width:100%;max-width:352px;animation:enter .7s var(--ease) both;animation-delay:.15s}
+
+    .a-title{font-size:23px;font-weight:700;letter-spacing:-.02em}
+    .a-sub{margin-top:6px;font-size:13.5px;color:var(--text-3)}
+
+    /* messages */
     .msg{display:none;align-items:flex-start;gap:9px;padding:11px 13px;border-radius:10px;
       font-size:12.5px;line-height:1.5;margin-top:18px;animation:fade .3s var(--ease)}
     .msg.show{display:flex}
@@ -167,13 +169,12 @@
     .msg.success{background:rgba(95,208,140,.09);border:1px solid rgba(95,208,140,.24);color:#8FE0AE}
     @keyframes fade{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
 
-    form{margin-top:24px}
-    /* ── Fields ── */
-    .label{display:block;font-size:12px;font-weight:500;color:var(--text-2);margin:0 0 7px 2px;letter-spacing:0}
+    form{margin-top:26px}
+    .label{display:block;font-size:12px;font-weight:500;color:var(--text-2);margin:0 0 7px 2px}
+    .labelrow{display:flex;align-items:center;justify-content:space-between;margin:0 2px 7px}
+    .labelrow .label{margin:0}
     .field{position:relative;margin-bottom:14px}
-    .field input{
-      width:100%;height:44px;padding:0 14px;
-      background:var(--field);border:1px solid var(--line);border-radius:10px;
+    .field input{width:100%;height:44px;padding:0 14px;background:var(--field);border:1px solid var(--line);border-radius:10px;
       color:var(--text);font-family:var(--font);font-size:14px;font-weight:400;letter-spacing:-.01em;outline:none;
       transition:border-color .2s var(--ease),background .2s var(--ease),box-shadow .2s var(--ease)}
     #password{padding-right:60px}
@@ -186,25 +187,20 @@
 
     .reveal{position:absolute;right:6px;top:6px;height:32px;padding:0 9px;display:grid;place-items:center;
       background:transparent;border:none;cursor:pointer;color:var(--text-4);border-radius:7px;
-      font-family:var(--font);font-size:11px;font-weight:600;letter-spacing:0;
-      transition:color .2s var(--ease),background .2s var(--ease)}
+      font-family:var(--font);font-size:11px;font-weight:600;transition:color .2s var(--ease),background .2s var(--ease)}
     .reveal:hover{color:var(--text-2);background:rgba(255,255,255,.05)}
     .reveal:focus-visible{outline:1px solid var(--line);outline-offset:1px}
 
     .caps{display:none;margin:8px 2px 0;font-size:11.5px;color:var(--gold)}
     .caps.show{display:block}
 
-    .labelrow{display:flex;align-items:center;justify-content:space-between;margin:0 2px 7px}
-    .labelrow .label{margin:0}
-    .link{background:none;border:none;cursor:pointer;font-family:var(--font);
-      font-size:12px;font-weight:500;color:var(--text-3);transition:color .2s var(--ease)}
+    .link{background:none;border:none;cursor:pointer;font-family:var(--font);font-size:12px;font-weight:500;color:var(--text-3);transition:color .2s var(--ease)}
     .link:hover{color:var(--gold)}
     .link:focus-visible{outline:1px solid var(--line);outline-offset:3px;border-radius:4px}
 
-    /* ── Submit (metallic gold, crisp) ── */
     .submit{position:relative;width:100%;height:46px;margin-top:6px;border:none;border-radius:10px;cursor:pointer;
-      background:linear-gradient(180deg, var(--gold-bright), var(--gold) 48%, var(--gold-deep));
-      color:#1c1503;font-family:var(--font);font-size:14px;font-weight:600;letter-spacing:-.01em;
+      background:linear-gradient(180deg, var(--gold-bright), var(--gold) 48%, var(--gold-deep));color:#1c1503;
+      font-family:var(--font);font-size:14px;font-weight:600;letter-spacing:-.01em;
       box-shadow:0 1px 0 rgba(255,255,255,.4) inset, 0 6px 18px -8px rgba(233,199,102,.45);
       transition:filter .2s var(--ease),transform .12s var(--ease),box-shadow .2s var(--ease)}
     .submit:hover:not(:disabled){filter:brightness(1.05);box-shadow:0 1px 0 rgba(255,255,255,.45) inset, 0 10px 24px -8px rgba(233,199,102,.55)}
@@ -218,104 +214,143 @@
     .submit.loading .spin{opacity:1}
     @keyframes rot{to{transform:rotate(360deg)}}
 
-    /* ── Secondary ── */
     .alt{margin-top:20px;text-align:center;font-size:12.5px;color:var(--text-3)}
     .alt a{color:var(--text-2);text-decoration:none;font-weight:500;transition:color .2s var(--ease)}
     .alt a:hover{color:var(--gold)}
-    .alt a:focus-visible{outline:1px solid var(--line);outline-offset:3px;border-radius:4px}
     .alt .sep{margin:0 8px;color:var(--text-4)}
-
     .foot{margin-top:24px;padding-top:18px;border-top:1px solid var(--line-2);display:flex;align-items:center;justify-content:center;gap:7px;
-      font-size:11px;font-weight:500;letter-spacing:0;color:var(--text-4)}
+      font-size:11px;font-weight:500;color:var(--text-4)}
     .foot svg{color:var(--green);opacity:.7}
 
-    @media (max-width:430px){
-      .back{left:18px}
-      .card{padding:32px 24px 26px;border-radius:18px}
+    /* stagger */
+    .rise{opacity:0;transform:translateY(14px);animation:enter .8s var(--ease) forwards}
+    @keyframes enter{to{opacity:1;transform:none}}
+
+    /* ════ Responsive ════ */
+    @media (max-width:1000px){
+      .app{grid-template-columns:1fr}
+      .hero{display:none}
+      .auth{min-height:100svh;padding-top:96px}
+      .auth::before{display:none}
+      .mhead{display:block!important}
     }
+    .mhead{display:none}
+    .mhead{margin-bottom:8px}
+    .mhead .eyebrow{margin-bottom:18px}
+    .mhead h2{font-size:24px;font-weight:700;letter-spacing:-.02em;line-height:1.12}
+    .mhead h2 .grad{background:linear-gradient(120deg,#F6E4A6,#E9C766 45%,#B98E2E);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+    .mhead p{margin-top:8px;font-size:13.5px;color:var(--text-3);line-height:1.55}
+    .mhead .div{height:1px;background:var(--line);margin:22px 0 4px}
+
     @media (prefers-reduced-motion:reduce){
       *,*::before,*::after{animation:none!important;transition-duration:.01ms!important}
-      .card{opacity:1;transform:none}
+      .rise,.auth-inner{opacity:1;transform:none}
     }
   </style>
 </head>
 <body>
   <div class="photo" aria-hidden="true"></div>
-  <div class="photo-tint" aria-hidden="true"></div>
-  <div class="spot" aria-hidden="true"></div>
+  <div class="tint" aria-hidden="true"></div>
   <div class="grain" aria-hidden="true"></div>
 
-  <a href="/" class="back">
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-    <span>Back</span>
-  </a>
+  <div class="brandbar">
+    <a href="/" class="brand" aria-label="BOOM Rome home">
+      <span class="logo">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" aria-hidden="true">
+          <defs><linearGradient id="g" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#F6E4A6"/><stop offset="100%" stop-color="#B98E2E"/></linearGradient></defs>
+          <g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#g)">
+            <path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z m610 -144 c743 -103 1436 -459 1919 -985 338 -367 562 -751 704 -1205 276 -879 132 -1858 -388 -2640 -242 -364 -493 -615 -900 -900 l-70 -49 109 104 c413 396 679 919 767 1505 33 217 33 558 0 765 -75 476 -257 896 -549 1265 -127 161 -363 380 -549 511 -300 211 -689 363 -1079 420 -172 26 -604 26 -764 0 -296 -47 -545 -128 -808 -262 -236 -122 -440 -271 -632 -464 -486 -485 -749 -1121 -751 -1815 -1 -611 170 -1148 515 -1608 100 -134 286 -335 382 -413 33 -27 -8 -2 -91 55 -513 351 -904 805 -1143 1331 -71 156 -136 336 -168 465 -9 33 -19 76 -24 95 -5 19 -20 100 -34 180 -59 343 -60 740 0 1070 81 456 229 826 479 1200 246 368 558 669 949 917 386 245 881 418 1321 462 61 6 124 13 140 15 73 10 556 -4 665 -19z m-60 -1329 c105 -16 258 -49 335 -72 82 -26 197 -66 240 -84 149 -65 190 -84 266 -126 677 -379 1129 -1049 1246 -1849 27 -182 24 -517 -5 -695 -75 -458 -225 -813 -500 -1179 -116 -154 -340 -369 -527 -506 -44 -32 -87 -63 -95 -69 -8 -6 35 39 96 99 178 177 283 321 397 550 161 322 231 676 205 1045 -32 467 -223 902 -542 1237 -239 251 -521 426 -873 542 -79 26 -273 67 -383 81 -108 13 -349 13 -465 0 -276 -32 -597 -145 -834 -293 -224 -140 -466 -378 -613 -602 -307 -470 -407 -1055 -273 -1599 80 -327 217 -589 454 -871 71 -84 73 -88 31 -56 -293 225 -547 535 -718 877 -34 68 -65 143 -122 294 -42 112 -101 383 -120 555 -14 127 -14 401 0 534 51 482 223 912 516 1288 269 344 654 620 1085 778 160 59 400 115 574 134 121 13 508 5 625 -13z m-30 -1165 c401 -81 721 -242 992 -499 643 -612 769 -1607 300 -2367 -118 -190 -291 -386 -463 -524 -137 -111 -148 -113 -49 -12 110 112 206 248 275 386 67 137 98 222 132 367 24 103 26 132 27 323 0 182 -3 224 -22 310 -47 211 -126 394 -245 569 -126 186 -358 387 -564 490 -384 191 -823 225 -1218 95 -482 -160 -854 -541 -1004 -1029 -117 -379 -81 -810 96 -1165 37 -72 130 -215 166 -252 17 -18 26 -33 20 -33 -6 0 -61 52 -121 116 -259 272 -424 575 -511 934 -111 459 -18 1006 245 1430 298 483 791 797 1379 880 110 16 448 4 565 -19z m-239 -911 c360 -28 680 -171 925 -415 194 -193 317 -415 382 -688 24 -102 26 -130 26 -312 0 -191 -1 -205 -30 -320 -53 -205 -132 -372 -251 -535 -58 -79 -263 -288 -323 -330 -31 -22 -29 -18 18 35 195 220 312 519 312 795 0 325 -121 614 -350 841 -369 364 -926 453 -1385 222 -336 -170 -578 -499 -636 -865 -19 -126 -7 -371 25 -490 44 -162 97 -284 173 -398 9 -14 -4 -5 -30 20 -26 24 -45 51 -42 58 2 7 1 11 -4 7 -11 -6 -58 51 -118 140 -109 163 -183 347 -219 545 -23 127 -23 351 -1 489 55 335 248 677 492 871 261 208 530 311 881 338 11 1 81 -3 155 -8z m29 -714 c459 -74 823 -428 895 -869 58 -358 -60 -696 -345 -987 l-34 -35 22 35 c115 182 179 403 168 575 -14 235 -104 433 -268 591 -137 134 -287 209 -472 239 -115 19 -187 19 -303 0 -337 -55 -612 -302 -704 -635 -32 -113 -34 -325 -5 -440 23 -92 70 -213 98 -254 l21 -31 -31 29 c-39 36 -120 152 -155 221 -35 71 -81 215 -102 319 -25 130 -17 357 17 476 102 354 357 618 706 730 152 49 331 62 492 36z m-73 -567 c178 -24 327 -101 454 -236 137 -143 199 -303 201 -513 1 -162 -42 -309 -135 -453 -52 -82 -73 -97 -38 -28 51 99 67 290 36 412 -57 219 -251 413 -466 464 -75 17 -236 20 -311 4 -213 -44 -422 -247 -473 -460 -31 -133 -13 -325 41 -431 35 -70 8 -47 -52 43 -58 88 -90 167 -114 286 -25 121 -25 220 -1 331 33 146 84 243 186 351 171 183 413 266 672 230z m15 -470 c80 -17 186 -76 248 -139 106 -107 158 -248 147 -398 -6 -92 -25 -152 -79 -250 -45 -82 -60 -91 -27 -17 18 41 21 62 17 149 -4 89 -8 108 -35 162 -43 82 -126 165 -209 205 -58 29 -80 34 -158 37 -112 5 -184 -12 -259 -62 -182 -121 -251 -323 -171 -506 l24 -55 -25 30 c-36 44 -92 162 -104 223 -39 189 14 369 146 492 105 99 204 139 345 139 48 1 111 -4 140 -10z"/>
+          </g>
+        </svg>
+      </span>
+      <span class="txt">BOOM<span class="roma">Roma</span></span>
+    </a>
+    <a href="/" class="home"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"/></svg><span>Back to site</span></a>
+  </div>
 
-  <main class="card" id="card">
-    <div class="head">
-      <div class="brandrow">
-        <span class="logo">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="BOOM Rome">
-            <defs><linearGradient id="g" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#F6E4A6"/><stop offset="100%" stop-color="#B98E2E"/></linearGradient></defs>
-            <g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#g)">
-              <path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z m610 -144 c743 -103 1436 -459 1919 -985 338 -367 562 -751 704 -1205 276 -879 132 -1858 -388 -2640 -242 -364 -493 -615 -900 -900 l-70 -49 109 104 c413 396 679 919 767 1505 33 217 33 558 0 765 -75 476 -257 896 -549 1265 -127 161 -363 380 -549 511 -300 211 -689 363 -1079 420 -172 26 -604 26 -764 0 -296 -47 -545 -128 -808 -262 -236 -122 -440 -271 -632 -464 -486 -485 -749 -1121 -751 -1815 -1 -611 170 -1148 515 -1608 100 -134 286 -335 382 -413 33 -27 -8 -2 -91 55 -513 351 -904 805 -1143 1331 -71 156 -136 336 -168 465 -9 33 -19 76 -24 95 -5 19 -20 100 -34 180 -59 343 -60 740 0 1070 81 456 229 826 479 1200 246 368 558 669 949 917 386 245 881 418 1321 462 61 6 124 13 140 15 73 10 556 -4 665 -19z m-60 -1329 c105 -16 258 -49 335 -72 82 -26 197 -66 240 -84 149 -65 190 -84 266 -126 677 -379 1129 -1049 1246 -1849 27 -182 24 -517 -5 -695 -75 -458 -225 -813 -500 -1179 -116 -154 -340 -369 -527 -506 -44 -32 -87 -63 -95 -69 -8 -6 35 39 96 99 178 177 283 321 397 550 161 322 231 676 205 1045 -32 467 -223 902 -542 1237 -239 251 -521 426 -873 542 -79 26 -273 67 -383 81 -108 13 -349 13 -465 0 -276 -32 -597 -145 -834 -293 -224 -140 -466 -378 -613 -602 -307 -470 -407 -1055 -273 -1599 80 -327 217 -589 454 -871 71 -84 73 -88 31 -56 -293 225 -547 535 -718 877 -34 68 -65 143 -122 294 -42 112 -101 383 -120 555 -14 127 -14 401 0 534 51 482 223 912 516 1288 269 344 654 620 1085 778 160 59 400 115 574 134 121 13 508 5 625 -13z m-30 -1165 c401 -81 721 -242 992 -499 643 -612 769 -1607 300 -2367 -118 -190 -291 -386 -463 -524 -137 -111 -148 -113 -49 -12 110 112 206 248 275 386 67 137 98 222 132 367 24 103 26 132 27 323 0 182 -3 224 -22 310 -47 211 -126 394 -245 569 -126 186 -358 387 -564 490 -384 191 -823 225 -1218 95 -482 -160 -854 -541 -1004 -1029 -117 -379 -81 -810 96 -1165 37 -72 130 -215 166 -252 17 -18 26 -33 20 -33 -6 0 -61 52 -121 116 -259 272 -424 575 -511 934 -111 459 -18 1006 245 1430 298 483 791 797 1379 880 110 16 448 4 565 -19z m-239 -911 c360 -28 680 -171 925 -415 194 -193 317 -415 382 -688 24 -102 26 -130 26 -312 0 -191 -1 -205 -30 -320 -53 -205 -132 -372 -251 -535 -58 -79 -263 -288 -323 -330 -31 -22 -29 -18 18 35 195 220 312 519 312 795 0 325 -121 614 -350 841 -369 364 -926 453 -1385 222 -336 -170 -578 -499 -636 -865 -19 -126 -7 -371 25 -490 44 -162 97 -284 173 -398 9 -14 -4 -5 -30 20 -26 24 -45 51 -42 58 2 7 1 11 -4 7 -11 -6 -58 51 -118 140 -109 163 -183 347 -219 545 -23 127 -23 351 -1 489 55 335 248 677 492 871 261 208 530 311 881 338 11 1 81 -3 155 -8z m29 -714 c459 -74 823 -428 895 -869 58 -358 -60 -696 -345 -987 l-34 -35 22 35 c115 182 179 403 168 575 -14 235 -104 433 -268 591 -137 134 -287 209 -472 239 -115 19 -187 19 -303 0 -337 -55 -612 -302 -704 -635 -32 -113 -34 -325 -5 -440 23 -92 70 -213 98 -254 l21 -31 -31 29 c-39 36 -120 152 -155 221 -35 71 -81 215 -102 319 -25 130 -17 357 17 476 102 354 357 618 706 730 152 49 331 62 492 36z m-73 -567 c178 -24 327 -101 454 -236 137 -143 199 -303 201 -513 1 -162 -42 -309 -135 -453 -52 -82 -73 -97 -38 -28 51 99 67 290 36 412 -57 219 -251 413 -466 464 -75 17 -236 20 -311 4 -213 -44 -422 -247 -473 -460 -31 -133 -13 -325 41 -431 35 -70 8 -47 -52 43 -58 88 -90 167 -114 286 -25 121 -25 220 -1 331 33 146 84 243 186 351 171 183 413 266 672 230z m15 -470 c80 -17 186 -76 248 -139 106 -107 158 -248 147 -398 -6 -92 -25 -152 -79 -250 -45 -82 -60 -91 -27 -17 18 41 21 62 17 149 -4 89 -8 108 -35 162 -43 82 -126 165 -209 205 -58 29 -80 34 -158 37 -112 5 -184 -12 -259 -62 -182 -121 -251 -323 -171 -506 l24 -55 -25 30 c-36 44 -92 162 -104 223 -39 189 14 369 146 492 105 99 204 139 345 139 48 1 111 -4 140 -10z"/>
-            </g>
-          </svg>
-        </span>
-        <span class="brandtxt">BOOM<span class="roma">Roma</span></span>
+  <div class="app">
+    <!-- ░ Explanatory hero ░ -->
+    <section class="hero">
+      <div class="hero-inner">
+        <span class="eyebrow rise" style="animation-delay:.05s"><span class="pip"></span> Rental management platform · Rome</span>
+        <h1 class="h1 rise" style="animation-delay:.12s">Run every Rome rental<br>from <span class="grad">one place</span>.</h1>
+        <p class="lede rise" style="animation-delay:.2s">BOOM unifies listings, viewings, contracts, documents, payments and guest stays — for tenants, landlords and administrators. Sign in to pick up exactly where you left off.</p>
+
+        <div class="feats">
+          <div class="feat rise" style="animation-delay:.3s">
+            <span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5 12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M9 21v-6h6v6"/></svg></span>
+            <div><h3>Listings &amp; viewings</h3><p>Publish, schedule and track every property.</p></div>
+          </div>
+          <div class="feat rise" style="animation-delay:.37s">
+            <span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 15l2 2 4-4"/></svg></span>
+            <div><h3>Contracts &amp; e-sign</h3><p>Compliant Italian leases, signed in minutes.</p></div>
+          </div>
+          <div class="feat rise" style="animation-delay:.44s">
+            <span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M13 2v7h7"/><path d="M8 13h8M8 17h5"/></svg></span>
+            <div><h3>Documents &amp; AI</h3><p>Parsed, organized and ready for compliance.</p></div>
+          </div>
+          <div class="feat rise" style="animation-delay:.51s">
+            <span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 10h18"/></svg></span>
+            <div><h3>Wallet passes</h3><p>Apple Wallet keys, passes &amp; 48-hour move-in.</p></div>
+          </div>
+        </div>
+
+        <div class="trust rise" style="animation-delay:.6s"><span class="ln"></span> boomrome.com · Trusted by landlords across Rome</div>
       </div>
-      <h1 class="title">Sign in</h1>
-      <p class="subtitle">Welcome back. Access your account to continue.</p>
-    </div>
+    </section>
 
-    <div class="msg" id="message" role="alert" aria-live="assertive"></div>
+    <!-- ░ Auth panel ░ -->
+    <section class="auth">
+      <div class="auth-inner">
+        <div class="mhead">
+          <span class="eyebrow"><span class="pip"></span> BOOM Roma</span>
+          <h2>Run every Rome rental from <span class="grad">one place</span>.</h2>
+          <p>Listings, contracts, documents, payments and stays — unified.</p>
+          <div class="div"></div>
+        </div>
 
-    <form id="loginForm" autocomplete="on" novalidate>
-      <label class="label" for="email">Email</label>
-      <div class="field">
-        <input type="email" id="email" name="email" placeholder="you@email.com" required autocomplete="email" inputmode="email" autocapitalize="none" spellcheck="false" autofocus>
+        <h1 class="a-title">Sign in</h1>
+        <p class="a-sub">Welcome back. Access your account to continue.</p>
+
+        <div class="msg" id="message" role="alert" aria-live="assertive"></div>
+
+        <form id="loginForm" autocomplete="on" novalidate>
+          <label class="label" for="email">Email</label>
+          <div class="field">
+            <input type="email" id="email" name="email" placeholder="you@email.com" required autocomplete="email" inputmode="email" autocapitalize="none" spellcheck="false" autofocus>
+          </div>
+
+          <div class="labelrow">
+            <label class="label" for="password">Password</label>
+            <button type="button" class="link" id="forgotBtn">Forgot?</button>
+          </div>
+          <div class="field">
+            <input type="password" id="password" name="password" placeholder="••••••••" required autocomplete="current-password">
+            <button type="button" class="reveal" id="revealBtn" aria-label="Show password" aria-pressed="false">Show</button>
+          </div>
+          <p class="caps" id="capsHint" aria-live="polite">⇪ Caps Lock is on</p>
+
+          <button type="submit" class="submit" id="submitBtn">
+            <span class="t">Sign in</span>
+            <span class="spin" aria-hidden="true"></span>
+          </button>
+        </form>
+
+        <div class="alt">
+          <a href="/apartments.html">Browse apartments</a>
+          <span class="sep">·</span>
+          <a href="https://wa.me/393313251961" target="_blank" rel="noopener noreferrer">Contact support</a>
+        </div>
+
+        <div class="foot">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg>
+          Encrypted · Firebase Auth
+        </div>
       </div>
-
-      <div class="labelrow">
-        <label class="label" for="password">Password</label>
-        <button type="button" class="link" id="forgotBtn">Forgot?</button>
-      </div>
-      <div class="field">
-        <input type="password" id="password" name="password" placeholder="••••••••" required autocomplete="current-password">
-        <button type="button" class="reveal" id="revealBtn" aria-label="Show password" aria-pressed="false">Show</button>
-      </div>
-      <p class="caps" id="capsHint" aria-live="polite">⇪ Caps Lock is on</p>
-
-      <button type="submit" class="submit" id="submitBtn">
-        <span class="t">Sign in</span>
-        <span class="spin" aria-hidden="true"></span>
-      </button>
-    </form>
-
-    <div class="alt">
-      <a href="/apartments.html">Browse apartments</a>
-      <span class="sep">·</span>
-      <a href="https://wa.me/393313251961" target="_blank" rel="noopener noreferrer">Contact support</a>
-    </div>
-
-    <div class="foot">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg>
-      Encrypted · Firebase Auth
-    </div>
-  </main>
+    </section>
+  </div>
 
   <script>
-    // Subtle pointer glow on the card (hover devices, motion-on)
-    (function(){
-      if(window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-      if(window.matchMedia('(hover: none)').matches) return;
-      const card=document.getElementById('card'); if(!card) return;
-      card.addEventListener('pointermove',(e)=>{
-        const r=card.getBoundingClientRect();
-        card.style.setProperty('--mx', ((e.clientX-r.left)/r.width*100)+'%');
-        card.style.setProperty('--my', ((e.clientY-r.top)/r.height*100)+'%');
-      },{passive:true});
-    })();
-
     document.addEventListener('DOMContentLoaded',()=>{
       firebase.initializeApp({
         apiKey:"AIzaSyDDb8UeSc8RhO_VxQrhLrupu1aPD4rwRso",
