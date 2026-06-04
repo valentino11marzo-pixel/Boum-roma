@@ -24,7 +24,11 @@ Premium rental management platform for Rome's apartment market. Serves tenants, 
   reminder-cron.js        Cron (*/15 * * * *) — Firebase sync + email reminders
   parse-docs.js           POST — Anthropic API proxy for document parsing
 /js/
-  firebase-config.js      Firebase SDK init (project: boomrome-b5c4a)
+  firebase-config.js      Firebase SDK init (project: boom-property-dashboards)
+  boom-portal.js          Shared client lib for the 3 portals (auth guard,
+                          realtime listener, toast, loader, confirm, SW reg)
+/css/
+  boom-core.css           Marketing site design system (used by index, etc.)
 /pass-assets/             Apple Wallet pass resources (icons, logos, strips)
   viewing/  tenant/  referral/  landlord/
 /public/
@@ -43,7 +47,12 @@ Premium rental management platform for Rome's apartment market. Serves tenants, 
 | `apartment-detail.html` | Dynamic single-property page (loads from Firestore). |
 | `boom_doc_parser.html` | AI document parser UI (uses Claude API). |
 | `vercel.json` | Deployment config, rewrites, cron schedule. |
-| `js/firebase-config.js` | Firebase project config. |
+| `js/firebase-config.js` | Firebase project config (`boom-property-dashboards`). |
+| `js/boom-portal.js` | Shared portal lib — `window.BoomPortal` API. |
+| `owner-dashboard.html` | Landlord/owner SPA. Firestore-backed, filtered by `ownerId`. |
+| `tenant.html` | Tenant SPA. Realtime property + maintenance feed. |
+| `client-portal.html` | PFS client swipe app. Reads `pfsClients` collection. |
+| `sw.js` | Service worker (network-first HTML, cache-first static). |
 
 ## Brand & Design
 
@@ -127,7 +136,39 @@ Webhook for Homie's proposed actions (reply draft, schedule viewing, qualify, ar
 - Property-specific pages follow `apartment_[name].html` naming
 - Blog posts follow `blog-[slug].html` naming
 - No automated tests exist in this project
-- PWA support via `manifest.json` and `sw.js` service worker
+- PWA support via `manifest.json` and `sw.js` service worker — registered on
+  the 3 portals via `BoomPortal.registerServiceWorker()`
+
+## Portals (logged-in surfaces)
+
+Three role-scoped SPAs sit on top of the same Firestore project. All three
+load `/js/boom-portal.js` for shared utilities (auth, realtime, toast,
+loader, confirm dialog) — see `BoomPortal.*` API.
+
+| Portal | Role(s) accepted | Collections read/written |
+|---|---|---|
+| `owner-dashboard.html` | `owner`, `landlord`, `admin` | reads/writes `properties` filtered by `ownerId` |
+| `tenant.html` | `tenant` | reads `properties` (own), writes `maintenance` |
+| `client-portal.html` | access code on `pfsClients` doc | reads/writes `pfsClients.portalProperties` |
+
+Auth gate pattern (use this for any new portal page):
+
+```js
+const { user, profile } = await BoomPortal.requireAuth(
+  ['owner', 'landlord', 'admin'],   // allowed roles, or null to skip
+  { loginUrl: '/login.html' }
+);
+```
+
+Firestore listeners with auto-retry / exponential backoff:
+
+```js
+const unsub = BoomPortal.listen(
+  db.collection('properties').where('ownerId', '==', user.uid),
+  (snap) => { /* render */ },
+  (err) => { /* optional error handler */ }
+);
+```
 
 ## Common Tasks
 
