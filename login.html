@@ -147,12 +147,19 @@
 
     .brandbar{position:absolute;top:0;left:0;right:0;z-index:5;display:flex;align-items:center;justify-content:space-between;
       padding:26px clamp(28px,5vw,72px)}
-    .brand{display:inline-flex;align-items:center;gap:11px;text-decoration:none}
-    .brand .logo{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;flex-shrink:0;
-      background:linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.02));border:1px solid var(--line)}
-    .brand .logo svg{width:21px;height:21px}
-    .brand .txt{font-family:var(--display);font-size:17px;font-weight:300;letter-spacing:.22em;color:var(--text)}
-    .brand .txt .roma{color:var(--text-4);letter-spacing:.18em;margin-left:7px}
+    .brand{display:inline-flex;align-items:center;gap:14px;text-decoration:none}
+    .brand .logo{width:48px;height:48px;border-radius:14px;display:grid;place-items:center;flex-shrink:0;position:relative;overflow:hidden;
+      background:radial-gradient(125% 125% at 50% 0%, rgba(246,228,166,.20), rgba(255,255,255,.03) 52%, transparent 75%), linear-gradient(180deg,#181820,#0b0b0f);
+      border:1px solid rgba(246,228,166,.30);
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.24), 0 8px 22px -8px rgba(0,0,0,.75), 0 0 30px -8px rgba(233,199,102,.45);
+      transition:transform .35s var(--ease),box-shadow .35s var(--ease),border-color .35s var(--ease)}
+    .brand .logo::after{content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+      background:linear-gradient(180deg, rgba(255,255,255,.16), transparent 46%)}
+    .brand:hover .logo{transform:translateY(-1px);border-color:rgba(246,228,166,.5);
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.28), 0 12px 26px -8px rgba(0,0,0,.75), 0 0 38px -6px rgba(233,199,102,.6)}
+    .brand .logo svg{width:31px;height:31px;position:relative;z-index:1;filter:drop-shadow(0 0 9px rgba(233,199,102,.45))}
+    .brand .txt{font-family:var(--display);font-size:20px;font-weight:300;letter-spacing:.24em;color:var(--text)}
+    .brand .txt .roma{color:var(--text-4);letter-spacing:.2em;margin-left:8px}
     .home{display:inline-flex;align-items:center;gap:8px;color:var(--text-3);text-decoration:none;
       font-size:13px;font-weight:500;transition:color .3s var(--ease)}
     .home svg{transition:transform .3s var(--ease)}
