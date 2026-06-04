@@ -141,11 +141,28 @@ Il team BOOM
   for ("Thanks for trusting BOOM for your mid-term rental in Trastevere!"). You
   can't script the customer, but your replies are indexed too.
 
-### Optional: review CTA on-site
-Once you have the `g.page/r/.../review` link, we can add a tasteful "Leave a
-review" CTA on `thank-you.html` and the pass-delivery page (gold, on-brand),
-fired only for completed move-ins. Say the word and I'll wire it with a
-`review_click` GA4 event so we can measure the flywheel.
+### On-site review CTA (LIVE)
+Two on-brand, gold "Leave a review" CTAs are wired, each at a genuine
+happy-customer moment and each firing a `review_click` GA4 event:
+
+- **`pass-delivery.html` — tenant pass only.** When a tenant ("Welcome home")
+  pass is opened — i.e. the move-in moment — five gold stars animate in and a
+  "Leave a review" button appears under the Add-to-Wallet CTA. It is *not* shown
+  for viewing / referral / landlord passes.
+- **`thank-you.html?review=1` — branded review landing.** Append `?review=1` to
+  the thank-you URL and the page transforms into a review-request landing
+  ("How was BOOM?" + stars + one-tap button), hiding the lead "what happens next"
+  box. Use this URL for the **QR card in the apartment** and post-move-in links.
+  Without the param the page behaves normally — fresh leads are never nagged.
+
+Both read a single `REVIEW_LINK` constant (currently the `share.google` fallback).
+**When you paste the `g.page/r/.../review` link, swap it in both files** (search
+for `REVIEW_LINK`) and in the templates above.
+
+> Note: adding the on-site CTA also fixed a latent bug — `thank-you.html` was
+> calling GA4 `generate_lead`/`purchase` without the GA4 base script loaded, so
+> those events were silently no-ops. The base is now loaded, so reservation
+> **revenue (`purchase`) and lead events actually fire** alongside `review_click`.
 
 ---
 
@@ -167,5 +184,10 @@ fired only for completed move-ins. Say the word and I'll wire it with a
   pages + 11 neighborhood pages** (`apartments-in/*`) — search engines and LLMs
   now connect boomrome.com ↔ the Google profile.
 - ✅ `AggregateRating` present in schema (4.9 / 47) on homepage + service pages.
+- ✅ On-site review CTA live on `pass-delivery.html` (tenant pass) and as a
+  branded `thank-you.html?review=1` landing, each firing `review_click` (GA4).
+- ✅ Fixed GA4 base missing on `thank-you.html` — `purchase`/`generate_lead`
+  events now actually fire (were silent no-ops before).
 - ⏳ **Founder TODO:** fetch the `g.page/r/.../review` one-tap link (§0) and paste
-  it back so we replace the fallback and (optionally) add the on-site CTA.
+  it back so we swap the fallback in the templates + the two `REVIEW_LINK`
+  constants (`pass-delivery.html`, `thank-you.html`).
