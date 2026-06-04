@@ -417,74 +417,100 @@
 
     <div class="toast-container" id="toastContainer"></div>
 
-    <script src="js/firebase-config.js"></script>
+    <script src="/js/firebase-config.js"></script>
+    <script src="/js/boom-portal.js"></script>
     <script>
         let currentUser = null;
         let tenantProperty = null;
+        let unsubscribeProperty = null;
 
-        auth.onAuthStateChanged(async (user) => {
-            if (!user) { window.location.href = 'login.html'; return; }
-            const doc = await db.collection('users').doc(user.uid).get();
-            if (!doc.exists || doc.data().role !== 'tenant') { window.location.href = 'login.html'; return; }
+        BoomPortal.registerServiceWorker();
+        BoomPortal.showLoader('Signing in');
 
-            currentUser = { id: user.uid, ...doc.data() };
-            document.getElementById('userName').textContent = currentUser.name || 'Tenant';
-            document.getElementById('welcomeName').textContent = (currentUser.name || 'Tenant').split(' ')[0];
-            document.getElementById('userAvatar').textContent = (currentUser.name || 'T')[0].toUpperCase();
-            await loadProperty();
-        });
+        BoomPortal.requireAuth('tenant', { loginUrl: 'login.html' })
+            .then(({ user, profile }) => {
+                currentUser = profile;
+                document.getElementById('userName').textContent = profile.name || 'Tenant';
+                document.getElementById('welcomeName').textContent = (profile.name || 'Tenant').split(' ')[0];
+                document.getElementById('userAvatar').textContent = (profile.name || 'T')[0].toUpperCase();
+                listenProperty();
+            })
+            .catch(() => { /* requireAuth already handles redirect/toast */ });
 
-        async function loadProperty() {
+        function listenProperty() {
             if (!currentUser.propertyId) {
+                BoomPortal.hideLoader();
                 document.getElementById('propertyName').textContent = 'No property assigned';
                 document.getElementById('propertyAddress').textContent = 'Contact BOOM';
                 return;
             }
-            const doc = await db.collection('properties').doc(currentUser.propertyId).get();
-            if (!doc.exists) return;
-
-            tenantProperty = { id: doc.id, ...doc.data() };
-            document.getElementById('propertyName').textContent = tenantProperty.name;
-            document.getElementById('propertyAddress').textContent = tenantProperty.zone || 'Rome';
-            document.getElementById('propertyBedrooms').textContent = tenantProperty.bedrooms || '-';
-            document.getElementById('propertyBathrooms').textContent = tenantProperty.bathrooms || '-';
-            document.getElementById('propertySize').textContent = tenantProperty.size || '-';
-            document.getElementById('rentAmount').textContent = '€' + (tenantProperty.price || 0).toLocaleString();
-            if (tenantProperty.image) document.getElementById('propertyImage').src = tenantProperty.image;
+            const ref = db.collection('properties').doc(currentUser.propertyId);
+            unsubscribeProperty = BoomPortal.listen(ref, (doc) => {
+                BoomPortal.hideLoader();
+                if (!doc.exists) {
+                    document.getElementById('propertyName').textContent = 'Property not found';
+                    document.getElementById('propertyAddress').textContent = 'Contact BOOM';
+                    return;
+                }
+                tenantProperty = { id: doc.id, ...doc.data() };
+                document.getElementById('propertyName').textContent = tenantProperty.name || 'Your home';
+                document.getElementById('propertyAddress').textContent = tenantProperty.zone || tenantProperty.address || 'Rome';
+                document.getElementById('propertyBedrooms').textContent = tenantProperty.bedrooms || '-';
+                document.getElementById('propertyBathrooms').textContent = tenantProperty.bathrooms || '-';
+                document.getElementById('propertySize').textContent = tenantProperty.size || '-';
+                document.getElementById('rentAmount').textContent = '€' + (parseFloat(tenantProperty.price) || 0).toLocaleString();
+                if (tenantProperty.image) document.getElementById('propertyImage').src = tenantProperty.image;
+            }, (err) => {
+                BoomPortal.hideLoader();
+                BoomPortal.showError('Could not load property: ' + (err.message || err));
+            });
         }
 
-        function openMaintenanceModal() { document.getElementById('maintenanceForm').reset(); document.getElementById('maintenanceModal').classList.add('active'); }
-        function closeMaintenanceModal() { document.getElementById('maintenanceModal').classList.remove('active'); }
+        function openMaintenanceModal() {
+            document.getElementById('maintenanceForm').reset();
+            document.getElementById('maintenanceModal').classList.add('active');
+        }
+        function closeMaintenanceModal() {
+            document.getElementById('maintenanceModal').classList.remove('active');
+        }
 
         async function submitMaintenance() {
             const category = document.getElementById('issueCategory').value;
             const priority = document.getElementById('issuePriority').value;
-            const description = document.getElementById('issueDescription').value;
-            if (!category || !description) { toast('Fill all fields', 'error'); return; }
+            const description = document.getElementById('issueDescription').value.trim();
+            if (!category || !description) {
+                BoomPortal.toast('Please fill category and description', { type: 'warning' });
+                return;
+            }
+
+            const btn = document.querySelector('#maintenanceModal .btn-primary');
+            const original = btn ? btn.textContent : '';
+            if (btn) { btn.disabled = true; btn.textContent = 'Submitting…'; }
 
             try {
                 await db.collection('maintenance').add({
                     tenantId: currentUser.id,
-                    tenantName: currentUser.name,
-                    propertyId: currentUser.propertyId,
-                    propertyName: tenantProperty?.name || 'Unknown',
-                    category, priority, description,
+                    tenantName: currentUser.name || null,
+                    propertyId: currentUser.propertyId || null,
+                    propertyName: (tenantProperty && tenantProperty.name) || 'Unknown',
+                    category: category,
+                    priority: priority,
+                    description: description,
                     status: 'pending',
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
-                toast('Request submitted!', 'success');
+                BoomPortal.toast('Request submitted — we\'ll get back to you shortly', { type: 'success' });
                 closeMaintenanceModal();
-            } catch (error) { toast('Error submitting', 'error'); }
+            } catch (error) {
+                BoomPortal.showError('Could not submit request: ' + (error.message || error));
+            } finally {
+                if (btn) { btn.disabled = false; btn.textContent = original; }
+            }
         }
 
-        function toast(message, type = 'success') {
-            const container = document.getElementById('toastContainer');
-            const t = document.createElement('div');
-            t.className = `toast ${type}`;
-            t.innerHTML = `<span>${type === 'success' ? '✓' : '✕'}</span> ${message}`;
-            container.appendChild(t);
-            setTimeout(() => t.remove(), 3000);
-        }
+        window.openMaintenanceModal = openMaintenanceModal;
+        window.closeMaintenanceModal = closeMaintenanceModal;
+        window.submitMaintenance = submitMaintenance;
     </script>
 </body>
 </html>
