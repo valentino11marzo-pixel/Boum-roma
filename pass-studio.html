@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BOOM · Pass Studio</title>
+<meta name="robots" content="noindex, nofollow, noarchive">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<style>
+  :root{--gold:#D4AF37;--gold-light:rgba(212,175,55,.14);--bg:#08080A;--bg-card:#0E0E11;--bg-elevated:#16161A;--bg-input:#1B1B20;--border:rgba(255,255,255,.08);--border-soft:rgba(255,255,255,.05);--text:#FFF;--text-secondary:#9A9A9C;--text-dim:#6A6A6E;--green:#46C08A;--green-dim:rgba(70,192,138,.13);--red:#E0556B}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Helvetica Neue','Inter',-apple-system,sans-serif;font-weight:300;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;line-height:1.5}
+  a{color:inherit;text-decoration:none}
+  header.top{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;padding:14px 22px;background:rgba(8,8,10,.85);backdrop-filter:blur(16px);border-bottom:1px solid var(--border-soft)}
+  .brand{display:flex;align-items:center;gap:9px;font-weight:600;letter-spacing:3px;font-size:14px}
+  .brand .dot{width:8px;height:8px;border-radius:50%;background:var(--gold);box-shadow:0 0 12px var(--gold)}
+  .brand small{font-weight:300;letter-spacing:2px;color:var(--text-dim);font-size:11px}
+  .ghost-btn{padding:8px 14px;border:1px solid var(--border);border-radius:9px;background:transparent;color:var(--text-secondary);font-family:inherit;font-size:12.5px;cursor:pointer}.ghost-btn:hover{border-color:var(--gold);color:var(--gold)}
+  .wrap{max-width:900px;margin:0 auto;padding:24px 22px 80px}
+  #gate{min-height:70vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:40px}
+  #gate .g-card{max-width:420px}#gate h2{font-weight:300;font-size:22px;margin-bottom:10px}#gate p{color:var(--text-secondary);font-size:14px;margin-bottom:18px}
+  .gold-btn{display:inline-block;background:var(--gold);color:#000;font-weight:600;padding:11px 22px;border-radius:10px;border:none;font-family:inherit;font-size:14px;cursor:pointer}.gold-btn:disabled{opacity:.5;cursor:not-allowed}
+  .spinner{width:30px;height:30px;border:3px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 16px}@keyframes spin{to{transform:rotate(360deg)}}
+  h1.page{font-weight:300;font-size:26px;letter-spacing:-.5px;margin-bottom:4px}h1.page b{font-weight:700;color:var(--gold)}
+  .page-sub{color:var(--text-secondary);font-size:13.5px;margin-bottom:22px}
+  .card{background:var(--bg-card);border:1px solid var(--border);border-radius:16px;padding:22px;margin-bottom:18px}
+  .types{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:18px}
+  @media(max-width:680px){.types{grid-template-columns:repeat(3,1fr)}}
+  .type{background:var(--bg-input);border:1px solid var(--border);border-radius:11px;padding:14px 8px;text-align:center;cursor:pointer;font-size:13px;transition:.15s}
+  .type small{display:block;font-size:18px;margin-bottom:4px}
+  .type:hover{border-color:rgba(212,175,55,.4)}.type.on{background:var(--gold-light);border-color:var(--gold);color:var(--gold);font-weight:600}
+  .modebar{display:flex;gap:8px;margin-bottom:16px}
+  .modebar .m{flex:1;text-align:center;padding:9px;border:1px solid var(--border);border-radius:9px;cursor:pointer;font-size:13px;color:var(--text-secondary)}
+  .modebar .m.on{background:var(--gold-light);border-color:var(--gold);color:var(--gold);font-weight:600}
+  label.f{display:block;margin-bottom:14px}label.f>span{display:block;font-size:12px;color:var(--text-secondary);margin-bottom:6px}
+  select,input{width:100%;background:var(--bg-input);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:inherit;font-size:14px;padding:11px 12px}
+  select:focus,input:focus{outline:none;border-color:var(--gold)}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}@media(max-width:560px){.row2{grid-template-columns:1fr}}
+  .result{display:none;margin-top:16px;padding:16px;border:1px solid rgba(70,192,138,.4);background:var(--green-dim);border-radius:12px}
+  .result.show{display:block}.result.err{border-color:rgba(224,85,107,.4);background:rgba(224,85,107,.13)}
+  .result .serial{font-family:ui-monospace,monospace;font-size:12px;color:var(--text-dim);margin-top:4px}
+  .acts{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
+  .recent{margin-top:8px}
+  .prow{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--border-soft)}
+  .prow:last-child{border-bottom:none}
+  .ptag{font-size:10px;padding:3px 8px;border-radius:6px;background:var(--bg-elevated);color:var(--gold);text-transform:uppercase;letter-spacing:.5px}
+  .prow .pm{flex:1;min-width:0}.prow .ps{font-family:ui-monospace,monospace;font-size:12px;color:var(--text)}.prow .pd{font-size:11px;color:var(--text-dim)}
+  .mini{font-size:12px;padding:7px 12px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text-secondary);cursor:pointer;font-family:inherit}.mini:hover{border-color:var(--gold);color:var(--gold)}
+  .empty{padding:20px;text-align:center;color:var(--text-dim);font-size:13px}
+  .note{font-size:11.5px;color:var(--text-dim);line-height:1.6;margin-top:18px;border-top:1px solid var(--border-soft);padding-top:14px}
+</style>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="/portal"><span class="dot"></span>BOOM <small>PASS STUDIO</small></a>
+  <button class="ghost-btn" id="signout" hidden onclick="auth.signOut()">Esci</button>
+</header>
+
+<div id="gate"><div class="g-card">
+  <div class="spinner" id="gate-spin"></div>
+  <h2 id="gate-title">Verifico l'accesso…</h2><p id="gate-msg">Solo admin BOOM.</p>
+  <button class="gold-btn" id="gate-btn" hidden></button>
+</div></div>
+
+<div class="wrap" id="app" hidden>
+  <h1 class="page">Pass <b>Studio</b></h1>
+  <p class="page-sub">Crea qualsiasi pass Apple Wallet in autonomia — da un record reale o manuale — e spingi aggiornamenti live.</p>
+
+  <div class="card">
+    <div class="types" id="types"></div>
+    <div class="modebar">
+      <div class="m on" data-mode="record" onclick="setMode('record')">Da record</div>
+      <div class="m" data-mode="manual" onclick="setMode('manual')">Manuale</div>
+    </div>
+    <div id="form"></div>
+    <button class="gold-btn" id="genBtn" onclick="generate()" style="width:100%;margin-top:6px">Genera pass .pkpass</button>
+    <div class="result" id="result"></div>
+  </div>
+
+  <div class="card">
+    <div style="font-size:13px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-secondary);margin-bottom:14px">Pass recenti · aggiornamenti live</div>
+    <div class="recent" id="recent"><div class="empty">Carico…</div></div>
+  </div>
+
+  <div class="note" id="note"></div>
+</div>
+
+<script>
+const firebaseConfig={apiKey:"AIzaSyDDb8UeSc8RhO_VxQrhLrupu1aPD4rwRso",authDomain:"boom-property-dashboards.firebaseapp.com",projectId:"boom-property-dashboards",storageBucket:"boom-property-dashboards.firebasestorage.app",messagingSenderId:"937269017440",appId:"1:937269017440:web:41c1a0b1e1633c2f373c05"};
+firebase.initializeApp(firebaseConfig);const auth=firebase.auth();const db=firebase.firestore();
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+const TYPES=[
+  {k:'tenant',label:'Tenant',ico:'🏠'},{k:'silver',label:'Silver VIP',ico:'⚪'},
+  {k:'landlord',label:'Partner',ico:'🤝'},{k:'viewing',label:'Viewing',ico:'📅'},
+  {k:'referral',label:'Referral',ico:'🎁'}
+];
+let TYPE='tenant', MODE='record';
+let RECORDS={}; // type -> [{id,label}]
+
+function gateMsg(t,m,bl,bf){$('gate-spin').hidden=true;$('gate-title').textContent=t;$('gate-msg').innerHTML=m;if(bl){const b=$('gate-btn');b.hidden=false;b.textContent=bl;b.onclick=bf;}}
+function enter(){$('gate').hidden=true;$('app').hidden=false;$('signout').hidden=false;init();}
+let wd=setTimeout(()=>gateMsg('Connessione lenta','Riprova.','Riprova',()=>location.reload()),9000);
+auth.onAuthStateChanged(async u=>{clearTimeout(wd);
+  if(!u||u.isAnonymous){gateMsg('Accesso riservato','Accedi al Portal come admin.','Accedi',()=>location.href='/login?next=%2Fpass-studio');return;}
+  try{const d=await db.collection('users').doc(u.uid).get();const role=d.exists?(d.data().role||''):'';
+    if(role==='admin')enter();else gateMsg('Riservato agli admin',esc(u.email)+' ha ruolo "'+esc(role||'nessuno')+'".','Esci',()=>auth.signOut());
+  }catch(e){gateMsg('Errore',esc(e.message),'Riprova',()=>location.reload());}
+});
+
+async function token(){ return await auth.currentUser.getIdToken(); }
+
+function init(){
+  $('types').innerHTML=TYPES.map(t=>`<div class="type ${t.k===TYPE?'on':''}" data-t="${t.k}" onclick="setType('${t.k}')"><small>${t.ico}</small>${t.label}</div>`).join('');
+  $('note').innerHTML='I pass <b>collegati a un record</b> (contratto/visita/utente) si aggiornano da soli quando i dati cambiano (rata, pagamento, visita): premi <b>Push</b> qui o lascia che lo facciano cron/Homie/Stripe via <code>/api/pass-push</code>. I pass manuali sono statici. Per gli aggiornamenti push serve che il certificato Pass Type sia abilitato APNs (lato Apple).';
+  loadRecords(); renderForm(); loadRecent();
+}
+function setType(k){TYPE=k;document.querySelectorAll('#types .type').forEach(e=>e.classList.toggle('on',e.dataset.t===k));renderForm();}
+function setMode(m){MODE=m;document.querySelectorAll('.modebar .m').forEach(e=>e.classList.toggle('on',e.dataset.mode===m));renderForm();}
+
+async function loadRecords(){
+  try{
+    const [cs,us,vs]=await Promise.all([
+      db.collection('contracts').limit(300).get().catch(()=>({docs:[]})),
+      db.collection('users').limit(500).get().catch(()=>({docs:[]})),
+      db.collection('viewingRequests').orderBy('confirmedDateTime','desc').limit(100).get().catch(()=>db.collection('viewingRequests').limit(100).get().catch(()=>({docs:[]}))),
+    ]);
+    const contracts=cs.docs.map(d=>({id:d.id,...d.data()}));
+    const users=us.docs.map(d=>({id:d.id,...d.data()}));
+    const views=vs.docs.map(d=>({id:d.id,...d.data()}));
+    const cl=c=>(c.propertyName||c.propertyAddress||'Contratto')+' · '+(c.tenantName||'inquilino');
+    RECORDS.tenant=RECORDS.silver=contracts.map(c=>({id:c.id,label:cl(c)}));
+    RECORDS.landlord=users.filter(u=>(u.role||'')==='landlord').map(u=>({id:u.id,label:u.name||u.email||u.id}));
+    RECORDS.referral=users.map(u=>({id:u.id,label:u.name||u.email||u.id}));
+    RECORDS.viewing=views.map(v=>({id:v.id,label:(v.clientName||v.name||'Visita')+' · '+(v.listingName||v.propertyAddress||'')}));
+    renderForm();
+  }catch(e){}
+}
+
+const FIELDS={
+  tenant:[['contractId','Contract ID'],['tenantName','Nome inquilino'],['propertyAddress','Indirizzo'],['monthlyRent','Canone €/mese','number'],['contractStart','Inizio','date'],['contractEnd','Fine','date'],['nextPaymentDate','Prossima rata','date'],['lat','Lat'],['lng','Lng']],
+  silver:[['contractId','Contract ID'],['tenantName','Nome inquilino'],['propertyAddress','Indirizzo'],['monthlyRent','Canone €/mese','number'],['contractStart','Inizio','date'],['contractEnd','Fine','date']],
+  landlord:[['landlordId','Landlord ID'],['landlordName','Nome'],['memberSince','Membro dal','number'],['propertiesCount','N° proprietà','number'],['totalRevenue','Revenue €','number'],['partnerId','BOOM ID']],
+  viewing:[['viewingId','Viewing ID'],['clientName','Nome cliente'],['propertyAddress','Indirizzo'],['confirmedDateISO','Data/ora','datetime-local'],['durationMinutes','Durata min','number'],['meetingPoint','Meeting point'],['lat','Lat'],['lng','Lng']],
+  referral:[['referrerId','Referrer ID'],['referrerName','Nome'],['referralCode','Codice'],['referralsActive','Referral attivi','number'],['totalEarned','Guadagnato €','number'],['nextThreshold','Prossima soglia']]
+};
+
+function renderForm(){
+  const f=$('form');
+  if(MODE==='record'){
+    const recs=RECORDS[TYPE]||[];
+    f.innerHTML=`<label class="f"><span>Scegli il record (${TYPE})</span>
+      <select id="rec">${recs.length?recs.map(r=>`<option value="${esc(r.id)}">${esc(r.label)} — ${esc(r.id).slice(0,6)}</option>`).join(''):'<option value="">— nessun record —</option>'}</select></label>
+      <div style="font-size:11.5px;color:var(--text-dim)">Carica i dati attuali da Firestore → il pass resta collegato e aggiornabile.</div>`;
+  } else {
+    const fl=FIELDS[TYPE]||[];
+    f.innerHTML='<div class="row2">'+fl.map(([k,l,t])=>`<label class="f"><span>${l}</span><input id="m_${k}" type="${t||'text'}" placeholder="${l}"></label>`).join('')+'</div>';
+  }
+}
+
+async function generate(){
+  const btn=$('genBtn'); btn.disabled=true; btn.textContent='Genero…';
+  const r=$('result'); r.className='result';
+  try{
+    let resp, serial;
+    if(MODE==='record'){
+      const entityId=$('rec').value; if(!entityId) throw new Error('Nessun record selezionato');
+      resp=await fetch('/api/pass-issue',{method:'POST',headers:{'Content-Type':'application/json','X-Firebase-Token':await token()},body:JSON.stringify({type:TYPE,entityId})});
+    } else {
+      const fl=FIELDS[TYPE]||[]; const data={};
+      fl.forEach(([k,l,t])=>{const v=$('m_'+k).value;if(v!=='')data[k]=(t==='number')?+v:v;});
+      if((data.lat&&data.lng)){data.propertyCoords={lat:+data.lat,lng:+data.lng};delete data.lat;delete data.lng;}
+      resp=await fetch('/api/generate-pass',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:TYPE,data})});
+    }
+    if(!resp.ok){ const j=await resp.json().catch(()=>({})); throw new Error(j.error||('HTTP '+resp.status)); }
+    serial=resp.headers.get('X-Pass-Serial')||'';
+    const blob=await resp.blob();
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=url; a.download='boom-'+TYPE+'.pkpass'; document.body.appendChild(a); a.click(); a.remove();
+    r.classList.add('show');
+    r.innerHTML=`✅ Pass generato e scaricato.<div class="serial">serial: ${esc(serial||'(manuale)')}</div>
+      <div class="acts">
+        <a class="mini" href="${url}" download="boom-${TYPE}.pkpass">Scarica di nuovo</a>
+        ${serial?`<button class="mini" onclick="pushSerial('${esc(serial)}',this)">Push aggiornamento live</button>`:''}
+      </div>
+      <div style="font-size:11.5px;color:var(--text-dim);margin-top:8px">Su iPhone, apri il file per aggiungerlo al Wallet. Per inviarlo al cliente: AirDrop o allega via email/WhatsApp.</div>`;
+    loadRecent();
+  }catch(e){ r.className='result show err'; r.innerHTML='❌ '+esc(e.message); }
+  btn.disabled=false; btn.textContent='Genera pass .pkpass';
+}
+
+async function pushSerial(serial,btn){
+  if(btn){btn.disabled=true;btn.textContent='Invio push…';}
+  try{
+    const resp=await fetch('/api/pass-push',{method:'POST',headers:{'Content-Type':'application/json','X-Firebase-Token':await token()},body:JSON.stringify({serial})});
+    const j=await resp.json().catch(()=>({}));
+    if(btn){btn.textContent=j.ok?`✓ ${j.devices||0} device · ${j.sent||0} inviati`:'Errore';}
+  }catch(e){ if(btn)btn.textContent='Errore push'; }
+}
+
+async function loadRecent(){
+  const box=$('recent');
+  try{
+    const snap=await db.collection('passMeta').orderBy('updatedAt','desc').limit(30).get().catch(()=>db.collection('passMeta').limit(30).get());
+    const rows=snap.docs.map(d=>({id:d.id,...d.data()}));
+    if(!rows.length){box.innerHTML='<div class="empty">Nessun pass ancora generato.</div>';return;}
+    box.innerHTML=rows.map(p=>{
+      const upd=p.updatedAt&&p.updatedAt.toDate?p.updatedAt.toDate().toLocaleString('it-IT'):'';
+      return `<div class="prow"><span class="ptag">${esc(p.type||'?')}</span>
+        <div class="pm"><div class="ps">${esc(p.serial||p.id)}</div><div class="pd">agg. ${esc(upd)}</div></div>
+        <button class="mini" onclick="pushSerial('${esc(p.serial||p.id)}',this)">Push</button></div>`;
+    }).join('');
+  }catch(e){ box.innerHTML='<div class="empty">passMeta non disponibile.</div>'; }
+}
+</script>
+</body>
+</html>

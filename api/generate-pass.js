@@ -18,6 +18,7 @@ import crypto from "crypto";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
+import { fsPatch } from "./homie/_lib.js";
 
 // ESM doesn't have __dirname; derive it
 const __filename = fileURLToPath(import.meta.url);
@@ -409,7 +410,20 @@ const BUILDERS = {
 };
 
 // Export builders for unit-test / mock generation outside the handler
-export { BUILDERS, loadAssets };
+export { BUILDERS, loadAssets, generateAuthToken, PASS_TYPE_ID, TEAM_ID, WEB_SERVICE_URL };
+
+// Build + sign a .pkpass for {type, data}. Returns { buffer, passJson }.
+// Shared by the HTTP handler, the Pass Studio (pass-issue) and the PassKit
+// web service (pass-update get-latest), so signing logic lives in one place.
+export function buildAndSign(type, data) {
+  const builder = BUILDERS[type];
+  if (!builder) throw new Error("Unknown pass type: " + type);
+  const passJson = builder(data || {});
+  const assets = loadAssets(type);
+  assets["pass.json"] = Buffer.from(JSON.stringify(passJson));
+  const pass = new PKPass(assets, { signerCert, signerKey, signerKeyPassphrase, wwdr });
+  return { buffer: pass.getAsBuffer(), passJson };
+}
 
 // ---------------------------------------------------------------------------
 // HTTP handler
@@ -431,12 +445,17 @@ export default async function handler(req, res) {
     const builder = BUILDERS[type];
     if (!builder) return res.status(400).json({ error: "Unknown type: " + type });
 
-    const passJson = builder(data);
-    const assets = loadAssets(type);
-    assets["pass.json"] = Buffer.from(JSON.stringify(passJson));
+    const { buffer: buf, passJson } = buildAndSign(type, data);
 
-    const pass = new PKPass(assets, { signerCert, signerKey, signerKeyPassphrase, wwdr });
-    const buf = pass.getAsBuffer();
+    // Track the pass so the web service knows it exists and can push updates.
+    try {
+      const serial = passJson.serialNumber;
+      const entityId = String(serial).split("-").slice(1).join("-");
+      await fsPatch(`passMeta/${serial}`, {
+        type, entityId, serial,
+        updatedAt: new Date(), lastBuiltAt: new Date(),
+      });
+    } catch (e) { /* non-fatal: tracking is best-effort */ }
 
     res.setHeader("Content-Type", "application/vnd.apple.pkpass");
     res.setHeader(
