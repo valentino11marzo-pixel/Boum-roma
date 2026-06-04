@@ -13,6 +13,7 @@
 
 import { fsList, sendEmail, logActivity, guardPost, okJson, errJson } from './_lib.js';
 import COMPLIANCE from '../../js/compliance-rules.js';
+import RELET from '../../js/relet-engine.js';
 
 function daysUntil(d) {
   if (!d) return null;
@@ -78,7 +79,17 @@ export default async function handler(req, res) {
       }
     }
 
-    const summary = { leadsNew: newToday, pendingNew, gradeA, risksHigh, risksMed, buroOverdue, buroSoon };
+    // Zero-Vacancy: contracts expiring within 90gg + how many have no demand yet
+    let reletExpiring = 0, reletUncovered = 0;
+    try {
+      const relet = RELET.scan(contracts, properties, leads, { today: todayD, horizonDays: 90 });
+      reletExpiring = relet.counts.expiring; reletUncovered = relet.counts.uncovered;
+      relet.plans.filter(p => p.matches.length === 0).slice(0, 3).forEach(p => {
+        if (top.length < 8) top.push(`🔄 ${p.label} — scade tra ${p.daysToEnd}gg, nessun lead compatibile`);
+      });
+    } catch (e) { /* non-fatal */ }
+
+    const summary = { leadsNew: newToday, pendingNew, gradeA, risksHigh, risksMed, buroOverdue, buroSoon, reletExpiring, reletUncovered };
     const dateStr = new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' });
 
     const textLines = [
@@ -87,6 +98,7 @@ export default async function handler(req, res) {
       `📨 Lead: ${newToday} nuovi oggi · ${pendingNew} in attesa${gradeA ? ` · ${gradeA} grade A` : ''}`,
       `🎯 Rischi: ${risksHigh} urgenti · ${risksMed} da seguire`,
       `🏛️ Burocrazia: ${buroOverdue} scadut${buroOverdue === 1 ? 'a' : 'e'} · ${buroSoon} in scadenza`,
+      `🔄 Ricollocamento: ${reletExpiring} in uscita ≤90gg · ${reletUncovered} senza domanda`,
       ``,
       ...(top.length ? ['Top priorità:', ...top.map(t => '· ' + t)] : ['Nessun rischio aperto ✅']),
     ];
@@ -97,6 +109,7 @@ export default async function handler(req, res) {
         <p style="font-size:15px"><strong>📨 Lead:</strong> ${newToday} nuovi oggi · ${pendingNew} in attesa${gradeA ? ` · <span style="color:#B8960C">${gradeA} grade A</span>` : ''}</p>
         <p style="font-size:15px"><strong>🎯 Rischi:</strong> ${risksHigh} urgenti · ${risksMed} da seguire</p>
         <p style="font-size:15px"><strong>🏛️ Burocrazia:</strong> ${buroOverdue} scadute · ${buroSoon} in scadenza</p>
+        <p style="font-size:15px"><strong>🔄 Ricollocamento:</strong> ${reletExpiring} in uscita ≤90gg · ${reletUncovered} senza domanda</p>
         ${top.length ? `<p style="font-weight:bold;margin-top:16px">Top priorità</p><ul style="line-height:1.7;font-size:14px;color:#333">${top.map(t => `<li>${t.replace(/^🔴 |^🟠 /, '')}</li>`).join('')}</ul>` : '<p style="color:#2a8">Nessun rischio aperto ✅</p>'}
       </div></div>`;
 
