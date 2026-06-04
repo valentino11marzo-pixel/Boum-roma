@@ -158,3 +158,8 @@
 .svc-partner p{font-size:13.5px;color:var(--text-secondary)}
 .svc-partner .go{margin-top:12px;color:var(--gold);font-size:13px}
 .svc-partner.current{border-color:var(--border-gold);background:linear-gradient(160deg,var(--gold-muted),rgba(255,255,255,.01))}
+.svc-partner .snap{margin-top:12px;color:var(--text-tertiary);font-size:12.5px}
+
+/* À la carte service cross-sell grid (auto-fits 3–4 cards) */
+.svc-xsell{display:grid;grid-template-columns:1fr;gap:16px;margin-top:8px}
+@media(min-width:680px){.svc-xsell{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}}
