@@ -9,16 +9,16 @@
     <link rel="manifest" href="/site.webmanifest">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Virtual Apartment Viewings Rome — Live Video Tours | BOOM</title>
-    <meta name="description" content="Can't visit Rome before renting? BOOM does live video viewings, HD photos, condition reports and honest red-flag checks — so you rent confidently from anywhere. From €89.">
+    <title>Student Housing in Rome for Universities & Study-Abroad | BOOM</title>
+    <meta name="description" content="A safe, English-first housing partner your international office can recommend. BOOM gives students in Rome verified apartments, remote video viewings, legal contracts and anti-scam protection — free to partner, no exclusivity.">
     <meta name="theme-color" content="#08080A">
     <meta name="color-scheme" content="dark">
-    <link rel="canonical" href="https://www.boomrome.com/virtual-viewing">
+    <link rel="canonical" href="https://www.boomrome.com/universities">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="BOOM Rome">
-    <meta property="og:title" content="Virtual Apartment Viewings Rome — Live Video Tours | BOOM">
-    <meta property="og:description" content="Live video viewings, HD photos, condition reports and honest red-flag checks. Rent confidently from anywhere. From €89.">
-    <meta property="og:url" content="https://www.boomrome.com/virtual-viewing">
+    <meta property="og:title" content="Student Housing in Rome for Universities & Study-Abroad | BOOM">
+    <meta property="og:description" content="The English-first, anti-scam housing partner your international office can recommend. Verified apartments, remote viewings, legal contracts — free to partner.">
+    <meta property="og:url" content="https://www.boomrome.com/universities">
     <meta property="og:image" content="https://www.boomrome.com/BOOMsocialprofile.png">
     <meta name="twitter:card" content="summary_large_image">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -28,27 +28,35 @@
     <link rel="stylesheet" href="/css/boom-svc.css">
     <link rel="stylesheet" href="/css/boom-core.css">
     <style>
-/* Virtual Viewing — live video player device */
-.vv-stage{padding:14px;background:linear-gradient(170deg,var(--surface-card),#070708)}
-.vv-video{position:relative;aspect-ratio:16/10;border-radius:12px;overflow:hidden;background:linear-gradient(135deg,#1a1a22,#0c0c11)}
-.vv-video::after{content:'';position:absolute;inset:0;z-index:1;background:radial-gradient(circle at 62% 34%,rgba(255,215,0,.12),transparent 55%),linear-gradient(180deg,rgba(0,0,0,.12),rgba(0,0,0,.40))}
-.vv-still{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;filter:brightness(.82) saturate(1.05);animation:vvKen 16s ease-in-out infinite alternate}
-@keyframes vvKen{from{transform:scale(1.04)}to{transform:scale(1.13)}}
-.vv-rec{position:absolute;top:12px;left:12px;z-index:3;font-size:10px;letter-spacing:1px;color:#fff;background:rgba(0,0,0,.55);border:1px solid rgba(0,255,136,.4);padding:4px 9px;border-radius:100px}
-.vv-rec b{color:var(--green);animation:vvBlink 1.4s infinite}
-@keyframes vvBlink{50%{opacity:.25}}
-.vv-play{position:absolute;z-index:3;top:50%;left:50%;transform:translate(-50%,-50%);width:56px;height:56px;border-radius:50%;border:none;background:rgba(255,215,0,.92);color:#000;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;animation:vvPing 2.4s infinite}
-@keyframes vvPing{0%{box-shadow:0 0 0 0 rgba(255,215,0,.45)}70%{box-shadow:0 0 0 18px rgba(255,215,0,0)}100%{box-shadow:0 0 0 0 rgba(255,215,0,0)}}
-.vv-hotspot{position:absolute;z-index:2;width:12px;height:12px;border-radius:50%;background:var(--gold);animation:vvHot 2s infinite}
-@keyframes vvHot{0%{box-shadow:0 0 0 0 rgba(255,215,0,.5)}70%{box-shadow:0 0 0 14px rgba(255,215,0,0)}100%{box-shadow:0 0 0 0 rgba(255,215,0,0)}}
-.vv-cap{position:absolute;left:12px;bottom:40px;z-index:3;font-size:12px;color:#fff;background:rgba(0,0,0,.5);backdrop-filter:blur(6px);padding:6px 11px;border-radius:8px;transition:opacity .25s;max-width:78%}
-.vv-scrub{position:absolute;left:12px;right:12px;bottom:14px;height:4px;border-radius:2px;background:rgba(255,255,255,.18);z-index:3}
-.vv-played{position:absolute;left:0;top:0;bottom:0;width:0;background:var(--gold);border-radius:2px}
-.vv-head{position:absolute;top:50%;left:0;width:11px;height:11px;border-radius:50%;background:#fff;transform:translate(-50%,-50%);box-shadow:0 0 8px rgba(0,0,0,.6)}
-.vv-time{position:absolute;right:14px;bottom:23px;z-index:3;font-size:10.5px;color:rgba(255,255,255,.82);font-variant-numeric:tabular-nums}
-.vv-deliv{display:flex;gap:8px;flex-wrap:wrap;margin-top:13px}
-.vv-chip{font-size:11px;color:var(--text-secondary);border:1px solid var(--border-default);background:rgba(255,255,255,.02);padding:6px 10px;border-radius:100px}
+/* Universities — partner-portal device + student band */
+.uni-stage{padding:18px;background:linear-gradient(170deg,var(--surface-card),#070708)}
+.uni-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.uni-h-lbl{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--text-tertiary)}
+.uni-h-name{font-size:14px;color:#fff;font-weight:500;margin-top:3px}
+.uni-badge{font-size:10px;letter-spacing:.5px;color:var(--green);border:1px solid rgba(0,255,136,.3);padding:4px 9px;border-radius:100px}
+.uni-badge b{animation:uniBlink 1.5s infinite}
+@keyframes uniBlink{50%{opacity:.3}}
+.uni-stat{text-align:center;padding:14px 0 18px;border-bottom:1px solid var(--border-default);margin-bottom:14px}
+.uni-stat-num{font-family:var(--font-display);font-weight:200;font-size:52px;line-height:1;color:var(--gold)}
+.uni-stat-lbl{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--text-tertiary);margin-top:6px}
+.uni-rows{display:flex;flex-direction:column;gap:9px}
+.uni-row{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:11px;border:1px solid var(--border-default);background:rgba(255,255,255,.02);opacity:0;transform:translateY(8px)}
+.uni-row.show{animation:uniRise .5s var(--ease-out) forwards}
+@keyframes uniRise{to{opacity:1;transform:none}}
+.uni-av{width:30px;height:30px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#000;background:linear-gradient(135deg,#FFE55C,#E5C200)}
+.uni-rt{flex:1;min-width:0;font-size:12.5px;color:var(--text-secondary)}
+.uni-rt b{color:#fff;font-weight:500}
+.uni-ok{font-size:10px;letter-spacing:.4px;text-transform:uppercase;color:var(--green);border:1px solid rgba(0,255,136,.3);padding:3px 8px;border-radius:100px;white-space:nowrap}
+.uni-foot{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.uni-chip{font-size:11px;color:var(--text-secondary);border:1px solid var(--border-default);background:rgba(255,255,255,.02);padding:6px 10px;border-radius:100px}
 
+/* Student band */
+.uni-students{border:1px solid var(--border-gold);border-radius:22px;padding:38px;background:linear-gradient(160deg,var(--gold-muted),rgba(255,255,255,.01));text-align:center}
+.uni-students h2{font-family:var(--font-display);font-weight:300;font-size:clamp(24px,3.4vw,34px);margin-bottom:10px}
+.uni-students p{color:var(--text-secondary);max-width:560px;margin:0 auto 24px;font-size:15px}
+.uni-stbtns{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+.uni-stbtns .btn-ghost{display:inline-flex;align-items:center;gap:8px;padding:13px 22px;border-radius:100px;border:1px solid var(--border-default);color:#fff;text-decoration:none;font-size:14px;transition:border-color .3s,transform .3s var(--ease-out)}
+.uni-stbtns .btn-ghost:hover{border-color:var(--border-gold);transform:translateY(-2px)}
     </style>
 <!-- BOOM_JSONLD:START -->
   <script type="application/ld+json">
@@ -57,7 +65,7 @@
   "@type": "RealEstateAgent",
   "@id": "https://www.boomrome.com/#organization",
   "name": "BOOM Rome",
-  "legalName": "BOOM Rome",
+  "legalName": "Egidi Immobiliare S.r.l.",
   "url": "https://www.boomrome.com",
   "logo": {
     "@type": "ImageObject",
@@ -89,44 +97,10 @@
   <script type="application/ld+json">
 {
   "@context": "https://schema.org",
-  "@type": "WebSite",
-  "@id": "https://www.boomrome.com/#website",
-  "url": "https://www.boomrome.com",
-  "name": "BOOM Rome",
-  "publisher": {
-    "@id": "https://www.boomrome.com/#organization"
-  },
-  "potentialAction": {
-    "@type": "SearchAction",
-    "target": {
-      "@type": "EntryPoint",
-      "urlTemplate": "https://www.boomrome.com/apartments?q={search_term_string}"
-    },
-    "query-input": "required name=search_term_string"
-  },
-  "inLanguage": [
-    "en",
-    "it"
-  ]
-}
-  </script>
-  <script type="application/ld+json">
-{
-  "@context": "https://schema.org",
   "@type": "BreadcrumbList",
   "itemListElement": [
-    {
-      "@type": "ListItem",
-      "position": 1,
-      "name": "Home",
-      "item": "https://www.boomrome.com/"
-    },
-    {
-      "@type": "ListItem",
-      "position": 2,
-      "name": "Virtual Viewing",
-      "item": "https://www.boomrome.com/virtual-viewing"
-    }
+    { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://www.boomrome.com/" },
+    { "@type": "ListItem", "position": 2, "name": "For Universities", "item": "https://www.boomrome.com/universities" }
   ]
 }
   </script>
@@ -134,25 +108,23 @@
 {
   "@context": "https://schema.org",
   "@type": "Service",
-  "serviceType": "PropertyManagement",
-  "name": "Virtual Apartment Viewings",
-  "description": "Live video viewings of Rome apartments with professional verification, honest feedback and live Q&A.",
-  "url": "https://www.boomrome.com/virtual-viewing",
-  "provider": {
-    "@id": "https://www.boomrome.com/#organization"
-  },
-  "areaServed": {
-    "@type": "City",
-    "name": "Rome"
-  }
+  "serviceType": "Student housing partnership",
+  "name": "Student Housing Partnership for Universities & Study-Abroad Programs",
+  "description": "BOOM partners with universities and study-abroad programs to give international students in Rome safe, verified, English-first housing — remote video viewings, legal contracts, protected deposits and anti-scam support. Free to partner, no exclusivity.",
+  "url": "https://www.boomrome.com/universities",
+  "provider": { "@id": "https://www.boomrome.com/#organization" },
+  "areaServed": { "@type": "City", "name": "Rome" },
+  "audience": { "@type": "EducationalAudience", "educationalRole": "International student housing & study-abroad offices" }
 }
   </script>
   <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
-{"@type":"Question","name":"How fast can you do a viewing?","acceptedAnswer":{"@type":"Answer","text":"Usually within 24–48 hours of your request, scheduled directly with the landlord or agency."}},
-{"@type":"Question","name":"What exactly do I receive?","acceptedAnswer":{"@type":"Answer","text":"A 30-minute live tour, 20+ HD photos, a condition report, a neighbourhood check and our honest recommendation."}},
-{"@type":"Question","name":"Which platforms do you use?","acceptedAnswer":{"@type":"Answer","text":"Zoom, WhatsApp or FaceTime — whatever is easiest for you, from anywhere in the world."}},
-{"@type":"Question","name":"What if the apartment isn't good?","acceptedAnswer":{"@type":"Answer","text":"We tell you honestly, with reasons. Far better to know before you commit a deposit."}}
+{"@type":"Question","name":"Does partnering cost the university or our students anything?","acceptedAnswer":{"@type":"Answer","text":"Becoming a partner is free, with no exclusivity. Browsing apartments and applying is free for students. Students only pay if they choose an optional paid service — for example a €89 remote video viewing — and even that is fully their choice."}},
+{"@type":"Question","name":"Is BOOM a legitimate, registered company?","acceptedAnswer":{"@type":"Answer","text":"Yes. BOOM is operated by Egidi Immobiliare S.r.l., P.IVA 17322991005, based in Rome. Every rental uses a legal contract with a protected deposit."}},
+{"@type":"Question","name":"Can students secure housing before they arrive in Italy?","acceptedAnswer":{"@type":"Answer","text":"Yes. Remote live video viewings plus a refundable hold let a student lock a verified apartment from their home country, before flying to Rome."}},
+{"@type":"Question","name":"What neighbourhoods and budgets do you cover?","acceptedAnswer":{"@type":"Answer","text":"All central and student-friendly Rome neighbourhoods — from San Lorenzo and Trastevere to Prati and Monti — across a range of budgets. We match each student to what fits their program location and budget."}},
+{"@type":"Question","name":"Do you help students with Italian bureaucracy?","acceptedAnswer":{"@type":"Answer","text":"Yes. Our concierge guides students through the essentials such as codice fiscale, utilities and settling in, in English."}},
+{"@type":"Question","name":"How do we get started?","acceptedAnswer":{"@type":"Answer","text":"Send the form on this page or email us. We set up your office in about 15 minutes with a referral link, ready-to-share materials and a named contact."}}
 ]}
   </script>
 <!-- BOOM_JSONLD:END -->
@@ -160,7 +132,6 @@
 <body>
 
         <div class="tech-bg">
-
             <div class="tech-orb tech-orb-1"></div>
         <div class="tech-orb tech-orb-2"></div>
         <div class="tech-orb tech-orb-3"></div>
@@ -222,112 +193,103 @@
         <a href="https://wa.me/393313251961" class="mobile-menu-cta" target="_blank">WhatsApp Us</a>
     </div>
 
-    
+
     <!-- HERO -->
     <section class="svc-hero">
         <div class="svc-hero-copy">
-            <span class="svc-eyebrow">Virtual Viewing</span>
-            <h1>We're your<br><span class="text-gold">eyes in Rome.</span></h1>
-            <p class="sub">Can't visit before renting? We'll be there for you. Live video viewings, honest assessments and professional verification — so you can rent confidently from anywhere in the world.</p>
+            <span class="svc-eyebrow">For universities &amp; study-abroad programs</span>
+            <h1>Give your students a<br><span class="text-gold">safe landing in Rome.</span></h1>
+            <p class="sub">Every semester, international students arrive in Rome and face a rental market full of scams, Italian-only contracts and landlords who never reply. BOOM is the English-first, anti-scam housing partner your office can recommend with confidence — free to partner, no exclusivity.</p>
             <div class="row">
-                <a href="https://buy.stripe.com/8x2eVe9NleiB06O41v5J60e" class="btn btn-primary">Book a viewing — €89</a>
-                <div class="svc-trust"><span class="stars">★★★★★</span> <b>4.9</b> · rent with confidence</div>
+                <a href="#form" class="btn btn-primary">Become a partner</a>
+                <div class="svc-trust"><span class="stars">★★★★★</span> <b>4.9</b> · trusted by 500+ internationals</div>
             </div>
         </div>
         <div class="svc-device">
-            <div class="svc-bar"><i></i><i></i><i></i><span class="svc-url">app.boomrome.com/viewing</span></div>
-            <div class="vv-stage">
-                <div class="vv-video">
-                    <img class="vv-still" src="https://i.imgur.com/9CI1JnI.jpeg" alt="" loading="lazy" decoding="async" onerror="this.style.display='none'">
-                    <span class="vv-rec"><b>●</b> LIVE</span>
-                    <span class="vv-hotspot" style="left:68%;top:38%"></span>
-                    <button class="vv-play" aria-hidden="true">▶</button>
-                    <div class="vv-cap" id="vvCap">Walking through the living room…</div>
-                    <span class="vv-time" id="vvTime">00:00</span>
-                    <div class="vv-scrub"><span class="vv-played" id="vvPlayed"></span><span class="vv-head" id="vvHead"></span></div>
+            <div class="svc-bar"><i></i><i></i><i></i><span class="svc-url">app.boomrome.com/universities</span></div>
+            <div class="uni-stage">
+                <div class="uni-head">
+                    <div><div class="uni-h-lbl">Partner office</div><div class="uni-h-name">International Student Housing</div></div>
+                    <span class="uni-badge"><b>●</b> Active</span>
                 </div>
-                <div class="vv-deliv"><span class="vv-chip">📸 24 HD photos</span><span class="vv-chip">🔍 Condition report</span><span class="vv-chip">⚠️ Red-flag alert</span></div>
+                <div class="uni-stat">
+                    <div class="uni-stat-num" id="uniCount" data-count="214">0</div>
+                    <div class="uni-stat-lbl">students housed safely</div>
+                </div>
+                <div class="uni-rows" id="uniRows">
+                    <div class="uni-row"><span class="uni-av">M</span><span class="uni-rt"><b>Maria</b> · Studio, San Lorenzo</span><span class="uni-ok">Housed ✓</span></div>
+                    <div class="uni-row"><span class="uni-av">J</span><span class="uni-rt"><b>James</b> · 2-bed, Trastevere</span><span class="uni-ok">Housed ✓</span></div>
+                    <div class="uni-row"><span class="uni-av">L</span><span class="uni-rt"><b>Lena</b> · Room, Prati</span><span class="uni-ok">Housed ✓</span></div>
+                </div>
+                <div class="uni-foot"><span class="uni-chip">🛡️ 0 scams</span><span class="uni-chip">🇬🇧 English-first</span><span class="uni-chip">⚡ avg 6 days</span></div>
             </div>
         </div>
     </section>
 
-    <!-- HOW IT WORKS -->
+    <!-- PROBLEM -->
     <section class="section">
         <div class="container">
-            <div class="section-header reveal"><span class="section-eyebrow">Simple process</span><h2 class="section-title">How it works.</h2></div>
-            <div class="svc-steps s3 reveal-stagger">
-                <div class="svc-step"><div class="svc-snum">01</div><h3>Send us the listing</h3><p>Share the property URL or details. We schedule the viewing with the landlord or agency.</p></div>
-                <div class="svc-step"><div class="svc-snum">02</div><h3>Live video tour</h3><p>Join via Zoom or WhatsApp. Our expert walks through the apartment, answering your questions in real time.</p></div>
-                <div class="svc-step"><div class="svc-snum">03</div><h3>Get your report</h3><p>Within 24h: a detailed report with HD photos, red flags, neighbourhood assessment and an honest recommendation.</p></div>
+            <div class="section-header reveal"><span class="section-eyebrow">The problem you know too well</span><h2 class="section-title">Housing is the #1 stress<br><span class="text-gold">for your arriving students.</span></h2></div>
+            <div class="svc-grid c3 reveal-stagger">
+                <div class="svc-card"><span class="glow"></span><div class="svc-ico">🎣</div><h3>Scams everywhere</h3><p>Fake listings, deposits wired abroad, keys that never arrive. Students new to Rome are the easiest targets — and your office hears about it after the money's gone.</p></div>
+                <div class="svc-card"><span class="glow"></span><div class="svc-ico">📄</div><h3>Language &amp; bureaucracy</h3><p>Italian-only contracts, codice fiscale, utilities, deposits. It's overwhelming in a new country, in a new language, often before the student has even arrived.</p></div>
+                <div class="svc-card"><span class="glow"></span><div class="svc-ico">✈️</div><h3>Renting blind</h3><p>They can't view apartments before flying in, landlords ghost them, and they end up signing something risky just to have a roof — or arriving with nowhere to live.</p></div>
             </div>
         </div>
     </section>
 
-    <!-- INCLUDES -->
+    <!-- WHY BOOM -->
     <section class="section section-dark">
         <div class="container">
-            <div class="section-header reveal"><span class="section-eyebrow">What's included</span><h2 class="section-title">Every viewing<br><span class="text-gold">includes.</span></h2></div>
+            <div class="section-header reveal"><span class="section-eyebrow">Why students trust BOOM</span><h2 class="section-title">A home in Rome,<br><span class="text-gold">without the risk.</span></h2></div>
             <div class="svc-grid c3 reveal-stagger">
-                <div class="svc-card"><span class="glow"></span><div class="svc-ico">📹</div><h3>30-min live video</h3><p>Full walkthrough via Zoom or WhatsApp. Ask questions, request close-ups, check every corner in real time.</p></div>
-                <div class="svc-card"><span class="glow"></span><div class="svc-ico">📸</div><h3>HD photo set</h3><p>20+ professional photos documenting every room, appliances, views, building entrance and surroundings.</p></div>
-                <div class="svc-card"><span class="glow"></span><div class="svc-ico">🔍</div><h3>Condition report</h3><p>Detailed assessment: walls, floors, fixtures, appliances, windows, heating/cooling, potential issues.</p></div>
-                <div class="svc-card"><span class="glow"></span><div class="svc-ico">🏘️</div><h3>Neighbourhood check</h3><p>Building condition, noise levels, nearby amenities, transport links, safety assessment, local vibe.</p></div>
-                <div class="svc-card"><span class="glow"></span><div class="svc-ico">⚠️</div><h3>Red-flags alert</h3><p>Honest assessment of any issues: mould, dampness, noise, poor maintenance, sketchy landlord behaviour.</p></div>
-                <div class="svc-card"><span class="glow"></span><div class="svc-ico">💬</div><h3>Our recommendation</h3><p>Straight talk: should you rent this place? We'll tell you honestly, with the reasons why or why not.</p></div>
+                <div class="svc-card"><span class="glow"></span><div class="svc-ico">🇬🇧</div><h3>English-first, every step</h3><p>From the first message to the signed contract, everything happens in clear English. No Google-translating a lease at midnight.</p></div>
+                <div class="svc-card"><span class="glow"></span><div class="svc-ico">✅</div><h3>Verified, real listings</h3><p>Every apartment is video-checked by our team. No fake photos, no ghost landlords, no “send the deposit first” traps.</p></div>
+                <div class="svc-card"><span class="glow"></span><div class="svc-ico">📹</div><h3>Rent before you fly</h3><p>Live video viewings and a refundable hold let students lock a verified home from their home country — keys ready on arrival.</p></div>
+                <div class="svc-card"><span class="glow"></span><div class="svc-ico">⚖️</div><h3>Legal contracts, protected deposits</h3><p>Proper registered contracts and deposits handled correctly — the protection a student renting alone abroad rarely gets.</p></div>
+                <div class="svc-card"><span class="glow"></span><div class="svc-ico">⚡</div><h3>Fast — days, not weeks</h3><p>Move-in in as little as 48 hours. Perfect for the semester rush when everyone needs housing at once.</p></div>
+                <div class="svc-card"><span class="glow"></span><div class="svc-ico">💬</div><h3>Real humans, 24/7</h3><p>A real person on WhatsApp whenever a student (or a worried parent) has a question. They're never left alone.</p></div>
             </div>
         </div>
     </section>
 
-    <!-- WHAT WE CHECK -->
+    <!-- WHAT YOUR OFFICE GETS -->
     <section class="section">
         <div class="container">
-            <div class="section-header reveal"><span class="section-eyebrow">No surprises</span><h2 class="section-title">What we check for.</h2></div>
-            <div class="svc-checks reveal">
-                <div class="svc-check"><span class="x">🚩</span>Mould or dampness signs</div>
-                <div class="svc-check"><span class="x">🚩</span>Plumbing issues</div>
-                <div class="svc-check"><span class="x">🚩</span>Electrical safety concerns</div>
-                <div class="svc-check"><span class="x">🚩</span>Noise from neighbours / street</div>
-                <div class="svc-check"><span class="x">🚩</span>Poor natural light</div>
-                <div class="svc-check"><span class="x">🚩</span>Security vulnerabilities</div>
-                <div class="svc-check"><span class="x">🚩</span>Misleading listing photos</div>
-                <div class="svc-check"><span class="x">🚩</span>Building maintenance issues</div>
+            <div class="section-header reveal"><span class="section-eyebrow">What your office gets — free</span><h2 class="section-title">A housing partner that makes<br><span class="text-gold">your job easier.</span></h2></div>
+            <div class="svc-grid c3 reveal-stagger">
+                <div class="svc-card"><span class="glow"></span><div class="svc-ico">🤝</div><h3>A dedicated contact</h3><p>One named person at BOOM who knows your program and looks after your students directly.</p></div>
+                <div class="svc-card"><span class="glow"></span><div class="svc-ico">🔗</div><h3>Co-branded referral link</h3><p>A simple link and landing page you can drop into your housing list, orientation pack and welcome emails.</p></div>
+                <div class="svc-card"><span class="glow"></span><div class="svc-ico">⭐</div><h3>Priority for your cohort</h3><p>Your students go to the front of the queue and get faster placement during the busy intake weeks.</p></div>
+                <div class="svc-card"><span class="glow"></span><div class="svc-ico">🎤</div><h3>Free info sessions</h3><p>In-person or online housing &amp; anti-scam sessions for your students, run by our team at no cost.</p></div>
+                <div class="svc-card"><span class="glow"></span><div class="svc-ico">📦</div><h3>Ready-to-share materials</h3><p>Email blurbs, a one-page flyer and slides — written and designed, ready to forward.</p></div>
+                <div class="svc-card"><span class="glow"></span><div class="svc-ico">📊</div><h3>Simple updates</h3><p>A light touch-base on how your students are doing — fewer housing complaints landing on your desk.</p></div>
             </div>
         </div>
     </section>
 
-    <!-- PRICING -->
-    <section class="section section-dark" id="pricing">
+    <!-- HOW PARTNERSHIP WORKS -->
+    <section class="section section-dark">
         <div class="container">
-            <div class="section-header reveal"><span class="section-eyebrow">Simple pricing</span><h2 class="section-title">Choose your option.</h2></div>
-            <div class="svc-tiers t2 reveal-stagger">
-                <div class="svc-tier">
-                    <div class="svc-tname">Single viewing</div>
-                    <div class="svc-price"><span class="cur">€</span>89</div>
-                    <div class="svc-unit">per property</div>
-                    <ul class="svc-feats">
-                        <li><span class="ck">✓</span>30-min live video tour</li>
-                        <li><span class="ck">✓</span>20+ HD photos</li>
-                        <li><span class="ck">✓</span>Condition report</li>
-                        <li><span class="ck">✓</span>Neighbourhood check</li>
-                        <li><span class="ck">✓</span>Red-flags assessment</li>
-                        <li><span class="ck">✓</span>Our recommendation</li>
-                    </ul>
-                    <a href="https://buy.stripe.com/8x2eVe9NleiB06O41v5J60e" class="svc-tier-cta">Book single — €89</a>
-                </div>
-                <div class="svc-tier featured">
-                    <span class="svc-tier-badge">Save €68</span>
-                    <div class="svc-tname">3-Pack</div>
-                    <div class="svc-price"><span class="cur">€</span>199</div>
-                    <div class="svc-unit">3 viewings</div>
-                    <ul class="svc-feats">
-                        <li><span class="ck">✓</span>3 live video tours</li>
-                        <li><span class="ck">✓</span>60+ HD photos total</li>
-                        <li><span class="ck">✓</span>3 condition reports</li>
-                        <li><span class="ck">✓</span>Neighbourhood checks</li>
-                        <li><span class="ck">✓</span>Comparison summary</li>
-                        <li><span class="ck">✓</span>Priority scheduling</li>
-                    </ul>
-                    <a href="https://buy.stripe.com/5kQaEY2kTa2lcTAcy15J60f" class="svc-tier-cta">Book 3-pack — €199</a>
+            <div class="section-header reveal"><span class="section-eyebrow">Partnering takes one email</span><h2 class="section-title">How it works.</h2></div>
+            <div class="svc-steps s3 reveal-stagger">
+                <div class="svc-step"><div class="svc-snum">01</div><h3>We set you up</h3><p>Send the form below. In about 15 minutes you have a referral link, ready-to-share materials and a named contact — no contracts, no cost, no exclusivity.</p></div>
+                <div class="svc-step"><div class="svc-snum">02</div><h3>You share BOOM</h3><p>Add us to your recommended-housing list, orientation and welcome emails — so students hear about a trusted option before the scams reach them.</p></div>
+                <div class="svc-step"><div class="svc-snum">03</div><h3>Students land safely</h3><p>They rent verified homes in English, with legal contracts — and your office spends far less time firefighting housing emergencies.</p></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- STUDENTS BAND -->
+    <section class="section">
+        <div class="container reveal">
+            <div class="uni-students">
+                <h2>Are you a student? <span class="text-gold">Start here.</span></h2>
+                <p>You don't need to wait for your university. Browse verified Rome apartments, let us find your perfect place, or just message us — in English, anytime.</p>
+                <div class="uni-stbtns">
+                    <a href="/apartments.html" class="btn-ghost">🏠 Browse apartments</a>
+                    <a href="/property-finding.html" class="btn-ghost">🔎 Find my place for me</a>
+                    <a href="https://wa.me/393313251961" target="_blank" class="btn-ghost">💬 Message us on WhatsApp</a>
                 </div>
             </div>
         </div>
@@ -336,27 +298,27 @@
     <!-- FORM -->
     <section class="form-section reveal" id="form">
         <div class="form-container">
-            <div class="form-header"><div class="form-tag">Replies within 24h</div><h2 class="form-title">Questions first?</h2><p class="form-subtitle">Send us the listing and we'll get back to you within 24 hours.</p></div>
+            <div class="form-header"><div class="form-tag">Free · No exclusivity · Replies within 24h</div><h2 class="form-title">Partner with BOOM</h2><p class="form-subtitle">Tell us about your office and we'll set up your students' safe path to housing in Rome.</p></div>
 <form action="https://api.web3forms.com/submit" method="POST">
                 <input type="hidden" name="access_key" value="5b10beba-c7e0-4cd2-98f9-2dbb0aefe889">
-                <input type="hidden" name="subject" value="📹 NEW VVV INQUIRY - Virtual Viewing">
-                <input type="hidden" name="from_name" value="BOOM Virtual Viewing">
+                <input type="hidden" name="subject" value="🎓 NEW UNIVERSITY PARTNERSHIP INQUIRY">
+                <input type="hidden" name="from_name" value="BOOM University Partnerships">
                 <input type="hidden" name="redirect" value="https://boom-rome.com/_thank-you.html">
                 <div class="form-row">
-                    <div class="form-group"><label class="form-label">Full Name <span class="required">*</span></label><input type="text" name="name" class="form-input" required placeholder="John Smith"></div>
-                    <div class="form-group"><label class="form-label">Email <span class="required">*</span></label><input type="email" name="email" class="form-input" required placeholder="john@email.com"></div>
+                    <div class="form-group"><label class="form-label">Your name <span class="required">*</span></label><input type="text" name="name" class="form-input" required placeholder="Full name"></div>
+                    <div class="form-group"><label class="form-label">Work email <span class="required">*</span></label><input type="email" name="email" class="form-input" required placeholder="you@university.edu"></div>
                 </div>
                 <div class="form-row">
-                    <div class="form-group"><label class="form-label">WhatsApp Number <span class="required">*</span></label><input type="tel" name="phone" class="form-input" required placeholder="+1 234 567 8900"></div>
-                    <div class="form-group"><label class="form-label">Package</label><select name="package" class="form-select"><option value="single">Single Viewing (€89)</option><option value="3pack">3-Pack (€199)</option></select></div>
+                    <div class="form-group"><label class="form-label">University / institution <span class="required">*</span></label><input type="text" name="institution" class="form-input" required placeholder="e.g., John Cabot University"></div>
+                    <div class="form-group"><label class="form-label">Your role</label><input type="text" name="role" class="form-input" placeholder="e.g., Housing Coordinator"></div>
                 </div>
-                <div class="form-group"><label class="form-label">Listing URL(s) <span class="required">*</span></label><textarea name="listings" class="form-textarea" required placeholder="Paste the listing URL(s) here. For 3-pack, include all listings or tell us you'll send later."></textarea></div>
                 <div class="form-row">
-                    <div class="form-group"><label class="form-label">Your Timezone</label><input type="text" name="timezone" class="form-input" placeholder="e.g., EST, PST, GMT+2"></div>
-                    <div class="form-group"><label class="form-label">Preferred Video Platform</label><select name="platform" class="form-select"><option value="zoom">Zoom</option><option value="whatsapp">WhatsApp Video</option><option value="facetime">FaceTime</option><option value="other">Other</option></select></div>
+                    <div class="form-group"><label class="form-label">Country / program base</label><input type="text" name="country" class="form-input" placeholder="e.g., USA, UK, Italy"></div>
+                    <div class="form-group"><label class="form-label">International students per year</label><select name="students_per_year" class="form-select"><option value="">Select a range</option><option>Under 50</option><option>50–150</option><option>150–500</option><option>500–1,000</option><option>1,000+</option></select></div>
                 </div>
-                <div class="form-group"><label class="form-label">Anything specific to check?</label><textarea name="notes" class="form-textarea" placeholder="E.g., I need good WiFi for remote work, check if there's a balcony, I'm allergic to mold..."></textarea></div>
-                <button type="submit" class="form-submit">Send Inquiry</button>
+                <div class="form-group"><label class="form-label">Anything we should know?</label><textarea name="message" class="form-textarea" placeholder="Your intake calendar, the housing challenges you face, what would help your students most..."></textarea></div>
+                <button type="submit" class="form-submit">Start the partnership</button>
+                <p class="form-note">We'll reply within 24 hours with your referral link, materials and a named contact.</p>
             </form>
         </div>
     </section>
@@ -365,10 +327,12 @@
     <section class="section"><div class="container">
         <div class="section-header reveal"><span class="section-eyebrow">FAQ</span><h2 class="section-title">Good to <span class="text-gold">know.</span></h2></div>
         <div class="boom-faq reveal">
-            <details><summary>How fast can you do a viewing?</summary><div class="faq-a">Usually within 24–48 hours of your request, scheduled directly with the landlord or agency.</div></details>
-            <details><summary>What exactly do I receive?</summary><div class="faq-a">A 30-minute live tour, 20+ HD photos, a condition report, a neighbourhood check and our honest recommendation.</div></details>
-            <details><summary>Which platforms do you use?</summary><div class="faq-a">Zoom, WhatsApp or FaceTime — whatever's easiest for you, from anywhere in the world.</div></details>
-            <details><summary>What if the apartment isn't good?</summary><div class="faq-a">We tell you honestly, with reasons. Far better to know before you commit a deposit.</div></details>
+            <details><summary>Does partnering cost the university or our students anything?</summary><div class="faq-a">Becoming a partner is free, with no exclusivity. Browsing apartments and applying is free for students. Students only pay if they choose an optional paid service — for example a €89 remote video viewing — and even that is entirely their choice.</div></details>
+            <details><summary>Is BOOM a legitimate, registered company?</summary><div class="faq-a">Yes. BOOM is operated by Egidi Immobiliare S.r.l. (P.IVA 17322991005), based in Rome. Every rental uses a legal contract with a properly handled, protected deposit.</div></details>
+            <details><summary>Can students secure housing before they arrive in Italy?</summary><div class="faq-a">Yes. Remote live video viewings plus a refundable hold let a student lock a verified apartment from their home country, before flying to Rome.</div></details>
+            <details><summary>What neighbourhoods and budgets do you cover?</summary><div class="faq-a">All central and student-friendly Rome neighbourhoods — from San Lorenzo and Trastevere to Prati and Monti — across a range of budgets. We match each student to what fits their program location and budget.</div></details>
+            <details><summary>Do you help students with Italian bureaucracy?</summary><div class="faq-a">Yes. Our concierge guides students through the essentials such as codice fiscale, utilities and settling in — all in English.</div></details>
+            <details><summary>How do we get started?</summary><div class="faq-a">Send the form above or email us. We set up your office in about 15 minutes with a referral link, ready-to-share materials and a named contact.</div></details>
         </div>
     </div></section>
 
@@ -376,9 +340,9 @@
     <section class="svc-cta">
         <div class="svc-cta-ring"></div><div class="svc-cta-ring b"></div>
         <div class="container reveal">
-            <h2>Rent it like<br><span class="text-gold">you're standing there.</span></h2>
-            <p>A live video tour and an honest report — before you commit a single euro.</p>
-            <a href="https://buy.stripe.com/8x2eVe9NleiB06O41v5J60e" class="btn btn-primary">Book a viewing — €89</a>
+            <h2>Be the office that<br><span class="text-gold">solved housing.</span></h2>
+            <p>Give your international students a trusted, English-first place to land — at no cost to you.</p>
+            <a href="#form" class="btn btn-primary">Become a partner</a>
         </div>
     </section>
 
@@ -401,7 +365,7 @@
                         <span>BOOM</span>
                     </div>
                     <p class="footer-tagline">
-                        Built in Rome, for Rome. If we can make Rome's rental market work, 
+                        Built in Rome, for Rome. If we can make Rome's rental market work,
                         we can make it work anywhere.
                     </p>
                     <div class="footer-company">
@@ -488,17 +452,31 @@
     if(t){ ev.preventDefault(); if(window.__boomLenis) window.__boomLenis.scrollTo(t,{offset:-70}); else t.scrollIntoView({behavior:'smooth'}); }
   }));
 
-  // VV live player
-  const played=document.getElementById('vvPlayed'), head=document.getElementById('vvHead'), time=document.getElementById('vvTime'), cap=document.getElementById('vvCap');
-  const caps=['Walking through the living room…','Checking the kitchen appliances…','Inspecting the bathroom…','Testing the natural light…','Scanning for red flags…','Checking the building & street…'];
-  if(played){
-    if(reduce){ played.style.width='36%'; head.style.left='36%'; time.textContent='10:48'; }
-    else {
-      let p=0, ci=0;
-      setInterval(()=>{ p=(p+0.5)%100; played.style.width=p+'%'; head.style.left=p+'%';
-        const total=30*60*(p/100); const mm=Math.floor(total/60), ss=Math.floor(total%60);
-        time.textContent=String(mm).padStart(2,'0')+':'+String(ss).padStart(2,'0'); }, 110);
-      setInterval(()=>{ ci=(ci+1)%caps.length; cap.style.opacity='0'; setTimeout(()=>{ cap.textContent=caps[ci]; cap.style.opacity='1'; },240); }, 3200);
+  // Partner-portal device: count-up + staggered rows when it enters view
+  const dev = document.querySelector('.svc-device');
+  const numEl = document.getElementById('uniCount');
+  const rows = Array.from(document.querySelectorAll('#uniRows .uni-row'));
+  if(dev){
+    if(reduce){
+      if(numEl) numEl.textContent = numEl.getAttribute('data-count');
+      rows.forEach(r=>r.classList.add('show'));
+    } else {
+      const devIO = new IntersectionObserver((es)=>es.forEach(e=>{
+        if(!e.isIntersecting) return;
+        devIO.unobserve(e.target);
+        rows.forEach((r,i)=>setTimeout(()=>r.classList.add('show'), 300 + i*220));
+        if(numEl){
+          const target = parseInt(numEl.getAttribute('data-count'),10) || 0;
+          const dur = 1400, t0 = performance.now();
+          (function tick(now){
+            const p = Math.min((now-t0)/dur, 1);
+            const eased = 1 - Math.pow(1-p, 3);
+            numEl.textContent = Math.round(target*eased);
+            if(p < 1) requestAnimationFrame(tick);
+          })(t0);
+        }
+      }), {threshold:.4});
+      devIO.observe(dev);
     }
   }
 })();
