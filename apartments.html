@@ -207,6 +207,13 @@
         .vd-screen img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0;transition:opacity 1.2s cubic-bezier(.25,.46,.45,.94)}
         .vd-screen iframe{width:100%;height:100%;border:none;position:absolute;inset:0;opacity:0;transition:opacity 1s cubic-bezier(.25,.46,.45,.94) .3s}
         .video-device.playing .vd-screen iframe{opacity:1}
+        /* Branded poster — the phone is never an empty black box (sits under the thumb) */
+        .vd-poster{position:absolute;inset:0;z-index:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:5px;padding:0 14px 36px;text-align:center;background:radial-gradient(130% 80% at 50% 6%,rgba(255,215,0,0.10),transparent 52%),linear-gradient(165deg,#16140d 0%,#0a0a0c 58%,#000 100%);overflow:hidden}
+        .vd-poster::after{content:'';position:absolute;left:-40%;right:-40%;bottom:-14%;height:58%;background:radial-gradient(58% 100% at 50% 100%,rgba(255,215,0,0.13),transparent 72%);filter:blur(6px);pointer-events:none}
+        .vd-poster-dome{position:absolute;top:30px;left:50%;transform:translateX(-50%);width:64px;height:auto;opacity:.4}
+        .vd-poster-mark{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:24px;font-weight:300;letter-spacing:6px;color:rgba(255,215,0,0.92);text-shadow:0 0 26px rgba(255,215,0,0.28);position:relative}
+        .vd-poster-sub{font-size:8px;letter-spacing:2.6px;text-transform:uppercase;color:rgba(255,255,255,0.5);position:relative}
+        #vdThumb:not([src]){opacity:0}
         /* Play button */
         .vd-play{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:2;background:rgba(0,0,0,0.15);transition:all .6s cubic-bezier(.25,.46,.45,.94)}
         .vd-play.hidden{opacity:0;pointer-events:none;transform:scale(.8)}
@@ -258,6 +265,17 @@
         .svc-cta-gold:hover{box-shadow:0 8px 30px rgba(255, 215, 0,0.3)}
         .svc-cta-outline{background:transparent;border:1px solid rgba(255,255,255,0.1);color:var(--text-secondary)}
         .svc-cta-outline:hover{border-color:var(--gold);color:var(--gold)}
+        /* Gold hairline that lights up on hover — quiet premium accent */
+        .svc-card::after{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(255,215,0,0.4),transparent);opacity:0;transition:opacity .45s;z-index:1;pointer-events:none}
+        .svc-card:hover::after{opacity:1}
+        .svc-card.featured::after{display:none}
+        /* Staggered scroll-reveal for the lower region — JS adds .reveal-ready so content
+           is never hidden if scripts fail or IntersectionObserver is unavailable */
+        .reveal-ready .notify-banner,.reveal-ready .svc-card{opacity:0;transform:translateY(24px);transition:opacity .75s cubic-bezier(.16,1,.3,1),transform .75s cubic-bezier(.16,1,.3,1)}
+        .reveal-ready .notify-banner.reveal-in,.reveal-ready .svc-card.reveal-in{opacity:1;transform:none}
+        .reveal-ready .services-grid .svc-card:nth-child(2){transition-delay:.09s}
+        .reveal-ready .services-grid .svc-card:nth-child(3){transition-delay:.18s}
+        @media(prefers-reduced-motion:reduce){.reveal-ready .notify-banner,.reveal-ready .svc-card{opacity:1;transform:none;transition:none}}
         /* FOOTER */
         footer{background:var(--dark-void);border-top:1px solid rgba(255,255,255,0.05);padding:60px 40px 30px}
         .footer-content{max-width:1400px;margin:0 auto;display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:40px}
@@ -607,6 +625,8 @@
         .leased-card{flex:0 0 220px;scroll-snap-align:start;background:var(--dark-void);border:1px solid rgba(255,255,255,0.05);border-radius:14px;overflow:hidden;opacity:.74;transition:opacity .3s,transform .3s}
         .leased-card:hover{opacity:1;transform:translateY(-3px)}
         .leased-card-img{height:120px;background-size:cover;background-position:center;background-color:#141414;position:relative;filter:grayscale(.4)}
+        .leased-card-img.no-img{background:linear-gradient(135deg,#171717,#0b0b0b);filter:none}
+        .leased-card-img.no-img::after{content:'BOOM';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:rgba(255,215,0,0.16);font-size:14px;letter-spacing:5px;font-weight:300}
         .leased-tag{position:absolute;top:10px;left:10px;background:rgba(0,0,0,0.72);color:#fff;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;padding:4px 11px;border-radius:100px;backdrop-filter:blur(6px)}
         .leased-card-body{padding:12px 14px}
         .leased-card-zone{font-size:9px;color:var(--gold);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px}
@@ -1015,6 +1035,14 @@
                     <div class="vd-frame">
                         <div class="vd-notch"></div>
                         <div class="vd-screen" id="vdScreen">
+                            <div class="vd-poster" aria-hidden="true">
+                                <svg class="vd-poster-dome" viewBox="0 0 64 42" fill="none" stroke="rgba(255,215,0,0.6)" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M32 1v3"/><path d="M32 4c-7 0-9 9-9 14h18c0-5-2-14-9-14Z"/><path d="M23 18h18v6H23z"/>
+                                    <path d="M9 40V25M55 40V25M16 40V29M48 40V29"/><path d="M3 40h58"/>
+                                </svg>
+                                <div class="vd-poster-mark">BOOM</div>
+                                <div class="vd-poster-sub">The 30-second film</div>
+                            </div>
                             <img id="vdThumb" alt="BOOM Rome">
                             <div class="vd-play" id="vdPlay"><div class="vd-play-ring"></div></div>
                             <div class="vd-bar"><div class="vd-bar-dot"></div><span>BOOM Rome</span></div>
@@ -1311,7 +1339,7 @@
       $('#leasedRow').innerHTML = leased.map(({l,t})=>{
         const img = (l.images && l.images[0]) || l.image || '';
         return `<div class="leased-card">
-          <div class="leased-card-img"${img?` style="background-image:url('${imgThumb(img,'m')}')"`:''}><span class="leased-tag">Leased</span></div>
+          <div class="leased-card-img${img?'':' no-img'}"${img?` style="background-image:url('${imgThumb(img,'m')}')"`:''}><span class="leased-tag">Leased</span></div>
           <div class="leased-card-body">
             <div class="leased-card-zone">${l.zone||l.neighborhood||'Rome'}</div>
             <div class="leased-card-name">${l.name||'Apartment'}</div>
@@ -1363,7 +1391,7 @@
       $('#recentRow').innerHTML = items.map(l => {
         const img = (l.images && l.images[0]) || l.image || '';
         return `<a class="leased-card is-plain" href="/listing/${encodeURIComponent(l.id)}" style="text-decoration:none">
-          <div class="leased-card-img"${img?` style="background-image:url('${imgThumb(img,'m')}')"`:''}><span class="leased-tag viewed">Viewed</span></div>
+          <div class="leased-card-img${img?'':' no-img'}"${img?` style="background-image:url('${imgThumb(img,'m')}')"`:''}><span class="leased-tag viewed">Viewed</span></div>
           <div class="leased-card-body"><div class="leased-card-zone">${l.zone||l.neighborhood||'Rome'}</div><div class="leased-card-name">${l.name||'Apartment'}</div><div class="leased-card-meta">${l.price?fmt(l.price)+'/mo':''}</div></div></a>`;
       }).join('');
     }
@@ -2606,6 +2634,19 @@
         }, 400);
     }
     document.addEventListener('keydown', e => { if (e.key === 'Escape') closeCinema(e); });
+    // Staggered scroll-reveal for the lower upsell region. We only opt into the
+    // hidden state (.reveal-ready) when IntersectionObserver exists, so content
+    // stays visible if scripts fail or the API is unsupported.
+    (function revealUpsell(){
+        const sec = document.querySelector('.upsell-section'); if (!sec) return;
+        const items = [...sec.querySelectorAll('.notify-banner, .svc-card')];
+        if (!items.length || !('IntersectionObserver' in window)) return;
+        sec.classList.add('reveal-ready');
+        const io = new IntersectionObserver((entries) => {
+            entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('reveal-in'); io.unobserve(e.target); } });
+        }, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' });
+        items.forEach(el => io.observe(el));
+    })();
     // Init after Firebase is ready
     if (typeof db !== 'undefined') {
         loadVideoSetting();
