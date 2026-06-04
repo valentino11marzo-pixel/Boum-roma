@@ -613,6 +613,55 @@
         .leased-card-name{font-size:13px;color:var(--text-primary);margin-bottom:5px;line-height:1.3}
         .leased-card-meta{font-size:11px;color:var(--text-fade);font-variant-numeric:tabular-nums}
         @media(max-width:768px){.leased-strip{padding:0 16px;margin-top:48px}}
+
+        /* ════════ V4 — concierge, smart empty, recents, a11y ════════ */
+        /* Concierge launcher */
+        .concierge-cta{display:inline-flex;align-items:center;gap:9px;margin:18px auto 0;padding:11px 22px;border-radius:100px;border:1px solid rgba(255,215,0,0.25);background:linear-gradient(135deg,rgba(255,215,0,0.08),rgba(255,215,0,0.02));color:var(--text-primary);font-family:inherit;font-size:13px;letter-spacing:.02em;cursor:pointer;transition:all .25s}
+        .concierge-cta:hover{border-color:var(--gold);box-shadow:0 8px 30px rgba(255,215,0,0.12);transform:translateY(-1px)}
+        .concierge-cta .cz-spark{color:var(--gold);font-size:14px}
+        .concierge-cta b{color:var(--gold);font-weight:500}
+
+        /* Concierge modal */
+        .cz-modal{position:fixed;inset:0;z-index:500;display:flex;align-items:center;justify-content:center;padding:24px;opacity:0;transition:opacity .25s}
+        .cz-modal[hidden]{display:none}
+        .cz-modal.open{opacity:1}
+        .cz-backdrop{position:absolute;inset:0;background:rgba(0,0,0,0.8);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+        .cz-panel{position:relative;width:min(560px,100%);background:var(--dark-void);border:1px solid rgba(255,215,0,0.2);border-radius:24px;box-shadow:0 40px 100px rgba(0,0,0,0.7);overflow:hidden;transform:scale(.96) translateY(8px);transition:transform .3s cubic-bezier(.16,1,.3,1)}
+        .cz-modal.open .cz-panel{transform:none}
+        .cz-head{padding:26px 28px 0;display:flex;justify-content:space-between;align-items:flex-start;gap:14px}
+        .cz-head h2{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:23px;font-weight:200;letter-spacing:-.01em;line-height:1.2}
+        .cz-head p{font-size:13px;color:var(--text-secondary);margin-top:6px}
+        .cz-close{background:transparent;border:0;color:var(--text-secondary);font-size:26px;line-height:1;cursor:pointer;padding:0 4px;transition:color .2s}
+        .cz-close:hover{color:var(--gold)}
+        .cz-progress{display:flex;gap:6px;padding:18px 28px 0}
+        .cz-progress i{flex:1;height:3px;border-radius:3px;background:rgba(255,255,255,0.08);transition:background .3s}
+        .cz-progress i.done{background:var(--gold)}
+        .cz-body{padding:22px 28px 8px;min-height:196px}
+        .cz-q{font-size:15px;color:var(--text-primary);margin-bottom:16px;font-weight:400}
+        .cz-opts{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+        .cz-opt{display:flex;align-items:center;gap:12px;padding:15px 16px;border:1px solid rgba(255,255,255,0.08);border-radius:14px;cursor:pointer;transition:all .2s;font-size:14px;color:var(--text-primary);background:transparent;font-family:inherit;text-align:left}
+        .cz-opt:hover{border-color:rgba(255,215,0,0.4);transform:translateY(-1px)}
+        .cz-opt.is-on{border-color:var(--gold);background:rgba(255,215,0,0.07)}
+        .cz-opt .cz-emoji{font-size:19px;line-height:1;flex-shrink:0}
+        .cz-foot{display:flex;justify-content:space-between;align-items:center;padding:14px 28px 26px;gap:12px}
+        .cz-back{background:transparent;border:0;color:var(--text-secondary);font-family:inherit;font-size:13px;cursor:pointer;padding:8px;transition:color .2s}
+        .cz-back:hover{color:var(--text-primary)}
+        .cz-back[hidden]{visibility:hidden}
+        .cz-next{display:inline-flex;align-items:center;gap:8px;padding:13px 26px;background:var(--gold);color:#000;border:0;border-radius:100px;font-family:inherit;font-size:13px;font-weight:600;letter-spacing:.5px;cursor:pointer;transition:all .25s}
+        .cz-next:hover{transform:translateY(-1px);box-shadow:0 10px 30px rgba(255,215,0,0.25)}
+        .cz-next:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none}
+        @media(max-width:560px){.cz-opts{grid-template-columns:1fr}.cz-panel{border-radius:20px}.cz-body{min-height:auto}}
+
+        /* Recently viewed reuses leased visuals, but full-colour */
+        .leased-card.is-plain{opacity:1}
+        .leased-card.is-plain .leased-card-img{filter:none}
+        .leased-tag.viewed{background:rgba(255,215,0,0.85);color:#000}
+
+        /* Smart empty — closest matches */
+        .apt-empty-near{margin-top:36px;text-align:left}
+        .apt-empty-near h4{font-size:11px;text-transform:uppercase;letter-spacing:2.5px;color:var(--text-secondary);margin-bottom:5px;text-align:center}
+        .apt-empty-near .near-sub{font-size:12px;color:var(--text-fade);text-align:center;margin-bottom:20px}
+        .apt-empty-near .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:18px}
     </style>
 <!-- BOOM_JSONLD:START -->
   <script type="application/ld+json">
@@ -795,6 +844,9 @@
                 <button class="qchip" data-qk="hood" data-val="centro-storico">Centro Storico</button>
                 <button class="qchip" data-qk="hood" data-val="trastevere">Trastevere</button>
             </div>
+            <div style="text-align:center">
+                <button class="concierge-cta" id="conciergeOpen"><span class="cz-spark">✦</span> Not sure where to start? <b>Let BOOM match you</b></button>
+            </div>
         </section>
 
         <!-- CONTROLS / FILTERS -->
@@ -886,10 +938,17 @@
                     <div class="pop-sort-item is-on" data-sort="recommended">Recommended</div>
                     <div class="pop-sort-item" data-sort="price-asc">Price: low to high</div>
                     <div class="pop-sort-item" data-sort="price-desc">Price: high to low</div>
+                    <div class="pop-sort-item" data-sort="value">Best value (€/m²)</div>
                     <div class="pop-sort-item" data-sort="newest">Newest first</div>
                     <div class="pop-sort-item" data-sort="movein">Move-in date</div>
                 </div>
             </div>
+        </section>
+
+        <!-- RECENTLY VIEWED -->
+        <section class="leased-strip" id="recentStrip" hidden aria-label="Recently viewed" style="margin-top:30px">
+            <div class="leased-head"><h3>Pick up where you left off</h3><span>Recently viewed</span></div>
+            <div class="leased-row" id="recentRow"></div>
         </section>
 
         <!-- RESULTS — GRID -->
@@ -913,6 +972,7 @@
             <button class="btn" id="aptEmptyReset">Reset filters</button>
             <a class="btn btn-ghost" id="aptEmptyNotify" href="https://wa.me/393313251961" target="_blank" rel="noopener">💬 Get alerts on WhatsApp</a>
             <a class="btn btn-ghost" href="/property-finding">Have BOOM find me one →</a>
+            <div class="apt-empty-near" id="aptEmptyNear" hidden></div>
         </div>
         <!-- RECENTLY LEASED — social proof / scarcity -->
         <section class="leased-strip" id="leasedStrip" hidden aria-label="Recently leased apartments">
@@ -1030,6 +1090,20 @@
         <span><b class="compare-bar-count" id="compareBarCount">0</b> <span class="compare-bar-label">selected</span></span>
         <button class="compare-bar-go" id="compareBarGo">Compare →</button>
         <button class="compare-bar-clear" id="compareBarClear" aria-label="Clear comparison">×</button>
+    </div>
+
+    <!-- CONCIERGE — "Help me choose" -->
+    <div class="cz-modal" id="czModal" role="dialog" aria-modal="true" aria-label="Help me choose" hidden>
+        <div class="cz-backdrop" data-cz-close></div>
+        <div class="cz-panel">
+            <div class="cz-head">
+                <div><h2 id="czTitle">Let's find your Rome home</h2><p id="czSubtitle">Three quick taps — we'll shortlist the best matches for you.</p></div>
+                <button class="cz-close" data-cz-close aria-label="Close">×</button>
+            </div>
+            <div class="cz-progress" id="czProgress"></div>
+            <div class="cz-body"><div class="cz-q" id="czQuestion"></div><div class="cz-opts" id="czOpts"></div></div>
+            <div class="cz-foot"><button class="cz-back" id="czBack" hidden>← Back</button><button class="cz-next" id="czNext" disabled>Continue</button></div>
+        </div>
     </div>
 
     <!-- COMPARE MODAL -->
@@ -1274,6 +1348,155 @@
       });
     }
 
+    /* ── BEST-VALUE SORT helper (€ per m²) ───────────────────────── */
+    const ppm = l => { const p = Number(l.price), s = Number(l.sqm || l.size); return (p && s) ? p/s : Infinity; };
+
+    /* ── RECENTLY VIEWED — re-engagement on return visits ────────── */
+    function pushRecent(id){ try { let r = JSON.parse(localStorage.getItem('boom:recent')||'[]'); r = [id, ...r.filter(x=>x!==id)].slice(0,10); localStorage.setItem('boom:recent', JSON.stringify(r)); } catch {} }
+    function isDefaultBrowse(){ const f = STATE.filters; return !STATE.q && !STATE.savedOnly && f.budgetMin===500 && f.budgetMax===4000 && !f.hoods.size && !f.beds && !f.features.size; }
+    function renderRecentStrip(){
+      const wrap = $('#recentStrip'); if (!wrap) return;
+      let ids = []; try { ids = JSON.parse(localStorage.getItem('boom:recent')||'[]'); } catch {}
+      const items = ids.map(id => STATE.raw.find(l => l.id===id && !isRented(l))).filter(Boolean).slice(0,8);
+      if (!isDefaultBrowse() || items.length < 2) { wrap.hidden = true; return; }
+      wrap.hidden = false;
+      $('#recentRow').innerHTML = items.map(l => {
+        const img = (l.images && l.images[0]) || l.image || '';
+        return `<a class="leased-card is-plain" href="/listing/${encodeURIComponent(l.id)}" style="text-decoration:none">
+          <div class="leased-card-img"${img?` style="background-image:url('${imgThumb(img,'m')}')"`:''}><span class="leased-tag viewed">Viewed</span></div>
+          <div class="leased-card-body"><div class="leased-card-zone">${l.zone||l.neighborhood||'Rome'}</div><div class="leased-card-name">${l.name||'Apartment'}</div><div class="leased-card-meta">${l.price?fmt(l.price)+'/mo':''}</div></div></a>`;
+      }).join('');
+    }
+
+    /* ── SMART EMPTY — closest matches via progressive relaxation ─── */
+    function nearMatches(){
+      const base = STATE.raw.filter(l => !isRented(l));
+      const f = STATE.filters;
+      const okBudget = l => { const p = Number(l.price); return !p || (p >= f.budgetMin && p <= f.budgetMax); };
+      const okHood = l => { if (!f.hoods.size) return true; const slug = (window.BOOM && BOOM.zoneToSlug) ? BOOM.zoneToSlug(l.zone||l.neighborhood||l.address||'') : null; return slug && f.hoods.has(slug); };
+      const okBeds = l => { if (!f.beds) return true; const b = Number(l.beds||l.bedrooms||0); return f.beds>=4 ? b>=4 : b===f.beds; };
+      const okFeats = (l, skip) => [...f.features].every(ft => (skip && skip===ft) ? true : hasFeature(l, ft));
+      const tries = [];
+      tries.push({ label:'with a wider budget', fn: l => { const p=Number(l.price); const lo=f.budgetMin*0.8, hi=f.budgetMax*1.25; return (!p || (p>=lo && p<=hi)) && okHood(l) && okBeds(l) && okFeats(l); } });
+      f.features.forEach(ft => tries.push({ label:`without "${FEATURE_LABELS[ft]||ft}"`, fn: l => okBudget(l) && okHood(l) && okBeds(l) && okFeats(l, ft) }));
+      if (f.beds) tries.push({ label:'with a slightly different size', fn: l => okBudget(l) && okHood(l) && okFeats(l) });
+      if (f.hoods.size) tries.push({ label:'in nearby areas', fn: l => okBudget(l) && okBeds(l) && okFeats(l) });
+      for (const t of tries) { const r = base.filter(t.fn); if (r.length) return { label:t.label, list: applySort(r).slice(0,3) }; }
+      return { label:'', list: applySort(base).slice(0,3) };
+    }
+    function renderEmptyNear(){
+      const box = $('#aptEmptyNear'); if (!box) return;
+      if (STATE.savedOnly) { box.hidden = true; box.innerHTML=''; return; }
+      const nm = nearMatches();
+      if (!nm.list.length) { box.hidden = true; box.innerHTML=''; return; }
+      box.hidden = false;
+      box.innerHTML = `<h4>Closest matches</h4><div class="near-sub">No exact match — but these are close${nm.label?' ('+nm.label+')':''}.</div><div class="grid">${nm.list.map((l,i)=>makeCard(l,i)).join('')}</div>`;
+    }
+
+    /* ── SYNC filter controls to STATE (used by concierge) ───────── */
+    function syncControls(){
+      $('#popBudgetMin').value = STATE.filters.budgetMin;
+      $('#popBudgetMax').value = STATE.filters.budgetMax;
+      updateBudgetUI();
+      $('#popBedsV').textContent = STATE.filters.beds>0 ? STATE.filters.beds+(STATE.filters.beds>=4?'+':'') : 'Any';
+      $$('.pop-option[data-hood]').forEach(o => o.classList.toggle('is-on', STATE.filters.hoods.has(o.dataset.hood)));
+      $$('.pop-option[data-feat]').forEach(o => o.classList.toggle('is-on', STATE.filters.features.has(o.dataset.feat)));
+      $$('.pop-sort-item').forEach(s => s.classList.toggle('is-on', s.dataset.sort===STATE.sort));
+    }
+
+    /* ── FOCUS TRAP for modals ───────────────────────────────────── */
+    function trapFocus(container){
+      const sel = 'a[href],button:not([disabled]),input:not([disabled]),select,textarea,[tabindex]:not([tabindex="-1"])';
+      const prev = document.activeElement;
+      const nodes = () => [...container.querySelectorAll(sel)].filter(el => el.offsetParent !== null);
+      function onKey(e){ if (e.key !== 'Tab') return; const f = nodes(); if (!f.length) return; const first=f[0], last=f[f.length-1];
+        if (e.shiftKey && document.activeElement===first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement===last) { e.preventDefault(); first.focus(); } }
+      container.addEventListener('keydown', onKey);
+      const f = nodes(); if (f[0]) setTimeout(()=>f[0].focus(), 30);
+      return () => { container.removeEventListener('keydown', onKey); if (prev && prev.focus) prev.focus(); };
+    }
+
+    /* ── CONCIERGE — "Help me choose" guided match ───────────────── */
+    const CZ_STEPS = [
+      { key:'who', q:"Who's the home for?", multi:false, opts:[
+        { emoji:'🧑', label:'Just me', val:'solo' }, { emoji:'💞', label:'Me & partner', val:'couple' },
+        { emoji:'👥', label:'Sharing', val:'sharing' }, { emoji:'👨‍👩‍👧', label:'Family', val:'family' } ] },
+      { key:'budget', q:'Comfortable monthly budget?', multi:false, opts:[
+        { emoji:'💶', label:'Up to €1,200', val:'b1' }, { emoji:'💶', label:'€1,200–1,800', val:'b2' },
+        { emoji:'💶', label:'€1,800–2,500', val:'b3' }, { emoji:'💎', label:'€2,500+', val:'b4' } ] },
+      { key:'pri', q:'What matters most? (pick any)', multi:true, opts:[
+        { emoji:'🏛️', label:'Central & lively', val:'central' }, { emoji:'🌳', label:'Quiet & residential', val:'quiet' },
+        { emoji:'🏷️', label:'Best value', val:'value' }, { emoji:'☀️', label:'Outdoor space', val:'terrace' },
+        { emoji:'🛋️', label:'Move-in ready', val:'furnished' }, { emoji:'🎥', label:'Has a video tour', val:'video' } ] },
+    ];
+    const CZ = { step:0, ans:{ who:null, budget:null, pri:new Set() }, release:null };
+    function renderCZStep(){
+      const s = CZ_STEPS[CZ.step];
+      $('#czQuestion').textContent = s.q;
+      $('#czProgress').innerHTML = CZ_STEPS.map((_,i)=>`<i class="${i<=CZ.step?'done':''}"></i>`).join('');
+      $('#czOpts').innerHTML = s.opts.map(o => {
+        const on = s.multi ? CZ.ans.pri.has(o.val) : (CZ.ans[s.key]===o.val);
+        return `<button class="cz-opt${on?' is-on':''}" data-cz-val="${o.val}"><span class="cz-emoji">${o.emoji}</span>${o.label}</button>`;
+      }).join('');
+      $('#czBack').hidden = CZ.step === 0;
+      const last = CZ.step === CZ_STEPS.length-1;
+      $('#czNext').textContent = last ? 'See my matches →' : 'Continue';
+      $('#czNext').disabled = s.multi ? false : !CZ.ans[s.key];
+    }
+    function czSelect(val){
+      const s = CZ_STEPS[CZ.step];
+      if (s.multi) { CZ.ans.pri.has(val) ? CZ.ans.pri.delete(val) : CZ.ans.pri.add(val); }
+      else { CZ.ans[s.key] = val; }
+      renderCZStep();
+    }
+    function czNext(){ if (CZ.step < CZ_STEPS.length-1) { CZ.step++; renderCZStep(); } else applyConcierge(); }
+    function czBack(){ if (CZ.step>0){ CZ.step--; renderCZStep(); } }
+    function applyConcierge(){
+      const f = STATE.filters;
+      f.budgetMin=500; f.budgetMax=4000; f.hoods.clear(); f.beds=0; f.features.clear();   // fresh slate
+      STATE.q=''; STATE.savedOnly=false; STATE.sort='recommended';
+      $('#aptSearch').value=''; $('#aptSearchClear').hidden=true; updateInterpretation(null);
+      const beds = { solo:0, couple:1, sharing:2, family:3 }[CZ.ans.who]; if (beds) f.beds = beds;
+      const band = { b1:[500,1200], b2:[1200,1800], b3:[1800,2500], b4:[2500,4000] }[CZ.ans.budget];
+      if (band) { f.budgetMin = band[0]; f.budgetMax = band[1]; }
+      const pri = CZ.ans.pri;
+      if (pri.has('central')) ['centro-storico','monti','trastevere'].forEach(h=>f.hoods.add(h));
+      if (pri.has('quiet')) ['prati','trieste-coppede'].forEach(h=>f.hoods.add(h));
+      if (pri.has('value')) STATE.sort = 'value';
+      if (pri.has('terrace')) f.features.add('terrace');
+      if (pri.has('furnished')) f.features.add('furnished');
+      if (pri.has('video')) f.features.add('video');
+      syncControls();
+      closeConcierge();
+      applyAndRender();
+      const n = pipeline(STATE.raw).length;
+      $('#aptGridSection')?.scrollIntoView({ behavior:'smooth', block:'start' });
+      setTimeout(()=>showToast(n ? `${n} home${n>1?'s':''} picked for you` : 'No exact match — showing closest options'), 350);
+      boomTrack('concierge_complete', { beds:f.beds, sort:STATE.sort });
+    }
+    function openConcierge(){
+      CZ.step=0; CZ.ans={ who:null, budget:null, pri:new Set() };
+      renderCZStep();
+      const m = $('#czModal'); m.hidden=false; document.body.style.overflow='hidden';
+      requestAnimationFrame(()=>m.classList.add('open'));
+      CZ.release = trapFocus(m);
+      boomTrack('concierge_open', {});
+    }
+    function closeConcierge(){
+      const m = $('#czModal'); m.classList.remove('open'); document.body.style.overflow='';
+      if (CZ.release) { CZ.release(); CZ.release=null; }
+      setTimeout(()=>{ m.hidden=true; }, 250);
+    }
+    document.addEventListener('click', e => {
+      if (e.target.closest('#conciergeOpen')) { openConcierge(); return; }
+      if (e.target.closest('[data-cz-close]')) { closeConcierge(); return; }
+      const opt = e.target.closest('.cz-opt'); if (opt) { czSelect(opt.dataset.czVal); return; }
+      if (e.target.closest('#czNext')) { czNext(); return; }
+      if (e.target.closest('#czBack')) { czBack(); return; }
+    });
+    document.addEventListener('keydown', e => { if (e.key==='Escape' && !$('#czModal').hidden) closeConcierge(); });
+
     const getStatus = l => (l.status || l.availabilityStatus || 'available').toString().toLowerCase();
     const isAvail = l => /^(available|disponibile|active|free|)$/.test(getStatus(l));
     const isRented = l => /^(rented|affittato|off_market)$/.test(getStatus(l));
@@ -1428,6 +1651,7 @@
       if (STATE.view === 'map') renderMap(list);
       updateCount(list.length);
       updateChips();
+      renderRecentStrip();
       syncURL();
     }
 
@@ -1470,6 +1694,7 @@
       switch (STATE.sort) {
         case 'price-asc':  return cp.sort((a,b) => (Number(a.price)||9999) - (Number(b.price)||9999));
         case 'price-desc': return cp.sort((a,b) => (Number(b.price)||0) - (Number(a.price)||0));
+        case 'value':      return cp.sort((a,b) => ppm(a) - ppm(b));
         case 'newest': return cp.sort((a,b) => {
           const ta = a.createdAt?.toMillis?.() || (a.createdAt?.seconds||0)*1000 || 0;
           const tb = b.createdAt?.toMillis?.() || (b.createdAt?.seconds||0)*1000 || 0;
@@ -1519,6 +1744,7 @@
           p.textContent = 'Try widening your budget, removing a feature, or letting BOOM find one for you.';
           reset.textContent = 'Reset filters';
         }
+        renderEmptyNear();
         return;
       }
       $('#aptEmpty').hidden = true;
@@ -1683,7 +1909,7 @@
       $('#fpill-beds').classList.toggle('is-active', f.beds > 0);
       $('#fp-features').textContent = f.features.size > 0 ? `${f.features.size}` : 'Any';
       $('#fpill-features').classList.toggle('is-active', f.features.size > 0);
-      const sortLabels = {'recommended':'Recommended','price-asc':'Price ↑','price-desc':'Price ↓','newest':'Newest','movein':'Move-in'};
+      const sortLabels = {'recommended':'Recommended','price-asc':'Price ↑','price-desc':'Price ↓','value':'Best value','newest':'Newest','movein':'Move-in'};
       $('#fp-sort').textContent = sortLabels[STATE.sort];
       $('#fpill-sort').classList.toggle('is-active', STATE.sort !== 'recommended');
       syncQuickChips();
@@ -2155,6 +2381,7 @@
       if (card) {
         if (card._swiped && Date.now() - card._swiped < 450) { card._swiped = 0; return; }  // ignore the click that ends a swipe
         if (window.getSelection && window.getSelection().toString().length) return;
+        pushRecent(card.dataset.id);
         boomTrack('select_item', { items: [listingParams(card.dataset.id)] });
         window.location.href = card.getAttribute('data-href'); }
     });
@@ -2205,6 +2432,7 @@
     });
     // Compare bar → open the side-by-side modal
     const CMP_FEATURES = [['terrace','Terrace / balcony'],['lift','Lift'],['furnished','Furnished'],['petfriendly','Pet-friendly'],['parking','Parking'],['airconditioning','Air conditioning'],['washer','Washing machine'],['dishwasher','Dishwasher'],['wifi','Wi-Fi'],['video','Video tour']];
+    let cmpRelease = null;
     function openCompare() {
       const items = [...STATE.compare].map(id => STATE.raw.find(l => l.id === id)).filter(Boolean);
       if (items.length < 2) return showToast('Pick at least 2 apartments to compare');
@@ -2235,9 +2463,12 @@
       const modal = $('#compareModal');
       modal.hidden = false; document.body.style.overflow = 'hidden';
       requestAnimationFrame(() => modal.classList.add('open'));
+      if (cmpRelease) cmpRelease();
+      cmpRelease = trapFocus(modal);
     }
     function closeCompare() {
       const m = $('#compareModal'); m.classList.remove('open'); document.body.style.overflow = '';
+      if (cmpRelease) { cmpRelease(); cmpRelease = null; }
       setTimeout(() => { m.hidden = true; }, 250);
     }
     $('#compareBarGo').addEventListener('click', openCompare);
