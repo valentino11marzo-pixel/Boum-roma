@@ -59,6 +59,11 @@ export default async function handler(req, res) {
   const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
   if (rateLimited(ip)) return res.status(429).json({ ok: false, error: 'rate_limited' });
 
+  // ── Channel: this endpoint serves the Canone Check (landlord) AND the
+  //    Match Quiz (tenant). Same leads pipeline, different framing. ──
+  const channel = body.channel === 'match_quiz' ? 'match_quiz' : 'canone_check';
+  const leadType = body.leadType === 'tenant' ? 'tenant' : 'landlord';
+
   // ── Calc snapshot from the tool (all optional / sanitised) ──
   const c = body.calc && typeof body.calc === 'object' ? body.calc : {};
   const calc = {
@@ -70,41 +75,50 @@ export default async function handler(req, res) {
   };
 
   // Human-readable summary for the portal Leads inbox.
-  const parts = [];
-  if (calc.zona) parts.push(`Zona: ${calc.zona}`);
-  if (calc.mq) parts.push(`${calc.mq} mq (fascia ${calc.fascia || '?'})`);
-  if (calc.mensile) parts.push(`canone stimato ~€${calc.mensile}/mese`);
-  if (calc.risparmioAnnuo) parts.push(`risparmio fiscale ~€${calc.risparmioAnnuo}/anno`);
-  const summary = parts.length
-    ? `Richiesta calcolo certificato canone concordato — ${parts.join(' · ')}.`
-    : 'Richiesta calcolo certificato canone concordato.';
+  let summary;
+  if (channel === 'match_quiz') {
+    summary = clip(body.message, 500) || 'Lead da Match Quiz (studente/inquilino).';
+  } else {
+    const parts = [];
+    if (calc.zona) parts.push(`Zona: ${calc.zona}`);
+    if (calc.mq) parts.push(`${calc.mq} mq (fascia ${calc.fascia || '?'})`);
+    if (calc.mensile) parts.push(`canone stimato ~€${calc.mensile}/mese`);
+    if (calc.risparmioAnnuo) parts.push(`risparmio fiscale ~€${calc.risparmioAnnuo}/anno`);
+    summary = parts.length
+      ? `Richiesta calcolo certificato canone concordato — ${parts.join(' · ')}.`
+      : 'Richiesta calcolo certificato canone concordato.';
+  }
+
+  const zone = clip(body.zone, 80) || calc.zona || null;
+  const budget = num(body.budget) || calc.mensile || null;
+  const extra = body.extra && typeof body.extra === 'object' ? body.extra : null;
 
   const now = new Date();
   const lead = {
     source: 'web',                 // valid source read by portal + cockpit
-    service: 'Canone Check',       // legacy label field used by portal
-    leadType: 'landlord',          // proprietario, non inquilino
+    service: channel === 'match_quiz' ? 'Match Quiz' : 'Canone Check',
+    leadType,
     name, email: email || null, phone: phone || null,
     message: summary,
     notes: summary,
     language: 'it',
-    zone: calc.zona || null,
-    budget: calc.mensile || null,  // gives the lead a € figure in the inbox
-    intent: 'canone_check',
+    zone,
+    budget,
+    intent: channel,
     status: 'new',
     grade: null,
-    propertyAddress: calc.zona || null,
+    propertyAddress: leadType === 'landlord' ? (calc.zona || null) : null,
     // audit
-    ingestedBy: 'canone-check',
-    sourceRef: 'canone-check',
-    raw: { calc, ip },
+    ingestedBy: channel,
+    sourceRef: channel,
+    raw: { calc, quiz: extra, ip },
     createdAt: now,
     ingestedAt: now,
   };
 
   try {
     const { id } = await fsCreate('leads', lead);
-    logActivity('Lead da Canone Check', 'lead', { leadId: id, zona: calc.zona, mensile: calc.mensile }, 'canone-check');
+    logActivity(channel === 'match_quiz' ? 'Lead da Match Quiz' : 'Lead da Canone Check', 'lead', { leadId: id, zona: zone, budget }, channel);
     return res.status(200).json({ ok: true, id });
   } catch (err) {
     console.error('[canone-lead]', err);
