@@ -6109,7 +6109,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const expiringContracts = activeContracts.filter(c => { const d = daysUntil(c.endDate); return d !== null && d <= 60 && d >= 0; });
         const totalMonthlyRent = activeContracts.reduce((s, c) => s + (c.rent || 0), 0);
         const annualIncome = myPayments.filter(p => p.status === 'paid').reduce((s, p) => s + (p.amount || 0), 0);
-        
+
+        // Fiscal position — YTD collected + regime-aware estimate (only cedolare 21% is a knowable flat rate)
+        const fyYear = new Date().getFullYear();
+        const paidThisYear = myPayments.filter(p => p.status === 'paid' && p.paidDate && new Date(p.paidDate).getFullYear() === fyYear).reduce((s, p) => s + (p.amount || 0), 0);
+        const taxRegime = S.profile.taxRegime || '';
+        const regimeLabels = { cedolare_secca: 'Cedolare secca (21%)', ordinario: 'IRPEF ordinario', forfettario: 'Forfettario', impresa: 'Impresa' };
+
         // Contracts pending landlord signature
         const pendingSignatures = myContracts.filter(c => !c.landlordSignature);
 
@@ -6260,6 +6266,24 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
                 <!-- RIGHT COLUMN -->
                 <div>
+                    <!-- POSIZIONE FISCALE -->
+                    <div class="card" style="margin-bottom:20px">
+                        <div class="card-header"><h3 class="card-title">📊 Posizione Fiscale ${fyYear}</h3></div>
+                        <div class="card-body">
+                            <div class="info-box" style="margin-bottom:0">
+                                <div class="info-box-row"><span class="info-box-label">Incassato ${fyYear}</span><span class="info-box-value text-gold" style="font-weight:700">€${paidThisYear.toLocaleString('it-IT')}</span></div>
+                                <div class="info-box-row"><span class="info-box-label">Regime</span><span class="info-box-value" style="font-size:12px">${taxRegime ? regimeLabels[taxRegime] : '<span style="color:var(--orange)">da impostare</span>'}</span></div>
+                                ${taxRegime === 'cedolare_secca' ? `<div class="info-box-row"><span class="info-box-label">Cedolare stimata</span><span class="info-box-value" style="font-size:12px">€${Math.round(paidThisYear * 0.21).toLocaleString('it-IT')}</span></div>` : ''}
+                            </div>
+                            ${taxRegime === 'cedolare_secca'
+                                ? `<div style="font-size:10px;color:var(--text-muted);margin-top:10px;line-height:1.45">Stima indicativa al 21% sul canone incassato. Il canone concordato può essere al 10%. Non sostituisce la consulenza fiscale.</div>`
+                                : !taxRegime
+                                    ? `<button class="btn btn-sm btn-secondary" style="margin-top:10px;width:100%" onclick="openLandlordDataModal()">Imposta regime fiscale →</button>`
+                                    : `<div style="font-size:10px;color:var(--text-muted);margin-top:10px;line-height:1.45">L'imposta dipende dalla tua aliquota IRPEF / regime. Scarica il report per il dettaglio annuo.</div>`}
+                            <button class="btn btn-sm btn-secondary" style="margin-top:10px;width:100%" onclick="generateLandlordPDF()">📥 Report annuo ${fyYear}</button>
+                        </div>
+                    </div>
+
                     <!-- CONTATTO BOOM -->
                     <div class="card" style="margin-bottom:20px;background:linear-gradient(135deg,rgba(212,175,55,0.08),transparent);border-color:rgba(212,175,55,0.2)">
                         <div class="card-body" style="text-align:center;padding:24px">
@@ -6351,6 +6375,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             doc.text(`Contratti attivi: ${myContracts.filter(c => c.status === 'active').length}`, 15, y); y += 6;
             doc.text(`Incassi totali: €${paidTotal.toLocaleString('it-IT')}`, 15, y); y += 6;
             doc.text(`Incassi ${year}: €${paidThisYear.toLocaleString('it-IT')}`, 15, y); y += 6;
+            const _regime = S.profile.taxRegime || '';
+            if (_regime === 'cedolare_secca') { doc.text(`Cedolare secca stimata 21% (${year}): €${Math.round(paidThisYear * 0.21).toLocaleString('it-IT')} — stima indicativa`, 15, y); y += 6; }
+            else if (_regime) { doc.text(`Regime fiscale: ${_regime}`, 15, y); y += 6; }
             doc.text(`Pendenti: €${pendingTotal.toLocaleString('it-IT')}`, 15, y); y += 6;
             doc.text(`Manutenzioni aperte: ${myMaint.filter(m => m.status !== 'resolved').length}`, 15, y); y += 12;
             
