@@ -5067,6 +5067,32 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { labels: { color: '#999', font: { size: 10 } } } } }
             });
         }
+
+        // Landlord income trend (12 months) — collected vs expected, scoped to the owner's own payments
+        const llRevCanvas = document.getElementById('landlordRevenueChart');
+        if (llRevCanvas) {
+            const ctx = llRevCanvas.getContext('2d');
+            const myPays = getMyPayments();
+            const months = [], collected = [], expected = [];
+            const now = new Date();
+            for (let i = 11; i >= 0; i--) {
+                const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                months.push(d.toLocaleDateString('it-IT', { month: 'short' }));
+                const mStart = new Date(d.getFullYear(), d.getMonth(), 1);
+                const mEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59);
+                const col = myPays.filter(p => p.status === 'paid' && p.paidDate && new Date(p.paidDate) >= mStart && new Date(p.paidDate) <= mEnd).reduce((s, p) => s + (p.amount || 0), 0);
+                const exp = myPays.filter(p => p.dueDate && new Date(p.dueDate) >= mStart && new Date(p.dueDate) <= mEnd).reduce((s, p) => s + (p.amount || 0), 0);
+                collected.push(col); expected.push(exp);
+            }
+            new Chart(ctx, {
+                type: 'bar',
+                data: { labels: months, datasets: [
+                    { label: 'Incassato', data: collected, backgroundColor: 'rgba(212,175,55,0.75)', borderRadius: 4 },
+                    { label: 'Atteso', data: expected, backgroundColor: 'rgba(120,120,120,0.25)', borderRadius: 4 }
+                ] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#999', font: { size: 10 } } } }, scales: { x: { ticks: { color: '#888' }, grid: { display: false } }, y: { ticks: { color: '#888', callback: v => '€' + v }, grid: { color: 'rgba(255,255,255,0.05)' } } } }
+            });
+        }
     }
 
     function accessDenied() {
@@ -6103,7 +6129,21 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <button class="btn btn-sm" style="flex-shrink:0">Firma Ora →</button>
             </div>`;
         }
-        
+
+        // Profile data completeness — self-serve nudge (only when incomplete)
+        const _completeness = landlordCompleteness(S.profile);
+        if (!_completeness.complete) {
+            alerts += `<div class="alert" style="margin-bottom:10px;background:linear-gradient(135deg,rgba(212,175,55,0.12),rgba(212,175,55,0.02));border-color:rgba(212,175,55,0.35);cursor:pointer;align-items:center" onclick="openLandlordDataModal()">
+                <span class="alert-icon">📋</span>
+                <div class="alert-content">
+                    <div class="alert-title">Completa il tuo profilo · ${_completeness.pct}%</div>
+                    <div class="alert-text">Mancano: ${_completeness.missing.join(' · ')}. Servono per contratti, registrazione AdE e fatturazione.</div>
+                    <div style="background:var(--bg-elevated);border-radius:4px;height:5px;overflow:hidden;margin-top:8px;max-width:340px"><div style="background:var(--gold);height:100%;width:${_completeness.pct}%;transition:width .5s"></div></div>
+                </div>
+                <button class="btn btn-sm" style="flex-shrink:0">Completa →</button>
+            </div>`;
+        }
+
         if (overduePayments.length > 0) {
             alerts += `<div class="alert danger" style="margin-bottom:10px"><span class="alert-icon">⚠️</span><div class="alert-content"><div class="alert-title">${overduePayments.length} Pagamenti in Ritardo</div><div class="alert-text">€${overdueTotal.toLocaleString('it-IT')} da recuperare. Contatta BOOM per assistenza.</div></div><button class="btn btn-sm btn-danger" onclick="goTo('my-payments')">Dettagli →</button></div>`;
         }
@@ -6167,6 +6207,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <div style="font-size:28px;font-weight:700;color:var(--${myMaint.length > 0 ? 'orange' : 'green'})">${myMaint.length}</div>
                     <div style="font-size:11px;color:var(--text-muted);margin-top:4px">${myMaint.length > 0 ? myMaint.filter(m => m.priority === 'urgent').length + ' urgenti' : 'Tutto a posto'}</div>
                 </div>
+            </div>
+
+            <!-- ANDAMENTO INCASSI · 12 mesi -->
+            <div class="card" style="margin-bottom:24px">
+                <div class="card-header"><h3 class="card-title">📈 Andamento Incassi · 12 mesi</h3><span style="font-size:11px;color:var(--text-muted);letter-spacing:0.5px">Incassato vs atteso</span></div>
+                <div class="card-body"><div style="position:relative;height:220px"><canvas id="landlordRevenueChart"></canvas></div></div>
             </div>
 
             <div style="display:grid;grid-template-columns:2fr 1fr;gap:20px">
@@ -12523,6 +12569,101 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const missing = required.filter(f => !u[f.key]).map(f => f.label);
         const pct = Math.round(((required.length - missing.length) / required.length) * 100);
         return { pct, missing, complete: missing.length === 0 };
+    }
+
+    // Self-serve landlord profile completion (own data) — opened from the dashboard nudge.
+    // Mirrors the admin editUser fiscal fields + updateUser payload, scoped to S.profile.
+    function openLandlordDataModal() {
+        const u = S.profile || {};
+        document.getElementById('modals').innerHTML = `<div class="modal-overlay active"><div class="modal lg">
+            <div class="modal-header"><h3 class="modal-title">📋 Completa il tuo profilo</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+            <div class="modal-body">
+                <form id="llDataForm" onsubmit="saveLandlordProfile(event)">
+                    <div style="background:linear-gradient(135deg,rgba(212,175,55,0.10),rgba(212,175,55,0.03));border:1px solid rgba(212,175,55,0.3);border-radius:10px;padding:10px 14px;margin-bottom:14px">
+                        <div style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:var(--gold);margin-bottom:4px">DATI NECESSARI</div>
+                        <div style="font-size:11px;color:var(--text-muted);line-height:1.5">Servono a BOOM per generare contratti CAF-compliant, registrarli all'Agenzia delle Entrate e gestire la fatturazione. Si inseriscono una volta sola.</div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label class="form-label">Nome e Cognome *</label><input type="text" class="form-input" name="name" value="${esc(u.name || '')}" required></div>
+                        <div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" value="${esc(u.email || '')}" disabled style="opacity:0.6"></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label class="form-label">Telefono</label><input type="tel" class="form-input" name="phone" value="${esc(u.phone || '')}" placeholder="+39..."></div>
+                        <div class="form-group"><label class="form-label">Codice Fiscale</label><input type="text" class="form-input" name="codiceFiscale" value="${esc(u.codiceFiscale || '')}" placeholder="RSSMRA85M01H501Z" maxlength="16" style="text-transform:uppercase"></div>
+                    </div>
+                    <div class="form-group"><label class="form-label">IBAN (per gli accrediti dei canoni)</label><input type="text" class="form-input" name="iban" value="${esc(u.iban || '')}" placeholder="IT60X0542811101000000123456" style="text-transform:uppercase"></div>
+                    <div class="form-group"><label class="form-label">Residenza</label><input type="text" class="form-input" name="address" value="${esc(u.address || '')}" placeholder="Via Roma 123, 00100 Roma"></div>
+                    <div class="form-row">
+                        <div class="form-group"><label class="form-label">Data di Nascita</label><input type="date" class="form-input" name="birthDate" value="${esc(u.birthDate || '')}"></div>
+                        <div class="form-group"><label class="form-label">Luogo di Nascita</label><input type="text" class="form-input" name="birthPlace" value="${esc(u.birthPlace || '')}"></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label class="form-label">Tipo Documento</label><select class="form-select" name="idDocType">
+                            <option value="">—</option>
+                            <option value="Carta d'identità" ${u.idDocType === "Carta d'identità" ? 'selected' : ''}>Carta d'identità</option>
+                            <option value="Passaporto" ${u.idDocType === 'Passaporto' ? 'selected' : ''}>Passaporto</option>
+                            <option value="Patente" ${u.idDocType === 'Patente' ? 'selected' : ''}>Patente</option>
+                            <option value="Permesso di soggiorno" ${u.idDocType === 'Permesso di soggiorno' ? 'selected' : ''}>Permesso di soggiorno</option>
+                        </select></div>
+                        <div class="form-group"><label class="form-label">N° Documento</label><input type="text" class="form-input" name="idDocNumber" value="${esc(u.idDocNumber || '')}"></div>
+                    </div>
+                    <div style="background:rgba(212,175,55,0.06);border:1px solid rgba(212,175,55,0.25);border-radius:10px;padding:10px 14px;margin:14px 0">
+                        <div style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:var(--gold);margin-bottom:4px">DATI FISCALI / BUSINESS</div>
+                        <div style="font-size:11px;color:var(--text-muted)">Compila se hai P.IVA o sei impresa. Il regime fiscale determina la tassazione dei canoni.</div>
+                    </div>
+                    <div class="form-group"><label class="form-label">Regime fiscale</label><select class="form-select" name="taxRegime">
+                        <option value="">—</option>
+                        <option value="cedolare_secca" ${u.taxRegime === 'cedolare_secca' ? 'selected' : ''}>Cedolare secca (21%)</option>
+                        <option value="ordinario" ${u.taxRegime === 'ordinario' ? 'selected' : ''}>IRPEF ordinario</option>
+                        <option value="forfettario" ${u.taxRegime === 'forfettario' ? 'selected' : ''}>Forfettario (RF19)</option>
+                        <option value="impresa" ${u.taxRegime === 'impresa' ? 'selected' : ''}>Impresa (RF01)</option>
+                    </select></div>
+                    <div class="form-row">
+                        <div class="form-group"><label class="form-label">Ragione sociale (se impresa)</label><input type="text" class="form-input" name="businessName" value="${esc(u.businessName || '')}" placeholder="Es. Rossi Immobili Srl"></div>
+                        <div class="form-group"><label class="form-label">Partita IVA</label><input type="text" class="form-input" name="partitaIva" value="${esc(u.partitaIva || '')}" placeholder="12345678901" maxlength="11"></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label class="form-label">PEC</label><input type="email" class="form-input" name="pecEmail" value="${esc(u.pecEmail || '')}" placeholder="pec@dominio.it"></div>
+                        <div class="form-group"><label class="form-label">Codice SDI</label><input type="text" class="form-input" name="sdiCode" value="${esc(u.sdiCode || '')}" placeholder="7 caratteri" maxlength="7" style="text-transform:uppercase"></div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">Annulla</button>
+                <button class="btn" onclick="document.getElementById('llDataForm').requestSubmit()">Salva</button>
+            </div>
+        </div></div>`;
+    }
+
+    async function saveLandlordProfile(e) {
+        e.preventDefault();
+        const data = Object.fromEntries(new FormData(e.target));
+        try {
+            const payload = {
+                name: data.name,
+                phone: data.phone || '',
+                codiceFiscale: (data.codiceFiscale || '').toUpperCase(),
+                address: data.address || '',
+                birthDate: data.birthDate || '',
+                birthPlace: data.birthPlace || '',
+                idDocType: data.idDocType || '',
+                idDocNumber: data.idDocNumber || '',
+                iban: (data.iban || '').toUpperCase(),
+                businessName: (data.businessName || '').trim(),
+                partitaIva: (data.partitaIva || '').replace(/\s/g, ''),
+                pecEmail: (data.pecEmail || '').trim().toLowerCase(),
+                sdiCode: (data.sdiCode || '').trim().toUpperCase(),
+                taxRegime: data.taxRegime || '',
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+            await db.collection('users').doc(S.profile.id).update(payload);
+            const local = { ...payload }; delete local.updatedAt;
+            Object.assign(S.profile, local); // reflect immediately so the banner/percentage update
+            logActivity('Profilo proprietario aggiornato', 'user', {});
+            closeModal();
+            toast('success', 'Profilo aggiornato!', 'Grazie, dati salvati');
+            renderPage();
+        } catch (err) { toast('error', 'Errore', err.message); }
     }
 
     async function saveProperty(e) {
