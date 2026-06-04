@@ -1329,6 +1329,29 @@
     const auth = firebase.auth();
     const db = firebase.firestore();
     const storage = firebase.storage();
+
+    // Create a Firebase Auth account WITHOUT disturbing the current admin
+    // session. createUserWithEmailAndPassword on the primary app auto-signs-in
+    // the new user (which is why the old code had to prompt the admin for
+    // their password to sign back in). A throwaway secondary app keeps the
+    // admin logged in and never exposes their password.
+    async function createAuthUserDetached(email, password) {
+        const SECONDARY = 'boom-user-provisioning';
+        let secondaryApp;
+        try {
+            secondaryApp = firebase.app(SECONDARY);
+        } catch (_) {
+            secondaryApp = firebase.initializeApp(firebaseConfig, SECONDARY);
+        }
+        try {
+            const cred = await secondaryApp.auth().createUserWithEmailAndPassword(email, password);
+            const uid = cred.user.uid;
+            await secondaryApp.auth().signOut();
+            return uid;
+        } finally {
+            try { await secondaryApp.delete(); } catch (_) {}
+        }
+    }
     
     // Enable offline persistence
     db.enablePersistence({ synchronizeTabs: true }).catch(err => {
@@ -12393,9 +12416,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (!isAdmin()) { toast('error', 'Operazione non consentita'); return; }
         const data = Object.fromEntries(new FormData(e.target));
         try {
-            const cred = await auth.createUserWithEmailAndPassword(data.email, data.password);
+            // Detached creation keeps the admin signed in (primary-app
+            // createUser would otherwise swap the session to the new user).
+            const newUid = await createAuthUserDetached(data.email, data.password);
             const role = data.role || 'tenant';
-            await db.collection('users').doc(cred.user.uid).set({
+            await db.collection('users').doc(newUid).set({
                 name: data.name, 
                 email: data.email, 
                 role: role, 
@@ -13555,19 +13580,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         try {
             // Generate a secure temporary password
             var tempPassword = 'BOOM' + Math.random().toString(36).slice(2, 8).toUpperCase() + '!';
-            
-            // We need to create the auth account without signing out the current admin
-            // Strategy: Use the Firebase Admin SDK workaround - create a secondary auth instance
-            // Since we are in client-side, we use a workaround: create, sign back in as admin
-            var adminEmail = auth.currentUser.email;
-            
-            // Store admin session token
-            var adminToken = await auth.currentUser.getIdToken(true);
-            
-            // Create the new user account
-            var cred = await auth.createUserWithEmailAndPassword(client.email, tempPassword);
-            var newUserId = cred.user.uid;
-            
+
+            // Create the auth account on a detached secondary app so the admin
+            // session is never signed out (no password re-prompt needed).
+            var newUserId = await createAuthUserDetached(client.email, tempPassword);
+
             // Determine role based on stage (at closing/placed = becoming a tenant)
             var userRole = 'tenant';
             var onboardingType = 'tenant';
@@ -13600,15 +13617,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 portalActivatedAt: firebase.firestore.FieldValue.serverTimestamp()
             });
             
-            // Sign out new user and sign back in as admin
-            await auth.signOut();
-            // Re-authenticate admin using custom token workaround
-            // Since we cannot easily re-auth without password, prompt admin
-            var adminPw = prompt('Re-enter your admin password to continue\n(required because Firebase signed you out when creating the new account):');
-            if (adminPw) {
-                await auth.signInWithEmailAndPassword(adminEmail, adminPw);
-            }
-            
+            // (Admin session is untouched — the new account was created on a
+            // detached secondary app, so no sign-out / password prompt.)
+
             // Send onboarding email with credentials
             var portalUrl = window.location.origin + window.location.pathname;
             await sendBoomEmail(EMAILJS_CONFIG.templates.notification, client.email, {
