@@ -6468,7 +6468,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                         <span style="color:var(--gold)">●</span> Welcome, ${S.profile.name.split(' ')[0]}
                     </h1>
                     <p style="color:var(--text-secondary);font-size:13px">
-                        ${new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} · Il tuo portale
+                        ${new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} · Your portal
                     </p>
                 </div>
             </div>
@@ -6545,15 +6545,15 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <div>
                     <!-- HOW TO PAY -->
                     <div class="card" style="margin-bottom:20px;background:linear-gradient(135deg,rgba(212,175,55,0.08),transparent);border-color:rgba(212,175,55,0.2)">
-                        <div class="card-header" style="border-bottom:none;padding-bottom:0"><h3 class="card-title">💳 Come Pagare</h3></div>
+                        <div class="card-header" style="border-bottom:none;padding-bottom:0"><h3 class="card-title">💳 How to Pay</h3></div>
                         <div class="card-body" style="padding-top:12px">
-                            <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">Dettagli bonifico bancario:</div>
+                            <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">Bank transfer details:</div>
                             <div class="info-box" style="margin-bottom:0">
-                                <div class="info-box-row"><span class="info-box-label">Intestatario</span><span class="info-box-value" style="font-size:12px">${landlord?.name || COMPANY.legal}</span></div>
+                                <div class="info-box-row"><span class="info-box-label">Account holder</span><span class="info-box-value" style="font-size:12px">${landlord?.name || COMPANY.legal}</span></div>
                                 <div class="info-box-row"><span class="info-box-label">IBAN</span><span id="landlordIban" class="info-box-value" style="font-size:10px;font-family:monospace">${landlord?.iban || COMPANY.iban}</span></div>
-                                <div class="info-box-row"><span class="info-box-label">Causale</span><span class="info-box-value" style="font-size:12px">Canone ${myProp?.name || ''}</span></div>
+                                <div class="info-box-row"><span class="info-box-label">Reference</span><span class="info-box-value" style="font-size:12px">Rent ${myProp?.name || ''}</span></div>
                             </div>
-                            <button class="btn btn-sm btn-secondary" style="margin-top:12px;width:100%" onclick="navigator.clipboard.writeText(document.getElementById('landlordIban').textContent).then(()=>toast('success','IBAN copiato'))">📋 Copia IBAN</button>
+                            <button class="btn btn-sm btn-secondary" style="margin-top:12px;width:100%" onclick="navigator.clipboard.writeText(document.getElementById('landlordIban').textContent).then(()=>toast('success','IBAN copied'))">📋 Copy IBAN</button>
                         </div>
                     </div>
 
@@ -10780,20 +10780,21 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const paid = payments.filter(p => p.status === 'paid');
         const pending = payments.filter(p => p.status === 'pending');
         const overdue = pending.filter(p => isOverdue(p.dueDate));
+        const isEN = isTenant();
 
-        return `<div class="page-header"><h1 class="page-title">💳 ${isTenant() ? 'I Miei Pagamenti' : 'Pagamenti'}</h1></div>
+        return `<div class="page-header"><h1 class="page-title">💳 ${isEN ? 'My Payments' : 'Pagamenti'}</h1></div>
             <div class="stats-grid" style="grid-template-columns:repeat(3,1fr)">
-                <div class="stat-card green"><div class="stat-value">€${paid.reduce((s,p) => s + (p.amount || 0), 0).toLocaleString('it-IT')}</div><div class="stat-label">Pagati (${paid.length})</div></div>
-                <div class="stat-card ${overdue.length ? 'red' : 'orange'}"><div class="stat-value">€${pending.reduce((s,p) => s + (p.amount || 0), 0).toLocaleString('it-IT')}</div><div class="stat-label">${overdue.length ? overdue.length + ' in ritardo' : 'Da Pagare'} (${pending.length})</div></div>
-                <div class="stat-card blue"><div class="stat-value">${payments.length}</div><div class="stat-label">Totale</div></div>
+                <div class="stat-card green"><div class="stat-value">€${paid.reduce((s,p) => s + (p.amount || 0), 0).toLocaleString('it-IT')}</div><div class="stat-label">${isEN ? 'Paid' : 'Pagati'} (${paid.length})</div></div>
+                <div class="stat-card ${overdue.length ? 'red' : 'orange'}"><div class="stat-value">€${pending.reduce((s,p) => s + (p.amount || 0), 0).toLocaleString('it-IT')}</div><div class="stat-label">${overdue.length ? overdue.length + (isEN ? ' overdue' : ' in ritardo') : (isEN ? 'To Pay' : 'Da Pagare')} (${pending.length})</div></div>
+                <div class="stat-card blue"><div class="stat-value">${payments.length}</div><div class="stat-label">${isEN ? 'Total' : 'Totale'}</div></div>
             </div>
             <div class="card"><div class="card-body flush">${payments.length ? payments.map(p => {
                 const c = S.contracts.find(x => x.id === p.contractId);
                 const prop = c ? S.properties.find(x => x.id === c.propertyId) : null;
                 const isOD = p.status === 'pending' && isOverdue(p.dueDate);
                 const payBadge = p.stripeSessionId ? ' <span class="badge blue" style="font-size:9px;padding:2px 6px">💳 Stripe</span>' : '';
-                return `<div class="list-item"><div class="list-icon" style="background:${p.status === 'paid' ? 'var(--green-light)' : isOD ? 'var(--red-light)' : 'var(--orange-light)'}">${p.status === 'paid' ? '✔' : isOD ? '⚠️' : '⏳'}</div><div class="list-content"><div class="list-title">${prop?.name || ''} · ${p.month || 'Pagamento'}${payBadge}</div><div class="list-subtitle">${p.status === 'paid' ? 'Pagato il ' + fmtDate(p.paidDate) : 'Scadenza: ' + fmtDate(p.dueDate) + (isOD ? ' (IN RITARDO)' : '')}</div></div><div class="list-meta"><div class="list-value ${p.status === 'paid' ? 'text-green' : isOD ? 'text-red' : 'text-gold'}">€${p.amount || 0}</div></div>${p.status === 'paid' && isTenant() ? `<button class="btn btn-xs btn-secondary" onclick="downloadPaymentReceipt('${p.id}')">📥</button>` : ''}${p.status === 'pending' && isTenant() && STRIPE_CONFIG.enabled ? `<button class="btn btn-xs" onclick="payWithStripe('${p.id}')" style="background:var(--blue);color:#fff">💳 Paga</button>` : ''}${p.status === 'pending' && isTenant() ? `<button class="btn btn-xs ${p.tenantReported ? 'btn-secondary' : ''}" onclick="reportPaymentMade('${p.id}')" style="${!p.tenantReported ? 'background:var(--green);color:#fff' : ''}">${p.tenantReported ? '⏳ Reported' : '✅ I Paid'}</button>` : ''}${p.status === 'pending' && isLandlord() ? `<button class="btn btn-xs btn-success" onclick="markPaymentPaid('${p.id}')">✔</button>` : ''}</div>`;
-            }).join('') : '<div class="empty-state"><div class="empty-icon">💳</div><div class="empty-title">Nessun pagamento</div></div>'}</div></div>`;
+                return `<div class="list-item"><div class="list-icon" style="background:${p.status === 'paid' ? 'var(--green-light)' : isOD ? 'var(--red-light)' : 'var(--orange-light)'}">${p.status === 'paid' ? '✔' : isOD ? '⚠️' : '⏳'}</div><div class="list-content"><div class="list-title">${prop?.name || ''} · ${p.month || (isEN ? 'Payment' : 'Pagamento')}${payBadge}</div><div class="list-subtitle">${p.status === 'paid' ? (isEN ? 'Paid on ' : 'Pagato il ') + fmtDate(p.paidDate) : (isEN ? 'Due: ' : 'Scadenza: ') + fmtDate(p.dueDate) + (isOD ? (isEN ? ' (OVERDUE)' : ' (IN RITARDO)') : '')}</div></div><div class="list-meta"><div class="list-value ${p.status === 'paid' ? 'text-green' : isOD ? 'text-red' : 'text-gold'}">€${p.amount || 0}</div></div>${p.status === 'paid' && isTenant() ? `<button class="btn btn-xs btn-secondary" onclick="downloadPaymentReceipt('${p.id}')">📥</button>` : ''}${p.status === 'pending' && isTenant() && STRIPE_CONFIG.enabled ? `<button class="btn btn-xs" onclick="payWithStripe('${p.id}')" style="background:var(--blue);color:#fff">💳 ${isEN ? 'Pay' : 'Paga'}</button>` : ''}${p.status === 'pending' && isTenant() ? `<button class="btn btn-xs ${p.tenantReported ? 'btn-secondary' : ''}" onclick="reportPaymentMade('${p.id}')" style="${!p.tenantReported ? 'background:var(--green);color:#fff' : ''}">${p.tenantReported ? '⏳ Reported' : '✅ I Paid'}</button>` : ''}${p.status === 'pending' && isLandlord() ? `<button class="btn btn-xs btn-success" onclick="markPaymentPaid('${p.id}')">✔</button>` : ''}</div>`;
+            }).join('') : `<div class="empty-state"><div class="empty-icon">💳</div><div class="empty-title">${isEN ? 'No payments' : 'Nessun pagamento'}</div></div>`}</div></div>`;
     }
 
     async function reportPaymentMade(paymentId) {
