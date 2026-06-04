@@ -533,6 +533,86 @@
         .map-mini-name{font-size:13px;font-weight:400;line-height:1.3;margin:3px 0;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
         .map-mini-price{font-size:13px;color:var(--gold);font-weight:500}
         .map-mini-price small{font-size:9px;color:var(--text-fade);font-weight:300;letter-spacing:.5px;margin-left:2px;text-transform:uppercase}
+        /* ════════════════════════════════════════════════════════════
+           APARTMENTS V3 — "winner experience" additions
+           ════════════════════════════════════════════════════════════ */
+        /* Living hero — perf-safe ambient (CSS only, no image cost) */
+        .apt-hero{position:relative;overflow:hidden}
+        .apt-hero::before{content:'';position:absolute;top:-30%;left:50%;width:140%;height:170%;transform:translateX(-50%);background:radial-gradient(ellipse 46% 38% at 50% 32%,rgba(255,215,0,0.09),transparent 62%);pointer-events:none;z-index:-1;animation:heroAura 16s ease-in-out infinite}
+        @keyframes heroAura{0%,100%{opacity:.65;transform:translateX(-50%) scale(1)}50%{opacity:1;transform:translateX(-50%) scale(1.07)}}
+        .apt-h1{position:relative;display:inline-block}
+        .apt-h1::after{content:'';display:block;width:60px;height:2px;margin:16px auto 0;background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:.85}
+        @media(prefers-reduced-motion:reduce){.apt-hero::before{animation:none}}
+
+        /* Search interpretation — proof the smart search understood you */
+        .apt-search-read{max-width:760px;margin:10px auto 0;padding:0 50px;text-align:center;font-size:12px;letter-spacing:.2px;color:var(--text-secondary);opacity:0;height:0;overflow:hidden;transition:opacity .25s,height .25s}
+        .apt-search-read.show{opacity:1;height:18px}
+        .apt-search-read b{color:var(--gold);font-weight:500}
+
+        /* Quick-intent chips — tap to discover, no form */
+        .apt-quick{max-width:780px;margin:16px auto 0;padding:0 50px;display:flex;flex-wrap:wrap;justify-content:center;gap:8px}
+        .qchip{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.1);color:var(--text-secondary);border-radius:100px;padding:8px 16px;font-family:inherit;font-size:12px;font-weight:300;letter-spacing:.02em;cursor:pointer;transition:all .25s;white-space:nowrap}
+        .qchip:hover{border-color:rgba(255,215,0,0.4);color:var(--text-primary);transform:translateY(-1px)}
+        .qchip.is-on{background:var(--gold);border-color:var(--gold);color:#000;font-weight:500}
+        @media(max-width:768px){.apt-quick{padding:0 16px;gap:6px;margin-top:14px}.qchip{padding:7px 13px;font-size:11px}.apt-search-read{padding:0 16px}}
+
+        /* Card carousel — arrows (hover/tap) + counter, dots are tappable */
+        .card-img-nav{position:absolute;top:50%;transform:translateY(-50%);width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,0.45);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.16);color:#fff;font-size:17px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:3;opacity:0;transition:opacity .2s,background .2s,border-color .2s;padding:0 0 2px}
+        .card:hover .card-img-nav{opacity:1}
+        .card-img-nav:hover{background:var(--gold);color:#000;border-color:var(--gold)}
+        .card-img-nav.prev{left:10px}.card-img-nav.next{right:10px}
+        @media(hover:none){.card-img-nav{opacity:.82;width:30px;height:30px}}
+        .card-img-count{position:absolute;top:12px;left:12px;z-index:3;background:rgba(0,0,0,0.55);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-radius:100px;padding:3px 10px;font-size:10px;color:#fff;letter-spacing:.5px;font-variant-numeric:tabular-nums;opacity:0;transition:opacity .2s}
+        .card:hover .card-img-count{opacity:1}
+        .card-img-dot{cursor:pointer}
+        @media(max-width:768px){.card-img-dots{opacity:1}.card-img-dot{width:6px;height:6px}}
+
+        /* Branded placeholder when a photo fails / is missing */
+        .card-img.is-broken{background:linear-gradient(135deg,#161616,#0b0b0b)}
+        .card-img.is-broken::after{content:'BOOM';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:rgba(255,215,0,0.22);font-size:22px;letter-spacing:7px;font-weight:300}
+
+        /* Trust row — the BOOM moat, on every card */
+        .card-trust{display:flex;flex-wrap:wrap;gap:12px;margin:0 0 12px}
+        .card-trust span{display:inline-flex;align-items:center;gap:6px;font-size:10px;color:var(--text-secondary);letter-spacing:.3px;text-transform:uppercase}
+        .card-trust span::before{content:'';width:5px;height:5px;border-radius:50%;background:var(--gold);opacity:.75;flex-shrink:0}
+
+        /* Fit row — why this home matches (replaces bare %) */
+        .card-fit{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:12px;font-size:11px;line-height:1.4}
+        .card-fit-score{color:var(--gold);font-weight:600;letter-spacing:.3px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+        .card-fit-score::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--gold);box-shadow:0 0 7px var(--gold)}
+        .card-fit-reasons{color:var(--text-secondary);letter-spacing:.2px}
+        .card-fit-reasons b{color:#00FF88;font-weight:700;margin-right:2px}
+
+        /* Price sub-line — €/m² + move-in */
+        .price-sub{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:4px}
+        .psqm{font-size:10px;color:var(--text-fade);letter-spacing:.3px;font-variant-numeric:tabular-nums}
+        .pmovein{font-size:10px;color:var(--text-secondary);background:rgba(255,255,255,0.05);border-radius:100px;padding:2px 9px;letter-spacing:.3px;white-space:nowrap}
+        .pmovein.now{color:#00FF88;background:rgba(0,255,136,0.1)}
+        .card-act.wa svg{width:17px;height:17px}
+        .card-act.wa:hover{background:#25D366;border-color:#25D366;color:#fff}
+
+        /* Staggered card entrance — first paint only */
+        @keyframes cardIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+        .apt-grid-stagger .card{animation:cardIn .55s cubic-bezier(.16,1,.3,1) both;animation-delay:calc(var(--i,0)*45ms)}
+        @media(prefers-reduced-motion:reduce){.apt-grid-stagger .card{animation:none}}
+
+        /* Recently leased — social proof / scarcity */
+        .leased-strip{max-width:1400px;margin:64px auto 0;padding:0 50px}
+        .leased-head{display:flex;align-items:baseline;gap:12px;margin-bottom:18px;flex-wrap:wrap}
+        .leased-head h3{font-size:13px;text-transform:uppercase;letter-spacing:3px;color:var(--text-secondary);font-weight:400}
+        .leased-head span{font-size:12px;color:var(--text-fade)}
+        .leased-row{display:flex;gap:14px;overflow-x:auto;padding-bottom:10px;scroll-snap-type:x mandatory}
+        .leased-row::-webkit-scrollbar{height:5px}
+        .leased-row::-webkit-scrollbar-thumb{background:rgba(255,215,0,0.2);border-radius:3px}
+        .leased-card{flex:0 0 220px;scroll-snap-align:start;background:var(--dark-void);border:1px solid rgba(255,255,255,0.05);border-radius:14px;overflow:hidden;opacity:.74;transition:opacity .3s,transform .3s}
+        .leased-card:hover{opacity:1;transform:translateY(-3px)}
+        .leased-card-img{height:120px;background-size:cover;background-position:center;background-color:#141414;position:relative;filter:grayscale(.4)}
+        .leased-tag{position:absolute;top:10px;left:10px;background:rgba(0,0,0,0.72);color:#fff;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;padding:4px 11px;border-radius:100px;backdrop-filter:blur(6px)}
+        .leased-card-body{padding:12px 14px}
+        .leased-card-zone{font-size:9px;color:var(--gold);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px}
+        .leased-card-name{font-size:13px;color:var(--text-primary);margin-bottom:5px;line-height:1.3}
+        .leased-card-meta{font-size:11px;color:var(--text-fade);font-variant-numeric:tabular-nums}
+        @media(max-width:768px){.leased-strip{padding:0 16px;margin-top:48px}}
     </style>
 <!-- BOOM_JSONLD:START -->
   <script type="application/ld+json">
@@ -706,6 +786,15 @@
                 <button class="apt-search-clear" id="aptSearchClear" aria-label="Clear search" hidden>×</button>
             </div>
             <div class="apt-search-hint">Smart search — say it in <b>English or Italian</b>. Tries to read budget, neighborhood, bedrooms, features.</div>
+            <div class="apt-search-read" id="aptSearchRead" aria-live="polite"></div>
+            <div class="apt-quick" id="aptQuick" aria-label="Quick filters">
+                <button class="qchip" data-qk="budget" data-val="1500">Under €1,500</button>
+                <button class="qchip" data-qk="beds" data-val="2">2+ bedrooms</button>
+                <button class="qchip" data-qk="feat" data-val="terrace">With terrace</button>
+                <button class="qchip" data-qk="feat" data-val="furnished">Furnished</button>
+                <button class="qchip" data-qk="hood" data-val="centro-storico">Centro Storico</button>
+                <button class="qchip" data-qk="hood" data-val="trastevere">Trastevere</button>
+            </div>
         </section>
 
         <!-- CONTROLS / FILTERS -->
@@ -822,8 +911,15 @@
             <h3>No apartments match your filters</h3>
             <p>Try widening your budget, removing a feature, or letting BOOM find one for you.</p>
             <button class="btn" id="aptEmptyReset">Reset filters</button>
+            <a class="btn btn-ghost" id="aptEmptyNotify" href="https://wa.me/393313251961" target="_blank" rel="noopener">💬 Get alerts on WhatsApp</a>
             <a class="btn btn-ghost" href="/property-finding">Have BOOM find me one →</a>
         </div>
+        <!-- RECENTLY LEASED — social proof / scarcity -->
+        <section class="leased-strip" id="leasedStrip" hidden aria-label="Recently leased apartments">
+            <div class="leased-head"><h3>Recently leased</h3><span>These moved fast — fresh homes added every week.</span></div>
+            <div class="leased-row" id="leasedRow"></div>
+        </section>
+
         <!-- UPSELL SECTION -->
         <div class="upsell-section">
             <div class="upsell-header">
@@ -1006,6 +1102,17 @@
     const $$ = (s, r=document) => [...r.querySelectorAll(s)];
     const fmt = n => n != null ? '€' + Number(n).toLocaleString() : '—';
 
+    // Imgur thumbnail variants — shrink huge originals into card-sized images.
+    // Suffixes: m=320, l=640, h=1024 (aspect preserved). Only i.imgur.com direct
+    // links are rewritten; Firebase Storage / other hosts pass through untouched.
+    function imgThumb(url, suffix) {
+      if (!url || typeof url !== 'string') return url;
+      const m = url.match(/^(https?:\/\/i\.imgur\.com\/)([a-zA-Z0-9]{5,9})(\.[a-zA-Z]+)(\?.*)?$/);
+      return m ? (m[1] + m[2] + suffix + m[3]) : url;
+    }
+    const cardSrc = u => imgThumb(u, 'l');
+    const cardSrcset = u => { const l = imgThumb(u,'l'), h = imgThumb(u,'h'); return (l !== u) ? `${l} 640w, ${h} 1024w` : ''; };
+
     const STATE = {
       raw: [], view: 'grid', q: '', sort: 'recommended', savedOnly: false,
       filters: { budgetMin: 500, budgetMax: 4000, hoods: new Set(), beds: 0, features: new Set() },
@@ -1065,6 +1172,108 @@
       video: [],  // matched via videoUrl
     };
 
+    const FEATURE_LABELS = { terrace:'Terrace', lift:'Lift', furnished:'Furnished', petfriendly:'Pet-friendly', parking:'Parking', airconditioning:'A/C', washer:'Washer', dishwasher:'Dishwasher', wifi:'Wi-Fi', video:'Video tour' };
+    // Words the NL parser should never treat as a literal text filter.
+    const STOPWORDS = new Set(['in','with','and','the','a','an','of','for','to','near','around','close','by','at','my','me','i','am','is','are','want','looking','need','rent','renting','apartment','apartments','flat','flats','place','home','homes','room','rooms','bedroom','bedrooms','bed','beds','bath','baths','bathroom','studio','monolocale','euro','euros','eur','mo','month','months','monthly','per','price','budget','under','over','below','above','max','min','minimum','maximum','between','from','please','around','cerco','vorrei','con','vicino','sotto','sopra','zona','quartiere','di','del','della','che','un','una','uno','camere','camera','stanze','stanza','locali','locale','affitto']);
+    function hoodName(slug){ if(!window.BOOM) return slug; const h = BOOM.allNeighborhoods().find(x=>x.slug===slug); return h ? h.name : slug; }
+
+    /* ── MATCH REASONS — human "why it fits" instead of a bare % ──── */
+    function matchReasons(l){
+      const f = STATE.filters, r = [];
+      if (f.budgetMin > 500 || f.budgetMax < 4000) { const p = Number(l.price); if (p && p >= f.budgetMin && p <= f.budgetMax) r.push('In budget'); }
+      if (f.hoods.size) { const slug = (window.BOOM && BOOM.zoneToSlug) ? BOOM.zoneToSlug(l.zone || l.neighborhood || '') : null; if (slug && f.hoods.has(slug)) r.push(hoodName(slug)); }
+      if (f.beds > 0) { const b = Number(l.beds || l.bedrooms || 0); if (f.beds >= 4 ? b >= 4 : b === f.beds) r.push(`${f.beds}${f.beds>=4?'+':''} bed`); }
+      f.features.forEach(ft => { if (hasFeature(l, ft)) r.push(FEATURE_LABELS[ft] || ft); });
+      return r;
+    }
+
+    /* ── MOVE-IN — a friendly availability pill ──────────────────── */
+    function moveInInfo(l){
+      const raw = (l.availableDate || l.moveIn || '').toString().trim();
+      if (!raw) return isAvail(l) ? { label:'Available now', now:true } : null;
+      const d = new Date(/\d{4}/.test(raw) ? raw : raw + ' ' + new Date().getFullYear());
+      if (isNaN(d.getTime())) return { label:'Move-in ' + raw, now:false };
+      return (d.getTime() <= Date.now() + 14*864e5) ? { label:'Available now', now:true } : { label:'Move-in ' + raw, now:false };
+    }
+    function relTime(t){ if(!t) return 'recently'; const d = Math.floor((Date.now()-t)/864e5); if(d<=0) return 'today'; if(d===1) return 'yesterday'; if(d<7) return d+' days ago'; if(d<35) return Math.max(1,Math.floor(d/7))+'w ago'; return 'recently'; }
+
+    /* ── WHATSAPP — pre-filled, context-rich lead paths ──────────── */
+    function askWhatsApp(id){
+      const l = STATE.raw.find(x=>x.id===id); if(!l) return;
+      const url = `${location.origin}/listing/${encodeURIComponent(id)}`;
+      const msg = `Hi BOOM! I'm interested in ${l.name||'this apartment'}${l.zone?' ('+l.zone+')':''}${l.price?' — '+fmt(l.price)+'/mo':''}. ${url}`;
+      boomTrack('generate_lead', { method:'whatsapp_listing', item_id:id });
+      window.open('https://wa.me/393313251961?text=' + encodeURIComponent(msg), '_blank');
+    }
+    function waFromFilters(){
+      const f = STATE.filters, parts = [];
+      if (f.budgetMin > 500 || f.budgetMax < 4000) parts.push(`budget €${f.budgetMin.toLocaleString()}–€${f.budgetMax.toLocaleString()}`);
+      if (f.hoods.size) parts.push('zone ' + [...f.hoods].map(hoodName).join(' / '));
+      if (f.beds > 0) parts.push(`${f.beds}${f.beds>=4?'+':''} bedrooms`);
+      if (f.features.size) parts.push([...f.features].map(x=>FEATURE_LABELS[x]||x).join(', '));
+      const crit = parts.length ? (' My criteria — ' + parts.join('; ') + '.') : '';
+      return 'https://wa.me/393313251961?text=' + encodeURIComponent(`Hi BOOM! Please notify me when an apartment matches my search.${crit}`);
+    }
+
+    /* ── CARD CAROUSEL — shared image setter (dots/arrows/swipe/auto) */
+    function showCardImage(cardImg, i){
+      let images; try { images = JSON.parse(cardImg.dataset.images); } catch { return; }
+      if (!images || !images.length) return;
+      i = ((i % images.length) + images.length) % images.length;
+      cardImg.dataset.idx = i;
+      const img = cardImg.querySelector('img');
+      if (img) { img.src = cardSrc(images[i]); const ss = cardSrcset(images[i]); if (ss) img.srcset = ss; }
+      cardImg.querySelectorAll('.card-img-dot').forEach((d,di)=>d.classList.toggle('active', di===i));
+      const cnt = cardImg.querySelector('.card-img-count'); if (cnt) cnt.textContent = (i+1)+'/'+images.length;
+    }
+
+    /* ── RECENTLY LEASED — real velocity, anonymised, never faked ── */
+    function renderLeasedStrip(){
+      const wrap = $('#leasedStrip'); if (!wrap) return;
+      const ts = l => (l.updatedAt?.toMillis?.() || (l.updatedAt?.seconds||0)*1000 || l.createdAt?.toMillis?.() || (l.createdAt?.seconds||0)*1000 || 0);
+      const leased = STATE.raw.filter(isRented).map(l=>({l,t:ts(l)})).sort((a,b)=>b.t-a.t).slice(0,8);
+      if (leased.length < 3) { wrap.hidden = true; return; }
+      wrap.hidden = false;
+      $('#leasedRow').innerHTML = leased.map(({l,t})=>{
+        const img = (l.images && l.images[0]) || l.image || '';
+        return `<div class="leased-card">
+          <div class="leased-card-img"${img?` style="background-image:url('${imgThumb(img,'m')}')"`:''}><span class="leased-tag">Leased</span></div>
+          <div class="leased-card-body">
+            <div class="leased-card-zone">${l.zone||l.neighborhood||'Rome'}</div>
+            <div class="leased-card-name">${l.name||'Apartment'}</div>
+            <div class="leased-card-meta">${l.price?fmt(l.price)+'/mo · ':''}${relTime(t)}</div>
+          </div></div>`;
+      }).join('');
+    }
+
+    /* ── SEARCH INTERPRETATION + QUICK-CHIP SYNC ─────────────────── */
+    function updateInterpretation(parsed){
+      const el = $('#aptSearchRead'); if (!el) return;
+      const bits = [];
+      if (parsed) {
+        if (parsed.beds) bits.push(`<b>${parsed.beds}${parsed.beds>=4?'+':''} bed${parsed.beds>1?'s':''}</b>`);
+        if (parsed.hoods && parsed.hoods.length) bits.push(parsed.hoods.map(s=>`<b>${hoodName(s)}</b>`).join(' / '));
+        if (parsed.budgetMin && parsed.budgetMax) bits.push(`<b>€${parsed.budgetMin.toLocaleString()}–€${parsed.budgetMax.toLocaleString()}</b>`);
+        else if (parsed.budgetMax) bits.push(`under <b>€${parsed.budgetMax.toLocaleString()}</b>`);
+        else if (parsed.budgetMin) bits.push(`over <b>€${parsed.budgetMin.toLocaleString()}</b>`);
+        if (parsed.features && parsed.features.length) bits.push(parsed.features.map(x=>`<b>${FEATURE_LABELS[x]||x}</b>`).join(' '));
+      }
+      if (!bits.length) { el.classList.remove('show'); el.innerHTML = ''; return; }
+      el.innerHTML = 'Reading: ' + bits.join(' · ');
+      el.classList.add('show');
+    }
+    function syncQuickChips(){
+      const f = STATE.filters;
+      $$('.qchip').forEach(qc=>{
+        const k = qc.dataset.qk, v = qc.dataset.val; let on = false;
+        if (k === 'budget') on = (f.budgetMax === Number(v) && f.budgetMin === 500);
+        else if (k === 'beds') on = (f.beds === Number(v));
+        else if (k === 'feat') on = f.features.has(v);
+        else if (k === 'hood') on = f.hoods.has(v);
+        qc.classList.toggle('is-on', on);
+      });
+    }
+
     const getStatus = l => (l.status || l.availabilityStatus || 'available').toString().toLowerCase();
     const isAvail = l => /^(available|disponibile|active|free|)$/.test(getStatus(l));
     const isRented = l => /^(rented|affittato|off_market)$/.test(getStatus(l));
@@ -1082,26 +1291,47 @@
     };
 
     /* ── DATA LOAD ───────────────────────────────────────────────── */
+    const CACHE_KEY = 'boom:listings:v1';
+    // One-time setup that depends on URL + listing data.
+    function firstBoot() {
+      initFilterUI();
+      recompute();
+      parseURLState();
+      updateSavedPill();
+      syncQuickChips();
+      applyAndRender();
+    }
+    // Derived data + ambient UI that should refresh whenever listings change.
+    function recompute() {
+      computeZoneAverages();
+      updateZoneCounts();
+      updatePulse();
+      rebuildHistogram();
+      renderLeasedStrip();
+    }
     async function loadListings() {
-      renderSkeleton(8);
+      // Instant paint from this session's cache (stale-while-revalidate).
+      let painted = false;
+      try {
+        const cached = JSON.parse(sessionStorage.getItem(CACHE_KEY) || 'null');
+        if (Array.isArray(cached) && cached.length) { STATE.raw = cached; firstBoot(); painted = true; }
+      } catch {}
+      if (!painted) renderSkeleton(8);
       try {
         const snap = await db.collection('listings').get();
         STATE.raw = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        initFilterUI();
-        computeZoneAverages();
-        updateZoneCounts();
-        parseURLState();
-        updatePulse();
-        updateSavedPill();
-        rebuildHistogram();
-        applyAndRender();
+        try { sessionStorage.setItem(CACHE_KEY, JSON.stringify(STATE.raw)); } catch {}
+        if (painted) { recompute(); applyAndRender(); }   // refresh in place, no flash
+        else firstBoot();
       } catch (err) {
         console.error('listings:', err);
-        $('#aptGrid').innerHTML = '';
-        $('#aptEmpty').hidden = false;
-        $('#aptEmpty').querySelector('h3').textContent = 'Connection error';
-        $('#aptEmpty').querySelector('p').textContent = 'Could not load apartments. Please refresh.';
-        $('#aptCount').textContent = 'Error';
+        if (!painted) {
+          $('#aptGrid').innerHTML = '';
+          $('#aptEmpty').hidden = false;
+          $('#aptEmpty').querySelector('h3').textContent = 'Connection error';
+          $('#aptEmpty').querySelector('p').textContent = 'Could not load apartments. Please refresh.';
+          $('#aptCount').textContent = 'Error';
+        }
       }
     }
 
@@ -1279,6 +1509,7 @@
         const e = $('#aptEmpty'); e.hidden = false;
         const icon = e.querySelector('.apt-empty-icon'), h = e.querySelector('h3'), p = e.querySelector('p');
         const reset = $('#aptEmptyReset');
+        const notify = $('#aptEmptyNotify'); if (notify) notify.href = waFromFilters();
         if (STATE.savedOnly && STATE.saved.size === 0) {
           icon.textContent = '♡'; h.textContent = 'No saved apartments yet';
           p.textContent = 'Tap the heart on any apartment to keep it here for later.';
@@ -1291,52 +1522,89 @@
         return;
       }
       $('#aptEmpty').hidden = true;
-      grid.innerHTML = list.map(makeCard).join('');
-      grid.classList.remove('apt-results-anim'); void grid.offsetWidth; grid.classList.add('apt-results-anim');
+      grid.innerHTML = list.map((l,i)=>makeCard(l,i)).join('');
+      if (!STATE._firstRender) {
+        STATE._firstRender = true;
+        grid.classList.add('apt-grid-stagger');
+        setTimeout(()=>grid.classList.remove('apt-grid-stagger'), 1400);
+      } else {
+        grid.classList.remove('apt-results-anim'); void grid.offsetWidth; grid.classList.add('apt-results-anim');
+      }
       injectListingsJsonLd(list);  // keep ItemList JSON-LD in sync
     }
 
-    function makeCard(l) {
+    function makeCard(l, idx = 0) {
       const id = l.id;
       const name = l.name || l.title || 'Apartment';
-      const price = l.price ? fmt(l.price) : '—';
+      const priceNum = Number(l.price) || 0;
+      const price = priceNum ? fmt(priceNum) : 'On request';
       const zone = l.zone || l.neighborhood || l.address || '';
       const zoneSlug = (window.BOOM && BOOM.zoneToSlug) ? BOOM.zoneToSlug(zone) : null;
       const beds = l.beds || l.bedrooms;
-      const sqm = l.sqm || l.size;
+      const sqm = Number(l.sqm || l.size) || 0;
       const link = `/listing/${encodeURIComponent(id)}`;
       const images = (Array.isArray(l.images) && l.images.length) ? l.images : (l.image ? [l.image] : []);
       const imgUrl = images[0] || '';
       const alt = name + (zone ? ' in ' + zone : '') + ', Rome — BOOM';
+      const eager = idx < 3;  // above-the-fold → fast LCP
+
       const signals = [];
-      if (isAvail(l)) signals.push('<span class="card-signal signal-fresh">● Available</span>');
       if (isNewThisWeek(l)) signals.push('<span class="card-signal signal-new">★ New this week</span>');
       if (l.videoUrl || l.youtubeUrl) signals.push('<span class="card-signal" style="background:rgba(255,69,58,0.12);color:#FF453A">▶ Video</span>');
+
       const specs = [];
-      if (sqm) specs.push(`<span>${sqm}m²</span>`);
+      if (sqm) specs.push(`<span>${sqm} m²</span>`);
       if (beds) specs.push(`<span>${beds} bed${beds>1?'s':''}</span>`);
       if (l.bathrooms) specs.push(`<span>${l.bathrooms} bath${l.bathrooms>1?'s':''}</span>`);
+
       const zoneHtml = zone
         ? (zoneSlug
             ? `<a class="card-zone card-zone-link" href="/apartments-in/${zoneSlug}" data-stop="1" title="See all in ${zone}">${zone}</a>`
             : `<div class="card-zone">${zone}</div>`)
         : '';
-      const matchScore = computeMatchScore(l);
-      const matchHtml = matchScore != null
-        ? `<div class="card-match">${matchScore}% match</div>`
-        : `<div class="card-cta">View →</div>`;
+
+      // Trust row — BOOM's differentiators on every card
+      const trust = [];
+      if (l.videoUrl || l.youtubeUrl) trust.push('<span>Video-verified</span>');
+      trust.push('<span>Legal contract</span>');
+      const trustHtml = `<div class="card-trust">${trust.join('')}</div>`;
+
+      // Fit row — only when filters are active; tells the user *why* it matches
+      const reasons = matchReasons(l);
+      const score = computeMatchScore(l);
+      const fitHtml = (reasons.length && score != null)
+        ? `<div class="card-fit"><span class="card-fit-score">${score}% match</span><span class="card-fit-reasons">${reasons.slice(0,3).map(r=>`<b>✓</b>${r}`).join(' · ')}</span></div>`
+        : '';
+
+      // Price sub-line — €/m² + move-in + zone price intelligence
+      const sub = [];
+      if (priceNum && sqm) sub.push(`<span class="psqm">€${Math.round(priceNum/sqm).toLocaleString()}/m²</span>`);
+      const mi = moveInInfo(l);
+      if (mi) sub.push(`<span class="pmovein${mi.now?' now':''}">${mi.label}</span>`);
+      const insight = priceInsight(l);
+      const subHtml = (sub.length || insight) ? `<div class="price-sub">${sub.join('')}${insight}</div>` : '';
+
       const savedOn = STATE.saved.has(id) ? ' is-on' : '';
       const cmpOn = STATE.compare.has(id) ? ' is-on' : '';
       const imagesAttr = JSON.stringify(images).replace(/'/g, '&#39;');
-      const dots = images.length > 1
-        ? `<div class="card-img-dots">${images.map((_,i) => `<span class="card-img-dot${i===0?' active':''}"></span>`).join('')}</div>` : '';
-      return `<article class="card" data-id="${id}" data-href="${link}" role="link" tabindex="0" aria-label="${alt}">
-        <div class="card-img" data-images='${imagesAttr}'>
-          <img src="${imgUrl}" alt="${alt}" loading="lazy" decoding="async" onerror="this.style.opacity=0">
+      const multi = images.length > 1;
+      const dots = multi ? `<div class="card-img-dots">${images.map((_,i)=>`<span class="card-img-dot${i===0?' active':''}"></span>`).join('')}</div>` : '';
+      const navs = multi
+        ? `<button class="card-img-nav prev" data-dir="prev" aria-label="Previous photo">‹</button><button class="card-img-nav next" data-dir="next" aria-label="Next photo">›</button><div class="card-img-count">1/${images.length}</div>`
+        : '';
+      const ss = cardSrcset(imgUrl);
+
+      return `<article class="card" data-id="${id}" data-href="${link}" role="link" tabindex="0" aria-label="${alt}" style="--i:${idx}">
+        <div class="card-img${imgUrl?'':' is-broken'}" data-images='${imagesAttr}' data-idx="0">
+          ${imgUrl ? `<img src="${cardSrc(imgUrl)}"${ss?` srcset="${ss}" sizes="(max-width:768px) 100vw, 340px"`:''} alt="${alt}" ${eager?'loading="eager" fetchpriority="high"':'loading="lazy"'} decoding="async" onerror="this.closest('.card-img').classList.add('is-broken');this.remove()">` : ''}
+          ${navs}
           ${dots}
           <div class="card-actions">
             <button class="card-act${savedOn}" data-act="save" data-id="${id}" aria-label="Save" title="Save">
               <svg viewBox="0 0 24 24" fill="${STATE.saved.has(id)?'currentColor':'none'}" stroke="currentColor" stroke-width="1.6"><path d="M12 21s-7-4.35-9.5-8.5C.5 8.5 3 4 7 4c2 0 3.5 1.2 5 3 1.5-1.8 3-3 5-3 4 0 6.5 4.5 4.5 8.5C19 16.65 12 21 12 21z"/></svg>
+            </button>
+            <button class="card-act wa" data-act="wa" data-id="${id}" aria-label="Ask on WhatsApp" title="Ask on WhatsApp">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.5 14.4c-.3-.15-1.75-.86-2.02-.96-.27-.1-.47-.15-.66.15-.2.29-.76.95-.93 1.15-.17.2-.34.22-.64.07-.3-.15-1.25-.46-2.38-1.47-.88-.78-1.47-1.75-1.64-2.05-.17-.3-.02-.45.13-.6.13-.13.3-.34.44-.51.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.08-.15-.66-1.6-.9-2.18-.24-.57-.48-.5-.66-.5h-.57c-.2 0-.52.07-.79.37-.27.29-1.04 1.01-1.04 2.47 0 1.46 1.07 2.86 1.22 3.06.15.2 2.1 3.2 5.08 4.49.71.3 1.26.49 1.69.62.71.23 1.36.2 1.87.12.57-.08 1.75-.71 2-1.4.25-.69.25-1.28.17-1.4-.07-.13-.27-.2-.57-.35M12 2.04A9.95 9.95 0 002.05 12a9.9 9.9 0 001.4 5.08L2 22l5.05-1.4A9.95 9.95 0 1012 2.04"/></svg>
             </button>
             <button class="card-act${cmpOn}" data-act="compare" data-id="${id}" aria-label="Compare" title="Compare">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 7h11M18 7l-3-3M18 7l-3 3"/><path d="M17 17H6M6 17l3-3M6 17l3 3"/></svg>
@@ -1351,12 +1619,14 @@
           ${zoneHtml}
           <div class="card-name">${name}</div>
           ${specs.length ? `<div class="card-specs">${specs.join('')}</div>` : ''}
+          ${trustHtml}
+          ${fitHtml}
           <div class="card-bottom">
             <div class="card-price-wrap">
               <div class="card-price">${price} <small>/month</small></div>
-              ${priceInsight(l)}
+              ${subHtml}
             </div>
-            ${matchHtml}
+            <div class="card-cta">View →</div>
           </div>
         </div>
       </article>`;
@@ -1416,6 +1686,7 @@
       const sortLabels = {'recommended':'Recommended','price-asc':'Price ↑','price-desc':'Price ↓','newest':'Newest','movein':'Move-in'};
       $('#fp-sort').textContent = sortLabels[STATE.sort];
       $('#fpill-sort').classList.toggle('is-active', STATE.sort !== 'recommended');
+      syncQuickChips();
     }
 
     /* ── ItemList JSON-LD — keep in sync with filtered list ─────── */
@@ -1488,32 +1759,43 @@
       if (!text || !text.trim()) return null;
       const s = text.toLowerCase().trim();
       const applied = {};
+      const consumed = new Set();   // words absorbed into structured filters
       let m;
       if ((m = s.match(/(\d+)\s*(?:bedroom|bedrooms|bed|beds|stanze|stanza|camere|camera|locali|locale)/))) applied.beds = Math.min(4, Math.max(1, parseInt(m[1],10)));
       else if (/monolocal|studio/.test(s)) applied.beds = 1;
       if ((m = s.match(/€?\s*(\d{3,5})\s*(?:to|-|–)\s*€?\s*(\d{3,5})/))) { applied.budgetMin = parseInt(m[1],10); applied.budgetMax = parseInt(m[2],10); }
       else {
         if ((m = s.match(/(?:under|sotto|max|below|<)\s*€?\s*(\d{3,5})/))) applied.budgetMax = parseInt(m[1],10);
-        if ((m = s.match(/(?:over|sopra|above|>|min)\s*€?\s*(\d{3,5})/))) applied.budgetMin = parseInt(m[1],10);
+        if ((m = s.match(/(?:over|sopra|above|>|min|from)\s*€?\s*(\d{3,5})/))) applied.budgetMin = parseInt(m[1],10);
       }
       if (window.BOOM) {
         const matched = [];
         for (const h of BOOM.allNeighborhoods()) {
-          if (h.terms.some(t => s.includes(t))) matched.push(h.slug);
+          for (const t of h.terms) {
+            if (s.includes(t)) { matched.push(h.slug); t.split(/\s+/).forEach(w => consumed.add(w)); }
+          }
         }
-        if (matched.length) applied.hoods = matched;
+        if (matched.length) applied.hoods = [...new Set(matched)];
       }
       const features = [];
       for (const [key, kws] of Object.entries(FEATURE_KEYWORDS)) {
-        if (kws.length && kws.some(kw => s.includes(kw))) features.push(key);
+        if (kws.length && kws.some(kw => s.includes(kw))) { features.push(key); kws.forEach(kw => kw.split(/\s+/).forEach(w => consumed.add(w))); }
       }
       if (features.length) applied.features = features;
+      // Residual = words that weren't absorbed by any filter, aren't stop-words,
+      // and aren't bare numbers. Only these stay as a literal text search.
+      applied._residual = s.split(/\s+/)
+        .map(w => w.replace(/[^a-zà-ù0-9]/gi, ''))
+        .filter(w => w.length > 2 && !/^\d+$/.test(w) && !STOPWORDS.has(w) && !consumed.has(w))
+        .join(' ');
       return applied;
     }
 
     function applyNLSearch(text) {
-      STATE.q = text.trim();
       const parsed = parseNL(text);
+      // Only genuinely-unmatched words remain as a literal text filter, so the
+      // structured intent ("under 2000", "in Trastevere") never zeroes results.
+      STATE.q = parsed ? (parsed._residual || '') : text.trim();
       if (parsed) {
         if (parsed.beds) STATE.filters.beds = parsed.beds;
         if (parsed.budgetMin) STATE.filters.budgetMin = Math.max(500, parsed.budgetMin);
@@ -1527,6 +1809,7 @@
         $$('.pop-option[data-hood]').forEach(o => o.classList.toggle('is-on', STATE.filters.hoods.has(o.dataset.hood)));
         $$('.pop-option[data-feat]').forEach(o => o.classList.toggle('is-on', STATE.filters.features.has(o.dataset.feat)));
       }
+      updateInterpretation(parsed);
       applyAndRender();
     }
 
@@ -1758,7 +2041,7 @@
       else if (w.startsWith('hood:')) { STATE.filters.hoods.delete(w.slice(5)); const o = $(`.pop-option[data-hood="${w.slice(5)}"]`); if(o) o.classList.remove('is-on'); }
       else if (w === 'beds') { STATE.filters.beds = 0; $('#popBedsV').textContent = 'Any'; }
       else if (w.startsWith('feat:')) { STATE.filters.features.delete(w.slice(5)); const o = $(`.pop-option[data-feat="${w.slice(5)}"]`); if(o) o.classList.remove('is-on'); }
-      else if (w === 'q') { STATE.q=''; $('#aptSearch').value=''; $('#aptSearchClear').hidden = true; }
+      else if (w === 'q') { STATE.q=''; $('#aptSearch').value=''; $('#aptSearchClear').hidden = true; updateInterpretation(null); }
       applyAndRender();
     });
     // Budget sliders
@@ -1788,6 +2071,17 @@
       const it = e.target.closest('.pop-sort-item'); if (!it) return;
       STATE.sort = it.dataset.sort;
       $$('.pop-sort-item').forEach(s => s.classList.toggle('is-on', s === it));
+      applyAndRender();
+    });
+    // Quick-intent chips — one tap toggles the matching filter
+    document.addEventListener('click', e => {
+      const qc = e.target.closest('.qchip'); if (!qc) return;
+      const k = qc.dataset.qk, v = qc.dataset.val, f = STATE.filters;
+      if (k === 'budget') { const target = Number(v); const on = (f.budgetMax === target && f.budgetMin === 500);
+        f.budgetMin = 500; f.budgetMax = on ? 4000 : target; $('#popBudgetMin').value = f.budgetMin; $('#popBudgetMax').value = f.budgetMax; updateBudgetUI(); }
+      else if (k === 'beds') { const target = Number(v); f.beds = (f.beds === target) ? 0 : target; $('#popBedsV').textContent = f.beds > 0 ? f.beds + (f.beds>=4?'+':'') : 'Any'; }
+      else if (k === 'feat') { f.features.has(v) ? f.features.delete(v) : f.features.add(v); const o = $(`.pop-option[data-feat="${v}"]`); if (o) o.classList.toggle('is-on', f.features.has(v)); }
+      else if (k === 'hood') { f.hoods.has(v) ? f.hoods.delete(v) : f.hoods.add(v); const o = $(`.pop-option[data-hood="${v}"]`); if (o) o.classList.toggle('is-on', f.hoods.has(v)); }
       applyAndRender();
     });
     // View toggle
@@ -1822,7 +2116,7 @@
       $('#aptSearchClear').hidden = !e.target.value;
       clearTimeout(searchT); searchT = setTimeout(() => applyNLSearch(e.target.value), 250);
     });
-    $('#aptSearchClear').addEventListener('click', () => { $('#aptSearch').value=''; $('#aptSearchClear').hidden = true; STATE.q=''; applyAndRender(); });
+    $('#aptSearchClear').addEventListener('click', () => { $('#aptSearch').value=''; $('#aptSearchClear').hidden = true; STATE.q=''; updateInterpretation(null); applyAndRender(); });
     $('#aptSearch').addEventListener('keydown', e => { if (e.key === 'Enter') applyNLSearch(e.target.value); });
     // ── Conversion tracking (GA4) ──────────────────────────────────
     function boomTrack(name, params) { try { if (typeof gtag === 'function') gtag('event', name, params || {}); } catch (e) {} }
@@ -1835,7 +2129,18 @@
       if (wa) boomTrack('generate_lead', { method: 'whatsapp', page_location: location.pathname });
     }, true);
     // Card click + actions delegated
+    function manualStop(ci){ if (ci && ci._timer) { clearInterval(ci._timer); ci._timer = null; ci.dataset.manual = '1'; } }
     document.addEventListener('click', e => {
+      // Carousel arrows
+      const nav = e.target.closest('.card-img-nav');
+      if (nav) { e.stopPropagation(); e.preventDefault();
+        const ci = nav.closest('.card-img'); if (ci) { manualStop(ci); showCardImage(ci, Number(ci.dataset.idx||0) + (nav.dataset.dir==='next'?1:-1)); }
+        return; }
+      // Carousel dots
+      const dot = e.target.closest('.card-img-dot');
+      if (dot) { e.stopPropagation(); e.preventDefault();
+        const ci = dot.closest('.card-img'); if (ci) { manualStop(ci); showCardImage(ci, [...ci.querySelectorAll('.card-img-dot')].indexOf(dot)); }
+        return; }
       const zoneLink = e.target.closest('.card-zone-link');
       if (zoneLink) { e.stopPropagation(); return; }
       const act = e.target.closest('.card-act');
@@ -1844,47 +2149,59 @@
         if (act.dataset.act === 'save') toggleSave(id);
         else if (act.dataset.act === 'compare') toggleCompare(id);
         else if (act.dataset.act === 'share') shareListing(id);
+        else if (act.dataset.act === 'wa') askWhatsApp(id);
         return; }
       const card = e.target.closest('article.card[data-href]');
-      if (card) { if (window.getSelection && window.getSelection().toString().length) return;
+      if (card) {
+        if (card._swiped && Date.now() - card._swiped < 450) { card._swiped = 0; return; }  // ignore the click that ends a swipe
+        if (window.getSelection && window.getSelection().toString().length) return;
         boomTrack('select_item', { items: [listingParams(card.dataset.id)] });
         window.location.href = card.getAttribute('data-href'); }
     });
+    // Touch swipe through card photos (mobile)
+    let _swX = null, _swY = null, _swCI = null;
+    document.addEventListener('touchstart', e => {
+      const ci = e.target.closest('.card-img[data-images]'); if (!ci) return;
+      const t = e.touches[0]; _swCI = ci; _swX = t.clientX; _swY = t.clientY;
+    }, { passive: true });
+    document.addEventListener('touchend', e => {
+      if (!_swCI || _swX == null) { _swCI = null; return; }
+      const t = e.changedTouches[0], dx = t.clientX - _swX, dy = t.clientY - _swY;
+      if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.4) {
+        let imgs; try { imgs = JSON.parse(_swCI.dataset.images); } catch { imgs = null; }
+        if (imgs && imgs.length > 1) {
+          manualStop(_swCI);
+          showCardImage(_swCI, Number(_swCI.dataset.idx||0) + (dx < 0 ? 1 : -1));
+          const card = _swCI.closest('.card'); if (card) card._swiped = Date.now();
+        }
+      }
+      _swCI = null; _swX = null; _swY = null;
+    }, { passive: true });
     document.addEventListener('keydown', e => {
       if (e.key !== 'Enter' && e.key !== ' ') return;
       const card = e.target.closest && e.target.closest('article.card[data-href]');
       if (card && card === document.activeElement) { e.preventDefault(); window.location.href = card.getAttribute('data-href'); }
     });
-    // Hover-cycle through card images
-    let cardImgTimer;
+    // Hover auto-preview through card photos (desktop). Manual nav pauses it.
     const REDUCE_MOTION = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     document.addEventListener('mouseover', e => {
       if (REDUCE_MOTION) return;
       const cardImg = e.target.closest('.card-img[data-images]');
-      if (!cardImg || cardImg.dataset.cycling) return;
+      if (!cardImg || cardImg.dataset.cycling || cardImg.dataset.manual) return;
       let images; try { images = JSON.parse(cardImg.dataset.images); } catch { return; }
       if (!images || images.length < 2) return;
       cardImg.dataset.cycling = '1';
-      const img = cardImg.querySelector('img'); const dots = cardImg.querySelectorAll('.card-img-dot');
-      // Preload all images once so the photo swap is instant and stays locked to the dot
-      if (!cardImg.dataset.preloaded) { images.forEach(src => { const p = new Image(); p.src = src; }); cardImg.dataset.preloaded = '1'; }
-      let i = 0;
-      cardImg._timer = setInterval(() => {
-        i = (i+1) % images.length;
-        img.src = images[i];
-        dots.forEach((d,di) => d.classList.toggle('active', di === i));
-      }, 850);
+      // Preload thumbnails once so the swap is instant
+      if (!cardImg.dataset.preloaded) { images.forEach(src => { const p = new Image(); p.src = cardSrc(src); }); cardImg.dataset.preloaded = '1'; }
+      cardImg._timer = setInterval(() => showCardImage(cardImg, Number(cardImg.dataset.idx||0) + 1), 1100);
     });
     document.addEventListener('mouseout', e => {
       const cardImg = e.target.closest('.card-img[data-images]');
-      if (!cardImg || !cardImg._timer) return;
-      // Only stop when leaving the card-img entirely
-      if (cardImg.contains(e.relatedTarget)) return;
-      clearInterval(cardImg._timer); cardImg._timer = null; delete cardImg.dataset.cycling;
-      let images; try { images = JSON.parse(cardImg.dataset.images); } catch { return; }
-      if (!images || !images.length) return;
-      const img = cardImg.querySelector('img'); const dots = cardImg.querySelectorAll('.card-img-dot');
-      img.src = images[0]; dots.forEach((d,di) => d.classList.toggle('active', di === 0));
+      if (!cardImg) return;
+      if (cardImg.contains(e.relatedTarget)) return;  // only when leaving the photo entirely
+      if (cardImg._timer) { clearInterval(cardImg._timer); cardImg._timer = null; }
+      delete cardImg.dataset.cycling; delete cardImg.dataset.manual;
+      showCardImage(cardImg, 0);
     });
     // Compare bar → open the side-by-side modal
     const CMP_FEATURES = [['terrace','Terrace / balcony'],['lift','Lift'],['furnished','Furnished'],['petfriendly','Pet-friendly'],['parking','Parking'],['airconditioning','Air conditioning'],['washer','Washing machine'],['dishwasher','Dishwasher'],['wifi','Wi-Fi'],['video','Video tour']];
@@ -1950,6 +2267,7 @@
       $('#popBedsV').textContent='Any';
       $$('.pop-option').forEach(o => o.classList.remove('is-on'));
       $$('.pop-sort-item').forEach(s => s.classList.toggle('is-on', s.dataset.sort === 'recommended'));
+      updateInterpretation(null);
       updateSavedPill();
       applyAndRender();
     });
