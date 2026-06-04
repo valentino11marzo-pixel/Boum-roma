@@ -1153,13 +1153,6 @@
 }
   </script>
 <!-- BOOM_JSONLD:END -->
-
-    <!-- Firebase SDK + BOOM Portal Core -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js" defer></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js" defer></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js" defer></script>
-    <script src="/js/firebase-config.js" defer></script>
-    <script src="/js/boom-portal.js" defer></script>
 </head>
 <body>
     <!-- Mobile Menu Button -->
@@ -1445,163 +1438,81 @@
 
     <script>
         // ========================================
-        // BOOM OWNER DASHBOARD — Firestore-backed
-        // Realtime sync on `properties` filtered by ownerId.
-        // Auto-migrates legacy localStorage data on first auth.
+        // 🚀 BOOM OWNER DASHBOARD - CORE SYSTEM
         // ========================================
 
+        // Initialize App State
         let properties = [];
         let currentFilter = 'all';
         let searchQuery = '';
-        let currentOwner = null;
-        let unsubscribeListener = null;
 
-        // ─── Boot ─────────────────────────────────────────────────────
-        document.addEventListener('DOMContentLoaded', async () => {
-            BoomPortal.registerServiceWorker();
+        // Load data from localStorage on startup
+        function initializeApp() {
+            loadProperties();
             setupEventListeners();
+            updateUI();
             checkMobileView();
-            BoomPortal.showLoader('Signing in');
-            try {
-                const { user, profile } = await BoomPortal.requireAuth(['owner', 'landlord', 'admin'], { loginUrl: '/login.html' });
-                currentOwner = { uid: user.uid, profile };
-                document.getElementById('ownerName').textContent = profile.name || profile.email || 'Your Properties';
-                await migrateLegacyData(user.uid);
-                attachListener(user.uid);
-            } catch (err) {
-                // requireAuth already toasts + redirects; just keep the loader visible during redirect
-                console.warn('Auth failed:', err && err.message);
-            }
-        });
-
-        window.addEventListener('resize', checkMobileView);
-
-        // ─── Listener (Firestore realtime) ────────────────────────────
-        function attachListener(uid) {
-            if (unsubscribeListener) unsubscribeListener();
-            const query = db.collection('properties').where('ownerId', '==', uid);
-            let firstSnap = true;
-            unsubscribeListener = BoomPortal.listen(query, (snap) => {
-                properties = snap.docs.map((d) => normalizeProperty(d.id, d.data()));
-                // Stable order: newest first by createdAt fallback updatedAt
-                properties.sort((a, b) => {
-                    const ta = toMillis(a.createdAt) || 0;
-                    const tb = toMillis(b.createdAt) || 0;
-                    return tb - ta;
-                });
-                if (firstSnap) {
-                    BoomPortal.hideLoader();
-                    firstSnap = false;
-                }
-                updateUI();
-            }, (err) => {
-                BoomPortal.hideLoader();
-                BoomPortal.showError('Could not sync properties: ' + (err && err.message || err));
-            });
         }
 
-        // Schema normalization (admin uses `bedrooms`, legacy localStorage used `beds`)
-        function normalizeProperty(id, d) {
-            return {
-                id,
-                name: d.name || '',
-                address: d.address || '',
-                bedrooms: d.bedrooms != null ? d.bedrooms : (d.beds || 0),
-                size: d.size || 0,
-                price: parseFloat(d.price) || 0,
-                status: d.status === 'occupied' ? 'occupied' : 'vacant',
-                tenant: d.tenant || '',
-                description: d.description || '',
-                createdAt: d.createdAt || null,
-                updatedAt: d.updatedAt || null
-            };
-        }
-
-        function toMillis(ts) {
-            if (!ts) return 0;
-            if (typeof ts.toMillis === 'function') return ts.toMillis();
-            if (typeof ts === 'string') return new Date(ts).getTime();
-            if (typeof ts === 'number') return ts;
-            return 0;
-        }
-
-        // ─── Legacy data migration (localStorage → Firestore) ─────────
-        async function migrateLegacyData(uid) {
-            const flag = 'boomOwnerPropertiesMigrated';
-            if (localStorage.getItem(flag) === 'true') return;
+        // Load properties from localStorage
+        function loadProperties() {
             const stored = localStorage.getItem('boomOwnerProperties');
-            if (!stored) {
-                localStorage.setItem(flag, 'true');
-                return;
-            }
-            let legacy = [];
-            try { legacy = JSON.parse(stored); } catch (_) { legacy = []; }
-            if (!Array.isArray(legacy) || legacy.length === 0) {
-                localStorage.setItem(flag, 'true');
-                return;
-            }
-            BoomPortal.showLoader('Migrating ' + legacy.length + ' legacy ' + (legacy.length === 1 ? 'property' : 'properties'));
-            try {
-                const batch = db.batch();
-                legacy.forEach((p) => {
-                    const id = p.id || db.collection('properties').doc().id;
-                    const ref = db.collection('properties').doc(id);
-                    batch.set(ref, {
-                        ownerId: uid,
-                        name: p.name || '',
-                        address: p.address || '',
-                        bedrooms: parseInt(p.beds || p.bedrooms || 0, 10) || 0,
-                        size: parseInt(p.size || 0, 10) || 0,
-                        price: parseFloat(p.price) || 0,
-                        status: p.status === 'occupied' ? 'occupied' : 'vacant',
-                        tenant: p.tenant || '',
-                        description: p.description || '',
-                        createdAt: p.createdAt || new Date().toISOString(),
-                        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                        migratedFromLocal: true,
-                        migratedAt: firebase.firestore.FieldValue.serverTimestamp()
-                    }, { merge: true });
-                });
-                await batch.commit();
-                localStorage.setItem(flag, 'true');
-                // Preserve legacy blob under a backup key (don't delete — recoverable for 30+ days)
-                localStorage.setItem('boomOwnerPropertiesBackup', stored);
-                BoomPortal.toast('Migrated ' + legacy.length + ' propert' + (legacy.length === 1 ? 'y' : 'ies') + ' to cloud sync', { type: 'success', duration: 5000 });
-            } catch (e) {
-                console.error('Migration error:', e);
-                BoomPortal.showError('Migration failed — your local data is safe. Retry on next reload.');
-                throw e;
+            if (stored) {
+                try {
+                    properties = JSON.parse(stored);
+                } catch (e) {
+                    console.error('Failed to load properties:', e);
+                    properties = [];
+                }
             }
         }
 
-        // ─── Event listeners (DOM) ────────────────────────────────────
+        // Save properties to localStorage
+        function saveToStorage() {
+            try {
+                localStorage.setItem('boomOwnerProperties', JSON.stringify(properties));
+            } catch (e) {
+                console.error('Failed to save properties:', e);
+                showNotification('Error saving data', 'error');
+            }
+        }
+
+        // Setup Event Listeners
         function setupEventListeners() {
+            // Search input
             document.getElementById('searchInput').addEventListener('input', (e) => {
                 searchQuery = e.target.value.toLowerCase();
                 renderProperties();
             });
 
-            document.querySelectorAll('.filter-btn').forEach((btn) => {
-                btn.addEventListener('click', () => {
+            // Filter buttons
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
                     currentFilter = btn.dataset.filter;
-                    document.querySelectorAll('.filter-btn').forEach((b) => b.classList.remove('active'));
+                    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
                     btn.classList.add('active');
                     renderProperties();
                 });
             });
 
-            document.querySelectorAll('.nav-link[data-view]').forEach((link) => {
+            // Navigation links
+            document.querySelectorAll('.nav-link[data-view]').forEach(link => {
                 link.addEventListener('click', (e) => {
                     e.preventDefault();
-                    document.querySelectorAll('.nav-link').forEach((l) => l.classList.remove('active'));
+                    document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
                     link.classList.add('active');
+                    // You can add different views here later
                 });
             });
 
+            // Modal outside click
             document.getElementById('propertyModal').addEventListener('click', (e) => {
-                if (e.target.id === 'propertyModal') closePropertyModal();
+                if (e.target.id === 'propertyModal') {
+                    closePropertyModal();
+                }
             });
 
+            // Keyboard shortcuts
             document.addEventListener('keydown', (e) => {
                 if (e.key === 'Escape') closePropertyModal();
                 if (e.key === 'n' && (e.metaKey || e.ctrlKey)) {
@@ -1610,11 +1521,17 @@
                 }
             });
 
+            // Mobile menu
             const mobileBtn = document.getElementById('mobileMenuBtn');
-            if (mobileBtn) mobileBtn.addEventListener('click', toggleMobileMenu);
+            if (mobileBtn) {
+                mobileBtn.addEventListener('click', toggleMobileMenu);
+            }
         }
 
-        // ─── UI update ────────────────────────────────────────────────
+        // ========================================
+        // 📊 UPDATE UI COMPONENTS
+        // ========================================
+
         function updateUI() {
             updateStatistics();
             updateFilterCounts();
@@ -1623,45 +1540,69 @@
 
         function updateStatistics() {
             const total = properties.length;
-            const occupied = properties.filter((p) => p.status === 'occupied').length;
+            const occupied = properties.filter(p => p.status === 'occupied').length;
             const vacant = total - occupied;
+            
             const monthlyRevenue = properties
-                .filter((p) => p.status === 'occupied')
-                .reduce((sum, p) => sum + (parseFloat(p.price) || 0), 0);
+                .filter(p => p.status === 'occupied')
+                .reduce((sum, p) => sum + parseFloat(p.price), 0);
+            
             const annualRevenue = monthlyRevenue * 12;
             const occupancyRate = total > 0 ? Math.round((occupied / total) * 100) : 0;
 
-            document.getElementById('statMonthlyRevenue').textContent = '€' + monthlyRevenue.toLocaleString();
-            document.getElementById('statAnnualRevenue').textContent = '€' + annualRevenue.toLocaleString();
+            // Update stat cards
+            document.getElementById('statMonthlyRevenue').textContent = `€${monthlyRevenue.toLocaleString()}`;
+            document.getElementById('statAnnualRevenue').textContent = `€${annualRevenue.toLocaleString()}`;
             document.getElementById('statTotalProperties').textContent = total;
-            document.getElementById('statOccupancyRate').textContent = occupancyRate + '%';
-            document.getElementById('statOccupancyDesc').textContent = occupied + ' occupied, ' + vacant + ' vacant';
+            document.getElementById('statOccupancyRate').textContent = `${occupancyRate}%`;
+            document.getElementById('statOccupancyDesc').textContent = `${occupied} occupied, ${vacant} vacant`;
+            
+            // Update nav badge
             document.getElementById('propertiesCount').textContent = total;
         }
 
         function updateFilterCounts() {
             const total = properties.length;
-            const occupied = properties.filter((p) => p.status === 'occupied').length;
+            const occupied = properties.filter(p => p.status === 'occupied').length;
             const vacant = total - occupied;
+
             document.getElementById('filterCountAll').textContent = total;
             document.getElementById('filterCountOccupied').textContent = occupied;
             document.getElementById('filterCountVacant').textContent = vacant;
         }
 
+        // ========================================
+        // 🏠 RENDER PROPERTIES
+        // ========================================
+
         function renderProperties() {
             const grid = document.getElementById('propertiesGrid');
             const emptyState = document.getElementById('emptyState');
-            const esc = BoomPortal.escapeHtml;
-
-            const filtered = properties.filter((property) => {
-                if (currentFilter !== 'all' && property.status !== currentFilter) return false;
-                if (searchQuery) {
-                    const hay = [property.name, property.address, property.tenant || ''].join(' ').toLowerCase();
-                    if (!hay.includes(searchQuery)) return false;
+            
+            // Filter properties
+            let filtered = properties.filter(property => {
+                // Filter by status
+                if (currentFilter !== 'all' && property.status !== currentFilter) {
+                    return false;
                 }
+                
+                // Filter by search query
+                if (searchQuery) {
+                    const searchableText = [
+                        property.name,
+                        property.address,
+                        property.tenant || ''
+                    ].join(' ').toLowerCase();
+                    
+                    if (!searchableText.includes(searchQuery)) {
+                        return false;
+                    }
+                }
+                
                 return true;
             });
 
+            // Show empty state or grid
             if (filtered.length === 0) {
                 grid.style.display = 'none';
                 emptyState.classList.add('active');
@@ -1671,37 +1612,68 @@
             emptyState.classList.remove('active');
             grid.style.display = 'grid';
 
-            grid.innerHTML = filtered.map((property) => {
-                const statusClass = property.status === 'occupied' ? 'status-occupied' : 'status-vacant';
-                const statusLabel = property.status === 'occupied' ? '✓ Occupied' : '○ Vacant';
-                const beds = property.bedrooms;
-                return '' +
-                    '<div class="property-card">' +
-                        '<div class="property-image-container">' +
-                            '<div class="property-image-placeholder">🏠</div>' +
-                            '<div class="property-status-badge ' + statusClass + '">' + statusLabel + '</div>' +
-                        '</div>' +
-                        '<div class="property-content">' +
-                            '<h3 class="property-title">' + esc(property.name) + '</h3>' +
-                            '<div class="property-address">📍 ' + esc(property.address) + '</div>' +
-                            '<div class="property-stats">' +
-                                (beds ? '<div class="property-stat"><div class="stat-label-small">Bedrooms</div><div class="stat-value-small">🛏️ ' + esc(beds) + '</div></div>' : '') +
-                                (property.size ? '<div class="property-stat"><div class="stat-label-small">Size</div><div class="stat-value-small">📏 ' + esc(property.size) + 'm²</div></div>' : '') +
-                                '<div class="property-stat"><div class="stat-label-small">Monthly Rent</div><div class="stat-value-small">💰 €' + (parseFloat(property.price) || 0).toLocaleString() + '</div></div>' +
-                            '</div>' +
-                            (property.tenant && property.status === 'occupied'
-                                ? '<div class="property-tenant"><div class="tenant-avatar">' + esc(property.tenant.charAt(0).toUpperCase()) + '</div><div class="tenant-info"><div class="tenant-label">Current Tenant</div><div class="tenant-name">' + esc(property.tenant) + '</div></div></div>'
-                                : '') +
-                            '<div class="property-actions">' +
-                                '<button class="btn-action" onclick="editProperty(\'' + esc(property.id) + '\')">✏️ Edit</button>' +
-                                '<button class="btn-action danger" onclick="deleteProperty(\'' + esc(property.id) + '\')">🗑️ Delete</button>' +
-                            '</div>' +
-                        '</div>' +
-                    '</div>';
-            }).join('');
+            // Render property cards
+            grid.innerHTML = filtered.map(property => `
+                <div class="property-card">
+                    <div class="property-image-container">
+                        <div class="property-image-placeholder">🏠</div>
+                        <div class="property-status-badge ${property.status === 'occupied' ? 'status-occupied' : 'status-vacant'}">
+                            ${property.status === 'occupied' ? '✓ Occupied' : '○ Vacant'}
+                        </div>
+                    </div>
+                    
+                    <div class="property-content">
+                        <h3 class="property-title">${property.name}</h3>
+                        <div class="property-address">
+                            📍 ${property.address}
+                        </div>
+
+                        <div class="property-stats">
+                            ${property.beds ? `
+                                <div class="property-stat">
+                                    <div class="stat-label-small">Bedrooms</div>
+                                    <div class="stat-value-small">🛏️ ${property.beds}</div>
+                                </div>
+                            ` : ''}
+                            ${property.size ? `
+                                <div class="property-stat">
+                                    <div class="stat-label-small">Size</div>
+                                    <div class="stat-value-small">📏 ${property.size}m²</div>
+                                </div>
+                            ` : ''}
+                            <div class="property-stat">
+                                <div class="stat-label-small">Monthly Rent</div>
+                                <div class="stat-value-small">💰 €${parseFloat(property.price).toLocaleString()}</div>
+                            </div>
+                        </div>
+
+                        ${property.tenant && property.status === 'occupied' ? `
+                            <div class="property-tenant">
+                                <div class="tenant-avatar">${property.tenant.charAt(0).toUpperCase()}</div>
+                                <div class="tenant-info">
+                                    <div class="tenant-label">Current Tenant</div>
+                                    <div class="tenant-name">${property.tenant}</div>
+                                </div>
+                            </div>
+                        ` : ''}
+
+                        <div class="property-actions">
+                            <button class="btn-action" onclick="editProperty('${property.id}')">
+                                ✏️ Edit
+                            </button>
+                            <button class="btn-action danger" onclick="deleteProperty('${property.id}')">
+                                🗑️ Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
         }
 
-        // ─── CRUD (Firestore) ─────────────────────────────────────────
+        // ========================================
+        // ✨ PROPERTY CRUD OPERATIONS
+        // ========================================
+
         function openAddPropertyModal() {
             document.getElementById('modalTitle').textContent = 'Add Property';
             document.getElementById('propertyForm').reset();
@@ -1710,94 +1682,110 @@
         }
 
         function editProperty(id) {
-            const property = properties.find((p) => p.id === id);
+            const property = properties.find(p => p.id === id);
             if (!property) return;
+
             document.getElementById('modalTitle').textContent = 'Edit Property';
             document.getElementById('propertyId').value = property.id;
             document.getElementById('propertyName').value = property.name;
             document.getElementById('propertyAddress').value = property.address;
-            document.getElementById('propertyBeds').value = property.bedrooms || '';
+            document.getElementById('propertyBeds').value = property.beds || '';
             document.getElementById('propertySize').value = property.size || '';
             document.getElementById('propertyPrice').value = property.price;
             document.getElementById('propertyStatus').value = property.status;
             document.getElementById('propertyTenant').value = property.tenant || '';
             document.getElementById('propertyDescription').value = property.description || '';
+
             document.getElementById('propertyModal').classList.add('active');
         }
 
-        async function saveProperty(event) {
+        function saveProperty(event) {
             event.preventDefault();
-            if (!currentOwner) {
-                BoomPortal.showError('Not authenticated');
-                return;
-            }
-            const submitBtn = event.target.querySelector('button[type="submit"]');
-            const originalText = submitBtn ? submitBtn.innerHTML : '';
-            if (submitBtn) { submitBtn.disabled = true; submitBtn.innerHTML = '<span class="loading"></span> Saving'; }
 
-            const id = document.getElementById('propertyId').value;
-            const payload = {
-                ownerId: currentOwner.uid,
+            const id = document.getElementById('propertyId').value || generateId();
+            const property = {
+                id: id,
                 name: document.getElementById('propertyName').value.trim(),
                 address: document.getElementById('propertyAddress').value.trim(),
-                bedrooms: parseInt(document.getElementById('propertyBeds').value, 10) || 0,
-                size: parseInt(document.getElementById('propertySize').value, 10) || 0,
-                price: parseFloat(document.getElementById('propertyPrice').value) || 0,
+                beds: document.getElementById('propertyBeds').value || 0,
+                size: document.getElementById('propertySize').value || 0,
+                price: parseFloat(document.getElementById('propertyPrice').value),
                 status: document.getElementById('propertyStatus').value,
                 tenant: document.getElementById('propertyTenant').value.trim(),
                 description: document.getElementById('propertyDescription').value.trim(),
-                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                createdAt: properties.find(p => p.id === id)?.createdAt || new Date().toISOString(),
+                updatedAt: new Date().toISOString()
             };
 
-            try {
-                if (id) {
-                    await db.collection('properties').doc(id).update(payload);
-                    BoomPortal.toast('Property updated');
-                } else {
-                    payload.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-                    await db.collection('properties').add(payload);
-                    BoomPortal.toast('Property added');
-                }
-                closePropertyModal();
-            } catch (e) {
-                console.error('Save error:', e);
-                BoomPortal.showError('Save failed: ' + (e.message || e));
-            } finally {
-                if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = originalText; }
+            const existingIndex = properties.findIndex(p => p.id === id);
+            if (existingIndex !== -1) {
+                properties[existingIndex] = property;
+                showNotification('Property updated successfully', 'success');
+            } else {
+                properties.push(property);
+                showNotification('Property added successfully', 'success');
             }
+
+            saveToStorage();
+            closePropertyModal();
+            updateUI();
         }
 
-        async function deleteProperty(id) {
-            const property = properties.find((p) => p.id === id);
+        function deleteProperty(id) {
+            const property = properties.find(p => p.id === id);
             if (!property) return;
-            const ok = await BoomPortal.confirm(
-                'Delete "' + property.name + '"?\nThis cannot be undone.',
-                { title: 'Delete property', confirmLabel: 'Delete', danger: true }
-            );
-            if (!ok) return;
-            try {
-                await db.collection('properties').doc(id).delete();
-                BoomPortal.toast('Property deleted');
-            } catch (e) {
-                BoomPortal.showError('Delete failed: ' + (e.message || e));
+
+            if (!confirm(`Are you sure you want to delete "${property.name}"?\n\nThis action cannot be undone.`)) {
+                return;
             }
+
+            properties = properties.filter(p => p.id !== id);
+            saveToStorage();
+            updateUI();
+            showNotification('Property deleted successfully', 'success');
         }
 
         function closePropertyModal() {
             document.getElementById('propertyModal').classList.remove('active');
         }
 
-        // ─── Utilities ────────────────────────────────────────────────
+        // ========================================
+        // 🔧 UTILITY FUNCTIONS
+        // ========================================
+
+        function generateId() {
+            return 'prop_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        }
+
+        function showNotification(message, type = 'success') {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.innerHTML = `
+                <div class="notification-icon">${type === 'success' ? '✓' : '✕'}</div>
+                <div class="notification-content">
+                    <div class="notification-title">${type === 'success' ? 'Success' : 'Error'}</div>
+                    <div class="notification-message">${message}</div>
+                </div>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.animation = 'slideInRight 0.3s ease reverse';
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+
         function exportData() {
             const dataStr = JSON.stringify(properties, null, 2);
-            const blob = new Blob([dataStr], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
             const link = document.createElement('a');
             link.href = url;
-            link.download = 'boom-properties-' + new Date().toISOString().split('T')[0] + '.json';
+            link.download = `boom-properties-${new Date().toISOString().split('T')[0]}.json`;
             link.click();
             URL.revokeObjectURL(url);
-            BoomPortal.toast('Export complete');
+            showNotification('Data exported successfully', 'success');
         }
 
         function toggleMobileMenu() {
@@ -1806,23 +1794,32 @@
 
         function checkMobileView() {
             const mobileBtn = document.getElementById('mobileMenuBtn');
-            if (!mobileBtn) return;
             if (window.innerWidth <= 1024) {
                 mobileBtn.style.display = 'flex';
             } else {
                 mobileBtn.style.display = 'none';
-                const sb = document.getElementById('sidebar');
-                if (sb) sb.classList.remove('mobile-open');
+                document.getElementById('sidebar').classList.remove('mobile-open');
             }
         }
 
-        // Expose for inline onclick handlers
-        window.openAddPropertyModal = openAddPropertyModal;
-        window.editProperty = editProperty;
-        window.deleteProperty = deleteProperty;
-        window.saveProperty = saveProperty;
-        window.closePropertyModal = closePropertyModal;
-        window.exportData = exportData;
+        // ========================================
+        // 🎯 INITIALIZE APP
+        // ========================================
+
+        document.addEventListener('DOMContentLoaded', initializeApp);
+        window.addEventListener('resize', checkMobileView);
+
+        // Prevent accidental data loss
+        window.addEventListener('beforeunload', (e) => {
+            if (properties.length > 0) {
+                saveToStorage();
+            }
+        });
+
+        console.log('🚀 BOOM Owner Dashboard Loaded');
+        console.log('💡 Keyboard Shortcuts:');
+        console.log('   - Cmd/Ctrl + N: Add new property');
+        console.log('   - Escape: Close modal');
     </script>
 </body>
 </html>

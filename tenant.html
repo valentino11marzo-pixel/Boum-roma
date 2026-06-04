@@ -355,11 +355,6 @@
                         <div class="document-item"><div class="document-icon">📋</div><div class="document-info"><h4>House Rules</h4><span>Building guidelines</span></div></div>
                         <div class="document-item"><div class="document-icon">✓</div><div class="document-info"><h4>Inventory</h4><span>Move-in checklist</span></div></div>
                     </div>
-
-                    <h3 class="section-title" style="margin-top:30px">Your Requests</h3>
-                    <div class="documents-list" id="requestsList">
-                        <div class="document-item" style="opacity:0.55"><div class="document-icon">⏳</div><div class="document-info"><h4>Loading…</h4><span>Fetching your maintenance history</span></div></div>
-                    </div>
                 </div>
 
                 <div class="side-column">
@@ -420,165 +415,76 @@
         </div>
     </div>
 
-    <script src="/js/firebase-config.js"></script>
-    <script src="/js/boom-portal.js"></script>
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="js/firebase-config.js"></script>
     <script>
         let currentUser = null;
         let tenantProperty = null;
-        let unsubscribeProperty = null;
-        let unsubscribeMaintenance = null;
 
-        const CATEGORY_ICONS = {
-            plumbing: '🚿', electrical: '⚡', heating: '🔥',
-            appliances: '🍳', locks: '🔒', other: '🛠'
-        };
-        const STATUS_STYLES = {
-            pending:       { color: '#FFD700', label: 'Pending' },
-            in_progress:   { color: '#00CED1', label: 'In progress' },
-            'in-progress': { color: '#00CED1', label: 'In progress' },
-            scheduled:     { color: '#4A90E2', label: 'Scheduled' },
-            resolved:      { color: '#00FF88', label: 'Resolved' },
-            closed:        { color: '#666666', label: 'Closed' }
-        };
+        auth.onAuthStateChanged(async (user) => {
+            if (!user) { window.location.href = 'login.html'; return; }
+            const doc = await db.collection('users').doc(user.uid).get();
+            if (!doc.exists || doc.data().role !== 'tenant') { window.location.href = 'login.html'; return; }
 
-        BoomPortal.registerServiceWorker();
-        BoomPortal.showLoader('Signing in');
+            currentUser = { id: user.uid, ...doc.data() };
+            document.getElementById('userName').textContent = currentUser.name || 'Tenant';
+            document.getElementById('welcomeName').textContent = (currentUser.name || 'Tenant').split(' ')[0];
+            document.getElementById('userAvatar').textContent = (currentUser.name || 'T')[0].toUpperCase();
+            await loadProperty();
+        });
 
-        BoomPortal.requireAuth('tenant', { loginUrl: 'login.html' })
-            .then(({ user, profile }) => {
-                currentUser = profile;
-                document.getElementById('userName').textContent = profile.name || 'Tenant';
-                document.getElementById('welcomeName').textContent = (profile.name || 'Tenant').split(' ')[0];
-                document.getElementById('userAvatar').textContent = (profile.name || 'T')[0].toUpperCase();
-                listenProperty();
-                listenMaintenance(profile.id);
-            })
-            .catch(() => { /* requireAuth already handles redirect/toast */ });
-
-        function listenProperty() {
+        async function loadProperty() {
             if (!currentUser.propertyId) {
-                BoomPortal.hideLoader();
                 document.getElementById('propertyName').textContent = 'No property assigned';
                 document.getElementById('propertyAddress').textContent = 'Contact BOOM';
                 return;
             }
-            const ref = db.collection('properties').doc(currentUser.propertyId);
-            unsubscribeProperty = BoomPortal.listen(ref, (doc) => {
-                BoomPortal.hideLoader();
-                if (!doc.exists) {
-                    document.getElementById('propertyName').textContent = 'Property not found';
-                    document.getElementById('propertyAddress').textContent = 'Contact BOOM';
-                    return;
-                }
-                tenantProperty = { id: doc.id, ...doc.data() };
-                document.getElementById('propertyName').textContent = tenantProperty.name || 'Your home';
-                document.getElementById('propertyAddress').textContent = tenantProperty.zone || tenantProperty.address || 'Rome';
-                document.getElementById('propertyBedrooms').textContent = tenantProperty.bedrooms || '-';
-                document.getElementById('propertyBathrooms').textContent = tenantProperty.bathrooms || '-';
-                document.getElementById('propertySize').textContent = tenantProperty.size || '-';
-                document.getElementById('rentAmount').textContent = '€' + (parseFloat(tenantProperty.price) || 0).toLocaleString();
-                if (tenantProperty.image) document.getElementById('propertyImage').src = tenantProperty.image;
-            }, (err) => {
-                BoomPortal.hideLoader();
-                BoomPortal.showError('Could not load property: ' + (err.message || err));
-            });
+            const doc = await db.collection('properties').doc(currentUser.propertyId).get();
+            if (!doc.exists) return;
+
+            tenantProperty = { id: doc.id, ...doc.data() };
+            document.getElementById('propertyName').textContent = tenantProperty.name;
+            document.getElementById('propertyAddress').textContent = tenantProperty.zone || 'Rome';
+            document.getElementById('propertyBedrooms').textContent = tenantProperty.bedrooms || '-';
+            document.getElementById('propertyBathrooms').textContent = tenantProperty.bathrooms || '-';
+            document.getElementById('propertySize').textContent = tenantProperty.size || '-';
+            document.getElementById('rentAmount').textContent = '€' + (tenantProperty.price || 0).toLocaleString();
+            if (tenantProperty.image) document.getElementById('propertyImage').src = tenantProperty.image;
         }
 
-        function listenMaintenance(uid) {
-            if (unsubscribeMaintenance) unsubscribeMaintenance();
-            // Avoid composite index requirement by sorting client-side
-            const query = db.collection('maintenance').where('tenantId', '==', uid).limit(50);
-            unsubscribeMaintenance = BoomPortal.listen(query, (snap) => {
-                const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-                items.sort((a, b) => {
-                    const ta = a.createdAt && typeof a.createdAt.toMillis === 'function' ? a.createdAt.toMillis() : 0;
-                    const tb = b.createdAt && typeof b.createdAt.toMillis === 'function' ? b.createdAt.toMillis() : 0;
-                    return tb - ta;
-                });
-                renderRequests(items);
-            }, (err) => {
-                console.warn('Maintenance listener error:', err && err.message);
-                const list = document.getElementById('requestsList');
-                if (list) list.innerHTML = '<div class="document-item" style="opacity:0.55"><div class="document-icon">⚠</div><div class="document-info"><h4>Could not load requests</h4><span>Pull to refresh or contact support</span></div></div>';
-            });
-        }
-
-        function renderRequests(items) {
-            const list = document.getElementById('requestsList');
-            if (!list) return;
-            if (!items.length) {
-                list.innerHTML = '<div class="document-item" style="opacity:0.6;cursor:default"><div class="document-icon">💭</div><div class="document-info"><h4>No requests yet</h4><span>Use "Report Issue" if something needs fixing</span></div></div>';
-                return;
-            }
-            const esc = BoomPortal.escapeHtml;
-            list.innerHTML = items.map((r) => {
-                const status = STATUS_STYLES[r.status] || STATUS_STYLES.pending;
-                const icon = CATEGORY_ICONS[r.category] || '🛠';
-                const date = r.createdAt && typeof r.createdAt.toDate === 'function'
-                    ? r.createdAt.toDate().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
-                    : '';
-                const cat = (r.category || 'other').replace(/^./, (c) => c.toUpperCase());
-                const desc = (r.description || '');
-                const descTrim = desc.length > 70 ? desc.slice(0, 70) + '…' : desc;
-                return '<div class="document-item" style="cursor:default">' +
-                    '<div class="document-icon">' + icon + '</div>' +
-                    '<div class="document-info" style="flex:1;min-width:0">' +
-                        '<h4 style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">' +
-                            '<span>' + esc(cat) + '</span>' +
-                            '<span style="font-size:9px;font-weight:500;letter-spacing:1.5px;text-transform:uppercase;padding:2px 7px;background:' + status.color + '22;color:' + status.color + ';border:1px solid ' + status.color + '55">' + esc(status.label) + '</span>' +
-                            (date ? '<span style="font-size:10px;color:var(--text-fade);font-weight:300;letter-spacing:1px">' + esc(date) + '</span>' : '') +
-                        '</h4>' +
-                        (descTrim ? '<span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block">' + esc(descTrim) + '</span>' : '') +
-                    '</div>' +
-                '</div>';
-            }).join('');
-        }
-
-        function openMaintenanceModal() {
-            document.getElementById('maintenanceForm').reset();
-            document.getElementById('maintenanceModal').classList.add('active');
-        }
-        function closeMaintenanceModal() {
-            document.getElementById('maintenanceModal').classList.remove('active');
-        }
+        function openMaintenanceModal() { document.getElementById('maintenanceForm').reset(); document.getElementById('maintenanceModal').classList.add('active'); }
+        function closeMaintenanceModal() { document.getElementById('maintenanceModal').classList.remove('active'); }
 
         async function submitMaintenance() {
             const category = document.getElementById('issueCategory').value;
             const priority = document.getElementById('issuePriority').value;
-            const description = document.getElementById('issueDescription').value.trim();
-            if (!category || !description) {
-                BoomPortal.toast('Please fill category and description', { type: 'warning' });
-                return;
-            }
-
-            const btn = document.querySelector('#maintenanceModal .btn-primary');
-            const original = btn ? btn.textContent : '';
-            if (btn) { btn.disabled = true; btn.textContent = 'Submitting…'; }
+            const description = document.getElementById('issueDescription').value;
+            if (!category || !description) { toast('Fill all fields', 'error'); return; }
 
             try {
                 await db.collection('maintenance').add({
                     tenantId: currentUser.id,
-                    tenantName: currentUser.name || null,
-                    propertyId: currentUser.propertyId || null,
-                    propertyName: (tenantProperty && tenantProperty.name) || 'Unknown',
-                    category: category,
-                    priority: priority,
-                    description: description,
+                    tenantName: currentUser.name,
+                    propertyId: currentUser.propertyId,
+                    propertyName: tenantProperty?.name || 'Unknown',
+                    category, priority, description,
                     status: 'pending',
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
-                BoomPortal.toast('Request submitted — we\'ll get back to you shortly', { type: 'success' });
+                toast('Request submitted!', 'success');
                 closeMaintenanceModal();
-            } catch (error) {
-                BoomPortal.showError('Could not submit request: ' + (error.message || error));
-            } finally {
-                if (btn) { btn.disabled = false; btn.textContent = original; }
-            }
+            } catch (error) { toast('Error submitting', 'error'); }
         }
 
-        window.openMaintenanceModal = openMaintenanceModal;
-        window.closeMaintenanceModal = closeMaintenanceModal;
-        window.submitMaintenance = submitMaintenance;
+        function toast(message, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            const t = document.createElement('div');
+            t.className = `toast ${type}`;
+            t.innerHTML = `<span>${type === 'success' ? '✓' : '✕'}</span> ${message}`;
+            container.appendChild(t);
+            setTimeout(() => t.remove(), 3000);
+        }
     </script>
 </body>
 </html>
