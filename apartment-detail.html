@@ -182,6 +182,28 @@
         .video-embed{border-radius:16px;overflow:hidden;border:1px solid rgba(255,255,255,0.06)}
         .video-embed iframe{width:100%;height:450px;border:none;display:block}
 
+        /* ===== VERIFIED BY BOOM — trust band (the differentiator) ===== */
+        .trust-band{max-width:1400px;margin:0 auto 50px;padding:0 50px}
+        .trust-band-inner{border:1px solid rgba(255,215,0,0.14);border-radius:20px;background:linear-gradient(135deg,rgba(255,215,0,0.05),rgba(255,255,255,0.015));padding:26px 30px}
+        .trust-band-head{display:flex;align-items:center;gap:14px;margin-bottom:20px;flex-wrap:wrap}
+        .trust-band-seal{display:inline-flex;align-items:center;gap:8px;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--gold);font-weight:600;white-space:nowrap}
+        .trust-band-seal svg{width:16px;height:16px}
+        .trust-band-sub{font-size:12.5px;color:var(--text-secondary);line-height:1.4}
+        .trust-pillars{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:14px}
+        .trust-pillar{display:flex;flex-direction:column;gap:8px;padding:15px 15px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:12px;transition:border-color .3s,transform .3s,background .3s}
+        .trust-pillar:hover{border-color:rgba(255,215,0,0.25);background:rgba(255,215,0,0.03);transform:translateY(-2px)}
+        .trust-pillar-ico{width:34px;height:34px;display:flex;align-items:center;justify-content:center;background:rgba(255,215,0,0.08);border-radius:9px;font-size:17px}
+        .trust-pillar-t{font-size:13px;color:var(--text-primary);font-weight:500}
+        .trust-pillar-s{font-size:11px;color:var(--text-fade);line-height:1.45}
+        @media(max-width:768px){.trust-band{padding:0 20px}.trust-band-inner{padding:22px 20px}}
+
+        /* Safe scroll-reveal — class is added by JS, so content is never hidden if JS fails */
+        .reveal-up{opacity:0;transform:translateY(18px)}
+        .reveal-up.in{opacity:1;transform:none;transition:opacity .7s cubic-bezier(.16,1,.3,1),transform .7s cubic-bezier(.16,1,.3,1)}
+        .upsell-grid .upsell-card:nth-child(2).reveal-up.in{transition-delay:.08s}
+        .upsell-grid .upsell-card:nth-child(3).reveal-up.in{transition-delay:.16s}
+        @media(prefers-reduced-motion:reduce){.reveal-up,.reveal-up.in{opacity:1;transform:none;transition:none}}
+
         /* ===== TWO COLUMN ===== */
         .apt-content{max-width:1400px;margin:0 auto;padding:0 50px 80px;display:grid;grid-template-columns:1fr 380px;gap:50px;align-items:start}
         .apt-cta-inline{max-width:1400px;margin:14px auto 0;padding:0 50px}
@@ -612,6 +634,23 @@
 
         <div class="media-section" id="mediaSection"></div>
 
+        <!-- VERIFIED BY BOOM — trust band, the market differentiator -->
+        <section class="trust-band" id="trustBand" aria-label="Verified by BOOM">
+            <div class="trust-band-inner">
+                <div class="trust-band-head">
+                    <span class="trust-band-seal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 2 5 5v6c0 4.5 3 8.4 7 9 4-.6 7-4.5 7-9V5l-7-3z"/><path d="m9 12 2 2 4-4"/></svg>Verified by BOOM</span>
+                    <span class="trust-band-sub">Every home is checked by our team — and our tech — before you ever see it.</span>
+                </div>
+                <div class="trust-pillars">
+                    <div class="trust-pillar"><div class="trust-pillar-ico">🎥</div><div class="trust-pillar-t">Video-verified</div><div class="trust-pillar-s">We filmed it ourselves — no stock photos.</div></div>
+                    <div class="trust-pillar"><div class="trust-pillar-ico">🛡️</div><div class="trust-pillar-t">On-site checked</div><div class="trust-pillar-s">A BOOM agent visited in person.</div></div>
+                    <div class="trust-pillar"><div class="trust-pillar-ico">📝</div><div class="trust-pillar-t">Legal contract</div><div class="trust-pillar-s">Registered, available in English.</div></div>
+                    <div class="trust-pillar"><div class="trust-pillar-ico">💶</div><div class="trust-pillar-t">Transparent pricing</div><div class="trust-pillar-s">All fees shown. No surprises.</div></div>
+                    <div class="trust-pillar"><div class="trust-pillar-ico">⚡</div><div class="trust-pillar-t">48-hour move-in</div><div class="trust-pillar-s">From application to keys, fast.</div></div>
+                </div>
+            </div>
+        </section>
+
         <div class="apt-cta-inline">
             <div class="aci-box">
                 <div class="aci-text">
@@ -726,9 +765,6 @@
             </div>
         </div><!-- /.apt-content -->
 
-        <!-- More apartments in this neighborhood — auto-populated from Firestore -->
-        <section class="zone-footer" id="zoneFooter" hidden></section>
-
         <!-- 48-hour move-in timeline -->
         <style>
         .m48{max-width:1100px;margin:50px auto 10px;padding:0 50px}
@@ -762,6 +798,9 @@
             </div>
         </section>
         <script>(function(){var m=document.getElementById('m48');if(!m)return;var io=new IntersectionObserver(function(e){e.forEach(function(x){if(x.isIntersecting){m.classList.add('on');io.disconnect();}});},{threshold:.4});io.observe(m);})();</script>
+
+        <!-- More apartments in this neighborhood — auto-populated from Firestore -->
+        <section class="zone-footer" id="zoneFooter" hidden></section>
 
         <div class="upsell-section">
             <div class="upsell-header">
@@ -901,6 +940,19 @@
     const db=firebase.firestore();
     let aptAddress='',currentSlide=0,totalSlides=0,galleryImgs=[],lbIndex=0;
 
+    // Imgur thumbnail variants — shrink huge originals to the size actually shown.
+    // Suffixes: m=320, l=640, h=1024 (aspect kept). Only direct i.imgur.com links are
+    // rewritten; Firebase Storage / other hosts pass through untouched. Big speed win:
+    // the thumb strip and zone cards were loading full-resolution originals.
+    function imgThumb(url, suffix){
+      if(!url||typeof url!=='string')return url;
+      const m=url.match(/^(https?:\/\/i\.imgur\.com\/)([a-zA-Z0-9]{5,9})(\.[a-zA-Z]+)(\?.*)?$/);
+      return m?(m[1]+m[2]+suffix+m[3]):url;
+    }
+    const imgDisplay = u => imgThumb(u,'h');                 // ~1024px main display
+    const imgSet = u => { const l=imgThumb(u,'l'), h=imgThumb(u,'h'); return l!==u ? `${l} 640w, ${h} 1024w` : ''; };
+    const HERO_SIZES = '(max-width:1400px) 100vw, 1300px';
+
     document.addEventListener('DOMContentLoaded',()=>{
         const params=new URLSearchParams(window.location.search);
         let id=params.get('id');
@@ -958,7 +1010,7 @@
               const meta = [sqm&&sqm+'m²', beds&&(beds+' bed'+(beds>1?'s':''))].filter(Boolean).join(' · ');
               const img = l.image||(l.images&&l.images[0])||'';
               return `<a class="zone-card" href="/listing/${encodeURIComponent(l.id)}">
-                <div class="zone-card-img"${img?` style="background-image:url('${img}')"`:''}></div>
+                <div class="zone-card-img"${img?` style="background-image:url('${imgThumb(img,'l')}')"`:''}></div>
                 <div class="zone-card-body">
                   <div class="zone-card-name">${(l.name||'Apartment')}</div>
                   ${meta?`<div class="zone-card-meta">${meta}</div>`:''}
@@ -1214,6 +1266,14 @@
 
         document.getElementById('pageLoading').style.display='none';
         var ap=document.getElementById('apartmentPage');ap.style.display='block';ap.classList.add('show');
+        // Safe staggered reveal for the trust band + service cards. The .reveal-up class
+        // is added here by JS, so content is never hidden if scripts fail or IO is missing.
+        if('IntersectionObserver' in window){
+            const rv=[...document.querySelectorAll('.trust-band, .upsell-card')];
+            rv.forEach(el=>el.classList.add('reveal-up'));
+            const rio=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');rio.unobserve(e.target);}});},{threshold:.12,rootMargin:'0px 0px -6% 0px'});
+            rv.forEach(el=>rio.observe(el));
+        }
 
         if(typeof gtag==='function')gtag('event','view_listing',{listing_id:id,listing_name:name,listing_price:d.price});
 
@@ -1282,16 +1342,17 @@
         // Check both videoUrl and youtubeUrl (portal uses youtubeUrl)
         const vUrl=d.videoUrl||d.youtubeUrl,hasV=!!vUrl,vId=hasV?exYT(vUrl):null;
 
+        const heroAttrs = u => { const s=imgSet(u); return `src="${imgDisplay(u)}"${s?` srcset="${s}" sizes="${HERO_SIZES}"`:''} fetchpriority="high" loading="eager" decoding="async"`; };
         if(!imgs.length&&!hasV){sec.innerHTML='<div class="media-placeholder"><span>📷</span><p>Photos coming soon</p></div>';return}
-        if(imgs.length===1&&!hasV){sec.innerHTML=`<img src="${imgs[0]}" alt="Apartment photo" class="single-hero-img" loading="lazy" onclick="openLightbox(0)">`;return}
-        if(imgs.length===1&&hasV&&vId){sec.innerHTML=`<img src="${imgs[0]}" alt="Apartment photo" class="single-hero-img" loading="lazy" onclick="openLightbox(0)"><div class="video-section"><div class="video-section-label">Video Tour</div><div class="video-embed"><iframe src="https://www.youtube.com/embed/${vId}?rel=0" allowfullscreen loading="lazy"></iframe></div></div>`;return}
+        if(imgs.length===1&&!hasV){sec.innerHTML=`<img ${heroAttrs(imgs[0])} alt="Apartment photo" class="single-hero-img" onclick="openLightbox(0)">`;return}
+        if(imgs.length===1&&hasV&&vId){sec.innerHTML=`<img ${heroAttrs(imgs[0])} alt="Apartment photo" class="single-hero-img" onclick="openLightbox(0)"><div class="video-section"><div class="video-section-label">Video Tour</div><div class="video-embed"><iframe src="https://www.youtube.com/embed/${vId}?rel=0" allowfullscreen loading="lazy"></iframe></div></div>`;return}
 
         const slides=[...imgs];const hasVS=hasV&&vId;
-        let sH=slides.map((img,i)=>`<div class="carousel-slide"><img src="${img}" alt="Photo ${i+1}" loading="lazy" onclick="openLightbox(${i})"></div>`).join('');
+        let sH=slides.map((img,i)=>{const s=imgSet(img);const set=s?` srcset="${s}" sizes="${HERO_SIZES}"`:'';const prio=i===0?'fetchpriority="high" loading="eager"':'loading="lazy"';return `<div class="carousel-slide"><img src="${imgDisplay(img)}"${set} alt="Photo ${i+1}" ${prio} decoding="async" onclick="openLightbox(${i})"></div>`;}).join('');
         if(hasVS)sH+=`<div class="carousel-slide video-slide"><iframe src="https://www.youtube.com/embed/${vId}?rel=0" allowfullscreen loading="lazy"></iframe></div>`;
         totalSlides=slides.length+(hasVS?1:0);
 
-        let tH=slides.map((img,i)=>`<div class="carousel-thumb ${i===0?'active':''}" onclick="goTo(${i})"><img src="${img}" alt="Thumb ${i+1}"></div>`).join('');
+        let tH=slides.map((img,i)=>`<div class="carousel-thumb ${i===0?'active':''}" onclick="goTo(${i})"><img src="${imgThumb(img,'m')}" alt="Thumb ${i+1}" loading="lazy" decoding="async"></div>`).join('');
         if(hasVS)tH+=`<div class="carousel-thumb video-thumb" onclick="goTo(${slides.length})"></div>`;
 
         const expandBtn=`<button class="carousel-expand" onclick="openLightbox(currentSlide<${slides.length}?currentSlide:0)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M8 3H3v5M16 3h5v5M21 16v5h-5M3 16v5h5"/></svg>${slides.length} photos</button>`;
