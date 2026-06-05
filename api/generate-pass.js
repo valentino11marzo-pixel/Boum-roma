@@ -149,8 +149,8 @@ function buildTenantPass({
     organizationName: "BOOM Rome",
     description: `BOOM Tenant Card — ${tenantName}`,
     serialNumber: `tenant-${contractId || crypto.randomUUID()}`,
-    backgroundColor: "rgb(11,11,13)",
-    foregroundColor: "rgb(245,245,242)",
+    backgroundColor: "rgb(8,8,10)",
+    foregroundColor: "rgb(245,245,240)",
     labelColor: "rgb(212,175,55)",
     logoText: "BOOM",
     webServiceURL: WEB_SERVICE_URL,
@@ -199,9 +199,9 @@ function buildSilverPass(data) {
   const base = buildTenantPass(data);
   base.description = `BOOM Tenant Silver VIP — ${data.tenantName || ""}`;
   base.serialNumber = `silver-${data.contractId || crypto.randomUUID()}`;
-  base.backgroundColor = "rgb(228,229,231)";
-  base.foregroundColor = "rgb(22,22,24)";
-  base.labelColor = "rgb(120,104,72)";
+  base.backgroundColor = "rgb(170,170,175)";
+  base.foregroundColor = "rgb(20,20,25)";
+  base.labelColor = "rgb(80,80,90)";
   base.storeCard.headerFields = clean([
     fText("type", "BOOM", "SILVER"),
     fText("state", "STATO", data.paymentStatus || "VIP", { textAlignment: R }),
@@ -225,9 +225,9 @@ function buildLandlordPass({
     organizationName: "BOOM Rome",
     description: `BOOM Partner — ${landlordName}`,
     serialNumber: `landlord-${landlordId || crypto.randomUUID()}`,
-    backgroundColor: "rgb(32,26,15)",
-    foregroundColor: "rgb(247,238,214)",
-    labelColor: "rgb(214,178,94)",
+    backgroundColor: "rgb(186,153,100)",
+    foregroundColor: "rgb(0,0,0)",
+    labelColor: "rgb(93,74,31)",
     logoText: "BOOM",
     webServiceURL: WEB_SERVICE_URL,
     authenticationToken: generateAuthToken(landlordId || landlordName),
@@ -280,8 +280,8 @@ function buildViewingPass({
     organizationName: "BOOM Rome",
     description: `BOOM Viewing — ${propertyAddress}${isVoided ? " (annullata)" : ""}`,
     serialNumber: `viewing-${viewingId || crypto.randomUUID()}`,
-    backgroundColor: "rgb(11,11,13)",
-    foregroundColor: "rgb(245,245,242)",
+    backgroundColor: "rgb(8,8,10)",
+    foregroundColor: "rgb(245,245,240)",
     labelColor: "rgb(212,175,55)",
     logoText: "BOOM",
     webServiceURL: WEB_SERVICE_URL,
@@ -342,9 +342,9 @@ function buildReferralPass({
     organizationName: "BOOM Rome",
     description: `BOOM Circle — ${referrerName}`,
     serialNumber: `referral-${referrerId || referralCode}`,
-    backgroundColor: "rgb(11,11,13)",
-    foregroundColor: "rgb(212,175,55)",
-    labelColor: "rgb(232,232,235)",
+    backgroundColor: "rgb(8,8,10)",
+    foregroundColor: "rgb(201,169,110)",
+    labelColor: "rgb(245,245,240)",
     logoText: "BOOM CIRCLE",
     webServiceURL: WEB_SERVICE_URL,
     authenticationToken: generateAuthToken(referrerId || referralCode),
@@ -395,10 +395,8 @@ export function buildAndSign(type, data) {
   if (!builder) throw new Error("Unknown pass type: " + type);
   const passJson = builder(data || {});
   const assets = loadAssets(type);
-  // storeCards read cleaner WITHOUT the strip band behind the fields.
-  if (type === "tenant" || type === "silver" || type === "landlord") {
-    delete assets["strip.png"]; delete assets["strip@2x.png"]; delete assets["strip@3x.png"];
-  }
+  // Keep the original brushed-metal strip on every pass — only the FIELD
+  // layout was reorganised, not the artwork.
   assets["pass.json"] = Buffer.from(JSON.stringify(passJson));
   const pass = new PKPass(assets, { signerCert, signerKey, signerKeyPassphrase, wwdr });
   return { buffer: pass.getAsBuffer(), passJson };
