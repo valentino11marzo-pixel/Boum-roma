@@ -4331,16 +4331,16 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div>
             <div class="modal-body" style="max-height:60vh;overflow-y:auto;padding:0">
                 ${allNotifs.length > 0 ? allNotifs.map(n => `
-                    <div class="notif-item ${n.read ? 'read' : 'unread'}" style="padding:14px 20px;border-bottom:1px solid var(--border);display:flex;gap:12px;align-items:flex-start;cursor:pointer;background:${n.read ? 'transparent' : 'rgba(212,175,55,0.05)'}" onclick="${n.source === 'user' && !n.read ? `markNotificationRead('${n.id}')` : ''}">
+                    <div class="notif-item ${n.read ? 'read' : 'unread'}" style="padding:14px 20px;border-bottom:1px solid var(--border);display:flex;gap:12px;align-items:flex-start;cursor:pointer;background:${n.read ? 'transparent' : 'rgba(212,175,55,0.05)'}" onclick="${n.source === 'user' && !n.read ? `markNotificationRead('${esc(n.id)}')` : ''}">
                         <div style="width:36px;height:36px;border-radius:50%;background:var(--${notifTypeColor(n.type)}-light);display:flex;align-items:center;justify-content:center;flex-shrink:0">${notifTypeIcon(n.type)}</div>
                         <div style="flex:1;min-width:0">
-                            <div style="font-weight:${n.read ? '400' : '600'};margin-bottom:2px">${n.title}</div>
-                            <div style="font-size:13px;color:var(--text-muted)">${n.text || n.message || ''}</div>
+                            <div style="font-weight:${n.read ? '400' : '600'};margin-bottom:2px">${esc(n.title)}</div>
+                            <div style="font-size:13px;color:var(--text-muted)">${esc(n.text || n.message || '')}</div>
                             <div style="font-size:11px;color:var(--text-dim);margin-top:4px">${n.createdAt ? fmtDate(n.createdAt) : 'Ora'}</div>
                         </div>
                         ${n.source === 'user'
-                            ? `<button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();deleteNotification('${n.id}')" title="Elimina">×</button>`
-                            : `<button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();dismissSystemNotif('${n.type}','${n.id}')" title="Ignora">×</button>`}
+                            ? `<button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();deleteNotification('${esc(n.id)}')" title="Elimina">×</button>`
+                            : `<button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();dismissSystemNotif('${esc(n.type)}','${esc(n.id)}')" title="Ignora">×</button>`}
                     </div>
                 `).join('') : '<div class="empty-state" style="padding:40px"><div class="empty-icon">🔔</div><div class="empty-title">Nessuna notifica</div><div class="empty-subtitle">Sei al passo con tutto!</div></div>'}
             </div>

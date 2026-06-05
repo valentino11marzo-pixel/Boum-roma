@@ -95,6 +95,13 @@ line number) and we fix the rule + add a test for it.
 - ~~Magic-Sign anonymous contract read → server endpoint (audit #6)~~ ✅ shipped
   as `/api/magic-sign/lookup` + `/api/magic-sign/submit`. The browser no
   longer touches Firestore as anonymous during contract signing.
-- CSP header in `vercel.json` + `esc()` sweep (audit #12)
+- ~~CSP header in `vercel.json`~~ ✅ shipped as
+  `Content-Security-Policy-Report-Only`. **Observe for ~1 week**:
+  open DevTools → Console on the live site, look for `CSP Report-Only`
+  violations. None expected — if there are, add the source to the right
+  directive. **Then flip the header key** from
+  `Content-Security-Policy-Report-Only` to `Content-Security-Policy`
+  (single one-line edit in `vercel.json`) to start blocking. (audit #12)
+- `esc()` sweep for untracked interpolations (audit #12, second half)
 - Backend Firestore auth → service account JSON (audit #13)
 - Wire `logActivity()` into every mutation (audit #11)
