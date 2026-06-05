@@ -32,6 +32,7 @@
     <!-- Chart.js loaded lazily by loadChartJS() on first dashboard visit -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
     <script src="/js/taxpack-engine.js"></script>
     <!-- PDF.js — renders uploaded PDFs to canvas so Magic Sign Custom can place fields on them. Loaded lazily by ensurePdfJs() on first use. -->
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
@@ -10273,6 +10274,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     </div>
                     <button class="btn btn-secondary btn-sm" onclick="openCedolareCalc(${totals.canoniAttesi || (contract.rent ? contract.rent*12 : 0)}, ${TP.classifyContract(contract).isConcordato})">📊 Cedolare vs IRPEF</button>
                     <button class="btn btn-secondary btn-sm" onclick="openIstatLetter('${prop.id}', ${year})">📈 Lettera ISTAT</button>
+                    <button class="btn btn-secondary btn-sm" onclick="downloadTaxPackZip('${prop.id}', ${year})" id="taxPackBtn">📦 Scarica Tax Pack (zip)</button>
                     <button class="btn" onclick="openCommercialistaShare('${prop.id}', ${year})">🔗 Genera link commercialista</button>
                 </div>
                 <div style="height:6px;background:var(--bg-elevated)"><div style="height:100%;width:${checklist.completeness}%;background:linear-gradient(90deg,${ready ? 'var(--green)' : 'var(--gold)'},${ready ? 'var(--green)' : 'var(--gold-dark, #B8960C)'});transition:width .4s"></div></div>
@@ -10575,6 +10577,310 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         } finally {
             btn.disabled = false; btn.textContent = '🤖 Chiedi';
         }
+    }
+
+    // ─── Riepilogo fiscale PDF (auto-generated summary for the commercialista) ─
+    // Drops into the Tax Pack zip as 'Riepilogo_fiscale_<year>.pdf'; this is
+    // the SINGLE FILE the accountant opens to see every BOOM-tracked figure
+    // (canoni, cedolare preview, Quadro RB numbers, missing-doc checklist).
+    function buildRiepilogoPDF(opts) {
+        const TP = window.BOOM_TAXPACK;
+        const jsPDF = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
+        if (!jsPDF) throw new Error('jsPDF non caricato');
+        const { property, contract, tenant, landlord, totals, checklist, year } = opts;
+        const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
+        const today = new Date().toLocaleDateString('it-IT');
+
+        // Header
+        pdf.setFont('helvetica', 'bold'); pdf.setFontSize(16); pdf.setTextColor(180, 140, 30);
+        pdf.text('Riepilogo fiscale ' + year, 20, 22);
+        pdf.setTextColor(0); pdf.setFontSize(10); pdf.setFont('helvetica', 'normal');
+        pdf.text('Generato da BOOM Rome · ' + today, 20, 28);
+        pdf.setDrawColor(212, 175, 55); pdf.setLineWidth(0.4); pdf.line(20, 32, 190, 32);
+
+        let y = 42;
+
+        // Property block
+        pdf.setFontSize(9); pdf.setTextColor(120);
+        pdf.text('IMMOBILE', 20, y);
+        pdf.setTextColor(0); pdf.setFontSize(12); pdf.setFont('helvetica', 'bold');
+        pdf.text((property.name || 'Immobile'), 20, y + 6);
+        pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10);
+        if (property.address) pdf.text(property.address, 20, y + 12);
+        if (property.cadastralData) {
+            const cd = typeof property.cadastralData === 'string' ? property.cadastralData : JSON.stringify(property.cadastralData);
+            pdf.setFontSize(8); pdf.setTextColor(110);
+            pdf.text('Dati catastali: ' + String(cd).slice(0, 90), 20, y + 18);
+            pdf.setTextColor(0); pdf.setFontSize(10);
+        }
+        y += 26;
+
+        // Landlord + Tenant block
+        pdf.setFontSize(9); pdf.setTextColor(120);
+        pdf.text('LOCATORE', 20, y); pdf.text('CONDUTTORE', 110, y);
+        pdf.setTextColor(0); pdf.setFontSize(11);
+        pdf.text(landlord.name || '—', 20, y + 6);
+        pdf.text(tenant.name || '—', 110, y + 6);
+        pdf.setFontSize(9); pdf.setTextColor(80);
+        if (landlord.codiceFiscale || landlord.cf) pdf.text('CF: ' + (landlord.codiceFiscale || landlord.cf), 20, y + 11);
+        if (tenant.cf || tenant.codiceFiscale) pdf.text('CF: ' + (tenant.cf || tenant.codiceFiscale), 110, y + 11);
+        if (landlord.partitaIva) pdf.text('P.IVA: ' + landlord.partitaIva, 20, y + 16);
+        pdf.setTextColor(0);
+        y += 24;
+
+        // Contract block
+        const isCed = TP.classifyContract(contract);
+        const regimeLabel = isCed.isCedolare ? (isCed.isConcordato ? 'Cedolare 10% (concordato)' : 'Cedolare 21%') : 'IRPEF ordinario';
+        const typeLabel = (contract.type || 'libero');
+        pdf.setFontSize(9); pdf.setTextColor(120);
+        pdf.text('CONTRATTO', 20, y);
+        pdf.setTextColor(0); pdf.setFontSize(10);
+        const rows1 = [
+            ['Tipo', typeLabel],
+            ['Decorrenza', contract.startDate ? new Date(contract.startDate).toLocaleDateString('it-IT') : '—'],
+            ['Scadenza', contract.endDate ? new Date(contract.endDate).toLocaleDateString('it-IT') : '—'],
+            ['Canone mensile', '€ ' + (Number(contract.rent) || 0).toLocaleString('it-IT')],
+            ['Deposito', '€ ' + (Number(contract.deposit) || 0).toLocaleString('it-IT')],
+            ['Regime fiscale', regimeLabel],
+        ];
+        rows1.forEach(r => {
+            y += 5;
+            pdf.setFont('helvetica', 'normal'); pdf.setTextColor(100); pdf.text(r[0] + ':', 20, y);
+            pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0); pdf.text(String(r[1]), 65, y);
+        });
+        y += 8;
+
+        // Totals block (Quadro RB)
+        pdf.setDrawColor(212, 175, 55); pdf.setLineWidth(0.3); pdf.line(20, y, 190, y); y += 6;
+        pdf.setFont('helvetica', 'bold'); pdf.setFontSize(11); pdf.text('TOTALI ANNO ' + year + ' (anteprima Quadro RB)', 20, y); y += 6;
+        pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10);
+        const rows2 = [
+            ['Mesi attivi', String(totals.monthsActive)],
+            ['Mesi incassati', String(totals.monthsPaid) + ' / ' + String(totals.monthsExpected)],
+            ['Canoni incassati', '€ ' + (totals.canoniIncassati || 0).toLocaleString('it-IT')],
+            ['Canoni attesi', '€ ' + (totals.canoniAttesi || 0).toLocaleString('it-IT')],
+            ['Da incassare', '€ ' + (totals.outstanding || 0).toLocaleString('it-IT')],
+        ];
+        if (totals.regime === 'ordinario') {
+            rows2.push(['Imponibile IRPEF (95%)', '€ ' + (totals.irpefImponibile || 0).toLocaleString('it-IT')]);
+        } else {
+            rows2.push(['Aliquota cedolare', (totals.cedolareRate * 100).toFixed(0) + ' %']);
+            rows2.push(['Cedolare stimata', '€ ' + (totals.cedolareImposta || 0).toLocaleString('it-IT')]);
+        }
+        rows2.forEach(r => {
+            y += 5;
+            pdf.setTextColor(100); pdf.setFont('helvetica', 'normal'); pdf.text(r[0] + ':', 20, y);
+            pdf.setTextColor(0); pdf.setFont('helvetica', 'bold'); pdf.text(String(r[1]), 90, y);
+        });
+        y += 8;
+        pdf.setFontSize(8); pdf.setTextColor(150);
+        pdf.text('Valori indicativi calcolati da BOOM — la dichiarazione resta a cura del commercialista.', 20, y);
+        pdf.setTextColor(0); y += 8;
+
+        // Checklist summary
+        pdf.line(20, y, 190, y); y += 6;
+        pdf.setFont('helvetica', 'bold'); pdf.setFontSize(11);
+        pdf.text('CHECKLIST DOCUMENTI · ' + checklist.presentCount + '/' + checklist.requiredCount + ' (' + checklist.completeness + '%)', 20, y);
+        y += 6;
+        pdf.setFontSize(9.5); pdf.setFont('helvetica', 'normal');
+        checklist.items.forEach(item => {
+            if (y > 275) { pdf.addPage(); y = 20; }
+            pdf.setTextColor(item.present ? 0 : 180);
+            const mark = item.present ? '[X]' : '[ ]';
+            pdf.text(mark + '  ' + item.label, 22, y);
+            if (item.detail) {
+                pdf.setTextColor(140); pdf.setFontSize(8);
+                pdf.text(item.detail, 150, y);
+                pdf.setFontSize(9.5);
+            }
+            y += 5;
+        });
+        pdf.setTextColor(0);
+
+        // Footer on each page
+        const pages = pdf.internal.getNumberOfPages();
+        for (let i = 1; i <= pages; i++) {
+            pdf.setPage(i);
+            pdf.setFontSize(8); pdf.setTextColor(140);
+            pdf.text('BOOM Rome · ' + (property.name || 'Immobile') + ' · ' + year + ' · pag. ' + i + '/' + pages, 20, 290);
+        }
+
+        return pdf;
+    }
+
+    // ─── Tax Pack zip generator (client-side, jszip) ───────────────────────
+    // Builds a single .zip with the manifest's 9 folders, the Riepilogo PDF
+    // as the entry summary, and every uploaded document fetched from Storage
+    // dropped into the right folder. Filename mirrors the TaxPack manifest:
+    // TaxPack_<year>_<PropertySlug>.zip
+    async function downloadTaxPackZip(propertyId, year) {
+        const TP = window.BOOM_TAXPACK;
+        if (!window.JSZip) { toast('error', 'JSZip non caricato'); return; }
+        const btn = document.getElementById('taxPackBtn');
+        const origLabel = btn ? btn.innerHTML : '';
+        if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Genero…'; }
+        try {
+            const prop = (S.properties || []).find(p => p.id === propertyId);
+            if (!prop) throw new Error('Immobile non trovato');
+            const contracts = (S.contracts || []).filter(c => c.propertyId === propertyId);
+            const contract = contracts.find(c => {
+                const s = c.startDate ? new Date(c.startDate).getFullYear() : year;
+                const e = c.endDate ? new Date(c.endDate).getFullYear() : year;
+                return s <= year && e >= year;
+            }) || contracts[contracts.length - 1] || {};
+            const contractIds = contracts.map(c => c.id);
+            const payments = (S.payments || []).filter(p => p.propertyId === propertyId || contractIds.includes(p.contractId));
+            const allDocs = (S.documents || []).filter(d => d.propertyId === propertyId && (!d.fiscalYear || Number(d.fiscalYear) === Number(year)));
+            const tenant = (S.users || []).find(u => u.id === contract.tenantId) || {};
+            const landlord = (S.users || []).find(u => u.id === prop.ownerId) || (isLandlord() ? S.profile : {});
+
+            const checklist = TP.buildChecklist({ contract, property: prop, documents: allDocs, payments, fiscalYear: year });
+            const totals = TP.computeTotals({ contract, payments, fiscalYear: year });
+            const manifest = TP.buildManifest({ contract, property: prop, documents: allDocs, fiscalYear: year, checklist });
+
+            const zip = new JSZip();
+            const root = zip.folder(manifest.root);
+
+            // 1) Riepilogo PDF — first file the accountant opens
+            const summaryPDF = buildRiepilogoPDF({ property: prop, contract, tenant, landlord, totals, checklist, year });
+            const summaryBlob = summaryPDF.output('blob');
+            root.file(manifest.summaryFile, summaryBlob);
+
+            // 2) For each requirement folder, fetch + embed docs
+            //    (manifest.folders is { '01_Contratto': [docId, ...], ... })
+            const folderIds = Object.keys(manifest.folders);
+            // Ensure all 9 standard folders exist even if empty (commercialista expects the structure)
+            const allFolders = ['01_Contratto','02_Incassi','03_Spese_detraibili','04_Imposte','05_Adeguamenti','06_Immobile','07_Anagrafiche','08_BreviLocazioni'];
+            allFolders.forEach(f => { if (!folderIds.includes(f)) root.folder(f); });
+
+            let fetched = 0, skipped = 0;
+            for (const folderName of folderIds) {
+                const sub = root.folder(folderName);
+                const ids = manifest.folders[folderName];
+                for (const docId of ids) {
+                    const d = allDocs.find(x => x.id === docId);
+                    if (!d || !d.fileUrl) { skipped++; continue; }
+                    try {
+                        if (btn) btn.innerHTML = '⏳ ' + (fetched + skipped + 1) + '/' + (folderIds.reduce((s,f) => s + manifest.folders[f].length, 0));
+                        const r = await fetch(d.fileUrl);
+                        if (!r.ok) { skipped++; continue; }
+                        const blob = await r.blob();
+                        const safeName = (d.name || docId).replace(/[\\/:*?"<>|]/g, '_').slice(0, 80);
+                        const ext = (d.fileName && d.fileName.includes('.')) ? d.fileName.split('.').pop().toLowerCase() : (blob.type.includes('pdf') ? 'pdf' : 'bin');
+                        sub.file(safeName + '.' + ext, blob);
+                        fetched++;
+                    } catch (e) { console.warn('[taxpack] fetch failed for', docId, e.message); skipped++; }
+                }
+            }
+
+            if (btn) btn.innerHTML = '📦 Comprimo…';
+            const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } });
+            const url = URL.createObjectURL(zipBlob);
+            const a = document.createElement('a');
+            a.href = url; a.download = manifest.root + '.zip';
+            document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 4000);
+
+            logActivity('taxpack_zip_downloaded', 'document', {
+                propertyId, year, docsIncluded: fetched, docsSkipped: skipped, completeness: checklist.completeness,
+            });
+            toast('success', 'Tax Pack pronto', fetched + ' documenti · Riepilogo PDF incluso');
+        } catch (e) {
+            console.error('[taxpack zip]', e);
+            toast('error', 'Errore Tax Pack', e.message);
+        } finally {
+            if (btn) { btn.disabled = false; btn.innerHTML = origLabel || '📦 Scarica Tax Pack (zip)'; }
+        }
+    }
+
+    // ─── Tenant: download the year's paid-rent receipts as one PDF ──────────
+    // Useful for the tenant's own dichiarazione redditi (detrazioni inquilino).
+    // Lists every paid month + total + property + landlord, formal layout.
+    function downloadTenantReceiptsPDF(year) {
+        const jsPDF = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
+        if (!jsPDF) { toast('error', 'jsPDF non caricato'); return; }
+        const payments = (getMyPayments() || []).filter(p =>
+            p.status === 'paid' && p.month && String(p.month).slice(0, 4) === String(year)
+        );
+        if (!payments.length) { toast('info', 'Nessun pagamento ' + year); return; }
+        payments.sort((a, b) => String(a.month).localeCompare(String(b.month)));
+
+        const myContract = getMyContracts().find(c => c.status === 'active') || getMyContracts()[0] || {};
+        const prop = (S.properties || []).find(p => p.id === myContract.propertyId) || {};
+        const landlord = getMyLandlord && getMyLandlord() || (S.users || []).find(u => u.id === prop.ownerId) || {};
+        const me = S.profile || {};
+
+        const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
+        pdf.setFont('helvetica', 'bold'); pdf.setFontSize(16); pdf.setTextColor(180, 140, 30);
+        pdf.text('Riepilogo canoni ' + year, 20, 22);
+        pdf.setTextColor(0); pdf.setFontSize(10); pdf.setFont('helvetica', 'normal');
+        pdf.text('Generato da BOOM Rome · ' + new Date().toLocaleDateString('it-IT'), 20, 28);
+        pdf.setDrawColor(212, 175, 55); pdf.setLineWidth(0.4); pdf.line(20, 32, 190, 32);
+
+        let y = 42;
+        pdf.setFontSize(9); pdf.setTextColor(120); pdf.text('CONDUTTORE', 20, y); pdf.text('LOCATORE', 110, y);
+        pdf.setTextColor(0); pdf.setFontSize(11); pdf.setFont('helvetica', 'bold');
+        pdf.text(me.name || '—', 20, y + 6);
+        pdf.text(landlord.name || '—', 110, y + 6);
+        pdf.setFontSize(9); pdf.setFont('helvetica', 'normal'); pdf.setTextColor(80);
+        if (me.cf || me.codiceFiscale) pdf.text('CF: ' + (me.cf || me.codiceFiscale), 20, y + 11);
+        if (landlord.codiceFiscale || landlord.cf) pdf.text('CF: ' + (landlord.codiceFiscale || landlord.cf), 110, y + 11);
+        if (landlord.partitaIva) pdf.text('P.IVA: ' + landlord.partitaIva, 110, y + 16);
+        pdf.setTextColor(0);
+        y += 24;
+
+        pdf.setFontSize(9); pdf.setTextColor(120); pdf.text('IMMOBILE LOCATO', 20, y);
+        pdf.setTextColor(0); pdf.setFontSize(11); pdf.setFont('helvetica', 'bold');
+        pdf.text(prop.name || 'Immobile', 20, y + 6);
+        pdf.setFontSize(9); pdf.setFont('helvetica', 'normal');
+        if (prop.address) pdf.text(prop.address, 20, y + 11);
+        y += 22;
+
+        pdf.setDrawColor(220); pdf.line(20, y, 190, y); y += 6;
+        pdf.setFont('helvetica', 'bold'); pdf.setFontSize(11);
+        pdf.text('CANONI VERSATI ANNO ' + year, 20, y); y += 7;
+        pdf.setFontSize(10);
+        pdf.setTextColor(120);
+        pdf.text('Mese', 22, y); pdf.text('Pagato il', 70, y); pdf.text('Importo', 170, y, { align: 'right' });
+        pdf.setTextColor(0); y += 4;
+        pdf.line(20, y, 190, y); y += 4;
+
+        let total = 0;
+        pdf.setFont('helvetica', 'normal');
+        for (const p of payments) {
+            if (y > 270) { pdf.addPage(); y = 20; }
+            const month = String(p.month);
+            const paidOn = p.paidDate ? new Date(p.paidDate).toLocaleDateString('it-IT') : '—';
+            const amount = Number(p.amount) || 0;
+            total += amount;
+            pdf.text(month, 22, y);
+            pdf.text(paidOn, 70, y);
+            pdf.text('€ ' + amount.toLocaleString('it-IT'), 190, y, { align: 'right' });
+            y += 5.5;
+        }
+        y += 2;
+        pdf.setDrawColor(212, 175, 55); pdf.line(20, y, 190, y); y += 6;
+        pdf.setFont('helvetica', 'bold'); pdf.setFontSize(12);
+        pdf.text('TOTALE ' + year, 22, y);
+        pdf.setTextColor(180, 140, 30);
+        pdf.text('€ ' + total.toLocaleString('it-IT'), 190, y, { align: 'right' });
+        pdf.setTextColor(0);
+        y += 12;
+
+        pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9); pdf.setTextColor(110);
+        const note = pdf.splitTextToSize(
+            "Documento di riepilogo generato da BOOM ai soli fini informativi. Per le detrazioni dichiarative (quadro RP, sez. I), " +
+            "fare riferimento alle ricevute originali e al contratto registrato. Le date di pagamento riflettono i versamenti tracciati nel portale BOOM.",
+            170);
+        pdf.text(note, 20, y);
+
+        pdf.setTextColor(140); pdf.setFontSize(8);
+        pdf.text('BOOM Rome · ' + (me.name || '') + ' · ' + year, 20, 290);
+
+        const filename = 'Canoni_' + year + '_' + (me.name || 'Inquilino').replace(/[^A-Za-z0-9]/g, '_').slice(0, 30) + '.pdf';
+        pdf.save(filename);
+        logActivity('tenant_receipts_downloaded', 'payment', { year, count: payments.length, total });
+        toast('success', 'Riepilogo scaricato', payments.length + ' canoni · €' + total);
     }
 
     function documentsPage() {
@@ -11066,7 +11372,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const pending = payments.filter(p => p.status === 'pending');
         const overdue = pending.filter(p => isOverdue(p.dueDate));
 
-        return `<div class="page-header"><h1 class="page-title">💳 ${isTenant() ? 'I Miei Pagamenti' : 'Pagamenti'}</h1></div>
+        return `<div class="page-header">
+                <div><h1 class="page-title">💳 ${isTenant() ? 'I Miei Pagamenti' : 'Pagamenti'}</h1></div>
+                ${isTenant() && paid.length ? `<div class="page-actions"><button class="btn btn-secondary btn-sm" onclick="downloadTenantReceiptsPDF(${new Date().getFullYear()})">📥 Riepilogo annuale (PDF)</button></div>` : ''}
+            </div>
             <div class="stats-grid" style="grid-template-columns:repeat(3,1fr)">
                 <div class="stat-card green"><div class="stat-value">€${paid.reduce((s,p) => s + (p.amount || 0), 0).toLocaleString('it-IT')}</div><div class="stat-label">Pagati (${paid.length})</div></div>
                 <div class="stat-card ${overdue.length ? 'red' : 'orange'}"><div class="stat-value">€${pending.reduce((s,p) => s + (p.amount || 0), 0).toLocaleString('it-IT')}</div><div class="stat-label">${overdue.length ? overdue.length + ' in ritardo' : 'Da Pagare'} (${pending.length})</div></div>
