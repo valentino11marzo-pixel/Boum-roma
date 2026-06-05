@@ -58,6 +58,8 @@ await env.withSecurityRulesDisabled(async (ctx) => {
   await setDoc(doc(db, 'leads/lead1'), { name: 'Hot lead', email: 'x@y.com' });
   await setDoc(doc(db, 'pfsClients/c1'), { name: 'PFS client', budget: '€1000' });
   await setDoc(doc(db, 'config/parse_docs'), { bearer: 'super-secret-token' });
+  await setDoc(doc(db, 'documentShares/share1'), { token: 'tok_abc', ownerId: 'llA', docIds: ['d1'], revoked: false });
+  await setDoc(doc(db, 'taxPacks/pack1'), { ownerId: 'llA', fiscalYear: 2025, propertyId: 'propA' });
 });
 
 // Auth contexts
@@ -139,6 +141,17 @@ await check('CANNOT read any property', assertFails(getDoc(doc(anon, 'properties
 await check('CANNOT read users',        assertFails(getDoc(doc(anon, 'users/tA'))));
 await check('CAN create a viewingRequest (public form)',
   assertSucceeds(setDoc(doc(anon, 'viewingRequests/vr1'), { name: 'Walk-in', email: 'a@b.com' })));
+
+// ── documentShares + taxPacks (commercialista) ──────────────────────────
+console.log('\ndocumentShares + taxPacks');
+await check('admin reads a documentShare', assertSucceeds(getDoc(doc(admin, 'documentShares/share1'))));
+await check('landlord A reads OWN documentShare', assertSucceeds(getDoc(doc(llA, 'documentShares/share1'))));
+await check('landlord B CANNOT read A documentShare', assertFails(getDoc(doc(llB, 'documentShares/share1'))));
+await check('tenant CANNOT read documentShares', assertFails(getDoc(doc(tA, 'documentShares/share1'))));
+await check('landlord A creates a share for SELF', assertSucceeds(setDoc(doc(llA, 'documentShares/share2'), { token:'t2', ownerId:'llA', docIds:['d1'], revoked:false })));
+await check('landlord A CANNOT create a share owned by B', assertFails(setDoc(doc(llA, 'documentShares/share3'), { token:'t3', ownerId:'llB', docIds:['d1'] })));
+await check('landlord A reads OWN taxPack', assertSucceeds(getDoc(doc(llA, 'taxPacks/pack1'))));
+await check('landlord B CANNOT read A taxPack', assertFails(getDoc(doc(llB, 'taxPacks/pack1'))));
 
 // ── DEFAULT DENY ────────────────────────────────────────────────────────
 console.log('\nDefault-deny');

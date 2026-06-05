@@ -32,6 +32,7 @@
     <!-- Chart.js loaded lazily by loadChartJS() on first dashboard visit -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <script src="/js/taxpack-engine.js"></script>
     <!-- PDF.js — renders uploaded PDFs to canvas so Magic Sign Custom can place fields on them. Loaded lazily by ensurePdfJs() on first use. -->
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
     <style>
@@ -4783,6 +4784,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <div class="nav-item ${S.page==='payments'?'active':''}" onclick="goTo('payments')"><span class="nav-icon">💳</span> Pagamenti ${overduePayments?`<span class="nav-badge">${overduePayments}</span>`:''}</div>
                     <div class="nav-item ${S.page==='maintenance'?'active':''}" onclick="goTo('maintenance')"><span class="nav-icon">🔧</span> Manutenzione ${openMaint?`<span class="nav-badge">${openMaint}</span>`:''}</div>
                     <div class="nav-item ${S.page==='documents'?'active':''}" onclick="goTo('documents')"><span class="nav-icon">📁</span> Documenti</div>
+                    <div class="nav-item ${S.page==='commercialista'?'active':''}" onclick="goTo('commercialista')"><span class="nav-icon">🧮</span> Commercialista</div>
                 </div>
                 <div class="nav-section"><div class="nav-label">Tools</div>
                     <div class="nav-item ${S.page==='property-radar'?'active':''}" onclick="goTo('property-radar')"><span class="nav-icon">📡</span> Property Radar ${radarFound?`<span class="nav-badge gold">${radarFound}</span>`:''}</div>
@@ -4813,6 +4815,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <div class="nav-item ${S.page==='my-payments'?'active':''}" onclick="goTo('my-payments')"><span class="nav-icon">💳</span> Pagamenti ${myOverdue?`<span class="nav-badge">${myOverdue}</span>`:''}</div>
                     <div class="nav-item ${S.page==='my-maintenance'?'active':''}" onclick="goTo('my-maintenance')"><span class="nav-icon">🔧</span> Manutenzione ${myMaint?`<span class="nav-badge">${myMaint}</span>`:''}</div>
                     <div class="nav-item ${S.page==='my-documents'?'active':''}" onclick="goTo('my-documents')"><span class="nav-icon">📁</span> Documenti</div>
+                    <div class="nav-item ${S.page==='commercialista'?'active':''}" onclick="goTo('commercialista')"><span class="nav-icon">🧮</span> Commercialista</div>
                 </div>
                 <div class="sidebar-footer">
                     <div class="nav-item" onclick="goTo('settings')"><span class="nav-icon">⚙️</span> Impostazioni</div>
@@ -4873,6 +4876,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             case 'maintenance': m.innerHTML = isAdmin() ? maintenancePage() : accessDenied(); break;
             case 'rules': m.innerHTML = isAdmin() ? rulesPage() : accessDenied(); break;
             case 'documents': m.innerHTML = isAdmin() ? documentsPage() : accessDenied(); break;
+            case 'commercialista': m.innerHTML = (isAdmin() || isLandlord()) ? commercialistaPage() : accessDenied(); break;
             case 'activity-log': m.innerHTML = isAdmin() ? activityLogPage() : accessDenied(); break;
             case 'adminflats': m.innerHTML = isAdmin() ? adminflatsPage() : accessDenied(); break;
             // === SCHEDA 360° (cliente unico hub) ===
@@ -10187,6 +10191,204 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
 
     // daysUntil defined in core utils (line ~1300)
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // ★ COMMERCIALISTA MODE — fiscal-year document checklist + share-to-accountant
+    // Powered by js/taxpack-engine.js (window.BOOM_TAXPACK).
+    // ═══════════════════════════════════════════════════════════════════════
+    var _cmState = { propertyId: null, year: new Date().getFullYear() };
+
+    function commercialistaProps() {
+        // Admin sees all; landlord sees own.
+        return isAdmin() ? (S.properties || []) : (S.properties || []).filter(p => p.ownerId === S.profile.id);
+    }
+
+    function commercialistaPage() {
+        const TP = window.BOOM_TAXPACK;
+        const props = commercialistaProps();
+        if (!TP) return `<div class="page-header"><h1 class="page-title">🧮 Commercialista</h1></div><div class="card"><div class="card-body">Motore fiscale non caricato. Ricarica la pagina.</div></div>`;
+        if (!props.length) return `<div class="page-header"><h1 class="page-title">🧮 Commercialista</h1><p class="page-subtitle">Tax Pack annuale + condivisione documenti</p></div><div class="card"><div class="empty-state"><div class="empty-icon">🏠</div><div class="empty-title">Nessun immobile</div><div class="empty-subtitle">Aggiungi un immobile per generare il pacchetto fiscale</div></div></div>`;
+
+        if (!_cmState.propertyId || !props.some(p => p.id === _cmState.propertyId)) _cmState.propertyId = props[0].id;
+        const prop = props.find(p => p.id === _cmState.propertyId);
+        const year = _cmState.year;
+
+        // Gather data for this property + year
+        const contracts = (S.contracts || []).filter(c => c.propertyId === prop.id);
+        // Pick the contract active during the selected year (fallback: latest)
+        const contract = contracts.find(c => {
+            const s = c.startDate ? new Date(c.startDate).getFullYear() : year;
+            const e = c.endDate ? new Date(c.endDate).getFullYear() : year;
+            return s <= year && e >= year;
+        }) || contracts[contracts.length - 1] || {};
+        const contractIds = contracts.map(c => c.id);
+        const payments = (S.payments || []).filter(p => p.propertyId === prop.id || contractIds.includes(p.contractId));
+        const documents = (S.documents || []).filter(d => d.propertyId === prop.id);
+
+        const checklist = TP.buildChecklist({ contract, property: prop, documents, payments, fiscalYear: year });
+        const totals = TP.computeTotals({ contract, payments, fiscalYear: year });
+
+        const yearOpts = [];
+        const nowY = new Date().getFullYear();
+        for (let y = nowY; y >= nowY - 5; y--) yearOpts.push(`<option value="${y}" ${y === year ? 'selected' : ''}>${y}</option>`);
+        const propOpts = props.map(p => `<option value="${p.id}" ${p.id === prop.id ? 'selected' : ''}>${esc(p.name || p.address || p.id)}</option>`).join('');
+
+        const regimeLabel = { cedolare_21: 'Cedolare secca 21%', cedolare_10: 'Cedolare secca 10% (concordato)', ordinario: 'IRPEF ordinario' }[totals.regime] || totals.regime;
+        const ready = checklist.ready;
+
+        const checkRow = (item) => {
+            const ic = item.present ? '<span style="color:var(--green)">✓</span>' : '<span style="color:var(--red)">○</span>';
+            return `<div class="list-item" style="padding:12px 16px;display:flex;align-items:center;gap:12px">
+                <div style="font-size:18px;width:24px;text-align:center">${ic}</div>
+                <div style="flex:1">
+                    <div style="font-weight:500;font-size:14px;${item.present ? '' : 'color:var(--text-secondary)'}">${esc(item.label)}</div>
+                    <div style="font-size:11px;color:var(--text-muted)">${esc(item.folder)}${item.detail ? ' · ' + esc(item.detail) : ''}</div>
+                </div>
+                ${item.present
+                    ? '<span class="badge" style="background:rgba(0,210,106,0.15);color:var(--green);font-size:9px">PRESENTE</span>'
+                    : '<span class="badge" style="background:rgba(255,59,48,0.15);color:var(--red);font-size:9px">MANCANTE</span>'}
+            </div>`;
+        };
+
+        return `<div class="page-header">
+                <div><h1 class="page-title">🧮 Commercialista</h1><p class="page-subtitle">Pacchetto fiscale annuale · documenti pronti per lo studio</p></div>
+                <div class="page-actions">
+                    <select class="form-select" style="width:auto" onchange="_cmState.propertyId=this.value;renderPage()">${propOpts}</select>
+                    <select class="form-select" style="width:auto" onchange="_cmState.year=parseInt(this.value);renderPage()">${yearOpts.join('')}</select>
+                </div>
+            </div>
+
+            <div class="stats-grid" style="grid-template-columns:repeat(4,1fr)">
+                <div class="stat-card"><div class="stat-label">Canoni incassati ${year}</div><div class="stat-value">${TP.fmtEuro(totals.canoniIncassati)}</div><div class="stat-description">${totals.monthsPaid}/${totals.monthsExpected} mesi · ${TP.fmtEuro(totals.outstanding)} da incassare</div></div>
+                <div class="stat-card"><div class="stat-label">Regime</div><div class="stat-value" style="font-size:18px">${esc(regimeLabel)}</div></div>
+                <div class="stat-card"><div class="stat-label">${totals.regime === 'ordinario' ? 'Imponibile (95%)' : 'Cedolare stimata'}</div><div class="stat-value gold">${TP.fmtEuro(totals.regime === 'ordinario' ? totals.irpefImponibile : totals.cedolareImposta)}</div><div class="stat-description">anteprima — verifica col commercialista</div></div>
+                <div class="stat-card ${ready ? '' : 'highlight'}"><div class="stat-label">Completezza</div><div class="stat-value ${ready ? 'green' : 'gold'}">${checklist.completeness}%</div><div class="stat-description">${checklist.presentCount}/${checklist.requiredCount} documenti</div></div>
+            </div>
+
+            <div class="card" style="margin-bottom:20px">
+                <div style="padding:16px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                    <div style="flex:1">
+                        <div style="font-weight:600">${ready ? '✅ Pronto per il commercialista' : '⚠️ Mancano ' + checklist.missing.length + ' documenti'}</div>
+                        <div style="font-size:12px;color:var(--text-muted);margin-top:2px">${esc(prop.name || prop.address || '')} · Anno ${year}</div>
+                    </div>
+                    <button class="btn btn-secondary btn-sm" onclick="openCedolareCalc(${totals.canoniAttesi || (contract.rent ? contract.rent*12 : 0)}, ${TP.classifyContract(contract).isConcordato})">📊 Cedolare vs IRPEF</button>
+                    <button class="btn" onclick="openCommercialistaShare('${prop.id}', ${year})">🔗 Genera link commercialista</button>
+                </div>
+                <div style="height:6px;background:var(--bg-elevated)"><div style="height:100%;width:${checklist.completeness}%;background:linear-gradient(90deg,${ready ? 'var(--green)' : 'var(--gold)'},${ready ? 'var(--green)' : 'var(--gold-dark, #B8960C)'});transition:width .4s"></div></div>
+                <div class="card-body flush">
+                    ${checklist.items.map(checkRow).join('')}
+                </div>
+            </div>
+
+            ${checklist.missing.length ? `<div class="card" style="border-color:rgba(255,59,48,0.2)">
+                <div style="padding:14px 18px;border-bottom:1px solid var(--border);font-weight:600;color:var(--red)">Cosa manca</div>
+                <div class="card-body">
+                    <ul style="margin:0;padding-left:18px;line-height:2;font-size:14px">
+                        ${checklist.missing.map(m => `<li>${esc(m.label)} <span style="color:var(--text-muted);font-size:12px">→ carica in Documenti, cartella ${esc(m.folder)}</span></li>`).join('')}
+                    </ul>
+                    <button class="btn btn-secondary btn-sm" style="margin-top:12px" onclick="goTo('documents')">📁 Vai ai Documenti</button>
+                </div>
+            </div>` : ''}`;
+    }
+
+    // Cedolare vs IRPEF quick comparison modal
+    function openCedolareCalc(canoniAnnui, isConcordato) {
+        const TP = window.BOOM_TAXPACK;
+        canoniAnnui = canoniAnnui || 12000;
+        const brackets = [{ l: '23% (fino a 28k)', r: 0.23 }, { l: '35% (28k–50k)', r: 0.35 }, { l: '43% (oltre 50k)', r: 0.43 }];
+        const rows = brackets.map(b => {
+            const cmp = TP.compareCedolare(canoniAnnui, b.r, isConcordato);
+            return `<tr>
+                <td style="padding:8px 10px">${b.l}</td>
+                <td style="padding:8px 10px;text-align:right">${TP.fmtEuro(cmp.cedolare)}</td>
+                <td style="padding:8px 10px;text-align:right">${TP.fmtEuro(cmp.ordinario)}</td>
+                <td style="padding:8px 10px;text-align:right;color:${cmp.recommended === 'cedolare' ? 'var(--green)' : 'var(--gold)'}">${cmp.recommended === 'cedolare' ? 'Cedolare' : 'Ordinario'}</td>
+            </tr>`;
+        }).join('');
+        document.getElementById('modals').innerHTML = `<div class="modal-overlay active"><div class="modal">
+            <div class="modal-header"><h3 class="modal-title">📊 Cedolare vs IRPEF ordinario</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+            <div class="modal-body">
+                <p style="font-size:13px;color:var(--text-secondary);margin-bottom:14px">Su canoni annui di <strong>${TP.fmtEuro(canoniAnnui)}</strong>${isConcordato ? ' (canone concordato → cedolare 10%)' : ''}. Stima indicativa, include imposta di registro per l'ordinario.</p>
+                <table style="width:100%;border-collapse:collapse;font-size:13px">
+                    <thead><tr style="border-bottom:1px solid var(--border);color:var(--text-muted);font-size:11px;text-transform:uppercase">
+                        <th style="padding:8px 10px;text-align:left">Scaglione IRPEF</th><th style="padding:8px 10px;text-align:right">Cedolare</th><th style="padding:8px 10px;text-align:right">Ordinario</th><th style="padding:8px 10px;text-align:right">Conviene</th>
+                    </tr></thead>
+                    <tbody>${rows}</tbody>
+                </table>
+            </div>
+            <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Chiudi</button></div>
+        </div></div>`;
+    }
+
+    // Build the share modal: pick docs (default = all for property+year) and generate link
+    function openCommercialistaShare(propertyId, year) {
+        const prop = (S.properties || []).find(p => p.id === propertyId) || {};
+        const docs = (S.documents || []).filter(d => d.propertyId === propertyId && (!d.fiscalYear || Number(d.fiscalYear) === Number(year)));
+        const rows = docs.length ? docs.map(d => `<label style="display:flex;align-items:center;gap:10px;padding:8px 0;cursor:pointer">
+            <input type="checkbox" class="cm-doc" value="${esc(d.id)}" checked>
+            <span style="font-size:18px">${docIcon(d.type)}</span>
+            <span style="flex:1">${esc(d.name)}</span>
+            <span style="font-size:11px;color:var(--text-muted)">${esc(d.type || '')}</span>
+        </label>`).join('') : '<p style="color:var(--text-muted);font-size:13px">Nessun documento per questo immobile/anno. Carica documenti prima di condividere.</p>';
+        document.getElementById('modals').innerHTML = `<div class="modal-overlay active"><div class="modal lg">
+            <div class="modal-header"><h3 class="modal-title">🔗 Condividi col commercialista</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+            <div class="modal-body">
+                <div class="form-row">
+                    <div class="form-group"><label class="form-label">Nome studio / commercialista</label><input type="text" class="form-input" id="cmRecipient" placeholder="Es. Studio Rossi"></div>
+                    <div class="form-group"><label class="form-label">Scadenza link</label><select class="form-select" id="cmExpiry"><option value="30">30 giorni</option><option value="60" selected>60 giorni</option><option value="90">90 giorni</option><option value="180">180 giorni</option></select></div>
+                </div>
+                <div class="form-group"><label class="form-label">Nota (opzionale)</label><input type="text" class="form-input" id="cmNote" placeholder="Es. Dichiarazione redditi ${year}"></div>
+                <div style="margin-top:10px"><label class="form-label">Documenti inclusi (${docs.length})</label>
+                    <div style="max-height:240px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:8px 14px;margin-top:6px">${rows}</div>
+                </div>
+                <div id="cmResult" style="margin-top:14px"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">Annulla</button>
+                <button class="btn" id="cmGenBtn" onclick="generateCommercialistaShare('${propertyId}', ${year})" ${docs.length ? '' : 'disabled'}>Genera link</button>
+            </div>
+        </div></div>`;
+    }
+
+    async function generateCommercialistaShare(propertyId, year) {
+        const prop = (S.properties || []).find(p => p.id === propertyId) || {};
+        const docIds = Array.from(document.querySelectorAll('.cm-doc:checked')).map(c => c.value);
+        if (!docIds.length) { toast('error', 'Seleziona almeno un documento'); return; }
+        const btn = document.getElementById('cmGenBtn');
+        btn.disabled = true; btn.textContent = 'Genero…';
+        try {
+            const idToken = await auth.currentUser.getIdToken();
+            const resp = await fetch('/api/documents/share', {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + idToken, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    ownerId: prop.ownerId || S.profile.id,
+                    propertyId: propertyId,
+                    fiscalYear: year,
+                    docIds: docIds,
+                    recipientName: document.getElementById('cmRecipient').value.trim(),
+                    note: document.getElementById('cmNote').value.trim(),
+                    expiresInDays: parseInt(document.getElementById('cmExpiry').value, 10),
+                }),
+            });
+            const data = await resp.json();
+            if (!resp.ok || !data.ok) throw new Error(data.error || 'errore');
+            const el = document.getElementById('cmResult');
+            el.innerHTML = `<div style="background:rgba(0,210,106,0.1);border:1px solid var(--green);border-radius:10px;padding:14px">
+                <div style="font-weight:600;color:var(--green);margin-bottom:8px">✅ Link generato</div>
+                <div style="display:flex;gap:8px;align-items:center">
+                    <input class="form-input" id="cmLink" readonly value="${esc(data.url)}" style="flex:1;font-size:12px">
+                    <button class="btn btn-sm" onclick="navigator.clipboard.writeText(document.getElementById('cmLink').value);toast('success','Link copiato')">Copia</button>
+                </div>
+                <div style="font-size:11px;color:var(--text-muted);margin-top:8px">Scade il ${fmtDate(data.expiresAt)} · ${docIds.length} documenti · accessi tracciati</div>
+            </div>`;
+            btn.style.display = 'none';
+            logActivity('commercialista_share_created', 'document', { propertyId, year, docCount: docIds.length });
+        } catch (e) {
+            btn.disabled = false; btn.textContent = 'Genera link';
+            toast('error', 'Errore generazione link', e.message);
+        }
+    }
 
     function documentsPage() {
         const all = S.documents || [];
