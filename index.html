@@ -1294,6 +1294,11 @@
         /* ═══════════════════════════════════════════════════════════
            APARTMENTS GRID
            ═══════════════════════════════════════════════════════════ */
+        /* Verification proof row — backs up "All verified. All real." in context */
+        .verify-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; max-width: 720px; margin: -6px auto 40px; }
+        .verify-chip { display: inline-flex; align-items: center; gap: 7px; padding: 8px 16px; border: 1px solid rgba(255,215,0,0.18); background: rgba(255,215,0,0.04); border-radius: 100px; font-size: 12.5px; letter-spacing: .2px; color: var(--text-secondary); white-space: nowrap; transition: border-color .3s, background .3s; }
+        .verify-chip:hover { border-color: rgba(255,215,0,0.4); background: rgba(255,215,0,0.07); }
+
         .apartments-grid {
             display: grid;
             grid-template-columns: 1fr;
@@ -3061,9 +3066,16 @@
                 <p class="section-subtitle">All verified. All real. All ready.</p>
             </div>
 
+            <div class="verify-row reveal" aria-label="What “verified” means at BOOM">
+                <span class="verify-chip">🎥 Video-verified</span>
+                <span class="verify-chip">🛡️ On-site checked</span>
+                <span class="verify-chip">📝 Legal contract</span>
+                <span class="verify-chip">💶 No hidden fees</span>
+            </div>
+
             <div class="apartments-grid reveal-stagger">
                 <a href="/apartments.html" class="apartment-card">
-                    <div class="apartment-image" style="background-image: url('https://i.imgur.com/QOAu6k1.jpeg');">
+                    <div class="apartment-image" style="background-image: url('https://i.imgur.com/QOAu6k1h.jpeg');">
                         <span class="apartment-badge">Video Tour</span>
                     </div>
                     <div class="apartment-info">
@@ -3084,7 +3096,7 @@
                 </a>
 
                 <a href="/apartments.html" class="apartment-card">
-                    <div class="apartment-image" style="background-image: url('https://i.imgur.com/tJnYADn.jpeg');">
+                    <div class="apartment-image" style="background-image: url('https://i.imgur.com/tJnYADnh.jpeg');">
                         <span class="apartment-badge">Bohemian</span>
                     </div>
                     <div class="apartment-info">
@@ -3105,7 +3117,7 @@
                 </a>
 
                 <a href="/apartments.html" class="apartment-card">
-                    <div class="apartment-image" style="background-image: url('https://i.imgur.com/8LVxrhs.jpeg');">
+                    <div class="apartment-image" style="background-image: url('https://i.imgur.com/8LVxrhsh.jpeg');">
                         <span class="apartment-badge">Historic Center</span>
                     </div>
                     <div class="apartment-info">
@@ -3169,10 +3181,10 @@
                     <div class="how-screen">
                         <div class="how-scene on" data-step="0">
                             <div class="how-aptgrid">
-                                <div class="how-apt feat"><div class="how-ph"><img src="https://i.imgur.com/hxai5bz.jpeg" alt="" loading="lazy" decoding="async" onerror="this.style.display='none'"><span class="how-live">● LIVE 360°</span></div><div class="how-pr">€1.850</div></div>
-                                <div class="how-apt"><div class="how-ph"><img src="https://i.imgur.com/tJnYADn.jpeg" alt="" loading="lazy" decoding="async" onerror="this.style.display='none'"></div><div class="how-pr">€1.450</div></div>
-                                <div class="how-apt"><div class="how-ph"><img src="https://i.imgur.com/8LVxrhs.jpeg" alt="" loading="lazy" decoding="async" onerror="this.style.display='none'"></div><div class="how-pr">€2.300</div></div>
-                                <div class="how-apt"><div class="how-ph"><img src="https://i.imgur.com/s2es0MN.jpeg" alt="" loading="lazy" decoding="async" onerror="this.style.display='none'"></div><div class="how-pr">€1.690</div></div>
+                                <div class="how-apt feat"><div class="how-ph"><img src="https://i.imgur.com/hxai5bzm.jpeg" alt="" loading="lazy" decoding="async" onerror="this.style.display='none'"><span class="how-live">● LIVE 360°</span></div><div class="how-pr">€1.850</div></div>
+                                <div class="how-apt"><div class="how-ph"><img src="https://i.imgur.com/tJnYADnm.jpeg" alt="" loading="lazy" decoding="async" onerror="this.style.display='none'"></div><div class="how-pr">€1.450</div></div>
+                                <div class="how-apt"><div class="how-ph"><img src="https://i.imgur.com/8LVxrhsm.jpeg" alt="" loading="lazy" decoding="async" onerror="this.style.display='none'"></div><div class="how-pr">€2.300</div></div>
+                                <div class="how-apt"><div class="how-ph"><img src="https://i.imgur.com/s2es0MNm.jpeg" alt="" loading="lazy" decoding="async" onerror="this.style.display='none'"></div><div class="how-pr">€1.690</div></div>
                             </div>
                         </div>
                         <div class="how-scene" data-step="1">

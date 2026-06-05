@@ -130,6 +130,7 @@
         .badge-rented{background:rgba(255,59,48,0.1);color:#FF3B30}
         .badge-verified{background:rgba(255, 215, 0,0.1);color:var(--gold)}
         .badge-video{background:rgba(255,59,48,0.1);color:#FF3B30}
+        .badge-fresh{background:rgba(255,255,255,0.05);color:var(--text-secondary);border-color:rgba(255,255,255,0.14)}
         .apt-name{font-size:clamp(32px,5vw,56px);font-weight:100;text-transform:uppercase;letter-spacing:-1px;line-height:1.1;margin-bottom:10px}
         .apt-address{font-size:15px;color:var(--text-secondary);margin-bottom:10px}
         .apt-zone{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;background:rgba(255, 215, 0,0.08);border:1px solid rgba(255, 215, 0,0.22);border-radius:100px;font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:1.5px;font-weight:500;transition:all .25s;text-decoration:none}
@@ -1215,6 +1216,21 @@
         const si=sm[st]||sm['available'];
         bEl.innerHTML=`<span class="badge ${si.c}">${si.t}</span><span class="badge badge-verified">✓ Verified</span>`;
         if(d.videoUrl||d.youtubeUrl)bEl.innerHTML+='<span class="badge badge-video">▶ Video Tour</span>';
+        // Freshness chip — real "live inventory" trust signal. Only shown while genuinely
+        // fresh (≤3 weeks); we never advertise a stale date.
+        (function(){
+          const ts=d.createdAt||d.updatedAt;
+          const ms=ts&&(ts.toMillis?ts.toMillis():(ts.seconds?ts.seconds*1000:(typeof ts==='number'?ts:Date.parse(ts))));
+          if(!ms||isNaN(ms))return;
+          const days=Math.floor((Date.now()-ms)/864e5);
+          let label;
+          if(days<=0)label='Listed today';
+          else if(days===1)label='Listed yesterday';
+          else if(days<14)label='Listed '+days+' days ago';
+          else if(days<=21)label='Listed '+Math.round(days/7)+' weeks ago';
+          else return;
+          bEl.innerHTML+=`<span class="badge badge-fresh">🕓 ${label}</span>`;
+        })();
 
         document.getElementById('aptName').textContent=name;
         aptAddress=d.address||'Rome, Italy';
