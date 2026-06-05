@@ -7985,13 +7985,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 budget: parseInt(d.budget) || 0, zone: d.zone || '', arrivalDate: d.arrivalDate || null,
                 duration: d.duration || '', source: d.source || 'other', stage: d.stage, notes: d.notes || ''
             });
-            closeModal(); await refreshOnly('clients'); toast('success', 'Cliente aggiornato!');
+            closeModal(); await refreshOnly('clients'); logActivity('client_updated', 'client', { id: id }); toast('success', 'Cliente aggiornato!');
         } catch (err) { toast('error', 'Errore', err.message); }
     }
     
     async function deleteClient(id) {
         if (!confirm('Eliminare questo cliente?')) return;
-        try { await db.collection('clients').doc(id).delete(); closeModal(); await refresh(); toast('success', 'Eliminato'); }
+        try { await db.collection('clients').doc(id).delete(); closeModal(); await refresh(); logActivity('client_deleted', 'client', { id: id }); toast('success', 'Eliminato'); }
         catch (err) { toast('error', 'Errore', err.message); }
     }
     
@@ -9471,7 +9471,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
                 ...(newStatus === 'resolved' ? { resolvedAt: firebase.firestore.FieldValue.serverTimestamp() } : {})
             });
-            toast('success', `Stato aggiornato: ${statusLabel(newStatus)}`);
+            logActivity('maintenance_status_changed', 'maintenance', { id: id, status: newStatus }); toast('success', `Stato aggiornato: ${statusLabel(newStatus)}`);
 
             const m = S.maintenance.find(x => x.id === id);
             const property = m ? S.properties.find(p => p.id === m.propertyId) : null;
@@ -11517,7 +11517,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         try {
             await db.collection('tasks').doc(id).delete();
             S.tasks = (S.tasks || []).filter(t => t.id !== id);
-            toast('success', 'Task eliminato');
+            logActivity('task_deleted', 'task', { id: id }); toast('success', 'Task eliminato');
             renderPage();
             buildNav();
         } catch (e) { toast('error', 'Errore', e.message); }
@@ -11528,7 +11528,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         try {
             await db.collection('deadlines').doc(id).delete();
             S.deadlines = (S.deadlines || []).filter(d => d.id !== id);
-            toast('success', 'Scadenza eliminata');
+            logActivity('deadline_deleted', 'deadline', { id: id }); toast('success', 'Scadenza eliminata');
             renderPage();
             buildNav();
         } catch (e) { toast('error', 'Errore', e.message); }
@@ -11607,7 +11607,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 if (!S.deadlines) S.deadlines = [];
                 const idx = S.deadlines.findIndex(d => d.id === id);
                 if (idx >= 0) S.deadlines[idx] = { ...S.deadlines[idx], ...data };
-                toast('success', 'Scadenza aggiornata');
+                logActivity('deadline_updated', 'deadline', { id: id }); toast('success', 'Scadenza aggiornata');
             } else {
                 data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
                 data.createdBy = S.profile.id;
@@ -11645,7 +11645,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 if (!S.tasks) S.tasks = [];
                 const idx = S.tasks.findIndex(t => t.id === id);
                 if (idx >= 0) S.tasks[idx] = { ...S.tasks[idx], ...data };
-                toast('success', 'Task aggiornato');
+                logActivity('task_updated', 'task', { id: id }); toast('success', 'Task aggiornato');
             } else {
                 data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
                 data.createdBy = S.profile.id;
@@ -11823,7 +11823,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         try {
             if (data.id) {
                 await db.collection('listings').doc(data.id).update(listingData);
-                toast('success', 'Listing aggiornato!', 'Visibile su boomrome.com');
+                logActivity('listing_saved', 'listing', { propertyId: data.propertyId }); toast('success', 'Listing aggiornato!', 'Visibile su boomrome.com');
             } else {
                 listingData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
                 // Create new listing and get the document reference
@@ -12302,7 +12302,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 duration: data.duration || '', source: data.source || 'other', notes: data.notes || '',
                 stage: 'lead', contractGenerated: false, createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
-            closeModal(); await refresh(); toast('success', 'Cliente salvato!', data.name);
+            closeModal(); await refresh(); logActivity('client_created', 'client', { name: data.name, email: data.email || '' }); toast('success', 'Cliente salvato!', data.name);
         } catch (err) { toast('error', 'Errore', err.message); }
     }
 
@@ -13419,7 +13419,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                         { maintenanceId: id, propertyId: data.propertyId });
                 }
             }
-            await refreshOnly('maintenance'); closeModal(); toast('success', 'Manutenzione aggiornata!');
+            await refreshOnly('maintenance'); closeModal(); logActivity('maintenance_updated', 'maintenance', { id: id }); toast('success', 'Manutenzione aggiornata!');
         } catch (err) { toast('error', 'Errore', err.message); }
     }
 
