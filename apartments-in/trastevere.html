@@ -194,6 +194,7 @@ nav{position:fixed;width:100%;top:0;z-index:100;padding:20px 50px;background:rgb
 
 /* APARTMENTS GRID */
 .listings-section{background:var(--bg1)}
+.verify-row{display:flex;flex-wrap:wrap;gap:9px;margin:16px 0 6px}.verify-chip{display:inline-flex;align-items:center;gap:7px;padding:7px 14px;border:1px solid rgba(255,215,0,0.18);background:rgba(255,215,0,0.04);border-radius:100px;font-size:12px;letter-spacing:.2px;color:rgba(255,255,255,0.75);white-space:nowrap;transition:border-color .3s,background .3s}.verify-chip:hover{border-color:rgba(255,215,0,0.4);background:rgba(255,215,0,0.07)}
 .listings-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:22px;margin-top:8px}
 .listing-card{background:var(--bg2);border:1px solid var(--border);border-radius:18px;overflow:hidden;transition:all .35s;cursor:pointer;display:flex;flex-direction:column}
 .listing-card:hover{transform:translateY(-4px);border-color:var(--border-g);box-shadow:0 18px 50px rgba(0,0,0,0.4)}
@@ -531,6 +532,12 @@ footer{background:var(--bg1);border-top:1px solid var(--border);padding:60px 50p
   <span class="section-eyebrow">Available now</span>
   <h2 class="section-title">Apartments in Trastevere</h2>
   <p class="section-subtitle">Live from our Firestore — verified by BOOM, ready for viewing.</p>
+  <div class="verify-row" aria-label="What verified means at BOOM">
+    <span class="verify-chip">🎥 Video-verified</span>
+    <span class="verify-chip">🛡️ On-site checked</span>
+    <span class="verify-chip">📝 Legal contract</span>
+    <span class="verify-chip">💶 No hidden fees</span>
+  </div>
   <div class="listings-grid" id="listingsGrid" data-zone-match="trastevere|gianicolo|monteverde vecchio">
     <div class="listings-loading">Loading apartments…</div>
   </div>
