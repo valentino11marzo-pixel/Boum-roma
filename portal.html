@@ -12435,6 +12435,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 payload.ownershipPct = data.ownershipPct ? parseInt(data.ownershipPct, 10) : 100;
             }
             await db.collection('users').doc(userId).update(payload);
+            logActivity('user_updated', 'user', { id: userId, targetName: data.name, role: data.role });
             closeModal(); await refreshOnly('users'); toast('success', 'Utente aggiornato!', data.name);
         } catch (err) { toast('error', 'Errore', err.message); }
     }
@@ -12976,12 +12977,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         e.preventDefault();
         const data = Object.fromEntries(new FormData(e.target));
         try {
-            await db.collection('payments').add({
+            var docRef = await db.collection('payments').add({
                 contractId: data.contractId, month: data.month || '', amount: parseInt(data.amount) || 0,
                 dueDate: data.dueDate || null, status: data.status || 'pending',
                 paidDate: data.status === 'paid' ? new Date().toISOString() : null,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
+            logActivity('payment_created', 'payment', { id: docRef.id, amount: parseInt(data.amount) || 0, status: data.status || 'pending', contractId: data.contractId });
             await refreshOnly('payments'); closeModal(); toast('success', 'Pagamento registrato!');
         } catch (err) { toast('error', 'Errore', err.message); }
     }
@@ -12990,6 +12992,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         try {
             const payment = S.payments.find(p => p.id === id);
             await db.collection('payments').doc(id).update({ status: 'paid', paidDate: new Date().toISOString() });
+            logActivity('payment_marked_paid', 'payment', { id: id, amount: payment?.amount, contractId: payment?.contractId });
             // Notify landlord of payment received
             if (payment) {
                 await notifyPaymentReceived({ id, ...payment });
@@ -13201,6 +13204,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 notes: data.notes || '',
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()
             });
+            logActivity('property_updated', 'property', { id: id, name: data.name, ownerId: data.ownerId });
             closeModal(); await refreshOnly('properties'); toast('success', 'Immobile aggiornato!');
         } catch (err) { toast('error', 'Errore', err.message); }
     }
@@ -13258,6 +13262,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 updatePayload['studenti.annoAccademico'] = data.studenti_annoAccademico || '';
             }
             await db.collection('contracts').doc(id).update(updatePayload);
+            logActivity('contract_updated', 'contract', { id: id, propertyId: data.propertyId || _existingContract.propertyId, tenantId: data.tenantId || _existingContract.tenantId, rent: updatePayload.rent });
             await refreshOnly('contracts'); closeModal(); toast('success', 'Contratto aggiornato!');
         } catch (err) { toast('error', 'Errore', err.message); }
     }
@@ -13324,6 +13329,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 notes: data.notes || '',
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()
             });
+            logActivity('payment_updated', 'payment', { id: id, amount: parseInt(data.amount) || 0, status: data.status, contractId: data.contractId });
             await refreshOnly('payments'); closeModal(); toast('success', 'Pagamento aggiornato!');
         } catch (err) { toast('error', 'Errore', err.message); }
     }
@@ -13432,11 +13438,16 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         };
         var collection = COLLECTION_MAP[type] || (type + 's');
         try {
+            // Snapshot a label of the doc BEFORE delete so the audit log can
+            // show the human-readable identity even after the row is gone.
+            var snap = (S[collection] || []).find(function(x) { return x.id === id; }) || {};
+            var label = snap.name || snap.title || snap.email || snap.address || id;
             await db.collection(collection).doc(id).delete();
             // Remove from local state immediately so UI updates before refresh
             if (S[collection] && Array.isArray(S[collection])) {
                 S[collection] = S[collection].filter(function(x) { return x.id !== id; });
             }
+            logActivity(collection + '_deleted', collection, { id: id, label: label });
             closeModal();
             renderPage();
             buildNav();
