@@ -2196,37 +2196,41 @@ Valentyne - BOOM Rome`
         isMagicSign = true;
         (async function initMagicSign() {
             try {
-                try { await auth.signInAnonymously(); } catch (anonErr) {
-                    console.error('Anonymous auth failed:', anonErr);
-                    const ms = document.getElementById('magicSign');
-                    document.getElementById('loading').classList.add('hidden');
-                    ms.classList.remove('hidden'); ms.style.display = 'flex';
-                    ms.innerHTML = '<div style="text-align:center;max-width:420px"><div style="font-size:48px;margin-bottom:16px">⚙️</div><h2 style="color:var(--text);margin-bottom:8px">Setup Required</h2><p style="color:var(--text-muted);font-size:14px;line-height:1.6">Contact your agent at <a href="mailto:' + COMPANY.email + '" style="color:var(--gold)">' + COMPANY.email + '</a></p><div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;margin-top:16px;font-size:11px;color:var(--text-muted);text-align:left;font-family:monospace">Admin: Enable Anonymous auth in Firebase Console</div></div>';
-                    return;
-                }
-                var snap = await db.collection('contracts').where('tenantSignToken', '==', magicSignToken).limit(1).get();
-                var signRole = 'tenant';
-                if (snap.empty) { snap = await db.collection('contracts').where('landlordSignToken', '==', magicSignToken).limit(1).get(); signRole = 'landlord'; }
-                
+                // Anonymous sign-in is no longer required — /api/magic-sign/lookup
+                // and /submit authorize by the single-use token. Kept as a soft
+                // attempt only so the post-sign flow elsewhere on the page still
+                // has its Firebase session if anon auth is enabled.
+                try { await auth.signInAnonymously(); } catch (anonErr) { console.warn('[magic-sign] anon auth unavailable (non-fatal):', anonErr && anonErr.message); }
+                // Look up contract via server endpoint. Firestore rules deny
+                // anonymous reads of contracts/properties/users; the lookup
+                // endpoint authorizes by the single-use signing token and
+                // returns a sanitized {contract, property, signer, otherParty}
+                // bundle in one round-trip.
+                var lookupResp = await fetch('/api/magic-sign/lookup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token: magicSignToken }),
+                });
                 var msEl = document.getElementById('magicSign');
                 document.getElementById('loading').classList.add('hidden');
                 msEl.classList.remove('hidden'); msEl.style.display = 'flex';
-                
-                if (snap.empty) { msEl.innerHTML = '<div style="text-align:center;max-width:400px"><div style="font-size:48px;margin-bottom:16px">🔗</div><h2 style="color:var(--text);margin-bottom:8px">Link non valido</h2><p style="color:var(--text-muted);font-size:14px">Questo link non è valido o è già stato usato.</p><a href="mailto:' + COMPANY.email + '" class="btn" style="margin-top:20px;display:inline-block">Contatta BOOM</a></div>'; return; }
-                
-                var contractDoc = snap.docs[0];
-                var contract = Object.assign({ id: contractDoc.id }, contractDoc.data());
-                var alreadySigned = (signRole === 'tenant' && contract.tenantSignature) || (signRole === 'landlord' && contract.landlordSignature);
-                if (alreadySigned) { msEl.innerHTML = '<div style="text-align:center;max-width:420px;font-family:Helvetica Neue,Helvetica,-apple-system,sans-serif;font-weight:300;padding-top:40px"><img src="data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDI0IDEwMjQiIHdpZHRoPSIxMDI0IiBoZWlnaHQ9IjEwMjQiPgogIDxkZWZzPgogICAgPGxpbmVhckdyYWRpZW50IGlkPSJnb2xkR3JhZGllbnQiIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMCUiIHkyPSIxMDAlIj4KICAgICAgPHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iI0ZGRDU0RiIvPgogICAgICA8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiNGNUE2MjMiLz4KICAgIDwvbGluZWFyR3JhZGllbnQ+CiAgPC9kZWZzPgogIDxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDAsMTAyNCkgc2NhbGUoMC4xLC0wLjEpIiBmaWxsPSJ1cmwoI2dvbGRHcmFkaWVudCkiPgogICAgPHBhdGggZD0iTTQ4NjAgODc0OSBjLTUwOSAtMjkgLTk3NiAtMTYxIC0xNDEzIC00MDEgLTU4MCAtMzE3IC0xMDU3IC04MDYgLTEzNTAgLTEzODMgLTE0OCAtMjkyIC0yMjkgLTUzMiAtMjkxIC04NTkgLTg5IC00NjUgLTY5IC0xMDA1IDU0IC0xNDYxIDE4NCAtNjg4IDYxNiAtMTMwOCAxMjMyIC0xNzY5IDQ5MiAtMzY4IDExNzIgLTYwOSAxNzk0IC02MzUgNTQ2IC0yMiA5ODcgNTcgMTQ4OSAyNjcgNTAzIDIxMSA5NzkgNTg5IDEzMjcgMTA1MyAzNDAgNDUzIDU1NyA5OTQgNjMwIDE1NjkgMTcgMTM1IDE3IDYzMCAwIDc2MCAtOTMgNzE2IC0zOTYgMTM0MSAtOTAwIDE4NjEgLTI4MCAyODkgLTU2OSA0OTggLTkyMiA2NjcgLTQxNiAyMDAgLTgxMyAzMDMgLTEyODUgMzMyIC0xNjUgMTAgLTE3MCAxMCAtMzY1IC0xeiBtNjEwIC0xNDQgYzc0MyAtMTAzIDE0MzYgLTQ1OSAxOTE5IC05ODUgMzM4IC0zNjcgNTYyIC03NTEgNzA0IC0xMjA1IDI3NiAtODc5IDEzMiAtMTg1OCAtMzg4IC0yNjQwIC0yNDIgLTM2NCAtNDkzIC02MTUgLTkwMCAtOTAwIGwtNzAgLTQ5IDEwOSAxMDQgYzQxMyAzOTYgNjc5IDkxOSA3NjcgMTUwNSAzMyAyMTcgMzMgNTU4IDAgNzY1IC03NSA0NzYgLTI1NyA4OTYgLTU0OSAxMjY1IC0xMjcgMTYxIC0zNjMgMzgwIC01NDkgNTExIC0zMDAgMjExIC02ODkgMzYzIC0xMDc5IDQyMCAtMTcyIDI2IC02MDQgMjYgLTc2NCAwIC0yOTYgLTQ3IC01NDUgLTEyOCAtODA4IC0yNjIgLTIzNiAtMTIyIC00NDAgLTI3MSAtNjMyIC00NjQgLTQ4NiAtNDg1IC03NDkgLTExMjEgLTc1MSAtMTgxNSAtMSAtNjExIDE3MCAtMTE0OCA1MTUgLTE2MDggMTAwIC0xMzQgMjg2IC0zMzUgMzgyIC00MTMgMzMgLTI3IC04IC0yIC05MSA1NSAtNTEzIDM1MSAtOTA0IDgwNSAtMTE0MyAxMzMxIC03MSAxNTYgLTEzNiAzMzYgLTE2OCA0NjUgLTkgMzMgLTE5IDc2IC0yNCA5NSAtNSAxOSAtMjAgMTAwIC0zNCAxODAgLTU5IDM0MyAtNjAgNzQwIDAgMTA3MCA4MSA0NTYgMjI5IDgyNiA0NzkgMTIwMCAyNDYgMzY4IDU1OCA2NjkgOTQ5IDkxNyAzODYgMjQ1IDg4MSA0MTggMTMyMSA0NjIgNjEgNiAxMjQgMTMgMTQwIDE1IDczIDEwIDU1NiAtNCA2NjUgLTE5eiBtLTYwIC0xMzI5IGMxMDUgLTE2IDI1OCAtNDkgMzM1IC03MiA4MiAtMjYgMTk3IC02NiAyNDAgLTg0IDE0OSAtNjUgMTkwIC04NCAyNjYgLTEyNiA2NzcgLTM3OSAxMTI5IC0xMDQ5IDEyNDYgLTE4NDkgMjcgLTE4MiAyNCAtNTE3IC01IC02OTUgLTc1IC00NTggLTIyNSAtODEzIC01MDAgLTExNzkgLTExNiAtMTU0IC0zNDAgLTM2OSAtNTI3IC01MDYgLTQ0IC0zMiAtODcgLTYzIC05NSAtNjkgLTggLTYgMzUgMzkgOTYgOTkgMTc4IDE3NyAyODMgMzIxIDM5NyA1NTAgMTYxIDMyMiAyMzEgNjc2IDIwNSAxMDQ1IC0zMiA0NjcgLTIyMyA5MDIgLTU0MiAxMjM3IC0yMzkgMjUxIC01MjEgNDI2IC04NzMgNTQyIC03OSAyNiAtMjczIDY3IC0zODMgODEgLTEwOCAxMyAtMzQ5IDEzIC00NjUgMCAtMjc2IC0zMiAtNTk3IC0xNDUgLTgzNCAtMjkzIC0yMjQgLTE0MCAtNDY2IC0zNzggLTYxMyAtNjAyIC0zMDcgLTQ3MCAtNDA3IC0xMDU1IC0yNzMgLTE1OTkgODAgLTMyNyAyMTcgLTU4OSA0NTQgLTg3MSA3MSAtODQgNzMgLTg4IDMxIC01NiAtMjkzIDIyNSAtNTQ3IDUzNSAtNzE4IDg3NyAtMzQgNjggLTY1IDE0MyAtMTIyIDI5NCAtNDIgMTEyIC0xMDEgMzgzIC0xMjAgNTU1IC0xNCAxMjcgLTE0IDQwMSAwIDUzNCA1MSA0ODIgMjIzIDkxMiA1MTYgMTI4OCAyNjkgMzQ0IDY1NCA2MjAgMTA4NSA3NzggMTYwIDU5IDQwMCAxMTUgNTc0IDEzNCAxMjEgMTMgNTA4IDUgNjI1IC0xM3ogbS0zMCAtMTE2NSBjNDAxIC04MSA3MjEgLTI0MiA5OTIgLTQ5OSA2NDMgLTYxMiA3NjkgLTE2MDcgMzAwIC0yMzY3IC0xMTggLTE5MCAtMjkxIC0zODYgLTQ2MyAtNTI0IC0xMzcgLTExMSAtMTQ4IC0xMTMgLTQ5IC0xMiAxMTAgMTEyIDIwNiAyNDggMjc1IDM4NiA2NyAxMzcgOTggMjIyIDEzMiAzNjcgMjQgMTAzIDI2IDEzMiAyNyAzMjMgMCAxODIgLTMgMjI0IC0yMiAzMTAgLTQ3IDIxMSAtMTI2IDM5NCAtMjQ1IDU2OSAtMTI2IDE4NiAtMzU4IDM4NyAtNTY0IDQ5MCAtMzg0IDE5MSAtODIzIDIyNSAtMTIxOCA5NSAtNDgyIC0xNjAgLTg1NCAtNTQxIC0xMDA0IC0xMDI5IC0xMTcgLTM3OSAtODEgLTgxMCA5NiAtMTE2NSAzNyAtNzIgMTMwIC0yMTUgMTY2IC0yNTIgMTcgLTE4IDI2IC0zMyAyMCAtMzMgLTYgMCAtNjEgNTIgLTEyMSAxMTYgLTI1OSAyNzIgLTQyNCA1NzUgLTUxMSA5MzQgLTExMSA0NTkgLTE4IDEwMDYgMjQ1IDE0MzAgMjk4IDQ4MyA3OTEgNzk3IDEzNzkgODgwIDExMCAxNiA0NDggNCA1NjUgLTE5eiBtLTIzOSAtOTExIGMzNjAgLTI4IDY4MCAtMTcxIDkyNSAtNDE1IDE5NCAtMTkzIDMxNyAtNDE1IDM4MiAtNjg4IDI0IC0xMDIgMjYgLTEzMCAyNiAtMzEyIDAgLTE5MSAtMSAtMjA1IC0zMCAtMzIwIC01MyAtMjA1IC0xMzIgLTM3MiAtMjUxIC01MzUgLTU4IC03OSAtMjYzIC0yODggLTMyMyAtMzMwIC0zMSAtMjIgLTI5IC0xOCAxOCAzNSAxOTUgMjIwIDMxMiA1MTkgMzEyIDc5NSAwIDMyNSAtMTIxIDYxNCAtMzUwIDg0MSAtMzY5IDM2NCAtOTI2IDQ1MyAtMTM4NSAyMjIgLTMzNiAtMTcwIC01NzggLTQ5OSAtNjM2IC04NjUgLTE5IC0xMjYgLTcgLTM3MSAyNSAtNDkwIDQ0IC0xNjIgOTcgLTI4NCAxNzMgLTM5OCA5IC0xNCAtNCAtNSAtMzAgMjAgLTI2IDI0IC00NSA1MSAtNDIgNTggMiA3IDEgMTEgLTQgNyAtMTEgLTYgLTU4IDUxIC0xMTggMTQwIC0xMDkgMTYzIC0xODMgMzQ3IC0yMTkgNTQ1IC0yMyAxMjcgLTIzIDM1MSAtMSA0ODkgNTUgMzM1IDI0OCA2NzcgNDkyIDg3MSAyNjEgMjA4IDUzMCAzMTEgODgxIDMzOCAxMSAxIDgxIC0zIDE1NSAtOHogbTI5IC03MTQgYzQ1OSAtNzQgODIzIC00MjggODk1IC04NjkgNTggLTM1OCAtNjAgLTY5NiAtMzQ1IC05ODcgbC0zNCAtMzUgMjIgMzUgYzExNSAxODIgMTc5IDQwMyAxNjggNTc1IC0xNCAyMzUgLTEwNCA0MzMgLTI2OCA1OTEgLTEzNyAxMzQgLTI4NyAyMDkgLTQ3MiAyMzkgLTExNSAxOSAtMTg3IDE5IC0zMDMgMCAtMzM3IC01NSAtNjEyIC0zMDIgLTcwNCAtNjM1IC0zMiAtMTEzIC0zNCAtMzI1IC01IC00NDAgMjMgLTkyIDcwIC0yMTMgOTggLTI1NCBsMjEgLTMxIC0zMSAyOSBjLTM5IDM2IC0xMjAgMTUyIC0xNTUgMjIxIC0zNSA3MSAtODEgMjE1IC0xMDIgMzE5IC0yNSAxMzAgLTE3IDM1NyAxNyA0NzYgMTAyIDM1NCAzNTcgNjE4IDcwNiA3MzAgMTUyIDQ5IDMzMSA2MiA0OTIgMzZ6IG0tNzMgLTU2NyBjMTc4IC0yNCAzMjcgLTEwMSA0NTQgLTIzNiAxMzcgLTE0MyAxOTkgLTMwMyAyMDEgLTUxMyAxIC0xNjIgLTQyIC0zMDkgLTEzNSAtNDUzIC01MiAtODIgLTczIC05NyAtMzggLTI4IDUxIDk5IDY3IDI5MCAzNiA0MTIgLTU3IDIxOSAtMjUxIDQxMyAtNDY2IDQ2NCAtNzUgMTcgLTIzNiAyMCAtMzExIDQgLTIxMyAtNDQgLTQyMiAtMjQ3IC00NzMgLTQ2MCAtMzEgLTEzMyAtMTMgLTMyNSA0MSAtNDMxIDM1IC03MCA4IC00NyAtNTIgNDMgLTU4IDg4IC05MCAxNjcgLTExNCAyODYgLTI1IDEyMSAtMjUgMjIwIC0xIDMzMSAzMyAxNDYgODQgMjQzIDE4NiAzNTEgMTcxIDE4MyA0MTMgMjY2IDY3MiAyMzB6IG0xNSAtNDcwIGM4MCAtMTcgMTg2IC03NiAyNDggLTEzOSAxMDYgLTEwNyAxNTggLTI0OCAxNDcgLTM5OCAtNiAtOTIgLTI1IC0xNTIgLTc5IC0yNTAgLTQ1IC04MiAtNjAgLTkxIC0yNyAtMTcgMTggNDEgMjEgNjIgMTcgMTQ5IC00IDg5IC04IDEwOCAtMzUgMTYyIC00MyA4MiAtMTI2IDE2NSAtMjA5IDIwNSAtNTggMjkgLTgwIDM0IC0xNTggMzcgLTExMiA1IC0xODQgLTEyIC0yNTkgLTYyIC0xODIgLTEyMSAtMjUxIC0zMjMgLTE3MSAtNTA2IGwyNCAtNTUgLTI1IDMwIGMtMzYgNDQgLTkyIDE2MiAtMTA0IDIyMyAtMzkgMTg5IDE0IDM2OSAxNDYgNDkyIDEwNSA5OSAyMDQgMTM5IDM0NSAxMzkgNDggMSAxMTEgLTQgMTQwIC0xMHoiLz4KICA8L2c+Cjwvc3ZnPgo=" alt="BOOM" style="width:48px;height:48px;margin:0 auto 16px;display:block"><div style="font-size:24px;font-weight:300;color:var(--text);margin-bottom:8px">Already signed</div><p style="color:var(--text-muted);font-size:14px">' + (contract.signatureStatus === 'complete' ? 'Contract is active.' : 'Waiting for the other party.') + '</p></div>'; return; }
-                
-                var propDoc = await db.collection('properties').doc(contract.propertyId).get();
-                var property = propDoc.exists ? Object.assign({ id: propDoc.id }, propDoc.data()) : {};
-                var signerId = signRole === 'tenant' ? contract.tenantId : (property.ownerId || '');
-                var otherId = signRole === 'tenant' ? (property.ownerId || '') : contract.tenantId;
-                var signerDoc = signerId ? await db.collection('users').doc(signerId).get() : null;
-                var otherDoc = otherId ? await db.collection('users').doc(otherId).get() : null;
-                var signer = signerDoc && signerDoc.exists ? signerDoc.data() : {};
-                var otherParty = otherDoc && otherDoc.exists ? otherDoc.data() : {};
+
+                var lookupData;
+                try { lookupData = await lookupResp.json(); } catch (_) { lookupData = null; }
+                if (!lookupResp.ok || !lookupData || !lookupData.ok) {
+                    var why = (lookupData && lookupData.error) || 'invalid';
+                    if (why === 'already_signed') {
+                        msEl.innerHTML = '<div style="text-align:center;max-width:420px;padding-top:40px"><div style="font-size:48px;margin-bottom:16px">✓</div><div style="font-size:24px;font-weight:300;color:var(--text);margin-bottom:8px">Already signed</div><p style="color:var(--text-muted);font-size:14px">' + (lookupData.signatureStatus === 'complete' ? 'Contract is active.' : 'Waiting for the other party.') + '</p></div>';
+                    } else {
+                        msEl.innerHTML = '<div style="text-align:center;max-width:400px"><div style="font-size:48px;margin-bottom:16px">🔗</div><h2 style="color:var(--text);margin-bottom:8px">Link non valido</h2><p style="color:var(--text-muted);font-size:14px">Questo link non è valido o è già stato usato.</p><a href="mailto:' + COMPANY.email + '" class="btn" style="margin-top:20px;display:inline-block">Contatta BOOM</a></div>';
+                    }
+                    return;
+                }
+                var signRole = lookupData.role;
+                var contract = lookupData.contract;
+                var property = lookupData.property || {};
+                var signer = lookupData.signer || {};
+                var otherParty = lookupData.otherParty || {};
                 var durMonths = Math.round((new Date(contract.endDate) - new Date(contract.startDate)) / (1000*60*60*24*30));
                 
                 window.history.replaceState({}, '', window.location.pathname);
@@ -2625,128 +2629,83 @@ Valentyne - BOOM Rome`
             var sigData = window._magicPad ? window._magicPad.toDataURL() : null;
             if (!sigData || (window._magicPad && window._magicPad.isEmpty())) { btn.disabled = false; btn.textContent = 'Sign Contract'; return; }
             var now = new Date().toISOString();
-            // Capture real IP via our own /api/get-ip (best-effort, 4s timeout).
-            // Falls back to 'unknown' so a transient endpoint hiccup never
-            // blocks a signature.
             var signerIP = await fetchSignerIP();
-            // Structured consent: text + SHA-256 hash + accept timestamp.
             var consentHash = await generateDocHash(MS_CONSENT_TEXT);
-            var upd = { updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
-            // Save identity data from Step 2
             var idD = window._msIdData || {};
-            if (idD.phoneVerified) { upd[role + 'PhoneVerified'] = true; upd[role + 'PhoneVerifiedAt'] = idD.phoneVerifiedAt||''; upd[role + 'Phone'] = idD.phone||''; }
-            if (role === 'tenant') {
-                upd.tenantCF = idD.cf||''; upd.tenantAddress = idD.address||''; upd.tenantDob = idD.dob||''; upd.tenantPob = idD.pob||'';
-                upd.tenantDocType = idD.docType||''; upd.tenantDocNum = idD.docNum||''; upd.tenantNationality = idD.nationality||'';
-                if (msData?.signer?.name) upd.tenantName = msData.signer.name;
-            } else {
-                upd.landlordCF = idD.cf||''; upd.landlordAddress = idD.address||''; upd.landlordDob = idD.dob||''; upd.landlordPob = idD.pob||'';
-                upd.landlordDocType = idD.docType||''; upd.landlordDocNum = idD.docNum||''; upd.landlordNationality = idD.nationality||'';
-                if (msData?.signer?.name) upd.landlordName = msData.signer.name;
-            }
-            // Also update user profile
             var msData = window._msData;
-            if (msData && msData.signer) {
-                var uid = role === 'tenant' ? msData.contract.tenantId : (msData.property.ownerId||'');
-                if (uid) db.collection('users').doc(uid).update({cf:idD.cf,address:idD.address,dob:idD.dob,pob:idD.pob,docType:idD.docType,docNum:idD.docNum,nationality:idD.nationality}).catch(function(e){console.error('User save:',e);});
+
+            // Single server call. /api/magic-sign/submit performs every
+            // Firestore write under admin credentials (contract signature
+            // + identity sync + landlord profile + RLI deadline + lead
+            // closure + property status + listing sync + payment schedule
+            // + tenant user bootstrap). Anonymous Magic-Sign sessions are
+            // denied all those writes by firestore.rules, so they have
+            // to happen server-side.
+            var resp = await fetch('/api/magic-sign/submit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    token: token,
+                    signature: sigData,
+                    signerIP: signerIP,
+                    signerUA: navigator.userAgent,
+                    signerName: (msData && msData.signer && msData.signer.name) || idD.name || '',
+                    signerEmail: (msData && msData.signer && msData.signer.email) || idD.email || '',
+                    identity: {
+                        cf: idD.cf || '', address: idD.address || '',
+                        dob: idD.dob || '', pob: idD.pob || '',
+                        docType: idD.docType || '', docNum: idD.docNum || '',
+                        nationality: idD.nationality || '',
+                    },
+                    phone: {
+                        number: idD.phone || '',
+                        verified: !!idD.phoneVerified,
+                        verifiedAt: idD.phoneVerifiedAt || '',
+                    },
+                    consent: { text: MS_CONSENT_TEXT, hash: consentHash, at: now },
+                }),
+            });
+            var result;
+            try { result = await resp.json(); } catch (_) { result = null; }
+            if (!resp.ok || !result || !result.ok) {
+                throw new Error((result && result.error) || ('submit_failed_' + resp.status));
             }
-            // Persist landlord identity to landlords collection
-            if (role === 'landlord' && msData && msData.property) {
-                var llId = msData.property.ownerId || '';
-                if (llId) db.collection('landlords').doc(llId).set({codiceFiscale:idD.cf||'',birthDate:idD.dob||'',birthPlace:idD.pob||'',address:idD.address||'',idDocType:idD.docType||'',idDocNumber:idD.docNum||''},{merge:true}).catch(function(e){console.error('Landlord save:',e);});
-            }
-            if (role === 'tenant') {
-                upd.tenantSignature = sigData; upd.tenantSignedAt = now;
-                upd.tenantSignedIP = signerIP; upd.tenantSignedUA = navigator.userAgent.substring(0, 200);
-                upd.tenantConsentText = MS_CONSENT_TEXT; upd.tenantConsentHash = consentHash; upd.tenantConsentAt = now;
-                upd.tenantSignToken = null;
-            } else {
-                upd.landlordSignature = sigData; upd.landlordSignedAt = now;
-                upd.landlordSignedIP = signerIP; upd.landlordSignedUA = navigator.userAgent.substring(0, 200);
-                upd.landlordConsentText = MS_CONSENT_TEXT; upd.landlordConsentHash = consentHash; upd.landlordConsentAt = now;
-                upd.landlordSignToken = null;
-            }
-            var freshDoc = await db.collection('contracts').doc(contractId).get();
-            if (!freshDoc.exists) throw new Error('Contract not found');
-            var freshData = freshDoc.data();
-            var otherSigned = role === 'tenant' ? !!freshData.landlordSignature : !!freshData.tenantSignature;
-            if (otherSigned) { upd.signatureStatus = 'complete'; upd.status = 'active'; upd.fullySignedAt = now; } else { upd.signatureStatus = 'partial'; }
-            await db.collection('contracts').doc(contractId).update(upd);
-            
-            // POST-SIGNATURE AUTOMATION (when both parties have signed)
+
+            var otherSigned = !!result.fullySigned;
+            // Synthesize a freshData shape so the existing showMagicSignSuccess
+            // call below (and post-signature side effects) keep their old field
+            // names without an extra round-trip.
+            var freshData = Object.assign({}, msData && msData.contract, {
+                signatureStatus: result.signatureStatus,
+                tenantSignature: role === 'tenant' ? sigData : ((msData && msData.contract && msData.contract.tenantSignature) || null),
+                landlordSignature: role === 'landlord' ? sigData : ((msData && msData.contract && msData.contract.landlordSignature) || null),
+                tenantEmail: (msData && msData.signer && msData.signer.email) || idD.email || '',
+            });
+
+            // Post-signature side effects. No Firestore writes here — every
+            // mutation already ran server-side in /api/magic-sign/submit
+            // under admin credentials. These calls only hit the email /
+            // Apple Wallet HTTP endpoints, which is fine from an anonymous
+            // browser session.
             if (otherSigned) {
-                var fullContract = { id: contractId, ...freshData, ...upd };
-                var msProp = msData ? msData.property : null;
-                try {
-                    // (a) DEADLINE RLI — only if not already existing
-                    var existingRLI = await db.collection('deadlines').where('linkedContractId', '==', contractId).where('title', '>=', 'Registrare RLI').where('title', '<=', 'Registrare RLI\uf8ff').limit(1).get();
-                    if (existingRLI.empty) {
-                        var rliDue = new Date(); rliDue.setDate(rliDue.getDate() + 25);
-                        await db.collection('deadlines').add({ title: 'Registrare RLI - ' + (msProp?.address || msProp?.name || ''), type: 'contract_registration', date: rliDue.toISOString().split('T')[0], priority: 'high', linkedContractId: contractId, linkedPropertyId: fullContract.propertyId || '', status: 'pending', autoGenerated: true, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+                try { sendCAFEmail(contractId).catch(function(e){ console.warn('CAF email:', e); }); } catch (_) {}
+                (async function postSignaturePassFlow() {
+                    try {
+                        var passResult = await generateContractPasses(contractId);
+                        var tenantPassUrl = (passResult && passResult.tenant && passResult.tenant.url) || '';
+                        var landlordPassUrl = (passResult && passResult.landlord && passResult.landlord.url) || '';
+                        var landlordUser = passResult && passResult.landlordUser;
+                        var contractUsed = (passResult && passResult.contract) || Object.assign({ id: contractId }, freshData);
+                        var propertyUsed = (passResult && passResult.property) || (msData && msData.property);
+                        try { await sendTenantWelcomeWithMagicLink(contractUsed, tenantPassUrl); }
+                        catch (e) { console.warn('Tenant welcome:', e); }
+                        try { await sendLandlordWelcomeWithPass(contractUsed, landlordUser, propertyUsed, landlordPassUrl); }
+                        catch (e) { console.warn('Landlord welcome:', e); }
+                    } catch (passFlowErr) {
+                        console.warn('[postSignaturePassFlow]', passFlowErr);
+                        sendTenantWelcomeWithMagicLink(Object.assign({ id: contractId }, freshData), '').catch(function(e){ console.warn('Tenant welcome fallback:', e); });
                     }
-                    // (b) LEAD CLOSURE
-                    if (fullContract.linkedLeadId) {
-                        var leadCol = fullContract.linkedLeadSource === 'pfs' ? 'pfsClients' : 'leads';
-                        db.collection(leadCol).doc(fullContract.linkedLeadId).update({ stage: 'closed', linkedContractId: contractId, closedAt: firebase.firestore.FieldValue.serverTimestamp() }).catch(function(e){ console.warn('Lead close:', e); });
-                    }
-                    // (c) PROPERTY STATUS
-                    if (fullContract.propertyId) {
-                        db.collection('properties').doc(fullContract.propertyId).update({ status: 'rented', currentContractId: contractId }).catch(function(e){ console.warn('Property status:', e); });
-                    }
-                    // (d) LISTING SYNC
-                    if (fullContract.propertyId) {
-                        var listSnap = await db.collection('listings').where('propertyId', '==', fullContract.propertyId).limit(1).get();
-                        if (!listSnap.empty) { listSnap.docs[0].ref.update({ status: 'rented' }).catch(function(e){ console.warn('Listing sync:', e); }); }
-                    }
-                    // (e) PAYMENT SCHEDULE — only if not already existing
-                    var existingPay = await db.collection('payments').where('contractId', '==', contractId).limit(1).get();
-                    if (existingPay.empty && fullContract.startDate && fullContract.endDate && fullContract.rent) {
-                        var payBatch = db.batch();
-                        var pStart = new Date(fullContract.startDate);
-                        var pEnd = new Date(fullContract.endDate);
-                        var payDay = parseInt(fullContract.paymentDay) || 5;
-                        var cur = new Date(pStart.getFullYear(), pStart.getMonth(), payDay);
-                        if (cur < pStart) cur.setMonth(cur.getMonth() + 1);
-                        while (cur <= pEnd) {
-                            var pRef = db.collection('payments').doc();
-                            payBatch.set(pRef, { contractId: contractId, tenantId: fullContract.tenantId || '', propertyId: fullContract.propertyId || '', amount: fullContract.rent, month: cur.toISOString().slice(0, 7), dueDate: cur.toISOString().split('T')[0], status: 'pending', createdAt: firebase.firestore.FieldValue.serverTimestamp() });
-                            cur.setMonth(cur.getMonth() + 1);
-                        }
-                        await payBatch.commit();
-                    }
-                    // (f) CAF EMAIL
-                    sendCAFEmail(contractId).catch(function(e){ console.warn('CAF email:', e); });
-                    // (g+h) PROPPASS + WELCOME — serialized so welcome emails embed pass URLs
-                    (async function postSignaturePassFlow() {
-                        try {
-                            var passResult = await generateContractPasses(contractId);
-                            var tenantPassUrl = (passResult && passResult.tenant && passResult.tenant.url) || '';
-                            var landlordPassUrl = (passResult && passResult.landlord && passResult.landlord.url) || '';
-                            var landlordUser = passResult && passResult.landlordUser;
-                            var contractUsed = (passResult && passResult.contract) || Object.assign({ id: contractId }, freshData);
-                            var propertyUsed = passResult && passResult.property;
-                            // Tenant welcome — magic link + pass URL
-                            try { await sendTenantWelcomeWithMagicLink(contractUsed, tenantPassUrl); }
-                            catch (e) { console.warn('Tenant welcome:', e); }
-                            // Landlord welcome — pass URL embedded
-                            try { await sendLandlordWelcomeWithPass(contractUsed, landlordUser, propertyUsed, landlordPassUrl); }
-                            catch (e) { console.warn('Landlord welcome:', e); }
-                        } catch (passFlowErr) {
-                            console.warn('[postSignaturePassFlow]', passFlowErr);
-                            // Fallback: still try welcome without pass URL
-                            sendTenantWelcomeWithMagicLink(Object.assign({ id: contractId }, freshData), '').catch(function(e){ console.warn('Tenant welcome fallback:', e); });
-                        }
-                    })();
-                    // (3) TENANT AUTO-ACCOUNT
-                    if (fullContract.tenantId) {
-                        var tenDoc = await db.collection('users').doc(fullContract.tenantId).get();
-                        if (!tenDoc.exists) {
-                            var tenantName = idD.name || (role === 'tenant' ? (msData?.signer?.name || '') : '');
-                            var tenantEmail = role === 'tenant' ? (idD.email || msData?.signer?.email || '') : (freshData.tenantEmail || '');
-                            await db.collection('users').doc(fullContract.tenantId).set({ role: 'tenant', name: tenantName, email: tenantEmail, phone: idD.phone || '', cf: role === 'tenant' ? (idD.cf || '') : (freshData.tenantCF || ''), address: role === 'tenant' ? (idD.address || '') : (freshData.tenantAddress || ''), dob: role === 'tenant' ? (idD.dob || '') : (freshData.tenantDob || ''), pob: role === 'tenant' ? (idD.pob || '') : (freshData.tenantPob || ''), docType: role === 'tenant' ? (idD.docType || '') : (freshData.tenantDocType || ''), docNum: role === 'tenant' ? (idD.docNum || '') : (freshData.tenantDocNum || ''), linkedContractId: contractId, createdAt: firebase.firestore.FieldValue.serverTimestamp(), createdBy: 'magic_sign' }, { merge: true }).catch(function(e){ console.warn('Tenant account:', e); });
-                        }
-                    }
-                } catch (autoErr) { console.error('Post-signature automation error:', autoErr); }
+                })();
             }
 showMagicSignSuccess(contractId, role, freshData, otherSigned);
         } catch (err) {
@@ -2796,10 +2755,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         html += '</div>';
         c.innerHTML = html;
         
-        if (role === 'tenant' && contractData.tenantId) {
-            db.collection('users').doc(contractData.tenantId).get().then(function(doc) {
-                if (doc.exists) { var el = document.getElementById('magicAccEmail'); if (el) el.value = doc.data().email || ''; }
-            }).catch(function() {});
+        if (role === 'tenant') {
+            // tenantEmail comes from the lookup endpoint (signer.email) so we
+            // don't have to read users/{tenantId} as anonymous — that read is
+            // denied by firestore.rules anyway.
+            var emailEl = document.getElementById('magicAccEmail');
+            if (emailEl) emailEl.value = contractData.tenantEmail || '';
         }
     }
     

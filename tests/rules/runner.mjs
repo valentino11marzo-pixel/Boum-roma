@@ -125,6 +125,13 @@ await check('CANNOT write a property (admin only)',
   assertFails(setDoc(doc(llA, 'properties/propA'), { ownerId: 'llA', hacked: true })));
 await check('CANNOT read the lead pool',       assertFails(getDoc(doc(llA, 'leads/lead1'))));
 
+// ── ANONYMOUS — Magic-Sign moved server-side ────────────────────────────
+console.log('\nAnonymous on contracts — magic-sign moved to /api/magic-sign/*');
+await check('anon CANNOT read a contract by id',
+  assertFails(getDoc(doc(anon, 'contracts/contractA'))));
+await check('anon CANNOT update a contract signature',
+  assertFails(updateDoc(doc(anon, 'contracts/contractA'), { tenantSignature: 'data:x', tenantSignToken: null })));
+
 // ── ANONYMOUS ───────────────────────────────────────────────────────────
 console.log('\nAnonymous (not signed in)');
 await check('CANNOT read any contract', assertFails(getDoc(doc(anon, 'contracts/contractA'))));

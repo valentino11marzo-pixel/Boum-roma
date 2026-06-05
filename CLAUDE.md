@@ -128,6 +128,21 @@ Webhook called by the Mac-side Homie agent when it filters a new lead from Immob
 ### POST `/api/homie/action`
 Webhook for Homie's proposed actions (reply draft, schedule viewing, qualify, archive). Writes to `action_queue` collection. Supports idempotent retries via `contextHash` field and auto-apply for high-confidence tier-1 actions.
 
+### POST `/api/magic-sign/lookup`
+Public endpoint for the Magic-Sign UI. Body: `{ token }`. Looks up the
+contract by `tenantSignToken` or `landlordSignToken`, returns sanitized
+`{role, contract, property, signer, otherParty}`. Replaces the previous
+flow which had the browser issue `db.collection('contracts').where(...)`
+anonymously — denied by `firestore.rules`.
+
+### POST `/api/magic-sign/submit`
+Public endpoint that persists the contract signature on behalf of the
+anonymous Magic-Sign user. Body includes the token, signature data URI,
+identity payload, phone, consent record. Runs every Firestore write under
+admin credentials (signature + identity + landlord profile + RLI deadline
++ lead closure + property status + listing sync + payment schedule +
+tenant user bootstrap). All those mutations are admin-only per the rules.
+
 ### POST `/api/homie/property`
 Homie → PFS bridge. Homie scrapes a property (Immobiliare/Idealista/etc.), calls this with the listing data. Writes the master record to `pfsProperties/<sha1(sourceUrl)>` (idempotent), then iterates active PFS clients, scores each against the listing using `api/homie/_match.js`, and pushes matching properties (score ≥ 60) into the client's `portalProperties` array. Client-portal.html already listens and triggers a "New Property!" alert on the client's phone. Auth via `X-Homie-Secret`. See file header for payload schema.
 

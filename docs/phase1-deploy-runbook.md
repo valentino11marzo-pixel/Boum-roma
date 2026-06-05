@@ -92,7 +92,9 @@ line number) and we fix the rule + add a test for it.
 
 ## Still open (later phases — not blocking deploy)
 
-- Magic-Sign anonymous contract read → Cloud Function (audit #6)
+- ~~Magic-Sign anonymous contract read → server endpoint (audit #6)~~ ✅ shipped
+  as `/api/magic-sign/lookup` + `/api/magic-sign/submit`. The browser no
+  longer touches Firestore as anonymous during contract signing.
 - CSP header in `vercel.json` + `esc()` sweep (audit #12)
 - Backend Firestore auth → service account JSON (audit #13)
 - Wire `logActivity()` into every mutation (audit #11)
