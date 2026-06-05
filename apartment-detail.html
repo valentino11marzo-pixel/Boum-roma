@@ -190,6 +190,8 @@
         .trust-band-seal{display:inline-flex;align-items:center;gap:8px;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--gold);font-weight:600;white-space:nowrap}
         .trust-band-seal svg{width:16px;height:16px}
         .trust-band-sub{font-size:12.5px;color:var(--text-secondary);line-height:1.4}
+        .trust-band-link{font-size:12px;letter-spacing:.5px;color:var(--gold);white-space:nowrap;transition:opacity .25s}
+        .trust-band-link:hover{opacity:.7}
         .trust-pillars{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:14px}
         .trust-pillar{display:flex;flex-direction:column;gap:8px;padding:15px 15px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:12px;transition:border-color .3s,transform .3s,background .3s}
         .trust-pillar:hover{border-color:rgba(255,215,0,0.25);background:rgba(255,215,0,0.03);transform:translateY(-2px)}
@@ -582,12 +584,12 @@
                 <span class="logo-text">BOOM</span>
             </a>
             <div class="nav-links">
-                <a href="/apartments.html">Apartments</a>
-                <a href="/property-finding.html">Property Finding</a>
-                <a href="/deal-assistance.html">Deal Assistance</a>
-                <a href="/virtual-viewing.html">Virtual Viewing</a>
-                <a href="/concierge.html">Concierge</a>
-                <a href="/about.html">About</a>
+                <a href="/apartments">Apartments</a>
+                <a href="/property-finding">Property Finding</a>
+                <a href="/deal-assistance">Deal Assistance</a>
+                <a href="/virtual-viewing">Virtual Viewing</a>
+                <a href="/concierge">Concierge</a>
+                <a href="/about">About</a>
                 <a href="https://wa.me/393313251961" class="wa-link">WhatsApp</a>
             </div>
             <div class="hamburger" id="hamburger"><span></span><span></span><span></span></div>
@@ -596,13 +598,13 @@
 
     <div class="mobile-menu" id="mobileMenu">
         <a href="/">Home</a>
-        <a href="/apartments.html">Apartments</a>
-        <a href="/property-finding.html">Property Finding</a>
-        <a href="/deal-assistance.html">Deal Assistance</a>
-        <a href="/virtual-viewing.html">Virtual Viewing</a>
-        <a href="/concierge.html">Concierge</a>
-        <a href="/about.html">About</a>
-        <a href="/login.html">Login</a>
+        <a href="/apartments">Apartments</a>
+        <a href="/property-finding">Property Finding</a>
+        <a href="/deal-assistance">Deal Assistance</a>
+        <a href="/virtual-viewing">Virtual Viewing</a>
+        <a href="/concierge">Concierge</a>
+        <a href="/about">About</a>
+        <a href="/login">Login</a>
         <a href="https://wa.me/393313251961" class="wa-mob">WhatsApp Us</a>
     </div>
 
@@ -610,11 +612,11 @@
     <div class="page-loading" id="pageLoading"><div class="spinner"></div><p>Loading apartment details…</p></div>
 
     <!-- ERROR -->
-    <div class="page-error" id="pageError"><h2>Not Found</h2><p>This apartment listing could not be loaded.</p><a href="/apartments.html">Browse All Apartments</a></div>
+    <div class="page-error" id="pageError"><h2>Not Found</h2><p>This apartment listing could not be loaded.</p><a href="/apartments">Browse All Apartments</a></div>
 
     <!-- APARTMENT PAGE -->
     <div class="apartment-page" id="apartmentPage">
-        <div class="breadcrumb"><a href="/">Home</a><span class="sep">/</span><a href="/apartments.html">Apartments</a><span id="breadcrumbZoneWrap" hidden><span class="sep">/</span><a href="#" id="breadcrumbZone"></a></span><span class="sep">/</span><span class="current" id="breadcrumbName">—</span></div>
+        <div class="breadcrumb"><a href="/">Home</a><span class="sep">/</span><a href="/apartments">Apartments</a><span id="breadcrumbZoneWrap" hidden><span class="sep">/</span><a href="#" id="breadcrumbZone"></a></span><span class="sep">/</span><span class="current" id="breadcrumbName">—</span></div>
 
         <div class="apt-header">
             <div class="apt-header-top">
@@ -651,6 +653,7 @@
                 <div class="trust-band-head">
                     <span class="trust-band-seal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 2 5 5v6c0 4.5 3 8.4 7 9 4-.6 7-4.5 7-9V5l-7-3z"/><path d="m9 12 2 2 4-4"/></svg>Verified by BOOM</span>
                     <span class="trust-band-sub">Every home is checked by our team — and our tech — before you ever see it.</span>
+                    <a class="trust-band-link" href="/verified">How we verify →</a>
                 </div>
                 <div class="trust-pillars">
                     <div class="trust-pillar"><div class="trust-pillar-ico">🎥</div><div class="trust-pillar-t">Video-verified</div><div class="trust-pillar-s">We filmed it ourselves — no stock photos.</div></div>
@@ -724,7 +727,7 @@
                         <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.125.553 4.12 1.52 5.855L.052 23.709l5.997-1.573A11.94 11.94 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.82c-1.956 0-3.83-.528-5.47-1.528l-.392-.233-4.065 1.066 1.084-3.964-.256-.407A9.787 9.787 0 012.18 12c0-5.414 4.406-9.82 9.82-9.82 5.414 0 9.82 4.406 9.82 9.82 0 5.414-4.406 9.82-9.82 9.82z"/></svg>
                         Message on WhatsApp
                     </a>
-                    <a class="sidebar-secondary" href="/property-finding.html">Not this one? Find my perfect apartment →</a>
+                    <a class="sidebar-secondary" href="/property-finding">Not this one? Find my perfect apartment →</a>
                     <div class="sidebar-trust">
                         <div class="trust-item"><span class="ti">✓</span> Video-verified listing</div>
                         <div class="trust-item"><span class="ti">✓</span> No hidden fees</div>
@@ -855,7 +858,7 @@
                         </ul>
                     </div>
                     <div class="upsell-card-bottom">
-                        <a href="/property-finding.html" class="upsell-card-cta cta-gold">Start Property Finding →</a>
+                        <a href="/property-finding" class="upsell-card-cta cta-gold">Start Property Finding →</a>
                     </div>
                 </div>
 
@@ -878,7 +881,7 @@
                         </ul>
                     </div>
                     <div class="upsell-card-bottom">
-                        <a href="/deal-assistance.html" class="upsell-card-cta cta-outline">Learn More →</a>
+                        <a href="/deal-assistance" class="upsell-card-cta cta-outline">Learn More →</a>
                     </div>
                 </div>
 
@@ -901,7 +904,7 @@
                         </ul>
                     </div>
                     <div class="upsell-card-bottom">
-                        <a href="/virtual-viewing.html" class="upsell-card-cta cta-outline">Learn More →</a>
+                        <a href="/virtual-viewing" class="upsell-card-cta cta-outline">Learn More →</a>
                     </div>
                 </div>
             </div>
@@ -933,9 +936,9 @@
                 <h3>BOOM</h3>
                 <p>Built in Rome, for Rome. If we can make Rome's rental market work, we can make it work anywhere.<br><br><strong>Egidi Immobiliare S.r.l.</strong><br>P.IVA 17322991005<br>REA RM - 1710623<br>Rome, Italy</p>
             </div>
-            <div class="footer-links"><h4>Services</h4><ul><li><a href="/apartments.html">Apartments</a></li><li><a href="/property-finding.html">Property Finding</a></li><li><a href="/deal-assistance.html">Deal Assistance</a></li><li><a href="/virtual-viewing.html">Virtual Viewing</a></li><li><a href="/concierge.html">Concierge</a></li></ul></div>
-            <div class="footer-links"><h4>Company</h4><ul><li><a href="/about.html">About</a></li><li><a href="/how-it-works.html">How It Works</a></li><li><a href="/owners.html">For Owners</a></li><li><a href="/blog.html">Blog</a></li><li><a href="/faq.html">FAQ</a></li><li><a href="/contact.html">Contact</a></li></ul></div>
-            <div class="footer-links"><h4>Legal</h4><ul><li><a href="/terms.html">Terms</a></li><li><a href="/privacy.html">Privacy</a></li><li><a href="/login.html">Login</a></li></ul></div>
+            <div class="footer-links"><h4>Services</h4><ul><li><a href="/apartments">Apartments</a></li><li><a href="/property-finding">Property Finding</a></li><li><a href="/deal-assistance">Deal Assistance</a></li><li><a href="/virtual-viewing">Virtual Viewing</a></li><li><a href="/concierge">Concierge</a></li></ul></div>
+            <div class="footer-links"><h4>Company</h4><ul><li><a href="/about">About</a></li><li><a href="/how-it-works">How It Works</a></li><li><a href="/verified">How We Verify</a></li><li><a href="/owners">For Owners</a></li><li><a href="/blog">Blog</a></li><li><a href="/faq">FAQ</a></li><li><a href="/contact">Contact</a></li></ul></div>
+            <div class="footer-links"><h4>Legal</h4><ul><li><a href="/terms">Terms</a></li><li><a href="/privacy">Privacy</a></li><li><a href="/login">Login</a></li></ul></div>
         </div>
         <div class="footer-bottom"><span>© 2025 BOOM — All Rights Reserved</span><span>Status: Operational</span></div>
     </footer>
