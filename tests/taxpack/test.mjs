@@ -68,6 +68,20 @@ ok('saving positive in high bracket', cmp.saving > 0);
 const cmpLow = T.compareCedolare(6000, 0.23, false);
 ok('low canoni still computes a recommendation', ['cedolare', 'ordinario'].includes(cmpLow.recommended));
 
+// ── computeIstatAdjustment ───────────────────────────────────────────
+console.log('\ncomputeIstatAdjustment');
+const istat1 = T.computeIstatAdjustment(1000, 0.02, 0.75); // 2% annual, 75% application
+eq('75% of 2% on €1000 → €15 increase', istat1.increase, 15);
+eq('new rent €1015', istat1.newRent, 1015);
+const istat2 = T.computeIstatAdjustment(1200, 0.018, 1.0); // 1.8%, 100%
+eq('100% of 1.8% on €1200 → €21.60', istat2.increase, 21.6);
+eq('new rent €1221.60', istat2.newRent, 1221.6);
+const istat3 = T.computeIstatAdjustment(800, 0.025); // default 75%
+eq('default applicationPct 75%', istat3.applicationPct, 0.75);
+eq('75% of 2.5% on €800 → €15', istat3.increase, 15);
+ok('negative variance reduces rent', T.computeIstatAdjustment(1000, -0.005, 0.75).increase < 0);
+eq('zero variance → zero change', T.computeIstatAdjustment(1000, 0, 0.75).increase, 0);
+
 // ── buildChecklist ───────────────────────────────────────────────────
 console.log('\nbuildChecklist');
 const contract = { id: 'c1', cedolare: true, type: 'transitorio', startDate: '2025-01-01', endDate: '2025-12-31' };

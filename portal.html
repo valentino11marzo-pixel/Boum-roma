@@ -10272,11 +10272,26 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                         <div style="font-size:12px;color:var(--text-muted);margin-top:2px">${esc(prop.name || prop.address || '')} · Anno ${year}</div>
                     </div>
                     <button class="btn btn-secondary btn-sm" onclick="openCedolareCalc(${totals.canoniAttesi || (contract.rent ? contract.rent*12 : 0)}, ${TP.classifyContract(contract).isConcordato})">📊 Cedolare vs IRPEF</button>
+                    <button class="btn btn-secondary btn-sm" onclick="openIstatLetter('${prop.id}', ${year})">📈 Lettera ISTAT</button>
                     <button class="btn" onclick="openCommercialistaShare('${prop.id}', ${year})">🔗 Genera link commercialista</button>
                 </div>
                 <div style="height:6px;background:var(--bg-elevated)"><div style="height:100%;width:${checklist.completeness}%;background:linear-gradient(90deg,${ready ? 'var(--green)' : 'var(--gold)'},${ready ? 'var(--green)' : 'var(--gold-dark, #B8960C)'});transition:width .4s"></div></div>
                 <div class="card-body flush">
                     ${checklist.items.map(checkRow).join('')}
+                </div>
+            </div>
+
+            <div class="card" style="margin-bottom:20px;border-color:rgba(212,175,55,0.25)">
+                <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px">
+                    <span style="font-size:18px">🤖</span>
+                    <div style="flex:1"><strong>Chiedi all'archivio</strong> <span style="font-size:11px;color:var(--text-muted)">— AI sui tuoi documenti di ${esc(prop.name || '')} (${year})</span></div>
+                </div>
+                <div class="card-body">
+                    <div style="display:flex;gap:8px;flex-wrap:wrap">
+                        <input type="text" class="form-input" id="qaQuestion" placeholder="es. Quali contratti scadono nel 2026? Quanto ho pagato di IMU? Trova le ricevute di Rossi…" style="flex:1;min-width:280px" onkeydown="if(event.key==='Enter')askArchive()">
+                        <button class="btn" id="qaAskBtn" onclick="askArchive()">🤖 Chiedi</button>
+                    </div>
+                    <div id="qaAnswer" style="margin-top:12px"></div>
                 </div>
             </div>
 
@@ -10387,6 +10402,178 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         } catch (e) {
             btn.disabled = false; btn.textContent = 'Genera link';
             toast('error', 'Errore generazione link', e.message);
+        }
+    }
+
+    // ─── ISTAT adjustment letter generator (PDF via jsPDF) ──────────────────
+    function openIstatLetter(propertyId, year) {
+        const TP = window.BOOM_TAXPACK;
+        const prop = (S.properties || []).find(p => p.id === propertyId) || {};
+        const contract = (S.contracts || []).find(c => c.propertyId === propertyId && c.status === 'active') ||
+                         (S.contracts || []).find(c => c.propertyId === propertyId) || {};
+        const tenant = (S.users || []).find(u => u.id === contract.tenantId) || {};
+        const landlord = (S.users || []).find(u => u.id === prop.ownerId) || (isLandlord() ? S.profile : {});
+        document.getElementById('modals').innerHTML = `<div class="modal-overlay active"><div class="modal">
+            <div class="modal-header"><h3 class="modal-title">📈 Lettera ISTAT</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+            <div class="modal-body">
+                <p style="font-size:13px;color:var(--text-secondary);margin-bottom:14px">Genera la comunicazione scritta di adeguamento ISTAT da inviare all'inquilino. Inserisci la variazione annuale dell'indice ISTAT FOI (lo trovi su istat.it, ultimo dato pubblicato).</p>
+                <div class="form-row">
+                    <div class="form-group"><label class="form-label">Canone attuale (€/mese)</label><input type="number" class="form-input" id="iL_rent" value="${contract.rent || 0}" step="0.01"></div>
+                    <div class="form-group"><label class="form-label">Variazione ISTAT annuale (%)</label><input type="number" class="form-input" id="iL_var" value="2.0" step="0.1" placeholder="es. 2.0"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label class="form-label">% applicata (da contratto)</label><select class="form-select" id="iL_app"><option value="0.75" selected>75% (default di legge)</option><option value="1.0">100% (variazione piena)</option></select></div>
+                    <div class="form-group"><label class="form-label">Decorrenza</label><input type="date" class="form-input" id="iL_from" value="${new Date(year, new Date().getMonth(), 1).toISOString().slice(0,10)}"></div>
+                </div>
+                <div id="iL_preview" style="margin-top:14px;background:var(--bg-elevated);border-radius:10px;padding:14px;font-size:13px"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">Annulla</button>
+                <button class="btn btn-secondary" onclick="previewIstatLetter()">Anteprima</button>
+                <button class="btn" onclick="downloadIstatLetterPDF('${propertyId}', ${year})">📄 Scarica PDF</button>
+            </div>
+        </div></div>`;
+        // expose for the buttons + auto-preview
+        window._istatCtx = { contract, tenant, landlord, prop };
+        previewIstatLetter();
+    }
+
+    function _readIstatForm() {
+        const TP = window.BOOM_TAXPACK;
+        const rent = parseFloat(document.getElementById('iL_rent').value) || 0;
+        const varPct = (parseFloat(document.getElementById('iL_var').value) || 0) / 100;
+        const app = parseFloat(document.getElementById('iL_app').value) || 0.75;
+        const fromDate = document.getElementById('iL_from').value || new Date().toISOString().slice(0,10);
+        const adj = TP.computeIstatAdjustment(rent, varPct, app);
+        return Object.assign({}, adj, { fromDate });
+    }
+
+    function previewIstatLetter() {
+        const a = _readIstatForm();
+        document.getElementById('iL_preview').innerHTML =
+            `<div><strong>Canone attuale:</strong> €${a.currentRent.toFixed(2)}</div>` +
+            `<div><strong>Variazione ISTAT:</strong> ${(a.annualVariance*100).toFixed(2)}% · applicata al ${(a.applicationPct*100).toFixed(0)}%</div>` +
+            `<div style="color:var(--gold)"><strong>Aumento:</strong> ${a.increase >= 0 ? '+' : ''}€${a.increase.toFixed(2)}</div>` +
+            `<div style="font-size:16px;margin-top:8px"><strong>Nuovo canone:</strong> <span style="color:var(--gold)">€${a.newRent.toFixed(2)}</span> dal ${a.fromDate}</div>`;
+    }
+
+    function downloadIstatLetterPDF(propertyId, year) {
+        const a = _readIstatForm();
+        const ctx = window._istatCtx || {};
+        const { contract = {}, tenant = {}, landlord = {}, prop = {} } = ctx;
+        const jsPDF = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
+        if (!jsPDF) { toast('error', 'jsPDF non caricato'); return; }
+        const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
+        const today = new Date().toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' });
+        const fromDateNice = new Date(a.fromDate).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' });
+
+        pdf.setFont('helvetica', 'bold'); pdf.setFontSize(11);
+        pdf.text('BOOM Rome', 20, 22);
+        pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9); pdf.setTextColor(120);
+        pdf.text('Property Management · boomrome.com', 20, 27);
+        pdf.setTextColor(0); pdf.setFontSize(10);
+        pdf.text('Roma, ' + today, 150, 22, { align: 'left' });
+
+        let y = 50;
+        pdf.text('Spett.le', 20, y); y += 5;
+        pdf.setFont('helvetica', 'bold'); pdf.text(tenant.name || '—', 20, y); y += 5;
+        pdf.setFont('helvetica', 'normal');
+        if (tenant.address) { pdf.text(tenant.address, 20, y); y += 5; }
+        y += 8;
+
+        pdf.setFont('helvetica', 'bold');
+        pdf.text(`Oggetto: Adeguamento ISTAT del canone di locazione - Anno ${year}`, 20, y); y += 10;
+        pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10.5);
+
+        const introLines = pdf.splitTextToSize(
+            `Egregio/a ${(tenant.name || '').split(' ')[0] || 'Sig./Sig.ra'},\n\n` +
+            `con la presente Le comunichiamo che, ai sensi delle clausole del contratto di locazione relativo all'immobile sito in ${prop.address || prop.name || 'Roma'}, sottoscritto in data ${contract.startDate ? new Date(contract.startDate).toLocaleDateString('it-IT') : '—'}, il canone mensile verrà aggiornato secondo la variazione dell'indice ISTAT FOI (Famiglie di Operai e Impiegati, al netto dei tabacchi) come di seguito riepilogato:`,
+            170);
+        pdf.text(introLines, 20, y);
+        y += introLines.length * 5 + 4;
+
+        // Table-like block
+        const rows = [
+            ['Canone attuale', '€ ' + a.currentRent.toFixed(2)],
+            ['Variazione ISTAT annuale', (a.annualVariance >= 0 ? '+' : '') + (a.annualVariance * 100).toFixed(2) + ' %'],
+            ['Percentuale applicata', (a.applicationPct * 100).toFixed(0) + ' %'],
+            ['Variazione effettiva', (a.variationFraction >= 0 ? '+' : '') + (a.variationFraction * 100).toFixed(2) + ' %'],
+            ['Importo aumento mensile', (a.increase >= 0 ? '+' : '') + '€ ' + a.increase.toFixed(2)],
+        ];
+        rows.forEach(r => {
+            pdf.setFont('helvetica', 'normal');
+            pdf.text(r[0] + ':', 25, y);
+            pdf.setFont('helvetica', 'bold');
+            pdf.text(r[1], 130, y, { align: 'left' });
+            y += 6;
+        });
+        // Highlight new rent
+        pdf.setDrawColor(212, 175, 55); pdf.setLineWidth(0.3);
+        pdf.line(20, y, 190, y); y += 7;
+        pdf.setFont('helvetica', 'bold'); pdf.setFontSize(12);
+        pdf.text('Nuovo canone mensile:', 25, y);
+        pdf.setTextColor(180, 140, 30);
+        pdf.text('€ ' + a.newRent.toFixed(2), 130, y);
+        pdf.setTextColor(0); pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10.5);
+        y += 8;
+        pdf.text('Decorrenza: ' + fromDateNice, 25, y); y += 12;
+
+        const outroLines = pdf.splitTextToSize(
+            "Il nuovo importo decorrerà dalla data sopra indicata e resterà valido fino alla prossima revisione annuale. " +
+            "La presente ha valore di formale comunicazione ai sensi delle clausole contrattuali.\n\n" +
+            "La invitiamo a confermare ricezione e a procedere con il pagamento del nuovo importo a partire dalla data di decorrenza.\n\n" +
+            "Cordiali saluti,",
+            170);
+        pdf.text(outroLines, 20, y);
+        y += outroLines.length * 5 + 16;
+
+        pdf.setFont('helvetica', 'bold');
+        pdf.text(landlord.name || 'Locatore', 20, y); y += 5;
+        pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9); pdf.setTextColor(120);
+        pdf.text('Generato da BOOM Rome · ' + new Date().toISOString().slice(0,10), 20, 285);
+
+        const filename = `Lettera_ISTAT_${year}_${(prop.name || 'Immobile').replace(/[^A-Za-z0-9]/g, '_').slice(0,30)}.pdf`;
+        pdf.save(filename);
+        logActivity('istat_letter_generated', 'document', { propertyId, year, newRent: a.newRent });
+        toast('success', 'Lettera ISTAT generata', 'PDF scaricato');
+    }
+
+    // ─── AI Q&A over the document archive ───────────────────────────────────
+    async function askArchive() {
+        const inp = document.getElementById('qaQuestion');
+        const out = document.getElementById('qaAnswer');
+        const btn = document.getElementById('qaAskBtn');
+        const q = (inp?.value || '').trim();
+        if (q.length < 3) { toast('warning', 'Scrivi una domanda più specifica'); return; }
+        btn.disabled = true; btn.textContent = '🤖 Sto leggendo l\'archivio…';
+        out.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:10px">Analisi in corso…</div>';
+        try {
+            const idToken = await auth.currentUser.getIdToken();
+            const payload = { question: q };
+            if (_cmState && _cmState.propertyId) payload.propertyId = _cmState.propertyId;
+            if (_cmState && _cmState.year) payload.fiscalYear = _cmState.year;
+            const r = await fetch('/api/documents/qa', {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + idToken, 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            const data = await r.json();
+            if (!r.ok || !data.ok) throw new Error(data.error || 'errore');
+            const answerHtml = esc(data.answer).replace(/\n/g, '<br>');
+            const cited = (data.citedDocIds || []).map(id => {
+                const d = (S.documents || []).find(x => x.id === id);
+                if (!d) return '';
+                const link = d.fileUrl ? `<a href="${esc(d.fileUrl)}" target="_blank" rel="noopener" style="color:var(--gold)">${esc(d.name || id)}</a>` : esc(d.name || id);
+                return `<span class="badge" style="background:var(--bg-elevated);font-size:11px;margin:3px;padding:4px 8px">📄 ${link}</span>`;
+            }).join('');
+            out.innerHTML =
+                `<div style="background:var(--bg-elevated);border-left:3px solid var(--gold);padding:14px;border-radius:8px;font-size:13px;line-height:1.6">${answerHtml}</div>` +
+                (cited ? `<div style="margin-top:10px;font-size:11px;color:var(--text-muted)">Fonti:</div><div>${cited}</div>` : '') +
+                `<div style="margin-top:6px;font-size:10px;color:var(--text-muted)">Analizzati ${data.docsConsidered} documenti · risposta non sostituisce il commercialista</div>`;
+        } catch (e) {
+            out.innerHTML = `<div style="color:var(--red);font-size:13px;padding:10px">Errore: ${esc(e.message)}</div>`;
+        } finally {
+            btn.disabled = false; btn.textContent = '🤖 Chiedi';
         }
     }
 

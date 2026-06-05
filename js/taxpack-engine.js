@@ -254,6 +254,34 @@
     };
   }
 
+  // Compute the ISTAT FOI annual rent adjustment.
+  //   currentRent      €/month, current canone
+  //   annualVariance   fraction (e.g. 0.018 for 1.8%) — the published year-over-year
+  //                    variation of the ISTAT FOI (Famiglie di Operai e Impiegati,
+  //                    senza tabacchi) index
+  //   applicationPct   fraction of the variation applied (Italian rentals use 0.75
+  //                    by law for non-cedolare contracts; 1.00 if the contract
+  //                    explicitly states full ISTAT)
+  // Returns { currentRent, annualVariance, applicationPct, variationFraction,
+  //          increase, newRent }.
+  function computeIstatAdjustment(currentRent, annualVariance, applicationPct) {
+    var rent = Math.max(0, Number(currentRent) || 0);
+    var av = Number(annualVariance) || 0;
+    var ap = Number(applicationPct);
+    if (!isFinite(ap) || ap <= 0) ap = 0.75; // legal default
+    var fraction = av * ap;
+    var increase = Math.round(rent * fraction * 100) / 100; // 2 decimals
+    var newRent = Math.round((rent + increase) * 100) / 100;
+    return {
+      currentRent: rent,
+      annualVariance: av,
+      applicationPct: ap,
+      variationFraction: fraction,
+      increase: increase,
+      newRent: newRent
+    };
+  }
+
   function fmtEuro(n) {
     return '€' + (Number(n) || 0).toLocaleString('it-IT');
   }
@@ -267,6 +295,7 @@
     buildChecklist: buildChecklist,
     computeTotals: computeTotals,
     compareCedolare: compareCedolare,
+    computeIstatAdjustment: computeIstatAdjustment,
     buildManifest: buildManifest,
     fmtEuro: fmtEuro
   };
