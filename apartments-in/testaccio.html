@@ -677,9 +677,9 @@ const db=firebase.firestore();
       const sqm=l.sqm||l.size;
       const beds=l.beds||l.bedrooms;
       const meta=[sqm&&sqm+'m²',beds&&(beds+' bed'+(beds>1?'s':''))].filter(Boolean).join(' · ');
-      const img=l.image||(l.images&&l.images[0])||'';
-      return '<a class="listing-card" href="/apartments/'+encodeURIComponent(l.id)+'">'
-        +'<div class="listing-img"'+(img?' style="background-image:url(\''+img+'\')"':'')+'></div>'
+      const img=l.image||(l.images&&l.images[0])||'';const imgT=(function(u){if(!u||typeof u!=='string')return u;var m=u.match(/^(https?:\/\/i\.imgur\.com\/)([a-zA-Z0-9]{5,9})(\.[a-zA-Z]+)(\?.*)?$/);return m?(m[1]+m[2]+'l'+m[3]):u;})(img);
+      return '<a class="listing-card" href="/listing/'+encodeURIComponent(l.id)+'">'
+        +'<div class="listing-img"'+(img?' style="background-image:url(\''+imgT+'\')"':'')+'></div>'
         +'<div class="listing-body">'
         +'<div class="listing-zone">'+(l.zone||l.neighborhood||'Rome')+'</div>'
         +'<div class="listing-name">'+(l.name||'Apartment')+'</div>'
