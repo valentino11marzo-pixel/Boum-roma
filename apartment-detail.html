@@ -51,6 +51,10 @@
   <link rel="dns-prefetch" href="https://www.googletagmanager.com">
   <link rel="dns-prefetch" href="https://www.google-analytics.com">
 <!-- BOOM_SEO:END -->
+    <!-- Perf: early-connect to the hosts that gate the LCP photo (Firebase data + imgur images) -->
+    <link rel="preconnect" href="https://i.imgur.com" crossorigin>
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
     <link rel="icon" type="image/png" href="https://www.boomrome.com/BOOMlogogoldicon512.png">
     <link rel="apple-touch-icon" href="https://www.boomrome.com/BOOMlogogoldicon512.png">
     <!-- Google tag (gtag.js) -->
@@ -186,6 +190,8 @@
         .aci-text p{font-size:12.5px;color:var(--text-fade);margin-top:8px;display:flex;gap:16px;flex-wrap:wrap}
         .aci-text p span{display:flex;align-items:center;gap:6px}
         .aci-text p span::before{content:'✓';color:#00FF88}
+        .aci-text p span.aci-rate::before{content:'★';color:#FFD700}
+        .aci-text p span.aci-rate{color:#fff;font-weight:600}
         .aci-btns{display:flex;gap:12px;flex-wrap:wrap}
         .aci-apply{padding:14px 26px;border-radius:12px;background:linear-gradient(135deg,#FFD700,#FFA500);color:#000;font-weight:600;font-size:15px;text-decoration:none;white-space:nowrap;transition:transform .3s,box-shadow .3s}
         .aci-apply:hover{transform:translateY(-2px);box-shadow:0 10px 30px rgba(255,215,0,0.3)}
@@ -233,7 +239,12 @@
         .apt-sidebar{position:sticky;top:130px}
         .sidebar-card{background:var(--dark-void);border:1px solid rgba(255,255,255,0.06);border-radius:20px;padding:30px;margin-bottom:20px}
         .sidebar-price{font-size:36px;font-weight:200;color:var(--gold);margin-bottom:4px}
-        .sidebar-price-label{font-size:13px;color:var(--text-fade);margin-bottom:24px}
+        .sidebar-price-label{font-size:13px;color:var(--text-fade);margin-bottom:14px}
+        .sidebar-rating{display:flex;align-items:center;gap:9px;margin-bottom:20px;text-decoration:none}
+        .sidebar-rating .sr-stars{color:#FFD700;font-size:14px;letter-spacing:1.5px;filter:drop-shadow(0 0 6px rgba(255,215,0,.3))}
+        .sidebar-rating .sr-score{font-size:12.5px;color:var(--text-secondary)}
+        .sidebar-rating .sr-score b{color:#fff;font-weight:600}
+        .sidebar-rating:hover .sr-score{color:#fff}
         .sidebar-cta{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:16px;background:#25D366;border:none;border-radius:12px;color:#fff;font-family:inherit;font-size:15px;font-weight:600;text-decoration:none;cursor:pointer;transition:all .3s}
         .sidebar-cta:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(37,211,102,0.3)}
         .sidebar-cta svg{width:22px;height:22px}
@@ -450,7 +461,8 @@
   "sameAs": [
     "https://www.instagram.com/boomrome",
     "https://www.linkedin.com/company/boomrome",
-    "https://wa.me/393313251961"
+    "https://wa.me/393313251961",
+    "https://share.google/xikmVxQCRuKOdWcND"
   ],
   "address": {
     "@type": "PostalAddress",
@@ -516,6 +528,38 @@
 }
   </script>
 <!-- BOOM_JSONLD:END -->
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "How do I apply for an apartment?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Submit the 2-minute application on the page — a real person reviews it and replies within 2 hours."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I reserve a place before someone else takes it?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. A refundable €300 hold takes it off-market while we process your application."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Is the contract legal and the deposit protected?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. Every BOOM rental uses a registered legal contract with a correctly handled deposit."
+      }
+    }
+  ]
+}
+  </script>
 </head>
 <body>
 
@@ -604,7 +648,7 @@
             <div class="aci-box">
                 <div class="aci-text">
                     <h3>Love this one?</h3>
-                    <p><span>48-hour move-in</span><span>Video-verified</span><span>No hidden fees</span></p>
+                    <p><span class="aci-rate">4.9 · 47 Google reviews</span><span>48-hour move-in</span><span>Video-verified</span><span>No hidden fees</span></p>
                 </div>
                 <div class="aci-btns">
                     <a class="aci-apply" href="#inquiryCard" onclick="setTimeout(function(){var n=document.getElementById('iqName');if(n)n.focus();},450)">Apply in 2 minutes</a>
@@ -653,6 +697,10 @@
                 <div class="sidebar-card">
                     <div class="sidebar-price" id="sidebarPrice"></div>
                     <div class="sidebar-price-label">per month · all fees included</div>
+                    <a class="sidebar-rating" href="https://share.google/xikmVxQCRuKOdWcND" target="_blank" rel="noopener" aria-label="BOOM is rated 4.9 out of 5 from 47 Google reviews — read them" onclick="if(window.gtag)gtag('event','reviews_view',{source_page:'apartment-detail'})">
+                        <span class="sr-stars" aria-hidden="true">★★★★★</span>
+                        <span class="sr-score"><b>4.9</b> · 47 Google reviews</span>
+                    </a>
                     <a class="sidebar-apply" href="#inquiryCard" onclick="setTimeout(function(){var n=document.getElementById('iqName');if(n)n.focus();},450)">Apply for this apartment →</a>
                     <a class="sidebar-cta" id="sidebarWhatsApp" href="https://wa.me/393313251961" target="_blank">
                         <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.125.553 4.12 1.52 5.855L.052 23.709l5.997-1.573A11.94 11.94 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.82c-1.956 0-3.83-.528-5.47-1.528l-.392-.233-4.065 1.066 1.084-3.964-.256-.407A9.787 9.787 0 012.18 12c0-5.414 4.406-9.82 9.82-9.82 5.414 0 9.82 4.406 9.82 9.82 0 5.414-4.406 9.82-9.82 9.82z"/></svg>
@@ -868,7 +916,10 @@
                 <p>Built in Rome, for Rome. If we can make Rome's rental market work, we can make it work anywhere.<br><br><strong>Egidi Immobiliare S.r.l.</strong><br>P.IVA 17322991005<br>REA RM - 1710623<br>Rome, Italy</p>
             </div>
             <div class="footer-links"><h4>Services</h4><ul><li><a href="/apartments.html">Apartments</a></li><li><a href="/property-finding.html">Property Finding</a></li><li><a href="/deal-assistance.html">Deal Assistance</a></li><li><a href="/virtual-viewing.html">Virtual Viewing</a></li><li><a href="/concierge.html">Concierge</a></li></ul></div>
-            <div class="footer-links"><h4>Company</h4><ul><li><a href="/about.html">About</a></li><li><a href="/how-it-works.html">How It Works</a></li><li><a href="/owners.html">For Owners</a></li><li><a href="/blog.html">Blog</a></li><li><a href="/faq.html">FAQ</a></li><li><a href="/contact.html">Contact</a></li></ul></div>
+            <div class="footer-links"><h4>Company</h4><ul><li><a href="/about.html">About</a></li><li><a href="/how-it-works.html">How It Works</a></li><li><a href="/universities.html">For Universities</a></li>
+<li><a href="/corporate.html">For Companies</a></li>
+<li><a href="/research.html">For Research</a></li>
+<li><a href="/owners.html">For Owners</a></li><li><a href="/blog.html">Blog</a></li><li><a href="/faq.html">FAQ</a></li><li><a href="/contact.html">Contact</a></li></ul></div>
             <div class="footer-links"><h4>Legal</h4><ul><li><a href="/terms.html">Terms</a></li><li><a href="/privacy.html">Privacy</a></li><li><a href="/login.html">Login</a></li></ul></div>
         </div>
         <div class="footer-bottom"><span>© 2025 BOOM — All Rights Reserved</span><span>Status: Operational</span></div>

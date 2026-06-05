@@ -5,15 +5,44 @@
 // and returns { id: [lng, lat] }. Heavily edge-cached; intended to be run
 // occasionally, its output committed as a static file the map reads.
 //
-// Regenerate:  curl https://www.boomrome.com/api/geocode-all  (or via tooling)
-// then paste `coords` into js/listing-coords.js.
+// ── Access ────────────────────────────────────────────────────────────────
+// This is an ADMIN one-shot tool, NOT a public endpoint. It is gated behind a
+// shared secret so it can't be used to amplify outbound Nominatim traffic /
+// hold serverless functions open (cost + DoS vector). Provide the secret as
+// either an Authorization: Bearer header or a ?key= query param:
+//
+//   curl -H "Authorization: Bearer $GEOCODE_SECRET" https://www.boomrome.com/api/geocode-all
+//   curl "https://www.boomrome.com/api/geocode-all?key=$GEOCODE_SECRET"
+//
+// Then paste `coords` into js/listing-coords.js.
+//
+// Required env: GEOCODE_SECRET (admin secret), FIREBASE_API_KEY, optionally
+// FIREBASE_PROJECT_ID.
+
+import crypto from 'node:crypto';
 
 const PROJECT = process.env.FIREBASE_PROJECT_ID || 'boom-property-dashboards';
-const API_KEY = process.env.FIREBASE_API_KEY || 'AIzaSyDDb8UeSc8RhO_VxQrhLrupu1aPD4rwRso';
 const UA = 'BOOMRome/1.0 (+https://www.boomrome.com; valentino11marzo@gmail.com)';
 
 const sv = (f, k) => (f && f[k] && f[k].stringValue) || '';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Constant-time secret comparison (avoids timing side-channels).
+function safeEqual(provided, expected) {
+  if (typeof provided !== 'string' || typeof expected !== 'string') return false;
+  const a = Buffer.from(provided, 'utf8');
+  const b = Buffer.from(expected, 'utf8');
+  if (a.length !== b.length) return false;
+  try { return crypto.timingSafeEqual(a, b); } catch { return false; }
+}
+
+function getProvidedSecret(req) {
+  const auth = req.headers.authorization || '';
+  const m = auth.match(/^Bearer\s+(.+)$/i);
+  if (m) return m[1].trim();
+  const q = (req.query && (req.query.key || req.query.secret)) || '';
+  return typeof q === 'string' ? q : '';
+}
 
 async function geocode(query) {
   const url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=it&email=valentino11marzo@gmail.com&q=' + encodeURIComponent(query);
@@ -27,6 +56,22 @@ async function geocode(query) {
 }
 
 export default async function handler(req, res) {
+  // ── Fail closed if misconfigured ──
+  const secret = process.env.GEOCODE_SECRET;
+  const apiKey = process.env.FIREBASE_API_KEY;
+  if (!secret || !apiKey) {
+    return res.status(500).json({ error: 'Server misconfigured: GEOCODE_SECRET and FIREBASE_API_KEY are required.' });
+  }
+
+  // ── Method + auth gate ──
+  if (req.method !== 'GET') {
+    res.setHeader('Allow', 'GET');
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+  if (!safeEqual(getProvidedSecret(req), secret)) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
   const coords = {};
   const misses = [];
   // Optional slicing so a single request stays well under the gateway/tool
@@ -36,7 +81,7 @@ export default async function handler(req, res) {
   const to = q.to != null ? (parseInt(q.to, 10) || 0) : null;
   let total = 0;
   try {
-    const r = await fetch(`https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents/listings?pageSize=300&key=${API_KEY}`);
+    const r = await fetch(`https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents/listings?pageSize=300&key=${apiKey}`);
     const j = await r.json();
     const allDocs = j.documents || [];
     total = allDocs.length;
@@ -59,8 +104,8 @@ export default async function handler(req, res) {
       ].filter(Boolean);
 
       let hit = null;
-      for (const q of queries) {
-        try { hit = await geocode(q); } catch { hit = null; }
+      for (const query of queries) {
+        try { hit = await geocode(query); } catch { hit = null; }
         await sleep(1100); // Nominatim usage policy: <= 1 req/sec
         if (hit) break;
       }
@@ -71,7 +116,9 @@ export default async function handler(req, res) {
     return res.status(200).json({ error: String(e), coords, misses });
   }
 
+  // Private: this is an authenticated admin tool — do not let shared caches
+  // (or the CDN) store the response under a cache key that omits the secret.
+  res.setHeader('Cache-Control', 'private, no-store, max-age=0');
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
-  res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=604800, stale-while-revalidate=86400');
   res.status(200).json({ generated: new Date().toISOString(), total, from, to, count: Object.keys(coords).length, coords, misses });
 }
