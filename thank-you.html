@@ -10,6 +10,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Thank You — BOOM Rome</title>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-EYCD59RDVJ"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-EYCD59RDVJ');
+    </script>
 <!-- BOOM_SEO:START -->
   <meta name="description" content="Thanks — we'll be in touch shortly.">
   <meta name="robots" content="noindex, follow">
@@ -217,6 +224,48 @@
             color: var(--gold);
         }
 
+        .ty-review {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            margin: 8px 0 4px;
+        }
+        .ty-review.show { display: flex; }
+        .ty-stars {
+            display: flex;
+            gap: 6px;
+            font-size: 24px;
+            color: var(--gold);
+            filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.35));
+        }
+        .ty-review p {
+            color: #bbb;
+            font-size: 14px;
+            max-width: 380px;
+            line-height: 1.6;
+            margin: 0;
+        }
+        .review-cta {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 18px 44px;
+            background: var(--gold);
+            color: var(--pure-black);
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+        .review-cta:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(255, 215, 0, 0.3);
+        }
+
         @media (max-width: 768px) {
             .thank-you-container {
                 padding: 40px 20px;
@@ -247,7 +296,8 @@
   "sameAs": [
     "https://www.instagram.com/boomrome",
     "https://www.linkedin.com/company/boomrome",
-    "https://wa.me/393313251961"
+    "https://wa.me/393313251961",
+    "https://share.google/xikmVxQCRuKOdWcND"
   ],
   "address": {
     "@type": "PostalAddress",
@@ -339,6 +389,12 @@
             </div>
         </div>
 
+        <div class="ty-review" id="tyReview">
+            <div class="ty-stars" aria-hidden="true">★★★★★</div>
+            <p>Your words help the next international tenant trust BOOM instead of risking a scam. It takes 20 seconds 🙏</p>
+            <a class="review-cta" id="tyReviewBtn" href="#" target="_blank" rel="noopener">Leave a Google review</a>
+        </div>
+
         <a href="/" class="btn-home">Back to Home</a>
 
         <a href="https://wa.me/393313251961" class="whatsapp-link">
@@ -351,7 +407,23 @@
       var c=document.getElementById('tyc'); if(c) c.classList.add('ty-go');
       try{
         var p=new URLSearchParams(location.search);
-        if(typeof gtag==='function'){
+        // Review-request landing (?review=1): branded one-tap review page for QR cards /
+        // post-move-in links. Never shown to fresh leads. Swap REVIEW_LINK for the
+        // g.page/r/.../review one-tap link when available (see docs/reviews.md).
+        if(p.get('review')){
+          var REVIEW_LINK='https://share.google/xikmVxQCRuKOdWcND';
+          var box=document.querySelector('.info-box');
+          var h=document.querySelector('.thank-you-container h1');
+          var msg=document.querySelector('.thank-you-message');
+          var rv=document.getElementById('tyReview');
+          var rb=document.getElementById('tyReviewBtn');
+          if(box) box.style.display='none';
+          if(h) h.textContent='How was BOOM?';
+          if(msg) msg.textContent='We hope your move to Rome felt effortless. A quick Google review would mean the world to us.';
+          if(rb) rb.href=REVIEW_LINK;
+          if(rv) rv.classList.add('show');
+          if(rb) rb.addEventListener('click',function(){ if(typeof gtag==='function') gtag('event','review_click',{source_page:'thank-you'}); });
+        } else if(typeof gtag==='function'){
           gtag('event','generate_lead',{event_category:'conversion',page_path:location.pathname});
           if(p.get('reserved')){
             var amt=parseFloat(p.get('amt'))||0;

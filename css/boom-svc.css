@@ -106,3 +106,60 @@
 .svc-cta-ring.b{width:740px;height:740px;border-color:rgba(255,215,0,.05)}
 .svc-cta h2{font-family:var(--font-display);font-weight:200;font-size:clamp(34px,6vw,70px);line-height:1.03}
 .svc-cta p{color:var(--text-secondary);margin:18px 0 32px;font-size:18px}
+
+/* ── Partner pages (universities / corporate / research) ────────────── */
+/* Hero reassurance chips */
+.svc-hero-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}
+.svc-hero-chip{font-size:11.5px;color:var(--text-secondary);border:1px solid var(--border-default);background:rgba(255,255,255,.02);padding:6px 11px;border-radius:100px}
+
+/* Portal device (animated status dashboard inside .svc-device) */
+.svc-portal{padding:18px;background:linear-gradient(170deg,var(--surface-card),#070708)}
+.svc-portal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.svc-portal-lbl{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--text-tertiary)}
+.svc-portal-name{font-size:14px;color:#fff;font-weight:500;margin-top:3px}
+.svc-portal-badge{font-size:10px;letter-spacing:.5px;color:var(--green);border:1px solid rgba(0,255,136,.3);padding:4px 9px;border-radius:100px}
+.svc-portal-badge b{animation:svcBlink 1.5s infinite}
+@keyframes svcBlink{50%{opacity:.3}}
+.svc-portal-stat{text-align:center;padding:14px 0 18px;border-bottom:1px solid var(--border-default);margin-bottom:14px}
+.svc-portal-num{font-family:var(--font-display);font-weight:200;font-size:52px;line-height:1;color:var(--gold)}
+.svc-portal-statlbl{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--text-tertiary);margin-top:6px}
+.svc-portal-rows{display:flex;flex-direction:column;gap:9px}
+.svc-portal-row{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:11px;border:1px solid var(--border-default);background:rgba(255,255,255,.02);opacity:0;transform:translateY(8px)}
+.svc-portal-row.show{animation:svcRise .5s var(--ease-out) forwards}
+@keyframes svcRise{to{opacity:1;transform:none}}
+.svc-portal-av{width:30px;height:30px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#000;background:linear-gradient(135deg,#FFE55C,#E5C200)}
+.svc-portal-rt{flex:1;min-width:0;font-size:12.5px;color:var(--text-secondary)}
+.svc-portal-rt b{color:#fff;font-weight:500}
+.svc-portal-ok{font-size:10px;letter-spacing:.4px;text-transform:uppercase;color:var(--green);border:1px solid rgba(0,255,136,.3);padding:3px 8px;border-radius:100px;white-space:nowrap}
+.svc-portal-foot{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.svc-portal-chip{font-size:11px;color:var(--text-secondary);border:1px solid var(--border-default);background:rgba(255,255,255,.02);padding:6px 10px;border-radius:100px}
+
+/* 3-up pricing grid + tier footnotes */
+@media(min-width:860px){.svc-tiers.t3{grid-template-columns:repeat(3,1fr);max-width:1120px}}
+.svc-tier-foot{font-size:12px;color:var(--text-tertiary);margin-top:14px;line-height:1.5}
+.svc-pnote{text-align:center;color:var(--text-tertiary);font-size:13px;margin-top:22px;max-width:680px;margin-left:auto;margin-right:auto}
+.svc-price .per{font-size:14px;color:var(--text-tertiary);font-family:var(--font-base);font-weight:400}
+
+/* Self-serve / audience band */
+.svc-band{border:1px solid var(--border-gold);border-radius:22px;padding:38px;background:linear-gradient(160deg,var(--gold-muted),rgba(255,255,255,.01));text-align:center}
+.svc-band h2{font-family:var(--font-display);font-weight:300;font-size:clamp(24px,3.4vw,34px);margin-bottom:10px}
+.svc-band p{color:var(--text-secondary);max-width:580px;margin:0 auto 24px;font-size:15px}
+.svc-band-btns{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+.svc-band-btns .btn-ghost{display:inline-flex;align-items:center;gap:8px;padding:13px 22px;border-radius:100px;border:1px solid var(--border-default);color:#fff;text-decoration:none;font-size:14px;transition:border-color .3s,transform .3s var(--ease-out)}
+.svc-band-btns .btn-ghost:hover{border-color:var(--border-gold);transform:translateY(-2px)}
+
+/* Cross-link strip between partner pages */
+.svc-partners{display:grid;grid-template-columns:1fr;gap:16px;margin-top:8px}
+@media(min-width:760px){.svc-partners{grid-template-columns:repeat(3,1fr)}}
+.svc-partner{display:block;border:1px solid var(--border-default);border-radius:18px;padding:26px;background:var(--surface-card);text-decoration:none;transition:border-color .4s,transform .4s var(--ease-out)}
+.svc-partner:hover{border-color:var(--border-gold);transform:translateY(-4px)}
+.svc-partner .ico{font-size:24px;margin-bottom:12px}
+.svc-partner h3{font-family:var(--font-display);font-weight:300;font-size:20px;color:#fff;margin-bottom:6px}
+.svc-partner p{font-size:13.5px;color:var(--text-secondary)}
+.svc-partner .go{margin-top:12px;color:var(--gold);font-size:13px}
+.svc-partner.current{border-color:var(--border-gold);background:linear-gradient(160deg,var(--gold-muted),rgba(255,255,255,.01))}
+.svc-partner .snap{margin-top:12px;color:var(--text-tertiary);font-size:12.5px}
+
+/* À la carte service cross-sell grid (auto-fits 3–4 cards) */
+.svc-xsell{display:grid;grid-template-columns:1fr;gap:16px;margin-top:8px}
+@media(min-width:680px){.svc-xsell{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}}
