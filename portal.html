@@ -10500,6 +10500,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
                     <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">📄 DETTAGLI DOCUMENTO</h4>
                     <div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="name" required placeholder="es. Contratto Locazione Rossi"></div><div class="form-group"><label class="form-label">Tipo</label><select class="form-select" name="type"><option value="contract">📋 Contratto</option><option value="id">🪪 Documento ID</option><option value="receipt">🧾 Ricevuta</option><option value="utility">💡 Utenza</option><option value="other">📄 Altro</option></select></div></div>
+                    <div class="form-row">
+                        <div class="form-group"><label class="form-label">Categoria fiscale</label><select class="form-select" name="category"><option value="">— auto —</option><option value="contract">Contratto</option><option value="rli_registration">Registrazione RLI</option><option value="cedolare">Cedolare secca</option><option value="receipt">Ricevuta canone</option><option value="istat">Adeguamento ISTAT</option><option value="f24">F24</option><option value="imu">IMU</option><option value="ape">APE</option><option value="visura">Visura catastale</option><option value="id_document">Documento ID</option><option value="invoice">Fattura/Spesa</option><option value="cin">CIN</option></select></div>
+                        <div class="form-group"><label class="form-label">Anno fiscale</label><input type="number" class="form-input" name="fiscalYear" min="2015" max="2099" placeholder="${new Date().getFullYear()}" value="${new Date().getFullYear()}"></div>
+                    </div>
                     <div class="form-group">
                         <label class="form-label">File</label>
                         <div style="border:2px dashed var(--border);border-radius:8px;padding:24px;text-align:center;cursor:pointer" onclick="document.getElementById('fileInput').click()">
@@ -10509,6 +10513,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                             <div style="font-size:11px;color:var(--text-muted)">PDF, DOC, JPG, PNG (max 10MB)</div>
                         </div>
                         <div id="filePreview"></div>
+                        <button type="button" class="btn btn-secondary btn-sm" id="ocrBtn" style="margin-top:10px;display:none" onclick="runDocOCR()">🤖 Analizza con AI (categoria + anno + testo)</button>
+                        <div id="ocrResult" style="margin-top:8px"></div>
                     </div>
                 </div>
                 <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
@@ -10609,16 +10615,22 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 fileName = selectedFile.name;
                 fileSize = selectedFile.size;
             }
+            const ocr = window._lastOcr || null;
             const docRef = await db.collection('documents').add({
                 name: data.name, type: data.type || 'other',
+                category: data.category || (ocr && ocr.category) || null,
+                fiscalYear: data.fiscalYear ? parseInt(data.fiscalYear, 10) : null,
                 userId: data.userId || S.profile.id,
                 propertyId: data.propertyId || null,
                 shared: data.shared === 'true',
                 notes: data.notes || '',
                 fileUrl, fileName, fileSize,
+                ocrText: ocr ? (ocr.text || '').slice(0, 20000) : null,
+                ocrEntities: ocr ? (ocr.entities || null) : null,
                 uploadedBy: S.profile.id,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
+            window._lastOcr = null;
             
             // Notify assigned user (if not self)
             if (data.userId && data.userId !== S.profile.id) {
@@ -12486,7 +12498,55 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function updateInvAmount(sel) { const opt = sel.options[sel.selectedIndex]; document.getElementById('invService').value = opt.dataset.service || ''; document.getElementById('invAmount').value = opt.dataset.price || ''; }
     function fillContractRent(sel) { document.getElementById('cRent').value = sel.options[sel.selectedIndex].dataset.rent || ''; }
     function fillPayAmount(sel) { document.getElementById('pAmount').value = sel.options[sel.selectedIndex].dataset.rent || ''; }
-    function handleFile(input) { const file = input.files[0]; if (!file) return; if (file.size > 10*1024*1024) { toast('error', 'File troppo grande (max 10MB)'); return; } selectedFile = file; document.getElementById('filePreview').innerHTML = `<div class="file-preview"><span>📄</span><div style="flex:1"><div>${esc(file.name)}</div><div style="font-size:11px;color:var(--text-muted)">${(file.size/1024).toFixed(1)} KB</div></div></div>`; }
+    function handleFile(input) { const file = input.files[0]; if (!file) return; if (file.size > 10*1024*1024) { toast('error', 'File troppo grande (max 10MB)'); return; } selectedFile = file; document.getElementById('filePreview').innerHTML = `<div class="file-preview"><span>📄</span><div style="flex:1"><div>${esc(file.name)}</div><div style="font-size:11px;color:var(--text-muted)">${(file.size/1024).toFixed(1)} KB</div></div></div>`; const ob = document.getElementById('ocrBtn'); if (ob) ob.style.display = 'inline-flex'; }
+
+    // AI OCR on the selected (not-yet-uploaded) file: reads it as base64,
+    // sends to /api/documents/ocr, auto-fills category + fiscalYear.
+    async function runDocOCR() {
+        if (!selectedFile) { toast('error', 'Seleziona prima un file'); return; }
+        const btn = document.getElementById('ocrBtn');
+        const out = document.getElementById('ocrResult');
+        btn.disabled = true; btn.textContent = '🤖 Analisi in corso…';
+        try {
+            const b64 = await new Promise((resolve, reject) => {
+                const fr = new FileReader();
+                fr.onload = () => resolve(String(fr.result).split(',')[1]);
+                fr.onerror = reject;
+                fr.readAsDataURL(selectedFile);
+            });
+            const idToken = await auth.currentUser.getIdToken();
+            const resp = await fetch('/api/documents/ocr', {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + idToken, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ base64: b64, mediaType: selectedFile.type || 'application/octet-stream' }),
+            });
+            const data = await resp.json();
+            if (!resp.ok || !data.ok) throw new Error(data.error || 'errore');
+            // Auto-fill the form
+            const form = document.getElementById('docUploadForm');
+            if (form) {
+                if (data.category && form.category) form.category.value = data.category;
+                const fy = data.entities && data.entities.fiscalYear;
+                if (fy && form.fiscalYear) form.fiscalYear.value = fy;
+            }
+            window._lastOcr = data; // captured by saveDocWithAssignment to persist ocrText/entities
+            const ents = data.entities || {};
+            const chips = [];
+            if (data.category) chips.push('Categoria: ' + esc(data.category));
+            if (ents.fiscalYear) chips.push('Anno: ' + ents.fiscalYear);
+            if ((ents.amounts || []).length) chips.push('Importi: ' + ents.amounts.slice(0, 3).map(a => '€' + a).join(', '));
+            if ((ents.codiceFiscale || []).length) chips.push('CF rilevato');
+            if ((ents.iban || []).length) chips.push('IBAN rilevato');
+            out.innerHTML = `<div style="background:var(--gold-light);border:1px solid rgba(212,175,55,0.3);border-radius:8px;padding:10px 12px;font-size:12px">
+                <div style="color:var(--gold);font-weight:600;margin-bottom:4px">✓ Analizzato</div>
+                ${chips.map(c => `<span class="badge" style="background:var(--bg-elevated);font-size:10px;margin:2px">${c}</span>`).join('')}
+            </div>`;
+            btn.style.display = 'none';
+        } catch (e) {
+            btn.disabled = false; btn.textContent = '🤖 Analizza con AI';
+            toast('error', 'OCR non riuscito', e.message);
+        }
+    }
 
     function confirmDelete(type, id, name) { openModal('confirm', { icon: '🗑', title: 'Eliminare?', text: `Sei sicuro di voler eliminare "${name}"? Questa azione non può essere annullata.`, action: `deleteRecord('${type}','${id}')`, btnText: 'Elimina', danger: true }); }
 
