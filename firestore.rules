@@ -180,6 +180,25 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // ─── documentShares ───────────────────────────────────────────────
+    // Share links handed to a commercialista. Created by admin or by the
+    // landlord who owns the bundle; the public read path goes through
+    // /api/share/lookup under admin creds, so anonymous has no direct
+    // access here. ownerId = the landlord whose docs are shared.
+    match /documentShares/{shareId} {
+      allow read:   if isAdmin() || (isLandlord() && resource.data.ownerId == uid());
+      allow create: if isAdmin() || (isLandlord() && request.resource.data.ownerId == uid());
+      allow update, delete: if isAdmin() || (isLandlord() && resource.data.ownerId == uid());
+    }
+
+    // ─── taxPacks ─────────────────────────────────────────────────────
+    // Metadata for a generated tax bundle (property + fiscal year + manifest).
+    match /taxPacks/{packId} {
+      allow read:   if isAdmin() || (isLandlord() && resource.data.ownerId == uid());
+      allow create: if isAdmin() || (isLandlord() && request.resource.data.ownerId == uid());
+      allow update, delete: if isAdmin() || (isLandlord() && resource.data.ownerId == uid());
+    }
+
     // ─── Admin-only operational collections ───────────────────────────
     match /leads/{x}                      { allow read, write: if isAdmin(); }
     match /pfsClients/{x}                  { allow read, write: if isAdmin(); }
