@@ -975,19 +975,29 @@
       const el = document.getElementById('zoneFooter');
       if(!el || !zoneLabel) return;
       try{
-        const snap = await db.collection('listings').get();
-        const terms = (window.BOOM && BOOM.allNeighborhoods)
-          ? (BOOM.allNeighborhoods().find(n=>n.slug===slug) || {}).terms
-          : null;
-        const inZone = snap.docs
-          .map(d=>({id:d.id, ...d.data()}))
-          .filter(l=>{
-            const s=(l.status||l.availabilityStatus||'').toLowerCase();
-            if(s==='rented'||s==='affittato'||s==='off_market') return false;
+        const isLive = l => { const s=(l.status||l.availabilityStatus||'').toLowerCase(); return !(s==='rented'||s==='affittato'||s==='off_market'); };
+        // Fast path: indexed equality query on the exact zone — one cheap read instead
+        // of scanning the whole collection on every single listing view.
+        let inZone = [];
+        try{
+          const exact = await db.collection('listings').where('zone','==',zoneLabel).get();
+          inZone = exact.docs.map(d=>({id:d.id, ...d.data()})).filter(isLive);
+        }catch(_){ /* fall through to the full scan */ }
+
+        // Fallback: when the exact-zone match is sparse (inconsistent zone fields, or
+        // sub-areas that share one neighborhood slug), do the fuzzy whole-collection scan.
+        if(inZone.length < 4){
+          const snap = await db.collection('listings').get();
+          const terms = (window.BOOM && BOOM.allNeighborhoods)
+            ? (BOOM.allNeighborhoods().find(n=>n.slug===slug) || {}).terms
+            : null;
+          inZone = snap.docs.map(d=>({id:d.id, ...d.data()})).filter(l=>{
+            if(!isLive(l)) return false;
             const blob=((l.zone||'')+' '+(l.neighborhood||'')+' '+(l.address||'')+' '+(l.name||'')).toLowerCase();
             if(terms && terms.length) return terms.some(t=>blob.includes(t));
             return blob.includes(zoneLabel.toLowerCase());
           });
+        }
         // Price intelligence: compare this listing to the neighborhood mean
         renderPriceInsight(inZone, currentPrice, zoneLabel);
         const sameZone = inZone.filter(l=>l.id!==currentId).slice(0,4);
@@ -1355,8 +1365,8 @@
         let tH=slides.map((img,i)=>`<div class="carousel-thumb ${i===0?'active':''}" onclick="goTo(${i})"><img src="${imgThumb(img,'m')}" alt="Thumb ${i+1}" loading="lazy" decoding="async"></div>`).join('');
         if(hasVS)tH+=`<div class="carousel-thumb video-thumb" onclick="goTo(${slides.length})"></div>`;
 
-        const expandBtn=`<button class="carousel-expand" onclick="openLightbox(currentSlide<${slides.length}?currentSlide:0)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M8 3H3v5M16 3h5v5M21 16v5h-5M3 16v5h5"/></svg>${slides.length} photos</button>`;
-        sec.innerHTML=`<div class="carousel" id="carousel">${expandBtn}${hasVS?'<div class="carousel-video-badge" style="display:block">▶ Video Tour</div>':''}<div class="carousel-track" id="carouselTrack">${sH}</div><button class="carousel-btn carousel-prev" onclick="prev()">‹</button><button class="carousel-btn carousel-next" onclick="next()">›</button><div class="carousel-counter" id="carouselCounter">1 / ${totalSlides}</div></div><div class="carousel-thumbs" id="carouselThumbs">${tH}</div>`;
+        const expandBtn=`<button type="button" class="carousel-expand" aria-label="View all photos full screen" onclick="openLightbox(currentSlide<${slides.length}?currentSlide:0)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M21 16v5h-5M3 16v5h5"/></svg>${slides.length} photos</button>`;
+        sec.innerHTML=`<div class="carousel" id="carousel" role="region" aria-roledescription="carousel" aria-label="Apartment photos">${expandBtn}${hasVS?'<div class="carousel-video-badge" style="display:block">▶ Video Tour</div>':''}<div class="carousel-track" id="carouselTrack">${sH}</div><button type="button" class="carousel-btn carousel-prev" onclick="prev()" aria-label="Previous photo">‹</button><button type="button" class="carousel-btn carousel-next" onclick="next()" aria-label="Next photo">›</button><div class="carousel-counter" id="carouselCounter" aria-live="polite">1 / ${totalSlides}</div></div><div class="carousel-thumbs" id="carouselThumbs">${tH}</div>`;
         initSwipe();
     }
 
@@ -1414,7 +1424,12 @@
         c.addEventListener('touchmove',e=>{dX=e.touches[0].clientX-sX},{passive:true});
         c.addEventListener('touchend',()=>{if(Math.abs(dX)>50){dX<0?next():prev()}dX=0});
     }
-    document.addEventListener('keydown',e=>{if(!document.getElementById('lightbox').hidden)return;if(e.key==='ArrowRight')next();if(e.key==='ArrowLeft')prev()});
+    document.addEventListener('keydown',e=>{
+        if(!document.getElementById('lightbox').hidden) return;                       // lightbox owns the keys when open
+        const t=e.target; if(t && (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)||t.isContentEditable)) return; // don't hijack typing
+        if(totalSlides<2) return;                                                     // nothing to page through
+        if(e.key==='ArrowRight') next(); else if(e.key==='ArrowLeft') prev();
+    });
 
     function buildMap(d){
         const c=document.getElementById('mapContainer');
