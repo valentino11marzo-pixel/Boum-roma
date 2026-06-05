@@ -27,6 +27,11 @@ Premium rental management platform for Rome's apartment market. Serves tenants, 
   firebase-config.js      Firebase SDK init (project: boom-property-dashboards)
   boom-portal.js          Shared client lib for the 3 portals (auth guard,
                           realtime listener, toast, loader, confirm, SW reg)
+  taxpack-engine.js       Pure Italian rental-tax engine (checklist, totals,
+                          cedolare calc, zip manifest). window.BOOM_TAXPACK
+firestore.rules           Firestore security rules (role-based)
+storage.rules             Storage security rules (role-based file access)
+firebase.json             Firebase deploy config (firestore + storage rules)
 /css/
   boom-core.css           Marketing site design system (used by index, etc.)
 /pass-assets/             Apple Wallet pass resources (icons, logos, strips)
@@ -142,6 +147,24 @@ identity payload, phone, consent record. Runs every Firestore write under
 admin credentials (signature + identity + landlord profile + RLI deadline
 + lead closure + property status + listing sync + payment schedule +
 tenant user bootstrap). All those mutations are admin-only per the rules.
+
+### POST `/api/documents/share`
+Admin/landlord (Firebase ID token via `api/_auth.js`). Creates a
+`documentShares` doc (token, ownerId, docIds, recipientName, watermark,
+expiresAt, views[]) and returns a `/share.html?t=<token>` link for the
+commercialista. Landlords can only share their own bundle.
+
+### POST `/api/share/lookup`
+Public, no login. Body `{ token }`. Resolves the share under admin creds,
+enforces expiry/revocation, returns the listed documents (sanitized) and
+audit-logs every view (ip/ua/time) to the share's `views[]` + activityLog.
+Backs `share.html`.
+
+### POST `/api/documents/ocr`
+Admin/landlord (Firebase ID token). Body `{ fileUrl }` or `{ base64,
+mediaType }`. Fetches the file server-side, sends to Claude (haiku), returns
+`{ category, text, entities:{ dates, amounts, codiceFiscale, iban,
+partitaIva, fiscalYear } }`. Anthropic key stays server-side.
 
 ### POST `/api/homie/property`
 Homie → PFS bridge. Homie scrapes a property (Immobiliare/Idealista/etc.), calls this with the listing data. Writes the master record to `pfsProperties/<sha1(sourceUrl)>` (idempotent), then iterates active PFS clients, scores each against the listing using `api/homie/_match.js`, and pushes matching properties (score ≥ 60) into the client's `portalProperties` array. Client-portal.html already listens and triggers a "New Property!" alert on the client's phone. Auth via `X-Homie-Secret`. See file header for payload schema.
