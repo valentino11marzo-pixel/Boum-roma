@@ -158,13 +158,11 @@ function buildTenantPass({
     sharingProhibited: true,
     storeCard: {
       headerFields: clean([
-        fText("type", "BOOM", "TENANT"),
         fText("state", "STATO", paymentStatus || "ATTIVO", { textAlignment: R }),
       ]),
       primaryFields: [],
       secondaryFields: clean([
         fText("name", "INQUILINO", tenantName),
-        fText("addr", "INDIRIZZO", propertyAddress, { textAlignment: R }),
       ]),
       auxiliaryFields: clean([
         fCurrency("rent", "CANONE", monthlyRent, { changeMessage: "Canone aggiornato: %@" }),
@@ -201,8 +199,7 @@ function buildSilverPass(data) {
   base.foregroundColor = "rgb(20,20,25)";
   base.labelColor = "rgb(80,80,90)";
   base.storeCard.headerFields = clean([
-    fText("type", "BOOM", "SILVER"),
-    fText("state", "STATO", data.paymentStatus || "VIP", { textAlignment: R }),
+    fText("tier", "STATO", "SILVER · VIP", { textAlignment: R }),
   ]);
   base.storeCard.backFields = clean([
     fText("vip", "Vantaggi Silver", "Assistenza prioritaria · viewing prioritari · accesso agli eventi BOOM."),
@@ -237,7 +234,6 @@ function buildLandlordPass({
       primaryFields: [],
       secondaryFields: clean([
         fText("name", "BOOM PARTNER", landlordName),
-        fText("status", "STATUS", "PREMIUM", { textAlignment: R }),
       ]),
       auxiliaryFields: clean([
         fNumber("props", "PROPRIETÀ", propertiesCount),
@@ -289,16 +285,16 @@ function buildViewingPass({
       primaryFields: [],
       secondaryFields: clean([
         fText("addr", "INDIRIZZO", propertyAddress),
-        fDate("date", "DATA", confirmedDateISO, { textAlignment: R, changeMessage: "Visita spostata: %@" }),
       ]),
       auxiliaryFields: clean([
-        eventDate ? { key: "time", label: "ORA", value: eventDate.toISOString(), dateStyle: "PKDateStyleNone", timeStyle: "PKDateStyleShort", ignoresTimeZone: true, changeMessage: "Nuovo orario: %@" } : null,
-        fText("meeting", "PUNTO D'INCONTRO", meetingPoint, { textAlignment: R }),
+        fDate("date", "DATA", confirmedDateISO, { changeMessage: "Visita spostata: %@" }),
+        eventDate ? { key: "time", label: "ORA", value: eventDate.toISOString(), dateStyle: "PKDateStyleNone", timeStyle: "PKDateStyleShort", ignoresTimeZone: true, textAlignment: R, changeMessage: "Nuovo orario: %@" } : null,
       ]),
       backFields: clean([
         fText("client", "Cliente", clientName),
         fText("immobile", "Immobile", [propertyAddress, propertyCity].filter(Boolean).join(", ")),
         fText("dur", "Durata", `${durationMinutes} minuti`),
+        fText("meet", "Punto d'incontro", meetingPoint),
         (propertyCoords && propertyCoords.lat && propertyCoords.lng)
           ? fLink("maps", "Mappa", `https://maps.apple.com/?ll=${propertyCoords.lat},${propertyCoords.lng}&q=${encodeURIComponent(propertyAddress)}`, "Apri in Mappe →")
           : null,
@@ -350,13 +346,13 @@ function buildReferralPass({
       primaryFields: [],
       secondaryFields: clean([
         fText("name", "MEMBRO", referrerName),
-        fText("code", "CODICE", referralCode, { textAlignment: R }),
       ]),
       auxiliaryFields: clean([
         fNumber("active", "REFERRAL ATTIVI", referralsActive),
         fCurrency("earned", "GUADAGNATO", totalEarned, { textAlignment: R }),
       ]),
       backFields: clean([
+        fText("code_b", "Il tuo codice", referralCode),
         fText("threshold_b", "Prossima soglia", nextThreshold),
         fText("how", "Come funziona", "Condividi il tuo codice. Quando un amico firma con BOOM, guadagni €150 di credito. Cumulabile."),
         fLink("share", "Link da condividere", `https://boomrome.com/?ref=${referralCode}`, "Condividi BOOM →"),
