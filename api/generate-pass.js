@@ -161,16 +161,14 @@ function buildTenantPass({
         fText("type", "BOOM", "TENANT"),
         fText("state", "STATO", paymentStatus || "ATTIVO", { textAlignment: R }),
       ]),
-      primaryFields: clean([
-        fText("name", "INQUILINO", tenantName),
-      ]),
+      primaryFields: [],
       secondaryFields: clean([
-        fCurrency("rent", "CANONE", monthlyRent, { changeMessage: "Canone aggiornato: %@" }),
-        fDate("next", "PROSSIMA RATA", nextPaymentDate, { textAlignment: R, changeMessage: "Prossima rata: %@" }),
+        fText("name", "INQUILINO", tenantName),
+        fText("addr", "INDIRIZZO", propertyAddress, { textAlignment: R }),
       ]),
       auxiliaryFields: clean([
-        fText("addr", "INDIRIZZO", propertyAddress),
-        fDate("end", "SCADENZA", contractEnd, { textAlignment: R }),
+        fCurrency("rent", "CANONE", monthlyRent, { changeMessage: "Canone aggiornato: %@" }),
+        fDate("next", "PROSSIMA RATA", nextPaymentDate, { textAlignment: R, changeMessage: "Prossima rata: %@" }),
       ]),
       backFields: clean([
         fText("immobile", "Immobile", [propertyAddress, propertyCity].filter(Boolean).join(", ")),
@@ -236,16 +234,14 @@ function buildLandlordPass({
       headerFields: clean([
         fText("member", "PARTNER DAL", String(memberSince || new Date().getFullYear()), { textAlignment: R }),
       ]),
-      primaryFields: clean([
-        fText("name", "BOOM PARTNER", landlordName),
-      ]),
+      primaryFields: [],
       secondaryFields: clean([
-        fNumber("props", "PROPRIETÀ", propertiesCount),
-        fCurrency("rev", "REVENUE", totalRevenue, { textAlignment: R }),
+        fText("name", "BOOM PARTNER", landlordName),
+        fText("status", "STATUS", "PREMIUM", { textAlignment: R }),
       ]),
       auxiliaryFields: clean([
-        fText("status", "STATUS", "PREMIUM"),
-        fText("pid", "BOOM ID", partnerId, { textAlignment: R }),
+        fNumber("props", "PROPRIETÀ", propertiesCount),
+        fCurrency("rev", "REVENUE", totalRevenue, { textAlignment: R }),
       ]),
       backFields: clean([
         fLink("dash", "Dashboard", "https://boomrome.com/portal.html", "Apri la dashboard →"),
@@ -290,20 +286,19 @@ function buildViewingPass({
       headerFields: clean([
         fText("type", "VIEWING", isVoided ? "ANNULLATA" : "PRIVATA", { textAlignment: R }),
       ]),
-      primaryFields: clean([
-        fText("addr", "INDIRIZZO", propertyAddress),
-      ]),
+      primaryFields: [],
       secondaryFields: clean([
-        fDate("date", "DATA", confirmedDateISO, { changeMessage: "Visita spostata: %@" }),
-        eventDate ? { key: "time", label: "ORA", value: eventDate.toISOString(), dateStyle: "PKDateStyleNone", timeStyle: "PKDateStyleShort", ignoresTimeZone: true, textAlignment: R, changeMessage: "Nuovo orario: %@" } : null,
+        fText("addr", "INDIRIZZO", propertyAddress),
+        fDate("date", "DATA", confirmedDateISO, { textAlignment: R, changeMessage: "Visita spostata: %@" }),
       ]),
       auxiliaryFields: clean([
-        fText("duration", "DURATA", `${durationMinutes} min`),
+        eventDate ? { key: "time", label: "ORA", value: eventDate.toISOString(), dateStyle: "PKDateStyleNone", timeStyle: "PKDateStyleShort", ignoresTimeZone: true, changeMessage: "Nuovo orario: %@" } : null,
         fText("meeting", "PUNTO D'INCONTRO", meetingPoint, { textAlignment: R }),
       ]),
       backFields: clean([
         fText("client", "Cliente", clientName),
         fText("immobile", "Immobile", [propertyAddress, propertyCity].filter(Boolean).join(", ")),
+        fText("dur", "Durata", `${durationMinutes} minuti`),
         (propertyCoords && propertyCoords.lat && propertyCoords.lng)
           ? fLink("maps", "Mappa", `https://maps.apple.com/?ll=${propertyCoords.lat},${propertyCoords.lng}&q=${encodeURIComponent(propertyAddress)}`, "Apri in Mappe →")
           : null,
@@ -352,18 +347,17 @@ function buildReferralPass({
       headerFields: clean([
         fText("type", "BOOM", "CIRCLE", { textAlignment: R }),
       ]),
-      primaryFields: clean([
-        fText("name", "MEMBRO", referrerName),
-      ]),
+      primaryFields: [],
       secondaryFields: clean([
+        fText("name", "MEMBRO", referrerName),
+        fText("code", "CODICE", referralCode, { textAlignment: R }),
+      ]),
+      auxiliaryFields: clean([
         fNumber("active", "REFERRAL ATTIVI", referralsActive),
         fCurrency("earned", "GUADAGNATO", totalEarned, { textAlignment: R }),
       ]),
-      auxiliaryFields: clean([
-        fText("code", "CODICE", referralCode),
-        fText("threshold", "PROSSIMA SOGLIA", nextThreshold, { textAlignment: R }),
-      ]),
       backFields: clean([
+        fText("threshold_b", "Prossima soglia", nextThreshold),
         fText("how", "Come funziona", "Condividi il tuo codice. Quando un amico firma con BOOM, guadagni €150 di credito. Cumulabile."),
         fLink("share", "Link da condividere", `https://boomrome.com/?ref=${referralCode}`, "Condividi BOOM →"),
         { key: "support", label: "Assistenza", value: "valentino@boom-rome.com", attributedValue: `<a href="${SUPPORT_WA}">WhatsApp</a>` },
