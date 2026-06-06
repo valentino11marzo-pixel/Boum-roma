@@ -68,6 +68,7 @@
         .btn-success{background:var(--green);color:#fff}
         .btn-sm{padding:10px 16px;font-size:13px}
         .btn-xs{padding:6px 12px;font-size:11px}
+        .btn-lg{padding:16px 32px;font-size:15px;font-weight:600}
         .btn-block{width:100%}
         .btn-icon{width:36px;height:36px;padding:0;border-radius:8px;font-size:14px}
         .app{display:none;min-height:100vh}.app.active{display:block}
@@ -10204,7 +10205,176 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         return isAdmin() ? (S.properties || []) : (S.properties || []).filter(p => p.ownerId === S.profile.id);
     }
 
+    // Role router: landlords get the calm single-decision "Lite" view;
+    // admin gets the full power dashboard (with a "preview as landlord" toggle).
     function commercialistaPage() {
+        if (isAdmin() && window._cmPreviewLite) return commercialistaLandlordLite(true);
+        if (isLandlord()) return commercialistaLandlordLite(false);
+        return commercialistaAdminFull();
+    }
+
+    // ─── LANDLORD LITE — one property, one question, one action ─────────────
+    // "Sei pronto per il commercialista?" Everything else collapses behind
+    // "Vedi dettagli". Plain language, no fiscal jargon, big calm surface.
+    function commercialistaLandlordLite(isPreview) {
+        const TP = window.BOOM_TAXPACK;
+        const props = commercialistaProps();
+        const previewBanner = isPreview ? `<div style="background:var(--gold-light);border:1px solid rgba(212,175,55,0.4);border-radius:10px;padding:10px 16px;margin-bottom:16px;display:flex;align-items:center;gap:10px;font-size:13px"><span>👁</span><div style="flex:1">Stai vedendo il portale <strong>come lo vede il proprietario</strong>.</div><button class="btn btn-xs" onclick="window._cmPreviewLite=false;renderPage()">← Torna alla vista admin</button></div>` : '';
+        if (!TP) return `<div class="page-header"><h1 class="page-title">🧮 Il tuo commercialista</h1></div><div class="card"><div class="card-body">Caricamento… ricarica la pagina.</div></div>`;
+        if (!props.length) return `<div class="page-header"><h1 class="page-title">🧮 Il tuo commercialista</h1></div><div class="card"><div class="empty-state"><div class="empty-icon">🏠</div><div class="empty-title">Nessun immobile</div><div class="empty-subtitle">I tuoi immobili appariranno qui</div></div></div>`;
+
+        if (!_cmState.propertyId || !props.some(p => p.id === _cmState.propertyId)) _cmState.propertyId = props[0].id;
+        const year = _cmState.year;
+
+        // Compute status for EVERY property (portfolio glance) once.
+        const portfolio = props.map(p => {
+            const contracts = (S.contracts || []).filter(c => c.propertyId === p.id);
+            const contract = contracts.find(c => {
+                const s = c.startDate ? new Date(c.startDate).getFullYear() : year;
+                const e = c.endDate ? new Date(c.endDate).getFullYear() : year;
+                return s <= year && e >= year;
+            }) || contracts[contracts.length - 1] || {};
+            const cids = contracts.map(c => c.id);
+            const payments = (S.payments || []).filter(x => x.propertyId === p.id || cids.includes(x.contractId));
+            const documents = (S.documents || []).filter(d => d.propertyId === p.id);
+            const checklist = TP.buildChecklist({ contract, property: p, documents, payments, fiscalYear: year });
+            const totals = TP.computeTotals({ contract, payments, fiscalYear: year });
+            return { p, contract, payments, documents, checklist, totals };
+        });
+
+        const cur = portfolio.find(x => x.p.id === _cmState.propertyId) || portfolio[0];
+        const { p: prop, contract, checklist, totals } = cur;
+
+        // Status mapping → calm, human.
+        let statusKey, icon, headline, sub, accent;
+        if (checklist.ready) {
+            statusKey = 'ready'; icon = '✅'; accent = 'var(--green)';
+            headline = 'Sei pronto';
+            sub = 'Hai tutti i documenti che servono al commercialista per ' + (prop.name || 'questo immobile') + '.';
+        } else if (checklist.completeness >= 70) {
+            statusKey = 'almost'; icon = '⏳'; accent = 'var(--gold)';
+            headline = 'Ci sei quasi';
+            sub = 'Manca' + (checklist.missing.length === 1 ? ' 1 documento' : 'no ' + checklist.missing.length + ' documenti') + '. Caricali e sei a posto.';
+        } else {
+            statusKey = 'missing'; icon = '📂'; accent = 'var(--gold)';
+            headline = checklist.missing.length + ' documenti da caricare';
+            sub = 'Aggiungili una volta sola: l\'anno prossimo li ritrovi qui.';
+        }
+
+        // Year selector (compact)
+        const nowY = new Date().getFullYear();
+        const yearOpts = [];
+        for (let yy = nowY; yy >= nowY - 5; yy--) yearOpts.push(`<option value="${yy}" ${yy === year ? 'selected' : ''}>${yy}</option>`);
+
+        // Plain-language money line (factual, no formula).
+        const moneyLine = totals.canoniIncassati
+            ? `Quest'anno hai incassato <strong>${TP.fmtEuro(totals.canoniIncassati)}</strong>` +
+              (totals.regime !== 'ordinario'
+                ? ` · imposta cedolare stimata <strong style="color:var(--gold)">${TP.fmtEuro(totals.cedolareImposta)}</strong> (${(totals.cedolareRate*100).toFixed(0)}%)`
+                : ` · imponibile IRPEF stimato <strong>${TP.fmtEuro(totals.irpefImponibile)}</strong>`)
+            : 'Nessun canone registrato per il ' + year + ' ancora.';
+
+        // Portfolio strip (only if >1 property)
+        const portfolioStrip = props.length > 1 ? `
+            <div style="display:flex;gap:10px;overflow-x:auto;padding-bottom:6px;margin-bottom:24px">
+                ${portfolio.map(x => {
+                    const active = x.p.id === _cmState.propertyId;
+                    const dot = x.checklist.ready ? 'var(--green)' : x.checklist.completeness >= 70 ? 'var(--gold)' : 'var(--red)';
+                    return `<div onclick="_cmState.propertyId='${x.p.id}';renderPage()" style="flex:0 0 auto;cursor:pointer;padding:14px 18px;border-radius:14px;border:1px solid ${active ? 'var(--gold)' : 'var(--border)'};background:${active ? 'var(--gold-light)' : 'var(--bg-card)'};min-width:150px;transition:all .2s">
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+                            <span style="width:9px;height:9px;border-radius:50%;background:${dot};flex-shrink:0"></span>
+                            <span style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(x.p.name || x.p.address || 'Immobile')}</span>
+                        </div>
+                        <div style="font-size:11px;color:var(--text-muted)">${x.checklist.ready ? 'Pronto' : x.checklist.completeness + '% completo'}</div>
+                    </div>`;
+                }).join('')}
+            </div>` : '';
+
+        // Primary action depends on readiness.
+        const primaryAction = checklist.ready
+            ? `<button class="btn btn-lg" onclick="downloadTaxPackZip('${prop.id}', ${year})" id="taxPackBtn" style="background:var(--green);color:#000;font-size:15px;padding:16px 32px">📦 Scarica il pacchetto fiscale</button>
+               <button class="btn btn-lg btn-secondary" onclick="openCommercialistaShare('${prop.id}', ${year})" style="font-size:15px;padding:16px 28px">🔗 Invia al commercialista</button>`
+            : `<button class="btn btn-lg" onclick="openDocUploadForProperty('${prop.id}', ${year})" style="font-size:15px;padding:16px 32px">📁 Carica i documenti mancanti</button>`;
+
+        // Missing list (calm, actionable — each opens upload prefilled)
+        const missingBlock = checklist.missing.length ? `
+            <div style="margin-top:8px">
+                ${checklist.missing.slice(0, 6).map(m => `
+                    <div onclick="openDocUploadForProperty('${prop.id}', ${year}, '${m.key}')" style="display:flex;align-items:center;gap:12px;padding:14px 16px;border:1px solid var(--border);border-radius:12px;margin-bottom:8px;cursor:pointer;transition:all .2s" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--border)'">
+                        <span style="font-size:20px">＋</span>
+                        <div style="flex:1"><div style="font-weight:500">${esc(m.label)}</div></div>
+                        <span style="color:var(--gold);font-size:13px;white-space:nowrap">Carica →</span>
+                    </div>`).join('')}
+            </div>` : '';
+
+        return `${previewBanner}<div class="page-header">
+                <div><h1 class="page-title">🧮 Il tuo commercialista</h1><p class="page-subtitle">Tutto pronto per la dichiarazione, in un posto solo</p></div>
+                <div class="page-actions">
+                    <select class="form-select" style="width:auto" onchange="_cmState.year=parseInt(this.value);renderPage()">${yearOpts.join('')}</select>
+                </div>
+            </div>
+
+            ${portfolioStrip}
+
+            <div class="card" style="border:1px solid ${accent}33;overflow:hidden">
+                <div style="height:5px;background:linear-gradient(90deg,${accent},transparent)"></div>
+                <div style="padding:40px 32px;text-align:center">
+                    <div style="font-size:64px;line-height:1;margin-bottom:18px">${icon}</div>
+                    <div style="font-size:30px;font-weight:700;letter-spacing:-0.5px;margin-bottom:10px">${headline}</div>
+                    <div style="font-size:15px;color:var(--text-secondary);max-width:440px;margin:0 auto 28px;line-height:1.6">${sub}</div>
+                    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">${primaryAction}</div>
+                    <div style="font-size:13px;color:var(--text-muted);margin-top:24px;padding-top:20px;border-top:1px solid var(--border)">${moneyLine}</div>
+                </div>
+            </div>
+
+            ${missingBlock}
+
+            <div style="text-align:center;margin-top:16px">
+                <button class="btn btn-sm btn-secondary" onclick="window._cmExpanded=!window._cmExpanded;renderPage()">${window._cmExpanded ? 'Nascondi dettagli ▲' : 'Vedi tutti i dettagli ▼'}</button>
+            </div>
+
+            ${window._cmExpanded ? `
+            <div class="card" style="margin-top:16px">
+                <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                    <div style="flex:1"><strong>Checklist completa</strong> <span style="font-size:12px;color:var(--text-muted)">${checklist.presentCount}/${checklist.requiredCount} documenti</span></div>
+                    <button class="btn btn-secondary btn-sm" onclick="openCedolareCalc(${totals.canoniAttesi || (contract.rent ? contract.rent*12 : 0)}, ${TP.classifyContract(contract).isConcordato})">📊 Cedolare vs IRPEF</button>
+                    <button class="btn btn-secondary btn-sm" onclick="openIstatLetter('${prop.id}', ${year})">📈 Lettera ISTAT</button>
+                </div>
+                <div style="height:6px;background:var(--bg-elevated)"><div style="height:100%;width:${checklist.completeness}%;background:${accent};transition:width .4s"></div></div>
+                <div class="card-body flush">
+                    ${checklist.items.map(item => {
+                        const ic = item.present ? '<span style="color:var(--green)">✓</span>' : '<span style="color:var(--text-muted)">○</span>';
+                        return `<div class="list-item" style="padding:12px 16px;display:flex;align-items:center;gap:12px">
+                            <div style="font-size:16px;width:22px;text-align:center">${ic}</div>
+                            <div style="flex:1;${item.present ? '' : 'color:var(--text-secondary)'}">${esc(item.label)}${item.detail ? ` <span style="font-size:11px;color:var(--text-muted)">· ${esc(item.detail)}</span>` : ''}</div>
+                        </div>`;
+                    }).join('')}
+                </div>
+            </div>` : ''}`;
+    }
+
+    // Open the document upload prefilled for a property + year (+ optional
+    // requirement key → preselects the fiscal category). Used by the
+    // landlord-lite "missing documents" affordances.
+    function openDocUploadForProperty(propertyId, year, reqKey) {
+        const KEY_TO_CATEGORY = {
+            contract: 'contract', rli: 'rli_registration', cedolare_option: 'cedolare',
+            receipts: 'receipt', istat: 'istat', imposta_registro: 'f24', imu: 'imu',
+            ape: 'ape', visura: 'visura', tenant_id: 'id_document',
+            maintenance_invoices: 'invoice', cin: 'cin',
+        };
+        openDocUploadModal();
+        // Defer until the modal DOM exists, then prefill property + year + category.
+        setTimeout(() => {
+            const form = document.getElementById('docUploadForm');
+            if (!form) return;
+            if (form.propertyId) form.propertyId.value = propertyId;
+            if (form.fiscalYear) form.fiscalYear.value = year;
+            if (reqKey && form.category && KEY_TO_CATEGORY[reqKey]) form.category.value = KEY_TO_CATEGORY[reqKey];
+        }, 60);
+    }
+
+    function commercialistaAdminFull() {
         const TP = window.BOOM_TAXPACK;
         const props = commercialistaProps();
         if (!TP) return `<div class="page-header"><h1 class="page-title">🧮 Commercialista</h1></div><div class="card"><div class="card-body">Motore fiscale non caricato. Ricarica la pagina.</div></div>`;
@@ -10254,6 +10424,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         return `<div class="page-header">
                 <div><h1 class="page-title">🧮 Commercialista</h1><p class="page-subtitle">Pacchetto fiscale annuale · documenti pronti per lo studio</p></div>
                 <div class="page-actions">
+                    <button class="btn btn-secondary btn-sm" onclick="window._cmPreviewLite=true;renderPage()" title="Vedi come lo vede il proprietario">👁 Vista proprietario</button>
                     <select class="form-select" style="width:auto" onchange="_cmState.propertyId=this.value;renderPage()">${propOpts}</select>
                     <select class="form-select" style="width:auto" onchange="_cmState.year=parseInt(this.value);renderPage()">${yearOpts.join('')}</select>
                 </div>
