@@ -80,6 +80,18 @@ export default async function handler(req, res) {
         output: { generatedAt: 'iso', counts: '{high,med,total}', items: 'array<{sev,cat,title,detail,days,ref}>' },
       },
       {
+        name: 'compliance.scan', method: 'POST', path: '/compliance.scan',
+        tier: 1, side_effects: 'none (read-only)',
+        input: { window: 'number? (due-soon horizon days, default 14)' },
+        output: { generatedAt: 'iso', counts: '{high,med,total}', items: 'array<{sev,cat,title,detail,days,ref,code,owner}>' },
+      },
+      {
+        name: 'relet.scan', method: 'POST', path: '/relet.scan',
+        tier: 1, side_effects: 'none (read-only)',
+        input: { window: 'number? (horizon days, default 90)' },
+        output: { generatedAt: 'iso', counts: '{expiring,urgent,matched,uncovered}', incomeAtRisk: 'number', vacancyExposure: 'number', plans: 'array<{contractId,label,zone,rent,daysToEnd,status,matchCount,strongMatches,estDaysToLet,vacancyRisk,topMatches}>' },
+      },
+      {
         name: 'digest', method: 'POST', path: '/digest',
         tier: 1, side_effects: 'read-only + optional email send',
         input: { email: 'string? (send the briefing there)', window: 'number? (risk horizon days, default 60)' },
