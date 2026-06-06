@@ -5960,13 +5960,14 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 const previewText = esc((c.aiSummary || c.lastMessagePreview || '').slice(0, 110));
                 const tsRaw = c.lastMessageAt && c.lastMessageAt.toDate ? c.lastMessageAt.toDate() : new Date(c.lastMessageAt || 0);
                 const ts = isNaN(tsRaw.getTime()) ? '' : (typeof inboxRelativeTime === 'function' ? inboxRelativeTime(tsRaw) : '');
-                return `<div class="dash-row" data-tone="${tone}" onclick="goTo('inbox');setTimeout(()=>inboxSelect('${c.id}'),50)" style="cursor:pointer">
-                    <span class="dash-row-icon">${c.urgency === 'high' ? '⚡' : c.lastSource === 'homie' ? '🤖' : '💬'}</span>
-                    <div class="dash-row-body">
+                return `<div class="dash-row" data-tone="${tone}" style="cursor:pointer">
+                    <span class="dash-row-icon" onclick="goTo('inbox');setTimeout(()=>inboxSelect('${c.id}'),50)">${c.urgency === 'high' ? '⚡' : c.lastSource === 'homie' ? '🤖' : '💬'}</span>
+                    <div class="dash-row-body" onclick="goTo('inbox');setTimeout(()=>inboxSelect('${c.id}'),50)">
                         <div class="dash-row-primary"><strong>${esc(c.contactName || 'Senza nome')}</strong>${c.needsReply ? ' · <span style="color:var(--orange);font-size:11px">DA RISPONDERE</span>' : ''}${(c.unread || 0) > 0 ? ` · <span class="badge gold" style="font-size:9px">${c.unread}</span>` : ''}</div>
                         <div class="dash-row-secondary">${previewText}${ts ? ` · ${ts}` : ''}</div>
                         ${c.suggestedReply ? `<div class="dash-agent-draft">${esc(String(c.suggestedReply).slice(0, 160))}${String(c.suggestedReply).length > 160 ? '…' : ''}</div>` : ''}
                     </div>
+                    ${c.suggestedReply ? `<div class="dash-row-actions" onclick="event.stopPropagation()"><button class="dash-act dash-act-primary" onclick="inboxProposeReply('${c.id}')" title="Manda in approvazione la risposta suggerita">🤖</button></div>` : ''}
                 </div>`;
             }).join('')}</div>
         </section>`;
@@ -10881,7 +10882,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             ${conv.suggestedReply ? `
                 <div style="font-size:12px;background:var(--bg-elevated);border-radius:8px;padding:8px 10px;margin-bottom:8px;white-space:pre-wrap">${esc(conv.suggestedReply)}</div>
                 <div style="display:flex;gap:6px;flex-wrap:wrap">
-                    <button class="btn btn-sm btn-primary" onclick="inboxUseSuggestion('${conv.id}')" style="font-size:11px">✍️ Usa risposta</button>
+                    <button class="btn btn-sm btn-primary" onclick="inboxProposeReply('${conv.id}')" style="font-size:11px" title="Va in Command Center per approvazione, poi parte da sola">🤖 Proponi via Homie</button>
+                    <button class="btn btn-sm" onclick="inboxUseSuggestion('${conv.id}')" style="font-size:11px" title="Carica nel composer per modificarla">✍️ Modifica</button>
                     ${conv.needsReply ? `<button class="btn btn-sm" onclick="inboxMarkHandled('${conv.id}')" style="font-size:11px">✓ Gestito</button>` : ''}
                 </div>
             ` : (conv.needsReply ? `<button class="btn btn-sm" onclick="inboxMarkHandled('${conv.id}')" style="font-size:11px">✓ Gestito</button>` : '')}
@@ -10900,6 +10902,64 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         conv.needsReply = false;
         inboxRefresh();
         toast('success', 'Segnato come gestito');
+    };
+
+    // One-tap propose-reply — writes a Tier-2 action to action_queue using the
+    // same schema Homie uses (so the existing Command Center Approve/Edit/Reject
+    // UI handles it). When approved, /api/agent/execute fires the WhatsApp/email.
+    // Dedup via contextHash on convId+body so the same suggestion can't be
+    // proposed twice. Admin only (rule: action_queue write requires isAdmin()).
+    window.inboxProposeReply = async function(convId, opts) {
+        opts = opts || {};
+        const conv = (S.conversations || []).find(c => c.id === convId);
+        if (!conv) { toast('error', 'Conversazione non trovata'); return; }
+        if (!isAdmin()) { toast('warning', 'Solo admin'); return; }
+        // Prefer explicit text, then current composer, then the suggestedReply.
+        const composerText = (document.getElementById('inboxBody') || {}).value;
+        const draft = String(opts.draft || composerText || conv.suggestedReply || '').trim();
+        if (!draft) { toast('warning', 'Nessuna bozza da proporre'); return; }
+        // Channel: respect operator choice from composer tabs, else default by what we have.
+        let channel = opts.channel || _inboxState.composing || 'whatsapp';
+        if (channel === 'note') channel = conv.contactPhone ? 'whatsapp' : 'email';
+        if (channel === 'whatsapp' && !conv.contactPhone) channel = 'email';
+        if (channel === 'email' && !conv.contactEmail) channel = 'whatsapp';
+        if (channel === 'whatsapp' && !conv.contactPhone) { toast('error', 'Manca telefono o email'); return; }
+        if (channel === 'email' && !conv.contactEmail)    { toast('error', 'Manca email del contatto'); return; }
+        // Dedup hash: collision-resistant enough for "same suggestion, same conv".
+        const contextHash = 'inbox:' + convId + ':' + channel + ':' + draft.slice(0, 80).replace(/\s+/g, ' ');
+        const action = {
+            kind: 'reply',
+            leadId: (conv.contactType === 'lead' ? conv.contactId : null),
+            summary: 'Rispondere a ' + (conv.contactName || 'contatto') + ' (' + channel + ')',
+            tier: 2,
+            confidence: 0.85,
+            proposedBy: conv.suggestedReply && draft === conv.suggestedReply ? 'homie-inbox' : 'inbox-operator',
+            payload: {
+                draft,
+                channel,
+                phone: channel === 'whatsapp' ? conv.contactPhone : null,
+                to:    channel === 'email'    ? conv.contactEmail : null,
+                subject: channel === 'email' ? ('Re: ' + (conv.lastMessagePreview || 'Messaggio BOOM').slice(0, 60)) : null,
+                conversationId: convId,
+                contactType: conv.contactType,
+                contactId: conv.contactId,
+            },
+            contextHash,
+            status: 'pending',
+            autoApplied: false,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            proposedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        };
+        try {
+            // Soft client-side dedup: check the realtime cache before writing.
+            const dup = (S.actionQueue || []).find(a => a.contextHash === contextHash && a.status === 'pending');
+            if (dup) { toast('info', 'Proposta già in coda', 'Già nel Command Center'); return; }
+            await db.collection('action_queue').add(action);
+            logActivity('inbox_reply_proposed', 'inbox', { convId, channel, preview: draft.slice(0, 80) });
+            toast('success', 'Proposta inviata', 'La trovi in Command Center per approvarla');
+        } catch (e) {
+            toast('error', 'Errore', e.message);
+        }
     };
 
     function inboxMessageBubble(m) {
@@ -10948,6 +11008,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             ` : ''}
             <textarea id="inboxBody" class="input" rows="3" placeholder="${active==='note'?'Nota interna — visibile solo al team':'Scrivi un messaggio…'}" style="font-size:13px;width:100%;resize:vertical;min-height:80px"></textarea>
             <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px">
+                ${active !== 'note' ? `<button class="btn btn-sm" onclick="inboxProposeReply('${conv.id}')" title="Manda in approvazione (Tier 2)" style="background:rgba(212,175,55,0.15);color:var(--gold);border:1px solid var(--gold)">🤖 Proponi</button>` : ''}
                 ${active === 'whatsapp' ? `<button class="btn btn-primary btn-sm" onclick="inboxSendWhatsapp('${conv.id}')">📱 Apri WhatsApp</button>` : ''}
                 ${active === 'email'    ? `<button class="btn btn-primary btn-sm" onclick="inboxSendEmail('${conv.id}')">✉ Invia email</button>` : ''}
                 ${active === 'note'     ? `<button class="btn btn-primary btn-sm" onclick="inboxSaveNote('${conv.id}')">✓ Salva nota</button>` : ''}
