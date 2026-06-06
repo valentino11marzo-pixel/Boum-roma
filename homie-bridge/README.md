@@ -1,65 +1,117 @@
-# Homie Bridge
+# Homie ↔ BOOM Roma · Bridge
 
-The connection between **Homie** (the WhatsApp agent on the Mac) and the **BOOM Roma portal**.
+Il ponte tra **Homie** (l'agente WhatsApp che gira sul Mac di Valentino) e il **portal BOOM Roma**.
+Homie sa già leggere WhatsApp e ha una CLI; questi file gli danno (1) una **policy operativa** chiara e (2) un comando `boom` per tenere il portal sempre allineato — conservativo per design.
 
-Homie already watches WhatsApp and has a CLI. These files give it (1) a clear operating policy and (2) a simple command to update the portal — conservative by design.
+## File
 
-## Files
+- **`HOMIE.md`** — il manuale operativo di Homie. Caricalo come *system prompt* dell'agente. Lì vivono "qualità non quantità", Tier-1 (auto) vs Tier-2 (proponi) e le **regole di proattività**.
+- **`boom`** — la CLI Node che Homie chiama (`boom heartbeat`, `boom message`, `boom action` …). Wrapper sopra `https://boomrome.com/api/agent/*` + `/api/homie/*`.
+- **`install.sh`** — setup turnkey (30s) per il Mac: verifica Node, configura `HOMIE_SECRET`, abilita launchd keep-alive, smoke-test.
+- **`test.sh`** — diagnostica end-to-end. Esegue ogni endpoint una volta e dice cosa è OK/KO.
 
-- **`HOMIE.md`** — Homie's operating manual. Load it as Homie's instructions / system context. This is where "quality not quantity" and the Tier-1 (auto) vs Tier-2 (propose) rule live.
-- **`boom`** — the CLI Homie calls to talk to the portal (`boom lead-create`, `boom action`, `boom heartbeat`, …). Thin wrapper over `https://boomrome.com/api/agent/*`.
-
-## Setup on the Mac (once)
-
-```bash
-# 1. Put these files somewhere Homie can reach, e.g. ~/homie-bridge/
-# 2. Set the shared secret (the SAME value set in Vercel as HOMIE_SECRET)
-export HOMIE_SECRET="…"            # add to ~/.zshrc to persist
-# (optional) export BOOM_BASE_URL="https://boomrome.com"   # default
-
-# 3. Make the CLI executable
-chmod +x boom
-
-# 4. Smoke test — should print the portal state
-./boom snapshot
-```
-
-Requires Node 18+ (for global `fetch`). Check with `node -v`.
-
-## Keep the cockpit alive
-
-Run a heartbeat on a timer so the cockpit's status dot stays green:
+## Setup sul Mac (una sola volta)
 
 ```bash
-# simple loop (or use launchd / cron / Homie's own scheduler)
-while true; do ./boom heartbeat --status live --tool watching-whatsapp; sleep 30; done
+# 1) Copia ~/homie-bridge/  (questi 4 file)
+# 2) Avvia l'installer:
+cd ~/homie-bridge
+bash install.sh
 ```
 
-## Wire it into Homie
+Ti chiederà solo **`HOMIE_SECRET`** (lo stesso valore che hai messo in Vercel → Environment Variables). Salva tutto in `~/.boom/env` con permessi 600, aggiunge l'autoload al tuo `~/.zshrc`, fa `chmod +x boom`, esegue uno smoke-test, e — se vuoi — installa il keep-alive `launchd` che chiama `boom heartbeat` ogni 30s.
 
-1. Give Homie **`HOMIE.md`** as its operating instructions.
-2. Tell Homie it can run **`./boom <command>`** to act on the portal (the command help is in `HOMIE.md` and `./boom` with no args).
-3. That's it. Homie reads WhatsApp → decides per the policy → runs `boom` → the portal updates and Valentino sees it in the cockpit / Telegram.
+Pronto. Dal momento dopo il `bash install.sh`, sul cockpit (`portal.html` → Command Center) **il pallino HOMIE diventa verde live**.
 
-## The two lanes (the whole policy in one line)
+### Verifica veloce
 
-- **Tier 1 (Homie acts):** `lead-create`, `lead-update`, `note`, `radar`, `heartbeat`.
-- **Tier 2 (Homie proposes, human approves):** `action --kind reply|schedule_viewing|…`, contracts, signatures, any outbound message.
+```bash
+bash test.sh
+```
 
-## Telegram (optional, recommended)
+Esegue 9 controlli (heartbeat, snapshot, spec, risk, message round-trip, idempotency, action propose, inbox-sync). Output finale verde = puoi attaccare Homie alle vere conversazioni.
 
-To get notified and approve Tier-2 actions from your phone, point Homie's Telegram side at:
-- notify you when `boom action` creates a pending item;
-- on `/approva <id>`, call the portal executor:
+## Le 2 corsie (la policy operativa in una riga)
+
+- **Tier 1 — Homie fa da solo** → `heartbeat`, `snapshot`, `lead-create`, `lead-update`, `note`, `message`, `inbox-sync`, `radar`, `digest`, `risk`.
+- **Tier 2 — Homie propone, l'umano approva** → `action --kind reply|schedule_viewing|qualify|archive|note`. La proposta finisce in `action_queue` (`status:pending`) e compare nel cockpit + Telegram.
+
+## Comandi (quick-ref)
+
+```bash
+boom heartbeat --status live --tool watching-whatsapp     # cockpit dot verde
+
+boom snapshot                                              # "che succede nel portal?"
+boom risk                                                  # cosa è a rischio adesso
+boom digest                                                # briefing del giorno
+
+# Tier 1 — autonomo
+boom lead-create --name "Anna B." --phone "+39..." --source whatsapp \
+  --zone "Trastevere" --budget 1200 --message "Cerco bilocale" \
+  --grade B --confidence 0.8 --dedup
+boom lead-update --id <leadId> --status responded --notes "Confermato interesse"
+boom note --lead <leadId> --text "Preferisce piano alto"
+
+# Mirror Inbox — UNO per ogni messaggio WhatsApp/email che vedi
+boom message --direction in --channel whatsapp \
+  --phone "+39333..." --name "Anna B." \
+  --message-id "wamid.XXXX" \
+  --body "Ciao, è ancora libero il bilocale?" \
+  --summary "Chiede disponibilità bilocale Trastevere" \
+  --needs-reply true --urgency medium \
+  --suggested-reply "Ciao Anna! Sì, libero da luglio. Vuoi vederlo?"
+
+# Riconcilia stati dopo aver scansionato TUTTO WhatsApp
+echo '{"updates":[
+  {"phone":"+39333...","status":"closed"},
+  {"phone":"+39347...","needsReply":true,"urgency":"high","aiSummary":"Aspetta risposta da 3 giorni"}
+]}' | boom inbox-sync -
+
+# Tier 2 — PROPONI (va in approvazione, NON parte da solo)
+boom action --kind reply --lead <leadId> --summary "Rispondere ad Anna sul bilocale" \
+  --draft "Ciao Anna! Sì, il bilocale a Trastevere è disponibile da luglio..."
+boom action --kind schedule_viewing --lead <leadId> --summary "Visita martedì 15-17"
+boom ai-reply --lead <leadId>          # bozza da Claude, poi la proponi tu
+```
+
+Tutti i comandi accettano anche JSON via stdin: `echo '{...}' | boom message -`.
+
+## Wire-up con l'agente WhatsApp
+
+1. Dai a Homie **`HOMIE.md`** come system prompt operativo.
+2. Dagli accesso a **`./boom <command>`** (oppure il tuo runtime LLM con tool-use lo richiama come command-execution tool).
+3. Stop. Homie legge WhatsApp → decide secondo policy → chiama `boom` → portal aggiornato → Valentino vede tutto nel cockpit / Telegram.
+
+## Telegram (opzionale, consigliato)
+
+Per approvare le Tier-2 dal telefono mentre sei in giro:
+- ogni nuovo `boom action` finisce in `action_queue` con `status:pending` — un bot Telegram può listenerare la collection e mandarti un messaggio "approvi?" con un bottone;
+- al tap su `/approva <id>`, il bot chiama l'executor:
   ```bash
-  curl -s -X POST "$BOOM_BASE_URL/api/agent/execute" \
+  curl -s -X POST "https://boomrome.com/api/agent/execute" \
     -H "Content-Type: application/json" -H "X-Homie-Secret: $HOMIE_SECRET" \
     -d '{"id":"<actionId>"}'
   ```
+  che fa partire `messages.send` (WhatsApp/email) e aggiorna lo status a `executed`.
+
+Se vuoi, posso scrivere il bot Telegram in 30 minuti (`telegram-approve.sh` o `telegram-approve.py`) che fa esattamente questo — chiedimelo.
 
 ## Troubleshooting
 
-- `HOMIE_SECRET not set` → export it (must match Vercel exactly).
-- `… → 401 invalid_secret` → the secret doesn't match the one in Vercel.
-- `… → 403 Host not in allowlist` → a Vercel Firewall rule is blocking the request; allow the Mac's traffic in Vercel → Firewall (this does not affect browser use).
-- `ai-reply` returns an error → the Claude model isn't available on the key; set `ANTHROPIC_MODEL=claude-haiku-4-5` in Vercel.
+| Errore | Cosa significa | Fix |
+|---|---|---|
+| `HOMIE_SECRET not set` | manca la env var sul Mac | rilancia `bash install.sh` |
+| `→ 401 invalid_secret` | il secret sul Mac ≠ quello di Vercel | rilancia `bash install.sh` e re-inserisci il secret corretto |
+| `→ 403 Host not in allowlist` | Vercel Firewall blocca | Vercel → Firewall → aggiungi il Mac all'allowlist |
+| `→ 500 server_misconfigured: HOMIE_SECRET unset` | Vercel non ha la env var | Vercel → Settings → Environment Variables → aggiungi `HOMIE_SECRET` |
+| `ai-reply → no model` | il modello Claude non è disponibile sulla key | Vercel → `ANTHROPIC_MODEL=claude-haiku-4-5` |
+| keep-alive non parte | launchd plist non caricato | `launchctl unload ~/Library/LaunchAgents/com.boomrome.homie.plist; launchctl load ~/Library/LaunchAgents/com.boomrome.homie.plist` |
+
+## Disinstallare
+
+```bash
+launchctl unload ~/Library/LaunchAgents/com.boomrome.homie.plist 2>/dev/null
+rm -f  ~/Library/LaunchAgents/com.boomrome.homie.plist
+rm -rf ~/.boom
+# (manualmente: rimuovi la riga "source ~/.boom/env" dal tuo ~/.zshrc se non la vuoi più)
+```
