@@ -3,7 +3,7 @@
 // Cache-first for static assets (icons, manifest).
 // Skips Firebase / EmailJS / 3rd-party traffic entirely.
 
-const CACHE_VERSION = 'boom-v4';
+const CACHE_VERSION = 'boom-v5';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const STATIC_ASSETS = [
     '/portal.html',
@@ -48,7 +48,27 @@ self.addEventListener('fetch', (event) => {
                        'cdn.jsdelivr.net', 'cdnjs.cloudflare.com'];
     if (skipHosts.some(h => url.hostname.includes(h))) return;
 
-    // Network-first for page navigations and HTML/API (always fresh).
+    // portal.html (2.28 MB shell) — stale-while-revalidate. Serve from cache
+    // instantly (huge win on Safari/mobile cold-starts), then update in the
+    // background so the next load gets the fresh build. The data the user sees
+    // still comes live from Firestore listeners, so a stale shell only means a
+    // slightly-old UI layer for a few seconds on the FIRST visit after a
+    // deploy — never stale data.
+    if (url.pathname === '/portal.html' || url.pathname === '/portal') {
+        event.respondWith(
+            caches.open(STATIC_CACHE).then(async (cache) => {
+                const cached = await cache.match('/portal.html');
+                const network = fetch(event.request).then((res) => {
+                    if (res && res.ok) cache.put('/portal.html', res.clone()).catch(() => null);
+                    return res;
+                }).catch(() => null);
+                return cached || network || fetch(event.request);
+            })
+        );
+        return;
+    }
+
+    // Network-first for OTHER page navigations and HTML/API (always fresh).
     // request.mode === 'navigate' covers clean URLs (/apartments, /listing/x,
     // /) that don't end in .html, so a new deploy is reflected immediately;
     // the cache is used only as an offline fallback.
