@@ -1,26 +1,14 @@
 rules_version = '2';
 
 // BOOM Roma — Firestore Security Rules
-// Tuned to the real schema used by portal.html (verified field names):
-//   properties.ownerId, properties.currentContractId
-//   contracts.tenantId, contracts.propertyId, contracts.{tenant,landlord}SignToken
-//   payments.tenantId, payments.propertyId, payments.contractId
-//   maintenance.userId (tenant uid), maintenance.propertyId
-//   documents.userId, documents.shared, documents.propertyId
-//   notifications.userId
-//   users.role ∈ {admin, landlord, tenant}
+// Source of truth for the deployed rules. Kept in sync with what's live in the
+// Firebase console (project boom-property-dashboards). Deploy with:
+//   firebase deploy --only firestore:rules
 //
-// Model: admin = full access. Landlord = only their own properties and the
-// contracts/payments/maintenance/documents attached to them. Tenant = only
-// their own contract, payments, maintenance, documents. Everything in the
-// lead / PFS / ops layer is admin-only. Anonymous sessions exist solely for
-// the Magic Sign flow (sign a contract by single-use token).
-//
-// IMPORTANT: portal.html's loadDataFresh() currently issues unconstrained
-// collection .get() calls. Those succeed for admins (every doc allowed) but
-// Firestore will REJECT them for landlord/tenant unless the query carries a
-// matching where() clause. Deploy these rules together with the
-// role-scoped query refactor, or non-admin logins will see empty data.
+// PUBLIC CATALOG: `listings` + `settings` are readable by everyone (the public
+// website reads them unauthenticated — apartments grid, /listing/:id, hubs,
+// homepage video). Writes stay admin-only. Locking their READ is what took
+// /apartments down with PERMISSION_DENIED — keep it open.
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -41,17 +29,18 @@ service cloud.firestore {
     function contractData(cid) {
       return get(/databases/$(database)/documents/contracts/$(cid)).data;
     }
-    // True if the signed-in landlord owns property `pid`.
     function ownsProperty(pid) {
       return isLandlord() && propertyData(pid).ownerId == uid();
     }
-    // Only the listed fields changed in this write.
     function onlyChanges(allowed) {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowed);
     }
 
+    // ─── PUBLIC CATALOG — read open to all, writes admin-only ─────────
+    match /listings/{x}  { allow read: if true; allow write: if isAdmin(); }
+    match /settings/{x}  { allow read: if true; allow write: if isAdmin(); }
+
     // ─── users ────────────────────────────────────────────────────────
-    // Own doc readable; admins read all. Self-update cannot touch `role`.
     match /users/{userId} {
       allow read:   if isAdmin() || uid() == userId;
       allow create: if isAdmin();
@@ -62,8 +51,6 @@ service cloud.firestore {
     }
 
     // ─── properties ───────────────────────────────────────────────────
-    // Admin: all. Landlord: own. Tenant: the one they currently rent
-    // (verified via the property's currentContractId → contract.tenantId).
     match /properties/{propId} {
       allow read: if isAdmin()
                   || (isLandlord() && resource.data.ownerId == uid())
@@ -74,17 +61,11 @@ service cloud.firestore {
     }
 
     // ─── contracts ────────────────────────────────────────────────────
-    // Admin: all. Landlord: contracts on properties they own. Tenant: own.
-    // Anonymous Magic-Sign session: read nothing here (token lookup is a
-    // collection query — handle that via a constrained query the rule below
-    // permits only when the token matches). Tenant may write ONLY their
-    // signature fields.
     match /contracts/{cId} {
       allow read: if isAdmin()
                   || (isTenant() && resource.data.tenantId == uid())
                   || (isLandlord() && ownsProperty(resource.data.propertyId));
       allow create, delete: if isAdmin();
-      // Admin full update; tenant may sign their own contract only.
       allow update: if isAdmin()
                     || (isTenant() && resource.data.tenantId == uid()
                         && onlyChanges(['tenantSignature','tenantSignedAt','tenantSignIP',
@@ -92,8 +73,6 @@ service cloud.firestore {
     }
 
     // ─── payments ─────────────────────────────────────────────────────
-    // Admin write. Tenant reads own + may flag a payment as reported
-    // (restricted field set). Landlord reads payments for owned properties.
     match /payments/{pId} {
       allow read: if isAdmin()
                   || (isTenant() && resource.data.tenantId == uid())
@@ -107,8 +86,6 @@ service cloud.firestore {
     }
 
     // ─── maintenance ──────────────────────────────────────────────────
-    // Tenant: create + read own (userId == uid). Landlord: read for owned
-    // properties. Admin: full (status changes, comments).
     match /maintenance/{mId} {
       allow read:   if isAdmin()
                     || (isTenant() && resource.data.userId == uid())
@@ -119,8 +96,6 @@ service cloud.firestore {
     }
 
     // ─── documents ────────────────────────────────────────────────────
-    // Own docs always; shared docs visible to the property's landlord or
-    // its current tenant. Users manage their own uploads; admin manages all.
     match /documents/{dId} {
       allow read: if isAdmin()
                   || resource.data.userId == uid()
@@ -134,16 +109,12 @@ service cloud.firestore {
     }
 
     // ─── notifications ────────────────────────────────────────────────
-    // Per-user. Anyone signed-in may create one (tenant notifies admin /
-    // landlord of a reported payment, maintenance request, etc.).
     match /notifications/{nId} {
       allow read, update, delete: if isAdmin() || resource.data.userId == uid();
       allow create: if isSignedIn();
     }
 
     // ─── magicLinks ───────────────────────────────────────────────────
-    // Anonymous Magic-Sign session reads its token doc and flips used=true
-    // exactly once. Admin manages.
     match /magicLinks/{tId} {
       allow read:   if isAdmin() || isAnon();
       allow create: if isAdmin();
@@ -155,10 +126,6 @@ service cloud.firestore {
     }
 
     // ─── conversations + messages (Inbox unificato) ──────────────────
-    // Conversazioni multi-canale (WhatsApp/email/note) collegate ad un
-    // contatto BOOM (lead, tenant, landlord, PFS client, cliente CRM).
-    // Lato cliente: ogni soggetto vede SOLO le proprie conversazioni;
-    // admin vede tutto.
     match /conversations/{convId} {
       allow read:   if isAdmin()
                     || (resource.data.contactUid == uid())
@@ -171,11 +138,6 @@ service cloud.firestore {
       allow read:   if isAdmin()
                     || (resource.data.contactUid == uid())
                     || (isLandlord() && resource.data.assignedLandlordId == uid());
-      // Admin (incl. Homie, which authenticates as the admin service user)
-      // may append any message — e.g. by:'homie' for agent-ingested WhatsApp.
-      // Anyone else signed-in may APPEND only a message tagged with their own
-      // uid (so a landlord/tenant can reply inside their conversation). Nobody
-      // but admin can edit/delete history.
       allow create: if isAdmin()
                     || (isSignedIn()
                         && request.resource.data.by == uid()
@@ -190,19 +152,15 @@ service cloud.firestore {
     }
 
     // ─── viewingRequests ──────────────────────────────────────────────
-    // Public booking forms POST here (anonymous create allowed). Reads
-    // and management are admin-only.
     match /viewingRequests/{x} {
       allow create: if true;
       allow read, update, delete: if isAdmin();
     }
 
     // ─── config ───────────────────────────────────────────────────────
-    // Protects the parse-docs bearer token (config/parse_docs).
     match /config/{x} { allow read, write: if isAdmin(); }
 
     // ─── activityLog ──────────────────────────────────────────────────
-    // Append-only audit trail. Anyone signed-in appends; nobody edits.
     match /activityLog/{x} {
       allow read:   if isAdmin();
       allow create: if isSignedIn();
@@ -210,10 +168,6 @@ service cloud.firestore {
     }
 
     // ─── documentShares ───────────────────────────────────────────────
-    // Share links handed to a commercialista. Created by admin or by the
-    // landlord who owns the bundle; the public read path goes through
-    // /api/share/lookup under admin creds, so anonymous has no direct
-    // access here. ownerId = the landlord whose docs are shared.
     match /documentShares/{shareId} {
       allow read:   if isAdmin() || (isLandlord() && resource.data.ownerId == uid());
       allow create: if isAdmin() || (isLandlord() && request.resource.data.ownerId == uid());
@@ -221,20 +175,11 @@ service cloud.firestore {
     }
 
     // ─── taxPacks ─────────────────────────────────────────────────────
-    // Metadata for a generated tax bundle (property + fiscal year + manifest).
     match /taxPacks/{packId} {
       allow read:   if isAdmin() || (isLandlord() && resource.data.ownerId == uid());
       allow create: if isAdmin() || (isLandlord() && request.resource.data.ownerId == uid());
       allow update, delete: if isAdmin() || (isLandlord() && resource.data.ownerId == uid());
     }
-
-    // ─── PUBLIC CATALOG ───────────────────────────────────────────────
-    // The public website reads these UNAUTHENTICATED (apartments grid,
-    // /listing/:id, neighborhood hubs, homepage video). Read stays open;
-    // writes are admin-only. Locking read here is what took /apartments
-    // down with PERMISSION_DENIED — keep it public.
-    match /listings/{x}  { allow read: if true; allow write: if isAdmin(); }
-    match /settings/{x}  { allow read: if true; allow write: if isAdmin(); }
 
     // ─── Admin-only operational collections ───────────────────────────
     match /leads/{x}                      { allow read, write: if isAdmin(); }
@@ -257,8 +202,6 @@ service cloud.firestore {
     match /messageLog/{x}                  { allow read: if isAdmin(); allow write: if false; }
 
     // ─── Default deny ─────────────────────────────────────────────────
-    // Any collection not matched above is locked. Add an explicit block
-    // before shipping a new collection.
     match /{document=**} {
       allow read, write: if false;
     }
