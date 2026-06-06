@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Valentino Egidi — Mediatore immobiliare a Roma</title>
+<meta name="description" content="Compravendita immobiliare a Roma senza copioni. Onesto fino all'imbarazzo, preciso fino al decimale. Valentino Egidi, mediatore.">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#F4F1EA">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ══════════════════════════════════════════════════════════════
+   VALENTINO EGIDI — il mediatore onesto
+   Light editorial · ink on bone · electric cobalt accent
+   Voices: Fraunces (anima/lusso) · Inter (chiarezza) · Mono (verità)
+   Self-contained. No build. Bilingual IT/EN. Reduced-motion safe.
+   ══════════════════════════════════════════════════════════════ */
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+
+:root{
+  --paper:#F4F1EA;        /* warm bone */
+  --paper-2:#ECE7DB;      /* recessed panels */
+  --paper-3:#E4DECF;
+  --ink:#14120D;          /* warm near-black */
+  --ink-2:rgba(20,18,13,.60);
+  --ink-3:rgba(20,18,13,.38);
+  --line:rgba(20,18,13,.14);
+  --line-2:rgba(20,18,13,.07);
+  --accent:#1E18EC;       /* electric cobalt */
+  --accent-2:#6F66FF;     /* lighter, for dark sections */
+  --accent-soft:rgba(30,24,236,.08);
+  --display:'Fraunces',Georgia,'Times New Roman',serif;
+  --sans:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,'SF Mono',Menlo,monospace;
+  --ease:cubic-bezier(.16,1,.3,1);
+  --ease2:cubic-bezier(.83,0,.17,1);
+}
+
+html{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;scroll-behavior:smooth}
+body{
+  font-family:var(--sans);background:var(--paper);color:var(--ink);
+  font-weight:300;line-height:1.6;overflow-x:hidden;cursor:default;
+}
+::selection{background:var(--accent);color:#fff}
+img{max-width:100%;display:block}
+a{color:inherit;text-decoration:none}
+
+/* grain + faint grid */
+body::before{content:"";position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.035;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+.wrap{max-width:1280px;margin:0 auto;padding:0 40px}
+@media(max-width:680px){.wrap{padding:0 22px}}
+.mono{font-family:var(--mono)}
+.serif{font-family:var(--display)}
+.em{font-family:var(--display);font-style:italic;font-weight:500;color:var(--accent)}
+
+/* kicker label */
+.kicker{font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-3)}
+.kicker .sq{display:inline-block;width:6px;height:6px;background:var(--accent);margin-right:9px;vertical-align:middle}
+
+/* ── custom cursor (pointer devices only) ──────────────────── */
+.cur,.cur-d{position:fixed;top:0;left:0;z-index:9999;pointer-events:none;border-radius:50%;transform:translate(-50%,-50%);will-change:transform}
+.cur{width:36px;height:36px;border:1px solid var(--accent);transition:width .3s var(--ease),height .3s var(--ease),background .3s,opacity .3s}
+.cur-d{width:5px;height:5px;background:var(--accent)}
+body.cur-on{cursor:none}
+body.cur-on a,body.cur-on button,body.cur-on .ht-row{cursor:none}
+.cur.grow{width:64px;height:64px;background:var(--accent-soft);border-color:transparent}
+@media(hover:none){.cur,.cur-d{display:none!important}}
+
+/* ── nav ───────────────────────────────────────────────────── */
+nav{position:fixed;top:0;left:0;right:0;z-index:90;transition:.5s var(--ease)}
+nav.scrolled{background:color-mix(in srgb,var(--paper) 82%,transparent);backdrop-filter:blur(14px);border-bottom:1px solid var(--line-2)}
+.nav-in{display:flex;align-items:center;justify-content:space-between;height:72px}
+.logo{display:flex;align-items:baseline;gap:11px}
+.logo b{font-family:var(--display);font-weight:600;font-size:20px;letter-spacing:.01em}
+.logo span{font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-3)}
+.nav-r{display:flex;align-items:center;gap:8px}
+.nav-link{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2);padding:9px 14px;transition:.3s}
+.nav-link:hover{color:var(--accent)}
+@media(max-width:760px){.nav-link.hideable{display:none}}
+.nav-cta{border:1px solid var(--ink);border-radius:100px;padding:10px 20px;font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;transition:.35s var(--ease)}
+.nav-cta:hover{background:var(--accent);border-color:var(--accent);color:#fff}
+
+/* ── hero ──────────────────────────────────────────────────── */
+.hero{position:relative;min-height:100svh;display:flex;flex-direction:column;justify-content:center;padding:120px 0 60px}
+.hero-hud{position:absolute;top:96px;right:40px;text-align:right;font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--ink-3);line-height:1.9}
+.hero-hud b{color:var(--accent)}
+@media(max-width:760px){.hero-hud{display:none}}
+.hero h1{font-family:var(--display);font-weight:400;font-size:clamp(42px,7.6vw,104px);line-height:.98;letter-spacing:-.018em;max-width:16ch;margin:26px 0 0}
+.hero h1 .em{font-size:1.02em}
+.hero-sub{font-size:clamp(16px,1.8vw,21px);color:var(--ink-2);max-width:60ch;margin-top:34px;font-weight:300}
+.hero-cta-row{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-top:46px}
+.btn{font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;padding:16px 30px;border-radius:100px;transition:.4s var(--ease);display:inline-flex;align-items:center;gap:10px;border:1px solid transparent}
+.btn-fill{background:var(--ink);color:var(--paper)}
+.btn-fill:hover{background:var(--accent)}
+.btn-ghost{border-color:var(--line);color:var(--ink)}
+.btn-ghost:hover{border-color:var(--ink)}
+.scrollcue{margin-top:64px;font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-3);display:flex;align-items:center;gap:12px}
+.scrollcue .ln{width:46px;height:1px;background:var(--ink-3);position:relative;overflow:hidden}
+.scrollcue .ln::after{content:"";position:absolute;inset:0;background:var(--accent);animation:slide 2.4s var(--ease) infinite}
+@keyframes slide{0%{transform:translateX(-100%)}60%,100%{transform:translateX(100%)}}
+
+/* ── marquee ───────────────────────────────────────────────── */
+.marq{border-top:1px solid var(--ink);border-bottom:1px solid var(--ink);overflow:hidden;padding:18px 0;background:var(--ink);color:var(--paper)}
+.marq-track{display:flex;gap:0;white-space:nowrap;width:max-content;animation:marq 38s linear infinite}
+.marq:hover .marq-track{animation-play-state:paused}
+.marq span{font-family:var(--display);font-style:italic;font-size:clamp(20px,2.6vw,30px);padding:0 30px;display:inline-flex;align-items:center;gap:30px}
+.marq span::after{content:"✷";font-style:normal;font-size:.5em;color:var(--accent-2)}
+@keyframes marq{to{transform:translateX(-50%)}}
+
+/* ── section scaffolding ───────────────────────────────────── */
+section{position:relative;z-index:2}
+.blk{padding:130px 0}
+@media(max-width:680px){.blk{padding:84px 0}}
+.s-head{max-width:62ch;margin-bottom:72px}
+.s-title{font-family:var(--display);font-weight:400;font-size:clamp(30px,5vw,62px);line-height:1.02;letter-spacing:-.015em;margin-top:18px}
+.s-lead{color:var(--ink-2);font-size:clamp(16px,1.7vw,19px);max-width:58ch;margin-top:22px}
+
+/* ── manifesto theses ──────────────────────────────────────── */
+.theses{border-top:1px solid var(--line)}
+.thesis{display:grid;grid-template-columns:120px 1fr;gap:30px;align-items:start;padding:38px 0;border-bottom:1px solid var(--line);transition:.5s var(--ease)}
+.thesis:hover{background:var(--accent-soft);padding-left:18px;padding-right:18px}
+.thesis .no{font-family:var(--mono);font-size:13px;color:var(--accent);padding-top:14px}
+.thesis p{font-family:var(--display);font-weight:400;font-size:clamp(22px,3.2vw,38px);line-height:1.12;letter-spacing:-.01em}
+@media(max-width:680px){.thesis{grid-template-columns:1fr;gap:8px}.thesis .no{padding-top:0}}
+
+/* ── honest translator (signature) ─────────────────────────── */
+.ht{background:var(--ink);color:var(--paper)}
+.ht .s-title{color:var(--paper)}
+.ht .s-lead{color:rgba(244,241,234,.62)}
+.ht .kicker{color:rgba(244,241,234,.5)}
+.ht-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:18px}
+@media(max-width:760px){.ht-grid{grid-template-columns:1fr}}
+.ht-row{border:1px solid rgba(244,241,234,.16);border-radius:14px;padding:24px 26px;transition:.4s var(--ease);position:relative;overflow:hidden}
+.ht-row:hover,.ht-row.open{border-color:var(--accent-2);background:rgba(111,102,255,.07)}
+.ht-row .said{font-family:var(--display);font-style:italic;font-size:clamp(20px,2.4vw,26px);color:var(--paper)}
+.ht-row .lab{font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:rgba(244,241,234,.4);display:block;margin-bottom:8px}
+.ht-mean{margin-top:18px;padding-top:16px;border-top:1px dashed rgba(244,241,234,.22);position:relative}
+.ht-mean .lab{color:var(--accent-2)}
+.ht-mean .truth{font-family:var(--sans);font-weight:400;font-size:clamp(16px,1.9vw,19px);color:var(--paper);transition:.45s var(--ease);transition-delay:.05s}
+/* redaction bar hides the truth until hover/open */
+.ht-mean .truth{clip-path:inset(0 100% 0 0)}
+.ht-row:hover .ht-mean .truth,.ht-row.open .ht-mean .truth{clip-path:inset(0 0 0 0)}
+.ht-mean::after{content:"";position:absolute;left:0;bottom:0;height:calc(100% - 26px);width:100%;background:repeating-linear-gradient(90deg,var(--accent-2) 0 12px,#5049d6 12px 24px);transition:transform .45s var(--ease2);transform-origin:right;border-radius:3px;pointer-events:none}
+.ht-row:hover .ht-mean::after,.ht-row.open .ht-mean::after{transform:scaleX(0)}
+.ht-hint{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:rgba(244,241,234,.4);margin-top:28px}
+
+/* ── method spec-sheet ─────────────────────────────────────── */
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.step{padding:34px 28px 40px;border-right:1px solid var(--line);transition:.5s var(--ease)}
+.step:last-child{border-right:none}
+.step:hover{background:var(--paper-2)}
+.step .sn{font-family:var(--mono);font-size:12px;color:var(--accent);letter-spacing:.1em}
+.step h3{font-family:var(--display);font-weight:500;font-size:24px;margin:22px 0 12px;letter-spacing:-.01em}
+.step p{color:var(--ink-2);font-size:14.5px}
+@media(max-width:880px){.steps{grid-template-columns:1fr 1fr}.step:nth-child(2){border-right:none}.step:nth-child(1),.step:nth-child(2){border-bottom:1px solid var(--line)}}
+@media(max-width:520px){.steps{grid-template-columns:1fr}.step{border-right:none;border-bottom:1px solid var(--line)}.step:last-child{border-bottom:none}}
+
+/* ── buyers / sellers ──────────────────────────────────────── */
+.duo{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+@media(max-width:760px){.duo{grid-template-columns:1fr}}
+.duo-card{border:1px solid var(--line);border-radius:18px;padding:46px 42px;transition:.5s var(--ease);background:var(--paper)}
+.duo-card:hover{border-color:var(--ink);transform:translateY(-4px)}
+.duo-card .tag{font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--accent)}
+.duo-card h3{font-family:var(--display);font-weight:400;font-size:clamp(28px,3.6vw,40px);margin:14px 0 20px;letter-spacing:-.01em}
+.duo-card ul{list-style:none;display:flex;flex-direction:column;gap:16px}
+.duo-card li{display:grid;grid-template-columns:24px 1fr;gap:12px;color:var(--ink-2);font-size:16px}
+.duo-card li b{color:var(--ink);font-weight:500}
+.duo-card li .ck{font-family:var(--mono);color:var(--accent);font-size:13px;padding-top:3px}
+
+/* ── honest metrics ────────────────────────────────────────── */
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;border-top:1px solid var(--line);padding-top:56px}
+@media(max-width:760px){.metrics{grid-template-columns:1fr 1fr;gap:40px 24px}}
+.metric .v{font-family:var(--display);font-weight:400;font-size:clamp(48px,7vw,86px);line-height:1;letter-spacing:-.02em}
+.metric .v .u{font-size:.42em;color:var(--accent);vertical-align:baseline;margin-left:2px}
+.metric .k{font-family:var(--mono);font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2);margin-top:16px;max-width:22ch}
+
+/* ── passaparola / words ───────────────────────────────────── */
+.words{background:var(--paper-2)}
+.words-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:18px}
+@media(max-width:880px){.words-grid{grid-template-columns:1fr}}
+.quote{border:1px solid var(--line);border-radius:16px;padding:34px 32px;background:var(--paper)}
+.quote p{font-family:var(--display);font-style:italic;font-size:21px;line-height:1.35;color:var(--ink)}
+.quote .who{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);margin-top:22px}
+.quote .q{font-family:var(--display);font-size:46px;color:var(--accent);line-height:0;display:block;height:22px}
+
+/* ── contact (inverted) ────────────────────────────────────── */
+.contact{background:var(--ink);color:var(--paper);overflow:hidden}
+.contact .s-title{color:var(--paper)}
+.contact .kicker{color:rgba(244,241,234,.5)}
+.contact-lead{color:rgba(244,241,234,.66);font-size:clamp(17px,1.9vw,21px);max-width:54ch;margin-top:24px}
+.contact-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:60px;align-items:end;margin-top:64px}
+@media(max-width:760px){.contact-grid{grid-template-columns:1fr;gap:46px}}
+.mag-wrap{justify-self:start}
+.mag{display:inline-flex;align-items:center;gap:14px;background:var(--paper);color:var(--ink);border-radius:100px;padding:24px 40px;font-family:var(--mono);font-size:13px;letter-spacing:.12em;text-transform:uppercase;transition:background .35s,color .35s;will-change:transform}
+.mag:hover{background:var(--accent);color:#fff}
+.mag .ar{transition:transform .4s var(--ease)}
+.mag:hover .ar{transform:translateX(6px)}
+.cdetails{font-family:var(--mono);font-size:13px;line-height:2.4;letter-spacing:.04em;color:rgba(244,241,234,.7)}
+.cdetails a{border-bottom:1px solid rgba(244,241,234,.25);transition:.3s}
+.cdetails a:hover{color:var(--accent-2);border-color:var(--accent-2)}
+.cdetails .l{color:rgba(244,241,234,.4)}
+
+/* ── footer ────────────────────────────────────────────────── */
+footer{background:var(--ink);color:var(--paper);padding:30px 0 50px;border-top:1px solid rgba(244,241,234,.12)}
+.foot-eco{display:flex;flex-wrap:wrap;gap:10px 28px;align-items:center;font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:rgba(244,241,234,.5);padding:34px 0;border-bottom:1px solid rgba(244,241,234,.12)}
+.foot-eco b{color:var(--paper)}
+.foot-eco .div{color:var(--accent-2)}
+.foot-eco a:hover{color:var(--accent-2)}
+.foot-bot{display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;font-family:var(--mono);font-size:11px;letter-spacing:.08em;color:rgba(244,241,234,.4);padding-top:26px}
+
+/* ── reveal ────────────────────────────────────────────────── */
+.rv{opacity:0;transform:translateY(26px);transition:opacity .9s var(--ease),transform .9s var(--ease)}
+.rv.in{opacity:1;transform:none}
+
+/* ── control deck ──────────────────────────────────────────── */
+.deck{position:fixed;right:22px;bottom:22px;z-index:120;display:flex;background:color-mix(in srgb,var(--paper) 84%,transparent);border:1px solid var(--line);border-radius:100px;padding:5px;backdrop-filter:blur(14px);box-shadow:0 16px 40px -18px rgba(0,0,0,.25)}
+.deck button{font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--ink-3);background:none;border:none;cursor:pointer;padding:8px 15px;border-radius:100px;transition:.3s}
+.deck button.on{background:var(--ink);color:var(--paper)}
+
+@media(prefers-reduced-motion:reduce){
+  *{animation:none!important}
+  .rv{opacity:1;transform:none;transition:none}
+  .marq-track{animation:none}
+  .cur,.cur-d{display:none!important}
+  body.cur-on{cursor:auto}
+}
+</style>
+</head>
+<body>
+
+<div class="cur" id="cur"></div><div class="cur-d" id="curd"></div>
+
+<!-- NAV -->
+<nav id="nav"><div class="wrap nav-in">
+  <a href="#top" class="logo"><b>Valentino Egidi</b><span data-it="Mediatore · Roma" data-en="Broker · Rome">Mediatore · Roma</span></a>
+  <div class="nav-r">
+    <a href="#manifesto" class="nav-link hideable" data-it="Manifesto" data-en="Manifesto">Manifesto</a>
+    <a href="#dizionario" class="nav-link hideable" data-it="Dizionario" data-en="Dictionary">Dizionario</a>
+    <a href="#metodo" class="nav-link hideable" data-it="Metodo" data-en="Method">Metodo</a>
+    <a href="#contatti" class="nav-cta" data-it="Parliamo" data-en="Let's talk">Parliamo</a>
+  </div>
+</div></nav>
+
+<!-- HERO -->
+<header class="hero" id="top">
+  <div class="hero-hud mono">
+    <div data-it="ROMA · CENTRO STORICO" data-en="ROME · OLD TOWN">ROMA · CENTRO STORICO</div>
+    <div>41.9009°N · 12.4833°E</div>
+    <div><b id="clock">--:--:--</b></div>
+  </div>
+  <div class="wrap">
+    <div class="kicker rv"><span class="sq"></span><span data-it="Mediatore immobiliare — compravendita" data-en="Real estate broker — buying & selling">Mediatore immobiliare — compravendita</span></div>
+    <h1 class="rv" data-it="Ti dico la <span class='em'>verità</span> sulla casa. Anche quando non conviene." data-en="I tell you the <span class='em'>truth</span> about the property. Even when it's inconvenient.">Ti dico la <span class="em">verità</span> sulla casa. Anche quando non conviene.</h1>
+    <p class="hero-sub rv" data-it="Compravendita a Roma senza copioni di vendita, senza euforia finta, senza sorprese al rogito. Solo numeri, contesto e una risposta diretta — la stessa che darei a un amico." data-en="Buying and selling in Rome with no sales scripts, no fake urgency, no surprises at signing. Just numbers, context and a straight answer — the same I'd give a friend.">Compravendita a Roma senza copioni di vendita, senza euforia finta, senza sorprese al rogito. Solo numeri, contesto e una risposta diretta — la stessa che darei a un amico.</p>
+    <div class="hero-cta-row rv">
+      <a href="https://wa.me/393313251961" target="_blank" class="btn btn-fill" data-mag data-it="Scrivimi su WhatsApp" data-en="Message me on WhatsApp">Scrivimi su WhatsApp</a>
+      <a href="#manifesto" class="btn btn-ghost" data-it="Perché diverso →" data-en="Why I'm different →">Perché diverso →</a>
+    </div>
+    <div class="scrollcue rv"><span class="ln"></span><span data-it="Scorri — non è il solito sito d'agenzia" data-en="Scroll — this isn't the usual agency site">Scorri — non è il solito sito d'agenzia</span></div>
+  </div>
+</header>
+
+<!-- MARQUEE -->
+<div class="marq" aria-hidden="true"><div class="marq-track" id="marq"></div></div>
+
+<!-- MANIFESTO -->
+<section class="blk" id="manifesto">
+  <div class="wrap">
+    <div class="s-head rv">
+      <div class="kicker"><span class="sq"></span><span data-it="Il manifesto" data-en="The manifesto">Il manifesto</span></div>
+      <h2 class="s-title" data-it="Cinque cose che gli altri non ti diranno." data-en="Five things the others won't tell you.">Cinque cose che gli altri non ti diranno.</h2>
+      <p class="s-lead" data-it="Non vendo case. Faccio decisioni difficili più facili da prendere, con onestà. Se questo costa una provvigione ogni tanto, va bene così — la reputazione vale di più." data-en="I don't sell houses. I make hard decisions easier to make, honestly. If that costs me a commission now and then, so be it — reputation is worth more.">Non vendo case. Faccio decisioni difficili più facili da prendere, con onestà.</p>
+    </div>
+    <div class="theses rv">
+      <div class="thesis"><div class="no">01</div><p data-it="Un prezzo onesto vende più in fretta di un prezzo gonfiato." data-en="An honest price sells faster than an inflated one.">Un prezzo onesto vende più in fretta di un prezzo gonfiato.</p></div>
+      <div class="thesis"><div class="no">02</div><p data-it="Se la casa non fa per te, te lo dico. Anche se perdo la provvigione." data-en="If the home is wrong for you, I'll say so. Even if it costs me the commission.">Se la casa non fa per te, te lo dico. Anche se perdo la provvigione.</p></div>
+      <div class="thesis"><div class="no">03</div><p data-it="I difetti prima dei pregi. Sempre." data-en="The flaws before the features. Always.">I difetti prima dei pregi. Sempre.</p></div>
+      <div class="thesis"><div class="no">04</div><p data-it="Niente aste mascherate, niente finti altri compratori." data-en="No fake bidding wars, no imaginary other buyers.">Niente aste mascherate, niente finti altri compratori.</p></div>
+      <div class="thesis"><div class="no">05</div><p data-it="I numeri parlano. Io li traduco, non li trucco." data-en="The numbers talk. I translate them — I don't fake them.">I numeri parlano. Io li traduco, non li trucco.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- HONEST TRANSLATOR -->
+<section class="blk ht" id="dizionario">
+  <div class="wrap">
+    <div class="s-head rv">
+      <div class="kicker"><span class="sq"></span><span data-it="Dizionario · agentese → italiano onesto" data-en="Dictionary · agent-speak → plain truth">Dizionario · agentese → italiano onesto</span></div>
+      <h2 class="s-title" data-it="Cosa dicono gli annunci. <span class='em' style='color:var(--accent-2)'>Cosa vuol dire.</span>" data-en="What the listings say. <span class='em' style='color:var(--accent-2)'>What it means.</span>">Cosa dicono gli annunci. <span class="em" style="color:var(--accent-2)">Cosa vuol dire.</span></h2>
+      <p class="s-lead" data-it="Passa il mouse (o tocca) per scoprire la traduzione. Con me non serve: te lo dico prima io." data-en="Hover (or tap) to reveal the translation. With me you won't need to — I'll tell you first.">Passa il mouse (o tocca) per scoprire la traduzione.</p>
+    </div>
+    <div class="ht-grid rv" id="htGrid"></div>
+    <div class="ht-hint" data-it="↑ Tocca una voce per tradurla" data-en="↑ Tap an entry to translate it">↑ Tocca una voce per tradurla</div>
+  </div>
+</section>
+
+<!-- METHOD -->
+<section class="blk" id="metodo">
+  <div class="wrap">
+    <div class="s-head rv">
+      <div class="kicker"><span class="sq"></span><span data-it="Il metodo" data-en="The method">Il metodo</span></div>
+      <h2 class="s-title" data-it="Pochi passaggi. Tutti tracciabili." data-en="Few steps. All traceable.">Pochi passaggi. Tutti tracciabili.</h2>
+    </div>
+    <div class="steps rv">
+      <div class="step"><div class="sn">01</div><h3 data-it="Valutazione vera" data-en="Real valuation">Valutazione vera</h3><p data-it="Il prezzo reale con i dati alla mano: comparabili, tempi di vendita, assorbimento della zona. Non quello che vuoi sentirti dire." data-en="The real price, data in hand: comparables, time-on-market, neighbourhood absorption. Not what you want to hear.">Il prezzo reale con i dati alla mano. Non quello che vuoi sentirti dire.</p></div>
+      <div class="step"><div class="sn">02</div><h3 data-it="Strategia" data-en="Strategy">Strategia</h3><p data-it="Un piano scritto: prezzo, target, canali, tempi. Sai sempre cosa succede e perché." data-en="A written plan: price, target, channels, timing. You always know what's happening and why.">Un piano scritto: prezzo, target, canali, tempi. Sempre trasparente.</p></div>
+      <div class="step"><div class="sn">03</div><h3 data-it="Trattativa" data-en="Negotiation">Trattativa</h3><p data-it="Tratto con i dati, non con le emozioni. Compratori veri, offerte vere, niente teatrini." data-en="I negotiate with data, not emotion. Real buyers, real offers, no theatrics.">Tratto con i dati, non con le emozioni. Niente teatrini.</p></div>
+      <div class="step"><div class="sn">04</div><h3 data-it="Rogito" data-en="Closing">Rogito</h3><p data-it="Notaio, fisco e tempi gestiti fino alla firma. Zero sorprese sul prezzo finale." data-en="Notary, taxes and timing handled to signing. Zero surprises on the final number.">Notaio, fisco e tempi gestiti fino alla firma. Zero sorprese.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- BUYERS / SELLERS -->
+<section class="blk" style="padding-top:0">
+  <div class="wrap">
+    <div class="duo">
+      <div class="duo-card rv">
+        <div class="tag" data-it="Se compri" data-en="If you're buying">Se compri</div>
+        <h3 data-it="Solo case che reggono il tuo «perché»." data-en="Only homes that hold up to your “why”.">Solo case che reggono il tuo «perché».</h3>
+        <ul>
+          <li><span class="ck">→</span><span data-it="Ti mostro <b>cosa c'è che non va</b> prima che te ne accorga tu." data-en="I show you <b>what's wrong</b> before you notice it.">Ti mostro <b>cosa c'è che non va</b> prima che te ne accorga tu.</span></li>
+          <li><span class="ck">→</span><span data-it="Anche <b>off-market</b>, dalla rete del centro di Roma." data-en="Including <b>off-market</b>, from the central-Rome network.">Anche <b>off-market</b>, dalla rete del centro di Roma.</span></li>
+          <li><span class="ck">→</span><span data-it="Tratto sul prezzo con i <b>comparabili</b>, non con le sensazioni." data-en="I negotiate on <b>comparables</b>, not on feelings.">Tratto sul prezzo con i <b>comparabili</b>, non con le sensazioni.</span></li>
+        </ul>
+      </div>
+      <div class="duo-card rv">
+        <div class="tag" data-it="Se vendi" data-en="If you're selling">Se vendi</div>
+        <h3 data-it="Prezzo giusto dal giorno uno." data-en="The right price from day one.">Prezzo giusto dal giorno uno.</h3>
+        <ul>
+          <li><span class="ck">→</span><span data-it="Un prezzo onesto <b>vende prima</b> e a condizioni migliori." data-en="An honest price <b>sells sooner</b> and on better terms.">Un prezzo onesto <b>vende prima</b> e a condizioni migliori.</span></li>
+          <li><span class="ck">→</span><span data-it="Servizio fotografico e annuncio <b>curati come un editoriale</b>, niente fuffa." data-en="Photography and listing <b>crafted like an editorial</b> — no fluff.">Foto e annuncio <b>curati come un editoriale</b>, niente fuffa.</span></li>
+          <li><span class="ck">→</span><span data-it="Filtro i curiosi: ti porto <b>compratori veri</b>." data-en="I filter out tyre-kickers: I bring you <b>real buyers</b>.">Filtro i curiosi: ti porto <b>compratori veri</b>.</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HONEST METRICS -->
+<section class="blk" style="padding-top:0">
+  <div class="wrap">
+    <div class="metrics rv">
+      <div class="metric"><div class="v" data-count="0">0</div><div class="k" data-it="Aste mascherate. Mai." data-en="Fake bidding wars. Ever.">Aste mascherate. Mai.</div></div>
+      <div class="metric"><div class="v" data-count="100">0<span class="u">%</span></div><div class="k" data-it="Dei difetti, dichiarati prima." data-en="Of the flaws, disclosed upfront.">Dei difetti, dichiarati prima.</div></div>
+      <div class="metric"><div class="v" data-count="24">0<span class="u">h</span></div><div class="k" data-it="Tempo di risposta. Sul serio." data-en="Response time. For real.">Tempo di risposta. Sul serio.</div></div>
+      <div class="metric"><div class="v" data-count="1">0</div><div class="k" data-it="Una sola versione dei fatti." data-en="One single version of the facts.">Una sola versione dei fatti.</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- PASSAPAROLA / WORDS -->
+<section class="blk words" id="parole">
+  <div class="wrap">
+    <div class="s-head rv">
+      <div class="kicker"><span class="sq"></span><span data-it="Passaparola" data-en="Word of mouth">Passaparola</span></div>
+      <h2 class="s-title" data-it="Non ho un budget pubblicitario. <span class='em'>Ho i miei clienti.</span>" data-en="I don't have an ad budget. <span class='em'>I have my clients.</span>">Non ho un budget pubblicitario. <span class="em">Ho i miei clienti.</span></h2>
+    </div>
+    <!-- NB: recensioni placeholder — Valentino, sostituiscile con quelle reali (niente finte, è il punto) -->
+    <div class="words-grid rv">
+      <div class="quote"><span class="q">“</span><p data-it="È l'unico che mi ha detto di NON comprare una casa. Sei mesi dopo ne ho presa una migliore con lui." data-en="The only one who told me NOT to buy a place. Six months later I bought a better one with him.">È l'unico che mi ha detto di NON comprare una casa. Sei mesi dopo ne ho presa una migliore con lui.</p><div class="who" data-it="— Cliente · acquisto, Prati" data-en="— Client · purchase, Prati">— Cliente · acquisto, Prati</div></div>
+      <div class="quote"><span class="q">“</span><p data-it="Prezzo onesto, venduto in tre settimane. Gli altri mi promettevano 40.000€ in più e mesi di nulla." data-en="Honest price, sold in three weeks. The others promised €40k more and months of nothing.">Prezzo onesto, venduto in tre settimane. Gli altri promettevano 40.000€ in più e mesi di nulla.</p><div class="who" data-it="— Cliente · vendita, Trastevere" data-en="— Client · sale, Trastevere">— Cliente · vendita, Trastevere</div></div>
+      <div class="quote"><span class="q">“</span><p data-it="Ti dice le cose come stanno. Riposante, dopo aver parlato con dieci agenzie." data-en="He tells it like it is. A relief, after talking to ten agencies.">Ti dice le cose come stanno. Riposante, dopo dieci agenzie.</p><div class="who" data-it="— Cliente · acquisto, Centro Storico" data-en="— Client · purchase, Old Town">— Cliente · acquisto, Centro Storico</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- CONTACT -->
+<section class="blk contact" id="contatti">
+  <div class="wrap">
+    <div class="s-head rv" style="margin-bottom:0">
+      <div class="kicker"><span class="sq"></span><span data-it="Parliamo" data-en="Let's talk">Parliamo</span></div>
+      <h2 class="s-title" data-it="Una conversazione onesta. <span class='em' style='color:var(--accent-2)'>Senza copione.</span>" data-en="An honest conversation. <span class='em' style='color:var(--accent-2)'>No script.</span>">Una conversazione onesta. <span class="em" style="color:var(--accent-2)">Senza copione.</span></h2>
+      <p class="contact-lead" data-it="Dimmi cosa cerchi, o cosa vuoi vendere. In due minuti ti dico se posso aiutarti davvero — e se non posso, ti dico a chi rivolgerti." data-en="Tell me what you're looking for, or what you want to sell. In two minutes I'll tell you if I can really help — and if I can't, I'll point you to who can.">Dimmi cosa cerchi, o cosa vuoi vendere. In due minuti ti dico se posso aiutarti davvero.</p>
+    </div>
+    <div class="contact-grid">
+      <div class="mag-wrap rv">
+        <a href="https://wa.me/393313251961" target="_blank" class="mag" data-mag data-it="Scrivimi ora <span class='ar'>→</span>" data-en="Message me now <span class='ar'>→</span>">Scrivimi ora <span class="ar">→</span></a>
+      </div>
+      <div class="cdetails rv">
+        <div><span class="l">WhatsApp / Tel</span> · <a href="https://wa.me/393313251961" target="_blank">+39 331 325 1961</a></div>
+        <div><span class="l">Instagram</span> · <a href="https://instagram.com/r.egidi_immobiliare" target="_blank">@r.egidi_immobiliare</a></div>
+        <div><span class="l">Studio</span> · Via dei Coronari 181, Roma</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="wrap">
+    <div class="foot-eco">
+      <span data-it="L'ecosistema:" data-en="The ecosystem:">L'ecosistema:</span>
+      <span><b>Valentino Egidi</b> — <span data-it="compravendita" data-en="buying &amp; selling">compravendita</span></span>
+      <span class="div">·</span>
+      <a href="https://www.boomrome.com" target="_blank"><b>BOOM</b> — <span data-it="affitti" data-en="rentals">affitti</span></a>
+      <span class="div">·</span>
+      <span><b>Egidi Immobiliare S.r.l.</b></span>
+    </div>
+    <div class="foot-bot">
+      <span>© 2026 Valentino Egidi · Egidi Immobiliare S.r.l. · P.IVA 17322991005</span>
+      <span data-it="Roma, Italia" data-en="Rome, Italy">Roma, Italia</span>
+    </div>
+  </div>
+</footer>
+
+<!-- CONTROL DECK -->
+<div class="deck"><button data-lang="it" class="on">IT</button><button data-lang="en">EN</button></div>
+
+<script>
+/* ── data: marquee + honest dictionary (bilingual) ─────────── */
+const MARQ = {
+  it:["Onesto fino all'imbarazzo","Preciso fino al decimale","Nessun copione","I difetti prima","Prezzo vero, subito","Compratori veri","Niente fuffa"],
+  en:["Honest to a fault","Precise to the decimal","No script","Flaws first","Real price, now","Real buyers","No fluff"]
+};
+const DICT = {
+  it:[
+    ["Caratteristico","Piccolo."],
+    ["Luminoso","Ha le finestre."],
+    ["Mansardato","In certi punti non ci stai in piedi."],
+    ["Open space","Mancano i muri."],
+    ["Zona in via di sviluppo","Per ora è scomoda."],
+    ["Da rivedere internamente","Ci sono 50.000€ di lavori."],
+    ["Soluzione esclusiva","Costa più del dovuto."],
+    ["Trattativa riservata","Il prezzo è imbarazzante da scrivere."],
+    ["Tranquillo","Non passa nessuno. Nemmeno l'autobus."],
+    ["Ideale per investimento","Non ci vivresti."]
+  ],
+  en:[
+    ["Cosy","Small."],
+    ["Bright","It has windows."],
+    ["Characterful","Old and unfixed."],
+    ["Open-plan","There are no walls."],
+    ["Up-and-coming area","Inconvenient, for now."],
+    ["Needs some TLC","€50,000 of work."],
+    ["Exclusive opportunity","Overpriced."],
+    ["Price on application","The number is embarrassing to print."],
+    ["Quiet street","Nothing comes by. Not even the bus."],
+    ["Great for investors","You wouldn't live here."]
+  ]
+};
+const LABELS = {
+  it:{said:"L'annuncio dice",mean:"Vuol dire"},
+  en:{said:"The listing says",mean:"It means"}
+};
+let LANG='it';
+
+function buildMarquee(){
+  const items = MARQ[LANG];
+  const one = items.map(t=>`<span>${t}</span>`).join('');
+  document.getElementById('marq').innerHTML = one+one; /* duplicate for seamless loop */
+}
+function buildDict(){
+  const L = LABELS[LANG];
+  document.getElementById('htGrid').innerHTML = DICT[LANG].map(([said,mean])=>`
+    <div class="ht-row" tabindex="0">
+      <span class="lab">${L.said}</span>
+      <div class="said">“${said}”</div>
+      <div class="ht-mean"><span class="lab">${L.mean}</span><div class="truth">${mean}</div></div>
+    </div>`).join('');
+  // tap-to-open on touch
+  document.querySelectorAll('#htGrid .ht-row').forEach(r=>{
+    r.addEventListener('click',()=>r.classList.toggle('open'));
+    r.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();r.classList.toggle('open')}});
+  });
+}
+
+/* ── i18n ──────────────────────────────────────────────────── */
+function setLang(l){
+  LANG=l;document.documentElement.lang=l;
+  document.querySelectorAll('[data-it]').forEach(el=>{const v=el.getAttribute('data-'+l);if(v!=null)el.innerHTML=v});
+  document.querySelectorAll('.deck button').forEach(b=>b.classList.toggle('on',b.dataset.lang===l));
+  buildMarquee();buildDict();
+}
+document.querySelector('.deck').addEventListener('click',e=>{const b=e.target.closest('button');if(b)setLang(b.dataset.lang)});
+
+/* ── nav scroll ────────────────────────────────────────────── */
+const nav=document.getElementById('nav');
+addEventListener('scroll',()=>nav.classList.toggle('scrolled',scrollY>30),{passive:true});
+
+/* ── reveal ────────────────────────────────────────────────── */
+const io=new IntersectionObserver(es=>es.forEach(en=>{if(en.isIntersecting){en.target.classList.add('in');io.unobserve(en.target)}}),{threshold:.12});
+document.querySelectorAll('.rv').forEach(el=>io.observe(el));
+
+/* ── count-up ──────────────────────────────────────────────── */
+const cio=new IntersectionObserver(es=>es.forEach(en=>{
+  if(!en.isIntersecting)return; cio.unobserve(en.target);
+  const el=en.target,target=+el.dataset.count,u=el.querySelector('.u'),uHTML=u?u.outerHTML:'';
+  let t0=null,dur=1100;
+  function tick(ts){if(!t0)t0=ts;const p=Math.min((ts-t0)/dur,1),e=1-Math.pow(1-p,3);
+    el.firstChild&&(el.childNodes[0].nodeValue=Math.round(e*target));
+    if(p<1)requestAnimationFrame(tick);}
+  requestAnimationFrame(tick);
+}),{threshold:.6});
+document.querySelectorAll('.metric .v').forEach(el=>cio.observe(el));
+
+/* ── Rome clock ────────────────────────────────────────────── */
+const clk=document.getElementById('clock');
+function tickClock(){try{clk.textContent=new Intl.DateTimeFormat('it-IT',{timeZone:'Europe/Rome',hour:'2-digit',minute:'2-digit',second:'2-digit'}).format(new Date());}catch(e){}}
+tickClock();setInterval(tickClock,1000);
+
+/* ── custom cursor + magnetic (pointer devices) ────────────── */
+const fine = matchMedia('(hover:hover) and (pointer:fine)').matches;
+const reduce = matchMedia('(prefers-reduced-motion:reduce)').matches;
+if(fine && !reduce){
+  document.body.classList.add('cur-on');
+  const cur=document.getElementById('cur'),curd=document.getElementById('curd');
+  let cx=innerWidth/2,cy=innerHeight/2,tx=cx,ty=cy;
+  addEventListener('mousemove',e=>{tx=e.clientX;ty=e.clientY;curd.style.transform=`translate(${tx}px,${ty}px) translate(-50%,-50%)`});
+  (function loop(){cx+=(tx-cx)*.18;cy+=(ty-cy)*.18;cur.style.transform=`translate(${cx}px,${cy}px) translate(-50%,-50%)`;requestAnimationFrame(loop)})();
+  document.querySelectorAll('a,button,.ht-row,[data-mag]').forEach(el=>{
+    el.addEventListener('mouseenter',()=>cur.classList.add('grow'));
+    el.addEventListener('mouseleave',()=>cur.classList.remove('grow'));
+  });
+  // magnetic buttons
+  document.querySelectorAll('[data-mag]').forEach(el=>{
+    el.addEventListener('mousemove',e=>{const r=el.getBoundingClientRect();
+      el.style.transform=`translate(${(e.clientX-r.left-r.width/2)*.25}px,${(e.clientY-r.top-r.height/2)*.35}px)`});
+    el.addEventListener('mouseleave',()=>el.style.transform='');
+  });
+}
+
+/* boot */
+setLang('it');
+</script>
+</body>
+</html>
