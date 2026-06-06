@@ -40,6 +40,7 @@
     var m = txt.replace(/\s/g, '').match(/^(\D*)([\d.,]+)(.*)$/); if (!m) return;
     var pre = m[1] || '', suf = m[3] || '', target = parseInt(m[2].replace(/[.,]/g, ''), 10);
     if (!target || target < 10) return;
+    try { el.style.fontVariantNumeric = 'tabular-nums'; } catch (e) {} // uniform digit width → no jitter
     var st = performance.now();
     (function step(t) {
       var k = Math.min(1, (t - st) / dur), e = 1 - Math.pow(1 - k, 3);
@@ -98,9 +99,18 @@
     }
   }
 
-  /* Hero: cursor spotlight + subtle 3D tilt (detail carousel) */
+  /* Resolve the hero to enhance: the carousel, or the single photo wrapped so we
+     can tilt it without fighting its Ken-Burns animation. */
+  function heroEl() {
+    var c = $('#carousel'); if (c) { c.classList.add('cine-hero'); return c; }
+    var img = $('.single-hero-img'); if (!img || !img.parentNode) return null;
+    if (img.parentNode.classList && img.parentNode.classList.contains('cine-hero')) return img.parentNode;
+    var w = doc.createElement('div'); w.className = 'cine-hero cine-hero-wrap';
+    img.parentNode.insertBefore(w, img); w.appendChild(img); return w;
+  }
+  /* Hero: cursor spotlight + subtle 3D tilt (carousel or single photo) */
   function heroSpotlight() {
-    if (R || !FINE) return; var c = $('#carousel'); if (!c) return;
+    if (R || !FINE) return; var c = heroEl(); if (!c) return;
     var raf = null, e0 = null;
     c.addEventListener('mousemove', function (e) {
       e0 = e; if (raf) return;
@@ -123,15 +133,13 @@
   function playTour() {
     var c = $('#carousel'); if (!c || typeof window.next !== 'function' || c.querySelector('.cine-tour')) return;
     var btn = doc.createElement('button'); btn.type = 'button'; btn.className = 'cine-tour';
-    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg><span>Play tour</span>';
+    btn.setAttribute('aria-pressed', 'false'); btn.setAttribute('aria-label', 'Auto-play photo tour');
+    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg><span>Play tour</span>';
     var timer = null, label = btn.querySelector('span');
-    function stop() { clearInterval(timer); timer = null; btn.classList.remove('is-playing'); label.textContent = 'Play tour'; }
-    btn.addEventListener('click', function () {
-      if (timer) { stop(); return; }
-      btn.classList.add('is-playing'); label.textContent = 'Touring…';
-      try { window.next(); } catch (e) {}
-      timer = setInterval(function () { try { window.next(); } catch (e) { stop(); } }, 3200);
-    });
+    function stop() { clearInterval(timer); timer = null; btn.classList.remove('is-playing'); btn.setAttribute('aria-pressed', 'false'); label.textContent = 'Play tour'; }
+    function start() { btn.classList.add('is-playing'); btn.setAttribute('aria-pressed', 'true'); label.textContent = 'Touring…'; try { window.next(); } catch (e) {} timer = setInterval(function () { try { window.next(); } catch (e) { stop(); } }, 3200); }
+    btn.addEventListener('click', function () { if (timer) stop(); else start(); });
+    doc.addEventListener('visibilitychange', function () { if (doc.hidden && timer) stop(); }); // pause in background
     c.appendChild(btn);
   }
 
@@ -203,15 +211,16 @@
   if ($('#aptName')) {
     waitFor(function () { var n = $('#aptName'); return n && n.textContent.trim().length > 0; }, function () {
       entrance(['.breadcrumb', '.apt-badges', '.apt-name', '.apt-address', '.apt-zone', '.apt-price-block', '.apt-specs', '.apt-actions', '.media-section', '.aci-box']);
+      var pb = $('.apt-price-block'); if (pb && !R) pb.style.minWidth = Math.ceil(pb.getBoundingClientRect().width) + 'px'; // reserve width for count-up
       countUp($('#aptPrice'), 1100); countUp($('#sidebarPrice'), 1100);
       reveal('.content-section,.aci-box,.zone-footer,.sidebar-card,.trust-band,.notify-banner');
       staggerChildren('#featuresGrid', '.feature-item');
       ctas(['.aci-apply', '.sidebar-apply', '.reserve-btn', '#inquiryBtn']);
       heroSpotlight(); playTour(); lightboxSwipe();
-      var blk = $('.apt-price-block');
-      if (blk && !blk.querySelector('.cine-live')) {
+      // "Live availability" chip only when the listing is actually available
+      if ($('#aptBadges .badge-available') && pb && !pb.querySelector('.cine-live')) {
         var d = doc.createElement('div'); d.className = 'cine-live';
-        d.innerHTML = '<span class="dot"></span>Live availability · BOOM-verified'; blk.appendChild(d);
+        d.innerHTML = '<span class="dot"></span>Live availability · BOOM-verified'; pb.appendChild(d);
       }
     });
   }
@@ -237,5 +246,12 @@
   /* ── HOMEPAGE (static featured cards + its own hero animation) ────── */
   if ($('.apartment-card') && !$('#aptGrid') && !$('#listingsGrid')) {
     reveal('.section-title,.section-subtitle,.apartment-card');
+  }
+
+  /* ── GENERIC content pages (concierge, owners, about, …) — light & safe.
+     Ambient + progress + universal card tilt already applied above; here we
+     just reveal section headers as they scroll in. ─────────────────────── */
+  if (!$('#aptName') && !$('#aptGrid') && !$('#listingsGrid') && !$('.apartment-card')) {
+    reveal('.section-eyebrow,.section-title,.section-subtitle');
   }
 })();

@@ -25,9 +25,10 @@ html{scroll-behavior:smooth;scroll-padding-top:104px}
 .cine-on .single-hero-img,.cine-on .carousel-slide img{animation:cineKen 26s ease-in-out infinite alternate}
 @keyframes cineKen{0%{transform:scale(1.03)}100%{transform:scale(1.10)}}
 .cine-on .carousel,.cine-on .single-hero-img{box-shadow:0 0 0 1px rgba(255,215,0,.08),0 40px 90px -34px rgba(0,0,0,.85)}
-.cine-on #carousel{transition:transform .5s var(--cine-ease)} /* tilt reset */
-.cine-on #carousel::before{content:'';position:absolute;inset:0;z-index:2;pointer-events:none;background:radial-gradient(circle at var(--mx,50%) var(--my,50%),rgba(255,215,0,.14),transparent 38%);opacity:0;transition:opacity .35s var(--cine-ease)}
-.cine-on #carousel.cine-spot::before{opacity:1}
+.cine-on .cine-hero{position:relative;transition:transform .5s var(--cine-ease)} /* tilt reset (carousel or wrapped single photo) */
+.cine-on .cine-hero-wrap{border-radius:16px;overflow:hidden}
+.cine-on .cine-hero::before{content:'';position:absolute;inset:0;z-index:2;pointer-events:none;background:radial-gradient(circle at var(--mx,50%) var(--my,50%),rgba(255,215,0,.14),transparent 38%);opacity:0;transition:opacity .35s var(--cine-ease)}
+.cine-on .cine-hero.cine-spot::before{opacity:1}
 
 /* ── Immersive lightbox upgrade (premium open + backdrop blur) ────────── */
 .cine-on .lightbox{backdrop-filter:blur(8px)}
@@ -72,5 +73,5 @@ html{scroll-behavior:smooth;scroll-padding-top:104px}
   .cine-on .content-section-title::after{transform:scaleX(1)!important;transition:none!important}
   .cine-cta::after{display:none!important}
   .cine-live .dot{animation:none!important}
-  .cine-on #carousel::before{display:none!important}
+  .cine-on .cine-hero::before{display:none!important}
 }
