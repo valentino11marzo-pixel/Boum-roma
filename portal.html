@@ -10099,66 +10099,97 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // daysUntil defined in core utils (line ~1300)
 
     function documentsPage() {
-        const all = S.documents || [];
+        const uploads = (S.documents || []).map(d => ({ ...d, source: d.source || 'upload' }));
+        // I contratti registrati (con PDF generato) vengono mostrati in sola lettura
+        // nello stesso archivio: ogni documento — caricato, generato o contrattuale —
+        // è ritrovabile in un unico posto.
+        const contractDocs = (S.contracts || []).filter(c => c.generatedPDF).map(c => {
+            const prop = S.properties.find(p => p.id === c.propertyId);
+            const ten = S.users.find(u => u.id === c.tenantId);
+            return {
+                id: 'contract:' + c.id, _contractId: c.id, _readonly: true,
+                name: `Contratto ${c.type || ''} — ${prop?.name || ten?.name || c.id}`.trim(),
+                type: 'contract', source: 'contract', category: 'locazione',
+                userId: c.tenantId || null, propertyId: c.propertyId || null,
+                fileUrl: c.generatedPDF, fileName: 'contract.pdf', fileSize: (c.pdfSizeKB || 0) * 1024,
+                lang: 'IT', refCode: (c.id || '').slice(0, 8).toUpperCase(),
+                createdAt: c.pdfGeneratedAt || c.createdAt
+            };
+        });
+        const tsOf = (d) => { const t = d.createdAt; return (t && t.seconds) || (t && t.toMillis ? t.toMillis() / 1000 : (Date.parse(t) || 0) / 1000); };
+        const all = [...uploads, ...contractDocs].sort((a, b) => tsOf(b) - tsOf(a));
         const byType = (t) => all.filter(d => d.type === t).length;
         const stats = {
             all: all.length,
             contract: byType('contract'),
             receipt: byType('receipt'),
-            id: byType('id'),
-            utility: byType('utility'),
+            generated: all.filter(d => d.source === 'generated').length,
             shared: all.filter(d => d.shared === true || d.shared === 'true').length,
-            deal: byType('deal-archive'),
         };
 
+        const sourceBadge = (d) => d.source === 'generated' ? '<span class="badge gold" style="font-size:9px">✨ Generato</span>'
+            : d.source === 'contract' ? '<span class="badge blue" style="font-size:9px">📋 Contratto</span>'
+            : '<span class="badge gray" style="font-size:9px">📤 Caricato</span>';
         const docRow = (d) => {
             const u = S.users.find(x => x.id === d.userId);
             const prop = S.properties.find(x => x.id === d.propertyId);
-            const search = [d.name, u?.name, prop?.name, d.type].filter(Boolean).join(' ').toLowerCase();
-            return `<div class="list-item clickable doc-item" data-type="${d.type || 'other'}" data-shared="${d.shared}" data-search="${esc(search)}" onclick="${d.fileUrl ? `window.open('${d.fileUrl}','_blank')` : `editDocModal('${d.id}')`}" style="padding:14px 16px">
+            const search = [d.name, u?.name, prop?.name, d.type, d.category, d.refCode, d.source].filter(Boolean).join(' ').toLowerCase();
+            const ro = d._readonly;
+            // Nome JS-safe per i parametri inline (apostrofi tipo "d'Incarico").
+            const jsName = (d.name || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            const openAction = d.fileUrl ? `window.open('${d.fileUrl}','_blank')` : (ro ? `goTo('contracts')` : `editDocModal('${d.id}')`);
+            return `<div class="list-item clickable doc-item" data-type="${d.type || 'other'}" data-source="${d.source || 'upload'}" data-shared="${d.shared}" data-search="${esc(search)}" onclick="${openAction}" style="padding:14px 16px">
                 <div class="list-icon" style="background:var(--gold-light)">${docIcon(d.type)}</div>
                 <div class="list-content" style="flex:1;min-width:0">
                     <div class="list-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                        <span style="font-weight:600">${d.name}</span>
+                        <span style="font-weight:600">${esc(d.name)}</span>
+                        ${sourceBadge(d)}
+                        ${d.lang ? `<span class="badge gray" style="font-size:9px">${esc(d.lang)}</span>` : ''}
                         ${d.shared ? '<span class="badge blue" style="font-size:9px">🔗 Condiviso</span>' : ''}
                     </div>
                     <div class="list-subtitle" style="margin-top:4px">
-                        ${u ? `<span style="background:${u.role==='landlord'?'var(--gold-light)':'var(--blue-light)'};padding:2px 8px;border-radius:4px;font-size:11px">${u.role === 'landlord' ? '🏠' : '👤'} ${u.name}</span>` : ''}
-                        ${prop ? `<span style="margin-left:8px">🏠 ${prop.name}</span>` : ''}
+                        ${u ? `<span style="background:${u.role==='landlord'?'var(--gold-light)':'var(--blue-light)'};padding:2px 8px;border-radius:4px;font-size:11px">${u.role === 'landlord' ? '🏠' : '👤'} ${esc(u.name)}</span>` : ''}
+                        ${prop ? `<span style="margin-left:8px">🏠 ${esc(prop.name)}</span>` : ''}
+                        ${d.refCode ? `<span style="margin-left:8px;color:var(--text-muted)">#${esc(d.refCode)}</span>` : ''}
                         <span style="margin-left:8px">📅 ${fmtDate(d.createdAt)}</span>
                     </div>
                 </div>
                 <div style="display:flex;gap:4px" onclick="event.stopPropagation()">
                     ${d.fileUrl ? `<button class="btn btn-xs btn-secondary" onclick="window.open('${d.fileUrl}','_blank')" title="Scarica">📥</button>` : ''}
-                    <button class="btn btn-xs btn-secondary" onclick="editDocModal('${d.id}')" title="Modifica">✏️</button>
-                    <button class="btn btn-xs btn-danger" onclick="confirmDelete('document','${d.id}','${d.name}')" title="Elimina">🗑</button>
+                    ${ro
+                        ? `<button class="btn btn-xs btn-secondary" onclick="goTo('contracts')" title="Apri nei Contratti">↗</button>`
+                        : `<button class="btn btn-xs btn-secondary" onclick="editDocModal('${d.id}')" title="Modifica">✏️</button>
+                    <button class="btn btn-xs btn-danger" onclick="confirmDelete('document','${d.id}','${jsName}')" title="Elimina">🗑</button>`
+                    }
                 </div>
             </div>`;
         };
 
         return `<div class="page-header">
-                <div><h1 class="page-title">📁 Documenti</h1><p class="page-subtitle">${stats.all} documenti · Archivio condiviso con proprietari e inquilini</p></div>
+                <div><h1 class="page-title">📁 Archivio Documentale</h1><p class="page-subtitle">${stats.all} documenti · Caricati, generati e contratti — tutto in un unico archivio</p></div>
                 <div class="page-actions">
+                    <button class="btn btn-secondary btn-sm" onclick="goTo('templates')">✨ Genera modulo</button>
                     <button class="btn btn-secondary btn-sm" onclick="exportDocumentsCSV()">📊 Export</button>
                     <button class="btn" onclick="openDocUploadModal()">+ Carica</button>
                 </div>
             </div>
             <div class="stats-grid" style="grid-template-columns:repeat(4,1fr)">
                 <div class="stat-card" style="cursor:pointer" onclick="filterDocs('all', this.closest('.stats-grid').nextElementSibling.querySelector('[data-filter=all]'))"><div class="stat-label">Tutti</div><div class="stat-value">${stats.all}</div></div>
+                <div class="stat-card" style="cursor:pointer" onclick="filterDocs('generated', this.closest('.stats-grid').nextElementSibling.querySelector('[data-filter=generated]'))"><div class="stat-label">Generati</div><div class="stat-value gold-text" style="color:var(--gold)">${stats.generated}</div></div>
                 <div class="stat-card" style="cursor:pointer" onclick="filterDocs('contract', this.closest('.stats-grid').nextElementSibling.querySelector('[data-filter=contract]'))"><div class="stat-label">Contratti</div><div class="stat-value">${stats.contract}</div></div>
                 <div class="stat-card" style="cursor:pointer" onclick="filterDocs('receipt', this.closest('.stats-grid').nextElementSibling.querySelector('[data-filter=receipt]'))"><div class="stat-label">Ricevute</div><div class="stat-value">${stats.receipt}</div></div>
-                <div class="stat-card" style="cursor:pointer" onclick="filterDocs('shared', this.closest('.stats-grid').nextElementSibling.querySelector('[data-filter=shared]'))"><div class="stat-label">Condivisi</div><div class="stat-value text-blue">${stats.shared}</div></div>
             </div>
             <div class="card">
                 <div style="display:flex;gap:6px;padding:12px 16px;border-bottom:1px solid var(--border);flex-wrap:wrap;align-items:center">
                     <button class="btn btn-sm" data-filter="all" onclick="filterDocs('all', this)">Tutti</button>
+                    <button class="btn btn-sm btn-secondary" data-filter="generated" onclick="filterDocs('generated', this)">✨ Generati</button>
                     <button class="btn btn-sm btn-secondary" data-filter="contract" onclick="filterDocs('contract', this)">📋 Contratti</button>
                     <button class="btn btn-sm btn-secondary" data-filter="receipt" onclick="filterDocs('receipt', this)">🧾 Ricevute</button>
                     <button class="btn btn-sm btn-secondary" data-filter="id" onclick="filterDocs('id', this)">🪪 ID</button>
                     <button class="btn btn-sm btn-secondary" data-filter="utility" onclick="filterDocs('utility', this)">💡 Utenze</button>
                     <button class="btn btn-sm btn-secondary" data-filter="shared" onclick="filterDocs('shared', this)">🔗 Condivisi</button>
                     <button class="btn btn-sm btn-secondary" data-filter="deal" onclick="filterDocs('deal', this)">📦 Deal Archive</button>
-                    <input type="search" id="docSearch" class="form-input" placeholder="🔎 Cerca nome, persona, immobile…" oninput="searchDocs(this.value)" style="flex:1;min-width:200px;margin-left:auto">
+                    <input type="search" id="docSearch" class="form-input" placeholder="🔎 Cerca nome, persona, immobile, rif…" oninput="searchDocs(this.value)" style="flex:1;min-width:200px;margin-left:auto">
                 </div>
                 <div class="card-body flush" id="docsContainer">
                     ${all.length === 0
@@ -10176,6 +10207,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             let show = false;
             if (type === 'all') show = true;
             else if (type === 'shared') show = item.dataset.shared === 'true';
+            else if (type === 'generated') show = item.dataset.source === 'generated';
             else if (type === 'deal') show = item.dataset.type === 'deal-archive';
             else show = item.dataset.type === type;
             // Compose with search
@@ -10190,11 +10222,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         filterDocs(filter, active);
     }
     function exportDocumentsCSV() {
-        let csv = 'Nome,Tipo,Persona,Ruolo,Immobile,Condiviso,Data\n';
+        let csv = 'Nome,Tipo,Provenienza,Rif,Lingua,Persona,Ruolo,Immobile,Condiviso,Data\n';
         S.documents.forEach(d => {
             const u = S.users.find(x => x.id === d.userId);
             const prop = S.properties.find(x => x.id === d.propertyId);
-            csv += `"${(d.name || '').replace(/"/g, '""')}","${d.type || ''}","${u?.name || ''}","${u?.role || ''}","${prop?.name || ''}","${d.shared ? 'sì' : 'no'}","${fmtDate(d.createdAt)}"\n`;
+            csv += `"${(d.name || '').replace(/"/g, '""')}","${d.type || ''}","${d.source || 'upload'}","${d.refCode || ''}","${d.lang || ''}","${u?.name || ''}","${u?.role || ''}","${prop?.name || ''}","${d.shared ? 'sì' : 'no'}","${fmtDate(d.createdAt)}"\n`;
         });
         downloadCSV(csv, 'BOOM_Documenti.csv');
     }
@@ -17976,7 +18008,90 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (newRentEl && !newRentEl.dataset.manual) newRentEl.value = newRent;
     }
 
-    function generateTemplatePDF() {
+    // ═══════════════════════════════════════════════════════════════════════════
+    // ARCHIVIO DOCUMENTALE — ogni documento generato viene catturato qui.
+    //
+    // Single source of truth: ogni PDF della Modulistica viene caricato su Storage
+    // e indicizzato nella collection `documents` con metadati normalizzati
+    // (provenienza, link a cliente/immobile/contratto, lingua, hash, audience).
+    // È ciò che trasforma il generatore da "scarica e dimentica" in un vero DMS,
+    // ed è la base su cui poggiano la vista Archivio e la futura ricerca AI.
+    // Schema documentato in docs/archive-dms.md
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    // (a) bucket `type` legacy compreso dai filtri esistenti; (b) categoria ricca.
+    const TEMPLATE_DOC_TYPE = {
+        pfs:'contract', das:'contract', vv:'contract', lettera_incarico:'contract',
+        proposta_locazione:'contract', accettazione_proposta:'contract',
+        rental_transitorio:'contract', rental_studenti:'contract', rental_4plus4:'contract',
+        disdetta:'contract', mandato_gestione:'contract',
+        ricevuta_pigione:'receipt', deposit_receipt:'receipt', ricevuta_provvigione:'receipt',
+        rendiconto_annuale:'other', comunicazione_istat:'other', sollecito_pagamento:'other',
+        handover:'other', inventory:'other', stato_immobile:'other',
+        proposal:'other', quote:'other'
+    };
+    const TEMPLATE_CATEGORY = {
+        pfs:'servizio', das:'servizio', vv:'servizio', lettera_incarico:'incarico',
+        proposal:'proposta', quote:'proposta', proposta_locazione:'proposta', accettazione_proposta:'proposta',
+        rental_transitorio:'locazione', rental_studenti:'locazione', rental_4plus4:'locazione',
+        disdetta:'locazione', ricevuta_pigione:'ricevuta', deposit_receipt:'ricevuta', ricevuta_provvigione:'ricevuta',
+        mandato_gestione:'gestione', rendiconto_annuale:'gestione', comunicazione_istat:'gestione', sollecito_pagamento:'gestione',
+        handover:'verbale', inventory:'verbale', stato_immobile:'verbale'
+    };
+
+    // Decide chi, oltre all'admin, vede un documento generato — derivato dai record
+    // che l'operatore ha effettivamente selezionato. Scegliere un inquilino o un
+    // proprietario esistente dai menu è il segnale esplicito di volerlo collegare;
+    // un nome digitato a mano (lead / una-tantum) resta solo-admin. Per i contratti
+    // (entrambe le parti presenti) shared=true: il proprietario lo vede per immobile.
+    function resolveDocAudience(type, data) {
+        const tenantId   = data.tenantId || data.payerId || null;
+        const landlordId = data.landlordId || null;
+        const clientId   = data.clientId || null;
+        const propertyId = data.propertyId || null;
+        let userId = null, shared = false;
+        if (tenantId)        { userId = tenantId; shared = !!(landlordId && propertyId); }
+        else if (landlordId) { userId = landlordId; }
+        return { userId, propertyId, shared, clientId, tenantId, landlordId };
+    }
+
+    // Carica il PDF su Storage e lo indicizza in `documents`. Best-effort: non
+    // blocca mai il download locale (il chiamante gestisce l'errore).
+    async function archiveGeneratedPDF(pdfDoc, meta) {
+        const { type, title, ref, data } = meta;
+        const blob = pdfDoc.output('blob');
+        const aud = resolveDocAudience(type, data);
+        const subject = data.clientName || data.tenantName || data.landlordName || data.payerName || '';
+        const name = subject ? `${title} — ${subject}` : title;
+        const path = `documents/archive/${type}/${ref}.pdf`;
+        const putRes = await storage.ref(path).put(blob, { contentType: 'application/pdf' });
+        const fileUrl = await putRes.ref.getDownloadURL();
+        const hash = await generateDocHash(`${ref}|${type}|${subject}|${blob.size}`);
+        await db.collection('documents').add({
+            name,
+            type: TEMPLATE_DOC_TYPE[type] || 'other',
+            category: TEMPLATE_CATEGORY[type] || 'documento',
+            source: 'generated',
+            templateType: type,
+            refCode: ref,
+            lang: S.lang,
+            version: 1,
+            hash,
+            userId:     aud.userId || null,
+            clientId:   aud.clientId || null,
+            tenantId:   aud.tenantId || null,
+            landlordId: aud.landlordId || null,
+            propertyId: aud.propertyId || null,
+            shared:     aud.shared || false,
+            fileUrl, fileName: `${ref}.pdf`, fileSize: blob.size,
+            uploadedBy: S.profile?.id || 'admin',
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        logActivity('Documento generato e archiviato', 'document', { docName: name, templateType: type, ref });
+        return true;
+    }
+
+    async function generateTemplatePDF() {
         const data = Object.fromEntries(new FormData(document.getElementById('tplForm')));
         console.log('generateTemplatePDF - templateType:', data.templateType);
         console.log('generateTemplatePDF - inventoryList:', data.inventoryList);
@@ -18788,11 +18903,17 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             doc.text(`${i} / ${pageCount}`, 194, 285, { align: 'right' });
         }
         
-        // Save
+        // Archivia una copia permanente e indicizzata PRIMA del download locale,
+        // poi salva. L'archiviazione è best-effort: se fallisce, il download avviene
+        // comunque e l'operatore viene avvisato.
         const filename = `BOOM_${(titles[type] || 'DOC').replace(/[^a-zA-Z0-9]/g, '_')}_${(data.clientName || data.landlordName || data.tenantName || 'doc').replace(/[^a-zA-Z0-9]/g, '_')}_${ref}.pdf`;
+        let archived = false;
+        try { archived = await archiveGeneratedPDF(doc, { type, title: titles[type] || 'Documento', ref, data }); }
+        catch (err) { console.error('[archivio] archiviazione non riuscita:', err); }
         doc.save(filename);
         closeModal();
-        toast('success', 'PDF generato!', filename);
+        toast('success', archived ? '✅ PDF generato e archiviato' : 'PDF generato',
+            archived ? filename + ' · ora nell\'Archivio' : filename + ' · (non archiviato)');
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
