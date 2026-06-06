@@ -355,7 +355,7 @@ function buildReferralPass({
         fText("code_b", "Il tuo codice", referralCode),
         fText("threshold_b", "Prossima soglia", nextThreshold),
         fText("how", "Come funziona", "Condividi il tuo codice. Quando un amico firma con BOOM, guadagni €150 di credito. Cumulabile."),
-        fLink("share", "Link da condividere", `https://boomrome.com/?ref=${referralCode}`, "Condividi BOOM →"),
+        fLink("share", "Link da condividere", `https://boomrome.com/?ref=${encodeURIComponent(referralCode)}`, "Condividi BOOM →"),
         { key: "support", label: "Assistenza", value: "valentino@boom-rome.com", attributedValue: `<a href="${SUPPORT_WA}">WhatsApp</a>` },
       ]),
     },
