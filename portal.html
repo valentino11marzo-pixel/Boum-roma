@@ -5950,6 +5950,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 </div>
             </div>
 
+            ${!hs.live ? `<div style="margin:0 0 14px;padding:11px 14px;border-radius:10px;background:var(--bg-elevated);border:1px solid var(--border);font-size:12px;color:var(--text-muted);line-height:1.55">
+                🔌 <strong style="color:var(--text-secondary)">Bridge Homie non connesso.</strong> Sul Mac, dalla root del repo:
+                <code style="color:var(--gold)">cd scripts/homie-bridge &amp;&amp; ./boom-homie-bridge.sh ping</code> per testare il link,
+                poi <code style="color:var(--gold)">run</code> (o installa il launchd) per la connessione costante.
+                Guida: <code>scripts/homie-bridge/README.md</code>.
+            </div>` : ''}
+
             <section class="dash-section">
                 <div class="dash-section-head">
                     <h2 class="dash-section-title">In attesa di approvazione</h2>
@@ -20650,10 +20657,6 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
     async function generateTemplatePDF() {
         const data = Object.fromEntries(new FormData(document.getElementById('tplForm')));
-        console.log('generateTemplatePDF - templateType:', data.templateType);
-        console.log('generateTemplatePDF - inventoryList:', data.inventoryList);
-        console.log('generateTemplatePDF - full data:', data);
-        
         if (!data.clientName && !data.landlordName && !data.tenantName && !data.propertyAddress) {
             return toast('error', 'Compila i campi obbligatori');
         }
