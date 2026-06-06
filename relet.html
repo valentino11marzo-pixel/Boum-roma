@@ -131,12 +131,17 @@ const waDigits=p=>String(p||'').replace(/\D/g,'');
 
 function gateMsg(t,m,bl,bf){$('gate-spin').hidden=true;$('gate-title').textContent=t;$('gate-msg').innerHTML=m;if(bl){const b=$('gate-btn');b.hidden=false;b.textContent=bl;b.onclick=bf;}}
 function enterApp(){$('gate').hidden=true;$('app').hidden=false;$('signout').hidden=false;loadAndRender();}
-let wd=setTimeout(()=>gateMsg('Connessione lenta','Riprova.','Riprova',()=>location.reload()),9000);
-auth.onAuthStateChanged(async u=>{clearTimeout(wd);
-  if(!u||u.isAnonymous){gateMsg('Accesso riservato','Accedi al Portal come admin.','Accedi',()=>location.href='/login?next=%2Frelet');return;}
-  try{const d=await db.collection('users').doc(u.uid).get();const role=d.exists?(d.data().role||''):'';
+let gateResolved=false;
+function settleGate(){ gateResolved=true; clearTimeout(wd); }
+var wd=setTimeout(()=>{ if(!gateResolved) gateMsg('Verifica non riuscita','Assicurati di aver effettuato l\'accesso su /portal come admin, poi riprova.','Riprova',()=>location.reload()); },12000);
+auth.onAuthStateChanged(async u=>{
+  if(!u||u.isAnonymous){settleGate();gateMsg('Accesso riservato','Accedi al Portal come admin.','Accedi',()=>location.href='/login?next=%2Frelet');return;}
+  try{
+    const d=await Promise.race([ db.collection('users').doc(u.uid).get(), new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout verifica ruolo (Firestore)')),12000)) ]);
+    settleGate();
+    const role=d.exists?(d.data().role||''):'';
     if(role==='admin')enterApp();else gateMsg('Riservato agli admin',esc(u.email)+' ha ruolo "'+esc(role||'nessuno')+'".','Esci',()=>auth.signOut());
-  }catch(e){gateMsg('Errore',esc(e.message),'Riprova',()=>location.reload());}
+  }catch(e){settleGate();gateMsg('Errore',esc(e.message),'Riprova',()=>location.reload());}
 });
 
 let SCAN=null, FILTER='all';
