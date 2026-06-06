@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>BOOM · Prova un pass Wallet</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<style>
+  :root{--gold:#D4AF37;--gold-light:rgba(212,175,55,.14);--bg:#08080A;--bg-card:#0E0E11;--bg-input:#1B1B20;--border:rgba(255,255,255,.08);--text:#FFF;--text-secondary:#9A9A9C;--text-dim:#6A6A6E}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Helvetica Neue','Inter',-apple-system,sans-serif;font-weight:300;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:30px 20px}
+  .wrap{max-width:440px;width:100%;text-align:center}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--gold);box-shadow:0 0 14px var(--gold);display:inline-block;margin-right:8px}
+  .brand{font-weight:600;letter-spacing:4px;font-size:15px;margin-bottom:26px}
+  h1{font-weight:300;font-size:28px;letter-spacing:-.5px;margin-bottom:10px}h1 b{font-weight:700;color:var(--gold)}
+  p.sub{color:var(--text-secondary);font-size:14.5px;margin-bottom:28px}
+  .card{background:var(--bg-card);border:1px solid var(--border);border-radius:18px;padding:22px}
+  a.pass{display:flex;align-items:center;gap:14px;text-decoration:none;background:var(--bg-input);border:1px solid var(--border);border-radius:13px;padding:15px 16px;margin-bottom:10px;transition:.15s;text-align:left}
+  a.pass:hover{border-color:var(--gold)}
+  a.pass .ico{font-size:24px;width:30px;text-align:center}
+  a.pass .t{flex:1}.a-name{font-size:15px;font-weight:500}.a-desc{font-size:12px;color:var(--text-dim);margin-top:2px}
+  a.pass .add{font-size:12px;color:var(--gold);white-space:nowrap}
+  a.pass.gold{background:var(--gold-light);border-color:var(--gold)}
+  .note{font-size:11.5px;color:var(--text-dim);line-height:1.6;margin-top:22px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand"><span class="dot"></span>BOOM</div>
+  <h1>Prova un <b>pass Wallet</b></h1>
+  <p class="sub">Tocca un pass per aggiungerlo ad Apple Wallet (sono dati di esempio).</p>
+  <div class="card">
+    <a class="pass gold" href="/api/pass-demo?type=tenant"><span class="ico">🏠</span><span class="t"><div class="a-name">Tenant — Mario Rossi</div><div class="a-desc">Trastevere · €1200/mese · prossima rata</div></span><span class="add">Aggiungi →</span></a>
+    <a class="pass" href="/api/pass-demo?type=viewing"><span class="ico">📅</span><span class="t"><div class="a-name">Viewing — domani 15:00</div><div class="a-desc">Pigneto · con geofence e promemoria</div></span><span class="add">Aggiungi →</span></a>
+    <a class="pass" href="/api/pass-demo?type=silver"><span class="ico">⚪</span><span class="t"><div class="a-name">Silver VIP</div><div class="a-desc">Tenant premium</div></span><span class="add">Aggiungi →</span></a>
+    <a class="pass" href="/api/pass-demo?type=landlord"><span class="ico">🤝</span><span class="t"><div class="a-name">Partner — Luca Verdi</div><div class="a-desc">4 proprietà · revenue</div></span><span class="add">Aggiungi →</span></a>
+    <a class="pass" href="/api/pass-demo?type=referral"><span class="ico">🎁</span><span class="t"><div class="a-name">BOOM Circle</div><div class="a-desc">Referral · €450 guadagnati</div></span><span class="add">Aggiungi →</span></a>
+  </div>
+  <p class="note">Apri questa pagina da <b>iPhone Safari</b> per il "Aggiungi ad Apple Wallet". Su Mac/PC il file <code>.pkpass</code> si scarica (apribile in Wallet su Mac). Pass demo, non collegati a un contratto reale.</p>
+</div>
+</body>
+</html>

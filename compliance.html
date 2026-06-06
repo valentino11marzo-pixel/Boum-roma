@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BOOM · Compliance OS</title>
+<meta name="robots" content="noindex, nofollow, noarchive">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="/js/compliance-rules.js"></script>
+
+<style>
+  :root{
+    --gold:#D4AF37; --gold-light:rgba(212,175,55,.14);
+    --bg:#08080A; --bg-card:#0E0E11; --bg-elevated:#16161A; --bg-input:#1B1B20;
+    --border:rgba(255,255,255,.08); --border-soft:rgba(255,255,255,.05);
+    --text:#FFFFFF; --text-secondary:#9A9A9C; --text-dim:#6A6A6E;
+    --green:#46C08A; --green-dim:rgba(70,192,138,.13);
+    --red:#E0556B; --red-dim:rgba(224,85,107,.13);
+    --amber:#E0A93C; --amber-dim:rgba(224,169,60,.13);
+    --blue:#5B8DEF; --blue-dim:rgba(91,141,239,.13);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Helvetica Neue','Inter',-apple-system,sans-serif;font-weight:300;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;line-height:1.5}
+  a{color:inherit;text-decoration:none}
+  header.top{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;padding:14px 22px;background:rgba(8,8,10,.85);backdrop-filter:blur(16px);border-bottom:1px solid var(--border-soft)}
+  .brand{display:flex;align-items:center;gap:9px;font-weight:600;letter-spacing:3px;font-size:14px}
+  .brand .dot{width:8px;height:8px;border-radius:50%;background:var(--gold);box-shadow:0 0 12px var(--gold)}
+  .brand small{font-weight:300;letter-spacing:2px;color:var(--text-dim);font-size:11px}
+  .top-actions{display:flex;gap:10px}
+  .ghost-btn{padding:8px 14px;border:1px solid var(--border);border-radius:9px;background:transparent;color:var(--text-secondary);font-family:inherit;font-size:12.5px;cursor:pointer;transition:.15s}
+  .ghost-btn:hover{border-color:var(--gold);color:var(--gold)}
+  .wrap{max-width:1180px;margin:0 auto;padding:24px 22px 80px}
+
+  #gate{min-height:70vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:40px}
+  #gate .g-card{max-width:420px} #gate h2{font-weight:300;font-size:22px;margin-bottom:10px} #gate p{color:var(--text-secondary);font-size:14px;margin-bottom:18px}
+  .gold-btn{display:inline-block;background:var(--gold);color:#000;font-weight:600;padding:11px 22px;border-radius:10px;border:none;font-family:inherit;font-size:14px;cursor:pointer}
+  .spinner{width:30px;height:30px;border:3px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 16px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  h1.page{font-weight:300;font-size:26px;letter-spacing:-.5px;margin-bottom:4px}
+  h1.page b{font-weight:700;color:var(--gold)}
+  .page-sub{color:var(--text-secondary);font-size:13.5px;margin-bottom:22px}
+
+  .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:18px}
+  @media(max-width:900px){.kpis{grid-template-columns:repeat(2,1fr)}}
+  .kpi{background:var(--bg-card);border:1px solid var(--border);border-radius:13px;padding:15px}
+  .kpi .k{font-size:10.5px;letter-spacing:.5px;text-transform:uppercase;color:var(--text-dim)}
+  .kpi .v{font-size:24px;font-weight:700;margin-top:6px;letter-spacing:-.5px}
+  .kpi .v.red{color:var(--red)} .kpi .v.amber{color:var(--amber)} .kpi .v.green{color:var(--green)} .kpi .v.gold{color:var(--gold)}
+
+  .filters{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+  .pill{padding:8px 14px;border:1px solid var(--border);border-radius:20px;background:var(--bg-card);color:var(--text-secondary);font-size:12.5px;cursor:pointer;transition:.15s}
+  .pill:hover{border-color:rgba(212,175,55,.4)} .pill.on{background:var(--gold-light);border-color:var(--gold);color:var(--gold);font-weight:600}
+
+  .ccard{background:var(--bg-card);border:1px solid var(--border);border-radius:14px;margin-bottom:12px;overflow:hidden}
+  .crow{display:flex;align-items:center;gap:14px;padding:15px 18px;cursor:pointer;transition:.12s}
+  .crow:hover{background:var(--bg-elevated)}
+  .stoplight{width:12px;height:12px;border-radius:50%;flex-shrink:0}
+  .sl-red{background:var(--red);box-shadow:0 0 10px rgba(224,85,107,.5)} .sl-amber{background:var(--amber);box-shadow:0 0 10px rgba(224,169,60,.5)} .sl-green{background:var(--green)}
+  .crow .main{flex:1;min-width:0}
+  .crow .name{font-weight:500;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .crow .meta{font-size:12px;color:var(--text-dim);margin-top:2px}
+  .type-badge{display:inline-block;font-size:10px;padding:2px 8px;border-radius:5px;background:var(--blue-dim);color:var(--blue);letter-spacing:.4px;margin-right:6px;text-transform:uppercase}
+  .crow .right{text-align:right;flex-shrink:0}
+  .prog{font-size:13px;font-weight:600} .prog .open-n{color:var(--amber)} .prog .od{color:var(--red)}
+  .crow .nd{font-size:11px;color:var(--text-dim);margin-top:2px}
+
+  .passport{display:none;border-top:1px solid var(--border-soft);background:var(--bg-elevated)}
+  .passport.open{display:block}
+  .oitem{display:flex;align-items:flex-start;gap:12px;padding:13px 18px;border-bottom:1px solid var(--border-soft)}
+  .oitem:last-child{border-bottom:none}
+  .odot{width:9px;height:9px;border-radius:50%;margin-top:6px;flex-shrink:0}
+  .od-overdue{background:var(--red)} .od-due_soon{background:var(--amber)} .od-todo{background:var(--text-dim)} .od-done{background:var(--green)} .od-na{background:var(--text-dim);opacity:.4}
+  .oinfo{flex:1;min-width:0}
+  .olabel{font-size:13.5px;font-weight:500}
+  .olabel .sev{font-size:9px;padding:1px 6px;border-radius:4px;margin-left:7px;letter-spacing:.5px;text-transform:uppercase}
+  .sev.high{background:var(--red-dim);color:var(--red)} .sev.med{background:var(--amber-dim);color:var(--amber)} .sev.low{background:var(--bg-input);color:var(--text-dim)}
+  .ometa{font-size:11.5px;color:var(--text-dim);margin-top:3px}
+  .onote{font-size:11.5px;color:var(--text-secondary);margin-top:5px;line-height:1.45}
+  .oactions{display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end;max-width:200px}
+  .mini{font-size:11px;padding:5px 10px;border-radius:7px;border:1px solid var(--border);background:transparent;color:var(--text-secondary);cursor:pointer;font-family:inherit;transition:.12s;white-space:nowrap}
+  .mini:hover{border-color:var(--gold);color:var(--gold)}
+  .mini.done{background:var(--green-dim);border-color:rgba(70,192,138,.4);color:var(--green)}
+  .od-status{font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;margin-top:6px;font-weight:600}
+  .st-overdue{color:var(--red)} .st-due_soon{color:var(--amber)} .st-todo{color:var(--text-dim)} .st-done{color:var(--green)} .st-na{color:var(--text-dim)}
+
+  /* draft modal */
+  .ovl{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;z-index:50;padding:20px}
+  .ovl.open{display:flex}
+  .modal{background:var(--bg-card);border:1px solid var(--border);border-radius:16px;max-width:680px;width:100%;max-height:86vh;overflow:auto}
+  .modal-head{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--border-soft);position:sticky;top:0;background:var(--bg-card)}
+  .modal-head h3{font-size:14px;font-weight:600;letter-spacing:.5px}
+  .modal-body{padding:18px 20px}
+  .modal-body pre{white-space:pre-wrap;font-family:'Helvetica Neue',inter,sans-serif;font-size:13px;color:var(--text-secondary);line-height:1.6;background:var(--bg-input);border:1px solid var(--border-soft);border-radius:10px;padding:16px}
+  .modal-foot{display:flex;gap:10px;justify-content:flex-end;padding:14px 20px;border-top:1px solid var(--border-soft)}
+  .empty{padding:30px 18px;text-align:center;color:var(--text-dim);font-size:13px}
+  .err{background:var(--red-dim);border:1px solid rgba(224,85,107,.4);color:var(--red);padding:12px 16px;border-radius:10px;font-size:13px;margin-bottom:18px}
+  .legal{margin-top:24px;font-size:11px;color:var(--text-dim);line-height:1.6;border-top:1px solid var(--border-soft);padding-top:14px}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <a class="brand" href="/portal"><span class="dot"></span>BOOM <small>COMPLIANCE OS</small></a>
+  <div class="top-actions">
+    <button class="ghost-btn" onclick="location.href='/underwriting'">Underwriting</button>
+    <button class="ghost-btn" id="signout" hidden onclick="auth.signOut()">Esci</button>
+  </div>
+</header>
+
+<div id="gate">
+  <div class="g-card">
+    <div class="spinner" id="gate-spin"></div>
+    <h2 id="gate-title">Verifico l'accesso…</h2>
+    <p id="gate-msg">Solo gli amministratori BOOM possono vedere la compliance.</p>
+    <button class="gold-btn" id="gate-btn" hidden></button>
+  </div>
+</div>
+
+<div class="wrap" id="app" hidden>
+  <h1 class="page">Compliance <b>OS</b></h1>
+  <p class="page-sub">Ogni contratto, ogni adempimento, ogni scadenza — in un solo posto. <span id="asof"></span></p>
+  <div id="errbox"></div>
+
+  <div class="kpis">
+    <div class="kpi"><div class="k">Contratti monitorati</div><div class="v" id="k-contracts">—</div></div>
+    <div class="kpi"><div class="k">A rischio</div><div class="v red" id="k-risk">—</div></div>
+    <div class="kpi"><div class="k">Adempimenti in ritardo</div><div class="v red" id="k-overdue">—</div></div>
+    <div class="kpi"><div class="k">In scadenza (≤14gg)</div><div class="v amber" id="k-soon">—</div></div>
+    <div class="kpi"><div class="k">Aperti totali</div><div class="v gold" id="k-open">—</div></div>
+  </div>
+
+  <div class="filters" id="filters">
+    <div class="pill on" data-f="all" onclick="setFilter('all')">Tutti</div>
+    <div class="pill" data-f="risk" onclick="setFilter('risk')">A rischio</div>
+    <div class="pill" data-f="soon" onclick="setFilter('soon')">In scadenza</div>
+    <div class="pill" data-f="ok" onclick="setFilter('ok')">In regola</div>
+  </div>
+
+  <div id="list"><div class="empty">Carico…</div></div>
+
+  <div class="legal" id="legal"></div>
+</div>
+
+<div class="ovl" id="ovl" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-head"><h3 id="m-title">Bozza</h3><button class="ghost-btn" onclick="closeModal()">✕</button></div>
+    <div class="modal-body"><pre id="m-body"></pre></div>
+    <div class="modal-foot">
+      <button class="ghost-btn" onclick="copyDraft()">📋 Copia testo</button>
+      <button class="gold-btn" onclick="closeModal()">Chiudi</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ---- Firebase init + admin gate (mirror of cockpit) ---- */
+const firebaseConfig = {
+  apiKey:"AIzaSyDDb8UeSc8RhO_VxQrhLrupu1aPD4rwRso", authDomain:"boom-property-dashboards.firebaseapp.com",
+  projectId:"boom-property-dashboards", storageBucket:"boom-property-dashboards.firebasestorage.app",
+  messagingSenderId:"937269017440", appId:"1:937269017440:web:41c1a0b1e1633c2f373c05"
+};
+firebase.initializeApp(firebaseConfig);
+const auth=firebase.auth(); const db=firebase.firestore();
+const C = window.BOOM_COMPLIANCE;
+
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmtDate=d=>d?new Date(d).toLocaleDateString('it-IT',{day:'2-digit',month:'short',year:'numeric'}):'—';
+
+function gateMsg(t,m,bl,bf){$('gate-spin').hidden=true;$('gate-title').textContent=t;$('gate-msg').innerHTML=m;if(bl){const b=$('gate-btn');b.hidden=false;b.textContent=bl;b.onclick=bf;}}
+function enterApp(){$('gate').hidden=true;$('app').hidden=false;$('signout').hidden=false;loadAndRender();}
+let wd=setTimeout(()=>gateMsg('Connessione lenta','Non riesco a verificare la sessione.','Riprova',()=>location.reload()),9000);
+auth.onAuthStateChanged(async user=>{
+  clearTimeout(wd);
+  if(!user||user.isAnonymous){gateMsg('Accesso riservato','Accedi al Portal come amministratore.','Accedi',()=>location.href='/login?next=%2Fcompliance');return;}
+  try{
+    const doc=await db.collection('users').doc(user.uid).get();
+    const role=doc.exists?(doc.data().role||''):'';
+    if(role==='admin')enterApp();
+    else gateMsg('Accesso riservato agli admin',esc(user.email)+' ha ruolo "'+esc(role||'nessuno')+'".','Esci',()=>auth.signOut());
+  }catch(e){gateMsg('Errore',esc(e.message),'Riprova',()=>location.reload());}
+});
+
+/* ---- state ---- */
+let DATA = { contracts:[], usersById:{}, propsById:{}, stateById:{} };
+let MODELS = [];           // [{contract, items, doneMap, roll, name, meta, light}]
+let FILTER = 'all';
+
+async function loadAndRender(){
+  try{
+    const [cs,us,ps,st] = await Promise.all([
+      db.collection('contracts').limit(500).get().catch(()=>({docs:[]})),
+      db.collection('users').limit(1000).get().catch(()=>({docs:[]})),
+      db.collection('properties').limit(500).get().catch(()=>({docs:[]})),
+      db.collection('complianceState').limit(500).get().catch(()=>({docs:[]})),
+    ]);
+    DATA.contracts = cs.docs.map(d=>({id:d.id,...d.data()}));
+    us.docs.forEach(d=>DATA.usersById[d.id]={id:d.id,...d.data()});
+    ps.docs.forEach(d=>DATA.propsById[d.id]={id:d.id,...d.data()});
+    st.docs.forEach(d=>DATA.stateById[d.id]=(d.data()||{}).items||{});
+  }catch(e){ $('errbox').innerHTML='<div class="err">Errore lettura dati: '+esc(e.message)+'</div>'; }
+
+  $('asof').textContent='· '+new Date().toLocaleString('it-IT');
+  buildModels();
+  renderKPIs();
+  renderList();
+  // Deep-link: /compliance?contract=<id> opens that contract's passport directly
+  const want = new URLSearchParams(location.search).get('contract');
+  if(want){
+    const idx = MODELS.findIndex(m=>m.c.id===want);
+    if(idx>=0){ FILTER='all'; document.querySelectorAll('#filters .pill').forEach(p=>p.classList.toggle('on',p.dataset.f==='all')); renderList(); togglePassport(idx); const el=$('pp-'+idx); if(el) el.scrollIntoView({behavior:'smooth',block:'center'}); }
+  }
+  $('legal').innerHTML='⚠️ <b>Nota</b>: gli adempimenti, gli importi e le scadenze qui mostrati seguono lo schema standard della locazione residenziale italiana e vanno confermati col tuo CAF / commercialista. Le bozze generate sono modelli da verificare prima dell\'invio. Le regole sono versionate in <code>/js/compliance-rules.js</code>.';
+}
+
+const ACTIVE = c => { const s=String(c.status||'').toLowerCase(); return s===''||s.includes('attiv')||s.includes('active')||s.includes('firmat')||s.includes('signed')||s.includes('draft'); };
+
+function buildModels(){
+  const today=new Date();
+  MODELS = DATA.contracts.filter(ACTIVE).map(c=>{
+    const tenant = DATA.usersById[c.tenantId||c.tenant||c.tenantUid] || {};
+    const landlord = DATA.usersById[c.landlordId||c.landlord||c.ownerId] || {};
+    const prop = DATA.propsById[c.propertyId||c.property] || {};
+    const items = C.obligationsFor(c, { tenant, today });
+    const doneMap = DATA.stateById[c.id] || {};
+    const roll = C.rollup(items, doneMap, today);
+    const name = (prop.name||prop.address||c.propertyName||c.propertyAddress||'Contratto '+c.id.slice(0,5));
+    const light = roll.counts.overdue>0 ? 'red' : roll.counts.due_soon>0 ? 'amber' : 'green';
+    const meta = (c.type||'—')+' · '+(tenant.name||c.tenantName||'inquilino n/d');
+    return { c, items, doneMap, roll, name, meta, light, tenant, landlord, prop };
+  });
+  // worst first
+  const rank={red:0,amber:1,green:2};
+  MODELS.sort((a,b)=> rank[a.light]-rank[b.light] || b.roll.counts.overdue-a.roll.counts.overdue);
+}
+
+function renderKPIs(){
+  let overdue=0,soon=0,open=0,risk=0;
+  MODELS.forEach(m=>{ overdue+=m.roll.counts.overdue; soon+=m.roll.counts.due_soon; open+=m.roll.open; if(m.roll.counts.overdue>0)risk++; });
+  $('k-contracts').textContent=MODELS.length;
+  $('k-risk').textContent=risk;
+  $('k-overdue').textContent=overdue;
+  $('k-soon').textContent=soon;
+  $('k-open').textContent=open;
+}
+
+function setFilter(f){ FILTER=f; document.querySelectorAll('#filters .pill').forEach(p=>p.classList.toggle('on',p.dataset.f===f)); renderList(); }
+
+function visible(m){
+  if(FILTER==='all')return true;
+  if(FILTER==='risk')return m.roll.counts.overdue>0;
+  if(FILTER==='soon')return m.roll.counts.due_soon>0;
+  if(FILTER==='ok')return m.roll.counts.overdue===0 && m.roll.counts.due_soon===0;
+  return true;
+}
+
+function renderList(){
+  const wrap=$('list');
+  const list=MODELS.filter(visible);
+  if(!list.length){ wrap.innerHTML='<div class="empty">Nessun contratto in questa vista.</div>'; return; }
+  wrap.innerHTML='';
+  list.forEach((m)=>{
+    const idx=MODELS.indexOf(m);
+    const card=document.createElement('div'); card.className='ccard';
+    const od=m.roll.counts.overdue, ds=m.roll.counts.due_soon;
+    card.innerHTML =
+      '<div class="crow">'+
+        '<span class="stoplight sl-'+m.light+'"></span>'+
+        '<div class="main"><div class="name">'+esc(m.name)+'</div>'+
+        '<div class="meta"><span class="type-badge">'+esc(m.c.type||'—')+'</span>'+esc(m.tenant.name||m.c.tenantName||'inquilino n/d')+'</div></div>'+
+        '<div class="right"><div class="prog">'+
+          (od?'<span class="od">'+od+' in ritardo</span> · ':'')+
+          (ds?'<span class="open-n">'+ds+' in scadenza</span> · ':'')+
+          (m.roll.open)+'/'+m.roll.total+' aperti</div>'+
+          '<div class="nd">prossima: '+fmtDate(m.roll.nextDue)+'</div></div>'+
+      '</div>'+
+      '<div class="passport" id="pp-'+idx+'"></div>';
+    card.querySelector('.crow').onclick=()=>togglePassport(idx);
+    wrap.appendChild(card);
+  });
+}
+
+function togglePassport(idx){
+  const el=$('pp-'+idx);
+  if(el.classList.contains('open')){ el.classList.remove('open'); el.innerHTML=''; return; }
+  document.querySelectorAll('.passport.open').forEach(p=>{p.classList.remove('open');p.innerHTML='';});
+  el.classList.add('open');
+  el.innerHTML = renderPassport(MODELS[idx], idx);
+}
+
+function renderPassport(m, idx){
+  const today=new Date();
+  return m.items.map((it,i)=>{
+    const st=C.statusOf(it, m.doneMap, today);
+    const ownerLabel={admin:'BOOM',landlord:'Proprietario',tenant:'Inquilino'}[it.owner]||it.owner;
+    const stLabel={overdue:'In ritardo',due_soon:'In scadenza',todo:'Da fare',done:'Fatto',na:'N/A'}[st];
+    const canDoc = !!it.docType && it.docType!=='ape' && it.docType!=='rli';
+    const doneBtnLabel = (st==='done')?'✓ Fatto':'Segna fatto';
+    return '<div class="oitem">'+
+      '<span class="odot od-'+st+'"></span>'+
+      '<div class="oinfo">'+
+        '<div class="olabel">'+esc(it.label)+'<span class="sev '+it.severity+'">'+it.severity+'</span></div>'+
+        '<div class="ometa">'+ownerLabel+' · scadenza '+fmtDate(it.dueDate)+(it.recurring?' · ricorrente':'')+'</div>'+
+        (it.note?'<div class="onote">'+esc(it.note)+'</div>':'')+
+        '<div class="od-status st-'+st+'">'+stLabel+'</div>'+
+      '</div>'+
+      '<div class="oactions">'+
+        (canDoc?'<button class="mini" onclick="genDoc('+idx+',\''+it.code+'\')">Bozza</button>':'')+
+        '<button class="mini '+(st==='done'?'done':'')+'" onclick="toggleDone('+idx+',\''+it.code+'\',\'done\')">'+doneBtnLabel+'</button>'+
+        '<button class="mini" onclick="toggleDone('+idx+',\''+it.code+'\',\'na\')">N/A</button>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+}
+
+async function toggleDone(idx, code, status){
+  const m=MODELS[idx];
+  const cur=m.doneMap[code];
+  const next = (cur && cur.status===status) ? null : { status, at:new Date().toISOString() };
+  if(next) m.doneMap[code]=next; else delete m.doneMap[code];
+  // persist (merge); store null to clear
+  try{
+    await db.collection('complianceState').doc(m.c.id).set(
+      { items: { [code]: next || firebase.firestore.FieldValue.delete() }, updatedAt: firebase.firestore.FieldValue.serverTimestamp() },
+      { merge:true }
+    );
+  }catch(e){ /* keep optimistic UI even if write fails */ }
+  m.roll = C.rollup(m.items, m.doneMap, new Date());
+  m.light = m.roll.counts.overdue>0?'red':m.roll.counts.due_soon>0?'amber':'green';
+  renderKPIs();
+  $('pp-'+idx).innerHTML = renderPassport(m, idx);
+  // refresh stoplight + progress on the row without full re-render
+  renderList(); $('pp-'+idx)&&$('pp-'+idx).classList.add('open');
+  const el=$('pp-'+idx); if(el){ el.classList.add('open'); el.innerHTML=renderPassport(m,idx); }
+}
+
+/* ---- draft generator ---- */
+let CURRENT_DRAFT='';
+function genDoc(idx, code){
+  const m=MODELS[idx];
+  const d=draftFor(code, m);
+  $('m-title').textContent=d.title;
+  $('m-body').textContent=d.body;
+  CURRENT_DRAFT=d.body;
+  $('ovl').classList.add('open');
+}
+function closeModal(){ $('ovl').classList.remove('open'); }
+function copyDraft(){ navigator.clipboard?.writeText(CURRENT_DRAFT).then(()=>{ const b=event.target; const t=b.textContent; b.textContent='✓ Copiato'; setTimeout(()=>b.textContent=t,1500); }); }
+
+function draftFor(code, m){
+  const c=m.c, ll=m.landlord, t=m.tenant, p=m.prop;
+  const addr = p.address||p.name||c.propertyAddress||'____________';
+  const rent = c.rent||c.rentAmount||(c.canone&&c.canone.monthly)||'____';
+  const start = fmtDate(c.startDate||(c.durata&&c.durata.startDate));
+  const end = fmtDate(c.endDate||(c.durata&&c.durata.endDate));
+  const llName=ll.name||'____________', tName=t.name||'____________';
+  const today=new Date().toLocaleDateString('it-IT');
+  const cedRate = (c.cedolareSecca==='21')?'21%':'10%';
+
+  switch(code){
+    case 'lettera-cedolare': return { title:'Raccomandata — opzione cedolare secca', body:
+`Roma, ${today}
+
+Gentile ${tName},
+
+con la presente, in qualità di locatore dell'immobile sito in ${addr},
+Le comunico di avermi avvalso della facoltà di optare per il regime della
+cedolare secca (aliquota ${cedRate}) sul contratto di locazione con decorrenza ${start}.
+
+Ai sensi della normativa vigente, per la durata dell'opzione rinuncio alla
+facoltà di richiedere l'aggiornamento del canone, anche se previsto in contratto,
+ivi incluso l'adeguamento ISTAT.
+
+Distinti saluti,
+${llName} (locatore)` };
+
+    case 'asseverazione': return { title:'Richiesta asseverazione canone concordato', body:
+`Spett.le Organizzazione firmataria / CAF,
+
+con la presente si richiede l'attestazione di rispondenza del contratto di
+locazione ai contenuti dell'Accordo Territoriale del Comune di Roma.
+
+Dati del contratto:
+• Immobile: ${addr}
+• Tipo: ${c.type||'canone concordato'}
+• Locatore: ${llName}
+• Conduttore: ${tName}
+• Canone mensile: € ${rent}
+• Durata: ${start} → ${end}
+• Cedolare secca: ${cedRate}
+
+Si allega copia del contratto, della visura catastale e dell'APE.
+In attesa di riscontro, si porgono distinti saluti.
+
+${llName}` };
+
+    case 'cessione-fabbricato': return { title:'Comunicazione ospitalità / cessione di fabbricato', body:
+`Alla Questura / Autorità di P.S. competente
+
+Il sottoscritto ${llName}, in qualità di locatore, ai sensi della normativa
+vigente DICHIARA di aver concesso in locazione l'immobile sito in ${addr}
+al cittadino straniero ${tName}${t.idDocType?(', documento '+t.idDocType+(t.idDocNumber?' n. '+t.idDocNumber:'')):''},
+con decorrenza ${start}.
+
+La presente vale come comunicazione di ospitalità / cessione di fabbricato.
+
+Roma, ${today}
+${llName}` };
+
+    case 'disdetta': return { title:'Disdetta / diniego di rinnovo', body:
+`Roma, ${today}
+Raccomandata A/R
+
+Gentile ${tName},
+
+con riferimento al contratto di locazione dell'immobile sito in ${addr}
+(decorrenza ${start}, scadenza ${end}), comunico la disdetta / il diniego di
+rinnovo alla scadenza, nel rispetto dei termini di preavviso previsti.
+
+[Indicare l'eventuale motivazione richiesta dalla legge per il tipo di contratto.]
+
+Distinti saluti,
+${llName} (locatore)` };
+
+    case 'verbale': return { title:'Verbale di riconsegna', body:
+`VERBALE DI RICONSEGNA IMMOBILE
+
+Immobile: ${addr}
+Locatore: ${llName}   Conduttore: ${tName}
+Data riconsegna: ${today}
+
+Stato dei locali: ____________________________________________
+Letture utenze (luce/gas/acqua): _____________________________
+Chiavi riconsegnate: n. ____
+Eventuali trattenute sul deposito (€ ${c.deposit||'____'}): ___________________
+
+Firma locatore __________________   Firma conduttore __________________` };
+
+    default: return { title:'Bozza', body:'Modello non disponibile per questo adempimento.' };
+  }
+}
+</script>
+</body>
+</html>
