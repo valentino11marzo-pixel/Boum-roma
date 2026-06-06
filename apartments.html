@@ -1562,6 +1562,7 @@
       rebuildHistogram();
       renderLeasedStrip();
     }
+    let LOAD_RETRY = 0, LOAD_TIMER = null;
     async function loadListings() {
       // Instant paint from this session's cache (stale-while-revalidate).
       let painted = false;
@@ -1570,22 +1571,46 @@
         if (Array.isArray(cached) && cached.length) { STATE.raw = cached; firstBoot(); painted = true; }
       } catch {}
       if (!painted) renderSkeleton(8);
-      try {
-        const snap = await db.collection('listings').get();
-        STATE.raw = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        try { sessionStorage.setItem(CACHE_KEY, JSON.stringify(STATE.raw)); } catch {}
+
+      const accept = (arr) => {
+        STATE.raw = arr;
+        try { sessionStorage.setItem(CACHE_KEY, JSON.stringify(arr)); } catch {}
         if (painted) { recompute(); applyAndRender(); }   // refresh in place, no flash
         else firstBoot();
+        LOAD_RETRY = 0; clearTimeout(LOAD_TIMER);
+      };
+
+      // 1) Live read straight from Firestore — fast path, real-time.
+      try {
+        const snap = await db.collection('listings').get();
+        return accept(snap.docs.map(d => ({ id: d.id, ...d.data() })));
       } catch (err) {
-        console.error('listings:', err);
-        if (!painted) {
-          $('#aptGrid').innerHTML = '';
-          $('#aptEmpty').hidden = false;
-          $('#aptEmpty').querySelector('h3').textContent = 'Connection error';
-          $('#aptEmpty').querySelector('p').textContent = 'Could not load apartments. Please refresh.';
-          $('#aptCount').textContent = 'Error';
-        }
+        console.warn('listings: direct read failed, trying proxy →', (err && err.code) || err);
       }
+
+      // 2) Server-side proxy — keeps the catalog alive even if the browser's
+      //    direct read is denied (rules tightened / test-mode expired).
+      try {
+        const r = await fetch('/api/listings', { cache: 'no-store' });
+        const j = await r.json();
+        if (j && j.ok && Array.isArray(j.listings) && j.listings.length) return accept(j.listings);
+        throw new Error('proxy returned no listings');
+      } catch (err2) {
+        console.error('listings: proxy fallback failed', err2);
+      }
+
+      // 3) Both paths failed. If a cached view is already on screen, keep it.
+      //    Otherwise show a calm "reconnecting" state and retry with backoff —
+      //    never a dead "Error".
+      if (painted) return;
+      LOAD_RETRY = Math.min(LOAD_RETRY + 1, 6);
+      $('#aptGrid').innerHTML = '';
+      $('#aptEmpty').hidden = false;
+      $('#aptEmpty').querySelector('h3').textContent = 'Reconnecting…';
+      $('#aptEmpty').querySelector('p').textContent = 'Fetching the latest apartments — this only takes a moment.';
+      $('#aptCount').textContent = 'Reconnecting…';
+      clearTimeout(LOAD_TIMER);
+      LOAD_TIMER = setTimeout(loadListings, Math.min(1500 * 2 ** (LOAD_RETRY - 1), 15000));
     }
 
     function updatePulse() {

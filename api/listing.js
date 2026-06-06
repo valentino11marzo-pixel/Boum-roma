@@ -143,6 +143,38 @@ function injectSeo(html, d, id) {
   return html;
 }
 
+// Admin sign-in → ID token, so we can still read when public rules are denied.
+async function adminToken() {
+  const email = process.env.FIREBASE_ADMIN_EMAIL;
+  const password = process.env.FIREBASE_ADMIN_PASS;
+  if (!email || !password) return null;
+  try {
+    const r = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${API_KEY}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, returnSecureToken: true }),
+    });
+    const d = await r.json();
+    return d.idToken || null;
+  } catch { return null; }
+}
+
+// Read one listing: unauthenticated first (fast), admin-authenticated on 403.
+async function readListing(id) {
+  const url = `https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents/listings/${encodeURIComponent(id)}?key=${API_KEY}`;
+  let r = await fetch(url);
+  if (r.status === 403) {
+    const token = await adminToken();
+    if (token) r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  }
+  if (!r.ok) return null;
+  const doc = await r.json();
+  const f = doc.fields || {};
+  const d = {};
+  for (const k in f) d[k] = fv(f[k]);
+  return d;
+}
+
 export default async function handler(req, res) {
   const id = ((req.query && req.query.id) || '').toString().trim();
   const html = readTemplate();
@@ -157,15 +189,8 @@ export default async function handler(req, res) {
   let out = html;
   try {
     if (id) {
-      const url = `https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents/listings/${encodeURIComponent(id)}?key=${API_KEY}`;
-      const r = await fetch(url);
-      if (r.ok) {
-        const doc = await r.json();
-        const f = doc.fields || {};
-        const d = {};
-        for (const k in f) d[k] = fv(f[k]);
-        out = injectSeo(html, d, id);
-      }
+      const d = await readListing(id);
+      if (d) out = injectSeo(html, d, id);
     }
   } catch {
     out = html; // serve the plain template on any error
