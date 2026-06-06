@@ -10137,8 +10137,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const ro = d._readonly;
             // Nome JS-safe per i parametri inline (apostrofi tipo "d'Incarico").
             const jsName = (d.name || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-            const openAction = d.fileUrl ? `window.open('${d.fileUrl}','_blank')` : (ro ? `goTo('contracts')` : `editDocModal('${d.id}')`);
-            return `<div class="list-item clickable doc-item" data-type="${d.type || 'other'}" data-source="${d.source || 'upload'}" data-shared="${d.shared}" data-search="${esc(search)}" onclick="${openAction}" style="padding:14px 16px">
+            return `<div class="list-item clickable doc-item" data-type="${d.type || 'other'}" data-source="${d.source || 'upload'}" data-shared="${d.shared}" data-search="${esc(search)}" onclick="viewArchiveDoc('${d.id}')" style="padding:14px 16px">
                 <div class="list-icon" style="background:var(--gold-light)">${docIcon(d.type)}</div>
                 <div class="list-content" style="flex:1;min-width:0">
                     <div class="list-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
@@ -10221,6 +10220,99 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const filter = active?.dataset.filter || 'all';
         filterDocs(filter, active);
     }
+    // Scheda-documento dell'Archivio: metadati, sigillo, record collegati,
+    // visibilità e azioni. Accetta sia un id `documents` reale sia uno sintetico
+    // 'contract:<id>' per i contratti registrati mostrati read-only.
+    function viewArchiveDoc(id) {
+        let d, c = null;
+        if (String(id).startsWith('contract:')) {
+            c = (S.contracts || []).find(x => x.id === id.slice(9));
+            if (!c) return toast('error', 'Contratto non trovato');
+            const prop = S.properties.find(p => p.id === c.propertyId);
+            const ten = S.users.find(u => u.id === c.tenantId);
+            d = {
+                id, _readonly: true, name: `Contratto ${c.type || ''} — ${prop?.name || ten?.name || c.id}`.trim(),
+                type: 'contract', source: 'contract', category: 'locazione', lang: 'IT',
+                refCode: (c.id || '').slice(0, 8).toUpperCase(), hash: c.pdfHash, fileUrl: c.generatedPDF,
+                fileSize: (c.pdfSizeKB || 0) * 1024, userId: c.tenantId, landlordId: c.landlordId,
+                propertyId: c.propertyId, createdAt: c.pdfGeneratedAt || c.createdAt, shared: false
+            };
+        } else {
+            d = (S.documents || []).find(x => x.id === id);
+            if (!d) return toast('error', 'Documento non trovato');
+        }
+        const u = S.users.find(x => x.id === d.userId);
+        const tenant = S.users.find(x => x.id === d.tenantId);
+        const landlord = S.users.find(x => x.id === d.landlordId);
+        const client = (S.clients || []).find(x => x.id === d.clientId);
+        const prop = S.properties.find(x => x.id === d.propertyId);
+        const srcLabel = d.source === 'generated' ? '✨ Generato dal sistema' : d.source === 'contract' ? '📋 Contratto registrato' : '📤 Caricato manualmente';
+        const sizeKB = d.fileSize ? (d.fileSize / 1024).toFixed(0) + ' KB' : '';
+        const meta = (k, v) => v ? `<div style="display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text-muted);font-size:12px">${k}</span><span style="font-size:12px;text-align:right">${v}</span></div>` : '';
+        const chip = (icon, label, onclick) => `<button class="btn btn-xs btn-secondary" onclick="${onclick}" style="margin:2px">${icon} ${esc(label)}</button>`;
+        const links = [
+            tenant ? chip('👤', tenant.name, `closeModal();goTo('person','${tenant.id}')`) : '',
+            landlord ? chip('🏠', landlord.name, `closeModal();goTo('person','${landlord.id}')`) : '',
+            (!tenant && !landlord && u) ? chip(u.role === 'landlord' ? '🏠' : '👤', u.name, `closeModal();goTo('person','${u.id}')`) : '',
+            client ? chip('💼', client.name, `closeModal();goTo('clienti')`) : '',
+            prop ? chip('🏠', prop.name, `closeModal();goTo('properties')`) : '',
+            c ? chip('📋', 'Apri contratto', `closeModal();goTo('contracts')`) : ''
+        ].filter(Boolean).join('') || '<span style="color:var(--text-muted);font-size:12px">Nessun record collegato</span>';
+        const visibility = [
+            'Admin BOOM',
+            (d.userId && u) ? `${esc(u.name)} (portale)` : '',
+            (d.shared && prop) ? `Tutti gli utenti di ${esc(prop.name)}` : ''
+        ].filter(Boolean).join(' · ');
+        const jsName = (d.name || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        document.getElementById('modals').innerHTML = `<div class="modal-overlay active"><div class="modal">
+            <div class="modal-header"><h3 class="modal-title" style="font-size:15px">${esc(d.name)}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+            <div class="modal-body">
+                <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">
+                    <span class="badge ${d.source === 'generated' ? 'gold' : d.source === 'contract' ? 'blue' : 'gray'}">${srcLabel}</span>
+                    ${d.lang ? `<span class="badge gray">${esc(d.lang)}</span>` : ''}
+                    ${d.shared ? '<span class="badge blue">🔗 Condiviso</span>' : ''}
+                </div>
+                <div style="background:var(--bg);padding:14px;border-radius:8px;margin-bottom:14px">
+                    <h4 style="margin:0 0 8px;color:var(--gold);font-size:12px">📋 DETTAGLI</h4>
+                    ${meta('Tipo', d.type)}
+                    ${meta('Categoria', d.category)}
+                    ${meta('Codice Rif', d.refCode ? '#' + esc(d.refCode) : '')}
+                    ${meta('Versione', d.version)}
+                    ${meta('Dimensione', sizeKB)}
+                    ${meta('Data', fmtDate(d.createdAt))}
+                    ${meta('Sigillo (hash)', d.hash ? `<code style="font-size:11px">${esc(d.hash)}</code>` : '')}
+                </div>
+                <div style="background:var(--bg);padding:14px;border-radius:8px;margin-bottom:14px">
+                    <h4 style="margin:0 0 8px;color:var(--gold);font-size:12px">🔗 RECORD COLLEGATI</h4>
+                    <div>${links}</div>
+                </div>
+                <div style="background:var(--bg);padding:14px;border-radius:8px">
+                    <h4 style="margin:0 0 8px;color:var(--gold);font-size:12px">👁 VISIBILITÀ</h4>
+                    <div style="font-size:12px;color:var(--text-secondary)">${visibility}</div>
+                </div>
+            </div>
+            <div class="modal-footer" style="flex-wrap:wrap;gap:6px">
+                ${d.fileUrl ? `<button class="btn btn-secondary btn-sm" onclick="window.open('${d.fileUrl}','_blank')">📥 Apri PDF</button>` : ''}
+                ${!d._readonly ? `<button class="btn btn-secondary btn-sm" onclick="toggleDocShared('${d.id}')">${d.shared ? '🔒 Non condividere' : '🔗 Condividi'}</button>` : ''}
+                ${!d._readonly ? `<button class="btn btn-secondary btn-sm" onclick="editDocModal('${d.id}')">✏️ Modifica</button>` : ''}
+                ${!d._readonly ? `<button class="btn btn-danger btn-sm" onclick="confirmDelete('document','${d.id}','${jsName}')">🗑 Elimina</button>` : ''}
+                <button class="btn btn-sm" onclick="closeModal()">Chiudi</button>
+            </div>
+        </div></div>`;
+    }
+
+    async function toggleDocShared(id) {
+        const d = (S.documents || []).find(x => x.id === id);
+        if (!d) return;
+        try {
+            await db.collection('documents').doc(id).update({ shared: !d.shared });
+            d.shared = !d.shared;
+            toast('success', d.shared ? 'Documento condiviso' : 'Condivisione rimossa');
+            viewArchiveDoc(id);
+            if (S.page === 'documents') { const c = document.getElementById('docsContainer'); if (c) renderPage(); }
+        } catch (err) { toast('error', 'Errore', err.message); }
+    }
+
     function exportDocumentsCSV() {
         let csv = 'Nome,Tipo,Provenienza,Rif,Lingua,Persona,Ruolo,Immobile,Condiviso,Data\n';
         S.documents.forEach(d => {
@@ -18063,7 +18155,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const aud = resolveDocAudience(type, data);
         const subject = data.clientName || data.tenantName || data.landlordName || data.payerName || '';
         const name = subject ? `${title} — ${subject}` : title;
-        const path = `documents/archive/${type}/${ref}.pdf`;
+        // Percorso allineato a quello degli upload esistenti (documents/<owner>/...),
+        // così rientra nelle Storage rules già attive senza modifiche in console.
+        const ownerSeg = aud.userId || 'admin';
+        const path = `documents/${ownerSeg}/archive/${type}_${ref}.pdf`;
         const putRes = await storage.ref(path).put(blob, { contentType: 'application/pdf' });
         const fileUrl = await putRes.ref.getDownloadURL();
         const hash = await generateDocHash(`${ref}|${type}|${subject}|${blob.size}`);
