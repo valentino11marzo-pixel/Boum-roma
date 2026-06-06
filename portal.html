@@ -11242,13 +11242,36 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
     async function photoStudioPersist(prop, photos, heroUrl) {
         const clean = photos.map((p, i) => ({ url: p.url, path: p.path || '', order: i }));
+        const hero = heroUrl || (clean[0] && clean[0].url) || '';
         await db.collection('properties').doc(prop.id).update({
             photos: clean,
-            heroPhoto: heroUrl || (clean[0] && clean[0].url) || '',
+            heroPhoto: hero,
             photosUpdatedAt: firebase.firestore.FieldValue.serverTimestamp(),
         });
         prop.photos = clean;
-        prop.heroPhoto = heroUrl || (clean[0] && clean[0].url) || '';
+        prop.heroPhoto = hero;
+        // Mirror onto the matching public listing so the photos actually appear
+        // on boomrome.com/apartment-detail.html (which reads `images` + `coverImage`
+        // from the `listings` collection, not from `properties`). Find the listing
+        // by explicit prop.listingId or by matching listings.propertyId == prop.id.
+        try {
+            const imageUrls = clean.map(c => c.url).filter(Boolean);
+            let listingId = prop.listingId || null;
+            if (!listingId) {
+                const found = (S.listings || []).find(l => l.propertyId === prop.id || l.id === prop.id);
+                if (found) listingId = found.id;
+            }
+            if (listingId && imageUrls.length) {
+                await db.collection('listings').doc(listingId).update({
+                    images: imageUrls,
+                    coverImage: hero || imageUrls[0],
+                    image: hero || imageUrls[0],
+                    photosUpdatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                });
+                const live = (S.listings || []).find(l => l.id === listingId);
+                if (live) { live.images = imageUrls; live.coverImage = hero || imageUrls[0]; live.image = hero || imageUrls[0]; }
+            }
+        } catch (e) { console.warn('[PhotoStudio] listing mirror failed:', e.message); }
         logActivity('Foto immobile aggiornate', 'property', { propertyId: prop.id, count: clean.length });
     }
 
