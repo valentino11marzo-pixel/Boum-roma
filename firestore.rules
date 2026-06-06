@@ -225,6 +225,14 @@ service cloud.firestore {
       allow update, delete: if isAdmin() || (isLandlord() && resource.data.ownerId == uid());
     }
 
+    // ─── PUBLIC CATALOG ───────────────────────────────────────────────
+    // The public website reads these UNAUTHENTICATED (apartments grid,
+    // /listing/:id, neighborhood hubs, homepage video). Read stays open;
+    // writes are admin-only. Locking read here is what took /apartments
+    // down with PERMISSION_DENIED — keep it public.
+    match /listings/{x}  { allow read: if true; allow write: if isAdmin(); }
+    match /settings/{x}  { allow read: if true; allow write: if isAdmin(); }
+
     // ─── Admin-only operational collections ───────────────────────────
     match /leads/{x}                      { allow read, write: if isAdmin(); }
     match /pfsClients/{x}                  { allow read, write: if isAdmin(); }
@@ -238,8 +246,6 @@ service cloud.firestore {
     match /ruleExecutions/{x}              { allow read, write: if isAdmin(); }
     match /deadlines/{x}                   { allow read, write: if isAdmin(); }
     match /tasks/{x}                       { allow read, write: if isAdmin(); }
-    match /listings/{x}                    { allow read, write: if isAdmin(); }
-    match /settings/{x}                    { allow read, write: if isAdmin(); }
     match /radarSearches/{x}               { allow read, write: if isAdmin(); }
     match /preProperties/{x}               { allow read, write: if isAdmin(); }
     match /ziShortlists/{x}                { allow read, write: if isAdmin(); }

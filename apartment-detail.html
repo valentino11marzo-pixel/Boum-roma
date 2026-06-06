@@ -947,8 +947,31 @@
     });
 
     async function loadApartment(id){
-        try{const doc=await db.collection('listings').doc(id).get();if(!doc.exists){showError();return}renderApartment(doc.data(),id)}
-        catch(e){console.error('Error:',e);showError()}
+        // 1) Live read from Firestore (fast path).
+        try{
+          const doc=await db.collection('listings').doc(id).get();
+          if(doc.exists){ renderApartment(doc.data(),id); return; }
+          showError(); return;                 // genuinely missing → Not Found
+        }catch(e){
+          console.warn('detail: direct read failed, trying proxy →',(e&&e.code)||e);
+        }
+        // 2) Server-side proxy — survives denied client reads (rules locked to admins).
+        try{
+          const r=await fetch('/api/listings?id='+encodeURIComponent(id),{cache:'no-store'});
+          const j=await r.json();
+          if(j&&j.ok&&j.listing){ renderApartment(j.listing,id); return; }
+        }catch(e2){ console.error('detail: proxy fallback failed',e2); }
+        showError();
+    }
+
+    // Shared resilient fetch of the whole catalog (direct → proxy), memoized so
+    // the zone footer never looks broken when client reads fail.
+    let _allListings=null;
+    async function getAllListings(){
+      if(_allListings) return _allListings;
+      try{ const snap=await db.collection('listings').get(); _allListings=snap.docs.map(d=>({id:d.id,...d.data()})); return _allListings; }catch(_){}
+      try{ const r=await fetch('/api/listings',{cache:'no-store'}); const j=await r.json(); if(j&&j.ok&&Array.isArray(j.listings)){ _allListings=j.listings; return _allListings; } }catch(_){}
+      return _allListings||[];
     }
 
     function showError(){document.getElementById('pageLoading').style.display='none';document.getElementById('pageError').style.display='flex'}
@@ -960,12 +983,11 @@
       const el = document.getElementById('zoneFooter');
       if(!el || !zoneLabel) return;
       try{
-        const snap = await db.collection('listings').get();
+        const all = await getAllListings();
         const terms = (window.BOOM && BOOM.allNeighborhoods)
           ? (BOOM.allNeighborhoods().find(n=>n.slug===slug) || {}).terms
           : null;
-        const inZone = snap.docs
-          .map(d=>({id:d.id, ...d.data()}))
+        const inZone = all
           .filter(l=>{
             const s=(l.status||l.availabilityStatus||'').toLowerCase();
             if(s==='rented'||s==='affittato'||s==='off_market') return false;
