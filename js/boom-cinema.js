@@ -54,11 +54,12 @@
     if (R) return; var i = 0;
     sels.forEach(function (s) {
       var el = $(s); if (!el || el.offsetParent === null) return;
+      // Editorial touch: the title settles from wide tracking to its set value.
+      var kf = (s === '.apt-name')
+        ? [{ opacity: 0, transform: 'translateY(24px)', filter: 'blur(8px)', letterSpacing: '12px' }, { opacity: 1, transform: 'none', filter: 'blur(0)', letterSpacing: '-1px' }]
+        : [{ opacity: 0, transform: 'translateY(24px)', filter: 'blur(6px)' }, { opacity: 1, transform: 'none', filter: 'blur(0)' }];
       try {
-        el.animate(
-          [{ opacity: 0, transform: 'translateY(24px)', filter: 'blur(6px)' }, { opacity: 1, transform: 'none', filter: 'blur(0)' }],
-          { duration: 850, delay: i * 80, easing: 'cubic-bezier(.16,1,.3,1)', fill: 'both' }
-        );
+        el.animate(kf, { duration: (s === '.apt-name' ? 1150 : 850), delay: i * 80, easing: 'cubic-bezier(.16,1,.3,1)', fill: 'both' });
       } catch (e) {}
       i++;
     });
@@ -96,16 +97,27 @@
     }
   }
 
-  /* Hero cursor spotlight (detail carousel) */
+  /* Hero: cursor spotlight + subtle 3D tilt (detail carousel) */
   function heroSpotlight() {
     if (R || !FINE) return; var c = $('#carousel'); if (!c) return;
+    var raf = null, e0 = null;
     c.addEventListener('mousemove', function (e) {
-      var r = c.getBoundingClientRect();
-      c.style.setProperty('--mx', ((e.clientX - r.left) / r.width * 100).toFixed(1) + '%');
-      c.style.setProperty('--my', ((e.clientY - r.top) / r.height * 100).toFixed(1) + '%');
-      c.classList.add('cine-spot');
+      e0 = e; if (raf) return;
+      raf = requestAnimationFrame(function () {
+        raf = null; var r = c.getBoundingClientRect();
+        var px = (e0.clientX - r.left) / r.width, py = (e0.clientY - r.top) / r.height;
+        c.style.setProperty('--mx', (px * 100).toFixed(1) + '%');
+        c.style.setProperty('--my', (py * 100).toFixed(1) + '%');
+        c.style.transition = 'none';
+        c.style.transform = 'perspective(1200px) rotateX(' + (-(py - .5) * 2.6).toFixed(2) + 'deg) rotateY(' + ((px - .5) * 3.2).toFixed(2) + 'deg)';
+        c.classList.add('cine-spot');
+      });
     });
-    c.addEventListener('mouseleave', function () { c.classList.remove('cine-spot'); });
+    c.addEventListener('mouseleave', function () {
+      c.classList.remove('cine-spot');
+      c.style.transition = 'transform .5s var(--cine-ease)';
+      c.style.transform = '';
+    });
   }
 
   /* Carousel "Play tour" — auto-advances using the page's global next() */
