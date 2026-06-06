@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Documenti condivisi — BOOM</title>
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="theme-color" content="#08080A">
+    <link rel="icon" href="/favicon.ico">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        *,*::before,*::after { margin:0; padding:0; box-sizing:border-box; }
+        :root{
+            --gold:#D4AF37; --gold-light:rgba(212,175,55,0.15);
+            --bg:#08080A; --surface:#0E0E10; --elevated:#15151A;
+            --border:rgba(255,255,255,0.08); --text:#FAFAFA;
+            --text-2:rgba(255,255,255,0.6); --text-3:rgba(255,255,255,0.35);
+            --green:#00D26A;
+        }
+        body{ font-family:'Inter',-apple-system,sans-serif; background:var(--bg); color:var(--text);
+            font-weight:300; min-height:100vh; -webkit-font-smoothing:antialiased; }
+        .wrap{ max-width:920px; margin:0 auto; padding:40px 24px 80px; }
+
+        .loading,.error{ min-height:60vh; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; text-align:center; }
+        .spinner{ width:44px; height:44px; border:3px solid var(--border); border-top-color:var(--gold); border-radius:50%; animation:spin .8s linear infinite; }
+        @keyframes spin{ to{ transform:rotate(360deg); } }
+        .error-icon{ font-size:56px; }
+        .error h2{ font-weight:400; }
+        .error p{ color:var(--text-2); font-size:14px; max-width:380px; }
+
+        header.brand{ display:flex; align-items:center; gap:12px; margin-bottom:8px; }
+        .logo-dot{ width:34px; height:34px; border-radius:50%; background:linear-gradient(135deg,var(--gold),#B8960C); box-shadow:0 0 26px var(--gold-light); }
+        .logo-txt{ font-size:20px; letter-spacing:5px; font-weight:300; }
+
+        .hero{ border-bottom:1px solid var(--border); padding-bottom:24px; margin-bottom:28px; }
+        .hero h1{ font-size:26px; font-weight:400; letter-spacing:-0.3px; margin:18px 0 6px; }
+        .hero .sub{ color:var(--text-2); font-size:14px; }
+        .meta-row{ display:flex; gap:8px; flex-wrap:wrap; margin-top:16px; }
+        .chip{ font-size:11px; letter-spacing:0.5px; padding:6px 12px; border-radius:100px; background:var(--elevated); border:1px solid var(--border); color:var(--text-2); }
+        .chip.gold{ background:var(--gold-light); border-color:rgba(212,175,55,0.3); color:var(--gold); }
+
+        .actions{ display:flex; gap:10px; margin:24px 0; flex-wrap:wrap; }
+        .btn{ padding:12px 22px; border-radius:10px; font-family:inherit; font-size:13px; font-weight:500;
+            letter-spacing:0.3px; cursor:pointer; border:none; transition:all .15s; text-decoration:none; display:inline-flex; align-items:center; gap:8px; }
+        .btn-gold{ background:var(--gold); color:#000; }
+        .btn-gold:hover{ box-shadow:0 0 24px var(--gold-light); }
+        .btn-ghost{ background:var(--elevated); color:var(--text); border:1px solid var(--border); }
+        .btn-ghost:hover{ border-color:var(--gold); color:var(--gold); }
+
+        .folder{ margin-bottom:14px; border:1px solid var(--border); border-radius:14px; overflow:hidden; background:var(--surface); }
+        .folder-head{ padding:14px 18px; display:flex; align-items:center; gap:10px; font-size:12px; letter-spacing:1.5px; text-transform:uppercase; color:var(--text-2); border-bottom:1px solid var(--border); }
+        .folder-count{ margin-left:auto; font-size:11px; color:var(--text-3); }
+        .doc{ display:flex; align-items:center; gap:14px; padding:14px 18px; border-bottom:1px solid var(--border); }
+        .doc:last-child{ border-bottom:none; }
+        .doc-icon{ width:38px; height:38px; border-radius:9px; background:var(--gold-light); display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; }
+        .doc-info{ flex:1; min-width:0; }
+        .doc-name{ font-weight:500; font-size:14px; }
+        .doc-sub{ font-size:11px; color:var(--text-3); margin-top:2px; }
+        .doc-dl{ padding:8px 14px; border-radius:8px; background:var(--elevated); border:1px solid var(--border); color:var(--text); font-size:12px; cursor:pointer; text-decoration:none; transition:all .15s; }
+        .doc-dl:hover{ border-color:var(--gold); color:var(--gold); }
+
+        .watermark{ position:fixed; bottom:14px; right:16px; font-size:10px; color:var(--text-3); letter-spacing:1px; pointer-events:none; }
+        .footnote{ margin-top:30px; font-size:11px; color:var(--text-3); line-height:1.7; border-top:1px solid var(--border); padding-top:18px; }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <div class="loading" id="loading"><div class="spinner"></div><div style="color:var(--text-3);font-size:12px;letter-spacing:2px;text-transform:uppercase">Caricamento documenti</div></div>
+        <div class="error" id="error" style="display:none">
+            <div class="error-icon" id="errorIcon">🔗</div>
+            <h2 id="errorTitle">Link non valido</h2>
+            <p id="errorMsg">Questo link non è valido o è scaduto. Contatta il proprietario per un nuovo link.</p>
+        </div>
+        <div id="content" style="display:none">
+            <header class="brand"><div class="logo-dot"></div><div class="logo-txt">BOOM</div></header>
+            <div class="hero">
+                <h1 id="title">Documenti per il commercialista</h1>
+                <div class="sub" id="subtitle"></div>
+                <div class="meta-row" id="metaRow"></div>
+            </div>
+            <div class="actions">
+                <button class="btn btn-gold" onclick="downloadAll()">⬇ Scarica tutti</button>
+            </div>
+            <div id="folders"></div>
+            <div class="footnote" id="footnote"></div>
+        </div>
+    </div>
+    <div class="watermark" id="watermark"></div>
+
+    <script>
+        // Folder mapping mirrors the TaxPack manifest categories.
+        var FOLDERS = [
+            { key:'contract',          label:'01 · Contratto',          icon:'📋', match:['contract','rli_registration','cedolare','rli','registration'] },
+            { key:'income',            label:'02 · Incassi',            icon:'🧾', match:['receipt','income'] },
+            { key:'expense',           label:'03 · Spese detraibili',   icon:'🔧', match:['invoice','expense','maintenance'] },
+            { key:'tax',               label:'04 · Imposte',            icon:'🏛️', match:['f24','imu','tax'] },
+            { key:'adjustment',        label:'05 · Adeguamenti',        icon:'📈', match:['istat','adjustment'] },
+            { key:'property',          label:'06 · Immobile',           icon:'🏠', match:['ape','visura','property'] },
+            { key:'identity',          label:'07 · Anagrafiche',        icon:'🪪', match:['id_document','id','identity','cessione'] },
+            { key:'shortlet',          label:'08 · Brevi locazioni',    icon:'🛎️', match:['cin','imposta_soggiorno','shortlet'] },
+            { key:'other',             label:'09 · Altri documenti',    icon:'📄', match:[] },
+        ];
+        var DATA = null;
+
+        function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+
+        function folderFor(doc){
+            var hay = [doc.category, doc.type].filter(Boolean).join(' ').toLowerCase();
+            for (var i=0;i<FOLDERS.length-1;i++){
+                if (FOLDERS[i].match.some(function(m){ return hay.indexOf(m)>=0; })) return FOLDERS[i].key;
+            }
+            return 'other';
+        }
+
+        async function init(){
+            var token = new URLSearchParams(location.search).get('t');
+            if (!token){ showError('🔗','Link non valido','Manca il codice di accesso nel link.'); return; }
+            try{
+                var r = await fetch('/api/share/lookup', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ token:token }) });
+                var data = await r.json();
+                if (!r.ok || !data.ok){
+                    if (data.error==='expired') showError('⏳','Link scaduto','Questo link è scaduto. Chiedi al proprietario di rigenerarlo.');
+                    else if (data.error==='revoked') showError('🚫','Link revocato','L\'accesso a questi documenti è stato revocato.');
+                    else showError('🔗','Link non valido','Questo link non è valido. Contatta il proprietario.');
+                    return;
+                }
+                DATA = data;
+                render(data);
+            }catch(e){ showError('⚠️','Errore','Impossibile caricare i documenti. Riprova tra poco.'); }
+        }
+
+        function showError(icon,title,msg){
+            document.getElementById('loading').style.display='none';
+            document.getElementById('error').style.display='flex';
+            document.getElementById('errorIcon').textContent=icon;
+            document.getElementById('errorTitle').textContent=title;
+            document.getElementById('errorMsg').textContent=msg;
+        }
+
+        function render(data){
+            document.getElementById('loading').style.display='none';
+            document.getElementById('content').style.display='block';
+
+            var propName = data.property ? (data.property.name || data.property.address || '') : '';
+            document.getElementById('subtitle').textContent =
+                (propName ? propName + ' · ' : '') + (data.fiscalYear ? 'Anno fiscale ' + data.fiscalYear : 'Documenti fiscali');
+
+            var meta = [];
+            if (data.recipientName) meta.push('<span class="chip gold">Per: '+esc(data.recipientName)+'</span>');
+            meta.push('<span class="chip">'+data.documents.length+' documenti</span>');
+            if (data.fiscalYear) meta.push('<span class="chip">'+data.fiscalYear+'</span>');
+            document.getElementById('metaRow').innerHTML = meta.join('');
+
+            // Group docs into folders
+            var groups = {};
+            data.documents.forEach(function(d){ var f=folderFor(d); (groups[f]=groups[f]||[]).push(d); });
+
+            var html = '';
+            FOLDERS.forEach(function(F){
+                var docs = groups[F.key]; if (!docs || !docs.length) return;
+                html += '<div class="folder"><div class="folder-head">'+F.icon+' '+esc(F.label)+'<span class="folder-count">'+docs.length+'</span></div>';
+                docs.forEach(function(d){
+                    html += '<div class="doc"><div class="doc-icon">'+F.icon+'</div>'+
+                        '<div class="doc-info"><div class="doc-name">'+esc(d.name)+'</div>'+
+                        '<div class="doc-sub">'+esc(d.fileName||d.type||'')+(d.fiscalYear?(' · '+d.fiscalYear):'')+'</div></div>'+
+                        (d.fileUrl ? '<a class="doc-dl" href="'+esc(d.fileUrl)+'" target="_blank" rel="noopener">Apri ↗</a>' : '<span class="doc-sub">file mancante</span>')+
+                        '</div>';
+                });
+                html += '</div>';
+            });
+            document.getElementById('folders').innerHTML = html || '<p style="color:var(--text-3)">Nessun documento disponibile.</p>';
+
+            if (data.note) document.getElementById('footnote').textContent = data.note;
+            else document.getElementById('footnote').textContent = 'Documenti condivisi tramite BOOM. Accesso tracciato e a tempo. Per assistenza: info@boom-rome.com';
+
+            document.getElementById('watermark').textContent = data.watermark || '';
+        }
+
+        function downloadAll(){
+            if (!DATA) return;
+            DATA.documents.forEach(function(d,i){
+                if (!d.fileUrl) return;
+                setTimeout(function(){ window.open(d.fileUrl,'_blank','noopener'); }, i*350);
+            });
+        }
+
+        init();
+    </script>
+</body>
+</html>

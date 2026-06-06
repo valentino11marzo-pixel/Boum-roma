@@ -9,3 +9,10 @@ npm-debug.log*
 *.swo
 *~
 .vercel
+
+# Rules test deps + local rules copy
+tests/rules/node_modules/
+tests/rules/firestore.rules
+tests/rules/package-lock.json
+tests/rules/firebase-debug.log
+tests/rules/*.log

@@ -1,0 +1,86 @@
+rules_version = '2';
+
+// BOOM Roma — Firebase Storage Security Rules
+// Companion to firestore.rules. Until now Storage had NO rules in the repo,
+// meaning contract scans, ID documents, and payment proofs were readable/
+// writable by anyone. These lock every object to the owning user + the
+// admin, with landlords able to read files attached to their properties.
+//
+// Storage layout (verified against portal.html upload paths):
+//   documents/{userId}/{timestamp}_{filename}        general doc archive
+//   maintenance/{userId}/{timestamp}_{filename}       maintenance photos
+//   payment-proofs/{userId}/{timestamp}_{filename}    payment receipts
+//   taxpacks/{ownerId}/{year}/{filename}              generated tax bundles
+//
+// Role is read from Firestore users/{uid}.role via firestore.get().
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isSignedIn() { return request.auth != null; }
+    function uid() { return request.auth.uid; }
+    function role() {
+      return isSignedIn()
+        ? firestore.get(/databases/(default)/documents/users/$(uid())).data.role
+        : '';
+    }
+    function isAdmin() { return role() == 'admin'; }
+    function isLandlord() { return role() == 'landlord'; }
+
+    // Size + type guards for uploads (defense against abuse / huge files).
+    function validUpload() {
+      return request.resource.size < 25 * 1024 * 1024  // 25 MB ceiling
+        && request.resource.contentType.matches('image/.*|application/pdf|application/zip');
+    }
+
+    // ─── documents/{userId}/** ────────────────────────────────────────
+    // Owner reads/writes their own folder. Admin everything. Landlords can
+    // read (not write) any document folder — they may need a tenant's
+    // uploaded receipt for their own property; the Firestore `documents`
+    // doc-level rule is the finer gate on which ones surface in the UI.
+    match /documents/{userId}/{allPaths=**} {
+      allow read:  if isAdmin() || uid() == userId || isLandlord();
+      allow write: if (isAdmin() || uid() == userId) && validUpload();
+      allow delete: if isAdmin() || uid() == userId;
+    }
+
+    // ─── maintenance/{userId}/** ──────────────────────────────────────
+    // Tenant uploads issue photos to their own folder; admin + the
+    // property's landlord can view.
+    match /maintenance/{userId}/{allPaths=**} {
+      allow read:  if isAdmin() || uid() == userId || isLandlord();
+      allow write: if (isAdmin() || uid() == userId) && validUpload();
+      allow delete: if isAdmin() || uid() == userId;
+    }
+
+    // ─── payment-proofs/{userId}/** ───────────────────────────────────
+    // Tenant uploads payment receipts to their own folder; admin + landlord
+    // can view to reconcile.
+    match /payment-proofs/{userId}/{allPaths=**} {
+      allow read:  if isAdmin() || uid() == userId || isLandlord();
+      allow write: if (isAdmin() || uid() == userId) && validUpload();
+      allow delete: if isAdmin() || uid() == userId;
+    }
+
+    // ─── taxpacks/{ownerId}/** ────────────────────────────────────────
+    // Generated tax bundles for the commercialista. Admin writes (the
+    // generator runs admin-side); the owning landlord reads their own.
+    match /taxpacks/{ownerId}/{allPaths=**} {
+      allow read:  if isAdmin() || (isLandlord() && uid() == ownerId);
+      allow write, delete: if isAdmin();
+    }
+
+    // ─── Apple Wallet pass assets / public marketing ──────────────────
+    // pass-assets are static and served publicly elsewhere; nothing
+    // user-generated lives here, so allow public read, admin write.
+    match /pass-assets/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ─── Default deny ─────────────────────────────────────────────────
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

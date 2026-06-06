@@ -32,6 +32,9 @@
     <!-- Chart.js loaded lazily by loadChartJS() on first dashboard visit -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+    <script src="/js/taxpack-engine.js"></script>
+    <script src="/js/fiscal-engine.js"></script>
     <!-- PDF.js — renders uploaded PDFs to canvas so Magic Sign Custom can place fields on them. Loaded lazily by ensurePdfJs() on first use. -->
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
     <style>
@@ -66,6 +69,7 @@
         .btn-success{background:var(--green);color:#fff}
         .btn-sm{padding:10px 16px;font-size:13px}
         .btn-xs{padding:6px 12px;font-size:11px}
+        .btn-lg{padding:16px 32px;font-size:15px;font-weight:600}
         .btn-block{width:100%}
         .btn-icon{width:36px;height:36px;padding:0;border-radius:8px;font-size:14px}
         .app{display:none;min-height:100vh}.app.active{display:block}
@@ -1329,6 +1333,29 @@
     const auth = firebase.auth();
     const db = firebase.firestore();
     const storage = firebase.storage();
+
+    // Create a Firebase Auth account WITHOUT disturbing the current admin
+    // session. createUserWithEmailAndPassword on the primary app auto-signs-in
+    // the new user (which is why the old code had to prompt the admin for
+    // their password to sign back in). A throwaway secondary app keeps the
+    // admin logged in and never exposes their password.
+    async function createAuthUserDetached(email, password) {
+        const SECONDARY = 'boom-user-provisioning';
+        let secondaryApp;
+        try {
+            secondaryApp = firebase.app(SECONDARY);
+        } catch (_) {
+            secondaryApp = firebase.initializeApp(firebaseConfig, SECONDARY);
+        }
+        try {
+            const cred = await secondaryApp.auth().createUserWithEmailAndPassword(email, password);
+            const uid = cred.user.uid;
+            await secondaryApp.auth().signOut();
+            return uid;
+        } finally {
+            try { await secondaryApp.delete(); } catch (_) {}
+        }
+    }
     
     // Enable offline persistence
     db.enablePersistence({ synchronizeTabs: true }).catch(err => {
@@ -2173,37 +2200,41 @@ Valentyne - BOOM Rome`
         isMagicSign = true;
         (async function initMagicSign() {
             try {
-                try { await auth.signInAnonymously(); } catch (anonErr) {
-                    console.error('Anonymous auth failed:', anonErr);
-                    const ms = document.getElementById('magicSign');
-                    document.getElementById('loading').classList.add('hidden');
-                    ms.classList.remove('hidden'); ms.style.display = 'flex';
-                    ms.innerHTML = '<div style="text-align:center;max-width:420px"><div style="font-size:48px;margin-bottom:16px">⚙️</div><h2 style="color:var(--text);margin-bottom:8px">Setup Required</h2><p style="color:var(--text-muted);font-size:14px;line-height:1.6">Contact your agent at <a href="mailto:' + COMPANY.email + '" style="color:var(--gold)">' + COMPANY.email + '</a></p><div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;margin-top:16px;font-size:11px;color:var(--text-muted);text-align:left;font-family:monospace">Admin: Enable Anonymous auth in Firebase Console</div></div>';
-                    return;
-                }
-                var snap = await db.collection('contracts').where('tenantSignToken', '==', magicSignToken).limit(1).get();
-                var signRole = 'tenant';
-                if (snap.empty) { snap = await db.collection('contracts').where('landlordSignToken', '==', magicSignToken).limit(1).get(); signRole = 'landlord'; }
-                
+                // Anonymous sign-in is no longer required — /api/magic-sign/lookup
+                // and /submit authorize by the single-use token. Kept as a soft
+                // attempt only so the post-sign flow elsewhere on the page still
+                // has its Firebase session if anon auth is enabled.
+                try { await auth.signInAnonymously(); } catch (anonErr) { console.warn('[magic-sign] anon auth unavailable (non-fatal):', anonErr && anonErr.message); }
+                // Look up contract via server endpoint. Firestore rules deny
+                // anonymous reads of contracts/properties/users; the lookup
+                // endpoint authorizes by the single-use signing token and
+                // returns a sanitized {contract, property, signer, otherParty}
+                // bundle in one round-trip.
+                var lookupResp = await fetch('/api/magic-sign/lookup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token: magicSignToken }),
+                });
                 var msEl = document.getElementById('magicSign');
                 document.getElementById('loading').classList.add('hidden');
                 msEl.classList.remove('hidden'); msEl.style.display = 'flex';
-                
-                if (snap.empty) { msEl.innerHTML = '<div style="text-align:center;max-width:400px"><div style="font-size:48px;margin-bottom:16px">🔗</div><h2 style="color:var(--text);margin-bottom:8px">Link non valido</h2><p style="color:var(--text-muted);font-size:14px">Questo link non è valido o è già stato usato.</p><a href="mailto:' + COMPANY.email + '" class="btn" style="margin-top:20px;display:inline-block">Contatta BOOM</a></div>'; return; }
-                
-                var contractDoc = snap.docs[0];
-                var contract = Object.assign({ id: contractDoc.id }, contractDoc.data());
-                var alreadySigned = (signRole === 'tenant' && contract.tenantSignature) || (signRole === 'landlord' && contract.landlordSignature);
-                if (alreadySigned) { msEl.innerHTML = '<div style="text-align:center;max-width:420px;font-family:Helvetica Neue,Helvetica,-apple-system,sans-serif;font-weight:300;padding-top:40px"><img src="data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDI0IDEwMjQiIHdpZHRoPSIxMDI0IiBoZWlnaHQ9IjEwMjQiPgogIDxkZWZzPgogICAgPGxpbmVhckdyYWRpZW50IGlkPSJnb2xkR3JhZGllbnQiIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMCUiIHkyPSIxMDAlIj4KICAgICAgPHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iI0ZGRDU0RiIvPgogICAgICA8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiNGNUE2MjMiLz4KICAgIDwvbGluZWFyR3JhZGllbnQ+CiAgPC9kZWZzPgogIDxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDAsMTAyNCkgc2NhbGUoMC4xLC0wLjEpIiBmaWxsPSJ1cmwoI2dvbGRHcmFkaWVudCkiPgogICAgPHBhdGggZD0iTTQ4NjAgODc0OSBjLTUwOSAtMjkgLTk3NiAtMTYxIC0xNDEzIC00MDEgLTU4MCAtMzE3IC0xMDU3IC04MDYgLTEzNTAgLTEzODMgLTE0OCAtMjkyIC0yMjkgLTUzMiAtMjkxIC04NTkgLTg5IC00NjUgLTY5IC0xMDA1IDU0IC0xNDYxIDE4NCAtNjg4IDYxNiAtMTMwOCAxMjMyIC0xNzY5IDQ5MiAtMzY4IDExNzIgLTYwOSAxNzk0IC02MzUgNTQ2IC0yMiA5ODcgNTcgMTQ4OSAyNjcgNTAzIDIxMSA5NzkgNTg5IDEzMjcgMTA1MyAzNDAgNDUzIDU1NyA5OTQgNjMwIDE1NjkgMTcgMTM1IDE3IDYzMCAwIDc2MCAtOTMgNzE2IC0zOTYgMTM0MSAtOTAwIDE4NjEgLTI4MCAyODkgLTU2OSA0OTggLTkyMiA2NjcgLTQxNiAyMDAgLTgxMyAzMDMgLTEyODUgMzMyIC0xNjUgMTAgLTE3MCAxMCAtMzY1IC0xeiBtNjEwIC0xNDQgYzc0MyAtMTAzIDE0MzYgLTQ1OSAxOTE5IC05ODUgMzM4IC0zNjcgNTYyIC03NTEgNzA0IC0xMjA1IDI3NiAtODc5IDEzMiAtMTg1OCAtMzg4IC0yNjQwIC0yNDIgLTM2NCAtNDkzIC02MTUgLTkwMCAtOTAwIGwtNzAgLTQ5IDEwOSAxMDQgYzQxMyAzOTYgNjc5IDkxOSA3NjcgMTUwNSAzMyAyMTcgMzMgNTU4IDAgNzY1IC03NSA0NzYgLTI1NyA4OTYgLTU0OSAxMjY1IC0xMjcgMTYxIC0zNjMgMzgwIC01NDkgNTExIC0zMDAgMjExIC02ODkgMzYzIC0xMDc5IDQyMCAtMTcyIDI2IC02MDQgMjYgLTc2NCAwIC0yOTYgLTQ3IC01NDUgLTEyOCAtODA4IC0yNjIgLTIzNiAtMTIyIC00NDAgLTI3MSAtNjMyIC00NjQgLTQ4NiAtNDg1IC03NDkgLTExMjEgLTc1MSAtMTgxNSAtMSAtNjExIDE3MCAtMTE0OCA1MTUgLTE2MDggMTAwIC0xMzQgMjg2IC0zMzUgMzgyIC00MTMgMzMgLTI3IC04IC0yIC05MSA1NSAtNTEzIDM1MSAtOTA0IDgwNSAtMTE0MyAxMzMxIC03MSAxNTYgLTEzNiAzMzYgLTE2OCA0NjUgLTkgMzMgLTE5IDc2IC0yNCA5NSAtNSAxOSAtMjAgMTAwIC0zNCAxODAgLTU5IDM0MyAtNjAgNzQwIDAgMTA3MCA4MSA0NTYgMjI5IDgyNiA0NzkgMTIwMCAyNDYgMzY4IDU1OCA2NjkgOTQ5IDkxNyAzODYgMjQ1IDg4MSA0MTggMTMyMSA0NjIgNjEgNiAxMjQgMTMgMTQwIDE1IDczIDEwIDU1NiAtNCA2NjUgLTE5eiBtLTYwIC0xMzI5IGMxMDUgLTE2IDI1OCAtNDkgMzM1IC03MiA4MiAtMjYgMTk3IC02NiAyNDAgLTg0IDE0OSAtNjUgMTkwIC04NCAyNjYgLTEyNiA2NzcgLTM3OSAxMTI5IC0xMDQ5IDEyNDYgLTE4NDkgMjcgLTE4MiAyNCAtNTE3IC01IC02OTUgLTc1IC00NTggLTIyNSAtODEzIC01MDAgLTExNzkgLTExNiAtMTU0IC0zNDAgLTM2OSAtNTI3IC01MDYgLTQ0IC0zMiAtODcgLTYzIC05NSAtNjkgLTggLTYgMzUgMzkgOTYgOTkgMTc4IDE3NyAyODMgMzIxIDM5NyA1NTAgMTYxIDMyMiAyMzEgNjc2IDIwNSAxMDQ1IC0zMiA0NjcgLTIyMyA5MDIgLTU0MiAxMjM3IC0yMzkgMjUxIC01MjEgNDI2IC04NzMgNTQyIC03OSAyNiAtMjczIDY3IC0zODMgODEgLTEwOCAxMyAtMzQ5IDEzIC00NjUgMCAtMjc2IC0zMiAtNTk3IC0xNDUgLTgzNCAtMjkzIC0yMjQgLTE0MCAtNDY2IC0zNzggLTYxMyAtNjAyIC0zMDcgLTQ3MCAtNDA3IC0xMDU1IC0yNzMgLTE1OTkgODAgLTMyNyAyMTcgLTU4OSA0NTQgLTg3MSA3MSAtODQgNzMgLTg4IDMxIC01NiAtMjkzIDIyNSAtNTQ3IDUzNSAtNzE4IDg3NyAtMzQgNjggLTY1IDE0MyAtMTIyIDI5NCAtNDIgMTEyIC0xMDEgMzgzIC0xMjAgNTU1IC0xNCAxMjcgLTE0IDQwMSAwIDUzNCA1MSA0ODIgMjIzIDkxMiA1MTYgMTI4OCAyNjkgMzQ0IDY1NCA2MjAgMTA4NSA3NzggMTYwIDU5IDQwMCAxMTUgNTc0IDEzNCAxMjEgMTMgNTA4IDUgNjI1IC0xM3ogbS0zMCAtMTE2NSBjNDAxIC04MSA3MjEgLTI0MiA5OTIgLTQ5OSA2NDMgLTYxMiA3NjkgLTE2MDcgMzAwIC0yMzY3IC0xMTggLTE5MCAtMjkxIC0zODYgLTQ2MyAtNTI0IC0xMzcgLTExMSAtMTQ4IC0xMTMgLTQ5IC0xMiAxMTAgMTEyIDIwNiAyNDggMjc1IDM4NiA2NyAxMzcgOTggMjIyIDEzMiAzNjcgMjQgMTAzIDI2IDEzMiAyNyAzMjMgMCAxODIgLTMgMjI0IC0yMiAzMTAgLTQ3IDIxMSAtMTI2IDM5NCAtMjQ1IDU2OSAtMTI2IDE4NiAtMzU4IDM4NyAtNTY0IDQ5MCAtMzg0IDE5MSAtODIzIDIyNSAtMTIxOCA5NSAtNDgyIC0xNjAgLTg1NCAtNTQxIC0xMDA0IC0xMDI5IC0xMTcgLTM3OSAtODEgLTgxMCA5NiAtMTE2NSAzNyAtNzIgMTMwIC0yMTUgMTY2IC0yNTIgMTcgLTE4IDI2IC0zMyAyMCAtMzMgLTYgMCAtNjEgNTIgLTEyMSAxMTYgLTI1OSAyNzIgLTQyNCA1NzUgLTUxMSA5MzQgLTExMSA0NTkgLTE4IDEwMDYgMjQ1IDE0MzAgMjk4IDQ4MyA3OTEgNzk3IDEzNzkgODgwIDExMCAxNiA0NDggNCA1NjUgLTE5eiBtLTIzOSAtOTExIGMzNjAgLTI4IDY4MCAtMTcxIDkyNSAtNDE1IDE5NCAtMTkzIDMxNyAtNDE1IDM4MiAtNjg4IDI0IC0xMDIgMjYgLTEzMCAyNiAtMzEyIDAgLTE5MSAtMSAtMjA1IC0zMCAtMzIwIC01MyAtMjA1IC0xMzIgLTM3MiAtMjUxIC01MzUgLTU4IC03OSAtMjYzIC0yODggLTMyMyAtMzMwIC0zMSAtMjIgLTI5IC0xOCAxOCAzNSAxOTUgMjIwIDMxMiA1MTkgMzEyIDc5NSAwIDMyNSAtMTIxIDYxNCAtMzUwIDg0MSAtMzY5IDM2NCAtOTI2IDQ1MyAtMTM4NSAyMjIgLTMzNiAtMTcwIC01NzggLTQ5OSAtNjM2IC04NjUgLTE5IC0xMjYgLTcgLTM3MSAyNSAtNDkwIDQ0IC0xNjIgOTcgLTI4NCAxNzMgLTM5OCA5IC0xNCAtNCAtNSAtMzAgMjAgLTI2IDI0IC00NSA1MSAtNDIgNTggMiA3IDEgMTEgLTQgNyAtMTEgLTYgLTU4IDUxIC0xMTggMTQwIC0xMDkgMTYzIC0xODMgMzQ3IC0yMTkgNTQ1IC0yMyAxMjcgLTIzIDM1MSAtMSA0ODkgNTUgMzM1IDI0OCA2NzcgNDkyIDg3MSAyNjEgMjA4IDUzMCAzMTEgODgxIDMzOCAxMSAxIDgxIC0zIDE1NSAtOHogbTI5IC03MTQgYzQ1OSAtNzQgODIzIC00MjggODk1IC04NjkgNTggLTM1OCAtNjAgLTY5NiAtMzQ1IC05ODcgbC0zNCAtMzUgMjIgMzUgYzExNSAxODIgMTc5IDQwMyAxNjggNTc1IC0xNCAyMzUgLTEwNCA0MzMgLTI2OCA1OTEgLTEzNyAxMzQgLTI4NyAyMDkgLTQ3MiAyMzkgLTExNSAxOSAtMTg3IDE5IC0zMDMgMCAtMzM3IC01NSAtNjEyIC0zMDIgLTcwNCAtNjM1IC0zMiAtMTEzIC0zNCAtMzI1IC01IC00NDAgMjMgLTkyIDcwIC0yMTMgOTggLTI1NCBsMjEgLTMxIC0zMSAyOSBjLTM5IDM2IC0xMjAgMTUyIC0xNTUgMjIxIC0zNSA3MSAtODEgMjE1IC0xMDIgMzE5IC0yNSAxMzAgLTE3IDM1NyAxNyA0NzYgMTAyIDM1NCAzNTcgNjE4IDcwNiA3MzAgMTUyIDQ5IDMzMSA2MiA0OTIgMzZ6IG0tNzMgLTU2NyBjMTc4IC0yNCAzMjcgLTEwMSA0NTQgLTIzNiAxMzcgLTE0MyAxOTkgLTMwMyAyMDEgLTUxMyAxIC0xNjIgLTQyIC0zMDkgLTEzNSAtNDUzIC01MiAtODIgLTczIC05NyAtMzggLTI4IDUxIDk5IDY3IDI5MCAzNiA0MTIgLTU3IDIxOSAtMjUxIDQxMyAtNDY2IDQ2NCAtNzUgMTcgLTIzNiAyMCAtMzExIDQgLTIxMyAtNDQgLTQyMiAtMjQ3IC00NzMgLTQ2MCAtMzEgLTEzMyAtMTMgLTMyNSA0MSAtNDMxIDM1IC03MCA4IC00NyAtNTIgNDMgLTU4IDg4IC05MCAxNjcgLTExNCAyODYgLTI1IDEyMSAtMjUgMjIwIC0xIDMzMSAzMyAxNDYgODQgMjQzIDE4NiAzNTEgMTcxIDE4MyA0MTMgMjY2IDY3MiAyMzB6IG0xNSAtNDcwIGM4MCAtMTcgMTg2IC03NiAyNDggLTEzOSAxMDYgLTEwNyAxNTggLTI0OCAxNDcgLTM5OCAtNiAtOTIgLTI1IC0xNTIgLTc5IC0yNTAgLTQ1IC04MiAtNjAgLTkxIC0yNyAtMTcgMTggNDEgMjEgNjIgMTcgMTQ5IC00IDg5IC04IDEwOCAtMzUgMTYyIC00MyA4MiAtMTI2IDE2NSAtMjA5IDIwNSAtNTggMjkgLTgwIDM0IC0xNTggMzcgLTExMiA1IC0xODQgLTEyIC0yNTkgLTYyIC0xODIgLTEyMSAtMjUxIC0zMjMgLTE3MSAtNTA2IGwyNCAtNTUgLTI1IDMwIGMtMzYgNDQgLTkyIDE2MiAtMTA0IDIyMyAtMzkgMTg5IDE0IDM2OSAxNDYgNDkyIDEwNSA5OSAyMDQgMTM5IDM0NSAxMzkgNDggMSAxMTEgLTQgMTQwIC0xMHoiLz4KICA8L2c+Cjwvc3ZnPgo=" alt="BOOM" style="width:48px;height:48px;margin:0 auto 16px;display:block"><div style="font-size:24px;font-weight:300;color:var(--text);margin-bottom:8px">Already signed</div><p style="color:var(--text-muted);font-size:14px">' + (contract.signatureStatus === 'complete' ? 'Contract is active.' : 'Waiting for the other party.') + '</p></div>'; return; }
-                
-                var propDoc = await db.collection('properties').doc(contract.propertyId).get();
-                var property = propDoc.exists ? Object.assign({ id: propDoc.id }, propDoc.data()) : {};
-                var signerId = signRole === 'tenant' ? contract.tenantId : (property.ownerId || '');
-                var otherId = signRole === 'tenant' ? (property.ownerId || '') : contract.tenantId;
-                var signerDoc = signerId ? await db.collection('users').doc(signerId).get() : null;
-                var otherDoc = otherId ? await db.collection('users').doc(otherId).get() : null;
-                var signer = signerDoc && signerDoc.exists ? signerDoc.data() : {};
-                var otherParty = otherDoc && otherDoc.exists ? otherDoc.data() : {};
+
+                var lookupData;
+                try { lookupData = await lookupResp.json(); } catch (_) { lookupData = null; }
+                if (!lookupResp.ok || !lookupData || !lookupData.ok) {
+                    var why = (lookupData && lookupData.error) || 'invalid';
+                    if (why === 'already_signed') {
+                        msEl.innerHTML = '<div style="text-align:center;max-width:420px;padding-top:40px"><div style="font-size:48px;margin-bottom:16px">✓</div><div style="font-size:24px;font-weight:300;color:var(--text);margin-bottom:8px">Already signed</div><p style="color:var(--text-muted);font-size:14px">' + (lookupData.signatureStatus === 'complete' ? 'Contract is active.' : 'Waiting for the other party.') + '</p></div>';
+                    } else {
+                        msEl.innerHTML = '<div style="text-align:center;max-width:400px"><div style="font-size:48px;margin-bottom:16px">🔗</div><h2 style="color:var(--text);margin-bottom:8px">Link non valido</h2><p style="color:var(--text-muted);font-size:14px">Questo link non è valido o è già stato usato.</p><a href="mailto:' + COMPANY.email + '" class="btn" style="margin-top:20px;display:inline-block">Contatta BOOM</a></div>';
+                    }
+                    return;
+                }
+                var signRole = lookupData.role;
+                var contract = lookupData.contract;
+                var property = lookupData.property || {};
+                var signer = lookupData.signer || {};
+                var otherParty = lookupData.otherParty || {};
                 var durMonths = Math.round((new Date(contract.endDate) - new Date(contract.startDate)) / (1000*60*60*24*30));
                 
                 window.history.replaceState({}, '', window.location.pathname);
@@ -2602,128 +2633,83 @@ Valentyne - BOOM Rome`
             var sigData = window._magicPad ? window._magicPad.toDataURL() : null;
             if (!sigData || (window._magicPad && window._magicPad.isEmpty())) { btn.disabled = false; btn.textContent = 'Sign Contract'; return; }
             var now = new Date().toISOString();
-            // Capture real IP via our own /api/get-ip (best-effort, 4s timeout).
-            // Falls back to 'unknown' so a transient endpoint hiccup never
-            // blocks a signature.
             var signerIP = await fetchSignerIP();
-            // Structured consent: text + SHA-256 hash + accept timestamp.
             var consentHash = await generateDocHash(MS_CONSENT_TEXT);
-            var upd = { updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
-            // Save identity data from Step 2
             var idD = window._msIdData || {};
-            if (idD.phoneVerified) { upd[role + 'PhoneVerified'] = true; upd[role + 'PhoneVerifiedAt'] = idD.phoneVerifiedAt||''; upd[role + 'Phone'] = idD.phone||''; }
-            if (role === 'tenant') {
-                upd.tenantCF = idD.cf||''; upd.tenantAddress = idD.address||''; upd.tenantDob = idD.dob||''; upd.tenantPob = idD.pob||'';
-                upd.tenantDocType = idD.docType||''; upd.tenantDocNum = idD.docNum||''; upd.tenantNationality = idD.nationality||'';
-                if (msData?.signer?.name) upd.tenantName = msData.signer.name;
-            } else {
-                upd.landlordCF = idD.cf||''; upd.landlordAddress = idD.address||''; upd.landlordDob = idD.dob||''; upd.landlordPob = idD.pob||'';
-                upd.landlordDocType = idD.docType||''; upd.landlordDocNum = idD.docNum||''; upd.landlordNationality = idD.nationality||'';
-                if (msData?.signer?.name) upd.landlordName = msData.signer.name;
-            }
-            // Also update user profile
             var msData = window._msData;
-            if (msData && msData.signer) {
-                var uid = role === 'tenant' ? msData.contract.tenantId : (msData.property.ownerId||'');
-                if (uid) db.collection('users').doc(uid).update({cf:idD.cf,address:idD.address,dob:idD.dob,pob:idD.pob,docType:idD.docType,docNum:idD.docNum,nationality:idD.nationality}).catch(function(e){console.error('User save:',e);});
+
+            // Single server call. /api/magic-sign/submit performs every
+            // Firestore write under admin credentials (contract signature
+            // + identity sync + landlord profile + RLI deadline + lead
+            // closure + property status + listing sync + payment schedule
+            // + tenant user bootstrap). Anonymous Magic-Sign sessions are
+            // denied all those writes by firestore.rules, so they have
+            // to happen server-side.
+            var resp = await fetch('/api/magic-sign/submit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    token: token,
+                    signature: sigData,
+                    signerIP: signerIP,
+                    signerUA: navigator.userAgent,
+                    signerName: (msData && msData.signer && msData.signer.name) || idD.name || '',
+                    signerEmail: (msData && msData.signer && msData.signer.email) || idD.email || '',
+                    identity: {
+                        cf: idD.cf || '', address: idD.address || '',
+                        dob: idD.dob || '', pob: idD.pob || '',
+                        docType: idD.docType || '', docNum: idD.docNum || '',
+                        nationality: idD.nationality || '',
+                    },
+                    phone: {
+                        number: idD.phone || '',
+                        verified: !!idD.phoneVerified,
+                        verifiedAt: idD.phoneVerifiedAt || '',
+                    },
+                    consent: { text: MS_CONSENT_TEXT, hash: consentHash, at: now },
+                }),
+            });
+            var result;
+            try { result = await resp.json(); } catch (_) { result = null; }
+            if (!resp.ok || !result || !result.ok) {
+                throw new Error((result && result.error) || ('submit_failed_' + resp.status));
             }
-            // Persist landlord identity to landlords collection
-            if (role === 'landlord' && msData && msData.property) {
-                var llId = msData.property.ownerId || '';
-                if (llId) db.collection('landlords').doc(llId).set({codiceFiscale:idD.cf||'',birthDate:idD.dob||'',birthPlace:idD.pob||'',address:idD.address||'',idDocType:idD.docType||'',idDocNumber:idD.docNum||''},{merge:true}).catch(function(e){console.error('Landlord save:',e);});
-            }
-            if (role === 'tenant') {
-                upd.tenantSignature = sigData; upd.tenantSignedAt = now;
-                upd.tenantSignedIP = signerIP; upd.tenantSignedUA = navigator.userAgent.substring(0, 200);
-                upd.tenantConsentText = MS_CONSENT_TEXT; upd.tenantConsentHash = consentHash; upd.tenantConsentAt = now;
-                upd.tenantSignToken = null;
-            } else {
-                upd.landlordSignature = sigData; upd.landlordSignedAt = now;
-                upd.landlordSignedIP = signerIP; upd.landlordSignedUA = navigator.userAgent.substring(0, 200);
-                upd.landlordConsentText = MS_CONSENT_TEXT; upd.landlordConsentHash = consentHash; upd.landlordConsentAt = now;
-                upd.landlordSignToken = null;
-            }
-            var freshDoc = await db.collection('contracts').doc(contractId).get();
-            if (!freshDoc.exists) throw new Error('Contract not found');
-            var freshData = freshDoc.data();
-            var otherSigned = role === 'tenant' ? !!freshData.landlordSignature : !!freshData.tenantSignature;
-            if (otherSigned) { upd.signatureStatus = 'complete'; upd.status = 'active'; upd.fullySignedAt = now; } else { upd.signatureStatus = 'partial'; }
-            await db.collection('contracts').doc(contractId).update(upd);
-            
-            // POST-SIGNATURE AUTOMATION (when both parties have signed)
+
+            var otherSigned = !!result.fullySigned;
+            // Synthesize a freshData shape so the existing showMagicSignSuccess
+            // call below (and post-signature side effects) keep their old field
+            // names without an extra round-trip.
+            var freshData = Object.assign({}, msData && msData.contract, {
+                signatureStatus: result.signatureStatus,
+                tenantSignature: role === 'tenant' ? sigData : ((msData && msData.contract && msData.contract.tenantSignature) || null),
+                landlordSignature: role === 'landlord' ? sigData : ((msData && msData.contract && msData.contract.landlordSignature) || null),
+                tenantEmail: (msData && msData.signer && msData.signer.email) || idD.email || '',
+            });
+
+            // Post-signature side effects. No Firestore writes here — every
+            // mutation already ran server-side in /api/magic-sign/submit
+            // under admin credentials. These calls only hit the email /
+            // Apple Wallet HTTP endpoints, which is fine from an anonymous
+            // browser session.
             if (otherSigned) {
-                var fullContract = { id: contractId, ...freshData, ...upd };
-                var msProp = msData ? msData.property : null;
-                try {
-                    // (a) DEADLINE RLI — only if not already existing
-                    var existingRLI = await db.collection('deadlines').where('linkedContractId', '==', contractId).where('title', '>=', 'Registrare RLI').where('title', '<=', 'Registrare RLI\uf8ff').limit(1).get();
-                    if (existingRLI.empty) {
-                        var rliDue = new Date(); rliDue.setDate(rliDue.getDate() + 25);
-                        await db.collection('deadlines').add({ title: 'Registrare RLI - ' + (msProp?.address || msProp?.name || ''), type: 'contract_registration', date: rliDue.toISOString().split('T')[0], priority: 'high', linkedContractId: contractId, linkedPropertyId: fullContract.propertyId || '', status: 'pending', autoGenerated: true, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+                try { sendCAFEmail(contractId).catch(function(e){ console.warn('CAF email:', e); }); } catch (_) {}
+                (async function postSignaturePassFlow() {
+                    try {
+                        var passResult = await generateContractPasses(contractId);
+                        var tenantPassUrl = (passResult && passResult.tenant && passResult.tenant.url) || '';
+                        var landlordPassUrl = (passResult && passResult.landlord && passResult.landlord.url) || '';
+                        var landlordUser = passResult && passResult.landlordUser;
+                        var contractUsed = (passResult && passResult.contract) || Object.assign({ id: contractId }, freshData);
+                        var propertyUsed = (passResult && passResult.property) || (msData && msData.property);
+                        try { await sendTenantWelcomeWithMagicLink(contractUsed, tenantPassUrl); }
+                        catch (e) { console.warn('Tenant welcome:', e); }
+                        try { await sendLandlordWelcomeWithPass(contractUsed, landlordUser, propertyUsed, landlordPassUrl); }
+                        catch (e) { console.warn('Landlord welcome:', e); }
+                    } catch (passFlowErr) {
+                        console.warn('[postSignaturePassFlow]', passFlowErr);
+                        sendTenantWelcomeWithMagicLink(Object.assign({ id: contractId }, freshData), '').catch(function(e){ console.warn('Tenant welcome fallback:', e); });
                     }
-                    // (b) LEAD CLOSURE
-                    if (fullContract.linkedLeadId) {
-                        var leadCol = fullContract.linkedLeadSource === 'pfs' ? 'pfsClients' : 'leads';
-                        db.collection(leadCol).doc(fullContract.linkedLeadId).update({ stage: 'closed', linkedContractId: contractId, closedAt: firebase.firestore.FieldValue.serverTimestamp() }).catch(function(e){ console.warn('Lead close:', e); });
-                    }
-                    // (c) PROPERTY STATUS
-                    if (fullContract.propertyId) {
-                        db.collection('properties').doc(fullContract.propertyId).update({ status: 'rented', currentContractId: contractId }).catch(function(e){ console.warn('Property status:', e); });
-                    }
-                    // (d) LISTING SYNC
-                    if (fullContract.propertyId) {
-                        var listSnap = await db.collection('listings').where('propertyId', '==', fullContract.propertyId).limit(1).get();
-                        if (!listSnap.empty) { listSnap.docs[0].ref.update({ status: 'rented' }).catch(function(e){ console.warn('Listing sync:', e); }); }
-                    }
-                    // (e) PAYMENT SCHEDULE — only if not already existing
-                    var existingPay = await db.collection('payments').where('contractId', '==', contractId).limit(1).get();
-                    if (existingPay.empty && fullContract.startDate && fullContract.endDate && fullContract.rent) {
-                        var payBatch = db.batch();
-                        var pStart = new Date(fullContract.startDate);
-                        var pEnd = new Date(fullContract.endDate);
-                        var payDay = parseInt(fullContract.paymentDay) || 5;
-                        var cur = new Date(pStart.getFullYear(), pStart.getMonth(), payDay);
-                        if (cur < pStart) cur.setMonth(cur.getMonth() + 1);
-                        while (cur <= pEnd) {
-                            var pRef = db.collection('payments').doc();
-                            payBatch.set(pRef, { contractId: contractId, tenantId: fullContract.tenantId || '', propertyId: fullContract.propertyId || '', amount: fullContract.rent, month: cur.toISOString().slice(0, 7), dueDate: cur.toISOString().split('T')[0], status: 'pending', createdAt: firebase.firestore.FieldValue.serverTimestamp() });
-                            cur.setMonth(cur.getMonth() + 1);
-                        }
-                        await payBatch.commit();
-                    }
-                    // (f) CAF EMAIL
-                    sendCAFEmail(contractId).catch(function(e){ console.warn('CAF email:', e); });
-                    // (g+h) PROPPASS + WELCOME — serialized so welcome emails embed pass URLs
-                    (async function postSignaturePassFlow() {
-                        try {
-                            var passResult = await generateContractPasses(contractId);
-                            var tenantPassUrl = (passResult && passResult.tenant && passResult.tenant.url) || '';
-                            var landlordPassUrl = (passResult && passResult.landlord && passResult.landlord.url) || '';
-                            var landlordUser = passResult && passResult.landlordUser;
-                            var contractUsed = (passResult && passResult.contract) || Object.assign({ id: contractId }, freshData);
-                            var propertyUsed = passResult && passResult.property;
-                            // Tenant welcome — magic link + pass URL
-                            try { await sendTenantWelcomeWithMagicLink(contractUsed, tenantPassUrl); }
-                            catch (e) { console.warn('Tenant welcome:', e); }
-                            // Landlord welcome — pass URL embedded
-                            try { await sendLandlordWelcomeWithPass(contractUsed, landlordUser, propertyUsed, landlordPassUrl); }
-                            catch (e) { console.warn('Landlord welcome:', e); }
-                        } catch (passFlowErr) {
-                            console.warn('[postSignaturePassFlow]', passFlowErr);
-                            // Fallback: still try welcome without pass URL
-                            sendTenantWelcomeWithMagicLink(Object.assign({ id: contractId }, freshData), '').catch(function(e){ console.warn('Tenant welcome fallback:', e); });
-                        }
-                    })();
-                    // (3) TENANT AUTO-ACCOUNT
-                    if (fullContract.tenantId) {
-                        var tenDoc = await db.collection('users').doc(fullContract.tenantId).get();
-                        if (!tenDoc.exists) {
-                            var tenantName = idD.name || (role === 'tenant' ? (msData?.signer?.name || '') : '');
-                            var tenantEmail = role === 'tenant' ? (idD.email || msData?.signer?.email || '') : (freshData.tenantEmail || '');
-                            await db.collection('users').doc(fullContract.tenantId).set({ role: 'tenant', name: tenantName, email: tenantEmail, phone: idD.phone || '', cf: role === 'tenant' ? (idD.cf || '') : (freshData.tenantCF || ''), address: role === 'tenant' ? (idD.address || '') : (freshData.tenantAddress || ''), dob: role === 'tenant' ? (idD.dob || '') : (freshData.tenantDob || ''), pob: role === 'tenant' ? (idD.pob || '') : (freshData.tenantPob || ''), docType: role === 'tenant' ? (idD.docType || '') : (freshData.tenantDocType || ''), docNum: role === 'tenant' ? (idD.docNum || '') : (freshData.tenantDocNum || ''), linkedContractId: contractId, createdAt: firebase.firestore.FieldValue.serverTimestamp(), createdBy: 'magic_sign' }, { merge: true }).catch(function(e){ console.warn('Tenant account:', e); });
-                        }
-                    }
-                } catch (autoErr) { console.error('Post-signature automation error:', autoErr); }
+                })();
             }
 showMagicSignSuccess(contractId, role, freshData, otherSigned);
         } catch (err) {
@@ -2773,10 +2759,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         html += '</div>';
         c.innerHTML = html;
         
-        if (role === 'tenant' && contractData.tenantId) {
-            db.collection('users').doc(contractData.tenantId).get().then(function(doc) {
-                if (doc.exists) { var el = document.getElementById('magicAccEmail'); if (el) el.value = doc.data().email || ''; }
-            }).catch(function() {});
+        if (role === 'tenant') {
+            // tenantEmail comes from the lookup endpoint (signer.email) so we
+            // don't have to read users/{tenantId} as anonymous — that read is
+            // denied by firestore.rules anyway.
+            var emailEl = document.getElementById('magicAccEmail');
+            if (emailEl) emailEl.value = contractData.tenantEmail || '';
         }
     }
     
@@ -3615,14 +3603,17 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         console.log('Loading data...');
         const startTime = performance.now();
         
-        // Check cache first (5 min expiry)
+        // Check cache first (5 min expiry). Cache is tagged with the owning
+        // uid + role so a different user on a shared device never loads
+        // someone else's data dump from localStorage.
         const cacheKey = 'boom_data_cache';
         const cacheExpiry = 5 * 60 * 1000; // 5 minutes
         const cached = localStorage.getItem(cacheKey);
         if (cached) {
             try {
-                const { data, timestamp } = JSON.parse(cached);
-                if (Date.now() - timestamp < cacheExpiry) {
+                const { data, timestamp, uid, role } = JSON.parse(cached);
+                const sameUser = uid === S.profile?.id && role === S.profile?.role;
+                if (sameUser && Date.now() - timestamp < cacheExpiry) {
                     console.log('Using cached data');
                     Object.assign(S, data);
                     checkAlerts();
@@ -3630,14 +3621,126 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     setTimeout(() => loadDataFresh(true), 2000);
                     return;
                 }
+                if (!sameUser) localStorage.removeItem(cacheKey);
             } catch (e) { console.log('Cache invalid'); }
         }
         
         await loadDataFresh(false);
     }
     
+    // Firestore `in` queries cap at 30 values — chunk + merge so a landlord
+    // with many properties (or a query over many ids) doesn't throw.
+    async function fetchByIdsChunked(collection, ids) {
+        const out = [];
+        const unique = Array.from(new Set(ids)).filter(Boolean);
+        for (let i = 0; i < unique.length; i += 30) {
+            const chunk = unique.slice(i, i + 30);
+            if (!chunk.length) continue;
+            const snap = await db.collection(collection)
+                .where(firebase.firestore.FieldPath.documentId(), 'in', chunk).get();
+            snap.docs.forEach(d => out.push({ id: d.id, ...d.data() }));
+        }
+        return out;
+    }
+    async function fetchWhereInChunked(collection, field, values) {
+        const out = [];
+        const unique = Array.from(new Set(values)).filter(Boolean);
+        for (let i = 0; i < unique.length; i += 30) {
+            const chunk = unique.slice(i, i + 30);
+            if (!chunk.length) continue;
+            const snap = await db.collection(collection).where(field, 'in', chunk).get();
+            snap.docs.forEach(d => out.push({ id: d.id, ...d.data() }));
+        }
+        return out;
+    }
+
+    // Non-admin loader: scoped to exactly what the role may read, so the
+    // queries pass Firestore Security Rules (which reject unconstrained
+    // collection reads for landlord/tenant). Admin-only ops collections are
+    // emptied, never fetched.
+    async function loadDataScoped(silent, startTime) {
+        const myUid = S.profile.id;
+        // Admin-only collections: stay empty for landlord/tenant.
+        S.clients = []; S.invoices = []; S.rules = []; S.ruleExecutions = [];
+        S.listings = []; S.leads = []; S.activityLog = []; S.deadlines = [];
+        S.tasks = []; S.pfsClients = []; S.pfsProperties = []; S.pfsActivities = [];
+        S.landlords = []; S.viewingRequests = [];
+        // The viewer needs their own user doc (+ admin contacts surface lazily).
+        S.users = [{ id: myUid, ...S.profile }];
+
+        if (isLandlord()) {
+            const props = await db.collection('properties').where('ownerId', '==', myUid).get();
+            S.properties = props.docs.map(d => ({ id: d.id, ...d.data() }));
+            const propIds = S.properties.map(p => p.id);
+            const [contracts, payments, maint] = await Promise.all([
+                fetchWhereInChunked('contracts', 'propertyId', propIds),
+                fetchWhereInChunked('payments', 'propertyId', propIds),
+                fetchWhereInChunked('maintenance', 'propertyId', propIds)
+            ]);
+            S.contracts = contracts;
+            S.payments = payments;
+            S.maintenance = maint;
+            // Tenants on those contracts (so names render) — read-allowed since
+            // admin rule covers users; landlords read tenant docs via rules only
+            // if permitted. Keep minimal: skip cross-user fetch, render by id.
+        } else { // tenant
+            const contracts = await db.collection('contracts').where('tenantId', '==', myUid).get();
+            S.contracts = contracts.docs.map(d => ({ id: d.id, ...d.data() }));
+            const propIds = S.contracts.map(c => c.propertyId);
+            const [props, payments, maint] = await Promise.all([
+                fetchByIdsChunked('properties', propIds),
+                db.collection('payments').where('tenantId', '==', myUid).get()
+                    .then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))),
+                db.collection('maintenance').where('userId', '==', myUid).get()
+                    .then(s => s.docs.map(d => ({ id: d.id, ...d.data() })))
+            ]);
+            S.properties = props;
+            S.payments = payments;
+            S.maintenance = maint;
+        }
+
+        // Own documents (both roles).
+        const docs = await db.collection('documents').where('userId', '==', myUid).get();
+        S.documents = docs.docs.map(d => ({ id: d.id, ...d.data() }));
+
+        // Auto-overdue marking on the viewer's own pending payments.
+        const today = new Date().toISOString().split('T')[0];
+        S.payments.forEach(function (p) {
+            if (p.status === 'pending' && p.dueDate && p.dueDate < today) p.status = 'overdue';
+        });
+
+        cacheData();
+        if (!silent) checkAlerts();
+        console.log('Scoped data loaded in', (performance.now() - startTime).toFixed(0), 'ms');
+    }
+
+    function cacheData() {
+        try {
+            localStorage.setItem('boom_data_cache', JSON.stringify({
+                timestamp: Date.now(),
+                uid: S.profile?.id,
+                role: S.profile?.role,
+                data: {
+                    users: S.users, properties: S.properties, contracts: S.contracts,
+                    payments: S.payments, maintenance: S.maintenance, clients: S.clients,
+                    documents: S.documents, invoices: S.invoices, rules: S.rules, ruleExecutions: S.ruleExecutions
+                }
+            }));
+        } catch (e) { console.log('Cache save failed:', e.message); }
+    }
+
     async function loadDataFresh(silent) {
         const startTime = performance.now();
+        // Landlord / tenant take the scoped path so their queries satisfy
+        // Firestore rules; admin keeps the full bulk load below.
+        if (!isAdmin()) {
+            try { return await loadDataScoped(silent, startTime); }
+            catch (e) {
+                console.error('Scoped load error:', e);
+                if (!silent) toast('error', 'Errore caricamento', e.message);
+                return;
+            }
+        }
         try {
             // BATCH 1: Critical data (always load first)
             console.log('Loading batch 1...');
@@ -3694,17 +3797,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             S.ruleExecutions = ruleExecs.docs.map(d => ({ id: d.id, ...d.data() }));
             console.log('Batch 3 done:', (performance.now() - startTime).toFixed(0), 'ms');
             
-            // Cache core data
-            try {
-                localStorage.setItem('boom_data_cache', JSON.stringify({
-                    timestamp: Date.now(),
-                    data: {
-                        users: S.users, properties: S.properties, contracts: S.contracts,
-                        payments: S.payments, maintenance: S.maintenance, clients: S.clients,
-                        documents: S.documents, invoices: S.invoices, rules: S.rules, ruleExecutions: S.ruleExecutions
-                    }
-                }));
-            } catch (e) { console.log('Cache save failed:', e.message); }
+            // Cache core data (tagged with uid + role for shared-device safety)
+            cacheData();
             
             // LAZY LOAD: Non-critical data (load after app is shown)
             setTimeout(async () => {
@@ -4241,16 +4335,16 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div>
             <div class="modal-body" style="max-height:60vh;overflow-y:auto;padding:0">
                 ${allNotifs.length > 0 ? allNotifs.map(n => `
-                    <div class="notif-item ${n.read ? 'read' : 'unread'}" style="padding:14px 20px;border-bottom:1px solid var(--border);display:flex;gap:12px;align-items:flex-start;cursor:pointer;background:${n.read ? 'transparent' : 'rgba(212,175,55,0.05)'}" onclick="${n.source === 'user' && !n.read ? `markNotificationRead('${n.id}')` : ''}">
+                    <div class="notif-item ${n.read ? 'read' : 'unread'}" style="padding:14px 20px;border-bottom:1px solid var(--border);display:flex;gap:12px;align-items:flex-start;cursor:pointer;background:${n.read ? 'transparent' : 'rgba(212,175,55,0.05)'}" onclick="${n.source === 'user' && !n.read ? `markNotificationRead('${esc(n.id)}')` : ''}">
                         <div style="width:36px;height:36px;border-radius:50%;background:var(--${notifTypeColor(n.type)}-light);display:flex;align-items:center;justify-content:center;flex-shrink:0">${notifTypeIcon(n.type)}</div>
                         <div style="flex:1;min-width:0">
-                            <div style="font-weight:${n.read ? '400' : '600'};margin-bottom:2px">${n.title}</div>
-                            <div style="font-size:13px;color:var(--text-muted)">${n.text || n.message || ''}</div>
+                            <div style="font-weight:${n.read ? '400' : '600'};margin-bottom:2px">${esc(n.title)}</div>
+                            <div style="font-size:13px;color:var(--text-muted)">${esc(n.text || n.message || '')}</div>
                             <div style="font-size:11px;color:var(--text-dim);margin-top:4px">${n.createdAt ? fmtDate(n.createdAt) : 'Ora'}</div>
                         </div>
                         ${n.source === 'user'
-                            ? `<button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();deleteNotification('${n.id}')" title="Elimina">×</button>`
-                            : `<button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();dismissSystemNotif('${n.type}','${n.id}')" title="Ignora">×</button>`}
+                            ? `<button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();deleteNotification('${esc(n.id)}')" title="Elimina">×</button>`
+                            : `<button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();dismissSystemNotif('${esc(n.type)}','${esc(n.id)}')" title="Ignora">×</button>`}
                     </div>
                 `).join('') : '<div class="empty-state" style="padding:40px"><div class="empty-icon">🔔</div><div class="empty-title">Nessuna notifica</div><div class="empty-subtitle">Sei al passo con tutto!</div></div>'}
             </div>
@@ -4693,6 +4787,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <div class="nav-item ${S.page==='payments'?'active':''}" onclick="goTo('payments')"><span class="nav-icon">💳</span> Pagamenti ${overduePayments?`<span class="nav-badge">${overduePayments}</span>`:''}</div>
                     <div class="nav-item ${S.page==='maintenance'?'active':''}" onclick="goTo('maintenance')"><span class="nav-icon">🔧</span> Manutenzione ${openMaint?`<span class="nav-badge">${openMaint}</span>`:''}</div>
                     <div class="nav-item ${S.page==='documents'?'active':''}" onclick="goTo('documents')"><span class="nav-icon">📁</span> Documenti</div>
+                    <div class="nav-item ${S.page==='commercialista'?'active':''}" onclick="goTo('commercialista')"><span class="nav-icon">🧮</span> Commercialista</div>
                 </div>
                 <div class="nav-section"><div class="nav-label">Tools</div>
                     <div class="nav-item ${S.page==='property-radar'?'active':''}" onclick="goTo('property-radar')"><span class="nav-icon">📡</span> Property Radar ${radarFound?`<span class="nav-badge gold">${radarFound}</span>`:''}</div>
@@ -4723,6 +4818,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <div class="nav-item ${S.page==='my-payments'?'active':''}" onclick="goTo('my-payments')"><span class="nav-icon">💳</span> Pagamenti ${myOverdue?`<span class="nav-badge">${myOverdue}</span>`:''}</div>
                     <div class="nav-item ${S.page==='my-maintenance'?'active':''}" onclick="goTo('my-maintenance')"><span class="nav-icon">🔧</span> Manutenzione ${myMaint?`<span class="nav-badge">${myMaint}</span>`:''}</div>
                     <div class="nav-item ${S.page==='my-documents'?'active':''}" onclick="goTo('my-documents')"><span class="nav-icon">📁</span> Documenti</div>
+                    <div class="nav-item ${S.page==='commercialista'?'active':''}" onclick="goTo('commercialista')"><span class="nav-icon">🧮</span> Commercialista</div>
                 </div>
                 <div class="sidebar-footer">
                     <div class="nav-item" onclick="goTo('settings')"><span class="nav-icon">⚙️</span> Impostazioni</div>
@@ -4783,6 +4879,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             case 'maintenance': m.innerHTML = isAdmin() ? maintenancePage() : accessDenied(); break;
             case 'rules': m.innerHTML = isAdmin() ? rulesPage() : accessDenied(); break;
             case 'documents': m.innerHTML = isAdmin() ? documentsPage() : accessDenied(); break;
+            case 'commercialista': m.innerHTML = (isAdmin() || isLandlord()) ? commercialistaPage() : accessDenied(); break;
             case 'activity-log': m.innerHTML = isAdmin() ? activityLogPage() : accessDenied(); break;
             case 'adminflats': m.innerHTML = isAdmin() ? adminflatsPage() : accessDenied(); break;
             // === SCHEDA 360° (cliente unico hub) ===
@@ -7895,13 +7992,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 budget: parseInt(d.budget) || 0, zone: d.zone || '', arrivalDate: d.arrivalDate || null,
                 duration: d.duration || '', source: d.source || 'other', stage: d.stage, notes: d.notes || ''
             });
-            closeModal(); await refreshOnly('clients'); toast('success', 'Cliente aggiornato!');
+            closeModal(); await refreshOnly('clients'); logActivity('client_updated', 'client', { id: id }); toast('success', 'Cliente aggiornato!');
         } catch (err) { toast('error', 'Errore', err.message); }
     }
     
     async function deleteClient(id) {
         if (!confirm('Eliminare questo cliente?')) return;
-        try { await db.collection('clients').doc(id).delete(); closeModal(); await refresh(); toast('success', 'Eliminato'); }
+        try { await db.collection('clients').doc(id).delete(); closeModal(); await refresh(); logActivity('client_deleted', 'client', { id: id }); toast('success', 'Eliminato'); }
         catch (err) { toast('error', 'Errore', err.message); }
     }
     
@@ -9381,7 +9478,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
                 ...(newStatus === 'resolved' ? { resolvedAt: firebase.firestore.FieldValue.serverTimestamp() } : {})
             });
-            toast('success', `Stato aggiornato: ${statusLabel(newStatus)}`);
+            logActivity('maintenance_status_changed', 'maintenance', { id: id, status: newStatus }); toast('success', `Stato aggiornato: ${statusLabel(newStatus)}`);
 
             const m = S.maintenance.find(x => x.id === id);
             const property = m ? S.properties.find(p => p.id === m.propertyId) : null;
@@ -10098,6 +10195,1196 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
     // daysUntil defined in core utils (line ~1300)
 
+    // ═══════════════════════════════════════════════════════════════════════
+    // ★ COMMERCIALISTA MODE — fiscal-year document checklist + share-to-accountant
+    // Powered by js/taxpack-engine.js (window.BOOM_TAXPACK).
+    // ═══════════════════════════════════════════════════════════════════════
+    var _cmState = { propertyId: null, year: new Date().getFullYear() };
+
+    function commercialistaProps() {
+        // Admin sees all; landlord sees own.
+        return isAdmin() ? (S.properties || []) : (S.properties || []).filter(p => p.ownerId === S.profile.id);
+    }
+
+    // Role router: landlords get the calm single-decision "Lite" view;
+    // admin gets the full power dashboard (with a "preview as landlord" toggle).
+    function commercialistaPage() {
+        if (isAdmin() && window._cmEgidi) return commercialistaEgidiView();
+        if (isAdmin() && window._cmPreviewLite) return commercialistaLandlordLite(true);
+        if (isLandlord()) return commercialistaLandlordLite(false);
+        return commercialistaAdminFull();
+    }
+
+    // ─── EGIDI (AZIENDA) — BOOM's own fiscality ─────────────────────────────
+    // Company revenue (from invoices + paid PFS) → IVA trimestrale + corporate
+    // deadlines, computed by the fiscal engine. Admin-only.
+    function commercialistaEgidiView() {
+        const FX = window.BOOM_FISCAL;
+        const year = _cmState.year || new Date().getFullYear();
+        // Revenue by quarter from issued invoices (paid + pending) for the year.
+        const revByQ = { 1: 0, 2: 0, 3: 0, 4: 0 };
+        let totalRev = 0;
+        (S.invoices || []).forEach(inv => {
+            const d = inv.date ? new Date(inv.date) : (inv.createdAt && inv.createdAt.toDate ? inv.createdAt.toDate() : null);
+            if (!d || d.getFullYear() !== Number(year)) return;
+            const q = Math.floor(d.getMonth() / 3) + 1;
+            const amt = Number(inv.amount) || 0;
+            revByQ[q] += amt; totalRev += amt;
+        });
+        // Paid PFS fees (Stripe) as additional revenue if dated this year.
+        (S.pfsClients || []).forEach(c => {
+            const paid = Number(c.amount_paid) || (c.amount_eur ? Number(c.amount_eur) * 100 : 0);
+            if (!paid) return;
+            const d = c.paid_at ? new Date(c.paid_at) : (c.created_at ? new Date(c.created_at) : null);
+            if (!d || d.getFullYear() !== Number(year)) return;
+            const q = Math.floor(d.getMonth() / 3) + 1;
+            const eur = paid > 1000 ? paid / 100 : paid; // stripe amounts are cents
+            revByQ[q] += eur; totalRev += eur;
+        });
+
+        const companyObl = FX ? FX.companyObligations(year, revByQ) : [];
+        const roll = FX ? FX.rollup(companyObl, new Date()) : { totalDue: 0, counts: {} };
+        const ivaTotal = companyObl.filter(o => o.category === 'vat' && o.amount).reduce((s, o) => s + o.amount, 0);
+
+        const nowY = new Date().getFullYear();
+        const yearOpts = [];
+        for (let yy = nowY; yy >= nowY - 5; yy--) yearOpts.push(`<option value="${yy}" ${yy === year ? 'selected' : ''}>${yy}</option>`);
+
+        const qCard = (q) => `<div class="stat-card"><div class="stat-label">Q${q} ${year}</div><div class="stat-value">${FX.fmtEuro(revByQ[q])}</div><div class="stat-description">IVA ~${FX.fmtEuro(Math.round(revByQ[q]*0.22))}</div></div>`;
+
+        return `<div class="page-header">
+                <div><h1 class="page-title">🏢 Egidi Immobiliare — Fiscale</h1><p class="page-subtitle">Ricavi · IVA trimestrale · scadenze societarie · P.IVA 17322991005</p></div>
+                <div class="page-actions">
+                    <button class="btn btn-secondary btn-sm" onclick="window._cmEgidi=false;renderPage()">← Proprietari</button>
+                    <select class="form-select" style="width:auto" onchange="_cmState.year=parseInt(this.value);renderPage()">${yearOpts.join('')}</select>
+                </div>
+            </div>
+
+            <div class="stats-grid" style="grid-template-columns:repeat(4,1fr)">
+                <div class="stat-card highlight"><div class="stat-label">Ricavi ${year}</div><div class="stat-value gold">${FX.fmtEuro(totalRev)}</div><div class="stat-description">fatture + PFS incassati</div></div>
+                <div class="stat-card"><div class="stat-label">IVA stimata ${year}</div><div class="stat-value">${FX.fmtEuro(ivaTotal)}</div><div class="stat-description">22% sui ricavi imponibili</div></div>
+                <div class="stat-card ${roll.counts.overdue ? 'highlight' : ''}"><div class="stat-label">Scadute</div><div class="stat-value ${roll.counts.overdue ? '' : 'green'}">${roll.counts.overdue || 0}</div></div>
+                <div class="stat-card"><div class="stat-label">Entro 30 giorni</div><div class="stat-value">${roll.counts.dueSoon || 0}</div></div>
+            </div>
+
+            <div class="card" style="margin-bottom:20px">
+                <div style="padding:14px 18px;border-bottom:1px solid var(--border)"><strong>Ricavi per trimestre</strong></div>
+                <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);padding:16px;gap:12px">
+                    ${qCard(1)}${qCard(2)}${qCard(3)}${qCard(4)}
+                </div>
+            </div>
+
+            ${egidiPLBlock(year, totalRev)}
+
+            ${egidiReconcileBlock(year)}
+
+            ${egidiAdviceBlock(year, totalRev, revByQ)}
+
+            ${FX ? `
+            <div class="card" style="margin-top:20px">
+                <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                    <span style="font-size:20px">🗓️</span>
+                    <div style="flex:1"><strong>Scadenzario societario</strong></div>
+                    <button class="btn btn-secondary btn-sm" onclick="pushObligationsToDeadlines(${year}, 'company')">📌 Salva nelle scadenze (promemoria email)</button>
+                </div>
+                ${fiscalScadenzarioCard(companyObl, { compact: false }).replace(/^<div class="card"[^>]*>/, '').replace(/<\/div>$/, '')}
+            </div>` : ''}
+
+            <div style="font-size:12px;color:var(--text-muted);margin-top:16px;padding:12px 16px;background:var(--bg-elevated);border-radius:8px">
+                I ricavi sono presi dalle fatture emesse (pagina Fatture) e dai compensi PFS incassati via Stripe. L'IVA è una stima al 22%: il calcolo definitivo (detraibile inclusa) resta al commercialista. Gli "estratti conto bancari" non sono in BOOM — questo è un riepilogo gestionale, non una contabilità sostitutiva.
+            </div>`;
+    }
+
+    // ─── Egidi · P&L semplificato ───────────────────────────────────────────
+    // Ricavi (fatture emesse + PFS Stripe incassati) vs costi (compensi
+    // gestione PAGATI ai landlord — tracciati come spese su contratti +
+    // costi tracciati su manutenzione/spese se presenti).
+    function egidiPLBlock(year, totalRev) {
+        // Costi gestionali: managementFee mensile per ogni contratto attivo nell'anno
+        // (è un compenso CHE TU TRATTIENI dal canone — quindi ricavo TUO, non costo;
+        // lascio invece le voci "spesa" che BOOM ha sostenuto se mai presenti).
+        // Per Egidi i veri costi non sono dentro BOOM (commercialista, marketing,
+        // hosting, ecc.) → mostro solo ciò che ho e dico chiaramente cosa manca.
+        const FX = window.BOOM_FISCAL;
+        const refundedPFS = (S.pfsClients || []).filter(c => {
+            if (c.status !== 'refunded' && c.status !== 'rimborsato') return false;
+            const d = c.paid_at ? new Date(c.paid_at) : null;
+            return d && d.getFullYear() === Number(year);
+        }).reduce((s, c) => s + ((Number(c.amount_paid)||0) > 1000 ? Number(c.amount_paid)/100 : (Number(c.amount_eur)||0)), 0);
+        const margin = totalRev - refundedPFS;
+        return `
+        <div class="card" style="margin-bottom:20px">
+            <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px">
+                <span style="font-size:20px">📊</span><strong>Conto economico ${year}</strong>
+                <span style="font-size:11px;color:var(--text-muted);margin-left:auto">vista gestionale · non sostitutiva della contabilità</span>
+            </div>
+            <div class="card-body">
+                <table style="width:100%;border-collapse:collapse;font-size:14px">
+                    <tr><td style="padding:8px 0;color:var(--text-muted)">Ricavi imponibili (fatture + PFS)</td><td style="text-align:right;font-weight:600">${FX.fmtEuro(totalRev)}</td></tr>
+                    <tr><td style="padding:8px 0;color:var(--text-muted)">— Rimborsi PFS (no-match)</td><td style="text-align:right;color:var(--red)">${refundedPFS ? '−'+FX.fmtEuro(refundedPFS) : '—'}</td></tr>
+                    <tr style="border-top:1px solid var(--border)"><td style="padding:10px 0;font-weight:600">Margine netto BOOM</td><td style="text-align:right;font-weight:700;color:var(--gold);font-size:16px">${FX.fmtEuro(margin)}</td></tr>
+                </table>
+                <div style="font-size:11px;color:var(--text-muted);margin-top:12px">I costi (commercialista, marketing, hosting, stipendi) non sono tracciati in BOOM. Tienili nel tuo gestionale contabile e chiedi al commercialista il risultato d'esercizio reale.</div>
+            </div>
+        </div>`;
+    }
+
+    // ─── Egidi · Riconciliazione fatture ↔ PFS incassati ────────────────────
+    // Per ogni PFS pagato dell'anno verifica se esiste una fattura emessa.
+    // Mette in luce: PFS senza fattura (da fatturare!) + fatture senza
+    // riscontro (verificare il pagamento).
+    function egidiReconcileBlock(year) {
+        const paidPFS = (S.pfsClients || []).filter(c => {
+            const ok = (Number(c.amount_paid)||0) > 0 || (Number(c.amount_eur)||0) > 0;
+            const d = c.paid_at ? new Date(c.paid_at) : null;
+            return ok && d && d.getFullYear() === Number(year);
+        });
+        const invoices = (S.invoices || []).filter(i => {
+            const d = i.date ? new Date(i.date) : null;
+            return d && d.getFullYear() === Number(year);
+        });
+        const pfsWithoutInvoice = paidPFS.filter(c => !invoices.some(i =>
+            (i.recipientType === 'client' && i.recipientId === c.id) ||
+            (i.service && /PFS/i.test(i.service) && Math.abs((Number(i.amount)||0) - (Number(c.amount_eur)||(Number(c.amount_paid)||0)/100)) < 1)
+        ));
+        const invWithoutPaid = invoices.filter(i =>
+            i.service && /PFS/i.test(i.service) && i.status !== 'paid' && !paidPFS.some(c => c.id === i.recipientId)
+        );
+        const allOk = !pfsWithoutInvoice.length && !invWithoutPaid.length;
+        const FX = window.BOOM_FISCAL;
+        return `
+        <div class="card" style="margin-bottom:20px;${allOk ? '' : 'border-color:rgba(212,175,55,0.3)'}">
+            <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px">
+                <span style="font-size:20px">🔍</span><strong>Riconciliazione</strong>
+                <span style="font-size:11px;color:var(--text-muted)">PFS Stripe ↔ Fatture emesse</span>
+                ${allOk ? '<span class="badge" style="margin-left:auto;background:rgba(0,210,106,0.15);color:var(--green);font-size:10px;padding:4px 10px">TUTTO QUADRATO</span>' : ''}
+            </div>
+            <div class="card-body">
+                ${pfsWithoutInvoice.length ? `<div style="margin-bottom:14px">
+                    <div style="font-weight:600;color:var(--gold);margin-bottom:8px">📤 PFS pagati senza fattura emessa (${pfsWithoutInvoice.length})</div>
+                    <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">Crea le fatture: ti servono per la dichiarazione IVA e per i ricavi del trimestre.</div>
+                    ${pfsWithoutInvoice.slice(0,8).map(c => `<div class="list-item" style="padding:10px 14px"><span style="flex:1">${esc(c.name||'PFS Client')} · ${FX.fmtEuro((Number(c.amount_paid)||0)>1000?Number(c.amount_paid)/100:(Number(c.amount_eur)||0))}</span><button class="btn btn-xs" onclick="createInvoiceFor('${c.id}')">+ Fattura</button></div>`).join('')}
+                </div>` : ''}
+                ${invWithoutPaid.length ? `<div>
+                    <div style="font-weight:600;color:var(--orange);margin-bottom:8px">⚠️ Fatture PFS non corrisposte (${invWithoutPaid.length})</div>
+                    ${invWithoutPaid.slice(0,8).map(i => `<div class="list-item" style="padding:10px 14px"><span style="flex:1">${esc(i.number||'')} · ${FX.fmtEuro(Number(i.amount)||0)}</span><span style="font-size:11px;color:var(--text-muted)">${esc(i.status||'pending')}</span></div>`).join('')}
+                </div>` : ''}
+                ${allOk ? '<div style="text-align:center;padding:20px 0;color:var(--green);font-size:14px">✓ Ogni PFS pagato ha la sua fattura · ogni fattura PFS ha il suo incasso</div>' : ''}
+            </div>
+        </div>`;
+    }
+
+    // ─── Egidi · Consigli & ottimizzazioni ──────────────────────────────────
+    // Euristiche sui dati reali — niente AI, niente magia, solo signal chiari.
+    function egidiAdviceBlock(year, totalRev, revByQ) {
+        const advice = [];
+        const FX = window.BOOM_FISCAL;
+        // 1. Soglia regime forfettario €85k
+        if (totalRev > 70000 && totalRev < 85000) {
+            advice.push({ icon: '⚠️', tone: 'gold', title: 'Avvicinamento soglia €85k (forfettario)', body: 'Sei a ' + FX.fmtEuro(totalRev) + '. Se Egidi è in regime forfettario, attento al superamento — chiedi al commercialista come pianificare il Q4.' });
+        }
+        if (totalRev >= 85000 && totalRev <= 100000) {
+            advice.push({ icon: '🚨', tone: 'red', title: 'Soglia €85k superata', body: 'Ricavi a ' + FX.fmtEuro(totalRev) + '. Se eri in forfettario passi al regime ordinario dal prossimo anno (o subito a 100k+). Pianifica con commercialista.' });
+        }
+        // 2. Concentrazione trimestrale (un solo Q raccoglie >70% dei ricavi → fattura troppo tardi?)
+        const maxQ = Math.max(...Object.values(revByQ));
+        if (totalRev > 1000 && maxQ / totalRev > 0.7) {
+            const qLabel = ['Q1','Q2','Q3','Q4'][Object.values(revByQ).indexOf(maxQ)];
+            advice.push({ icon: '📅', tone: 'gold', title: 'Ricavi concentrati in ' + qLabel, body: 'Più del 70% del fatturato è in un solo trimestre. Distribuire l\'emissione fatture aiuta cashflow e IVA trimestrale.' });
+        }
+        // 3. Fatture non pagate (di tutti i tempi)
+        const unpaid = (S.invoices || []).filter(i => i.status === 'pending' || (!i.status && !i.paidDate));
+        const unpaidAmount = unpaid.reduce((s, i) => s + (Number(i.amount) || 0), 0);
+        if (unpaidAmount > 0) {
+            advice.push({ icon: '💸', tone: 'gold', title: unpaid.length + ' fatture da incassare · ' + FX.fmtEuro(unpaidAmount), body: 'Hai crediti aperti per ' + FX.fmtEuro(unpaidAmount) + '. Manda solleciti dalla pagina Fatture.' });
+        }
+        // 4. Compensi gestione mancanti sui contratti attivi
+        const activeContracts = (S.contracts || []).filter(c => c.status === 'active');
+        const noFee = activeContracts.filter(c => !c.managementFee && !c.feePercent && !c.feeFixed);
+        if (noFee.length) {
+            advice.push({ icon: '💼', tone: 'gold', title: noFee.length + ' contratti senza compenso gestione', body: 'Su questi contratti non c\'è un campo compenso impostato → ricavi non calcolabili automaticamente. Imposta managementFee o feePercent.' });
+        }
+        // 5. PFS conversion (placed vs total)
+        const allPFS = (S.pfsClients || []);
+        const placedPFS = allPFS.filter(c => c.stage === 'placed' || c.stage === 'completed').length;
+        if (allPFS.length >= 5) {
+            const rate = Math.round((placedPFS / allPFS.length) * 100);
+            advice.push({ icon: '📈', tone: rate >= 50 ? 'green' : 'gold', title: 'PFS conversion rate ' + rate + '%', body: placedPFS + '/' + allPFS.length + ' clienti PFS sono stati piazzati. ' + (rate >= 50 ? 'Buon ritmo.' : 'Sotto il 50% — analizza gli scarti per migliorare il matching.') });
+        }
+        // 6. Promemoria automatici non ancora attivati (oggettivo)
+        const obligationsCount = (FX ? FX.companyObligations(year, revByQ).length : 0);
+        const savedDeadlines = (S.deadlines || []).filter(d => /fiscal_auto_/.test(d.source || '') || /IVA|LIPE|CCIAA|Redditi SC/i.test(d.title || '')).length;
+        if (obligationsCount && !savedDeadlines) {
+            advice.push({ icon: '🔔', tone: 'gold', title: 'Promemoria email non attivati', body: 'Hai ' + obligationsCount + ' scadenze calcolate ma nessuna è ancora salvata come "scadenza" → il cron BOOM non manda email. Clicca "Salva nelle scadenze" qui sotto.' });
+        }
+        if (!advice.length) {
+            advice.push({ icon: '✓', tone: 'green', title: 'Tutto in linea', body: 'Non vedo segnali critici nei dati gestionali. Continua così.' });
+        }
+        const toneColor = { red: 'var(--red)', gold: 'var(--gold)', green: 'var(--green)' };
+        return `
+        <div class="card" style="margin-bottom:20px">
+            <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px">
+                <span style="font-size:20px">💡</span><strong>Consigli & ottimizzazioni</strong>
+                <span style="font-size:11px;color:var(--text-muted);margin-left:auto">basati sui dati reali</span>
+            </div>
+            <div class="card-body" style="display:grid;gap:10px">
+                ${advice.map(a => `<div style="display:flex;gap:14px;padding:14px 16px;border:1px solid var(--border);border-left:3px solid ${toneColor[a.tone]};border-radius:10px">
+                    <span style="font-size:22px;line-height:1">${a.icon}</span>
+                    <div><div style="font-weight:600;margin-bottom:4px">${esc(a.title)}</div><div style="font-size:13px;color:var(--text-secondary);line-height:1.5">${esc(a.body)}</div></div>
+                </div>`).join('')}
+            </div>
+        </div>`;
+    }
+
+    // Push the computed obligations into the existing `deadlines` collection.
+    // The reminder-cron already in production reads `deadlines` and sends
+    // email reminders — so by pushing here we get automated reminders FREE.
+    async function pushObligationsToDeadlines(year, party) {
+        const FX = window.BOOM_FISCAL;
+        if (!FX) { toast('error', 'Motore fiscale non caricato'); return; }
+        const ok = await (window.confirm ? Promise.resolve(window.confirm('Salvo le scadenze ' + year + ' come promemoria? Riceverai email automatiche prima della scadenza.')) : Promise.resolve(true));
+        if (!ok) return;
+        let obligations = [];
+        if (party === 'company') {
+            const revByQ = { 1:0, 2:0, 3:0, 4:0 };
+            (S.invoices || []).forEach(i => { const d = i.date ? new Date(i.date) : null; if (d && d.getFullYear() === Number(year)) revByQ[Math.floor(d.getMonth()/3)+1] += Number(i.amount)||0; });
+            obligations = FX.companyObligations(year, revByQ);
+        } else {
+            // landlord: passed property+year via _cmState
+            const prop = (S.properties || []).find(p => p.id === _cmState.propertyId);
+            const contracts = (S.contracts || []).filter(c => c.propertyId === _cmState.propertyId);
+            obligations = FX.landlordObligations({ properties: [prop], contracts, fiscalYear: year });
+        }
+        let added = 0, skipped = 0;
+        for (const o of obligations) {
+            if (!o.dueDate) { skipped++; continue; }
+            // Skip if already exists (by source key) to keep idempotent.
+            const exists = (S.deadlines || []).some(d => d.sourceKey === o.key);
+            if (exists) { skipped++; continue; }
+            try {
+                await db.collection('deadlines').add({
+                    title: o.label,
+                    date: o.dueDate,
+                    priority: o.severity === 'high' ? 'urgent' : o.severity === 'medium' ? 'high' : 'normal',
+                    status: 'pending',
+                    category: o.category,
+                    linkedPropertyId: o.propertyId || null,
+                    linkedContractId: o.contractId || null,
+                    estimatedAmount: o.amount,
+                    note: o.note || '',
+                    source: 'fiscal_auto_' + party,
+                    sourceKey: o.key,
+                    autoGenerated: true,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                });
+                added++;
+            } catch (e) { console.warn('[pushObligations]', o.key, e.message); skipped++; }
+        }
+        await refresh();
+        toast('success', 'Salvate ' + added + ' scadenze', skipped ? skipped + ' già presenti' : 'Riceverai email automatiche');
+        logActivity('fiscal_obligations_saved_as_deadlines', 'fiscal', { party, year, added, skipped });
+    }
+
+    // ─── LANDLORD LITE — one property, one question, one action ─────────────
+    // "Sei pronto per il commercialista?" Everything else collapses behind
+    // "Vedi dettagli". Plain language, no fiscal jargon, big calm surface.
+    function commercialistaLandlordLite(isPreview) {
+        const TP = window.BOOM_TAXPACK;
+        const props = commercialistaProps();
+        const previewBanner = isPreview ? `<div style="background:var(--gold-light);border:1px solid rgba(212,175,55,0.4);border-radius:10px;padding:10px 16px;margin-bottom:16px;display:flex;align-items:center;gap:10px;font-size:13px"><span>👁</span><div style="flex:1">Stai vedendo il portale <strong>come lo vede il proprietario</strong>.</div><button class="btn btn-xs" onclick="window._cmPreviewLite=false;renderPage()">← Torna alla vista admin</button></div>` : '';
+        if (!TP) return `<div class="page-header"><h1 class="page-title">🧮 Il tuo commercialista</h1></div><div class="card"><div class="card-body">Caricamento… ricarica la pagina.</div></div>`;
+        if (!props.length) return `<div class="page-header"><h1 class="page-title">🧮 Il tuo commercialista</h1></div><div class="card"><div class="empty-state"><div class="empty-icon">🏠</div><div class="empty-title">Nessun immobile</div><div class="empty-subtitle">I tuoi immobili appariranno qui</div></div></div>`;
+
+        if (!_cmState.propertyId || !props.some(p => p.id === _cmState.propertyId)) _cmState.propertyId = props[0].id;
+        const year = _cmState.year;
+
+        // Compute status for EVERY property (portfolio glance) once.
+        const portfolio = props.map(p => {
+            const contracts = (S.contracts || []).filter(c => c.propertyId === p.id);
+            const contract = contracts.find(c => {
+                const s = c.startDate ? new Date(c.startDate).getFullYear() : year;
+                const e = c.endDate ? new Date(c.endDate).getFullYear() : year;
+                return s <= year && e >= year;
+            }) || contracts[contracts.length - 1] || {};
+            const cids = contracts.map(c => c.id);
+            const payments = (S.payments || []).filter(x => x.propertyId === p.id || cids.includes(x.contractId));
+            const documents = (S.documents || []).filter(d => d.propertyId === p.id);
+            const checklist = TP.buildChecklist({ contract, property: p, documents, payments, fiscalYear: year });
+            const totals = TP.computeTotals({ contract, payments, fiscalYear: year });
+            return { p, contract, payments, documents, checklist, totals };
+        });
+
+        const cur = portfolio.find(x => x.p.id === _cmState.propertyId) || portfolio[0];
+        const { p: prop, contract, checklist, totals } = cur;
+
+        // Scadenzario — computed obligations for THIS property (engine).
+        const FX = window.BOOM_FISCAL;
+        const obligations = FX ? FX.landlordObligations({ properties: [prop], contracts: (S.contracts||[]).filter(c=>c.propertyId===prop.id), fiscalYear: year }) : [];
+        const scadCard = FX ? fiscalScadenzarioCard(obligations, { compact: true, showSaveAction: true, year, party: 'landlord' }) : '';
+
+        // Status mapping → calm, human.
+        let statusKey, icon, headline, sub, accent;
+        if (checklist.ready) {
+            statusKey = 'ready'; icon = '✅'; accent = 'var(--green)';
+            headline = 'Sei pronto';
+            sub = 'Hai tutti i documenti che servono al commercialista per ' + (prop.name || 'questo immobile') + '.';
+        } else if (checklist.completeness >= 70) {
+            statusKey = 'almost'; icon = '⏳'; accent = 'var(--gold)';
+            headline = 'Ci sei quasi';
+            sub = 'Manca' + (checklist.missing.length === 1 ? ' 1 documento' : 'no ' + checklist.missing.length + ' documenti') + '. Caricali e sei a posto.';
+        } else {
+            statusKey = 'missing'; icon = '📂'; accent = 'var(--gold)';
+            headline = checklist.missing.length + ' documenti da caricare';
+            sub = 'Aggiungili una volta sola: l\'anno prossimo li ritrovi qui.';
+        }
+
+        // Year selector (compact)
+        const nowY = new Date().getFullYear();
+        const yearOpts = [];
+        for (let yy = nowY; yy >= nowY - 5; yy--) yearOpts.push(`<option value="${yy}" ${yy === year ? 'selected' : ''}>${yy}</option>`);
+
+        // Plain-language money line (factual, no formula).
+        const moneyLine = totals.canoniIncassati
+            ? `Quest'anno hai incassato <strong>${TP.fmtEuro(totals.canoniIncassati)}</strong>` +
+              (totals.regime !== 'ordinario'
+                ? ` · imposta cedolare stimata <strong style="color:var(--gold)">${TP.fmtEuro(totals.cedolareImposta)}</strong> (${(totals.cedolareRate*100).toFixed(0)}%)`
+                : ` · imponibile IRPEF stimato <strong>${TP.fmtEuro(totals.irpefImponibile)}</strong>`)
+            : 'Nessun canone registrato per il ' + year + ' ancora.';
+
+        // Portfolio strip (only if >1 property)
+        const portfolioStrip = props.length > 1 ? `
+            <div style="display:flex;gap:10px;overflow-x:auto;padding-bottom:6px;margin-bottom:24px">
+                ${portfolio.map(x => {
+                    const active = x.p.id === _cmState.propertyId;
+                    const dot = x.checklist.ready ? 'var(--green)' : x.checklist.completeness >= 70 ? 'var(--gold)' : 'var(--red)';
+                    return `<div onclick="_cmState.propertyId='${x.p.id}';renderPage()" style="flex:0 0 auto;cursor:pointer;padding:14px 18px;border-radius:14px;border:1px solid ${active ? 'var(--gold)' : 'var(--border)'};background:${active ? 'var(--gold-light)' : 'var(--bg-card)'};min-width:150px;transition:all .2s">
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+                            <span style="width:9px;height:9px;border-radius:50%;background:${dot};flex-shrink:0"></span>
+                            <span style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(x.p.name || x.p.address || 'Immobile')}</span>
+                        </div>
+                        <div style="font-size:11px;color:var(--text-muted)">${x.checklist.ready ? 'Pronto' : x.checklist.completeness + '% completo'}</div>
+                    </div>`;
+                }).join('')}
+            </div>` : '';
+
+        // Primary action depends on readiness.
+        const primaryAction = checklist.ready
+            ? `<button class="btn btn-lg" onclick="downloadTaxPackZip('${prop.id}', ${year})" id="taxPackBtn" style="background:var(--green);color:#000;font-size:15px;padding:16px 32px">📦 Scarica il pacchetto fiscale</button>
+               <button class="btn btn-lg btn-secondary" onclick="openCommercialistaShare('${prop.id}', ${year})" style="font-size:15px;padding:16px 28px">🔗 Invia al commercialista</button>`
+            : `<button class="btn btn-lg" onclick="openDocUploadForProperty('${prop.id}', ${year})" style="font-size:15px;padding:16px 32px">📁 Carica i documenti mancanti</button>`;
+
+        // Missing list (calm, actionable — each opens upload prefilled)
+        const missingBlock = checklist.missing.length ? `
+            <div style="margin-top:8px">
+                ${checklist.missing.slice(0, 6).map(m => `
+                    <div onclick="openDocUploadForProperty('${prop.id}', ${year}, '${m.key}')" style="display:flex;align-items:center;gap:12px;padding:14px 16px;border:1px solid var(--border);border-radius:12px;margin-bottom:8px;cursor:pointer;transition:all .2s" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--border)'">
+                        <span style="font-size:20px">＋</span>
+                        <div style="flex:1"><div style="font-weight:500">${esc(m.label)}</div></div>
+                        <span style="color:var(--gold);font-size:13px;white-space:nowrap">Carica →</span>
+                    </div>`).join('')}
+            </div>` : '';
+
+        return `${previewBanner}<div class="page-header">
+                <div><h1 class="page-title">🧮 Il tuo commercialista</h1><p class="page-subtitle">Tutto pronto per la dichiarazione, in un posto solo</p></div>
+                <div class="page-actions">
+                    <select class="form-select" style="width:auto" onchange="_cmState.year=parseInt(this.value);renderPage()">${yearOpts.join('')}</select>
+                </div>
+            </div>
+
+            ${portfolioStrip}
+
+            <div class="card" style="border:1px solid ${accent}33;overflow:hidden">
+                <div style="height:5px;background:linear-gradient(90deg,${accent},transparent)"></div>
+                <div style="padding:40px 32px;text-align:center">
+                    <div style="font-size:64px;line-height:1;margin-bottom:18px">${icon}</div>
+                    <div style="font-size:30px;font-weight:700;letter-spacing:-0.5px;margin-bottom:10px">${headline}</div>
+                    <div style="font-size:15px;color:var(--text-secondary);max-width:440px;margin:0 auto 28px;line-height:1.6">${sub}</div>
+                    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">${primaryAction}</div>
+                    <div style="font-size:13px;color:var(--text-muted);margin-top:24px;padding-top:20px;border-top:1px solid var(--border)">${moneyLine}</div>
+                </div>
+            </div>
+
+            ${scadCard}
+
+            ${missingBlock}
+
+            <div style="text-align:center;margin-top:16px">
+                <button class="btn btn-sm btn-secondary" onclick="window._cmExpanded=!window._cmExpanded;renderPage()">${window._cmExpanded ? 'Nascondi dettagli ▲' : 'Vedi tutti i dettagli ▼'}</button>
+            </div>
+
+            ${window._cmExpanded ? `
+            <div class="card" style="margin-top:16px">
+                <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                    <div style="flex:1"><strong>Checklist completa</strong> <span style="font-size:12px;color:var(--text-muted)">${checklist.presentCount}/${checklist.requiredCount} documenti</span></div>
+                    <button class="btn btn-secondary btn-sm" onclick="openCedolareCalc(${totals.canoniAttesi || (contract.rent ? contract.rent*12 : 0)}, ${TP.classifyContract(contract).isConcordato})">📊 Cedolare vs IRPEF</button>
+                    <button class="btn btn-secondary btn-sm" onclick="openIstatLetter('${prop.id}', ${year})">📈 Lettera ISTAT</button>
+                </div>
+                <div style="height:6px;background:var(--bg-elevated)"><div style="height:100%;width:${checklist.completeness}%;background:${accent};transition:width .4s"></div></div>
+                <div class="card-body flush">
+                    ${checklist.items.map(item => {
+                        const ic = item.present ? '<span style="color:var(--green)">✓</span>' : '<span style="color:var(--text-muted)">○</span>';
+                        return `<div class="list-item" style="padding:12px 16px;display:flex;align-items:center;gap:12px">
+                            <div style="font-size:16px;width:22px;text-align:center">${ic}</div>
+                            <div style="flex:1;${item.present ? '' : 'color:var(--text-secondary)'}">${esc(item.label)}${item.detail ? ` <span style="font-size:11px;color:var(--text-muted)">· ${esc(item.detail)}</span>` : ''}</div>
+                        </div>`;
+                    }).join('')}
+                </div>
+            </div>` : ''}`;
+    }
+
+    // Reusable Scadenzario card — renders the next fiscal obligations
+    // (overdue + due in 30 days) from the fiscal engine, with date, amount,
+    // and a 1-tap action. Used by the landlord lite view and the admin
+    // company (Egidi) view. `opts.compact` shows only urgent buckets.
+    function fiscalScadenzarioCard(obligations, opts) {
+        opts = opts || {};
+        const FX = window.BOOM_FISCAL;
+        if (!FX || !obligations || !obligations.length) return '';
+        const roll = FX.rollup(obligations, new Date());
+        const urgent = roll.buckets.overdue.concat(roll.buckets.dueSoon);
+        const upcoming = roll.buckets.thisQuarter;
+        if (!urgent.length && !upcoming.length && opts.compact) {
+            return `<div class="card" style="margin-top:16px"><div style="padding:18px 20px;display:flex;align-items:center;gap:12px"><span style="font-size:22px">🗓️</span><div><strong>Nessuna scadenza imminente</strong><div style="font-size:12px;color:var(--text-muted)">Le prossime scadenze fiscali appariranno qui</div></div></div></div>`;
+        }
+        const sevColor = { high: 'var(--red)', medium: 'var(--gold)', low: 'var(--text-muted)' };
+        const catIcon = { registration: '📋', tax: '🏛️', adjustment: '📈', contract: '📅', vat: '🧾', corporate: '🏢' };
+        const row = (o) => {
+            const overdue = o._daysUntil < 0;
+            const when = o.dueDate ? new Date(o.dueDate).toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+            const daysTxt = overdue ? `<span style="color:var(--red);font-weight:600">scaduta da ${Math.abs(o._daysUntil)}g</span>`
+                : o._daysUntil === 0 ? '<span style="color:var(--red);font-weight:600">oggi</span>'
+                : `tra ${o._daysUntil}g`;
+            return `<div class="list-item" style="padding:14px 16px;display:flex;align-items:center;gap:14px;border-left:3px solid ${sevColor[o.severity] || 'var(--border)'}">
+                <span style="font-size:18px;width:24px;text-align:center">${catIcon[o.category] || '•'}</span>
+                <div style="flex:1;min-width:0">
+                    <div style="font-weight:500">${esc(o.label)}</div>
+                    <div style="font-size:11px;color:var(--text-muted)">${when} · ${daysTxt}${o.note ? ' · ' + esc(o.note) : ''}</div>
+                </div>
+                ${o.amount != null ? `<div style="font-weight:600;color:${o.amount > 0 ? 'var(--text)' : 'var(--green)'};white-space:nowrap">${FX.fmtEuro(o.amount)}${o.amountIsEstimate && o.amount > 0 ? '<span style="font-size:9px;color:var(--text-muted)"> stima</span>' : ''}</div>` : ''}
+            </div>`;
+        };
+        const totalUrgent = urgent.reduce((s, o) => s + (o.amount || 0), 0);
+        return `<div class="card" style="margin-top:16px">
+            <div style="padding:16px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                <span style="font-size:20px">🗓️</span>
+                <div style="flex:1"><strong>Scadenzario fiscale</strong> <span style="font-size:12px;color:var(--text-muted)">${roll.counts.overdue ? roll.counts.overdue + ' scadute · ' : ''}${roll.counts.dueSoon} entro 30 giorni</span></div>
+                ${totalUrgent ? `<div style="font-size:13px;color:var(--text-muted)">Da versare a breve: <strong style="color:var(--text)">${FX.fmtEuro(totalUrgent)}</strong></div>` : ''}
+                ${opts.showSaveAction ? `<button class="btn btn-secondary btn-sm" onclick="pushObligationsToDeadlines(${opts.year || (new Date().getFullYear())}, '${opts.party || 'landlord'}')" title="Salva nelle scadenze così ricevi promemoria email">🔔 Promemoria automatici</button>` : ''}
+            </div>
+            <div class="card-body flush">
+                ${urgent.length ? urgent.map(row).join('') : '<div style="padding:16px;color:var(--text-muted);font-size:13px">Nessuna scadenza urgente. ✓</div>'}
+                ${!opts.compact && upcoming.length ? `<div style="padding:10px 16px;font-size:11px;color:var(--text-muted);background:var(--bg-elevated);text-transform:uppercase;letter-spacing:1px">Prossimo trimestre</div>${upcoming.map(row).join('')}` : ''}
+            </div>
+            ${opts.compact && upcoming.length ? `<div style="padding:10px 16px;font-size:12px;color:var(--text-muted);border-top:1px solid var(--border)">+ ${upcoming.length} nel prossimo trimestre</div>` : ''}
+        </div>`;
+    }
+
+    // Open the document upload prefilled for a property + year (+ optional
+    // requirement key → preselects the fiscal category). Used by the
+    // landlord-lite "missing documents" affordances.
+    function openDocUploadForProperty(propertyId, year, reqKey) {
+        const KEY_TO_CATEGORY = {
+            contract: 'contract', rli: 'rli_registration', cedolare_option: 'cedolare',
+            receipts: 'receipt', istat: 'istat', imposta_registro: 'f24', imu: 'imu',
+            ape: 'ape', visura: 'visura', tenant_id: 'id_document',
+            maintenance_invoices: 'invoice', cin: 'cin',
+        };
+        openDocUploadModal();
+        // Defer until the modal DOM exists, then prefill property + year + category.
+        setTimeout(() => {
+            const form = document.getElementById('docUploadForm');
+            if (!form) return;
+            if (form.propertyId) form.propertyId.value = propertyId;
+            if (form.fiscalYear) form.fiscalYear.value = year;
+            if (reqKey && form.category && KEY_TO_CATEGORY[reqKey]) form.category.value = KEY_TO_CATEGORY[reqKey];
+        }, 60);
+    }
+
+    function commercialistaAdminFull() {
+        const TP = window.BOOM_TAXPACK;
+        const props = commercialistaProps();
+        if (!TP) return `<div class="page-header"><h1 class="page-title">🧮 Commercialista</h1></div><div class="card"><div class="card-body">Motore fiscale non caricato. Ricarica la pagina.</div></div>`;
+        if (!props.length) return `<div class="page-header"><h1 class="page-title">🧮 Commercialista</h1><p class="page-subtitle">Tax Pack annuale + condivisione documenti</p></div><div class="card"><div class="empty-state"><div class="empty-icon">🏠</div><div class="empty-title">Nessun immobile</div><div class="empty-subtitle">Aggiungi un immobile per generare il pacchetto fiscale</div></div></div>`;
+
+        if (!_cmState.propertyId || !props.some(p => p.id === _cmState.propertyId)) _cmState.propertyId = props[0].id;
+        const prop = props.find(p => p.id === _cmState.propertyId);
+        const year = _cmState.year;
+
+        // Gather data for this property + year
+        const contracts = (S.contracts || []).filter(c => c.propertyId === prop.id);
+        // Pick the contract active during the selected year (fallback: latest)
+        const contract = contracts.find(c => {
+            const s = c.startDate ? new Date(c.startDate).getFullYear() : year;
+            const e = c.endDate ? new Date(c.endDate).getFullYear() : year;
+            return s <= year && e >= year;
+        }) || contracts[contracts.length - 1] || {};
+        const contractIds = contracts.map(c => c.id);
+        const payments = (S.payments || []).filter(p => p.propertyId === prop.id || contractIds.includes(p.contractId));
+        const documents = (S.documents || []).filter(d => d.propertyId === prop.id);
+
+        const checklist = TP.buildChecklist({ contract, property: prop, documents, payments, fiscalYear: year });
+        const totals = TP.computeTotals({ contract, payments, fiscalYear: year });
+        const FX_admin = window.BOOM_FISCAL;
+        const adminScad = FX_admin ? fiscalScadenzarioCard(FX_admin.landlordObligations({ properties: [prop], contracts: (S.contracts||[]).filter(c=>c.propertyId===prop.id), fiscalYear: year }), { compact: false }) : '';
+
+        const yearOpts = [];
+        const nowY = new Date().getFullYear();
+        for (let y = nowY; y >= nowY - 5; y--) yearOpts.push(`<option value="${y}" ${y === year ? 'selected' : ''}>${y}</option>`);
+        const propOpts = props.map(p => `<option value="${p.id}" ${p.id === prop.id ? 'selected' : ''}>${esc(p.name || p.address || p.id)}</option>`).join('');
+
+        const regimeLabel = { cedolare_21: 'Cedolare secca 21%', cedolare_10: 'Cedolare secca 10% (concordato)', ordinario: 'IRPEF ordinario' }[totals.regime] || totals.regime;
+        const ready = checklist.ready;
+
+        const checkRow = (item) => {
+            const ic = item.present ? '<span style="color:var(--green)">✓</span>' : '<span style="color:var(--red)">○</span>';
+            return `<div class="list-item" style="padding:12px 16px;display:flex;align-items:center;gap:12px">
+                <div style="font-size:18px;width:24px;text-align:center">${ic}</div>
+                <div style="flex:1">
+                    <div style="font-weight:500;font-size:14px;${item.present ? '' : 'color:var(--text-secondary)'}">${esc(item.label)}</div>
+                    <div style="font-size:11px;color:var(--text-muted)">${esc(item.folder)}${item.detail ? ' · ' + esc(item.detail) : ''}</div>
+                </div>
+                ${item.present
+                    ? '<span class="badge" style="background:rgba(0,210,106,0.15);color:var(--green);font-size:9px">PRESENTE</span>'
+                    : '<span class="badge" style="background:rgba(255,59,48,0.15);color:var(--red);font-size:9px">MANCANTE</span>'}
+            </div>`;
+        };
+
+        return `<div class="page-header">
+                <div><h1 class="page-title">🧮 Commercialista</h1><p class="page-subtitle">Pacchetto fiscale annuale · documenti pronti per lo studio</p></div>
+                <div class="page-actions">
+                    <button class="btn btn-secondary btn-sm" onclick="window._cmEgidi=true;renderPage()" title="La fiscalità di Egidi Immobiliare">🏢 Egidi (Azienda)</button>
+                    <button class="btn btn-secondary btn-sm" onclick="window._cmPreviewLite=true;renderPage()" title="Vedi come lo vede il proprietario">👁 Vista proprietario</button>
+                    <select class="form-select" style="width:auto" onchange="_cmState.propertyId=this.value;renderPage()">${propOpts}</select>
+                    <select class="form-select" style="width:auto" onchange="_cmState.year=parseInt(this.value);renderPage()">${yearOpts.join('')}</select>
+                </div>
+            </div>
+
+            <div class="stats-grid" style="grid-template-columns:repeat(4,1fr)">
+                <div class="stat-card"><div class="stat-label">Canoni incassati ${year}</div><div class="stat-value">${TP.fmtEuro(totals.canoniIncassati)}</div><div class="stat-description">${totals.monthsPaid}/${totals.monthsExpected} mesi · ${TP.fmtEuro(totals.outstanding)} da incassare</div></div>
+                <div class="stat-card"><div class="stat-label">Regime</div><div class="stat-value" style="font-size:18px">${esc(regimeLabel)}</div></div>
+                <div class="stat-card"><div class="stat-label">${totals.regime === 'ordinario' ? 'Imponibile (95%)' : 'Cedolare stimata'}</div><div class="stat-value gold">${TP.fmtEuro(totals.regime === 'ordinario' ? totals.irpefImponibile : totals.cedolareImposta)}</div><div class="stat-description">anteprima — verifica col commercialista</div></div>
+                <div class="stat-card ${ready ? '' : 'highlight'}"><div class="stat-label">Completezza</div><div class="stat-value ${ready ? 'green' : 'gold'}">${checklist.completeness}%</div><div class="stat-description">${checklist.presentCount}/${checklist.requiredCount} documenti</div></div>
+            </div>
+
+            <div class="card" style="margin-bottom:20px">
+                <div style="padding:16px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                    <div style="flex:1">
+                        <div style="font-weight:600">${ready ? '✅ Pronto per il commercialista' : '⚠️ Mancano ' + checklist.missing.length + ' documenti'}</div>
+                        <div style="font-size:12px;color:var(--text-muted);margin-top:2px">${esc(prop.name || prop.address || '')} · Anno ${year}</div>
+                    </div>
+                    <button class="btn btn-secondary btn-sm" onclick="openCedolareCalc(${totals.canoniAttesi || (contract.rent ? contract.rent*12 : 0)}, ${TP.classifyContract(contract).isConcordato})">📊 Cedolare vs IRPEF</button>
+                    <button class="btn btn-secondary btn-sm" onclick="openIstatLetter('${prop.id}', ${year})">📈 Lettera ISTAT</button>
+                    <button class="btn btn-secondary btn-sm" onclick="downloadTaxPackZip('${prop.id}', ${year})" id="taxPackBtn">📦 Scarica Tax Pack (zip)</button>
+                    <button class="btn" onclick="openCommercialistaShare('${prop.id}', ${year})">🔗 Genera link commercialista</button>
+                </div>
+                <div style="height:6px;background:var(--bg-elevated)"><div style="height:100%;width:${checklist.completeness}%;background:linear-gradient(90deg,${ready ? 'var(--green)' : 'var(--gold)'},${ready ? 'var(--green)' : 'var(--gold-dark, #B8960C)'});transition:width .4s"></div></div>
+                <div class="card-body flush">
+                    ${checklist.items.map(checkRow).join('')}
+                </div>
+            </div>
+
+            ${adminScad}
+
+            <div class="card" style="margin-bottom:20px;border-color:rgba(212,175,55,0.25)">
+                <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px">
+                    <span style="font-size:18px">🤖</span>
+                    <div style="flex:1"><strong>Chiedi all'archivio</strong> <span style="font-size:11px;color:var(--text-muted)">— AI sui tuoi documenti di ${esc(prop.name || '')} (${year})</span></div>
+                </div>
+                <div class="card-body">
+                    <div style="display:flex;gap:8px;flex-wrap:wrap">
+                        <input type="text" class="form-input" id="qaQuestion" placeholder="es. Quali contratti scadono nel 2026? Quanto ho pagato di IMU? Trova le ricevute di Rossi…" style="flex:1;min-width:280px" onkeydown="if(event.key==='Enter')askArchive()">
+                        <button class="btn" id="qaAskBtn" onclick="askArchive()">🤖 Chiedi</button>
+                    </div>
+                    <div id="qaAnswer" style="margin-top:12px"></div>
+                </div>
+            </div>
+
+            ${checklist.missing.length ? `<div class="card" style="border-color:rgba(255,59,48,0.2)">
+                <div style="padding:14px 18px;border-bottom:1px solid var(--border);font-weight:600;color:var(--red)">Cosa manca</div>
+                <div class="card-body">
+                    <ul style="margin:0;padding-left:18px;line-height:2;font-size:14px">
+                        ${checklist.missing.map(m => `<li>${esc(m.label)} <span style="color:var(--text-muted);font-size:12px">→ carica in Documenti, cartella ${esc(m.folder)}</span></li>`).join('')}
+                    </ul>
+                    <button class="btn btn-secondary btn-sm" style="margin-top:12px" onclick="goTo('documents')">📁 Vai ai Documenti</button>
+                </div>
+            </div>` : ''}`;
+    }
+
+    // Cedolare vs IRPEF quick comparison modal
+    function openCedolareCalc(canoniAnnui, isConcordato) {
+        const TP = window.BOOM_TAXPACK;
+        canoniAnnui = canoniAnnui || 12000;
+        const brackets = [{ l: '23% (fino a 28k)', r: 0.23 }, { l: '35% (28k–50k)', r: 0.35 }, { l: '43% (oltre 50k)', r: 0.43 }];
+        const rows = brackets.map(b => {
+            const cmp = TP.compareCedolare(canoniAnnui, b.r, isConcordato);
+            return `<tr>
+                <td style="padding:8px 10px">${b.l}</td>
+                <td style="padding:8px 10px;text-align:right">${TP.fmtEuro(cmp.cedolare)}</td>
+                <td style="padding:8px 10px;text-align:right">${TP.fmtEuro(cmp.ordinario)}</td>
+                <td style="padding:8px 10px;text-align:right;color:${cmp.recommended === 'cedolare' ? 'var(--green)' : 'var(--gold)'}">${cmp.recommended === 'cedolare' ? 'Cedolare' : 'Ordinario'}</td>
+            </tr>`;
+        }).join('');
+        document.getElementById('modals').innerHTML = `<div class="modal-overlay active"><div class="modal">
+            <div class="modal-header"><h3 class="modal-title">📊 Cedolare vs IRPEF ordinario</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+            <div class="modal-body">
+                <p style="font-size:13px;color:var(--text-secondary);margin-bottom:14px">Su canoni annui di <strong>${TP.fmtEuro(canoniAnnui)}</strong>${isConcordato ? ' (canone concordato → cedolare 10%)' : ''}. Stima indicativa, include imposta di registro per l'ordinario.</p>
+                <table style="width:100%;border-collapse:collapse;font-size:13px">
+                    <thead><tr style="border-bottom:1px solid var(--border);color:var(--text-muted);font-size:11px;text-transform:uppercase">
+                        <th style="padding:8px 10px;text-align:left">Scaglione IRPEF</th><th style="padding:8px 10px;text-align:right">Cedolare</th><th style="padding:8px 10px;text-align:right">Ordinario</th><th style="padding:8px 10px;text-align:right">Conviene</th>
+                    </tr></thead>
+                    <tbody>${rows}</tbody>
+                </table>
+            </div>
+            <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Chiudi</button></div>
+        </div></div>`;
+    }
+
+    // Build the share modal: pick docs (default = all for property+year) and generate link
+    function openCommercialistaShare(propertyId, year) {
+        const prop = (S.properties || []).find(p => p.id === propertyId) || {};
+        const docs = (S.documents || []).filter(d => d.propertyId === propertyId && (!d.fiscalYear || Number(d.fiscalYear) === Number(year)));
+        const rows = docs.length ? docs.map(d => `<label style="display:flex;align-items:center;gap:10px;padding:8px 0;cursor:pointer">
+            <input type="checkbox" class="cm-doc" value="${esc(d.id)}" checked>
+            <span style="font-size:18px">${docIcon(d.type)}</span>
+            <span style="flex:1">${esc(d.name)}</span>
+            <span style="font-size:11px;color:var(--text-muted)">${esc(d.type || '')}</span>
+        </label>`).join('') : '<p style="color:var(--text-muted);font-size:13px">Nessun documento per questo immobile/anno. Carica documenti prima di condividere.</p>';
+        document.getElementById('modals').innerHTML = `<div class="modal-overlay active"><div class="modal lg">
+            <div class="modal-header"><h3 class="modal-title">🔗 Condividi col commercialista</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+            <div class="modal-body">
+                <div class="form-row">
+                    <div class="form-group"><label class="form-label">Nome studio / commercialista</label><input type="text" class="form-input" id="cmRecipient" placeholder="Es. Studio Rossi"></div>
+                    <div class="form-group"><label class="form-label">Scadenza link</label><select class="form-select" id="cmExpiry"><option value="30">30 giorni</option><option value="60" selected>60 giorni</option><option value="90">90 giorni</option><option value="180">180 giorni</option></select></div>
+                </div>
+                <div class="form-group"><label class="form-label">Nota (opzionale)</label><input type="text" class="form-input" id="cmNote" placeholder="Es. Dichiarazione redditi ${year}"></div>
+                <div style="margin-top:10px"><label class="form-label">Documenti inclusi (${docs.length})</label>
+                    <div style="max-height:240px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:8px 14px;margin-top:6px">${rows}</div>
+                </div>
+                <div id="cmResult" style="margin-top:14px"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">Annulla</button>
+                <button class="btn" id="cmGenBtn" onclick="generateCommercialistaShare('${propertyId}', ${year})" ${docs.length ? '' : 'disabled'}>Genera link</button>
+            </div>
+        </div></div>`;
+    }
+
+    async function generateCommercialistaShare(propertyId, year) {
+        const prop = (S.properties || []).find(p => p.id === propertyId) || {};
+        const docIds = Array.from(document.querySelectorAll('.cm-doc:checked')).map(c => c.value);
+        if (!docIds.length) { toast('error', 'Seleziona almeno un documento'); return; }
+        const btn = document.getElementById('cmGenBtn');
+        btn.disabled = true; btn.textContent = 'Genero…';
+        try {
+            const idToken = await auth.currentUser.getIdToken();
+            const resp = await fetch('/api/documents/share', {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + idToken, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    ownerId: prop.ownerId || S.profile.id,
+                    propertyId: propertyId,
+                    fiscalYear: year,
+                    docIds: docIds,
+                    recipientName: document.getElementById('cmRecipient').value.trim(),
+                    note: document.getElementById('cmNote').value.trim(),
+                    expiresInDays: parseInt(document.getElementById('cmExpiry').value, 10),
+                }),
+            });
+            const data = await resp.json();
+            if (!resp.ok || !data.ok) throw new Error(data.error || 'errore');
+            const el = document.getElementById('cmResult');
+            el.innerHTML = `<div style="background:rgba(0,210,106,0.1);border:1px solid var(--green);border-radius:10px;padding:14px">
+                <div style="font-weight:600;color:var(--green);margin-bottom:8px">✅ Link generato</div>
+                <div style="display:flex;gap:8px;align-items:center">
+                    <input class="form-input" id="cmLink" readonly value="${esc(data.url)}" style="flex:1;font-size:12px">
+                    <button class="btn btn-sm" onclick="navigator.clipboard.writeText(document.getElementById('cmLink').value);toast('success','Link copiato')">Copia</button>
+                </div>
+                <div style="font-size:11px;color:var(--text-muted);margin-top:8px">Scade il ${fmtDate(data.expiresAt)} · ${docIds.length} documenti · accessi tracciati</div>
+            </div>`;
+            btn.style.display = 'none';
+            logActivity('commercialista_share_created', 'document', { propertyId, year, docCount: docIds.length });
+        } catch (e) {
+            btn.disabled = false; btn.textContent = 'Genera link';
+            toast('error', 'Errore generazione link', e.message);
+        }
+    }
+
+    // ─── ISTAT adjustment letter generator (PDF via jsPDF) ──────────────────
+    function openIstatLetter(propertyId, year) {
+        const TP = window.BOOM_TAXPACK;
+        const prop = (S.properties || []).find(p => p.id === propertyId) || {};
+        const contract = (S.contracts || []).find(c => c.propertyId === propertyId && c.status === 'active') ||
+                         (S.contracts || []).find(c => c.propertyId === propertyId) || {};
+        const tenant = (S.users || []).find(u => u.id === contract.tenantId) || {};
+        const landlord = (S.users || []).find(u => u.id === prop.ownerId) || (isLandlord() ? S.profile : {});
+        document.getElementById('modals').innerHTML = `<div class="modal-overlay active"><div class="modal">
+            <div class="modal-header"><h3 class="modal-title">📈 Lettera ISTAT</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+            <div class="modal-body">
+                <p style="font-size:13px;color:var(--text-secondary);margin-bottom:14px">Genera la comunicazione scritta di adeguamento ISTAT da inviare all'inquilino. Inserisci la variazione annuale dell'indice ISTAT FOI (lo trovi su istat.it, ultimo dato pubblicato).</p>
+                <div class="form-row">
+                    <div class="form-group"><label class="form-label">Canone attuale (€/mese)</label><input type="number" class="form-input" id="iL_rent" value="${contract.rent || 0}" step="0.01"></div>
+                    <div class="form-group"><label class="form-label">Variazione ISTAT annuale (%)</label><input type="number" class="form-input" id="iL_var" value="2.0" step="0.1" placeholder="es. 2.0"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label class="form-label">% applicata (da contratto)</label><select class="form-select" id="iL_app"><option value="0.75" selected>75% (default di legge)</option><option value="1.0">100% (variazione piena)</option></select></div>
+                    <div class="form-group"><label class="form-label">Decorrenza</label><input type="date" class="form-input" id="iL_from" value="${new Date(year, new Date().getMonth(), 1).toISOString().slice(0,10)}"></div>
+                </div>
+                <div id="iL_preview" style="margin-top:14px;background:var(--bg-elevated);border-radius:10px;padding:14px;font-size:13px"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">Annulla</button>
+                <button class="btn btn-secondary" onclick="previewIstatLetter()">Anteprima</button>
+                <button class="btn" onclick="downloadIstatLetterPDF('${propertyId}', ${year})">📄 Scarica PDF</button>
+            </div>
+        </div></div>`;
+        // expose for the buttons + auto-preview
+        window._istatCtx = { contract, tenant, landlord, prop };
+        previewIstatLetter();
+    }
+
+    function _readIstatForm() {
+        const TP = window.BOOM_TAXPACK;
+        const rent = parseFloat(document.getElementById('iL_rent').value) || 0;
+        const varPct = (parseFloat(document.getElementById('iL_var').value) || 0) / 100;
+        const app = parseFloat(document.getElementById('iL_app').value) || 0.75;
+        const fromDate = document.getElementById('iL_from').value || new Date().toISOString().slice(0,10);
+        const adj = TP.computeIstatAdjustment(rent, varPct, app);
+        return Object.assign({}, adj, { fromDate });
+    }
+
+    function previewIstatLetter() {
+        const a = _readIstatForm();
+        document.getElementById('iL_preview').innerHTML =
+            `<div><strong>Canone attuale:</strong> €${a.currentRent.toFixed(2)}</div>` +
+            `<div><strong>Variazione ISTAT:</strong> ${(a.annualVariance*100).toFixed(2)}% · applicata al ${(a.applicationPct*100).toFixed(0)}%</div>` +
+            `<div style="color:var(--gold)"><strong>Aumento:</strong> ${a.increase >= 0 ? '+' : ''}€${a.increase.toFixed(2)}</div>` +
+            `<div style="font-size:16px;margin-top:8px"><strong>Nuovo canone:</strong> <span style="color:var(--gold)">€${a.newRent.toFixed(2)}</span> dal ${a.fromDate}</div>`;
+    }
+
+    function downloadIstatLetterPDF(propertyId, year) {
+        const a = _readIstatForm();
+        const ctx = window._istatCtx || {};
+        const { contract = {}, tenant = {}, landlord = {}, prop = {} } = ctx;
+        const jsPDF = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
+        if (!jsPDF) { toast('error', 'jsPDF non caricato'); return; }
+        const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
+        const today = new Date().toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' });
+        const fromDateNice = new Date(a.fromDate).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' });
+
+        pdf.setFont('helvetica', 'bold'); pdf.setFontSize(11);
+        pdf.text('BOOM Rome', 20, 22);
+        pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9); pdf.setTextColor(120);
+        pdf.text('Property Management · boomrome.com', 20, 27);
+        pdf.setTextColor(0); pdf.setFontSize(10);
+        pdf.text('Roma, ' + today, 150, 22, { align: 'left' });
+
+        let y = 50;
+        pdf.text('Spett.le', 20, y); y += 5;
+        pdf.setFont('helvetica', 'bold'); pdf.text(tenant.name || '—', 20, y); y += 5;
+        pdf.setFont('helvetica', 'normal');
+        if (tenant.address) { pdf.text(tenant.address, 20, y); y += 5; }
+        y += 8;
+
+        pdf.setFont('helvetica', 'bold');
+        pdf.text(`Oggetto: Adeguamento ISTAT del canone di locazione - Anno ${year}`, 20, y); y += 10;
+        pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10.5);
+
+        const introLines = pdf.splitTextToSize(
+            `Egregio/a ${(tenant.name || '').split(' ')[0] || 'Sig./Sig.ra'},\n\n` +
+            `con la presente Le comunichiamo che, ai sensi delle clausole del contratto di locazione relativo all'immobile sito in ${prop.address || prop.name || 'Roma'}, sottoscritto in data ${contract.startDate ? new Date(contract.startDate).toLocaleDateString('it-IT') : '—'}, il canone mensile verrà aggiornato secondo la variazione dell'indice ISTAT FOI (Famiglie di Operai e Impiegati, al netto dei tabacchi) come di seguito riepilogato:`,
+            170);
+        pdf.text(introLines, 20, y);
+        y += introLines.length * 5 + 4;
+
+        // Table-like block
+        const rows = [
+            ['Canone attuale', '€ ' + a.currentRent.toFixed(2)],
+            ['Variazione ISTAT annuale', (a.annualVariance >= 0 ? '+' : '') + (a.annualVariance * 100).toFixed(2) + ' %'],
+            ['Percentuale applicata', (a.applicationPct * 100).toFixed(0) + ' %'],
+            ['Variazione effettiva', (a.variationFraction >= 0 ? '+' : '') + (a.variationFraction * 100).toFixed(2) + ' %'],
+            ['Importo aumento mensile', (a.increase >= 0 ? '+' : '') + '€ ' + a.increase.toFixed(2)],
+        ];
+        rows.forEach(r => {
+            pdf.setFont('helvetica', 'normal');
+            pdf.text(r[0] + ':', 25, y);
+            pdf.setFont('helvetica', 'bold');
+            pdf.text(r[1], 130, y, { align: 'left' });
+            y += 6;
+        });
+        // Highlight new rent
+        pdf.setDrawColor(212, 175, 55); pdf.setLineWidth(0.3);
+        pdf.line(20, y, 190, y); y += 7;
+        pdf.setFont('helvetica', 'bold'); pdf.setFontSize(12);
+        pdf.text('Nuovo canone mensile:', 25, y);
+        pdf.setTextColor(180, 140, 30);
+        pdf.text('€ ' + a.newRent.toFixed(2), 130, y);
+        pdf.setTextColor(0); pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10.5);
+        y += 8;
+        pdf.text('Decorrenza: ' + fromDateNice, 25, y); y += 12;
+
+        const outroLines = pdf.splitTextToSize(
+            "Il nuovo importo decorrerà dalla data sopra indicata e resterà valido fino alla prossima revisione annuale. " +
+            "La presente ha valore di formale comunicazione ai sensi delle clausole contrattuali.\n\n" +
+            "La invitiamo a confermare ricezione e a procedere con il pagamento del nuovo importo a partire dalla data di decorrenza.\n\n" +
+            "Cordiali saluti,",
+            170);
+        pdf.text(outroLines, 20, y);
+        y += outroLines.length * 5 + 16;
+
+        pdf.setFont('helvetica', 'bold');
+        pdf.text(landlord.name || 'Locatore', 20, y); y += 5;
+        pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9); pdf.setTextColor(120);
+        pdf.text('Generato da BOOM Rome · ' + new Date().toISOString().slice(0,10), 20, 285);
+
+        const filename = `Lettera_ISTAT_${year}_${(prop.name || 'Immobile').replace(/[^A-Za-z0-9]/g, '_').slice(0,30)}.pdf`;
+        pdf.save(filename);
+        logActivity('istat_letter_generated', 'document', { propertyId, year, newRent: a.newRent });
+        toast('success', 'Lettera ISTAT generata', 'PDF scaricato');
+    }
+
+    // ─── AI Q&A over the document archive ───────────────────────────────────
+    async function askArchive() {
+        const inp = document.getElementById('qaQuestion');
+        const out = document.getElementById('qaAnswer');
+        const btn = document.getElementById('qaAskBtn');
+        const q = (inp?.value || '').trim();
+        if (q.length < 3) { toast('warning', 'Scrivi una domanda più specifica'); return; }
+        btn.disabled = true; btn.textContent = '🤖 Sto leggendo l\'archivio…';
+        out.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:10px">Analisi in corso…</div>';
+        try {
+            const idToken = await auth.currentUser.getIdToken();
+            const payload = { question: q };
+            if (_cmState && _cmState.propertyId) payload.propertyId = _cmState.propertyId;
+            if (_cmState && _cmState.year) payload.fiscalYear = _cmState.year;
+            const r = await fetch('/api/documents/qa', {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + idToken, 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            const data = await r.json();
+            if (!r.ok || !data.ok) throw new Error(data.error || 'errore');
+            const answerHtml = esc(data.answer).replace(/\n/g, '<br>');
+            const cited = (data.citedDocIds || []).map(id => {
+                const d = (S.documents || []).find(x => x.id === id);
+                if (!d) return '';
+                const link = d.fileUrl ? `<a href="${esc(d.fileUrl)}" target="_blank" rel="noopener" style="color:var(--gold)">${esc(d.name || id)}</a>` : esc(d.name || id);
+                return `<span class="badge" style="background:var(--bg-elevated);font-size:11px;margin:3px;padding:4px 8px">📄 ${link}</span>`;
+            }).join('');
+            out.innerHTML =
+                `<div style="background:var(--bg-elevated);border-left:3px solid var(--gold);padding:14px;border-radius:8px;font-size:13px;line-height:1.6">${answerHtml}</div>` +
+                (cited ? `<div style="margin-top:10px;font-size:11px;color:var(--text-muted)">Fonti:</div><div>${cited}</div>` : '') +
+                `<div style="margin-top:6px;font-size:10px;color:var(--text-muted)">Analizzati ${data.docsConsidered} documenti · risposta non sostituisce il commercialista</div>`;
+        } catch (e) {
+            out.innerHTML = `<div style="color:var(--red);font-size:13px;padding:10px">Errore: ${esc(e.message)}</div>`;
+        } finally {
+            btn.disabled = false; btn.textContent = '🤖 Chiedi';
+        }
+    }
+
+    // ─── Riepilogo fiscale PDF (auto-generated summary for the commercialista) ─
+    // Drops into the Tax Pack zip as 'Riepilogo_fiscale_<year>.pdf'; this is
+    // the SINGLE FILE the accountant opens to see every BOOM-tracked figure
+    // (canoni, cedolare preview, Quadro RB numbers, missing-doc checklist).
+    function buildRiepilogoPDF(opts) {
+        const TP = window.BOOM_TAXPACK;
+        const jsPDF = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
+        if (!jsPDF) throw new Error('jsPDF non caricato');
+        const { property, contract, tenant, landlord, totals, checklist, year } = opts;
+        const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
+        const today = new Date().toLocaleDateString('it-IT');
+
+        // Header
+        pdf.setFont('helvetica', 'bold'); pdf.setFontSize(16); pdf.setTextColor(180, 140, 30);
+        pdf.text('Riepilogo fiscale ' + year, 20, 22);
+        pdf.setTextColor(0); pdf.setFontSize(10); pdf.setFont('helvetica', 'normal');
+        pdf.text('Generato da BOOM Rome · ' + today, 20, 28);
+        pdf.setDrawColor(212, 175, 55); pdf.setLineWidth(0.4); pdf.line(20, 32, 190, 32);
+
+        let y = 42;
+
+        // Property block
+        pdf.setFontSize(9); pdf.setTextColor(120);
+        pdf.text('IMMOBILE', 20, y);
+        pdf.setTextColor(0); pdf.setFontSize(12); pdf.setFont('helvetica', 'bold');
+        pdf.text((property.name || 'Immobile'), 20, y + 6);
+        pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10);
+        if (property.address) pdf.text(property.address, 20, y + 12);
+        if (property.cadastralData) {
+            const cd = typeof property.cadastralData === 'string' ? property.cadastralData : JSON.stringify(property.cadastralData);
+            pdf.setFontSize(8); pdf.setTextColor(110);
+            pdf.text('Dati catastali: ' + String(cd).slice(0, 90), 20, y + 18);
+            pdf.setTextColor(0); pdf.setFontSize(10);
+        }
+        y += 26;
+
+        // Landlord + Tenant block
+        pdf.setFontSize(9); pdf.setTextColor(120);
+        pdf.text('LOCATORE', 20, y); pdf.text('CONDUTTORE', 110, y);
+        pdf.setTextColor(0); pdf.setFontSize(11);
+        pdf.text(landlord.name || '—', 20, y + 6);
+        pdf.text(tenant.name || '—', 110, y + 6);
+        pdf.setFontSize(9); pdf.setTextColor(80);
+        if (landlord.codiceFiscale || landlord.cf) pdf.text('CF: ' + (landlord.codiceFiscale || landlord.cf), 20, y + 11);
+        if (tenant.cf || tenant.codiceFiscale) pdf.text('CF: ' + (tenant.cf || tenant.codiceFiscale), 110, y + 11);
+        if (landlord.partitaIva) pdf.text('P.IVA: ' + landlord.partitaIva, 20, y + 16);
+        pdf.setTextColor(0);
+        y += 24;
+
+        // Contract block
+        const isCed = TP.classifyContract(contract);
+        const regimeLabel = isCed.isCedolare ? (isCed.isConcordato ? 'Cedolare 10% (concordato)' : 'Cedolare 21%') : 'IRPEF ordinario';
+        const typeLabel = (contract.type || 'libero');
+        pdf.setFontSize(9); pdf.setTextColor(120);
+        pdf.text('CONTRATTO', 20, y);
+        pdf.setTextColor(0); pdf.setFontSize(10);
+        const rows1 = [
+            ['Tipo', typeLabel],
+            ['Decorrenza', contract.startDate ? new Date(contract.startDate).toLocaleDateString('it-IT') : '—'],
+            ['Scadenza', contract.endDate ? new Date(contract.endDate).toLocaleDateString('it-IT') : '—'],
+            ['Canone mensile', '€ ' + (Number(contract.rent) || 0).toLocaleString('it-IT')],
+            ['Deposito', '€ ' + (Number(contract.deposit) || 0).toLocaleString('it-IT')],
+            ['Regime fiscale', regimeLabel],
+        ];
+        rows1.forEach(r => {
+            y += 5;
+            pdf.setFont('helvetica', 'normal'); pdf.setTextColor(100); pdf.text(r[0] + ':', 20, y);
+            pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0); pdf.text(String(r[1]), 65, y);
+        });
+        y += 8;
+
+        // Totals block (Quadro RB)
+        pdf.setDrawColor(212, 175, 55); pdf.setLineWidth(0.3); pdf.line(20, y, 190, y); y += 6;
+        pdf.setFont('helvetica', 'bold'); pdf.setFontSize(11); pdf.text('TOTALI ANNO ' + year + ' (anteprima Quadro RB)', 20, y); y += 6;
+        pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10);
+        const rows2 = [
+            ['Mesi attivi', String(totals.monthsActive)],
+            ['Mesi incassati', String(totals.monthsPaid) + ' / ' + String(totals.monthsExpected)],
+            ['Canoni incassati', '€ ' + (totals.canoniIncassati || 0).toLocaleString('it-IT')],
+            ['Canoni attesi', '€ ' + (totals.canoniAttesi || 0).toLocaleString('it-IT')],
+            ['Da incassare', '€ ' + (totals.outstanding || 0).toLocaleString('it-IT')],
+        ];
+        if (totals.regime === 'ordinario') {
+            rows2.push(['Imponibile IRPEF (95%)', '€ ' + (totals.irpefImponibile || 0).toLocaleString('it-IT')]);
+        } else {
+            rows2.push(['Aliquota cedolare', (totals.cedolareRate * 100).toFixed(0) + ' %']);
+            rows2.push(['Cedolare stimata', '€ ' + (totals.cedolareImposta || 0).toLocaleString('it-IT')]);
+        }
+        rows2.forEach(r => {
+            y += 5;
+            pdf.setTextColor(100); pdf.setFont('helvetica', 'normal'); pdf.text(r[0] + ':', 20, y);
+            pdf.setTextColor(0); pdf.setFont('helvetica', 'bold'); pdf.text(String(r[1]), 90, y);
+        });
+        y += 8;
+        pdf.setFontSize(8); pdf.setTextColor(150);
+        pdf.text('Valori indicativi calcolati da BOOM — la dichiarazione resta a cura del commercialista.', 20, y);
+        pdf.setTextColor(0); y += 8;
+
+        // Checklist summary
+        pdf.line(20, y, 190, y); y += 6;
+        pdf.setFont('helvetica', 'bold'); pdf.setFontSize(11);
+        pdf.text('CHECKLIST DOCUMENTI · ' + checklist.presentCount + '/' + checklist.requiredCount + ' (' + checklist.completeness + '%)', 20, y);
+        y += 6;
+        pdf.setFontSize(9.5); pdf.setFont('helvetica', 'normal');
+        checklist.items.forEach(item => {
+            if (y > 275) { pdf.addPage(); y = 20; }
+            pdf.setTextColor(item.present ? 0 : 180);
+            const mark = item.present ? '[X]' : '[ ]';
+            pdf.text(mark + '  ' + item.label, 22, y);
+            if (item.detail) {
+                pdf.setTextColor(140); pdf.setFontSize(8);
+                pdf.text(item.detail, 150, y);
+                pdf.setFontSize(9.5);
+            }
+            y += 5;
+        });
+        pdf.setTextColor(0);
+
+        // Footer on each page
+        const pages = pdf.internal.getNumberOfPages();
+        for (let i = 1; i <= pages; i++) {
+            pdf.setPage(i);
+            pdf.setFontSize(8); pdf.setTextColor(140);
+            pdf.text('BOOM Rome · ' + (property.name || 'Immobile') + ' · ' + year + ' · pag. ' + i + '/' + pages, 20, 290);
+        }
+
+        return pdf;
+    }
+
+    // ─── Tax Pack zip generator (client-side, jszip) ───────────────────────
+    // Builds a single .zip with the manifest's 9 folders, the Riepilogo PDF
+    // as the entry summary, and every uploaded document fetched from Storage
+    // dropped into the right folder. Filename mirrors the TaxPack manifest:
+    // TaxPack_<year>_<PropertySlug>.zip
+    async function downloadTaxPackZip(propertyId, year) {
+        const TP = window.BOOM_TAXPACK;
+        if (!window.JSZip) { toast('error', 'JSZip non caricato'); return; }
+        const btn = document.getElementById('taxPackBtn');
+        const origLabel = btn ? btn.innerHTML : '';
+        if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Genero…'; }
+        try {
+            const prop = (S.properties || []).find(p => p.id === propertyId);
+            if (!prop) throw new Error('Immobile non trovato');
+            const contracts = (S.contracts || []).filter(c => c.propertyId === propertyId);
+            const contract = contracts.find(c => {
+                const s = c.startDate ? new Date(c.startDate).getFullYear() : year;
+                const e = c.endDate ? new Date(c.endDate).getFullYear() : year;
+                return s <= year && e >= year;
+            }) || contracts[contracts.length - 1] || {};
+            const contractIds = contracts.map(c => c.id);
+            const payments = (S.payments || []).filter(p => p.propertyId === propertyId || contractIds.includes(p.contractId));
+            const allDocs = (S.documents || []).filter(d => d.propertyId === propertyId && (!d.fiscalYear || Number(d.fiscalYear) === Number(year)));
+            const tenant = (S.users || []).find(u => u.id === contract.tenantId) || {};
+            const landlord = (S.users || []).find(u => u.id === prop.ownerId) || (isLandlord() ? S.profile : {});
+
+            const checklist = TP.buildChecklist({ contract, property: prop, documents: allDocs, payments, fiscalYear: year });
+            const totals = TP.computeTotals({ contract, payments, fiscalYear: year });
+            const manifest = TP.buildManifest({ contract, property: prop, documents: allDocs, fiscalYear: year, checklist });
+
+            const zip = new JSZip();
+            const root = zip.folder(manifest.root);
+
+            // 1) Riepilogo PDF — first file the accountant opens
+            const summaryPDF = buildRiepilogoPDF({ property: prop, contract, tenant, landlord, totals, checklist, year });
+            const summaryBlob = summaryPDF.output('blob');
+            root.file(manifest.summaryFile, summaryBlob);
+
+            // 2) For each requirement folder, fetch + embed docs
+            //    (manifest.folders is { '01_Contratto': [docId, ...], ... })
+            const folderIds = Object.keys(manifest.folders);
+            // Ensure all 9 standard folders exist even if empty (commercialista expects the structure)
+            const allFolders = ['01_Contratto','02_Incassi','03_Spese_detraibili','04_Imposte','05_Adeguamenti','06_Immobile','07_Anagrafiche','08_BreviLocazioni'];
+            allFolders.forEach(f => { if (!folderIds.includes(f)) root.folder(f); });
+
+            let fetched = 0, skipped = 0;
+            for (const folderName of folderIds) {
+                const sub = root.folder(folderName);
+                const ids = manifest.folders[folderName];
+                for (const docId of ids) {
+                    const d = allDocs.find(x => x.id === docId);
+                    if (!d || !d.fileUrl) { skipped++; continue; }
+                    try {
+                        if (btn) btn.innerHTML = '⏳ ' + (fetched + skipped + 1) + '/' + (folderIds.reduce((s,f) => s + manifest.folders[f].length, 0));
+                        const r = await fetch(d.fileUrl);
+                        if (!r.ok) { skipped++; continue; }
+                        const blob = await r.blob();
+                        const safeName = (d.name || docId).replace(/[\\/:*?"<>|]/g, '_').slice(0, 80);
+                        const ext = (d.fileName && d.fileName.includes('.')) ? d.fileName.split('.').pop().toLowerCase() : (blob.type.includes('pdf') ? 'pdf' : 'bin');
+                        sub.file(safeName + '.' + ext, blob);
+                        fetched++;
+                    } catch (e) { console.warn('[taxpack] fetch failed for', docId, e.message); skipped++; }
+                }
+            }
+
+            if (btn) btn.innerHTML = '📦 Comprimo…';
+            const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } });
+            const url = URL.createObjectURL(zipBlob);
+            const a = document.createElement('a');
+            a.href = url; a.download = manifest.root + '.zip';
+            document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 4000);
+
+            logActivity('taxpack_zip_downloaded', 'document', {
+                propertyId, year, docsIncluded: fetched, docsSkipped: skipped, completeness: checklist.completeness,
+            });
+            toast('success', 'Tax Pack pronto', fetched + ' documenti · Riepilogo PDF incluso');
+        } catch (e) {
+            console.error('[taxpack zip]', e);
+            toast('error', 'Errore Tax Pack', e.message);
+        } finally {
+            if (btn) { btn.disabled = false; btn.innerHTML = origLabel || '📦 Scarica Tax Pack (zip)'; }
+        }
+    }
+
+    // ─── Tenant: download the year's paid-rent receipts as one PDF ──────────
+    // Useful for the tenant's own dichiarazione redditi (detrazioni inquilino).
+    // Lists every paid month + total + property + landlord, formal layout.
+    function downloadTenantReceiptsPDF(year) {
+        const jsPDF = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
+        if (!jsPDF) { toast('error', 'jsPDF non caricato'); return; }
+        const payments = (getMyPayments() || []).filter(p =>
+            p.status === 'paid' && p.month && String(p.month).slice(0, 4) === String(year)
+        );
+        if (!payments.length) { toast('info', 'Nessun pagamento ' + year); return; }
+        payments.sort((a, b) => String(a.month).localeCompare(String(b.month)));
+
+        const myContract = getMyContracts().find(c => c.status === 'active') || getMyContracts()[0] || {};
+        const prop = (S.properties || []).find(p => p.id === myContract.propertyId) || {};
+        const landlord = getMyLandlord && getMyLandlord() || (S.users || []).find(u => u.id === prop.ownerId) || {};
+        const me = S.profile || {};
+
+        const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
+        pdf.setFont('helvetica', 'bold'); pdf.setFontSize(16); pdf.setTextColor(180, 140, 30);
+        pdf.text('Riepilogo canoni ' + year, 20, 22);
+        pdf.setTextColor(0); pdf.setFontSize(10); pdf.setFont('helvetica', 'normal');
+        pdf.text('Generato da BOOM Rome · ' + new Date().toLocaleDateString('it-IT'), 20, 28);
+        pdf.setDrawColor(212, 175, 55); pdf.setLineWidth(0.4); pdf.line(20, 32, 190, 32);
+
+        let y = 42;
+        pdf.setFontSize(9); pdf.setTextColor(120); pdf.text('CONDUTTORE', 20, y); pdf.text('LOCATORE', 110, y);
+        pdf.setTextColor(0); pdf.setFontSize(11); pdf.setFont('helvetica', 'bold');
+        pdf.text(me.name || '—', 20, y + 6);
+        pdf.text(landlord.name || '—', 110, y + 6);
+        pdf.setFontSize(9); pdf.setFont('helvetica', 'normal'); pdf.setTextColor(80);
+        if (me.cf || me.codiceFiscale) pdf.text('CF: ' + (me.cf || me.codiceFiscale), 20, y + 11);
+        if (landlord.codiceFiscale || landlord.cf) pdf.text('CF: ' + (landlord.codiceFiscale || landlord.cf), 110, y + 11);
+        if (landlord.partitaIva) pdf.text('P.IVA: ' + landlord.partitaIva, 110, y + 16);
+        pdf.setTextColor(0);
+        y += 24;
+
+        pdf.setFontSize(9); pdf.setTextColor(120); pdf.text('IMMOBILE LOCATO', 20, y);
+        pdf.setTextColor(0); pdf.setFontSize(11); pdf.setFont('helvetica', 'bold');
+        pdf.text(prop.name || 'Immobile', 20, y + 6);
+        pdf.setFontSize(9); pdf.setFont('helvetica', 'normal');
+        if (prop.address) pdf.text(prop.address, 20, y + 11);
+        y += 22;
+
+        pdf.setDrawColor(220); pdf.line(20, y, 190, y); y += 6;
+        pdf.setFont('helvetica', 'bold'); pdf.setFontSize(11);
+        pdf.text('CANONI VERSATI ANNO ' + year, 20, y); y += 7;
+        pdf.setFontSize(10);
+        pdf.setTextColor(120);
+        pdf.text('Mese', 22, y); pdf.text('Pagato il', 70, y); pdf.text('Importo', 170, y, { align: 'right' });
+        pdf.setTextColor(0); y += 4;
+        pdf.line(20, y, 190, y); y += 4;
+
+        let total = 0;
+        pdf.setFont('helvetica', 'normal');
+        for (const p of payments) {
+            if (y > 270) { pdf.addPage(); y = 20; }
+            const month = String(p.month);
+            const paidOn = p.paidDate ? new Date(p.paidDate).toLocaleDateString('it-IT') : '—';
+            const amount = Number(p.amount) || 0;
+            total += amount;
+            pdf.text(month, 22, y);
+            pdf.text(paidOn, 70, y);
+            pdf.text('€ ' + amount.toLocaleString('it-IT'), 190, y, { align: 'right' });
+            y += 5.5;
+        }
+        y += 2;
+        pdf.setDrawColor(212, 175, 55); pdf.line(20, y, 190, y); y += 6;
+        pdf.setFont('helvetica', 'bold'); pdf.setFontSize(12);
+        pdf.text('TOTALE ' + year, 22, y);
+        pdf.setTextColor(180, 140, 30);
+        pdf.text('€ ' + total.toLocaleString('it-IT'), 190, y, { align: 'right' });
+        pdf.setTextColor(0);
+        y += 12;
+
+        pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9); pdf.setTextColor(110);
+        const note = pdf.splitTextToSize(
+            "Documento di riepilogo generato da BOOM ai soli fini informativi. Per le detrazioni dichiarative (quadro RP, sez. I), " +
+            "fare riferimento alle ricevute originali e al contratto registrato. Le date di pagamento riflettono i versamenti tracciati nel portale BOOM.",
+            170);
+        pdf.text(note, 20, y);
+
+        pdf.setTextColor(140); pdf.setFontSize(8);
+        pdf.text('BOOM Rome · ' + (me.name || '') + ' · ' + year, 20, 290);
+
+        const filename = 'Canoni_' + year + '_' + (me.name || 'Inquilino').replace(/[^A-Za-z0-9]/g, '_').slice(0, 30) + '.pdf';
+        pdf.save(filename);
+        logActivity('tenant_receipts_downloaded', 'payment', { year, count: payments.length, total });
+        toast('success', 'Riepilogo scaricato', payments.length + ' canoni · €' + total);
+    }
+
     function documentsPage() {
         const uploads = (S.documents || []).map(d => ({ ...d, source: d.source || 'upload' }));
         // I contratti registrati (con PDF generato) vengono mostrati in sola lettura
@@ -10336,6 +11623,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
                     <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">📄 DETTAGLI DOCUMENTO</h4>
                     <div class="form-row"><div class="form-group"><label class="form-label">Nome *</label><input type="text" class="form-input" name="name" required placeholder="es. Contratto Locazione Rossi"></div><div class="form-group"><label class="form-label">Tipo</label><select class="form-select" name="type"><option value="contract">📋 Contratto</option><option value="id">🪪 Documento ID</option><option value="receipt">🧾 Ricevuta</option><option value="utility">💡 Utenza</option><option value="other">📄 Altro</option></select></div></div>
+                    <div class="form-row">
+                        <div class="form-group"><label class="form-label">Categoria fiscale</label><select class="form-select" name="category"><option value="">— auto —</option><option value="contract">Contratto</option><option value="rli_registration">Registrazione RLI</option><option value="cedolare">Cedolare secca</option><option value="receipt">Ricevuta canone</option><option value="istat">Adeguamento ISTAT</option><option value="f24">F24</option><option value="imu">IMU</option><option value="ape">APE</option><option value="visura">Visura catastale</option><option value="id_document">Documento ID</option><option value="invoice">Fattura/Spesa</option><option value="cin">CIN</option></select></div>
+                        <div class="form-group"><label class="form-label">Anno fiscale</label><input type="number" class="form-input" name="fiscalYear" min="2015" max="2099" placeholder="${new Date().getFullYear()}" value="${new Date().getFullYear()}"></div>
+                    </div>
                     <div class="form-group">
                         <label class="form-label">File</label>
                         <div style="border:2px dashed var(--border);border-radius:8px;padding:24px;text-align:center;cursor:pointer" onclick="document.getElementById('fileInput').click()">
@@ -10345,6 +11636,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                             <div style="font-size:11px;color:var(--text-muted)">PDF, DOC, JPG, PNG (max 10MB)</div>
                         </div>
                         <div id="filePreview"></div>
+                        <button type="button" class="btn btn-secondary btn-sm" id="ocrBtn" style="margin-top:10px;display:none" onclick="runDocOCR()">🤖 Analizza con AI (categoria + anno + testo)</button>
+                        <div id="ocrResult" style="margin-top:8px"></div>
                     </div>
                 </div>
                 <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
@@ -10445,16 +11738,22 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 fileName = selectedFile.name;
                 fileSize = selectedFile.size;
             }
+            const ocr = window._lastOcr || null;
             const docRef = await db.collection('documents').add({
                 name: data.name, type: data.type || 'other',
+                category: data.category || (ocr && ocr.category) || null,
+                fiscalYear: data.fiscalYear ? parseInt(data.fiscalYear, 10) : null,
                 userId: data.userId || S.profile.id,
                 propertyId: data.propertyId || null,
                 shared: data.shared === 'true',
                 notes: data.notes || '',
                 fileUrl, fileName, fileSize,
+                ocrText: ocr ? (ocr.text || '').slice(0, 20000) : null,
+                ocrEntities: ocr ? (ocr.entities || null) : null,
                 uploadedBy: S.profile.id,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
+            window._lastOcr = null;
             
             // Notify assigned user (if not self)
             if (data.userId && data.userId !== S.profile.id) {
@@ -10703,7 +12002,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const pending = payments.filter(p => p.status === 'pending');
         const overdue = pending.filter(p => isOverdue(p.dueDate));
 
-        return `<div class="page-header"><h1 class="page-title">💳 ${isTenant() ? 'I Miei Pagamenti' : 'Pagamenti'}</h1></div>
+        return `<div class="page-header">
+                <div><h1 class="page-title">💳 ${isTenant() ? 'I Miei Pagamenti' : 'Pagamenti'}</h1></div>
+                ${isTenant() && paid.length ? `<div class="page-actions"><button class="btn btn-secondary btn-sm" onclick="downloadTenantReceiptsPDF(${new Date().getFullYear()})">📥 Riepilogo annuale (PDF)</button></div>` : ''}
+            </div>
             <div class="stats-grid" style="grid-template-columns:repeat(3,1fr)">
                 <div class="stat-card green"><div class="stat-value">€${paid.reduce((s,p) => s + (p.amount || 0), 0).toLocaleString('it-IT')}</div><div class="stat-label">Pagati (${paid.length})</div></div>
                 <div class="stat-card ${overdue.length ? 'red' : 'orange'}"><div class="stat-value">€${pending.reduce((s,p) => s + (p.amount || 0), 0).toLocaleString('it-IT')}</div><div class="stat-label">${overdue.length ? overdue.length + ' in ritardo' : 'Da Pagare'} (${pending.length})</div></div>
@@ -11555,7 +12857,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         try {
             await db.collection('tasks').doc(id).delete();
             S.tasks = (S.tasks || []).filter(t => t.id !== id);
-            toast('success', 'Task eliminato');
+            logActivity('task_deleted', 'task', { id: id }); toast('success', 'Task eliminato');
             renderPage();
             buildNav();
         } catch (e) { toast('error', 'Errore', e.message); }
@@ -11566,7 +12868,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         try {
             await db.collection('deadlines').doc(id).delete();
             S.deadlines = (S.deadlines || []).filter(d => d.id !== id);
-            toast('success', 'Scadenza eliminata');
+            logActivity('deadline_deleted', 'deadline', { id: id }); toast('success', 'Scadenza eliminata');
             renderPage();
             buildNav();
         } catch (e) { toast('error', 'Errore', e.message); }
@@ -11645,7 +12947,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 if (!S.deadlines) S.deadlines = [];
                 const idx = S.deadlines.findIndex(d => d.id === id);
                 if (idx >= 0) S.deadlines[idx] = { ...S.deadlines[idx], ...data };
-                toast('success', 'Scadenza aggiornata');
+                logActivity('deadline_updated', 'deadline', { id: id }); toast('success', 'Scadenza aggiornata');
             } else {
                 data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
                 data.createdBy = S.profile.id;
@@ -11683,7 +12985,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 if (!S.tasks) S.tasks = [];
                 const idx = S.tasks.findIndex(t => t.id === id);
                 if (idx >= 0) S.tasks[idx] = { ...S.tasks[idx], ...data };
-                toast('success', 'Task aggiornato');
+                logActivity('task_updated', 'task', { id: id }); toast('success', 'Task aggiornato');
             } else {
                 data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
                 data.createdBy = S.profile.id;
@@ -11861,7 +13163,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         try {
             if (data.id) {
                 await db.collection('listings').doc(data.id).update(listingData);
-                toast('success', 'Listing aggiornato!', 'Visibile su boomrome.com');
+                logActivity('listing_saved', 'listing', { propertyId: data.propertyId }); toast('success', 'Listing aggiornato!', 'Visibile su boomrome.com');
             } else {
                 listingData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
                 // Create new listing and get the document reference
@@ -12322,7 +13624,55 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function updateInvAmount(sel) { const opt = sel.options[sel.selectedIndex]; document.getElementById('invService').value = opt.dataset.service || ''; document.getElementById('invAmount').value = opt.dataset.price || ''; }
     function fillContractRent(sel) { document.getElementById('cRent').value = sel.options[sel.selectedIndex].dataset.rent || ''; }
     function fillPayAmount(sel) { document.getElementById('pAmount').value = sel.options[sel.selectedIndex].dataset.rent || ''; }
-    function handleFile(input) { const file = input.files[0]; if (!file) return; if (file.size > 10*1024*1024) { toast('error', 'File troppo grande (max 10MB)'); return; } selectedFile = file; document.getElementById('filePreview').innerHTML = `<div class="file-preview"><span>📄</span><div style="flex:1"><div>${esc(file.name)}</div><div style="font-size:11px;color:var(--text-muted)">${(file.size/1024).toFixed(1)} KB</div></div></div>`; }
+    function handleFile(input) { const file = input.files[0]; if (!file) return; if (file.size > 10*1024*1024) { toast('error', 'File troppo grande (max 10MB)'); return; } selectedFile = file; document.getElementById('filePreview').innerHTML = `<div class="file-preview"><span>📄</span><div style="flex:1"><div>${esc(file.name)}</div><div style="font-size:11px;color:var(--text-muted)">${(file.size/1024).toFixed(1)} KB</div></div></div>`; const ob = document.getElementById('ocrBtn'); if (ob) ob.style.display = 'inline-flex'; }
+
+    // AI OCR on the selected (not-yet-uploaded) file: reads it as base64,
+    // sends to /api/documents/ocr, auto-fills category + fiscalYear.
+    async function runDocOCR() {
+        if (!selectedFile) { toast('error', 'Seleziona prima un file'); return; }
+        const btn = document.getElementById('ocrBtn');
+        const out = document.getElementById('ocrResult');
+        btn.disabled = true; btn.textContent = '🤖 Analisi in corso…';
+        try {
+            const b64 = await new Promise((resolve, reject) => {
+                const fr = new FileReader();
+                fr.onload = () => resolve(String(fr.result).split(',')[1]);
+                fr.onerror = reject;
+                fr.readAsDataURL(selectedFile);
+            });
+            const idToken = await auth.currentUser.getIdToken();
+            const resp = await fetch('/api/documents/ocr', {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + idToken, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ base64: b64, mediaType: selectedFile.type || 'application/octet-stream' }),
+            });
+            const data = await resp.json();
+            if (!resp.ok || !data.ok) throw new Error(data.error || 'errore');
+            // Auto-fill the form
+            const form = document.getElementById('docUploadForm');
+            if (form) {
+                if (data.category && form.category) form.category.value = data.category;
+                const fy = data.entities && data.entities.fiscalYear;
+                if (fy && form.fiscalYear) form.fiscalYear.value = fy;
+            }
+            window._lastOcr = data; // captured by saveDocWithAssignment to persist ocrText/entities
+            const ents = data.entities || {};
+            const chips = [];
+            if (data.category) chips.push('Categoria: ' + esc(data.category));
+            if (ents.fiscalYear) chips.push('Anno: ' + ents.fiscalYear);
+            if ((ents.amounts || []).length) chips.push('Importi: ' + ents.amounts.slice(0, 3).map(a => '€' + a).join(', '));
+            if ((ents.codiceFiscale || []).length) chips.push('CF rilevato');
+            if ((ents.iban || []).length) chips.push('IBAN rilevato');
+            out.innerHTML = `<div style="background:var(--gold-light);border:1px solid rgba(212,175,55,0.3);border-radius:8px;padding:10px 12px;font-size:12px">
+                <div style="color:var(--gold);font-weight:600;margin-bottom:4px">✓ Analizzato</div>
+                ${chips.map(c => `<span class="badge" style="background:var(--bg-elevated);font-size:10px;margin:2px">${c}</span>`).join('')}
+            </div>`;
+            btn.style.display = 'none';
+        } catch (e) {
+            btn.disabled = false; btn.textContent = '🤖 Analizza con AI';
+            toast('error', 'OCR non riuscito', e.message);
+        }
+    }
 
     function confirmDelete(type, id, name) { openModal('confirm', { icon: '🗑', title: 'Eliminare?', text: `Sei sicuro di voler eliminare "${name}"? Questa azione non può essere annullata.`, action: `deleteRecord('${type}','${id}')`, btnText: 'Elimina', danger: true }); }
 
@@ -12340,7 +13690,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 duration: data.duration || '', source: data.source || 'other', notes: data.notes || '',
                 stage: 'lead', contractGenerated: false, createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
-            closeModal(); await refresh(); toast('success', 'Cliente salvato!', data.name);
+            closeModal(); await refresh(); logActivity('client_created', 'client', { name: data.name, email: data.email || '' }); toast('success', 'Cliente salvato!', data.name);
         } catch (err) { toast('error', 'Errore', err.message); }
     }
 
@@ -12410,11 +13760,16 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
     async function saveUser(e) {
         e.preventDefault();
+        // Defense-in-depth: only admins create accounts (and assign roles).
+        // Firestore rules enforce the same on the users/{uid} write.
+        if (!isAdmin()) { toast('error', 'Operazione non consentita'); return; }
         const data = Object.fromEntries(new FormData(e.target));
         try {
-            const cred = await auth.createUserWithEmailAndPassword(data.email, data.password);
+            // Detached creation keeps the admin signed in (primary-app
+            // createUser would otherwise swap the session to the new user).
+            const newUid = await createAuthUserDetached(data.email, data.password);
             const role = data.role || 'tenant';
-            await db.collection('users').doc(cred.user.uid).set({
+            await db.collection('users').doc(newUid).set({
                 name: data.name, 
                 email: data.email, 
                 role: role, 
@@ -12468,6 +13823,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 payload.ownershipPct = data.ownershipPct ? parseInt(data.ownershipPct, 10) : 100;
             }
             await db.collection('users').doc(userId).update(payload);
+            logActivity('user_updated', 'user', { id: userId, targetName: data.name, role: data.role });
             closeModal(); await refreshOnly('users'); toast('success', 'Utente aggiornato!', data.name);
         } catch (err) { toast('error', 'Errore', err.message); }
     }
@@ -13009,12 +14365,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         e.preventDefault();
         const data = Object.fromEntries(new FormData(e.target));
         try {
-            await db.collection('payments').add({
+            var docRef = await db.collection('payments').add({
                 contractId: data.contractId, month: data.month || '', amount: parseInt(data.amount) || 0,
                 dueDate: data.dueDate || null, status: data.status || 'pending',
                 paidDate: data.status === 'paid' ? new Date().toISOString() : null,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
+            logActivity('payment_created', 'payment', { id: docRef.id, amount: parseInt(data.amount) || 0, status: data.status || 'pending', contractId: data.contractId });
             await refreshOnly('payments'); closeModal(); toast('success', 'Pagamento registrato!');
         } catch (err) { toast('error', 'Errore', err.message); }
     }
@@ -13023,6 +14380,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         try {
             const payment = S.payments.find(p => p.id === id);
             await db.collection('payments').doc(id).update({ status: 'paid', paidDate: new Date().toISOString() });
+            logActivity('payment_marked_paid', 'payment', { id: id, amount: payment?.amount, contractId: payment?.contractId });
             // Notify landlord of payment received
             if (payment) {
                 await notifyPaymentReceived({ id, ...payment });
@@ -13234,6 +14592,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 notes: data.notes || '',
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()
             });
+            logActivity('property_updated', 'property', { id: id, name: data.name, ownerId: data.ownerId });
             closeModal(); await refreshOnly('properties'); toast('success', 'Immobile aggiornato!');
         } catch (err) { toast('error', 'Errore', err.message); }
     }
@@ -13291,6 +14650,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 updatePayload['studenti.annoAccademico'] = data.studenti_annoAccademico || '';
             }
             await db.collection('contracts').doc(id).update(updatePayload);
+            logActivity('contract_updated', 'contract', { id: id, propertyId: data.propertyId || _existingContract.propertyId, tenantId: data.tenantId || _existingContract.tenantId, rent: updatePayload.rent });
             await refreshOnly('contracts'); closeModal(); toast('success', 'Contratto aggiornato!');
         } catch (err) { toast('error', 'Errore', err.message); }
     }
@@ -13357,6 +14717,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 notes: data.notes || '',
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()
             });
+            logActivity('payment_updated', 'payment', { id: id, amount: parseInt(data.amount) || 0, status: data.status, contractId: data.contractId });
             await refreshOnly('payments'); closeModal(); toast('success', 'Pagamento aggiornato!');
         } catch (err) { toast('error', 'Errore', err.message); }
     }
@@ -13446,11 +14807,14 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                         { maintenanceId: id, propertyId: data.propertyId });
                 }
             }
-            await refreshOnly('maintenance'); closeModal(); toast('success', 'Manutenzione aggiornata!');
+            await refreshOnly('maintenance'); closeModal(); logActivity('maintenance_updated', 'maintenance', { id: id }); toast('success', 'Manutenzione aggiornata!');
         } catch (err) { toast('error', 'Errore', err.message); }
     }
 
     async function deleteRecord(type, id) {
+        // Defense-in-depth: deletion is an admin-only operation. Firestore
+        // rules enforce this server-side too, but the UI must never even try.
+        if (!isAdmin()) { toast('error', 'Operazione non consentita'); return; }
         // Map singular type → Firestore collection name (handles irregular plurals)
         var COLLECTION_MAP = {
             listing: 'listings', property: 'properties', propert: 'properties',
@@ -13462,11 +14826,16 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         };
         var collection = COLLECTION_MAP[type] || (type + 's');
         try {
+            // Snapshot a label of the doc BEFORE delete so the audit log can
+            // show the human-readable identity even after the row is gone.
+            var snap = (S[collection] || []).find(function(x) { return x.id === id; }) || {};
+            var label = snap.name || snap.title || snap.email || snap.address || id;
             await db.collection(collection).doc(id).delete();
             // Remove from local state immediately so UI updates before refresh
             if (S[collection] && Array.isArray(S[collection])) {
                 S[collection] = S[collection].filter(function(x) { return x.id !== id; });
             }
+            logActivity(collection + '_deleted', collection, { id: id, label: label });
             closeModal();
             renderPage();
             buildNav();
@@ -13571,19 +14940,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         try {
             // Generate a secure temporary password
             var tempPassword = 'BOOM' + Math.random().toString(36).slice(2, 8).toUpperCase() + '!';
-            
-            // We need to create the auth account without signing out the current admin
-            // Strategy: Use the Firebase Admin SDK workaround - create a secondary auth instance
-            // Since we are in client-side, we use a workaround: create, sign back in as admin
-            var adminEmail = auth.currentUser.email;
-            
-            // Store admin session token
-            var adminToken = await auth.currentUser.getIdToken(true);
-            
-            // Create the new user account
-            var cred = await auth.createUserWithEmailAndPassword(client.email, tempPassword);
-            var newUserId = cred.user.uid;
-            
+
+            // Create the auth account on a detached secondary app so the admin
+            // session is never signed out (no password re-prompt needed).
+            var newUserId = await createAuthUserDetached(client.email, tempPassword);
+
             // Determine role based on stage (at closing/placed = becoming a tenant)
             var userRole = 'tenant';
             var onboardingType = 'tenant';
@@ -13616,15 +14977,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 portalActivatedAt: firebase.firestore.FieldValue.serverTimestamp()
             });
             
-            // Sign out new user and sign back in as admin
-            await auth.signOut();
-            // Re-authenticate admin using custom token workaround
-            // Since we cannot easily re-auth without password, prompt admin
-            var adminPw = prompt('Re-enter your admin password to continue\n(required because Firebase signed you out when creating the new account):');
-            if (adminPw) {
-                await auth.signInWithEmailAndPassword(adminEmail, adminPw);
-            }
-            
+            // (Admin session is untouched — the new account was created on a
+            // detached secondary app, so no sign-out / password prompt.)
+
             // Send onboarding email with credentials
             var portalUrl = window.location.origin + window.location.pathname;
             await sendBoomEmail(EMAILJS_CONFIG.templates.notification, client.email, {

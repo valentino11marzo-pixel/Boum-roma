@@ -312,7 +312,10 @@
 
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+    <script src="/js/boom-portal.js"></script>
     <script>
+        BoomPortal.registerServiceWorker();
+
         firebase.initializeApp({
             apiKey: "AIzaSyDfJwJdwGfjW-gsBtiQ9F7fx3RZKh_n3gM",
             authDomain: "boom-property-dashboards.firebaseapp.com",
@@ -522,6 +525,7 @@
                                         <div class="property-content"><div class="property-price">€${prop.price}<span>/mo</span></div><div class="property-address">📍 ${prop.address}</div>
                                             <div class="property-features"><div class="property-feature">🛏 ${prop.rooms || 1}</div><div class="property-feature">📐 ${prop.sqm || '?'}m²</div></div>
                                             ${prop.description ? `<div style="margin-top:8px;font-size:12px;color:var(--text-secondary);line-height:1.4">${prop.description}</div>` : ''}
+                                            ${(prop.matchReasons && prop.matchReasons.length) ? `<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)"><div style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-muted);margin-bottom:6px">Why this match</div>${prop.matchReasons.filter(r => r.includes('✓') || r.includes('≈')).slice(0,3).map(r => `<div style="font-size:11px;color:${r.includes('✓') ? 'var(--green)' : 'var(--gold)'};margin-bottom:2px">${r}</div>`).join('')}</div>` : ''}
                                         </div>
                                     </div>`;
                                 }).join('')}

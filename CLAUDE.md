@@ -24,7 +24,19 @@ Premium rental management platform for Rome's apartment market. Serves tenants, 
   reminder-cron.js        Cron (*/15 * * * *) — Firebase sync + email reminders
   parse-docs.js           POST — Anthropic API proxy for document parsing
 /js/
-  firebase-config.js      Firebase SDK init (project: boomrome-b5c4a)
+  firebase-config.js      Firebase SDK init (project: boom-property-dashboards)
+  boom-portal.js          Shared client lib for the 3 portals (auth guard,
+                          realtime listener, toast, loader, confirm, SW reg)
+  taxpack-engine.js       Pure Italian rental-tax engine (checklist, totals,
+                          cedolare calc, zip manifest). window.BOOM_TAXPACK
+  fiscal-engine.js        Pure obligations engine: per-property/contract +
+                          company (Egidi) fiscal deadlines + amounts.
+                          window.BOOM_FISCAL
+firestore.rules           Firestore security rules (role-based)
+storage.rules             Storage security rules (role-based file access)
+firebase.json             Firebase deploy config (firestore + storage rules)
+/css/
+  boom-core.css           Marketing site design system (used by index, etc.)
 /pass-assets/             Apple Wallet pass resources (icons, logos, strips)
   viewing/  tenant/  referral/  landlord/
 /public/
@@ -43,7 +55,12 @@ Premium rental management platform for Rome's apartment market. Serves tenants, 
 | `apartment-detail.html` | Dynamic single-property page (loads from Firestore). |
 | `boom_doc_parser.html` | AI document parser UI (uses Claude API). |
 | `vercel.json` | Deployment config, rewrites, cron schedule. |
-| `js/firebase-config.js` | Firebase project config. |
+| `js/firebase-config.js` | Firebase project config (`boom-property-dashboards`). |
+| `js/boom-portal.js` | Shared portal lib — `window.BoomPortal` API. |
+| `owner-dashboard.html` | Landlord/owner SPA. Firestore-backed, filtered by `ownerId`. |
+| `tenant.html` | Tenant SPA. Realtime property + maintenance feed. |
+| `client-portal.html` | PFS client swipe app. Reads `pfsClients` collection. |
+| `sw.js` | Service worker (network-first HTML, cache-first static). |
 
 ## Brand & Design
 
@@ -119,6 +136,42 @@ Webhook called by the Mac-side Homie agent when it filters a new lead from Immob
 ### POST `/api/homie/action`
 Webhook for Homie's proposed actions (reply draft, schedule viewing, qualify, archive). Writes to `action_queue` collection. Supports idempotent retries via `contextHash` field and auto-apply for high-confidence tier-1 actions.
 
+### POST `/api/magic-sign/lookup`
+Public endpoint for the Magic-Sign UI. Body: `{ token }`. Looks up the
+contract by `tenantSignToken` or `landlordSignToken`, returns sanitized
+`{role, contract, property, signer, otherParty}`. Replaces the previous
+flow which had the browser issue `db.collection('contracts').where(...)`
+anonymously — denied by `firestore.rules`.
+
+### POST `/api/magic-sign/submit`
+Public endpoint that persists the contract signature on behalf of the
+anonymous Magic-Sign user. Body includes the token, signature data URI,
+identity payload, phone, consent record. Runs every Firestore write under
+admin credentials (signature + identity + landlord profile + RLI deadline
++ lead closure + property status + listing sync + payment schedule +
+tenant user bootstrap). All those mutations are admin-only per the rules.
+
+### POST `/api/documents/share`
+Admin/landlord (Firebase ID token via `api/_auth.js`). Creates a
+`documentShares` doc (token, ownerId, docIds, recipientName, watermark,
+expiresAt, views[]) and returns a `/share.html?t=<token>` link for the
+commercialista. Landlords can only share their own bundle.
+
+### POST `/api/share/lookup`
+Public, no login. Body `{ token }`. Resolves the share under admin creds,
+enforces expiry/revocation, returns the listed documents (sanitized) and
+audit-logs every view (ip/ua/time) to the share's `views[]` + activityLog.
+Backs `share.html`.
+
+### POST `/api/documents/ocr`
+Admin/landlord (Firebase ID token). Body `{ fileUrl }` or `{ base64,
+mediaType }`. Fetches the file server-side, sends to Claude (haiku), returns
+`{ category, text, entities:{ dates, amounts, codiceFiscale, iban,
+partitaIva, fiscalYear } }`. Anthropic key stays server-side.
+
+### POST `/api/homie/property`
+Homie → PFS bridge. Homie scrapes a property (Immobiliare/Idealista/etc.), calls this with the listing data. Writes the master record to `pfsProperties/<sha1(sourceUrl)>` (idempotent), then iterates active PFS clients, scores each against the listing using `api/homie/_match.js`, and pushes matching properties (score ≥ 60) into the client's `portalProperties` array. Client-portal.html already listens and triggers a "New Property!" alert on the client's phone. Auth via `X-Homie-Secret`. See file header for payload schema.
+
 ## Conventions
 
 - All pages are standalone HTML with inline `<style>` and `<script>` blocks — no bundler
@@ -127,7 +180,39 @@ Webhook for Homie's proposed actions (reply draft, schedule viewing, qualify, ar
 - Property-specific pages follow `apartment_[name].html` naming
 - Blog posts follow `blog-[slug].html` naming
 - No automated tests exist in this project
-- PWA support via `manifest.json` and `sw.js` service worker
+- PWA support via `manifest.json` and `sw.js` service worker — registered on
+  the 3 portals via `BoomPortal.registerServiceWorker()`
+
+## Portals (logged-in surfaces)
+
+Three role-scoped SPAs sit on top of the same Firestore project. All three
+load `/js/boom-portal.js` for shared utilities (auth, realtime, toast,
+loader, confirm dialog) — see `BoomPortal.*` API.
+
+| Portal | Role(s) accepted | Collections read/written |
+|---|---|---|
+| `owner-dashboard.html` | `owner`, `landlord`, `admin` | reads/writes `properties` filtered by `ownerId` |
+| `tenant.html` | `tenant` | reads `properties` (own), writes `maintenance` |
+| `client-portal.html` | access code on `pfsClients` doc | reads/writes `pfsClients.portalProperties` |
+
+Auth gate pattern (use this for any new portal page):
+
+```js
+const { user, profile } = await BoomPortal.requireAuth(
+  ['owner', 'landlord', 'admin'],   // allowed roles, or null to skip
+  { loginUrl: '/login.html' }
+);
+```
+
+Firestore listeners with auto-retry / exponential backoff:
+
+```js
+const unsub = BoomPortal.listen(
+  db.collection('properties').where('ownerId', '==', user.uid),
+  (snap) => { /* render */ },
+  (err) => { /* optional error handler */ }
+);
+```
 
 ## Common Tasks
 
