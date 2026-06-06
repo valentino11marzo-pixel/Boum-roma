@@ -218,6 +218,9 @@ export async function logActivity(action, category, details = {}, actor = 'homie
     await fsCreate('activityLog', {
       action, category, details, actor,
       createdAt: new Date(),
+      // The portal's activity feed + Command Center query orderBy('timestamp');
+      // write it too so agent activity (Homie's doc/lead/etc. actions) surfaces.
+      timestamp: new Date(),
     });
   } catch (e) {
     console.warn('[logActivity] failed:', e.message);
