@@ -36,6 +36,9 @@
     <script src="/js/taxpack-engine.js"></script>
     <script src="/js/fiscal-engine.js"></script>
     <script src="/js/conversations.js"></script>
+    <script src="/js/compliance-rules.js"></script>
+    <script src="/js/relet-engine.js"></script>
+    <script src="/js/underwriting-engine.js"></script>
     <!-- PDF.js — renders uploaded PDFs to canvas so Magic Sign Custom can place fields on them. Loaded lazily by ensurePdfJs() on first use. -->
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
     <style>
@@ -4980,6 +4983,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <div class="nav-item ${S.page==='market-intel'?'active':''}" onclick="goTo('market-intel')"><span class="nav-icon">📊</span> Market Intelligence</div>
                     <div class="nav-item ${S.page==='photo-studio'?'active':''}" onclick="goTo('photo-studio')"><span class="nav-icon">📸</span> Photo Studio</div>
                     <div class="nav-item ${S.page==='burocrazia'?'active':''}" onclick="goTo('burocrazia')"><span class="nav-icon">📝</span> Burocrazia ${S.regPending?`<span class="nav-badge orange">${S.regPending}</span>`:''}</div>
+                    <div class="nav-item ${S.page==='underwriting'?'active':''}" onclick="goTo('underwriting')"><span class="nav-icon">📊</span> Rischio · Shield</div>
+                    <div class="nav-item ${S.page==='relet'?'active':''}" onclick="goTo('relet')"><span class="nav-icon">🏘️</span> Zero-Vacancy</div>
                     <div class="nav-item ${S.page==='landlords'?'active':''}" onclick="goTo('landlords')"><span class="nav-icon">🏘️</span> Landlord DB</div>
                 </div>
                 <div class="nav-section"><div class="nav-label">Sistema</div>
@@ -5106,6 +5111,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             case 'my-documents': m.innerHTML = (isLandlord() || isTenant()) ? myDocumentsPage() : accessDenied(); break;
             case 'my-info-hub': m.innerHTML = isTenant() ? tenantInfoHubPage() : accessDenied(); break;
             case 'settings': m.innerHTML = settingsPage(); break;
+            case 'underwriting': m.innerHTML = isAdmin() ? underwritingPage() : accessDenied(); break;
+            case 'relet': m.innerHTML = isAdmin() ? reletPage() : accessDenied(); break;
             default: m.innerHTML = r === 'admin' ? adminDashboard() : r === 'landlord' ? landlordDashboard() : tenantDashboard();
         }
         // Post-render hooks
@@ -5197,6 +5204,91 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { labels: { color: '#999', font: { size: 10 } } } } }
             });
         }
+    }
+
+    // ── Rischio · Underwriting (BOOM Shield) — native page on S data ──────────
+    function underwritingPage() {
+        if (!isAdmin()) return accessDenied();
+        const UW = window.BOOM_UW;
+        if (!UW) return `<div class="page-header"><h1 class="page-title">📊 Rischio · Shield</h1></div><div class="card"><div class="card-body">Motore non disponibile. Ricarica la pagina.</div></div>`;
+        const today = new Date();
+        const eur = n => '€ ' + Math.round(n || 0).toLocaleString('it-IT');
+        const bandVar = { A: '--green', B: '--blue', C: '--orange', D: '--red' };
+        const ACTIVE = c => { const s = String(c.status || '').toLowerCase(); return s === '' || s.includes('attiv') || s.includes('active') || s.includes('firmat') || s.includes('signed'); };
+        const byContract = {}, byTenant = {};
+        (S.payments || []).forEach(p => { const c = p.contractId; if (c) (byContract[c] ||= []).push(p); const t = p.tenantId; if (t) (byTenant[t] ||= []).push(p); });
+        const leadGradeByTenant = {}; (S.leads || []).forEach(l => { const t = l.tenantId || l.convertedTenantId; if (t && l.grade) leadGradeByTenant[t] = l.grade; });
+        const tenants = [];
+        (S.contracts || []).filter(ACTIVE).forEach(c => {
+            const tid = c.tenantId || c.tenant || c.id;
+            const rent = Number(c.rent ?? c.rentAmount ?? c.monthlyRent ?? c.canone ?? 0) || 0;
+            const pays = (byContract[c.id] || []).concat(byTenant[tid] || []);
+            const seen = new Set(); const uniq = pays.filter(p => !seen.has(p.id) && seen.add(p.id));
+            const m = UW.computeTenantMetrics(uniq, rent, today);
+            const sc = UW.scoreTenant(m, { leadGrade: leadGradeByTenant[tid] });
+            const band = UW.bandFor(sc.score); const econ = UW.tenantEconomics(band, rent);
+            const u = (S.users || []).find(x => x.id === tid);
+            const prop = (S.properties || []).find(x => x.id === c.propertyId);
+            const name = (u && (u.name || u.email)) || c.tenantName || ('Inquilino ' + String(tid).slice(0, 5));
+            tenants.push({ name, prop: (prop && (prop.name || prop.address)) || '', rent, m, sc, band, econ, eligible: econ.eligible && m.overdueCount === 0 });
+        });
+        tenants.sort((a, b) => a.sc.score - b.sc.score);
+        const exposure = tenants.reduce((s, t) => s + t.econ.annual, 0);
+        const elig = tenants.filter(t => t.eligible);
+        const premiumPool = elig.reduce((s, t) => s + t.econ.premium, 0);
+        const eligLoss = elig.reduce((s, t) => s + t.econ.expectedLoss, 0);
+        const openLeads = (S.leads || []).filter(l => { const s = String(l.status || 'new').toLowerCase(); return s === 'new' || s === 'responded' || s === '' || s === 'qualified'; })
+            .map(l => { const sc = UW.scoreLead(l); return { l, sc, band: UW.bandFor(sc.score) }; }).sort((a, b) => b.sc.score - a.sc.score).slice(0, 20);
+        const chip = (txt, band) => `<span style="font-weight:700;color:var(${bandVar[band] || '--text-muted'})">${txt}</span>`;
+        return `
+            <div class="page-header"><div><h1 class="page-title">📊 Rischio · Shield</h1><p class="page-subtitle">${tenants.length} inquilini · ${elig.length} garantibili oggi</p></div></div>
+            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px">
+                <div class="stat-card gold"><div style="font-size:20px;font-weight:700;color:var(--gold)">${eur(exposure)}</div><div style="font-size:10px;color:var(--text-muted)">ESPOSIZIONE/ANNO</div></div>
+                <div class="stat-card green"><div style="font-size:20px;font-weight:700;color:var(--green)">${elig.length}</div><div style="font-size:10px;color:var(--text-muted)">GARANTIBILI A/B</div></div>
+                <div class="stat-card gold"><div style="font-size:20px;font-weight:700;color:var(--gold)">${eur(premiumPool)}</div><div style="font-size:10px;color:var(--text-muted)">PREMIO STIM./ANNO</div></div>
+                <div class="stat-card red"><div style="font-size:20px;font-weight:700;color:var(--red)">${eur(eligLoss)}</div><div style="font-size:10px;color:var(--text-muted)">PERDITA ATTESA</div></div>
+                <div class="stat-card green"><div style="font-size:20px;font-weight:700;color:var(--green)">${eur(premiumPool - eligLoss)}</div><div style="font-size:10px;color:var(--text-muted)">MARGINE NETTO</div></div>
+            </div>
+            <div class="card"><div class="card-header"><span class="card-title">Inquilini · affidabilità</span></div><div class="card-body flush">
+                ${tenants.length ? tenants.map(t => `
+                    <div class="list-item"><div class="list-icon">${chip(t.sc.score + ' ' + t.band, t.band)}</div>
+                    <div class="list-content"><div class="list-title">${t.name} ${t.eligible ? '<span class="badge green">Shield ✓</span>' : ''} ${t.m.overdueCount ? '<span class="badge red">moroso</span>' : ''}</div>
+                    <div class="list-subtitle">${t.prop || '—'} · ${eur(t.rent)}/mese · premio ${(t.econ.premiumPct * 100).toFixed(1)}%</div></div></div>`).join('') : '<div class="empty-state" style="padding:30px"><p class="empty-text">Nessun contratto attivo.</p></div>'}
+            </div></div>
+            <div class="card" style="margin-top:16px"><div class="card-header"><span class="card-title">Lead aperti · qualità</span></div><div class="card-body flush">
+                ${openLeads.length ? openLeads.map(x => `
+                    <div class="list-item"><div class="list-icon">${chip(String(x.sc.score), x.band)}</div>
+                    <div class="list-content"><div class="list-title">${x.l.name || 'Lead'} · ${x.l.grade || '—'}</div>
+                    <div class="list-subtitle">${x.l.source || '?'}${x.l.zone ? ' · ' + x.l.zone : ''}${x.l.budget ? ' · ' + eur(x.l.budget) : ''}</div></div></div>`).join('') : '<div class="empty-state" style="padding:30px"><p class="empty-text">Nessun lead aperto.</p></div>'}
+            </div></div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:14px">Priori di pricing (perdita attesa A ${UW.PRIORS.lossRate.A * 100}% · B ${UW.PRIORS.lossRate.B * 100}% · C ${UW.PRIORS.lossRate.C * 100}% · D ${UW.PRIORS.lossRate.D * 100}% del canone annuo) — da ricalibrare sui pagamenti reali.</div>`;
+    }
+
+    // ── Zero-Vacancy · Ricollocamento — native page on S data ─────────────────
+    function reletPage() {
+        if (!isAdmin()) return accessDenied();
+        const RL = window.BOOM_RELET;
+        if (!RL) return `<div class="page-header"><h1 class="page-title">🏘️ Zero-Vacancy</h1></div><div class="card"><div class="card-body">Motore non disponibile. Ricarica la pagina.</div></div>`;
+        const eur = n => '€ ' + Math.round(n || 0).toLocaleString('it-IT');
+        const scan = RL.scan(S.contracts || [], S.properties || [], S.leads || [], { today: new Date(), horizonDays: 90 });
+        return `
+            <div class="page-header"><div><h1 class="page-title">🏘️ Zero-Vacancy</h1><p class="page-subtitle">${scan.counts.expiring} in uscita ≤90gg · ${scan.counts.uncovered} senza domanda</p></div></div>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px">
+                <div class="stat-card gold"><div style="font-size:20px;font-weight:700;color:var(--gold)">${scan.counts.expiring}</div><div style="font-size:10px;color:var(--text-muted)">IN USCITA ≤90gg</div></div>
+                <div class="stat-card orange"><div style="font-size:20px;font-weight:700;color:var(--orange)">${scan.counts.urgent}</div><div style="font-size:10px;color:var(--text-muted)">URGENTI ≤30gg</div></div>
+                <div class="stat-card gold"><div style="font-size:20px;font-weight:700;color:var(--gold)">${eur(scan.incomeAtRisk)}</div><div style="font-size:10px;color:var(--text-muted)">REDDITO/MESE A RISCHIO</div></div>
+                <div class="stat-card red"><div style="font-size:20px;font-weight:700;color:var(--red)">${eur(scan.vacancyExposure)}</div><div style="font-size:10px;color:var(--text-muted)">ESPOSIZIONE VUOTO</div></div>
+            </div>
+            <div class="card"><div class="card-body flush">
+                ${scan.plans.length ? scan.plans.map(p => {
+                    const col = p.matches.length === 0 ? '--red' : (p.status === 'urgent' ? '--orange' : '--green');
+                    const ph = p.matches[0] && p.matches[0].lead.phone ? String(p.matches[0].lead.phone).replace(/\D/g, '') : '';
+                    return `<div class="list-item"><div class="list-icon"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(${col})"></span></div>
+                    <div class="list-content"><div class="list-title">${p.label} <span style="color:var(${p.status === 'urgent' ? '--red' : '--text-muted'});font-size:12px">${p.daysToEnd < 0 ? 'scaduto' : p.daysToEnd + 'gg'}</span></div>
+                    <div class="list-subtitle">${p.zone ? p.zone + ' · ' : ''}${eur(p.rent)}/mese · ${p.matches.length ? p.matches.length + ' lead · ~' + p.estDaysToLet + 'gg · rischio ' + eur(p.vacancyRisk) : 'nessun lead — promuovi'}</div></div>
+                    ${ph ? `<a class="btn btn-xs btn-secondary" href="https://wa.me/${ph}" target="_blank">WhatsApp</a>` : ''}</div>`;
+                }).join('') : '<div class="empty-state" style="padding:30px"><p class="empty-text">Nessun contratto in uscita nei prossimi 90 giorni.</p></div>'}
+            </div></div>`;
     }
 
     function accessDenied() {
