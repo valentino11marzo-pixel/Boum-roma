@@ -637,7 +637,7 @@
                 </div>
                 <div class="apt-price-block">
                     <div class="apt-price" id="aptPrice"></div>
-                    <div class="apt-price-label">per month</div>
+                    <div class="apt-price-label">per month · all fees included</div>
                     <div class="apt-price-insight" id="aptPriceInsight"></div>
                 </div>
             </div>
@@ -699,11 +699,13 @@
                 <div class="sidebar-card">
                     <div class="sidebar-price" id="sidebarPrice"></div>
                     <div class="sidebar-price-label">per month · all fees included</div>
+                    <div class="apt-price-insight" id="sidebarPriceInsight" style="margin:-6px 0 16px"></div>
                     <a class="sidebar-rating" href="https://share.google/xikmVxQCRuKOdWcND" target="_blank" rel="noopener" aria-label="BOOM is rated 4.9 out of 5 from 47 Google reviews — read them" onclick="if(window.gtag)gtag('event','reviews_view',{source_page:'apartment-detail'})">
                         <span class="sr-stars" aria-hidden="true">★★★★★</span>
                         <span class="sr-score"><b>4.9</b> · 47 Google reviews</span>
                     </a>
                     <a class="sidebar-apply" href="#inquiryCard" onclick="setTimeout(function(){var n=document.getElementById('iqName');if(n)n.focus();},450)">Apply for this apartment →</a>
+                    <div class="apply-reassure" style="margin:-2px 0 14px">✓ Free to apply · 2-minute form · we reply in ~2h</div>
                     <a class="sidebar-cta" id="sidebarWhatsApp" href="https://wa.me/393313251961" target="_blank">
                         <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.125.553 4.12 1.52 5.855L.052 23.709l5.997-1.573A11.94 11.94 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.82c-1.956 0-3.83-.528-5.47-1.528l-.392-.233-4.065 1.066 1.084-3.964-.256-.407A9.787 9.787 0 012.18 12c0-5.414 4.406-9.82 9.82-9.82 5.414 0 9.82 4.406 9.82 9.82 0 5.414-4.406 9.82-9.82 9.82z"/></svg>
                         Message on WhatsApp
@@ -1046,15 +1048,17 @@
 
     /* Price intelligence — compare this listing to the neighborhood mean */
     function renderPriceInsight(inZone, price, zoneLabel){
-      const el = document.getElementById('aptPriceInsight');
-      if(!el || !price) return;
+      const els = [document.getElementById('aptPriceInsight'), document.getElementById('sidebarPriceInsight')].filter(Boolean);
+      if(!els.length || !price) return;
       const priced = inZone.map(l=>Number(l.price)).filter(p=>p>0);
       if(priced.length < 3) return;  // need a meaningful sample
       const avg = priced.reduce((a,b)=>a+b,0)/priced.length;
       const diff = Math.round(price - avg);
-      if(diff <= -75){ el.className='apt-price-insight good'; el.textContent=`€${Math.abs(diff).toLocaleString()} below ${zoneLabel} average`; }
-      else if(diff >= 150){ el.className='apt-price-insight high'; el.textContent=`€${diff.toLocaleString()} above ${zoneLabel} average`; }
-      else { el.className='apt-price-insight high'; el.textContent=`At ${zoneLabel} market rate`; }
+      let cls, txt;
+      if(diff <= -75){ cls='apt-price-insight good'; txt=`✓ €${Math.abs(diff).toLocaleString()} below ${zoneLabel} average`; }
+      else if(diff >= 150){ cls='apt-price-insight high'; txt=`€${diff.toLocaleString()} above ${zoneLabel} average`; }
+      else { cls='apt-price-insight high'; txt=`At ${zoneLabel} market rate`; }
+      els.forEach(el=>{ el.className=cls; el.textContent=txt; });
     }
 
     /* Save / Share — shares the same localStorage key as /apartments */
@@ -1223,6 +1227,15 @@
         const si=sm[st]||sm['available'];
         bEl.innerHTML=`<span class="badge ${si.c}">${si.t}</span><span class="badge badge-verified">✓ Verified</span>`;
         if(d.videoUrl||d.youtubeUrl)bEl.innerHTML+='<span class="badge badge-video">▶ Video Tour</span>';
+        // Honest freshness signal (only on live listings, only when we have a real date)
+        if(si.c!=='badge-rented'){
+          const _c=d.createdAt, created=_c&&(_c.toDate?_c.toDate():(_c.seconds?new Date(_c.seconds*1000):new Date(_c)));
+          if(created&&!isNaN(created)){
+            const days=Math.floor((Date.now()-created.getTime())/86400000);
+            if(days>=0&&days<=7) bEl.innerHTML+='<span class="badge badge-fresh">✦ New this week</span>';
+            else if(days>7&&days<=45) bEl.innerHTML+=`<span class="badge badge-fresh">Listed ${days}d ago</span>`;
+          }
+        }
 
         document.getElementById('aptName').textContent=name;
         aptAddress=d.address||'Rome, Italy';
