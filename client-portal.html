@@ -396,7 +396,7 @@
     // ─────────────────────────────────────────────────────────────
     //  State + API
     // ─────────────────────────────────────────────────────────────
-    var client = null, tab = 'home', code = '', lastOptionCount = 0, pollTimer = null;
+    var client = null, tab = 'home', code = '', lastOptionCount = 0, pollTimer = null, demoMode = false;
     var DEMO = { name:'Marco Rossi', journey:{stage:'options',index:2,total:5}, stats:{days:12,options:2,liked:0,avgMatch:91},
       criteria:{minBudget:600,budget:900,zone:'Trastevere, Centro',moveIn:'2026-07-01',bedrooms:'1',mustHaves:'Luminoso, lavatrice',dealBreakers:'Piano terra'},
       properties:[
@@ -409,6 +409,8 @@
         .then(function(r){ return r.json().catch(function(){ return {ok:false,error:'bad_json'}; }); })
         .catch(function(){ return {ok:false,error:'network'}; });
     }
+    // Write action — no-op in demo mode (showcase without a real client doc).
+    function act(p){ if(demoMode) return Promise.resolve({ok:false,demo:true}); p.code=code; return api('action',p).then(function(r){ if(r&&r.ok&&r.client) client=r.client; return r; }); }
 
     // ─────────────────────────────────────────────────────────────
     //  FX: sound, haptics, confetti
@@ -453,7 +455,7 @@
 
     function setLang(l){ lang = l==='en'?'en':'it'; try{ localStorage.setItem('boom_pfs_lang',lang); }catch(e){}
       applyAuthLang();
-      if(client){ document.getElementById('langToggle').textContent = lang.toUpperCase(); render(); api('action',{code:code,action:'setLang',lang:lang}); }
+      if(client){ document.getElementById('langToggle').textContent = lang.toUpperCase(); render(); act({action:'setLang',lang:lang}); }
     }
     function toggleLang(){ setLang(lang==='it'?'en':'it'); }
     function applyAuthLang(){
@@ -472,14 +474,14 @@
       if(!silent && btn){ btn.disabled=true; btn.dataset.o=btn.textContent; btn.textContent='…'; }
       api('lookup',{code:c}).then(function(res){
         if(res && res.ok && res.client){
-          client = res.client;
+          demoMode = false; client = res.client;
           if(client.lang && client.lang!==lang){ lang = client.lang; try{localStorage.setItem('boom_pfs_lang',lang);}catch(e){} }
           try{ localStorage.setItem('boom_pfs_code', c); }catch(e){}
           lastOptionCount = client.stats.options;
           showApp();
           startPolling();
         } else if (/^BOOM|^DEMO$|^TEST$/i.test(c)) {
-          client = JSON.parse(JSON.stringify(DEMO)); code=c; try{localStorage.setItem('boom_pfs_code',c);}catch(e){}
+          demoMode = true; client = JSON.parse(JSON.stringify(DEMO)); code=c; try{localStorage.setItem('boom_pfs_code',c);}catch(e){}
           lastOptionCount = client.stats.options; showApp();
         } else {
           hideLoading(); authReset();
@@ -504,6 +506,7 @@
     //  Polling for new properties (replaces realtime; pfsClients is admin-only)
     // ─────────────────────────────────────────────────────────────
     function startPolling(){
+      if(demoMode) return;
       if(pollTimer) clearInterval(pollTimer);
       pollTimer = setInterval(function(){
         if(document.hidden || !code) return;
@@ -642,11 +645,11 @@
       var cr=client.criteria;
       var money=function(a,b){ if(!a&&!b)return t('notset'); if(a&&b)return '€'+a+' – €'+b; return '€'+(b||a); };
       var rows=[[t('c_budget'),money(cr.minBudget,cr.budget)],[t('c_zone'),cr.zone||t('notset')],[t('c_moveIn'),cr.moveIn||t('notset')],[t('c_bedrooms'),cr.bedrooms?cr.bedrooms+'+':t('notset')],[t('c_must'),cr.mustHaves||t('notset')],[t('c_deal'),cr.dealBreakers||t('notset')]];
-      var act = client.activity||[];
+      var acts = client.activity||[];
       return '<div class="hero" style="padding:18px 18px 6px"><div class="agent-ava" style="margin:0 auto 12px;width:64px;height:64px;font-size:26px">'+(client.name||'?').charAt(0).toUpperCase()+'</div><div class="hero-title" style="font-size:22px">'+esc(client.name)+'</div><div class="hero-sub">'+t('active')+' · '+client.stats.days+' '+t('st_days').toLowerCase()+'</div></div>'+
         '<div class="sec"><div class="sec-head"><div class="sec-title">'+t('criteria')+'</div><button class="sec-link" onclick="openCriteria()">✎ '+t('edit')+'</button></div>'+
           '<div class="card">'+rows.map(function(r){return '<div class="crit-row"><span class="crit-k">'+r[0]+'</span><span class="crit-v">'+esc(r[1])+'</span></div>';}).join('')+'</div></div>'+
-        (act.length?'<div class="sec"><div class="sec-head"><div class="sec-title">'+t('activity')+'</div></div><div class="card">'+act.slice(0,8).map(function(a){return '<div class="feed-i"><div class="feed-ic">'+actIcon(a.type)+'</div><div><div class="feed-t">'+t('a_'+a.type)+(a.reason?' · '+esc(a.reason):'')+'</div><div class="feed-d">'+timeAgo(a.timestamp)+'</div></div></div>';}).join('')+'</div></div>':'')+
+        (acts.length?'<div class="sec"><div class="sec-head"><div class="sec-title">'+t('activity')+'</div></div><div class="card">'+acts.slice(0,8).map(function(a){return '<div class="feed-i"><div class="feed-ic">'+actIcon(a.type)+'</div><div><div class="feed-t">'+t('a_'+a.type)+(a.reason?' · '+esc(a.reason):'')+'</div><div class="feed-d">'+timeAgo(a.timestamp)+'</div></div></div>';}).join('')+'</div></div>':'')+
         '<div class="sec"><div class="sec-head"><div class="sec-title">'+t('agent')+'</div></div><div class="card"><div class="agent"><div class="agent-ava">👤</div><div class="agent-info"><div class="agent-name">'+esc(client.agent.name)+'</div><div class="agent-role">BOOM · '+esc(client.agent.role)+'</div></div><button class="agent-btn" onclick="chatAgent()">💬 '+t('chat')+'</button></div></div></div>'+
         '<div class="sec"><div class="card" style="display:flex;align-items:center;justify-content:space-between"><div><div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-3);margin-bottom:5px">'+t('code')+'</div><code style="font-size:17px;color:var(--gold);letter-spacing:2px">'+esc(code)+'</code></div><button class="btn-ghost" style="width:auto;margin:0;padding:11px 18px" onclick="logout()">'+t('logout')+'</button></div></div>';
     }
@@ -662,7 +665,7 @@
     function onLike(id){
       var card=document.querySelector('.pcard[data-id="'+id+'"]'); if(card)card.classList.add('liked');
       setProp(id,{clientLiked:true,clientRejected:false}); sound('like'); haptic(); confetti(innerWidth/2,innerHeight*0.5,28); toast(t('t_liked'),'ok');
-      api('action',{code:code,action:'like',propertyId:id}).then(function(r){ if(r&&r.ok&&r.client){client=r.client;} else if(r&&!r.ok){toast(t('t_err'),'err');} });
+      act({action:'like',propertyId:id});
       setTimeout(render, 420);
     }
     function onReject(id){ openReject(id); }
@@ -670,11 +673,11 @@
       closeSheet();
       var card=document.querySelector('.pcard[data-id="'+id+'"]'); if(card)card.classList.add('rejected');
       setProp(id,{clientRejected:true,clientLiked:false,rejectReason:reason||''}); sound('reject'); haptic(); toast(t('t_passed'));
-      api('action',{code:code,action:'reject',propertyId:id,reason:reason||''}).then(function(r){ if(r&&r.ok&&r.client){client=r.client;} });
+      act({action:'reject',propertyId:id,reason:reason||''});
       setTimeout(render, 420);
     }
-    function onUndo(id){ setProp(id,{clientLiked:false,clientRejected:false,rejectReason:'',viewingRequested:false}); haptic(); render(); api('action',{code:code,action:'undo',propertyId:id}).then(function(r){if(r&&r.ok&&r.client)client=r.client;}); toast(t('t_undo')); }
-    function onCancelViewing(id){ setProp(id,{viewingRequested:false}); haptic(); render(); api('action',{code:code,action:'cancelViewing',propertyId:id}).then(function(r){if(r&&r.ok&&r.client)client=r.client;}); toast(t('t_viewCancel')); }
+    function onUndo(id){ setProp(id,{clientLiked:false,clientRejected:false,rejectReason:'',viewingRequested:false}); haptic(); render(); act({action:'undo',propertyId:id}); toast(t('t_undo')); }
+    function onCancelViewing(id){ setProp(id,{viewingRequested:false}); haptic(); render(); act({action:'cancelViewing',propertyId:id}); toast(t('t_viewCancel')); }
 
     function chatAgent(){ var url='https://wa.me/'+(client.agent.whatsapp||'393313251961')+'?text='+encodeURIComponent((lang==='it'?'Ciao! Una domanda sulla mia ricerca (':'Hi! A question about my search (')+code+')'); window.open(url,'_blank'); }
 
@@ -724,7 +727,7 @@
       var note=(document.getElementById('viewNote')||{}).value||'';
       var pref=[_viewSlot,note].filter(Boolean).join(' — ');
       closeSheet(); setProp(id,{viewingRequested:true,viewingPreference:pref,clientLiked:true}); haptic([10,30,10]); sound('like'); confetti(innerWidth/2,innerHeight*0.4,40); toast(t('t_viewing'),'ok'); render();
-      api('action',{code:code,action:'requestViewing',propertyId:id,preference:pref}).then(function(r){if(r&&r.ok&&r.client)client=r.client;});
+      act({action:'requestViewing',propertyId:id,preference:pref});
     }
 
     function openCriteria(){
@@ -744,7 +747,7 @@
       var cr={ minBudget:g('cMin'), budget:g('cMax'), zone:g('cZone'), moveIn:g('cMove'), bedrooms:g('cBed'), mustHaves:g('cMust'), dealBreakers:g('cDeal') };
       Object.assign(client.criteria,{minBudget:parseInt(cr.minBudget)||null,budget:parseInt(cr.budget)||null,zone:cr.zone,moveIn:cr.moveIn,bedrooms:cr.bedrooms,mustHaves:cr.mustHaves,dealBreakers:cr.dealBreakers});
       closeSheet(); haptic(); render(); toast(t('saved_ok'),'ok');
-      api('action',{code:code,action:'updateCriteria',criteria:cr}).then(function(r){if(r&&r.ok&&r.client)client=r.client;});
+      act({action:'updateCriteria',criteria:cr});
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -769,7 +772,7 @@
     function stopCarousels(){ Object.keys(cTimers).forEach(function(k){clearInterval(cTimers[k]);}); cTimers={}; }
 
     document.addEventListener('visibilitychange',function(){
-      if(document.hidden || !client || !code) return;
+      if(document.hidden || !client || !code || demoMode) return;
       api('lookup',{code:code}).then(function(res){ if(res&&res.ok&&res.client){ var prev=lastOptionCount; client=res.client; if(client.stats.options>prev){lastOptionCount=client.stats.options;showNewAlert();} else {lastOptionCount=client.stats.options; if(tab!=='explore')render();} } });
     });
     </script>
