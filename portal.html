@@ -4128,7 +4128,72 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function stopRadarListener() {
         if (S.radarListener) { S.radarListener(); S.radarListener = null; }
     }
-    
+
+    // Real-time INBOX listener — Homie writes WhatsApp/email messages into the
+    // conversations + messages collections via /api/homie/message. We keep the
+    // conversation list live so new messages, unread counts and "da rispondere"
+    // flags surface within seconds, no reload, no re-login. Admin sees all;
+    // landlord sees only the conversations assigned to them.
+    function startInboxListener() {
+        if (!S.profile?.id) return;
+        if (!isAdmin() && !isLandlord()) return;
+        if (S.inboxListener) S.inboxListener();
+        let q;
+        if (isAdmin()) {
+            q = db.collection('conversations').orderBy('lastMessageAt', 'desc').limit(200);
+        } else {
+            // landlord — no orderBy (avoids a composite index); sorted client-side.
+            q = db.collection('conversations').where('assignedLandlordId', '==', S.profile.id).limit(200);
+        }
+        S.inboxListener = q.onSnapshot(snapshot => {
+            const prevUnread = (S.conversations || []).reduce((n, c) => n + (Number(c.unread) || 0), 0);
+            S.conversations = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            buildNav();
+            if (S.page === 'inbox') {
+                // Preserve the open conversation + composer text across re-render.
+                const draft = (document.getElementById('inboxBody') || {}).value;
+                const m = document.getElementById('main');
+                if (m) m.innerHTML = inboxPage();
+                if (draft) { const ta = document.getElementById('inboxBody'); if (ta) ta.value = draft; }
+            }
+            // Audible/visual cue when a new inbound arrives while away from Inbox.
+            const nowUnread = (S.conversations || []).reduce((n, c) => n + (Number(c.unread) || 0), 0);
+            if (nowUnread > prevUnread && S.page !== 'inbox') {
+                if (document.hidden) sendBrowserNotification('BOOM · Nuovo messaggio', 'Hai ' + nowUnread + ' messaggi da gestire in Inbox');
+            }
+        }, err => console.error('Inbox listener error:', err));
+    }
+    function stopInboxListener() {
+        if (S.inboxListener) { S.inboxListener(); S.inboxListener = null; }
+        stopOpenConvListener();
+    }
+    // Per-conversation live thread — attached when a conversation is opened so
+    // the messages timeline updates in real time (e.g. Homie logs an inbound
+    // while you're reading). Detached when switching conversation / leaving.
+    function startOpenConvListener(convId) {
+        stopOpenConvListener();
+        if (!convId) return;
+        S.openConvId = convId;
+        S.openConvListener = db.collection('messages')
+            .where('conversationId', '==', convId)
+            .limit(300)
+            .onSnapshot(snapshot => {
+                const fresh = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                // Merge: drop this conversation's old messages, splice the fresh set in.
+                S.messages = (S.messages || []).filter(m => m.conversationId !== convId).concat(fresh);
+                if (S.page === 'inbox' && _inboxState.convId === convId) {
+                    const draft = (document.getElementById('inboxBody') || {}).value;
+                    const m = document.getElementById('main');
+                    if (m) m.innerHTML = inboxPage();
+                    if (draft) { const ta = document.getElementById('inboxBody'); if (ta) ta.value = draft; }
+                }
+            }, err => console.error('Open conversation listener error:', err));
+    }
+    function stopOpenConvListener() {
+        if (S.openConvListener) { S.openConvListener(); S.openConvListener = null; }
+        S.openConvId = null;
+    }
+
     function isRecent(timestamp, seconds = 30) {
         if (!timestamp) return false;
         const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
@@ -4714,6 +4779,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             stopActionQueueListener();
             stopSignRequestsListener();
             stopRadarListener();
+            stopInboxListener();
             // Clear data cache
             localStorage.removeItem('boom_data_cache');
             try {
@@ -4755,6 +4821,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         startActionQueueListener();
         startSignRequestsListener();
         startRadarListener();
+        startInboxListener();
         
         // Check scheduled notifications (admin only, once per session)
         if (isAdmin() && !window.scheduledNotifChecked) {
@@ -10279,7 +10346,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         return out;
     }
     function kindLabel(k) {
-        return { tenant:'Inquilino', landlord:'Landlord', lead:'Lead', pfs:'PFS', client:'Cliente' }[k] || k;
+        return { tenant:'Inquilino', landlord:'Landlord', lead:'Lead', pfs:'PFS', client:'Cliente', whatsapp:'WhatsApp' }[k] || k;
     }
 
     // Find-or-create a conversation for (kind, id). Admin only. Idempotent
@@ -10356,12 +10423,14 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const channel = _inboxState.channel;
         const q = (_inboxState.search || '').toLowerCase().trim();
         const filtered = convs.filter(c => {
-            if (filter !== 'all' && (c.status || 'open') !== filter) return false;
+            if (filter === 'todo') { if (!c.needsReply) return false; }
+            else if (filter !== 'all' && (c.status || 'open') !== filter) return false;
             if (channel !== 'all' && c.channel !== channel && c.channel !== 'mixed') return false;
             if (q && !((c.contactName || '') + ' ' + (c.contactPhone || '') + ' ' + (c.contactEmail || '') + ' ' + (c.lastMessagePreview || '')).toLowerCase().includes(q)) return false;
             return true;
         });
         const totalUnread = convs.reduce((n, c) => n + (Number(c.unread) || 0), 0);
+        const todoCount = convs.filter(c => c.needsReply).length;
         // If selection is gone (e.g. after filter change) clear it.
         if (_inboxState.convId && !filtered.some(c => c.id === _inboxState.convId)) _inboxState.convId = null;
         const selected = _inboxState.convId ? filtered.find(c => c.id === _inboxState.convId) || convs.find(c => c.id === _inboxState.convId) : null;
@@ -10383,6 +10452,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <div style="padding:12px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:8px">
                     <input class="input" type="search" placeholder="Cerca nome, telefono, testo…" value="${esc(_inboxState.search)}" oninput="_inboxState.search=this.value;inboxRefresh()" style="font-size:13px">
                     <div style="display:flex;gap:6px;flex-wrap:wrap">
+                        <button class="btn btn-sm ${_inboxState.filter==='todo'?'btn-primary':''}" onclick="_inboxState.filter='todo';inboxRefresh()" style="font-size:11px;padding:4px 10px">⚡ Da rispondere${todoCount?` <span class="badge gold" style="font-size:9px">${todoCount}</span>`:''}</button>
                         ${['open','snoozed','closed','all'].map(s => `
                             <button class="btn btn-sm ${_inboxState.filter===s?'btn-primary':''}" onclick="_inboxState.filter='${s}';inboxRefresh()" style="font-size:11px;padding:4px 10px">${({open:'Aperte',snoozed:'Snooze',closed:'Chiuse',all:'Tutte'})[s]}</button>
                         `).join('')}
@@ -10421,11 +10491,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#1A1A1A,#0A0A0A);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:var(--gold);flex-shrink:0;border:1px solid var(--border)">${esc(initials)}</div>
             <div style="flex:1;min-width:0">
                 <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
-                    <div style="font-weight:500;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.contactName || 'Senza nome')}</div>
+                    <div style="font-weight:500;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.needsReply?'<span title="Da rispondere" style="color:var(--orange)">⚡ </span>':''}${esc(c.contactName || 'Senza nome')}</div>
                     <div style="font-size:10px;color:var(--text-muted);white-space:nowrap">${tsLabel}</div>
                 </div>
                 <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-top:2px">
-                    <div style="font-size:11px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${dirIcon} ${esc(c.lastMessagePreview || kind)}</div>
+                    <div style="font-size:11px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.lastSource==='homie'?'🤖 ':''}${dirIcon} ${esc(c.lastMessagePreview || kind)}</div>
                     ${unread ? `<span class="badge gold" style="font-size:9px;padding:2px 6px">${unread}</span>` : ''}
                 </div>
             </div>
@@ -10446,9 +10516,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         _inboxState.convId = convId;
         const conv = (S.conversations || []).find(c => c.id === convId);
         if (conv && (conv.unread || 0) > 0 && isAdmin()) {
-            db.collection('conversations').doc(convId).update({ unread: 0 }).catch(()=>{});
+            db.collection('conversations').doc(convId).update({ unread: 0, needsReply: false }).catch(()=>{});
             conv.unread = 0;
         }
+        // Attach a live thread listener so Homie's inbound messages appear in
+        // real time while this conversation is open.
+        startOpenConvListener(convId);
         inboxRefresh();
     };
 
@@ -10481,6 +10554,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 </div>
             </div>
 
+            ${inboxHomieBanner(conv)}
+
             <!-- Timeline -->
             <div style="flex:1;overflow-y:auto;padding:18px;background:#050505">
                 ${days.length ? days.map(g => `
@@ -10494,6 +10569,46 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         </div>
         `;
     }
+
+    // Homie analysis banner — when the agent has read the thread and proposed
+    // a summary / suggested reply, surface it above the timeline with one-tap
+    // actions (load the suggested reply into the composer, mark handled).
+    function inboxHomieBanner(conv) {
+        if (!conv.aiSummary && !conv.suggestedReply && !conv.needsReply) return '';
+        const urg = conv.urgency || (conv.needsReply ? 'medium' : 'low');
+        const tone = urg === 'high' ? 'red' : urg === 'medium' ? 'orange' : 'gold';
+        const when = conv.aiUpdatedAt && conv.aiUpdatedAt.toDate ? inboxRelativeTime(conv.aiUpdatedAt.toDate()) : '';
+        return `
+        <div style="margin:12px 18px 0;padding:12px 14px;border:1px solid var(--${tone});border-radius:12px;background:rgba(212,175,55,0.06)">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+                <span style="font-size:14px">🤖</span>
+                <span style="font-weight:600;font-size:12px">Homie${when?` · ${when}`:''}</span>
+                ${conv.needsReply ? `<span class="badge ${tone}" style="font-size:9px">DA RISPONDERE${urg==='high'?' · URGENTE':''}</span>` : ''}
+            </div>
+            ${conv.aiSummary ? `<div style="font-size:13px;color:var(--text-secondary);line-height:1.45;margin-bottom:${conv.suggestedReply?'8px':'0'}">${esc(conv.aiSummary)}</div>` : ''}
+            ${conv.suggestedReply ? `
+                <div style="font-size:12px;background:var(--bg-elevated);border-radius:8px;padding:8px 10px;margin-bottom:8px;white-space:pre-wrap">${esc(conv.suggestedReply)}</div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap">
+                    <button class="btn btn-sm btn-primary" onclick="inboxUseSuggestion('${conv.id}')" style="font-size:11px">✍️ Usa risposta</button>
+                    ${conv.needsReply ? `<button class="btn btn-sm" onclick="inboxMarkHandled('${conv.id}')" style="font-size:11px">✓ Gestito</button>` : ''}
+                </div>
+            ` : (conv.needsReply ? `<button class="btn btn-sm" onclick="inboxMarkHandled('${conv.id}')" style="font-size:11px">✓ Gestito</button>` : '')}
+        </div>`;
+    }
+    window.inboxUseSuggestion = function(convId) {
+        const conv = (S.conversations || []).find(c => c.id === convId);
+        if (!conv || !conv.suggestedReply) return;
+        const ta = document.getElementById('inboxBody');
+        if (ta) { ta.value = conv.suggestedReply; ta.focus(); }
+    };
+    window.inboxMarkHandled = async function(convId) {
+        const conv = (S.conversations || []).find(c => c.id === convId);
+        if (!conv) return;
+        await db.collection('conversations').doc(convId).update({ needsReply: false }).catch(e => toast('error', e.message));
+        conv.needsReply = false;
+        inboxRefresh();
+        toast('success', 'Segnato come gestito');
+    };
 
     function inboxMessageBubble(m) {
         const isOut  = m.direction === 'out';

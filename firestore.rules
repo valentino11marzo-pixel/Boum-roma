@@ -171,12 +171,15 @@ service cloud.firestore {
       allow read:   if isAdmin()
                     || (resource.data.contactUid == uid())
                     || (isLandlord() && resource.data.assignedLandlordId == uid());
-      // Anyone signed-in may APPEND a message tagged with their uid (so a
-      // landlord/tenant can reply inside their conversation), but cannot
-      // edit/delete history.
-      allow create: if isSignedIn()
-                    && request.resource.data.by == uid()
-                    && request.resource.data.direction in ['out','in','note'];
+      // Admin (incl. Homie, which authenticates as the admin service user)
+      // may append any message — e.g. by:'homie' for agent-ingested WhatsApp.
+      // Anyone else signed-in may APPEND only a message tagged with their own
+      // uid (so a landlord/tenant can reply inside their conversation). Nobody
+      // but admin can edit/delete history.
+      allow create: if isAdmin()
+                    || (isSignedIn()
+                        && request.resource.data.by == uid()
+                        && request.resource.data.direction in ['out','in','note']);
       allow update, delete: if isAdmin();
     }
 

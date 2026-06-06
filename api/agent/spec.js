@@ -125,6 +125,20 @@ export default async function handler(req, res) {
     related: {
       inbound: { method: 'POST', path: '/api/homie/inbound', note: 'Direct lead ingestion path (e.g. intake form forwarder). Same effect as agent.leads.create, kept for backwards-compatibility.' },
       action: { method: 'POST', path: '/api/homie/action', note: 'Proposes an action into action_queue (status=pending). Use execute later to apply.' },
+      message: {
+        method: 'POST', path: '/api/homie/message',
+        tier: 1, side_effects: 'writes:conversations,messages,activityLog',
+        note: 'Feed ONE WhatsApp/email message into the portal Inbox. Idempotent on messageId. Resolves the contact by contactType+contactId or by phone (auto-matches leads/tenants/landlords/pfs/clients, else creates a standalone WhatsApp contact). Optional analysis{summary,intent,needsReply,urgency,suggestedReply} surfaces in the Inbox as the 🤖 Homie banner + "da rispondere" flag.',
+        input: { direction: 'in|out|note', body: 'string', channel: 'whatsapp|email|note?', contactType: 'enum?', contactId: 'string?', phone: 'string?', email: 'string?', name: 'string?', messageId: 'string? (idempotency)', timestamp: 'iso?', mediaUrls: 'string[]?', analysis: '{summary?,intent?,needsReply?,urgency?,suggestedReply?}?' },
+        output: { conversationId: 'string', messageId: 'string', created: 'boolean', dedupHit: 'boolean?' },
+      },
+      inboxSync: {
+        method: 'POST', path: '/api/homie/inbox-sync',
+        tier: 1, side_effects: 'writes:conversations,activityLog',
+        note: 'Reconciliation pass after scanning ALL of WhatsApp. Batch-updates conversation status/needsReply/urgency/aiSummary/suggestedReply/tags. Does NOT append messages (use /api/homie/message). Address each by conversationId, contactType+contactId, or phone.',
+        input: { updates: 'array<{conversationId?,contactType?,contactId?,phone?,status?,needsReply?,urgency?,aiSummary?,suggestedReply?,tags?}>' },
+        output: { updated: 'number', skipped: 'number', results: 'array' },
+      },
     },
   });
 }

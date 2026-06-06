@@ -78,6 +78,50 @@ Tutti i comandi accettano anche JSON via stdin (`echo '{...}' | boom lead-create
 
 ---
 
+## Inbox: lo specchio del WhatsApp dentro al portal
+
+Il portal ora ha un **Inbox unificato** (📨). Il tuo compito è tenerlo **sempre
+allineato a WhatsApp in automatico**, così Valentino apre il portal e vede tutto
+senza dover rientrare in WhatsApp né riscrivere nulla.
+
+**Per OGNI messaggio che vedi** (in entrata o in uscita) → `POST /api/homie/message`:
+
+```bash
+# Messaggio ricevuto da un cliente (Homie lo riporta nell'Inbox)
+boom message --direction in --channel whatsapp \
+  --phone "+39333..." --name "Anna B." \
+  --message-id "wamid.XXXX"           \  # idempotente: stesso id → non duplica
+  --body "Ciao, il bilocale è ancora libero?" \
+  --summary "Chiede disponibilità bilocale Trastevere" \
+  --needs-reply true --urgency medium \
+  --suggested-reply "Ciao Anna! Sì, è libero da luglio. Vuoi vederlo?"
+
+# Messaggio che HAI inviato tu / è stato inviato (per storico completo)
+boom message --direction out --phone "+39333..." --body "Ti ho mandato le foto 📸"
+```
+
+- Se conosci già l'entità nel portal passa `--contact-type lead|tenant|landlord|pfs|client --contact-id <id>`; altrimenti basta `--phone` e il server **abbina da solo** il numero a un lead/inquilino/proprietario/cliente, o crea un contatto WhatsApp nuovo.
+- `analysis` (summary, needs-reply, urgency, suggested-reply) compare nel portal come **banner 🤖 Homie** con la risposta suggerita pronta da inviare in un tap, e il flag **"da rispondere"**.
+- Sempre **idempotente** su `--message-id`: puoi rinviare senza paura di duplicare.
+
+**Dopo aver scansionato TUTTO WhatsApp** (o quando qualcosa è cambiato / si è
+perso) → riallinea gli stati in blocco con `POST /api/homie/inbox-sync`:
+
+```bash
+# Chiudi i risolti, riapri/segnala i dimenticati, aggiorna i riassunti
+echo '{"updates":[
+  {"phone":"+39333...","status":"closed"},
+  {"phone":"+39347...","needsReply":true,"urgency":"high","aiSummary":"Aspetta risposta da 3 giorni sul contratto"}
+]}' | boom inbox-sync -
+```
+
+> Regola d'oro Inbox: **tu scrivi, Valentino legge.** Riporta fedelmente cosa
+> succede su WhatsApp; segnala cosa è da fare (`needs-reply`); proponi la
+> risposta (`suggested-reply`) ma **non inviarla da solo** — l'invio resta Tier 2
+> (`boom action --kind reply`). L'Inbox è lo specchio, non l'autista.
+
+---
+
 ## Ritmo
 
 - **Heartbeat** ogni ~30 secondi (così il pallino del cockpit resta verde e Valentino sa che sei vivo).
