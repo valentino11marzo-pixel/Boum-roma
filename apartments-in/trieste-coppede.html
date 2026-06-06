@@ -661,8 +661,9 @@ const db=firebase.firestore();
   const matchAttr=grid.getAttribute('data-zone-match')||'';
   const terms=matchAttr.toLowerCase().split('|').filter(Boolean);
   try{
-    const snap=await db.collection('listings').get();
-    const all=snap.docs.map(d=>({id:d.id,...d.data()}));
+    let all;
+    try{ const snap=await db.collection('listings').get(); all=snap.docs.map(d=>({id:d.id,...d.data()})); }
+    catch(_){ const r=await fetch('/api/listings',{cache:'no-store'}); const j=await r.json(); all=(j&&j.listings)||[]; }
     const matched=all.filter(l=>{
       const s=(l.status||l.availabilityStatus||'').toLowerCase();
       if(s==='rented'||s==='affittato'||s==='off_market')return false;

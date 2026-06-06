@@ -8,12 +8,30 @@ const API_KEY = process.env.FIREBASE_API_KEY || 'AIzaSyDDb8UeSc8RhO_VxQrhLrupu1a
 
 const sv = (f, k) => (f && f[k] && f[k].stringValue) || '';
 
+// Admin sign-in fallback, so the sitemap still lists pages if public reads are denied.
+async function adminToken() {
+  const email = process.env.FIREBASE_ADMIN_EMAIL;
+  const password = process.env.FIREBASE_ADMIN_PASS;
+  if (!email || !password) return null;
+  try {
+    const r = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${API_KEY}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, returnSecureToken: true }),
+    });
+    const d = await r.json();
+    return d.idToken || null;
+  } catch { return null; }
+}
+
 export default async function handler(req, res) {
   const urls = [];
   try {
-    const r = await fetch(
-      `https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents/listings?pageSize=300&key=${API_KEY}`
-    );
+    const listUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents/listings?pageSize=300&key=${API_KEY}`;
+    let r = await fetch(listUrl);
+    if (r.status === 403) {
+      const token = await adminToken();
+      if (token) r = await fetch(listUrl, { headers: { Authorization: `Bearer ${token}` } });
+    }
     if (r.ok) {
       const j = await r.json();
       for (const doc of j.documents || []) {
