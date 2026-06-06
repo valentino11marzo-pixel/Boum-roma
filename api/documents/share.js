@@ -71,11 +71,18 @@ export default async function handler(req, res) {
     await logActivity('document_share_created', 'document', {
       shareId: id, ownerId, docCount: docIds.length, recipient: share.recipientName, expiresAt,
     }, auth.uid);
+    // Build the share URL on the same host the request came from, so preview
+    // deployments and production each serve their own /share. This was the
+    // 404 bug: the endpoint used to always return https://www.boomrome.com
+    // even when called from a preview domain.
+    const proto = (req.headers['x-forwarded-proto'] || 'https').split(',')[0].trim();
+    const host = (req.headers['x-forwarded-host'] || req.headers.host || 'www.boomrome.com').split(',')[0].trim();
+    const url = `${proto}://${host}/share.html?t=${token}`;
     return res.status(200).json({
       ok: true,
       token,
       shareId: id,
-      url: 'https://www.boomrome.com/share.html?t=' + token,
+      url,
       expiresAt,
     });
   } catch (e) {

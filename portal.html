@@ -10274,11 +10274,215 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 </div>
             </div>
 
-            ${FX ? fiscalScadenzarioCard(companyObl, { compact: false }) : ''}
+            ${egidiPLBlock(year, totalRev)}
+
+            ${egidiReconcileBlock(year)}
+
+            ${egidiAdviceBlock(year, totalRev, revByQ)}
+
+            ${FX ? `
+            <div class="card" style="margin-top:20px">
+                <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                    <span style="font-size:20px">🗓️</span>
+                    <div style="flex:1"><strong>Scadenzario societario</strong></div>
+                    <button class="btn btn-secondary btn-sm" onclick="pushObligationsToDeadlines(${year}, 'company')">📌 Salva nelle scadenze (promemoria email)</button>
+                </div>
+                ${fiscalScadenzarioCard(companyObl, { compact: false }).replace(/^<div class="card"[^>]*>/, '').replace(/<\/div>$/, '')}
+            </div>` : ''}
 
             <div style="font-size:12px;color:var(--text-muted);margin-top:16px;padding:12px 16px;background:var(--bg-elevated);border-radius:8px">
-                I ricavi sono presi dalle fatture emesse (pagina Fatture) e dai compensi PFS incassati via Stripe. L'IVA è una stima al 22%: il calcolo definitivo (detraibile inclusa) resta al commercialista.
+                I ricavi sono presi dalle fatture emesse (pagina Fatture) e dai compensi PFS incassati via Stripe. L'IVA è una stima al 22%: il calcolo definitivo (detraibile inclusa) resta al commercialista. Gli "estratti conto bancari" non sono in BOOM — questo è un riepilogo gestionale, non una contabilità sostitutiva.
             </div>`;
+    }
+
+    // ─── Egidi · P&L semplificato ───────────────────────────────────────────
+    // Ricavi (fatture emesse + PFS Stripe incassati) vs costi (compensi
+    // gestione PAGATI ai landlord — tracciati come spese su contratti +
+    // costi tracciati su manutenzione/spese se presenti).
+    function egidiPLBlock(year, totalRev) {
+        // Costi gestionali: managementFee mensile per ogni contratto attivo nell'anno
+        // (è un compenso CHE TU TRATTIENI dal canone — quindi ricavo TUO, non costo;
+        // lascio invece le voci "spesa" che BOOM ha sostenuto se mai presenti).
+        // Per Egidi i veri costi non sono dentro BOOM (commercialista, marketing,
+        // hosting, ecc.) → mostro solo ciò che ho e dico chiaramente cosa manca.
+        const FX = window.BOOM_FISCAL;
+        const refundedPFS = (S.pfsClients || []).filter(c => {
+            if (c.status !== 'refunded' && c.status !== 'rimborsato') return false;
+            const d = c.paid_at ? new Date(c.paid_at) : null;
+            return d && d.getFullYear() === Number(year);
+        }).reduce((s, c) => s + ((Number(c.amount_paid)||0) > 1000 ? Number(c.amount_paid)/100 : (Number(c.amount_eur)||0)), 0);
+        const margin = totalRev - refundedPFS;
+        return `
+        <div class="card" style="margin-bottom:20px">
+            <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px">
+                <span style="font-size:20px">📊</span><strong>Conto economico ${year}</strong>
+                <span style="font-size:11px;color:var(--text-muted);margin-left:auto">vista gestionale · non sostitutiva della contabilità</span>
+            </div>
+            <div class="card-body">
+                <table style="width:100%;border-collapse:collapse;font-size:14px">
+                    <tr><td style="padding:8px 0;color:var(--text-muted)">Ricavi imponibili (fatture + PFS)</td><td style="text-align:right;font-weight:600">${FX.fmtEuro(totalRev)}</td></tr>
+                    <tr><td style="padding:8px 0;color:var(--text-muted)">— Rimborsi PFS (no-match)</td><td style="text-align:right;color:var(--red)">${refundedPFS ? '−'+FX.fmtEuro(refundedPFS) : '—'}</td></tr>
+                    <tr style="border-top:1px solid var(--border)"><td style="padding:10px 0;font-weight:600">Margine netto BOOM</td><td style="text-align:right;font-weight:700;color:var(--gold);font-size:16px">${FX.fmtEuro(margin)}</td></tr>
+                </table>
+                <div style="font-size:11px;color:var(--text-muted);margin-top:12px">I costi (commercialista, marketing, hosting, stipendi) non sono tracciati in BOOM. Tienili nel tuo gestionale contabile e chiedi al commercialista il risultato d'esercizio reale.</div>
+            </div>
+        </div>`;
+    }
+
+    // ─── Egidi · Riconciliazione fatture ↔ PFS incassati ────────────────────
+    // Per ogni PFS pagato dell'anno verifica se esiste una fattura emessa.
+    // Mette in luce: PFS senza fattura (da fatturare!) + fatture senza
+    // riscontro (verificare il pagamento).
+    function egidiReconcileBlock(year) {
+        const paidPFS = (S.pfsClients || []).filter(c => {
+            const ok = (Number(c.amount_paid)||0) > 0 || (Number(c.amount_eur)||0) > 0;
+            const d = c.paid_at ? new Date(c.paid_at) : null;
+            return ok && d && d.getFullYear() === Number(year);
+        });
+        const invoices = (S.invoices || []).filter(i => {
+            const d = i.date ? new Date(i.date) : null;
+            return d && d.getFullYear() === Number(year);
+        });
+        const pfsWithoutInvoice = paidPFS.filter(c => !invoices.some(i =>
+            (i.recipientType === 'client' && i.recipientId === c.id) ||
+            (i.service && /PFS/i.test(i.service) && Math.abs((Number(i.amount)||0) - (Number(c.amount_eur)||(Number(c.amount_paid)||0)/100)) < 1)
+        ));
+        const invWithoutPaid = invoices.filter(i =>
+            i.service && /PFS/i.test(i.service) && i.status !== 'paid' && !paidPFS.some(c => c.id === i.recipientId)
+        );
+        const allOk = !pfsWithoutInvoice.length && !invWithoutPaid.length;
+        const FX = window.BOOM_FISCAL;
+        return `
+        <div class="card" style="margin-bottom:20px;${allOk ? '' : 'border-color:rgba(212,175,55,0.3)'}">
+            <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px">
+                <span style="font-size:20px">🔍</span><strong>Riconciliazione</strong>
+                <span style="font-size:11px;color:var(--text-muted)">PFS Stripe ↔ Fatture emesse</span>
+                ${allOk ? '<span class="badge" style="margin-left:auto;background:rgba(0,210,106,0.15);color:var(--green);font-size:10px;padding:4px 10px">TUTTO QUADRATO</span>' : ''}
+            </div>
+            <div class="card-body">
+                ${pfsWithoutInvoice.length ? `<div style="margin-bottom:14px">
+                    <div style="font-weight:600;color:var(--gold);margin-bottom:8px">📤 PFS pagati senza fattura emessa (${pfsWithoutInvoice.length})</div>
+                    <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">Crea le fatture: ti servono per la dichiarazione IVA e per i ricavi del trimestre.</div>
+                    ${pfsWithoutInvoice.slice(0,8).map(c => `<div class="list-item" style="padding:10px 14px"><span style="flex:1">${esc(c.name||'PFS Client')} · ${FX.fmtEuro((Number(c.amount_paid)||0)>1000?Number(c.amount_paid)/100:(Number(c.amount_eur)||0))}</span><button class="btn btn-xs" onclick="createInvoiceFor('${c.id}')">+ Fattura</button></div>`).join('')}
+                </div>` : ''}
+                ${invWithoutPaid.length ? `<div>
+                    <div style="font-weight:600;color:var(--orange);margin-bottom:8px">⚠️ Fatture PFS non corrisposte (${invWithoutPaid.length})</div>
+                    ${invWithoutPaid.slice(0,8).map(i => `<div class="list-item" style="padding:10px 14px"><span style="flex:1">${esc(i.number||'')} · ${FX.fmtEuro(Number(i.amount)||0)}</span><span style="font-size:11px;color:var(--text-muted)">${esc(i.status||'pending')}</span></div>`).join('')}
+                </div>` : ''}
+                ${allOk ? '<div style="text-align:center;padding:20px 0;color:var(--green);font-size:14px">✓ Ogni PFS pagato ha la sua fattura · ogni fattura PFS ha il suo incasso</div>' : ''}
+            </div>
+        </div>`;
+    }
+
+    // ─── Egidi · Consigli & ottimizzazioni ──────────────────────────────────
+    // Euristiche sui dati reali — niente AI, niente magia, solo signal chiari.
+    function egidiAdviceBlock(year, totalRev, revByQ) {
+        const advice = [];
+        const FX = window.BOOM_FISCAL;
+        // 1. Soglia regime forfettario €85k
+        if (totalRev > 70000 && totalRev < 85000) {
+            advice.push({ icon: '⚠️', tone: 'gold', title: 'Avvicinamento soglia €85k (forfettario)', body: 'Sei a ' + FX.fmtEuro(totalRev) + '. Se Egidi è in regime forfettario, attento al superamento — chiedi al commercialista come pianificare il Q4.' });
+        }
+        if (totalRev >= 85000 && totalRev <= 100000) {
+            advice.push({ icon: '🚨', tone: 'red', title: 'Soglia €85k superata', body: 'Ricavi a ' + FX.fmtEuro(totalRev) + '. Se eri in forfettario passi al regime ordinario dal prossimo anno (o subito a 100k+). Pianifica con commercialista.' });
+        }
+        // 2. Concentrazione trimestrale (un solo Q raccoglie >70% dei ricavi → fattura troppo tardi?)
+        const maxQ = Math.max(...Object.values(revByQ));
+        if (totalRev > 1000 && maxQ / totalRev > 0.7) {
+            const qLabel = ['Q1','Q2','Q3','Q4'][Object.values(revByQ).indexOf(maxQ)];
+            advice.push({ icon: '📅', tone: 'gold', title: 'Ricavi concentrati in ' + qLabel, body: 'Più del 70% del fatturato è in un solo trimestre. Distribuire l\'emissione fatture aiuta cashflow e IVA trimestrale.' });
+        }
+        // 3. Fatture non pagate (di tutti i tempi)
+        const unpaid = (S.invoices || []).filter(i => i.status === 'pending' || (!i.status && !i.paidDate));
+        const unpaidAmount = unpaid.reduce((s, i) => s + (Number(i.amount) || 0), 0);
+        if (unpaidAmount > 0) {
+            advice.push({ icon: '💸', tone: 'gold', title: unpaid.length + ' fatture da incassare · ' + FX.fmtEuro(unpaidAmount), body: 'Hai crediti aperti per ' + FX.fmtEuro(unpaidAmount) + '. Manda solleciti dalla pagina Fatture.' });
+        }
+        // 4. Compensi gestione mancanti sui contratti attivi
+        const activeContracts = (S.contracts || []).filter(c => c.status === 'active');
+        const noFee = activeContracts.filter(c => !c.managementFee && !c.feePercent && !c.feeFixed);
+        if (noFee.length) {
+            advice.push({ icon: '💼', tone: 'gold', title: noFee.length + ' contratti senza compenso gestione', body: 'Su questi contratti non c\'è un campo compenso impostato → ricavi non calcolabili automaticamente. Imposta managementFee o feePercent.' });
+        }
+        // 5. PFS conversion (placed vs total)
+        const allPFS = (S.pfsClients || []);
+        const placedPFS = allPFS.filter(c => c.stage === 'placed' || c.stage === 'completed').length;
+        if (allPFS.length >= 5) {
+            const rate = Math.round((placedPFS / allPFS.length) * 100);
+            advice.push({ icon: '📈', tone: rate >= 50 ? 'green' : 'gold', title: 'PFS conversion rate ' + rate + '%', body: placedPFS + '/' + allPFS.length + ' clienti PFS sono stati piazzati. ' + (rate >= 50 ? 'Buon ritmo.' : 'Sotto il 50% — analizza gli scarti per migliorare il matching.') });
+        }
+        // 6. Promemoria automatici non ancora attivati (oggettivo)
+        const obligationsCount = (FX ? FX.companyObligations(year, revByQ).length : 0);
+        const savedDeadlines = (S.deadlines || []).filter(d => /fiscal_auto_/.test(d.source || '') || /IVA|LIPE|CCIAA|Redditi SC/i.test(d.title || '')).length;
+        if (obligationsCount && !savedDeadlines) {
+            advice.push({ icon: '🔔', tone: 'gold', title: 'Promemoria email non attivati', body: 'Hai ' + obligationsCount + ' scadenze calcolate ma nessuna è ancora salvata come "scadenza" → il cron BOOM non manda email. Clicca "Salva nelle scadenze" qui sotto.' });
+        }
+        if (!advice.length) {
+            advice.push({ icon: '✓', tone: 'green', title: 'Tutto in linea', body: 'Non vedo segnali critici nei dati gestionali. Continua così.' });
+        }
+        const toneColor = { red: 'var(--red)', gold: 'var(--gold)', green: 'var(--green)' };
+        return `
+        <div class="card" style="margin-bottom:20px">
+            <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px">
+                <span style="font-size:20px">💡</span><strong>Consigli & ottimizzazioni</strong>
+                <span style="font-size:11px;color:var(--text-muted);margin-left:auto">basati sui dati reali</span>
+            </div>
+            <div class="card-body" style="display:grid;gap:10px">
+                ${advice.map(a => `<div style="display:flex;gap:14px;padding:14px 16px;border:1px solid var(--border);border-left:3px solid ${toneColor[a.tone]};border-radius:10px">
+                    <span style="font-size:22px;line-height:1">${a.icon}</span>
+                    <div><div style="font-weight:600;margin-bottom:4px">${esc(a.title)}</div><div style="font-size:13px;color:var(--text-secondary);line-height:1.5">${esc(a.body)}</div></div>
+                </div>`).join('')}
+            </div>
+        </div>`;
+    }
+
+    // Push the computed obligations into the existing `deadlines` collection.
+    // The reminder-cron already in production reads `deadlines` and sends
+    // email reminders — so by pushing here we get automated reminders FREE.
+    async function pushObligationsToDeadlines(year, party) {
+        const FX = window.BOOM_FISCAL;
+        if (!FX) { toast('error', 'Motore fiscale non caricato'); return; }
+        const ok = await (window.confirm ? Promise.resolve(window.confirm('Salvo le scadenze ' + year + ' come promemoria? Riceverai email automatiche prima della scadenza.')) : Promise.resolve(true));
+        if (!ok) return;
+        let obligations = [];
+        if (party === 'company') {
+            const revByQ = { 1:0, 2:0, 3:0, 4:0 };
+            (S.invoices || []).forEach(i => { const d = i.date ? new Date(i.date) : null; if (d && d.getFullYear() === Number(year)) revByQ[Math.floor(d.getMonth()/3)+1] += Number(i.amount)||0; });
+            obligations = FX.companyObligations(year, revByQ);
+        } else {
+            // landlord: passed property+year via _cmState
+            const prop = (S.properties || []).find(p => p.id === _cmState.propertyId);
+            const contracts = (S.contracts || []).filter(c => c.propertyId === _cmState.propertyId);
+            obligations = FX.landlordObligations({ properties: [prop], contracts, fiscalYear: year });
+        }
+        let added = 0, skipped = 0;
+        for (const o of obligations) {
+            if (!o.dueDate) { skipped++; continue; }
+            // Skip if already exists (by source key) to keep idempotent.
+            const exists = (S.deadlines || []).some(d => d.sourceKey === o.key);
+            if (exists) { skipped++; continue; }
+            try {
+                await db.collection('deadlines').add({
+                    title: o.label,
+                    date: o.dueDate,
+                    priority: o.severity === 'high' ? 'urgent' : o.severity === 'medium' ? 'high' : 'normal',
+                    status: 'pending',
+                    category: o.category,
+                    linkedPropertyId: o.propertyId || null,
+                    linkedContractId: o.contractId || null,
+                    estimatedAmount: o.amount,
+                    note: o.note || '',
+                    source: 'fiscal_auto_' + party,
+                    sourceKey: o.key,
+                    autoGenerated: true,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                });
+                added++;
+            } catch (e) { console.warn('[pushObligations]', o.key, e.message); skipped++; }
+        }
+        await refresh();
+        toast('success', 'Salvate ' + added + ' scadenze', skipped ? skipped + ' già presenti' : 'Riceverai email automatiche');
+        logActivity('fiscal_obligations_saved_as_deadlines', 'fiscal', { party, year, added, skipped });
     }
 
     // ─── LANDLORD LITE — one property, one question, one action ─────────────
@@ -10316,7 +10520,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         // Scadenzario — computed obligations for THIS property (engine).
         const FX = window.BOOM_FISCAL;
         const obligations = FX ? FX.landlordObligations({ properties: [prop], contracts: (S.contracts||[]).filter(c=>c.propertyId===prop.id), fiscalYear: year }) : [];
-        const scadCard = FX ? fiscalScadenzarioCard(obligations, { compact: true }) : '';
+        const scadCard = FX ? fiscalScadenzarioCard(obligations, { compact: true, showSaveAction: true, year, party: 'landlord' }) : '';
 
         // Status mapping → calm, human.
         let statusKey, icon, headline, sub, accent;
@@ -10465,6 +10669,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <span style="font-size:20px">🗓️</span>
                 <div style="flex:1"><strong>Scadenzario fiscale</strong> <span style="font-size:12px;color:var(--text-muted)">${roll.counts.overdue ? roll.counts.overdue + ' scadute · ' : ''}${roll.counts.dueSoon} entro 30 giorni</span></div>
                 ${totalUrgent ? `<div style="font-size:13px;color:var(--text-muted)">Da versare a breve: <strong style="color:var(--text)">${FX.fmtEuro(totalUrgent)}</strong></div>` : ''}
+                ${opts.showSaveAction ? `<button class="btn btn-secondary btn-sm" onclick="pushObligationsToDeadlines(${opts.year || (new Date().getFullYear())}, '${opts.party || 'landlord'}')" title="Salva nelle scadenze così ricevi promemoria email">🔔 Promemoria automatici</button>` : ''}
             </div>
             <div class="card-body flush">
                 ${urgent.length ? urgent.map(row).join('') : '<div style="padding:16px;color:var(--text-muted);font-size:13px">Nessuna scadenza urgente. ✓</div>'}
