@@ -109,6 +109,31 @@ export default async function handler(req, res) {
   const id = ((req.query && req.query.id) || '').toString().trim();
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=120, stale-while-revalidate=600');
+
+  // Temporary, secret-safe diagnostics: /api/listings?debug=1 reports exactly
+  // where the read fails (no tokens/passwords are ever returned).
+  if (req.query && req.query.debug === '1') {
+    const out = { hasEmail: !!process.env.FIREBASE_ADMIN_EMAIL, hasPass: !!process.env.FIREBASE_ADMIN_PASS, projectId: PROJECT };
+    res.setHeader('Cache-Control', 'no-store');
+    try { const r = await fetch(`${FS}/listings?pageSize=1&key=${API_KEY}`); out.publicStatus = r.status; } catch (e) { out.publicErr = String(e && e.message || e); }
+    let token = null;
+    try {
+      const rr = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${API_KEY}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: process.env.FIREBASE_ADMIN_EMAIL, password: process.env.FIREBASE_ADMIN_PASS, returnSecureToken: true }),
+      });
+      const dd = await rr.json().catch(() => ({}));
+      out.signInStatus = rr.status;
+      out.gotToken = !!dd.idToken;
+      if (dd.error) out.signInError = dd.error.message;
+      token = dd.idToken || null;
+    } catch (e) { out.signInErr = String(e && e.message || e); }
+    if (token) {
+      try { const r2 = await fetch(`${FS}/listings?pageSize=1`, { headers: { Authorization: `Bearer ${token}` } }); out.adminStatus = r2.status; out.adminBody = (await r2.text()).slice(0, 160); } catch (e) { out.adminErr = String(e && e.message || e); }
+    }
+    return res.status(200).json(out);
+  }
+
   try {
     if (id) {
       const listing = await resilient((t) => readOne(id, t));
