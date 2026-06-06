@@ -56,6 +56,24 @@ export default async function handler(req, res) {
         output: { id: 'string', status: 'draft', endDate: 'string', deposit: 'number' },
       },
       {
+        name: 'documents.create', method: 'POST', path: '/documents.create',
+        tier: 1, side_effects: 'writes:documents(+Storage),activityLog',
+        input: { name: 'string', fileUrl: 'https-url?', fileBase64: 'string?', type: 'contract|receipt|id|utility|other?', category: 'string?', templateType: 'string?', mimeType: 'string?', fileName: 'string?', lang: 'IT|EN?', clientId: 'string?', tenantId: 'string?', landlordId: 'string?', propertyId: 'string?', contractId: 'string?', leadId: 'string?', userId: 'string?', shared: 'boolean?', tags: 'string[]?', pinned: 'boolean?', order: 'number?', notes: 'string?', refCode: 'string?', externalId: 'string? (idempotency)' },
+        output: { id: 'string', fileUrl: 'string', archived: 'boolean?', updated: 'boolean?' },
+      },
+      {
+        name: 'documents.list', method: 'POST', path: '/documents.list',
+        tier: 1, side_effects: 'none (read-only)',
+        input: { clientId: 'string?', tenantId: 'string?', landlordId: 'string?', propertyId: 'string?', contractId: 'string?', leadId: 'string?', type: 'enum?', source: 'string?', status: 'active|archived?', userId: 'string?', externalId: 'string?', limit: 'number? (1-200, default 50)' },
+        output: { count: 'number', items: 'array<{id,name,type,source,refCode,propertyId,clientId,tenantId,landlordId,contractId,shared,fileUrl,createdAt}>' },
+      },
+      {
+        name: 'documents.update', method: 'POST', path: '/documents.update',
+        tier: 1, side_effects: 'writes:documents,activityLog',
+        input: { id: 'string', name: 'string?', type: 'enum?', category: 'string?', tags: 'string[]?', shared: 'boolean?', pinned: 'boolean?', order: 'number?', status: 'active|archived?', notes: 'string?', userId: 'string?', propertyId: 'string?', clientId: 'string?', tenantId: 'string?', landlordId: 'string?', contractId: 'string?', lang: 'IT|EN?', refCode: 'string?' },
+        output: { id: 'string', updated: 'string[]' },
+      },
+      {
         name: 'magicsign.create', method: 'POST', path: '/magicsign.create',
         tier: 2, side_effects: 'writes:signRequests,activityLog',
         input: { title: 'string', pdfUrl: 'https-url', pageCount: 'number', fields: 'array<{page,kind,role,xr,yr,wr,hr}>', signers: '{tenant?,landlord?}', contractId: 'string?', leadId: 'string?' },

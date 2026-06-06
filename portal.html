@@ -1876,7 +1876,9 @@ Valentyne - BOOM Rome`
         contractsListener: null,
         actionQueueListener: null,
         signRequestsListener: null,
-        radarListener: null
+        radarListener: null,
+        heartbeatListener: null,
+        homieHeartbeat: null
     };
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -3908,7 +3910,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         loadDismissedAlerts().add(`${type}:${id}`);
         saveDismissedAlerts();
         checkAlerts();
-        if (document.querySelector('.notif-item')) showNotifications(); // refresh open modal
+        if (document.getElementById('notifPanel')) showNotifications(); // refresh open modal
     }
 
     function checkAlerts() {
@@ -4025,6 +4027,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 S.userNotifications = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 updateNotifBadge();
                 updateReminderBadge();
+                // If the notifications panel is open, keep it live (delete / mark-read /
+                // external changes reflect immediately instead of leaving a stale modal).
+                if (document.getElementById('notifPanel')) showNotifications();
                 // Play sound for new unread notifications
                 const newUnread = S.userNotifications.filter(n => !n.read && isRecent(n.createdAt, 30));
                 if (newUnread.length > 0 && document.hidden === false) {
@@ -4090,6 +4095,41 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             S.actionQueueListener();
             S.actionQueueListener = null;
         }
+    }
+
+    // Live link to the Mac-side Homie runtime. The agent posts to
+    // /api/agent/heartbeat every ~30s → heartbeat/mac (the same doc the cockpit
+    // reads). We surface it in the Command Center so the operator can SEE whether
+    // the agent/cockpit is connected, instead of guessing.
+    function startHeartbeatListener() {
+        if (!S.profile?.id || !isAdmin()) return;
+        if (S.heartbeatListener) S.heartbeatListener();
+        S.heartbeatListener = db.collection('heartbeat').doc('mac')
+            .onSnapshot(doc => {
+                S.homieHeartbeat = doc.exists ? doc.data() : null;
+                if (S.page === 'command-center') renderPage();
+            }, err => console.error('Heartbeat listener error:', err));
+        // Re-render periodically so the dot ages even without new pings.
+        if (!S._hbTick) S._hbTick = setInterval(() => { if (S.page === 'command-center') renderPage(); }, 30000);
+    }
+
+    function stopHeartbeatListener() {
+        if (S.heartbeatListener) { S.heartbeatListener(); S.heartbeatListener = null; }
+        if (S._hbTick) { clearInterval(S._hbTick); S._hbTick = null; }
+    }
+
+    // Derive a connection status from the last ping. Thresholds match the cockpit:
+    // <2m connected · 2–5m idle · 5–15m late · >15m / never → offline.
+    function homieStatus() {
+        const hb = S.homieHeartbeat;
+        const ts = hb && (hb.lastPingAt || hb.lastSeenAt);
+        const t = ts ? (ts.toDate ? ts.toDate().getTime() : new Date(ts).getTime()) : 0;
+        if (!t) return { hex: '#777', label: 'mai connesso', live: false, mins: null };
+        const mins = (Date.now() - t) / 60000;
+        if (mins < 2)  return { hex: '#2ecc71', label: 'connesso',   live: true,  mins };
+        if (mins < 5)  return { hex: '#f5a623', label: 'inattivo',   live: false, mins };
+        if (mins < 15) return { hex: '#e74c3c', label: 'in ritardo', live: false, mins };
+        return { hex: '#777', label: 'offline', live: false, mins };
     }
 
     // Real-time listener for Magic Sign Custom requests (signRequests collection).
@@ -4419,7 +4459,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const notifTypeIcon = (type) => ({ maintenance: '🔧', payment: '💳', contract: '📋', document: '📄', system: '⚡', warning: '⚠️', danger: '🚨' }[type] || '🔔');
         const notifTypeColor = (type) => ({ maintenance: 'blue', payment: 'gold', contract: 'green', document: 'purple', danger: 'red', warning: 'orange' }[type] || 'gray');
         
-        document.getElementById('modals').innerHTML = `<div class="modal-overlay active"><div class="modal lg">
+        document.getElementById('modals').innerHTML = `<div class="modal-overlay active" id="notifPanel"><div class="modal lg">
             <div class="modal-header">
                 <h3 class="modal-title">🔔 Notifiche ${allNotifs.length > 0 ? `(${allNotifs.filter(n => !n.read).length} non lette)` : ''}</h3>
                 <button class="modal-close" onclick="closeModal()">×</button>
@@ -4822,6 +4862,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         startSignRequestsListener();
         startRadarListener();
         startInboxListener();
+        startHeartbeatListener();
         
         // Check scheduled notifications (admin only, once per session)
         if (isAdmin() && !window.scheduledNotifChecked) {
@@ -5909,6 +5950,18 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const autoApplied = all.filter(a => a.status === 'auto-applied');
         const handled = all.filter(a => ['approved', 'executed', 'rejected', 'failed'].includes(a.status));
         const tier1Auto = autoApplied.filter(a => a.tier === 1).length;
+        const hs = homieStatus();
+        const hb = S.homieHeartbeat;
+        const hbDetail = hs.mins != null
+            ? `<span style="font-size:11px;color:var(--text-muted)">· ${hs.mins < 1 ? 'ora' : Math.round(hs.mins) + 'm fa'}${hb?.activeTool ? ' · ' + esc(hb.activeTool) : ''}${typeof hb?.queueLen === 'number' ? ' · coda ' + hb.queueLen : ''}</span>`
+            : '';
+        // Recent agent activity from the audit log — surfaces what Homie actually
+        // did (documents.create/list/update, leads, contracts…), not just the
+        // queued proposals. Closes the loop with the cockpit.
+        const agentActivity = (S.activityLog || [])
+            .filter(a => a.actor === 'homie' || String(a.actor || '').startsWith('admin:'))
+            .slice(0, 8);
+        const ACT_ICON = { document: '📄', lead: '🎯', contract: '📋', payment: '💳', system: '⚡', maintenance: '🔧' };
 
         const KIND_META = {
             reply: { icon: '📨', label: 'Bozza risposta' },
@@ -5949,12 +6002,27 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         };
 
         return `
-            <div class="dash-hero">
+            <div class="dash-hero" style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap">
                 <div class="dash-hero-text">
                     <h1 class="dash-hero-title">Command Center<span style="color:var(--gold)">.</span></h1>
                     <p class="dash-hero-sub">Azioni proposte dagli agenti · ${pending.length} in attesa · ${tier1Auto} auto-applicate oggi</p>
                 </div>
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                    <span style="display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:999px;background:var(--bg-elevated);border:1px solid var(--border)" title="Stato del runtime Homie (heartbeat/mac)">
+                        <span style="width:9px;height:9px;border-radius:50%;background:${hs.hex};box-shadow:0 0 8px ${hs.hex}"></span>
+                        <span style="font-size:12px;font-weight:600">Homie ${hs.label}</span>
+                        ${hbDetail}
+                    </span>
+                    <a href="/cockpit-preview" target="_blank" rel="noopener" class="btn btn-secondary btn-sm" title="Apri il Cockpit di Homie">🛰 Cockpit</a>
+                </div>
             </div>
+
+            ${!hs.live ? `<div style="margin:0 0 14px;padding:11px 14px;border-radius:10px;background:var(--bg-elevated);border:1px solid var(--border);font-size:12px;color:var(--text-muted);line-height:1.55">
+                🔌 <strong style="color:var(--text-secondary)">Bridge Homie non connesso.</strong> Sul Mac, dalla root del repo:
+                <code style="color:var(--gold)">cd scripts/homie-bridge &amp;&amp; ./boom-homie-bridge.sh ping</code> per testare il link,
+                poi <code style="color:var(--gold)">run</code> (o installa il launchd) per la connessione costante.
+                Guida: <code>scripts/homie-bridge/README.md</code>.
+            </div>` : ''}
 
             <section class="dash-section">
                 <div class="dash-section-head">
@@ -5981,6 +6049,21 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <span class="dash-section-count">${handled.length}</span>
                 </div>
                 <div class="dash-list">${handled.slice(0, 15).map(a => renderAction(a, false)).join('')}</div>
+            </section>` : ''}
+
+            ${agentActivity.length > 0 ? `<section class="dash-section">
+                <div class="dash-section-head">
+                    <h2 class="dash-section-title">Attività recente dell'agente</h2>
+                    <span class="dash-section-count">${agentActivity.length}</span>
+                </div>
+                <div class="dash-list">${agentActivity.map(a => `
+                    <div class="dash-row" data-tone="gold">
+                        <span class="dash-row-icon">${ACT_ICON[a.category] || '🤖'}</span>
+                        <div class="dash-row-body">
+                            <div class="dash-row-primary">${esc(a.action || '')}</div>
+                            <div class="dash-row-secondary">${esc(a.actor || 'homie')}${a.category ? ' · ' + esc(a.category) : ''}${(a.timestamp || a.createdAt) ? ' · ' + _humanAgo(a.timestamp || a.createdAt) : ''}</div>
+                        </div>
+                    </div>`).join('')}</div>
             </section>` : ''}
         `;
     }
@@ -12486,66 +12569,100 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
 
     function documentsPage() {
-        const all = S.documents || [];
+        const uploads = (S.documents || []).map(d => ({ ...d, source: d.source || 'upload' }));
+        // I contratti registrati (con PDF generato) vengono mostrati in sola lettura
+        // nello stesso archivio: ogni documento — caricato, generato o contrattuale —
+        // è ritrovabile in un unico posto.
+        const contractDocs = (S.contracts || []).filter(c => c.generatedPDF).map(c => {
+            const prop = S.properties.find(p => p.id === c.propertyId);
+            const ten = S.users.find(u => u.id === c.tenantId);
+            return {
+                id: 'contract:' + c.id, _contractId: c.id, _readonly: true,
+                name: `Contratto ${c.type || ''} — ${prop?.name || ten?.name || c.id}`.trim(),
+                type: 'contract', source: 'contract', category: 'locazione',
+                userId: c.tenantId || null, propertyId: c.propertyId || null,
+                fileUrl: c.generatedPDF, fileName: 'contract.pdf', fileSize: (c.pdfSizeKB || 0) * 1024,
+                lang: 'IT', refCode: (c.id || '').slice(0, 8).toUpperCase(),
+                createdAt: c.pdfGeneratedAt || c.createdAt
+            };
+        });
+        const tsOf = (d) => { const t = d.createdAt; return (t && t.seconds) || (t && t.toMillis ? t.toMillis() / 1000 : (Date.parse(t) || 0) / 1000); };
+        // Documenti fissati (pinned, es. da Homie) in cima, poi per data discendente.
+        const all = [...uploads, ...contractDocs]
+            .filter(d => d.status !== 'archived')
+            .sort((a, b) => ((b.pinned === true) - (a.pinned === true)) || (tsOf(b) - tsOf(a)));
         const byType = (t) => all.filter(d => d.type === t).length;
         const stats = {
             all: all.length,
             contract: byType('contract'),
             receipt: byType('receipt'),
-            id: byType('id'),
-            utility: byType('utility'),
+            generated: all.filter(d => d.source === 'generated').length,
             shared: all.filter(d => d.shared === true || d.shared === 'true').length,
-            deal: byType('deal-archive'),
         };
 
+        const sourceBadge = (d) => d.source === 'generated' ? '<span class="badge gold" style="font-size:9px">✨ Generato</span>'
+            : d.source === 'contract' ? '<span class="badge blue" style="font-size:9px">📋 Contratto</span>'
+            : d.source === 'agent' ? '<span class="badge purple" style="font-size:9px">🤖 Homie</span>'
+            : '<span class="badge gray" style="font-size:9px">📤 Caricato</span>';
         const docRow = (d) => {
             const u = S.users.find(x => x.id === d.userId);
             const prop = S.properties.find(x => x.id === d.propertyId);
-            const search = [d.name, u?.name, prop?.name, d.type].filter(Boolean).join(' ').toLowerCase();
-            return `<div class="list-item clickable doc-item" data-type="${d.type || 'other'}" data-shared="${d.shared}" data-search="${esc(search)}" onclick="${d.fileUrl ? `window.open('${d.fileUrl}','_blank')` : `editDocModal('${d.id}')`}" style="padding:14px 16px">
+            const search = [d.name, u?.name, prop?.name, d.type, d.category, d.refCode, d.source].filter(Boolean).join(' ').toLowerCase();
+            const ro = d._readonly;
+            // Nome JS-safe per i parametri inline (apostrofi tipo "d'Incarico").
+            const jsName = (d.name || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            return `<div class="list-item clickable doc-item" data-type="${d.type || 'other'}" data-source="${d.source || 'upload'}" data-shared="${d.shared}" data-search="${esc(search)}" onclick="viewArchiveDoc('${d.id}')" style="padding:14px 16px">
                 <div class="list-icon" style="background:var(--gold-light)">${docIcon(d.type)}</div>
                 <div class="list-content" style="flex:1;min-width:0">
                     <div class="list-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                        <span style="font-weight:600">${d.name}</span>
+                        <span style="font-weight:600">${d.pinned ? '📌 ' : ''}${esc(d.name)}</span>
+                        ${sourceBadge(d)}
+                        ${d.lang ? `<span class="badge gray" style="font-size:9px">${esc(d.lang)}</span>` : ''}
                         ${d.shared ? '<span class="badge blue" style="font-size:9px">🔗 Condiviso</span>' : ''}
                     </div>
                     <div class="list-subtitle" style="margin-top:4px">
-                        ${u ? `<span style="background:${u.role==='landlord'?'var(--gold-light)':'var(--blue-light)'};padding:2px 8px;border-radius:4px;font-size:11px">${u.role === 'landlord' ? '🏠' : '👤'} ${u.name}</span>` : ''}
-                        ${prop ? `<span style="margin-left:8px">🏠 ${prop.name}</span>` : ''}
+                        ${u ? `<span style="background:${u.role==='landlord'?'var(--gold-light)':'var(--blue-light)'};padding:2px 8px;border-radius:4px;font-size:11px">${u.role === 'landlord' ? '🏠' : '👤'} ${esc(u.name)}</span>` : ''}
+                        ${prop ? `<span style="margin-left:8px">🏠 ${esc(prop.name)}</span>` : ''}
+                        ${d.refCode ? `<span style="margin-left:8px;color:var(--text-muted)">#${esc(d.refCode)}</span>` : ''}
                         <span style="margin-left:8px">📅 ${fmtDate(d.createdAt)}</span>
                     </div>
                 </div>
                 <div style="display:flex;gap:4px" onclick="event.stopPropagation()">
                     ${d.fileUrl ? `<button class="btn btn-xs btn-secondary" onclick="window.open('${d.fileUrl}','_blank')" title="Scarica">📥</button>` : ''}
-                    <button class="btn btn-xs btn-secondary" onclick="editDocModal('${d.id}')" title="Modifica">✏️</button>
-                    <button class="btn btn-xs btn-danger" onclick="confirmDelete('document','${d.id}','${d.name}')" title="Elimina">🗑</button>
+                    ${ro
+                        ? `<button class="btn btn-xs btn-secondary" onclick="goTo('contracts')" title="Apri nei Contratti">↗</button>`
+                        : `<button class="btn btn-xs btn-secondary" onclick="editDocModal('${d.id}')" title="Modifica">✏️</button>
+                    <button class="btn btn-xs btn-danger" onclick="confirmDelete('document','${d.id}','${jsName}')" title="Elimina">🗑</button>`
+                    }
                 </div>
             </div>`;
         };
 
         return `<div class="page-header">
-                <div><h1 class="page-title">📁 Documenti</h1><p class="page-subtitle">${stats.all} documenti · Archivio condiviso con proprietari e inquilini</p></div>
+                <div><h1 class="page-title">📁 Archivio Documentale</h1><p class="page-subtitle">${stats.all} documenti · Caricati, generati e contratti — tutto in un unico archivio</p></div>
                 <div class="page-actions">
+                    <button class="btn btn-secondary btn-sm" onclick="goTo('templates')">✨ Genera modulo</button>
                     <button class="btn btn-secondary btn-sm" onclick="exportDocumentsCSV()">📊 Export</button>
                     <button class="btn" onclick="openDocUploadModal()">+ Carica</button>
                 </div>
             </div>
             <div class="stats-grid" style="grid-template-columns:repeat(4,1fr)">
                 <div class="stat-card" style="cursor:pointer" onclick="filterDocs('all', this.closest('.stats-grid').nextElementSibling.querySelector('[data-filter=all]'))"><div class="stat-label">Tutti</div><div class="stat-value">${stats.all}</div></div>
+                <div class="stat-card" style="cursor:pointer" onclick="filterDocs('generated', this.closest('.stats-grid').nextElementSibling.querySelector('[data-filter=generated]'))"><div class="stat-label">Generati</div><div class="stat-value gold-text" style="color:var(--gold)">${stats.generated}</div></div>
                 <div class="stat-card" style="cursor:pointer" onclick="filterDocs('contract', this.closest('.stats-grid').nextElementSibling.querySelector('[data-filter=contract]'))"><div class="stat-label">Contratti</div><div class="stat-value">${stats.contract}</div></div>
                 <div class="stat-card" style="cursor:pointer" onclick="filterDocs('receipt', this.closest('.stats-grid').nextElementSibling.querySelector('[data-filter=receipt]'))"><div class="stat-label">Ricevute</div><div class="stat-value">${stats.receipt}</div></div>
-                <div class="stat-card" style="cursor:pointer" onclick="filterDocs('shared', this.closest('.stats-grid').nextElementSibling.querySelector('[data-filter=shared]'))"><div class="stat-label">Condivisi</div><div class="stat-value text-blue">${stats.shared}</div></div>
             </div>
             <div class="card">
                 <div style="display:flex;gap:6px;padding:12px 16px;border-bottom:1px solid var(--border);flex-wrap:wrap;align-items:center">
                     <button class="btn btn-sm" data-filter="all" onclick="filterDocs('all', this)">Tutti</button>
+                    <button class="btn btn-sm btn-secondary" data-filter="generated" onclick="filterDocs('generated', this)">✨ Generati</button>
                     <button class="btn btn-sm btn-secondary" data-filter="contract" onclick="filterDocs('contract', this)">📋 Contratti</button>
                     <button class="btn btn-sm btn-secondary" data-filter="receipt" onclick="filterDocs('receipt', this)">🧾 Ricevute</button>
                     <button class="btn btn-sm btn-secondary" data-filter="id" onclick="filterDocs('id', this)">🪪 ID</button>
                     <button class="btn btn-sm btn-secondary" data-filter="utility" onclick="filterDocs('utility', this)">💡 Utenze</button>
                     <button class="btn btn-sm btn-secondary" data-filter="shared" onclick="filterDocs('shared', this)">🔗 Condivisi</button>
                     <button class="btn btn-sm btn-secondary" data-filter="deal" onclick="filterDocs('deal', this)">📦 Deal Archive</button>
-                    <input type="search" id="docSearch" class="form-input" placeholder="🔎 Cerca nome, persona, immobile…" oninput="searchDocs(this.value)" style="flex:1;min-width:200px;margin-left:auto">
+                    <input type="search" id="docSearch" class="form-input" placeholder="🔎 Cerca nome, persona, immobile, rif…" oninput="searchDocs(this.value)" style="flex:1;min-width:200px;margin-left:auto">
                 </div>
                 <div class="card-body flush" id="docsContainer">
                     ${all.length === 0
@@ -12563,6 +12680,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             let show = false;
             if (type === 'all') show = true;
             else if (type === 'shared') show = item.dataset.shared === 'true';
+            else if (type === 'generated') show = item.dataset.source === 'generated';
             else if (type === 'deal') show = item.dataset.type === 'deal-archive';
             else show = item.dataset.type === type;
             // Compose with search
@@ -12576,12 +12694,105 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const filter = active?.dataset.filter || 'all';
         filterDocs(filter, active);
     }
+    // Scheda-documento dell'Archivio: metadati, sigillo, record collegati,
+    // visibilità e azioni. Accetta sia un id `documents` reale sia uno sintetico
+    // 'contract:<id>' per i contratti registrati mostrati read-only.
+    function viewArchiveDoc(id) {
+        let d, c = null;
+        if (String(id).startsWith('contract:')) {
+            c = (S.contracts || []).find(x => x.id === id.slice(9));
+            if (!c) return toast('error', 'Contratto non trovato');
+            const prop = S.properties.find(p => p.id === c.propertyId);
+            const ten = S.users.find(u => u.id === c.tenantId);
+            d = {
+                id, _readonly: true, name: `Contratto ${c.type || ''} — ${prop?.name || ten?.name || c.id}`.trim(),
+                type: 'contract', source: 'contract', category: 'locazione', lang: 'IT',
+                refCode: (c.id || '').slice(0, 8).toUpperCase(), hash: c.pdfHash, fileUrl: c.generatedPDF,
+                fileSize: (c.pdfSizeKB || 0) * 1024, userId: c.tenantId, landlordId: c.landlordId,
+                propertyId: c.propertyId, createdAt: c.pdfGeneratedAt || c.createdAt, shared: false
+            };
+        } else {
+            d = (S.documents || []).find(x => x.id === id);
+            if (!d) return toast('error', 'Documento non trovato');
+        }
+        const u = S.users.find(x => x.id === d.userId);
+        const tenant = S.users.find(x => x.id === d.tenantId);
+        const landlord = S.users.find(x => x.id === d.landlordId);
+        const client = (S.clients || []).find(x => x.id === d.clientId);
+        const prop = S.properties.find(x => x.id === d.propertyId);
+        const srcLabel = d.source === 'generated' ? '✨ Generato dal sistema' : d.source === 'contract' ? '📋 Contratto registrato' : d.source === 'agent' ? '🤖 Creato da Homie' : '📤 Caricato manualmente';
+        const sizeKB = d.fileSize ? (d.fileSize / 1024).toFixed(0) + ' KB' : '';
+        const meta = (k, v) => v ? `<div style="display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text-muted);font-size:12px">${k}</span><span style="font-size:12px;text-align:right">${v}</span></div>` : '';
+        const chip = (icon, label, onclick) => `<button class="btn btn-xs btn-secondary" onclick="${onclick}" style="margin:2px">${icon} ${esc(label)}</button>`;
+        const links = [
+            tenant ? chip('👤', tenant.name, `closeModal();goTo('person','${tenant.id}')`) : '',
+            landlord ? chip('🏠', landlord.name, `closeModal();goTo('person','${landlord.id}')`) : '',
+            (!tenant && !landlord && u) ? chip(u.role === 'landlord' ? '🏠' : '👤', u.name, `closeModal();goTo('person','${u.id}')`) : '',
+            client ? chip('💼', client.name, `closeModal();goTo('clienti')`) : '',
+            prop ? chip('🏠', prop.name, `closeModal();goTo('properties')`) : '',
+            c ? chip('📋', 'Apri contratto', `closeModal();goTo('contracts')`) : ''
+        ].filter(Boolean).join('') || '<span style="color:var(--text-muted);font-size:12px">Nessun record collegato</span>';
+        const visibility = [
+            'Admin BOOM',
+            (d.userId && u) ? `${esc(u.name)} (portale)` : '',
+            (d.shared && prop) ? `Tutti gli utenti di ${esc(prop.name)}` : ''
+        ].filter(Boolean).join(' · ');
+        const jsName = (d.name || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        document.getElementById('modals').innerHTML = `<div class="modal-overlay active"><div class="modal">
+            <div class="modal-header"><h3 class="modal-title" style="font-size:15px">${esc(d.name)}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+            <div class="modal-body">
+                <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">
+                    <span class="badge ${d.source === 'generated' ? 'gold' : d.source === 'contract' ? 'blue' : d.source === 'agent' ? 'purple' : 'gray'}">${srcLabel}</span>
+                    ${d.lang ? `<span class="badge gray">${esc(d.lang)}</span>` : ''}
+                    ${d.shared ? '<span class="badge blue">🔗 Condiviso</span>' : ''}
+                </div>
+                <div style="background:var(--bg);padding:14px;border-radius:8px;margin-bottom:14px">
+                    <h4 style="margin:0 0 8px;color:var(--gold);font-size:12px">📋 DETTAGLI</h4>
+                    ${meta('Tipo', d.type)}
+                    ${meta('Categoria', d.category)}
+                    ${meta('Codice Rif', d.refCode ? '#' + esc(d.refCode) : '')}
+                    ${meta('Versione', d.version)}
+                    ${meta('Dimensione', sizeKB)}
+                    ${meta('Data', fmtDate(d.createdAt))}
+                    ${meta('Sigillo (hash)', d.hash ? `<code style="font-size:11px">${esc(d.hash)}</code>` : '')}
+                </div>
+                <div style="background:var(--bg);padding:14px;border-radius:8px;margin-bottom:14px">
+                    <h4 style="margin:0 0 8px;color:var(--gold);font-size:12px">🔗 RECORD COLLEGATI</h4>
+                    <div>${links}</div>
+                </div>
+                <div style="background:var(--bg);padding:14px;border-radius:8px">
+                    <h4 style="margin:0 0 8px;color:var(--gold);font-size:12px">👁 VISIBILITÀ</h4>
+                    <div style="font-size:12px;color:var(--text-secondary)">${visibility}</div>
+                </div>
+            </div>
+            <div class="modal-footer" style="flex-wrap:wrap;gap:6px">
+                ${d.fileUrl ? `<button class="btn btn-secondary btn-sm" onclick="window.open('${d.fileUrl}','_blank')">📥 Apri PDF</button>` : ''}
+                ${!d._readonly ? `<button class="btn btn-secondary btn-sm" onclick="toggleDocShared('${d.id}')">${d.shared ? '🔒 Non condividere' : '🔗 Condividi'}</button>` : ''}
+                ${!d._readonly ? `<button class="btn btn-secondary btn-sm" onclick="editDocModal('${d.id}')">✏️ Modifica</button>` : ''}
+                ${!d._readonly ? `<button class="btn btn-danger btn-sm" onclick="confirmDelete('document','${d.id}','${jsName}')">🗑 Elimina</button>` : ''}
+                <button class="btn btn-sm" onclick="closeModal()">Chiudi</button>
+            </div>
+        </div></div>`;
+    }
+
+    async function toggleDocShared(id) {
+        const d = (S.documents || []).find(x => x.id === id);
+        if (!d) return;
+        try {
+            await db.collection('documents').doc(id).update({ shared: !d.shared });
+            d.shared = !d.shared;
+            toast('success', d.shared ? 'Documento condiviso' : 'Condivisione rimossa');
+            viewArchiveDoc(id);
+            if (S.page === 'documents') { const c = document.getElementById('docsContainer'); if (c) renderPage(); }
+        } catch (err) { toast('error', 'Errore', err.message); }
+    }
+
     function exportDocumentsCSV() {
-        let csv = 'Nome,Tipo,Persona,Ruolo,Immobile,Condiviso,Data\n';
+        let csv = 'Nome,Tipo,Provenienza,Rif,Lingua,Persona,Ruolo,Immobile,Condiviso,Data\n';
         S.documents.forEach(d => {
             const u = S.users.find(x => x.id === d.userId);
             const prop = S.properties.find(x => x.id === d.propertyId);
-            csv += `"${(d.name || '').replace(/"/g, '""')}","${d.type || ''}","${u?.name || ''}","${u?.role || ''}","${prop?.name || ''}","${d.shared ? 'sì' : 'no'}","${fmtDate(d.createdAt)}"\n`;
+            csv += `"${(d.name || '').replace(/"/g, '""')}","${d.type || ''}","${d.source || 'upload'}","${d.refCode || ''}","${d.lang || ''}","${u?.name || ''}","${u?.role || ''}","${prop?.name || ''}","${d.shared ? 'sì' : 'no'}","${fmtDate(d.createdAt)}"\n`;
         });
         downloadCSV(csv, 'BOOM_Documenti.csv');
     }
@@ -15364,6 +15575,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 // 🧾 Auto-generate a "ricevuta canone" invoice (idempotent)
                 try { await autoInvoiceForPayment({ id, ...payment }); }
                 catch (e) { console.warn('[autoInvoice]', e); }
+                // 📄 File the receipt PDF in the archive — also lands in the tenant's portal
+                try { await archivePaymentReceipt({ id, ...payment, status: 'paid', paidDate: new Date().toISOString() }); }
+                catch (e) { console.warn('[archiveReceipt]', e); }
             }
             await refresh(); toast('success', 'Pagamento confermato ✔');
             // Activity log
@@ -19775,56 +19989,95 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         }
     }
 
-    function downloadPaymentReceipt(id) {
-        const pay = S.payments.find(x => x.id === id); if (!pay || pay.status !== 'paid') return toast('error', 'Pagamento non trovato o non pagato');
-        const c = S.contracts.find(x => x.id === pay.contractId);
-        const p = c ? S.properties.find(x => x.id === c.propertyId) : null;
-        const t = c ? S.users.find(x => x.id === c.tenantId) : null;
-        
+    function _buildReceiptDoc(pay, c, p, t) {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
-        
+
         doc.setFillColor(0, 0, 0); doc.rect(0, 0, 210, 35, 'F');
         doc.setTextColor(212, 175, 55); doc.setFontSize(28); doc.setFont('helvetica', 'bold'); doc.text('BOOM', 20, 22);
         doc.setTextColor(255); doc.setFontSize(14); doc.text('RICEVUTA DI PAGAMENTO', 190, 22, { align: 'right' });
-        
+
         let y = 50;
         doc.setTextColor(0);
         doc.setFillColor(245, 245, 245); doc.rect(15, y - 5, 180, 18, 'F');
         doc.setFontSize(10); doc.text(`Data: ${fmtDate(pay.paidDate)}`, 20, y + 5);
         doc.text(`N°: RIC-${pay.id.slice(-8).toUpperCase()}`, 150, y + 5);
-        
+
         y += 30;
         doc.setFont('helvetica', 'bold'); doc.text('RICEVUTO DA:', 20, y);
         doc.setFont('helvetica', 'normal'); y += 7; doc.text(t?.name || 'Inquilino', 20, y);
-        
+
         y += 15;
         doc.setFont('helvetica', 'bold'); doc.text('IMMOBILE:', 20, y);
         doc.setFont('helvetica', 'normal'); y += 7; doc.text(p?.name || 'N/A', 20, y);
         y += 5; doc.text(p?.address || 'Roma', 20, y);
-        
+
         y += 15;
         doc.setFont('helvetica', 'bold'); doc.text('PERIODO:', 20, y);
         doc.setFont('helvetica', 'normal'); y += 7; doc.text(pay.month || 'N/A', 20, y);
-        
+
         y += 20;
         doc.setFillColor(212, 175, 55); doc.rect(15, y - 5, 180, 25, 'F');
         doc.setTextColor(0); doc.setFontSize(12); doc.setFont('helvetica', 'bold');
         doc.text('IMPORTO RICEVUTO', 20, y + 5);
         doc.setFontSize(20); doc.text(`EUR ${pay.amount},00`, 190, y + 8, { align: 'right' });
-        
+
         doc.setTextColor(0); doc.setFontSize(10); doc.setFont('helvetica', 'normal');
         y += 35;
         doc.text(`(Euro ${numberToWords(pay.amount)}/00)`, 20, y);
-        
+
         y += 20;
         doc.text('Pagamento per canone di locazione mensile.', 20, y);
-        
+
         doc.setFillColor(0, 0, 0); doc.rect(0, 275, 210, 25, 'F');
         doc.setTextColor(150); doc.setFontSize(8); doc.text(`${COMPANY.legal} | ${COMPANY.website}`, 105, 285, { align: 'center' });
-        
+        return doc;
+    }
+
+    function downloadPaymentReceipt(id) {
+        const pay = S.payments.find(x => x.id === id); if (!pay || pay.status !== 'paid') return toast('error', 'Pagamento non trovato o non pagato');
+        const c = S.contracts.find(x => x.id === pay.contractId);
+        const p = c ? S.properties.find(x => x.id === c.propertyId) : null;
+        const t = c ? S.users.find(x => x.id === c.tenantId) : null;
+        const doc = _buildReceiptDoc(pay, c, p, t);
         doc.save(`Ricevuta_${p?.name?.replace(/\s+/g, '_') || ''}_${pay.month || ''}.pdf`);
         toast('success', 'Ricevuta scaricata!');
+    }
+
+    // Generate the rent-receipt PDF and file it in the archive (documents collection),
+    // linked to the tenant so it also lands in their portal (getMyDocuments).
+    // Best-effort and idempotent (skips if a receipt for this payment already exists).
+    async function archivePaymentReceipt(payment) {
+        try {
+            const pay = (payment && payment.id) ? payment : null;
+            if (!pay || pay.status !== 'paid') return null;
+            if (pay.receiptDocId) return pay.receiptDocId;
+            if ((S.documents || []).some(d => d.paymentId === pay.id && d.type === 'receipt')) return null;
+            const c = S.contracts.find(x => x.id === pay.contractId);
+            const p = c ? S.properties.find(x => x.id === c.propertyId) : null;
+            const t = c ? S.users.find(x => x.id === c.tenantId) : null;
+            const docPdf = _buildReceiptDoc(pay, c, p, t);
+            const blob = docPdf.output('blob');
+            const ref = 'RIC-' + String(pay.id).slice(-8).toUpperCase();
+            const ownerSeg = (t && t.id) || 'admin';
+            const path = `documents/${ownerSeg}/archive/receipt_${ref}.pdf`;
+            const putRes = await storage.ref(path).put(blob, { contentType: 'application/pdf' });
+            const fileUrl = await putRes.ref.getDownloadURL();
+            const hash = await generateDocHash(`${ref}|receipt|${t?.name || ''}|${pay.amount}`);
+            const docRef = await db.collection('documents').add({
+                name: `Ricevuta canone — ${p?.name || t?.name || ''} ${pay.month || ''}`.trim(),
+                type: 'receipt', category: 'ricevuta', source: 'generated',
+                templateType: 'ricevuta_pigione', refCode: ref, lang: 'IT', version: 1, hash,
+                userId: (t && t.id) || null, tenantId: (t && t.id) || null,
+                propertyId: p?.id || null, contractId: c?.id || null, paymentId: pay.id,
+                shared: false, fileUrl, fileName: `${ref}.pdf`, fileSize: blob.size,
+                uploadedBy: S.profile?.id || 'admin',
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            await db.collection('payments').doc(pay.id).update({ receiptDocId: docRef.id }).catch(() => {});
+            logActivity('Ricevuta archiviata', 'document', { paymentId: pay.id, docId: docRef.id, tenant: t?.name });
+            return docRef.id;
+        } catch (e) { console.warn('[archivePaymentReceipt]', e); return null; }
     }
 
     function downloadInvoicePDF(id) {
@@ -20431,12 +20684,94 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (newRentEl && !newRentEl.dataset.manual) newRentEl.value = newRent;
     }
 
-    function generateTemplatePDF() {
+    // ═══════════════════════════════════════════════════════════════════════════
+    // ARCHIVIO DOCUMENTALE — ogni documento generato viene catturato qui.
+    //
+    // Single source of truth: ogni PDF della Modulistica viene caricato su Storage
+    // e indicizzato nella collection `documents` con metadati normalizzati
+    // (provenienza, link a cliente/immobile/contratto, lingua, hash, audience).
+    // È ciò che trasforma il generatore da "scarica e dimentica" in un vero DMS,
+    // ed è la base su cui poggiano la vista Archivio e la futura ricerca AI.
+    // Schema documentato in docs/archive-dms.md
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    // (a) bucket `type` legacy compreso dai filtri esistenti; (b) categoria ricca.
+    const TEMPLATE_DOC_TYPE = {
+        pfs:'contract', das:'contract', vv:'contract', lettera_incarico:'contract',
+        proposta_locazione:'contract', accettazione_proposta:'contract',
+        rental_transitorio:'contract', rental_studenti:'contract', rental_4plus4:'contract',
+        disdetta:'contract', mandato_gestione:'contract',
+        ricevuta_pigione:'receipt', deposit_receipt:'receipt', ricevuta_provvigione:'receipt',
+        rendiconto_annuale:'other', comunicazione_istat:'other', sollecito_pagamento:'other',
+        handover:'other', inventory:'other', stato_immobile:'other',
+        proposal:'other', quote:'other'
+    };
+    const TEMPLATE_CATEGORY = {
+        pfs:'servizio', das:'servizio', vv:'servizio', lettera_incarico:'incarico',
+        proposal:'proposta', quote:'proposta', proposta_locazione:'proposta', accettazione_proposta:'proposta',
+        rental_transitorio:'locazione', rental_studenti:'locazione', rental_4plus4:'locazione',
+        disdetta:'locazione', ricevuta_pigione:'ricevuta', deposit_receipt:'ricevuta', ricevuta_provvigione:'ricevuta',
+        mandato_gestione:'gestione', rendiconto_annuale:'gestione', comunicazione_istat:'gestione', sollecito_pagamento:'gestione',
+        handover:'verbale', inventory:'verbale', stato_immobile:'verbale'
+    };
+
+    // Decide chi, oltre all'admin, vede un documento generato — derivato dai record
+    // che l'operatore ha effettivamente selezionato. Scegliere un inquilino o un
+    // proprietario esistente dai menu è il segnale esplicito di volerlo collegare;
+    // un nome digitato a mano (lead / una-tantum) resta solo-admin. Per i contratti
+    // (entrambe le parti presenti) shared=true: il proprietario lo vede per immobile.
+    function resolveDocAudience(type, data) {
+        const tenantId   = data.tenantId || data.payerId || null;
+        const landlordId = data.landlordId || null;
+        const clientId   = data.clientId || null;
+        const propertyId = data.propertyId || null;
+        let userId = null, shared = false;
+        if (tenantId)        { userId = tenantId; shared = !!(landlordId && propertyId); }
+        else if (landlordId) { userId = landlordId; }
+        return { userId, propertyId, shared, clientId, tenantId, landlordId };
+    }
+
+    // Carica il PDF su Storage e lo indicizza in `documents`. Best-effort: non
+    // blocca mai il download locale (il chiamante gestisce l'errore).
+    async function archiveGeneratedPDF(pdfDoc, meta) {
+        const { type, title, ref, data } = meta;
+        const blob = pdfDoc.output('blob');
+        const aud = resolveDocAudience(type, data);
+        const subject = data.clientName || data.tenantName || data.landlordName || data.payerName || '';
+        const name = subject ? `${title} — ${subject}` : title;
+        // Percorso allineato a quello degli upload esistenti (documents/<owner>/...),
+        // così rientra nelle Storage rules già attive senza modifiche in console.
+        const ownerSeg = aud.userId || 'admin';
+        const path = `documents/${ownerSeg}/archive/${type}_${ref}.pdf`;
+        const putRes = await storage.ref(path).put(blob, { contentType: 'application/pdf' });
+        const fileUrl = await putRes.ref.getDownloadURL();
+        const hash = await generateDocHash(`${ref}|${type}|${subject}|${blob.size}`);
+        await db.collection('documents').add({
+            name,
+            type: TEMPLATE_DOC_TYPE[type] || 'other',
+            category: TEMPLATE_CATEGORY[type] || 'documento',
+            source: 'generated',
+            templateType: type,
+            refCode: ref,
+            lang: S.lang,
+            version: 1,
+            hash,
+            userId:     aud.userId || null,
+            clientId:   aud.clientId || null,
+            tenantId:   aud.tenantId || null,
+            landlordId: aud.landlordId || null,
+            propertyId: aud.propertyId || null,
+            shared:     aud.shared || false,
+            fileUrl, fileName: `${ref}.pdf`, fileSize: blob.size,
+            uploadedBy: S.profile?.id || 'admin',
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        logActivity('Documento generato e archiviato', 'document', { docName: name, templateType: type, ref });
+        return true;
+    }
+
+    async function generateTemplatePDF() {
         const data = Object.fromEntries(new FormData(document.getElementById('tplForm')));
-        console.log('generateTemplatePDF - templateType:', data.templateType);
-        console.log('generateTemplatePDF - inventoryList:', data.inventoryList);
-        console.log('generateTemplatePDF - full data:', data);
-        
         if (!data.clientName && !data.landlordName && !data.tenantName && !data.propertyAddress) {
             return toast('error', 'Compila i campi obbligatori');
         }
@@ -21243,11 +21578,17 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             doc.text(`${i} / ${pageCount}`, 194, 285, { align: 'right' });
         }
         
-        // Save
+        // Archivia una copia permanente e indicizzata PRIMA del download locale,
+        // poi salva. L'archiviazione è best-effort: se fallisce, il download avviene
+        // comunque e l'operatore viene avvisato.
         const filename = `BOOM_${(titles[type] || 'DOC').replace(/[^a-zA-Z0-9]/g, '_')}_${(data.clientName || data.landlordName || data.tenantName || 'doc').replace(/[^a-zA-Z0-9]/g, '_')}_${ref}.pdf`;
+        let archived = false;
+        try { archived = await archiveGeneratedPDF(doc, { type, title: titles[type] || 'Documento', ref, data }); }
+        catch (err) { console.error('[archivio] archiviazione non riuscita:', err); }
         doc.save(filename);
         closeModal();
-        toast('success', 'PDF generato!', filename);
+        toast('success', archived ? '✅ PDF generato e archiviato' : 'PDF generato',
+            archived ? filename + ' · ora nell\'Archivio' : filename + ' · (non archiviato)');
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
