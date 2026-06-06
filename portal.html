@@ -5544,6 +5544,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             <!-- SECTION 2 — AZIONI AGENTI -->
             ${renderDashAgentInbox(pendingActionsList)}
 
+            <!-- SECTION 2b — INBOX (Homie + WhatsApp/Email): what's waiting for a reply -->
+            ${renderDashInbox()}
+
             <!-- SECTION 3 — LEAD & PIPELINE -->
             ${renderDashLeadsPipeline(newLeadsList, newLeadsToday, inNegotiationClients, conversionRate30d, leads30d.length, hotLead)}
 
@@ -5926,6 +5929,47 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     </div>`;
                 }).join('')}</div>`
             }
+        </section>`;
+    }
+
+    // Inbox widget — surfaces what Homie has flagged in the unified Inbox
+    // (📨 conversazioni con needsReply / non lette). One-tap into each.
+    // Only renders when there's actually something to act on (silent otherwise).
+    function renderDashInbox() {
+        const convs = (S.conversations || []);
+        if (!convs.length) return '';
+        const needsReply = convs.filter(c => c.needsReply);
+        const urgent = needsReply.filter(c => c.urgency === 'high');
+        const unread = convs.reduce((n, c) => n + (Number(c.unread) || 0), 0);
+        if (!needsReply.length && !unread) return '';
+        const ranked = convs.slice().sort((a, b) => {
+            const score = c => (c.urgency === 'high' ? 100 : 0) + (c.needsReply ? 30 : 0) + Math.min(20, Number(c.unread) || 0);
+            const s = score(b) - score(a);
+            if (s !== 0) return s;
+            const ta = a.lastMessageAt && a.lastMessageAt.toMillis ? a.lastMessageAt.toMillis() : new Date(a.lastMessageAt || 0).getTime();
+            const tb = b.lastMessageAt && b.lastMessageAt.toMillis ? b.lastMessageAt.toMillis() : new Date(b.lastMessageAt || 0).getTime();
+            return tb - ta;
+        }).filter(c => c.needsReply || (c.unread || 0) > 0).slice(0, 5);
+        return `<section class="dash-section">
+            <div class="dash-section-head">
+                <h2 class="dash-section-title">📨 Inbox</h2>
+                <span class="dash-section-count">${needsReply.length} da rispondere${urgent.length ? ` · <span style="color:var(--red)">${urgent.length} urgenti</span>` : ''}${unread ? ` · ${unread} non letti` : ''}</span>
+                <button class="dash-section-link" onclick="goTo('inbox')">Apri inbox →</button>
+            </div>
+            <div class="dash-list">${ranked.map(c => {
+                const tone = c.urgency === 'high' ? 'red' : c.urgency === 'medium' ? 'orange' : 'gold';
+                const previewText = esc((c.aiSummary || c.lastMessagePreview || '').slice(0, 110));
+                const tsRaw = c.lastMessageAt && c.lastMessageAt.toDate ? c.lastMessageAt.toDate() : new Date(c.lastMessageAt || 0);
+                const ts = isNaN(tsRaw.getTime()) ? '' : (typeof inboxRelativeTime === 'function' ? inboxRelativeTime(tsRaw) : '');
+                return `<div class="dash-row" data-tone="${tone}" onclick="goTo('inbox');setTimeout(()=>inboxSelect('${c.id}'),50)" style="cursor:pointer">
+                    <span class="dash-row-icon">${c.urgency === 'high' ? '⚡' : c.lastSource === 'homie' ? '🤖' : '💬'}</span>
+                    <div class="dash-row-body">
+                        <div class="dash-row-primary"><strong>${esc(c.contactName || 'Senza nome')}</strong>${c.needsReply ? ' · <span style="color:var(--orange);font-size:11px">DA RISPONDERE</span>' : ''}${(c.unread || 0) > 0 ? ` · <span class="badge gold" style="font-size:9px">${c.unread}</span>` : ''}</div>
+                        <div class="dash-row-secondary">${previewText}${ts ? ` · ${ts}` : ''}</div>
+                        ${c.suggestedReply ? `<div class="dash-agent-draft">${esc(String(c.suggestedReply).slice(0, 160))}${String(c.suggestedReply).length > 160 ? '…' : ''}</div>` : ''}
+                    </div>
+                </div>`;
+            }).join('')}</div>
         </section>`;
     }
 
