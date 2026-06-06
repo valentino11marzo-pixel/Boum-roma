@@ -1,7 +1,7 @@
 /* ════════════════════════════════════════════════════════════════════════
-   BOOM Cinema — shared cinematic engine.
+   BOOM Cinema — shared cinematic engine (v4).
    Progressive enhancement only: never blocks, never hides content if it fails.
-   Auto-detects the page (detail vs apartments grid) by element presence.
+   Auto-detects the page (detail · apartments grid · neighborhood hub · home).
    ════════════════════════════════════════════════════════════════════════ */
 (function () {
   if (window.__boomCinema) return; window.__boomCinema = true;
@@ -11,13 +11,16 @@
   var doc = document, body = doc.body;
   var $ = function (s, r) { return (r || doc).querySelector(s); };
   var $all = function (s, r) { return Array.prototype.slice.call((r || doc).querySelectorAll(s)); };
+  var CARDSEL = '.card,.zone-card,.listing-card,.apartment-card';
 
   body.classList.add('cine-on');
 
-  /* Ambient + scroll-progress */
+  /* Ambient gold light (skip if the page already has its own) + progress reel */
   if (!R) {
-    var amb = doc.createElement('div'); amb.className = 'cine-ambient';
-    amb.innerHTML = '<i class="g1"></i><i class="g2"></i><i class="g3"></i>'; body.appendChild(amb);
+    if (!$('.hero-ambient')) {
+      var amb = doc.createElement('div'); amb.className = 'cine-ambient';
+      amb.innerHTML = '<i class="g1"></i><i class="g2"></i><i class="g3"></i>'; body.appendChild(amb);
+    }
     var prog = doc.createElement('div'); prog.className = 'cine-progress'; body.appendChild(prog);
     var ticking = false;
     addEventListener('scroll', function () {
@@ -30,7 +33,7 @@
     }, { passive: true });
   }
 
-  /* Count-up a single element's number, preserving its prefix/suffix (€, etc.) */
+  /* Count-up a number, preserving its prefix/suffix (€, h, %, …) */
   function countUp(el, dur) {
     if (!el || R) return;
     var txt = (el.textContent || '').trim();
@@ -49,23 +52,21 @@
     (function w() { if (/\d{2,}/.test((el.textContent || '').trim())) countUp(el, dur); else if (n++ < 150) setTimeout(w, 80); })();
   }
 
-  /* Staggered entrance via the Web Animations API (ends at the natural state) */
+  /* Staggered entrance via Web Animations (ends at the natural state) */
   function entrance(sels) {
     if (R) return; var i = 0;
     sels.forEach(function (s) {
       var el = $(s); if (!el || el.offsetParent === null) return;
-      // Editorial touch: the title settles from wide tracking to its set value.
-      var kf = (s === '.apt-name')
+      var isTitle = (s === '.apt-name');
+      var kf = isTitle
         ? [{ opacity: 0, transform: 'translateY(24px)', filter: 'blur(8px)', letterSpacing: '12px' }, { opacity: 1, transform: 'none', filter: 'blur(0)', letterSpacing: '-1px' }]
         : [{ opacity: 0, transform: 'translateY(24px)', filter: 'blur(6px)' }, { opacity: 1, transform: 'none', filter: 'blur(0)' }];
-      try {
-        el.animate(kf, { duration: (s === '.apt-name' ? 1150 : 850), delay: i * 80, easing: 'cubic-bezier(.16,1,.3,1)', fill: 'both' });
-      } catch (e) {}
+      try { el.animate(kf, { duration: isTitle ? 1150 : 850, delay: i * 80, easing: 'cubic-bezier(.16,1,.3,1)', fill: 'both' }); } catch (e) {}
       i++;
     });
   }
 
-  /* Reveal-on-scroll for a set of sections (only tags elements via JS → safe) */
+  /* Reveal-on-scroll for a set of elements (only JS-tagged → safe, with failsafe) */
   function reveal(sel) {
     var ts = $all(sel);
     if (!('IntersectionObserver' in window)) { ts.forEach(function (t) { t.classList.add('cine-in'); }); return; }
@@ -114,9 +115,7 @@
       });
     });
     c.addEventListener('mouseleave', function () {
-      c.classList.remove('cine-spot');
-      c.style.transition = 'transform .5s var(--cine-ease)';
-      c.style.transform = '';
+      c.classList.remove('cine-spot'); c.style.transition = 'transform .5s var(--cine-ease)'; c.style.transform = '';
     });
   }
 
@@ -136,50 +135,69 @@
     c.appendChild(btn);
   }
 
-  /* Apartments grid: staggered reveal of new cards + 3D tilt (event-delegated) */
-  function cards(gridSel) {
-    var grid = $(gridSel); if (!grid) return;
-    function animateNew(nodes) {
+  /* Lightbox swipe (detail) — reuses the existing prev/next buttons */
+  function lightboxSwipe() {
+    var lb = $('#lightbox'); if (!lb) return; var x0 = null;
+    lb.addEventListener('touchstart', function (e) { x0 = e.touches[0].clientX; }, { passive: true });
+    lb.addEventListener('touchend', function (e) {
+      if (x0 == null) return; var dx = e.changedTouches[0].clientX - x0;
+      if (Math.abs(dx) > 45) { var b = $(dx < 0 ? '#lbNext' : '#lbPrev'); if (b) b.click(); }
+      x0 = null;
+    }, { passive: true });
+  }
+
+  /* Stagger the children of a grid once it scrolls into view (e.g. feature items) */
+  function staggerChildren(containerSel, childSel) {
+    var c = $(containerSel); if (!c || R || !('IntersectionObserver' in window)) return;
+    var kids = $all(childSel, c); if (!kids.length) return;
+    var io = new IntersectionObserver(function (es) {
+      es.forEach(function (x) {
+        if (!x.isIntersecting) return;
+        kids.forEach(function (k, i) { try { k.animate([{ opacity: 0, transform: 'translateY(14px)' }, { opacity: 1, transform: 'none' }], { duration: 520, delay: i * 45, easing: 'cubic-bezier(.16,1,.3,1)', fill: 'both' }); } catch (e) {} });
+        io.disconnect();
+      });
+    }, { threshold: .15 });
+    io.observe(c);
+  }
+
+  /* Watch a card container: stagger-animate any new cards (async-safe, marks done) */
+  function watchGrid(sel) {
+    var grid = $(sel); if (!grid) return;
+    function sweep() {
       if (R) return; var i = 0;
-      nodes.forEach(function (el) {
-        if (el.nodeType !== 1 || !el.classList || !el.classList.contains('card')) return;
-        try {
-          el.animate(
-            [{ opacity: 0, transform: 'translateY(26px) scale(.985)' }, { opacity: 1, transform: 'none' }],
-            { duration: 640, delay: Math.min(i, 7) * 55, easing: 'cubic-bezier(.16,1,.3,1)', fill: 'both' }
-          );
-        } catch (e) {}
+      $all(CARDSEL, grid).forEach(function (el) {
+        if (el.__cine) return; el.__cine = 1;
+        try { el.animate([{ opacity: 0, transform: 'translateY(26px) scale(.985)' }, { opacity: 1, transform: 'none' }], { duration: 640, delay: Math.min(i, 7) * 55, easing: 'cubic-bezier(.16,1,.3,1)', fill: 'both' }); } catch (e) {}
         i++;
       });
     }
-    animateNew($all('.card', grid));
-    if ('MutationObserver' in window) {
-      new MutationObserver(function (muts) {
-        var added = []; muts.forEach(function (m) { Array.prototype.forEach.call(m.addedNodes, function (n) { added.push(n); }); });
-        if (added.length) animateNew(added);
-      }).observe(grid, { childList: true });
-    }
-    if (FINE && !R) {
-      var raf = null, curr = null, ev = null;
-      grid.addEventListener('mousemove', function (e) {
-        var card = e.target.closest && e.target.closest('.card'); if (!card) return;
-        curr = card; ev = e; if (raf) return;
-        raf = requestAnimationFrame(function () {
-          raf = null; if (!curr || !ev) return;
-          var r = curr.getBoundingClientRect();
-          var x = (ev.clientX - r.left) / r.width - .5, y = (ev.clientY - r.top) / r.height - .5;
-          curr.classList.add('cine-tilt');
-          curr.style.transform = 'perspective(900px) rotateX(' + (-y * 5).toFixed(2) + 'deg) rotateY(' + (x * 6).toFixed(2) + 'deg) translateY(-6px)';
-        });
+    sweep();
+    if ('MutationObserver' in window) new MutationObserver(sweep).observe(grid, { childList: true, subtree: true });
+  }
+
+  /* Universal 3D tilt — one delegated handler for every card type */
+  function tiltAny() {
+    if (R || !FINE) return; var raf = null, curr = null, ev = null;
+    function reset(c) { if (c) { c.classList.remove('cine-tilt'); c.style.transform = ''; } }
+    doc.addEventListener('mousemove', function (e) {
+      ev = e; if (raf) return;
+      raf = requestAnimationFrame(function () {
+        raf = null; var card = ev.target.closest ? ev.target.closest(CARDSEL) : null;
+        if (card !== curr) { reset(curr); curr = card; }
+        if (!card) return;
+        var r = card.getBoundingClientRect();
+        var x = (ev.clientX - r.left) / r.width - .5, y = (ev.clientY - r.top) / r.height - .5;
+        card.classList.add('cine-tilt');
+        card.style.transform = 'perspective(900px) rotateX(' + (-y * 5).toFixed(2) + 'deg) rotateY(' + (x * 6).toFixed(2) + 'deg) translateY(-6px)';
       });
-      grid.addEventListener('mouseout', function (e) {
-        var card = e.target.closest && e.target.closest('.card');
-        if (card && !card.contains(e.relatedTarget)) { card.classList.remove('cine-tilt'); card.style.transform = ''; }
-      });
-    }
+    }, { passive: true });
   }
 
   function waitFor(test, cb, max) { var n = 0; (function w() { if (test()) cb(); else if (n++ < (max || 160)) setTimeout(w, 60); })(); }
+
+  /* ── Universal ───────────────────────────────────────────────────── */
+  tiltAny();
+  watchGrid('#zoneFooter');   // detail "more in this neighborhood" (no-op if absent)
 
   /* ── DETAIL page ─────────────────────────────────────────────────── */
   if ($('#aptName')) {
@@ -187,8 +205,9 @@
       entrance(['.breadcrumb', '.apt-badges', '.apt-name', '.apt-address', '.apt-zone', '.apt-price-block', '.apt-specs', '.apt-actions', '.media-section', '.aci-box']);
       countUp($('#aptPrice'), 1100); countUp($('#sidebarPrice'), 1100);
       reveal('.content-section,.aci-box,.zone-footer,.sidebar-card,.trust-band,.notify-banner');
+      staggerChildren('#featuresGrid', '.feature-item');
       ctas(['.aci-apply', '.sidebar-apply', '.reserve-btn', '#inquiryBtn']);
-      heroSpotlight(); playTour();
+      heroSpotlight(); playTour(); lightboxSwipe();
       var blk = $('.apt-price-block');
       if (blk && !blk.querySelector('.cine-live')) {
         var d = doc.createElement('div'); d.className = 'cine-live';
@@ -199,12 +218,24 @@
 
   /* ── APARTMENTS grid page ────────────────────────────────────────── */
   if ($('#aptGrid')) {
-    cards('#aptGrid');
+    watchGrid('#aptGrid');
     ctas(['.svc-cta-gold', '.nbtn-primary']);
     reveal('.svc-card,.notify-banner');
     entrance(['.apt-h1', '.apt-pulse']);
     countWhenReady($('#pulseAvail'), 1200);
     countWhenReady($('#pulseNew'), 1200);
     countWhenReady($('#pulseAvg'), 1200);
+  }
+
+  /* ── NEIGHBORHOOD HUB ────────────────────────────────────────────── */
+  if ($('#listingsGrid')) {
+    watchGrid('#listingsGrid');
+    entrance(['.hero-eyebrow', '.hero-title', '.hero-vibe', '.hero-actions']);
+    reveal('.section-title,.section-subtitle,.notify-banner');
+  }
+
+  /* ── HOMEPAGE (static featured cards + its own hero animation) ────── */
+  if ($('.apartment-card') && !$('#aptGrid') && !$('#listingsGrid')) {
+    reveal('.section-title,.section-subtitle,.apartment-card');
   }
 })();

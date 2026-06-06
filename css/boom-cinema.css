@@ -52,9 +52,9 @@ html{scroll-behavior:smooth;scroll-padding-top:104px}
 .cine-live .dot{width:7px;height:7px;border-radius:50%;background:#00FF88;animation:cinePulse 2.4s infinite}
 @keyframes cinePulse{0%{box-shadow:0 0 0 0 rgba(0,255,136,.45)}70%{box-shadow:0 0 0 9px rgba(0,255,136,0)}100%{box-shadow:0 0 0 0 rgba(0,255,136,0)}}
 
-/* ── 3D card tilt (apartments grid) — keep the page's base .card transition
-   for a smooth return; only disable it while actively tilting ──────────── */
-.cine-on .card.cine-tilt{transition:none;box-shadow:0 34px 80px -34px rgba(0,0,0,.78),0 0 0 1px rgba(255,215,0,.22)}
+/* ── Universal 3D card tilt — keep each card's own base transition for the
+   smooth return; only disable it while actively tilting ────────────────── */
+.cine-on .card.cine-tilt,.cine-on .zone-card.cine-tilt,.cine-on .listing-card.cine-tilt,.cine-on .apartment-card.cine-tilt{transition:none;box-shadow:0 34px 80px -34px rgba(0,0,0,.78),0 0 0 1px rgba(255,215,0,.22)}
 
 /* ── Carousel "Play tour" button ─────────────────────────────────────── */
 .cine-tour{position:absolute;left:14px;bottom:14px;z-index:11;display:inline-flex;align-items:center;gap:8px;padding:9px 15px;border-radius:100px;background:rgba(0,0,0,.6);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.16);color:#fff;font-size:11px;letter-spacing:1px;text-transform:uppercase;cursor:pointer;transition:all .25s var(--cine-ease);font-family:inherit}
