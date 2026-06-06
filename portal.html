@@ -3908,7 +3908,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         loadDismissedAlerts().add(`${type}:${id}`);
         saveDismissedAlerts();
         checkAlerts();
-        if (document.querySelector('.notif-item')) showNotifications(); // refresh open modal
+        if (document.getElementById('notifPanel')) showNotifications(); // refresh open modal
     }
 
     function checkAlerts() {
@@ -4025,6 +4025,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 S.userNotifications = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 updateNotifBadge();
                 updateReminderBadge();
+                // If the notifications panel is open, keep it live (delete / mark-read /
+                // external changes reflect immediately instead of leaving a stale modal).
+                if (document.getElementById('notifPanel')) showNotifications();
                 // Play sound for new unread notifications
                 const newUnread = S.userNotifications.filter(n => !n.read && isRecent(n.createdAt, 30));
                 if (newUnread.length > 0 && document.hidden === false) {
@@ -4354,7 +4357,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const notifTypeIcon = (type) => ({ maintenance: '🔧', payment: '💳', contract: '📋', document: '📄', system: '⚡', warning: '⚠️', danger: '🚨' }[type] || '🔔');
         const notifTypeColor = (type) => ({ maintenance: 'blue', payment: 'gold', contract: 'green', document: 'purple', danger: 'red', warning: 'orange' }[type] || 'gray');
         
-        document.getElementById('modals').innerHTML = `<div class="modal-overlay active"><div class="modal lg">
+        document.getElementById('modals').innerHTML = `<div class="modal-overlay active" id="notifPanel"><div class="modal lg">
             <div class="modal-header">
                 <h3 class="modal-title">🔔 Notifiche ${allNotifs.length > 0 ? `(${allNotifs.filter(n => !n.read).length} non lette)` : ''}</h3>
                 <button class="modal-close" onclick="closeModal()">×</button>
