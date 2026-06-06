@@ -35,6 +35,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
     <script src="/js/taxpack-engine.js"></script>
     <script src="/js/fiscal-engine.js"></script>
+    <script src="/js/conversations.js"></script>
     <!-- PDF.js — renders uploaded PDFs to canvas so Magic Sign Custom can place fields on them. Loaded lazily by ensurePdfJs() on first use. -->
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
     <style>
@@ -3665,6 +3666,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         S.listings = []; S.leads = []; S.activityLog = []; S.deadlines = [];
         S.tasks = []; S.pfsClients = []; S.pfsProperties = []; S.pfsActivities = [];
         S.landlords = []; S.viewingRequests = [];
+        S.conversations = []; S.messages = [];
         // The viewer needs their own user doc (+ admin contacts surface lazily).
         S.users = [{ id: myUid, ...S.profile }];
 
@@ -3702,6 +3704,19 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         // Own documents (both roles).
         const docs = await db.collection('documents').where('userId', '==', myUid).get();
         S.documents = docs.docs.map(d => ({ id: d.id, ...d.data() }));
+
+        // Inbox: scoped reads. Landlord sees conversations assigned to them.
+        // Tenant sees own (contactUid == myUid). Either way the rule allows it.
+        try {
+            const field = isLandlord() ? 'assignedLandlordId' : 'contactUid';
+            const convs = await db.collection('conversations').where(field, '==', myUid).limit(200).get();
+            S.conversations = convs.docs.map(d => ({ id: d.id, ...d.data() }));
+            const convIds = S.conversations.map(c => c.id);
+            if (convIds.length) {
+                const msgs = await fetchWhereInChunked('messages', 'conversationId', convIds);
+                S.messages = msgs;
+            }
+        } catch (e) { S.conversations = []; S.messages = []; console.warn('Inbox scoped load:', e.message); }
 
         // Auto-overdue marking on the viewer's own pending payments.
         const today = new Date().toISOString().split('T')[0];
@@ -3852,9 +3867,20 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     S.viewingRequests = vr.docs.map(d => ({ id: d.id, ...d.data() }));
                 } catch (e) { S.viewingRequests = []; }
 
+                try {
+                    // Inbox: conversations + recent messages
+                    const [convs, msgs] = await Promise.all([
+                        db.collection('conversations').orderBy('lastMessageAt', 'desc').limit(200).get(),
+                        db.collection('messages').orderBy('at', 'desc').limit(500).get()
+                    ]);
+                    S.conversations = convs.docs.map(d => ({ id: d.id, ...d.data() }));
+                    S.messages = msgs.docs.map(d => ({ id: d.id, ...d.data() }));
+                } catch (e) { S.conversations = []; S.messages = []; console.warn('Inbox load:', e.message); }
+
                 console.log('Lazy data loaded:', (performance.now() - startTime).toFixed(0), 'ms total');
                 // Update UI if needed
-                if (S.page === 'command' || S.page === 'pfs-pipeline' || S.page === 'leads' || S.page === 'dashboard' || S.page === 'viewings') renderPage();
+                if (S.page === 'command' || S.page === 'pfs-pipeline' || S.page === 'leads' || S.page === 'dashboard' || S.page === 'viewings' || S.page === 'inbox') renderPage();
+                buildNav();
             }, isSafariDesktop ? 1500 : 500);
             
             console.log('Core data loaded in', (performance.now() - startTime).toFixed(0), 'ms');
@@ -4770,6 +4796,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const pendingViewings = (S.viewingRequests || []).filter(v => v.status === 'pending').length;
             const pendingActions = (S.actionQueue || []).filter(a => a.status === 'pending').length;
             const radarFound = (S.leads || []).filter(l => (l.source || '').startsWith('radar') && (l.status === 'new' || !l.status)).length;
+            const unreadInbox = (S.conversations || []).reduce((n, c) => n + (Number(c.unread) || 0), 0);
             
             sb.innerHTML = `
                 <div class="nav-section"><div class="nav-label">Operativo</div>
@@ -4778,6 +4805,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <div class="nav-item ${S.page==='leads'?'active':''}" onclick="goTo('leads')"><span class="nav-icon">📬</span> Lead ${newLeads?`<span class="nav-badge green">${newLeads}</span>`:''}</div>
                     <div class="nav-item ${S.page==='clienti'?'active':''}" onclick="goTo('clienti')"><span class="nav-icon">👥</span> Clienti ${(activeClients+urgentPFS)?`<span class="nav-badge gold">${activeClients+urgentPFS}</span>`:''}</div>
                     <div class="nav-item ${S.page==='viewings'?'active':''}" onclick="goTo('viewings')"><span class="nav-icon">📅</span> Viewings ${pendingViewings?`<span class="nav-badge gold">${pendingViewings}</span>`:''}</div>
+                    <div class="nav-item ${S.page==='inbox'?'active':''}" onclick="goTo('inbox')"><span class="nav-icon">📨</span> Inbox ${unreadInbox?`<span class="nav-badge gold">${unreadInbox}</span>`:''}</div>
                     <div class="nav-item ${S.page==='adminflats'?'active':''}" onclick="goTo('adminflats')"><span class="nav-icon">🏢</span> AdminFlats</div>
                     <div class="nav-item ${S.page==='invoices'?'active':''}" onclick="goTo('invoices')"><span class="nav-icon">🧾</span> Fatture ${pendingInv?`<span class="nav-badge gold">${pendingInv}</span>`:''}</div>
                 </div>
@@ -4794,6 +4822,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <div class="nav-item ${S.page==='property-finder'?'active':''}" onclick="goTo('property-finder')"><span class="nav-icon">🔍</span> Property Finder</div>
                     <div class="nav-item ${S.page==='boom-tools'?'active':''}" onclick="goTo('boom-tools')"><span class="nav-icon">🛠️</span> Tools <span class="nav-badge gold">PRO</span></div>
                     <div class="nav-item ${S.page==='zone-intel'?'active':''}" onclick="goTo('zone-intel')"><span class="nav-icon">🎯</span> Zone Intelligence</div>
+                    <div class="nav-item ${S.page==='market-intel'?'active':''}" onclick="goTo('market-intel')"><span class="nav-icon">📊</span> Market Intelligence</div>
+                    <div class="nav-item ${S.page==='photo-studio'?'active':''}" onclick="goTo('photo-studio')"><span class="nav-icon">📸</span> Photo Studio</div>
                     <div class="nav-item ${S.page==='burocrazia'?'active':''}" onclick="goTo('burocrazia')"><span class="nav-icon">📝</span> Burocrazia ${S.regPending?`<span class="nav-badge orange">${S.regPending}</span>`:''}</div>
                     <div class="nav-item ${S.page==='landlords'?'active':''}" onclick="goTo('landlords')"><span class="nav-icon">🏘️</span> Landlord DB</div>
                 </div>
@@ -4808,9 +4838,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         } else if (r === 'landlord') {
             const myMaint = getMyMaintenance().filter(m => m.status === 'open').length;
             const myOverdue = getMyPayments().filter(p => p.status === 'pending' && isOverdue(p.dueDate)).length;
+            const myUnreadInbox = (S.conversations || []).reduce((n, c) => n + (Number(c.unread) || 0), 0);
             sb.innerHTML = `
                 <div class="nav-section"><div class="nav-label">Home</div>
                     <div class="nav-item ${S.page==='dashboard'?'active':''}" onclick="goTo('dashboard')"><span class="nav-icon">📊</span> Dashboard</div>
+                    <div class="nav-item ${S.page==='inbox'?'active':''}" onclick="goTo('inbox')"><span class="nav-icon">📨</span> Messaggi ${myUnreadInbox?`<span class="nav-badge gold">${myUnreadInbox}</span>`:''}</div>
                 </div>
                 <div class="nav-section"><div class="nav-label">I Miei Immobili</div>
                     <div class="nav-item ${S.page==='my-properties'?'active':''}" onclick="goTo('my-properties')"><span class="nav-icon">🏠</span> Immobili</div>
@@ -4819,6 +4851,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <div class="nav-item ${S.page==='my-maintenance'?'active':''}" onclick="goTo('my-maintenance')"><span class="nav-icon">🔧</span> Manutenzione ${myMaint?`<span class="nav-badge">${myMaint}</span>`:''}</div>
                     <div class="nav-item ${S.page==='my-documents'?'active':''}" onclick="goTo('my-documents')"><span class="nav-icon">📁</span> Documenti</div>
                     <div class="nav-item ${S.page==='commercialista'?'active':''}" onclick="goTo('commercialista')"><span class="nav-icon">🧮</span> Commercialista</div>
+                </div>
+                <div class="nav-section"><div class="nav-label">Insight</div>
+                    <div class="nav-item ${S.page==='market-intel'?'active':''}" onclick="goTo('market-intel')"><span class="nav-icon">📊</span> Market Intelligence</div>
                 </div>
                 <div class="sidebar-footer">
                     <div class="nav-item" onclick="goTo('settings')"><span class="nav-icon">⚙️</span> Impostazioni</div>
@@ -4880,6 +4915,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             case 'rules': m.innerHTML = isAdmin() ? rulesPage() : accessDenied(); break;
             case 'documents': m.innerHTML = isAdmin() ? documentsPage() : accessDenied(); break;
             case 'commercialista': m.innerHTML = (isAdmin() || isLandlord()) ? commercialistaPage() : accessDenied(); break;
+            case 'inbox': m.innerHTML = (isAdmin() || isLandlord()) ? inboxPage() : accessDenied(); break;
+            case 'photo-studio': m.innerHTML = isAdmin() ? photoStudioPage() : accessDenied(); if (isAdmin()) setTimeout(photoStudioInitDnd, 30); break;
+            case 'market-intel': m.innerHTML = (isAdmin() || isLandlord()) ? marketIntelPage() : accessDenied(); setTimeout(marketInitChart, 50); break;
             case 'activity-log': m.innerHTML = isAdmin() ? activityLogPage() : accessDenied(); break;
             case 'adminflats': m.innerHTML = isAdmin() ? adminflatsPage() : accessDenied(); break;
             // === SCHEDA 360° (cliente unico hub) ===
@@ -6062,6 +6100,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     </p>
                 </div>
                 <div style="display:flex;gap:8px">
+                    <button class="btn btn-sm btn-secondary" onclick="landlordPassCTA()">🎟️ Tessera Partner</button>
                     <button class="btn btn-sm btn-secondary" onclick="generateLandlordPDF()">📥 Report</button>
                     <button class="btn btn-sm btn-secondary" onclick="forceRefreshData()">🔄 Aggiorna</button>
                 </div>
@@ -7667,6 +7706,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (mailto) quickActions.push(`<a class="btn btn-sm btn-secondary" href="${mailto}">📧 Email</a>`);
         if (kind === 'user' && entity.role === 'tenant') quickActions.push(`<button class="btn btn-sm btn-secondary" onclick="openModal('addPayment',{tenantId:'${id}'})">💳 Registra pagamento</button>`);
         if (kind === 'user' && entity.role === 'tenant') quickActions.push(`<button class="btn btn-sm btn-secondary" onclick="openDocUploadModal('${id}')">📁 Carica documento</button>`);
+        if (kind === 'user' && entity.role === 'landlord') quickActions.push(`<button class="btn btn-sm btn-secondary" onclick="adminSendLandlordPass('${id}')">🎟️ Tessera Partner</button>`);
         if (kind === 'lead' || kind === 'pfsClient' || kind === 'crmClient') quickActions.push(`<button class="btn btn-sm" onclick="openNewClientWizard('${kind}','${id}')">🚀 Crea contratto</button>`);
 
         // ── Promotion shortcuts (separate-but-linked phases) ─────────────────
@@ -10194,6 +10234,951 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
 
     // daysUntil defined in core utils (line ~1300)
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // ★ INBOX — unified WhatsApp / email / note conversations.
+    // Pure model lives in js/conversations.js (window.BOOM_INBOX). This block
+    // owns the UI + Firestore I/O. New conversations are admin-created.
+    // Landlords reply inside conversations assigned to them. WhatsApp out
+    // uses wa.me deep link; the operator confirms "Inviato?" so the message
+    // is logged. Inbound is manual today; schema is API-ready.
+    // ═══════════════════════════════════════════════════════════════════════
+    var _inboxState = { convId: null, filter: 'open', channel: 'all', search: '', composing: 'reply' };
+
+    function inboxRefresh() {
+        // Re-render only the inbox if we're on it. Used after a Firestore write.
+        if (S.page === 'inbox') {
+            const m = document.getElementById('main');
+            if (m) m.innerHTML = inboxPage();
+            buildNav();
+        }
+    }
+
+    // The operator's universe of contactable people: tenants (users.role=tenant),
+    // landlords, leads, PFS clients, CRM clients. Deduped by id+kind.
+    function inboxContactCatalog() {
+        const out = [];
+        const seen = new Set();
+        const push = (kind, id, ref) => {
+            const k = kind + ':' + id;
+            if (seen.has(k)) return;
+            seen.add(k);
+            out.push({ kind, id, ref });
+        };
+        // Tenants + landlords via users.
+        (S.users || []).forEach(u => {
+            if (u.role === 'tenant')   push('tenant',   u.id, u);
+            if (u.role === 'landlord') push('landlord', u.id, u);
+        });
+        (S.leads      || []).forEach(l => push('lead',     l.id, l));
+        (S.pfsClients || []).forEach(p => push('pfs',      p.id, p));
+        (S.clients    || []).forEach(c => push('client',   c.id, c));
+        // Sort by display name.
+        out.forEach(x => x.label = (x.ref.name || x.ref.firstName || x.ref.email || x.ref.phone || x.id) + ' · ' + kindLabel(x.kind));
+        out.sort((a, b) => a.label.localeCompare(b.label, 'it'));
+        return out;
+    }
+    function kindLabel(k) {
+        return { tenant:'Inquilino', landlord:'Landlord', lead:'Lead', pfs:'PFS', client:'Cliente' }[k] || k;
+    }
+
+    // Find-or-create a conversation for (kind, id). Admin only. Idempotent
+    // via the deterministic id from BOOM_INBOX.convIdFor.
+    async function inboxFindOrCreateConversation(kind, contact) {
+        const cid = BOOM_INBOX.convIdFor(kind, contact.id);
+        let conv = (S.conversations || []).find(c => c.id === cid);
+        if (conv) return conv;
+        const header = BOOM_INBOX.buildHeader(kind, contact);
+        const now = firebase.firestore.FieldValue.serverTimestamp();
+        const payload = {
+            ...header,
+            channel: 'mixed',
+            createdAt: now,
+            lastMessageAt: now,
+            lastMessagePreview: '',
+            lastDirection: 'out',
+            unread: 0,
+        };
+        await db.collection('conversations').doc(cid).set(payload, { merge: true });
+        conv = { id: cid, ...payload };
+        S.conversations = [conv, ...(S.conversations || [])];
+        return conv;
+    }
+
+    // Append a message and update the conversation's last-message preview.
+    // Direction: 'out' = sent by operator. 'in' = received from contact. 'note' = internal.
+    async function inboxLogMessage(conv, opts) {
+        const body = String(opts.body || '').trim();
+        if (!body) { toast('warning', 'Messaggio vuoto'); return null; }
+        const direction = opts.direction || 'out';
+        const channel = opts.channel || 'note';
+        const now = firebase.firestore.FieldValue.serverTimestamp();
+        const msg = {
+            conversationId: conv.id,
+            direction,
+            channel,
+            body,
+            by: S.profile.id,
+            contactUid: conv.contactUid || null,
+            assignedLandlordId: conv.assignedLandlordId || null,
+            at: now,
+        };
+        if (opts.subject) msg.subject = String(opts.subject).slice(0, 200);
+        const ref = await db.collection('messages').add(msg);
+        const localMsg = { id: ref.id, ...msg, at: new Date() };
+        S.messages = [localMsg, ...(S.messages || [])];
+        // Update conversation header (admin only — rules allow update only for admin).
+        if (isAdmin()) {
+            const update = {
+                lastMessageAt: now,
+                lastMessagePreview: BOOM_INBOX.preview(body),
+                lastDirection: direction,
+            };
+            // Inbound bumps unread; outbound clears it.
+            if (direction === 'in') update.unread = (conv.unread || 0) + 1;
+            else if (direction === 'out') update.unread = 0;
+            await db.collection('conversations').doc(conv.id).update(update);
+            Object.assign(conv, update, { lastMessageAt: new Date() });
+        }
+        logActivity('Messaggio ' + direction, 'inbox', { convId: conv.id, channel, preview: BOOM_INBOX.preview(body, 60) });
+        return localMsg;
+    }
+
+    // === UI ===
+    function inboxPage() {
+        if (!isAdmin() && !isLandlord()) return accessDenied();
+        const convs = (S.conversations || []).slice().sort((a, b) => {
+            const ta = a.lastMessageAt && a.lastMessageAt.toMillis ? a.lastMessageAt.toMillis() : new Date(a.lastMessageAt || 0).getTime();
+            const tb = b.lastMessageAt && b.lastMessageAt.toMillis ? b.lastMessageAt.toMillis() : new Date(b.lastMessageAt || 0).getTime();
+            return tb - ta;
+        });
+        const filter = _inboxState.filter;
+        const channel = _inboxState.channel;
+        const q = (_inboxState.search || '').toLowerCase().trim();
+        const filtered = convs.filter(c => {
+            if (filter !== 'all' && (c.status || 'open') !== filter) return false;
+            if (channel !== 'all' && c.channel !== channel && c.channel !== 'mixed') return false;
+            if (q && !((c.contactName || '') + ' ' + (c.contactPhone || '') + ' ' + (c.contactEmail || '') + ' ' + (c.lastMessagePreview || '')).toLowerCase().includes(q)) return false;
+            return true;
+        });
+        const totalUnread = convs.reduce((n, c) => n + (Number(c.unread) || 0), 0);
+        // If selection is gone (e.g. after filter change) clear it.
+        if (_inboxState.convId && !filtered.some(c => c.id === _inboxState.convId)) _inboxState.convId = null;
+        const selected = _inboxState.convId ? filtered.find(c => c.id === _inboxState.convId) || convs.find(c => c.id === _inboxState.convId) : null;
+
+        return `
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">📨 Inbox ${totalUnread ? `<span class="badge gold" style="font-size:11px;vertical-align:middle">${totalUnread}</span>` : ''}</h1>
+                <div style="color:var(--text-secondary);font-size:13px;margin-top:4px">WhatsApp · Email · Note · ${convs.length} conversazioni</div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+                ${isAdmin() ? `<button class="btn btn-primary" onclick="inboxOpenNewModal()">✏️ Nuova conversazione</button>` : ''}
+            </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:minmax(280px,360px) 1fr;gap:16px;align-items:start">
+            <!-- LEFT: conversation list -->
+            <div class="card" style="padding:0;overflow:hidden;max-height:calc(100vh - 220px);display:flex;flex-direction:column">
+                <div style="padding:12px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:8px">
+                    <input class="input" type="search" placeholder="Cerca nome, telefono, testo…" value="${esc(_inboxState.search)}" oninput="_inboxState.search=this.value;inboxRefresh()" style="font-size:13px">
+                    <div style="display:flex;gap:6px;flex-wrap:wrap">
+                        ${['open','snoozed','closed','all'].map(s => `
+                            <button class="btn btn-sm ${_inboxState.filter===s?'btn-primary':''}" onclick="_inboxState.filter='${s}';inboxRefresh()" style="font-size:11px;padding:4px 10px">${({open:'Aperte',snoozed:'Snooze',closed:'Chiuse',all:'Tutte'})[s]}</button>
+                        `).join('')}
+                    </div>
+                </div>
+                <div style="overflow-y:auto;flex:1">
+                    ${filtered.length ? filtered.map(c => inboxConversationCard(c, c.id === _inboxState.convId)).join('') :
+                        `<div class="empty-state" style="padding:32px"><div class="empty-icon">📭</div><div class="empty-title">Nessuna conversazione</div><div class="empty-subtitle" style="font-size:12px">${isAdmin() ? 'Inizia una nuova conversazione dalla barra in alto.' : 'Le conversazioni a te assegnate compaiono qui.'}</div></div>`
+                    }
+                </div>
+            </div>
+
+            <!-- RIGHT: thread + composer -->
+            <div>
+                ${selected ? inboxThreadPanel(selected) : `
+                    <div class="card" style="padding:48px;text-align:center">
+                        <div style="font-size:48px;margin-bottom:16px">💬</div>
+                        <div style="font-size:18px;margin-bottom:8px">Seleziona una conversazione</div>
+                        <div style="color:var(--text-secondary);font-size:13px">Vedi messaggi, rispondi via WhatsApp/email, aggiungi una nota.</div>
+                    </div>
+                `}
+            </div>
+        </div>
+        `;
+    }
+
+    function inboxConversationCard(c, active) {
+        const initials = (c.contactName || '?').split(/\s+/).map(s => s[0] || '').slice(0, 2).join('').toUpperCase();
+        const tsRaw = c.lastMessageAt && c.lastMessageAt.toDate ? c.lastMessageAt.toDate() : new Date(c.lastMessageAt || 0);
+        const tsLabel = isNaN(tsRaw.getTime()) ? '' : inboxRelativeTime(tsRaw);
+        const unread = Number(c.unread) || 0;
+        const dirIcon = c.lastDirection === 'in' ? '↙' : c.lastDirection === 'note' ? '✎' : '↗';
+        const kind = kindLabel(c.contactType || 'lead');
+        return `
+        <div onclick="inboxSelect('${c.id}')" style="padding:12px 14px;border-bottom:1px solid var(--border);cursor:pointer;display:flex;gap:10px;background:${active?'rgba(212,175,55,0.08)':'transparent'};transition:background .15s" onmouseover="if(!${active})this.style.background='rgba(255,255,255,0.03)'" onmouseout="if(!${active})this.style.background='transparent'">
+            <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#1A1A1A,#0A0A0A);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:var(--gold);flex-shrink:0;border:1px solid var(--border)">${esc(initials)}</div>
+            <div style="flex:1;min-width:0">
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
+                    <div style="font-weight:500;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.contactName || 'Senza nome')}</div>
+                    <div style="font-size:10px;color:var(--text-muted);white-space:nowrap">${tsLabel}</div>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-top:2px">
+                    <div style="font-size:11px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${dirIcon} ${esc(c.lastMessagePreview || kind)}</div>
+                    ${unread ? `<span class="badge gold" style="font-size:9px;padding:2px 6px">${unread}</span>` : ''}
+                </div>
+            </div>
+        </div>`;
+    }
+
+    function inboxRelativeTime(d) {
+        const now = Date.now();
+        const diff = (now - d.getTime()) / 1000;
+        if (diff < 60) return 'ora';
+        if (diff < 3600) return Math.floor(diff/60) + 'm';
+        if (diff < 86400) return Math.floor(diff/3600) + 'h';
+        if (diff < 86400*7) return Math.floor(diff/86400) + 'g';
+        return d.toLocaleDateString('it-IT', { day:'numeric', month:'short' });
+    }
+
+    window.inboxSelect = function(convId) {
+        _inboxState.convId = convId;
+        const conv = (S.conversations || []).find(c => c.id === convId);
+        if (conv && (conv.unread || 0) > 0 && isAdmin()) {
+            db.collection('conversations').doc(convId).update({ unread: 0 }).catch(()=>{});
+            conv.unread = 0;
+        }
+        inboxRefresh();
+    };
+
+    function inboxThreadPanel(conv) {
+        const msgs = (S.messages || []).filter(m => m.conversationId === conv.id);
+        const days = BOOM_INBOX.groupByDay(msgs);
+        const waUrl = BOOM_INBOX.whatsappUrl(conv.contactPhone, '');
+        const canEmail = !!conv.contactEmail;
+        return `
+        <div class="card" style="padding:0;overflow:hidden;display:flex;flex-direction:column;max-height:calc(100vh - 220px)">
+            <!-- Header -->
+            <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+                <div style="flex:1;min-width:0">
+                    <div style="display:flex;align-items:center;gap:10px">
+                        <div style="font-weight:500;font-size:15px">${esc(conv.contactName || 'Senza nome')}</div>
+                        <span class="badge" style="font-size:10px">${kindLabel(conv.contactType || 'lead')}</span>
+                        ${conv.status && conv.status !== 'open' ? `<span class="badge" style="font-size:10px;background:rgba(255,149,0,0.15);color:var(--orange)">${conv.status}</span>` : ''}
+                    </div>
+                    <div style="font-size:11px;color:var(--text-secondary);margin-top:2px">
+                        ${conv.contactPhone ? '📱 '+esc(conv.contactPhone) : ''}
+                        ${conv.contactPhone && conv.contactEmail ? ' · ' : ''}
+                        ${conv.contactEmail ? '✉ '+esc(conv.contactEmail) : ''}
+                    </div>
+                </div>
+                <div style="display:flex;gap:6px">
+                    ${waUrl ? `<a class="btn btn-sm" href="${waUrl}" target="_blank" rel="noopener" style="font-size:11px" title="Apri WhatsApp Web/App">📱 WhatsApp</a>` : ''}
+                    ${conv.contactType === 'lead' ? `<button class="btn btn-sm" onclick="openPerson('${conv.contactId}','lead')" style="font-size:11px">Apri scheda</button>` : ''}
+                    ${conv.contactType === 'pfs' ? `<button class="btn btn-sm" onclick="openPerson('${conv.contactId}','pfsClient')" style="font-size:11px">Apri scheda</button>` : ''}
+                    ${isAdmin() ? `<button class="btn btn-sm" onclick="inboxToggleStatus('${conv.id}')" style="font-size:11px">${conv.status === 'closed' ? 'Riapri' : 'Chiudi'}</button>` : ''}
+                </div>
+            </div>
+
+            <!-- Timeline -->
+            <div style="flex:1;overflow-y:auto;padding:18px;background:#050505">
+                ${days.length ? days.map(g => `
+                    <div style="text-align:center;margin:8px 0 14px;font-size:11px;color:var(--text-muted)">${esc(g.dateLabel)}</div>
+                    ${g.items.map(m => inboxMessageBubble(m)).join('')}
+                `).join('') : `<div class="empty-state" style="padding:32px"><div class="empty-icon">💬</div><div class="empty-subtitle">Nessun messaggio. Componi il primo qui sotto.</div></div>`}
+            </div>
+
+            <!-- Composer -->
+            ${inboxComposer(conv)}
+        </div>
+        `;
+    }
+
+    function inboxMessageBubble(m) {
+        const isOut  = m.direction === 'out';
+        const isNote = m.direction === 'note';
+        const bg = isNote ? 'rgba(212,175,55,0.10)' : isOut ? 'rgba(0,122,255,0.18)' : 'rgba(255,255,255,0.06)';
+        const align = isOut ? 'flex-end' : isNote ? 'center' : 'flex-start';
+        const border = isNote ? '1px solid rgba(212,175,55,0.30)' : 'none';
+        const channelIcon = m.channel === 'whatsapp' ? '📱' : m.channel === 'email' ? '✉' : '✎';
+        const ts = m.at && m.at.toDate ? m.at.toDate() : new Date(m.at || Date.now());
+        const tsLabel = ts.toLocaleTimeString('it-IT', { hour:'2-digit', minute:'2-digit' });
+        return `
+        <div style="display:flex;justify-content:${align};margin-bottom:8px">
+            <div style="max-width:75%;padding:10px 14px;border-radius:14px;background:${bg};border:${border};font-size:13px;line-height:1.45;white-space:pre-wrap;word-wrap:break-word">
+                ${m.subject ? `<div style="font-weight:600;margin-bottom:4px;font-size:12px;opacity:.85">${esc(m.subject)}</div>` : ''}
+                ${esc(m.body || '')}
+                <div style="font-size:10px;color:var(--text-muted);margin-top:4px;text-align:right">${channelIcon} ${tsLabel}</div>
+            </div>
+        </div>`;
+    }
+
+    function inboxComposer(conv) {
+        const tab = _inboxState.composing || 'whatsapp';
+        const canEmail = !!conv.contactEmail;
+        const canWa    = !!conv.contactPhone;
+        // Fallback active tab if the current one is unavailable.
+        let active = tab;
+        if (active === 'whatsapp' && !canWa) active = canEmail ? 'email' : 'note';
+        if (active === 'email' && !canEmail) active = canWa ? 'whatsapp' : 'note';
+        return `
+        <div style="border-top:1px solid var(--border);padding:12px 18px;background:var(--bg-card)">
+            <div style="display:flex;gap:6px;margin-bottom:10px">
+                ${canWa ?    `<button class="btn btn-sm ${active==='whatsapp'?'btn-primary':''}" onclick="_inboxState.composing='whatsapp';inboxRefresh()" style="font-size:11px">📱 WhatsApp</button>` : ''}
+                ${canEmail ? `<button class="btn btn-sm ${active==='email'?'btn-primary':''}"    onclick="_inboxState.composing='email';inboxRefresh()" style="font-size:11px">✉ Email</button>` : ''}
+                <button class="btn btn-sm ${active==='note'?'btn-primary':''}" onclick="_inboxState.composing='note';inboxRefresh()" style="font-size:11px">✎ Nota interna</button>
+                ${isAdmin() ? `<button class="btn btn-sm" onclick="inboxLogInboundModal('${conv.id}')" style="font-size:11px;margin-left:auto">+ Messaggio ricevuto</button>` : ''}
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+                <select class="input" id="inboxTpl" onchange="inboxApplyTemplate(this.value, '${conv.id}')" style="font-size:11px;padding:6px;flex:1;min-width:200px">
+                    <option value="">— Template rapidi —</option>
+                    ${BOOM_INBOX.TEMPLATES.map(t => `<option value="${t.id}">${esc(t.label)}</option>`).join('')}
+                </select>
+            </div>
+            ${active === 'email' ? `
+                <input id="inboxSubject" class="input" placeholder="Oggetto email" style="font-size:13px;margin-bottom:8px">
+            ` : ''}
+            <textarea id="inboxBody" class="input" rows="3" placeholder="${active==='note'?'Nota interna — visibile solo al team':'Scrivi un messaggio…'}" style="font-size:13px;width:100%;resize:vertical;min-height:80px"></textarea>
+            <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px">
+                ${active === 'whatsapp' ? `<button class="btn btn-primary btn-sm" onclick="inboxSendWhatsapp('${conv.id}')">📱 Apri WhatsApp</button>` : ''}
+                ${active === 'email'    ? `<button class="btn btn-primary btn-sm" onclick="inboxSendEmail('${conv.id}')">✉ Invia email</button>` : ''}
+                ${active === 'note'     ? `<button class="btn btn-primary btn-sm" onclick="inboxSaveNote('${conv.id}')">✓ Salva nota</button>` : ''}
+            </div>
+        </div>
+        `;
+    }
+
+    // === Composer actions ===
+    window.inboxApplyTemplate = function(tplId, convId) {
+        if (!tplId) return;
+        const tpl = BOOM_INBOX.TEMPLATES.find(t => t.id === tplId);
+        if (!tpl) return;
+        const conv = (S.conversations || []).find(c => c.id === convId);
+        const vars = {
+            nome: (conv && conv.contactName ? conv.contactName.split(' ')[0] : ''),
+            agente: S.profile.name || S.profile.email || 'BOOM',
+        };
+        const body = BOOM_INBOX.fillTemplate(tpl.body, vars);
+        const ta = document.getElementById('inboxBody');
+        if (ta) { ta.value = body; ta.focus(); }
+    };
+
+    window.inboxSendWhatsapp = async function(convId) {
+        const conv = (S.conversations || []).find(c => c.id === convId);
+        if (!conv) return;
+        const body = (document.getElementById('inboxBody') || {}).value || '';
+        if (!body.trim()) { toast('warning', 'Messaggio vuoto'); return; }
+        const url = BOOM_INBOX.whatsappUrl(conv.contactPhone, body);
+        if (!url) { toast('error', 'Numero mancante'); return; }
+        window.open(url, '_blank', 'noopener');
+        // Ask the operator whether the message was actually sent → log it.
+        setTimeout(async () => {
+            const ok = window.confirm('Hai inviato il messaggio su WhatsApp? Premi OK per registrarlo nello storico.');
+            if (!ok) return;
+            await inboxLogMessage(conv, { direction:'out', channel:'whatsapp', body });
+            const ta = document.getElementById('inboxBody'); if (ta) ta.value = '';
+            inboxRefresh();
+            toast('success', 'Messaggio registrato');
+        }, 400);
+    };
+
+    window.inboxSendEmail = async function(convId) {
+        const conv = (S.conversations || []).find(c => c.id === convId);
+        if (!conv) return;
+        const subject = (document.getElementById('inboxSubject') || {}).value || '';
+        const body = (document.getElementById('inboxBody') || {}).value || '';
+        if (!body.trim()) { toast('warning', 'Email vuota'); return; }
+        if (!conv.contactEmail) { toast('error', 'Email del contatto mancante'); return; }
+        const ok = await sendBoomEmail(EMAILJS_CONFIG.templates.notification, conv.contactEmail, {
+            subject: subject || 'Messaggio da BOOM',
+            title: subject || 'Messaggio da BOOM',
+            message: body,
+            action_label: '',
+            action_url: '',
+        });
+        if (ok) {
+            await inboxLogMessage(conv, { direction:'out', channel:'email', body, subject });
+            const ta = document.getElementById('inboxBody'); if (ta) ta.value = '';
+            const subj = document.getElementById('inboxSubject'); if (subj) subj.value = '';
+            inboxRefresh();
+            toast('success', 'Email inviata');
+        }
+    };
+
+    window.inboxSaveNote = async function(convId) {
+        const conv = (S.conversations || []).find(c => c.id === convId);
+        if (!conv) return;
+        const body = (document.getElementById('inboxBody') || {}).value || '';
+        if (!body.trim()) { toast('warning', 'Nota vuota'); return; }
+        await inboxLogMessage(conv, { direction:'note', channel:'note', body });
+        const ta = document.getElementById('inboxBody'); if (ta) ta.value = '';
+        inboxRefresh();
+        toast('success', 'Nota salvata');
+    };
+
+    window.inboxToggleStatus = async function(convId) {
+        const conv = (S.conversations || []).find(c => c.id === convId);
+        if (!conv) return;
+        const next = (conv.status === 'closed') ? 'open' : 'closed';
+        await db.collection('conversations').doc(convId).update({ status: next });
+        conv.status = next;
+        inboxRefresh();
+        toast('success', next === 'closed' ? 'Conversazione chiusa' : 'Riaperta');
+    };
+
+    // === Inbound logging (manual today, API-ready) ===
+    window.inboxLogInboundModal = function(convId) {
+        const conv = (S.conversations || []).find(c => c.id === convId);
+        if (!conv) return;
+        document.getElementById('modals').innerHTML = `<div class="modal-overlay active"><div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">+ Messaggio ricevuto</h3>
+                <button class="modal-close" onclick="closeModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Canale</label>
+                    <select id="_inChan" class="input">
+                        <option value="whatsapp">📱 WhatsApp</option>
+                        <option value="email">✉ Email</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Testo ricevuto</label>
+                    <textarea id="_inBody" class="input" rows="4" placeholder="Incolla qui il messaggio…"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeModal()">Annulla</button>
+                <button class="btn btn-primary" onclick="inboxSubmitInbound('${convId}')">Registra</button>
+            </div>
+        </div></div>`;
+    };
+    window.inboxSubmitInbound = async function(convId) {
+        const conv = (S.conversations || []).find(c => c.id === convId);
+        const channel = (document.getElementById('_inChan')||{}).value || 'whatsapp';
+        const body = (document.getElementById('_inBody')||{}).value || '';
+        if (!body.trim()) { toast('warning', 'Testo vuoto'); return; }
+        await inboxLogMessage(conv, { direction:'in', channel, body });
+        closeModal();
+        inboxRefresh();
+        toast('success', 'Registrato');
+    };
+
+    // === New conversation modal (admin only) ===
+    window.inboxOpenNewModal = function() {
+        const contacts = inboxContactCatalog();
+        document.getElementById('modals').innerHTML = `<div class="modal-overlay active"><div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">✏️ Nuova conversazione</h3>
+                <button class="modal-close" onclick="closeModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Contatto</label>
+                    <input id="_ncSearch" class="input" placeholder="Cerca per nome…" oninput="inboxFilterContacts()">
+                    <select id="_ncContact" class="input" size="10" style="margin-top:8px;width:100%">
+                        ${contacts.map(c => `<option value="${c.kind}|${c.id}">${esc(c.label)}</option>`).join('')}
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeModal()">Annulla</button>
+                <button class="btn btn-primary" onclick="inboxCreateFromModal()">Apri conversazione</button>
+            </div>
+        </div></div>`;
+        window._ncContacts = contacts;
+    };
+    window.inboxFilterContacts = function() {
+        const q = (document.getElementById('_ncSearch')||{}).value.toLowerCase();
+        const sel = document.getElementById('_ncContact');
+        const list = (window._ncContacts || []).filter(c => c.label.toLowerCase().includes(q));
+        sel.innerHTML = list.map(c => `<option value="${c.kind}|${c.id}">${esc(c.label)}</option>`).join('');
+    };
+    window.inboxCreateFromModal = async function() {
+        const v = (document.getElementById('_ncContact')||{}).value || '';
+        if (!v) return;
+        const [kind, id] = v.split('|');
+        const ref = (window._ncContacts || []).find(c => c.kind===kind && c.id===id);
+        if (!ref) return;
+        try {
+            const conv = await inboxFindOrCreateConversation(kind, ref.ref);
+            _inboxState.convId = conv.id;
+            closeModal();
+            inboxRefresh();
+        } catch (e) {
+            toast('error', 'Errore: ' + (e.message || e));
+        }
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // ★ PHOTO STUDIO — prepara la galleria di un immobile per la pubblicazione.
+    // Upload multiplo → Firebase Storage (property-photos/<id>/…). Riordino,
+    // scelta della foto hero, filigrana BOOM applicata via canvas, export ZIP
+    // (jszip già caricato). Persistenza su properties/<id>.photos + heroPhoto
+    // (additivo, admin-only: le rules consentono update properties solo admin).
+    // ═══════════════════════════════════════════════════════════════════════
+    var _psState = { propertyId: null, watermark: true, busy: false };
+
+    function photoStudioProperties() {
+        return (S.properties || []).slice().sort((a, b) => (a.name || '').localeCompare(b.name || '', 'it'));
+    }
+    function photoStudioCurrent() {
+        const props = photoStudioProperties();
+        if (!_psState.propertyId && props.length) _psState.propertyId = props[0].id;
+        return props.find(p => p.id === _psState.propertyId) || null;
+    }
+    function photoStudioPhotos(prop) {
+        // Normalize: support legacy single `image`/`coverImage` + new photos[].
+        const list = Array.isArray(prop && prop.photos) ? prop.photos.slice() : [];
+        if (!list.length && prop) {
+            const legacy = prop.coverImage || prop.image || prop.imageUrl;
+            if (legacy) list.push({ url: legacy, path: '', order: 0 });
+        }
+        list.sort((a, b) => (a.order || 0) - (b.order || 0));
+        return list;
+    }
+
+    function photoStudioPage() {
+        if (!isAdmin()) return accessDenied();
+        const props = photoStudioProperties();
+        const prop = photoStudioCurrent();
+        const photos = prop ? photoStudioPhotos(prop) : [];
+        const heroUrl = prop && prop.heroPhoto ? prop.heroPhoto : (photos[0] && photos[0].url) || '';
+
+        return `
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">📸 Photo Studio</h1>
+                <div style="color:var(--text-secondary);font-size:13px;margin-top:4px">Carica, ordina, scegli la copertina, esporta con filigrana BOOM.</div>
+            </div>
+        </div>
+
+        <div class="card" style="padding:16px;margin-bottom:16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+            <select class="input" onchange="_psState.propertyId=this.value;photoStudioRefresh()" style="flex:1;min-width:220px">
+                ${props.map(p => `<option value="${p.id}" ${p.id===_psState.propertyId?'selected':''}>${esc(p.name || p.address || p.id)}${p.zone?' · '+esc(p.zone):''}</option>`).join('') || '<option>Nessun immobile</option>'}
+            </select>
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-secondary);cursor:pointer">
+                <input type="checkbox" ${_psState.watermark?'checked':''} onchange="_psState.watermark=this.checked"> Filigrana BOOM all'export
+            </label>
+            <button class="btn btn-secondary btn-sm" onclick="photoStudioExport()" ${photos.length?'':'disabled'}>⬇ Export ZIP</button>
+        </div>
+
+        ${!prop ? `<div class="empty-state" style="padding:48px"><div class="empty-icon">🏠</div><div class="empty-title">Nessun immobile</div></div>` : `
+        <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:16px;align-items:start">
+            <!-- Gallery -->
+            <div class="card" style="padding:16px">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                    <div style="font-size:14px;font-weight:500">Galleria · ${photos.length} foto</div>
+                </div>
+                <div id="psUploadZone" style="border:2px dashed var(--border);border-radius:12px;padding:24px;text-align:center;cursor:pointer;transition:border-color .2s;margin-bottom:16px" onclick="document.getElementById('psFileInput').click()">
+                    <div style="font-size:32px;margin-bottom:8px">⬆️</div>
+                    <div style="font-size:13px;color:var(--text-secondary)">Trascina qui le foto o clicca per selezionare</div>
+                    <div style="font-size:11px;color:var(--text-muted);margin-top:4px">JPG/PNG · max 10MB ciascuna</div>
+                    <input type="file" id="psFileInput" accept="image/*" multiple style="display:none" onchange="photoStudioUpload(this.files)">
+                </div>
+                <div id="psProgress" style="display:none;margin-bottom:12px"><div style="background:var(--bg-elevated);border-radius:4px;height:6px;overflow:hidden"><div id="psProgressFill" style="background:var(--gold);height:100%;width:0%;transition:width .2s"></div></div><div id="psProgressText" style="font-size:11px;color:var(--text-muted);margin-top:4px"></div></div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px">
+                    ${photos.map((ph, i) => photoStudioThumb(ph, i, photos.length, heroUrl)).join('') || '<div style="grid-column:1/-1;color:var(--text-muted);font-size:13px;text-align:center;padding:24px">Nessuna foto ancora.</div>'}
+                </div>
+            </div>
+
+            <!-- Cover preview -->
+            <div class="card" style="padding:16px">
+                <div style="font-size:14px;font-weight:500;margin-bottom:12px">Copertina</div>
+                ${heroUrl ? `
+                    <div style="position:relative;border-radius:12px;overflow:hidden;border:1px solid var(--border)">
+                        <img src="${esc(heroUrl)}" style="width:100%;display:block;aspect-ratio:4/3;object-fit:cover">
+                        <div style="position:absolute;left:10px;bottom:10px;font-family:'HelveticaNeue';letter-spacing:3px;font-size:14px;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.6)">BOOM<span style="color:var(--gold)">.</span></div>
+                    </div>
+                    <div style="font-size:11px;color:var(--text-muted);margin-top:8px">La copertina appare per prima nelle inserzioni. Tocca ⭐ su una foto per cambiarla.</div>
+                ` : `<div class="empty-state" style="padding:24px"><div class="empty-icon">🖼️</div><div class="empty-subtitle" style="font-size:12px">Carica una foto per impostare la copertina.</div></div>`}
+            </div>
+        </div>
+        `}
+        `;
+    }
+
+    function photoStudioThumb(ph, i, total, heroUrl) {
+        const isHero = ph.url === heroUrl;
+        return `
+        <div style="position:relative;border-radius:10px;overflow:hidden;border:2px solid ${isHero?'var(--gold)':'var(--border)'};background:#000">
+            <img src="${esc(ph.url)}" style="width:100%;aspect-ratio:1;object-fit:cover;display:block">
+            ${isHero ? '<div style="position:absolute;top:6px;left:6px;background:var(--gold);color:#000;font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px">COPERTINA</div>' : ''}
+            <div style="position:absolute;bottom:0;left:0;right:0;display:flex;justify-content:space-between;padding:6px;background:linear-gradient(transparent,rgba(0,0,0,.7))">
+                <div style="display:flex;gap:4px">
+                    <button class="btn btn-xs" title="Imposta copertina" onclick="photoStudioSetHero(${i})" style="padding:2px 6px;font-size:11px">⭐</button>
+                    <button class="btn btn-xs" title="Sposta su" onclick="photoStudioMove(${i},-1)" ${i===0?'disabled':''} style="padding:2px 6px;font-size:11px">↑</button>
+                    <button class="btn btn-xs" title="Sposta giù" onclick="photoStudioMove(${i},1)" ${i===total-1?'disabled':''} style="padding:2px 6px;font-size:11px">↓</button>
+                </div>
+                <button class="btn btn-xs btn-danger" title="Elimina" onclick="photoStudioDelete(${i})" style="padding:2px 6px;font-size:11px">🗑</button>
+            </div>
+        </div>`;
+    }
+
+    function photoStudioRefresh() {
+        if (S.page === 'photo-studio') {
+            const m = document.getElementById('main');
+            if (m) m.innerHTML = photoStudioPage();
+            photoStudioInitDnd();
+        }
+    }
+    function photoStudioInitDnd() {
+        const zone = document.getElementById('psUploadZone');
+        if (!zone) return;
+        zone.addEventListener('dragover', e => { e.preventDefault(); zone.style.borderColor = 'var(--gold)'; });
+        zone.addEventListener('dragleave', () => { zone.style.borderColor = 'var(--border)'; });
+        zone.addEventListener('drop', e => { e.preventDefault(); zone.style.borderColor = 'var(--border)'; if (e.dataTransfer.files.length) photoStudioUpload(e.dataTransfer.files); });
+    }
+
+    async function photoStudioPersist(prop, photos, heroUrl) {
+        const clean = photos.map((p, i) => ({ url: p.url, path: p.path || '', order: i }));
+        await db.collection('properties').doc(prop.id).update({
+            photos: clean,
+            heroPhoto: heroUrl || (clean[0] && clean[0].url) || '',
+            photosUpdatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        });
+        prop.photos = clean;
+        prop.heroPhoto = heroUrl || (clean[0] && clean[0].url) || '';
+        logActivity('Foto immobile aggiornate', 'property', { propertyId: prop.id, count: clean.length });
+    }
+
+    window.photoStudioUpload = async function(fileList) {
+        const prop = photoStudioCurrent();
+        if (!prop || !fileList || !fileList.length) return;
+        const files = Array.from(fileList).filter(f => f.type.startsWith('image/'));
+        if (!files.length) { toast('error', 'Nessuna immagine valida'); return; }
+        const progress = document.getElementById('psProgress');
+        const fill = document.getElementById('psProgressFill');
+        const text = document.getElementById('psProgressText');
+        if (progress) progress.style.display = 'block';
+        const photos = photoStudioPhotos(prop);
+        let done = 0;
+        for (const file of files) {
+            if (file.size > 10 * 1024 * 1024) { toast('warning', file.name + ' troppo grande (>10MB)'); continue; }
+            try {
+                const safe = file.name.replace(/[^a-zA-Z0-9.]/g, '_');
+                const path = `property-photos/${prop.id}/${Date.now()}_${safe}`;
+                const ref = storage.ref(path);
+                await new Promise((resolve, reject) => {
+                    const task = ref.put(file);
+                    task.on('state_changed',
+                        snap => { const pct = Math.round((snap.bytesTransferred / snap.totalBytes) * 100); if (fill) fill.style.width = pct + '%'; if (text) text.textContent = `${file.name} — ${pct}%`; },
+                        reject,
+                        async () => { const url = await task.snapshot.ref.getDownloadURL(); photos.push({ url, path, order: photos.length }); resolve(); });
+                });
+                done++;
+            } catch (e) { console.warn('[PhotoStudio] upload', e); toast('error', 'Errore upload ' + file.name); }
+        }
+        if (progress) progress.style.display = 'none';
+        if (done) {
+            try {
+                await photoStudioPersist(prop, photos, prop.heroPhoto);
+                toast('success', done + ' foto caricate');
+            } catch (e) { toast('error', 'Errore salvataggio: ' + e.message); }
+        }
+        photoStudioRefresh();
+    };
+
+    window.photoStudioMove = async function(i, dir) {
+        const prop = photoStudioCurrent(); if (!prop) return;
+        const photos = photoStudioPhotos(prop);
+        const j = i + dir;
+        if (j < 0 || j >= photos.length) return;
+        [photos[i], photos[j]] = [photos[j], photos[i]];
+        try { await photoStudioPersist(prop, photos, prop.heroPhoto); } catch (e) { toast('error', e.message); }
+        photoStudioRefresh();
+    };
+    window.photoStudioSetHero = async function(i) {
+        const prop = photoStudioCurrent(); if (!prop) return;
+        const photos = photoStudioPhotos(prop);
+        const hero = photos[i] && photos[i].url;
+        try { await photoStudioPersist(prop, photos, hero); toast('success', 'Copertina aggiornata'); } catch (e) { toast('error', e.message); }
+        photoStudioRefresh();
+    };
+    window.photoStudioDelete = async function(i) {
+        const prop = photoStudioCurrent(); if (!prop) return;
+        const photos = photoStudioPhotos(prop);
+        const removed = photos.splice(i, 1)[0];
+        let hero = prop.heroPhoto;
+        if (removed && removed.url === hero) hero = (photos[0] && photos[0].url) || '';
+        try {
+            await photoStudioPersist(prop, photos, hero);
+            if (removed && removed.path) storage.ref(removed.path).delete().catch(() => {});
+            toast('success', 'Foto eliminata');
+        } catch (e) { toast('error', e.message); }
+        photoStudioRefresh();
+    };
+
+    // Export the gallery as a ZIP, optionally stamping the BOOM watermark.
+    window.photoStudioExport = async function() {
+        const prop = photoStudioCurrent(); if (!prop) return;
+        const photos = photoStudioPhotos(prop);
+        if (!photos.length) { toast('warning', 'Nessuna foto'); return; }
+        if (typeof JSZip === 'undefined') { toast('error', 'JSZip non disponibile'); return; }
+        toast('info', 'Preparazione ZIP…');
+        const zip = new JSZip();
+        const folder = zip.folder((prop.name || prop.id).replace(/[^a-zA-Z0-9]/g, '_'));
+        let n = 0;
+        for (const ph of photos) {
+            try {
+                const blob = await photoStudioRenderBlob(ph.url, _psState.watermark);
+                if (blob) { folder.file(`foto_${String(++n).padStart(2, '0')}.jpg`, blob); }
+            } catch (e) { console.warn('[PhotoStudio] export', ph.url, e); }
+        }
+        if (!n) { toast('error', 'Nessuna foto esportabile (CORS?)'); return; }
+        const out = await zip.generateAsync({ type: 'blob' });
+        const url = URL.createObjectURL(out);
+        const a = document.createElement('a');
+        a.href = url; a.download = `BOOM_${(prop.name || prop.id).replace(/[^a-zA-Z0-9]/g, '_')}_foto.zip`;
+        document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+        toast('success', n + ' foto esportate');
+        logActivity('Export foto ZIP', 'property', { propertyId: prop.id, count: n, watermark: _psState.watermark });
+    };
+    // Load an image (crossOrigin) → optional watermark → JPEG blob.
+    function photoStudioRenderBlob(url, watermark) {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = function () {
+                try {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
+                    if (watermark) {
+                        const pad = Math.round(canvas.width * 0.025);
+                        const fs = Math.max(18, Math.round(canvas.width * 0.045));
+                        ctx.font = `300 ${fs}px HelveticaNeue, Helvetica, sans-serif`;
+                        ctx.textBaseline = 'bottom';
+                        ctx.shadowColor = 'rgba(0,0,0,0.55)'; ctx.shadowBlur = fs * 0.4; ctx.shadowOffsetY = 2;
+                        ctx.fillStyle = '#fff';
+                        ctx.fillText('BOOM', pad, canvas.height - pad);
+                        const w = ctx.measureText('BOOM').width;
+                        ctx.fillStyle = '#D4AF37';
+                        ctx.fillText('.', pad + w + 2, canvas.height - pad);
+                    }
+                    canvas.toBlob(b => resolve(b), 'image/jpeg', 0.92);
+                } catch (e) { resolve(null); }
+            };
+            img.onerror = function () { resolve(null); };
+            img.src = url;
+        });
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // ★ MARKET INTELLIGENCE — posizionamento di mercato del portafoglio.
+    // Per ogni immobile: canone, €/mq, zona, benchmark zona, scostamento e
+    // raccomandazione. Sola lettura — nessuna scrittura, sicuro per landlord
+    // e admin. Benchmark €/mq mensile residenziale Roma (stima BOOM 2024-25,
+    // sovrascrivibile da settings/marketBenchmarks in futuro).
+    // ═══════════════════════════════════════════════════════════════════════
+    var MARKET_SQM_BENCHMARK = {
+        centro: 28, prati: 22, parioli: 24, salario: 20, bologna: 18,
+        sanGiovanni: 17, pigneto: 16, ostiense: 17, montesacro: 14,
+        termini: 18, balduina: 16, trastevere: 24,
+    };
+    function marketBenchmarkFor(prop) {
+        const z = matchZone(prop.zone || prop.address || prop.name || '');
+        if (!z) return null;
+        return { zone: z, sqm: MARKET_SQM_BENCHMARK[z.id] || null, avgRent: z.avgPrice || null };
+    }
+    function marketRows() {
+        const props = isAdmin() ? (S.properties || []) : getMyProperties();
+        return props.map(p => {
+            const rent = Number(p.rent) || 0;
+            const sqm = Number(p.sqm) || 0;
+            const perSqm = sqm > 0 ? rent / sqm : null;
+            const bench = marketBenchmarkFor(p);
+            const benchSqm = bench && bench.sqm;
+            // Target rent = benchmark €/mq × size. Delta = how the current rent
+            // compares to that target (positive = above market).
+            const target = (benchSqm && sqm) ? benchSqm * sqm : null;
+            const deltaPct = (target && rent) ? Math.round(((rent - target) / target) * 100) : null;
+            const rented = (S.contracts || []).some(c => c.propertyId === p.id && c.status === 'active');
+            return { p, rent, sqm, perSqm, bench, benchSqm, target, deltaPct, rented };
+        });
+    }
+
+    function marketIntelPage() {
+        if (!isAdmin() && !isLandlord()) return accessDenied();
+        const rows = marketRows();
+        const withData = rows.filter(r => r.perSqm != null);
+        const totalMonthly = rows.reduce((s, r) => s + r.rent, 0);
+        const avgPerSqm = withData.length ? (withData.reduce((s, r) => s + r.perSqm, 0) / withData.length) : 0;
+        const below = rows.filter(r => r.deltaPct != null && r.deltaPct <= -8);
+        const uplift = below.reduce((s, r) => s + Math.max(0, (r.target - r.rent)), 0);
+        const occupied = rows.filter(r => r.rented).length;
+
+        const insights = [];
+        below.forEach(r => insights.push({
+            icon: '📈', tone: 'green',
+            title: `${r.p.name || r.p.address} è sotto mercato del ${Math.abs(r.deltaPct)}%`,
+            text: `Canone attuale €${r.rent.toLocaleString('it-IT')} vs benchmark zona €${Math.round(r.target).toLocaleString('it-IT')}. Valuta un adeguamento al prossimo rinnovo (+€${Math.round(r.target - r.rent).toLocaleString('it-IT')}/mese).`,
+        }));
+        rows.filter(r => r.deltaPct != null && r.deltaPct >= 12).forEach(r => insights.push({
+            icon: '🎯', tone: 'orange',
+            title: `${r.p.name || r.p.address} è sopra mercato del ${r.deltaPct}%`,
+            text: `Posizionamento premium: ottimo se l'immobile lo giustifica, ma monitora i tempi di sfitto.`,
+        }));
+        rows.filter(r => !r.rented).forEach(r => insights.push({
+            icon: '🔑', tone: 'blue',
+            title: `${r.p.name || r.p.address} è libero`,
+            text: r.target ? `Prezzo di mercato suggerito: ~€${Math.round(r.target).toLocaleString('it-IT')}/mese (${r.bench.zone.name}).` : `Imposta mq e zona per un suggerimento di prezzo.`,
+        }));
+        rows.filter(r => r.perSqm == null).forEach(r => insights.push({
+            icon: 'ℹ️', tone: 'muted',
+            title: `${r.p.name || r.p.address}: dati incompleti`,
+            text: `Aggiungi metratura${matchZone(r.p.zone || r.p.address || '') ? '' : ' e zona'} per il confronto di mercato.`,
+        }));
+
+        return `
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">📊 Market Intelligence</h1>
+                <div style="color:var(--text-secondary);font-size:13px;margin-top:4px">Come è posizionato il tuo portafoglio rispetto al mercato di Roma.</div>
+            </div>
+            ${isLandlord() ? `<button class="btn btn-secondary btn-sm" onclick="landlordPassCTA()">🎟️ Tessera Partner</button>` : ''}
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px">
+            <div class="card" style="padding:18px">
+                <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Canone mensile</div>
+                <div style="font-size:24px;font-weight:700;color:var(--gold)">€${totalMonthly.toLocaleString('it-IT')}</div>
+                <div style="font-size:11px;color:var(--text-muted);margin-top:4px">${occupied}/${rows.length} affittati</div>
+            </div>
+            <div class="card" style="padding:18px">
+                <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">€/mq medio</div>
+                <div style="font-size:24px;font-weight:700">€${avgPerSqm.toFixed(1)}</div>
+                <div style="font-size:11px;color:var(--text-muted);margin-top:4px">portafoglio</div>
+            </div>
+            <div class="card" style="padding:18px">
+                <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Sotto mercato</div>
+                <div style="font-size:24px;font-weight:700;color:var(--${below.length?'orange':'green'})">${below.length}</div>
+                <div style="font-size:11px;color:var(--text-muted);margin-top:4px">immobili ≥8% sotto</div>
+            </div>
+            <div class="card" style="padding:18px;background:linear-gradient(135deg,rgba(52,199,89,0.12),transparent)">
+                <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Potenziale uplift</div>
+                <div style="font-size:24px;font-weight:700;color:var(--green)">+€${Math.round(uplift).toLocaleString('it-IT')}</div>
+                <div style="font-size:11px;color:var(--text-muted);margin-top:4px">/mese se allineato</div>
+            </div>
+        </div>
+
+        <div class="card" style="padding:16px;margin-bottom:20px">
+            <div style="font-size:14px;font-weight:500;margin-bottom:12px">€/mq · immobile vs benchmark zona</div>
+            <div style="height:260px"><canvas id="marketChart"></canvas></div>
+        </div>
+
+        <div class="card" style="padding:0;margin-bottom:20px;overflow:hidden">
+            <div style="padding:14px 16px;border-bottom:1px solid var(--border);font-size:14px;font-weight:500">Dettaglio immobili</div>
+            <div style="overflow-x:auto">
+                <table style="width:100%;border-collapse:collapse;font-size:13px">
+                    <thead><tr style="text-align:left;color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px">
+                        <th style="padding:10px 16px">Immobile</th><th style="padding:10px">Zona</th><th style="padding:10px;text-align:right">Canone</th><th style="padding:10px;text-align:right">mq</th><th style="padding:10px;text-align:right">€/mq</th><th style="padding:10px;text-align:right">Benchmark</th><th style="padding:10px;text-align:right">Scostam.</th>
+                    </tr></thead>
+                    <tbody>
+                        ${rows.map(r => `
+                        <tr style="border-top:1px solid var(--border)">
+                            <td style="padding:10px 16px">${esc(r.p.name || r.p.address || r.p.id)} ${r.rented?'<span class="badge green" style="font-size:9px">affittato</span>':'<span class="badge" style="font-size:9px">libero</span>'}</td>
+                            <td style="padding:10px;color:var(--text-secondary)">${r.bench ? esc(r.bench.zone.name) : '—'}</td>
+                            <td style="padding:10px;text-align:right">€${r.rent.toLocaleString('it-IT')}</td>
+                            <td style="padding:10px;text-align:right">${r.sqm || '—'}</td>
+                            <td style="padding:10px;text-align:right">${r.perSqm != null ? '€'+r.perSqm.toFixed(1) : '—'}</td>
+                            <td style="padding:10px;text-align:right;color:var(--text-secondary)">${r.benchSqm ? '€'+r.benchSqm.toFixed(0) : '—'}</td>
+                            <td style="padding:10px;text-align:right;font-weight:600;color:${r.deltaPct==null?'var(--text-muted)':r.deltaPct<=-8?'var(--green)':r.deltaPct>=12?'var(--orange)':'var(--text)'}">${r.deltaPct==null?'—':(r.deltaPct>0?'+':'')+r.deltaPct+'%'}</td>
+                        </tr>`).join('') || '<tr><td colspan="7" style="padding:24px;text-align:center;color:var(--text-muted)">Nessun immobile</td></tr>'}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">
+            ${insights.length ? insights.map(it => `
+                <div class="card" style="padding:14px;display:flex;gap:10px;align-items:flex-start;border-left:3px solid var(--${it.tone==='muted'?'border':it.tone})">
+                    <div style="font-size:20px;flex-shrink:0">${it.icon}</div>
+                    <div><div style="font-weight:500;font-size:13px;margin-bottom:3px">${esc(it.title)}</div><div style="font-size:12px;color:var(--text-secondary);line-height:1.45">${esc(it.text)}</div></div>
+                </div>
+            `).join('') : '<div class="card" style="padding:24px;text-align:center;color:var(--text-muted)">Nessun suggerimento — portafoglio allineato al mercato. 👌</div>'}
+        </div>
+
+        <div style="font-size:11px;color:var(--text-muted);margin-top:16px;text-align:center">Benchmark indicativi sul mercato residenziale di Roma. Non costituiscono consulenza. Verifica sempre con dati OMI/agenzia.</div>
+        `;
+    }
+
+    function marketInitChart() {
+        if (S.page !== 'market-intel') return;
+        loadChartJS().then(() => {
+            const canvas = document.getElementById('marketChart'); if (!canvas) return;
+            const rows = marketRows().filter(r => r.perSqm != null);
+            if (!rows.length) return;
+            const labels = rows.map(r => (r.p.name || r.p.address || r.p.id).slice(0, 18));
+            new Chart(canvas.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [
+                        { label: 'Tuo €/mq', data: rows.map(r => r.perSqm.toFixed(1)), backgroundColor: 'rgba(212,175,55,0.8)', borderRadius: 4 },
+                        { label: 'Benchmark zona', data: rows.map(r => r.benchSqm || null), backgroundColor: 'rgba(120,120,120,0.45)', borderRadius: 4 },
+                    ],
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { labels: { color: '#999', font: { size: 10 } } } },
+                    scales: { x: { ticks: { color: '#888', font: { size: 10 } }, grid: { display: false } }, y: { ticks: { color: '#888', callback: v => '€' + v }, grid: { color: 'rgba(255,255,255,0.05)' } } },
+                },
+            });
+        }).catch(() => {});
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // ★ LANDLORD WALLET PASS — tessera "BOOM Partner" per Apple Wallet.
+    // Riusa /api/generate-pass (type 'landlord'). Per il landlord: genera la
+    // propria. Per l'admin: genera e consegna a un proprietario via WhatsApp.
+    // ═══════════════════════════════════════════════════════════════════════
+    function landlordPassData(landlord) {
+        const lid = landlord.id;
+        const myProps = (S.properties || []).filter(p => p.ownerId === lid);
+        const activeContracts = (S.contracts || []).filter(c => myProps.some(p => p.id === c.propertyId) && c.status === 'active');
+        const monthly = activeContracts.reduce((s, c) => s + (c.rent || 0), 0);
+        const coords = myProps.map(p => p.coordinates || (p.lat && p.lng ? { lat: p.lat, lng: p.lng } : null)).filter(Boolean);
+        return {
+            landlordId: lid,
+            landlordName: landlord.name || landlord.email || 'Partner',
+            memberSince: (landlord.createdAt && (landlord.createdAt.toDate ? landlord.createdAt.toDate().getFullYear() : new Date(landlord.createdAt).getFullYear())) || new Date().getFullYear(),
+            propertiesCount: myProps.length,
+            totalRevenue: monthly,
+            partnerId: (lid || '').slice(0, 8).toUpperCase(),
+            propertiesCoords: coords,
+        };
+    }
+
+    // Landlord generates their own pass (downloads + offers WhatsApp share).
+    window.landlordPassCTA = async function() {
+        const me = S.users.find(u => u.id === S.profile.id) || { id: S.profile.id, name: S.profile.name, email: S.profile.email, createdAt: S.profile.createdAt };
+        toast('info', 'Genero la tua tessera…');
+        const result = await generatePass('landlord', landlordPassData(me));
+        if (!result || !result.blob) { toast('error', 'Generazione tessera fallita'); return; }
+        downloadPass(result.blob, 'landlord');
+        toast('success', 'Tessera pronta', 'Aggiungila al Wallet del tuo iPhone.');
+        logActivity('Tessera Partner generata', 'wallet', { landlordId: me.id });
+    };
+
+    // Admin generates + delivers a landlord their pass.
+    window.adminSendLandlordPass = async function(landlordId) {
+        const landlord = S.users.find(u => u.id === landlordId);
+        if (!landlord) { toast('error', 'Proprietario non trovato'); return; }
+        toast('info', 'Genero la tessera…');
+        const result = await generatePass('landlord', landlordPassData(landlord));
+        if (!result || !result.blob) { toast('error', 'Generazione fallita'); return; }
+        downloadPass(result.blob, 'landlord');
+        if (result.url && landlord.phone) {
+            const wa = buildBoomWaLink(landlord.phone, 'landlord', { landlordName: landlord.name, passUrl: result.url });
+            if (wa) window.open(wa, '_blank', 'noopener');
+        }
+        toast('success', 'Tessera Partner pronta', landlord.phone ? 'Aperto WhatsApp per l\'invio.' : 'Scaricata — nessun telefono per WhatsApp.');
+        logActivity('Tessera Partner inviata', 'wallet', { landlordId });
+    };
 
     // ═══════════════════════════════════════════════════════════════════════
     // ★ COMMERCIALISTA MODE — fiscal-year document checklist + share-to-accountant

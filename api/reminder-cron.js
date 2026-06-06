@@ -184,6 +184,27 @@ export default async function handler(req, res) {
       results.rentPush = rentPush;
     } catch (e) { results.errors.push(`rent-push: ${e.message}`); }
 
+    // ── Payment confirmed → "Pagato ✓" live update on the tenant pass ──
+    // Only recently-paid (≤3 days) and not yet pushed → no spam, no backfill.
+    try {
+      const paidQ = await fsQuery('payments', token, {
+        field: { fieldPath: 'status' }, op: 'EQUAL', value: { stringValue: 'paid' },
+      });
+      const paid = (paidQ || []).filter(r => r.document).map(r => parseDoc(r.document)).filter(Boolean);
+      let paidPush = 0;
+      for (const p of paid) {
+        const cid = p.contractId;
+        const when = p.paidDate || p.paidAt;
+        if (!cid || !when || p.passPaidPushed) continue;
+        const daysSince = (now.getTime() - new Date(when).getTime()) / 86400000;
+        if (daysSince < 0 || daysSince > 3) continue;
+        for (const s of [`tenant-${cid}`, `silver-${cid}`]) { try { await pushPass(s); } catch (e) {} }
+        await fsPatch(`payments/${p.id}`, { passPaidPushed: { booleanValue: true } }, token);
+        paidPush++;
+      }
+      results.paidPush = paidPush;
+    } catch (e) { results.errors.push(`paid-push: ${e.message}`); }
+
     return res.status(200).json({ ok: true, timestamp: now.toISOString(), ...results });
   } catch (e) {
     console.error('Cron error:', e);

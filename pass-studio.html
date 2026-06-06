@@ -56,7 +56,10 @@
 <body>
 <header class="top">
   <a class="brand" href="/portal"><span class="dot"></span>BOOM <small>PASS STUDIO</small></a>
-  <button class="ghost-btn" id="signout" hidden onclick="auth.signOut()">Esci</button>
+  <div style="display:flex;gap:10px">
+    <button class="ghost-btn" id="diagBtn" hidden onclick="runDiag()">Diagnostica</button>
+    <button class="ghost-btn" id="signout" hidden onclick="auth.signOut()">Esci</button>
+  </div>
 </header>
 
 <div id="gate"><div class="g-card">
@@ -103,7 +106,7 @@ let TYPE='tenant', MODE='record';
 let RECORDS={}; // type -> [{id,label}]
 
 function gateMsg(t,m,bl,bf){$('gate-spin').hidden=true;$('gate-title').textContent=t;$('gate-msg').innerHTML=m;if(bl){const b=$('gate-btn');b.hidden=false;b.textContent=bl;b.onclick=bf;}}
-function enter(){$('gate').hidden=true;$('app').hidden=false;$('signout').hidden=false;init();}
+function enter(){$('gate').hidden=true;$('app').hidden=false;$('signout').hidden=false;$('diagBtn').hidden=false;init();}
 let wd=setTimeout(()=>gateMsg('Connessione lenta','Riprova.','Riprova',()=>location.reload()),9000);
 auth.onAuthStateChanged(async u=>{clearTimeout(wd);
   if(!u||u.isAnonymous){gateMsg('Accesso riservato','Accedi al Portal come admin.','Accedi',()=>location.href='/login?next=%2Fpass-studio');return;}
@@ -217,6 +220,19 @@ async function pushSerial(serial,btn){
 
 function copyTxt(t,btn){ navigator.clipboard?.writeText(t).then(()=>{const o=btn.textContent;btn.textContent='✓ Copiato';setTimeout(()=>btn.textContent=o,1500);}); }
 async function showInstalls(serial){ try{ const s=await db.collection('passRegistrations').where('serialNumber','==',serial).get(); const el=$('installs'); if(el) el.textContent=s.size+' device con questo pass'; }catch(e){} }
+async function runDiag(){
+  const note=$('note'); note.innerHTML='Diagnostica in corso…';
+  try{
+    const r=await fetch('/api/pass-diag',{method:'POST',headers:{'Content-Type':'application/json','X-Firebase-Token':await token()},body:'{}'});
+    const d=await r.json();
+    if(!r.ok||!d.ok){ note.innerHTML='Diagnostica non disponibile: '+esc((d&&d.error)||('HTTP '+r.status)); return; }
+    note.innerHTML='<b>Stato attivazione Wallet:</b> '+(d.ready?'🟢 PRONTO':'🟠 da completare')
+      +'<br>• Certificato firma/APNs: '+(d.apns&&d.apns.passCertConfigured?'✓ presente':'✗ mancante')
+      +'<br>• Email admin configurate: '+d.adminEmailsConfigured
+      +'<br>• Pass tracciati: '+(d.trackedPasses==null?'n/d':d.trackedPasses)+' · Device registrati: '+(d.deviceRegistrations==null?'n/d':d.deviceRegistrations)
+      +'<br><span style="color:var(--text-dim)">'+esc(d.hint||'')+'</span>';
+  }catch(e){ note.innerHTML='Errore diagnostica: '+esc(e.message); }
+}
 
 async function loadRecent(){
   const box=$('recent');

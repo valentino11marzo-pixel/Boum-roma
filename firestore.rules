@@ -154,6 +154,32 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // ─── conversations + messages (Inbox unificato) ──────────────────
+    // Conversazioni multi-canale (WhatsApp/email/note) collegate ad un
+    // contatto BOOM (lead, tenant, landlord, PFS client, cliente CRM).
+    // Lato cliente: ogni soggetto vede SOLO le proprie conversazioni;
+    // admin vede tutto.
+    match /conversations/{convId} {
+      allow read:   if isAdmin()
+                    || (resource.data.contactUid == uid())
+                    || (isLandlord() && resource.data.assignedLandlordId == uid());
+      allow create: if isAdmin();
+      allow update, delete: if isAdmin();
+    }
+
+    match /messages/{msgId} {
+      allow read:   if isAdmin()
+                    || (resource.data.contactUid == uid())
+                    || (isLandlord() && resource.data.assignedLandlordId == uid());
+      // Anyone signed-in may APPEND a message tagged with their uid (so a
+      // landlord/tenant can reply inside their conversation), but cannot
+      // edit/delete history.
+      allow create: if isSignedIn()
+                    && request.resource.data.by == uid()
+                    && request.resource.data.direction in ['out','in','note'];
+      allow update, delete: if isAdmin();
+    }
+
     // ─── invoices ─────────────────────────────────────────────────────
     match /invoices/{x} {
       allow read:  if isAdmin() || resource.data.recipientId == uid();

@@ -78,6 +78,35 @@ service firebase.storage {
       allow write: if isAdmin();
     }
 
+    // ─── property-photos/{propertyId}/** ──────────────────────────────
+    // Listing gallery prepared in Photo Studio. Public read (the photos are
+    // shown on public listing/apartment pages). Admin writes/deletes (the
+    // studio is admin-only and properties are admin-managed); landlords read.
+    match /property-photos/{propertyId}/{allPaths=**} {
+      allow read:  if true;
+      allow write: if isAdmin() && validUpload();
+      allow delete: if isAdmin();
+    }
+
+    // ─── listings/** ──────────────────────────────────────────────────
+    // Cover images for public website inventory. Public read, admin write.
+    match /listings/{allPaths=**} {
+      allow read:  if true;
+      allow write: if isAdmin() && validUpload();
+      allow delete: if isAdmin();
+    }
+
+    // ─── passes/** ────────────────────────────────────────────────────
+    // Generated .pkpass files delivered via tokenized download URL. Public
+    // read (URL carries an unguessable token); any signed-in user may write
+    // (admin generating tenant/landlord/viewing passes; landlord generating
+    // their own Partner pass). 5 MB ceiling.
+    match /passes/{allPaths=**} {
+      allow read:  if true;
+      allow write: if isSignedIn() && request.resource.size < 5 * 1024 * 1024;
+      allow delete: if isAdmin();
+    }
+
     // ─── Default deny ─────────────────────────────────────────────────
     match /{allPaths=**} {
       allow read, write: if false;
