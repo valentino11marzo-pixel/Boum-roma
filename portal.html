@@ -5207,6 +5207,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
 
     // ── Rischio · Underwriting (BOOM Shield) — native page on S data ──────────
+    // shared UI state for the centralized Risk + Zero-Vacancy pages
+    let uwFilter = 'all';
+    let reletFilter = 'all', reletOpenId = null;
     function underwritingPage() {
         if (!isAdmin()) return accessDenied();
         const UW = window.BOOM_UW;
@@ -5230,18 +5233,26 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const u = (S.users || []).find(x => x.id === tid);
             const prop = (S.properties || []).find(x => x.id === c.propertyId);
             const name = (u && (u.name || u.email)) || c.tenantName || ('Inquilino ' + String(tid).slice(0, 5));
-            tenants.push({ name, prop: (prop && (prop.name || prop.address)) || '', rent, m, sc, band, econ, eligible: econ.eligible && m.overdueCount === 0 });
+            const worst = (sc.factors || []).filter(f => f[1] < 0).sort((a, b) => a[1] - b[1])[0];
+            tenants.push({ tid, name, prop: (prop && (prop.name || prop.address)) || '', rent, m, sc, band, econ, thin: sc.thin, reason: worst ? worst[0] : '', eligible: econ.eligible && m.overdueCount === 0 });
         });
         tenants.sort((a, b) => a.sc.score - b.sc.score);
         const exposure = tenants.reduce((s, t) => s + t.econ.annual, 0);
         const elig = tenants.filter(t => t.eligible);
         const premiumPool = elig.reduce((s, t) => s + t.econ.premium, 0);
         const eligLoss = elig.reduce((s, t) => s + t.econ.expectedLoss, 0);
+        const riskN = tenants.filter(t => t.band === 'C' || t.band === 'D' || t.m.overdueCount).length;
+        const newN = tenants.filter(t => t.thin).length;
+        let view = tenants;
+        if (uwFilter === 'shield') view = tenants.filter(t => t.eligible);
+        else if (uwFilter === 'risk') view = tenants.filter(t => t.band === 'C' || t.band === 'D' || t.m.overdueCount);
+        else if (uwFilter === 'new') view = tenants.filter(t => t.thin);
         const openLeads = (S.leads || []).filter(l => { const s = String(l.status || 'new').toLowerCase(); return s === 'new' || s === 'responded' || s === '' || s === 'qualified'; })
             .map(l => { const sc = UW.scoreLead(l); return { l, sc, band: UW.bandFor(sc.score) }; }).sort((a, b) => b.sc.score - a.sc.score).slice(0, 20);
         const chip = (txt, band) => `<span style="font-weight:700;color:var(${bandVar[band] || '--text-muted'})">${txt}</span>`;
+        const tab = (id, label, n) => `<div class="tab ${uwFilter === id ? 'active' : ''}" onclick="uwFilter='${id}';renderPage()">${label}${n != null ? ` <span style="opacity:.55">${n}</span>` : ''}</div>`;
         return `
-            <div class="page-header"><div><h1 class="page-title">📊 Rischio · Shield</h1><p class="page-subtitle">${tenants.length} inquilini · ${elig.length} garantibili oggi</p></div></div>
+            <div class="page-header"><div><h1 class="page-title">📊 Rischio · Shield</h1><p class="page-subtitle">${tenants.length} inquilini · ${elig.length} garantibili oggi · clicca una riga per la scheda</p></div></div>
             <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px">
                 <div class="stat-card gold"><div style="font-size:20px;font-weight:700;color:var(--gold)">${eur(exposure)}</div><div style="font-size:10px;color:var(--text-muted)">ESPOSIZIONE/ANNO</div></div>
                 <div class="stat-card green"><div style="font-size:20px;font-weight:700;color:var(--green)">${elig.length}</div><div style="font-size:10px;color:var(--text-muted)">GARANTIBILI A/B</div></div>
@@ -5249,19 +5260,22 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <div class="stat-card red"><div style="font-size:20px;font-weight:700;color:var(--red)">${eur(eligLoss)}</div><div style="font-size:10px;color:var(--text-muted)">PERDITA ATTESA</div></div>
                 <div class="stat-card green"><div style="font-size:20px;font-weight:700;color:var(--green)">${eur(premiumPool - eligLoss)}</div><div style="font-size:10px;color:var(--text-muted)">MARGINE NETTO</div></div>
             </div>
-            <div class="card"><div class="card-header"><span class="card-title">Inquilini · affidabilità</span></div><div class="card-body flush">
-                ${tenants.length ? tenants.map(t => `
-                    <div class="list-item"><div class="list-icon">${chip(t.sc.score + ' ' + t.band, t.band)}</div>
+            <div class="tabs" style="margin-bottom:0">${tab('all', 'Tutti', tenants.length)}${tab('shield', 'Garantibili', elig.length)}${tab('risk', 'A rischio', riskN)}${tab('new', 'Nuovi', newN)}</div>
+            <div class="card"><div class="card-body flush">
+                ${view.length ? view.map(t => `
+                    <div class="list-item clickable" onclick="openPerson('${t.tid}','user')"><div class="list-icon">${chip(t.sc.score + ' ' + t.band, t.band)}</div>
                     <div class="list-content"><div class="list-title">${t.name} ${t.eligible ? '<span class="badge green">Shield ✓</span>' : ''} ${t.m.overdueCount ? '<span class="badge red">moroso</span>' : ''}</div>
-                    <div class="list-subtitle">${t.prop || '—'} · ${eur(t.rent)}/mese · premio ${(t.econ.premiumPct * 100).toFixed(1)}%</div></div></div>`).join('') : '<div class="empty-state" style="padding:30px"><p class="empty-text">Nessun contratto attivo.</p></div>'}
+                    <div class="list-subtitle">${t.prop || '—'} · ${eur(t.rent)}/mese · premio ${(t.econ.premiumPct * 100).toFixed(1)}%${t.reason ? ' · ⚠️ ' + t.reason : ''}</div></div>
+                    <div style="color:var(--text-muted)">›</div></div>`).join('') : '<div class="empty-state" style="padding:30px"><p class="empty-text">Nessun inquilino in questa vista.</p></div>'}
             </div></div>
-            <div class="card" style="margin-top:16px"><div class="card-header"><span class="card-title">Lead aperti · qualità</span></div><div class="card-body flush">
-                ${openLeads.length ? openLeads.map(x => `
-                    <div class="list-item"><div class="list-icon">${chip(String(x.sc.score), x.band)}</div>
+            <div class="card" style="margin-top:16px"><div class="card-header"><span class="card-title">Lead aperti · qualità (${openLeads.length})</span></div><div class="card-body flush">
+                ${openLeads.length ? openLeads.map(x => { const ph = x.l.phone ? String(x.l.phone).replace(/\D/g, '') : ''; return `
+                    <div class="list-item clickable" onclick="openPerson('${x.l.id}','lead')"><div class="list-icon">${chip(String(x.sc.score), x.band)}</div>
                     <div class="list-content"><div class="list-title">${x.l.name || 'Lead'} · ${x.l.grade || '—'}</div>
-                    <div class="list-subtitle">${x.l.source || '?'}${x.l.zone ? ' · ' + x.l.zone : ''}${x.l.budget ? ' · ' + eur(x.l.budget) : ''}</div></div></div>`).join('') : '<div class="empty-state" style="padding:30px"><p class="empty-text">Nessun lead aperto.</p></div>'}
+                    <div class="list-subtitle">${x.l.source || '?'}${x.l.zone ? ' · ' + x.l.zone : ''}${x.l.budget ? ' · ' + eur(x.l.budget) : ''}</div></div>
+                    ${ph ? `<a class="btn btn-xs btn-secondary" onclick="event.stopPropagation()" href="https://wa.me/${ph}" target="_blank">WhatsApp</a>` : ''}</div>`; }).join('') : '<div class="empty-state" style="padding:30px"><p class="empty-text">Nessun lead aperto.</p></div>'}
             </div></div>
-            <div style="font-size:11px;color:var(--text-muted);margin-top:14px">Priori di pricing (perdita attesa A ${UW.PRIORS.lossRate.A * 100}% · B ${UW.PRIORS.lossRate.B * 100}% · C ${UW.PRIORS.lossRate.C * 100}% · D ${UW.PRIORS.lossRate.D * 100}% del canone annuo) — da ricalibrare sui pagamenti reali.</div>`;
+            <div style="font-size:11px;color:var(--text-muted);margin-top:14px">Priori di pricing (perdita attesa A ${UW.PRIORS.lossRate.A * 100}% · B ${UW.PRIORS.lossRate.B * 100}% · C ${UW.PRIORS.lossRate.C * 100}% · D ${UW.PRIORS.lossRate.D * 100}% del canone annuo) — clicca un inquilino per la scheda completa.</div>`;
     }
 
     // ── Zero-Vacancy · Ricollocamento — native page on S data ─────────────────
@@ -5271,23 +5285,36 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (!RL) return `<div class="page-header"><h1 class="page-title">🏘️ Zero-Vacancy</h1></div><div class="card"><div class="card-body">Motore non disponibile. Ricarica la pagina.</div></div>`;
         const eur = n => '€ ' + Math.round(n || 0).toLocaleString('it-IT');
         const scan = RL.scan(S.contracts || [], S.properties || [], S.leads || [], { today: new Date(), horizonDays: 90 });
+        let plans = scan.plans;
+        if (reletFilter === 'urgent') plans = plans.filter(p => p.status === 'urgent');
+        else if (reletFilter === 'uncovered') plans = plans.filter(p => p.matches.length === 0);
+        else if (reletFilter === 'covered') plans = plans.filter(p => p.matches.length > 0);
+        const coveredN = scan.plans.filter(p => p.matches.length > 0).length;
+        const tab = (id, label, n) => `<div class="tab ${reletFilter === id ? 'active' : ''}" onclick="reletFilter='${id}';renderPage()">${label}${n != null ? ` <span style="opacity:.55">${n}</span>` : ''}</div>`;
+        const waMsg = (p) => encodeURIComponent('Ciao! A ' + (p.zone || 'Roma') + ' si sta liberando un appartamento a ' + eur(p.rent) + '/mese. Ti interessa una visita con BOOM?');
+        const matchRow = (p, m) => { const ph = m.lead.phone ? String(m.lead.phone).replace(/\D/g, '') : ''; return `
+                    <div class="list-item" style="padding-left:32px;background:var(--bg-elevated)"><div class="list-icon"><span style="font-weight:700;color:var(${m.score >= 70 ? '--green' : m.score >= 50 ? '--orange' : '--text-muted'})">${m.score}</span></div>
+                    <div class="list-content"><div class="list-title">${m.lead.name || 'Lead'}</div><div class="list-subtitle">${m.lead.zone || 'zona flessibile'}${m.lead.budget ? ' · ' + eur(m.lead.budget) : ''} · ${(m.reasons || []).slice(0, 2).join(', ')}</div></div>
+                    ${ph ? `<a class="btn btn-xs" href="https://wa.me/${ph}?text=${waMsg(p)}" target="_blank">WhatsApp</a>` : '<span style="font-size:11px;color:var(--text-muted)">no tel</span>'}</div>`; };
         return `
-            <div class="page-header"><div><h1 class="page-title">🏘️ Zero-Vacancy</h1><p class="page-subtitle">${scan.counts.expiring} in uscita ≤90gg · ${scan.counts.uncovered} senza domanda</p></div></div>
+            <div class="page-header"><div><h1 class="page-title">🏘️ Zero-Vacancy</h1><p class="page-subtitle">${scan.counts.expiring} in uscita ≤90gg · ${scan.counts.uncovered} senza domanda · clicca una riga per i lead</p></div></div>
             <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px">
                 <div class="stat-card gold"><div style="font-size:20px;font-weight:700;color:var(--gold)">${scan.counts.expiring}</div><div style="font-size:10px;color:var(--text-muted)">IN USCITA ≤90gg</div></div>
                 <div class="stat-card orange"><div style="font-size:20px;font-weight:700;color:var(--orange)">${scan.counts.urgent}</div><div style="font-size:10px;color:var(--text-muted)">URGENTI ≤30gg</div></div>
                 <div class="stat-card gold"><div style="font-size:20px;font-weight:700;color:var(--gold)">${eur(scan.incomeAtRisk)}</div><div style="font-size:10px;color:var(--text-muted)">REDDITO/MESE A RISCHIO</div></div>
                 <div class="stat-card red"><div style="font-size:20px;font-weight:700;color:var(--red)">${eur(scan.vacancyExposure)}</div><div style="font-size:10px;color:var(--text-muted)">ESPOSIZIONE VUOTO</div></div>
             </div>
+            <div class="tabs" style="margin-bottom:0">${tab('all', 'Tutti', scan.plans.length)}${tab('urgent', 'Urgenti', scan.counts.urgent)}${tab('uncovered', 'Senza domanda', scan.counts.uncovered)}${tab('covered', 'Con match', coveredN)}</div>
             <div class="card"><div class="card-body flush">
-                ${scan.plans.length ? scan.plans.map(p => {
+                ${plans.length ? plans.map(p => {
                     const col = p.matches.length === 0 ? '--red' : (p.status === 'urgent' ? '--orange' : '--green');
-                    const ph = p.matches[0] && p.matches[0].lead.phone ? String(p.matches[0].lead.phone).replace(/\D/g, '') : '';
-                    return `<div class="list-item"><div class="list-icon"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(${col})"></span></div>
+                    const open = reletOpenId === p.contractId;
+                    return `<div class="list-item clickable" onclick="reletOpenId = (reletOpenId==='${p.contractId}'?null:'${p.contractId}'); renderPage();"><div class="list-icon"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(${col})"></span></div>
                     <div class="list-content"><div class="list-title">${p.label} <span style="color:var(${p.status === 'urgent' ? '--red' : '--text-muted'});font-size:12px">${p.daysToEnd < 0 ? 'scaduto' : p.daysToEnd + 'gg'}</span></div>
                     <div class="list-subtitle">${p.zone ? p.zone + ' · ' : ''}${eur(p.rent)}/mese · ${p.matches.length ? p.matches.length + ' lead · ~' + p.estDaysToLet + 'gg · rischio ' + eur(p.vacancyRisk) : 'nessun lead — promuovi'}</div></div>
-                    ${ph ? `<a class="btn btn-xs btn-secondary" href="https://wa.me/${ph}" target="_blank">WhatsApp</a>` : ''}</div>`;
-                }).join('') : '<div class="empty-state" style="padding:30px"><p class="empty-text">Nessun contratto in uscita nei prossimi 90 giorni.</p></div>'}
+                    <div style="color:var(--text-muted)">${p.matches.length ? (open ? '▾' : '▸') : ''}</div></div>
+                    ${open && p.matches.length ? p.matches.map(m => matchRow(p, m)).join('') : ''}`;
+                }).join('') : '<div class="empty-state" style="padding:30px"><p class="empty-text">Nessun contratto in questa vista.</p></div>'}
             </div></div>`;
     }
 
