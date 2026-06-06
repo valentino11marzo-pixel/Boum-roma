@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="it" data-theme="heritage">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Egidi Immobiliare — Anteprima direzione visiva</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ════════════════════════════════════════════════════════════
+   EGIDI IMMOBILIARE — design-direction preview
+   Two themes (Heritage / Marble) + two languages (IT / EN)
+   All toggles are client-side. Self-contained, no build step.
+   ════════════════════════════════════════════════════════════ */
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+
+:root{
+  --serif:'Cormorant Garamond',Georgia,serif;
+  --sans:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+  --ease:cubic-bezier(.16,1,.3,1);
+  --gold:#C9A24B;
+  --gold-soft:#D8BD7E;
+}
+
+/* ── THEME: HERITAGE (warm dark, sartorial) ───────────────── */
+html[data-theme="heritage"]{
+  --bg:#0E0B07;
+  --bg-2:#15110B;
+  --bg-3:#1C160E;
+  --ink:#F4EFE4;
+  --ink-2:rgba(244,239,228,.66);
+  --ink-3:rgba(244,239,228,.40);
+  --line:rgba(201,162,75,.20);
+  --line-soft:rgba(244,239,228,.08);
+  --gold:#CBA254;
+  --gold-soft:#E4CB8E;
+  --card:#16110A;
+  --card-2:#1E1810;
+  --shadow:0 30px 80px -30px rgba(0,0,0,.8);
+  --grain-op:.05;
+}
+/* ── THEME: MARBLE (bright travertine, gallery) ───────────── */
+html[data-theme="marble"]{
+  --bg:#F6F1E7;
+  --bg-2:#FBF8F1;
+  --bg-3:#EFE7D8;
+  --ink:#1A1611;
+  --ink-2:rgba(26,22,17,.66);
+  --ink-3:rgba(26,22,17,.45);
+  --line:rgba(150,118,52,.28);
+  --line-soft:rgba(26,22,17,.10);
+  --gold:#9C7A2E;
+  --gold-soft:#B8902F;
+  --card:#FFFFFF;
+  --card-2:#FBF6EC;
+  --shadow:0 28px 70px -34px rgba(60,46,20,.40);
+  --grain-op:.04;
+}
+
+html{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;scroll-behavior:smooth}
+body{
+  font-family:var(--sans);
+  background:var(--bg);
+  color:var(--ink);
+  font-weight:300;
+  line-height:1.65;
+  overflow-x:hidden;
+  transition:background .6s var(--ease),color .6s var(--ease);
+}
+/* film grain */
+body::after{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:9;opacity:var(--grain-op);
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.wrap{max-width:1200px;margin:0 auto;padding:0 28px}
+.serif{font-family:var(--serif)}
+img{max-width:100%;display:block}
+
+/* ── Floating control deck (the pitch switcher) ───────────── */
+.deck{
+  position:fixed;left:50%;bottom:22px;transform:translateX(-50%);
+  z-index:200;display:flex;gap:10px;align-items:center;
+  background:color-mix(in srgb,var(--bg-2) 86%,transparent);
+  border:1px solid var(--line);border-radius:100px;
+  padding:8px 10px;backdrop-filter:blur(18px);
+  box-shadow:0 18px 50px -18px rgba(0,0,0,.55);
+}
+.deck .grp{display:flex;background:var(--bg);border-radius:100px;padding:3px;border:1px solid var(--line-soft)}
+.deck button{
+  font-family:var(--sans);font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--ink-3);background:none;border:none;cursor:pointer;
+  padding:7px 14px;border-radius:100px;transition:.35s var(--ease);white-space:nowrap;
+}
+.deck button.on{background:var(--gold);color:#1a1206;font-weight:500}
+html[data-theme="marble"] .deck button.on{color:#fff}
+.deck .lbl{font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-3);padding:0 4px}
+@media(max-width:560px){.deck .lbl{display:none}}
+
+/* ── Nav ──────────────────────────────────────────────────── */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;transition:.5s var(--ease);
+  border-bottom:1px solid transparent}
+nav.scrolled{background:color-mix(in srgb,var(--bg) 85%,transparent);backdrop-filter:blur(16px);border-bottom-color:var(--line-soft)}
+.nav-in{display:flex;align-items:center;justify-content:space-between;height:78px}
+.brand{display:flex;align-items:center;gap:13px;text-decoration:none;color:var(--ink)}
+.crest{width:38px;height:38px;flex:0 0 auto}
+.crest .ring{fill:none;stroke:var(--gold);stroke-width:14}
+.crest .mono{fill:var(--gold)}
+.brand-tx{display:flex;flex-direction:column;line-height:1}
+.brand-tx b{font-family:var(--serif);font-size:21px;font-weight:600;letter-spacing:.16em}
+.brand-tx span{font-size:8.5px;letter-spacing:.42em;text-transform:uppercase;color:var(--ink-3);margin-top:3px}
+.nav-links{display:flex;align-items:center;gap:34px}
+.nav-links a{color:var(--ink-2);text-decoration:none;font-size:12px;letter-spacing:.13em;text-transform:uppercase;transition:.3s}
+.nav-links a:hover{color:var(--gold)}
+.nav-cta{border:1px solid var(--line);padding:11px 22px;border-radius:100px;color:var(--ink)!important;letter-spacing:.13em}
+.nav-cta:hover{background:var(--gold);border-color:var(--gold);color:#1a1206!important}
+html[data-theme="marble"] .nav-cta:hover{color:#fff!important}
+@media(max-width:900px){.nav-links a:not(.nav-cta){display:none}}
+
+/* ── Hero ─────────────────────────────────────────────────── */
+.hero{position:relative;min-height:100vh;display:flex;align-items:center;overflow:hidden}
+.hero-bg{position:absolute;inset:0;z-index:0}
+.hero-bg .glow{position:absolute;border-radius:50%;filter:blur(90px);opacity:.5}
+.g1{width:560px;height:560px;top:-160px;right:-120px;background:radial-gradient(circle,var(--gold) 0%,transparent 70%);opacity:.18}
+.g2{width:680px;height:680px;bottom:-260px;left:-180px;background:radial-gradient(circle,var(--gold-soft) 0%,transparent 70%);opacity:.10}
+/* faint architectural arches drawn in CSS/SVG */
+.arches{position:absolute;inset:0;opacity:.10;z-index:0}
+html[data-theme="marble"] .arches{opacity:.16}
+.hero-grid{position:absolute;inset:0;opacity:.4;
+  background-image:linear-gradient(var(--line-soft) 1px,transparent 1px),linear-gradient(90deg,var(--line-soft) 1px,transparent 1px);
+  background-size:64px 64px;mask-image:radial-gradient(circle at 50% 40%,#000 0%,transparent 75%)}
+.hero-in{position:relative;z-index:2;padding-top:120px;padding-bottom:80px;max-width:880px}
+.eyebrow{display:inline-flex;align-items:center;gap:11px;font-size:11px;letter-spacing:.32em;text-transform:uppercase;color:var(--gold);margin-bottom:30px}
+.eyebrow::before{content:"";width:34px;height:1px;background:var(--gold)}
+h1.hero-t{font-family:var(--serif);font-weight:500;font-size:clamp(42px,7.4vw,92px);line-height:1.02;letter-spacing:-.01em;margin-bottom:26px}
+h1.hero-t em{font-style:italic;color:var(--gold)}
+.hero-sub{font-size:clamp(16px,2vw,20px);color:var(--ink-2);max-width:620px;font-weight:300;margin-bottom:42px}
+.hero-actions{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:64px}
+.btn{font-family:var(--sans);font-size:12.5px;letter-spacing:.16em;text-transform:uppercase;text-decoration:none;
+  padding:17px 34px;border-radius:100px;transition:.4s var(--ease);cursor:pointer;display:inline-block}
+.btn-p{background:var(--gold);color:#180f04;font-weight:500}
+html[data-theme="marble"] .btn-p{color:#fff}
+.btn-p:hover{transform:translateY(-2px);box-shadow:0 16px 40px -12px color-mix(in srgb,var(--gold) 60%,transparent)}
+.btn-s{border:1px solid var(--line);color:var(--ink)}
+.btn-s:hover{border-color:var(--gold);color:var(--gold)}
+.hero-marks{display:flex;gap:48px;flex-wrap:wrap;border-top:1px solid var(--line-soft);padding-top:32px}
+.mark b{font-family:var(--serif);font-size:15px;letter-spacing:.04em;color:var(--gold);display:block}
+.mark span{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);margin-top:6px;display:block}
+
+/* ── Section scaffolding ──────────────────────────────────── */
+section.blk{padding:120px 0;position:relative}
+.s-eyebrow{font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--gold);margin-bottom:18px}
+.s-title{font-family:var(--serif);font-weight:500;font-size:clamp(30px,4.4vw,52px);line-height:1.08;letter-spacing:-.01em;margin-bottom:20px}
+.s-title em{font-style:italic;color:var(--gold)}
+.s-lead{color:var(--ink-2);max-width:620px;font-size:17px}
+.head{margin-bottom:64px;max-width:720px}
+
+/* philosophy pillars */
+.pillars{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line-soft);border:1px solid var(--line-soft);border-radius:18px;overflow:hidden}
+.pillar{background:var(--bg);padding:46px 38px;transition:.5s var(--ease)}
+.pillar:hover{background:var(--bg-2)}
+.pillar .n{font-family:var(--serif);font-size:14px;color:var(--gold);letter-spacing:.2em}
+.pillar h3{font-family:var(--serif);font-weight:500;font-size:27px;margin:16px 0 12px}
+.pillar p{color:var(--ink-2);font-size:15px}
+@media(max-width:820px){.pillars{grid-template-columns:1fr}}
+
+/* services */
+.svc{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+.scard{background:var(--card);border:1px solid var(--line-soft);border-radius:18px;padding:40px 34px;transition:.5s var(--ease);position:relative;overflow:hidden}
+.scard::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:0;transition:.5s}
+.scard:hover{transform:translateY(-6px);border-color:var(--line);box-shadow:var(--shadow)}
+.scard:hover::before{opacity:1}
+.scard .ic{width:50px;height:50px;border:1px solid var(--line);border-radius:12px;display:flex;align-items:center;justify-content:center;color:var(--gold);margin-bottom:24px}
+.scard .ic svg{width:24px;height:24px;stroke:var(--gold);fill:none;stroke-width:1.4}
+.scard h3{font-family:var(--serif);font-weight:500;font-size:25px;margin-bottom:12px}
+.scard p{color:var(--ink-2);font-size:15px}
+@media(max-width:820px){.svc{grid-template-columns:1fr}}
+
+/* properties */
+.props{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+.pcard{border-radius:18px;overflow:hidden;border:1px solid var(--line-soft);background:var(--card);transition:.5s var(--ease);cursor:pointer}
+.pcard:hover{transform:translateY(-6px);box-shadow:var(--shadow);border-color:var(--line)}
+.pcard .img{height:230px;position:relative;display:flex;align-items:flex-end;padding:18px}
+.pcard .img svg{position:absolute;inset:0;width:100%;height:100%}
+.pcard .tag{position:relative;z-index:2;font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;background:color-mix(in srgb,var(--bg) 70%,transparent);backdrop-filter:blur(6px);color:var(--ink);padding:7px 13px;border-radius:100px;border:1px solid var(--line)}
+.pcard .body{padding:24px}
+.pcard h3{font-family:var(--serif);font-weight:500;font-size:23px;margin-bottom:6px}
+.pcard .meta{color:var(--ink-3);font-size:13px;letter-spacing:.04em;margin-bottom:16px}
+.pcard .price{display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--line-soft);padding-top:16px}
+.pcard .price b{font-family:var(--serif);color:var(--gold);font-size:19px}
+.pcard .price span{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3)}
+@media(max-width:820px){.props{grid-template-columns:1fr}}
+
+/* BOOM division band */
+.boom{background:linear-gradient(135deg,var(--bg-2),var(--bg-3));border-top:1px solid var(--line-soft);border-bottom:1px solid var(--line-soft);overflow:hidden}
+.boom-in{display:grid;grid-template-columns:1.1fr .9fr;gap:60px;align-items:center}
+.boom-badge{display:inline-flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:100px;padding:8px 16px;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-2);margin-bottom:26px}
+.boom-badge .dot{width:7px;height:7px;border-radius:50%;background:#FFD700;box-shadow:0 0 12px #FFD700}
+.boom h2{font-family:var(--serif);font-weight:500;font-size:clamp(30px,4.2vw,48px);line-height:1.06;margin-bottom:18px}
+.boom h2 .y{color:#FFD700}
+.boom p{color:var(--ink-2);font-size:17px;margin-bottom:30px;max-width:520px}
+.boom .eq{display:flex;gap:14px;align-items:center;font-family:var(--serif);font-size:19px;color:var(--ink-2);margin-bottom:32px;flex-wrap:wrap}
+.boom .eq b{color:var(--ink)}
+.boom .eq .x{color:var(--gold)}
+.boom-cta{background:#FFD700;color:#0a0a0a;font-weight:600;border:none}
+.boom-cta:hover{transform:translateY(-2px);box-shadow:0 16px 40px -12px rgba(255,215,0,.5)}
+.boom-visual{aspect-ratio:1/1;border-radius:24px;border:1px solid var(--line);background:radial-gradient(circle at 50% 45%,rgba(255,215,0,.12),transparent 60%),var(--bg);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+.boom-visual .rings{position:absolute;inset:0}
+.boom-visual .rings i{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);border:1px solid rgba(255,215,0,.18);border-radius:50%}
+.boom-logo{font-family:var(--serif);font-weight:600;font-size:62px;letter-spacing:.04em;color:#FFD700;position:relative;z-index:2;text-shadow:0 0 40px rgba(255,215,0,.4)}
+@media(max-width:820px){.boom-in{grid-template-columns:1fr;gap:40px}.boom-visual{max-width:380px}}
+
+/* contact / footer */
+footer{padding:90px 0 40px;border-top:1px solid var(--line-soft)}
+.f-grid{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:48px;margin-bottom:60px}
+.f-grid h4{font-family:var(--serif);font-weight:600;font-size:22px;margin-bottom:16px;letter-spacing:.04em}
+.f-grid .tag{color:var(--ink-2);font-size:15px;max-width:340px;margin-bottom:20px}
+.f-line{color:var(--ink-2);font-size:14px;line-height:2}
+.f-line a{color:var(--gold);text-decoration:none}
+.f-col b{display:block;font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-3);margin-bottom:14px}
+.f-col a{display:block;color:var(--ink-2);text-decoration:none;font-size:14px;padding:5px 0;transition:.3s}
+.f-col a:hover{color:var(--gold)}
+.f-bottom{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--line-soft);padding-top:26px;font-size:12px;color:var(--ink-3);letter-spacing:.05em;flex-wrap:wrap;gap:12px}
+@media(max-width:820px){.f-grid{grid-template-columns:1fr;gap:32px}}
+
+/* reveal on scroll */
+.reveal{opacity:0;transform:translateY(28px);transition:.9s var(--ease)}
+.reveal.in{opacity:1;transform:none}
+
+/* preview ribbon */
+.ribbon{position:fixed;top:84px;right:14px;z-index:150;background:var(--gold);color:#180f04;font-size:10px;letter-spacing:.16em;text-transform:uppercase;font-weight:600;padding:6px 12px;border-radius:100px;opacity:.92}
+html[data-theme="marble"] .ribbon{color:#fff}
+@media(max-width:560px){.ribbon{display:none}}
+</style>
+</head>
+<body>
+
+<!-- arches SVG reused -->
+<svg width="0" height="0" style="position:absolute"><defs>
+  <symbol id="arches" viewBox="0 0 1200 400" preserveAspectRatio="xMidYMax meet">
+    <g fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M60 400 V160 a90 90 0 0 1 180 0 V400"/>
+      <path d="M300 400 V160 a90 90 0 0 1 180 0 V400"/>
+      <path d="M540 400 V160 a90 90 0 0 1 180 0 V400"/>
+      <path d="M780 400 V160 a90 90 0 0 1 180 0 V400"/>
+      <path d="M1020 400 V160 a90 90 0 0 1 180 0 V400"/>
+      <line x1="20" y1="150" x2="1200" y2="150"/>
+      <line x1="20" y1="135" x2="1200" y2="135"/>
+    </g>
+  </symbol>
+</defs></svg>
+
+<div class="ribbon">Anteprima · Preview</div>
+
+<!-- NAV -->
+<nav id="nav"><div class="wrap nav-in">
+  <a href="#" class="brand">
+    <svg class="crest" viewBox="0 0 100 100">
+      <circle class="ring" cx="50" cy="50" r="43"/>
+      <text class="mono" x="50" y="50" font-family="Cormorant Garamond,serif" font-size="56" font-weight="600" text-anchor="middle" dominant-baseline="central">E</text>
+    </svg>
+    <span class="brand-tx"><b>EGIDI</b><span data-it="Immobiliare · Roma" data-en="Real Estate · Rome">Immobiliare · Roma</span></span>
+  </a>
+  <div class="nav-links">
+    <a href="#filosofia" data-it="Filosofia" data-en="Philosophy">Filosofia</a>
+    <a href="#servizi" data-it="Servizi" data-en="Services">Servizi</a>
+    <a href="#immobili" data-it="Immobili" data-en="Properties">Immobili</a>
+    <a href="#boom" data-it="Affitti" data-en="Rentals">Affitti</a>
+    <a href="#contatti" class="nav-cta" data-it="Consulenza" data-en="Consultation">Consulenza</a>
+  </div>
+</div></nav>
+
+<!-- HERO -->
+<header class="hero">
+  <div class="hero-bg">
+    <div class="glow g1"></div><div class="glow g2"></div>
+    <div class="hero-grid"></div>
+    <svg class="arches" preserveAspectRatio="xMidYMax meet"><use href="#arches"/></svg>
+  </div>
+  <div class="wrap hero-in">
+    <div class="eyebrow reveal" data-it="Roma · dal cuore di Via dei Coronari" data-en="Rome · from the heart of Via dei Coronari">Roma · dal cuore di Via dei Coronari</div>
+    <h1 class="hero-t reveal" data-it="Consulenza immobiliare <em>sartoriale</em>." data-en="Real estate, <em>tailored</em> like a bespoke suit.">Consulenza immobiliare <em>sartoriale</em>.</h1>
+    <p class="hero-sub reveal" data-it="Compravendita di immobili di pregio nel centro storico di Roma. Un servizio cucito su misura — dall'ascolto alla firma." data-en="Buying and selling distinguished property in the historic heart of Rome. A service cut to measure — from first conversation to signature.">Compravendita di immobili di pregio nel centro storico di Roma. Un servizio cucito su misura — dall'ascolto alla firma.</p>
+    <div class="hero-actions reveal">
+      <a href="#immobili" class="btn btn-p" data-it="Esplora gli immobili" data-en="Explore properties">Esplora gli immobili</a>
+      <a href="#filosofia" class="btn btn-s" data-it="Il nostro metodo" data-en="Our method">Il nostro metodo</a>
+    </div>
+    <div class="hero-marks reveal">
+      <div class="mark"><b data-it="Centro Storico" data-en="Centro Storico">Centro Storico</b><span data-it="la nostra specialità" data-en="our specialty">la nostra specialità</span></div>
+      <div class="mark"><b data-it="1 : 1" data-en="1 : 1">1 : 1</b><span data-it="consulenza dedicata" data-en="dedicated advisory">consulenza dedicata</span></div>
+      <div class="mark"><b data-it="Rete riservata" data-en="Private network">Rete riservata</b><span data-it="immobili off-market" data-en="off-market listings">immobili off-market</span></div>
+    </div>
+  </div>
+</header>
+
+<!-- PHILOSOPHY -->
+<section class="blk" id="filosofia">
+  <div class="wrap">
+    <div class="head reveal">
+      <div class="s-eyebrow" data-it="Il metodo" data-en="The method">Il metodo</div>
+      <h2 class="s-title" data-it="Trattiamo ogni casa come un <em>abito su misura</em>." data-en="We treat every home like a <em>bespoke suit</em>.">Trattiamo ogni casa come un <em>abito su misura</em>.</h2>
+      <p class="s-lead" data-it="Niente cataloghi anonimi. Misuriamo desideri, tempi e numeri — poi cuciamo l'operazione attorno a voi." data-en="No anonymous catalogues. We measure your wishes, timing and figures — then tailor the deal around you.">Niente cataloghi anonimi. Misuriamo desideri, tempi e numeri — poi cuciamo l'operazione attorno a voi.</p>
+    </div>
+    <div class="pillars reveal">
+      <div class="pillar"><div class="n">01</div><h3 data-it="Ascolto" data-en="Listening">Ascolto</h3><p data-it="Prima il progetto di vita, poi l'immobile. Capiamo chi siete e dove volete arrivare." data-en="The life plan first, the property second. We understand who you are and where you're headed.">Prima il progetto di vita, poi l'immobile.</p></div>
+      <div class="pillar"><div class="n">02</div><h3 data-it="Selezione" data-en="Curation">Selezione</h3><p data-it="Pochi immobili, scelti. Anche off-market, dalla nostra rete riservata nel centro di Roma." data-en="Few properties, hand-picked — including off-market, from our private Rome network.">Pochi immobili, scelti. Anche off-market.</p></div>
+      <div class="pillar"><div class="n">03</div><h3 data-it="Riservatezza" data-en="Discretion">Riservatezza</h3><p data-it="Negoziazione, fiscalità e firma seguite con discrezione assoluta, dall'inizio alla fine." data-en="Negotiation, taxation and signing handled with absolute discretion, start to finish.">Negoziazione e firma con discrezione assoluta.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- SERVICES -->
+<section class="blk" id="servizi" style="background:var(--bg-2)">
+  <div class="wrap">
+    <div class="head reveal">
+      <div class="s-eyebrow" data-it="Servizi" data-en="Services">Servizi</div>
+      <h2 class="s-title" data-it="Una sola casa, <em>tre mestieri</em>." data-en="One house, <em>three crafts</em>.">Una sola casa, <em>tre mestieri</em>.</h2>
+    </div>
+    <div class="svc reveal">
+      <div class="scard">
+        <div class="ic"><svg viewBox="0 0 24 24"><path d="M3 21h18M5 21V9l7-5 7 5v12M9 21v-6h6v6"/></svg></div>
+        <h3 data-it="Vendita di pregio" data-en="Prestige Sales">Vendita di pregio</h3>
+        <p data-it="Valutazione, presentazione e negoziazione per immobili di carattere. Marketing curato come un editoriale." data-en="Valuation, presentation and negotiation for properties with character. Marketing crafted like an editorial.">Valutazione, presentazione e negoziazione per immobili di carattere.</p>
+      </div>
+      <div class="scard">
+        <div class="ic"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg></div>
+        <h3 data-it="Acquisto assistito" data-en="Buyer Advisory">Acquisto assistito</h3>
+        <p data-it="Troviamo la casa giusta — anche off-market — e trattiamo per voi, fino al rogito." data-en="We find the right home — even off-market — and negotiate for you, all the way to the deed.">Troviamo la casa giusta, anche off-market, e trattiamo per voi.</p>
+      </div>
+      <div class="scard">
+        <div class="ic"><svg viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8M21 7v6h-6"/></svg></div>
+        <h3 data-it="Consulenza & investimenti" data-en="Advisory & Investment">Consulenza & investimenti</h3>
+        <p data-it="Strategia, rendita e fiscalità per investitori italiani e internazionali che guardano a Roma." data-en="Strategy, yield and taxation for Italian and international investors looking at Rome.">Strategia, rendita e fiscalità per investitori, in Italia e dall'estero.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PROPERTIES -->
+<section class="blk" id="immobili">
+  <div class="wrap">
+    <div class="head reveal">
+      <div class="s-eyebrow" data-it="Selezione" data-en="Selection">Selezione</div>
+      <h2 class="s-title" data-it="Immobili <em>scelti</em>." data-en="<em>Selected</em> properties.">Immobili <em>scelti</em>.</h2>
+      <p class="s-lead" data-it="Un assaggio. Il catalogo completo, e gli immobili riservati, su richiesta." data-en="A taste. The full catalogue, and off-market listings, on request.">Un assaggio. Il catalogo completo, e gli immobili riservati, su richiesta.</p>
+    </div>
+    <div class="props reveal">
+      <div class="pcard">
+        <div class="img" style="background:linear-gradient(135deg,#2a2014,#3a2c18)">
+          <svg viewBox="0 0 400 230" preserveAspectRatio="xMidYMid slice" style="color:rgba(201,162,75,.35)"><use href="#arches"/></svg>
+          <span class="tag" data-it="Attico" data-en="Penthouse">Attico</span>
+        </div>
+        <div class="body"><h3 data-it="Attico con terrazza" data-en="Penthouse with terrace">Attico con terrazza</h3>
+          <div class="meta" data-it="Centro Storico · 180 m² · 3 camere" data-en="Centro Storico · 180 m² · 3 beds">Centro Storico · 180 m² · 3 camere</div>
+          <div class="price"><b data-it="€ su richiesta" data-en="Price on request">€ su richiesta</b><span data-it="Vendita" data-en="For sale">Vendita</span></div>
+        </div>
+      </div>
+      <div class="pcard">
+        <div class="img" style="background:linear-gradient(135deg,#241c2c,#332842)">
+          <svg viewBox="0 0 400 230" preserveAspectRatio="xMidYMid slice" style="color:rgba(201,162,75,.35)"><use href="#arches"/></svg>
+          <span class="tag" data-it="Coronari" data-en="Coronari">Coronari</span>
+        </div>
+        <div class="body"><h3 data-it="Appartamento d'epoca" data-en="Period apartment">Appartamento d'epoca</h3>
+          <div class="meta" data-it="Via dei Coronari · 120 m² · 2 camere" data-en="Via dei Coronari · 120 m² · 2 beds">Via dei Coronari · 120 m² · 2 camere</div>
+          <div class="price"><b data-it="€ su richiesta" data-en="Price on request">€ su richiesta</b><span data-it="Vendita" data-en="For sale">Vendita</span></div>
+        </div>
+      </div>
+      <div class="pcard">
+        <div class="img" style="background:linear-gradient(135deg,#13241f,#1c382f)">
+          <svg viewBox="0 0 400 230" preserveAspectRatio="xMidYMid slice" style="color:rgba(201,162,75,.35)"><use href="#arches"/></svg>
+          <span class="tag" data-it="Navona" data-en="Navona">Navona</span>
+        </div>
+        <div class="body"><h3 data-it="Piano nobile" data-en="Piano nobile">Piano nobile</h3>
+          <div class="meta" data-it="Piazza Navona · 240 m² · 4 camere" data-en="Piazza Navona · 240 m² · 4 beds">Piazza Navona · 240 m² · 4 camere</div>
+          <div class="price"><b data-it="€ su richiesta" data-en="Price on request">€ su richiesta</b><span data-it="Vendita" data-en="For sale">Vendita</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- BOOM DIVISION -->
+<section class="blk boom" id="boom">
+  <div class="wrap boom-in">
+    <div class="reveal">
+      <div class="boom-badge"><span class="dot"></span><span data-it="La nostra divisione affitti" data-en="Our rental division">La nostra divisione affitti</span></div>
+      <h2 data-it="Egidi vende. <span class='y'>BOOM</span> affitta." data-en="Egidi sells. <span class='y'>BOOM</span> rents.">Egidi vende. <span class="y">BOOM</span> affitta.</h2>
+      <p data-it="BOOM è la divisione di Egidi Immobiliare dedicata agli affitti: appartamenti mid-term verificati a Roma, contratti legali e ingresso in 48 ore. Pensata per studenti, professionisti ed expat internazionali." data-en="BOOM is Egidi Immobiliare's rental division: verified mid-term apartments in Rome, legal contracts and move-in within 48 hours. Built for students, professionals and international expats.">BOOM è la divisione di Egidi Immobiliare dedicata agli affitti: appartamenti mid-term verificati a Roma, contratti legali e ingresso in 48 ore.</p>
+      <div class="eq"><b>Egidi</b><span class="x">—</span><span data-it="compravendita" data-en="buy & sell">compravendita</span><span class="x">·</span><b>BOOM</b><span class="x">—</span><span data-it="locazione" data-en="rentals">locazione</span></div>
+      <a href="https://www.boomrome.com" target="_blank" class="btn boom-cta" data-it="Visita BOOM Rome →" data-en="Visit BOOM Rome →">Visita BOOM Rome →</a>
+    </div>
+    <div class="boom-visual reveal">
+      <div class="rings"><i style="width:90%;height:90%"></i><i style="width:66%;height:66%"></i><i style="width:42%;height:42%"></i></div>
+      <div class="boom-logo">BOOM</div>
+    </div>
+  </div>
+</section>
+
+<!-- CONTACT / FOOTER -->
+<footer id="contatti">
+  <div class="wrap">
+    <div class="f-grid">
+      <div class="reveal">
+        <h4>Egidi Immobiliare</h4>
+        <p class="tag" data-it="Consulenza immobiliare sartoriale nel cuore di Roma. Compravendita, investimenti e — con BOOM — locazioni." data-en="Bespoke real estate in the heart of Rome. Sales, investment and — through BOOM — rentals.">Consulenza immobiliare sartoriale nel cuore di Roma.</p>
+        <a href="#contatti" class="btn btn-p" data-it="Prenota una consulenza" data-en="Book a consultation">Prenota una consulenza</a>
+      </div>
+      <div class="f-col reveal">
+        <b data-it="Studio" data-en="Office">Studio</b>
+        <div class="f-line">
+          Via dei Coronari 181<br>00186 — Roma<br><br>
+          <a href="tel:+393313251961">+39 331 325 1961</a><br>
+          <a href="tel:+390639741471">+39 06 39 74 14 71</a><br>
+          <a href="https://instagram.com/r.egidi_immobiliare" target="_blank">@r.egidi_immobiliare</a>
+        </div>
+      </div>
+      <div class="f-col reveal">
+        <b data-it="Naviga" data-en="Explore">Naviga</b>
+        <a href="#filosofia" data-it="Filosofia" data-en="Philosophy">Filosofia</a>
+        <a href="#servizi" data-it="Servizi" data-en="Services">Servizi</a>
+        <a href="#immobili" data-it="Immobili" data-en="Properties">Immobili</a>
+        <a href="https://www.boomrome.com" target="_blank">BOOM — <span data-it="Affitti" data-en="Rentals">Affitti</span></a>
+      </div>
+    </div>
+    <div class="f-bottom">
+      <span>© 2026 Egidi Immobiliare S.r.l. — P.IVA 17322991005 — REA RM 1710623</span>
+      <span data-it="Roma, Italia" data-en="Rome, Italy">Roma, Italia</span>
+    </div>
+  </div>
+</footer>
+
+<!-- CONTROL DECK -->
+<div class="deck">
+  <span class="lbl" data-it="Stile" data-en="Style">Stile</span>
+  <div class="grp" id="themeGrp">
+    <button data-theme-set="heritage" class="on">Heritage</button>
+    <button data-theme-set="marble">Marble</button>
+  </div>
+  <span class="lbl">Lang</span>
+  <div class="grp" id="langGrp">
+    <button data-lang-set="it" class="on">IT</button>
+    <button data-lang-set="en">EN</button>
+  </div>
+</div>
+
+<script>
+/* ── language toggle ──────────────────────────────────────── */
+function setLang(lang){
+  document.documentElement.lang = lang;
+  document.querySelectorAll('[data-it]').forEach(el=>{
+    const v = el.getAttribute('data-'+lang);
+    if(v!=null) el.innerHTML = v;
+  });
+  document.querySelectorAll('#langGrp button').forEach(b=>b.classList.toggle('on',b.dataset.langSet===lang));
+}
+/* ── theme toggle ─────────────────────────────────────────── */
+function setTheme(t){
+  document.documentElement.setAttribute('data-theme',t);
+  document.querySelectorAll('#themeGrp button').forEach(b=>b.classList.toggle('on',b.dataset.themeSet===t));
+}
+document.getElementById('langGrp').addEventListener('click',e=>{const b=e.target.closest('button');if(b)setLang(b.dataset.langSet)});
+document.getElementById('themeGrp').addEventListener('click',e=>{const b=e.target.closest('button');if(b)setTheme(b.dataset.themeSet)});
+
+/* ── nav scroll state ─────────────────────────────────────── */
+const nav=document.getElementById('nav');
+addEventListener('scroll',()=>nav.classList.toggle('scrolled',scrollY>40),{passive:true});
+
+/* ── reveal on scroll ─────────────────────────────────────── */
+const io=new IntersectionObserver((es)=>es.forEach(en=>{if(en.isIntersecting){en.target.classList.add('in');io.unobserve(en.target)}}),{threshold:.12});
+document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+
+/* default language */
+setLang('it');
+</script>
+</body>
+</html>
