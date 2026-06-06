@@ -5888,6 +5888,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const hbDetail = hs.mins != null
             ? `<span style="font-size:11px;color:var(--text-muted)">· ${hs.mins < 1 ? 'ora' : Math.round(hs.mins) + 'm fa'}${hb?.activeTool ? ' · ' + esc(hb.activeTool) : ''}${typeof hb?.queueLen === 'number' ? ' · coda ' + hb.queueLen : ''}</span>`
             : '';
+        // Recent agent activity from the audit log — surfaces what Homie actually
+        // did (documents.create/list/update, leads, contracts…), not just the
+        // queued proposals. Closes the loop with the cockpit.
+        const agentActivity = (S.activityLog || [])
+            .filter(a => a.actor === 'homie' || String(a.actor || '').startsWith('admin:'))
+            .slice(0, 8);
+        const ACT_ICON = { document: '📄', lead: '🎯', contract: '📋', payment: '💳', system: '⚡', maintenance: '🔧' };
 
         const KIND_META = {
             reply: { icon: '📨', label: 'Bozza risposta' },
@@ -5968,6 +5975,21 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <span class="dash-section-count">${handled.length}</span>
                 </div>
                 <div class="dash-list">${handled.slice(0, 15).map(a => renderAction(a, false)).join('')}</div>
+            </section>` : ''}
+
+            ${agentActivity.length > 0 ? `<section class="dash-section">
+                <div class="dash-section-head">
+                    <h2 class="dash-section-title">Attività recente dell'agente</h2>
+                    <span class="dash-section-count">${agentActivity.length}</span>
+                </div>
+                <div class="dash-list">${agentActivity.map(a => `
+                    <div class="dash-row" data-tone="gold">
+                        <span class="dash-row-icon">${ACT_ICON[a.category] || '🤖'}</span>
+                        <div class="dash-row-body">
+                            <div class="dash-row-primary">${esc(a.action || '')}</div>
+                            <div class="dash-row-secondary">${esc(a.actor || 'homie')}${a.category ? ' · ' + esc(a.category) : ''}${(a.timestamp || a.createdAt) ? ' · ' + _humanAgo(a.timestamp || a.createdAt) : ''}</div>
+                        </div>
+                    </div>`).join('')}</div>
             </section>` : ''}
         `;
     }
