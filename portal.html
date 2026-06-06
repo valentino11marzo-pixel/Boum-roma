@@ -15431,6 +15431,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 // 🧾 Auto-generate a "ricevuta canone" invoice (idempotent)
                 try { await autoInvoiceForPayment({ id, ...payment }); }
                 catch (e) { console.warn('[autoInvoice]', e); }
+                // 📄 File the receipt PDF in the archive — also lands in the tenant's portal
+                try { await archivePaymentReceipt({ id, ...payment, status: 'paid', paidDate: new Date().toISOString() }); }
+                catch (e) { console.warn('[archiveReceipt]', e); }
             }
             await refresh(); toast('success', 'Pagamento confermato ✔');
             // Activity log
@@ -19842,56 +19845,95 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         }
     }
 
-    function downloadPaymentReceipt(id) {
-        const pay = S.payments.find(x => x.id === id); if (!pay || pay.status !== 'paid') return toast('error', 'Pagamento non trovato o non pagato');
-        const c = S.contracts.find(x => x.id === pay.contractId);
-        const p = c ? S.properties.find(x => x.id === c.propertyId) : null;
-        const t = c ? S.users.find(x => x.id === c.tenantId) : null;
-        
+    function _buildReceiptDoc(pay, c, p, t) {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
-        
+
         doc.setFillColor(0, 0, 0); doc.rect(0, 0, 210, 35, 'F');
         doc.setTextColor(212, 175, 55); doc.setFontSize(28); doc.setFont('helvetica', 'bold'); doc.text('BOOM', 20, 22);
         doc.setTextColor(255); doc.setFontSize(14); doc.text('RICEVUTA DI PAGAMENTO', 190, 22, { align: 'right' });
-        
+
         let y = 50;
         doc.setTextColor(0);
         doc.setFillColor(245, 245, 245); doc.rect(15, y - 5, 180, 18, 'F');
         doc.setFontSize(10); doc.text(`Data: ${fmtDate(pay.paidDate)}`, 20, y + 5);
         doc.text(`N°: RIC-${pay.id.slice(-8).toUpperCase()}`, 150, y + 5);
-        
+
         y += 30;
         doc.setFont('helvetica', 'bold'); doc.text('RICEVUTO DA:', 20, y);
         doc.setFont('helvetica', 'normal'); y += 7; doc.text(t?.name || 'Inquilino', 20, y);
-        
+
         y += 15;
         doc.setFont('helvetica', 'bold'); doc.text('IMMOBILE:', 20, y);
         doc.setFont('helvetica', 'normal'); y += 7; doc.text(p?.name || 'N/A', 20, y);
         y += 5; doc.text(p?.address || 'Roma', 20, y);
-        
+
         y += 15;
         doc.setFont('helvetica', 'bold'); doc.text('PERIODO:', 20, y);
         doc.setFont('helvetica', 'normal'); y += 7; doc.text(pay.month || 'N/A', 20, y);
-        
+
         y += 20;
         doc.setFillColor(212, 175, 55); doc.rect(15, y - 5, 180, 25, 'F');
         doc.setTextColor(0); doc.setFontSize(12); doc.setFont('helvetica', 'bold');
         doc.text('IMPORTO RICEVUTO', 20, y + 5);
         doc.setFontSize(20); doc.text(`EUR ${pay.amount},00`, 190, y + 8, { align: 'right' });
-        
+
         doc.setTextColor(0); doc.setFontSize(10); doc.setFont('helvetica', 'normal');
         y += 35;
         doc.text(`(Euro ${numberToWords(pay.amount)}/00)`, 20, y);
-        
+
         y += 20;
         doc.text('Pagamento per canone di locazione mensile.', 20, y);
-        
+
         doc.setFillColor(0, 0, 0); doc.rect(0, 275, 210, 25, 'F');
         doc.setTextColor(150); doc.setFontSize(8); doc.text(`${COMPANY.legal} | ${COMPANY.website}`, 105, 285, { align: 'center' });
-        
+        return doc;
+    }
+
+    function downloadPaymentReceipt(id) {
+        const pay = S.payments.find(x => x.id === id); if (!pay || pay.status !== 'paid') return toast('error', 'Pagamento non trovato o non pagato');
+        const c = S.contracts.find(x => x.id === pay.contractId);
+        const p = c ? S.properties.find(x => x.id === c.propertyId) : null;
+        const t = c ? S.users.find(x => x.id === c.tenantId) : null;
+        const doc = _buildReceiptDoc(pay, c, p, t);
         doc.save(`Ricevuta_${p?.name?.replace(/\s+/g, '_') || ''}_${pay.month || ''}.pdf`);
         toast('success', 'Ricevuta scaricata!');
+    }
+
+    // Generate the rent-receipt PDF and file it in the archive (documents collection),
+    // linked to the tenant so it also lands in their portal (getMyDocuments).
+    // Best-effort and idempotent (skips if a receipt for this payment already exists).
+    async function archivePaymentReceipt(payment) {
+        try {
+            const pay = (payment && payment.id) ? payment : null;
+            if (!pay || pay.status !== 'paid') return null;
+            if (pay.receiptDocId) return pay.receiptDocId;
+            if ((S.documents || []).some(d => d.paymentId === pay.id && d.type === 'receipt')) return null;
+            const c = S.contracts.find(x => x.id === pay.contractId);
+            const p = c ? S.properties.find(x => x.id === c.propertyId) : null;
+            const t = c ? S.users.find(x => x.id === c.tenantId) : null;
+            const docPdf = _buildReceiptDoc(pay, c, p, t);
+            const blob = docPdf.output('blob');
+            const ref = 'RIC-' + String(pay.id).slice(-8).toUpperCase();
+            const ownerSeg = (t && t.id) || 'admin';
+            const path = `documents/${ownerSeg}/archive/receipt_${ref}.pdf`;
+            const putRes = await storage.ref(path).put(blob, { contentType: 'application/pdf' });
+            const fileUrl = await putRes.ref.getDownloadURL();
+            const hash = await generateDocHash(`${ref}|receipt|${t?.name || ''}|${pay.amount}`);
+            const docRef = await db.collection('documents').add({
+                name: `Ricevuta canone — ${p?.name || t?.name || ''} ${pay.month || ''}`.trim(),
+                type: 'receipt', category: 'ricevuta', source: 'generated',
+                templateType: 'ricevuta_pigione', refCode: ref, lang: 'IT', version: 1, hash,
+                userId: (t && t.id) || null, tenantId: (t && t.id) || null,
+                propertyId: p?.id || null, contractId: c?.id || null, paymentId: pay.id,
+                shared: false, fileUrl, fileName: `${ref}.pdf`, fileSize: blob.size,
+                uploadedBy: S.profile?.id || 'admin',
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            await db.collection('payments').doc(pay.id).update({ receiptDocId: docRef.id }).catch(() => {});
+            logActivity('Ricevuta archiviata', 'document', { paymentId: pay.id, docId: docRef.id, tenant: t?.name });
+            return docRef.id;
+        } catch (e) { console.warn('[archivePaymentReceipt]', e); return null; }
     }
 
     function downloadInvoicePDF(id) {
