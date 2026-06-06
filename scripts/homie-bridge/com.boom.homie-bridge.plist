@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  launchd agent per la connessione costante Homie -> portal.
+  1. Sostituisci __ABSOLUTE_PATH__ con il percorso reale della cartella, es:
+       /Users/tuonome/Boum-roma/scripts/homie-bridge
+  2. Installa:
+       cp com.boom.homie-bridge.plist ~/Library/LaunchAgents/
+       launchctl load -w ~/Library/LaunchAgents/com.boom.homie-bridge.plist
+  3. Verifica: il pallino "Homie connesso" nel Command Center diventa verde.
+  Per fermarlo:
+       launchctl unload -w ~/Library/LaunchAgents/com.boom.homie-bridge.plist
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.boom.homie-bridge</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>__ABSOLUTE_PATH__/boom-homie-bridge.sh</string>
+    <string>run</string>
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>ThrottleInterval</key>
+  <integer>10</integer>
+  <key>StandardOutPath</key>
+  <string>/tmp/boom-homie-bridge.log</string>
+  <key>StandardErrorPath</key>
+  <string>/tmp/boom-homie-bridge.err</string>
+</dict>
+</plist>
