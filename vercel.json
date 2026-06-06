@@ -84,7 +84,14 @@
     { "source": "/blog-neighborhood-guide", "destination": "/blog-neighborhood-guide.html" },
     { "source": "/blog-scam-bible", "destination": "/blog-scam-bible.html" },
     { "source": "/blog-tenant-rights", "destination": "/blog-tenant-rights.html" },
-    { "source": "/blog-visa-residency", "destination": "/blog-visa-residency.html" }
+    { "source": "/blog-visa-residency", "destination": "/blog-visa-residency.html" },
+    { "source": "/canone", "destination": "/canone.html" },
+    { "source": "/match", "destination": "/match.html" },
+    { "source": "/pass-studio", "destination": "/pass-studio.html" },
+    { "source": "/pass-demo", "destination": "/pass-demo.html" },
+    { "source": "/underwriting", "destination": "/underwriting.html" },
+    { "source": "/compliance", "destination": "/compliance.html" },
+    { "source": "/relet", "destination": "/relet.html" }
   ],
   "headers": [
     {
