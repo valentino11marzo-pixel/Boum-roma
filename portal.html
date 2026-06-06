@@ -1876,7 +1876,9 @@ Valentyne - BOOM Rome`
         contractsListener: null,
         actionQueueListener: null,
         signRequestsListener: null,
-        radarListener: null
+        radarListener: null,
+        heartbeatListener: null,
+        homieHeartbeat: null
     };
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -4095,6 +4097,41 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         }
     }
 
+    // Live link to the Mac-side Homie runtime. The agent posts to
+    // /api/agent/heartbeat every ~30s → heartbeat/mac (the same doc the cockpit
+    // reads). We surface it in the Command Center so the operator can SEE whether
+    // the agent/cockpit is connected, instead of guessing.
+    function startHeartbeatListener() {
+        if (!S.profile?.id || !isAdmin()) return;
+        if (S.heartbeatListener) S.heartbeatListener();
+        S.heartbeatListener = db.collection('heartbeat').doc('mac')
+            .onSnapshot(doc => {
+                S.homieHeartbeat = doc.exists ? doc.data() : null;
+                if (S.page === 'command-center') renderPage();
+            }, err => console.error('Heartbeat listener error:', err));
+        // Re-render periodically so the dot ages even without new pings.
+        if (!S._hbTick) S._hbTick = setInterval(() => { if (S.page === 'command-center') renderPage(); }, 30000);
+    }
+
+    function stopHeartbeatListener() {
+        if (S.heartbeatListener) { S.heartbeatListener(); S.heartbeatListener = null; }
+        if (S._hbTick) { clearInterval(S._hbTick); S._hbTick = null; }
+    }
+
+    // Derive a connection status from the last ping. Thresholds match the cockpit:
+    // <2m connected · 2–5m idle · 5–15m late · >15m / never → offline.
+    function homieStatus() {
+        const hb = S.homieHeartbeat;
+        const ts = hb && (hb.lastPingAt || hb.lastSeenAt);
+        const t = ts ? (ts.toDate ? ts.toDate().getTime() : new Date(ts).getTime()) : 0;
+        if (!t) return { hex: '#777', label: 'mai connesso', live: false, mins: null };
+        const mins = (Date.now() - t) / 60000;
+        if (mins < 2)  return { hex: '#2ecc71', label: 'connesso',   live: true,  mins };
+        if (mins < 5)  return { hex: '#f5a623', label: 'inattivo',   live: false, mins };
+        if (mins < 15) return { hex: '#e74c3c', label: 'in ritardo', live: false, mins };
+        return { hex: '#777', label: 'offline', live: false, mins };
+    }
+
     // Real-time listener for Magic Sign Custom requests (signRequests collection).
     function startSignRequestsListener() {
         if (!S.profile?.id || !isAdmin()) return;
@@ -4758,6 +4795,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         startActionQueueListener();
         startSignRequestsListener();
         startRadarListener();
+        startHeartbeatListener();
         
         // Check scheduled notifications (admin only, once per session)
         if (isAdmin() && !window.scheduledNotifChecked) {
@@ -5845,6 +5883,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const autoApplied = all.filter(a => a.status === 'auto-applied');
         const handled = all.filter(a => ['approved', 'executed', 'rejected', 'failed'].includes(a.status));
         const tier1Auto = autoApplied.filter(a => a.tier === 1).length;
+        const hs = homieStatus();
+        const hb = S.homieHeartbeat;
+        const hbDetail = hs.mins != null
+            ? `<span style="font-size:11px;color:var(--text-muted)">· ${hs.mins < 1 ? 'ora' : Math.round(hs.mins) + 'm fa'}${hb?.activeTool ? ' · ' + esc(hb.activeTool) : ''}${typeof hb?.queueLen === 'number' ? ' · coda ' + hb.queueLen : ''}</span>`
+            : '';
 
         const KIND_META = {
             reply: { icon: '📨', label: 'Bozza risposta' },
@@ -5885,10 +5928,18 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         };
 
         return `
-            <div class="dash-hero">
+            <div class="dash-hero" style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap">
                 <div class="dash-hero-text">
                     <h1 class="dash-hero-title">Command Center<span style="color:var(--gold)">.</span></h1>
                     <p class="dash-hero-sub">Azioni proposte dagli agenti · ${pending.length} in attesa · ${tier1Auto} auto-applicate oggi</p>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                    <span style="display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:999px;background:var(--bg-elevated);border:1px solid var(--border)" title="Stato del runtime Homie (heartbeat/mac)">
+                        <span style="width:9px;height:9px;border-radius:50%;background:${hs.hex};box-shadow:0 0 8px ${hs.hex}"></span>
+                        <span style="font-size:12px;font-weight:600">Homie ${hs.label}</span>
+                        ${hbDetail}
+                    </span>
+                    <a href="/cockpit-preview" target="_blank" rel="noopener" class="btn btn-secondary btn-sm" title="Apri il Cockpit di Homie">🛰 Cockpit</a>
                 </div>
             </div>
 
