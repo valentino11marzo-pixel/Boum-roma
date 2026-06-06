@@ -178,16 +178,29 @@ async function generate(){
     }
     if(!resp.ok){ const j=await resp.json().catch(()=>({})); throw new Error(j.error||('HTTP '+resp.status)); }
     serial=resp.headers.get('X-Pass-Serial')||'';
+    const passTok=resp.headers.get('X-Pass-Token')||'';
+    const entityId=(MODE==='record')?($('rec').value||''):'';
     const blob=await resp.blob();
     const url=URL.createObjectURL(blob);
     const a=document.createElement('a'); a.href=url; a.download='boom-'+TYPE+'.pkpass'; document.body.appendChild(a); a.click(); a.remove();
+    let walletLink='';
+    if(entityId && passTok){ walletLink=location.origin+'/api/my-pass?type='+encodeURIComponent(TYPE)+'&id='+encodeURIComponent(entityId)+'&t='+encodeURIComponent(passTok); }
     r.classList.add('show');
-    r.innerHTML=`✅ Pass generato e scaricato.<div class="serial">serial: ${esc(serial||'(manuale)')}</div>
-      <div class="acts">
-        <a class="mini" href="${url}" download="boom-${TYPE}.pkpass">Scarica di nuovo</a>
-        ${serial?`<button class="mini" onclick="pushSerial('${esc(serial)}',this)">Push aggiornamento live</button>`:''}
-      </div>
-      <div style="font-size:11.5px;color:var(--text-dim);margin-top:8px">Su iPhone, apri il file per aggiungerlo al Wallet. Per inviarlo al cliente: AirDrop o allega via email/WhatsApp.</div>`;
+    let html='✅ Pass generato.<div class="serial">serial: '+esc(serial||'(manuale)')+'</div>';
+    if(walletLink){
+      html+='<div class="acts" style="margin-top:10px">'
+        +'<a class="mini gold" href="'+walletLink+'" target="_blank" rel="noopener">＋ Aggiungi al Wallet</a>'
+        +'<button class="mini" onclick="copyTxt(\''+walletLink+'\',this)">Copia link</button>'
+        +'<a class="mini" target="_blank" rel="noopener" href="https://wa.me/?text='+encodeURIComponent('Il tuo BOOM pass (aggiungilo ad Apple Wallet): '+walletLink)+'">WhatsApp</a>'
+        +'<a class="mini" href="mailto:?subject='+encodeURIComponent('Il tuo BOOM pass')+'&body='+encodeURIComponent('Aggiungi il tuo pass ad Apple Wallet: '+walletLink)+'">Email</a>'
+        +'</div><div style="font-size:11.5px;color:var(--text-dim);margin-top:8px">Link sempre aggiornato: su iPhone apre "Aggiungi ad Apple Wallet". In produzione il dominio sarà boomrome.com.</div>';
+    } else {
+      html+='<div class="acts" style="margin-top:10px"><a class="mini" href="'+url+'" download="boom-'+TYPE+'.pkpass">Scarica di nuovo</a></div>'
+        +'<div style="font-size:11.5px;color:var(--text-dim);margin-top:8px">Pass manuale (statico). Per il link "Aggiungi al Wallet" e gli aggiornamenti live, genera "Da record".</div>';
+    }
+    if(serial){ html+='<div class="acts" style="margin-top:8px"><button class="mini" onclick="pushSerial(\''+esc(serial)+'\',this)">Push aggiornamento live</button> <span id="installs" style="font-size:11.5px;color:var(--text-dim)"></span></div>'; }
+    r.innerHTML=html;
+    if(serial) showInstalls(serial);
     loadRecent();
   }catch(e){ r.className='result show err'; r.innerHTML='❌ '+esc(e.message); }
   btn.disabled=false; btn.textContent='Genera pass .pkpass';
@@ -201,6 +214,9 @@ async function pushSerial(serial,btn){
     if(btn){btn.textContent=j.ok?`✓ ${j.devices||0} device · ${j.sent||0} inviati`:'Errore';}
   }catch(e){ if(btn)btn.textContent='Errore push'; }
 }
+
+function copyTxt(t,btn){ navigator.clipboard?.writeText(t).then(()=>{const o=btn.textContent;btn.textContent='✓ Copiato';setTimeout(()=>btn.textContent=o,1500);}); }
+async function showInstalls(serial){ try{ const s=await db.collection('passRegistrations').where('serialNumber','==',serial).get(); const el=$('installs'); if(el) el.textContent=s.size+' device con questo pass'; }catch(e){} }
 
 async function loadRecent(){
   const box=$('recent');

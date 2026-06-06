@@ -9,7 +9,7 @@
 // Returns: binary application/vnd.apple.pkpass
 
 import { guardPost } from "./agent/_lib.js";
-import { buildAndSign } from "./generate-pass.js";
+import { buildAndSign, generateAuthToken } from "./generate-pass.js";
 import { loadPassData } from "./_passkit.js";
 
 const VALID = new Set(["tenant", "silver", "landlord", "viewing", "referral"]);
@@ -29,6 +29,7 @@ export default async function handler(req, res) {
     res.setHeader("Content-Type", "application/vnd.apple.pkpass");
     res.setHeader("Content-Disposition", `attachment; filename=boom-${type}-${String(passJson.serialNumber).slice(-12)}.pkpass`);
     res.setHeader("X-Pass-Serial", passJson.serialNumber);
+    if (body.entityId) res.setHeader("X-Pass-Token", generateAuthToken(String(body.entityId)));
     return res.status(200).send(buffer);
   } catch (e) {
     return res.status(e.message && e.message.endsWith("_not_found") ? 404 : 500).json({ ok: false, error: e.message });
