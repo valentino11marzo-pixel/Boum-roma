@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Canone Concordato Roma 2026 — Calcola il Canone Massimo Legale | BOOM</title>
+<meta name="description" content="Calcola gratis il canone concordato massimo legale per la tua casa a Roma. Basato sull'Accordo Territoriale 2023. Scopri quanto risparmi con la cedolare secca al 10% e ottieni l'asseverazione con BOOM.">
+<meta name="keywords" content="canone concordato roma, calcolo canone concordato, quanto posso affittare casa roma, cedolare secca 10%, asseverazione canone concordato roma, accordo territoriale roma 2023">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://www.boomrome.com/canone">
+<meta name="theme-color" content="#08080A">
+
+<!-- Open Graph -->
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://www.boomrome.com/canone">
+<meta property="og:title" content="Quanto puoi affittare casa tua a Roma, legalmente?">
+<meta property="og:description" content="Calcolatore gratuito del canone concordato di Roma. Scopri il canone massimo e quanto risparmi di tasse con la cedolare al 10%.">
+<meta property="og:image" content="https://www.boomrome.com/android-chrome-512x512.png">
+<meta property="og:locale" content="it_IT">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+<!-- Structured data: WebApplication + FAQ + Breadcrumb -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "Calcolatore Canone Concordato Roma — BOOM",
+  "url": "https://www.boomrome.com/canone",
+  "applicationCategory": "FinanceApplication",
+  "operatingSystem": "Web",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" },
+  "description": "Calcolatore gratuito del canone concordato massimo legale per immobili a Roma, basato sull'Accordo Territoriale 2023.",
+  "provider": { "@type": "RealEstateAgent", "name": "BOOM Rome", "url": "https://www.boomrome.com", "areaServed": "Roma, Italia" }
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    { "@type": "Question", "name": "Cos'è il canone concordato a Roma?", "acceptedAnswer": { "@type": "Answer", "text": "Il canone concordato è un contratto di affitto il cui importo è definito entro i limiti dell'Accordo Territoriale del Comune di Roma. In cambio, il proprietario ottiene la cedolare secca agevolata al 10%, la riduzione IMU del 25% e altre agevolazioni fiscali." } },
+    { "@type": "Question", "name": "Quanto si risparmia con la cedolare secca al 10%?", "acceptedAnswer": { "@type": "Answer", "text": "Sul canone concordato la cedolare secca è al 10% invece del 21% del contratto a canone libero. Su un affitto di 12.000 € all'anno si risparmiano circa 1.320 € di tasse ogni anno, oltre alla riduzione IMU." } },
+    { "@type": "Question", "name": "Cos'è l'asseverazione del canone concordato?", "acceptedAnswer": { "@type": "Answer", "text": "Per i contratti stipulati senza l'assistenza delle associazioni, dal 2018 è obbligatoria un'attestazione (asseverazione) rilasciata da un'organizzazione firmataria dell'accordo che certifica la corrispondenza del contratto all'Accordo Territoriale. BOOM la gestisce per te." } },
+    { "@type": "Question", "name": "Quali zone di Roma sono coperte?", "acceptedAnswer": { "@type": "Answer", "text": "Il calcolatore copre tutte le micro-zone di Roma definite dall'Accordo Territoriale 2023: dal centro storico (Trastevere, Monti, Prati, Parioli) alle aree periferiche e suburbane." } }
+  ]
+}
+</script>
+
+<style>
+  :root{
+    --gold:#D4AF37; --gold-light:rgba(212,175,55,.14); --gold-dark:#B8960C;
+    --bg:#08080A; --bg-card:#0E0E11; --bg-elevated:#16161A; --bg-input:#1B1B20;
+    --border:rgba(255,255,255,.08); --border-soft:rgba(255,255,255,.05);
+    --text:#FFFFFF; --text-secondary:#9A9A9C; --text-dim:#6A6A6E;
+    --green:#46C08A; --green-dim:rgba(70,192,138,.12);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:'Helvetica Neue','Inter',-apple-system,sans-serif;
+    font-weight:300; background:var(--bg); color:var(--text);
+    line-height:1.55; -webkit-font-smoothing:antialiased; overflow-x:hidden;
+  }
+  a{color:inherit;text-decoration:none}
+  ::selection{background:var(--gold);color:#000}
+
+  /* NAV */
+  nav{position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;
+    padding:16px 24px;background:rgba(8,8,10,.82);backdrop-filter:blur(18px);
+    border-bottom:1px solid var(--border-soft)}
+  .brand{display:flex;align-items:center;gap:9px;font-weight:600;letter-spacing:4px;font-size:15px}
+  .brand .dot{width:8px;height:8px;border-radius:50%;background:var(--gold);box-shadow:0 0 12px var(--gold)}
+  .nav-cta{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:100px;
+    background:var(--gold);color:#000;font-weight:600;font-size:13px;letter-spacing:.5px;transition:.2s}
+  .nav-cta:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(212,175,55,.3)}
+
+  .wrap{max-width:1120px;margin:0 auto;padding:0 24px}
+
+  /* HERO */
+  header.hero{padding:64px 0 36px;text-align:center;position:relative}
+  header.hero::before{content:"";position:absolute;top:-80px;left:50%;transform:translateX(-50%);
+    width:560px;height:560px;max-width:90vw;
+    background:radial-gradient(circle,rgba(212,175,55,.14) 0%,transparent 62%);pointer-events:none;z-index:-1}
+  .eyebrow{display:inline-block;font-size:11px;letter-spacing:4px;text-transform:uppercase;
+    color:var(--gold);border:1px solid var(--gold-light);background:var(--gold-light);
+    padding:7px 16px;border-radius:100px;margin-bottom:24px}
+  h1{font-size:clamp(30px,5.4vw,54px);font-weight:300;letter-spacing:-1px;line-height:1.1;margin-bottom:18px}
+  h1 b{font-weight:700;color:var(--gold)}
+  .sub{max-width:620px;margin:0 auto;color:var(--text-secondary);font-size:clamp(15px,2vw,18px);font-weight:300}
+  .trust-row{display:flex;gap:26px;justify-content:center;flex-wrap:wrap;margin-top:30px}
+  .trust-row span{font-size:12.5px;color:var(--text-dim);letter-spacing:.5px;display:flex;align-items:center;gap:7px}
+  .trust-row span::before{content:"✓";color:var(--green);font-weight:700}
+
+  /* APP GRID */
+  .app{display:grid;grid-template-columns:1fr 0.92fr;gap:24px;margin:44px 0 40px;align-items:start}
+  @media(max-width:880px){.app{grid-template-columns:1fr}}
+  .card{background:var(--bg-card);border:1px solid var(--border);border-radius:20px;padding:28px}
+  .card-title{font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--text-dim);margin-bottom:22px;font-weight:600}
+
+  label.field{display:block;margin-bottom:18px}
+  label.field>span{display:block;font-size:12.5px;color:var(--text-secondary);margin-bottom:8px;letter-spacing:.3px}
+  .hint{color:var(--text-dim);font-size:11px;font-weight:300}
+  select,input[type=number],input[type=text],input[type=email],input[type=tel]{
+    width:100%;background:var(--bg-input);border:1px solid var(--border);border-radius:11px;
+    color:var(--text);font-family:inherit;font-size:15px;font-weight:400;padding:13px 14px;transition:.15s}
+  select:focus,input:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px var(--gold-light)}
+  select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%239A9A9C' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;background-position:right 14px center;padding-right:38px}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+  /* SEGMENTED */
+  .seg{display:grid;gap:8px}
+  .seg.cols3{grid-template-columns:repeat(3,1fr)}
+  .seg.cols2{grid-template-columns:repeat(2,1fr)}
+  .seg button{background:var(--bg-input);border:1px solid var(--border);border-radius:11px;color:var(--text-secondary);
+    font-family:inherit;font-size:13px;padding:12px 8px;cursor:pointer;transition:.15s;line-height:1.3}
+  .seg button small{display:block;color:var(--text-dim);font-size:10.5px;margin-top:3px}
+  .seg button:hover{border-color:rgba(212,175,55,.4)}
+  .seg button.on{background:var(--gold-light);border-color:var(--gold);color:var(--gold);font-weight:600}
+  .seg button.on small{color:var(--gold)}
+
+  details.adv{margin-top:6px;border-top:1px solid var(--border-soft);padding-top:14px}
+  details.adv>summary{cursor:pointer;font-size:12.5px;color:var(--text-dim);letter-spacing:.5px;list-style:none;user-select:none}
+  details.adv>summary::-webkit-details-marker{display:none}
+  details.adv>summary::before{content:"＋ ";color:var(--gold)}
+  details.adv[open]>summary::before{content:"− "}
+  details.adv .inner{padding-top:16px}
+
+  /* RESULT */
+  .result{position:sticky;top:86px;background:linear-gradient(180deg,#121013 0%,var(--bg-card) 100%);
+    border:1px solid rgba(212,175,55,.25)}
+  .result .label{font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--gold);font-weight:600}
+  .big{font-size:54px;font-weight:700;color:var(--gold);line-height:1;margin:10px 0 4px;letter-spacing:-1.5px}
+  .big small{font-size:18px;color:var(--text-secondary);font-weight:300;letter-spacing:0}
+  .range{font-size:13.5px;color:var(--text-secondary)}
+  .range b{color:var(--text)}
+  .metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:22px 0}
+  .metric{background:var(--bg-elevated);border-radius:12px;padding:14px}
+  .metric .k{font-size:10.5px;color:var(--text-dim);letter-spacing:.5px;text-transform:uppercase}
+  .metric .v{font-size:18px;font-weight:600;margin-top:4px}
+  .saving{background:var(--green-dim);border:1px solid rgba(70,192,138,.35);border-radius:14px;padding:16px 18px;margin-top:6px}
+  .saving .k{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--green);font-weight:600}
+  .saving .v{font-size:26px;font-weight:700;color:var(--green);margin:4px 0 2px}
+  .saving .d{font-size:12px;color:var(--text-secondary)}
+  .disclaimer{font-size:11px;color:var(--text-dim);line-height:1.5;margin-top:18px;border-top:1px solid var(--border-soft);padding-top:14px}
+  .empty{color:var(--text-dim);text-align:center;padding:50px 10px;font-size:14px}
+
+  /* CTA / LEAD */
+  .lead{background:linear-gradient(135deg,rgba(212,175,55,.10),rgba(212,175,55,.02));
+    border:1px solid var(--gold);border-radius:20px;padding:30px;margin-bottom:48px}
+  .lead h2{font-size:24px;font-weight:300;letter-spacing:-.5px;margin-bottom:6px}
+  .lead h2 b{font-weight:700;color:var(--gold)}
+  .lead p.l-sub{color:var(--text-secondary);font-size:14.5px;max-width:560px;margin-bottom:22px}
+  .lead-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:620px){.lead-grid{grid-template-columns:1fr}}
+  .btn-gold{grid-column:1/-1;background:var(--gold);color:#000;border:none;border-radius:12px;
+    font-family:inherit;font-weight:700;font-size:15px;letter-spacing:.5px;padding:15px;cursor:pointer;transition:.2s}
+  .btn-gold:hover{transform:translateY(-1px);box-shadow:0 10px 30px rgba(212,175,55,.35)}
+  .btn-gold:disabled{opacity:.5;cursor:not-allowed;transform:none}
+  .hp{position:absolute;left:-9999px;opacity:0;height:0;width:0}
+  .lead-success{display:none;text-align:center;padding:18px 0}
+  .lead-success.show{display:block}
+  .lead-success .ico{width:56px;height:56px;border-radius:50%;background:var(--green-dim);border:1px solid var(--green);
+    display:flex;align-items:center;justify-content:center;font-size:26px;color:var(--green);margin:0 auto 14px}
+  .lead-form-wrap.hide{display:none}
+  .consent{grid-column:1/-1;font-size:11px;color:var(--text-dim);line-height:1.5}
+  .consent a{color:var(--gold);text-decoration:underline}
+
+  /* CONTENT / SEO */
+  section.content{padding:8px 0 40px}
+  section.content h2{font-size:clamp(22px,3vw,30px);font-weight:300;letter-spacing:-.5px;margin:38px 0 14px}
+  section.content h2 b{font-weight:700;color:var(--gold)}
+  section.content p{color:var(--text-secondary);font-size:15px;margin-bottom:14px;max-width:780px}
+  .benefits{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:24px 0}
+  @media(max-width:760px){.benefits{grid-template-columns:1fr}}
+  .benefit{background:var(--bg-card);border:1px solid var(--border);border-radius:16px;padding:22px}
+  .benefit .e{font-size:24px;margin-bottom:10px}
+  .benefit h3{font-size:16px;font-weight:600;margin-bottom:6px}
+  .benefit p{font-size:13.5px;margin:0}
+  .faq-item{border-bottom:1px solid var(--border-soft);padding:18px 0}
+  .faq-item h3{font-size:16px;font-weight:600;margin-bottom:7px;color:var(--text)}
+  .faq-item p{font-size:14px;margin:0}
+
+  footer{border-top:1px solid var(--border-soft);padding:34px 0;text-align:center;color:var(--text-dim);font-size:12.5px}
+  footer a{color:var(--text-secondary)}
+  footer .fnav{display:flex;gap:18px;justify-content:center;flex-wrap:wrap;margin-bottom:14px}
+
+  /* floating WA */
+  .wa-float{position:fixed;bottom:20px;right:20px;z-index:60;width:54px;height:54px;border-radius:50%;
+    background:#25D366;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+  .wa-float svg{width:30px;height:30px;fill:#fff}
+</style>
+</head>
+<body>
+
+<nav>
+  <a class="brand" href="/"><span class="dot"></span>BOOM</a>
+  <a class="nav-cta" href="https://wa.me/393313251961?text=Ciao%20BOOM,%20vorrei%20info%20sul%20canone%20concordato" target="_blank" rel="noopener">WhatsApp</a>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <span class="eyebrow">Calcolatore gratuito · Accordo Territoriale Roma 2023</span>
+    <h1>Quanto puoi affittare<br>casa tua a Roma, <b>legalmente</b>?</h1>
+    <p class="sub">Scopri in 30 secondi il <b style="color:#fff;font-weight:600">canone concordato massimo</b> per il tuo immobile — e quanto risparmi di tasse con la cedolare secca al 10%.</p>
+    <div class="trust-row">
+      <span>90+ micro-zone di Roma</span>
+      <span>Cedolare secca 10%</span>
+      <span>Asseverazione inclusa con BOOM</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="app">
+
+    <!-- INPUTS -->
+    <div class="card">
+      <div class="card-title">La tua casa</div>
+
+      <label class="field">
+        <span>Zona / Quartiere</span>
+        <select id="zona" onchange="recalc()">
+          <option value="">Seleziona la zona…</option>
+        </select>
+      </label>
+
+      <div class="row2">
+        <label class="field">
+          <span>Superficie calpestabile <span class="hint">(mq)</span></span>
+          <input type="number" id="mq" min="10" max="600" placeholder="80" oninput="recalc()">
+        </label>
+        <label class="field">
+          <span>Stato dell'immobile</span>
+          <select id="fascia" onchange="recalc()">
+            <option value="A">Standard / da sistemare</option>
+            <option value="B" selected>Buono stato</option>
+            <option value="C">Ristrutturato / ottimo</option>
+          </select>
+        </label>
+      </div>
+
+      <label class="field">
+        <span>Arredamento</span>
+        <div class="seg cols3" id="seg-arr">
+          <button type="button" data-v="no" onclick="pick('arr','no')">Vuoto</button>
+          <button type="button" data-v="parziale" onclick="pick('arr','parziale')">Parziale</button>
+          <button type="button" class="on" data-v="si" onclick="pick('arr','si')">Arredato<small>+15%</small></button>
+        </div>
+      </label>
+
+      <label class="field" style="margin-bottom:8px">
+        <span>Tipo di contratto</span>
+        <div class="seg cols2" id="seg-tipo">
+          <button type="button" class="on" data-v="32" onclick="pick('tipo','32')">3+2 ordinario<small>cedolare 10%</small></button>
+          <button type="button" data-v="trans" onclick="pick('tipo','trans')">Transitorio<small>1–18 mesi</small></button>
+        </div>
+      </label>
+
+      <details class="adv">
+        <summary>Opzioni avanzate (pertinenze, classe energetica)</summary>
+        <div class="inner">
+          <div class="row2">
+            <label class="field"><span>Balcone / Terrazzo <span class="hint">mq</span></span>
+              <input type="number" id="mq_balc" min="0" placeholder="0" oninput="recalc()"></label>
+            <label class="field"><span>Cantina <span class="hint">mq</span></span>
+              <input type="number" id="mq_cant" min="0" placeholder="0" oninput="recalc()"></label>
+          </div>
+          <div class="row2">
+            <label class="field"><span>Box auto <span class="hint">mq</span></span>
+              <input type="number" id="mq_box" min="0" placeholder="0" oninput="recalc()"></label>
+            <label class="field"><span>Posto auto <span class="hint">mq</span></span>
+              <input type="number" id="mq_posto" min="0" placeholder="0" oninput="recalc()"></label>
+          </div>
+          <label class="field" style="margin-bottom:0">
+            <span>Classe energetica</span>
+            <div class="seg cols2" id="seg-ce">
+              <button type="button" class="on" data-v="std" onclick="pick('ce','std')">D o inferiore</button>
+              <button type="button" data-v="abc" onclick="pick('ce','abc')">A / B / C<small>+10%</small></button>
+            </div>
+          </label>
+        </div>
+      </details>
+    </div>
+
+    <!-- RESULT -->
+    <div class="card result" id="resultCard">
+      <div id="emptyState" class="empty">Seleziona la zona e inserisci i mq<br>per vedere il canone massimo.</div>
+      <div id="resultBody" style="display:none">
+        <div class="label">Canone concordato — stima</div>
+        <div class="big"><span id="rMonthly">—</span> <small>/ mese</small></div>
+        <div class="range">Intervallo legale fascia <b id="rFascia">B</b>: <b id="rRange">—</b> · <span id="rEnvelope"></span></div>
+
+        <div class="metrics">
+          <div class="metric"><div class="k">€/mq applicato</div><div class="v" id="rEurmq">—</div></div>
+          <div class="metric"><div class="k">Superficie convenz.</div><div class="v" id="rSup">—</div></div>
+          <div class="metric"><div class="k">Canone annuo</div><div class="v" id="rAnnuo">—</div></div>
+          <div class="metric"><div class="k">Cedolare 10%</div><div class="v" id="rCed">—</div></div>
+        </div>
+
+        <div class="saving">
+          <div class="k">Risparmio fiscale vs canone libero</div>
+          <div class="v" id="rSaving">—</div>
+          <div class="d">all'anno con la cedolare secca al 10% invece del 21%, + IMU ridotta del 25%</div>
+        </div>
+
+        <p class="disclaimer">Stima basata sull'Accordo Territoriale del Comune di Roma (2023) e sui coefficienti di superficie convenzionale. Il canone definitivo dipende dalla classificazione esatta dell'immobile e, per i contratti non assistiti, richiede l'<b>attestazione/asseverazione</b> di un'organizzazione firmataria. BOOM la gestisce per te.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- LEAD CAPTURE -->
+  <div class="lead" id="leadCard">
+    <div class="lead-form-wrap" id="leadFormWrap">
+      <h2>Vuoi il <b>calcolo certificato</b> e l'asseverazione?</h2>
+      <p class="l-sub">BOOM ti prepara il contratto a canone concordato, l'attestazione CAF e — se vuoi — gestisce l'affitto al posto tuo. Lascia i tuoi dati: ti ricontattiamo entro 24 ore con il calcolo ufficiale.</p>
+      <form class="lead-grid" id="leadForm" onsubmit="return submitLead(event)">
+        <input type="text" id="lf_company" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+        <input type="text" id="lf_name" placeholder="Nome e cognome" required>
+        <input type="tel" id="lf_phone" placeholder="Telefono / WhatsApp" required>
+        <input type="email" id="lf_email" placeholder="Email" style="grid-column:1/-1" required>
+        <button type="submit" class="btn-gold" id="lf_btn">Richiedi il calcolo certificato gratuito →</button>
+        <p class="consent">Inviando accetti di essere ricontattato da BOOM. Nessuno spam. Leggi la <a href="/privacy" target="_blank">privacy policy</a>.</p>
+      </form>
+    </div>
+    <div class="lead-success" id="leadSuccess">
+      <div class="ico">✓</div>
+      <h2 style="margin-bottom:8px">Richiesta ricevuta!</h2>
+      <p class="l-sub" style="margin:0 auto 16px">Ti ricontattiamo entro 24 ore con il calcolo ufficiale del canone concordato. Per fare prima, scrivici su WhatsApp.</p>
+      <a class="nav-cta" id="waSuccess" href="https://wa.me/393313251961" target="_blank" rel="noopener" style="display:inline-flex">Scrivici su WhatsApp →</a>
+    </div>
+  </div>
+
+  <!-- SEO CONTENT -->
+  <section class="content">
+    <h2>Perché conviene il <b>canone concordato</b></h2>
+    <p>Il canone concordato (o "concertato") è il contratto di locazione il cui importo rientra nei limiti fissati dall'Accordo Territoriale del Comune di Roma. In cambio di un canone calmierato, il proprietario ottiene vantaggi fiscali importanti che spesso rendono il rendimento netto superiore a quello del canone libero.</p>
+
+    <div class="benefits">
+      <div class="benefit"><div class="e">🏷️</div><h3>Cedolare secca 10%</h3><p>Tassazione al 10% invece del 21% del canone libero. Su 12.000 €/anno sono ~1.320 € risparmiati ogni anno.</p></div>
+      <div class="benefit"><div class="e">🏛️</div><h3>IMU ridotta del 25%</h3><p>L'imposta municipale sull'immobile si riduce del 25% per i contratti a canone concordato.</p></div>
+      <div class="benefit"><div class="e">📄</div><h3>Registro e bollo azzerati</h3><p>Con la cedolare secca niente imposta di registro né imposta di bollo annuali sul contratto.</p></div>
+    </div>
+
+    <h2>Come funziona il <b>calcolo</b></h2>
+    <p>Il canone si ottiene moltiplicando il valore unitario in €/mq della tua micro-zona (definito dalle tabelle dell'Accordo) per la <b>superficie convenzionale</b> dell'immobile — la superficie calpestabile corretta da coefficienti, più una quota delle pertinenze (balconi, cantina, box). Il valore unitario varia per fascia (A, B, C) a seconda dello stato e delle dotazioni dell'immobile, e può essere maggiorato per arredo, classe energetica elevata e contratto transitorio.</p>
+
+    <h2>Domande <b>frequenti</b></h2>
+    <div class="faq-item"><h3>È davvero gratis?</h3><p>Sì. Il calcolatore è gratuito e senza impegno. Se poi vuoi il contratto e l'asseverazione ufficiale, BOOM te li prepara come servizio.</p></div>
+    <div class="faq-item"><h3>Cos'è l'asseverazione del canone concordato?</h3><p>Per i contratti stipulati senza l'assistenza delle associazioni, dal 2018 serve un'attestazione rilasciata da un'organizzazione firmataria dell'accordo che certifica la conformità del contratto. Senza, rischi di perdere le agevolazioni fiscali. BOOM la gestisce per te.</p></div>
+    <div class="faq-item"><h3>Quanto è preciso il risultato?</h3><p>È una stima accurata basata sulle tabelle ufficiali 2023. Il valore esatto dipende dalla classificazione puntuale dell'immobile (fascia e parametri): il nostro team la verifica e ti dà la cifra certificata.</p></div>
+    <div class="faq-item"><h3>BOOM può anche affittare la mia casa?</h3><p>Sì. Oltre al contratto, BOOM trova l'inquilino giusto, gestisce visite, firma digitale, pagamenti e burocrazia. Scrivici su WhatsApp.</p></div>
+  </section>
+</div>
+
+<footer>
+  <div class="wrap">
+    <div class="fnav">
+      <a href="/">Home</a><a href="/apartments">Appartamenti</a><a href="/owners">Proprietari</a>
+      <a href="/blog">Blog</a><a href="/privacy">Privacy</a>
+    </div>
+    BOOM Rome · Gestione affitti premium a Roma · <a href="https://www.boomrome.com">boomrome.com</a>
+  </div>
+</footer>
+
+<a class="wa-float" href="https://wa.me/393313251961?text=Ciao%20BOOM,%20vorrei%20info%20sul%20canone%20concordato" target="_blank" rel="noopener" aria-label="WhatsApp">
+  <svg viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163a11.867 11.867 0 01-1.587-5.945C.16 5.335 5.495 0 12.05 0a11.817 11.817 0 018.413 3.488 11.824 11.824 0 013.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 01-5.688-1.448L.057 24zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884a9.86 9.86 0 001.51 5.26l-.999 3.648 3.768-.987zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.71.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
+</a>
+
+<script>
+/* ── Accordo Territoriale Roma 2023 — [code, name, category, A.min, A.max, B.min, B.max, C.min, C.max] ── */
+const ZONE = [
+  ["B1","Testaccio","Pregio / Centro",10.50,13.20,13.20,15.30,15.30,17.60],
+  ["B2","San Saba","Pregio / Centro",10.50,13.20,13.20,18.90,18.90,22.60],
+  ["B3","Celio","Pregio / Centro",10.50,13.20,13.20,18.90,18.90,22.60],
+  ["B4","Monti","Pregio / Centro",10.50,13.20,13.20,18.90,18.90,22.60],
+  ["B12","Aventino / Ripa","Pregio / Centro",12.60,15.40,15.40,22.00,22.00,26.40],
+  ["B13","Sant'Angelo – Campitelli","Pregio / Centro",12.60,15.40,15.40,22.00,22.00,26.40],
+  ["B14","Trastevere","Pregio / Centro",12.60,15.40,15.40,22.00,22.00,26.40],
+  ["B15","Borgo","Pregio / Centro",12.60,15.40,15.40,22.00,22.00,26.40],
+  ["B17","Sallustiano – Castro Pretorio","Pregio / Centro",12.60,15.40,15.40,22.00,22.00,26.40],
+  ["B18","Esquilino","Pregio / Centro",7.00,9.20,9.20,13.10,13.10,15.70],
+  ["B25","Ludovisi / Via Veneto","Pregio / Centro",12.60,15.40,15.40,22.00,22.00,26.40],
+  ["B29","Viminale","Pregio / Centro",10.50,13.20,13.20,18.90,18.90,22.60],
+  ["B31","Tridente (Campo Marzio, Colonna, Pigna, Trevi)","Pregio / Centro",12.60,18.30,18.30,26.20,26.20,31.50],
+  ["B32","Corso Vittorio (Ponte, Parione, Regola, S.Eustachio)","Pregio / Centro",12.60,16.90,16.90,24.10,24.10,28.90],
+  ["C1","Parioli","Pregio / Centro",10.50,13.80,13.80,19.80,19.80,23.80],
+  ["C2","Salario","Pregio / Centro",10.50,13.80,13.80,19.80,19.80,23.80],
+  ["C3","Pinciano","Pregio / Centro",10.50,13.80,13.80,19.80,19.80,23.80],
+  ["C4","Nomentano Torlonia","Pregio / Centro",10.50,13.80,13.80,19.80,19.80,23.80],
+  ["C40","Prati","Pregio / Centro",10.50,12.80,12.80,18.40,18.40,22.00],
+  ["C41","Della Vittoria / Mazzini","Pregio / Centro",10.50,12.80,12.80,18.40,18.40,22.00],
+  ["C46","Salario Trieste","Pregio / Centro",10.50,13.90,13.90,19.90,19.90,23.90],
+  ["C49","Flaminio","Pregio / Centro",10.50,12.80,12.80,18.40,18.40,22.00],
+  ["C50","Flaminio Porta del Popolo","Pregio / Centro",10.50,13.00,13.00,18.60,18.60,22.40],
+  ["C5","San Lorenzo","Centrale / Semicentrale",4.40,8.10,8.10,11.60,11.60,13.60],
+  ["C7","Appio – Villa Fiorelli","Centrale / Semicentrale",6.10,7.90,7.90,11.30,11.30,14.10],
+  ["C8","Appio – Nocera Umbra","Centrale / Semicentrale",6.10,7.90,7.90,11.30,11.30,14.10],
+  ["C9","Appio Metronio","Centrale / Semicentrale",6.10,8.60,8.60,12.30,12.30,15.50],
+  ["C10","Garbatella","Centrale / Semicentrale",6.10,8.20,8.20,11.80,11.80,13.50],
+  ["C11","Marconi","Centrale / Semicentrale",6.10,8.20,8.20,11.80,11.80,13.50],
+  ["C12","Monteverde Vecchio","Centrale / Semicentrale",6.10,9.80,9.80,14.00,14.00,16.00],
+  ["C13","Monteverde Nuovo","Centrale / Semicentrale",6.10,8.20,8.20,11.80,11.80,12.80],
+  ["C14","Aurelio Monte di Creta","Centrale / Semicentrale",4.70,8.10,8.10,11.60,11.60,12.80],
+  ["C15","Aurelio Gregorio VII","Centrale / Semicentrale",6.10,8.40,8.40,12.00,12.00,15.50],
+  ["C16","Cavalleggeri","Centrale / Semicentrale",6.10,8.40,8.40,12.00,12.00,14.50],
+  ["C17","Balduina Giovenale","Centrale / Semicentrale",6.10,8.20,8.20,11.80,11.80,12.80],
+  ["C18","Cipro","Centrale / Semicentrale",6.30,8.40,8.40,12.00,12.00,13.50],
+  ["C19","Ponte Milvio / Farnesina","Centrale / Semicentrale",8.80,11.40,11.40,16.30,16.30,17.90],
+  ["C21","Salario Africano","Centrale / Semicentrale",6.10,9.80,9.80,14.00,14.00,15.50],
+  ["C22","Batteria Nomentana / Lanciani","Centrale / Semicentrale",6.10,9.50,9.50,13.60,13.60,14.50],
+  ["C24","Bologna","Centrale / Semicentrale",6.50,9.70,9.70,13.80,13.80,15.00],
+  ["C26","Villaggio Olimpico","Centrale / Semicentrale",6.10,9.00,9.00,12.90,12.90,14.00],
+  ["C27","Porta Portese","Centrale / Semicentrale",8.80,10.10,10.10,14.50,14.50,16.00],
+  ["C29","Casal Bertone / Portonaccio","Centrale / Semicentrale",4.20,6.40,6.40,9.10,9.10,12.40],
+  ["C30","Pigneto","Centrale / Semicentrale",4.40,7.30,7.30,10.50,10.50,13.10],
+  ["C31","Marco Polo","Centrale / Semicentrale",6.10,8.20,8.20,11.80,11.80,15.00],
+  ["C32","Ostiense","Centrale / Semicentrale",6.10,7.70,7.70,11.00,11.00,12.50],
+  ["C35","Aurelio Madonna del Riposo","Centrale / Semicentrale",6.10,8.20,8.20,11.80,11.80,12.80],
+  ["C38","Casilino Marranella","Centrale / Semicentrale",4.10,6.40,6.40,9.10,9.10,11.90],
+  ["C42","Vigna Clara","Centrale / Semicentrale",8.80,9.80,9.80,14.00,14.00,15.50],
+  ["C43","Trionfale Igea","Centrale / Semicentrale",8.80,10.50,10.50,15.00,15.00,16.50],
+  ["C44","Camilluccia","Centrale / Semicentrale",8.80,11.10,11.10,15.80,15.80,18.10],
+  ["C45","Nocetta","Centrale / Semicentrale",4.40,6.50,6.50,9.30,9.30,12.60],
+  ["C47","Balduina Belsito","Centrale / Semicentrale",6.30,8.30,8.30,11.90,11.90,14.30],
+  ["C48","Tor Marancia / Navigatori","Centrale / Semicentrale",6.10,8.20,8.20,11.80,11.80,13.50],
+  ["C51","Appio Latino","Centrale / Semicentrale",6.10,8.20,8.20,11.80,11.80,13.30],
+  ["C52","Collina Fleming","Centrale / Semicentrale",8.80,9.80,9.80,14.00,14.00,15.50],
+  ["D1","Prenestino Labicano","Periferica",4.10,6.40,6.40,9.10,9.10,10.90],
+  ["D2","Tor Pignattara","Periferica",4.40,5.70,5.70,8.20,8.20,11.90],
+  ["D11","Montesacro","Periferica",5.30,8.00,8.00,11.50,11.50,13.00],
+  ["D12","Valmelaina / Tufello","Periferica",4.70,7.30,7.30,10.50,10.50,12.80],
+  ["D14","Centocelle","Periferica",4.10,6.40,6.40,9.10,9.10,11.40],
+  ["D15","Ardeatino / Ottavo Colle","Periferica",7.00,9.70,9.70,13.80,13.80,15.90],
+  ["D16","Pietralata / Tiburtino","Periferica",4.10,6.30,6.30,9.00,9.00,12.40],
+  ["D17","Collatino","Periferica",4.10,6.40,6.40,9.10,9.10,11.20],
+  ["D18","Alessandrino","Periferica",4.10,6.40,6.40,9.10,9.10,10.90],
+  ["D19","Cinecittà / Don Bosco","Periferica",4.10,6.40,6.40,9.10,9.10,11.70],
+  ["D20","Cinecittà Lamaro","Periferica",4.10,6.40,6.40,9.10,9.10,10.50],
+  ["D21","Appio Claudio","Periferica",4.10,6.60,6.60,9.40,9.40,12.20],
+  ["D22","Statuario / Capannelle","Periferica",3.80,6.40,6.40,9.10,9.10,12.20],
+  ["D23","Quarto Miglio","Periferica",7.00,9.70,9.70,13.80,13.80,15.90],
+  ["D24","Primavalle / Torrevecchia","Periferica",3.50,6.60,6.60,9.40,9.40,11.90],
+  ["D26","San Basilio","Periferica",4.10,6.40,6.40,9.10,9.10,10.50],
+  ["D27","Talenti","Periferica",5.90,8.30,8.30,11.90,11.90,13.70],
+  ["D28","Giuliano Dalmata","Periferica",6.10,8.30,8.30,11.90,11.90,13.70],
+  ["D29","EUR","Periferica",7.00,10.50,10.50,15.10,15.10,16.20],
+  ["D30","Tomba di Nerone","Periferica",5.30,7.90,7.90,11.30,11.30,12.80],
+  ["D31","Cassia Due Ponti","Periferica",8.80,9.20,9.20,13.10,13.10,14.50],
+  ["D32","Fonte Meravigliosa / Ardeatino Millevoi","Periferica",6.10,9.80,9.80,14.00,14.00,16.50],
+  ["D34","Montagnola","Periferica",6.40,9.20,9.20,13.20,13.20,15.00],
+  ["D36","Grottaperfetta / Roma 70","Periferica",7.00,9.80,9.80,13.90,13.90,15.60],
+  ["E1","Acilia / Vitinia","Suburbana",3.20,5.50,5.50,7.90,7.90,10.20],
+  ["E2","Infernetto / Dragona","Suburbana",3.20,5.20,5.20,7.50,7.50,9.80],
+  ["E3","Ostia Lido","Suburbana",4.00,6.40,6.40,9.10,9.10,11.20],
+  ["E4","Tor Sapienza / Torre Angela","Suburbana",3.50,5.50,5.50,7.90,7.90,10.00],
+  ["E5","Bufalotta / Fidene","Suburbana",4.10,6.40,6.40,9.10,9.10,11.00],
+  ["E6","Cassia / Tomba di Nerone Sub","Suburbana",3.50,6.00,6.00,8.60,8.60,11.00],
+  ["E7","Casalotti / Ottavia","Suburbana",3.40,5.80,5.80,8.30,8.30,10.50],
+  ["E8","Corviale / Magliana","Suburbana",3.20,5.20,5.20,7.50,7.50,9.50],
+  ["E9","Spinaceto / Laurentina","Suburbana",3.50,5.80,5.80,8.30,8.30,10.50],
+  ["E10","Tor Vergata / Casilina","Suburbana",3.20,5.50,5.50,7.90,7.90,10.00],
+  ["E11","Tragliatella / Periferia Est","Suburbana",3.20,4.50,4.50,6.50,6.50,8.50]
+];
+
+const sel = { arr:'si', tipo:'32', ce:'std' };
+
+/* populate zone dropdown grouped by category */
+(function initZones(){
+  const z = document.getElementById('zona');
+  const groups = {};
+  ZONE.forEach((r,i)=>{ (groups[r[2]] ||= []).push([i,r[1]]); });
+  Object.keys(groups).forEach(cat=>{
+    const og = document.createElement('optgroup'); og.label = cat;
+    groups[cat].sort((a,b)=>a[1].localeCompare(b[1],'it')).forEach(([i,name])=>{
+      const o = document.createElement('option'); o.value = i; o.textContent = name; og.appendChild(o);
+    });
+    z.appendChild(og);
+  });
+})();
+
+function pick(group, val){
+  sel[group] = val;
+  const id = {arr:'seg-arr', tipo:'seg-tipo', ce:'seg-ce'}[group];
+  document.querySelectorAll('#'+id+' button').forEach(b=>b.classList.toggle('on', b.dataset.v===val));
+  recalc();
+}
+
+const eur = n => '€ ' + Math.round(n).toLocaleString('it-IT');
+
+function supConv(){
+  const calp  = +document.getElementById('mq').value || 0;
+  const balc  = +document.getElementById('mq_balc').value || 0;
+  const cant  = +document.getElementById('mq_cant').value || 0;
+  const box   = +document.getElementById('mq_box').value || 0;
+  const posto = +document.getElementById('mq_posto').value || 0;
+  let coeff = 1.00;
+  if (calp < 46) coeff = 1.30; else if (calp < 70) coeff = 1.15; else if (calp <= 120) coeff = 1.00; else coeff = 0.85;
+  const pert = (balc + cant) * 0.25 + box * 0.50 + posto * 0.20;
+  return { calp, total: calp * coeff + pert };
+}
+
+let last = null;
+
+function recalc(){
+  const zi = document.getElementById('zona').value;
+  const sc = supConv();
+  const empty = document.getElementById('emptyState');
+  const body  = document.getElementById('resultBody');
+
+  if (zi === '' || sc.calp <= 0){ empty.style.display='block'; body.style.display='none'; last=null; return; }
+  empty.style.display='none'; body.style.display='block';
+
+  const z = ZONE[+zi];
+  const f = document.getElementById('fascia').value;
+  const min = f==='A'? z[3] : f==='B'? z[5] : z[7];
+  const max = f==='A'? z[4] : f==='B'? z[6] : z[8];
+
+  // base = mid of fascia band
+  let unit = min + (max - min) * 0.5;
+
+  // modifiers
+  let mod = 0;
+  if (sel.arr==='si') mod += 15; else if (sel.arr==='parziale') mod += 7;
+  if (sel.ce==='abc') mod += 10;
+  if (sel.tipo==='trans') mod += 15; // transitorio: maggiorazione tipica
+  let unitFinal = unit * (1 + mod/100);
+  if (unitFinal > max * 1.35) unitFinal = max * 1.35; // cap come da motore BOOM
+
+  const mensile = unitFinal * sc.total;
+  const annuo   = mensile * 12;
+  const cMin = min * sc.total, cMax = max * sc.total;
+
+  // overall legal envelope across the zone (A.min → C.max)
+  const envMin = z[3] * sc.total, envMax = z[8] * sc.total;
+
+  document.getElementById('rMonthly').textContent = eur(mensile);
+  document.getElementById('rFascia').textContent  = f;
+  document.getElementById('rRange').textContent   = eur(cMin)+'–'+eur(cMax)+'/mese';
+  document.getElementById('rEnvelope').textContent= 'tetto zona '+eur(envMax)+'/mese';
+  document.getElementById('rEurmq').textContent   = unitFinal.toFixed(2)+' €/mq';
+  document.getElementById('rSup').textContent     = sc.total.toFixed(1)+' mq';
+  document.getElementById('rAnnuo').textContent   = eur(annuo);
+  document.getElementById('rCed').textContent     = eur(annuo*0.10);
+  document.getElementById('rSaving').textContent  = eur(annuo*0.11);
+
+  last = {
+    zona: z[1], zoneCode: z[0], fascia: f, mq: sc.calp, supConv: +sc.total.toFixed(1),
+    arredo: sel.arr, contratto: sel.tipo, classeEn: sel.ce,
+    eurMq: +unitFinal.toFixed(2), mensile: Math.round(mensile), annuo: Math.round(annuo),
+    cedolare10: Math.round(annuo*0.10), risparmioAnnuo: Math.round(annuo*0.11),
+    rangeMin: Math.round(cMin), rangeMax: Math.round(cMax)
+  };
+}
+
+async function submitLead(e){
+  e.preventDefault();
+  if (document.getElementById('lf_company').value) return false; // honeypot
+  const btn = document.getElementById('lf_btn');
+  btn.disabled = true; btn.textContent = 'Invio…';
+
+  const payload = {
+    name:  document.getElementById('lf_name').value.trim(),
+    email: document.getElementById('lf_email').value.trim(),
+    phone: document.getElementById('lf_phone').value.trim(),
+    company: document.getElementById('lf_company').value, // honeypot echoed for server check
+    calc: last
+  };
+
+  try {
+    const r = await fetch('/api/canone-lead', {
+      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
+    });
+    const data = await r.json().catch(()=>({}));
+    if (!r.ok || !data.ok) throw new Error(data.error || 'fail');
+
+    // prefill WhatsApp deep-link with the estimate
+    const wa = last
+      ? 'https://wa.me/393313251961?text=' + encodeURIComponent(
+          'Ciao BOOM! Ho calcolato il canone concordato per la mia casa a '+last.zona+
+          ' ('+last.mq+' mq): ~'+eur(last.mensile)+'/mese. Vorrei il calcolo certificato.')
+      : 'https://wa.me/393313251961';
+    document.getElementById('waSuccess').href = wa;
+
+    document.getElementById('leadFormWrap').classList.add('hide');
+    document.getElementById('leadSuccess').classList.add('show');
+    document.getElementById('leadCard').scrollIntoView({behavior:'smooth', block:'center'});
+  } catch (err) {
+    btn.disabled = false; btn.textContent = 'Riprova →';
+    alert('Qualcosa è andato storto. Riprova o scrivici su WhatsApp.');
+  }
+  return false;
+}
+</script>
+</body>
+</html>

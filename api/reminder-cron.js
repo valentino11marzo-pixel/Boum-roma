@@ -11,6 +11,7 @@
 //   CRON_SECRET             → boom-cron-2026
 
 import nodemailer from 'nodemailer';
+import { pushPass } from './_passkit.js';
 
 const PROJECT_ID = process.env.FIREBASE_PROJECT_ID;
 const API_KEY    = process.env.FIREBASE_API_KEY;
@@ -137,6 +138,7 @@ export default async function handler(req, res) {
           await transporter.sendMail({ from: `BOOM Rome <${process.env.GMAIL_USER}>`, to: v.clientEmail, subject: cs, html: ch });
           await transporter.sendMail({ from: `BOOM Rome <${process.env.GMAIL_USER}>`, to: 'valentino@boomrome.com', subject: as, html: ah });
           await fsPatch(docPath, { reminder3hSent: { booleanValue: true } }, token);
+          try { await pushPass(`viewing-${v.id}`); } catch (e) {}
           results.sent3h++;
         } catch (e) { results.errors.push(`3h ${v.id}: ${e.message}`); }
       }
@@ -148,10 +150,61 @@ export default async function handler(req, res) {
           await transporter.sendMail({ from: `BOOM Rome <${process.env.GMAIL_USER}>`, to: v.clientEmail, subject: cs, html: ch });
           await transporter.sendMail({ from: `BOOM Rome <${process.env.GMAIL_USER}>`, to: 'valentino@boomrome.com', subject: as, html: ah });
           await fsPatch(docPath, { reminder30mSent: { booleanValue: true } }, token);
+          try { await pushPass(`viewing-${v.id}`); } catch (e) {}
           results.sent30m++;
         } catch (e) { results.errors.push(`30m ${v.id}: ${e.message}`); }
       }
     }
+
+    // ── Rent reminders → live-update the tenant Wallet pass (Prossima rata) ──
+    // Pushes once per payment when it enters the 3-day window, and once when it
+    // goes overdue (dedup flags on the payment doc). No-op if the tenant hasn't
+    // installed the pass.
+    try {
+      const payQ = await fsQuery('payments', token, {
+        field: { fieldPath: 'status' }, op: 'EQUAL', value: { stringValue: 'pending' },
+      });
+      const pays = (payQ || []).filter(r => r.document).map(r => parseDoc(r.document)).filter(Boolean);
+      let rentPush = 0;
+      for (const p of pays) {
+        const cid = p.contractId;
+        if (!cid || !p.dueDate) continue;
+        const days = (new Date(p.dueDate).getTime() - now.getTime()) / 86400000;
+        const serials = [`tenant-${cid}`, `silver-${cid}`];
+        if (days >= 0 && days <= 3 && !p.passDueSoonPushed) {
+          for (const s of serials) { try { await pushPass(s); } catch (e) {} }
+          await fsPatch(`payments/${p.id}`, { passDueSoonPushed: { booleanValue: true } }, token);
+          rentPush++;
+        } else if (days < 0 && !p.passOverduePushed) {
+          for (const s of serials) { try { await pushPass(s); } catch (e) {} }
+          await fsPatch(`payments/${p.id}`, { passOverduePushed: { booleanValue: true } }, token);
+          rentPush++;
+        }
+      }
+      results.rentPush = rentPush;
+    } catch (e) { results.errors.push(`rent-push: ${e.message}`); }
+
+    // ── Payment confirmed → "Pagato ✓" live update on the tenant pass ──
+    // Only recently-paid (≤3 days) and not yet pushed → no spam, no backfill.
+    try {
+      const paidQ = await fsQuery('payments', token, {
+        field: { fieldPath: 'status' }, op: 'EQUAL', value: { stringValue: 'paid' },
+      });
+      const paid = (paidQ || []).filter(r => r.document).map(r => parseDoc(r.document)).filter(Boolean);
+      let paidPush = 0;
+      for (const p of paid) {
+        const cid = p.contractId;
+        const when = p.paidDate || p.paidAt;
+        if (!cid || !when || p.passPaidPushed) continue;
+        const daysSince = (now.getTime() - new Date(when).getTime()) / 86400000;
+        if (daysSince < 0 || daysSince > 3) continue;
+        for (const s of [`tenant-${cid}`, `silver-${cid}`]) { try { await pushPass(s); } catch (e) {} }
+        await fsPatch(`payments/${p.id}`, { passPaidPushed: { booleanValue: true } }, token);
+        paidPush++;
+      }
+      results.paidPush = paidPush;
+    } catch (e) { results.errors.push(`paid-push: ${e.message}`); }
+
     return res.status(200).json({ ok: true, timestamp: now.toISOString(), ...results });
   } catch (e) {
     console.error('Cron error:', e);
