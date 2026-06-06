@@ -34,6 +34,7 @@
     <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
     <script src="/js/taxpack-engine.js"></script>
+    <script src="/js/fiscal-engine.js"></script>
     <!-- PDF.js — renders uploaded PDFs to canvas so Magic Sign Custom can place fields on them. Loaded lazily by ensurePdfJs() on first use. -->
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
     <style>
@@ -10208,9 +10209,76 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // Role router: landlords get the calm single-decision "Lite" view;
     // admin gets the full power dashboard (with a "preview as landlord" toggle).
     function commercialistaPage() {
+        if (isAdmin() && window._cmEgidi) return commercialistaEgidiView();
         if (isAdmin() && window._cmPreviewLite) return commercialistaLandlordLite(true);
         if (isLandlord()) return commercialistaLandlordLite(false);
         return commercialistaAdminFull();
+    }
+
+    // ─── EGIDI (AZIENDA) — BOOM's own fiscality ─────────────────────────────
+    // Company revenue (from invoices + paid PFS) → IVA trimestrale + corporate
+    // deadlines, computed by the fiscal engine. Admin-only.
+    function commercialistaEgidiView() {
+        const FX = window.BOOM_FISCAL;
+        const year = _cmState.year || new Date().getFullYear();
+        // Revenue by quarter from issued invoices (paid + pending) for the year.
+        const revByQ = { 1: 0, 2: 0, 3: 0, 4: 0 };
+        let totalRev = 0;
+        (S.invoices || []).forEach(inv => {
+            const d = inv.date ? new Date(inv.date) : (inv.createdAt && inv.createdAt.toDate ? inv.createdAt.toDate() : null);
+            if (!d || d.getFullYear() !== Number(year)) return;
+            const q = Math.floor(d.getMonth() / 3) + 1;
+            const amt = Number(inv.amount) || 0;
+            revByQ[q] += amt; totalRev += amt;
+        });
+        // Paid PFS fees (Stripe) as additional revenue if dated this year.
+        (S.pfsClients || []).forEach(c => {
+            const paid = Number(c.amount_paid) || (c.amount_eur ? Number(c.amount_eur) * 100 : 0);
+            if (!paid) return;
+            const d = c.paid_at ? new Date(c.paid_at) : (c.created_at ? new Date(c.created_at) : null);
+            if (!d || d.getFullYear() !== Number(year)) return;
+            const q = Math.floor(d.getMonth() / 3) + 1;
+            const eur = paid > 1000 ? paid / 100 : paid; // stripe amounts are cents
+            revByQ[q] += eur; totalRev += eur;
+        });
+
+        const companyObl = FX ? FX.companyObligations(year, revByQ) : [];
+        const roll = FX ? FX.rollup(companyObl, new Date()) : { totalDue: 0, counts: {} };
+        const ivaTotal = companyObl.filter(o => o.category === 'vat' && o.amount).reduce((s, o) => s + o.amount, 0);
+
+        const nowY = new Date().getFullYear();
+        const yearOpts = [];
+        for (let yy = nowY; yy >= nowY - 5; yy--) yearOpts.push(`<option value="${yy}" ${yy === year ? 'selected' : ''}>${yy}</option>`);
+
+        const qCard = (q) => `<div class="stat-card"><div class="stat-label">Q${q} ${year}</div><div class="stat-value">${FX.fmtEuro(revByQ[q])}</div><div class="stat-description">IVA ~${FX.fmtEuro(Math.round(revByQ[q]*0.22))}</div></div>`;
+
+        return `<div class="page-header">
+                <div><h1 class="page-title">🏢 Egidi Immobiliare — Fiscale</h1><p class="page-subtitle">Ricavi · IVA trimestrale · scadenze societarie · P.IVA 17322991005</p></div>
+                <div class="page-actions">
+                    <button class="btn btn-secondary btn-sm" onclick="window._cmEgidi=false;renderPage()">← Proprietari</button>
+                    <select class="form-select" style="width:auto" onchange="_cmState.year=parseInt(this.value);renderPage()">${yearOpts.join('')}</select>
+                </div>
+            </div>
+
+            <div class="stats-grid" style="grid-template-columns:repeat(4,1fr)">
+                <div class="stat-card highlight"><div class="stat-label">Ricavi ${year}</div><div class="stat-value gold">${FX.fmtEuro(totalRev)}</div><div class="stat-description">fatture + PFS incassati</div></div>
+                <div class="stat-card"><div class="stat-label">IVA stimata ${year}</div><div class="stat-value">${FX.fmtEuro(ivaTotal)}</div><div class="stat-description">22% sui ricavi imponibili</div></div>
+                <div class="stat-card ${roll.counts.overdue ? 'highlight' : ''}"><div class="stat-label">Scadute</div><div class="stat-value ${roll.counts.overdue ? '' : 'green'}">${roll.counts.overdue || 0}</div></div>
+                <div class="stat-card"><div class="stat-label">Entro 30 giorni</div><div class="stat-value">${roll.counts.dueSoon || 0}</div></div>
+            </div>
+
+            <div class="card" style="margin-bottom:20px">
+                <div style="padding:14px 18px;border-bottom:1px solid var(--border)"><strong>Ricavi per trimestre</strong></div>
+                <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);padding:16px;gap:12px">
+                    ${qCard(1)}${qCard(2)}${qCard(3)}${qCard(4)}
+                </div>
+            </div>
+
+            ${FX ? fiscalScadenzarioCard(companyObl, { compact: false }) : ''}
+
+            <div style="font-size:12px;color:var(--text-muted);margin-top:16px;padding:12px 16px;background:var(--bg-elevated);border-radius:8px">
+                I ricavi sono presi dalle fatture emesse (pagina Fatture) e dai compensi PFS incassati via Stripe. L'IVA è una stima al 22%: il calcolo definitivo (detraibile inclusa) resta al commercialista.
+            </div>`;
     }
 
     // ─── LANDLORD LITE — one property, one question, one action ─────────────
@@ -10244,6 +10312,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
         const cur = portfolio.find(x => x.p.id === _cmState.propertyId) || portfolio[0];
         const { p: prop, contract, checklist, totals } = cur;
+
+        // Scadenzario — computed obligations for THIS property (engine).
+        const FX = window.BOOM_FISCAL;
+        const obligations = FX ? FX.landlordObligations({ properties: [prop], contracts: (S.contracts||[]).filter(c=>c.propertyId===prop.id), fiscalYear: year }) : [];
+        const scadCard = FX ? fiscalScadenzarioCard(obligations, { compact: true }) : '';
 
         // Status mapping → calm, human.
         let statusKey, icon, headline, sub, accent;
@@ -10327,6 +10400,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 </div>
             </div>
 
+            ${scadCard}
+
             ${missingBlock}
 
             <div style="text-align:center;margin-top:16px">
@@ -10351,6 +10426,52 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     }).join('')}
                 </div>
             </div>` : ''}`;
+    }
+
+    // Reusable Scadenzario card — renders the next fiscal obligations
+    // (overdue + due in 30 days) from the fiscal engine, with date, amount,
+    // and a 1-tap action. Used by the landlord lite view and the admin
+    // company (Egidi) view. `opts.compact` shows only urgent buckets.
+    function fiscalScadenzarioCard(obligations, opts) {
+        opts = opts || {};
+        const FX = window.BOOM_FISCAL;
+        if (!FX || !obligations || !obligations.length) return '';
+        const roll = FX.rollup(obligations, new Date());
+        const urgent = roll.buckets.overdue.concat(roll.buckets.dueSoon);
+        const upcoming = roll.buckets.thisQuarter;
+        if (!urgent.length && !upcoming.length && opts.compact) {
+            return `<div class="card" style="margin-top:16px"><div style="padding:18px 20px;display:flex;align-items:center;gap:12px"><span style="font-size:22px">🗓️</span><div><strong>Nessuna scadenza imminente</strong><div style="font-size:12px;color:var(--text-muted)">Le prossime scadenze fiscali appariranno qui</div></div></div></div>`;
+        }
+        const sevColor = { high: 'var(--red)', medium: 'var(--gold)', low: 'var(--text-muted)' };
+        const catIcon = { registration: '📋', tax: '🏛️', adjustment: '📈', contract: '📅', vat: '🧾', corporate: '🏢' };
+        const row = (o) => {
+            const overdue = o._daysUntil < 0;
+            const when = o.dueDate ? new Date(o.dueDate).toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+            const daysTxt = overdue ? `<span style="color:var(--red);font-weight:600">scaduta da ${Math.abs(o._daysUntil)}g</span>`
+                : o._daysUntil === 0 ? '<span style="color:var(--red);font-weight:600">oggi</span>'
+                : `tra ${o._daysUntil}g`;
+            return `<div class="list-item" style="padding:14px 16px;display:flex;align-items:center;gap:14px;border-left:3px solid ${sevColor[o.severity] || 'var(--border)'}">
+                <span style="font-size:18px;width:24px;text-align:center">${catIcon[o.category] || '•'}</span>
+                <div style="flex:1;min-width:0">
+                    <div style="font-weight:500">${esc(o.label)}</div>
+                    <div style="font-size:11px;color:var(--text-muted)">${when} · ${daysTxt}${o.note ? ' · ' + esc(o.note) : ''}</div>
+                </div>
+                ${o.amount != null ? `<div style="font-weight:600;color:${o.amount > 0 ? 'var(--text)' : 'var(--green)'};white-space:nowrap">${FX.fmtEuro(o.amount)}${o.amountIsEstimate && o.amount > 0 ? '<span style="font-size:9px;color:var(--text-muted)"> stima</span>' : ''}</div>` : ''}
+            </div>`;
+        };
+        const totalUrgent = urgent.reduce((s, o) => s + (o.amount || 0), 0);
+        return `<div class="card" style="margin-top:16px">
+            <div style="padding:16px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                <span style="font-size:20px">🗓️</span>
+                <div style="flex:1"><strong>Scadenzario fiscale</strong> <span style="font-size:12px;color:var(--text-muted)">${roll.counts.overdue ? roll.counts.overdue + ' scadute · ' : ''}${roll.counts.dueSoon} entro 30 giorni</span></div>
+                ${totalUrgent ? `<div style="font-size:13px;color:var(--text-muted)">Da versare a breve: <strong style="color:var(--text)">${FX.fmtEuro(totalUrgent)}</strong></div>` : ''}
+            </div>
+            <div class="card-body flush">
+                ${urgent.length ? urgent.map(row).join('') : '<div style="padding:16px;color:var(--text-muted);font-size:13px">Nessuna scadenza urgente. ✓</div>'}
+                ${!opts.compact && upcoming.length ? `<div style="padding:10px 16px;font-size:11px;color:var(--text-muted);background:var(--bg-elevated);text-transform:uppercase;letter-spacing:1px">Prossimo trimestre</div>${upcoming.map(row).join('')}` : ''}
+            </div>
+            ${opts.compact && upcoming.length ? `<div style="padding:10px 16px;font-size:12px;color:var(--text-muted);border-top:1px solid var(--border)">+ ${upcoming.length} nel prossimo trimestre</div>` : ''}
+        </div>`;
     }
 
     // Open the document upload prefilled for a property + year (+ optional
@@ -10398,6 +10519,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
         const checklist = TP.buildChecklist({ contract, property: prop, documents, payments, fiscalYear: year });
         const totals = TP.computeTotals({ contract, payments, fiscalYear: year });
+        const FX_admin = window.BOOM_FISCAL;
+        const adminScad = FX_admin ? fiscalScadenzarioCard(FX_admin.landlordObligations({ properties: [prop], contracts: (S.contracts||[]).filter(c=>c.propertyId===prop.id), fiscalYear: year }), { compact: false }) : '';
 
         const yearOpts = [];
         const nowY = new Date().getFullYear();
@@ -10424,6 +10547,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         return `<div class="page-header">
                 <div><h1 class="page-title">🧮 Commercialista</h1><p class="page-subtitle">Pacchetto fiscale annuale · documenti pronti per lo studio</p></div>
                 <div class="page-actions">
+                    <button class="btn btn-secondary btn-sm" onclick="window._cmEgidi=true;renderPage()" title="La fiscalità di Egidi Immobiliare">🏢 Egidi (Azienda)</button>
                     <button class="btn btn-secondary btn-sm" onclick="window._cmPreviewLite=true;renderPage()" title="Vedi come lo vede il proprietario">👁 Vista proprietario</button>
                     <select class="form-select" style="width:auto" onchange="_cmState.propertyId=this.value;renderPage()">${propOpts}</select>
                     <select class="form-select" style="width:auto" onchange="_cmState.year=parseInt(this.value);renderPage()">${yearOpts.join('')}</select>
@@ -10453,6 +10577,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     ${checklist.items.map(checkRow).join('')}
                 </div>
             </div>
+
+            ${adminScad}
 
             <div class="card" style="margin-bottom:20px;border-color:rgba(212,175,55,0.25)">
                 <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px">

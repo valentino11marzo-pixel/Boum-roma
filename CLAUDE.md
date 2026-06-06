@@ -29,6 +29,9 @@ Premium rental management platform for Rome's apartment market. Serves tenants, 
                           realtime listener, toast, loader, confirm, SW reg)
   taxpack-engine.js       Pure Italian rental-tax engine (checklist, totals,
                           cedolare calc, zip manifest). window.BOOM_TAXPACK
+  fiscal-engine.js        Pure obligations engine: per-property/contract +
+                          company (Egidi) fiscal deadlines + amounts.
+                          window.BOOM_FISCAL
 firestore.rules           Firestore security rules (role-based)
 storage.rules             Storage security rules (role-based file access)
 firebase.json             Firebase deploy config (firestore + storage rules)
