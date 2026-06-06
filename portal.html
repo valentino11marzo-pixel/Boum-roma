@@ -1217,6 +1217,32 @@
   .cli-board{flex-direction:column;overflow-x:visible;gap:14px}
   .cli-board .pipeline-column{min-width:100%!important;max-width:100%!important}
 }
+
+/* ── Analytics (PFS) — premium visualizations ── */
+.an-funnel{display:flex;flex-direction:column;gap:8px}
+.an-frow{display:flex;align-items:center;gap:12px}
+.an-flabel{width:138px;flex-shrink:0;font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:8px}
+.an-ftrack{flex:1;height:36px;background:var(--bg-elevated);border-radius:10px;overflow:hidden;position:relative}
+.an-ffill{height:100%;border-radius:10px;transition:width .6s cubic-bezier(.2,.8,.2,1);min-width:3px}
+.an-fmeta{position:absolute;inset:0;display:flex;align-items:center;justify-content:space-between;padding:0 13px;font-size:12px;font-weight:600}
+.an-conv{flex-shrink:0;width:70px;text-align:right;font-size:11px;font-weight:600}
+@media(max-width:600px){.an-flabel{width:98px;font-size:11px;gap:5px}.an-conv{width:50px;font-size:10px}.an-fmeta{padding:0 9px;font-size:11px}}
+.an-bars{display:flex;flex-direction:column;gap:13px}
+.an-brow{display:flex;align-items:center;gap:12px;font-size:12.5px}
+.an-blabel{width:120px;flex-shrink:0;color:var(--text-secondary);display:flex;align-items:center;gap:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.an-btrack{flex:1;height:9px;background:var(--bg-elevated);border-radius:5px;overflow:hidden}
+.an-bfill{height:100%;border-radius:5px;transition:width .5s ease}
+.an-bval{flex-shrink:0;font-weight:600;color:var(--text);min-width:64px;text-align:right}
+@media(max-width:600px){.an-blabel{width:84px;font-size:11px}.an-bval{min-width:50px;font-size:11px}}
+.an-spark{display:flex;align-items:flex-end;gap:8px;height:120px;padding-top:8px}
+.an-scol{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;justify-content:flex-end;height:100%}
+.an-sbar{width:100%;max-width:38px;border-radius:6px 6px 0 0;transition:height .5s ease;min-height:3px}
+.an-slabel{font-size:9px;color:var(--text-muted);letter-spacing:.5px}
+.an-sval{font-size:10px;color:var(--text-secondary);font-weight:600}
+.an-donut-wrap{display:flex;align-items:center;gap:20px;flex-wrap:wrap;justify-content:center}
+.an-donut-legend{display:flex;flex-direction:column;gap:8px;font-size:12px}
+.an-leg-row{display:flex;align-items:center;gap:8px;color:var(--text-secondary)}
+.an-leg-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0}
 </style>
 </head>
 <body>
@@ -8279,7 +8305,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             out.push({
                 raw: c, id: c.id, source: 'pfs', name: c.name || '—', email: c.email || '', phone: c.phone || '',
                 service: c.service || '', budget: c.budget || 0, zone: c.zone || '', stage: c.stage || 'lead',
-                stageName: st?.name || c.stage, stageColor: st?.color || 'gray',
+                stageName: pfsStageName(c.stage), stageColor: st?.color || 'gray',
                 priority: calculatePFSPriority(c), moveIn: c.moveIn || '', createdAt: c.createdAt,
                 next: getNextAction(c), sla: getSLAStatus(c)
             });
@@ -8354,7 +8380,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         return `<div class="cli-funnel">${PFS_STAGES.map(s => {
             const n = pfs.filter(c => c.stage === s.id).length;
             const col = colors[s.color] || 'var(--gold)';
-            return `<div class="cli-funnel-seg" title="${s.name}: ${n}" style="flex:${Math.max(n, 0.35)};background:${n ? col : 'var(--bg-elevated)'};color:${n ? '#000' : 'var(--text-muted)'}" onclick="clientiView='pipeline';pfsState.serviceFilter='all';renderPage()"><span class="fs-c">${n}</span><span class="fs-l">${s.name}</span></div>`;
+            return `<div class="cli-funnel-seg" title="${pfsStageName(s.id)}: ${n}" style="flex:${Math.max(n, 0.35)};background:${n ? col : 'var(--bg-elevated)'};color:${n ? '#000' : 'var(--text-muted)'}" onclick="clientiView='pipeline';pfsState.serviceFilter='all';renderPage()"><span class="fs-c">${n}</span><span class="fs-l">${pfsStageName(s.id)}</span></div>`;
         }).join('')}</div>`;
     }
 
@@ -22937,6 +22963,18 @@ IBAN: ${l.iban || '-'}`;
         { id: 'placed', name: 'Placed ✓', icon: '🎉', color: 'green', sla: 0, nextStage: null, actions: ['celebrate', 'review'], description: 'Successfully placed!' }
     ];
 
+    // Italian display names for PFS stages (engine keeps English ids/labels)
+    const PFS_STAGE_IT = {
+        lead: 'Nuovo', qualified: 'Qualificato', onboarded: 'Attivato', searching: 'In ricerca',
+        sent: 'Opzioni inviate', viewing: 'Visite', negotiating: 'Trattativa', closing: 'Chiusura', placed: 'Piazzato'
+    };
+    // Probability weight per stage — used by the pipeline forecast (0..1)
+    const PFS_STAGE_PROB = {
+        lead: 0.05, qualified: 0.15, onboarded: 0.30, searching: 0.45, sent: 0.55,
+        viewing: 0.70, negotiating: 0.82, closing: 0.92, placed: 1
+    };
+    function pfsStageName(id) { return PFS_STAGE_IT[id] || (PFS_STAGES.find(s => s.id === id)?.name) || id; }
+
     const PFS_SERVICES = {
         PFS: { name: 'Property Finding Service', shortName: 'PFS', price: 350, commission: 400, color: 'gold', icon: '🏆', avgDays: 14, description: 'Full search + viewings + negotiation' },
         DAS: { name: 'Deal Assistance Service', shortName: 'DAS', price: 249, commission: 300, color: 'blue', icon: '🤝', avgDays: 7, description: 'Viewings + negotiation support' },
@@ -23630,111 +23668,169 @@ IBAN: ${l.iban || '-'}`;
 
     // Analytics Dashboard
     function renderPFSAnalytics() {
-        const analytics = getPFSAnalytics();
+        const a = getPFSAnalytics();
         const clients = S.pfsClients || [];
+        const now = new Date();
+        const active = clients.filter(c => c.stage !== 'placed');
+        const placed = clients.filter(c => c.stage === 'placed');
+        const stCol = (color) => color === 'gray' ? '#8E8E93' : 'var(--' + (color || 'gold') + ')';
+        const revOf = c => (PFS_SERVICES[c.service]?.price || 0) + (PFS_SERVICES[c.service]?.commission || 0);
+        const asDate = v => v ? (v.toDate ? v.toDate() : new Date(v)) : null;
+
+        // Weighted forecast (pipeline value × stage win-probability)
+        const forecast = Math.round(active.reduce((s, c) => s + revOf(c) * (PFS_STAGE_PROB[c.stage] || 0), 0));
+        // MoM on earned revenue
+        const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const earnedLastMonth = placed.filter(c => { const d = asDate(c.placedDate); return d && d >= lastMonthStart && d < thisMonth; }).reduce((s, c) => s + revOf(c), 0);
+        const mom = earnedLastMonth > 0 ? Math.round((a.earnedThisMonth - earnedLastMonth) / earnedLastMonth * 100) : (a.earnedThisMonth > 0 ? 100 : 0);
+        // Conversion rate + time-to-place
+        const convRate = clients.length ? Math.round(placed.length / clients.length * 100) : 0;
+        const durs = placed.map(c => { const cr = asDate(c.createdAt), pd = asDate(c.placedDate); return (cr && pd) ? Math.round((pd - cr) / 86400000) : null; }).filter(x => x != null && x >= 0);
+        const avgTTP = durs.length ? Math.round(durs.reduce((s, x) => s + x, 0) / durs.length) : null;
+
+        // Conversion funnel (cumulative: reached stage i or beyond)
+        const order = ['lead', 'qualified', 'onboarded', 'searching', 'sent', 'viewing', 'negotiating', 'closing', 'placed'];
+        const cum = order.map(id => clients.filter(c => order.indexOf(c.stage) >= order.indexOf(id)).length);
+        const maxCum = Math.max(1, cum[0]);
+
+        // Velocity: dwell time per active stage vs SLA
+        const velo = order.filter(id => id !== 'placed').map(id => {
+            const inStage = active.filter(c => c.stage === id && c.stageEnteredAt);
+            const days = inStage.map(c => Math.floor((now - new Date(c.stageEnteredAt)) / 86400000));
+            const avg = days.length ? Math.round(days.reduce((s, x) => s + x, 0) / days.length) : 0;
+            const slaH = PFS_STAGES.find(s => s.id === id)?.sla || 0;
+            const count = clients.filter(c => c.stage === id).length;
+            return { id, avg, slaDays: slaH ? Math.round(slaH / 24 * 10) / 10 : 0, count, color: PFS_STAGES.find(s => s.id === id)?.color };
+        }).filter(v => v.count > 0);
+        const maxVelo = Math.max(1, ...velo.map(v => v.avg), ...velo.map(v => v.slaDays));
+
+        // Lead source breakdown (active)
+        const srcMap = {};
+        active.forEach(c => { const k = c.source || 'sconosciuto'; srcMap[k] = (srcMap[k] || 0) + 1; });
+        const sources = Object.entries(srcMap).sort((x, y) => y[1] - x[1]);
+        const maxSrc = Math.max(1, ...sources.map(s => s[1]));
+
+        // Service ROI
+        const svcRows = Object.entries(a.byService).filter(([k, d]) => d.active > 0 || d.placed > 0 || d.revenue > 0);
+        const maxSvcRev = Math.max(1, ...svcRows.map(([k, d]) => d.revenue));
+
+        // 6-month trend
+        const monLbl = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
+        const trend = [];
+        for (let i = 5; i >= 0; i--) {
+            const m = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            const next = new Date(m.getFullYear(), m.getMonth() + 1, 1);
+            const pl = placed.filter(c => { const d = asDate(c.placedDate); return d && d >= m && d < next; });
+            trend.push({ label: monLbl[m.getMonth()], count: pl.length, revenue: pl.reduce((s, c) => s + revOf(c), 0), curr: i === 0 });
+        }
+        const maxTrend = Math.max(1, ...trend.map(t => t.count));
+
+        // Donut for health
+        const hs = a.healthScore, hsCol = hs >= 70 ? 'var(--green)' : hs >= 40 ? 'var(--orange)' : 'var(--red)';
+        const R = 54, CC = 2 * Math.PI * R, off = CC * (1 - hs / 100);
 
         return `
-            <!-- Revenue Overview -->
-            <div class="card mb-24">
-                <div class="card-header">
-                    <h3 class="card-title">💰 Revenue Overview</h3>
-                </div>
-                <div class="card-body">
-                    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:20px">
-                        <div style="text-align:center;padding:20px;background:var(--bg-elevated);border-radius:12px">
-                            <div style="font-size:32px;font-weight:800;color:var(--gold)">€${analytics.pipelineRevenue.toLocaleString()}</div>
-                            <div style="font-size:12px;color:var(--text-muted)">Service Fees Pipeline</div>
-                        </div>
-                        <div style="text-align:center;padding:20px;background:var(--bg-elevated);border-radius:12px">
-                            <div style="font-size:32px;font-weight:800;color:var(--purple)">€${analytics.pipelineCommission.toLocaleString()}</div>
-                            <div style="font-size:12px;color:var(--text-muted)">Commissions Pipeline</div>
-                        </div>
-                        <div style="text-align:center;padding:20px;background:var(--bg-elevated);border-radius:12px">
-                            <div style="font-size:32px;font-weight:800;color:var(--cyan)">€${analytics.totalPipelineValue.toLocaleString()}</div>
-                            <div style="font-size:12px;color:var(--text-muted)">Total Pipeline Value</div>
-                        </div>
-                        <div style="text-align:center;padding:20px;background:var(--green-light);border-radius:12px">
-                            <div style="font-size:32px;font-weight:800;color:var(--green)">€${analytics.earnedThisMonth.toLocaleString()}</div>
-                            <div style="font-size:12px;color:var(--text-muted)">Earned This Month</div>
-                        </div>
-                    </div>
-                </div>
+            <div class="cli-kpis">
+                ${cliKpi('💎', '€' + a.totalPipelineValue.toLocaleString('it-IT'), 'Valore pipeline', 'fee + commissioni', 'var(--gold)')}
+                ${cliKpi('🔮', '€' + forecast.toLocaleString('it-IT'), 'Previsto', 'pesato per stage', 'var(--cyan)')}
+                ${cliKpi('💵', '€' + a.earnedThisMonth.toLocaleString('it-IT'), 'Incassato mese', (mom >= 0 ? '▲ +' : '▼ ') + mom + '% vs mese prec.', mom >= 0 ? 'var(--green)' : 'var(--red)')}
+                ${cliKpi('🎯', convRate + '%', 'Conversione', avgTTP != null ? avgTTP + 'g medi a piazzare' : 'piazzati/totali', 'var(--blue)')}
+                ${cliKpi('❤️', hs + '%', 'Salute pipeline', (a.slaBreaches || 0) + ' SLA sforati', hsCol)}
             </div>
 
-            <!-- Conversion Funnel -->
-            <div class="card mb-24">
-                <div class="card-header">
-                    <h3 class="card-title">📊 Conversion Funnel</h3>
-                </div>
-                <div class="card-body">
-                    <div style="display:flex;flex-direction:column;gap:8px">
-                        ${analytics.funnel.map((f, i) => {
-                            const stage = PFS_STAGES.find(s => s.id === f.stage);
-                            const width = Math.max(f.percent, 10);
-                            return `
-                                <div style="display:flex;align-items:center;gap:12px">
-                                    <div style="width:120px;font-size:12px;color:var(--text-muted)">${stage?.icon || ''} ${stage?.name || f.stage}</div>
-                                    <div style="flex:1;height:32px;background:var(--bg-elevated);border-radius:8px;overflow:hidden;position:relative">
-                                        <div style="height:100%;width:${width}%;background:var(--${stage?.color || 'gray'});opacity:0.3;transition:width 0.3s"></div>
-                                        <div style="position:absolute;inset:0;display:flex;align-items:center;padding:0 12px;font-size:12px;font-weight:600">
-                                            ${f.count} clients (${f.percent}%)
-                                        </div>
-                                    </div>
-                                </div>
-                            `;
+            <div class="cli-panel" style="margin-bottom:22px">
+                <div class="cli-panel-h"><div class="cli-panel-t">📊 Funnel di conversione</div><span style="font-size:11px;color:var(--text-muted)">% = passaggio dallo stage precedente</span></div>
+                <div style="padding:18px">
+                    <div class="an-funnel">
+                        ${order.map((id, i) => {
+                            const count = cum[i];
+                            const width = Math.round(count / maxCum * 100);
+                            const conv = i === 0 ? 100 : (cum[i - 1] ? Math.round(cum[i] / cum[i - 1] * 100) : 0);
+                            const convCol = i === 0 ? 'var(--text-muted)' : conv >= 70 ? 'var(--green)' : conv >= 45 ? 'var(--gold)' : 'var(--red)';
+                            const col = stCol(PFS_STAGES.find(s => s.id === id)?.color);
+                            return `<div class="an-frow">
+                                <div class="an-flabel">${PFS_STAGES.find(s => s.id === id)?.icon || ''} ${pfsStageName(id)}</div>
+                                <div class="an-ftrack"><div class="an-ffill" style="width:${Math.max(width, 3)}%;background:linear-gradient(90deg,${col},${col}99)"></div><div class="an-fmeta"><span>${count}</span><span style="opacity:.7">${width}%</span></div></div>
+                                <div class="an-conv" style="color:${convCol}">${i === 0 ? '—' : (conv >= 70 ? '↘ ' : conv >= 45 ? '↘ ' : '⚠ ') + conv + '%'}</div>
+                            </div>`;
                         }).join('')}
                     </div>
                 </div>
             </div>
 
-            <!-- Service Breakdown -->
-            <div class="grid-2">
-                <div class="card">
-                    <div class="card-header">
-                        <h3 class="card-title">📦 By Service</h3>
+            <div class="cli-cols" style="margin-bottom:22px">
+                <div class="cli-panel">
+                    <div class="cli-panel-h"><div class="cli-panel-t">⏱️ Velocità & colli di bottiglia</div><span style="font-size:11px;color:var(--text-muted)">giorni nello stage vs SLA</span></div>
+                    <div style="padding:18px">
+                        ${velo.length ? `<div class="an-bars">${velo.map(v => {
+                            const over = v.slaDays && v.avg > v.slaDays;
+                            const col = over ? 'var(--red)' : stCol(v.color);
+                            return `<div class="an-brow">
+                                <div class="an-blabel">${pfsStageName(v.id)} <span style="color:var(--text-muted)">·${v.count}</span></div>
+                                <div class="an-btrack"><div class="an-bfill" style="width:${Math.round(v.avg / maxVelo * 100)}%;background:${col}"></div></div>
+                                <div class="an-bval" style="color:${over ? 'var(--red)' : 'var(--text)'}">${v.avg}g${over ? ' ⚠' : ''}</div>
+                            </div>`;
+                        }).join('')}</div>` : `<div class="empty-state" style="padding:24px"><div class="empty-icon">✨</div><div class="empty-text">Nessun cliente attivo</div></div>`}
                     </div>
-                    <div class="card-body flush">
-                        ${Object.entries(analytics.byService).map(([key, data]) => {
+                </div>
+                <div class="cli-panel">
+                    <div class="cli-panel-h"><div class="cli-panel-t">❤️ Salute pipeline</div></div>
+                    <div style="padding:18px">
+                        <div class="an-donut-wrap">
+                            <svg width="140" height="140" viewBox="0 0 140 140">
+                                <circle cx="70" cy="70" r="${R}" fill="none" stroke="var(--bg-elevated)" stroke-width="14"/>
+                                <circle cx="70" cy="70" r="${R}" fill="none" stroke="${hsCol}" stroke-width="14" stroke-linecap="round" stroke-dasharray="${CC.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}" transform="rotate(-90 70 70)" style="transition:stroke-dashoffset .8s"/>
+                                <text x="70" y="66" text-anchor="middle" fill="${hsCol}" font-size="30" font-weight="300">${hs}%</text>
+                                <text x="70" y="86" text-anchor="middle" fill="var(--text-muted)" font-size="10" letter-spacing="1">SALUTE</text>
+                            </svg>
+                            <div class="an-donut-legend">
+                                <div class="an-leg-row"><span class="an-leg-dot" style="background:var(--red)"></span>${a.slaBreaches || 0} SLA sforati</div>
+                                <div class="an-leg-row"><span class="an-leg-dot" style="background:var(--orange)"></span>${a.atRisk || 0} a rischio</div>
+                                <div class="an-leg-row"><span class="an-leg-dot" style="background:#FF3B30"></span>${a.critical || 0} critici</div>
+                                <div class="an-leg-row"><span class="an-leg-dot" style="background:var(--gold)"></span>${a.urgent || 0} urgenti</div>
+                                <div class="an-leg-row"><span class="an-leg-dot" style="background:var(--green)"></span>${a.active || 0} attivi totali</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="cli-cols" style="margin-bottom:22px">
+                <div class="cli-panel">
+                    <div class="cli-panel-h"><div class="cli-panel-t">📦 ROI per servizio</div><span style="font-size:11px;color:var(--text-muted)">pipeline attiva</span></div>
+                    <div style="padding:18px">
+                        ${svcRows.length ? `<div class="an-bars">${svcRows.map(([key, d]) => {
                             const svc = PFS_SERVICES[key];
-                            return `
-                                <div class="list-item">
-                                    <div style="width:40px;height:40px;border-radius:10px;background:var(--${svc?.color || 'gray'}-light);display:flex;align-items:center;justify-content:center;font-size:18px">${svc?.icon || '📋'}</div>
-                                    <div class="list-content">
-                                        <div class="list-title">${svc?.name || key}</div>
-                                        <div class="list-subtitle">${data.active} active · ${data.placed} placed this month</div>
-                                    </div>
-                                    <div class="list-meta">
-                                        <div class="list-value" style="color:var(--gold)">€${data.revenue.toLocaleString()}</div>
-                                    </div>
-                                </div>
-                            `;
-                        }).join('')}
+                            return `<div class="an-brow">
+                                <div class="an-blabel">${svc?.icon || '📋'} ${key} <span style="color:var(--text-muted)">·${d.active}</span></div>
+                                <div class="an-btrack"><div class="an-bfill" style="width:${Math.round(d.revenue / maxSvcRev * 100)}%;background:${stCol(svc?.color)}"></div></div>
+                                <div class="an-bval" style="color:var(--gold)">€${d.revenue.toLocaleString('it-IT')}</div>
+                            </div>`;
+                        }).join('')}</div>` : `<div class="empty-state" style="padding:24px"><div class="empty-text">Nessun dato servizio</div></div>`}
                     </div>
                 </div>
-
-                <div class="card">
-                    <div class="card-header">
-                        <h3 class="card-title">📈 Performance</h3>
+                <div class="cli-panel">
+                    <div class="cli-panel-h"><div class="cli-panel-t">📡 Fonti lead</div><span style="font-size:11px;color:var(--text-muted)">attivi per origine</span></div>
+                    <div style="padding:18px">
+                        ${sources.length ? `<div class="an-bars">${sources.map(([k, n]) => `<div class="an-brow">
+                            <div class="an-blabel">${esc(k)}</div>
+                            <div class="an-btrack"><div class="an-bfill" style="width:${Math.round(n / maxSrc * 100)}%;background:var(--purple)"></div></div>
+                            <div class="an-bval">${n}</div>
+                        </div>`).join('')}</div>` : `<div class="empty-state" style="padding:24px"><div class="empty-text">Nessuna fonte registrata</div></div>`}
                     </div>
-                    <div class="card-body">
-                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-                            <div style="text-align:center;padding:16px;background:var(--bg-elevated);border-radius:10px">
-                                <div style="font-size:28px;font-weight:700;color:var(--green)">${analytics.placedThisMonth}</div>
-                                <div style="font-size:11px;color:var(--text-muted)">Placed This Month</div>
-                            </div>
-                            <div style="text-align:center;padding:16px;background:var(--bg-elevated);border-radius:10px">
-                                <div style="font-size:28px;font-weight:700;color:var(--text-muted)">${analytics.placedLastMonth}</div>
-                                <div style="font-size:11px;color:var(--text-muted)">Placed Last Month</div>
-                            </div>
-                            <div style="text-align:center;padding:16px;background:var(--bg-elevated);border-radius:10px">
-                                <div style="font-size:28px;font-weight:700;color:var(--${analytics.slaBreaches === 0 ? 'green' : 'red'})">${analytics.slaBreaches}</div>
-                                <div style="font-size:11px;color:var(--text-muted)">SLA Breaches</div>
-                            </div>
-                            <div style="text-align:center;padding:16px;background:var(--bg-elevated);border-radius:10px">
-                                <div style="font-size:28px;font-weight:700;color:var(--${analytics.healthScore >= 70 ? 'green' : analytics.healthScore >= 40 ? 'orange' : 'red'})">${analytics.healthScore}%</div>
-                                <div style="font-size:11px;color:var(--text-muted)">Health Score</div>
-                            </div>
-                        </div>
+                </div>
+            </div>
+
+            <div class="cli-panel">
+                <div class="cli-panel-h"><div class="cli-panel-t">📈 Andamento ultimi 6 mesi</div><span style="font-size:11px;color:var(--text-muted)">clienti piazzati</span></div>
+                <div style="padding:18px">
+                    <div class="an-spark">
+                        ${trend.map(t => `<div class="an-scol" title="${t.label}: ${t.count} piazzati · €${t.revenue.toLocaleString('it-IT')}">
+                            <div class="an-sval">${t.count || ''}</div>
+                            <div class="an-sbar" style="height:${Math.max(t.count / maxTrend * 100, 3)}%;background:${t.curr ? 'var(--gold)' : 'rgba(212,175,55,.4)'}"></div>
+                            <div class="an-slabel">${t.label}</div>
+                        </div>`).join('')}
                     </div>
                 </div>
             </div>
@@ -24130,6 +24226,7 @@ IBAN: ${l.iban || '-'}`;
                                 </div>
                             </div>
                         </div>
+                        ${pfsPortalSection(c)}
                     </div>
                     <div class="modal-footer">
                         <button class="btn btn-danger" onclick="deletePFSClient('${id}')">🗑️ Delete</button>
@@ -24141,6 +24238,90 @@ IBAN: ${l.iban || '-'}`;
                 </div>
             </div>
         `;
+    }
+
+    // ── PFS client portal (client-portal.html) management from the admin side ──
+    function genPortalCode() {
+        const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+        let s = 'BM';
+        for (let i = 0; i < 5; i++) s += A[Math.floor(Math.random() * A.length)];
+        return s;
+    }
+    function pfsPortalLink(c) { return location.origin + '/client-portal?code=' + encodeURIComponent(c.portalAccessCode || ''); }
+    function pfsCopy(text, label) {
+        try { navigator.clipboard.writeText(text).then(function () { toast('success', label || 'Copiato'); }, function () { toast('error', 'Copia non riuscita'); }); }
+        catch (e) { toast('error', 'Copia non riuscita'); }
+    }
+    function pfsCopyLink(id) { const c = (S.pfsClients || []).find(x => x.id === id); if (c) pfsCopy(pfsPortalLink(c), 'Link copiato'); }
+    function pfsSharePortalWA(id) {
+        const c = (S.pfsClients || []).find(x => x.id === id); if (!c || !c.portalAccessCode) return;
+        const msg = encodeURIComponent('Ciao ' + (c.name || '') + '! Ecco il tuo portale BOOM per seguire la ricerca casa: ' + pfsPortalLink(c) + '\nCodice: ' + c.portalAccessCode);
+        const ph = (c.phone || '').replace(/[^0-9]/g, '');
+        window.open('https://wa.me/' + ph + '?text=' + msg, '_blank');
+    }
+    async function pfsEnablePortal(id) {
+        const c = (S.pfsClients || []).find(x => x.id === id); if (!c) return;
+        const code = c.portalAccessCode || genPortalCode();
+        try {
+            await db.collection('pfsClients').doc(id).update({ portalEnabled: true, portalAccessCode: code });
+            c.portalEnabled = true; c.portalAccessCode = code;
+            if (typeof logActivity === 'function') logActivity('portal_enabled', 'client', { id });
+            toast('success', 'Portale attivato', code); openPFSClientDetail(id);
+        } catch (e) { toast('error', 'Errore', e.message); }
+    }
+    async function pfsDisablePortal(id) {
+        if (!confirm('Disattivare il portale per questo cliente?')) return;
+        const c = (S.pfsClients || []).find(x => x.id === id); if (!c) return;
+        try { await db.collection('pfsClients').doc(id).update({ portalEnabled: false }); c.portalEnabled = false; toast('success', 'Portale disattivato'); openPFSClientDetail(id); }
+        catch (e) { toast('error', 'Errore', e.message); }
+    }
+    async function pfsRegenCode(id) {
+        if (!confirm('Generare un nuovo codice? Il vecchio link smetterà di funzionare.')) return;
+        const c = (S.pfsClients || []).find(x => x.id === id); if (!c) return;
+        const code = genPortalCode();
+        try { await db.collection('pfsClients').doc(id).update({ portalAccessCode: code, portalEnabled: true }); c.portalAccessCode = code; c.portalEnabled = true; toast('success', 'Nuovo codice', code); openPFSClientDetail(id); }
+        catch (e) { toast('error', 'Errore', e.message); }
+    }
+    function pfsPortalSection(c) {
+        const props = Array.isArray(c.portalProperties) ? c.portalProperties : [];
+        const liked = props.filter(p => p.clientLiked);
+        const rejected = props.filter(p => p.clientRejected);
+        const viewings = props.filter(p => p.viewingRequested);
+        const lastActive = c.portalLastActive ? timeAgo(c.portalLastActive) : 'mai';
+        const fb = props.length ? `
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+                <span class="badge green">❤️ ${liked.length} piaciuti</span>
+                <span class="badge red">✕ ${rejected.length} scartati</span>
+                <span class="badge gold">📅 ${viewings.length} visite</span>
+                <span class="badge gray">📦 ${props.length} inviati</span>
+            </div>
+            ${viewings.length ? `<div style="margin-bottom:8px"><div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Visite richieste</div>${viewings.map(p => `<div style="font-size:12.5px;padding:6px 0;border-bottom:1px solid var(--border)">📅 <strong>${esc(p.address || p.id)}</strong>${p.viewingPreference ? ` · <span style="color:var(--gold)">${esc(p.viewingPreference)}</span>` : ''}</div>`).join('')}</div>` : ''}
+            ${rejected.filter(p => p.rejectReason).length ? `<div><div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin:8px 0 6px">Motivi rifiuto</div>${rejected.filter(p => p.rejectReason).map(p => `<div style="font-size:12.5px;padding:5px 0;border-bottom:1px solid var(--border)">✕ ${esc(p.address || p.id)} · <span style="color:var(--red)">${esc(p.rejectReason)}</span></div>`).join('')}</div>` : ''}
+        ` : `<div style="font-size:12.5px;color:var(--text-muted)">Nessuna proprietà ancora inviata al portale.</div>`;
+
+        return `<div class="info-box mt-16" style="${c.portalEnabled ? 'border-color:var(--gold-light)' : ''}">
+            <div class="info-box-title" style="display:flex;justify-content:space-between;align-items:center">
+                <span>📱 Portale cliente</span>
+                <span class="badge ${c.portalEnabled ? 'green' : 'gray'}">${c.portalEnabled ? 'Attivo' : 'Disattivo'}</span>
+            </div>
+            ${c.portalEnabled ? `
+                <div class="info-box-row"><span class="info-box-label">Codice</span><span class="info-box-value" style="font-family:monospace;letter-spacing:2px;color:var(--gold)">${esc(c.portalAccessCode || '—')}</span></div>
+                <div class="info-box-row"><span class="info-box-label">Ultimo accesso</span><span class="info-box-value">${lastActive}</span></div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 14px">
+                    <button class="btn btn-xs" onclick="pfsSharePortalWA('${c.id}')">💬 Invia su WhatsApp</button>
+                    <button class="btn btn-xs btn-secondary" onclick="pfsCopyLink('${c.id}')">🔗 Copia link</button>
+                    <button class="btn btn-xs btn-secondary" onclick="pfsRegenCode('${c.id}')">♻️ Nuovo codice</button>
+                    <button class="btn btn-xs btn-secondary" onclick="pfsDisablePortal('${c.id}')">⏸ Disattiva</button>
+                </div>
+            ` : `
+                <div style="font-size:12.5px;color:var(--text-muted);margin:8px 0 12px">Attiva il portale per dare al cliente un'app dove seguire la ricerca, valutare gli immobili e richiedere visite.</div>
+                <button class="btn btn-sm" style="margin-bottom:12px" onclick="pfsEnablePortal('${c.id}')">🚀 Attiva portale</button>
+            `}
+            <div style="border-top:1px solid var(--border);padding-top:12px">
+                <div class="info-box-title" style="font-size:12px;margin-bottom:10px">📊 Feedback dal cliente</div>
+                ${fb}
+            </div>
+        </div>`;
     }
 
     function openPFSEditClient(id) {
