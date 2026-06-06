@@ -1113,6 +1113,110 @@
     *,*::before,*::after{animation-duration:0.01ms !important;transition-duration:0.01ms !important}
     .stat-card:hover,.tool-card:hover,.prop-card:hover{transform:none}
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   CLIENTI — premium command surface (mobile-first redesign)
+   Prefix .cli-* keeps it fully scoped; reuses brand tokens only.
+   ═══════════════════════════════════════════════════════════════════════ */
+.cli-wrap{--cli-gap:14px}
+/* Tabs as a segmented control */
+.cli-tabs{display:flex;gap:5px;background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:5px;margin-bottom:22px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.cli-tabs::-webkit-scrollbar{display:none}
+.cli-tab{flex:1;min-width:max-content;display:flex;align-items:center;justify-content:center;gap:7px;padding:10px 16px;border-radius:10px;font-size:13px;font-weight:500;letter-spacing:.3px;color:var(--text-secondary);cursor:pointer;white-space:nowrap;transition:color .2s,background .2s,box-shadow .2s}
+.cli-tab:hover{color:var(--text)}
+.cli-tab.active{background:linear-gradient(135deg,var(--gold),var(--gold-dark));color:#000;font-weight:600;box-shadow:0 6px 18px rgba(212,175,55,.22)}
+.cli-tab-n{font-size:11px;font-weight:700;opacity:.65;background:rgba(0,0,0,.18);padding:1px 7px;border-radius:10px}
+.cli-tab:not(.active) .cli-tab-n{background:var(--bg-elevated)}
+
+/* KPI tiles */
+.cli-kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:22px}
+.cli-kpi{position:relative;background:linear-gradient(160deg,var(--bg-elevated),var(--bg-card) 70%);border:1px solid var(--border);border-radius:16px;padding:16px 16px 15px;overflow:hidden;transition:transform .22s ease,border-color .22s ease}
+.cli-kpi.clickable{cursor:pointer}
+.cli-kpi:hover{transform:translateY(-3px);border-color:rgba(212,175,55,.45)}
+.cli-kpi::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--accent,var(--gold))}
+.cli-kpi-ico{font-size:17px;opacity:.95;margin-bottom:11px}
+.cli-kpi-val{font-size:27px;font-weight:300;letter-spacing:-.5px;line-height:1;color:var(--text)}
+.cli-kpi-lab{font-size:10px;letter-spacing:1.6px;text-transform:uppercase;color:var(--text-muted);margin-top:8px}
+.cli-kpi-sub{font-size:11px;color:var(--text-secondary);margin-top:3px}
+@media(max-width:1100px){.cli-kpis{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:640px){.cli-kpis{grid-template-columns:repeat(2,1fr);gap:10px}.cli-kpi{padding:14px}.cli-kpi-val{font-size:22px}}
+
+/* Funnel */
+.cli-funnel{display:flex;gap:3px;height:50px;border-radius:12px;overflow:hidden}
+.cli-funnel-seg{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:30px;font-weight:700;cursor:pointer;transition:flex .35s ease,filter .15s}
+.cli-funnel-seg:hover{filter:brightness(1.12)}
+.cli-funnel-seg .fs-c{font-size:14px;line-height:1}
+.cli-funnel-seg .fs-l{font-size:8px;letter-spacing:.4px;text-transform:uppercase;opacity:.85;margin-top:3px;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis;padding:0 3px}
+
+/* Two-column responsive layout */
+.cli-cols{display:grid;grid-template-columns:1.15fr .85fr;gap:var(--cli-gap)}
+@media(max-width:920px){.cli-cols{grid-template-columns:1fr}}
+
+/* Panel */
+.cli-panel{background:var(--bg-card);border:1px solid var(--border);border-radius:16px;overflow:hidden}
+.cli-panel-h{display:flex;align-items:center;justify-content:space-between;padding:15px 18px;border-bottom:1px solid var(--border)}
+.cli-panel-t{font-size:13px;font-weight:600;letter-spacing:.4px;display:flex;align-items:center;gap:9px}
+.cli-panel-b{max-height:520px;overflow-y:auto}
+
+/* Priority-ring avatar (conic) */
+.cli-ava{border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;position:relative}
+.cli-ava-in{position:absolute;inset:3px;border-radius:50%;background:var(--bg-card);display:flex;align-items:center;justify-content:center;color:var(--text);font-weight:600}
+
+/* Action card (overview queues) */
+.cli-act{display:flex;gap:13px;align-items:center;padding:13px 16px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .15s}
+.cli-act:last-child{border-bottom:none}
+.cli-act:hover{background:var(--bg-elevated)}
+.cli-act .cli-ava{width:44px;height:44px;font-size:15px}
+.cli-act-main{flex:1;min-width:0}
+.cli-act-name{font-weight:500;font-size:14px;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.cli-act-meta{font-size:11.5px;color:var(--text-muted);margin-top:4px;display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.cli-next{font-size:11px;color:var(--gold);background:var(--gold-light);padding:2px 9px;border-radius:20px;white-space:nowrap}
+.cli-pscore{flex-shrink:0;text-align:center;min-width:34px}
+.cli-pscore-n{font-size:16px;font-weight:700;line-height:1}
+.cli-pscore-l{font-size:8px;letter-spacing:.8px;text-transform:uppercase;color:var(--text-muted);margin-top:2px}
+.cli-sla{height:3px;border-radius:2px;background:var(--border);margin-top:8px;overflow:hidden}
+.cli-sla>i{display:block;height:100%;border-radius:2px}
+.cli-qa{display:flex;gap:6px;flex-shrink:0}
+.cli-qa>button{width:34px;height:34px;border-radius:9px;border:1px solid var(--border);background:var(--bg-elevated);color:var(--text-secondary);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.cli-qa>button:hover{border-color:var(--gold);color:var(--gold);background:var(--gold-light)}
+@media(max-width:520px){.cli-act .cli-qa{display:none}}
+
+/* Filter bar + chips + search */
+.cli-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
+.cli-chip{padding:8px 14px;border-radius:20px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-secondary);font-size:12.5px;font-weight:500;cursor:pointer;transition:all .15s;white-space:nowrap}
+.cli-chip:hover{border-color:var(--gold);color:var(--text)}
+.cli-chip.active{background:var(--gold-light);border-color:var(--gold);color:var(--gold)}
+.cli-search{flex:1;min-width:170px;padding:10px 14px;border-radius:12px;border:1px solid var(--border);background:var(--bg-input);color:var(--text);font-size:13px;font-family:inherit}
+.cli-search:focus{outline:none;border-color:var(--gold)}
+
+/* Responsive list rows (no table) */
+.cli-rows{display:flex;flex-direction:column}
+.cli-row{display:grid;grid-template-columns:minmax(0,2.2fr) 86px minmax(90px,1.1fr) minmax(0,1.3fr) auto;gap:14px;align-items:center;padding:14px 16px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .15s}
+.cli-row:last-child{border-bottom:none}
+.cli-row:hover{background:var(--bg-elevated)}
+.cli-row .cli-ava{width:38px;height:38px;font-size:13px}
+.cli-row-who{display:flex;align-items:center;gap:12px;min-width:0}
+.cli-row-name{font-weight:500;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cli-row-sub{font-size:11.5px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+.cli-row-cell{font-size:12.5px;color:var(--text-secondary);min-width:0}
+.cli-row-cell .lab{display:none}
+.cli-row-qa{display:flex;gap:8px;justify-content:flex-end}
+@media(max-width:760px){
+  .cli-row{grid-template-columns:1fr 1fr;gap:9px 14px;padding:14px 16px}
+  .cli-row-who{grid-column:1/-1}
+  .cli-row-cell .lab{display:block;font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);margin-bottom:3px}
+  .cli-row-qa{grid-column:1/-1;justify-content:stretch}
+  .cli-row-qa>*{flex:1}
+}
+
+/* Board (kanban) — horizontal on desktop, stacked on mobile */
+.cli-board{display:flex;gap:12px;overflow-x:auto;padding-bottom:14px;-webkit-overflow-scrolling:touch}
+.cli-board::-webkit-scrollbar{height:8px}
+.cli-board::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+@media(max-width:760px){
+  .cli-board{flex-direction:column;overflow-x:visible;gap:14px}
+  .cli-board .pipeline-column{min-width:100%!important;max-width:100%!important}
+}
 </style>
 </head>
 <body>
@@ -8142,6 +8246,144 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
     window.personPage = personPage;
 
+    // ── Clienti redesign: unified CRM + PFS model + premium helpers ──────────
+    let cliActiveSeg = 'all';
+
+    // CRM lightweight priority (PFS has its own multi-factor engine)
+    function cliCrmPriority(c) {
+        let s = ({ lead: 12, contacted: 22, qualified: 38, searching: 44, found: 58, closing: 72 })[c.stage] || 10;
+        const last = c.updatedAt || c.createdAt;
+        const d = last ? daysSince(last) : 99;
+        if (d >= 7) s += 26; else if (d >= 3) s += 13; else if (d >= 1) s += 5;
+        return Math.min(Math.round(s), 100);
+    }
+    function cliCrmNext(c) {
+        return ({
+            lead: { icon: '📞', text: 'Contatta' }, contacted: { icon: '✅', text: 'Qualifica' },
+            qualified: { icon: '💳', text: 'Incassa' }, searching: { icon: '🔍', text: 'Cerca casa' },
+            found: { icon: '🏠', text: 'Organizza visita' }, closing: { icon: '📝', text: 'Chiudi contratto' }
+        })[c.stage] || { icon: '👀', text: 'Rivedi' };
+    }
+
+    // Normalize CRM + PFS into one shape the UI can render uniformly
+    function cliNormalize() {
+        const out = [];
+        (S.clients || []).filter(c => !c.intakeForm).forEach(c => out.push({
+            raw: c, id: c.id, source: 'crm', name: c.name || '—', email: c.email || '', phone: c.phone || '',
+            service: c.service || '', budget: c.budget || 0, zone: c.zone || '', stage: c.stage || 'lead',
+            stageName: (typeof stageLabel === 'function' ? stageLabel(c.stage) : c.stage), stageColor: stageColor(c.stage),
+            priority: cliCrmPriority(c), moveIn: c.arrivalDate || '', createdAt: c.createdAt, next: cliCrmNext(c), sla: null
+        }));
+        (S.pfsClients || []).forEach(c => {
+            const st = PFS_STAGES.find(s => s.id === c.stage);
+            out.push({
+                raw: c, id: c.id, source: 'pfs', name: c.name || '—', email: c.email || '', phone: c.phone || '',
+                service: c.service || '', budget: c.budget || 0, zone: c.zone || '', stage: c.stage || 'lead',
+                stageName: st?.name || c.stage, stageColor: st?.color || 'gray',
+                priority: calculatePFSPriority(c), moveIn: c.moveIn || '', createdAt: c.createdAt,
+                next: getNextAction(c), sla: getSLAStatus(c)
+            });
+        });
+        return out;
+    }
+
+    function cliSegsFor(u) {
+        const segs = [u.source];
+        if (u.priority >= 55) segs.push('urgent');
+        if (u.moveIn) { const d = Math.ceil((new Date(u.moveIn) - new Date()) / 86400000); if (d >= 0 && d <= 14) segs.push('movein'); }
+        const lc = u.source === 'pfs' ? u.raw.lastContact : (u.raw.updatedAt || u.raw.createdAt);
+        if (lc && daysSince(lc) >= 5) segs.push('stale');
+        return segs;
+    }
+
+    function cliRing(u, size) {
+        const pl = getPriorityLevel(u.priority);
+        return `<div class="cli-ava" style="width:${size}px;height:${size}px;background:conic-gradient(${pl.color} ${Math.max(u.priority,4)}%, var(--border) 0)"><div class="cli-ava-in" style="font-size:${Math.round(size*0.34)}px">${initials(u.name)}</div></div>`;
+    }
+
+    function cliOpen(id, source) { source === 'pfs' ? openPFSClientDetail(id) : viewClient(id); }
+    function cliWa(id, source) {
+        if (source === 'pfs' && typeof openPFSWhatsApp === 'function') { openPFSWhatsApp(id); return; }
+        const c = (source === 'pfs' ? (S.pfsClients || []) : (S.clients || [])).find(x => x.id === id);
+        const ph = (c?.phone || '').replace(/\D/g, '');
+        if (ph) window.open('https://wa.me/' + ph, '_blank'); else toast('error', 'Telefono mancante', '');
+    }
+
+    function cliPLabel(level) {
+        return ({ critical: 'CRITICO', urgent: 'URGENTE', high: 'ALTA', medium: 'MEDIA', low: 'BASSA' })[level] || level;
+    }
+    function cliActionCard(u) {
+        const pl = getPriorityLevel(u.priority);
+        return `<div class="cli-act" onclick="cliOpen('${u.id}','${u.source}')">
+            ${cliRing(u, 44)}
+            <div class="cli-act-main">
+                <div class="cli-act-name">${esc(u.name)}<span class="badge ${u.source === 'pfs' ? 'gold' : 'gray'}" style="font-size:8px">${u.source.toUpperCase()}</span></div>
+                <div class="cli-act-meta">
+                    <span class="cli-next">${u.next.icon} ${u.next.text}</span>
+                    ${u.zone ? `<span>📍 ${esc(u.zone)}</span>` : ''}${u.budget ? `<span>€${u.budget}/m</span>` : ''}
+                </div>
+                ${u.sla ? `<div class="cli-sla"><i style="width:${Math.min(u.sla.percent, 100)}%;background:${u.sla.color}"></i></div>` : ''}
+            </div>
+            <div class="cli-pscore"><div class="cli-pscore-n" style="color:${pl.color}">${u.priority}</div><div class="cli-pscore-l">${cliPLabel(pl.level)}</div></div>
+            <div class="cli-qa" onclick="event.stopPropagation()">
+                ${u.phone ? `<button title="WhatsApp" onclick="cliWa('${u.id}','${u.source}')">💬</button>` : ''}
+                ${u.source === 'pfs' ? `<button title="Avanza stage" onclick="quickAdvanceStage('${u.id}')">→</button>` : `<button title="Modifica" onclick="editClientModal('${u.id}')">✏️</button>`}
+            </div>
+        </div>`;
+    }
+
+    function cliRow(u, seg) {
+        const segs = cliSegsFor(u);
+        const visible = seg === 'all' || segs.includes(seg);
+        const search = (u.name + ' ' + u.email + ' ' + u.zone).toLowerCase();
+        const svcColor = SERVICES[u.service]?.color || PFS_SERVICES[u.service]?.color || 'gray';
+        return `<div class="cli-row" data-seg="${segs.join(' ')}" data-search="${esc(search)}" style="${visible ? '' : 'display:none'}" onclick="cliOpen('${u.id}','${u.source}')">
+            <div class="cli-row-who">${cliRing(u, 38)}<div style="min-width:0"><div class="cli-row-name">${esc(u.name)} <span class="badge ${u.source === 'pfs' ? 'gold' : 'gray'}" style="font-size:8px">${u.source.toUpperCase()}</span></div><div class="cli-row-sub">${esc(u.email || u.zone || '—')}</div></div></div>
+            <div class="cli-row-cell"><span class="lab">Servizio</span><span class="badge ${svcColor}">${u.service || '—'}</span></div>
+            <div class="cli-row-cell"><span class="lab">Stage</span><span class="badge ${u.stageColor}">${esc(u.stageName)}</span></div>
+            <div class="cli-row-cell"><span class="lab">Budget · Zona</span>${u.budget ? '€' + u.budget + '/m' : '—'}${u.zone ? ' · ' + esc(u.zone) : ''}</div>
+            <div class="cli-row-qa" onclick="event.stopPropagation()">
+                ${u.phone ? `<button class="btn btn-xs btn-secondary" onclick="cliWa('${u.id}','${u.source}')">💬</button>` : ''}
+                <button class="btn btn-xs btn-secondary" onclick="cliOpen('${u.id}','${u.source}')">👁 Apri</button>
+            </div>
+        </div>`;
+    }
+
+    function cliFunnel(pfs) {
+        const colors = { gray: '#8E8E93', blue: 'var(--blue)', purple: 'var(--purple)', cyan: 'var(--cyan)', orange: 'var(--orange)', gold: 'var(--gold)', green: 'var(--green)' };
+        return `<div class="cli-funnel">${PFS_STAGES.map(s => {
+            const n = pfs.filter(c => c.stage === s.id).length;
+            const col = colors[s.color] || 'var(--gold)';
+            return `<div class="cli-funnel-seg" title="${s.name}: ${n}" style="flex:${Math.max(n, 0.35)};background:${n ? col : 'var(--bg-elevated)'};color:${n ? '#000' : 'var(--text-muted)'}" onclick="clientiView='pipeline';pfsState.serviceFilter='all';renderPage()"><span class="fs-c">${n}</span><span class="fs-l">${s.name}</span></div>`;
+        }).join('')}</div>`;
+    }
+
+    function cliKpi(ico, val, lab, sub, accent, onclick) {
+        return `<div class="cli-kpi${onclick ? ' clickable' : ''}" style="--accent:${accent}"${onclick ? ` onclick="${onclick}"` : ''}>
+            <div class="cli-kpi-ico">${ico}</div><div class="cli-kpi-val">${val}</div>
+            <div class="cli-kpi-lab">${lab}</div>${sub ? `<div class="cli-kpi-sub">${sub}</div>` : ''}
+        </div>`;
+    }
+
+    function cliListSeg(seg) { cliActiveSeg = seg; clientiView = 'list'; renderPage(); }
+    function cliListFilter(seg, btn) {
+        cliActiveSeg = seg;
+        document.querySelectorAll('.cli-chip').forEach(c => c.classList.toggle('active', c.dataset.chip === seg));
+        const term = (document.querySelector('.cli-search')?.value || '').toLowerCase();
+        document.querySelectorAll('#cliRows .cli-row').forEach(r => {
+            const okSeg = seg === 'all' || (r.dataset.seg || '').split(' ').includes(seg);
+            const okQ = !term || (r.dataset.search || '').includes(term);
+            r.style.display = (okSeg && okQ) ? '' : 'none';
+        });
+    }
+    function cliListSearch(q) {
+        const term = q.toLowerCase(); const seg = cliActiveSeg || 'all';
+        document.querySelectorAll('#cliRows .cli-row').forEach(r => {
+            const okSeg = seg === 'all' || (r.dataset.seg || '').split(' ').includes(seg);
+            r.style.display = (okSeg && (!term || (r.dataset.search || '').includes(term))) ? '' : 'none';
+        });
+    }
+
     function clientiPage() {
         const crmClients = (S.clients || []).filter(c => !c.intakeForm);
         const pfsClients = S.pfsClients || [];
@@ -8155,106 +8397,79 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const placedPFS = pfsClients.filter(c => c.stage === 'placed');
         const totalClosed = completedCRM.length + placedPFS.length;
         const urgentPFS = allPFS.filter(c => calculatePFSPriority && calculatePFSPriority(c) >= 55).sort((a,b) => calculatePFSPriority(b) - calculatePFSPriority(a));
-        
+
         // Monthly revenue (from PFS analytics if available)
         const earnedThisMonth = typeof getPFSAnalytics === 'function' ? getPFSAnalytics().earnedThisMonth || 0 : 0;
-        
-        return `
+
+        return `<div class="cli-wrap">
             <div class="page-header">
                 <div>
-                    <h1 class="page-title" style="font-weight:300;letter-spacing:1px">
-                        <span style="color:var(--gold)">●</span> Clienti
-                    </h1>
-                    <p class="page-subtitle">${totalActive} attivi · €${totalPipeline.toLocaleString('it-IT')} pipeline · ${totalClosed} chiusi</p>
+                    <h1 class="page-title" style="font-weight:300;letter-spacing:1px"><span style="color:var(--gold)">●</span> Clienti</h1>
+                    <p class="page-subtitle">${totalActive} attivi · €${totalPipeline.toLocaleString('it-IT')} pipeline · ${urgentPFS.length} urgenti · ${totalClosed} chiusi</p>
                 </div>
                 <div class="page-actions">
                     <button class="btn btn-secondary" onclick="openModal('addClient')">+ CRM</button>
-                    <button class="btn" onclick="openPFSAddClient()">+ PFS Client</button>
+                    <button class="btn" onclick="openPFSAddClient()">+ PFS</button>
                 </div>
             </div>
-            
-            <!-- View Tabs -->
-            <div class="tabs" style="margin-bottom:20px">
-                <div class="tab ${clientiView === 'overview' ? 'active' : ''}" onclick="clientiView='overview';renderPage()">📊 Overview</div>
-                <div class="tab ${clientiView === 'pipeline' ? 'active' : ''}" onclick="clientiView='pipeline';renderPage()">📋 Pipeline</div>
-                <div class="tab ${clientiView === 'list' ? 'active' : ''}" onclick="clientiView='list';renderPage()">📃 Lista</div>
-                <div class="tab ${clientiView === 'analytics' ? 'active' : ''}" onclick="clientiView='analytics';renderPage()">📈 Analytics</div>
+
+            <div class="cli-tabs">
+                <div class="cli-tab ${clientiView === 'overview' ? 'active' : ''}" onclick="clientiView='overview';renderPage()">📊 Panoramica</div>
+                <div class="cli-tab ${clientiView === 'pipeline' ? 'active' : ''}" onclick="clientiView='pipeline';renderPage()">📋 Pipeline</div>
+                <div class="cli-tab ${clientiView === 'list' ? 'active' : ''}" onclick="clientiView='list';renderPage()">📃 Lista <span class="cli-tab-n">${crmClients.length + pfsClients.length}</span></div>
+                <div class="cli-tab ${clientiView === 'analytics' ? 'active' : ''}" onclick="clientiView='analytics';renderPage()">📈 Analytics</div>
             </div>
-            
+
             ${clientiView === 'overview' ? renderClientiOverview(allCRM, allPFS, urgentPFS, totalActive, totalPipeline, earnedThisMonth, totalClosed) : ''}
             ${clientiView === 'pipeline' ? renderClientiPipeline(pfsClients) : ''}
             ${clientiView === 'list' ? renderClientiList(crmClients, pfsClients) : ''}
             ${clientiView === 'analytics' ? renderClientiAnalytics(crmClients, pfsClients) : ''}
-        `;
+        </div>`;
     }
     
     function renderClientiOverview(allCRM, allPFS, urgentPFS, totalActive, totalPipeline, earnedThisMonth, totalClosed) {
+        const unified = cliNormalize();
+        const active = unified.filter(u => !['placed', 'completed', 'paid', 'lost'].includes(u.stage));
+        const queue = active.slice().sort((a, b) => b.priority - a.priority).slice(0, 9);
+        const critical = active.filter(u => u.priority >= 75).length;
+        const ts = v => (v?.toDate ? v.toDate() : new Date(v || 0));
+        const recentCRM = unified.filter(u => u.source === 'crm' && !['completed', 'paid', 'lost'].includes(u.stage))
+            .sort((a, b) => ts(b.createdAt) - ts(a.createdAt)).slice(0, 8);
+
         return `
-            <!-- Key Metrics -->
-            <div class="stats-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:24px">
-                <div class="stat-card gold"><div class="stat-icon">👥</div><div class="stat-value">${totalActive}</div><div class="stat-label">Attivi Totali</div><div class="stat-sub">${allCRM.length} CRM · ${allPFS.length} PFS</div></div>
-                <div class="stat-card purple"><div class="stat-icon">💰</div><div class="stat-value">€${totalPipeline.toLocaleString('it-IT')}</div><div class="stat-label">Pipeline</div></div>
-                <div class="stat-card ${urgentPFS.length > 0 ? 'red' : 'green'}"><div class="stat-icon">🔥</div><div class="stat-value">${urgentPFS.length}</div><div class="stat-label">Urgenti</div></div>
-                <div class="stat-card blue"><div class="stat-icon">💵</div><div class="stat-value">€${earnedThisMonth.toLocaleString('it-IT')}</div><div class="stat-label">Guadagno Mese</div></div>
-                <div class="stat-card green"><div class="stat-icon">🎉</div><div class="stat-value">${totalClosed}</div><div class="stat-label">Chiusi</div></div>
+            <div class="cli-kpis">
+                ${cliKpi('👥', totalActive, 'Attivi', `${allCRM.length} CRM · ${allPFS.length} PFS`, 'var(--gold)', `clientiView='list';renderPage()`)}
+                ${cliKpi('💰', '€' + totalPipeline.toLocaleString('it-IT'), 'Pipeline', 'valore potenziale', 'var(--purple)')}
+                ${cliKpi('🔥', urgentPFS.length, 'Urgenti', critical ? `${critical} critici` : 'da seguire', urgentPFS.length ? 'var(--red)' : 'var(--green)', `cliListSeg('urgent')`)}
+                ${cliKpi('💵', '€' + earnedThisMonth.toLocaleString('it-IT'), 'Guadagno mese', 'incassato', 'var(--blue)')}
+                ${cliKpi('🎉', totalClosed, 'Chiusi', 'tutti i tempi', 'var(--green)')}
             </div>
-            
-            <div class="grid-2">
-                <!-- Priority Queue -->
-                <div class="card" style="${urgentPFS.length > 0 ? 'border-color:var(--orange)' : ''}">
-                    <div class="card-header">
-                        <h3 class="card-title">🔥 Priorità</h3>
-                        <span class="badge ${urgentPFS.length > 0 ? 'orange' : 'green'}">${urgentPFS.length}</span>
-                    </div>
-                    <div class="card-body flush" style="max-height:400px;overflow-y:auto">
-                        ${urgentPFS.length === 0 ? `
-                            <div class="empty-state" style="padding:30px"><div class="empty-icon">✨</div><div class="empty-title">Tutto OK!</div><div class="empty-text">Nessun cliente urgente</div></div>
-                        ` : urgentPFS.slice(0, 8).map(c => {
-                            const priority = calculatePFSPriority(c);
-                            const stage = (typeof PFS_STAGES !== 'undefined' ? PFS_STAGES : []).find(s => s.id === c.stage);
-                            return `<div class="list-item clickable" onclick="openPFSClientDetail('${c.id}')">
-                                <div class="avatar ${priority >= 70 ? '' : 'blue'}" style="${priority >= 70 ? 'background:var(--red)' : ''}">${(c.name||'?').charAt(0)}</div>
-                                <div class="list-content">
-                                    <div class="list-title">${c.name || 'N/A'} <span class="badge ${stage?.color || 'gray'}" style="font-size:9px">${stage?.name || c.stage}</span></div>
-                                    <div class="list-subtitle">${c.service || 'PFS'} · €${c.budget || '?'}/m · ${c.moveIn ? 'Move-in: ' + c.moveIn : ''}</div>
-                                </div>
-                                <div class="badge ${priority >= 70 ? 'red' : 'orange'}" style="font-size:10px">${priority}</div>
-                            </div>`;
-                        }).join('')}
+
+            <div class="cli-panel" style="margin-bottom:22px">
+                <div class="cli-panel-h"><div class="cli-panel-t">📊 Funnel pipeline</div><span style="font-size:11px;color:var(--text-muted)">tocca uno stage →</span></div>
+                <div style="padding:16px 18px">${cliFunnel(S.pfsClients || [])}</div>
+            </div>
+
+            <div class="cli-cols">
+                <div class="cli-panel" style="${queue.some(u => u.priority >= 75) ? 'border-color:rgba(255,59,48,.4)' : ''}">
+                    <div class="cli-panel-h"><div class="cli-panel-t">⚡ Da fare ora</div><span class="badge ${queue.length ? 'gold' : 'green'}">${queue.length}</span></div>
+                    <div class="cli-panel-b">
+                        ${queue.length ? queue.map(cliActionCard).join('') : `<div class="empty-state" style="padding:38px"><div class="empty-icon">✨</div><div class="empty-title">Tutto sotto controllo</div><div class="empty-text">Nessuna azione urgente in coda</div></div>`}
                     </div>
                 </div>
-                
-                <!-- Recent CRM Clients -->
-                <div class="card">
-                    <div class="card-header">
-                        <h3 class="card-title">💼 CRM Recenti</h3>
-                        <span class="badge gray">${allCRM.length}</span>
-                    </div>
-                    <div class="card-body flush" style="max-height:400px;overflow-y:auto">
-                        ${allCRM.length === 0 ? `
-                            <div class="empty-state" style="padding:30px"><div class="empty-icon">📭</div><div class="empty-title">Nessun cliente CRM</div></div>
-                        ` : allCRM.slice(0, 8).map(c => `
-                            <div class="list-item clickable" onclick="viewClient('${c.id}')">
-                                <div class="avatar ${c.service === 'DAS' ? 'blue' : c.service === 'VV' ? 'purple' : ''}">${(c.name||'?').substring(0,2).toUpperCase()}</div>
-                                <div class="list-content">
-                                    <div class="list-title">${c.name} <span class="badge ${SERVICES[c.service]?.color || 'gray'}" style="font-size:9px">${c.service}</span></div>
-                                    <div class="list-subtitle">${c.zone || 'Roma'} · €${c.budget || '?'}/m</div>
-                                </div>
-                                <span class="badge ${stageColor(c.stage)}" style="font-size:9px">${stageLabel(c.stage)}</span>
-                            </div>
-                        `).join('')}
+                <div class="cli-panel">
+                    <div class="cli-panel-h"><div class="cli-panel-t">💼 CRM recenti</div><span class="badge gray">${recentCRM.length}</span></div>
+                    <div class="cli-panel-b">
+                        ${recentCRM.length ? recentCRM.map(cliActionCard).join('') : `<div class="empty-state" style="padding:38px"><div class="empty-icon">📭</div><div class="empty-title">Nessun cliente CRM</div><button class="btn btn-sm" style="margin-top:12px" onclick="openModal('addClient')">+ Aggiungi</button></div>`}
                     </div>
                 </div>
             </div>
-            
-            <!-- Quick Actions -->
-            <div class="card" style="margin-top:20px">
-                <div class="card-body" style="display:flex;gap:10px;flex-wrap:wrap">
-                    <button class="btn btn-sm" onclick="clientiView='pipeline';renderPage()">📋 Vedi Pipeline</button>
-                    <button class="btn btn-sm btn-secondary" onclick="goTo('boom-tools')">✉️ Genera Messaggio</button>
-                    <button class="btn btn-sm btn-secondary" onclick="goTo('zone-intel')">🎯 Zone Intelligence</button>
-                    <button class="btn btn-sm btn-secondary" onclick="goTo('invoices')">🧾 Crea Fattura</button>
-                </div>
+
+            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:18px">
+                <button class="btn btn-sm" onclick="clientiView='pipeline';renderPage()">📋 Apri pipeline</button>
+                <button class="btn btn-sm btn-secondary" onclick="goTo('boom-tools')">✉️ Genera messaggio</button>
+                <button class="btn btn-sm btn-secondary" onclick="goTo('invoices')">🧾 Crea fattura</button>
+                <button class="btn btn-sm btn-secondary" onclick="clientiView='analytics';renderPage()">📈 Analytics</button>
             </div>
         `;
     }
@@ -8265,49 +8480,28 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
     
     function renderClientiList(crmClients, pfsClients) {
-        const all = [
-            ...crmClients.map(c => ({...c, _source: 'crm'})),
-            ...pfsClients.map(c => ({...c, _source: 'pfs'}))
-        ].sort((a, b) => {
-            const dA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
-            const dB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
-            return dB - dA;
-        });
-        
+        const ts = v => (v?.toDate ? v.toDate() : new Date(v || 0));
+        const unified = cliNormalize().sort((a, b) => ts(b.createdAt) - ts(a.createdAt));
+        const seg = cliActiveSeg || 'all';
+        const cnt = {
+            all: unified.length,
+            crm: unified.filter(u => u.source === 'crm').length,
+            pfs: unified.filter(u => u.source === 'pfs').length,
+            urgent: unified.filter(u => u.priority >= 55).length
+        };
+        const chips = [
+            ['all', 'Tutti', cnt.all], ['crm', '💼 CRM', cnt.crm], ['pfs', '🚀 PFS', cnt.pfs],
+            ['urgent', '🔥 Urgenti', cnt.urgent], ['movein', '📅 Move-in ≤14g', ''], ['stale', '💤 Da risentire', '']
+        ];
+
         return `
-            <div class="card">
-                <div style="display:flex;gap:8px;padding:12px;border-bottom:1px solid var(--border);flex-wrap:wrap;align-items:center">
-                    <button class="btn btn-sm" id="filterAll" onclick="filterClientiList('all',this)">Tutti (${all.length})</button>
-                    <button class="btn btn-sm btn-secondary" onclick="filterClientiList('crm',this)">💼 CRM (${crmClients.length})</button>
-                    <button class="btn btn-sm btn-secondary" onclick="filterClientiList('pfs',this)">🚀 PFS (${pfsClients.length})</button>
-                    <div style="flex:1"></div>
-                    <input type="text" class="form-input" placeholder="🔍 Cerca..." style="width:200px;padding:6px 12px;margin:0" oninput="searchClientiList(this.value)">
-                </div>
-                <div style="overflow-x:auto">
-                    <table class="crm-table" id="clientiTable">
-                        <thead><tr>
-                            <th>Cliente</th><th>Tipo</th><th>Servizio</th><th>Budget</th><th>Zona</th><th>Stage</th><th>Data</th><th>Azioni</th>
-                        </tr></thead>
-                        <tbody>
-                            ${all.map(c => {
-                                const isPFS = c._source === 'pfs';
-                                const stage = isPFS ? (PFS_STAGES || []).find(s => s.id === c.stage) : null;
-                                return `<tr class="clienti-row" data-source="${c._source}" data-search="${(c.name + ' ' + (c.email||'') + ' ' + (c.zone||'')).toLowerCase()}">
-                                    <td><div style="display:flex;align-items:center;gap:10px"><div class="avatar sm ${isPFS ? '' : (c.service === 'DAS' ? 'blue' : c.service === 'VV' ? 'purple' : '')}">${(c.name||'?').substring(0,2).toUpperCase()}</div><div><div style="font-weight:500">${c.name || 'N/A'}</div><div style="font-size:11px;color:var(--text-muted)">${c.email || ''}</div></div></div></td>
-                                    <td><span class="badge ${isPFS ? 'gold' : 'gray'}" style="font-size:9px">${isPFS ? 'PFS' : 'CRM'}</span></td>
-                                    <td><span class="badge ${SERVICES[c.service]?.color || 'gray'}">${c.service || '—'} €${SERVICES[c.service]?.price || PFS_SERVICES?.[c.service]?.price || '?'}</span></td>
-                                    <td>${c.budget ? '€' + c.budget + '/m' : '—'}</td>
-                                    <td>${c.zone || c.zones?.join(', ') || '—'}</td>
-                                    <td><span class="badge ${isPFS ? (stage?.color || 'gray') : stageColor(c.stage)}">${isPFS ? (stage?.name || c.stage) : stageLabel(c.stage)}</span></td>
-                                    <td style="font-size:12px;color:var(--text-muted)">${fmtDate(c.createdAt)}</td>
-                                    <td><div style="display:flex;gap:4px">
-                                        <button class="btn btn-xs btn-secondary" onclick="${isPFS ? `openPFSClientDetail('${c.id}')` : `viewClient('${c.id}')`}" title="Dettagli">👁</button>
-                                        <button class="btn btn-xs btn-secondary" onclick="${isPFS ? `openPFSClientDetail('${c.id}')` : `editClientModal('${c.id}')`}" title="Modifica">✏️</button>
-                                    </div></td>
-                                </tr>`;
-                            }).join('') || '<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted)">Nessun cliente</td></tr>'}
-                        </tbody>
-                    </table>
+            <div class="cli-bar">
+                ${chips.map(([k, l, n]) => `<button class="cli-chip ${seg === k ? 'active' : ''}" data-chip="${k}" onclick="cliListFilter('${k}',this)">${l}${n !== '' ? ` <span style="opacity:.55">${n}</span>` : ''}</button>`).join('')}
+                <input class="cli-search" placeholder="🔍 Cerca nome, email, zona…" oninput="cliListSearch(this.value)">
+            </div>
+            <div class="cli-panel">
+                <div class="cli-rows" id="cliRows">
+                    ${unified.length ? unified.map(u => cliRow(u, seg)).join('') : `<div class="empty-state" style="padding:48px"><div class="empty-icon">👥</div><div class="empty-title">Nessun cliente</div><div class="empty-text">Aggiungi il primo cliente per iniziare</div></div>`}
                 </div>
             </div>
         `;
@@ -8315,21 +8509,6 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     
     function renderClientiAnalytics(crmClients, pfsClients) {
         return typeof renderPFSAnalytics === 'function' ? renderPFSAnalytics() : `<div class="empty-state"><div class="empty-icon">📈</div><div class="empty-title">Analytics</div></div>`;
-    }
-    
-    function filterClientiList(source, btn) {
-        document.querySelectorAll('.clienti-row').forEach(r => {
-            r.style.display = (source === 'all' || r.dataset.source === source) ? '' : 'none';
-        });
-        btn?.closest('div')?.querySelectorAll('.btn').forEach(b => b.classList.add('btn-secondary'));
-        btn?.classList.remove('btn-secondary');
-    }
-    
-    function searchClientiList(q) {
-        const term = q.toLowerCase();
-        document.querySelectorAll('.clienti-row').forEach(r => {
-            r.style.display = !term || r.dataset.search.includes(term) ? '' : 'none';
-        });
     }
     
     // ═══════════════════════════════════════════════════════════════════════════
@@ -23247,7 +23426,7 @@ IBAN: ${l.iban || '-'}`;
             </div>
 
             <!-- Kanban Board -->
-            <div style="display:flex;gap:12px;overflow-x:auto;padding-bottom:16px">
+            <div class="cli-board">
                 ${PFS_STAGES.map(stage => {
                     const stageClients = filtered.filter(c => c.stage === stage.id);
                     const stageValue = stageClients.reduce((sum, c) => sum + (PFS_SERVICES[c.service]?.price || 0), 0);
