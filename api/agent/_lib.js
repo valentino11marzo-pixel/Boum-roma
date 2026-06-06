@@ -24,6 +24,32 @@ export {
   readJson, logActivity,
 } from '../homie/_lib.js';
 
+// Local binding (the line above only re-exports) so storageUpload can sign its
+// own Firebase Storage REST calls with the same admin token used everywhere.
+import { getAdminToken as _getAdminToken } from '../homie/_lib.js';
+
+// ─── Firebase Storage upload (REST, admin token) ─────────────────────────────
+// Uploads bytes to the project bucket and returns a tokenized download URL
+// (same shape the Firebase Web SDK produces, so the portal can open it).
+// Bucket: FIREBASE_STORAGE_BUCKET env, else derived from the project id.
+// Returns null if no bucket is configured (caller can fall back to a data URI).
+export async function storageUpload(path, buffer, contentType = 'application/pdf') {
+  const bucket = process.env.FIREBASE_STORAGE_BUCKET
+    || `${process.env.FIREBASE_PROJECT_ID || 'boom-property-dashboards'}.firebasestorage.app`;
+  if (!bucket) return null;
+  const token = await _getAdminToken();
+  const url = `https://firebasestorage.googleapis.com/v0/b/${encodeURIComponent(bucket)}/o?uploadType=media&name=${encodeURIComponent(path)}`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': contentType },
+    body: buffer,
+  });
+  if (!res.ok) throw new Error(`Storage upload failed (${res.status}): ${await res.text()}`);
+  const meta = await res.json();
+  const dl = meta.downloadTokens;
+  return `https://firebasestorage.googleapis.com/v0/b/${encodeURIComponent(bucket)}/o/${encodeURIComponent(path)}?alt=media${dl ? `&token=${dl}` : ''}`;
+}
+
 // ─── Email transport (Gmail via Nodemailer, same as reminder-cron.js) ───
 
 let _transporter = null;

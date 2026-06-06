@@ -83,5 +83,14 @@ Condivisi, Deal Archive. Export CSV con provenienza/rif/lingua.
   collection `templates` versionata, con editor — niente più testo nel codice.
 - **Ricerca/estrazione AI**: indicizzare i PDF e interrogarli via Claude
   (`/api/parse-docs`) — es. "estrai canone e scadenza di tutti i transitori 2025".
-- **Aggancio Homie**: l'agente (`api/agent/contracts.draft.js`) può scrivere
-  documenti direttamente in archivio con lo stesso schema.
+- **Aggancio Homie** ✅ *(fatto)*: l'agente scrive/gestisce documenti in
+  archivio con lo stesso schema, via tre tool dell'agent layer:
+  - `agent.documents.create` — carica/indicizza (URL o base64; Storage via
+    `storageUpload()` o data-URI inline; idempotente su `externalId`).
+  - `agent.documents.list` — trova/sfoglia (per cliente/immobile/contratto/tipo).
+  - `agent.documents.update` — organizza (rinomina, ri-tag, condividi, fissa,
+    riordina, archivia).
+  I documenti creati da Homie compaiono nell'Archivio con badge `🤖 Homie`
+  (`source: 'agent'`), i `pinned` salgono in cima, gli `status: 'archived'`
+  spariscono dalla vista attiva. Stesso progetto Firestore
+  (`boom-property-dashboards`) del portale, quindi visibilità immediata.

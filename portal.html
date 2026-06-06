@@ -10117,7 +10117,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             };
         });
         const tsOf = (d) => { const t = d.createdAt; return (t && t.seconds) || (t && t.toMillis ? t.toMillis() / 1000 : (Date.parse(t) || 0) / 1000); };
-        const all = [...uploads, ...contractDocs].sort((a, b) => tsOf(b) - tsOf(a));
+        // Documenti fissati (pinned, es. da Homie) in cima, poi per data discendente.
+        const all = [...uploads, ...contractDocs]
+            .filter(d => d.status !== 'archived')
+            .sort((a, b) => ((b.pinned === true) - (a.pinned === true)) || (tsOf(b) - tsOf(a)));
         const byType = (t) => all.filter(d => d.type === t).length;
         const stats = {
             all: all.length,
@@ -10129,6 +10132,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
         const sourceBadge = (d) => d.source === 'generated' ? '<span class="badge gold" style="font-size:9px">✨ Generato</span>'
             : d.source === 'contract' ? '<span class="badge blue" style="font-size:9px">📋 Contratto</span>'
+            : d.source === 'agent' ? '<span class="badge purple" style="font-size:9px">🤖 Homie</span>'
             : '<span class="badge gray" style="font-size:9px">📤 Caricato</span>';
         const docRow = (d) => {
             const u = S.users.find(x => x.id === d.userId);
@@ -10141,7 +10145,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <div class="list-icon" style="background:var(--gold-light)">${docIcon(d.type)}</div>
                 <div class="list-content" style="flex:1;min-width:0">
                     <div class="list-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                        <span style="font-weight:600">${esc(d.name)}</span>
+                        <span style="font-weight:600">${d.pinned ? '📌 ' : ''}${esc(d.name)}</span>
                         ${sourceBadge(d)}
                         ${d.lang ? `<span class="badge gray" style="font-size:9px">${esc(d.lang)}</span>` : ''}
                         ${d.shared ? '<span class="badge blue" style="font-size:9px">🔗 Condiviso</span>' : ''}
@@ -10246,7 +10250,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const landlord = S.users.find(x => x.id === d.landlordId);
         const client = (S.clients || []).find(x => x.id === d.clientId);
         const prop = S.properties.find(x => x.id === d.propertyId);
-        const srcLabel = d.source === 'generated' ? '✨ Generato dal sistema' : d.source === 'contract' ? '📋 Contratto registrato' : '📤 Caricato manualmente';
+        const srcLabel = d.source === 'generated' ? '✨ Generato dal sistema' : d.source === 'contract' ? '📋 Contratto registrato' : d.source === 'agent' ? '🤖 Creato da Homie' : '📤 Caricato manualmente';
         const sizeKB = d.fileSize ? (d.fileSize / 1024).toFixed(0) + ' KB' : '';
         const meta = (k, v) => v ? `<div style="display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text-muted);font-size:12px">${k}</span><span style="font-size:12px;text-align:right">${v}</span></div>` : '';
         const chip = (icon, label, onclick) => `<button class="btn btn-xs btn-secondary" onclick="${onclick}" style="margin:2px">${icon} ${esc(label)}</button>`;
@@ -10268,7 +10272,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             <div class="modal-header"><h3 class="modal-title" style="font-size:15px">${esc(d.name)}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
             <div class="modal-body">
                 <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">
-                    <span class="badge ${d.source === 'generated' ? 'gold' : d.source === 'contract' ? 'blue' : 'gray'}">${srcLabel}</span>
+                    <span class="badge ${d.source === 'generated' ? 'gold' : d.source === 'contract' ? 'blue' : d.source === 'agent' ? 'purple' : 'gray'}">${srcLabel}</span>
                     ${d.lang ? `<span class="badge gray">${esc(d.lang)}</span>` : ''}
                     ${d.shared ? '<span class="badge blue">🔗 Condiviso</span>' : ''}
                 </div>

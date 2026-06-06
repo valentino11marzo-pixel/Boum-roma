@@ -28,6 +28,9 @@ Public, returns the JSON manifest of every tool with its input/output shape and 
 | `messages.send` | 2 | Send email (Gmail) and/or return WhatsApp deep-link |
 | `viewings.schedule` | 2 | Propose viewing slots |
 | `contracts.draft` | 2 | Pre-compile a contract document (status `draft`) |
+| `documents.create` | 1 | Upload/index a document into the archive (`documents` collection) |
+| `documents.list` | 1 | Find/browse archived documents (by client, property, contract, type…) |
+| `documents.update` | 1 | Organize: rename, re-tag, share, pin, reorder, archive |
 | `magicsign.create` | 2 | Create a signature request on a custom PDF |
 | `radar.scan` | 1 | Scan saved Radar searches, emit lead diffs |
 | `state.snapshot` | 1 | Read-only portal state for quick answers |
@@ -102,7 +105,33 @@ Homie replies on Telegram:
   "Bozza creata + 2 link di firma pronti. Approva?  /approva ctr-xyz"
 ```
 
-### 4. Heartbeat
+### 4. Homie files a document into the archive
+
+```
+Homie produces (or receives) a PDF — a signed contract copy, an ID scan,
+a receipt — and files it where the operator and the counterparty can find it:
+
+POST /api/agent/documents.create {
+  name: 'Contratto firmato — Anna B.',
+  fileUrl: 'https://.../signed.pdf',     // or fileBase64 for raw bytes
+  type: 'contract',
+  category: 'locazione',
+  tenantId: '<Anna>',  landlordId: '<Valentino>',  propertyId: '<Trastevere 4B>',
+  contractId: 'ctr-xyz',
+  tags: ['2026', 'transitorio'],
+  externalId: 'homie:signed:ctr-xyz',    // idempotent — safe to retry
+}
+→ { id: 'doc-123', fileUrl: '…', archived: true }
+
+It then appears in the portal's "Archivio Documentale" (source 🤖 Homie) and,
+because a tenant + landlord were linked, in their own portals (getMyDocuments).
+
+Find + organize later:
+POST /api/agent/documents.list   { propertyId: '<Trastevere 4B>', type: 'contract' }
+POST /api/agent/documents.update { id: 'doc-123', pinned: true, tags: ['2026','firmato'] }
+```
+
+### 5. Heartbeat
 
 ```
 Every ~30s OR after every tool call:
@@ -120,6 +149,7 @@ The cockpit's top-bar dot reflects time-since-lastSeenAt:
 - `execute` is fully idempotent: re-calling on an already-executed action returns the cached result.
 - `magicsign.create` is NOT idempotent — pass a stable `contextHash` via the Homie-action layer instead if you need dedup.
 - `leads.create` is NOT idempotent — use `sourceRef` when re-emitting from upstream pollers.
+- `documents.create` IS idempotent when given `externalId` — a repeat call with the same key patches the existing doc instead of creating a duplicate.
 
 ## Error shape
 
