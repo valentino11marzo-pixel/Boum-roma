@@ -99,7 +99,7 @@
       ]
     },
     {
-      "source": "/(portal|admin|admin-flats|setup-firebase|seed-listings|boom-doc-parser|boom_doc_parser|cockpit-preview|portal.html|admin.html|admin-flats.html|setup-firebase.html|seed-listings.html|boom_doc_parser.html|cockpit-preview.html)(.*)",
+      "source": "/(portal|admin|admin-flats|setup-firebase|seed-listings|boom-doc-parser|boom_doc_parser|cockpit-preview|underwriting|compliance|relet|pass-studio|portal.html|admin.html|admin-flats.html|setup-firebase.html|seed-listings.html|boom_doc_parser.html|cockpit-preview.html|underwriting.html|compliance.html|relet.html|pass-studio.html)(.*)",
       "headers": [
         { "key": "X-Robots-Tag", "value": "noindex, nofollow, noarchive, nosnippet" },
         { "key": "Cache-Control", "value": "private, no-store, max-age=0" }
