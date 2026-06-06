@@ -433,6 +433,10 @@
             [style*="grid-template-columns:repeat(4"]{grid-template-columns:repeat(2,1fr)!important}
             [style*="grid-template-columns:2fr 1fr"]{grid-template-columns:1fr!important}
             [style*="grid-template-columns:repeat(3"]{grid-template-columns:repeat(2,1fr)!important}
+            /* New 2-pane pages (Inbox, Photo Studio, Market) — stack on tablet/phone. */
+            [style*="grid-template-columns:minmax(280px,360px) 1fr"]{grid-template-columns:1fr!important}
+            [style*="grid-template-columns:1.4fr 1fr"]{grid-template-columns:1fr!important}
+            [style*="grid-template-columns:1.4fr 1fr 1fr"]{grid-template-columns:1fr!important}
             .modal{max-width:95vw!important;margin:8px!important;border-radius:16px!important}
             .modal.lg,.modal.xl{max-width:95vw!important}
             .card-header{flex-wrap:wrap;gap:8px}
@@ -440,6 +444,11 @@
             .alert .btn{width:100%}
             h1{font-size:22px!important}
             .list-item{padding:10px 12px!important}
+            /* Inbox conv list: cap height so the thread stays usable below it. */
+            .inbox-list-pane{max-height:50vh!important}
+            /* Page header buttons row wraps without overflowing the screen. */
+            .page-header{flex-direction:column;align-items:flex-start!important}
+            .page-header > div:last-child{flex-wrap:wrap}
         }
         @media(max-width:500px){
             [style*="grid-template-columns:repeat(4"],[style*="grid-template-columns:repeat(2,1fr)"]{grid-template-columns:1fr!important}
@@ -448,6 +457,9 @@
             .card{border-radius:14px}
             .stats-grid{gap:10px!important}
             .toast-container{bottom:12px;left:8px;right:8px}
+            /* Touch targets ≥ 36px on phones, prevent text scaling on input focus. */
+            .btn-sm{min-height:34px}
+            input,select,textarea{font-size:16px!important}
         }
         /* Mobile-friendly tables */
         @media(max-width:768px){
@@ -3474,6 +3486,21 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             showAuth();
         }
     }, isSafari ? 12000 : 8000);
+
+    // Absolute safety net: NEVER leave the loader visible past 25s, no matter
+    // what stalled (Firestore stuck on a rules look-up, slow corporate proxy,
+    // dead connection, etc). The user always gets to either the app shell or
+    // the login screen — never the dreaded infinite spinner.
+    setTimeout(() => {
+        const loading = document.getElementById('loading');
+        if (loading && !loading.classList.contains('hidden')) {
+            console.warn('[Boot] hard timeout — forcing UI exit from loading state');
+            hideLoading();
+            // If we never reached the app shell, fall back to the auth screen so
+            // the user can at least retry / sign in.
+            if (!document.getElementById('app').classList.contains('active')) showAuth();
+        }
+    }, 25000);
     
     auth.onAuthStateChanged(async u => {
         if (isMagicSign || isIntakeForm) return;
@@ -3531,11 +3558,31 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             authProcessed = true;
             S.user = u;
             try {
-                const doc = await db.collection('users').doc(u.uid).get();
+                // Wrap the profile read in a hard timeout so a Firestore stall
+                // (slow network, offline mode, rules look-up loop) can't pin
+                // the loader forever. Surface a Riprova instead.
+                const docP = db.collection('users').doc(u.uid).get();
+                const doc = await Promise.race([
+                    docP,
+                    new Promise((_, rej) => setTimeout(() => rej(new Error('profile_lookup_timeout')), 15000))
+                ]);
                 if (doc.exists) {
                     S.profile = { id: u.uid, ...doc.data() };
                     await db.collection('users').doc(u.uid).update({ lastLogin: firebase.firestore.FieldValue.serverTimestamp() }).catch(() => {});
-                    await loadData();
+                    // loadData() can still take long on big admin accounts (bulk
+                    // gets of properties/contracts/payments/etc.). Show the app
+                    // even if it stalls past 20s — listeners + cached data will
+                    // fill in. Better a usable shell than an infinite spinner.
+                    try {
+                        await Promise.race([
+                            loadData(),
+                            new Promise((_, rej) => setTimeout(() => rej(new Error('data_load_timeout')), 20000))
+                        ]);
+                    } catch (loadErr) {
+                        console.warn('[Auth] loadData slow/failed — entering app anyway:', loadErr.message);
+                        // Show a one-time toast once the app is on screen.
+                        setTimeout(() => { try { toast('warning', 'Caricamento lento', 'Alcuni dati arriveranno tra poco.'); } catch {} }, 800);
+                    }
                     showApp();
                     startSessionCheck();
                     // ★ BOOM PROTOCOL: Check onboarding for new tenants
@@ -10531,7 +10578,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
         <div style="display:grid;grid-template-columns:minmax(280px,360px) 1fr;gap:16px;align-items:start">
             <!-- LEFT: conversation list -->
-            <div class="card" style="padding:0;overflow:hidden;max-height:calc(100vh - 220px);display:flex;flex-direction:column">
+            <div class="card inbox-list-pane" style="padding:0;overflow:hidden;max-height:calc(100vh - 220px);display:flex;flex-direction:column">
                 <div style="padding:12px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:8px">
                     <input class="input" type="search" placeholder="Cerca nome, telefono, testo…" value="${esc(_inboxState.search)}" oninput="_inboxState.search=this.value;inboxRefresh()" style="font-size:13px">
                     <div style="display:flex;gap:6px;flex-wrap:wrap">
