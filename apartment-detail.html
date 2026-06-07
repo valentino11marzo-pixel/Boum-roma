@@ -266,6 +266,10 @@
         .apply-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
         .apply-row>*{margin-bottom:0!important}
         .apply-reassure{margin-top:12px;text-align:center;font-size:11.5px;color:var(--text-fade)}
+        .iq-more{background:none;border:none;color:var(--text-secondary);font-family:inherit;font-size:12.5px;cursor:pointer;padding:0 0 12px;display:inline-flex;align-items:center;gap:6px;transition:color .2s}
+        .iq-more:hover{color:var(--gold)}
+        .iq-more span{color:var(--text-fade)}
+        .iq-more[aria-expanded="true"]{display:none}
         .sidebar-apply{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:16px;margin-bottom:12px;background:linear-gradient(135deg,#FFD700,#FFA500);border:none;border-radius:12px;color:#000;font-family:inherit;font-size:15px;font-weight:600;text-decoration:none;cursor:pointer;transition:all .3s}
         .sidebar-apply:hover{transform:translateY(-2px);box-shadow:0 10px 34px rgba(255,215,0,0.32)}
         .inquiry-success{display:none;text-align:center;padding:20px 0;color:#25D366;font-size:14px}
@@ -727,6 +731,8 @@
                         <input type="text" name="name" id="iqName" placeholder="Your name" required>
                         <input type="email" name="email" id="iqEmail" placeholder="Your email" required>
                         <input type="tel" name="phone" id="iqPhone" placeholder="WhatsApp number (optional)">
+                        <button type="button" class="iq-more" id="iqMoreToggle" aria-expanded="false" aria-controls="iqMore">+ Add details <span>(optional)</span></button>
+                        <div id="iqMore" hidden>
                         <div class="apply-row">
                             <input type="date" name="movein" id="iqMoveIn" aria-label="Preferred move-in date">
                             <select name="duration" id="iqDuration" aria-label="Length of stay">
@@ -745,6 +751,7 @@
                             <option>4+ people</option>
                         </select>
                         <textarea name="message" id="formMessage" placeholder="Anything we should know? (optional)"></textarea>
+                        </div>
                         <button type="submit" id="inquiryBtn">Submit application</button>
                         <div class="apply-reassure">🔒 Private &amp; no commitment. A real person reviews every application.</div>
                     </form>
@@ -1303,6 +1310,9 @@
         // Inquiry form → Firestore leads
         document.getElementById('formMessage').placeholder=`Anything we should know about your move to ${name}? (optional)`;
         const iqForm=document.getElementById('inquiryForm');
+        // Friction-light form: reveal optional details only on demand
+        (function(){const t=document.getElementById('iqMoreToggle'),m=document.getElementById('iqMore');
+          if(t&&m)t.addEventListener('click',function(){m.hidden=false;t.setAttribute('aria-expanded','true');});})();
         iqForm.addEventListener('submit',async function(e){
             e.preventDefault();
             const btn=document.getElementById('inquiryBtn');

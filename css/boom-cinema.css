@@ -65,8 +65,16 @@ html{scroll-behavior:smooth;scroll-padding-top:104px}
 .cine-tour:hover,.cine-tour.is-playing{background:var(--gold,#FFD700);color:#000;border-color:var(--gold,#FFD700)}
 .cine-tour svg{width:12px;height:12px}
 
+/* ── Desktop floating Apply — keeps the primary CTA reachable in the lower
+   sections where the sticky sidebar has scrolled away (mobile has its own bar) ── */
+.apply-fab{position:fixed;right:26px;bottom:26px;z-index:80;display:inline-flex;align-items:center;gap:8px;padding:14px 24px;border-radius:100px;background:linear-gradient(135deg,#FFD700,#FFA500);color:#000;font-weight:600;font-size:14px;text-decoration:none;box-shadow:0 12px 34px rgba(255,215,0,.32);opacity:0;transform:translateY(14px) scale(.96);pointer-events:none;transition:opacity .4s var(--cine-ease),transform .4s var(--cine-ease)}
+.apply-fab.in{opacity:1;transform:none;pointer-events:auto}
+.apply-fab:hover{box-shadow:0 16px 40px rgba(255,215,0,.42)}
+@media(max-width:1024px){.apply-fab{display:none}}
+
 @media(prefers-reduced-motion:reduce){
   html{scroll-behavior:auto}
+  .apply-fab{transition:none}
   .cine-ambient,.cine-progress,.cine-tour{display:none!important}
   .cine-on .single-hero-img,.cine-on .carousel-slide img{animation:none!important}
   .cine-on .cine-reveal{opacity:1!important;transform:none!important}

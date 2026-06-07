@@ -222,6 +222,24 @@
         var d = doc.createElement('div'); d.className = 'cine-live';
         d.innerHTML = '<span class="dot"></span>Live availability · BOOM-verified'; pb.appendChild(d);
       }
+      // Desktop floating Apply — appears once the sticky sidebar CTA scrolls
+      // out of view, hides while the form itself is on screen.
+      (function () {
+        var card = $('#inquiryCard'); if (!card || $('.apply-fab')) return;
+        var fab = doc.createElement('a'); fab.className = 'apply-fab'; fab.href = '#inquiryCard';
+        fab.textContent = 'Apply now →';
+        fab.addEventListener('click', function () { setTimeout(function () { var n = $('#iqName'); if (n) n.focus(); }, 450); });
+        body.appendChild(fab);
+        var tick = false;
+        function upd() {
+          tick = false; var show = scrollY > 640;
+          var r = card.getBoundingClientRect(); if (r.top < innerHeight && r.bottom > 0) show = false;
+          fab.classList.toggle('in', show);
+        }
+        addEventListener('scroll', function () { if (tick) return; tick = true; requestAnimationFrame(upd); }, { passive: true });
+        addEventListener('resize', function () { if (tick) return; tick = true; requestAnimationFrame(upd); }, { passive: true });
+        upd();
+      })();
     });
   }
 
