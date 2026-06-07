@@ -24,22 +24,21 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <!-- BOOM_SEO:END -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Reuse BOOM's shared design system (tokens + base). The ambient "cinema"
-         glow layer is intentionally omitted here: its large soft radial glows
-         muddied a content-dense portal (the "blurry gradient zones"). Motion stays
-         native and crisp. -->
-    <link rel="stylesheet" href="/css/boom-core.css">
+    <!-- Self-contained: this portal defines its own tokens + base inline (mirroring
+         the BOOM design system 1:1). We intentionally do NOT link boom-core.css here —
+         its full-viewport noise texture (body::before, z-index:9999) sat on top of
+         every element and softened all the section text. Crisp text > shared sheet. -->
     <style>
         /* ─────────── client-portal · scoped on the real BOOM design system ───────────
            tokens, type and components mirror apartments.html / apartment-detail.html /
            tenant.html: Helvetica Neue display, Inter body, #FFD700 gold, #08080A base,
-           20px cards, hairline borders, pill badges. All classes are cp-* prefixed so
-           nothing collides with boom-core.css. */
+           20px cards, hairline borders, pill badges. All classes are cp-* prefixed and
+           every token is defined here, so the page is fully self-contained. */
         :root{
             --gold:#FFD700; --gold-light:#FFE55C; --gold-dark:#E5C200; --gold-tint:rgba(255,215,0,.08);
             --cyan:#00CED1; --green:#00FF88; --red:#FF3B3B;
             --pure-black:#08080A; --void:#0A0A0A; --surface:#0E0E10; --surface-2:#151518; --elev:#1C1C20;
-            --ink:#FAFAFA; --ink-2:rgba(255,255,255,.70); --ink-3:rgba(255,255,255,.40); --ink-4:rgba(255,255,255,.26);
+            --ink:#FAFAFA; --ink-2:rgba(255,255,255,.74); --ink-3:rgba(255,255,255,.52); --ink-4:rgba(255,255,255,.34);
             --line:rgba(255,255,255,.06); --line-2:rgba(255,255,255,.11); --line-gold:rgba(255,215,0,.20);
             --font-display:'Helvetica Neue',Helvetica,Arial,sans-serif;
             --font-sans:'Inter','Helvetica Neue',-apple-system,BlinkMacSystemFont,sans-serif;
@@ -50,7 +49,7 @@
         }
         *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
         html{-webkit-text-size-adjust:100%;scroll-behavior:auto}
-        body{font-family:var(--font-sans);background:var(--pure-black);color:var(--ink);font-weight:300;line-height:1.6;letter-spacing:.01em;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+        body{font-family:var(--font-sans);background:var(--pure-black);color:var(--ink);font-weight:400;line-height:1.6;letter-spacing:.01em;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-rendering:optimizeLegibility;overflow-x:hidden}
         button{font-family:inherit;color:inherit;cursor:pointer}
         a{color:inherit;text-decoration:none}
         img{display:block}
