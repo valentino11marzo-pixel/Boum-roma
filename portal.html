@@ -24227,6 +24227,7 @@ IBAN: ${l.iban || '-'}`;
                             </div>
                         </div>
                         ${pfsPortalSection(c)}
+                        ${pfsCasafariSection(c)}
                     </div>
                     <div class="modal-footer">
                         <button class="btn btn-danger" onclick="deletePFSClient('${id}')">🗑️ Delete</button>
@@ -24322,6 +24323,94 @@ IBAN: ${l.iban || '-'}`;
                 ${fb}
             </div>
         </div>`;
+    }
+
+    // ── Casafari → portale cliente (flusso account web: l'operatore cura, BOOM ingerisce) ──
+    function pfsCasafariSection(c) {
+        const props = Array.isArray(c.portalProperties) ? c.portalProperties : [];
+        const fromCasafari = props.filter(p => p && (p.source === 'casafari' || p.addedBy === 'casafari'));
+        const firstZone = (c.zone || '').split(',')[0].trim();
+        const crit = `€${c.minBudget || 0}–€${c.budget || '?'} · ${esc(c.zone) || 'qualsiasi zona'} · ${c.bedrooms ? esc(c.bedrooms) + ' cam' : 'cam. qualsiasi'}`;
+        return `<div class="info-box mt-16" style="border-color:var(--gold-light)">
+            <div class="info-box-title" style="display:flex;justify-content:space-between;align-items:center">
+                <span>🔎 Trova &amp; importa da Casafari</span>
+                <span class="badge gold">${fromCasafari.length} da Casafari</span>
+            </div>
+            <div style="font-size:12px;color:var(--text-muted);margin:6px 0 12px">Apri Casafari con i criteri del cliente — <strong style="color:var(--text)">${crit}</strong> — scegli l'immobile giusto e incollalo qui: finisce subito nel suo portale.</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">
+                <button class="btn btn-sm" onclick="preOpenCasafariForClient('${c.id}')">🔍 Apri Casafari (pre-filtrato)</button>
+                <button class="btn btn-xs btn-secondary" onclick="preOpenCasafariAlerts()">🔔 Alert Casafari</button>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                <div class="form-group" style="grid-column:1/-1"><label class="form-label">Link Casafari dell'immobile *</label>
+                    <input id="cf_url" type="url" class="form-input" placeholder="https://it.casafari.com/..."></div>
+                <div class="form-group"><label class="form-label">Canone €/mese *</label>
+                    <input id="cf_price" type="number" class="form-input" placeholder="1200"></div>
+                <div class="form-group"><label class="form-label">Zona</label>
+                    <input id="cf_zone" type="text" class="form-input" value="${esc(firstZone)}" placeholder="Trastevere"></div>
+                <div class="form-group" style="grid-column:1/-1"><label class="form-label">Indirizzo / Titolo</label>
+                    <input id="cf_address" type="text" class="form-input" placeholder="Via dei Coronari — bilocale luminoso"></div>
+                <div class="form-group"><label class="form-label">Camere</label>
+                    <input id="cf_beds" type="number" class="form-input" placeholder="2"></div>
+                <div class="form-group"><label class="form-label">m²</label>
+                    <input id="cf_sqm" type="number" class="form-input" placeholder="65"></div>
+                <div class="form-group" style="grid-column:1/-1"><label class="form-label">Foto (URL separati da spazio — opzionale)</label>
+                    <textarea id="cf_images" class="form-textarea" rows="2" placeholder="https://…  https://…"></textarea></div>
+            </div>
+            <button id="cf_submit" class="btn btn-sm" style="margin-top:10px;width:100%" onclick="pfsImportCasafari('${c.id}')">📤 Importa nel portale di ${esc((c.name || 'cliente').split(' ')[0])}</button>
+        </div>`;
+    }
+
+    async function pfsImportCasafari(id) {
+        const c = (S.pfsClients || []).find(x => x.id === id);
+        if (!c) return;
+        const g = (k) => { const el = document.getElementById('cf_' + k); return el ? el.value.trim() : ''; };
+        const url = g('url');
+        const price = parseFloat(g('price'));
+        if (!url || !/^https?:\/\//.test(url)) { toast('error', 'Manca il link', 'Incolla l\'URL Casafari dell\'immobile'); return; }
+        if (!isFinite(price) || price <= 0) { toast('error', 'Manca il canone', 'Inserisci il prezzo mensile'); return; }
+        const images = g('images').split(/[\s,]+/).filter(s => /^https?:\/\//.test(s)).slice(0, 20);
+        const listing = {
+            url, price,
+            address: g('address') || null,
+            zone: g('zone') || (c.zone || '').split(',')[0].trim() || null,
+            bedrooms: g('beds') ? parseInt(g('beds'), 10) : null,
+            sqm: g('sqm') ? parseInt(g('sqm'), 10) : null,
+            images, source: 'casafari',
+        };
+        const btn = document.getElementById('cf_submit');
+        if (btn) { btn.disabled = true; btn.textContent = 'Importo…'; }
+        try {
+            const idToken = await auth.currentUser.getIdToken();
+            const r = await fetch('/api/casafari/import', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+                body: JSON.stringify({ clientId: id, listing }),
+            });
+            const data = await r.json().catch(() => ({}));
+            if (!r.ok || !data.ok) { toast('error', 'Import fallito', (data && data.error) || ('HTTP ' + r.status)); return; }
+            const res0 = (data.results && data.results[0]) || {};
+            if (res0.error) { toast('error', 'Non importato', Array.isArray(res0.details) ? res0.details.join(' · ') : res0.error); return; }
+            if (res0.duplicate) { toast('info', 'Già nel deck', 'Questo immobile era già nel portale del cliente'); }
+            else if (res0.pushed) { toast('success', 'Inviato al portale ✓', 'Match ' + (res0.score != null ? res0.score + '% · ' : '') + (c.name || 'cliente')); }
+            else if (!res0.clientFound) { toast('error', 'Cliente non trovato', 'Ricarica e riprova'); }
+            else { toast('error', 'Non inviato', 'Controlla i dati dell\'immobile'); }
+            if (res0.pushed) {
+                try {
+                    const snap = await db.collection('pfsClients').doc(id).get();
+                    if (snap.exists) {
+                        const idx = (S.pfsClients || []).findIndex(x => x.id === id);
+                        if (idx >= 0) S.pfsClients[idx] = Object.assign({ id }, snap.data());
+                    }
+                } catch (e) {}
+                openPFSClientDetail(id);
+            }
+        } catch (e) {
+            toast('error', 'Errore di rete', e.message || 'Riprova');
+        } finally {
+            const b = document.getElementById('cf_submit');
+            if (b) { b.disabled = false; b.textContent = '📤 Importa nel portale'; }
+        }
     }
 
     function openPFSEditClient(id) {

@@ -35,6 +35,24 @@ export function parseBudgetRange(raw) {
   return null;
 }
 
+// Resolve a client's budget window regardless of which schema wrote the doc:
+//   • stripe-webhook.js → budget = "€800-€1,200" / "€3,000+" (string range)
+//   • portal.html admin → budget = 1200 (numeric max) + minBudget = 800
+// A bare numeric `budget` is treated as the MAX (0..max, or minBudget..max),
+// not an exact target, so a cheaper-than-max flat still counts as in-range.
+export function clientBudgetRange(client) {
+  if (!client) return null;
+  const budgetStr = String(client.budget ?? '').trim();
+  const looksNumeric = budgetStr !== '' && /^\d[\d.,\s]*$/.test(budgetStr); // no €, -, +
+  const maxNum = Number(budgetStr.replace(/[,\s]/g, ''));
+  if (looksNumeric && isFinite(maxNum) && maxNum > 0) {
+    const minNum = Number(String(client.minBudget ?? '').replace(/[,\s]/g, ''));
+    const lo = (isFinite(minNum) && minNum > 0) ? Math.min(minNum, maxNum) : 0;
+    return { min: lo, max: Math.max(minNum > 0 ? minNum : 0, maxNum) };
+  }
+  return parseBudgetRange(client.budget);
+}
+
 // ─── Bedrooms parsing ────────────────────────────────────────────────
 // "Studio"  → 0
 // "1"       → 1
@@ -79,7 +97,7 @@ export function scoreMatch(property, client) {
   let reject = null;
 
   // Budget (0–50)
-  const budgetRange = parseBudgetRange(client.budget);
+  const budgetRange = clientBudgetRange(client);
   const price = typeof property.price === 'number' ? property.price : parseFloat(property.price);
   if (budgetRange && isFinite(price)) {
     if (price >= budgetRange.min && price <= budgetRange.max) {
@@ -125,8 +143,8 @@ export function scoreMatch(property, client) {
     }
   }
 
-  // Areas (0–20)
-  const wantedAreas = parseAreas(client.preferred_areas);
+  // Areas (0–20). preferred_areas (stripe) or zone (admin form) — same parser.
+  const wantedAreas = parseAreas(client.preferred_areas || client.zone);
   const propertyText = normalizeForMatch(
     [property.address, property.zone, property.title].filter(Boolean).join(' ')
   );
