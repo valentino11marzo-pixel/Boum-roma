@@ -22,7 +22,7 @@
 
 import { readJson, fsPatch } from '../homie/_lib.js';
 import { setCors, findClientByCode, mapClientForPortal, journeyOf } from './_shared.js';
-import { notifyOperator } from './_notify.js';
+import { notifyOperator, notifyClient } from './_notify.js';
 
 const clamp = (s, n) => String(s == null ? '' : s).replace(/\s+/g, ' ').trim().slice(0, n);
 
@@ -130,10 +130,14 @@ export default async function handler(req, res) {
     return res.status(500).json({ ok: false, error: 'write_failed' });
   }
 
-  // Real-time operator alert (best-effort; never blocks the client's action).
+  // Real-time operator alert + client confirmation (best-effort; never blocks).
   if (opNotify) {
     try { await notifyOperator({ client: c, ...opNotify }); }
-    catch (e) { console.error('[portal/action] notify failed:', e.message); }
+    catch (e) { console.error('[portal/action] op-notify failed:', e.message); }
+    if (opNotify.kind === 'viewing') {
+      try { await notifyClient({ client: c, ...opNotify }); }
+      catch (e) { console.error('[portal/action] client-notify failed:', e.message); }
+    }
   }
 
   // Return fresh state so the UI re-renders without a second round-trip.

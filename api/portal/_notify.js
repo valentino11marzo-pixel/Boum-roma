@@ -57,3 +57,47 @@ export async function notifyOperator({ kind, client, property, preference, text 
     return false;
   }
 }
+
+// Confirmation to the PFS CLIENT when they act (currently: viewing request).
+// Bilingual (their portal language), links back into their portal. Best-effort.
+export async function notifyClient({ kind, client, property }) {
+  try {
+    const email = client && client.email;
+    if (!email || !/@/.test(email)) return false;
+    if (kind !== 'viewing') return false;
+    const it = (client.portalLang || 'it') !== 'en';
+    const first = ((client.name || '').trim().split(/\s+/)[0]) || (it ? 'ciao' : 'there');
+    const code = client.portalAccessCode || '';
+
+    const tp = {
+      to_email: email, from_name: 'BOOM Rome', reply_to: 'valentino@boomrome.com',
+      name: first,
+      heading: it ? 'Richiesta visita ricevuta' : 'Viewing request received',
+      subheading: 'BOOM · Property Finding',
+      intro: it
+        ? `${first}, abbiamo ricevuto la tua richiesta di visita. Il tuo consulente ti conferma data e ora a breve.`
+        : `${first}, we've received your viewing request. Your advisor will confirm the date and time shortly.`,
+      card_title: it ? 'LA TUA RICHIESTA' : 'YOUR REQUEST', card_color: '#D4AF37',
+      r1_icon: '🏠', r1_label: it ? 'Immobile' : 'Property', r1_value: (property && property.address) || '—',
+      r2_icon: '🕐', r2_label: it ? 'Preferenza' : 'Preference', r2_value: (property && property.viewingPreference) || (it ? 'Flessibile' : 'Flexible'),
+      r3_icon: '👤', r3_label: it ? 'Consulente' : 'Advisor', r3_value: 'Valentino',
+      r4_icon: '⏱', r4_label: 'Status', r4_value: it ? 'In conferma' : 'Confirming',
+      closing: it ? 'A presto — BOOM.' : 'See you soon — BOOM.',
+      cta_text: it ? 'Apri il portale' : 'Open your portal',
+      portal_link: 'https://www.boomrome.com/client-portal?code=' + encodeURIComponent(code),
+    };
+
+    const r = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        service_id: EMAILJS.service, template_id: EMAILJS.template, user_id: EMAILJS.user,
+        accessToken: process.env.EMAILJS_PRIVATE_KEY || undefined, template_params: tp,
+      }),
+    });
+    if (!r.ok) console.error('[portal/_notify:client]', r.status, await r.text().catch(() => ''));
+    return r.ok;
+  } catch (e) {
+    console.error('[portal/_notify:client]', e && e.message);
+    return false;
+  }
+}

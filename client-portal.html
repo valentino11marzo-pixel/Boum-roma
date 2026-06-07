@@ -24,15 +24,17 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <!-- BOOM_SEO:END -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Reuse BOOM's shared front-end tech: core design system + cinematic engine -->
+    <!-- Reuse BOOM's shared design system (tokens + base). The ambient "cinema"
+         glow layer is intentionally omitted here: its large soft radial glows
+         muddied a content-dense portal (the "blurry gradient zones"). Motion stays
+         native and crisp. -->
     <link rel="stylesheet" href="/css/boom-core.css">
-    <link rel="stylesheet" href="/css/boom-cinema.css">
     <style>
         /* ─────────── client-portal · scoped on the real BOOM design system ───────────
            tokens, type and components mirror apartments.html / apartment-detail.html /
            tenant.html: Helvetica Neue display, Inter body, #FFD700 gold, #08080A base,
            20px cards, hairline borders, pill badges. All classes are cp-* prefixed so
-           nothing collides with boom-core.css / boom-cinema.css. */
+           nothing collides with boom-core.css. */
         :root{
             --gold:#FFD700; --gold-light:#FFE55C; --gold-dark:#E5C200; --gold-tint:rgba(255,215,0,.08);
             --cyan:#00CED1; --green:#00FF88; --red:#FF3B3B;
@@ -128,12 +130,12 @@
         .cp-logout:hover{border-color:var(--red);color:var(--red)}
 
         /* Mobile top bar + bottom tabs */
-        .cp-topbar{position:fixed;top:0;left:0;right:0;height:calc(54px + var(--safe-t));padding-top:var(--safe-t);background:rgba(8,8,10,.72);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding-left:20px;padding-right:14px;z-index:60}
+        .cp-topbar{position:fixed;top:0;left:0;right:0;height:calc(54px + var(--safe-t));padding-top:var(--safe-t);background:rgba(8,8,10,.93);backdrop-filter:saturate(150%) blur(13px);-webkit-backdrop-filter:saturate(150%) blur(13px);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding-left:20px;padding-right:14px;z-index:60}
         .cp-topbar .cp-logo svg{width:30px;height:30px}
         .cp-topbar .cp-logo-txt{font-size:17px;letter-spacing:4px}
         .cp-lang-t{padding:7px 13px;background:transparent;border:1px solid var(--line-2);color:var(--ink-2);font-size:11px;font-weight:600;letter-spacing:1px;transition:all .25s var(--ease)}
         .cp-lang-t:active{transform:scale(.95)}
-        .cp-tabbar{position:fixed;bottom:0;left:0;right:0;background:rgba(8,8,10,.78);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);border-top:1px solid var(--line);display:flex;justify-content:space-around;align-items:center;padding:8px 4px calc(8px + var(--safe-b));z-index:60}
+        .cp-tabbar{position:fixed;bottom:0;left:0;right:0;background:rgba(8,8,10,.93);backdrop-filter:saturate(150%) blur(13px);-webkit-backdrop-filter:saturate(150%) blur(13px);border-top:1px solid var(--line);display:flex;justify-content:space-around;align-items:center;padding:8px 4px calc(8px + var(--safe-b));z-index:60}
         .cp-tabbar .cp-navi{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--ink-4);padding:5px 16px;transition:color .3s var(--ease)}
         .cp-tabbar .cp-navi.on{color:var(--gold)}
         .cp-tabbar .cp-navi .ic{font-size:19px}
@@ -153,13 +155,15 @@
         @media (min-width:1024px){.cp-hero-h{font-size:46px}}
         .cp-hero-h b{color:var(--gold);font-weight:200}
         .cp-hero-p{font-size:16px;color:var(--ink-2);max-width:520px}
+        .cp-hero-insight{margin-top:16px;font-size:14px;color:var(--ink-3)}
+        .cp-hero-insight b{color:var(--gold);font-weight:400}
+        .cp-hero-insight .sep{margin:0 10px;color:var(--ink-4)}
         .cp-livechip{display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border:1px solid var(--line-2);font-size:11px;text-transform:uppercase;letter-spacing:2px;color:var(--ink-2)}
         .cp-livechip i{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pp 2.4s var(--ease) infinite}
         @keyframes pp{0%{box-shadow:0 0 0 0 rgba(0,255,136,.45)}70%,100%{box-shadow:0 0 0 7px rgba(0,255,136,0)}}
 
         /* ── Engine (Homie live) ── */
-        .cp-engine{position:relative;display:flex;align-items:center;gap:20px;padding:22px;margin:30px 0;background:var(--void);border:1px solid var(--line);overflow:hidden}
-        .cp-engine::before{content:'';position:absolute;inset:0;background:radial-gradient(120% 130% at 0% 0%,rgba(255,215,0,.07),transparent 52%);pointer-events:none}
+        .cp-engine{position:relative;display:flex;align-items:center;gap:20px;padding:22px;margin:30px 0;background:var(--void);border:1px solid var(--line);border-top:1px solid var(--line-gold)}
         .cp-radar{position:relative;width:78px;height:78px;flex-shrink:0;border-radius:50%;border:1px solid var(--line-2);background:radial-gradient(circle,var(--surface-2),var(--void));overflow:hidden}
         .cp-radar::before{content:'';position:absolute;inset:-2px;border-radius:50%;background:conic-gradient(from 0deg,transparent 0deg,transparent 248deg,rgba(255,215,0,.55) 358deg,transparent 360deg);animation:sweep 2.6s linear infinite}
         @keyframes sweep{to{transform:rotate(360deg)}}
@@ -175,6 +179,9 @@
         .cp-es.gold b{color:var(--gold)}
         .cp-es span{font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-4);margin-top:4px;display:block}
         .cp-engine-note{font-size:12px;color:var(--ink-3);margin-top:13px;line-height:1.5}
+        .cp-engine-src{margin-top:13px;display:flex;flex-wrap:wrap;gap:7px;align-items:center}
+        .cp-engine-src span{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border:1px solid var(--line);font-size:9.5px;text-transform:uppercase;letter-spacing:1px;color:var(--ink-3)}
+        .cp-engine-src span::before{content:'';width:5px;height:5px;border-radius:50%;background:var(--green)}
 
         /* ── Home grid (desktop 2-col) ── */
         .cp-home2{display:grid;gap:30px;grid-template-columns:1fr}
@@ -220,8 +227,7 @@
         .cp-inc-s{font-size:11px;color:var(--ink-3);margin-top:1px}
 
         /* ── Concierge ── */
-        .cp-agent{position:relative;display:flex;align-items:center;gap:14px;padding:20px;background:var(--void);border:1px solid var(--line);overflow:hidden}
-        .cp-agent::before{content:'';position:absolute;inset:0;background:radial-gradient(100% 130% at 100% 0%,rgba(255,215,0,.06),transparent 55%);pointer-events:none}
+        .cp-agent{position:relative;display:flex;align-items:center;gap:14px;padding:20px;background:var(--void);border:1px solid var(--line);border-top:1px solid var(--line-gold)}
         .cp-agent-ava{position:relative;width:48px;height:48px;border-radius:50%;background:linear-gradient(140deg,var(--gold-light),var(--gold-dark));display:flex;align-items:center;justify-content:center;color:#000;font-size:19px;font-weight:600;flex-shrink:0;text-transform:uppercase}
         .cp-agent-i{flex:1;position:relative;min-width:0}
         .cp-agent-n{font-size:15px;font-weight:500}
@@ -266,6 +272,8 @@
         .cp-addr{font-size:14px;color:#EDEDED;margin-top:6px}
         .cp-prop-body{padding:18px 22px 20px;flex:1;display:flex;flex-direction:column}
         .cp-zone{font-size:11px;text-transform:uppercase;letter-spacing:2px;color:var(--gold);margin-bottom:9px}
+        .cp-why-peek{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-2);margin-bottom:14px}
+        .cp-why-peek::before{content:'✓';color:var(--green);font-size:12px;font-weight:700;flex-shrink:0}
         .cp-specs{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--ink-2);margin-bottom:18px}
         .cp-specs span{display:inline-flex;align-items:center;gap:6px}
         .cp-prop-acts{display:flex;gap:10px;align-items:center;margin-top:auto}
@@ -336,12 +344,12 @@
         .cp-why-h{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--ink-3);margin-bottom:14px}
         .cp-why-r{display:flex;gap:11px;font-size:14px;margin-bottom:11px;color:var(--ink)}
         .cp-why-r b{color:var(--green)}
-        .cp-det-bar{position:fixed;left:0;right:0;bottom:0;padding:14px 18px calc(14px + var(--safe-b));background:rgba(8,8,10,.8);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);border-top:1px solid var(--line);display:flex;gap:10px;z-index:10}
+        .cp-det-bar{position:fixed;left:0;right:0;bottom:0;padding:14px 18px calc(14px + var(--safe-b));background:rgba(8,8,10,.95);backdrop-filter:saturate(150%) blur(13px);-webkit-backdrop-filter:saturate(150%) blur(13px);border-top:1px solid var(--line);display:flex;gap:10px;z-index:10}
         .cp-det-bar .cp-btn{flex:1}
         @media (min-width:1024px){.cp-det-bar{justify-content:center}.cp-det-bar .cp-btn{flex:0 1 280px}}
 
         /* ── Sheet ── */
-        .cp-ov{position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);z-index:300;display:none;align-items:flex-end;justify-content:center}
+        .cp-ov{position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:300;display:none;align-items:flex-end;justify-content:center}
         .cp-ov.show{display:flex;animation:ovin .3s var(--ease)}
         @keyframes ovin{from{opacity:0}to{opacity:1}}
         .cp-sheet{width:100%;max-width:520px;max-height:88vh;overflow-y:auto;background:var(--surface);border:1px solid var(--line-2);border-bottom:none;padding:10px 24px calc(28px + var(--safe-b));animation:sup .45s var(--ease)}
@@ -454,7 +462,6 @@
     <div class="cp-toast" id="cpToast"><span id="cpToastIc">✓</span><span id="cpToastTx"></span></div>
 
     <script src="/js/boom-portal.js"></script>
-    <script src="/js/boom-cinema.js" defer></script>
     <script>
     'use strict';
     (function(){ try{ if(window.BoomPortal&&BoomPortal.registerServiceWorker) BoomPortal.registerServiceWorker(); }catch(e){} })();
@@ -472,7 +479,7 @@
         s_closing_s:'Ci siamo. Stiamo finalizzando il contratto della tua nuova casa.',
         s_completed_s:'Benvenuto a casa. Roma adesso è tua — noi restiamo al tuo fianco.',
         eng_t:'Motore BOOM', eng_live:'Live', eng_props:'Selezionati', eng_new:'Nuovi', eng_match:'Affinità', eng_upd:'aggiornato',
-        eng_note:'Monitoriamo Immobiliare, Idealista e i nostri canali privati 24/7. Solo ciò che merita arriva qui.',
+        eng_note:'Mercato di Roma monitorato in tempo reale, 24 ore su 24.',
         film_t:'Il tuo trasferimento', film_s:'Dalla ricerca alle chiavi — curato in ogni dettaglio.',
         here:'Sei qui',
         act1_t:'La caccia', act1_s:'Il nostro motore analizza il mercato di Roma in tempo reale e scarta tutto ciò che non fa per te.', act1_c:'Motore BOOM · AI matching',
@@ -516,7 +523,7 @@
         s_closing_s:'Almost there. We\'re finalising the contract for your new home.',
         s_completed_s:'Welcome home. Rome is yours now — and we stay by your side.',
         eng_t:'BOOM engine', eng_live:'Live', eng_props:'Selected', eng_new:'New', eng_match:'Affinity', eng_upd:'updated',
-        eng_note:'We monitor Immobiliare, Idealista and our private channels 24/7. Only what\'s worth it reaches you.',
+        eng_note:'The Rome market, monitored in real time, around the clock.',
         film_t:'Your move', film_s:'From search to keys — curated in every detail.',
         here:'You are here',
         act1_t:'The hunt', act1_s:'Our engine scans the Rome market in real time and discards everything that isn\'t for you.', act1_c:'BOOM engine · AI matching',
@@ -574,6 +581,17 @@
     function fmt(n){ return (n||0).toLocaleString(lang==='it'?'it-IT':'en-US'); }
     function greet(){ var h=new Date().getHours(); return h<12?t('g_morning'):(h<18?t('g_afternoon'):t('g_evening')); }
     function firstName(){ return (client.name||'').trim().split(/\s+/)[0]||(lang==='it'?'Ospite':'Guest'); }
+    function heroInsight(){
+      var np=notPassed();
+      var pronti=np.filter(function(p){return !p.clientLiked&&!p.viewingRequested;}).length;
+      var nuovi=np.filter(function(p){return p.isNew;}).length;
+      var visite=np.filter(function(p){return p.viewingRequested;}).length;
+      var P=[];
+      if(pronti)P.push('<b>'+pronti+'</b> '+(lang==='it'?'da vedere':'to review'));
+      if(nuovi)P.push('<b>'+nuovi+'</b> '+(lang==='it'?'nuovi':'new'));
+      if(visite)P.push('<b>'+visite+'</b> '+(lang==='it'?(visite===1?'visita in corso':'visite in corso'):(visite===1?'viewing pending':'viewings pending')));
+      return P.length?'<div class="cp-hero-insight reveal">'+P.join('<span class="sep">·</span>')+'</div>':'';
+    }
 
     /* confetti — genuine milestones only */
     var cv=document.getElementById('cpConfetti'), cx=cv.getContext('2d'), parts=[];
@@ -684,6 +702,7 @@
           '<div class="cp-livechip reveal"><i></i>'+t('active')+' · Mid-term Roma</div>'+
           '<h1 class="cp-hero-h cp-disp reveal">'+esc(greet())+', <b>'+esc(firstName())+'</b></h1>'+
           '<p class="cp-hero-p reveal">'+esc(t('s_'+st+'_s'))+'</p>'+
+          heroInsight()+
         '</section>'+
         engineHTML(s,newCount)+
         '<div class="cp-home2">'+
@@ -719,6 +738,7 @@
             '<div class="cp-es gold"><b class="cnt" data-to="'+(s.avgMatch||0)+'" data-suf="%">'+(s.avgMatch?s.avgMatch+'%':'—')+'</b><span>'+t('eng_match')+'</span></div>'+
           '</div>'+
           '<div class="cp-engine-note">'+t('eng_note')+'</div>'+
+          '<div class="cp-engine-src"><span>Immobiliare</span><span>Idealista</span><span>'+(lang==='it'?'Canali privati':'Private channels')+'</span></div>'+
         '</div></div>';
     }
 
@@ -769,6 +789,7 @@
         '</div>'+
         '<div class="cp-prop-body">'+
           (p.zone?'<div class="cp-zone">'+esc(p.zone)+'</div>':'')+
+          (function(){var rs=(p.matchReasons||[]).filter(function(r){return r.indexOf('✓')>=0;});return rs.length?'<div class="cp-why-peek">'+esc(rs[0].replace(/[✓≈]\s?/,''))+'</div>':'';})()+
           '<div class="cp-specs">'+spec('◳',(p.rooms||1)+' '+t('bedShort'))+(p.sqm?spec('▭',p.sqm+' '+t('sqm')):'')+(p.floor?spec('⌂',p.floor+' '+t('floorL')):'')+(p.furnished?spec('✦',t('allIncl')):'')+'</div>'+
           '<div class="cp-prop-acts">'+
             (p.viewingRequested?'<button class="cp-btn ok" onclick="onCancelViewing(\''+p.id+'\')">✓ '+t('viewingReq')+'</button>':'<button class="cp-btn" onclick="openViewing(\''+p.id+'\')">'+t('requestViewing')+'</button>')+
