@@ -1,18 +1,15 @@
 // api/apply-lead.js
 // Public lead-capture endpoint for the apartment-detail Apply form.
 //
-// Delivery is DUAL-SINK so a lead is never lost and needs ZERO Firebase setup:
-//   1) Email via Web3Forms (primary, always works) — the application is emailed
-//      to the team using the same Web3Forms access key the rest of the site's
-//      forms already use (property-finding, virtual-viewing, deal-assistance…).
-//      It's a plain HTTPS fetch — no dependency, so no bundling/tracing issues.
-//   2) Firestore `leads` (best-effort) — same shape portal.html + cockpit read
-//      (source='web', status='new'). Firestore rules gate `leads` writes to
-//      admins; the server signs in as FIREBASE_ADMIN_EMAIL, but that account
-//      only counts as admin once a /users/{uid} doc with role:'admin' exists.
-//      Until then this write 403s — so it's best-effort and does NOT fail the
-//      request. The moment the admin doc is seeded, leads populate the portal
-//      automatically with no code change.
+// Writes the application to the Firestore `leads` collection server-side, in the
+// SAME shape portal.html + cockpit-preview.html already read (source='web',
+// status='new') — so it lands straight in the portal Leads inbox and the Homie
+// qualification pipeline. The browser can't write `leads` directly (Firestore
+// rules gate it to admins), which is why this proxy exists.
+//
+// The apartment-detail page ALSO fires a best-effort Web3Forms email from the
+// browser as an instant team notification + backup, so a lead is never lost
+// even if Firestore is unavailable.
 //
 // Public (no shared secret) with layered abuse protection — honeypot, required
 // name + (email or phone), length caps, and a best-effort per-IP rate limit.
@@ -22,9 +19,7 @@
 //         moveIn, duration, occupants, message }
 // Response 200: { ok: true, id }  | 4xx/5xx: { ok: false, error }
 
-import { fsCreate, logActivity } from './homie/_lib.js';
-
-const WEB3FORMS_KEY = process.env.WEB3FORMS_KEY || '5b10beba-c7e0-4cd2-98f9-2dbb0aefe889';
+import { fsCreate, logActivity, getAdminToken, FS_BASE } from './homie/_lib.js';
 
 // ── Best-effort in-memory rate limit (per warm instance) ──
 const HITS = new Map(); // ip -> [timestamps]
@@ -40,59 +35,6 @@ function rateLimited(ip) {
 }
 
 const clip = (v, n = 200) => (v == null ? null : String(v).trim().slice(0, n) || null);
-
-// Email the application to the team via Web3Forms. Returns { ok, msg }.
-async function sendEmail({ name, email, phone, listingName, listingId, moveIn, duration, occupants, note, ip }) {
-  const waDigits = (phone || '').replace(/[^\d]/g, '');
-  const payload = {
-    access_key: WEB3FORMS_KEY,
-    subject: `New application · ${listingName || 'an apartment'} · ${name || 'lead'}`,
-    from_name: 'BOOM Website',
-    replyto: (email && email.includes('@')) ? email : undefined,
-    'Apartment': listingName || 'an apartment',
-    'Name': name || '—',
-    'Email': email || '—',
-    'Phone': phone || '—',
-    'WhatsApp': waDigits ? `https://wa.me/${waDigits}` : '—',
-    'Listing ID': listingId || '—',
-    'Move-in': moveIn || '—',
-    'Stay': duration || '—',
-    'Occupants': occupants || '—',
-    'Message': note || '—',
-    'IP': ip || '—',
-  };
-  try {
-    const r = await fetch('https://api.web3forms.com/submit', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        // Web3Forms enforces an allowed-domains check against Origin/Referer;
-        // a server-side fetch has none, so present the production origin.
-        'Origin': 'https://boomrome.com',
-        'Referer': 'https://boomrome.com/',
-      },
-      body: JSON.stringify(payload),
-    });
-    const j = await r.json().catch(() => ({}));
-    return { ok: !!j.success, msg: String(j.message || r.status).slice(0, 160) };
-  } catch (err) {
-    return { ok: false, msg: String((err && err.message) || err).slice(0, 160) };
-  }
-}
-
-// Best-effort Firestore write. Returns { id } or { err }.
-async function writeFirestore(lead, audit) {
-  try {
-    const { id } = await fsCreate('leads', lead);
-    logActivity('Application da scheda appartamento', 'lead', audit, 'apply_form');
-    return { id };
-  } catch (err) {
-    const msg = String((err && err.message) || err).slice(0, 160);
-    console.error('[apply-lead] firestore non-fatal:', msg);
-    return { err: msg };
-  }
-}
 
 function buildLead({ name, email, phone, listingId, listingName, moveIn, duration, occupants, note, ip }) {
   const parts = [`Application for ${listingName}`];
@@ -133,16 +75,19 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(204).end();
 
-  // ── TEMP self-test (GET ?selftest=boomdiag9) — runs the real send path with a
-  // clearly-labelled TEST payload and reports the result. Remove after verifying. ──
-  if (req.method === 'GET' && req.query && req.query.selftest === 'boomdiag9') {
-    const fields = { name: 'ZZ SELFTEST', email: 'selftest@boomrome.com', phone: '',
-      listingId: 'selftest', listingName: '[TEST] BOOM apply pipeline', moveIn: '', duration: '',
-      occupants: '', note: 'Automated pipeline self-test — please ignore.', ip: 'selftest' };
-    const email = await sendEmail(fields);
-    const fs = await writeFirestore(buildLead(fields), { selftest: true });
-    return res.status(200).json({ web3formsOk: email.ok, web3formsMsg: email.msg,
-      firestoreId: fs.id || null, firestoreErr: fs.err || null });
+  // ── TEMP cleanup (GET ?cleanup=boomdiag9&id=...) — removes the pipeline
+  // self-test lead. Remove this block after running once. ──
+  if (req.method === 'GET' && req.query && req.query.cleanup === 'boomdiag9') {
+    const id = clip(req.query.id, 80) || 'rVRojVhgMsoBEbIrksoW';
+    try {
+      const token = await getAdminToken();
+      const r = await fetch(`${FS_BASE}/leads/${id}`, {
+        method: 'DELETE', headers: { Authorization: `Bearer ${token}` },
+      });
+      return res.status(200).json({ deleted: id, status: r.status });
+    } catch (e) {
+      return res.status(200).json({ deleted: null, err: String((e && e.message) || e).slice(0, 200) });
+    }
   }
 
   if (req.method !== 'POST')    return res.status(405).json({ ok: false, error: 'method_not_allowed' });
@@ -177,15 +122,13 @@ export default async function handler(req, res) {
     ip,
   };
 
-  // Sink 1: email (primary). Sink 2: Firestore (best-effort). Run together.
-  const [email_, fs] = await Promise.all([
-    sendEmail(fields),
-    writeFirestore(buildLead(fields), { listingId: fields.listingId, listingName: fields.listingName }),
-  ]);
-
-  if (email_.ok || fs.id) {
-    return res.status(200).json({ ok: true, id: fs.id || 'emailed' });
+  try {
+    const { id } = await fsCreate('leads', buildLead(fields));
+    logActivity('Application da scheda appartamento', 'lead',
+      { leadId: id, listingId: fields.listingId, listingName: fields.listingName }, 'apply_form');
+    return res.status(200).json({ ok: true, id });
+  } catch (err) {
+    console.error('[apply-lead]', String((err && err.message) || err).slice(0, 200));
+    return res.status(500).json({ ok: false, error: 'internal' });
   }
-  console.error('[apply-lead] BOTH sinks failed — email:', email_.msg, '| fs:', fs.err);
-  return res.status(500).json({ ok: false, error: 'internal' });
 }
