@@ -148,8 +148,25 @@
 .pfs-cta h2{font-family:var(--font-display);font-weight:200;font-size:clamp(34px,6vw,70px);line-height:1.03}
 .pfs-cta p{color:var(--text-secondary);margin:18px 0 32px;font-size:18px}
 
+/* ── Cinematic "explanatory film" layer — additive, scoped, conflict-free ── */
+/* Section-title underline-draw: rides the page's existing .reveal→.active IO */
+.section-header .section-title{position:relative;display:inline-block}
+.section-header .section-title::after{content:'';position:absolute;left:50%;bottom:-16px;width:72px;height:2px;border-radius:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);transform:translateX(-50%) scaleX(0);transform-origin:center;transition:transform 1s var(--ease-out) .2s}
+.section-header.active .section-title::after{transform:translateX(-50%) scaleX(1)}
+/* Ken Burns drift on the finder's match thumbnails (desynchronised) */
+.pfs-mph img{will-change:transform;animation:pfKen 13s ease-in-out infinite alternate}
+.pfs-match:nth-child(2) .pfs-mph img{animation-duration:16s}
+.pfs-match:nth-child(3) .pfs-mph img{animation-duration:19s}
+@keyframes pfKen{from{transform:scale(1.02)}to{transform:scale(1.14)}}
+/* Finder: scan resolves into a result (the explanatory payoff) */
+.pfs-scan .pfs-scanbar{transition:background .45s var(--ease-out),width .45s var(--ease-out)}
+.pfs-scan.pf-found{color:var(--green)}
+.pfs-scan.pf-found .pfs-scanbar{background:var(--green);animation:none;width:16px}
+
 @media(prefers-reduced-motion:reduce){
   .pfs-scanbar,.pfs-match{animation:none!important;opacity:1!important;transform:none!important}
+  .pfs-mph img{animation:none!important}
+  .section-header .section-title::after{transition:none;transform:translateX(-50%) scaleX(1)}
 }
 
     </style>
@@ -353,7 +370,7 @@
             <div class="pfs-screen">
                 <div class="lbl">Your brief</div>
                 <div class="pfs-reqs"><span class="pfs-req">Parioli · Trieste</span><span class="pfs-req">€1.5–2.2k</span><span class="pfs-req">2 bed</span><span class="pfs-req">Balcony</span><span class="pfs-req">Pet-friendly</span></div>
-                <div class="pfs-scan"><span class="pfs-scanbar"></span>Scanning off-market network…</div>
+                <div class="pfs-scan" id="pfsScan"><span class="pfs-scanbar"></span><span id="pfsScanTxt">Scanning off-market network…</span></div>
                 <div class="pfs-matches" id="pfsMatches">
                     <div class="pfs-match"><div class="pfs-mph"><img src="https://i.imgur.com/hxai5bz.jpeg" alt="" loading="lazy" decoding="async" onerror="this.style.display='none'"></div><div class="pfs-minfo"><div class="pfs-mtitle">Corso Trieste <span class="pfs-tag-off">Off-market</span></div><div class="pfs-mmeta">2 bed · 78 m² · balcony</div></div><div class="pfs-mprice">€1.850</div></div>
                     <div class="pfs-match"><div class="pfs-mph"><img src="https://i.imgur.com/8LVxrhs.jpeg" alt="" loading="lazy" decoding="async" onerror="this.style.display='none'"></div><div class="pfs-minfo"><div class="pfs-mtitle">Pinciano <span class="pfs-tag-off">Off-market</span></div><div class="pfs-mmeta">2 bed · 85 m² · elevator</div></div><div class="pfs-mprice">€2.050</div></div>
@@ -676,10 +693,17 @@
 
   // finder app-cell: reveal matches in sequence, loop for a "live search" feel
   const matches = [...document.querySelectorAll('#pfsMatches .pfs-match')];
+  const scan = document.getElementById('pfsScan'), scanTxt = document.getElementById('pfsScanTxt');
+  const setFound = () => { if(scan) scan.classList.add('pf-found'); if(scanTxt) scanTxt.textContent = matches.length+' perfect matches found'; };
+  const setScanning = () => { if(scan) scan.classList.remove('pf-found'); if(scanTxt) scanTxt.textContent = 'Scanning off-market network…'; };
   if(matches.length){
-    if(reduce){ matches.forEach(m=>m.classList.add('show')); }
+    if(reduce){ matches.forEach(m=>m.classList.add('show')); setFound(); }
     else {
-      const play = () => matches.forEach((m,i)=>{ m.classList.remove('show'); setTimeout(()=>m.classList.add('show'), 350 + i*420); });
+      const play = () => {
+        setScanning();
+        matches.forEach((m,i)=>{ m.classList.remove('show'); setTimeout(()=>m.classList.add('show'), 350 + i*420); });
+        setTimeout(setFound, 350 + matches.length*420 + 200);
+      };
       play(); setInterval(play, 6000);
     }
   }
