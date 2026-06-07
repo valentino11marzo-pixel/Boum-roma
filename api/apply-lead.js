@@ -16,7 +16,7 @@
 //         moveIn, duration, occupants, message }
 // Response 200: { ok: true, id }  | 4xx/5xx: { ok: false, error }
 
-import { fsCreate, logActivity } from './homie/_lib.js';
+import { fsCreate, logActivity, getAdminToken, FS_BASE, toFsFields } from './homie/_lib.js';
 
 // ── Best-effort in-memory rate limit (per warm instance) ──
 const HITS = new Map(); // ip -> [timestamps]
@@ -38,6 +38,34 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(204).end();
+
+  // ── TEMP diagnostic (GET ?diag=boomdiag9) — pinpoints where the lead write
+  // breaks: admin sign-in vs Firestore permission/shape. Remove after fixing. ──
+  if (req.method === 'GET' && req.query && req.query.diag === 'boomdiag9') {
+    const out = { env: {
+      hasApiKey: !!process.env.FIREBASE_API_KEY,
+      hasAdminEmail: !!process.env.FIREBASE_ADMIN_EMAIL,
+      hasAdminPass: !!process.env.FIREBASE_ADMIN_PASS,
+      projectId: process.env.FIREBASE_PROJECT_ID || '(default boom-property-dashboards)',
+    }};
+    try {
+      const token = await getAdminToken();
+      out.tokenOk = !!token;
+      const probe = { source: 'web', service: 'DIAG', name: 'ZZ DIAG', status: 'new',
+        intent: 'diag', createdAt: new Date(), raw: { diag: true } };
+      const r = await fetch(`${FS_BASE}/leads`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fields: toFsFields(probe) }),
+      });
+      out.fsStatus = r.status;
+      out.fsText = (await r.text()).slice(0, 600);
+    } catch (e) {
+      out.threw = String((e && e.message) || e).slice(0, 600);
+    }
+    return res.status(200).json(out);
+  }
+
   if (req.method !== 'POST')    return res.status(405).json({ ok: false, error: 'method_not_allowed' });
 
   let body = req.body;
