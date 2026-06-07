@@ -2691,6 +2691,9 @@
 <!-- BOOM_JSONLD:END -->
 </head>
 <body>
+    <!-- Apply saved theme before paint (no flash) -->
+    <script>(function(){try{if(localStorage.getItem('boom-theme')==='light'){document.documentElement.setAttribute('data-theme','light');}}catch(e){}})();</script>
+
     <!-- Tech Background -->
     <div class="tech-bg">
         <div class="tech-orb tech-orb-1"></div>
@@ -2699,6 +2702,12 @@
         <div class="tech-grid"></div>
     </div>
     <div class="mouse-glow" id="mouseGlow"></div>
+
+    <!-- Day / Night switch -->
+    <button class="theme-fab" id="themeFab" type="button" aria-label="Toggle day / night mode" aria-pressed="false" title="Day / Night">
+        <svg class="ic-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        <svg class="ic-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.5M12 19.5V22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M2 12h2.5M19.5 12H22M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></svg>
+    </button>
 
     <!-- Scroll Progress -->
     <div class="scroll-progress" id="scrollProgress"></div>
@@ -3388,6 +3397,81 @@
     .orgs-card p{font-size:14px;color:var(--text-secondary);line-height:1.65;margin-bottom:18px;flex:1}
     .orgs-go{color:var(--gold);font-size:13px;font-weight:500;letter-spacing:0.02em}
     </style>
+
+    <!-- ☀︎ DAY MODE — light theme, toggled via .theme-fab and persisted in localStorage -->
+    <style id="boom-daymode">
+      /* Floating day / night switch */
+      .theme-fab{
+        position:fixed; right:22px; bottom:22px; z-index:1000;
+        width:50px; height:50px; border-radius:50%;
+        display:flex; align-items:center; justify-content:center;
+        cursor:pointer; color:var(--gold);
+        border:1px solid var(--border-gold);
+        background:var(--surface-elevated);
+        box-shadow:0 8px 30px rgba(0,0,0,0.45);
+        -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px);
+        transition:transform .45s var(--ease-out), background .4s, border-color .4s, box-shadow .4s;
+      }
+      .theme-fab:hover{ transform:translateY(-3px) rotate(-12deg); border-color:var(--gold); }
+      .theme-fab svg{ width:22px; height:22px; display:block; }
+      .theme-fab .ic-sun{ display:none; }
+      html[data-theme="light"] .theme-fab .ic-sun{ display:block; }
+      html[data-theme="light"] .theme-fab .ic-moon{ display:none; }
+      html[data-theme="light"] .theme-fab{ box-shadow:0 8px 30px rgba(20,19,16,0.12); }
+      @media (max-width:768px){ .theme-fab{ width:46px; height:46px; right:16px; bottom:16px; } }
+
+      /* Smooth crossfade while switching */
+      html.theme-anim, html.theme-anim *{ transition:background-color .5s ease, color .45s ease, border-color .45s ease, box-shadow .45s ease !important; }
+
+      /* ── LIGHT PALETTE ───────────────────────────────────────── */
+      html[data-theme="light"]{
+        --gold:#9A7B1A; --gold-light:#B8941F; --gold-dark:#7A5F12; --gold-muted:rgba(154,123,26,0.12);
+        --black:#FAFAF7; --void:#F4F2EC; --surface:#FFFFFF; --surface-elevated:#FFFFFF;
+        --surface-hover:#F3F1EA; --surface-card:#FFFFFF;
+        --text-primary:#141310; --text-secondary:rgba(20,19,16,0.66);
+        --text-tertiary:rgba(20,19,16,0.46); --text-muted:rgba(20,19,16,0.30);
+        --border-subtle:rgba(20,19,16,0.06); --border-default:rgba(20,19,16,0.11);
+        --border-hover:rgba(154,123,26,0.40); --border-gold:rgba(154,123,26,0.22);
+        --shadow-glow:0 0 80px rgba(154,123,26,0.10); --shadow-glow-strong:0 0 120px rgba(154,123,26,0.16);
+        --shadow-card:0 4px 24px rgba(20,19,16,0.06); --shadow-card-hover:0 14px 44px rgba(20,19,16,0.10);
+        --shadow-inner:inset 0 1px 0 rgba(255,255,255,0.6);
+        color-scheme:light;
+      }
+      html[data-theme="light"] body{ background:var(--black); }
+      html[data-theme="light"] body::before{ opacity:0.02; }
+
+      /* Nav */
+      html[data-theme="light"] .nav{ background:linear-gradient(180deg, rgba(250,250,247,0.96) 0%, rgba(250,250,247,0.82) 60%, transparent 100%); }
+      html[data-theme="light"] .nav.scrolled{ background:rgba(255,255,255,0.92); border-bottom-color:var(--border-default); }
+
+      /* Decorative background — soften on white */
+      html[data-theme="light"] .tech-orb-1{ opacity:0.05; }
+      html[data-theme="light"] .tech-orb-2{ opacity:0.045; }
+      html[data-theme="light"] .tech-orb-3{ opacity:0.04; }
+      html[data-theme="light"] .tech-grid{ background-image:linear-gradient(rgba(20,19,16,0.035) 1px,transparent 1px),linear-gradient(90deg,rgba(20,19,16,0.035) 1px,transparent 1px); }
+      html[data-theme="light"] .mouse-glow{ background:radial-gradient(circle, rgba(154,123,26,0.07) 0%, transparent 60%); }
+      html[data-theme="light"] ::selection{ background:var(--gold); color:#fff; }
+
+      /* Keep photo overlay labels legible */
+      html[data-theme="light"] .apartment-badge{ color:#fff; }
+
+      /* "Trusted by" marquee — keep the dark strip (white uni logos are built for dark) */
+      html[data-theme="light"] .partner-marquee{ background:#0B0B0C; border-top:1px solid var(--border-default); border-bottom:1px solid var(--border-default); }
+      html[data-theme="light"] .partner-label{ color:rgba(250,250,250,0.45); }
+
+      /* "How it works" phone/app mockup — keep it as a dark device island */
+      html[data-theme="light"] .how-visual{
+        --surface:#0E0E10; --surface-card:#0E0E10; --surface-elevated:#0E0E10; --surface-hover:#16161A;
+        --text-primary:#FAFAFA; --text-secondary:rgba(250,250,250,0.72);
+        --text-tertiary:rgba(250,250,250,0.44); --text-muted:rgba(250,250,250,0.24);
+        --border-default:rgba(255,255,255,0.08); --border-subtle:rgba(255,255,255,0.04);
+        background:#121214; box-shadow:0 40px 100px rgba(20,19,16,0.18);
+      }
+
+      /* Organisations cards (hardcoded dark) → light */
+      html[data-theme="light"] .orgs-card{ background:var(--surface); border-color:var(--border-default); box-shadow:var(--shadow-card); }
+      html[data-theme="light"] .orgs-card h3{ color:var(--text-primary); }
+    </style>
     <section class="section" id="organisations">
         <div class="container">
             <div class="section-header reveal">
@@ -3865,5 +3949,32 @@
         }
     </script>
     <script defer src="/js/boom-track.js"></script>
+    <script>
+        /* Day / Night toggle — persists choice, updates browser theme-color */
+        (function(){
+            var root = document.documentElement;
+            var fab = document.getElementById('themeFab');
+            if (!fab) return;
+            function setMeta(light){
+                var m = document.querySelector('meta[name="theme-color"]');
+                if (m) m.setAttribute('content', light ? '#FAFAF7' : '#08080A');
+            }
+            function apply(light){
+                root.classList.add('theme-anim');
+                if (light) root.setAttribute('data-theme','light');
+                else root.removeAttribute('data-theme');
+                try { localStorage.setItem('boom-theme', light ? 'light' : 'dark'); } catch(e){}
+                setMeta(light);
+                fab.setAttribute('aria-pressed', light ? 'true' : 'false');
+                setTimeout(function(){ root.classList.remove('theme-anim'); }, 600);
+            }
+            var startLight = root.getAttribute('data-theme') === 'light';
+            setMeta(startLight);
+            fab.setAttribute('aria-pressed', startLight ? 'true' : 'false');
+            fab.addEventListener('click', function(){
+                apply(root.getAttribute('data-theme') !== 'light');
+            });
+        })();
+    </script>
 </body>
 </html>
