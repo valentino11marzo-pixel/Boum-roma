@@ -21,7 +21,8 @@
 // Response:  200 { ok:true, client:{...} }
 
 import { readJson, fsPatch } from '../homie/_lib.js';
-import { setCors, findClientByCode, mapClientForPortal } from './_shared.js';
+import { setCors, findClientByCode, mapClientForPortal, journeyOf } from './_shared.js';
+import { notifyOperator } from './_notify.js';
 
 const clamp = (s, n) => String(s == null ? '' : s).replace(/\s+/g, ' ').trim().slice(0, n);
 
@@ -52,6 +53,7 @@ export default async function handler(req, res) {
   const activity = Array.isArray(c.portalActivity) ? c.portalActivity.slice() : [];
   const nowIso = new Date().toISOString();
   const findP = id => props.find(p => p && p.id === id);
+  let opNotify = null; // set for actions that warrant a real-time operator alert
 
   switch (action) {
     case 'like':
@@ -74,7 +76,13 @@ export default async function handler(req, res) {
       const on = action === 'requestViewing';
       p.viewingRequested = on;
       p.viewingPreference = on ? clamp(body.preference, 200) : '';
-      if (on) { p.clientLiked = true; p.clientRejected = false; }
+      if (on) {
+        p.clientLiked = true; p.clientRejected = false;
+        // Reflect the conversion in the client-facing journey (never backwards):
+        // requesting a viewing moves them into the 'viewing' act.
+        if (journeyOf(c).index < 3) patch.portalStage = 'viewing';
+        opNotify = { kind: 'viewing', property: p, preference: p.viewingPreference };
+      }
       p.clientActionAt = nowIso;
       patch.portalProperties = props;
       activity.push({ type: action, propertyId: p.id, preference: p.viewingPreference || undefined, timestamp: nowIso });
@@ -100,6 +108,7 @@ export default async function handler(req, res) {
       messages.push({ from: 'client', text, timestamp: nowIso });
       patch.portalMessages = messages.slice(-100);
       activity.push({ type: 'message', timestamp: nowIso });
+      opNotify = { kind: 'message', text };
       break;
     }
     case 'setLang': {
@@ -119,6 +128,12 @@ export default async function handler(req, res) {
   catch (e) {
     console.error('[portal/action] patch failed:', e.message);
     return res.status(500).json({ ok: false, error: 'write_failed' });
+  }
+
+  // Real-time operator alert (best-effort; never blocks the client's action).
+  if (opNotify) {
+    try { await notifyOperator({ client: c, ...opNotify }); }
+    catch (e) { console.error('[portal/action] notify failed:', e.message); }
   }
 
   // Return fresh state so the UI re-renders without a second round-trip.

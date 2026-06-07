@@ -42,6 +42,16 @@ function toFirestoreFields(obj) {
   return fields;
 }
 
+// Mirrors portal.html genPortalCode() so admin- and webhook-issued codes share
+// one format (BM + 5 unambiguous chars). Crypto-random.
+function genPortalCode() {
+  const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const b = crypto.randomBytes(5);
+  let s = 'BM';
+  for (let i = 0; i < 5; i++) s += A[b[i] % A.length];
+  return s;
+}
+
 async function writePfsClient(docId, data) {
   const token = await firebaseIdToken();
   const pid = process.env.FIREBASE_PROJECT_ID;
@@ -200,6 +210,7 @@ export default async function handler(req, res) {
 
   const docId = session.id.replace(/[^a-zA-Z0-9]/g, '').substring(0, 30);
   const portalToken = crypto.randomBytes(24).toString('hex');
+  const portalCode = genPortalCode();
   const now = new Date().toISOString();
 
   const doc = {
@@ -215,6 +226,16 @@ export default async function handler(req, res) {
     preferred_areas: m.preferred_areas || '',
     must_haves: m.must_haves || '',
     additional_info: m.additional_info || '',
+    // Portal-readable criteria aliases (api/portal/_shared.js reads these names),
+    // so the client's brief shows up in their portal immediately.
+    zone: m.preferred_areas || '',
+    moveIn: m.move_in_date || '',
+    mustHaves: m.must_haves || '',
+    // Auto-activate the client portal so the buyer can enter the moment they pay
+    // (previously an admin had to enable it by hand before the link worked).
+    portalEnabled: true,
+    portalAccessCode: portalCode,
+    portalStage: 'searching',
     stripe_session_id: session.id,
     amount_paid: session.amount_total,
     currency: session.currency,
@@ -227,7 +248,8 @@ export default async function handler(req, res) {
   catch (err) { console.error('Firestore error:', err); }
 
   const firstName = (m.name || '').split(' ')[0] || 'there';
-  const portalLink = `https://www.boomrome.com/portal.html?pfs=${portalToken}`;
+  const portalLink = `https://www.boomrome.com/portal.html?pfs=${portalToken}`; // admin deep-link
+  const clientPortalLink = `https://www.boomrome.com/client-portal?code=${portalCode}`;
 
   // === EMAIL 1 — CLIENT CONFIRMATION ===
   try {
@@ -251,9 +273,9 @@ export default async function handler(req, res) {
       r4_icon: '✓',
       r4_label: 'Contract signing',
       r4_value: 'Guided end-to-end',
-      closing: 'Questions? Just reply to this email and I will personally get back to you.',
-      cta_text: 'Access your dashboard',
-      portal_link: portalLink,
+      closing: `Your private access code is ${portalCode} — keep it safe. Questions? Just reply to this email and I will personally get back to you.`,
+      cta_text: 'Enter your portal',
+      portal_link: clientPortalLink,
     });
   } catch (err) { console.error('Client EmailJS error:', err); }
 
@@ -279,7 +301,7 @@ export default async function handler(req, res) {
       r4_icon: '💰',
       r4_label: 'Budget / bedrooms',
       r4_value: `${m.budget || '—'} · ${m.bedrooms || '—'}`,
-      closing: `Areas: ${m.preferred_areas || '—'}. Must-haves: ${m.must_haves || '—'}. Notes: ${m.additional_info || '—'}. Firestore doc: pfsClients/${docId}. Stripe session: ${session.id}.`,
+      closing: `Portal auto-activated · code ${portalCode} · ${clientPortalLink}. Areas: ${m.preferred_areas || '—'}. Must-haves: ${m.must_haves || '—'}. Notes: ${m.additional_info || '—'}. Firestore doc: pfsClients/${docId}. Stripe session: ${session.id}.`,
       cta_text: 'Open portal',
       portal_link: portalLink,
     });

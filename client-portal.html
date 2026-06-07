@@ -471,7 +471,7 @@
         s_viewing_s:'Organizziamo le visite ai tuoi immobili preferiti. Pensiamo a tutto noi.',
         s_closing_s:'Ci siamo. Stiamo finalizzando il contratto della tua nuova casa.',
         s_completed_s:'Benvenuto a casa. Roma adesso è tua — noi restiamo al tuo fianco.',
-        eng_t:'Motore BOOM', eng_live:'Live', eng_props:'Selezionati', eng_new:'Nuovi', eng_match:'Affinità',
+        eng_t:'Motore BOOM', eng_live:'Live', eng_props:'Selezionati', eng_new:'Nuovi', eng_match:'Affinità', eng_upd:'aggiornato',
         eng_note:'Monitoriamo Immobiliare, Idealista e i nostri canali privati 24/7. Solo ciò che merita arriva qui.',
         film_t:'Il tuo trasferimento', film_s:'Dalla ricerca alle chiavi — curato in ogni dettaglio.',
         here:'Sei qui',
@@ -503,7 +503,7 @@
         edit_t:'Aggiorna il tuo brief', edit_s:'Più dettagli ci dai, più la selezione sarà su misura.', save_btn:'Salva', cancel:'Annulla',
         activity:'Attività', code:'Codice di accesso', logout:'Esci', daysWith:'giorni con noi',
         chat_t:'Concierge', chat_ph:'Scrivi un messaggio…', chat_empty:'Scrivi al tuo consulente — domande, dubbi, preferenze. Rispondiamo in giornata.', chat_wa:'Preferisci WhatsApp?', chat_you:'Tu', chat_team:'BOOM',
-        t_saved:'Salvato', t_unsaved:'Rimosso dai salvati', t_passed:'Grazie del feedback', t_viewing:'Richiesta inviata', t_restored:'Ripristinato', t_viewCancel:'Richiesta annullata', t_critSaved:'Brief aggiornato', t_msg:'Messaggio inviato',
+        t_saved:'Salvato', t_unsaved:'Rimosso dai salvati', t_passed:'Grazie del feedback', t_viewing:'Richiesta inviata · consulente avvisato', t_restored:'Ripristinato', t_viewCancel:'Richiesta annullata', t_critSaved:'Brief aggiornato', t_msg:'Messaggio inviato · ti rispondiamo a breve',
         a_homie_match:'Nuova proposta', a_like:'Salvato', a_reject:'Feedback inviato', a_undo:'Ripristinato', a_requestViewing:'Visita richiesta', a_cancelViewing:'Visita annullata', a_criteria_updated:'Brief aggiornato', a_message:'Messaggio',
         np_t:'Nuova proposta', np_s:'Il tuo consulente ha aggiunto un immobile per te', np_b:'Scopri →', perMonth:'mese' },
       en:{ authKick:'Mid-term living · Rome', authTitle:'Your relocation<br><b>atelier</b>', authP:'Sign in with your advisor\'s code', codePh:'Access code', enter:'Enter', invalid:'Invalid code', noCode:'No code?', contact:'Contact us',
@@ -515,7 +515,7 @@
         s_viewing_s:'We\'re arranging visits to your favourite homes. Leave it all to us.',
         s_closing_s:'Almost there. We\'re finalising the contract for your new home.',
         s_completed_s:'Welcome home. Rome is yours now — and we stay by your side.',
-        eng_t:'BOOM engine', eng_live:'Live', eng_props:'Selected', eng_new:'New', eng_match:'Affinity',
+        eng_t:'BOOM engine', eng_live:'Live', eng_props:'Selected', eng_new:'New', eng_match:'Affinity', eng_upd:'updated',
         eng_note:'We monitor Immobiliare, Idealista and our private channels 24/7. Only what\'s worth it reaches you.',
         film_t:'Your move', film_s:'From search to keys — curated in every detail.',
         here:'You are here',
@@ -547,7 +547,7 @@
         edit_t:'Update your brief', edit_s:'The more detail, the more tailored your selection.', save_btn:'Save', cancel:'Cancel',
         activity:'Activity', code:'Access code', logout:'Sign out', daysWith:'days with us',
         chat_t:'Concierge', chat_ph:'Type a message…', chat_empty:'Message your advisor — questions, doubts, preferences. We reply same day.', chat_wa:'Prefer WhatsApp?', chat_you:'You', chat_team:'BOOM',
-        t_saved:'Saved', t_unsaved:'Removed from saved', t_passed:'Thanks for the feedback', t_viewing:'Request sent', t_restored:'Restored', t_viewCancel:'Request cancelled', t_critSaved:'Brief updated', t_msg:'Message sent',
+        t_saved:'Saved', t_unsaved:'Removed from saved', t_passed:'Thanks for the feedback', t_viewing:'Request sent · advisor notified', t_restored:'Restored', t_viewCancel:'Request cancelled', t_critSaved:'Brief updated', t_msg:'Message sent · we\'ll reply shortly',
         a_homie_match:'New proposal', a_like:'Saved', a_reject:'Feedback sent', a_undo:'Restored', a_requestViewing:'Viewing requested', a_cancelViewing:'Viewing cancelled', a_criteria_updated:'Brief updated', a_message:'Message',
         np_t:'New proposal', np_s:'Your advisor added a home for you', np_b:'Discover →', perMonth:'mo' }
     };
@@ -700,11 +700,19 @@
         '</div>';
     }
 
+    function lastEngineUpdate(){
+      var ts=[];
+      (client.properties||[]).forEach(function(p){ if(p.addedAt)ts.push(+new Date(p.addedAt)); if(p.clientActionAt)ts.push(+new Date(p.clientActionAt)); });
+      (client.activity||[]).forEach(function(a){ if(a.timestamp)ts.push(+new Date(a.timestamp)); });
+      ts=ts.filter(function(x){return x>0;});
+      return ts.length? new Date(Math.max.apply(null,ts)).toISOString() : null;
+    }
     function engineHTML(s,newCount){
+      var upd=lastEngineUpdate();
       return '<div class="cp-engine reveal">'+
         '<div class="cp-radar"><i class="r1"></i><i class="r2"></i><i class="core"></i></div>'+
         '<div class="cp-engine-main">'+
-          '<div class="cp-engine-h">'+t('eng_t')+' · <span class="live"><b></b>'+t('eng_live')+'</span></div>'+
+          '<div class="cp-engine-h">'+t('eng_t')+' · <span class="live"><b></b>'+t('eng_live')+'</span>'+(upd?' <span style="color:var(--ink-4);text-transform:none;letter-spacing:0;font-weight:400">· '+t('eng_upd')+' '+ago(upd)+'</span>':'')+'</div>'+
           '<div class="cp-engine-stats">'+
             '<div class="cp-es"><b class="cnt" data-to="'+s.options+'">'+s.options+'</b><span>'+t('eng_props')+'</span></div>'+
             '<div class="cp-es"><b class="cnt" data-to="'+(newCount||0)+'">'+(newCount||0)+'</b><span>'+t('eng_new')+'</span></div>'+
@@ -724,6 +732,7 @@
             '<div class="cp-act-t">'+t('act'+n+'_t')+'</div>'+
             '<div class="cp-act-s">'+t('act'+n+'_s')+'</div>'+
             '<div class="cp-act-chip">'+t('act'+n+'_c')+'</div>'+
+            (cls==='now'&&n>=4?'<div style="margin-top:12px"><button class="cp-btn line sm" onclick="openConcierge()">'+t('chat')+'</button></div>':'')+
           '</div>';
         }).join('')+'</div>';
     }
