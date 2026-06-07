@@ -251,35 +251,102 @@
         .sidebar-cta svg{width:22px;height:22px}
         .sidebar-secondary{display:block;width:100%;padding:14px;margin-top:12px;background:transparent;border:1px solid rgba(255,255,255,0.08);border-radius:12px;color:var(--text-secondary);font-family:inherit;font-size:13px;font-weight:400;text-decoration:none;text-align:center;transition:all .3s}
         .sidebar-secondary:hover{border-color:var(--gold);color:var(--gold)}
-        .inquiry-card{background:var(--dark-void);border:1px solid rgba(255, 215, 0,0.15);border-radius:20px;padding:30px}
-        .inquiry-card h3{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-weight:200;font-size:20px;margin-bottom:4px;color:#fff}
-        .inquiry-card p{font-size:13px;color:var(--text-fade);margin-bottom:20px}
-        .inquiry-card input,.inquiry-card textarea,.inquiry-card select{width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:12px 14px;color:#fff;font-family:inherit;font-size:14px;margin-bottom:12px;outline:none;transition:border .3s;box-sizing:border-box}
-        .inquiry-card input:focus,.inquiry-card textarea:focus{border-color:var(--gold)}
-        .inquiry-card textarea{resize:vertical;min-height:80px}
-        .inquiry-card button{width:100%;padding:14px;background:linear-gradient(135deg,#FFD700,#FFA500);border:none;border-radius:12px;color:#000;font-family:inherit;font-size:15px;font-weight:600;cursor:pointer;transition:all .3s}
-        .inquiry-card button:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(255, 215, 0,0.3)}
-        .inquiry-card button:disabled{opacity:.5;cursor:not-allowed;transform:none}
-        .apply-badge{display:inline-block;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold);background:rgba(255,215,0,0.10);border:1px solid rgba(255,215,0,0.25);padding:5px 11px;border-radius:100px;margin-bottom:14px}
-        .inquiry-card select{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23FFD700' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:34px;cursor:pointer}
-        .inquiry-card select option{background:#0e0e12;color:#fff}
-        .apply-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
-        .apply-row>*{margin-bottom:0!important}
-        .apply-reassure{margin-top:12px;text-align:center;font-size:11.5px;color:var(--text-fade)}
-        .iq-more{background:none;border:none;color:var(--text-secondary);font-family:inherit;font-size:12.5px;cursor:pointer;padding:0 0 12px;display:inline-flex;align-items:center;gap:6px;transition:color .2s}
-        .iq-more:hover{color:var(--gold)}
+        /* ===== APPLY CARD v2 — the conversion moment ===== */
+        .inquiry-card{position:relative;background:linear-gradient(180deg,rgba(255,215,0,0.05),rgba(10,10,10,0) 130px),var(--dark-void);border:1px solid rgba(255,215,0,0.20);border-radius:22px;padding:26px;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.4)}
+        .inquiry-card::after{content:"";position:absolute;inset:0;border-radius:22px;padding:1px;background:linear-gradient(150deg,rgba(255,215,0,.4),transparent 42%);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none;opacity:.65}
+        .inquiry-card>*{position:relative;z-index:1}
+        .inquiry-card .iq-h{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-weight:200;font-size:21px;letter-spacing:-.01em;margin-bottom:6px;color:#fff}
+        .inquiry-card .iq-sub{font-size:12.5px;line-height:1.55;color:var(--text-secondary);margin-bottom:16px}
+        .apply-badge{display:inline-flex;align-items:center;gap:7px;font-size:10px;letter-spacing:1.4px;text-transform:uppercase;color:var(--gold);background:rgba(255,215,0,0.10);border:1px solid rgba(255,215,0,0.25);padding:6px 12px;border-radius:100px;margin-bottom:14px;font-weight:600}
+        .apply-badge .ab-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:abpulse 2.2s infinite}
+        @keyframes abpulse{0%{box-shadow:0 0 0 0 rgba(0,255,136,.5)}70%{box-shadow:0 0 0 6px rgba(0,255,136,0)}100%{box-shadow:0 0 0 0 rgba(0,255,136,0)}}
+        /* live progress */
+        .iq-progress{height:3px;border-radius:3px;background:rgba(255,255,255,.07);overflow:hidden;margin-bottom:18px}
+        .iq-progress-fill{display:block;height:100%;width:0;border-radius:3px;background:linear-gradient(90deg,#FFD700,#FFA500);box-shadow:0 0 10px rgba(255,215,0,.45);transition:width .55s cubic-bezier(.16,1,.3,1)}
+        /* floating-label fields */
+        .fld{position:relative;margin-bottom:11px}
+        .fld input{width:100%;background:rgba(255,255,255,0.035);border:1px solid rgba(255,255,255,0.09);border-radius:13px;padding:20px 38px 8px 15px;color:#fff;font-family:inherit;font-size:14.5px;font-weight:400;outline:none;transition:border-color .25s,background .25s,box-shadow .25s;box-sizing:border-box;-webkit-appearance:none;appearance:none}
+        .fld label{position:absolute;left:15px;top:15px;font-size:14px;color:var(--text-fade);pointer-events:none;transition:all .2s cubic-bezier(.16,1,.3,1);font-weight:300}
+        .fld label em{font-style:normal;color:var(--text-fade);font-size:10.5px;letter-spacing:.3px}
+        .fld input:focus{border-color:var(--gold);background:rgba(255,215,0,0.045);box-shadow:0 0 0 3px rgba(255,215,0,.09)}
+        .fld input:focus+label,.fld input:not(:placeholder-shown)+label{top:7px;font-size:9.5px;letter-spacing:.7px;text-transform:uppercase;color:var(--gold)}
+        .fld input:not(:placeholder-shown):not(:focus)+label{color:var(--text-secondary)}
+        .fld-ok{position:absolute;right:14px;top:50%;transform:translateY(-50%) scale(.5);opacity:0;color:var(--green);font-size:13px;font-weight:800;transition:all .28s cubic-bezier(.16,1,.3,1);pointer-events:none}
+        .fld.ok .fld-ok{opacity:1;transform:translateY(-50%) scale(1)}
+        .fld.err input{border-color:#FF5A5A;background:rgba(255,90,90,.05)}
+        .fld.shake{animation:fldshake .42s}
+        @keyframes fldshake{10%,90%{transform:translateX(-1px)}20%,80%{transform:translateX(2px)}30%,50%,70%{transform:translateX(-4px)}40%,60%{transform:translateX(4px)}}
+        .iq-hp{position:absolute!important;left:-9999px!important;top:0;width:1px;height:1px;opacity:0;pointer-events:none}
+        /* add-details disclosure */
+        .iq-more{background:none;border:1px dashed rgba(255,255,255,.13);width:100%;color:var(--text-secondary);font-family:inherit;font-size:12.5px;cursor:pointer;padding:11px;border-radius:13px;display:flex;align-items:center;justify-content:center;gap:7px;transition:all .2s;margin:3px 0 12px}
+        .iq-more:hover{color:var(--gold);border-color:rgba(255,215,0,.32);background:rgba(255,215,0,.02)}
         .iq-more span{color:var(--text-fade)}
+        .iq-more svg{width:12px;height:12px}
         .iq-more[aria-expanded="true"]{display:none}
-        .sidebar-apply{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:16px;margin-bottom:12px;background:linear-gradient(135deg,#FFD700,#FFA500);border:none;border-radius:12px;color:#000;font-family:inherit;font-size:15px;font-weight:600;text-decoration:none;cursor:pointer;transition:all .3s}
-        .sidebar-apply:hover{transform:translateY(-2px);box-shadow:0 10px 34px rgba(255,215,0,0.32)}
-        .inquiry-success{display:none;text-align:center;padding:20px 0;color:#25D366;font-size:14px}
+        #iqMore{animation:iqReveal .42s cubic-bezier(.16,1,.3,1)}
+        @keyframes iqReveal{from{opacity:0;transform:translateY(-7px)}to{opacity:1;transform:none}}
+        .iq-field{margin-bottom:11px}
+        .iq-cap{display:block;font-size:9.5px;letter-spacing:.7px;text-transform:uppercase;color:var(--text-secondary);margin:0 0 5px 3px}
+        .iq-ctrl{width:100%;background:rgba(255,255,255,0.035);border:1px solid rgba(255,255,255,0.09);border-radius:12px;padding:12px 14px;color:#fff;font-family:inherit;font-size:14px;outline:none;transition:border-color .25s,box-shadow .25s;box-sizing:border-box;-webkit-appearance:none;appearance:none}
+        .iq-ctrl:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(255,215,0,.08)}
+        textarea.iq-ctrl{resize:vertical;min-height:74px}
+        select.iq-ctrl{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23FFD700' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:34px}
+        select.iq-ctrl option{background:#0e0e12;color:#fff}
+        .iq-ctrl[type=date]{cursor:pointer}
+        .iq-ctrl[type=date]::-webkit-calendar-picker-indicator{filter:invert(.75) sepia(1) saturate(6) hue-rotate(2deg);cursor:pointer;opacity:.85}
+        .apply-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+        .apply-row>*{margin-bottom:0!important}
+        /* THE button */
+        .iq-submit{position:relative;width:100%;padding:17px;border:none;border-radius:14px;background:linear-gradient(135deg,#FFE489 0%,#FFD400 40%,#FBB034 100%);color:#0A0A0A;font-family:'Helvetica Neue',Helvetica,'Inter',sans-serif;font-size:15.5px;font-weight:600;letter-spacing:.2px;cursor:pointer;overflow:hidden;display:flex;align-items:center;justify-content:center;gap:9px;box-shadow:0 8px 22px rgba(255,180,0,.22),inset 0 1px 0 rgba(255,255,255,.45);transition:transform .18s cubic-bezier(.16,1,.3,1),box-shadow .25s;isolation:isolate}
+        .iq-submit::before{content:"";position:absolute;top:0;left:-60%;width:38%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.6),transparent);transform:skewX(-20deg);animation:iqsheen 4.8s ease-in-out infinite;z-index:1}
+        @keyframes iqsheen{0%,16%{left:-60%}36%{left:135%}100%{left:135%}}
+        .iq-submit-label,.iq-submit-arrow{position:relative;z-index:2}
+        .iq-submit-arrow{transition:transform .25s cubic-bezier(.16,1,.3,1);font-size:17px;line-height:1}
+        .iq-submit:hover{transform:translateY(-2px);box-shadow:0 14px 34px rgba(255,180,0,.34),inset 0 1px 0 rgba(255,255,255,.5)}
+        .iq-submit:hover .iq-submit-arrow{transform:translateX(4px)}
+        .iq-submit:active{transform:translateY(0) scale(.985)}
+        .iq-submit.err{background:linear-gradient(135deg,#FF8A8A,#FF5A5A);color:#fff}
+        .iq-submit.loading{cursor:default}
+        .iq-submit.loading::before{display:none}
+        .iq-submit.loading .iq-submit-label,.iq-submit.loading .iq-submit-arrow{opacity:0}
+        .iq-spin{position:absolute;z-index:2;width:19px;height:19px;border-radius:50%;border:2px solid rgba(0,0,0,.22);border-top-color:#0A0A0A;opacity:0;animation:iqspin .7s linear infinite}
+        .iq-submit.loading .iq-spin{opacity:1}
+        @keyframes iqspin{to{transform:rotate(360deg)}}
+        .apply-reassure{margin-top:12px;text-align:center;font-size:11.5px;color:var(--text-fade)}
+        /* sidebar top apply — same premium family */
+        .sidebar-apply{position:relative;display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:16px;margin-bottom:12px;background:linear-gradient(135deg,#FFE489 0%,#FFD400 40%,#FBB034 100%);border:none;border-radius:13px;color:#0A0A0A;font-family:'Helvetica Neue',Helvetica,'Inter',sans-serif;font-size:15px;font-weight:600;letter-spacing:.2px;text-decoration:none;cursor:pointer;overflow:hidden;box-shadow:0 8px 22px rgba(255,180,0,.2),inset 0 1px 0 rgba(255,255,255,.4);transition:transform .18s cubic-bezier(.16,1,.3,1),box-shadow .25s;isolation:isolate}
+        .sidebar-apply::before{content:"";position:absolute;top:0;left:-60%;width:38%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.55),transparent);transform:skewX(-20deg);animation:iqsheen 4.8s ease-in-out infinite}
+        .sidebar-apply span,.sidebar-apply{position:relative}
+        .sidebar-apply-arrow{transition:transform .25s cubic-bezier(.16,1,.3,1)}
+        .sidebar-apply:hover .sidebar-apply-arrow{transform:translateX(4px)}
+        .sidebar-apply:hover{transform:translateY(-2px);box-shadow:0 14px 34px rgba(255,180,0,.32),inset 0 1px 0 rgba(255,255,255,.5)}
+        .sidebar-apply:active{transform:translateY(0) scale(.985)}
+        /* SUCCESS state */
+        .inquiry-success{display:none;text-align:center;padding:6px 0 2px}
+        .inquiry-success.show{display:block;animation:iqReveal .5s cubic-bezier(.16,1,.3,1)}
+        .iq-check{width:66px;height:66px;margin:2px auto 14px;border-radius:50%;background:rgba(0,255,136,.08);display:flex;align-items:center;justify-content:center}
+        .iq-check svg{width:38px;height:38px;overflow:visible}
+        .iq-check circle{stroke:var(--green);stroke-width:3;fill:none;stroke-dasharray:163;stroke-dashoffset:163;animation:iqDraw .6s cubic-bezier(.65,0,.45,1) forwards}
+        .iq-check path{stroke:var(--green);stroke-width:3.6;fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:44;stroke-dashoffset:44;animation:iqDraw .35s .48s cubic-bezier(.65,0,.45,1) forwards}
+        @keyframes iqDraw{to{stroke-dashoffset:0}}
+        .iq-success-h{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-weight:300;font-size:23px;color:#fff;margin-bottom:6px;letter-spacing:-.01em}
+        .iq-success-p{font-size:12.5px;color:var(--text-secondary);line-height:1.55;margin-bottom:18px}
+        .iq-next{text-align:left;margin:0 0 18px;border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:6px 16px;background:rgba(255,255,255,.02)}
+        .iq-next-step{display:flex;gap:12px;align-items:center;padding:10px 0;font-size:12.5px;color:var(--text-secondary);border-bottom:1px solid rgba(255,255,255,.05)}
+        .iq-next-step:last-child{border-bottom:none}
+        .iq-next-step b{color:#fff;font-weight:500}
+        .iq-next-step .n{flex:0 0 auto;width:22px;height:22px;border-radius:50%;background:rgba(255,215,0,.12);color:var(--gold);font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center}
+        .iq-wa-fast{display:flex;align-items:center;justify-content:center;gap:9px;width:100%;padding:14px;background:#25D366;border-radius:13px;color:#fff;font-family:inherit;font-size:14.5px;font-weight:600;text-decoration:none;transition:transform .2s,box-shadow .25s}
+        .iq-wa-fast:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(37,211,102,.32)}
+        .iq-wa-fast svg{width:19px;height:19px}
         .reserve-box{margin-top:18px;padding-top:18px;border-top:1px solid rgba(255,255,255,0.07);display:none}
         .reserve-box.show{display:block}
         .reserve-h{font-size:13px;color:var(--text-secondary);margin-bottom:10px}
         .reserve-h b{color:#fff;font-weight:500}
-        .reserve-btn{width:100%;padding:14px;border:1px solid var(--gold);border-radius:12px;background:rgba(255,215,0,0.06);color:var(--gold);font-family:inherit;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .3s}
+        .reserve-btn{width:100%;padding:14px;border:1px solid var(--gold);border-radius:13px;background:rgba(255,215,0,0.06);color:var(--gold);font-family:inherit;font-size:15px;font-weight:600;letter-spacing:.2px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .25s}
         .reserve-btn:hover{background:var(--gold);color:#000;transform:translateY(-2px);box-shadow:0 10px 30px rgba(255,215,0,0.28)}
         .reserve-btn:disabled{opacity:.6;cursor:default;transform:none;background:rgba(255,215,0,0.06);color:var(--gold)}
+        @media(prefers-reduced-motion:reduce){.apply-badge .ab-dot,.iq-submit::before,.sidebar-apply::before,.iq-check circle,.iq-check path{animation:none!important}.iq-check circle,.iq-check path{stroke-dashoffset:0!important}}
         .reserve-note{margin-top:11px;display:flex;flex-direction:column;gap:6px}
         .reserve-note span{font-size:11.5px;color:var(--text-fade);display:flex;align-items:center;gap:7px}
         .reserve-note span::before{content:'✓';color:#00FF88}
@@ -329,10 +396,10 @@
 
         /* Service cards */
         .upsell-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
-        .upsell-card{position:relative;padding:0;background:var(--dark-void);border:1px solid rgba(255,255,255,0.05);border-radius:20px;overflow:hidden;transition:all .4s;display:flex;flex-direction:column}
-        .upsell-card:hover{transform:translateY(-6px);box-shadow:0 24px 60px rgba(0,0,0,0.5)}
-        .upsell-card.featured{border-color:rgba(255, 215, 0,0.15)}
-        .upsell-card.featured:hover{border-color:rgba(255, 215, 0,0.35)}
+        .upsell-card{position:relative;padding:0;background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(10,10,10,0) 130px),var(--dark-void);border:1px solid rgba(255,255,255,0.06);border-radius:20px;overflow:hidden;transition:transform .4s cubic-bezier(.16,1,.3,1),box-shadow .4s,border-color .4s;display:flex;flex-direction:column}
+        .upsell-card:hover{transform:translateY(-6px);box-shadow:0 24px 60px rgba(0,0,0,0.5);border-color:rgba(255,255,255,.12)}
+        .upsell-card.featured{border-color:rgba(255, 215, 0,0.22);background:linear-gradient(180deg,rgba(255,215,0,.06),rgba(10,10,10,0) 170px),var(--dark-void)}
+        .upsell-card.featured:hover{border-color:rgba(255, 215, 0,0.45);box-shadow:0 24px 70px rgba(255,180,0,.12),0 24px 60px rgba(0,0,0,.5)}
         .upsell-card-popular{position:absolute;top:0;left:0;right:0;padding:6px;text-align:center;background:var(--gold);color:#000;font-size:10px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase}
         .upsell-card-top{padding:32px 28px 0;flex:1}
         .upsell-card.featured .upsell-card-top{padding-top:44px}
@@ -349,11 +416,17 @@
         .upsell-card-features li{display:flex;align-items:flex-start;gap:10px;padding:6px 0;font-size:13px;color:var(--text-secondary);line-height:1.4}
         .upsell-card-features li .ck{color:var(--gold);font-weight:700;font-size:11px;margin-top:2px;flex-shrink:0}
         .upsell-card-bottom{padding:20px 28px;border-top:1px solid rgba(255,255,255,0.04);margin-top:auto}
-        .upsell-card-cta{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:14px;border-radius:12px;font-size:14px;font-weight:600;text-decoration:none;transition:all .3s;border:none;cursor:pointer;font-family:inherit}
-        .cta-gold{background:var(--gold);color:#000}
-        .cta-gold:hover{box-shadow:0 8px 30px rgba(255, 215, 0,0.3);transform:translateY(-1px)}
-        .cta-outline{background:transparent;border:1px solid rgba(255,255,255,0.1);color:var(--text-secondary)}
-        .cta-outline:hover{border-color:var(--gold);color:var(--gold)}
+        .upsell-card-cta{position:relative;display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:15px;border-radius:13px;font-family:'Helvetica Neue',Helvetica,'Inter',sans-serif;font-size:14px;font-weight:600;letter-spacing:.2px;text-decoration:none;transition:transform .2s cubic-bezier(.16,1,.3,1),box-shadow .25s,background .25s,color .25s,border-color .25s;border:none;cursor:pointer;overflow:hidden;isolation:isolate}
+        .upsell-card-cta span{position:relative;z-index:1}
+        .upsell-card-cta .uc-arrow{transition:transform .25s cubic-bezier(.16,1,.3,1);font-size:16px}
+        .upsell-card-cta:hover .uc-arrow{transform:translateX(4px)}
+        .cta-gold{background:linear-gradient(135deg,#FFE489 0%,#FFD400 40%,#FBB034 100%);color:#0A0A0A;box-shadow:0 8px 22px rgba(255,180,0,.2),inset 0 1px 0 rgba(255,255,255,.4)}
+        .cta-gold::before{content:"";position:absolute;top:0;left:-60%;width:38%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.55),transparent);transform:skewX(-20deg);animation:iqsheen 5s ease-in-out infinite}
+        .cta-gold:hover{transform:translateY(-2px);box-shadow:0 14px 34px rgba(255,180,0,.32),inset 0 1px 0 rgba(255,255,255,.5)}
+        .cta-gold:active{transform:translateY(0) scale(.985)}
+        .cta-outline{background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,0.12);color:var(--text-secondary)}
+        .cta-outline:hover{border-color:var(--gold);color:#0A0A0A;background:var(--gold);transform:translateY(-2px);box-shadow:0 12px 30px rgba(255,215,0,.22)}
+        @media(prefers-reduced-motion:reduce){.cta-gold::before{animation:none}}
 
         /* ===== MOBILE CTA ===== */
         .mobile-cta{display:none;position:fixed;bottom:0;left:0;right:0;padding:14px 18px calc(14px + env(safe-area-inset-bottom));background:rgba(0,0,0,0.95);backdrop-filter:blur(20px);border-top:1px solid rgba(255, 215, 0,0.15);z-index:90;align-items:center;justify-content:space-between;gap:14px;transform:translateY(120%);transition:transform .45s cubic-bezier(.16,1,.3,1)}
@@ -708,7 +781,7 @@
                         <span class="sr-stars" aria-hidden="true">★★★★★</span>
                         <span class="sr-score"><b>4.9</b> · 47 Google reviews</span>
                     </a>
-                    <a class="sidebar-apply" href="#inquiryCard" onclick="setTimeout(function(){var n=document.getElementById('iqName');if(n)n.focus();},450)">Apply for this apartment →</a>
+                    <a class="sidebar-apply" href="#inquiryCard" onclick="setTimeout(function(){var n=document.getElementById('iqName');if(n)n.focus();},450)"><span>Apply for this apartment</span><span class="sidebar-apply-arrow">→</span></a>
                     <div class="apply-reassure" style="margin:-2px 0 14px">✓ Free to apply · 2-minute form · we reply in ~2h</div>
                     <a class="sidebar-cta" id="sidebarWhatsApp" href="https://wa.me/393313251961" target="_blank">
                         <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.125.553 4.12 1.52 5.855L.052 23.709l5.997-1.573A11.94 11.94 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.82c-1.956 0-3.83-.528-5.47-1.528l-.392-.233-4.065 1.066 1.084-3.964-.256-.407A9.787 9.787 0 012.18 12c0-5.414 4.406-9.82 9.82-9.82 5.414 0 9.82 4.406 9.82 9.82 0 5.414-4.406 9.82-9.82 9.82z"/></svg>
@@ -724,38 +797,75 @@
                     </div>
                 </div>
                 <div class="sidebar-card inquiry-card" id="inquiryCard">
-                    <span class="apply-badge">2-minute application</span>
-                    <h3>Apply for this apartment</h3>
-                    <p>No fee to apply. We reply within 2 hours — and you could be moved in within 48.</p>
-                    <form id="inquiryForm">
-                        <input type="text" name="name" id="iqName" placeholder="Your name" required>
-                        <input type="email" name="email" id="iqEmail" placeholder="Your email" required>
-                        <input type="tel" name="phone" id="iqPhone" placeholder="WhatsApp number (optional)">
-                        <button type="button" class="iq-more" id="iqMoreToggle" aria-expanded="false" aria-controls="iqMore">+ Add details <span>(optional)</span></button>
+                    <span class="apply-badge"><span class="ab-dot"></span>2-min application · free</span>
+                    <h3 class="iq-h">Apply for this apartment</h3>
+                    <p class="iq-sub">A real person reviews every application. We reply within 2 hours — keys can follow in 48.</p>
+                    <div class="iq-progress" aria-hidden="true"><span class="iq-progress-fill" id="iqProgFill"></span></div>
+                    <form id="inquiryForm" novalidate>
+                        <input type="text" name="company" id="iqCompany" class="iq-hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+                        <div class="fld">
+                            <input type="text" name="name" id="iqName" placeholder=" " autocomplete="name" required>
+                            <label for="iqName">Your name</label><span class="fld-ok" aria-hidden="true">✓</span>
+                        </div>
+                        <div class="fld">
+                            <input type="email" name="email" id="iqEmail" placeholder=" " autocomplete="email" inputmode="email" required>
+                            <label for="iqEmail">Your email</label><span class="fld-ok" aria-hidden="true">✓</span>
+                        </div>
+                        <div class="fld">
+                            <input type="tel" name="phone" id="iqPhone" placeholder=" " autocomplete="tel" inputmode="tel">
+                            <label for="iqPhone">WhatsApp <em>· optional</em></label><span class="fld-ok" aria-hidden="true">✓</span>
+                        </div>
+                        <button type="button" class="iq-more" id="iqMoreToggle" aria-expanded="false" aria-controls="iqMore">
+                            <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M7 2v10M2 7h10"/></svg>
+                            Add move-in details <span>(optional)</span>
+                        </button>
                         <div id="iqMore" hidden>
-                        <div class="apply-row">
-                            <input type="date" name="movein" id="iqMoveIn" aria-label="Preferred move-in date">
-                            <select name="duration" id="iqDuration" aria-label="Length of stay">
-                                <option value="">Length of stay</option>
-                                <option>1–3 months</option>
-                                <option>3–6 months</option>
-                                <option>6–12 months</option>
-                                <option>12+ months</option>
-                            </select>
+                            <div class="apply-row">
+                                <div class="iq-field"><span class="iq-cap">Move-in</span><input type="date" name="movein" id="iqMoveIn" class="iq-ctrl" aria-label="Preferred move-in date"></div>
+                                <div class="iq-field"><span class="iq-cap">Length of stay</span>
+                                    <select name="duration" id="iqDuration" class="iq-ctrl" aria-label="Length of stay">
+                                        <option value="">Select…</option>
+                                        <option>1–3 months</option>
+                                        <option>3–6 months</option>
+                                        <option>6–12 months</option>
+                                        <option>12+ months</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="iq-field"><span class="iq-cap">How many people</span>
+                                <select name="occupants" id="iqOccupants" class="iq-ctrl" aria-label="Number of occupants">
+                                    <option value="">Select…</option>
+                                    <option>Just me</option>
+                                    <option>2 people</option>
+                                    <option>3 people</option>
+                                    <option>4+ people</option>
+                                </select>
+                            </div>
+                            <div class="iq-field"><span class="iq-cap">Anything we should know?</span>
+                                <textarea name="message" id="formMessage" class="iq-ctrl" placeholder="Optional — a quick note for our team"></textarea>
+                            </div>
                         </div>
-                        <select name="occupants" id="iqOccupants" aria-label="Number of occupants">
-                            <option value="">How many people?</option>
-                            <option>Just me</option>
-                            <option>2 people</option>
-                            <option>3 people</option>
-                            <option>4+ people</option>
-                        </select>
-                        <textarea name="message" id="formMessage" placeholder="Anything we should know? (optional)"></textarea>
-                        </div>
-                        <button type="submit" id="inquiryBtn">Submit application</button>
-                        <div class="apply-reassure">🔒 Private &amp; no commitment. A real person reviews every application.</div>
+                        <button type="submit" id="inquiryBtn" class="iq-submit">
+                            <span class="iq-submit-label">Submit application</span>
+                            <span class="iq-submit-arrow" aria-hidden="true">→</span>
+                            <span class="iq-spin" aria-hidden="true"></span>
+                        </button>
+                        <div class="apply-reassure">🔒 Private &amp; no commitment. A real person reads every application.</div>
                     </form>
-                    <div class="inquiry-success" id="inquirySuccess">✓ Application received! Our team will contact you within 2 hours.</div>
+                    <div class="inquiry-success" id="inquirySuccess">
+                        <div class="iq-check"><svg viewBox="0 0 60 60" aria-hidden="true"><circle cx="30" cy="30" r="26"/><path d="M18 31l8.5 8.5L43 21"/></svg></div>
+                        <div class="iq-success-h">You're in.</div>
+                        <div class="iq-success-p" id="iqSuccessP">Application received. A real person is reviewing it now — expect a reply within 2 hours.</div>
+                        <div class="iq-next">
+                            <div class="iq-next-step"><span class="n">1</span><div><b>Now</b> · we review your application</div></div>
+                            <div class="iq-next-step"><span class="n">2</span><div><b>~2 hours</b> · we reply on WhatsApp or email</div></div>
+                            <div class="iq-next-step"><span class="n">3</span><div><b>48 hours</b> · sign, pay securely, get the keys</div></div>
+                        </div>
+                        <a class="iq-wa-fast" id="iqWaFast" href="https://wa.me/393313251961" target="_blank" rel="noopener">
+                            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.125.553 4.12 1.52 5.855L.052 23.709l5.997-1.573A11.94 11.94 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.82c-1.956 0-3.83-.528-5.47-1.528l-.392-.233-4.065 1.066 1.084-3.964-.256-.407A9.787 9.787 0 012.18 12c0-5.414 4.406-9.82 9.82-9.82 5.414 0 9.82 4.406 9.82 9.82 0 5.414-4.406 9.82-9.82 9.82z"/></svg>
+                            Fast-track on WhatsApp
+                        </a>
+                    </div>
                     <div class="reserve-box" id="reserveBox">
                         <div class="reserve-h">Want to lock it in? <b>Reserve &amp; hold this apartment.</b></div>
                         <button class="reserve-btn" id="reserveBtn" type="button">🔒 Reserve &amp; hold — <span id="reserveAmt">€300</span></button>
@@ -774,45 +884,59 @@
 
         <!-- 48-hour move-in — scroll-driven timeline (mobile-first vertical, desktop horizontal) -->
         <style>
-        .m48{max-width:1080px;margin:60px auto 10px;padding:0 20px}
-        .m48-head{text-align:center;margin-bottom:40px}
-        .m48-lbl{display:inline-block;color:#FFD700;font-size:11px;letter-spacing:3px;text-transform:uppercase;margin-bottom:10px}
-        .m48-head h2{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-weight:200;font-size:clamp(24px,3.4vw,40px);color:#fff;letter-spacing:-.01em}
+        .m48{max-width:1100px;margin:72px auto 10px;padding:0 20px}
+        .m48-head{text-align:center;margin-bottom:46px}
+        .m48-lbl{display:inline-block;color:#FFD700;font-size:11px;letter-spacing:3px;text-transform:uppercase;margin-bottom:12px}
+        .m48-head h2{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-weight:200;font-size:clamp(24px,3.4vw,40px);color:#fff;letter-spacing:-.01em;line-height:1.15}
+        .m48-head h2 b{font-weight:300;font-style:normal;color:#FFD700;text-shadow:0 0 26px rgba(255,215,0,.35)}
+        .m48-sub{margin-top:13px;font-size:13.5px;color:var(--text-secondary)}
         /* mobile-first: vertical timeline */
-        .m48-track{position:relative;display:flex;flex-direction:column;gap:24px}
-        .m48-rail{position:absolute;left:21px;top:18px;bottom:18px;width:2px;background:rgba(255,255,255,.10);border-radius:2px;overflow:hidden}
-        .m48-fill{position:absolute;left:0;top:0;width:100%;height:calc(var(--p,0)*100%);background:linear-gradient(180deg,#FFD700,#FFA500);box-shadow:0 0 10px rgba(255,215,0,.4)}
-        .m48-step{position:relative;z-index:1;display:flex;align-items:center;gap:16px}
-        .m48-node{flex:0 0 auto;width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#0A0A0A;border:2px solid rgba(255,255,255,.16);color:rgba(255,255,255,.5);font-size:13px;font-weight:600;letter-spacing:.5px;transition:all .55s cubic-bezier(.16,1,.3,1)}
-        .m48-step.lit .m48-node{border-color:#FFD700;color:#000;background:linear-gradient(135deg,#FFD700,#FFA500);box-shadow:0 0 0 6px rgba(255,215,0,.12),0 8px 24px rgba(255,215,0,.25);transform:scale(1.05)}
-        .m48-t{font-size:16px;color:#fff;font-weight:500}
+        .m48-track{position:relative;display:flex;flex-direction:column;gap:22px}
+        .m48-rail{position:absolute;left:25px;top:22px;bottom:22px;width:2px;background:rgba(255,255,255,.10);border-radius:2px;overflow:hidden}
+        .m48-fill{position:absolute;left:0;top:0;width:100%;height:calc(var(--p,0)*100%);background:linear-gradient(180deg,#FFD700,#FFA500);box-shadow:0 0 12px rgba(255,215,0,.45)}
+        .m48-fill::after{content:"";position:absolute;left:0;right:0;bottom:0;height:46px;background:linear-gradient(180deg,transparent,rgba(255,255,255,.65));animation:m48sheen 2.4s ease-in-out infinite}
+        @keyframes m48sheen{0%,100%{opacity:.12}50%{opacity:.55}}
+        .m48-step{position:relative;z-index:1;display:flex;align-items:center;gap:18px}
+        .m48-node{flex:0 0 auto;width:52px;height:52px;border-radius:16px;display:flex;align-items:center;justify-content:center;background:#0A0A0A;border:1.5px solid rgba(255,255,255,.14);color:rgba(255,255,255,.42);transition:all .55s cubic-bezier(.16,1,.3,1)}
+        .m48-node svg{width:22px;height:22px}
+        .m48-step.lit .m48-node{border-color:#FFD700;color:#0A0A0A;background:linear-gradient(135deg,#FFD700,#FFA500);box-shadow:0 8px 24px rgba(255,215,0,.25);transform:scale(1.04)}
+        .m48-step.active .m48-node{animation:m48pulse 1.9s ease-in-out infinite}
+        @keyframes m48pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,215,0,.38),0 8px 24px rgba(255,215,0,.25)}55%{box-shadow:0 0 0 10px rgba(255,215,0,0),0 8px 24px rgba(255,215,0,.25)}}
+        .m48-k{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-fade);margin-bottom:3px;transition:color .55s}
+        .m48-step.lit .m48-k{color:#FFD700}
+        .m48-t{font-size:16.5px;color:#fff;font-weight:500}
         .m48-s{font-size:12.5px;color:rgba(255,255,255,.5);margin-top:2px;transition:color .55s}
-        .m48-step.lit .m48-s{color:rgba(255,255,255,.7)}
+        .m48-step.lit .m48-s{color:rgba(255,255,255,.72)}
         /* desktop: horizontal timeline */
         @media(min-width:760px){
-          .m48{padding:0 50px}
-          .m48-track{flex-direction:row;gap:18px;padding-top:54px}
-          .m48-rail{left:8%;right:8%;top:21px;bottom:auto;width:auto;height:2px}
+          .m48{padding:0 40px}
+          .m48-track{flex-direction:row;gap:16px;padding-top:66px}
+          .m48-rail{left:8%;right:8%;top:26px;bottom:auto;width:auto;height:2px}
           .m48-fill{height:100%;width:calc(var(--p,0)*100%)}
+          .m48-fill::after{left:auto;right:0;top:0;bottom:0;width:46px;height:auto;background:linear-gradient(90deg,transparent,rgba(255,255,255,.65))}
           .m48-step{flex:1;flex-direction:column;align-items:center;text-align:center;gap:14px}
-          .m48-node{position:absolute;top:-54px;left:50%;transform:translateX(-50%)}
-          .m48-step.lit .m48-node{transform:translateX(-50%) scale(1.05)}
+          .m48-node{position:absolute;top:-66px;left:50%;transform:translateX(-50%)}
+          .m48-step.lit .m48-node{transform:translateX(-50%) scale(1.04)}
         }
-        @media(prefers-reduced-motion:reduce){.m48-fill{height:100%!important;width:100%!important}.m48-node,.m48-s{transition:none!important}}
+        @media(prefers-reduced-motion:reduce){.m48-fill{height:100%!important;width:100%!important}.m48-node,.m48-s,.m48-k{transition:none!important}.m48-fill::after,.m48-step.active .m48-node{animation:none!important}}
         </style>
         <section class="m48" id="m48" aria-label="Your move-in in 48 hours">
-            <div class="m48-head"><span class="m48-lbl">Your move-in</span><h2>From application to keys — in 48 hours.</h2></div>
+            <div class="m48-head">
+                <span class="m48-lbl">Your move-in</span>
+                <h2>From application to keys — in <b>48 hours</b>.</h2>
+                <div class="m48-sub">No queues, no paperwork limbo. Four steps, fully managed by BOOM.</div>
+            </div>
             <div class="m48-track" id="m48Track" style="--p:0">
                 <div class="m48-rail"><span class="m48-fill"></span></div>
-                <div class="m48-step"><div class="m48-node">01</div><div class="m48-txt"><div class="m48-t">Apply</div><div class="m48-s">2-minute form</div></div></div>
-                <div class="m48-step"><div class="m48-node">02</div><div class="m48-txt"><div class="m48-t">Approved</div><div class="m48-s">within 2 hours</div></div></div>
-                <div class="m48-step"><div class="m48-node">03</div><div class="m48-txt"><div class="m48-t">Sign &amp; pay</div><div class="m48-s">secure, in English</div></div></div>
-                <div class="m48-step"><div class="m48-node">04</div><div class="m48-txt"><div class="m48-t">Keys in hand</div><div class="m48-s">within 48 hours</div></div></div>
+                <div class="m48-step"><div class="m48-node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/></svg></div><div class="m48-txt"><div class="m48-k">Step 01</div><div class="m48-t">Apply</div><div class="m48-s">2-minute form</div></div></div>
+                <div class="m48-step"><div class="m48-node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/></svg></div><div class="m48-txt"><div class="m48-k">Step 02</div><div class="m48-t">Approved</div><div class="m48-s">within 2 hours</div></div></div>
+                <div class="m48-step"><div class="m48-node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></div><div class="m48-txt"><div class="m48-k">Step 03</div><div class="m48-t">Sign &amp; pay</div><div class="m48-s">secure, in English</div></div></div>
+                <div class="m48-step"><div class="m48-node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="8" cy="15" r="4"/><path d="M10.85 12.15 19 4M15.5 7.5l3 3"/></svg></div><div class="m48-txt"><div class="m48-k">Step 04</div><div class="m48-t">Keys in hand</div><div class="m48-s">within 48 hours</div></div></div>
             </div>
         </section>
         <script>(function(){var t=document.getElementById('m48Track');if(!t)return;var steps=[].slice.call(t.querySelectorAll('.m48-step'));
         if(matchMedia('(prefers-reduced-motion:reduce)').matches){t.style.setProperty('--p',1);steps.forEach(function(s){s.classList.add('lit');});return;}
-        var tick=false;function upd(){tick=false;var r=t.getBoundingClientRect(),vh=innerHeight||document.documentElement.clientHeight;var p=(vh*0.82-r.top)/(r.height*0.62);p=Math.max(0,Math.min(1,p));t.style.setProperty('--p',p.toFixed(3));steps.forEach(function(s,i){s.classList.toggle('lit',p>=i/steps.length+0.02);});}
+        var tick=false;function upd(){tick=false;var r=t.getBoundingClientRect(),vh=innerHeight||document.documentElement.clientHeight;var p=(vh*0.82-r.top)/(r.height*0.62);p=Math.max(0,Math.min(1,p));t.style.setProperty('--p',p.toFixed(3));var last=-1;steps.forEach(function(s,i){var on=p>=i/steps.length+0.02;s.classList.toggle('lit',on);if(on)last=i;});steps.forEach(function(s,i){s.classList.toggle('active',i===last&&last>-1&&last<steps.length-1);});}
         function on(){if(tick)return;tick=true;requestAnimationFrame(upd);}addEventListener('scroll',on,{passive:true});addEventListener('resize',on,{passive:true});upd();})();</script>
 
         <div class="upsell-section">
@@ -857,7 +981,7 @@
                         </ul>
                     </div>
                     <div class="upsell-card-bottom">
-                        <a href="/property-finding.html" class="upsell-card-cta cta-gold">Start Property Finding →</a>
+                        <a href="/property-finding.html" class="upsell-card-cta cta-gold"><span>Start Property Finding</span><span class="uc-arrow">→</span></a>
                     </div>
                 </div>
 
@@ -880,7 +1004,7 @@
                         </ul>
                     </div>
                     <div class="upsell-card-bottom">
-                        <a href="/deal-assistance.html" class="upsell-card-cta cta-outline">Learn More →</a>
+                        <a href="/deal-assistance.html" class="upsell-card-cta cta-outline"><span>Learn More</span><span class="uc-arrow">→</span></a>
                     </div>
                 </div>
 
@@ -903,7 +1027,7 @@
                         </ul>
                     </div>
                     <div class="upsell-card-bottom">
-                        <a href="/virtual-viewing.html" class="upsell-card-cta cta-outline">Learn More →</a>
+                        <a href="/virtual-viewing.html" class="upsell-card-cta cta-outline"><span>Learn More</span><span class="uc-arrow">→</span></a>
                     </div>
                 </div>
             </div>
@@ -1307,37 +1431,73 @@
 
         if(typeof gtag==='function')gtag('event','view_listing',{listing_id:id,listing_name:name,listing_price:d.price});
 
-        // Inquiry form → Firestore leads
-        document.getElementById('formMessage').placeholder=`Anything we should know about your move to ${name}? (optional)`;
-        const iqForm=document.getElementById('inquiryForm');
-        // Friction-light form: reveal optional details only on demand
-        (function(){const t=document.getElementById('iqMoreToggle'),m=document.getElementById('iqMore');
-          if(t&&m)t.addEventListener('click',function(){m.hidden=false;t.setAttribute('aria-expanded','true');});})();
-        iqForm.addEventListener('submit',async function(e){
-            e.preventDefault();
-            const btn=document.getElementById('inquiryBtn');
-            btn.disabled=true;btn.textContent='Sending…';
-            try{
-                const _v=(elId)=>{const el=document.getElementById(elId);return el?el.value:'';};
-                await db.collection('leads').add({
-                    name: document.getElementById('iqName').value,
-                    email: document.getElementById('iqEmail').value,
-                    phone: document.getElementById('iqPhone').value||'',
-                    moveIn: _v('iqMoveIn'),
-                    duration: _v('iqDuration'),
-                    occupants: _v('iqOccupants'),
-                    message: document.getElementById('formMessage').value||'',
-                    source: 'apartment-detail',
-                    type: 'application',
-                    listingId: id,
-                    listingName: name,
-                    status: 'new',
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
-                iqForm.style.display='none';document.getElementById('inquirySuccess').style.display='block';
-                if(typeof gtag==='function')gtag('event','inquiry_sent',{listing_id:id,listing_name:name});
-            }catch(err){btn.textContent='Error — try again';btn.disabled=false;console.error('Inquiry error:',err)}
-        });
+        // Inquiry form → /api/apply-lead (Firestore `leads` writes are admin-only,
+        // so the browser CANNOT write directly — that PERMISSION_DENIED is what
+        // made the form error. The endpoint writes server-side with admin creds.)
+        (function(){
+            const $=el=>document.getElementById(el);
+            const iqForm=$('inquiryForm'); if(!iqForm) return;
+            const fm=$('formMessage'); if(fm) fm.placeholder=`Optional — a quick note about your move to ${name}`;
+            const name_=$('iqName'),email_=$('iqEmail'),phone_=$('iqPhone'),fill=$('iqProgFill'),btn=$('inquiryBtn');
+            const fldOf=el=>el&&el.closest('.fld');
+            const nameOk =v=>(v||'').trim().length>=2;
+            const emailOk=v=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((v||'').trim());
+            const phoneOk=v=>(v||'').replace(/\D/g,'').length>=6;
+
+            // live progress + per-field valid ticks (dopamine without friction)
+            function setTick(el,ok){const f=fldOf(el);if(f)f.classList.toggle('ok',!!ok);}
+            function reflect(){
+                const n=nameOk(name_.value),em=emailOk(email_.value);
+                setTick(name_,n);setTick(email_,em);setTick(phone_,phone_.value.trim()!==''&&phoneOk(phone_.value));
+                if(n||em)[name_,email_].forEach(el=>{const f=fldOf(el);if(f)f.classList.remove('err');});
+                if(fill)fill.style.width=((n?50:0)+(em?50:0))+'%';
+            }
+            [name_,email_,phone_].forEach(el=>{if(el){el.addEventListener('input',reflect);el.addEventListener('blur',reflect);}});
+            reflect();
+
+            // optional details reveal
+            (function(){const t=$('iqMoreToggle'),m=$('iqMore');
+              if(t&&m)t.addEventListener('click',function(){m.hidden=false;t.setAttribute('aria-expanded','true');});})();
+
+            function flagInvalid(el){const f=fldOf(el);if(f){f.classList.add('err','shake');setTimeout(()=>f.classList.remove('shake'),440);}if(el)el.focus();}
+
+            iqForm.addEventListener('submit',async function(e){
+                e.preventDefault();
+                // honeypot — silently "succeed" for bots
+                if($('iqCompany')&&$('iqCompany').value){iqForm.style.display='none';$('inquirySuccess').classList.add('show');return;}
+                // validate the two essentials
+                if(!nameOk(name_.value)){flagInvalid(name_);return;}
+                if(!emailOk(email_.value)){flagInvalid(email_);return;}
+                btn.disabled=true;btn.classList.add('loading');btn.classList.remove('err');
+                try{
+                    const payload={
+                        name:name_.value.trim(), email:email_.value.trim(), phone:(phone_.value||'').trim(),
+                        company:($('iqCompany')||{}).value||'',
+                        listingId:id, listingName:name,
+                        moveIn:($('iqMoveIn')||{}).value||'', duration:($('iqDuration')||{}).value||'',
+                        occupants:($('iqOccupants')||{}).value||'', message:(fm||{}).value||''
+                    };
+                    const r=await fetch('/api/apply-lead',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+                    const j=await r.json().catch(()=>null);
+                    if(!r.ok||!j||!j.ok) throw new Error((j&&j.error)||('http_'+r.status));
+                    // personalise the success state
+                    const firstName=(name_.value.trim().split(/\s+/)[0]||'').slice(0,24);
+                    const sp=$('iqSuccessP'); if(sp) sp.textContent=(firstName?`Thanks, ${firstName}. `:'')+`A real person is reviewing your application for ${name} now — expect a reply within 2 hours.`;
+                    const wa=$('iqWaFast'); if(wa) wa.href='https://wa.me/393313251961?text='+encodeURIComponent(`Hi BOOM — I just applied for ${name}. I'd like to fast-track it.`);
+                    if(fill) fill.style.width='100%';
+                    iqForm.style.display='none';
+                    const succ=$('inquirySuccess'); succ.classList.add('show');
+                    succ.scrollIntoView({behavior:'smooth',block:'nearest'});
+                    if(typeof gtag==='function')gtag('event','inquiry_sent',{listing_id:id,listing_name:name});
+                }catch(err){
+                    console.error('Apply error:',err);
+                    btn.classList.remove('loading');btn.disabled=false;btn.classList.add('err');
+                    const lbl=btn.querySelector('.iq-submit-label'); if(lbl)lbl.textContent='Try again';
+                    setTimeout(()=>{btn.classList.remove('err');if(lbl)lbl.textContent='Submit application';},2800);
+                    toast("Couldn't send just now — please try again, or message us on WhatsApp");
+                }
+            });
+        })();
 
         // Reserve & hold → Stripe checkout (refundable holding deposit)
         const reserveBtn=document.getElementById('reserveBtn');
