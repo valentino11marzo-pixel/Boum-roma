@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Client Portal — BOOM Rome</title>
 <!-- BOOM_SEO:START -->
-  <meta name="description" content="Your private property search portal.">
+  <meta name="description" content="Your private relocation atelier. Mid-term living in Rome, curated.">
   <meta name="robots" content="noindex, follow">
   <meta name="theme-color" content="#000000">
   <meta name="color-scheme" content="dark">
@@ -24,6 +24,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <!-- BOOM_SEO:END -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500&display=swap" rel="stylesheet">
+    <!-- Shared BOOM cinematic engine: living gold ambient light + scroll reel (brand unity with /apartments + detail) -->
+    <link rel="stylesheet" href="/css/boom-cinema.css">
     <style>
         *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
         :root{
@@ -31,6 +33,7 @@
             --bg:#000; --bg-1:#060607; --surface:#0C0D10; --surface-2:#141519; --surface-3:#1C1D22;
             --line:rgba(255,255,255,.07); --line-2:rgba(255,255,255,.13);
             --ink:#F5F5F7; --ink-2:#9C9CA3; --ink-3:#67676E;
+            --gold-soft:rgba(212,175,55,.12);
             --green:#30D158; --green-soft:rgba(48,209,88,.14);
             --red:#FF453A; --red-soft:rgba(255,69,58,.13);
             --r:20px; --r-lg:28px;
@@ -38,7 +41,8 @@
             --safe-t:env(safe-area-inset-top,0px); --safe-b:env(safe-area-inset-bottom,0px);
             --shadow:0 30px 80px -30px rgba(0,0,0,.9);
         }
-        html{-webkit-text-size-adjust:100%}
+        /* keep tab switches instant (boom-cinema sets smooth globally) */
+        html{-webkit-text-size-adjust:100%;scroll-behavior:auto}
         body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;overflow-x:hidden;line-height:1.5;letter-spacing:-.01em}
         .serif{font-family:'Fraunces',Georgia,serif;font-weight:300;letter-spacing:-.02em}
         ::selection{background:var(--gold);color:#000}
@@ -50,23 +54,32 @@
         .reveal.in{opacity:1;transform:none}
         @media (prefers-reduced-motion:reduce){.reveal{opacity:1!important;transform:none!important;transition:none!important}*{animation:none!important}}
 
-        /* ── Loading ── */
-        .loading{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:26px;z-index:9999;transition:opacity .6s var(--ease)}
+        /* ── Cinematic film-grain (subtle, global, behind UI chrome) ── */
+        .grain{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.035;mix-blend-mode:soft-light;
+            background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+            background-size:160px;animation:grain 6s steps(5) infinite}
+        @keyframes grain{0%{transform:translate(0,0)}20%{transform:translate(-4%,2%)}40%{transform:translate(3%,-3%)}60%{transform:translate(-2%,4%)}80%{transform:translate(4%,-2%)}100%{transform:translate(0,0)}}
+        @media (prefers-reduced-motion:reduce){.grain{animation:none;opacity:.025}}
+
+        /* ── Loading (title sequence) ── */
+        .loading{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:26px;z-index:9999;transition:opacity .7s var(--ease)}
+        .loading::before{content:'';position:absolute;inset:0;background:radial-gradient(110% 70% at 50% 18%,rgba(212,175,55,.14),transparent 58%);pointer-events:none}
         .loading.hidden{opacity:0;pointer-events:none}
-        .l-mark{font-family:'Fraunces',serif;font-weight:300;font-size:30px;letter-spacing:.32em;color:var(--ink);text-indent:.32em;opacity:0;animation:lin 1.4s var(--spring) infinite alternate}
-        @keyframes lin{from{opacity:.25}to{opacity:.9}}
+        .l-mark{font-family:'Fraunces',serif;font-weight:300;font-size:30px;letter-spacing:.32em;color:var(--ink);text-indent:.32em;animation:lin 1.5s var(--spring) infinite alternate}
+        @keyframes lin{from{opacity:.3;letter-spacing:.32em}to{opacity:.95;letter-spacing:.4em}}
         .l-bar{width:120px;height:1px;background:var(--line-2);overflow:hidden;position:relative}
         .l-bar::after{content:'';position:absolute;inset:0;width:40%;background:linear-gradient(90deg,transparent,var(--gold),transparent);animation:lbar 1.3s var(--ease) infinite}
         @keyframes lbar{from{left:-40%}to{left:100%}}
 
         /* ── Auth ── */
         .auth{position:relative;min-height:100vh;min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:30px}
-        .auth::before{content:'';position:fixed;inset:0;background:radial-gradient(120% 80% at 50% -10%,rgba(212,175,55,.10),transparent 55%);pointer-events:none}
+        .auth::before{content:'';position:fixed;inset:0;background:radial-gradient(120% 80% at 50% -8%,rgba(212,175,55,.13),transparent 56%);pointer-events:none}
         .auth.hidden{display:none}
         .auth-box{position:relative;width:100%;max-width:360px;text-align:center}
-        .auth-mark{font-family:'Fraunces',serif;font-weight:300;font-size:15px;letter-spacing:.5em;color:var(--gold);text-indent:.5em;margin-bottom:30px}
-        .auth-h{font-size:32px;line-height:1.12;margin-bottom:8px}
-        .auth-p{font-size:15px;color:var(--ink-2);margin-bottom:38px}
+        .auth-mark{font-family:'Fraunces',serif;font-weight:300;font-size:15px;letter-spacing:.5em;color:var(--gold);text-indent:.5em;margin-bottom:18px}
+        .auth-kick{font-size:10.5px;letter-spacing:.28em;text-transform:uppercase;color:var(--ink-3);margin-bottom:26px}
+        .auth-h{font-size:33px;line-height:1.1;margin-bottom:10px}
+        .auth-p{font-size:15px;color:var(--ink-2);margin-bottom:36px}
         .auth-input{width:100%;padding:19px;background:var(--surface);border:1px solid var(--line);border-radius:16px;color:var(--ink);font-size:18px;text-align:center;letter-spacing:.18em;font-weight:500;transition:border-color .3s,box-shadow .3s;text-transform:uppercase}
         .auth-input::placeholder{letter-spacing:.02em;font-weight:400;text-transform:none;color:var(--ink-3)}
         .auth-input:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 4px rgba(212,175,55,.12)}
@@ -77,16 +90,16 @@
         .auth-err{margin-top:16px;padding:13px;background:var(--red-soft);border-radius:12px;color:var(--red);font-size:13.5px;display:none}
         .auth-err.show{display:block;animation:shake .45s var(--ease)}
         @keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-5px)}40%,80%{transform:translateX(5px)}}
-        .auth-help{margin-top:30px;font-size:13px;color:var(--ink-3)}
+        .auth-help{margin-top:28px;font-size:13px;color:var(--ink-3)}
         .auth-help a{color:var(--gold)}
-        .auth-lang{margin-top:26px;display:inline-flex;gap:4px;border:1px solid var(--line);border-radius:100px;padding:4px}
+        .auth-lang{margin-top:24px;display:inline-flex;gap:4px;border:1px solid var(--line);border-radius:100px;padding:4px}
         .auth-lang button{padding:7px 16px;background:transparent;border:none;border-radius:100px;color:var(--ink-3);font-size:12px;font-weight:600;cursor:pointer;transition:all .25s var(--spring)}
         .auth-lang button.on{background:var(--surface-2);color:var(--ink)}
 
         /* ── Shell ── */
         .app{display:none}
         .app.active{display:block}
-        .topbar{position:fixed;top:0;left:0;right:0;height:calc(56px + var(--safe-t));padding-top:var(--safe-t);background:rgba(0,0,0,.55);backdrop-filter:saturate(180%) blur(24px);-webkit-backdrop-filter:saturate(180%) blur(24px);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding-left:20px;padding-right:16px;z-index:100;transition:background .4s,border-color .4s}
+        .topbar{position:fixed;top:0;left:0;right:0;height:calc(56px + var(--safe-t));padding-top:var(--safe-t);background:rgba(0,0,0,.55);backdrop-filter:saturate(180%) blur(24px);-webkit-backdrop-filter:saturate(180%) blur(24px);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding-left:20px;padding-right:16px;z-index:100}
         .topbar .brand{font-family:'Fraunces',serif;font-weight:300;font-size:15px;letter-spacing:.36em;text-indent:.36em;color:var(--ink)}
         .topbar-r{display:flex;align-items:center;gap:10px}
         .lang-t{padding:6px 12px;background:var(--surface-2);border:1px solid var(--line);border-radius:100px;color:var(--ink-2);font-size:11px;font-weight:600;cursor:pointer;letter-spacing:.04em;transition:all .25s var(--spring)}
@@ -97,51 +110,91 @@
         .view{animation:viewIn .55s var(--spring)}
         @keyframes viewIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 
-        /* ── Home hero ── */
-        .hero{padding:38px 6px 14px;text-align:center}
-        .hero-badge{display:inline-flex;align-items:center;gap:7px;padding:6px 13px;border:1px solid var(--line-2);border-radius:100px;font-size:11px;color:var(--ink-2);letter-spacing:.04em;margin-bottom:24px}
-        .hero-badge i{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 0 0 var(--green);animation:pp 2.4s var(--ease) infinite}
+        /* ── Scene / golden-hour hero ── */
+        .scene{position:relative;padding:40px 4px 6px;text-align:center;overflow:visible}
+        .scene>.scene-sky{position:absolute;left:-30%;right:-30%;top:-90px;height:320px;z-index:0;pointer-events:none;
+            background:radial-gradient(60% 80% at 50% 30%,rgba(212,175,55,.20),rgba(212,175,55,.05) 42%,transparent 66%),
+                       radial-gradient(40% 50% at 66% 18%,rgba(230,200,104,.12),transparent 60%);
+            filter:blur(6px);animation:sky 22s var(--ease) infinite alternate}
+        @keyframes sky{0%{transform:translateY(0) scale(1)}100%{transform:translateY(-14px) scale(1.08)}}
+        .scene>*{position:relative;z-index:1}
+        .kicker{display:inline-flex;align-items:center;gap:8px;padding:6px 13px;border:1px solid var(--line-2);border-radius:100px;font-size:11px;color:var(--ink-2);letter-spacing:.04em;margin-bottom:22px;background:rgba(0,0,0,.25);backdrop-filter:blur(8px)}
+        .kicker i{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pp 2.4s var(--ease) infinite}
         @keyframes pp{0%{box-shadow:0 0 0 0 rgba(48,209,88,.45)}70%,100%{box-shadow:0 0 0 7px rgba(48,209,88,0)}}
-        .hero-ic{font-size:46px;margin-bottom:16px;animation:floaty 6s var(--ease) infinite}
-        @keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
-        .hero-h{font-size:34px;line-height:1.08;margin-bottom:10px}
-        .hero-p{font-size:15px;color:var(--ink-2);max-width:330px;margin:0 auto;line-height:1.5}
+        .scene-h{font-size:36px;line-height:1.06;margin-bottom:11px;letter-spacing:-.03em}
+        .scene-h em{font-style:normal;color:var(--gold)}
+        .scene-p{font-size:15px;color:var(--ink-2);max-width:340px;margin:0 auto;line-height:1.55}
 
-        /* ── Journey ── */
-        .journey{position:relative;display:flex;justify-content:space-between;margin:34px 6px 38px}
-        .journey::before{content:'';position:absolute;top:15px;left:18px;right:18px;height:1.5px;background:var(--line-2)}
-        .jfill{position:absolute;top:15px;left:18px;height:1.5px;background:linear-gradient(90deg,var(--gold-deep),var(--gold-2));transition:width 1.1s var(--spring)}
-        .jstep{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:9px;flex:1}
-        .jdot{width:30px;height:30px;border-radius:50%;background:var(--bg);border:1.5px solid var(--line-2);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:var(--ink-3);transition:all .5s var(--spring)}
-        .jstep.done .jdot{background:var(--gold-deep);border-color:var(--gold-deep);color:#000}
-        .jstep.active .jdot{background:var(--gold);border-color:var(--gold);color:#000;transform:scale(1.16);box-shadow:0 0 0 5px rgba(212,175,55,.14)}
-        .jlabel{font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);transition:color .4s}
-        .jstep.active .jlabel,.jstep.done .jlabel{color:var(--ink-2)}
-
-        /* ── Stats ── */
-        .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin-bottom:30px}
-        .stat{background:var(--bg-1);padding:20px 8px;text-align:center}
-        .stat-v{font-size:30px;font-weight:300;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
-        .stat-v.gold{color:var(--gold)}
-        .stat-l{font-size:10px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.1em;margin-top:6px}
+        /* ── Live engine (Homie) ── */
+        .engine{position:relative;display:flex;align-items:center;gap:16px;padding:18px;margin:30px 0;background:linear-gradient(135deg,var(--surface),var(--bg-1));border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden;box-shadow:var(--shadow)}
+        .engine::before{content:'';position:absolute;inset:0;background:radial-gradient(120% 120% at 0% 0%,rgba(212,175,55,.10),transparent 52%);pointer-events:none}
+        .radar{position:relative;width:72px;height:72px;flex-shrink:0;border-radius:50%;border:1px solid var(--line-2);background:radial-gradient(circle,var(--surface-2),var(--bg-1));overflow:hidden}
+        .radar::before{content:'';position:absolute;inset:-2px;border-radius:50%;background:conic-gradient(from 0deg,transparent 0deg,transparent 250deg,rgba(212,175,55,.5) 358deg,transparent 360deg);animation:sweep 2.6s linear infinite}
+        @keyframes sweep{to{transform:rotate(360deg)}}
+        .radar i{position:absolute;border-radius:50%;border:1px solid var(--line);left:50%;top:50%;transform:translate(-50%,-50%)}
+        .radar i.r1{width:26px;height:26px}.radar i.r2{width:48px;height:48px}
+        .radar .core{width:8px;height:8px;border:none;background:var(--gold);box-shadow:0 0 12px var(--gold);animation:pp 2.4s var(--ease) infinite}
+        .engine-main{flex:1;min-width:0;position:relative}
+        .engine-h{display:flex;align-items:center;gap:8px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2)}
+        .engine-h .live{display:inline-flex;align-items:center;gap:6px;color:var(--green);font-weight:600}
+        .engine-h .live b{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pp 2.4s var(--ease) infinite}
+        .engine-stats{display:flex;gap:20px;margin-top:11px}
+        .es b{font-size:21px;font-weight:300;letter-spacing:-.02em;font-variant-numeric:tabular-nums;display:block}
+        .es.gold b{color:var(--gold)}
+        .es span{font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-3);margin-top:3px;display:block}
+        .engine-note{font-size:11px;color:var(--ink-3);margin-top:11px;letter-spacing:.01em}
 
         /* ── Section heads ── */
-        .sec{margin-bottom:30px}
+        .sec{margin-bottom:32px}
         .sec-h{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:16px;padding:0 2px}
         .sec-t{font-size:12px;text-transform:uppercase;letter-spacing:.14em;color:var(--ink-2)}
+        .sec-sub{font-size:13px;color:var(--ink-3);margin-top:3px;padding:0 2px;letter-spacing:-.01em}
         .sec-link{font-size:13px;color:var(--gold);cursor:pointer;background:none;border:none}
         .count{font-size:12px;color:var(--ink-3);font-variant-numeric:tabular-nums}
 
-        /* ── Property cards (editorial collection) ── */
+        /* ── The relocation film (timeline of 5 acts) ── */
+        .film{position:relative;margin:6px 2px 0}
+        .film-rail{position:absolute;left:15px;top:6px;bottom:14px;width:2px;background:var(--line-2);border-radius:2px;overflow:hidden}
+        .film-rail i{position:absolute;top:0;left:0;width:100%;height:0;background:linear-gradient(var(--gold-deep),var(--gold-2));border-radius:2px;transition:height 1.4s var(--spring)}
+        .act{position:relative;padding:0 0 26px 46px}
+        .act:last-child{padding-bottom:4px}
+        .act-dot{position:absolute;left:6px;top:0;width:20px;height:20px;border-radius:50%;background:var(--bg-1);border:2px solid var(--line-2);display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--ink-3);transition:all .5s var(--spring);z-index:1}
+        .act.done .act-dot{background:var(--gold-deep);border-color:var(--gold-deep);color:#000}
+        .act.now .act-dot{background:var(--gold);border-color:var(--gold);color:#000;animation:actpulse 2.8s var(--ease) infinite}
+        @keyframes actpulse{0%,100%{box-shadow:0 0 0 4px rgba(212,175,55,.16)}50%{box-shadow:0 0 0 8px rgba(212,175,55,.04)}}
+        .act-no{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-3)}
+        .act.now .act-no{color:var(--gold)}
+        .act-here{margin-left:9px;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold)}
+        .act-t{font-size:19px;margin:4px 0 5px;color:var(--ink-3);transition:color .5s}
+        .act.done .act-t,.act.now .act-t{color:var(--ink)}
+        .act-s{font-size:13px;color:var(--ink-3);line-height:1.5;max-width:400px;transition:color .5s}
+        .act.now .act-s,.act.done .act-s{color:var(--ink-2)}
+        .act-chip{display:inline-flex;align-items:center;gap:6px;margin-top:11px;padding:5px 11px;border:1px solid var(--line);border-radius:100px;font-size:10.5px;color:var(--ink-3);letter-spacing:.04em}
+        .act.done .act-chip{color:var(--ink-2);border-color:var(--line-2)}
+        .act.now .act-chip{color:var(--gold);border-color:rgba(212,175,55,.32)}
+        .act-chip i{width:5px;height:5px;border-radius:50%;background:currentColor}
+
+        /* ── All-inclusive grid ── */
+        .incl{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+        .inc{background:var(--bg-1);padding:15px 14px;display:flex;align-items:center;gap:11px}
+        .inc-ic{width:30px;height:30px;border-radius:9px;background:var(--gold-soft);color:var(--gold);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+        .inc-t{font-size:13px;font-weight:500;line-height:1.2}
+        .inc-s{font-size:11px;color:var(--ink-3);margin-top:2px}
+
+        /* ── Property cards (film stills) ── */
         .prop{position:relative;border-radius:var(--r-lg);overflow:hidden;margin-bottom:26px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow)}
         .prop-media{position:relative;aspect-ratio:4/3;overflow:hidden;background:var(--surface-2)}
         .prop-media .px{position:absolute;inset:-8%;width:116%;height:116%;object-fit:cover;will-change:transform}
+        .ken .px{animation:ken 26s var(--ease) infinite alternate}
+        @keyframes ken{0%{transform:scale(1.04) translate(0,0)}100%{transform:scale(1.13) translate(-1.5%,-1%)}}
+        @media (prefers-reduced-motion:reduce){.ken .px{animation:none}}
         .prop-media.ph{display:flex;align-items:center;justify-content:center;font-size:54px;color:var(--ink-3)}
-        .media-veil{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.78) 0%,rgba(0,0,0,.12) 42%,transparent 70%)}
+        .media-veil{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.8) 0%,rgba(0,0,0,.12) 44%,transparent 72%)}
         .media-top{position:absolute;top:14px;left:14px;right:14px;display:flex;align-items:flex-start;justify-content:space-between;z-index:3}
         .chiprow{display:flex;gap:7px;flex-wrap:wrap}
-        .gchip{padding:6px 11px;background:rgba(0,0,0,.4);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.14);border-radius:100px;font-size:11px;font-weight:500;letter-spacing:.02em}
+        .gchip{padding:6px 11px;background:rgba(0,0,0,.42);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.14);border-radius:100px;font-size:11px;font-weight:500;letter-spacing:.02em}
         .gchip.new{background:var(--gold);color:#000;border-color:var(--gold)}
+        .gchip.incl{color:var(--gold-2);border-color:rgba(212,175,55,.3)}
         .gchip.count{padding:5px 9px;font-variant-numeric:tabular-nums}
         .heart{width:42px;height:42px;border-radius:50%;background:rgba(0,0,0,.42);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.16);color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .4s var(--spring),background .3s,color .3s;flex-shrink:0}
         .heart:active{transform:scale(.84)}
@@ -167,7 +220,7 @@
         /* feature (home highlight) */
         .feat{position:relative;border-radius:var(--r-lg);overflow:hidden;aspect-ratio:16/12;box-shadow:var(--shadow);cursor:pointer;border:1px solid var(--line)}
         .feat .px{position:absolute;inset:-8%;width:116%;height:116%;object-fit:cover}
-        .feat-tag{position:absolute;top:16px;left:16px;z-index:3;padding:6px 12px;background:rgba(0,0,0,.4);backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.14);border-radius:100px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--gold)}
+        .feat-tag{position:absolute;top:16px;left:16px;z-index:3;padding:6px 12px;background:rgba(0,0,0,.42);backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.14);border-radius:100px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--gold)}
 
         /* saved row */
         .srow{display:flex;gap:14px;align-items:center;padding:14px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);margin-bottom:12px;cursor:pointer;transition:transform .3s var(--spring),border-color .3s}
@@ -179,13 +232,15 @@
         .saddr{font-size:12.5px;color:var(--ink-2);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
         .stag{display:inline-flex;align-items:center;gap:5px;margin-top:7px;font-size:11px;color:var(--gold)}
 
-        /* agent */
-        .agent{display:flex;align-items:center;gap:14px;padding:18px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r)}
-        .agent-ava{width:50px;height:50px;border-radius:50%;background:linear-gradient(140deg,var(--gold-2),var(--gold-deep));display:flex;align-items:center;justify-content:center;font-size:21px;flex-shrink:0;color:#000}
-        .agent-i{flex:1}
+        /* concierge / agent */
+        .agent{position:relative;display:flex;align-items:center;gap:14px;padding:18px;background:linear-gradient(135deg,var(--surface),var(--bg-1));border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+        .agent::before{content:'';position:absolute;inset:0;background:radial-gradient(100% 120% at 100% 0%,rgba(212,175,55,.08),transparent 55%);pointer-events:none}
+        .agent-ava{position:relative;width:50px;height:50px;border-radius:50%;background:linear-gradient(140deg,var(--gold-2),var(--gold-deep));display:flex;align-items:center;justify-content:center;font-size:21px;flex-shrink:0;color:#000;text-transform:uppercase}
+        .agent-i{flex:1;position:relative}
         .agent-n{font-weight:600;font-size:15px}
         .agent-r{font-size:12.5px;color:var(--ink-2);margin-top:1px}
-        .agent-b{padding:11px 18px;background:var(--surface-2);border:1px solid var(--line-2);border-radius:12px;font-weight:600;font-size:13px;cursor:pointer;transition:transform .25s var(--spring)}
+        .agent-b{position:relative;padding:11px 18px;background:var(--ink);color:#000;border:none;border-radius:12px;font-weight:600;font-size:13px;cursor:pointer;transition:transform .25s var(--spring)}
+        .agent-b.ghost{background:var(--surface-2);border:1px solid var(--line-2);color:var(--ink)}
         .agent-b:active{transform:scale(.96)}
 
         /* criteria / feed */
@@ -211,8 +266,8 @@
         .nav{position:fixed;bottom:0;left:0;right:0;background:rgba(0,0,0,.6);backdrop-filter:saturate(180%) blur(24px);-webkit-backdrop-filter:saturate(180%) blur(24px);border-top:1px solid var(--line);display:flex;justify-content:space-around;align-items:center;padding:9px 4px calc(9px + var(--safe-b));z-index:100}
         .ni{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--ink-3);cursor:pointer;padding:5px 16px;transition:color .3s var(--spring)}
         .ni.on{color:var(--ink)}
-        .ni-ic{font-size:21px;transition:transform .4s var(--spring)}
-        .ni.on .ni-ic{transform:translateY(-1px) scale(1.06)}
+        .ni-ic{font-size:20px;transition:transform .4s var(--spring)}
+        .ni.on .ni-ic{transform:translateY(-1px) scale(1.06);color:var(--gold)}
         .ni-l{font-size:9px;text-transform:uppercase;letter-spacing:.08em}
         .ni-b{position:absolute;top:0;right:9px;min-width:16px;height:16px;padding:0 4px;background:var(--gold);color:#000;border-radius:100px;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;font-variant-numeric:tabular-nums}
 
@@ -267,21 +322,40 @@
         .full:active{transform:scale(.99)}
         .ghost{width:100%;padding:15px;background:transparent;border:1px solid var(--line);border-radius:15px;color:var(--ink-2);font-weight:500;font-size:14px;cursor:pointer;margin-top:10px}
 
+        /* ── Concierge chat ── */
+        .chat-feed{display:flex;flex-direction:column;gap:4px;max-height:54vh;overflow-y:auto;padding:4px 0 6px}
+        .msg{max-width:82%;padding:11px 14px;border-radius:17px;font-size:14px;line-height:1.45;white-space:pre-wrap;word-break:break-word;margin-top:6px}
+        .msg.me{align-self:flex-end;background:var(--gold);color:#000;border-bottom-right-radius:5px}
+        .msg.them{align-self:flex-start;background:var(--surface-2);border:1px solid var(--line);border-bottom-left-radius:5px}
+        .msg-meta{font-size:9.5px;letter-spacing:.04em;color:var(--ink-3);margin:2px 4px 0}
+        .msg-meta.me{align-self:flex-end}
+        .chat-empty{text-align:center;color:var(--ink-3);font-size:13.5px;line-height:1.5;padding:34px 14px}
+        .chat-bar{display:flex;gap:9px;align-items:flex-end;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+        .chat-bar textarea{flex:1;padding:13px 15px;background:var(--surface);border:1px solid var(--line);border-radius:16px;color:var(--ink);font-size:16px;font-family:inherit;resize:none;max-height:120px;line-height:1.4}
+        .chat-bar textarea:focus{outline:none;border-color:var(--gold)}
+        .chat-send{width:46px;height:46px;flex-shrink:0;border-radius:50%;background:var(--gold);border:none;color:#000;font-size:18px;cursor:pointer;transition:transform .25s var(--spring),opacity .2s;display:flex;align-items:center;justify-content:center}
+        .chat-send:active{transform:scale(.92)}
+        .chat-wa{display:block;text-align:center;margin-top:14px;font-size:12.5px;color:var(--ink-3)}
+        .chat-wa a{color:var(--gold);cursor:pointer}
+
         /* ── Toast / alert / confetti ── */
         .toast{position:fixed;bottom:calc(96px + var(--safe-b));left:50%;transform:translateX(-50%) translateY(120px);padding:13px 22px;background:var(--surface-3);border:1px solid var(--line-2);border-radius:100px;font-size:14px;display:flex;align-items:center;gap:9px;z-index:2000;opacity:0;transition:all .45s var(--spring);max-width:90vw;box-shadow:var(--shadow)}
         .toast.show{transform:translateX(-50%) translateY(0);opacity:1}
         .toast.ok{border-color:rgba(48,209,88,.4)} .toast.err{border-color:rgba(255,69,58,.4)}
-        .alert{position:fixed;inset:0;background:rgba(0,0,0,.92);backdrop-filter:blur(26px);-webkit-backdrop-filter:blur(26px);z-index:2500;display:none;align-items:center;justify-content:center;flex-direction:column;padding:40px;text-align:center}
+        .alert{position:fixed;inset:0;background:rgba(0,0,0,.92);backdrop-filter:blur(26px);-webkit-backdrop-filter:blur(26px);z-index:2500;display:none;align-items:center;justify-content:center;flex-direction:column;padding:40px;text-align:center;overflow:hidden}
         .alert.show{display:flex}
-        .alert-ic{font-size:62px;margin-bottom:20px;animation:pop .6s var(--spring)}
+        .alert::before{content:'';position:absolute;inset:0;background:radial-gradient(60% 50% at 50% 42%,rgba(212,175,55,.22),transparent 60%);animation:bloom 1.2s var(--spring);pointer-events:none}
+        @keyframes bloom{from{opacity:0;transform:scale(.6)}to{opacity:1;transform:none}}
+        .alert-ic{position:relative;font-size:62px;margin-bottom:20px;color:var(--gold);animation:pop .6s var(--spring)}
         @keyframes pop{0%{transform:scale(0)}60%{transform:scale(1.2)}100%{transform:scale(1)}}
-        .alert-t{font-size:28px;margin-bottom:10px}
-        .alert-s{color:var(--ink-2);margin-bottom:30px;max-width:300px}
-        .alert-b{padding:16px 40px;background:var(--ink);color:#000;border:none;border-radius:15px;font-size:15px;font-weight:600;cursor:pointer}
+        .alert-t{position:relative;font-size:28px;margin-bottom:10px}
+        .alert-s{position:relative;color:var(--ink-2);margin-bottom:30px;max-width:300px}
+        .alert-b{position:relative;padding:16px 40px;background:var(--ink);color:#000;border:none;border-radius:15px;font-size:15px;font-weight:600;cursor:pointer}
         #confetti{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:3000}
     </style>
 </head>
 <body>
+    <div class="grain"></div>
     <canvas id="confetti"></canvas>
     <div class="loading" id="loading"><div class="l-mark">BOOM</div><div class="l-bar"></div></div>
 
@@ -296,7 +370,8 @@
     <div class="auth" id="auth">
         <div class="auth-box">
             <div class="auth-mark">BOOM</div>
-            <h1 class="auth-h serif" id="authTitle">La tua ricerca,<br>curata</h1>
+            <div class="auth-kick" id="authKick">Mid-term living · Roma</div>
+            <h1 class="auth-h serif" id="authTitle">Il tuo atelier<br>di relocation</h1>
             <p class="auth-p" id="authP">Accedi con il codice del tuo consulente</p>
             <input type="text" class="auth-input" id="code" placeholder="Codice di accesso" maxlength="16" autocomplete="off" autocapitalize="characters">
             <button class="auth-btn" id="authBtn" onclick="handleLogin()">Entra</button>
@@ -324,6 +399,7 @@
     <div class="toast" id="toast"><span id="toastIc">✓</span><span id="toastTx"></span></div>
 
     <script src="/js/boom-portal.js"></script>
+    <script src="/js/boom-cinema.js" defer></script>
     <script>
     'use strict';
     (function(){ try{ if(window.BoomPortal&&BoomPortal.registerServiceWorker) BoomPortal.registerServiceWorker(); }catch(e){} })();
@@ -331,71 +407,110 @@
 
     /* ───────── i18n ───────── */
     var T={
-      it:{ authTitle:'La tua ricerca,<br>curata', authP:'Accedi con il codice del tuo consulente', codePh:'Codice di accesso', enter:'Entra', invalid:'Codice non valido', noCode:'Nessun codice?', contact:'Contattaci',
-        nav_home:'Home', nav_explore:'Selezione', nav_saved:'Salvati', nav_profile:'Profilo', active:'Ricerca attiva',
-        j_searching:'Ricerca', j_options:'Proposte', j_viewing:'Visite', j_closing:'Contratto', j_completed:'Casa',
-        s_searching_t:'Stiamo cercando', s_searching_s:'Il tuo consulente sta selezionando gli immobili migliori per te.',
-        s_options_t:'La tua selezione è pronta', s_options_s:'Esplora le proposte e salva quelle che ti convincono.',
-        s_viewing_t:'Visite in corso', s_viewing_s:'Organizziamo le visite ai tuoi immobili preferiti.',
-        s_closing_t:'Ci siamo quasi', s_closing_s:'Stiamo finalizzando il contratto della tua nuova casa.',
-        s_completed_t:'Benvenuto a casa', s_completed_s:'Congratulazioni. Ora Roma è casa tua.',
-        st_days:'Giorni', st_options:'Proposte', st_match:'Affinità',
+      it:{ authKick:'Mid-term living · Roma', authTitle:'Il tuo atelier<br>di relocation', authP:'Accedi con il codice del tuo consulente', codePh:'Codice di accesso', enter:'Entra', invalid:'Codice non valido', noCode:'Nessun codice?', contact:'Contattaci',
+        nav_home:'Atelier', nav_explore:'Selezione', nav_saved:'Salvati', nav_profile:'Tu', active:'Ricerca attiva',
+        g_morning:'Buongiorno', g_afternoon:'Buon pomeriggio', g_evening:'Buonasera',
+        j_searching:'Caccia', j_options:'Selezione', j_viewing:'Visite', j_closing:'Firma', j_completed:'A casa',
+        s_searching_s:'Il motore BOOM sta setacciando Roma. Le prime proposte stanno arrivando.',
+        s_options_s:'La tua selezione è pronta. Esplora, salva, e affiniamo insieme.',
+        s_viewing_s:'Organizziamo le visite ai tuoi immobili preferiti. Pensiamo a tutto noi.',
+        s_closing_s:'Ci siamo. Stiamo finalizzando il contratto della tua nuova casa.',
+        s_completed_s:'Benvenuto a casa. Roma adesso è tua — noi restiamo al tuo fianco.',
+        eng_t:'Motore BOOM', eng_live:'Live', eng_props:'Selezionati', eng_new:'Nuovi', eng_match:'Affinità',
+        eng_note:'Monitoriamo Immobiliare, Idealista e i nostri canali privati 24/7. Solo ciò che merita arriva qui.',
+        film_t:'Il tuo trasferimento', film_s:'Dalla ricerca alle chiavi — curato in ogni dettaglio.',
+        here:'Sei qui',
+        act1_t:'La caccia', act1_s:'Il nostro motore analizza il mercato di Roma in tempo reale e scarta tutto ciò che non fa per te.', act1_c:'Motore BOOM · AI matching',
+        act2_t:'La selezione', act2_s:'Proposte curate a mano dal tuo consulente. Tu salvi ciò che ti piace, noi affiniamo la ricerca.', act2_c:'Curato a mano',
+        act3_t:'Le visite', act3_s:'Scegli quando: organizziamo noi gli appuntamenti e ti accompagniamo.', act3_c:'Concierge visite',
+        act4_t:'La firma', act4_s:'Contratto digitale firmato in 60 secondi dal telefono. Zero carta, zero code.', act4_c:'Firma digitale · 60s',
+        act5_t:'A casa', act5_s:'Le chiavi e il contratto nel tuo Apple Wallet, e un concierge per tutto il soggiorno.', act5_c:'Apple Wallet · Concierge',
+        incl_t:'Tutto incluso', incl_s:'Mid-term senza pensieri.',
+        i_furn:'Arredato e pronto', i_furn_s:'Chiavi in mano',
+        i_bills:'Bollette & Wi-Fi', i_bills_s:'Inclusi nel canone',
+        i_clean:'Pulizie', i_clean_s:'Su richiesta',
+        i_support:'Supporto 7/7', i_support_s:'Sempre raggiungibili',
+        i_sign:'Firma in 60s', i_sign_s:'Contratto digitale',
+        i_wallet:'Pass digitale', i_wallet_s:'Nel tuo Wallet',
         highlight:'In evidenza', collection:'La tua selezione', viewAll:'Vedi tutto', toReview:'da vedere',
-        agent:'Il tuo consulente', chat:'Scrivi', details:'Dettagli', requestViewing:'Richiedi visita', notForMe:'Non fa per me',
+        agent:'Il tuo concierge', agent_s:'Una persona vera, sempre dalla tua parte.', chat:'Scrivi', details:'Dettagli', requestViewing:'Richiedi visita', notForMe:'Non fa per me',
+        furnished:'Arredato', allIncl:'All-inclusive',
         save:'Salva', saved:'Salvato', affinity:'affinità',
         saved_t:'Immobili salvati', saved_empty_t:'Ancora nessun salvato', saved_empty_s:'Salva gli immobili che ti piacciono: li ritrovi qui, pronti per la visita.',
-        col_empty_t:'Selezione in arrivo', col_empty_s:'Il tuo consulente sta preparando le proposte. Ti avvisiamo appena sono pronte.',
+        col_empty_t:'Selezione in arrivo', col_empty_s:'Il motore sta lavorando e il tuo consulente sta curando le proposte. Ti avvisiamo appena sono pronte.',
         viewingReq:'Visita richiesta', cancelViewing:'Annulla richiesta', restore:'Ripristina',
         why:'Perché te lo proponiamo', bedShort:'locali', sqm:'m²', floorL:'piano',
         reject_t:'Cosa non ti convince?', reject_s:'Il tuo feedback affina la prossima selezione.',
         r_price:'Prezzo', r_zone:'Zona', r_size:'Dimensioni', r_condition:'Stato', r_floor:'Piano', r_furnish:'Arredo', r_photos:'Foto', r_other:'Altro', skip:'Salta',
         view_t:'Richiedi una visita', view_s:'Indica quando preferisci: organizziamo noi.', view_when:'Disponibilità', view_note:'Note', view_notePh:'Es. preferisco il pomeriggio…', view_send:'Invia richiesta',
         slot_asap:'Prima possibile', slot_morning:'Mattina', slot_afternoon:'Pomeriggio', slot_evening:'Sera', slot_weekend:'Weekend',
-        profile_t:'Profilo', criteria:'I tuoi criteri', edit:'Modifica', c_budget:'Budget', c_zone:'Zone', c_moveIn:'Ingresso', c_bedrooms:'Locali', c_must:'Indispensabili', c_deal:'Da evitare', notset:'Da definire',
-        edit_t:'Aggiorna i criteri', edit_s:'Più dettagli ci dai, più la selezione sarà su misura.', save_btn:'Salva', cancel:'Annulla',
+        profile_t:'Profilo', criteria:'Il tuo brief', edit:'Modifica', c_budget:'Budget', c_zone:'Zone', c_moveIn:'Ingresso', c_bedrooms:'Locali', c_must:'Indispensabili', c_deal:'Da evitare', notset:'Da definire',
+        edit_t:'Aggiorna il tuo brief', edit_s:'Più dettagli ci dai, più la selezione sarà su misura.', save_btn:'Salva', cancel:'Annulla',
         activity:'Attività', code:'Codice di accesso', logout:'Esci',
-        t_saved:'Salvato', t_unsaved:'Rimosso dai salvati', t_passed:'Grazie del feedback', t_viewing:'Richiesta inviata', t_restored:'Ripristinato', t_viewCancel:'Richiesta annullata', t_critSaved:'Criteri aggiornati',
-        a_homie_match:'Nuova proposta', a_like:'Salvato', a_reject:'Feedback inviato', a_undo:'Ripristinato', a_requestViewing:'Visita richiesta', a_cancelViewing:'Visita annullata', a_criteria_updated:'Criteri aggiornati', a_message:'Messaggio',
-        np_t:'Nuova proposta', np_s:'Il tuo consulente ha aggiunto un immobile', np_b:'Scopri →', perMonth:'mese' },
-      en:{ authTitle:'Your search,<br>curated', authP:'Sign in with your advisor\'s code', codePh:'Access code', enter:'Enter', invalid:'Invalid code', noCode:'No code?', contact:'Contact us',
-        nav_home:'Home', nav_explore:'Selection', nav_saved:'Saved', nav_profile:'Profile', active:'Search active',
-        j_searching:'Search', j_options:'Selection', j_viewing:'Viewings', j_closing:'Contract', j_completed:'Home',
-        s_searching_t:'We\'re searching', s_searching_s:'Your advisor is hand-selecting the best homes for you.',
-        s_options_t:'Your selection is ready', s_options_s:'Explore the proposals and save the ones you love.',
-        s_viewing_t:'Viewings in progress', s_viewing_s:'We\'re arranging visits to your favourite homes.',
-        s_closing_t:'Almost there', s_closing_s:'We\'re finalising the contract for your new home.',
-        s_completed_t:'Welcome home', s_completed_s:'Congratulations. Rome is now home.',
-        st_days:'Days', st_options:'Proposals', st_match:'Affinity',
+        chat_t:'Concierge', chat_ph:'Scrivi un messaggio…', chat_empty:'Scrivi al tuo consulente — domande, dubbi, preferenze. Rispondiamo in giornata.', chat_wa:'Preferisci WhatsApp?', chat_you:'Tu', chat_team:'BOOM',
+        t_saved:'Salvato', t_unsaved:'Rimosso dai salvati', t_passed:'Grazie del feedback', t_viewing:'Richiesta inviata', t_restored:'Ripristinato', t_viewCancel:'Richiesta annullata', t_critSaved:'Brief aggiornato', t_msg:'Messaggio inviato',
+        a_homie_match:'Nuova proposta', a_like:'Salvato', a_reject:'Feedback inviato', a_undo:'Ripristinato', a_requestViewing:'Visita richiesta', a_cancelViewing:'Visita annullata', a_criteria_updated:'Brief aggiornato', a_message:'Messaggio',
+        np_t:'Nuova proposta', np_s:'Il tuo consulente ha aggiunto un immobile per te', np_b:'Scopri →', perMonth:'mese' },
+      en:{ authKick:'Mid-term living · Rome', authTitle:'Your relocation<br>atelier', authP:'Sign in with your advisor\'s code', codePh:'Access code', enter:'Enter', invalid:'Invalid code', noCode:'No code?', contact:'Contact us',
+        nav_home:'Atelier', nav_explore:'Selection', nav_saved:'Saved', nav_profile:'You', active:'Search active',
+        g_morning:'Good morning', g_afternoon:'Good afternoon', g_evening:'Good evening',
+        j_searching:'Hunt', j_options:'Selection', j_viewing:'Viewings', j_closing:'Signing', j_completed:'Home',
+        s_searching_s:'The BOOM engine is combing through Rome. Your first proposals are on the way.',
+        s_options_s:'Your selection is ready. Explore, save, and we\'ll refine it together.',
+        s_viewing_s:'We\'re arranging visits to your favourite homes. Leave it all to us.',
+        s_closing_s:'Almost there. We\'re finalising the contract for your new home.',
+        s_completed_s:'Welcome home. Rome is yours now — and we stay by your side.',
+        eng_t:'BOOM engine', eng_live:'Live', eng_props:'Selected', eng_new:'New', eng_match:'Affinity',
+        eng_note:'We monitor Immobiliare, Idealista and our private channels 24/7. Only what\'s worth it reaches you.',
+        film_t:'Your move', film_s:'From search to keys — curated in every detail.',
+        here:'You are here',
+        act1_t:'The hunt', act1_s:'Our engine scans the Rome market in real time and discards everything that isn\'t for you.', act1_c:'BOOM engine · AI matching',
+        act2_t:'The selection', act2_s:'Proposals hand-picked by your advisor. You save what you love, we refine the search.', act2_c:'Hand-curated',
+        act3_t:'The viewings', act3_s:'You pick when: we arrange the appointments and come with you.', act3_c:'Viewing concierge',
+        act4_t:'The signing', act4_s:'Digital contract signed in 60 seconds from your phone. No paper, no queues.', act4_c:'Digital signing · 60s',
+        act5_t:'Home', act5_s:'Your keys and contract in your Apple Wallet, and a concierge for your whole stay.', act5_c:'Apple Wallet · Concierge',
+        incl_t:'All included', incl_s:'Mid-term, worry-free.',
+        i_furn:'Furnished & ready', i_furn_s:'Move-in ready',
+        i_bills:'Bills & Wi-Fi', i_bills_s:'Included in rent',
+        i_clean:'Cleaning', i_clean_s:'On request',
+        i_support:'7/7 support', i_support_s:'Always reachable',
+        i_sign:'60s signing', i_sign_s:'Digital contract',
+        i_wallet:'Digital pass', i_wallet_s:'In your Wallet',
         highlight:'Highlight', collection:'Your selection', viewAll:'See all', toReview:'to review',
-        agent:'Your advisor', chat:'Message', details:'Details', requestViewing:'Request viewing', notForMe:'Not for me',
+        agent:'Your concierge', agent_s:'A real person, always on your side.', chat:'Message', details:'Details', requestViewing:'Request viewing', notForMe:'Not for me',
+        furnished:'Furnished', allIncl:'All-inclusive',
         save:'Save', saved:'Saved', affinity:'affinity',
         saved_t:'Saved homes', saved_empty_t:'No saved homes yet', saved_empty_s:'Save the homes you like — find them here, ready to visit.',
-        col_empty_t:'Selection coming', col_empty_s:'Your advisor is preparing your proposals. We\'ll let you know the moment they\'re ready.',
+        col_empty_t:'Selection coming', col_empty_s:'The engine is working and your advisor is curating your proposals. We\'ll let you know the moment they\'re ready.',
         viewingReq:'Viewing requested', cancelViewing:'Cancel request', restore:'Restore',
         why:'Why we propose it', bedShort:'rooms', sqm:'m²', floorL:'floor',
         reject_t:'What\'s not right?', reject_s:'Your feedback refines the next selection.',
         r_price:'Price', r_zone:'Area', r_size:'Size', r_condition:'Condition', r_floor:'Floor', r_furnish:'Furnishing', r_photos:'Photos', r_other:'Other', skip:'Skip',
         view_t:'Request a viewing', view_s:'Tell us when works — we\'ll arrange it.', view_when:'Availability', view_note:'Notes', view_notePh:'E.g. afternoons preferred…', view_send:'Send request',
         slot_asap:'ASAP', slot_morning:'Morning', slot_afternoon:'Afternoon', slot_evening:'Evening', slot_weekend:'Weekend',
-        profile_t:'Profile', criteria:'Your criteria', edit:'Edit', c_budget:'Budget', c_zone:'Areas', c_moveIn:'Move-in', c_bedrooms:'Rooms', c_must:'Must-haves', c_deal:'Deal-breakers', notset:'Not set',
-        edit_t:'Update your criteria', edit_s:'The more detail, the more tailored your selection.', save_btn:'Save', cancel:'Cancel',
+        profile_t:'Profile', criteria:'Your brief', edit:'Edit', c_budget:'Budget', c_zone:'Areas', c_moveIn:'Move-in', c_bedrooms:'Rooms', c_must:'Must-haves', c_deal:'Deal-breakers', notset:'Not set',
+        edit_t:'Update your brief', edit_s:'The more detail, the more tailored your selection.', save_btn:'Save', cancel:'Cancel',
         activity:'Activity', code:'Access code', logout:'Sign out',
-        t_saved:'Saved', t_unsaved:'Removed from saved', t_passed:'Thanks for the feedback', t_viewing:'Request sent', t_restored:'Restored', t_viewCancel:'Request cancelled', t_critSaved:'Criteria updated',
-        a_homie_match:'New proposal', a_like:'Saved', a_reject:'Feedback sent', a_undo:'Restored', a_requestViewing:'Viewing requested', a_cancelViewing:'Viewing cancelled', a_criteria_updated:'Criteria updated', a_message:'Message',
-        np_t:'New proposal', np_s:'Your advisor added a home', np_b:'Discover →', perMonth:'mo' }
+        chat_t:'Concierge', chat_ph:'Type a message…', chat_empty:'Message your advisor — questions, doubts, preferences. We reply same day.', chat_wa:'Prefer WhatsApp?', chat_you:'You', chat_team:'BOOM',
+        t_saved:'Saved', t_unsaved:'Removed from saved', t_passed:'Thanks for the feedback', t_viewing:'Request sent', t_restored:'Restored', t_viewCancel:'Request cancelled', t_critSaved:'Brief updated', t_msg:'Message sent',
+        a_homie_match:'New proposal', a_like:'Saved', a_reject:'Feedback sent', a_undo:'Restored', a_requestViewing:'Viewing requested', a_cancelViewing:'Viewing cancelled', a_criteria_updated:'Brief updated', a_message:'Message',
+        np_t:'New proposal', np_s:'Your advisor added a home for you', np_b:'Discover →', perMonth:'mo' }
     };
     var lang='it';
     function t(k){ return (T[lang]&&T[lang][k]) || T.it[k] || k; }
 
     /* ───────── State + API ───────── */
-    var client=null, tab='home', code='', lastCount=0, pollTimer=null, demoMode=false;
+    var client=null, tab='home', code='', lastCount=0, pollTimer=null, demoMode=false, chatOpen=false;
     var DEMO={ name:'Marco Rossi', journey:{stage:'options',index:2,total:5}, stats:{days:12,options:3,liked:1,avgMatch:93},
       criteria:{minBudget:700,budget:1100,zone:'Trastevere, Centro Storico',moveIn:'2026-07-01',bedrooms:'2',mustHaves:'Luminoso, ascensore',dealBreakers:'Piano terra'},
       properties:[
-        {id:'p1',address:'Via dei Coronari, Centro Storico',price:1450,rooms:2,sqm:72,match:96,isNew:true,floor:'2°',images:['https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=1200','https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=1200'],description:'Appartamento ristrutturato con travi a vista e luce naturale, a pochi passi da Piazza Navona.',matchReasons:['✓ Nel tuo budget','✓ Zona preferita','✓ 2 locali come richiesto','≈ Luminoso ed elegante'],clientLiked:true,clientRejected:false},
-        {id:'p2',address:'Viale di Trastevere, Trastevere',price:1180,rooms:2,sqm:65,match:90,floor:'3°',images:['https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=1200','https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=1200'],description:'Bilocale arredato con balcone abitabile nel cuore di Trastevere.',matchReasons:['✓ Zona preferita','✓ Arredato','✓ Balcone'],clientLiked:false,clientRejected:false},
-        {id:'p3',address:'Via Giulia, Centro Storico',price:1620,rooms:2,sqm:80,match:88,isNew:true,floor:'1°',images:['https://images.unsplash.com/photo-1567496898669-ee935f5f647a?w=1200'],description:'Elegante appartamento su una delle vie più belle di Roma.',matchReasons:['✓ Zona preferita','≈ Leggermente sopra budget','✓ Ampia metratura'],clientLiked:false,clientRejected:false}
-      ], activity:[{type:'homie_match',timestamp:new Date(Date.now()-3600e3).toISOString()},{type:'like',timestamp:new Date(Date.now()-7200e3).toISOString()}], agent:{name:'Valentino',role:'Property Advisor',whatsapp:'393313251961'} };
+        {id:'p1',address:'Via dei Coronari, Centro Storico',zone:'Centro Storico',price:1450,rooms:2,sqm:72,match:96,isNew:true,furnished:true,floor:'2°',images:['https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=1200','https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=1200'],description:'Appartamento ristrutturato con travi a vista e luce naturale, a pochi passi da Piazza Navona. Arredato con gusto, pronto da vivere.',matchReasons:['✓ Nel tuo budget','✓ Zona preferita','✓ 2 locali come richiesto','✓ Arredato e luminoso'],clientLiked:true,clientRejected:false},
+        {id:'p2',address:'Viale di Trastevere, Trastevere',zone:'Trastevere',price:1180,rooms:2,sqm:65,match:90,furnished:true,floor:'3°',images:['https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=1200','https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=1200'],description:'Bilocale arredato con balcone abitabile nel cuore di Trastevere.',matchReasons:['✓ Zona preferita','✓ Arredato','✓ Balcone'],clientLiked:false,clientRejected:false},
+        {id:'p3',address:'Via Giulia, Centro Storico',zone:'Centro Storico',price:1620,rooms:2,sqm:80,match:88,isNew:true,furnished:true,floor:'1°',images:['https://images.unsplash.com/photo-1567496898669-ee935f5f647a?w=1200'],description:'Elegante appartamento su una delle vie più belle di Roma.',matchReasons:['✓ Zona preferita','≈ Leggermente sopra budget','✓ Ampia metratura'],clientLiked:false,clientRejected:false}
+      ],
+      activity:[{type:'homie_match',timestamp:new Date(Date.now()-3600e3).toISOString()},{type:'like',timestamp:new Date(Date.now()-7200e3).toISOString()}],
+      messages:[{from:'agent',text:'Ciao Marco! Ho appena aggiunto tre appartamenti in Centro che fanno per te. Dai un\'occhiata 👀',timestamp:new Date(Date.now()-5400e3).toISOString()},{from:'client',text:'Perfetto, grazie! Il primo mi piace molto',timestamp:new Date(Date.now()-3000e3).toISOString()},{from:'agent',text:'Ottimo gusto. Ti organizzo una visita questa settimana?',timestamp:new Date(Date.now()-1800e3).toISOString()}],
+      agent:{name:'Valentino',role:'Property Finder',whatsapp:'393313251961'} };
 
     function api(path,body){ return fetch('/api/portal/'+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(function(r){return r.json().catch(function(){return{ok:false};});}).catch(function(){return{ok:false};}); }
     function act(p){ if(demoMode) return Promise.resolve({ok:false,demo:true}); p.code=code; return api('action',p).then(function(r){ if(r&&r.ok&&r.client) client=r.client; return r; }); }
@@ -426,6 +541,10 @@
       for(var i=0;i<pxEls.length;i++){ var el=pxEls[i], host=el.parentElement, r=host.getBoundingClientRect(); if(r.bottom<-80||r.top>vh+80)continue; var prog=(r.top+r.height/2-vh/2)/vh; el.style.transform='translate3d(0,'+(prog*-22).toFixed(1)+'px,0)'; } }
     addEventListener('scroll',function(){ if(pxTicking)return; pxTicking=true; requestAnimationFrame(function(){ onPx(); pxTicking=false; }); },{passive:true});
 
+    /* count-up for the engine stats (reduced-motion safe) */
+    function countUps(){ if(RM)return; document.querySelectorAll('.cnt').forEach(function(el){ var to=parseInt(el.dataset.to,10); if(!(to>0)){ return; } var suf=el.dataset.suf||''; var st=performance.now(),dur=900;
+      (function step(now){ var k=Math.min(1,(now-st)/dur),e=1-Math.pow(1-k,3); el.textContent=Math.round(to*e)+suf; if(k<1)requestAnimationFrame(step); else el.textContent=to+suf; })(performance.now()); }); }
+
     /* ───────── Boot + auth ───────── */
     document.addEventListener('DOMContentLoaded',function(){
       try{ var sl=localStorage.getItem('boom_pfs_lang'); if(sl==='it'||sl==='en')lang=sl; else lang=(navigator.language||'').slice(0,2).toLowerCase()==='it'?'it':'en'; }catch(e){ lang='it'; }
@@ -445,6 +564,7 @@
       if(client){ document.getElementById('langT').textContent=lang.toUpperCase(); render(); act({action:'setLang',lang:lang}); } }
     function toggleLang(){ setLang(lang==='it'?'en':'it'); }
     function applyAuthLang(){
+      document.getElementById('authKick').textContent=t('authKick');
       document.getElementById('authTitle').innerHTML=t('authTitle');
       document.getElementById('authP').textContent=t('authP');
       document.getElementById('code').placeholder=t('codePh');
@@ -469,8 +589,10 @@
 
     /* ───────── Polling ───────── */
     function startPolling(){ if(demoMode)return; if(pollTimer)clearInterval(pollTimer); pollTimer=setInterval(function(){ if(document.hidden||!code)return; api('lookup',{code:code}).then(applyFresh); },30000); }
-    function applyFresh(res){ if(!(res&&res.ok&&res.client))return; var prev=lastCount; client=res.client; if(client.stats.options>prev){ lastCount=client.stats.options; newAlert(); } else { lastCount=client.stats.options; if(tab!=='detailOpen') render(); } }
-    function newAlert(){ document.getElementById('alertT').textContent=t('np_t'); document.getElementById('alertS').textContent=t('np_s'); document.getElementById('alertB').textContent=t('np_b'); document.getElementById('alert').classList.add('show'); haptic([8,40,8]); confetti(46); }
+    function applyFresh(res){ if(!(res&&res.ok&&res.client))return; var prev=lastCount; client=res.client;
+      if(client.stats.options>prev){ lastCount=client.stats.options; newAlert(); }
+      else { lastCount=client.stats.options; if(chatOpen){ refreshChat(); } else if(!document.getElementById('detOv').classList.contains('show')) render(); } }
+    function newAlert(){ document.getElementById('alertT').textContent=t('np_t'); document.getElementById('alertS').textContent=t('np_s'); document.getElementById('alertB').textContent=t('np_b'); document.getElementById('alert').classList.add('show'); haptic([8,40,8]); confetti(54); }
     function dismissAlert(){ document.getElementById('alert').classList.remove('show'); showTab('explore'); }
     document.addEventListener('visibilitychange',function(){ if(document.hidden||!client||!code||demoMode)return; api('lookup',{code:code}).then(applyFresh); });
 
@@ -479,20 +601,15 @@
     function notPassed(){ return (client.properties||[]).filter(function(p){return !p.clientRejected;}); }
     function saved(){ return (client.properties||[]).filter(function(p){return p.clientLiked&&!p.clientRejected;}); }
     function img1(p){ return (p.images&&p.images[0])||''; }
+    function greet(){ var h=new Date().getHours(); return h<12?t('g_morning'):(h<18?t('g_afternoon'):t('g_evening')); }
+    function firstName(){ return (client.name||'').trim().split(/\s+/)[0]||(lang==='it'?'Ospite':'Guest'); }
 
     function renderNav(){
       var n=notPassed().length, s=saved().length;
-      var items=[['home','◇',t('nav_home'),0],['explore','✦',t('nav_explore'),n],['saved','♥',t('nav_saved'),s],['profile','◍',t('nav_profile'),0]];
+      var items=[['home','◈',t('nav_home'),0],['explore','✦',t('nav_explore'),n],['saved','♥',t('nav_saved'),s],['profile','◍',t('nav_profile'),0]];
       document.getElementById('nav').innerHTML=items.map(function(it){ return '<div class="ni '+(tab===it[0]?'on':'')+'" onclick="showTab(\''+it[0]+'\')"><span class="ni-ic">'+it[1]+'</span><span class="ni-l">'+it[2]+'</span>'+(it[3]?'<span class="ni-b">'+it[3]+'</span>':'')+'</div>'; }).join('');
     }
-    var STATUS={searching:'✦',options:'◆',viewing:'❖',closing:'✎',completed:'⌂'};
     var JOURNEY=['searching','options','viewing','closing','completed'];
-
-    function journeyHTML(){
-      var idx=client.journey.index, fill=(idx-1)/(JOURNEY.length-1)*100;
-      return '<div class="journey reveal"><div class="jfill" style="width:calc('+fill+'% - '+(fill*0.36/100*100).toFixed(1)+'px)"></div>'+
-        JOURNEY.map(function(j,i){ var n=i+1, cls=idx>n?'done':(idx===n?'active':''); return '<div class="jstep '+cls+'"><div class="jdot">'+(idx>n?'✓':n)+'</div><div class="jlabel">'+t('j_'+j)+'</div></div>'; }).join('')+'</div>';
-    }
 
     function render(){
       renderNav();
@@ -502,51 +619,92 @@
       else if(tab==='saved') v.innerHTML=renderSaved();
       else if(tab==='profile') v.innerHTML=renderProfile();
       v.classList.remove('view'); void v.offsetWidth; v.classList.add('view');
-      requestAnimationFrame(scanMotion);
+      requestAnimationFrame(function(){ scanMotion(); countUps(); fillFilm(); });
     }
 
+    /* ── HOME (the cinematic spine) ── */
     function renderHome(){
-      var st=client.journey.stage;
+      var st=client.journey.stage, s=client.stats;
       var pool=notPassed().filter(function(p){return !p.clientLiked;});
       var top=(pool.length?pool:notPassed()).slice().sort(function(a,b){return (b.match||0)-(a.match||0);})[0];
-      var s=client.stats;
-      return '<div class="hero"><div class="hero-badge reveal"><i></i>'+t('active')+'</div>'+
-          '<div class="hero-ic reveal">'+(STATUS[st]||'✦')+'</div>'+
-          '<h1 class="hero-h serif reveal">'+esc(t('s_'+st+'_t'))+'</h1>'+
-          '<p class="hero-p reveal">'+esc(t('s_'+st+'_s'))+'</p></div>'+
-        journeyHTML()+
-        '<div class="stats reveal">'+
-          statCell(s.days,t('st_days'))+statCell(s.options,t('st_options'))+statCell(s.avgMatch?s.avgMatch+'%':'—',t('st_match'),true)+'</div>'+
+      var newCount=notPassed().filter(function(p){return p.isNew;}).length;
+      return '<div class="scene"><div class="scene-sky"></div>'+
+          '<div class="kicker reveal"><i></i>'+t('active')+' · Mid-term Roma</div>'+
+          '<h1 class="scene-h serif reveal">'+esc(greet())+',<br><em>'+esc(firstName())+'</em></h1>'+
+          '<p class="scene-p reveal">'+esc(t('s_'+st+'_s'))+'</p></div>'+
+        engineHTML(s,newCount)+
+        '<div class="sec"><div class="sec-h"><div class="sec-t">'+t('film_t')+'</div></div><div class="sec-sub" style="margin:-8px 2px 18px">'+t('film_s')+'</div>'+
+          filmHTML()+'</div>'+
         (top?'<div class="sec"><div class="sec-h"><div class="sec-t">'+t('highlight')+'</div>'+(notPassed().length>1?'<button class="sec-link" onclick="showTab(\'explore\')">'+t('viewAll')+'</button>':'')+'</div>'+
-          '<div class="feat reveal" onclick="openDetail(\''+top.id+'\')">'+mediaImg(top,'feat')+'<div class="media-veil"></div>'+(top.isNew?'<div class="feat-tag">'+t('a_homie_match')+'</div>':'')+
+          '<div class="feat ken reveal" onclick="openDetail(\''+top.id+'\')">'+mediaImg(top,'feat')+'<div class="media-veil"></div>'+(top.isNew?'<div class="feat-tag">'+t('a_homie_match')+'</div>':'')+
           '<div class="media-foot">'+(top.match?'<div class="p-match"><i></i>'+top.match+'% '+t('affinity')+'</div>':'')+'<div class="p-price serif">€'+fmt(top.price)+' <small>/'+t('perMonth')+'</small></div><div class="p-addr">'+esc(top.address)+'</div></div></div></div>':'')+
-        '<div class="sec"><div class="sec-h"><div class="sec-t">'+t('agent')+'</div></div>'+
-          '<div class="agent reveal"><div class="agent-ava">✦</div><div class="agent-i"><div class="agent-n">'+esc(client.agent.name)+'</div><div class="agent-r">BOOM · '+esc(client.agent.role)+'</div></div><button class="agent-b" onclick="chatAgent()">'+t('chat')+'</button></div></div>';
+        '<div class="sec"><div class="sec-h"><div class="sec-t">'+t('incl_t')+'</div></div><div class="sec-sub" style="margin:-8px 2px 14px">'+t('incl_s')+'</div>'+inclHTML()+'</div>'+
+        conciergeHTML();
     }
-    function statCell(v,l,g){ return '<div class="stat"><div class="stat-v '+(g?'gold':'')+'">'+v+'</div><div class="stat-l">'+l+'</div></div>'; }
+
+    function engineHTML(s,newCount){
+      return '<div class="engine reveal">'+
+        '<div class="radar"><i class="r1"></i><i class="r2"></i><i class="core"></i></div>'+
+        '<div class="engine-main">'+
+          '<div class="engine-h">'+t('eng_t')+' · <span class="live"><b></b>'+t('eng_live')+'</span></div>'+
+          '<div class="engine-stats">'+
+            '<div class="es"><b class="cnt" data-to="'+s.options+'">'+s.options+'</b><span>'+t('eng_props')+'</span></div>'+
+            '<div class="es"><b class="cnt" data-to="'+(newCount||0)+'">'+(newCount||0)+'</b><span>'+t('eng_new')+'</span></div>'+
+            '<div class="es gold"><b class="cnt" data-to="'+(s.avgMatch||0)+'" data-suf="%">'+(s.avgMatch?s.avgMatch+'%':'—')+'</b><span>'+t('eng_match')+'</span></div>'+
+          '</div>'+
+          '<div class="engine-note">'+t('eng_note')+'</div>'+
+        '</div></div>';
+    }
+
+    var ACTS=[{ic:'✦'},{ic:'◆'},{ic:'❖'},{ic:'✎'},{ic:'⌂'}];
+    function filmHTML(){
+      var idx=client.journey.index;
+      return '<div class="film"><div class="film-rail"><i id="filmFill"></i></div>'+
+        ACTS.map(function(a,i){ var n=i+1, cls=idx>n?'done':(idx===n?'now':''); var rn=['I','II','III','IV','V'][i];
+          return '<div class="act '+cls+' reveal">'+
+            '<div class="act-dot">'+(idx>n?'✓':(idx===n?a.ic:''))+'</div>'+
+            '<div class="act-no">'+(lang==='it'?'Atto ':'Act ')+rn+(idx===n?'<span class="act-here">· '+t('here')+'</span>':'')+'</div>'+
+            '<div class="act-t serif">'+t('act'+n+'_t')+'</div>'+
+            '<div class="act-s">'+t('act'+n+'_s')+'</div>'+
+            '<div class="act-chip"><i></i>'+t('act'+n+'_c')+'</div>'+
+          '</div>';
+        }).join('')+'</div>';
+    }
+    function fillFilm(){ var f=document.getElementById('filmFill'); if(!f)return; var idx=client.journey.index, pct=Math.max(0,Math.min(100,(idx-1)/(ACTS.length-1)*100));
+      if(RM){ f.style.height=pct+'%'; return; } f.style.height='0%'; requestAnimationFrame(function(){ requestAnimationFrame(function(){ f.style.height=pct+'%'; }); }); }
+
+    function inclHTML(){
+      var items=[['⌂',t('i_furn'),t('i_furn_s')],['✧',t('i_bills'),t('i_bills_s')],['✦',t('i_clean'),t('i_clean_s')],['❖',t('i_support'),t('i_support_s')],['✎',t('i_sign'),t('i_sign_s')],['◈',t('i_wallet'),t('i_wallet_s')]];
+      return '<div class="incl reveal">'+items.map(function(it){ return '<div class="inc"><div class="inc-ic">'+it[0]+'</div><div><div class="inc-t">'+it[1]+'</div><div class="inc-s">'+it[2]+'</div></div></div>'; }).join('')+'</div>';
+    }
+    function conciergeHTML(){
+      return '<div class="sec"><div class="sec-h"><div class="sec-t">'+t('agent')+'</div></div>'+
+        '<div class="agent reveal"><div class="agent-ava">'+esc((client.agent.name||'V').charAt(0))+'</div><div class="agent-i"><div class="agent-n">'+esc(client.agent.name)+'</div><div class="agent-r">'+t('agent_s')+'</div></div><button class="agent-b" onclick="openConcierge()">'+t('chat')+'</button></div></div>';
+    }
     function fmt(n){ return (n||0).toLocaleString(lang==='it'?'it-IT':'en-US'); }
     function mediaImg(p,cls){ var im=img1(p); return im?'<img class="px" src="'+esc(im)+'" alt="" loading="lazy">':'<div class="'+(cls==='feat'?'feat':'prop-media')+' ph" style="position:absolute;inset:0">⌂</div>'; }
 
+    /* ── EXPLORE ── */
     function renderExplore(){
       var list=notPassed();
       if(!list.length) return '<div class="empty reveal"><div class="empty-ic">✦</div><div class="empty-t serif">'+t('col_empty_t')+'</div><div class="empty-s">'+t('col_empty_s')+'</div></div>';
       list=list.slice().sort(function(a,b){ return (b.isNew?1:0)-(a.isNew?1:0) || (b.match||0)-(a.match||0); });
-      return '<div class="sec-h" style="margin:6px 2px 18px"><div class="sec-t">'+t('collection')+'</div><div class="count">'+list.length+' '+t('toReview')+'</div></div>'+
+      return '<div class="sec-h" style="margin:6px 2px 4px"><div class="sec-t">'+t('collection')+'</div><div class="count">'+list.length+' '+t('toReview')+'</div></div>'+
+        '<div class="sec-sub" style="margin:0 2px 18px">'+t('film_s')+'</div>'+
         list.map(propCard).join('');
     }
-
     function propCard(p){
       var im=img1(p), imgs=(p.images||[]).length;
       return '<article class="prop reveal" id="prop-'+p.id+'">'+
-        '<div class="prop-media'+(im?'':' ph')+'" onclick="openDetail(\''+p.id+'\')">'+
+        '<div class="prop-media ken'+(im?'':' ph')+'" onclick="openDetail(\''+p.id+'\')">'+
           (im?'<img class="px" src="'+esc(im)+'" alt="" loading="lazy">':'⌂')+
           '<div class="media-veil"></div>'+
-          '<div class="media-top"><div class="chiprow">'+(p.isNew?'<span class="gchip new">'+t('a_homie_match')+'</span>':'')+(p.zone?'<span class="gchip">'+esc(p.zone)+'</span>':'')+(imgs>1?'<span class="gchip count">1 / '+imgs+'</span>':'')+'</div>'+
+          '<div class="media-top"><div class="chiprow">'+(p.isNew?'<span class="gchip new">'+t('a_homie_match')+'</span>':'')+(p.furnished?'<span class="gchip incl">'+t('furnished')+'</span>':'')+(imgs>1?'<span class="gchip count">1 / '+imgs+'</span>':'')+'</div>'+
             '<button class="heart '+(p.clientLiked?'on':'')+'" onclick="event.stopPropagation();toggleSave(\''+p.id+'\',this)">'+(p.clientLiked?'♥':'♡')+'</button></div>'+
           '<div class="media-foot">'+(p.match?'<div class="p-match"><i></i>'+p.match+'% '+t('affinity')+'</div>':'')+'<div class="p-price serif">€'+fmt(p.price)+' <small>/'+t('perMonth')+'</small></div><div class="p-addr">'+esc(p.address)+'</div></div>'+
         '</div>'+
         '<div class="prop-body">'+
-          '<div class="specs">'+spec('◳',(p.rooms||1)+' '+t('bedShort'))+(p.sqm?spec('▭',p.sqm+' '+t('sqm')):'')+(p.floor?spec('⌂',p.floor+' '+t('floorL')):'')+'</div>'+
+          '<div class="specs">'+spec('◳',(p.rooms||1)+' '+t('bedShort'))+(p.sqm?spec('▭',p.sqm+' '+t('sqm')):'')+(p.floor?spec('⌂',p.floor+' '+t('floorL')):'')+(p.furnished?spec('✦',t('allIncl')):'')+'</div>'+
           '<div class="prop-acts">'+
             (p.viewingRequested?'<button class="btn-1" style="background:var(--green-soft);color:var(--green)" onclick="onCancelViewing(\''+p.id+'\')">✓ '+t('viewingReq')+'</button>':'<button class="btn-1" onclick="openViewing(\''+p.id+'\')">'+t('requestViewing')+'</button>')+
             '<button class="btn-2" onclick="openDetail(\''+p.id+'\')">'+t('details')+'</button>'+
@@ -555,6 +713,7 @@
     }
     function spec(ic,tx){ return '<span class="spec">'+ic+' '+tx+'</span>'; }
 
+    /* ── SAVED ── */
     function renderSaved(){
       var lk=saved();
       if(!lk.length) return '<div class="empty reveal"><div class="empty-ic">♡</div><div class="empty-t serif">'+t('saved_empty_t')+'</div><div class="empty-s">'+t('saved_empty_s')+'</div></div>';
@@ -567,16 +726,17 @@
             '</div></div>'; }).join('');
     }
 
+    /* ── PROFILE ── */
     function renderProfile(){
       var c=client.criteria, money=function(a,b){ if(!a&&!b)return t('notset'); if(a&&b)return '€'+fmt(a)+' – €'+fmt(b); return '€'+fmt(b||a); };
       var rows=[[t('c_budget'),money(c.minBudget,c.budget)],[t('c_zone'),c.zone||t('notset')],[t('c_moveIn'),c.moveIn||t('notset')],[t('c_bedrooms'),c.bedrooms?c.bedrooms+'+':t('notset')],[t('c_must'),c.mustHaves||t('notset')],[t('c_deal'),c.dealBreakers||t('notset')]];
       var acts=client.activity||[];
-      return '<div class="hero" style="padding:30px 6px 8px"><div class="agent-ava reveal" style="margin:0 auto 14px;width:66px;height:66px;font-size:26px">'+(client.name||'·').charAt(0).toUpperCase()+'</div><h1 class="hero-h serif reveal" style="font-size:26px">'+esc(client.name)+'</h1><p class="hero-p reveal">'+t('active')+' · '+client.stats.days+' '+t('st_days').toLowerCase()+'</p></div>'+
-        '<div class="sec"><div class="sec-h"><div class="sec-t">'+t('criteria')+'</div><button class="sec-link" onclick="openCriteria()">'+t('edit')+'</button></div>'+
+      return '<div class="scene" style="padding:30px 4px 6px"><div class="scene-sky" style="height:240px;top:-70px"></div><div class="agent-ava reveal" style="margin:0 auto 14px;width:66px;height:66px;font-size:26px">'+esc((client.name||'·').charAt(0).toUpperCase())+'</div><h1 class="scene-h serif reveal" style="font-size:27px">'+esc(client.name)+'</h1><p class="scene-p reveal">'+t('active')+' · '+client.stats.days+' '+(lang==='it'?'giorni con noi':'days with us')+'</p></div>'+
+        '<div class="sec" style="margin-top:30px"><div class="sec-h"><div class="sec-t">'+t('criteria')+'</div><button class="sec-link" onclick="openCriteria()">'+t('edit')+'</button></div>'+
           '<div class="panel reveal">'+rows.map(function(r){return '<div class="crow"><span class="k">'+r[0]+'</span><span class="v">'+esc(r[1])+'</span></div>';}).join('')+'</div></div>'+
         (acts.length?'<div class="sec"><div class="sec-h"><div class="sec-t">'+t('activity')+'</div></div><div class="panel reveal"><div class="feed">'+acts.slice(0,8).map(function(a){return '<div class="fi"><div class="fi-ic">'+actIc(a.type)+'</div><div><div class="fi-t">'+t('a_'+a.type)+(a.reason?' · '+esc(a.reason):'')+'</div><div class="fi-d">'+ago(a.timestamp)+'</div></div></div>';}).join('')+'</div></div></div>':'')+
-        '<div class="sec"><div class="sec-h"><div class="sec-t">'+t('agent')+'</div></div><div class="agent reveal"><div class="agent-ava">✦</div><div class="agent-i"><div class="agent-n">'+esc(client.agent.name)+'</div><div class="agent-r">BOOM · '+esc(client.agent.role)+'</div></div><button class="agent-b" onclick="chatAgent()">'+t('chat')+'</button></div></div>'+
-        '<div class="sec"><div class="panel reveal" style="display:flex;align-items:center;justify-content:space-between;padding:18px"><div><div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);margin-bottom:6px">'+t('code')+'</div><code style="font-size:17px;color:var(--gold);letter-spacing:.12em">'+esc(code)+'</code></div><button class="agent-b" onclick="logout()">'+t('logout')+'</button></div></div>';
+        '<div class="sec"><div class="sec-h"><div class="sec-t">'+t('agent')+'</div></div><div class="agent reveal"><div class="agent-ava">'+esc((client.agent.name||'V').charAt(0))+'</div><div class="agent-i"><div class="agent-n">'+esc(client.agent.name)+'</div><div class="agent-r">'+t('agent_s')+'</div></div><button class="agent-b" onclick="openConcierge()">'+t('chat')+'</button></div></div>'+
+        '<div class="sec"><div class="panel reveal" style="display:flex;align-items:center;justify-content:space-between;padding:18px"><div><div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);margin-bottom:6px">'+t('code')+'</div><code style="font-size:17px;color:var(--gold);letter-spacing:.12em">'+esc(code)+'</code></div><button class="agent-b ghost" onclick="logout()">'+t('logout')+'</button></div></div>';
     }
     function actIc(ty){ return {homie_match:'✦',like:'♥',reject:'·',undo:'↺',requestViewing:'❖',cancelViewing:'✕',criteria_updated:'◍',message:'✉'}[ty]||'·'; }
     function ago(ts){ if(!ts)return''; var d=new Date(ts),s=(Date.now()-d.getTime())/1000; if(s<60)return lang==='it'?'adesso':'now'; if(s<3600)return ~~(s/60)+'m'; if(s<86400)return ~~(s/3600)+'h'; var dd=~~(s/86400); if(dd<7)return dd+(lang==='it'?'g':'d'); return d.toLocaleDateString(lang==='it'?'it-IT':'en-GB',{day:'numeric',month:'short'}); }
@@ -586,7 +746,6 @@
     function toggleSave(id,el){ var p=(client.properties||[]).find(function(x){return x.id===id;}); if(!p)return; var on=!p.clientLiked; setP(id,{clientLiked:on,clientRejected:false}); haptic(on?12:6);
       if(el){ el.classList.toggle('on',on); el.textContent=on?'♥':'♡'; } else render();
       toast(on?t('t_saved'):t('t_unsaved'), on?'ok':''); act({action:on?'like':'undo',propertyId:id}); }
-    function onReject(id){ openReject(id); }
     function doReject(id,reason){ closeSheet(); var card=document.getElementById('prop-'+id); if(card){ card.style.transition='opacity .45s var(--ease),transform .45s var(--ease),max-height .5s var(--ease),margin .5s,padding .5s'; card.style.maxHeight=card.offsetHeight+'px'; void card.offsetWidth; card.style.opacity='0'; card.style.transform='scale(.96)'; card.style.maxHeight='0'; card.style.margin='0'; card.style.padding='0'; }
       setP(id,{clientRejected:true,clientLiked:false,rejectReason:reason||''}); haptic(); toast(t('t_passed')); act({action:'reject',propertyId:id,reason:reason||''}); setTimeout(function(){ if(tab==='explore'||tab==='saved')render(); else renderNav(); },500); }
     function onRestore(id){ setP(id,{clientRejected:false}); haptic(); render(); act({action:'undo',propertyId:id}); toast(t('t_restored')); }
@@ -604,7 +763,7 @@
           (p.match?'<div class="p-match" style="margin-bottom:10px"><i></i>'+p.match+'% '+t('affinity')+'</div>':'')+
           '<div class="det-price serif">€'+fmt(p.price)+' <small>/'+t('perMonth')+'</small></div>'+
           '<div class="det-addr">'+esc(p.address)+(p.zone?' · '+esc(p.zone):'')+'</div>'+
-          '<div class="det-specs">'+spec('◳',(p.rooms||1)+' '+t('bedShort'))+(p.sqm?spec('▭',p.sqm+' '+t('sqm')):'')+(p.floor?spec('⌂',p.floor+' '+t('floorL')):'')+'</div>'+
+          '<div class="det-specs">'+spec('◳',(p.rooms||1)+' '+t('bedShort'))+(p.sqm?spec('▭',p.sqm+' '+t('sqm')):'')+(p.floor?spec('⌂',p.floor+' '+t('floorL')):'')+(p.furnished?spec('✦',t('furnished')):'')+'</div>'+
           (p.description?'<div class="det-desc">'+esc(p.description)+'</div>':'')+
           (reasons.length?'<div class="why"><div class="why-h">'+t('why')+'</div>'+reasons.map(function(r){var ok=r.indexOf('✓')>=0; return '<div class="why-r"><b>'+(ok?'✓':'≈')+'</b><span>'+esc(r.replace(/[✓≈]\s?/,''))+'</span></div>';}).join('')+'</div>':'')+
         '</div>'+
@@ -618,7 +777,7 @@
 
     /* ───────── Sheets ───────── */
     function openSheet(html){ document.getElementById('sheet').innerHTML='<div class="grab"></div>'+html; document.getElementById('ov').classList.add('show'); document.body.style.overflow='hidden'; }
-    function closeSheet(){ document.getElementById('ov').classList.remove('show'); if(!document.getElementById('detOv').classList.contains('show'))document.body.style.overflow=''; }
+    function closeSheet(){ chatOpen=false; document.getElementById('ov').classList.remove('show'); if(!document.getElementById('detOv').classList.contains('show'))document.body.style.overflow=''; }
 
     function openReject(id){
       var rs=[['price','€',t('r_price')],['zone','◍',t('r_zone')],['size','▭',t('r_size')],['condition','✎',t('r_condition')],['floor','⌂',t('r_floor')],['furnish','◳',t('r_furnish')],['photos','▣',t('r_photos')],['other','·',t('r_other')]];
@@ -645,6 +804,32 @@
       var cr={minBudget:g('cMin'),budget:g('cMax'),zone:g('cZone'),moveIn:g('cMove'),bedrooms:g('cBed'),mustHaves:g('cMust'),dealBreakers:g('cDeal')};
       Object.assign(client.criteria,{minBudget:parseInt(cr.minBudget)||null,budget:parseInt(cr.budget)||null,zone:cr.zone,moveIn:cr.moveIn,bedrooms:cr.bedrooms,mustHaves:cr.mustHaves,dealBreakers:cr.dealBreakers});
       closeSheet(); haptic(); render(); toast(t('t_critSaved'),'ok'); act({action:'updateCriteria',criteria:cr}); }
+
+    /* ───────── Concierge chat (real, wired to portalMessages) ───────── */
+    function openConcierge(){ chatOpen=true; haptic();
+      openSheet('<div class="sh-h serif">'+t('chat_t')+'</div><div class="sh-p">'+esc(client.agent.name)+' · BOOM</div>'+
+        '<div class="chat-feed" id="chatFeed">'+chatBodyHTML()+'</div>'+
+        '<div class="chat-bar"><textarea id="chatIn" rows="1" placeholder="'+t('chat_ph')+'" oninput="growChat(this)" onkeydown="chatKey(event)"></textarea><button class="chat-send" onclick="sendConciergeMsg()">↑</button></div>'+
+        '<div class="chat-wa">'+t('chat_wa')+' <a onclick="chatAgent()">WhatsApp →</a></div>');
+      scrollChat();
+    }
+    function chatBodyHTML(){
+      var ms=client.messages||[];
+      if(!ms.length) return '<div class="chat-empty">'+t('chat_empty')+'</div>';
+      return ms.map(function(m){ var me=m.from==='client'; return '<div class="msg '+(me?'me':'them')+'">'+esc(m.text)+'</div><div class="msg-meta'+(me?' me':'')+'">'+(me?t('chat_you'):t('chat_team'))+' · '+ago(m.timestamp)+'</div>'; }).join('');
+    }
+    function refreshChat(){ var f=document.getElementById('chatFeed'); if(f){ f.innerHTML=chatBodyHTML(); scrollChat(); } }
+    function scrollChat(){ var f=document.getElementById('chatFeed'); if(f) requestAnimationFrame(function(){ f.scrollTop=f.scrollHeight; }); }
+    function growChat(el){ el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,120)+'px'; }
+    function chatKey(e){ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); sendConciergeMsg(); } }
+    function sendConciergeMsg(){
+      var inp=document.getElementById('chatIn'); if(!inp)return; var text=(inp.value||'').trim(); if(!text)return;
+      inp.value=''; inp.style.height='auto'; haptic();
+      client.messages=(client.messages||[]).concat([{from:'client',text:text,timestamp:new Date().toISOString()}]);
+      refreshChat();
+      if(demoMode){ setTimeout(function(){ client.messages.push({from:'agent',text:(lang==='it'?'Ricevuto! Ti rispondo a breve. (anteprima demo)':'Got it! I\'ll get back to you shortly. (demo preview)'),timestamp:new Date().toISOString()}); refreshChat(); },1200); return; }
+      act({action:'message',text:text}).then(function(r){ if(r&&r.ok){ refreshChat(); toast(t('t_msg'),'ok'); } });
+    }
     </script>
 </body>
 </html>
