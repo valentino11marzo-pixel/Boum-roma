@@ -64,7 +64,14 @@ async function sendEmail({ name, email, phone, listingName, listingId, moveIn, d
   try {
     const r = await fetch('https://api.web3forms.com/submit', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        // Web3Forms enforces an allowed-domains check against Origin/Referer;
+        // a server-side fetch has none, so present the production origin.
+        'Origin': 'https://boomrome.com',
+        'Referer': 'https://boomrome.com/',
+      },
       body: JSON.stringify(payload),
     });
     const j = await r.json().catch(() => ({}));
