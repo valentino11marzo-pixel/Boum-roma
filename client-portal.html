@@ -130,12 +130,12 @@
         .cp-logout:hover{border-color:var(--red);color:var(--red)}
 
         /* Mobile top bar + bottom tabs */
-        .cp-topbar{position:fixed;top:0;left:0;right:0;height:calc(54px + var(--safe-t));padding-top:var(--safe-t);background:rgba(8,8,10,.93);backdrop-filter:saturate(150%) blur(13px);-webkit-backdrop-filter:saturate(150%) blur(13px);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding-left:20px;padding-right:14px;z-index:60}
+        .cp-topbar{position:fixed;top:0;left:0;right:0;height:calc(54px + var(--safe-t));padding-top:var(--safe-t);background:rgba(8,8,10,.97);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding-left:20px;padding-right:14px;z-index:60}
         .cp-topbar .cp-logo svg{width:30px;height:30px}
         .cp-topbar .cp-logo-txt{font-size:17px;letter-spacing:4px}
         .cp-lang-t{padding:7px 13px;background:transparent;border:1px solid var(--line-2);color:var(--ink-2);font-size:11px;font-weight:600;letter-spacing:1px;transition:all .25s var(--ease)}
         .cp-lang-t:active{transform:scale(.95)}
-        .cp-tabbar{position:fixed;bottom:0;left:0;right:0;background:rgba(8,8,10,.93);backdrop-filter:saturate(150%) blur(13px);-webkit-backdrop-filter:saturate(150%) blur(13px);border-top:1px solid var(--line);display:flex;justify-content:space-around;align-items:center;padding:8px 4px calc(8px + var(--safe-b));z-index:60}
+        .cp-tabbar{position:fixed;bottom:0;left:0;right:0;background:rgba(8,8,10,.97);border-top:1px solid var(--line);display:flex;justify-content:space-around;align-items:center;padding:8px 4px calc(8px + var(--safe-b));z-index:60}
         .cp-tabbar .cp-navi{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--ink-4);padding:5px 16px;transition:color .3s var(--ease)}
         .cp-tabbar .cp-navi.on{color:var(--gold)}
         .cp-tabbar .cp-navi .ic{font-size:19px}
@@ -244,23 +244,23 @@
         .cp-btn.sm{padding:9px 14px;font-size:11px}
         .cp-btn-text{background:none;border:none;color:var(--ink-3);font-size:12px;letter-spacing:.04em;padding:13px 6px;white-space:nowrap}
         .cp-btn-text:hover{color:var(--ink-2)}
-        .cp-chip{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:100px;font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.5px;background:rgba(0,0,0,.46);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.14);color:#fff}
+        .cp-chip{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:100px;font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.5px;background:rgba(0,0,0,.7);border:1px solid rgba(255,255,255,.14);color:#fff}
         .cp-chip.gold{background:var(--gold);color:#000;border-color:var(--gold)}
-        .cp-chip.line-gold{background:rgba(0,0,0,.42);color:var(--gold-light);border-color:var(--line-gold)}
+        .cp-chip.line-gold{background:rgba(0,0,0,.66);color:var(--gold-light);border-color:var(--line-gold)}
 
         /* ── Property card (listing language) ── */
         .cp-prop{position:relative;background:var(--void);border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden;display:flex;flex-direction:column;transition:transform .4s var(--ease),border-color .4s,box-shadow .4s}
         .cp-prop:hover{transform:translateY(-5px);border-color:var(--line-gold);box-shadow:0 26px 70px rgba(0,0,0,.6),0 0 0 1px rgba(255,215,0,.08)}
         .cp-prop-media{position:relative;aspect-ratio:16/11;overflow:hidden;background:var(--surface-2);cursor:pointer}
-        .cp-prop-media .px{position:absolute;inset:-7%;width:114%;height:114%;object-fit:cover;will-change:transform}
-        .cp-ken .px{animation:ken 28s var(--ease) infinite alternate}
-        @keyframes ken{0%{transform:scale(1.05)}100%{transform:scale(1.13) translate(-1.5%,-1%)}}
-        @media (prefers-reduced-motion:reduce){.cp-ken .px{animation:none}}
+        .cp-prop-media .px{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+        
+        @keyframes
+        @media
         .cp-prop-media.ph{display:flex;align-items:center;justify-content:center;font-size:46px;color:var(--ink-4)}
         .cp-veil{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.78) 0%,rgba(0,0,0,.1) 46%,transparent 72%)}
         .cp-media-top{position:absolute;top:14px;left:14px;right:14px;display:flex;align-items:flex-start;justify-content:space-between;gap:8px;z-index:3}
         .cp-chiprow{display:flex;gap:7px;flex-wrap:wrap}
-        .cp-heart{width:40px;height:40px;border-radius:50%;background:rgba(0,0,0,.46);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.16);color:#fff;font-size:17px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:transform .4s var(--ease),background .3s,color .3s}
+        .cp-heart{width:40px;height:40px;border-radius:50%;background:rgba(0,0,0,.7);border:1px solid rgba(255,255,255,.16);color:#fff;font-size:17px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:transform .4s var(--ease),background .3s,color .3s}
         .cp-heart:active{transform:scale(.84)}
         .cp-heart.on{background:#fff;color:var(--red);border-color:#fff;animation:hp .5s var(--ease)}
         @keyframes hp{0%{transform:scale(1)}40%{transform:scale(1.26)}100%{transform:scale(1)}}
@@ -282,7 +282,7 @@
         /* feature */
         .cp-feat{position:relative;border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden;aspect-ratio:16/11;cursor:pointer;transition:transform .4s var(--ease),border-color .4s}
         .cp-feat:hover{transform:translateY(-4px);border-color:var(--line-gold)}
-        .cp-feat .px{position:absolute;inset:-7%;width:114%;height:114%;object-fit:cover}
+        .cp-feat .px{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
         .cp-feat-tag{position:absolute;top:16px;left:16px;z-index:3}
 
         /* collection grid */
@@ -324,7 +324,7 @@
         .cp-det.show{display:flex}
         @keyframes dIn{from{opacity:0;transform:scale(.98)}to{opacity:1;transform:none}}
         .cp-det-scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
-        .cp-det-close{position:fixed;top:calc(14px + var(--safe-t));right:16px;z-index:10;width:40px;height:40px;border-radius:50%;background:rgba(0,0,0,.5);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.18);color:#fff;font-size:17px}
+        .cp-det-close{position:fixed;top:calc(14px + var(--safe-t));right:16px;z-index:10;width:40px;height:40px;border-radius:50%;background:rgba(0,0,0,.72);border:1px solid rgba(255,255,255,.18);color:#fff;font-size:17px}
         .cp-gal{position:relative;width:100%;aspect-ratio:16/11;background:var(--surface-2)}
         @media (min-width:1024px){.cp-gal{aspect-ratio:21/9;max-height:62vh}}
         .cp-gtrack{display:flex;width:100%;height:100%;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
@@ -344,12 +344,12 @@
         .cp-why-h{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--ink-3);margin-bottom:14px}
         .cp-why-r{display:flex;gap:11px;font-size:14px;margin-bottom:11px;color:var(--ink)}
         .cp-why-r b{color:var(--green)}
-        .cp-det-bar{position:fixed;left:0;right:0;bottom:0;padding:14px 18px calc(14px + var(--safe-b));background:rgba(8,8,10,.95);backdrop-filter:saturate(150%) blur(13px);-webkit-backdrop-filter:saturate(150%) blur(13px);border-top:1px solid var(--line);display:flex;gap:10px;z-index:10}
+        .cp-det-bar{position:fixed;left:0;right:0;bottom:0;padding:14px 18px calc(14px + var(--safe-b));background:rgba(8,8,10,.98);border-top:1px solid var(--line);display:flex;gap:10px;z-index:10}
         .cp-det-bar .cp-btn{flex:1}
         @media (min-width:1024px){.cp-det-bar{justify-content:center}.cp-det-bar .cp-btn{flex:0 1 280px}}
 
         /* ── Sheet ── */
-        .cp-ov{position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:300;display:none;align-items:flex-end;justify-content:center}
+        .cp-ov{position:fixed;inset:0;background:rgba(0,0,0,.74);z-index:300;display:none;align-items:flex-end;justify-content:center}
         .cp-ov.show{display:flex;animation:ovin .3s var(--ease)}
         @keyframes ovin{from{opacity:0}to{opacity:1}}
         .cp-sheet{width:100%;max-width:520px;max-height:88vh;overflow-y:auto;background:var(--surface);border:1px solid var(--line-2);border-bottom:none;padding:10px 24px calc(28px + var(--safe-b));animation:sup .45s var(--ease)}
@@ -395,7 +395,7 @@
         @media (min-width:1024px){.cp-toast{bottom:30px;left:auto;right:30px;transform:translateX(0) translateY(120px)}.cp-toast.show{transform:translateX(0) translateY(0)}}
         .cp-toast.show{transform:translateX(-50%) translateY(0);opacity:1}
         .cp-toast.ok{border-left:2px solid var(--green)}.cp-toast.err{border-left:2px solid var(--red)}
-        .cp-alert{position:fixed;inset:0;background:rgba(8,8,10,.93);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);z-index:500;display:none;align-items:center;justify-content:center;flex-direction:column;padding:40px;text-align:center;overflow:hidden}
+        .cp-alert{position:fixed;inset:0;background:rgba(8,8,10,.97);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);z-index:500;display:none;align-items:center;justify-content:center;flex-direction:column;padding:40px;text-align:center;overflow:hidden}
         .cp-alert.show{display:flex}
         .cp-alert::before{content:'';position:absolute;inset:0;background:radial-gradient(60% 50% at 50% 42%,rgba(255,215,0,.2),transparent 60%);animation:bloom 1.1s var(--ease);pointer-events:none}
         @keyframes bloom{from{opacity:0;transform:scale(.6)}to{opacity:1;transform:none}}
@@ -566,9 +566,9 @@
     var DEMO={ name:'Marco Rossi', journey:{stage:'options',index:2,total:5}, stats:{days:12,options:3,liked:1,avgMatch:93},
       criteria:{minBudget:700,budget:1100,zone:'Trastevere, Centro Storico',moveIn:'2026-07-01',bedrooms:'2',mustHaves:'Luminoso, ascensore',dealBreakers:'Piano terra'},
       properties:[
-        {id:'p1',address:'Via dei Coronari, Centro Storico',zone:'Centro Storico',price:1450,rooms:2,sqm:72,match:96,isNew:true,furnished:true,floor:'2°',images:['https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=1200','https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=1200'],description:'Appartamento ristrutturato con travi a vista e luce naturale, a pochi passi da Piazza Navona. Arredato con gusto, pronto da vivere.',matchReasons:['✓ Nel tuo budget','✓ Zona preferita','✓ 2 locali come richiesto','✓ Arredato e luminoso'],clientLiked:true,clientRejected:false},
-        {id:'p2',address:'Viale di Trastevere, Trastevere',zone:'Trastevere',price:1180,rooms:2,sqm:65,match:90,furnished:true,floor:'3°',images:['https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=1200','https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=1200'],description:'Bilocale arredato con balcone abitabile nel cuore di Trastevere.',matchReasons:['✓ Zona preferita','✓ Arredato','✓ Balcone'],clientLiked:false,clientRejected:false},
-        {id:'p3',address:'Via Giulia, Centro Storico',zone:'Centro Storico',price:1620,rooms:2,sqm:80,match:88,isNew:true,furnished:true,floor:'1°',images:['https://images.unsplash.com/photo-1567496898669-ee935f5f647a?w=1200'],description:'Elegante appartamento su una delle vie più belle di Roma.',matchReasons:['✓ Zona preferita','≈ Leggermente sopra budget','✓ Ampia metratura'],clientLiked:false,clientRejected:false}
+        {id:'p1',address:'Via dei Coronari, Centro Storico',zone:'Centro Storico',price:1450,rooms:2,sqm:72,match:96,isNew:true,furnished:true,floor:'2°',images:['https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=1600&q=80&auto=format','https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=1600&q=80&auto=format'],description:'Appartamento ristrutturato con travi a vista e luce naturale, a pochi passi da Piazza Navona. Arredato con gusto, pronto da vivere.',matchReasons:['✓ Nel tuo budget','✓ Zona preferita','✓ 2 locali come richiesto','✓ Arredato e luminoso'],clientLiked:true,clientRejected:false},
+        {id:'p2',address:'Viale di Trastevere, Trastevere',zone:'Trastevere',price:1180,rooms:2,sqm:65,match:90,furnished:true,floor:'3°',images:['https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=1600&q=80&auto=format','https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=1600&q=80&auto=format'],description:'Bilocale arredato con balcone abitabile nel cuore di Trastevere.',matchReasons:['✓ Zona preferita','✓ Arredato','✓ Balcone'],clientLiked:false,clientRejected:false},
+        {id:'p3',address:'Via Giulia, Centro Storico',zone:'Centro Storico',price:1620,rooms:2,sqm:80,match:88,isNew:true,furnished:true,floor:'1°',images:['https://images.unsplash.com/photo-1567496898669-ee935f5f647a?w=1600&q=80&auto=format'],description:'Elegante appartamento su una delle vie più belle di Roma.',matchReasons:['✓ Zona preferita','≈ Leggermente sopra budget','✓ Ampia metratura'],clientLiked:false,clientRejected:false}
       ],
       activity:[{type:'homie_match',timestamp:new Date(Date.now()-3600e3).toISOString()},{type:'like',timestamp:new Date(Date.now()-7200e3).toISOString()}],
       messages:[{from:'agent',text:'Ciao Marco! Ho appena aggiunto tre appartamenti in Centro che fanno per te. Dai un\'occhiata 👀',timestamp:new Date(Date.now()-5400e3).toISOString()},{from:'client',text:'Perfetto, grazie! Il primo mi piace molto',timestamp:new Date(Date.now()-3000e3).toISOString()},{from:'agent',text:'Ottimo gusto. Ti organizzo una visita questa settimana?',timestamp:new Date(Date.now()-1800e3).toISOString()}],
