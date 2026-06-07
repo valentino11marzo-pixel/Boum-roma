@@ -49,8 +49,25 @@ export default async function handler(req, res) {
       projectId: process.env.FIREBASE_PROJECT_ID || '(default boom-property-dashboards)',
     }};
     try {
-      const token = await getAdminToken();
-      out.tokenOk = !!token;
+      // Sign in directly so we can capture the account identity (localId/email).
+      const si = await fetch(
+        `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${process.env.FIREBASE_API_KEY}`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: process.env.FIREBASE_ADMIN_EMAIL, password: process.env.FIREBASE_ADMIN_PASS, returnSecureToken: true }) }
+      );
+      const sd = await si.json();
+      out.tokenOk = !!sd.idToken;
+      out.localId = sd.localId || null;
+      out.adminEmail = sd.email || null;
+      const token = sd.idToken;
+      // Read the account's own /users/{uid} doc — self-read is allowed by rules.
+      if (out.localId) {
+        const ur = await fetch(`${FS_BASE}/users/${out.localId}`, { headers: { Authorization: `Bearer ${token}` } });
+        out.userDocStatus = ur.status;
+        const ut = await ur.json().catch(() => ({}));
+        out.userDocRole = ut && ut.fields && ut.fields.role ? (ut.fields.role.stringValue ?? ut.fields.role) : '(no role field / no doc)';
+      }
+      // Attempt the actual leads write.
       const probe = { source: 'web', service: 'DIAG', name: 'ZZ DIAG', status: 'new',
         intent: 'diag', createdAt: new Date(), raw: { diag: true } };
       const r = await fetch(`${FS_BASE}/leads`, {
@@ -59,7 +76,7 @@ export default async function handler(req, res) {
         body: JSON.stringify({ fields: toFsFields(probe) }),
       });
       out.fsStatus = r.status;
-      out.fsText = (await r.text()).slice(0, 600);
+      out.fsText = (await r.text()).slice(0, 300);
     } catch (e) {
       out.threw = String((e && e.message) || e).slice(0, 600);
     }
