@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Valentino Egidi — Direzione C · Onestà Strutturale</title>
+<meta name="description" content="Mediatore immobiliare a Roma. Brutalmente onesto, machined in acciaio. Compravendita senza copioni.">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#0A0B0C">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=Space+Grotesk:wght@300;400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════════════════════════
+   VALENTINO EGIDI — DIRECTION C · "ONESTÀ STRUTTURALE"
+   Machined polished-metal showroom · brutalist-industrial · brutally honest.
+   Material: cold brushed/polished steel ⇄ heated-metal accent (truth, glowing).
+   Type: Archivo (mass) × Space Grotesk (voice) × Space Mono (machine).
+   ═══════════════════════════════════════════════════════════════ */
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --obsidian:#0A0B0C;
+  --gunmetal:#121417;
+  --gunmetal-2:#16181B;
+  --steel:#1E2226;
+  --steel-2:#2A2E33;
+  --chrome-hi:#F4F6F9;
+  --chrome-mid:#AEB4BC;
+  --chrome-lo:#5C636B;
+  --silver:#E7E9EC;
+  --silver-2:rgba(231,233,236,.62);
+  --silver-3:rgba(231,233,236,.34);
+  --silver-4:rgba(231,233,236,.14);
+  --line:rgba(231,233,236,.11);
+  --line-2:rgba(231,233,236,.05);
+  --edge-hi:rgba(255,255,255,.16);
+  --edge-lo:rgba(0,0,0,.7);
+  --hot:#FF4D1C;            /* heated steel — TRUTH */
+  --hot-2:#FF7A3D;
+  --hot-glow:rgba(255,77,28,.5);
+  --gold:#E9B949;           /* reserved: BOOM only */
+  --disp:'Archivo',-apple-system,sans-serif;
+  --voice:'Space Grotesk',-apple-system,sans-serif;
+  --mono:'Space Mono','Courier New',monospace;
+  --e1:cubic-bezier(.16,1,.3,1);
+  --e2:cubic-bezier(.76,0,.24,1);
+}
+html{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;scroll-behavior:smooth}
+body{font-family:var(--voice);font-weight:300;background:var(--obsidian);color:var(--silver);line-height:1.55;overflow-x:hidden;letter-spacing:.005em}
+::selection{background:var(--hot);color:#fff}
+a{color:inherit;text-decoration:none}
+img{display:block;max-width:100%}
+body.lock{overflow:hidden}
+.wrap{max-width:1320px;margin:0 auto;padding:0 44px}
+@media(max-width:640px){.wrap{padding:0 20px}}
+
+/* ── MATERIALS ─────────────────────────────────────────────── */
+/* brushed steel panel */
+.steel{position:relative;background:
+  repeating-linear-gradient(90deg,rgba(255,255,255,.016) 0 1px,transparent 1px 3px),
+  linear-gradient(176deg,#24282d 0%,#15171a 46%,#1a1d21 56%,#0d0e11 100%)}
+/* machined plate */
+.plate{background:linear-gradient(180deg,#1c2024,#101215);
+  box-shadow:inset 0 1px 0 var(--edge-hi),inset 0 -1px 0 var(--edge-lo),inset 1px 0 0 rgba(255,255,255,.04),inset -1px 0 0 rgba(0,0,0,.5)}
+/* cursor-reactive specular sheen (the "polished wall reflects you") */
+.sheen::before{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;
+  background:radial-gradient(620px circle at var(--mx,30%) var(--my,20%),rgba(255,255,255,.10),rgba(255,255,255,.03) 26%,transparent 55%);
+  mix-blend-mode:screen;transition:opacity .5s}
+/* chrome (liquid metal) text */
+.chrome{background:linear-gradient(176deg,#ffffff 0%,#cdd2d8 16%,#868d95 40%,#fbfcfe 51%,#b3b9c0 62%,#5c636b 86%,#9aa0a8 100%);
+  background-size:100% 280%;-webkit-background-clip:text;background-clip:text;color:transparent;
+  -webkit-text-fill-color:transparent;filter:drop-shadow(0 1px 0 rgba(0,0,0,.5));animation:chromeflow 7s var(--e1) infinite}
+@keyframes chromeflow{0%,100%{background-position:50% 0}50%{background-position:50% 100%}}
+/* engraved (debossed) text */
+.engrave{color:#0e1013;text-shadow:0 1px 0 rgba(255,255,255,.10)}
+/* chrome outline */
+.outline{color:transparent;-webkit-text-stroke:1.5px var(--chrome-lo);text-stroke:1.5px var(--chrome-lo)}
+/* hot truth */
+.hot{color:var(--hot);text-shadow:0 0 22px var(--hot-glow)}
+/* rivet */
+.rivet{position:absolute;width:9px;height:9px;border-radius:50%;
+  background:radial-gradient(circle at 34% 30%,#eef0f3,#7b828a 55%,#0e1013);box-shadow:0 1px 1px rgba(0,0,0,.7),inset 0 0 2px rgba(0,0,0,.5);z-index:3}
+/* technical label */
+.mono{font-family:var(--mono);font-size:11px;letter-spacing:.04em;color:var(--silver-3);text-transform:uppercase;font-weight:400}
+.mono .hot{color:var(--hot);text-shadow:none}
+
+/* grain (very subtle, metallic tooth) */
+.grain{position:fixed;inset:0;z-index:6;pointer-events:none;opacity:.04;mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+/* global cursor light */
+.glow{position:fixed;width:540px;height:540px;border-radius:50%;left:0;top:0;z-index:0;pointer-events:none;
+  background:radial-gradient(circle,rgba(255,77,28,.07),transparent 60%);transform:translate(-50%,-50%);opacity:0;transition:opacity .6s}
+body.cur-on .glow{opacity:1}
+@media(hover:none){.glow{display:none}}
+
+/* top progress */
+.prog{position:fixed;top:0;left:0;height:2px;width:0;background:linear-gradient(90deg,var(--hot),var(--hot-2));z-index:95;box-shadow:0 0 12px var(--hot-glow)}
+
+/* ── NAV ───────────────────────────────────────────────────── */
+nav{position:fixed;inset:0 0 auto 0;z-index:90;transition:.5s var(--e1)}
+nav.scrolled{background:rgba(10,11,12,.78);backdrop-filter:blur(16px);border-bottom:1px solid var(--line)}
+.nav-in{display:flex;align-items:center;justify-content:space-between;height:72px}
+.brand{display:flex;align-items:center;gap:12px;font-family:var(--disp);font-weight:800;font-size:15px;letter-spacing:.16em;text-transform:uppercase}
+.brand .vm{position:relative;width:24px;height:24px;border:2px solid var(--silver)}
+.brand .vm::before{content:"";position:absolute;left:50%;bottom:3px;transform:translateX(-50%);width:9px;height:11px;border:2px solid var(--silver);border-bottom:none;border-radius:9px 9px 0 0}
+.brand .vm::after{content:"";position:absolute;top:3px;left:50%;transform:translateX(-50%);width:5px;height:2px;background:var(--hot)}
+.nav-r{display:flex;align-items:center;gap:2px}
+.nav-link{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--silver-2);padding:9px 13px;transition:color .3s;position:relative}
+.nav-link::after{content:"";position:absolute;left:13px;right:13px;bottom:4px;height:1px;background:var(--hot);transform:scaleX(0);transform-origin:left;transition:transform .4s var(--e1)}
+.nav-link:hover{color:var(--silver)}.nav-link:hover::after{transform:scaleX(1)}
+@media(max-width:860px){.nav-link.h{display:none}}
+.nav-cta{margin-left:8px;font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--silver);padding:11px 18px;border-radius:3px;
+  background:linear-gradient(180deg,#2b2f34,#15171a);box-shadow:inset 0 1px 0 var(--edge-hi),inset 0 -1px 0 var(--edge-lo),0 2px 0 #000;transition:.3s var(--e1)}
+.nav-cta:hover{color:#fff;background:linear-gradient(180deg,var(--hot-2),var(--hot));box-shadow:inset 0 1px 0 rgba(255,255,255,.3),0 2px 0 #000,0 0 22px var(--hot-glow)}
+
+/* ── HERO ──────────────────────────────────────────────────── */
+.hero{position:relative;min-height:100svh;display:flex;flex-direction:column;justify-content:center;padding:120px 0 76px;overflow:hidden}
+.hero::after{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;background:linear-gradient(180deg,transparent 60%,rgba(10,11,12,.9))}
+.hero-hud{position:absolute;top:96px;left:44px;z-index:3;line-height:2}
+.hero-hud2{position:absolute;top:96px;right:44px;z-index:3;text-align:right;line-height:2}
+@media(max-width:760px){.hero-hud,.hero-hud2{display:none}}
+.hero-vert{position:absolute;right:30px;top:50%;transform:translateY(-50%) rotate(180deg);writing-mode:vertical-rl;z-index:3;
+  font-family:var(--mono);font-size:11px;letter-spacing:.4em;text-transform:uppercase;color:var(--silver-3)}
+@media(max-width:1100px){.hero-vert{display:none}}
+.hero-in{position:relative;z-index:3}
+.hero .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--silver-2);display:inline-flex;align-items:center;gap:12px}
+.hero .eyebrow .sq{width:8px;height:8px;background:var(--hot);box-shadow:0 0 12px var(--hot-glow)}
+.hero h1{font-family:var(--disp);font-weight:900;font-size:clamp(58px,15.5vw,232px);line-height:.82;letter-spacing:-.03em;text-transform:uppercase;margin-top:26px}
+.hero h1 .l2{display:block}
+.hero h1 .dot{color:var(--hot);text-shadow:0 0 30px var(--hot-glow)}
+.hero-sub{font-size:clamp(16px,1.9vw,21px);color:var(--silver-2);max-width:56ch;margin-top:34px;font-weight:300}
+.hero-sub b{color:var(--silver);font-weight:400;border-bottom:1px solid var(--hot)}
+.hero-cta{display:flex;gap:16px;flex-wrap:wrap;align-items:center;margin-top:46px}
+.btn{font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;padding:17px 30px;border-radius:4px;transition:.35s var(--e1);display:inline-flex;align-items:center;gap:11px;will-change:transform}
+.btn-machined{color:var(--silver);background:linear-gradient(180deg,#2b2f34,#14161a);box-shadow:inset 0 1px 0 var(--edge-hi),inset 0 -1px 0 var(--edge-lo),0 3px 0 #000}
+.btn-machined:hover{color:#fff;background:linear-gradient(180deg,var(--hot-2),var(--hot));box-shadow:inset 0 1px 0 rgba(255,255,255,.3),0 3px 0 #000,0 0 26px var(--hot-glow);transform:translateY(-1px)}
+.btn-ghost{color:var(--silver-2);border:1px solid var(--line)}
+.btn-ghost:hover{color:var(--silver);border-color:var(--silver-3)}
+.hero-foot{display:flex;align-items:center;gap:14px;margin-top:60px;font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--silver-3)}
+.hero-foot .ln{width:60px;height:1px;background:var(--silver-4);position:relative;overflow:hidden}
+.hero-foot .ln::after{content:"";position:absolute;inset:0;background:var(--hot);animation:sweep 2.6s var(--e1) infinite}
+@keyframes sweep{0%{transform:translateX(-100%)}55%,100%{transform:translateX(100%)}}
+
+/* ── STATEMENT BAND ────────────────────────────────────────── */
+.band{border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:54px 0;position:relative}
+.band .wrap{display:flex;align-items:baseline;gap:26px;flex-wrap:wrap}
+.band .q{font-family:var(--mono);color:var(--hot);font-size:13px;letter-spacing:.12em}
+.band p{font-family:var(--disp);font-weight:700;font-size:clamp(20px,3.4vw,42px);line-height:1.08;text-transform:uppercase;letter-spacing:-.01em;flex:1;min-width:280px}
+.band p em{font-style:normal;color:transparent;-webkit-text-stroke:1px var(--chrome-lo)}
+
+/* ── SECTIONS ──────────────────────────────────────────────── */
+section{position:relative;z-index:2}
+.blk{padding:140px 0}
+@media(max-width:640px){.blk{padding:90px 0}}
+.s-head{margin-bottom:74px;max-width:68ch}
+.s-head .tag{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--silver-3);display:flex;align-items:center;gap:12px}
+.s-head .tag .id{color:var(--hot)}
+.s-title{font-family:var(--disp);font-weight:800;font-size:clamp(30px,6vw,76px);line-height:.96;text-transform:uppercase;letter-spacing:-.02em;margin-top:20px}
+.s-title .o{color:transparent;-webkit-text-stroke:1.5px var(--chrome-lo)}
+.s-lead{color:var(--silver-2);font-size:clamp(15px,1.6vw,18px);max-width:58ch;margin-top:22px;font-weight:300}
+
+/* MANIFESTO — stamped plates */
+.theses{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:760px){.theses{grid-template-columns:1fr}}
+.thesis{position:relative;padding:40px 38px;border-radius:6px;overflow:hidden;transition:transform .5s var(--e1)}
+.thesis .rivet{top:12px}.thesis .rivet.l{left:12px}.thesis .rivet.r{right:12px}
+.thesis:hover{transform:translateY(-4px)}
+.thesis .no{font-family:var(--mono);font-size:12px;color:var(--hot);letter-spacing:.1em}
+.thesis p{font-family:var(--disp);font-weight:700;font-size:clamp(20px,2.5vw,28px);line-height:1.12;text-transform:uppercase;letter-spacing:-.01em;margin-top:18px}
+.thesis p b{font-weight:700;color:transparent;-webkit-text-stroke:1px var(--hot)}
+
+/* DECODER — listing-speak → truth */
+.dec{background:var(--gunmetal)}
+.dec-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:760px){.dec-grid{grid-template-columns:1fr}}
+.dec-row{position:relative;border-radius:6px;padding:26px 28px;cursor:pointer;overflow:hidden;transition:transform .4s var(--e1)}
+.dec-row:hover{transform:translateY(-3px)}
+.dec-row .lab{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--silver-3)}
+.dec-row .said{font-family:var(--disp);font-weight:700;font-size:clamp(18px,2.1vw,24px);text-transform:uppercase;margin-top:8px;color:var(--silver)}
+.dec-mean{margin-top:20px;padding-top:18px;border-top:1px solid var(--line);position:relative}
+.dec-mean .lab{color:var(--hot)}
+.dec-mean .truth{font-size:clamp(15px,1.7vw,18px);color:var(--silver);margin-top:8px;clip-path:inset(0 100% 0 0);transition:clip-path .6s var(--e1) .06s}
+.dec-row.open .dec-mean .truth{clip-path:inset(0 0 0 0)}
+/* the brushed "shutter" that hides the truth until opened */
+.dec-mean::after{content:"";position:absolute;left:0;bottom:0;height:calc(100% - 26px);width:100%;
+  background:repeating-linear-gradient(90deg,#2a2e33 0 10px,#15171a 10px 20px);transform-origin:right;transition:transform .6s var(--e2)}
+.dec-row.open .dec-mean::after{transform:scaleX(0)}
+.dec-hint{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--silver-3);margin-top:26px}
+
+/* PORTFOLIO — steel-framed spec plates */
+.spec{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:10px}
+@media(max-width:860px){.spec{grid-template-columns:1fr}}
+.speccard{position:relative;border-radius:8px;overflow:hidden}
+.speccard .ph{position:relative;aspect-ratio:4/3;overflow:hidden;background:linear-gradient(150deg,#23272c,#0e0f12)}
+.speccard .ph img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:transform 1.1s var(--e1),opacity 1s}
+.speccard:hover .ph img{transform:scale(1.05)}
+.speccard .frame{position:absolute;inset:0;z-index:2;pointer-events:none;box-shadow:inset 0 0 0 1px var(--silver-4),inset 0 2px 0 var(--edge-hi),inset 0 -2px 0 var(--edge-lo);border-radius:8px}
+.speccard .body{padding:24px 26px 28px}
+.speccard .z{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--hot)}
+.speccard h3{font-family:var(--disp);font-weight:700;font-size:clamp(20px,2.4vw,28px);text-transform:uppercase;margin:8px 0 16px;letter-spacing:-.01em}
+.specrow{display:flex;justify-content:space-between;padding:10px 0;border-top:1px solid var(--line);font-family:var(--mono);font-size:12px;text-transform:uppercase;color:var(--silver-2)}
+.specrow .v{color:var(--silver)}
+.specrow.flaw .v{color:var(--hot)}
+
+/* METHOD — precision pipeline */
+.steps{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line);border-radius:6px;overflow:hidden}
+@media(max-width:860px){.steps{grid-template-columns:1fr 1fr}}
+@media(max-width:520px){.steps{grid-template-columns:1fr}}
+.step{padding:34px 28px 42px;border-right:1px solid var(--line);transition:background .5s var(--e1);position:relative}
+.step:last-child{border-right:none}
+.step:hover{background:var(--steel)}
+.step .sn{font-family:var(--mono);font-size:12px;color:var(--hot);letter-spacing:.1em}
+.step h3{font-family:var(--disp);font-weight:700;font-size:20px;text-transform:uppercase;margin:22px 0 12px;letter-spacing:-.005em}
+.step p{color:var(--silver-2);font-size:14px;font-weight:300}
+
+/* NUMBERS — engraved into a plate */
+.nums{display:grid;grid-template-columns:repeat(4,1fr);border-radius:8px;overflow:hidden}
+@media(max-width:760px){.nums{grid-template-columns:1fr 1fr}}
+.numc{padding:46px 26px;border-right:1px solid var(--line);position:relative}
+.numc:last-child{border-right:none}
+@media(max-width:760px){.numc:nth-child(2){border-right:none}.numc:nth-child(-n+2){border-bottom:1px solid var(--line)}}
+.numc .v{font-family:var(--disp);font-weight:800;font-size:clamp(48px,8vw,100px);line-height:1;letter-spacing:-.04em;font-variant-numeric:tabular-nums}
+.numc .v .u{color:var(--hot);font-size:.42em;text-shadow:0 0 18px var(--hot-glow)}
+.numc .k{font-family:var(--mono);font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--silver-2);margin-top:18px;max-width:22ch}
+
+/* BOOM bridge */
+.boom{background:var(--gunmetal-2);position:relative;overflow:hidden;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.boom::before{content:"";position:absolute;top:-30%;right:-12%;width:55%;height:170%;background:radial-gradient(circle,rgba(233,185,73,.12),transparent 62%)}
+.boom-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:60px;align-items:center;position:relative;z-index:2}
+@media(max-width:860px){.boom-grid{grid-template-columns:1fr;gap:40px}}
+.boom .tag .id{color:var(--gold)}
+.boom .s-title .g{color:var(--gold);-webkit-text-stroke:0}
+.boom p{color:var(--silver-2);font-size:16px;margin-top:22px;max-width:48ch;font-weight:300}
+.boom .blink{display:inline-flex;align-items:center;gap:10px;margin-top:32px;font-family:var(--mono);font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);border-bottom:1px solid var(--gold);padding-bottom:5px}
+.boom .blink .ar{transition:transform .35s var(--e1)}.boom .blink:hover .ar{transform:translateX(6px)}
+.boom-fig{position:relative;min-height:360px;border-radius:8px;overflow:hidden;background:linear-gradient(150deg,#2a261c,#100f0a)}
+.boom-fig img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.9;transition:opacity 1s}
+.boom-fig .frame{position:absolute;inset:0;z-index:2;box-shadow:inset 0 0 0 1px rgba(233,185,73,.22)}
+
+/* CONTACT — heated slab */
+.contact{position:relative;overflow:hidden;text-align:center}
+.contact::before{content:"";position:absolute;inset:0;background:radial-gradient(120% 90% at 50% 120%,rgba(255,77,28,.18),transparent 60%)}
+.contact .inner{position:relative;z-index:2}
+.contact .tag{justify-content:center}
+.contact .s-title{margin-inline:auto;max-width:16ch}
+.contact-lead{color:var(--silver-2);font-size:clamp(16px,1.8vw,20px);max-width:52ch;margin:24px auto 0;font-weight:300}
+.contact .btn{margin-top:40px}
+.cmeta{margin-top:46px;display:flex;gap:36px;justify-content:center;flex-wrap:wrap;font-family:var(--mono);font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--silver-3)}
+.cmeta a{color:var(--silver);border-bottom:1px solid var(--line);padding-bottom:3px;transition:.3s}
+.cmeta a:hover{color:var(--hot);border-color:var(--hot)}
+
+/* FOOTER colophon */
+footer{background:var(--obsidian);padding:46px 0;border-top:1px solid var(--line)}
+.foot-in{display:flex;justify-content:space-between;flex-wrap:wrap;gap:14px;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--silver-3)}
+.foot-in .gd{color:var(--gold)}
+.foot-in a:hover{color:var(--hot)}
+
+/* reveal */
+.rv{opacity:0;transform:translateY(28px);transition:opacity 1s var(--e1),transform 1s var(--e1)}
+.rv.in{opacity:1;transform:none}
+[data-st]>*{opacity:0;transform:translateY(22px);transition:opacity .9s var(--e1),transform .9s var(--e1)}
+[data-st].in>*{opacity:1;transform:none}
+[data-st].in>*:nth-child(2){transition-delay:.07s}[data-st].in>*:nth-child(3){transition-delay:.14s}
+[data-st].in>*:nth-child(4){transition-delay:.21s}[data-st].in>*:nth-child(5){transition-delay:.28s}
+
+/* preview switcher */
+.pv{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:200;display:flex;align-items:center;
+  background:rgba(18,20,23,.86);backdrop-filter:blur(16px);border:1px solid var(--line);border-radius:5px;
+  box-shadow:inset 0 1px 0 var(--edge-hi),0 16px 40px -18px #000;overflow:hidden;font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.08em}
+.pv b{padding:11px 16px;color:var(--silver);font-weight:700}
+.pv b .hot{color:var(--hot)}
+.pv a{padding:11px 15px;color:var(--silver-3);border-left:1px solid var(--line);transition:.25s}
+.pv a:hover{background:var(--hot);color:#fff}
+
+@media(prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+  .rv,[data-st]>*{opacity:1;transform:none}
+  .glow,.sheen::before{display:none}
+}
+</style>
+</head>
+<body class="lock">
+
+<div class="grain"></div>
+<div class="glow" id="glow"></div>
+<div class="prog" id="prog"></div>
+
+<!-- NAV -->
+<nav id="nav"><div class="wrap nav-in">
+  <a href="#top" class="brand"><span class="vm"></span> Valentino&nbsp;Egidi</a>
+  <div class="nav-r">
+    <a href="#manifesto" class="nav-link h">Manifesto</a>
+    <a href="#decoder" class="nav-link h">Decoder</a>
+    <a href="#indirizzi" class="nav-link h">Indirizzi</a>
+    <a href="#affitti" class="nav-link h">Affitti</a>
+    <a href="#contatti" class="nav-cta">Parliamo</a>
+  </div>
+</div></nav>
+
+<!-- HERO -->
+<header class="hero steel sheen" id="top" data-sec="00">
+  <div class="hero-hud">
+    <div class="mono">VE—01 · MEDIATORE</div>
+    <div class="mono">41.9009°N · 12.4833°E</div>
+    <div class="mono"><span id="clock">--:--:--</span> · ROMA</div>
+  </div>
+  <div class="hero-hud2">
+    <div class="mono">SISTEMA · <span class="hot">ONESTÀ ATTIVA</span></div>
+    <div class="mono">FINITURA · ACCIAIO LUCIDO</div>
+    <div class="mono">COPIONI · 00</div>
+  </div>
+  <div class="hero-vert">Via dei Coronari · Roma</div>
+  <div class="wrap hero-in">
+    <div class="eyebrow"><span class="sq"></span> Mediatore immobiliare · compravendita · Roma centro</div>
+    <h1><span class="chrome">Onestà</span><span class="l2 outline">Strutturale<span class="dot">.</span></span></h1>
+    <p class="hero-sub">La maggior parte degli agenti lucida i difetti finché non li vedi più. Io te li mostro <b>col faro</b>. Compro e vendo case nel centro di Roma dicendo la verità — anche quando mi costa la provvigione.</p>
+    <div class="hero-cta">
+      <a href="https://wa.me/393313251961" target="_blank" class="btn btn-machined" data-mag>Scrivimi su WhatsApp</a>
+      <a href="#manifesto" class="btn btn-ghost">Perché diverso →</a>
+    </div>
+    <div class="hero-foot"><span class="ln"></span> Scorri — non è il solito sito d'agenzia</div>
+  </div>
+</header>
+
+<!-- STATEMENT BAND -->
+<div class="band steel">
+  <div class="wrap">
+    <span class="q mono">// DICHIARAZIONE</span>
+    <p>Se cerchi qualcuno che ti dica solo <em>sì</em>, hai sbagliato porta.</p>
+  </div>
+</div>
+
+<!-- MANIFESTO -->
+<section class="blk" id="manifesto" data-sec="01">
+  <div class="wrap">
+    <div class="s-head rv">
+      <div class="tag"><span class="id">SEZ.01</span> — Manifesto</div>
+      <h2 class="s-title">Cinque verità che<br>gli altri <span class="o">lucidano via.</span></h2>
+      <p class="s-lead">Non vendo case. Riduco il rischio di una decisione difficile, con onestà. Se questo mi costa una provvigione ogni tanto, va bene: la reputazione è l'unico asset che non si svaluta.</p>
+    </div>
+    <div class="theses" data-st>
+      <div class="thesis steel"><span class="rivet l"></span><span class="rivet r"></span><div class="no">01</div><p>Un prezzo <b>onesto</b> vende più in fretta di uno gonfiato.</p></div>
+      <div class="thesis steel"><span class="rivet l"></span><span class="rivet r"></span><div class="no">02</div><p>Se la casa non fa per te, <b>te lo dico.</b> Anche se perdo la trattativa.</p></div>
+      <div class="thesis steel"><span class="rivet l"></span><span class="rivet r"></span><div class="no">03</div><p>I <b>difetti</b> prima dei pregi. Sempre.</p></div>
+      <div class="thesis steel"><span class="rivet l"></span><span class="rivet r"></span><div class="no">04</div><p>Niente aste mascherate, niente <b>finti</b> altri compratori.</p></div>
+      <div class="thesis steel"><span class="rivet l"></span><span class="rivet r"></span><div class="no">05</div><p>I numeri parlano. Io li <b>traduco,</b> non li trucco.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- DECODER -->
+<section class="blk dec" id="decoder" data-sec="02">
+  <div class="wrap">
+    <div class="s-head rv">
+      <div class="tag"><span class="id">SEZ.02</span> — Decoder</div>
+      <h2 class="s-title">Quello che scrivono.<br><span class="o">Quello che intendono.</span></h2>
+      <p class="s-lead">Il gergo degli annunci, decodificato. Apri ogni piastra per leggere la traduzione brutale. Con me non serve: la verità te la do io, prima.</p>
+    </div>
+    <div class="dec-grid rv" id="decGrid"></div>
+    <div class="dec-hint">↑ Tocca una piastra per aprirla</div>
+  </div>
+</section>
+
+<!-- PORTFOLIO -->
+<section class="blk" id="indirizzi" data-sec="03">
+  <div class="wrap">
+    <div class="s-head rv">
+      <div class="tag"><span class="id">SEZ.03</span> — Indirizzi selezionati</div>
+      <h2 class="s-title">Poche case. <span class="o">Quelle giuste.</span></h2>
+      <p class="s-lead">Una selezione del centro di Roma — anche off-market, dalla rete del quartiere. Scheda tecnica completa, difetti inclusi.</p>
+    </div>
+    <div class="spec" data-st>
+      <div class="speccard steel">
+        <div class="ph"><img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1400&q=80" alt="" onerror="this.style.opacity=0"><div class="frame"></div></div>
+        <div class="body">
+          <div class="z">Centro Storico</div>
+          <h3>Attico · Via dei Coronari</h3>
+          <div class="specrow"><span>Superficie</span><span class="v">145 m²</span></div>
+          <div class="specrow"><span>Terrazzo</span><span class="v">38 m² · vista tetti</span></div>
+          <div class="specrow flaw"><span>Difetto dichiarato</span><span class="v">Impianti da rifare</span></div>
+        </div>
+      </div>
+      <div class="speccard steel">
+        <div class="ph"><img src="https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=1400&q=80" alt="" onerror="this.style.opacity=0"><div class="frame"></div></div>
+        <div class="body">
+          <div class="z">Prati</div>
+          <h3>Tre camere · piano alto</h3>
+          <div class="specrow"><span>Superficie</span><span class="v">110 m²</span></div>
+          <div class="specrow"><span>Luce</span><span class="v">Doppia esposizione</span></div>
+          <div class="specrow flaw"><span>Difetto dichiarato</span><span class="v">Niente ascensore al 6°</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- METHOD -->
+<section class="blk dec" id="metodo" data-sec="04">
+  <div class="wrap">
+    <div class="s-head rv">
+      <div class="tag"><span class="id">SEZ.04</span> — Metodo</div>
+      <h2 class="s-title">Pochi passaggi. <span class="o">Tutti tracciabili.</span></h2>
+    </div>
+    <div class="steps" data-st>
+      <div class="step"><div class="sn">01</div><h3>Valutazione vera</h3><p>Il prezzo reale con i dati alla mano: comparabili, tempi, assorbimento. Non quello che vuoi sentirti dire.</p></div>
+      <div class="step"><div class="sn">02</div><h3>Strategia</h3><p>Un piano scritto: prezzo, target, canali, tempi. Sai sempre cosa succede e perché.</p></div>
+      <div class="step"><div class="sn">03</div><h3>Trattativa</h3><p>Tratto con i dati, non con le emozioni. Compratori veri, offerte vere, niente teatrini.</p></div>
+      <div class="step"><div class="sn">04</div><h3>Rogito</h3><p>Notaio, fisco e tempi gestiti fino alla firma. Zero sorprese sul prezzo finale.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- NUMBERS -->
+<section class="blk" data-sec="05">
+  <div class="wrap">
+    <div class="nums plate rv" data-st>
+      <div class="numc"><div class="v" data-c="0">0</div><div class="k">Aste mascherate. Mai.</div></div>
+      <div class="numc"><div class="v" data-c="100">0<span class="u">%</span></div><div class="k">Dei difetti, dichiarati prima.</div></div>
+      <div class="numc"><div class="v" data-c="24">0<span class="u">h</span></div><div class="k">Tempo di risposta. Sul serio.</div></div>
+      <div class="numc"><div class="v" data-c="1">0</div><div class="k">Una sola versione dei fatti.</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- BOOM -->
+<section class="blk boom" id="affitti" data-sec="06">
+  <div class="wrap">
+    <div class="boom-grid">
+      <div class="rv">
+        <div class="tag"><span class="id">SEZ.06</span> — Divisione affitti</div>
+        <h2 class="s-title">Comprare è metà del lavoro.<br>Affittare è <span class="g">BOOM</span>.</h2>
+        <p>La nostra divisione per gli affitti medio termine: appartamenti verificati a Roma, contratti legali, ingresso in 48 ore. Per studenti, professionisti ed expat. Io ti seguo nella compravendita; per affittare — o mettere a reddito quello che compri — c'è BOOM.</p>
+        <a href="https://www.boomrome.com" target="_blank" class="blink">Scopri BOOM <span class="ar">→</span></a>
+      </div>
+      <div class="boom-fig rv"><img src="https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1300&q=80" alt="" onerror="this.style.opacity=0"><div class="frame"></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- CONTACT -->
+<section class="blk contact steel sheen" id="contatti" data-sec="07">
+  <div class="wrap inner">
+    <div class="rv">
+      <div class="tag"><span class="id">SEZ.07</span> — Contatto</div>
+      <h2 class="s-title">Parliamo. <span class="o">Senza copione.</span></h2>
+      <p class="contact-lead">Dimmi cosa cerchi, o cosa vuoi vendere. In due minuti ti dico se posso aiutarti davvero — e se non posso, ti dico a chi rivolgerti. Anche quello che non vuoi sentirti dire.</p>
+      <a href="https://wa.me/393313251961" target="_blank" class="btn btn-machined" data-mag>Scrivimi ora →</a>
+      <div class="cmeta">
+        <span><a href="https://wa.me/393313251961" target="_blank">+39 331 325 1961</a></span>
+        <span><a href="https://instagram.com/r.egidi_immobiliare" target="_blank">@r.egidi_immobiliare</a></span>
+        <span>Via dei Coronari 181 · Roma</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer><div class="wrap foot-in">
+  <span>© MMXXX · Valentino Egidi · Egidi Immobiliare S.r.l. · P.IVA 17322991005</span>
+  <span><a href="https://www.boomrome.com" target="_blank"><span class="gd">BOOM</span> — affitti medio termine</a></span>
+</div></footer>
+
+<!-- preview switcher -->
+<div class="pv">
+  <b>Direzione <span class="hot">C</span> · Acciaio</b>
+  <a href="/preview-light">A</a>
+  <a href="/preview-editorial">B</a>
+</div>
+
+<script>
+const reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;
+const fine=matchMedia('(hover:hover) and (pointer:fine)').matches;
+
+/* DECODER data */
+const DICT=[
+  ["Caratteristico","Piccolo."],
+  ["Luminoso","Ha le finestre."],
+  ["Mansardato","In certi punti non ci stai in piedi."],
+  ["Open space","Mancano i muri."],
+  ["Zona in via di sviluppo","Per ora è scomoda."],
+  ["Da rivedere internamente","Ci sono 50.000€ di lavori."],
+  ["Soluzione esclusiva","Costa più del dovuto."],
+  ["Trattativa riservata","Il prezzo è imbarazzante da scrivere."],
+  ["Tranquillo","Non passa nessuno. Nemmeno l'autobus."],
+  ["Ideale per investimento","Non ci vivresti."]
+];
+document.getElementById('decGrid').innerHTML=DICT.map(([s,m])=>`
+  <div class="dec-row steel" tabindex="0">
+    <span class="lab">L'annuncio dice</span><div class="said">“${s}”</div>
+    <div class="dec-mean"><span class="lab">Vuol dire</span><div class="truth">${m}</div></div>
+  </div>`).join('');
+document.querySelectorAll('.dec-row').forEach(r=>{
+  const t=()=>r.classList.toggle('open');
+  r.addEventListener('click',t);
+  r.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();t()}});
+});
+
+/* nav + progress + glow follow */
+const nav=document.getElementById('nav'),prog=document.getElementById('prog'),glow=document.getElementById('glow');
+let st=false;
+function onScroll(){const y=scrollY,h=document.documentElement.scrollHeight-innerHeight;
+  nav.classList.toggle('scrolled',y>24);prog.style.width=(h>0?y/h*100:0)+'%';st=false;}
+addEventListener('scroll',()=>{if(!st){requestAnimationFrame(onScroll);st=true}},{passive:true});
+
+/* specular sheen + cursor glow */
+if(fine&&!reduce){
+  document.body.classList.add('cur-on');
+  let tx=innerWidth/2,ty=innerHeight/2,gx=tx,gy=ty;
+  addEventListener('mousemove',e=>{tx=e.clientX;ty=e.clientY;
+    document.querySelectorAll('.sheen').forEach(el=>{const r=el.getBoundingClientRect();
+      if(e.clientY>r.top-200&&e.clientY<r.bottom+200){el.style.setProperty('--mx',((e.clientX-r.left)/r.width*100)+'%');el.style.setProperty('--my',((e.clientY-r.top)/r.height*100)+'%')}});
+  });
+  (function loop(){gx+=(tx-gx)*.12;gy+=(ty-gy)*.12;glow.style.transform=`translate(${gx}px,${gy}px) translate(-50%,-50%)`;requestAnimationFrame(loop)})();
+  document.querySelectorAll('[data-mag]').forEach(el=>{
+    el.addEventListener('mousemove',e=>{const r=el.getBoundingClientRect();el.style.transform=`translate(${(e.clientX-r.left-r.width/2)*.2}px,${(e.clientY-r.top-r.height/2)*.35}px)`});
+    el.addEventListener('mouseleave',()=>el.style.transform='');
+  });
+}
+
+/* reveals */
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}}),{threshold:.12});
+document.querySelectorAll('.rv,[data-st]').forEach(el=>io.observe(el));
+
+/* count up */
+const cio=new IntersectionObserver(es=>es.forEach(e=>{if(!e.isIntersecting)return;cio.unobserve(e.target);
+  const el=e.target,t=+el.dataset.c;let s=null;
+  (function f(ts){if(!s)s=ts;const p=Math.min((ts-s)/1100,1),k=1-Math.pow(1-p,3);el.childNodes[0].nodeValue=Math.round(k*t);if(p<1)requestAnimationFrame(f)})(performance.now());
+}),{threshold:.6});
+document.querySelectorAll('.numc .v').forEach(el=>cio.observe(el));
+
+/* Rome clock */
+const clk=document.getElementById('clock');
+function tick(){try{clk.textContent=new Intl.DateTimeFormat('it-IT',{timeZone:'Europe/Rome',hour:'2-digit',minute:'2-digit',second:'2-digit'}).format(new Date())}catch(e){}}
+tick();setInterval(tick,1000);
+
+/* boot */
+document.body.classList.remove('lock');
+onScroll();
+</script>
+</body>
+</html>
