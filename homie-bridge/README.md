@@ -82,19 +82,35 @@ Tutti i comandi accettano anche JSON via stdin: `echo '{...}' | boom message -`.
 2. Dagli accesso a **`./boom <command>`** (oppure il tuo runtime LLM con tool-use lo richiama come command-execution tool).
 3. Stop. Homie legge WhatsApp → decide secondo policy → chiama `boom` → portal aggiornato → Valentino vede tutto nel cockpit / Telegram.
 
-## Telegram (opzionale, consigliato)
+## Telegram approve — chiude il loop (consigliato)
 
-Per approvare le Tier-2 dal telefono mentre sei in giro:
-- ogni nuovo `boom action` finisce in `action_queue` con `status:pending` — un bot Telegram può listenerare la collection e mandarti un messaggio "approvi?" con un bottone;
-- al tap su `/approva <id>`, il bot chiama l'executor:
-  ```bash
-  curl -s -X POST "https://boomrome.com/api/agent/execute" \
-    -H "Content-Type: application/json" -H "X-Homie-Secret: $HOMIE_SECRET" \
-    -d '{"id":"<actionId>"}'
-  ```
-  che fa partire `messages.send` (WhatsApp/email) e aggiorna lo status a `executed`.
+Per approvare le Tier-2 dal telefono mentre sei in giro. **Già implementato e
+attivo:** un cron Vercel scansiona `action_queue` ogni minuto, ti notifica le
+pending sul tuo Telegram con bottoni inline; tap su ✅ → `/api/agent/execute`
+parte e l'azione viene eseguita davvero (WhatsApp/email inviato, viewing
+schedulato, ecc.). Setup interattivo:
 
-Se vuoi, posso scrivere il bot Telegram in 30 minuti (`telegram-approve.sh` o `telegram-approve.py`) che fa esattamente questo — chiedimelo.
+```bash
+cd ~/homie-bridge
+bash telegram-setup.sh
+```
+
+L'installer ti guida in 4 step (5 minuti): creazione bot via @BotFather → tuo
+`TELEGRAM_CHAT_ID` → `TELEGRAM_WEBHOOK_SECRET` random → istruzioni precise di
+cosa incollare in Vercel → chiama `setWebhook` per te → manda un messaggio
+test al tuo Telegram per conferma.
+
+Dopo: ogni `boom action` nuova arriva sul tuo telefono con
+[✅ Approva] [❌ Rifiuta] [✏️ Modifica bozza]. Comandi testo nel bot:
+
+- `/start /help` — guida
+- `/queue` — pending in coda
+- `/snapshot` — stato portal
+- `/edit <id> <nuovo testo>` — riscrivi una bozza in attesa
+- `/cancel` — annulla un edit in corso
+
+**Env vars da impostare in Vercel** (l'installer te le ricorda):
+`TELEGRAM_BOT_TOKEN` · `TELEGRAM_CHAT_ID` · `TELEGRAM_WEBHOOK_SECRET`.
 
 ## Troubleshooting
 
