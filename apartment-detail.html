@@ -1477,6 +1477,20 @@
                         moveIn:($('iqMoveIn')||{}).value||'', duration:($('iqDuration')||{}).value||'',
                         occupants:($('iqOccupants')||{}).value||'', message:(fm||{}).value||''
                     };
+                    // Fire-and-forget: instant team email + backup via Web3Forms
+                    // (browser origin is whitelisted; never blocks the primary flow).
+                    try{
+                        const wd=(payload.phone||'').replace(/[^\d]/g,'');
+                        fetch('https://api.web3forms.com/submit',{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json'},body:JSON.stringify({
+                            access_key:'5b10beba-c7e0-4cd2-98f9-2dbb0aefe889',
+                            subject:`New application · ${name} · ${payload.name}`,
+                            from_name:'BOOM Website', replyto:payload.email,
+                            Apartment:name, Name:payload.name, Email:payload.email, Phone:payload.phone||'—',
+                            WhatsApp:wd?('https://wa.me/'+wd):'—',
+                            'Listing ID':id, 'Move-in':payload.moveIn||'—', Stay:payload.duration||'—',
+                            Occupants:payload.occupants||'—', Message:payload.message||'—'
+                        })}).catch(()=>{});
+                    }catch(_){}
                     const r=await fetch('/api/apply-lead',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
                     const j=await r.json().catch(()=>null);
                     if(!r.ok||!j||!j.ok) throw new Error((j&&j.error)||('http_'+r.status));

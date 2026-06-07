@@ -19,7 +19,7 @@
 //         moveIn, duration, occupants, message }
 // Response 200: { ok: true, id }  | 4xx/5xx: { ok: false, error }
 
-import { fsCreate, logActivity, getAdminToken, FS_BASE } from './homie/_lib.js';
+import { fsCreate, logActivity } from './homie/_lib.js';
 
 // ── Best-effort in-memory rate limit (per warm instance) ──
 const HITS = new Map(); // ip -> [timestamps]
@@ -74,22 +74,6 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(204).end();
-
-  // ── TEMP cleanup (GET ?cleanup=boomdiag9&id=...) — removes the pipeline
-  // self-test lead. Remove this block after running once. ──
-  if (req.method === 'GET' && req.query && req.query.cleanup === 'boomdiag9') {
-    const id = clip(req.query.id, 80) || 'rVRojVhgMsoBEbIrksoW';
-    try {
-      const token = await getAdminToken();
-      const r = await fetch(`${FS_BASE}/leads/${id}`, {
-        method: 'DELETE', headers: { Authorization: `Bearer ${token}` },
-      });
-      return res.status(200).json({ deleted: id, status: r.status });
-    } catch (e) {
-      return res.status(200).json({ deleted: null, err: String((e && e.message) || e).slice(0, 200) });
-    }
-  }
-
   if (req.method !== 'POST')    return res.status(405).json({ ok: false, error: 'method_not_allowed' });
 
   let body = req.body;
