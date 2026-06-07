@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BOOM · Gallery</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;1,9..144,300&family=Inter:wght@200;300;400;500&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://i.imgur.com" crossorigin>
+<style>
+:root{--bg:#070708;--gold:#D4AF37;--tx:#fff;--tx2:rgba(255,255,255,.62)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--tx);font-family:'Inter',sans-serif;font-weight:300;-webkit-font-smoothing:antialiased;overflow:hidden}
+a{color:inherit;text-decoration:none}
+/* top bar */
+.bar{position:fixed;top:0;left:0;right:0;z-index:50;display:flex;align-items:center;justify-content:space-between;padding:18px clamp(22px,5vw,56px)}
+.bar .mark{font-weight:300;letter-spacing:.34em;font-size:19px}.bar .mark b{color:var(--gold)}
+.bar .meta{font-size:11px;letter-spacing:.26em;text-transform:uppercase;color:var(--tx2)}
+/* progress + counter */
+.prog{position:fixed;top:0;left:0;height:2px;background:linear-gradient(90deg,var(--gold),#F0D98A);z-index:60;width:0}
+.counter{position:fixed;bottom:30px;left:clamp(22px,5vw,56px);z-index:50;font-family:'Fraunces',serif;font-size:14px;color:var(--tx2)}
+.counter b{color:var(--gold);font-size:30px;font-weight:300}
+.hint{position:fixed;bottom:34px;right:clamp(22px,5vw,56px);z-index:50;font-size:11px;letter-spacing:.26em;text-transform:uppercase;color:var(--tx2)}
+.hint i{display:inline-block;margin-left:8px;animation:sl 1.7s ease-in-out infinite}
+@keyframes sl{50%{transform:translateX(6px);opacity:.4}}
+/* horizontal track */
+.gal{display:flex;height:100vh;width:100vw;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scroll-behavior:smooth;scrollbar-width:none}
+.gal::-webkit-scrollbar{display:none}
+.panel{position:relative;min-width:100vw;height:100vh;scroll-snap-align:start;display:flex;align-items:flex-end;overflow:hidden}
+.panel-bg{position:absolute;inset:0;background-size:cover;background-position:center;transform:scale(1.04)}
+.panel-bg::after{content:'';position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.8),transparent 55%),linear-gradient(90deg,rgba(0,0,0,.6),transparent 45%)}
+.panel-in{position:relative;z-index:2;padding:0 clamp(28px,7vw,110px) clamp(70px,13vh,130px);max-width:760px}
+.panel .idx{font-family:'Fraunces',serif;font-style:italic;color:var(--gold);font-size:18px;margin-bottom:14px}
+.panel h2{font-weight:200;font-size:clamp(34px,5.4vw,76px);line-height:1.02;letter-spacing:-.02em}
+.panel h2 i{font-family:'Fraunces',serif;font-style:italic;color:var(--gold)}
+.panel p{margin-top:18px;max-width:44ch;color:var(--tx2);line-height:1.7;font-size:clamp(14px,1.4vw,17px)}
+/* intro & outro panels (centered) */
+.panel.cover{align-items:center;justify-content:flex-start}
+.panel.cover .panel-in{padding-bottom:0}
+.panel.cover .eyebrow{font-size:11px;letter-spacing:.34em;text-transform:uppercase;color:var(--gold);display:block;margin-bottom:22px}
+.panel.cover h1{font-weight:200;font-size:clamp(42px,7vw,104px);line-height:.98;letter-spacing:-.03em}
+.panel.cover h1 i{font-family:'Fraunces',serif;font-style:italic;color:var(--gold)}
+.panel.cover p{font-size:clamp(15px,1.6vw,19px)}
+.btn{display:inline-flex;align-items:center;gap:9px;margin-top:30px;padding:15px 30px;border-radius:100px;font-size:12px;letter-spacing:.16em;text-transform:uppercase;font-weight:500;transition:.4s cubic-bezier(.16,1,.3,1)}
+.btn-fill{background:linear-gradient(135deg,#F0D98A,var(--gold));color:#1a1304}.btn-fill:hover{transform:translateY(-2px)}
+.btn-line{border:1px solid rgba(255,255,255,.25);color:#fff;margin-left:10px}.btn-line:hover{border-color:var(--gold);color:var(--gold)}
+.tags{display:flex;gap:8px;flex-wrap:wrap;margin-top:20px}
+.tag{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#fff;border:1px solid rgba(255,255,255,.2);padding:6px 12px;border-radius:100px}
+@media(max-width:760px){.hint{display:none}}
+</style>
+</head>
+<body>
+<div class="prog" id="prog"></div>
+<div class="bar"><a class="mark" href="/discover-variants.html">B<b>OO</b>M</a><span class="meta">Rome · Gallery</span></div>
+<div class="counter"><b id="cur">01</b> / 06</div>
+<div class="hint">scroll · swipe <i>→</i></div>
+
+<div class="gal" id="gal">
+  <!-- intro -->
+  <section class="panel cover">
+    <div class="panel-bg" style="background-image:url('https://i.imgur.com/8LVxrhs.jpeg')"></div>
+    <div class="panel-in">
+      <span class="eyebrow">Premium rentals · Rome</span>
+      <h1>Walk into<br>your Roman<br><i>life.</i></h1>
+      <p>A gallery of verified homes — and the safe, simple way you'll actually get the keys to one. Scroll sideways.</p>
+    </div>
+  </section>
+  <!-- homes -->
+  <section class="panel">
+    <div class="panel-bg" style="background-image:url('https://i.imgur.com/hxai5bz.jpeg')"></div>
+    <div class="panel-in"><div class="idx">01 — Verified</div><h2>Real homes.<br><i>No catfish.</i></h2><p>Every apartment is inspected and verified — landlord, contract, deposit, the real square metres — before it ever reaches you.</p><div class="tags"><span class="tag">Ripetta · Centro</span><span class="tag">✓ verified</span></div></div>
+  </section>
+  <section class="panel">
+    <div class="panel-bg" style="background-image:url('https://i.imgur.com/9CI1JnI.jpeg')"></div>
+    <div class="panel-in"><div class="idx">02 — Viewing</div><h2>See it live,<br><i>before you fly.</i></h2><p>A real-time video walkthrough of the actual apartment, on a call with you, from anywhere in the world.</p><div class="tags"><span class="tag">Live video</span><span class="tag">Never rent blind</span></div></div>
+  </section>
+  <section class="panel">
+    <div class="panel-bg" style="background-image:url('https://i.imgur.com/Smv5uPX.jpeg')"></div>
+    <div class="panel-in"><div class="idx">03 — Protected</div><h2>Signed safe.<br><i>Deposit protected.</i></h2><p>A proper contract in your language, deposit held safely, paid by card — never wired to a stranger.</p><div class="tags"><span class="tag">Legal contract</span><span class="tag">Card payment</span></div></div>
+  </section>
+  <section class="panel">
+    <div class="panel-bg" style="background-image:url('https://i.imgur.com/tJnYADn.jpeg')"></div>
+    <div class="panel-in"><div class="idx">04 — Home</div><h2>Keys in hand.<br><i>Welcome home.</i></h2><p>Utilities on, support in English, move-in within 48 hours of approval. Your Roman life, ready to live.</p><div class="tags"><span class="tag">48h move-in</span><span class="tag">Support 7/7</span></div></div>
+  </section>
+  <!-- outro -->
+  <section class="panel cover">
+    <div class="panel-bg" style="background-image:url('https://i.imgur.com/Ne0ROPe.jpeg')"></div>
+    <div class="panel-in">
+      <span class="eyebrow">The whole move, handled</span>
+      <h1>Shall we get<br>you <i>the keys?</i></h1>
+      <p>Verified homes, protected deposits, a team that speaks your language.</p>
+      <div><a href="/apartments.html" class="btn btn-fill">Browse homes</a><a href="https://wa.me/393313251961" class="btn btn-line">Speak to us</a></div>
+    </div>
+  </section>
+</div>
+
+<script>
+(function(){
+  var gal=document.getElementById('gal'), prog=document.getElementById('prog'), cur=document.getElementById('cur');
+  var panels=gal.querySelectorAll('.panel').length;
+  // wheel → horizontal (desktop)
+  gal.addEventListener('wheel',function(e){
+    if(Math.abs(e.deltaY)>Math.abs(e.deltaX)){ gal.scrollLeft+=e.deltaY; e.preventDefault(); }
+  },{passive:false});
+  gal.addEventListener('scroll',function(){
+    var max=gal.scrollWidth-gal.clientWidth;
+    var p=max>0?gal.scrollLeft/max:0;
+    prog.style.width=(p*100)+'%';
+    var i=Math.round(gal.scrollLeft/gal.clientWidth)+1;
+    cur.textContent=(i<10?'0':'')+i;
+  },{passive:true});
+  // keyboard
+  addEventListener('keydown',function(e){
+    if(e.key==='ArrowRight')gal.scrollLeft+=gal.clientWidth;
+    if(e.key==='ArrowLeft')gal.scrollLeft-=gal.clientWidth;
+  });
+})();
+</script>
+</body>
+</html>

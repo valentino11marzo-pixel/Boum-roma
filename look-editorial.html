@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BOOM · Editorial</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://i.imgur.com" crossorigin>
+<style>
+:root{--paper:#F3EEE4;--ink:#1A1613;--ink2:#5A5046;--gold:#A6803F;--line:rgba(26,22,19,.14)}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:var(--paper);color:var(--ink);font-family:'Inter',sans-serif;font-weight:300;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+.wrap{max-width:1280px;margin:0 auto;padding:0 clamp(22px,5vw,64px)}
+.eyebrow{font-size:11px;letter-spacing:.32em;text-transform:uppercase;color:var(--gold);font-weight:500}
+.serif{font-family:'Fraunces',serif}
+a{color:inherit;text-decoration:none}
+/* top bar */
+.bar{position:fixed;top:0;left:0;right:0;z-index:50;display:flex;align-items:center;justify-content:space-between;
+  padding:20px clamp(22px,5vw,64px);mix-blend-mode:difference;color:#fff}
+.bar .mark{font-family:'Fraunces',serif;font-weight:500;font-size:22px;letter-spacing:.04em}
+.bar .meta{font-size:11px;letter-spacing:.28em;text-transform:uppercase}
+/* hero */
+.hero{min-height:100vh;display:grid;grid-template-columns:1.05fr .95fr;align-items:center;gap:clamp(24px,5vw,72px);padding-top:90px}
+@media(max-width:880px){.hero{grid-template-columns:1fr;min-height:auto;padding:120px 0 40px}}
+.hero-copy .eyebrow{display:block;margin-bottom:26px}
+.hero h1{font-family:'Fraunces',serif;font-weight:300;font-size:clamp(46px,7.5vw,108px);line-height:.98;letter-spacing:-.02em}
+.hero h1 em{font-style:italic;color:var(--gold)}
+.hero p{margin-top:30px;max-width:42ch;font-size:clamp(15px,1.5vw,18px);line-height:1.7;color:var(--ink2)}
+.hero-actions{margin-top:38px;display:flex;gap:14px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:9px;padding:15px 30px;border-radius:2px;font-size:12px;letter-spacing:.18em;text-transform:uppercase;font-weight:500;transition:.4s cubic-bezier(.16,1,.3,1)}
+.btn-fill{background:var(--ink);color:var(--paper)}.btn-fill:hover{background:var(--gold)}
+.btn-line{border:1px solid var(--line);color:var(--ink)}.btn-line:hover{border-color:var(--ink)}
+.hero-img{position:relative;aspect-ratio:3/4;overflow:hidden}
+.hero-img img{width:100%;height:100%;object-fit:cover;filter:saturate(.95) contrast(1.02)}
+.hero-img .cap{position:absolute;bottom:0;left:0;right:0;padding:20px;background:linear-gradient(0deg,rgba(0,0,0,.55),transparent);color:#fff;font-size:11px;letter-spacing:.2em;text-transform:uppercase}
+/* marquee rule */
+.rule{border-top:1px solid var(--line);margin:clamp(60px,10vh,120px) 0}
+/* stat row */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:24px}
+@media(max-width:760px){.stats{grid-template-columns:repeat(2,1fr);gap:36px}}
+.stat .n{font-family:'Fraunces',serif;font-weight:300;font-size:clamp(40px,5vw,68px);line-height:1}
+.stat .l{margin-top:10px;font-size:12px;letter-spacing:.1em;color:var(--ink2)}
+/* editorial alternating */
+.ed{display:grid;grid-template-columns:1fr 1fr;align-items:center;gap:clamp(28px,6vw,90px);margin:clamp(70px,12vh,150px) 0}
+.ed:nth-child(even) .ed-img{order:2}
+@media(max-width:880px){.ed{grid-template-columns:1fr;gap:28px}.ed:nth-child(even) .ed-img{order:0}}
+.ed-img{aspect-ratio:4/3;overflow:hidden}
+.ed-img img{width:100%;height:100%;object-fit:cover}
+.ed h2{font-family:'Fraunces',serif;font-weight:300;font-size:clamp(30px,3.6vw,52px);line-height:1.05;margin:18px 0 16px;letter-spacing:-.01em}
+.ed p{font-size:16px;line-height:1.75;color:var(--ink2);max-width:46ch}
+.ed .num{font-family:'Fraunces',serif;font-style:italic;color:var(--gold);font-size:20px}
+/* pull quote */
+.pull{text-align:center;max-width:18ch;margin:clamp(80px,14vh,170px) auto;font-family:'Fraunces',serif;font-weight:300;
+  font-size:clamp(32px,5vw,66px);line-height:1.1;letter-spacing:-.01em}
+.pull em{font-style:italic;color:var(--gold)}
+/* closing */
+.close{background:var(--ink);color:var(--paper);text-align:center;padding:clamp(90px,16vh,180px) 24px;margin-top:clamp(60px,10vh,120px)}
+.close h2{font-family:'Fraunces',serif;font-weight:300;font-size:clamp(36px,6vw,80px);line-height:1.02}
+.close h2 em{font-style:italic;color:var(--gold)}
+.close p{margin:24px auto 36px;max-width:46ch;color:rgba(243,238,228,.7);line-height:1.7}
+.close .btn-line{border-color:rgba(243,238,228,.3);color:var(--paper)}.close .btn-line:hover{border-color:var(--paper)}
+.close .btn-fill{background:var(--gold);color:var(--ink)}
+footer{padding:30px 0;text-align:center;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink2)}
+/* reveal */
+.rv{opacity:0;transform:translateY(28px);transition:opacity 1s cubic-bezier(.16,1,.3,1),transform 1s cubic-bezier(.16,1,.3,1)}
+.rv.in{opacity:1;transform:none}
+@media(prefers-reduced-motion:reduce){.rv{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+<div class="bar"><a class="mark" href="/discover-variants.html">BOOM</a><span class="meta">Rome · Editorial</span></div>
+
+<header class="hero wrap">
+  <div class="hero-copy">
+    <span class="eyebrow">Premium rentals · Rome</span>
+    <h1 class="serif">A home in Rome,<br><em>without the fear.</em></h1>
+    <p>The most beautiful city in the world hides one of the cruellest rental markets. We made a quieter, safer way in — verified homes, protected deposits, every word in your language.</p>
+    <div class="hero-actions">
+      <a href="/apartments.html" class="btn btn-fill">Browse homes</a>
+      <a href="https://wa.me/393313251961" class="btn btn-line">Speak to us</a>
+    </div>
+  </div>
+  <figure class="hero-img rv"><img src="https://i.imgur.com/8LVxrhs.jpeg" alt="A BOOM apartment in central Rome"><figcaption class="cap">Navona · verified residence</figcaption></figure>
+</header>
+
+<div class="wrap">
+  <div class="rule"></div>
+  <div class="stats rv">
+    <div class="stat"><div class="n serif">48h</div><div class="l">Approval to keys</div></div>
+    <div class="stat"><div class="n serif">100%</div><div class="l">Video-verified</div></div>
+    <div class="stat"><div class="n serif">€0</div><div class="l">Hidden fees</div></div>
+    <div class="stat"><div class="n serif">2m</div><div class="l">Average reply</div></div>
+  </div>
+
+  <section class="ed rv">
+    <figure class="ed-img"><img src="https://i.imgur.com/hxai5bz.jpeg" alt=""></figure>
+    <div><span class="num serif">01</span><h2 class="serif">Only what's real.</h2><p>Every apartment is inspected and verified before it reaches you — the landlord, the contract, the deposit, the square metres. No catfish. No surprises. What you see is exactly what you get.</p></div>
+  </section>
+
+  <section class="ed rv">
+    <figure class="ed-img"><img src="https://i.imgur.com/9CI1JnI.jpeg" alt=""></figure>
+    <div><span class="num serif">02</span><h2 class="serif">See it before you fly.</h2><p>A live video walkthrough of the actual apartment, on a call with you, wherever you are in the world. You never rent blind — and never wire a euro on faith.</p></div>
+  </section>
+
+  <section class="ed rv">
+    <figure class="ed-img"><img src="https://i.imgur.com/Smv5uPX.jpeg" alt=""></figure>
+    <div><span class="num serif">03</span><h2 class="serif">Signed, protected, yours.</h2><p>A proper contract, explained line by line in your language. The deposit held safely — paid by card, never handed to a stranger. Then we meet you at the door with the keys.</p></div>
+  </section>
+
+  <p class="pull serif rv">Moving to Rome should feel like <em>arriving.</em></p>
+</div>
+
+<section class="close">
+  <h2 class="serif rv">Come home to Rome,<br><em>the right way.</em></h2>
+  <p class="rv">Verified homes, protected deposits, a team that speaks your language — from the first message to the keys in your hand.</p>
+  <div class="hero-actions rv" style="justify-content:center">
+    <a href="/apartments.html" class="btn btn-fill">Browse homes</a>
+    <a href="https://wa.me/393313251961" class="btn btn-line">Speak to us</a>
+  </div>
+</section>
+<footer>BOOM · Egidi Immobiliare S.r.l. · Rome — concept preview</footer>
+
+<script>
+var io=new IntersectionObserver(function(e){e.forEach(function(x){if(x.isIntersecting){x.target.classList.add('in');io.unobserve(x.target)}})},{threshold:.18});
+document.querySelectorAll('.rv').forEach(function(el){io.observe(el)});
+</script>
+</body>
+</html>

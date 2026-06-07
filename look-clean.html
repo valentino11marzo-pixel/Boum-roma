@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BOOM · Clean</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://i.imgur.com" crossorigin>
+<style>
+:root{--bg:#FFFFFF;--soft:#F5F5F3;--ink:#0B0B0C;--ink2:#6E6E76;--gold:#B8860B;--line:rgba(0,0,0,.1)}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden;letter-spacing:-.01em}
+a{color:inherit;text-decoration:none}
+.wrap{max-width:1120px;margin:0 auto;padding:0 clamp(22px,5vw,40px)}
+.kick{font-size:13px;font-weight:600;letter-spacing:.02em;color:var(--gold)}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:14px 26px;border-radius:100px;font-size:15px;font-weight:600;transition:.3s ease}
+.btn-fill{background:var(--ink);color:#fff}.btn-fill:hover{transform:scale(1.03)}
+.btn-soft{background:var(--soft);color:var(--ink)}.btn-soft:hover{background:#ececea}
+.btn-link{color:var(--gold);font-weight:600}.btn-link:hover{opacity:.7}
+/* bar */
+.bar{position:fixed;top:0;left:0;right:0;z-index:50;display:flex;align-items:center;justify-content:space-between;
+  padding:16px clamp(22px,5vw,40px);background:rgba(255,255,255,.8);backdrop-filter:blur(18px);border-bottom:1px solid var(--line)}
+.bar .mark{font-weight:800;font-size:19px;letter-spacing:.16em}
+.bar .meta{font-size:12px;font-weight:500;color:var(--ink2)}
+/* hero */
+.hero{padding:160px 0 80px;text-align:center}
+.hero h1{font-size:clamp(44px,7.5vw,92px);font-weight:700;line-height:1.02;letter-spacing:-.04em;margin:18px auto 0;max-width:14ch}
+.hero h1 span{color:var(--gold)}
+.hero p{margin:24px auto 0;max-width:50ch;font-size:clamp(17px,2vw,21px);line-height:1.55;color:var(--ink2);font-weight:400}
+.hero-actions{margin-top:34px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.hero-shot{margin:70px auto 0;max-width:1000px;aspect-ratio:16/9;border-radius:24px;overflow:hidden;box-shadow:0 40px 120px rgba(0,0,0,.18)}
+.hero-shot img{width:100%;height:100%;object-fit:cover}
+/* feature blocks */
+.feat{padding:clamp(70px,11vh,130px) 0}
+.feat .wrap{display:grid;grid-template-columns:1fr 1fr;align-items:center;gap:clamp(30px,6vw,80px)}
+.feat:nth-of-type(even) .ftext{order:2}
+@media(max-width:840px){.feat .wrap{grid-template-columns:1fr;gap:28px}.feat:nth-of-type(even) .ftext{order:0}}
+.feat.alt{background:var(--soft)}
+.ftext h2{font-size:clamp(30px,4.2vw,52px);font-weight:700;line-height:1.05;letter-spacing:-.03em;margin:14px 0 16px}
+.ftext p{font-size:17px;line-height:1.6;color:var(--ink2);max-width:42ch;font-weight:400}
+.fimg{aspect-ratio:4/3;border-radius:20px;overflow:hidden;box-shadow:0 24px 70px rgba(0,0,0,.12)}
+.fimg img{width:100%;height:100%;object-fit:cover}
+/* big statement */
+.statement{text-align:center;padding:clamp(90px,15vh,170px) 0}
+.statement h2{font-size:clamp(34px,6vw,76px);font-weight:700;letter-spacing:-.04em;line-height:1.04;max-width:16ch;margin:0 auto}
+.statement h2 span{color:var(--gold)}
+/* stat strip */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;padding:60px 0;border-top:1px solid var(--line)}
+@media(max-width:760px){.stats{grid-template-columns:repeat(2,1fr);gap:34px}}
+.stat .n{font-size:clamp(36px,5vw,60px);font-weight:800;letter-spacing:-.03em}
+.stat .l{margin-top:6px;font-size:14px;color:var(--ink2);font-weight:500}
+/* close */
+.close{background:var(--ink);color:#fff;border-radius:34px;margin:0 auto clamp(40px,8vh,80px);max-width:1120px;text-align:center;padding:clamp(70px,12vh,130px) 24px}
+.close h2{font-size:clamp(34px,5.5vw,68px);font-weight:700;letter-spacing:-.03em;line-height:1.04}
+.close h2 span{color:#F0C75A}
+.close p{margin:20px auto 32px;max-width:46ch;color:rgba(255,255,255,.66);font-size:18px;line-height:1.55;font-weight:400}
+.close .btn-fill{background:#fff;color:var(--ink)}
+.close .btn-soft{background:rgba(255,255,255,.12);color:#fff}
+footer{padding:30px 0;text-align:center;font-size:13px;color:var(--ink2)}
+.rv{opacity:0;transform:translateY(26px);transition:opacity .9s cubic-bezier(.16,1,.3,1),transform .9s cubic-bezier(.16,1,.3,1)}
+.rv.in{opacity:1;transform:none}
+@media(prefers-reduced-motion:reduce){.rv{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+<div class="bar"><a class="mark" href="/discover-variants.html">BOOM</a><span class="meta">Rome · Clean</span></div>
+
+<header class="hero">
+  <div class="wrap">
+    <span class="kick">Premium rentals in Rome</span>
+    <h1>Find a home in Rome. <span>Skip the scams.</span></h1>
+    <p>Verified apartments, live video viewings, protected deposits and contracts in your language. The safe way to move to Rome — finally simple.</p>
+    <div class="hero-actions">
+      <a href="/apartments.html" class="btn btn-fill">Browse homes</a>
+      <a href="https://wa.me/393313251961" class="btn btn-soft">Talk to us</a>
+    </div>
+  </div>
+  <div class="hero-shot rv"><img src="https://i.imgur.com/8LVxrhs.jpeg" alt="A verified BOOM apartment in Rome"></div>
+</header>
+
+<section class="feat">
+  <div class="wrap">
+    <div class="ftext rv"><span class="kick">Verified, not promised</span><h2>Only real homes reach you.</h2><p>Every apartment is checked before you ever see it — the landlord, the contract, the deposit, the real square metres. No catfish. No surprises.</p><a class="btn-link" href="/contract-check.html">See how we verify →</a></div>
+    <div class="fimg rv"><img src="https://i.imgur.com/hxai5bz.jpeg" alt=""></div>
+  </div>
+</section>
+
+<section class="feat alt">
+  <div class="wrap">
+    <div class="ftext rv"><span class="kick">From anywhere</span><h2>See it live, before you fly.</h2><p>A real-time video walkthrough of the actual apartment, on a call with you. You never rent blind, and you never wire money on faith.</p><a class="btn-link" href="/virtual-viewing.html">Book a viewing →</a></div>
+    <div class="fimg rv"><img src="https://i.imgur.com/9CI1JnI.jpeg" alt=""></div>
+  </div>
+</section>
+
+<section class="feat">
+  <div class="wrap">
+    <div class="ftext rv"><span class="kick">Signed &amp; protected</span><h2>Your deposit, kept safe.</h2><p>A proper contract, explained line by line in your language. Paid securely by card — never handed to a stranger. Keys within 48 hours.</p><a class="btn-link" href="/deal-assistance.html">Get deal assistance →</a></div>
+    <div class="fimg rv"><img src="https://i.imgur.com/Smv5uPX.jpeg" alt=""></div>
+  </div>
+</section>
+
+<section class="statement"><div class="wrap"><h2 class="rv">Moving to Rome should feel like <span>arriving.</span></h2></div></section>
+
+<div class="wrap"><div class="stats rv">
+  <div class="stat"><div class="n">48h</div><div class="l">Approval to keys</div></div>
+  <div class="stat"><div class="n">100%</div><div class="l">Video-verified</div></div>
+  <div class="stat"><div class="n">€0</div><div class="l">Hidden fees</div></div>
+  <div class="stat"><div class="n">2 min</div><div class="l">Average reply</div></div>
+</div></div>
+
+<section class="statement" style="padding-top:clamp(60px,9vh,110px)">
+<div class="close">
+  <h2 class="rv">Come home to Rome, <span>the right way.</span></h2>
+  <p class="rv">Verified homes, protected deposits, and a team that speaks your language — from first message to keys in hand.</p>
+  <div class="hero-actions rv">
+    <a href="/apartments.html" class="btn btn-fill">Browse homes</a>
+    <a href="https://wa.me/393313251961" class="btn btn-soft">Talk to us</a>
+  </div>
+</div>
+</section>
+<footer>BOOM · Egidi Immobiliare S.r.l. · Rome — concept preview</footer>
+
+<script>
+var io=new IntersectionObserver(function(e){e.forEach(function(x){if(x.isIntersecting){x.target.classList.add('in');io.unobserve(x.target)}})},{threshold:.16});
+document.querySelectorAll('.rv').forEach(function(el){io.observe(el)});
+</script>
+</body>
+</html>
