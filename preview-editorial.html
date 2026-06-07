@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Valentino Egidi — Direzione B · Editorial luxury</title>
+<meta name="description" content="Anteprima direzione visiva B — editoriale, travertino, serif. Mediatore immobiliare a Roma.">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#F3EFE6">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..600;1,9..144,300..500&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════════════════════════
+   VALENTINO EGIDI — DIRECTION B · "Editorial luxury"
+   Warm travertine paper · espresso ink · antique gold.
+   Fraunces serif display × Inter · magazine rhythm · slow reveals.
+   ═══════════════════════════════════════════════════════════════ */
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --paper:#F3EFE6;          /* travertine paper      */
+  --paper-2:#EBE5D8;        /* deeper paper          */
+  --ink:#1C1813;            /* espresso ink          */
+  --ink-2:#5C5446;          /* muted ink             */
+  --ink-3:#8A8070;          /* light ink             */
+  --line:rgba(28,24,19,.16);
+  --line-2:rgba(28,24,19,.09);
+  --gold:#9A7B43;           /* antique gold-bronze   */
+  --gold-2:#856936;
+  --oxblood:#6E2A24;        /* rare emphasis         */
+  --sand:#E2DAC9;
+  --sand-2:#CBBEA4;
+  --serif:'Fraunces',Georgia,'Times New Roman',serif;
+  --sans:'Inter',-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif;
+  --e1:cubic-bezier(.16,1,.3,1);
+  --e2:cubic-bezier(.62,.01,.05,1);
+}
+html{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;scroll-behavior:smooth}
+body{font-family:var(--sans);font-weight:400;background:var(--paper);color:var(--ink);line-height:1.6;overflow-x:hidden;-webkit-tap-highlight-color:transparent}
+::selection{background:var(--gold);color:var(--paper)}
+a{color:inherit;text-decoration:none}
+img{display:block;max-width:100%}
+.serif{font-family:var(--serif);font-optical-sizing:auto}
+.wrap{max-width:1240px;margin:0 auto;padding:0 46px}
+.col{max-width:1040px;margin:0 auto;padding:0 46px}
+@media(max-width:640px){.wrap,.col{padding:0 24px}}
+.eyebrow{font-family:var(--sans);font-size:11px;font-weight:500;letter-spacing:.3em;text-transform:uppercase;color:var(--gold)}
+.rule{height:1px;background:var(--line);width:100%}
+
+/* photo plate w/ graceful fallback */
+.ph{position:relative;overflow:hidden;background:
+   radial-gradient(120% 130% at 25% 8%,rgba(255,255,255,.55),transparent 55%),
+   linear-gradient(155deg,var(--sand),var(--sand-2) 72%,#b3a484)}
+.ph img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:opacity 1.2s var(--e1)}
+.ph.reveal img{clip-path:inset(0 0 100% 0);transition:clip-path 1.3s var(--e2),opacity 1.2s var(--e1)}
+.ph.reveal.in img{clip-path:inset(0 0 0 0)}
+
+/* ── NAV ──────────────────────────────────────────────────── */
+nav{position:fixed;inset:0 0 auto 0;z-index:90;height:74px;display:flex;align-items:center;transition:background .5s,box-shadow .5s}
+nav.scrolled{background:rgba(243,239,230,.86);backdrop-filter:blur(16px);box-shadow:0 1px 0 var(--line-2)}
+.nav-in{display:flex;align-items:center;justify-content:space-between;width:100%;max-width:1240px;margin:0 auto;padding:0 46px}
+@media(max-width:640px){.nav-in{padding:0 24px}}
+.brand{font-family:var(--serif);font-size:21px;font-weight:400;letter-spacing:.01em;display:flex;align-items:center;gap:12px}
+.brand .vm{width:14px;height:14px;border:1.5px solid var(--ink);position:relative}
+.brand .vm::after{content:"";position:absolute;inset:3px 3px auto auto;width:4px;height:4px;background:var(--gold)}
+.nav-links{display:flex;gap:34px}
+.nav-links a{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-2);transition:color .3s;position:relative}
+.nav-links a::after{content:"";position:absolute;left:0;right:100%;bottom:-5px;height:1px;background:var(--gold);transition:right .4s var(--e1)}
+.nav-links a:hover{color:var(--ink)}.nav-links a:hover::after{right:0}
+@media(max-width:820px){.nav-links{display:none}}
+.nav-cta{font-size:11px;letter-spacing:.18em;text-transform:uppercase;border:1px solid var(--ink);padding:11px 20px;transition:.4s var(--e1)}
+.nav-cta:hover{background:var(--ink);color:var(--paper)}
+
+/* ── HERO ─────────────────────────────────────────────────── */
+.hero{padding:170px 0 0;position:relative}
+.hero .eyebrow{margin-bottom:30px}
+.hero h1{font-family:var(--serif);font-optical-sizing:auto;font-weight:300;font-size:clamp(46px,9vw,128px);line-height:.98;letter-spacing:-.02em;max-width:13ch}
+.hero h1 em{font-style:italic;font-weight:400;color:var(--gold)}
+.hero-grid{display:grid;grid-template-columns:1.5fr 1fr;gap:54px;align-items:end;margin-top:42px}
+@media(max-width:860px){.hero-grid{grid-template-columns:1fr;gap:30px}}
+.hero-sub{font-size:clamp(16px,1.6vw,19px);color:var(--ink-2);max-width:46ch;line-height:1.65}
+.hero-sub .cta{margin-top:30px;display:flex;gap:26px;align-items:center;flex-wrap:wrap}
+.link-line{font-family:var(--sans);font-size:12px;letter-spacing:.16em;text-transform:uppercase;border-bottom:1px solid var(--gold);padding-bottom:5px;color:var(--ink);transition:.3s}
+.link-line:hover{color:var(--gold)}
+.btn-ink{font-size:12px;letter-spacing:.16em;text-transform:uppercase;background:var(--ink);color:var(--paper);padding:16px 30px;transition:.4s var(--e1)}
+.btn-ink:hover{background:var(--gold)}
+.hero-shot{margin-top:74px;aspect-ratio:16/8;width:100%}
+.hero-shot .ph{position:absolute;inset:0}
+.hero-figwrap{position:relative}
+.hero-cap{display:flex;justify-content:space-between;margin-top:16px;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}
+
+/* ── SECTION SCAFFOLD ─────────────────────────────────────── */
+.blk{padding:140px 0}
+@media(max-width:640px){.blk{padding:92px 0}}
+.deep{background:var(--paper-2)}
+.s-head{display:grid;grid-template-columns:auto 1fr;gap:40px;align-items:start;margin-bottom:72px}
+@media(max-width:760px){.s-head{grid-template-columns:1fr;gap:16px}}
+.s-num{font-family:var(--serif);font-style:italic;font-weight:300;font-size:clamp(40px,6vw,84px);color:var(--gold);line-height:.8;opacity:.55}
+.s-head h2{font-family:var(--serif);font-optical-sizing:auto;font-weight:300;font-size:clamp(30px,5.4vw,64px);line-height:1.02;letter-spacing:-.018em}
+.s-head h2 em{font-style:italic;color:var(--gold)}
+.s-head .lead{font-size:clamp(15px,1.5vw,18px);color:var(--ink-2);max-width:52ch;margin-top:22px;line-height:1.7}
+
+/* MANIFESTO — editorial register */
+.theses{border-top:1px solid var(--line)}
+.thesis{display:grid;grid-template-columns:90px 1fr;gap:30px;padding:40px 0;border-bottom:1px solid var(--line);align-items:baseline;transition:padding .55s var(--e1)}
+.thesis:hover{padding-left:18px}
+.thesis .rn{font-family:var(--serif);font-style:italic;font-size:22px;color:var(--gold)}
+.thesis p{font-family:var(--serif);font-optical-sizing:auto;font-weight:300;font-size:clamp(22px,3.4vw,40px);line-height:1.18;letter-spacing:-.01em}
+.thesis p b{font-weight:400;font-style:italic;color:var(--gold)}
+@media(max-width:600px){.thesis{grid-template-columns:1fr;gap:8px}}
+
+/* PORTFOLIO — full editorial spreads */
+.spread{display:grid;grid-template-columns:1fr 1fr;gap:0;align-items:stretch;border-top:1px solid var(--line)}
+.spread:last-child{border-bottom:1px solid var(--line)}
+@media(max-width:820px){.spread{grid-template-columns:1fr}}
+.spread .sh-img{position:relative;min-height:62vh}
+@media(max-width:820px){.spread .sh-img{min-height:54vh;order:-1}}
+.spread.flip .sh-img{order:2}
+@media(max-width:820px){.spread.flip .sh-img{order:-1}}
+.spread .ph{position:absolute;inset:0}
+.spread .sh-txt{padding:64px 60px;display:flex;flex-direction:column;justify-content:center}
+@media(max-width:640px){.spread .sh-txt{padding:48px 24px}}
+.spread .sh-txt .z{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--gold)}
+.spread .sh-txt h3{font-family:var(--serif);font-optical-sizing:auto;font-weight:300;font-size:clamp(28px,3.6vw,46px);line-height:1.05;margin:16px 0 18px;letter-spacing:-.015em}
+.spread .sh-txt p{color:var(--ink-2);font-size:16px;line-height:1.7;max-width:40ch}
+.spread .sh-txt .det{margin-top:28px;display:flex;gap:26px;font-size:12px;letter-spacing:.06em;color:var(--ink-3);text-transform:uppercase}
+.spread .sh-txt .det b{display:block;font-family:var(--serif);font-size:24px;color:var(--ink);text-transform:none;letter-spacing:0;font-weight:300;margin-top:4px}
+
+/* NUMBERS */
+.nums{display:grid;grid-template-columns:repeat(4,1fr)}
+@media(max-width:760px){.nums{grid-template-columns:1fr 1fr}}
+.numc{padding:8px 30px;border-left:1px solid var(--line)}
+.numc:first-child{border-left:none;padding-left:0}
+@media(max-width:760px){.numc{padding:24px 0 24px 26px}.numc:nth-child(odd){border-left:none;padding-left:0}}
+.numc .v{font-family:var(--serif);font-optical-sizing:auto;font-weight:300;font-size:clamp(48px,7vw,92px);line-height:1;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.numc .v .u{font-style:italic;color:var(--gold);font-size:.5em}
+.numc .k{font-size:13px;color:var(--ink-2);margin-top:18px;max-width:20ch;line-height:1.5}
+
+/* BOOM bridge */
+.boom{background:var(--ink);color:var(--paper);position:relative;overflow:hidden}
+.boom::before{content:"";position:absolute;top:-30%;right:-15%;width:55%;height:170%;background:radial-gradient(circle,rgba(154,123,67,.22),transparent 62%)}
+.boom-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:64px;align-items:center;position:relative;z-index:2}
+@media(max-width:860px){.boom-grid{grid-template-columns:1fr;gap:40px}}
+.boom .eyebrow{color:var(--gold)}
+.boom h2{font-family:var(--serif);font-optical-sizing:auto;font-weight:300;font-size:clamp(30px,4.4vw,56px);line-height:1.05;margin-top:22px;letter-spacing:-.015em}
+.boom h2 em{font-style:italic;color:var(--gold)}
+.boom p{color:rgba(243,239,230,.66);font-size:16px;line-height:1.7;margin-top:24px;max-width:48ch}
+.boom .link-line{color:var(--paper);border-color:var(--gold);margin-top:34px;display:inline-block}
+.boom .link-line:hover{color:var(--gold)}
+.boom-fig{position:relative;min-height:380px;border:1px solid rgba(243,239,230,.16)}
+.boom-fig .ph{position:absolute;inset:0;background:linear-gradient(150deg,#2a251d,#14110c)}
+
+/* CONTACT — travertine slab */
+.contact{text-align:center}
+.contact h2{font-family:var(--serif);font-optical-sizing:auto;font-weight:300;font-size:clamp(34px,6vw,80px);line-height:1.02;letter-spacing:-.018em;max-width:16ch;margin:18px auto 0}
+.contact h2 em{font-style:italic;color:var(--gold)}
+.contact .lead{color:var(--ink-2);max-width:50ch;margin:26px auto 0;font-size:17px;line-height:1.65}
+.contact .btn-ink{margin-top:40px;display:inline-block}
+.cmeta{margin-top:50px;display:flex;gap:40px;justify-content:center;flex-wrap:wrap;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+.cmeta a{color:var(--ink);border-bottom:1px solid var(--gold);padding-bottom:3px;transition:.3s}
+.cmeta a:hover{color:var(--gold)}
+
+/* FOOTER */
+footer{background:var(--paper-2);border-top:1px solid var(--line);padding:46px 0}
+.foot-in{display:flex;justify-content:space-between;flex-wrap:wrap;gap:14px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3)}
+.foot-in a:hover{color:var(--gold)}
+
+/* reveal */
+.rv{opacity:0;transform:translateY(30px);transition:opacity 1.2s var(--e1),transform 1.2s var(--e1)}
+.rv.in{opacity:1;transform:none}
+[data-st]>*{opacity:0;transform:translateY(24px);transition:opacity 1s var(--e1),transform 1s var(--e1)}
+[data-st].in>*{opacity:1;transform:none}
+[data-st].in>*:nth-child(2){transition-delay:.08s}[data-st].in>*:nth-child(3){transition-delay:.16s}
+[data-st].in>*:nth-child(4){transition-delay:.24s}[data-st].in>*:nth-child(5){transition-delay:.32s}
+
+/* preview chrome */
+.pv{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:200;display:flex;align-items:center;
+  background:rgba(243,239,230,.86);backdrop-filter:blur(16px);border:1px solid var(--line);box-shadow:0 18px 40px -20px rgba(28,24,19,.4);overflow:hidden;font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+.pv b{padding:11px 18px;font-weight:500;font-family:var(--serif);text-transform:none;font-size:14px;letter-spacing:0}
+.pv a{padding:11px 18px;color:var(--ink-2);border-left:1px solid var(--line);transition:.25s}
+.pv a:hover{background:var(--ink);color:var(--paper)}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.rv,[data-st]>*{opacity:1;transform:none}.ph.reveal img{clip-path:none}}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav id="nav"><div class="nav-in">
+  <a href="#" class="brand"><span class="vm"></span> Valentino Egidi</a>
+  <div class="nav-links">
+    <a href="#filosofia">Filosofia</a>
+    <a href="#portfolio">Indirizzi</a>
+    <a href="#metodo">Metodo</a>
+    <a href="#affitti">Affitti</a>
+  </div>
+  <a href="#contatti" class="nav-cta">Parliamo</a>
+</div></nav>
+
+<!-- HERO -->
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow">Mediatore immobiliare — Roma, Centro Storico</div>
+    <h1 class="serif">Ti dico la <em>verità</em> sulla casa.</h1>
+    <div class="hero-grid">
+      <div></div>
+      <div class="hero-sub">
+        Compravendita a Roma senza copioni, senza euforia finta, senza sorprese al rogito. Solo numeri, contesto e una risposta diretta — la stessa che darei a un amico.
+        <div class="cta">
+          <a href="https://wa.me/393313251961" target="_blank" class="btn-ink">Scrivimi su WhatsApp</a>
+          <a href="#filosofia" class="link-line">Perché diverso</a>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="wrap hero-figwrap">
+    <div class="hero-shot"><figure class="ph reveal" data-rev><img src="https://images.unsplash.com/photo-1552832230-c0197dd311b5?auto=format&fit=crop&w=2000&q=80" alt="Roma" onerror="this.style.opacity=0"></figure></div>
+    <div class="hero-cap"><span>Roma · MMXXX</span><span>Una sola versione dei fatti</span></div>
+  </div>
+</header>
+
+<!-- FILOSOFIA -->
+<section class="blk" id="filosofia">
+  <div class="col">
+    <div class="s-head rv">
+      <div class="s-num serif">I</div>
+      <div>
+        <div class="eyebrow">Filosofia</div>
+        <h2 class="serif">Cinque cose che gli altri <em>non ti diranno.</em></h2>
+        <p class="lead">Non vendo case. Rendo le decisioni difficili più facili da prendere, con onestà. Se questo costa una provvigione ogni tanto, va bene — la reputazione vale di più.</p>
+      </div>
+    </div>
+    <div class="theses" data-st>
+      <div class="thesis"><div class="rn">i</div><p>Un prezzo <b>onesto</b> vende più in fretta di un prezzo gonfiato.</p></div>
+      <div class="thesis"><div class="rn">ii</div><p>Se la casa non fa per te, <b>te lo dico.</b> Anche se perdo la provvigione.</p></div>
+      <div class="thesis"><div class="rn">iii</div><p>I <b>difetti</b> prima dei pregi. Sempre.</p></div>
+      <div class="thesis"><div class="rn">iv</div><p>Niente aste mascherate, niente <b>finti</b> altri compratori.</p></div>
+      <div class="thesis"><div class="rn">v</div><p>I numeri parlano. Io li <b>traduco,</b> non li trucco.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- PORTFOLIO -->
+<section class="deep" id="portfolio">
+  <div class="col blk" style="padding-bottom:60px">
+    <div class="s-head rv">
+      <div class="s-num serif">II</div>
+      <div>
+        <div class="eyebrow">Indirizzi selezionati</div>
+        <h2 class="serif">Poche case. <em>Quelle giuste.</em></h2>
+        <p class="lead">Una selezione del centro di Roma — anche off-market, dalla rete del quartiere.</p>
+      </div>
+    </div>
+  </div>
+  <div class="spread">
+    <div class="sh-img"><figure class="ph reveal" data-rev><img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1500&q=80" alt="" onerror="this.style.opacity=0"></figure></div>
+    <div class="sh-txt rv">
+      <div class="z">Centro Storico</div>
+      <h3 class="serif">Attico su Via dei Coronari</h3>
+      <p>Da riportare in vita, con un terrazzo che guarda i tetti del centro. Ti mostro cosa c'è che non va prima che te ne accorga tu.</p>
+      <div class="det"><span>Superficie<b>145 m²</b></span><span>Esposizione<b>Sud-Ovest</b></span></div>
+    </div>
+  </div>
+  <div class="spread flip">
+    <div class="sh-img"><figure class="ph reveal" data-rev><img src="https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=1500&q=80" alt="" onerror="this.style.opacity=0"></figure></div>
+    <div class="sh-txt rv">
+      <div class="z">Prati</div>
+      <h3 class="serif">Tre camere, piano alto</h3>
+      <p>Luminoso davvero — non "ha le finestre". Piano alto, silenzioso, pronto da vivere. Prezzo giusto dal giorno uno.</p>
+      <div class="det"><span>Superficie<b>110 m²</b></span><span>Piano<b>Sesto</b></span></div>
+    </div>
+  </div>
+  <div class="spread">
+    <div class="sh-img"><figure class="ph reveal" data-rev><img src="https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?auto=format&fit=crop&w=1500&q=80" alt="" onerror="this.style.opacity=0"></figure></div>
+    <div class="sh-txt rv">
+      <div class="z">Trastevere</div>
+      <h3 class="serif">Bilocale d'autore</h3>
+      <p>Un investimento onesto: i numeri reggono, l'affitto pure. E se vuoi metterlo a reddito, c'è BOOM.</p>
+      <div class="det"><span>Superficie<b>58 m²</b></span><span>Resa<b>Medio termine</b></span></div>
+    </div>
+  </div>
+</section>
+
+<!-- METODO + NUMBERS -->
+<section class="blk" id="metodo">
+  <div class="col">
+    <div class="s-head rv">
+      <div class="s-num serif">III</div>
+      <div>
+        <div class="eyebrow">Il metodo</div>
+        <h2 class="serif">Pochi passaggi. <em>Tutti tracciabili.</em></h2>
+      </div>
+    </div>
+    <div class="nums" data-st>
+      <div class="numc"><div class="v" data-c="0">0</div><div class="k">Aste mascherate. Mai.</div></div>
+      <div class="numc"><div class="v" data-c="100">0<span class="u">%</span></div><div class="k">Dei difetti, dichiarati prima.</div></div>
+      <div class="numc"><div class="v" data-c="24">0<span class="u">h</span></div><div class="k">Tempo di risposta. Sul serio.</div></div>
+      <div class="numc"><div class="v" data-c="1">0</div><div class="k">Una sola versione dei fatti.</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- BOOM -->
+<section class="blk boom" id="affitti">
+  <div class="col">
+    <div class="boom-grid">
+      <div class="rv">
+        <div class="eyebrow">Divisione affitti</div>
+        <h2 class="serif">Comprare e vendere è metà del lavoro. Affittare è <em>BOOM</em>.</h2>
+        <p>La nostra divisione per gli affitti medio termine: appartamenti verificati a Roma, contratti legali, ingresso in 48 ore. Per studenti, professionisti ed expat. Io ti seguo nella compravendita; per affittare — o mettere a reddito quello che compri — c'è BOOM.</p>
+        <a href="https://www.boomrome.com" target="_blank" class="link-line">Scopri BOOM →</a>
+      </div>
+      <div class="boom-fig rv"><figure class="ph reveal" data-rev><img src="https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1300&q=80" alt="" onerror="this.style.opacity=0"></figure></div>
+    </div>
+  </div>
+</section>
+
+<!-- CONTACT -->
+<section class="blk contact" id="contatti">
+  <div class="col">
+    <div class="rv">
+      <div class="eyebrow">Parliamo</div>
+      <h2 class="serif">Una conversazione onesta. <em>Senza copione.</em></h2>
+      <p class="lead">Dimmi cosa cerchi, o cosa vuoi vendere. In due minuti ti dico se posso aiutarti davvero — e se non posso, ti dico a chi rivolgerti.</p>
+      <a href="https://wa.me/393313251961" target="_blank" class="btn-ink">Scrivimi ora →</a>
+      <div class="cmeta">
+        <span><a href="https://wa.me/393313251961" target="_blank">+39 331 325 1961</a></span>
+        <span><a href="https://instagram.com/r.egidi_immobiliare" target="_blank">@r.egidi_immobiliare</a></span>
+        <span>Via dei Coronari 181 · Roma</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer><div class="wrap foot-in">
+  <span>© MMXXX · Valentino Egidi · Egidi Immobiliare S.r.l. · P.IVA 17322991005</span>
+  <span><a href="https://www.boomrome.com" target="_blank">BOOM — affitti medio termine</a></span>
+</div></footer>
+
+<!-- preview switcher -->
+<div class="pv">
+  <b>Direzione B · Editorial</b>
+  <a href="/preview-light">← Vedi Direzione A</a>
+</div>
+
+<script>
+const reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;
+const nav=document.getElementById('nav');
+addEventListener('scroll',()=>nav.classList.toggle('scrolled',scrollY>10),{passive:true});
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}}),{threshold:.14});
+document.querySelectorAll('.rv,[data-st],[data-rev]').forEach(el=>io.observe(el));
+const cio=new IntersectionObserver(es=>es.forEach(e=>{if(!e.isIntersecting)return;cio.unobserve(e.target);
+  const el=e.target,t=+el.dataset.c;let s=null;
+  (function f(ts){if(!s)s=ts;const p=Math.min((ts-s)/1200,1),k=1-Math.pow(1-p,3);el.childNodes[0].nodeValue=Math.round(k*t);if(p<1)requestAnimationFrame(f)})(performance.now());
+}),{threshold:.6});
+document.querySelectorAll('.numc .v').forEach(el=>cio.observe(el));
+</script>
+</body>
+</html>
