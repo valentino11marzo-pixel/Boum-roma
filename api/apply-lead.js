@@ -16,7 +16,7 @@
 //         moveIn, duration, occupants, message }
 // Response 200: { ok: true, id }  | 4xx/5xx: { ok: false, error }
 
-import { fsCreate, logActivity, getAdminToken, FS_BASE, toFsFields } from './homie/_lib.js';
+import { fsCreate, logActivity } from './homie/_lib.js';
 
 // ── Best-effort in-memory rate limit (per warm instance) ──
 const HITS = new Map(); // ip -> [timestamps]
@@ -38,51 +38,6 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(204).end();
-
-  // ── TEMP diagnostic (GET ?diag=boomdiag9) — pinpoints where the lead write
-  // breaks: admin sign-in vs Firestore permission/shape. Remove after fixing. ──
-  if (req.method === 'GET' && req.query && req.query.diag === 'boomdiag9') {
-    const out = { env: {
-      hasApiKey: !!process.env.FIREBASE_API_KEY,
-      hasAdminEmail: !!process.env.FIREBASE_ADMIN_EMAIL,
-      hasAdminPass: !!process.env.FIREBASE_ADMIN_PASS,
-      projectId: process.env.FIREBASE_PROJECT_ID || '(default boom-property-dashboards)',
-    }};
-    try {
-      // Sign in directly so we can capture the account identity (localId/email).
-      const si = await fetch(
-        `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${process.env.FIREBASE_API_KEY}`,
-        { method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: process.env.FIREBASE_ADMIN_EMAIL, password: process.env.FIREBASE_ADMIN_PASS, returnSecureToken: true }) }
-      );
-      const sd = await si.json();
-      out.tokenOk = !!sd.idToken;
-      out.localId = sd.localId || null;
-      out.adminEmail = sd.email || null;
-      const token = sd.idToken;
-      // Read the account's own /users/{uid} doc — self-read is allowed by rules.
-      if (out.localId) {
-        const ur = await fetch(`${FS_BASE}/users/${out.localId}`, { headers: { Authorization: `Bearer ${token}` } });
-        out.userDocStatus = ur.status;
-        const ut = await ur.json().catch(() => ({}));
-        out.userDocRole = ut && ut.fields && ut.fields.role ? (ut.fields.role.stringValue ?? ut.fields.role) : '(no role field / no doc)';
-      }
-      // Attempt the actual leads write.
-      const probe = { source: 'web', service: 'DIAG', name: 'ZZ DIAG', status: 'new',
-        intent: 'diag', createdAt: new Date(), raw: { diag: true } };
-      const r = await fetch(`${FS_BASE}/leads`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fields: toFsFields(probe) }),
-      });
-      out.fsStatus = r.status;
-      out.fsText = (await r.text()).slice(0, 300);
-    } catch (e) {
-      out.threw = String((e && e.message) || e).slice(0, 600);
-    }
-    return res.status(200).json(out);
-  }
-
   if (req.method !== 'POST')    return res.status(405).json({ ok: false, error: 'method_not_allowed' });
 
   let body = req.body;
@@ -150,7 +105,6 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true, id });
   } catch (err) {
     console.error('[apply-lead]', err);
-    const _d = String((err && err.message) || err).slice(0, 400);
-    return res.status(500).json({ ok: false, error: 'internal', detail: _d });
+    return res.status(500).json({ ok: false, error: 'internal' });
   }
 }
