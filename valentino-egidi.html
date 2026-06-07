@@ -4,309 +4,410 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Valentino Egidi — Mediatore immobiliare · Roma MMXXX</title>
-<meta name="description" content="Compravendita immobiliare a Roma senza copioni. Onesto fino all'imbarazzo, preciso fino al decimale. Valentino Egidi, mediatore.">
+<meta name="description" content="Compravendita immobiliare a Roma senza copioni. Onesto fino all'imbarazzo, preciso fino al decimale. Affitti medio termine con BOOM.">
 <meta name="robots" content="noindex, nofollow">
-<meta name="theme-color" content="#0C0D0F">
+<meta name="theme-color" content="#0D0F12">
 <style>
 /* ══════════════════════════════════════════════════════════════
-   VALENTINO EGIDI — ROMA MMXXX
-   Industrial · tech · rationalist-monumental (EUR / travertine)
-   Type: Helvetica Neue 300 ONLY (from BOOM's identity)
-   Palette: graphite + travertine + signal orange. No gold.
-   Self-contained · bilingual IT/EN · reduced-motion & touch safe
+   VALENTINO EGIDI — ROMA MMXXX  ·  v3 "studio-grade"
+   Rationalist-industrial × 2030 tech × Roman travertine
+   Type: Helvetica Neue 300 only (from BOOM identity)
+   Material narrative: graphite/steel  ⇄  travertine stone
+   Self-contained · bilingual IT/EN · sound optional · a11y safe
    ══════════════════════════════════════════════════════════════ */
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 
 :root{
-  --graphite:#0C0D0F;     /* cold industrial base */
-  --concrete:#131619;
-  --concrete-2:#1A1E22;
-  --steel:#E9EAEC;        /* text */
-  --steel-2:rgba(233,234,236,.56);
-  --steel-3:rgba(233,234,236,.30);
-  --travertine:#C7BEAB;   /* roman stone */
-  --travertine-2:#B6AC96;
-  --stone-ink:#14130E;
-  --line:rgba(233,234,236,.13);
-  --line-2:rgba(233,234,236,.06);
-  --signal:#FF4D23;       /* hazard / signal */
-  --signal-dim:rgba(255,77,35,.16);
+  --void:#08090B;
+  --graphite:#0D0F12;
+  --graphite-2:#12151A;
+  --concrete:#171B20;
+  --concrete-2:#1F242B;
+  --steel:#ECEEF1;
+  --steel-2:rgba(236,238,241,.58);
+  --steel-3:rgba(236,238,241,.32);
+  --steel-4:rgba(236,238,241,.13);
+  --line:rgba(236,238,241,.12);
+  --line-2:rgba(236,238,241,.055);
+  --travertine:#CDC4AF;
+  --travertine-2:#BCB199;
+  --stone-ink:#16140E;
+  --stone-ink-2:rgba(22,20,14,.62);
+  --ember:#FF4A1E;
+  --ember-2:#FF7A4D;
+  --ember-dim:rgba(255,74,30,.14);
+  --gold:#E9B949;                 /* used ONLY in the BOOM bridge */
   --font:'Helvetica Neue','Helvetica Neue LT','HelveticaNeue',Helvetica,Arial,sans-serif;
-  --ease:cubic-bezier(.16,1,.3,1);
-  --ease2:cubic-bezier(.76,0,.24,1);
+  --e1:cubic-bezier(.16,1,.3,1);
+  --e2:cubic-bezier(.76,0,.24,1);
+  --e3:cubic-bezier(.85,0,.15,1);
 }
 
 html{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;scroll-behavior:smooth}
-body{
-  font-family:var(--font);font-weight:300;background:var(--graphite);color:var(--steel);
-  line-height:1.55;overflow-x:hidden;letter-spacing:.01em;cursor:default;
-}
-::selection{background:var(--signal);color:#fff}
+body{font-family:var(--font);font-weight:300;background:var(--graphite);color:var(--steel);line-height:1.55;overflow-x:hidden;letter-spacing:.01em}
+::selection{background:var(--ember);color:#fff}
 img{max-width:100%;display:block}
 a{color:inherit;text-decoration:none}
-h1,h2,h3,h4{font-weight:300;letter-spacing:-.01em}
+h1,h2,h3,h4{font-weight:300;letter-spacing:-.012em}
+body.lock{overflow:hidden;height:100vh}
 
 /* grain */
-body::before{content:"";position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.04;mix-blend-mode:overlay;
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+.grain{position:fixed;inset:0;z-index:7;pointer-events:none;opacity:.045;mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+/* pointer spotlight (depth) */
+.spot{position:fixed;width:620px;height:620px;left:0;top:0;z-index:0;pointer-events:none;border-radius:50%;
+  background:radial-gradient(circle,rgba(255,74,30,.10),transparent 62%);transform:translate(-50%,-50%);opacity:0;transition:opacity .6s}
+body.cur-on .spot{opacity:1}
 
-.wrap{max-width:1320px;margin:0 auto;padding:0 44px}
+.wrap{max-width:1340px;margin:0 auto;padding:0 48px}
 @media(max-width:680px){.wrap{padding:0 20px}}
 
 /* technical micro-label */
-.tag{font-size:11px;font-weight:300;letter-spacing:.28em;text-transform:uppercase;font-variant-numeric:tabular-nums}
-.tag .sq{display:inline-block;width:7px;height:7px;background:var(--signal);margin-right:11px;vertical-align:1px}
+.tag{font-size:11px;font-weight:300;letter-spacing:.3em;text-transform:uppercase;font-variant-numeric:tabular-nums}
+.tag .sq{display:inline-block;width:7px;height:7px;background:var(--ember);margin-right:12px;vertical-align:1px}
 .num{font-variant-numeric:tabular-nums;letter-spacing:.04em}
 
-/* corner crop-marks (industrial frame) */
-.frame{position:relative}
-.frame::before,.frame::after{content:"";position:absolute;width:14px;height:14px;border:1px solid var(--signal);pointer-events:none;opacity:.0;transition:opacity .4s}
-.frame::before{top:-1px;left:-1px;border-right:0;border-bottom:0}
-.frame::after{bottom:-1px;right:-1px;border-left:0;border-top:0}
-.frame:hover::before,.frame:hover::after{opacity:.9}
+/* ── PRELOADER ─────────────────────────────────────────────── */
+.pre{position:fixed;inset:0;z-index:1000;background:var(--void);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:30px;
+  transition:clip-path 1s var(--e3),opacity .6s;clip-path:inset(0 0 0 0)}
+.pre.done{clip-path:inset(0 0 100% 0);pointer-events:none}
+.pre-mark{width:74px;height:74px}
+.pre-mark .dr{fill:none;stroke:var(--steel);stroke-width:3;stroke-dasharray:1;stroke-dashoffset:1;pathLength:1;
+  animation:draw 1.3s var(--e1) forwards}
+.pre-mark .tick{fill:var(--ember);opacity:0;animation:tickin .4s ease 1s forwards}
+@keyframes draw{to{stroke-dashoffset:0}}
+@keyframes tickin{to{opacity:1}}
+.pre-row{display:flex;align-items:baseline;gap:16px;overflow:hidden}
+.pre-name{font-size:13px;letter-spacing:.42em;text-transform:uppercase;color:var(--steel-2);
+  transform:translateY(110%);animation:rise .7s var(--e1) .55s forwards}
+@keyframes rise{to{transform:none}}
+.pre-count{position:absolute;bottom:34px;right:44px;font-size:13px;letter-spacing:.1em;color:var(--steel-3);font-variant-numeric:tabular-nums}
+.pre-bar{position:absolute;bottom:0;left:0;height:2px;width:0;background:var(--ember)}
 
-/* ── custom crosshair cursor (fine pointers) ───────────────── */
-.cur{position:fixed;top:0;left:0;z-index:9999;width:30px;height:30px;transform:translate(-50%,-50%);pointer-events:none;will-change:transform;transition:width .3s var(--ease),height .3s var(--ease),opacity .3s}
-.cur::before,.cur::after{content:"";position:absolute;background:var(--signal)}
+/* ── custom cursor ─────────────────────────────────────────── */
+.cur{position:fixed;top:0;left:0;z-index:9999;width:30px;height:30px;transform:translate(-50%,-50%);pointer-events:none;will-change:transform;
+  display:flex;align-items:center;justify-content:center;transition:width .3s var(--e1),height .3s var(--e1),background .3s,border-radius .3s}
+.cur::before,.cur::after{content:"";position:absolute;background:var(--ember);transition:opacity .25s}
 .cur::before{left:50%;top:0;width:1px;height:100%;transform:translateX(-50%)}
 .cur::after{top:50%;left:0;height:1px;width:100%;transform:translateY(-50%)}
-.cur-d{position:fixed;top:0;left:0;z-index:9999;width:4px;height:4px;background:var(--signal);transform:translate(-50%,-50%);pointer-events:none;will-change:transform}
-.cur.grow{width:54px;height:54px}
+.cur-tx{font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:#fff;opacity:0;white-space:nowrap;transition:opacity .25s}
+.cur.grow{width:52px;height:52px;border:1px solid var(--ember)}
+.cur.grow::before,.cur.grow::after{opacity:0}
+.cur.label{width:auto;height:auto;padding:9px 14px;background:var(--ember);border-radius:100px}
+.cur.label::before,.cur.label::after{opacity:0}
+.cur.label .cur-tx{opacity:1}
+.cur-d{position:fixed;top:0;left:0;z-index:9999;width:4px;height:4px;background:var(--ember);transform:translate(-50%,-50%);pointer-events:none;will-change:transform;transition:opacity .3s}
+.cur.label ~ .cur-d{opacity:0}
 body.cur-on,body.cur-on *{cursor:none!important}
-@media(hover:none){.cur,.cur-d{display:none!important}}
+@media(hover:none){.cur,.cur-d,.spot{display:none!important}}
+
+/* top progress + section rail */
+.prog{position:fixed;top:0;left:0;height:2px;width:0;background:var(--ember);z-index:95}
+.rail{position:fixed;right:30px;top:50%;transform:translateY(-50%);z-index:80;display:flex;flex-direction:column;gap:14px}
+@media(max-width:1100px){.rail{display:none}}
+.rail a{display:flex;align-items:center;gap:10px;justify-content:flex-end;color:var(--steel-3);font-size:10px;letter-spacing:.16em;font-variant-numeric:tabular-nums;transition:.3s}
+.rail a .ln{width:18px;height:1px;background:var(--steel-4);transition:.4s var(--e1)}
+.rail a:hover,.rail a.on{color:var(--ember)}
+.rail a.on .ln,.rail a:hover .ln{width:34px;background:var(--ember)}
 
 /* ── NAV ───────────────────────────────────────────────────── */
-nav{position:fixed;top:0;left:0;right:0;z-index:90;transition:.5s var(--ease)}
-nav.scrolled{background:color-mix(in srgb,var(--graphite) 84%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--line-2)}
-.nav-in{display:flex;align-items:center;justify-content:space-between;height:74px}
-.logo{display:flex;align-items:baseline;gap:13px}
-.logo b{font-size:18px;font-weight:300;letter-spacing:.18em;text-transform:uppercase}
-.logo .tag{color:var(--steel-3)}
+nav{position:fixed;top:0;left:0;right:0;z-index:90;transition:.5s var(--e1)}
+nav.scrolled{background:color-mix(in srgb,var(--graphite) 82%,transparent);backdrop-filter:blur(14px);border-bottom:1px solid var(--line-2)}
+.nav-in{display:flex;align-items:center;justify-content:space-between;height:78px}
+.logo{display:flex;align-items:center;gap:13px}
+.logo svg{width:30px;height:30px}
+.logo .mk{fill:none;stroke:var(--steel);stroke-width:4}
+.logo .mt{fill:var(--ember)}
+.logo b{font-size:17px;font-weight:300;letter-spacing:.2em;text-transform:uppercase}
 .nav-r{display:flex;align-items:center;gap:4px}
-.nav-link{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--steel-2);padding:10px 14px;transition:.3s}
-.nav-link:hover{color:var(--signal)}
-@media(max-width:780px){.nav-link.h{display:none}}
-.nav-cta{border:1px solid var(--steel);padding:11px 20px;font-size:11px;letter-spacing:.2em;text-transform:uppercase;transition:.35s var(--ease)}
-.nav-cta:hover{background:var(--signal);border-color:var(--signal);color:#fff}
+.nav-link{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--steel-2);padding:10px 13px;transition:.3s;position:relative}
+.nav-link::after{content:"";position:absolute;left:13px;right:13px;bottom:6px;height:1px;background:var(--ember);transform:scaleX(0);transform-origin:left;transition:transform .4s var(--e1)}
+.nav-link:hover{color:var(--steel)}
+.nav-link:hover::after{transform:scaleX(1)}
+@media(max-width:820px){.nav-link.h{display:none}}
+.nav-cta{border:1px solid var(--steel);padding:11px 20px;font-size:11px;letter-spacing:.2em;text-transform:uppercase;transition:.35s var(--e1)}
+.nav-cta:hover{background:var(--ember);border-color:var(--ember);color:#fff}
 
 /* ── HERO ──────────────────────────────────────────────────── */
-.hero{position:relative;min-height:100svh;display:flex;flex-direction:column;justify-content:center;padding:120px 0 64px;overflow:hidden}
-.hero-blueprint{position:absolute;inset:0;z-index:0;opacity:.16;will-change:transform}
+.hero{position:relative;min-height:100svh;display:flex;flex-direction:column;justify-content:center;padding:130px 0 70px;overflow:hidden}
+.hero-blueprint{position:absolute;inset:0;z-index:0;opacity:.15;will-change:transform}
 .hero-blueprint .bp-arch{stroke:var(--steel);stroke-width:1;fill:none}
-.hero-grid{position:absolute;inset:0;z-index:0;opacity:.5;
-  background-image:linear-gradient(var(--line-2) 1px,transparent 1px),linear-gradient(90deg,var(--line-2) 1px,transparent 1px);
-  background-size:74px 74px;mask-image:radial-gradient(circle at 30% 40%,#000,transparent 80%)}
-.hero-scan{position:absolute;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--signal),transparent);opacity:.5;z-index:1;animation:scan 7s linear infinite}
-@keyframes scan{0%{top:8%}50%{top:92%}100%{top:8%}}
-.hero-hud{position:absolute;top:92px;right:44px;text-align:right;line-height:2;z-index:3}
+.hero-grid{position:absolute;inset:0;z-index:0;opacity:.5;background-image:linear-gradient(var(--line-2) 1px,transparent 1px),linear-gradient(90deg,var(--line-2) 1px,transparent 1px);background-size:78px 78px;mask-image:radial-gradient(circle at 28% 42%,#000,transparent 78%)}
+.hero-scan{position:absolute;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--ember),transparent);opacity:.45;z-index:1;animation:scan 7.5s linear infinite}
+@keyframes scan{0%{top:6%}50%{top:90%}100%{top:6%}}
+.hero-hud{position:absolute;top:96px;right:48px;text-align:right;line-height:2.05;z-index:3}
 .hero-hud .tag{display:block;color:var(--steel-3)}
-.hero-hud .tag b{color:var(--signal);font-weight:300}
-@media(max-width:780px){.hero-hud{display:none}}
+.hero-hud .tag b{color:var(--ember);font-weight:300}
+@media(max-width:1100px){.hero-hud{display:none}}
+/* travertine monolith */
+.monolith{position:absolute;right:0;top:0;bottom:0;width:23vw;max-width:340px;background:linear-gradient(180deg,var(--travertine),var(--travertine-2));z-index:1;
+  display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:120px 0 56px;overflow:hidden;will-change:transform}
+.monolith::before{content:"";position:absolute;inset:0;opacity:.55;mix-blend-mode:multiply;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='t'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.035 .08' numOctaves='3'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .45 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23t)'/%3E%3C/svg%3E")}
+.monolith .m-mark{width:62px;height:62px;position:relative;z-index:2}
+.monolith .m-mark .mk{fill:none;stroke:var(--stone-ink);stroke-width:4}
+.monolith .m-mark .mt{fill:var(--ember)}
+.monolith .m-vert{writing-mode:vertical-rl;transform:rotate(180deg);font-size:12px;letter-spacing:.5em;text-transform:uppercase;color:var(--stone-ink-2);position:relative;z-index:2}
+@media(max-width:1100px){.monolith{display:none}}
 .hero-in{position:relative;z-index:2}
-.hero h1{font-size:clamp(40px,8.4vw,118px);line-height:.96;text-transform:uppercase;letter-spacing:-.012em;font-weight:300;max-width:15ch;margin-top:30px}
-.hero h1 .s{color:var(--signal)}
-.hero-sub{font-size:clamp(15px,1.7vw,20px);color:var(--steel-2);max-width:58ch;margin-top:34px;letter-spacing:.01em}
-.hero-cta{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-top:46px}
-.btn{font-size:12px;letter-spacing:.18em;text-transform:uppercase;padding:18px 32px;transition:.4s var(--ease);display:inline-flex;align-items:center;gap:12px;border:1px solid transparent;will-change:transform}
-.btn-fill{background:var(--signal);color:#fff}
+.hero .tag.ey{color:var(--ember)}
+.hero h1{font-size:clamp(42px,8.6vw,124px);line-height:.95;text-transform:uppercase;letter-spacing:-.014em;font-weight:300;max-width:15ch;margin-top:30px}
+.hero h1 .s{color:var(--ember)}
+.hero-sub{font-size:clamp(15px,1.7vw,20px);color:var(--steel-2);max-width:54ch;margin-top:34px}
+.hero-cta{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-top:48px}
+.btn{font-size:12px;letter-spacing:.18em;text-transform:uppercase;padding:18px 32px;transition:.4s var(--e1);display:inline-flex;align-items:center;gap:12px;border:1px solid transparent;will-change:transform}
+.btn-fill{background:var(--ember);color:#fff}
 .btn-fill:hover{background:var(--steel);color:var(--graphite)}
 .btn-line{border-color:var(--line);color:var(--steel)}
 .btn-line:hover{border-color:var(--steel)}
-.hero-foot{display:flex;gap:14px;align-items:center;margin-top:60px;color:var(--steel-3)}
+.hero-foot{display:flex;gap:14px;align-items:center;margin-top:62px;color:var(--steel-3)}
 .hero-foot .ln{width:54px;height:1px;background:var(--steel-3);position:relative;overflow:hidden}
-.hero-foot .ln::after{content:"";position:absolute;inset:0;background:var(--signal);animation:slide 2.6s var(--ease) infinite}
+.hero-foot .ln::after{content:"";position:absolute;inset:0;background:var(--ember);animation:slide 2.6s var(--e1) infinite}
 @keyframes slide{0%{transform:translateX(-100%)}55%,100%{transform:translateX(100%)}}
 
-/* ── MARQUEE (hazard) ──────────────────────────────────────── */
-.marq{border-top:1px solid var(--line);border-bottom:1px solid var(--line);overflow:hidden;padding:16px 0;background:var(--concrete)}
-.marq-track{display:flex;width:max-content;white-space:nowrap;animation:marq 34s linear infinite}
+/* ── MARQUEE ───────────────────────────────────────────────── */
+.marq{border-top:1px solid var(--line);border-bottom:1px solid var(--line);overflow:hidden;padding:17px 0;background:var(--graphite-2)}
+.marq-track{display:flex;width:max-content;white-space:nowrap;animation:marq 36s linear infinite}
 .marq:hover .marq-track{animation-play-state:paused}
 .marq span{font-size:clamp(15px,1.9vw,22px);text-transform:uppercase;letter-spacing:.16em;padding:0 28px;display:inline-flex;align-items:center;gap:28px;color:var(--steel-2)}
-.marq span::after{content:"";width:8px;height:8px;background:var(--signal);transform:rotate(45deg)}
+.marq span::after{content:"";width:7px;height:7px;background:var(--ember);transform:rotate(45deg)}
 @keyframes marq{to{transform:translateX(-50%)}}
 
-/* ── SECTION scaffolding ───────────────────────────────────── */
+/* ── SECTIONS ──────────────────────────────────────────────── */
 section{position:relative;z-index:2}
-.blk{padding:140px 0}
-@media(max-width:680px){.blk{padding:88px 0}}
-.s-head{max-width:64ch;margin-bottom:74px}
-.s-title{font-size:clamp(28px,5.2vw,66px);line-height:1.0;text-transform:uppercase;letter-spacing:-.01em;margin-top:20px;font-weight:300}
-.s-title .s{color:var(--signal)}
+.blk{padding:150px 0}
+@media(max-width:680px){.blk{padding:92px 0}}
+.s-head{max-width:66ch;margin-bottom:80px}
+.s-title{font-size:clamp(28px,5.4vw,68px);line-height:1.0;text-transform:uppercase;letter-spacing:-.012em;margin-top:20px;font-weight:300}
+.s-title .s{color:var(--ember)}
 .s-lead{color:var(--steel-2);font-size:clamp(15px,1.6vw,18px);max-width:58ch;margin-top:24px}
 
-/* ── MANIFESTO ─────────────────────────────────────────────── */
+/* MANIFESTO */
 .theses{border-top:1px solid var(--line)}
-.thesis{display:grid;grid-template-columns:130px 1fr;gap:30px;align-items:baseline;padding:40px 0;border-bottom:1px solid var(--line);transition:.5s var(--ease)}
-.thesis:hover{background:var(--signal-dim);padding-left:20px;padding-right:20px}
-.thesis .no{font-size:13px;color:var(--signal);letter-spacing:.16em;font-variant-numeric:tabular-nums}
-.thesis p{font-size:clamp(21px,3.4vw,40px);line-height:1.1;text-transform:uppercase;letter-spacing:-.005em}
+.thesis{display:grid;grid-template-columns:130px 1fr;gap:30px;align-items:baseline;padding:42px 0;border-bottom:1px solid var(--line);transition:padding .5s var(--e1),background .5s var(--e1)}
+.thesis:hover{background:var(--ember-dim);padding-left:22px;padding-right:22px}
+.thesis .no{font-size:13px;color:var(--ember);letter-spacing:.16em;font-variant-numeric:tabular-nums}
+.thesis p{font-size:clamp(21px,3.4vw,40px);line-height:1.1;text-transform:uppercase;letter-spacing:-.006em}
 @media(max-width:680px){.thesis{grid-template-columns:1fr;gap:10px}}
 
-/* ── DIZIONARIO (signature) ────────────────────────────────── */
-.ht{background:var(--concrete)}
+/* DIZIONARIO */
+.ht{background:var(--graphite-2)}
 .ht-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line);margin-top:10px}
 @media(max-width:760px){.ht-grid{grid-template-columns:1fr}}
-.ht-row{background:var(--graphite);padding:26px 28px;transition:.4s var(--ease);position:relative}
+.ht-row{background:var(--graphite);padding:28px 30px;transition:background .4s var(--e1);position:relative}
 .ht-row:hover,.ht-row.open{background:var(--concrete-2)}
-.ht-row .lab{font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:var(--steel-3);display:block;margin-bottom:9px}
-.ht-row .said{font-size:clamp(19px,2.2vw,26px);text-transform:uppercase;letter-spacing:.01em}
-.ht-mean{margin-top:20px;padding-top:18px;border-top:1px solid var(--line);position:relative}
-.ht-mean .lab{color:var(--signal)}
-.ht-mean .truth{font-size:clamp(15px,1.8vw,18px);color:var(--steel);letter-spacing:.01em;clip-path:inset(0 100% 0 0);transition:clip-path .5s var(--ease) .05s}
+.ht-row .lab{font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:var(--steel-3);display:block;margin-bottom:10px}
+.ht-row .said{font-size:clamp(19px,2.2vw,27px);text-transform:uppercase;letter-spacing:.01em}
+.ht-mean{margin-top:22px;padding-top:18px;border-top:1px solid var(--line);position:relative}
+.ht-mean .lab{color:var(--ember)}
+.ht-mean .truth{font-size:clamp(15px,1.8vw,18px);color:var(--steel);clip-path:inset(0 100% 0 0);transition:clip-path .55s var(--e1) .05s}
 .ht-row:hover .ht-mean .truth,.ht-row.open .ht-mean .truth{clip-path:inset(0 0 0 0)}
-.ht-mean::after{content:"";position:absolute;left:0;bottom:0;height:calc(100% - 28px);width:100%;
-  background:repeating-linear-gradient(90deg,var(--signal) 0 11px,#101010 11px 22px);transition:transform .5s var(--ease2);transform-origin:right;pointer-events:none}
+.ht-mean::after{content:"";position:absolute;left:0;bottom:0;height:calc(100% - 28px);width:100%;background:repeating-linear-gradient(90deg,var(--ember) 0 11px,#101010 11px 22px);transition:transform .55s var(--e2);transform-origin:right;pointer-events:none}
 .ht-row:hover .ht-mean::after,.ht-row.open .ht-mean::after{transform:scaleX(0)}
-.ht-hint{margin-top:26px;color:var(--steel-3);font-size:11px;letter-spacing:.18em;text-transform:uppercase}
+.ht-hint{margin-top:28px;color:var(--steel-3);font-size:11px;letter-spacing:.18em;text-transform:uppercase}
 
-/* ── MONUMENT (dynamic roman art piece) ────────────────────── */
-.monument{position:relative;min-height:96vh;display:flex;flex-direction:column;justify-content:center;align-items:center;overflow:hidden;background:var(--graphite);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
-.monu-stage{position:absolute;left:50%;bottom:0;transform:translateX(-50%);width:min(1040px,94vw);z-index:0;will-change:transform}
+/* MONUMENT */
+.monument{position:relative;min-height:108vh;display:flex;flex-direction:column;justify-content:center;align-items:center;overflow:hidden;background:var(--graphite);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.monu-stage{position:absolute;left:50%;bottom:0;width:min(1100px,96vw);z-index:0;transform:translateX(-50%);will-change:transform}
 .facade .f-stone{fill:var(--travertine)}
-.facade .f-seam{stroke:rgba(0,0,0,.18);stroke-width:1}
+.facade .f-seam{stroke:rgba(0,0,0,.16);stroke-width:1}
 .facade .f-void{fill:var(--graphite)}
-.monu-stage::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,var(--graphite) 2%,transparent 26%,transparent 70%,rgba(12,13,15,.6))}
-.monu-fg{position:relative;z-index:2;text-align:center;padding:0 22px;margin-bottom:8vh}
-.monu-fg .over{color:var(--signal);letter-spacing:.5em;margin-bottom:26px}
-.monu-fg h2{font-size:clamp(40px,11vw,150px);line-height:.9;text-transform:uppercase;letter-spacing:-.02em;font-weight:300}
-.monu-fg .sub{color:var(--steel-2);letter-spacing:.4em;text-transform:uppercase;font-size:clamp(11px,1.5vw,15px);margin-top:26px}
+.monu-stage::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,var(--graphite) 1%,transparent 24%,transparent 66%,rgba(13,15,18,.7))}
+.monu-fg{position:relative;z-index:2;text-align:center;padding:0 22px;margin-bottom:9vh;will-change:transform}
+.monu-fg .over{color:var(--ember);letter-spacing:.55em;margin-bottom:28px}
+.monu-fg h2{font-size:clamp(40px,11.5vw,158px);line-height:.88;text-transform:uppercase;letter-spacing:-.022em;font-weight:300}
+.monu-fg .sub{color:var(--steel-2);letter-spacing:.42em;text-transform:uppercase;font-size:clamp(11px,1.5vw,15px);margin-top:28px}
 
-/* ── METHOD ────────────────────────────────────────────────── */
+/* METHOD */
 .steps{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line)}
-.step{padding:36px 30px 44px;border-right:1px solid var(--line);transition:.5s var(--ease)}
+.step{padding:38px 30px 46px;border-right:1px solid var(--line);transition:background .5s var(--e1)}
 .step:last-child{border-right:none}
 .step:hover{background:var(--concrete)}
-.step .sn{font-size:12px;color:var(--signal);letter-spacing:.16em;font-variant-numeric:tabular-nums}
+.step .sn{font-size:12px;color:var(--ember);letter-spacing:.16em;font-variant-numeric:tabular-nums}
 .step h3{font-size:23px;text-transform:uppercase;letter-spacing:.01em;margin:24px 0 14px}
 .step p{color:var(--steel-2);font-size:14.5px}
 @media(max-width:880px){.steps{grid-template-columns:1fr 1fr}.step:nth-child(2){border-right:none}.step:nth-child(-n+2){border-bottom:1px solid var(--line)}}
 @media(max-width:520px){.steps{grid-template-columns:1fr}.step{border-right:none;border-bottom:1px solid var(--line)}.step:last-child{border-bottom:none}}
 
-/* ── BUY / SELL ────────────────────────────────────────────── */
+/* BUY / SELL */
 .duo{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line)}
 @media(max-width:760px){.duo{grid-template-columns:1fr}}
-.duo-card{background:var(--graphite);padding:50px 44px;transition:.5s var(--ease)}
+.duo-card{background:var(--graphite);padding:52px 46px;transition:background .5s var(--e1)}
 .duo-card:hover{background:var(--concrete)}
-.duo-card .tag{color:var(--signal)}
-.duo-card h3{font-size:clamp(26px,3.6vw,40px);text-transform:uppercase;margin:16px 0 26px;letter-spacing:-.01em}
+.duo-card .tag{color:var(--ember)}
+.duo-card h3{font-size:clamp(26px,3.6vw,40px);text-transform:uppercase;margin:16px 0 28px;letter-spacing:-.01em}
 .duo-card ul{list-style:none;display:flex;flex-direction:column;gap:18px}
 .duo-card li{display:grid;grid-template-columns:26px 1fr;gap:12px;color:var(--steel-2);font-size:16px}
-.duo-card li b{color:var(--steel);font-weight:300;border-bottom:1px solid var(--signal)}
-.duo-card li .ck{color:var(--signal)}
+.duo-card li b{color:var(--steel);font-weight:300;border-bottom:1px solid var(--ember)}
+.duo-card li .ck{color:var(--ember)}
 
-/* ── METRICS ───────────────────────────────────────────────── */
+/* METRICS */
 .metrics{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--line)}
 @media(max-width:760px){.metrics{grid-template-columns:1fr 1fr}}
-.metric{padding:48px 24px 0;border-right:1px solid var(--line)}
+.metric{padding:50px 24px 0;border-right:1px solid var(--line)}
 .metric:last-child{border-right:none}
-@media(max-width:760px){.metric:nth-child(2){border-right:none}.metric:nth-child(-n+2){padding-bottom:48px;border-bottom:1px solid var(--line)}}
-.metric .v{font-size:clamp(46px,7.2vw,92px);line-height:1;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
-.metric .v .u{font-size:.4em;color:var(--signal);margin-left:3px}
+@media(max-width:760px){.metric:nth-child(2){border-right:none}.metric:nth-child(-n+2){padding-bottom:50px;border-bottom:1px solid var(--line)}}
+.metric .v{font-size:clamp(46px,7.4vw,94px);line-height:1;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.metric .v .u{font-size:.4em;color:var(--ember);margin-left:3px}
 .metric .k{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--steel-2);margin-top:18px;max-width:22ch}
 
-/* ── WORDS ─────────────────────────────────────────────────── */
-.words{background:var(--concrete)}
+/* ── BOOM BRIDGE (rentals division) ────────────────────────── */
+.boom{background:var(--concrete);border-top:1px solid var(--line);border-bottom:1px solid var(--line);position:relative;overflow:hidden}
+.boom::before{content:"";position:absolute;top:-40%;right:-10%;width:60%;height:180%;background:radial-gradient(circle,rgba(233,185,73,.10),transparent 60%);pointer-events:none}
+.boom-head{max-width:70ch;margin-bottom:60px}
+.boom-head .tag{color:var(--gold)}
+.boom-head .tag .sq{background:var(--gold)}
+.boom-head h2{font-size:clamp(28px,5vw,62px);line-height:1.0;text-transform:uppercase;letter-spacing:-.012em;margin-top:20px}
+.boom-head h2 .g{color:var(--gold)}
+.boom-head p{color:var(--steel-2);font-size:clamp(15px,1.6vw,18px);max-width:62ch;margin-top:24px}
+.systems{display:grid;grid-template-columns:1fr auto 1fr;align-items:stretch;gap:0;border:1px solid var(--line)}
+@media(max-width:760px){.systems{grid-template-columns:1fr}}
+.sys{padding:44px 40px;background:var(--graphite)}
+.sys .role{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--steel-3)}
+.sys .nm{font-size:clamp(24px,3vw,34px);text-transform:uppercase;letter-spacing:.02em;margin:14px 0 10px}
+.sys.boomx .nm{color:var(--gold)}
+.sys .dsc{color:var(--steel-2);font-size:15px;max-width:34ch}
+.sys .meta{margin-top:22px;display:flex;flex-wrap:wrap;gap:8px}
+.sys .chip{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;border:1px solid var(--line);padding:7px 12px;color:var(--steel-2)}
+.sys.boomx .chip{border-color:rgba(233,185,73,.3)}
+.sys-div{display:flex;align-items:center;justify-content:center;padding:0 22px;background:var(--graphite);border-left:1px solid var(--line);border-right:1px solid var(--line);color:var(--steel-3);font-size:22px}
+@media(max-width:760px){.sys-div{padding:18px;border:none;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}.sys-div .rot{transform:rotate(90deg)}}
+.boom-cta-row{margin-top:42px;display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+.btn-gold{background:var(--gold);color:#1a1404}
+.btn-gold:hover{background:var(--steel);color:var(--graphite)}
+.boom-note{color:var(--steel-3);font-size:12px;letter-spacing:.1em;text-transform:uppercase}
+
+/* WORDS */
+.words{background:var(--graphite-2)}
 .words-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);margin-top:10px}
 @media(max-width:880px){.words-grid{grid-template-columns:1fr}}
-.quote{background:var(--graphite);padding:38px 34px}
-.quote .q{color:var(--signal);font-size:40px;line-height:0;display:block;height:24px}
+.quote{background:var(--graphite);padding:40px 34px}
+.quote .q{color:var(--ember);font-size:42px;line-height:0;display:block;height:26px}
 .quote p{font-size:20px;line-height:1.35;color:var(--steel)}
 .quote .who{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--steel-3);margin-top:24px}
 
-/* ── CONTACT (travertine slab) ─────────────────────────────── */
-.contact{background:var(--travertine);color:var(--stone-ink);position:relative;overflow:hidden}
+/* CONTACT (travertine slab) */
+.contact{background:linear-gradient(180deg,var(--travertine),var(--travertine-2));color:var(--stone-ink);position:relative;overflow:hidden}
 .contact::before{content:"";position:absolute;inset:0;opacity:.5;mix-blend-mode:multiply;pointer-events:none;
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='t'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.04 .09' numOctaves='3'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .5 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23t)'/%3E%3C/svg%3E")}
-.contact .tag{color:rgba(20,19,14,.55)}
-.contact .tag .sq{background:var(--signal)}
-.contact .s-title{color:var(--stone-ink)}
-.contact .s-title .s{color:var(--signal)}
-.contact-lead{color:rgba(20,19,14,.7);font-size:clamp(16px,1.8vw,20px);max-width:54ch;margin-top:24px}
-.contact-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:56px;align-items:end;margin-top:62px;position:relative;z-index:2}
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='t2'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.035 .08' numOctaves='3'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .45 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23t2)'/%3E%3C/svg%3E")}
+.contact .tag{color:var(--stone-ink-2)}
+.contact .s-title{color:var(--stone-ink)}.contact .s-title .s{color:var(--ember)}
+.contact-lead{color:var(--stone-ink-2);font-size:clamp(16px,1.8vw,20px);max-width:54ch;margin-top:24px}
+.contact-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:56px;align-items:end;margin-top:64px;position:relative;z-index:2}
 @media(max-width:760px){.contact-grid{grid-template-columns:1fr;gap:44px}}
-.mag{display:inline-flex;align-items:center;gap:14px;background:var(--stone-ink);color:var(--travertine);padding:24px 40px;font-size:13px;letter-spacing:.16em;text-transform:uppercase;transition:background .35s,color .35s;will-change:transform}
-.mag:hover{background:var(--signal);color:#fff}
-.mag .ar{transition:transform .4s var(--ease)}
+.mag{display:inline-flex;align-items:center;gap:14px;background:var(--stone-ink);color:var(--travertine);padding:25px 42px;font-size:13px;letter-spacing:.16em;text-transform:uppercase;transition:background .35s,color .35s;will-change:transform}
+.mag:hover{background:var(--ember);color:#fff}
+.mag .ar{transition:transform .4s var(--e1)}
 .mag:hover .ar{transform:translateX(7px)}
-.cdetails{font-size:13px;line-height:2.5;letter-spacing:.06em;text-transform:uppercase;color:rgba(20,19,14,.75)}
-.cdetails .l{color:rgba(20,19,14,.45)}
-.cdetails a{border-bottom:1px solid rgba(20,19,14,.3);transition:.3s}
-.cdetails a:hover{color:var(--signal);border-color:var(--signal)}
+.cdetails{font-size:13px;line-height:2.5;letter-spacing:.06em;text-transform:uppercase;color:var(--stone-ink-2)}
+.cdetails .l{color:rgba(22,20,14,.42)}
+.cdetails a{border-bottom:1px solid rgba(22,20,14,.3);transition:.3s}
+.cdetails a:hover{color:var(--ember);border-color:var(--ember)}
 
-/* ── FOOTER ────────────────────────────────────────────────── */
-footer{background:var(--graphite);padding:0 0 48px}
-.foot-eco{display:flex;flex-wrap:wrap;gap:12px 26px;align-items:center;padding:34px 0;border-bottom:1px solid var(--line);
-  font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--steel-3)}
+/* FOOTER */
+footer{background:var(--void);padding:0 0 48px}
+.foot-eco{display:flex;flex-wrap:wrap;gap:12px 26px;align-items:center;padding:36px 0;border-bottom:1px solid var(--line);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--steel-3)}
 .foot-eco b{color:var(--steel);font-weight:300}
-.foot-eco .div{color:var(--signal)}
-.foot-eco a:hover{color:var(--signal)}
+.foot-eco .gd{color:var(--gold)}
+.foot-eco .div{color:var(--ember)}
+.foot-eco a:hover{color:var(--ember)}
 .foot-bot{display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;padding-top:26px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--steel-3);font-variant-numeric:tabular-nums}
 
-/* ── reveal ────────────────────────────────────────────────── */
-.rv{opacity:0;transform:translateY(28px);transition:opacity 1s var(--ease),transform 1s var(--ease)}
+/* reveal */
+.rv{opacity:0;transform:translateY(30px);transition:opacity 1s var(--e1),transform 1s var(--e1)}
 .rv.in{opacity:1;transform:none}
+.s-head .rv,.hero-in>.rv{}
+[data-stagger]>*{opacity:0;transform:translateY(24px);transition:opacity .9s var(--e1),transform .9s var(--e1)}
+[data-stagger].in>*{opacity:1;transform:none}
+[data-stagger].in>*:nth-child(2){transition-delay:.08s}
+[data-stagger].in>*:nth-child(3){transition-delay:.16s}
+[data-stagger].in>*:nth-child(4){transition-delay:.24s}
+[data-stagger].in>*:nth-child(5){transition-delay:.32s}
 
-/* ── control deck ──────────────────────────────────────────── */
-.deck{position:fixed;right:20px;bottom:20px;z-index:120;display:flex;border:1px solid var(--line);background:color-mix(in srgb,var(--graphite) 84%,transparent);backdrop-filter:blur(12px)}
-.deck button{font-family:var(--font);font-weight:300;font-size:11px;letter-spacing:.12em;color:var(--steel-3);background:none;border:none;cursor:pointer;padding:9px 15px;transition:.3s}
-.deck button.on{background:var(--signal);color:#fff}
+/* control deck */
+.deck{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:120;display:flex;align-items:center;gap:6px;border:1px solid var(--line);background:color-mix(in srgb,var(--graphite) 84%,transparent);backdrop-filter:blur(14px);padding:5px}
+.deck .grp{display:flex}
+.deck button{font-family:var(--font);font-weight:300;font-size:11px;letter-spacing:.12em;color:var(--steel-3);background:none;border:none;cursor:pointer;padding:9px 14px;transition:.3s}
+.deck button.on{background:var(--ember);color:#fff}
+.deck .sep{width:1px;align-self:stretch;background:var(--line);margin:4px 2px}
 
 @media(prefers-reduced-motion:reduce){
-  *{animation:none!important}
-  .rv{opacity:1;transform:none;transition:none}
+  *{animation:none!important;scroll-behavior:auto}
+  .rv,[data-stagger]>*{opacity:1;transform:none;transition:none}
   .marq-track{animation:none}
-  .cur,.cur-d{display:none!important}
+  .cur,.cur-d,.spot{display:none!important}
   body.cur-on,body.cur-on *{cursor:auto!important}
+  .pre{display:none}
 }
 </style>
 </head>
-<body>
+<body class="lock">
 
-<div class="cur" id="cur"></div><div class="cur-d" id="curd"></div>
+<div class="grain"></div>
+<div class="spot" id="spot"></div>
+<div class="cur" id="cur"><span class="cur-tx"></span></div><div class="cur-d" id="curd"></div>
+<div class="prog" id="prog"></div>
 
-<!-- shared SVG defs: arch patterns -->
+<!-- PRELOADER -->
+<div class="pre" id="pre">
+  <svg class="pre-mark" viewBox="0 0 100 100" aria-hidden="true">
+    <rect class="dr" x="14" y="14" width="72" height="72" pathLength="1"/>
+    <path class="dr" d="M34 86 V54 a16 16 0 0 1 32 0 V86" pathLength="1"/>
+    <rect class="tick" x="44" y="20" width="12" height="5"/>
+  </svg>
+  <div class="pre-row"><span class="pre-name">Valentino Egidi — Roma MMXXX</span></div>
+  <div class="pre-count num" id="preCount">00</div>
+  <div class="pre-bar" id="preBar"></div>
+</div>
+
+<!-- shared SVG defs -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
-  <pattern id="bp" width="120" height="153" patternUnits="userSpaceOnUse">
-    <path class="bp-arch" d="M24 153 V72 a36 36 0 0 1 72 0 V153"/>
-  </pattern>
+  <pattern id="bp" width="120" height="153" patternUnits="userSpaceOnUse"><path class="bp-arch" d="M24 153 V72 a36 36 0 0 1 72 0 V153"/></pattern>
   <pattern id="fac" width="120" height="153" patternUnits="userSpaceOnUse">
-    <rect class="f-stone" width="120" height="153"/>
-    <rect class="f-seam" x="0" y="0" width="120" height="153" fill="none"/>
+    <rect class="f-stone" width="120" height="153"/><rect class="f-seam" width="120" height="153" fill="none"/>
     <path class="f-void" d="M24 153 V72 a36 36 0 0 1 72 0 V153 Z"/>
   </pattern>
 </defs></svg>
 
 <!-- NAV -->
 <nav id="nav"><div class="wrap nav-in">
-  <a href="#top" class="logo"><b>Valentino Egidi</b><span class="tag" data-it="Mediatore · Roma" data-en="Broker · Rome">Mediatore · Roma</span></a>
+  <a href="#top" class="logo" data-cur="HOME">
+    <svg viewBox="0 0 100 100" aria-hidden="true"><rect class="mk" x="14" y="14" width="72" height="72"/><path class="mk" d="M34 86 V54 a16 16 0 0 1 32 0 V86"/><rect class="mt" x="44" y="20" width="12" height="5"/></svg>
+    <b>Valentino Egidi</b>
+  </a>
   <div class="nav-r">
     <a href="#manifesto" class="nav-link h" data-it="Manifesto" data-en="Manifesto">Manifesto</a>
     <a href="#dizionario" class="nav-link h" data-it="Dizionario" data-en="Dictionary">Dizionario</a>
     <a href="#metodo" class="nav-link h" data-it="Metodo" data-en="Method">Metodo</a>
-    <a href="#contatti" class="nav-cta" data-it="Parliamo" data-en="Let's talk">Parliamo</a>
+    <a href="#boom" class="nav-link h" data-it="Affitti" data-en="Rentals">Affitti</a>
+    <a href="#contatti" class="nav-cta" data-cur="SCRIVIMI" data-it="Parliamo" data-en="Let's talk">Parliamo</a>
   </div>
 </div></nav>
 
 <!-- HERO -->
-<header class="hero" id="top">
-  <svg class="hero-blueprint parallax" data-speed="0.12" preserveAspectRatio="xMidYMid slice"><rect width="100%" height="100%" fill="url(#bp)"/></svg>
+<header class="hero" id="top" data-sec="00">
+  <svg class="hero-blueprint parallax" data-speed="0.1" preserveAspectRatio="xMidYMid slice"><rect width="100%" height="100%" fill="url(#bp)"/></svg>
   <div class="hero-grid"></div>
   <div class="hero-scan"></div>
+  <div class="monolith parallax" data-speed="0.06">
+    <svg class="m-mark" viewBox="0 0 100 100" aria-hidden="true"><rect class="mk" x="14" y="14" width="72" height="72"/><path class="mk" d="M34 86 V54 a16 16 0 0 1 32 0 V86"/><rect class="mt" x="44" y="20" width="12" height="5"/></svg>
+    <div class="m-vert">Via dei Coronari · Roma</div>
+  </div>
   <div class="hero-hud">
     <span class="tag" data-it="ROMA · CENTRO STORICO" data-en="ROME · OLD TOWN">ROMA · CENTRO STORICO</span>
     <span class="tag num">41.9009°N · 12.4833°E</span>
     <span class="tag num"><b id="clock">--:--:--</b> · ROMA MMXXX</span>
     <span class="tag" data-it="SISTEMA · ONESTÀ ATTIVA" data-en="SYSTEM · HONESTY ON">SISTEMA · ONESTÀ ATTIVA</span>
   </div>
-  <div class="wrap hero-in">
-    <div class="tag rv"><span class="sq"></span><span data-it="Mediatore immobiliare — compravendita" data-en="Real estate broker — buying & selling">Mediatore immobiliare — compravendita</span></div>
-    <h1 class="rv" data-it="Ti dico la <span class='s'>verità</span> sulla casa. Anche quando non conviene." data-en="I tell you the <span class='s'>truth</span> about the property. Even when it's inconvenient.">Ti dico la <span class="s">verità</span> sulla casa. Anche quando non conviene.</h1>
-    <p class="hero-sub rv" data-it="Compravendita a Roma senza copioni, senza euforia finta, senza sorprese al rogito. Solo numeri, contesto e una risposta diretta — la stessa che darei a un amico." data-en="Buying and selling in Rome with no scripts, no fake urgency, no surprises at signing. Just numbers, context and a straight answer — the same I'd give a friend.">Compravendita a Roma senza copioni, senza euforia finta, senza sorprese al rogito. Solo numeri, contesto e una risposta diretta — la stessa che darei a un amico.</p>
-    <div class="hero-cta rv">
-      <a href="https://wa.me/393313251961" target="_blank" class="btn btn-fill" data-mag data-it="Scrivimi su WhatsApp" data-en="Message me on WhatsApp">Scrivimi su WhatsApp</a>
+  <div class="wrap hero-in" data-stagger>
+    <div class="tag ey"><span class="sq"></span><span data-it="Mediatore immobiliare — compravendita" data-en="Real estate broker — buying & selling">Mediatore immobiliare — compravendita</span></div>
+    <h1 data-it="Ti dico la <span class='s'>verità</span> sulla casa. Anche quando non conviene." data-en="I tell you the <span class='s'>truth</span> about the property. Even when it's inconvenient.">Ti dico la <span class="s">verità</span> sulla casa. Anche quando non conviene.</h1>
+    <p class="hero-sub" data-it="Compravendita a Roma senza copioni, senza euforia finta, senza sorprese al rogito. Solo numeri, contesto e una risposta diretta — la stessa che darei a un amico." data-en="Buying and selling in Rome with no scripts, no fake urgency, no surprises at signing. Just numbers, context and a straight answer — the same I'd give a friend.">Compravendita a Roma senza copioni, senza euforia finta, senza sorprese al rogito. Solo numeri, contesto e una risposta diretta — la stessa che darei a un amico.</p>
+    <div class="hero-cta">
+      <a href="https://wa.me/393313251961" target="_blank" class="btn btn-fill" data-mag data-cur="WHATSAPP" data-it="Scrivimi su WhatsApp" data-en="Message me on WhatsApp">Scrivimi su WhatsApp</a>
       <a href="#manifesto" class="btn btn-line" data-it="Perché diverso →" data-en="Why I'm different →">Perché diverso →</a>
     </div>
-    <div class="hero-foot tag rv"><span class="ln"></span><span data-it="Scorri — non è il solito sito d'agenzia" data-en="Scroll — not the usual agency site">Scorri — non è il solito sito d'agenzia</span></div>
+    <div class="hero-foot tag"><span class="ln"></span><span data-it="Scorri — non è il solito sito d'agenzia" data-en="Scroll — not the usual agency site">Scorri — non è il solito sito d'agenzia</span></div>
   </div>
 </header>
 
@@ -314,25 +415,25 @@ footer{background:var(--graphite);padding:0 0 48px}
 <div class="marq" aria-hidden="true"><div class="marq-track" id="marq"></div></div>
 
 <!-- MANIFESTO -->
-<section class="blk" id="manifesto">
+<section class="blk" id="manifesto" data-sec="01">
   <div class="wrap">
     <div class="s-head rv">
       <div class="tag"><span class="sq"></span><span>SEZ.01 — <span data-it="MANIFESTO" data-en="MANIFESTO">MANIFESTO</span></span></div>
       <h2 class="s-title" data-it="Cinque cose che gli altri non ti diranno." data-en="Five things the others won't tell you.">Cinque cose che gli altri non ti diranno.</h2>
       <p class="s-lead" data-it="Non vendo case. Rendo le decisioni difficili più facili da prendere, con onestà. Se questo costa una provvigione ogni tanto, va bene — la reputazione vale di più." data-en="I don't sell houses. I make hard decisions easier to make, honestly. If that costs me a commission now and then, fine — reputation is worth more.">Non vendo case. Rendo le decisioni difficili più facili da prendere, con onestà.</p>
     </div>
-    <div class="theses rv">
-      <div class="thesis frame"><div class="no">01</div><p data-it="Un prezzo onesto vende più in fretta di un prezzo gonfiato." data-en="An honest price sells faster than an inflated one.">Un prezzo onesto vende più in fretta di un prezzo gonfiato.</p></div>
-      <div class="thesis frame"><div class="no">02</div><p data-it="Se la casa non fa per te, te lo dico. Anche se perdo la provvigione." data-en="If the home is wrong for you, I'll say so. Even if it costs me the commission.">Se la casa non fa per te, te lo dico. Anche se perdo la provvigione.</p></div>
-      <div class="thesis frame"><div class="no">03</div><p data-it="I difetti prima dei pregi. Sempre." data-en="The flaws before the features. Always.">I difetti prima dei pregi. Sempre.</p></div>
-      <div class="thesis frame"><div class="no">04</div><p data-it="Niente aste mascherate, niente finti altri compratori." data-en="No fake bidding wars, no imaginary other buyers.">Niente aste mascherate, niente finti altri compratori.</p></div>
-      <div class="thesis frame"><div class="no">05</div><p data-it="I numeri parlano. Io li traduco, non li trucco." data-en="The numbers talk. I translate them — I don't fake them.">I numeri parlano. Io li traduco, non li trucco.</p></div>
+    <div class="theses" data-stagger>
+      <div class="thesis"><div class="no">01</div><p data-it="Un prezzo onesto vende più in fretta di un prezzo gonfiato." data-en="An honest price sells faster than an inflated one.">Un prezzo onesto vende più in fretta di un prezzo gonfiato.</p></div>
+      <div class="thesis"><div class="no">02</div><p data-it="Se la casa non fa per te, te lo dico. Anche se perdo la provvigione." data-en="If the home is wrong for you, I'll say so. Even if it costs me the commission.">Se la casa non fa per te, te lo dico. Anche se perdo la provvigione.</p></div>
+      <div class="thesis"><div class="no">03</div><p data-it="I difetti prima dei pregi. Sempre." data-en="The flaws before the features. Always.">I difetti prima dei pregi. Sempre.</p></div>
+      <div class="thesis"><div class="no">04</div><p data-it="Niente aste mascherate, niente finti altri compratori." data-en="No fake bidding wars, no imaginary other buyers.">Niente aste mascherate, niente finti altri compratori.</p></div>
+      <div class="thesis"><div class="no">05</div><p data-it="I numeri parlano. Io li traduco, non li trucco." data-en="The numbers talk. I translate them — I don't fake them.">I numeri parlano. Io li traduco, non li trucco.</p></div>
     </div>
   </div>
 </section>
 
 <!-- DIZIONARIO -->
-<section class="blk ht" id="dizionario">
+<section class="blk ht" id="dizionario" data-sec="02">
   <div class="wrap">
     <div class="s-head rv">
       <div class="tag"><span class="sq"></span><span>SEZ.02 — <span data-it="DIZIONARIO" data-en="DICTIONARY">DIZIONARIO</span></span></div>
@@ -344,12 +445,10 @@ footer{background:var(--graphite);padding:0 0 48px}
   </div>
 </section>
 
-<!-- MONUMENT (dynamic roman art piece) -->
-<section class="monument" aria-hidden="false">
-  <div class="monu-stage parallax" data-speed="-0.08">
-    <svg class="facade" viewBox="0 0 960 459" preserveAspectRatio="xMidYMax meet"><rect width="960" height="459" fill="url(#fac)"/></svg>
-  </div>
-  <div class="monu-fg rv">
+<!-- MONUMENT -->
+<section class="monument" data-sec="03" aria-hidden="false">
+  <div class="monu-stage" id="monuStage"><svg class="facade" viewBox="0 0 960 459" preserveAspectRatio="xMidYMax meet"><rect width="960" height="459" fill="url(#fac)"/></svg></div>
+  <div class="monu-fg" id="monuFg">
     <div class="tag over">ROMA · MMXXX</div>
     <h2 data-it="La verità è<br>l'unica strategia." data-en="Truth is<br>the only strategy.">La verità è<br>l'unica strategia.</h2>
     <div class="sub" data-it="Compravendita immobiliare · centro storico" data-en="Real estate · old town">Compravendita immobiliare · centro storico</div>
@@ -357,13 +456,13 @@ footer{background:var(--graphite);padding:0 0 48px}
 </section>
 
 <!-- METHOD -->
-<section class="blk" id="metodo">
+<section class="blk" id="metodo" data-sec="04">
   <div class="wrap">
     <div class="s-head rv">
-      <div class="tag"><span class="sq"></span><span>SEZ.03 — <span data-it="METODO" data-en="METHOD">METODO</span></span></div>
+      <div class="tag"><span class="sq"></span><span>SEZ.04 — <span data-it="METODO" data-en="METHOD">METODO</span></span></div>
       <h2 class="s-title" data-it="Pochi passaggi. Tutti tracciabili." data-en="Few steps. All traceable.">Pochi passaggi. Tutti tracciabili.</h2>
     </div>
-    <div class="steps rv">
+    <div class="steps" data-stagger>
       <div class="step"><div class="sn">01</div><h3 data-it="Valutazione vera" data-en="Real valuation">Valutazione vera</h3><p data-it="Il prezzo reale con i dati alla mano: comparabili, tempi di vendita, assorbimento. Non quello che vuoi sentirti dire." data-en="The real price, data in hand: comparables, time-on-market, absorption. Not what you want to hear.">Il prezzo reale con i dati alla mano. Non quello che vuoi sentirti dire.</p></div>
       <div class="step"><div class="sn">02</div><h3 data-it="Strategia" data-en="Strategy">Strategia</h3><p data-it="Un piano scritto: prezzo, target, canali, tempi. Sai sempre cosa succede e perché." data-en="A written plan: price, target, channels, timing. You always know what's happening and why.">Un piano scritto: prezzo, target, canali, tempi. Sempre trasparente.</p></div>
       <div class="step"><div class="sn">03</div><h3 data-it="Trattativa" data-en="Negotiation">Trattativa</h3><p data-it="Tratto con i dati, non con le emozioni. Compratori veri, offerte vere, niente teatrini." data-en="I negotiate with data, not emotion. Real buyers, real offers, no theatrics.">Tratto con i dati, non con le emozioni. Niente teatrini.</p></div>
@@ -375,7 +474,7 @@ footer{background:var(--graphite);padding:0 0 48px}
 <!-- BUY / SELL -->
 <section class="blk" style="padding-top:0">
   <div class="wrap">
-    <div class="duo rv">
+    <div class="duo" data-stagger>
       <div class="duo-card">
         <div class="tag" data-it="SE COMPRI" data-en="IF YOU BUY">SE COMPRI</div>
         <h3 data-it="Solo case che reggono il tuo «perché»." data-en="Only homes that survive your “why”.">Solo case che reggono il tuo «perché».</h3>
@@ -401,7 +500,7 @@ footer{background:var(--graphite);padding:0 0 48px}
 <!-- METRICS -->
 <section class="blk" style="padding-top:0">
   <div class="wrap">
-    <div class="metrics rv">
+    <div class="metrics" data-stagger>
       <div class="metric"><div class="v" data-count="0">0</div><div class="k" data-it="Aste mascherate. Mai." data-en="Fake bidding wars. Ever.">Aste mascherate. Mai.</div></div>
       <div class="metric"><div class="v" data-count="100">0<span class="u">%</span></div><div class="k" data-it="Dei difetti, dichiarati prima." data-en="Of flaws, disclosed upfront.">Dei difetti, dichiarati prima.</div></div>
       <div class="metric"><div class="v" data-count="24">0<span class="u">h</span></div><div class="k" data-it="Tempo di risposta. Sul serio." data-en="Response time. For real.">Tempo di risposta. Sul serio.</div></div>
@@ -410,15 +509,45 @@ footer{background:var(--graphite);padding:0 0 48px}
   </div>
 </section>
 
+<!-- BOOM BRIDGE -->
+<section class="blk boom" id="boom" data-sec="05">
+  <div class="wrap">
+    <div class="boom-head rv">
+      <div class="tag"><span class="sq"></span><span>SEZ.05 — <span data-it="DIVISIONE AFFITTI" data-en="RENTALS DIVISION">DIVISIONE AFFITTI</span></span></div>
+      <h2 data-it="Comprare e vendere è metà del lavoro. Affittare è <span class='g'>BOOM</span>." data-en="Buying and selling is half the job. Renting is <span class='g'>BOOM</span>.">Comprare e vendere è metà del lavoro. Affittare è <span class="g">BOOM</span>.</h2>
+      <p data-it="BOOM è la nostra divisione dedicata agli affitti medio termine: appartamenti verificati a Roma, contratti legali, ingresso in 48 ore. Pensata per studenti, professionisti ed expat internazionali. Io ti seguo nella compravendita; per affittare — o mettere a reddito quello che compri — c'è BOOM." data-en="BOOM is our division for medium-term rentals: verified apartments in Rome, legal contracts, move-in within 48 hours. Built for students, professionals and international expats. I handle your buying and selling; to rent — or to put what you buy to work — there's BOOM.">BOOM è la nostra divisione dedicata agli affitti medio termine: appartamenti verificati a Roma, contratti legali, ingresso in 48 ore. Io ti seguo nella compravendita; per affittare — o mettere a reddito quello che compri — c'è BOOM.</p>
+    </div>
+    <div class="systems rv">
+      <div class="sys">
+        <div class="role" data-it="Compravendita" data-en="Buy & sell">Compravendita</div>
+        <div class="nm">Valentino Egidi</div>
+        <div class="dsc" data-it="Acquisto e vendita di immobili nel centro di Roma, con onestà e dati alla mano." data-en="Buying and selling property in central Rome, honestly and data-driven.">Acquisto e vendita di immobili nel centro di Roma, con onestà e dati alla mano.</div>
+        <div class="meta"><span class="chip" data-it="Acquisto" data-en="Purchase">Acquisto</span><span class="chip" data-it="Vendita" data-en="Sale">Vendita</span><span class="chip" data-it="Investimenti" data-en="Investment">Investimenti</span></div>
+      </div>
+      <div class="sys-div"><span class="rot">⇄</span></div>
+      <div class="sys boomx">
+        <div class="role" data-it="Affitti medio termine" data-en="Medium-term rentals">Affitti medio termine</div>
+        <div class="nm">BOOM</div>
+        <div class="dsc" data-it="Appartamenti verificati, contratti legali, ingresso in 48 ore. Da 1 a 18 mesi." data-en="Verified apartments, legal contracts, move-in in 48 hours. From 1 to 18 months.">Appartamenti verificati, contratti legali, ingresso in 48 ore. Da 1 a 18 mesi.</div>
+        <div class="meta"><span class="chip" data-it="Verificati" data-en="Verified">Verificati</span><span class="chip" data-it="48h ingresso" data-en="48h move-in">48h ingresso</span><span class="chip" data-it="Expat & studenti" data-en="Expats & students">Expat & studenti</span></div>
+      </div>
+    </div>
+    <div class="boom-cta-row rv">
+      <a href="https://www.boomrome.com" target="_blank" class="btn btn-gold" data-mag data-cur="VAI A BOOM" data-it="Scopri BOOM →" data-en="Discover BOOM →">Scopri BOOM →</a>
+      <span class="boom-note" data-it="Stessa proprietà · Egidi Immobiliare S.r.l." data-en="Same ownership · Egidi Immobiliare S.r.l.">Stessa proprietà · Egidi Immobiliare S.r.l.</span>
+    </div>
+  </div>
+</section>
+
 <!-- WORDS -->
-<section class="blk words" id="parole">
+<section class="blk words" id="parole" data-sec="06">
   <div class="wrap">
     <div class="s-head rv">
-      <div class="tag"><span class="sq"></span><span>SEZ.04 — <span data-it="PASSAPAROLA" data-en="WORD OF MOUTH">PASSAPAROLA</span></span></div>
+      <div class="tag"><span class="sq"></span><span>SEZ.06 — <span data-it="PASSAPAROLA" data-en="WORD OF MOUTH">PASSAPAROLA</span></span></div>
       <h2 class="s-title" data-it="Niente budget pubblicitario. <span class='s'>Solo i miei clienti.</span>" data-en="No ad budget. <span class='s'>Just my clients.</span>">Niente budget pubblicitario. <span class="s">Solo i miei clienti.</span></h2>
     </div>
     <!-- NB: recensioni PLACEHOLDER — Valentino, sostituiscile con quelle reali. Niente finte: è il punto del brand. -->
-    <div class="words-grid rv">
+    <div class="words-grid" data-stagger>
       <div class="quote"><span class="q">“</span><p data-it="È l'unico che mi ha detto di NON comprare una casa. Sei mesi dopo ne ho presa una migliore con lui." data-en="The only one who told me NOT to buy a place. Six months later I bought a better one with him.">È l'unico che mi ha detto di NON comprare una casa. Sei mesi dopo ne ho presa una migliore con lui.</p><div class="who" data-it="— Cliente · acquisto, Prati" data-en="— Client · purchase, Prati">— Cliente · acquisto, Prati</div></div>
       <div class="quote"><span class="q">“</span><p data-it="Prezzo onesto, venduto in tre settimane. Gli altri promettevano 40.000€ in più e mesi di nulla." data-en="Honest price, sold in three weeks. The others promised €40k more and months of nothing.">Prezzo onesto, venduto in tre settimane. Gli altri promettevano 40.000€ in più e mesi di nulla.</p><div class="who" data-it="— Cliente · vendita, Trastevere" data-en="— Client · sale, Trastevere">— Cliente · vendita, Trastevere</div></div>
       <div class="quote"><span class="q">“</span><p data-it="Ti dice le cose come stanno. Riposante, dopo aver parlato con dieci agenzie." data-en="He tells it like it is. A relief, after ten agencies.">Ti dice le cose come stanno. Riposante, dopo dieci agenzie.</p><div class="who" data-it="— Cliente · acquisto, Centro Storico" data-en="— Client · purchase, Old Town">— Cliente · acquisto, Centro Storico</div></div>
@@ -427,17 +556,15 @@ footer{background:var(--graphite);padding:0 0 48px}
 </section>
 
 <!-- CONTACT -->
-<section class="blk contact" id="contatti">
+<section class="blk contact" id="contatti" data-sec="07">
   <div class="wrap">
     <div class="s-head rv" style="margin-bottom:0">
-      <div class="tag"><span class="sq"></span><span>SEZ.05 — <span data-it="CONTATTO" data-en="CONTACT">CONTATTO</span></span></div>
+      <div class="tag"><span class="sq"></span><span>SEZ.07 — <span data-it="CONTATTO" data-en="CONTACT">CONTATTO</span></span></div>
       <h2 class="s-title" data-it="Una conversazione onesta. <span class='s'>Senza copione.</span>" data-en="An honest conversation. <span class='s'>No script.</span>">Una conversazione onesta. <span class="s">Senza copione.</span></h2>
       <p class="contact-lead" data-it="Dimmi cosa cerchi, o cosa vuoi vendere. In due minuti ti dico se posso aiutarti davvero — e se non posso, ti dico a chi rivolgerti." data-en="Tell me what you want, or what you're selling. In two minutes I'll tell you if I can really help — and if I can't, I'll point you to who can.">Dimmi cosa cerchi, o cosa vuoi vendere. In due minuti ti dico se posso aiutarti davvero.</p>
     </div>
     <div class="contact-grid">
-      <div class="rv">
-        <a href="https://wa.me/393313251961" target="_blank" class="mag" data-mag data-it="Scrivimi ora <span class='ar'>→</span>" data-en="Message me now <span class='ar'>→</span>">Scrivimi ora <span class="ar">→</span></a>
-      </div>
+      <div class="rv"><a href="https://wa.me/393313251961" target="_blank" class="mag" data-mag data-cur="SCRIVIMI" data-it="Scrivimi ora <span class='ar'>→</span>" data-en="Message me now <span class='ar'>→</span>">Scrivimi ora <span class="ar">→</span></a></div>
       <div class="cdetails rv">
         <div><span class="l">WhatsApp / Tel</span> · <a href="https://wa.me/393313251961" target="_blank">+39 331 325 1961</a></div>
         <div><span class="l">Instagram</span> · <a href="https://instagram.com/r.egidi_immobiliare" target="_blank">@r.egidi_immobiliare</a></div>
@@ -453,7 +580,7 @@ footer{background:var(--graphite);padding:0 0 48px}
     <span data-it="L'ECOSISTEMA:" data-en="THE ECOSYSTEM:">L'ECOSISTEMA:</span>
     <span><b>Valentino Egidi</b> — <span data-it="compravendita" data-en="buy &amp; sell">compravendita</span></span>
     <span class="div">/</span>
-    <a href="https://www.boomrome.com" target="_blank"><b>BOOM</b> — <span data-it="affitti" data-en="rentals">affitti</span></a>
+    <a href="https://www.boomrome.com" target="_blank"><b class="gd">BOOM</b> — <span data-it="affitti medio termine" data-en="medium-term rentals">affitti medio termine</span></a>
     <span class="div">/</span>
     <span><b>Egidi Immobiliare S.r.l.</b></span>
   </div>
@@ -464,7 +591,11 @@ footer{background:var(--graphite);padding:0 0 48px}
 </div></footer>
 
 <!-- CONTROL DECK -->
-<div class="deck"><button data-lang="it" class="on">IT</button><button data-lang="en">EN</button></div>
+<div class="deck">
+  <div class="grp" id="langGrp"><button data-lang="it" class="on">IT</button><button data-lang="en">EN</button></div>
+  <div class="sep"></div>
+  <button id="soundBtn" data-it="♪ Suono" data-en="♪ Sound">♪ Suono</button>
+</div>
 
 <script>
 /* ── data ──────────────────────────────────────────────────── */
@@ -473,52 +604,87 @@ const MARQ={
   en:["Honest to a fault","Precise to the decimal","No script","Flaws first","Real price, now","Real buyers","No fluff","Rome MMXXX"]
 };
 const DICT={
-  it:[
-    ["Caratteristico","Piccolo."],["Luminoso","Ha le finestre."],
-    ["Mansardato","In certi punti non ci stai in piedi."],["Open space","Mancano i muri."],
-    ["Zona in via di sviluppo","Per ora è scomoda."],["Da rivedere internamente","Ci sono 50.000€ di lavori."],
-    ["Soluzione esclusiva","Costa più del dovuto."],["Trattativa riservata","Il prezzo è imbarazzante da scrivere."],
-    ["Tranquillo","Non passa nessuno. Nemmeno l'autobus."],["Ideale per investimento","Non ci vivresti."]
-  ],
-  en:[
-    ["Cosy","Small."],["Bright","It has windows."],
-    ["Characterful","Old and unfixed."],["Open-plan","There are no walls."],
-    ["Up-and-coming area","Inconvenient, for now."],["Needs some TLC","€50,000 of work."],
-    ["Exclusive opportunity","Overpriced."],["Price on application","The number is embarrassing to print."],
-    ["Quiet street","Nothing comes by. Not even the bus."],["Great for investors","You wouldn't live here."]
-  ]
+  it:[["Caratteristico","Piccolo."],["Luminoso","Ha le finestre."],["Mansardato","In certi punti non ci stai in piedi."],["Open space","Mancano i muri."],["Zona in via di sviluppo","Per ora è scomoda."],["Da rivedere internamente","Ci sono 50.000€ di lavori."],["Soluzione esclusiva","Costa più del dovuto."],["Trattativa riservata","Il prezzo è imbarazzante da scrivere."],["Tranquillo","Non passa nessuno. Nemmeno l'autobus."],["Ideale per investimento","Non ci vivresti."]],
+  en:[["Cosy","Small."],["Bright","It has windows."],["Characterful","Old and unfixed."],["Open-plan","There are no walls."],["Up-and-coming area","Inconvenient, for now."],["Needs some TLC","€50,000 of work."],["Exclusive opportunity","Overpriced."],["Price on application","The number is embarrassing to print."],["Quiet street","Nothing comes by. Not even the bus."],["Great for investors","You wouldn't live here."]]
 };
-const LABELS={it:{said:"L'annuncio dice",mean:"Vuol dire"},en:{said:"The listing says",mean:"It means"}};
+const LABELS={it:{said:"L'annuncio dice",mean:"Vuol dire",cur:"TRADUCI"},en:{said:"The listing says",mean:"It means",cur:"TRANSLATE"}};
 let LANG='it';
+const reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;
+const fine=matchMedia('(hover:hover) and (pointer:fine)').matches;
 
+/* ── sound (optional, WebAudio synth) ──────────────────────── */
+let AC=null,soundOn=false;
+function actx(){if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)()}catch(e){}}return AC}
+function blip(freq=440,dur=.035,type='square',gain=.04){
+  if(!soundOn)return;const c=actx();if(!c)return;
+  const o=c.createOscillator(),g=c.createGain();o.type=type;o.frequency.value=freq;
+  g.gain.value=gain;o.connect(g);g.connect(c.destination);const t=c.currentTime;
+  o.start(t);g.gain.setValueAtTime(gain,t);g.gain.exponentialRampToValueAtTime(.0001,t+dur);o.stop(t+dur+.02);
+}
+
+/* ── builders ──────────────────────────────────────────────── */
 function buildMarquee(){const one=MARQ[LANG].map(t=>`<span>${t}</span>`).join('');document.getElementById('marq').innerHTML=one+one;}
 function buildDict(){
   const L=LABELS[LANG];
   document.getElementById('htGrid').innerHTML=DICT[LANG].map(([s,m])=>`
-    <div class="ht-row" tabindex="0">
+    <div class="ht-row" tabindex="0" data-cur="${L.cur}">
       <span class="lab">${L.said}</span><div class="said">“${s}”</div>
       <div class="ht-mean"><span class="lab">${L.mean}</span><div class="truth">${m}</div></div>
     </div>`).join('');
   document.querySelectorAll('#htGrid .ht-row').forEach(r=>{
-    r.addEventListener('click',()=>r.classList.toggle('open'));
-    r.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();r.classList.toggle('open')}});
+    const open=()=>{r.classList.toggle('open');blip(220,.05,'sine',.05)};
+    r.addEventListener('click',open);
+    r.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();open()}});
+    if(fine&&!reduce)bindCursor(r);
   });
 }
 function setLang(l){
   LANG=l;document.documentElement.lang=l;
   document.querySelectorAll('[data-it]').forEach(el=>{const v=el.getAttribute('data-'+l);if(v!=null)el.innerHTML=v});
-  document.querySelectorAll('.deck button').forEach(b=>b.classList.toggle('on',b.dataset.lang===l));
+  document.querySelectorAll('#langGrp button').forEach(b=>b.classList.toggle('on',b.dataset.lang===l));
   buildMarquee();buildDict();
 }
-document.querySelector('.deck').addEventListener('click',e=>{const b=e.target.closest('button');if(b)setLang(b.dataset.lang)});
 
-/* ── nav scroll ────────────────────────────────────────────── */
-const nav=document.getElementById('nav');
-addEventListener('scroll',()=>nav.classList.toggle('scrolled',scrollY>30),{passive:true});
+/* ── controls ──────────────────────────────────────────────── */
+document.getElementById('langGrp').addEventListener('click',e=>{const b=e.target.closest('button');if(b){setLang(b.dataset.lang);blip(660)}});
+document.getElementById('soundBtn').addEventListener('click',function(){soundOn=!soundOn;this.classList.toggle('on',soundOn);if(soundOn){actx();blip(880,.06,'sine',.05)}});
+
+/* ── nav + scroll-driven (single rAF) ──────────────────────── */
+const nav=document.getElementById('nav'),prog=document.getElementById('prog');
+const rail=document.getElementById('rail');
+const parEls=[...document.querySelectorAll('.parallax')];
+const secs=[...document.querySelectorAll('[data-sec]')];
+const monuStage=document.getElementById('monuStage'),monuFg=document.getElementById('monuFg');
+const monument=document.querySelector('.monument');
+let sTick=false;
+function onScroll(){
+  const y=scrollY,h=document.documentElement.scrollHeight-innerHeight;
+  nav.classList.toggle('scrolled',y>30);
+  prog.style.width=(h>0?(y/h*100):0)+'%';
+  if(!reduce){
+    parEls.forEach(el=>{const sp=+el.dataset.speed||0;const r=el.getBoundingClientRect();const c=r.top+r.height/2-innerHeight/2;
+      const base=el.classList.contains('monolith')?'':'';el.style.transform=base+`translateY(${(-c*sp).toFixed(1)}px)`});
+    if(monument){const r=monument.getBoundingClientRect();const p=Math.max(0,Math.min(1,1-(r.top+r.height/2)/(innerHeight+r.height/2)));
+      monuStage.style.transform=`translateX(-50%) translateY(${(1-p)*60}px) scale(${(.86+p*.18).toFixed(3)})`;
+      monuFg.style.transform=`translateY(${(p-.5)*-70}px)`;monuFg.style.opacity=(.35+p*.65).toFixed(2);}
+  }
+  // section rail active
+  let cur=secs[0];secs.forEach(s=>{if(s.getBoundingClientRect().top<=innerHeight*0.4)cur=s});
+  document.querySelectorAll('.rail a').forEach(a=>a.classList.toggle('on',a.dataset.t===cur.getAttribute('data-sec')));
+  sTick=false;
+}
+addEventListener('scroll',()=>{if(!sTick){requestAnimationFrame(onScroll);sTick=true}},{passive:true});
+
+/* build rail */
+(function(){const wrap=document.createElement('div');wrap.className='rail';wrap.id='rail';
+  secs.forEach(s=>{const id=s.id||'top';const n=s.getAttribute('data-sec');
+    wrap.insertAdjacentHTML('beforeend',`<a href="#${id}" data-t="${n}"><span>${n}</span><span class="ln"></span></a>`)});
+  document.body.appendChild(wrap);
+})();
 
 /* ── reveal ────────────────────────────────────────────────── */
 const io=new IntersectionObserver(es=>es.forEach(en=>{if(en.isIntersecting){en.target.classList.add('in');io.unobserve(en.target)}}),{threshold:.12});
-document.querySelectorAll('.rv').forEach(el=>io.observe(el));
+document.querySelectorAll('.rv,[data-stagger]').forEach(el=>io.observe(el));
 
 /* ── count-up ──────────────────────────────────────────────── */
 const cio=new IntersectionObserver(es=>es.forEach(en=>{
@@ -534,39 +700,40 @@ const clk=document.getElementById('clock');
 function tickClock(){try{clk.textContent=new Intl.DateTimeFormat('it-IT',{timeZone:'Europe/Rome',hour:'2-digit',minute:'2-digit',second:'2-digit'}).format(new Date())}catch(e){}}
 tickClock();setInterval(tickClock,1000);
 
-/* ── parallax (scroll) ─────────────────────────────────────── */
-const pEls=[...document.querySelectorAll('.parallax')];
-let ticking=false;
-function parallax(){
-  pEls.forEach(el=>{const s=+el.dataset.speed||0;const r=el.getBoundingClientRect();const c=r.top+r.height/2-innerHeight/2;
-    el.style.transform=(el.classList.contains('monu-stage')?'translateX(-50%) ':'')+`translateY(${c*s}px)`});
-  ticking=false;
+/* ── cursor + spotlight + magnetic ─────────────────────────── */
+const cur=document.getElementById('cur'),curd=document.getElementById('curd'),curtx=cur.querySelector('.cur-tx'),spot=document.getElementById('spot');
+function bindCursor(el){
+  const lab=el.getAttribute('data-cur');
+  el.addEventListener('mouseenter',()=>{if(lab){cur.classList.add('label');curtx.textContent=lab}else{cur.classList.add('grow')}blip(520,.02,'sine',.025)});
+  el.addEventListener('mouseleave',()=>{cur.classList.remove('label','grow')});
 }
-addEventListener('scroll',()=>{if(!ticking){requestAnimationFrame(parallax);ticking=true}},{passive:true});
-parallax();
-
-/* ── crosshair cursor + magnetic (fine pointers) ───────────── */
-const fine=matchMedia('(hover:hover) and (pointer:fine)').matches;
-const reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;
 if(fine&&!reduce){
   document.body.classList.add('cur-on');
-  const cur=document.getElementById('cur'),curd=document.getElementById('curd');
   let cx=innerWidth/2,cy=innerHeight/2,tx=cx,ty=cy;
-  addEventListener('mousemove',e=>{tx=e.clientX;ty=e.clientY;curd.style.transform=`translate(${tx}px,${ty}px) translate(-50%,-50%)`});
+  addEventListener('mousemove',e=>{tx=e.clientX;ty=e.clientY;curd.style.transform=`translate(${tx}px,${ty}px) translate(-50%,-50%)`;spot.style.transform=`translate(${tx}px,${ty}px) translate(-50%,-50%)`});
   (function loop(){cx+=(tx-cx)*.2;cy+=(ty-cy)*.2;cur.style.transform=`translate(${cx}px,${cy}px) translate(-50%,-50%)`;requestAnimationFrame(loop)})();
-  document.querySelectorAll('a,button,.ht-row,[data-mag]').forEach(el=>{
-    el.addEventListener('mouseenter',()=>cur.classList.add('grow'));
-    el.addEventListener('mouseleave',()=>cur.classList.remove('grow'));
-  });
+  document.querySelectorAll('a,button,[data-cur]').forEach(bindCursor);
   document.querySelectorAll('[data-mag]').forEach(el=>{
-    el.addEventListener('mousemove',e=>{const r=el.getBoundingClientRect();
-      el.style.transform=`translate(${(e.clientX-r.left-r.width/2)*.25}px,${(e.clientY-r.top-r.height/2)*.4}px)`});
+    el.addEventListener('mousemove',e=>{const r=el.getBoundingClientRect();el.style.transform=`translate(${(e.clientX-r.left-r.width/2)*.25}px,${(e.clientY-r.top-r.height/2)*.4}px)`});
     el.addEventListener('mouseleave',()=>el.style.transform='');
   });
 }
 
+/* ── preloader ─────────────────────────────────────────────── */
+function finishPre(){const pre=document.getElementById('pre');if(!pre||pre.classList.contains('done'))return;
+  pre.classList.add('done');document.body.classList.remove('lock');
+  document.querySelector('.hero-in')?.classList.add('in');setTimeout(()=>pre.remove(),1100);}
+if(reduce){document.body.classList.remove('lock');document.getElementById('pre')?.remove();document.querySelector('.hero-in')?.classList.add('in');}
+else{
+  const pc=document.getElementById('preCount'),pb=document.getElementById('preBar');let n=0;
+  const iv=setInterval(()=>{n=Math.min(100,n+Math.round(4+Math.random()*9));pc.textContent=String(n).padStart(2,'0');pb.style.width=n+'%';
+    if(n>=100){clearInterval(iv);setTimeout(finishPre,260)}},58);
+  addEventListener('load',()=>setTimeout(()=>{if(n<100){n=100;pc.textContent='100';pb.style.width='100%';finishPre()}},1700));
+  setTimeout(finishPre,4200); // hard safety
+}
+
 /* boot */
-setLang('it');
+setLang('it');onScroll();
 </script>
 </body>
 </html>
