@@ -23,10 +23,12 @@ PLIST="$PLIST_DIR/com.boomrome.pulse.plist"
 HEALTH_PLIST="$PLIST_DIR/com.boomrome.health.plist"
 TELEMETRY_PLIST="$PLIST_DIR/com.boomrome.telemetry.plist"
 MEMORY_PLIST="$PLIST_DIR/com.boomrome.memory.plist"
+REALTIME_PLIST="$PLIST_DIR/com.boomrome.realtime.plist"
 PULSE_BIN="$HOME/agent-os/bin/pulse.sh"
 HEALTH_BIN="$HOME/agent-os/bin/health.sh"
 TELEMETRY_BIN="$HOME/agent-os/bin/telemetry.sh"
 MEMORY_BIN="$HOME/agent-os/bin/memory.sh"
+REALTIME_BIN="$HOME/agent-os/bin/realtime.sh"
 
 ok()   { printf '  \033[32m✓\033[0m %s\n' "$*"; }
 warn() { printf '  \033[33m!\033[0m %s\n' "$*"; }
@@ -97,8 +99,21 @@ else
     warn "memory NON trovato in list"
 fi
 
-# 7) Smoke-test tutta la fleet
-bold "7/8  Smoke-test pulse + health + telemetry + memory"
+# 7) launchd · realtime (event-driven daemon, always-on, KeepAlive)
+#    Sostituisce il polling con il push: appena qualcosa arriva in
+#    agentNotifications su Firestore, Homie reagisce in ~15 secondi.
+bold "7/9  Registra launchd com.boomrome.realtime (daemon always-on)"
+printf '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0">\n<dict>\n  <key>Label</key><string>com.boomrome.realtime</string>\n  <key>ProgramArguments</key>\n  <array>\n    <string>/bin/bash</string>\n    <string>%s</string>\n  </array>\n  <key>KeepAlive</key><true/>\n  <key>RunAtLoad</key><true/>\n  <key>ThrottleInterval</key><integer>10</integer>\n  <key>StandardOutPath</key><string>%s/state/launchd.realtime.log</string>\n  <key>StandardErrorPath</key><string>%s/state/launchd.realtime.err</string>\n  <key>EnvironmentVariables</key>\n  <dict>\n    <key>PATH</key><string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>\n  </dict>\n</dict>\n</plist>\n' "$REALTIME_BIN" "$HERE" "$HERE" > "$REALTIME_PLIST"
+launchctl unload "$REALTIME_PLIST" 2>/dev/null || true
+launchctl load "$REALTIME_PLIST"
+if launchctl list | grep -q com.boomrome.realtime; then
+    ok "realtime registrato (daemon always-on, poll ogni 15s)"
+else
+    warn "realtime NON trovato in list"
+fi
+
+# 8) Smoke-test tutta la fleet
+bold "8/9  Smoke-test pulse + health + telemetry + memory"
 mkdir -p "$HERE/state"
 for bin in "$PULSE_BIN" "$HEALTH_BIN" "$TELEMETRY_BIN" "$MEMORY_BIN"; do
     name="$(basename "$bin" .sh)"
@@ -109,8 +124,8 @@ for bin in "$PULSE_BIN" "$HEALTH_BIN" "$TELEMETRY_BIN" "$MEMORY_BIN"; do
     fi
 done
 
-# 8) Disabilita la vecchia boom-sweep di OpenClaw (era a vision, cara)
-bold "8/8  Disabilita boom-sweep OpenClaw (sostituita da pulse)"
+# 9) Disabilita la vecchia boom-sweep di OpenClaw (era a vision, cara)
+bold "9/9  Disabilita boom-sweep OpenClaw (sostituita da pulse)"
 if command -v openclaw >/dev/null 2>&1; then
     SWEEP_ID="$(python3 -c "
 import json
@@ -133,7 +148,7 @@ else
 fi
 
 echo
-bold "✅  BOOM Agent OS installato — 4 pilastri attivi."
+bold "✅  BOOM Agent OS installato — 5 pilastri attivi."
 cat <<EOF
 
   Pulse     (15 min)  L1 Sense       — gate WhatsApp+portal, sveglia
@@ -145,21 +160,31 @@ cat <<EOF
                                       con BUDGET_DAILY_EUR)
   Memory    (1 ora)   L6 Memoria     — profili per contatto WhatsApp
                                       iniettati nel risveglio di Homie
+  Realtime  (always)  L1 Push        — event-driven: poll /api/agent/queue
+                                      ogni 15s, Homie reagisce ai lead
+                                      del sito / firme / pagamenti in
+                                      secondi invece di minuti
 
   Verifica:
     tail -f $HERE/state/pulse.log
-    tail -f $HERE/state/health.log
-    tail -f $HERE/state/telemetry.log
+    tail -f $HERE/state/realtime.log
     cat   $HERE/state/metrics.json
-    ls    $HERE/state/profiles/
     launchctl list | grep boomrome
+
+  Test realtime end-to-end (manda un fake lead, deve arrivare a Homie
+  entro ~15s):
+    curl -X POST \$API_BASE/notify \\
+      -H "Content-Type: application/json" \\
+      -H "X-Homie-Secret: \$HOMIE_SECRET" \\
+      -d '{"type":"lead.new","priority":"high","summary":"Test realtime",
+           "payload":{"name":"Test","property":"Via Test 1"}}'
 
   Consultare la memoria di un contatto:
     $HOME/agent-os/bin/memory.sh show "<chatId>"
     $HOME/agent-os/bin/memory.sh inject "<chatId>"   # come la vede Homie
 
   Per disinstallare:
-    for P in $PLIST $HEALTH_PLIST $TELEMETRY_PLIST $MEMORY_PLIST; do
+    for P in $PLIST $HEALTH_PLIST $TELEMETRY_PLIST $MEMORY_PLIST $REALTIME_PLIST; do
       launchctl unload "\$P" && rm "\$P"
     done && rm $LINK
 

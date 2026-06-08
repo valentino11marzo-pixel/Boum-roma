@@ -65,10 +65,36 @@ L'installer:
 - [x] **L5 affidabilità** → `health.sh` v0.1 — dead-man switch ogni 2 min
 - [x] **L5 costi** → `telemetry.sh` v0.1 — digest 09:00 + budget cap
 - [x] **L6 memoria** → `memory.sh` v0.1 — profilo per contatto, iniettato in pulse
-- [ ] Event-driven realtime (portal → push diretto a pulse)
+- [x] **L1 push (event-driven)** → `realtime.sh` v0.1 — daemon always-on,
+      polla `/api/agent/queue`, Homie reagisce ai lead in ~15s
 - [ ] Espansioni future (Sofia inbound, tenant concierge chat, predictive
       re-let, multi-channel inbox, owner onboarding agent — vedi backlog
       idee nei commenti del progetto)
+
+## Come fare emettere eventi al portal
+
+Tre nuovi endpoint, tutti gated da `X-Homie-Secret` (o
+`X-Agent-Public-Secret` per il form pubblico del sito):
+
+- `POST /api/agent/notify` — chiunque pusha un evento (form sito →
+  `lead.new`, Magic-Sign → `contract.signed`, tenant.html →
+  `maintenance.opened`, etc.). Idempotente via `dedupKey`.
+- `POST /api/agent/queue`  — il Mini polla pendings (con claim atomico).
+- `POST /api/agent/ack`    — il Mini chiude l'evento (done/failed con
+  retry opzionale fino a 5 tentativi).
+
+Schema body di `notify`:
+```json
+{
+  "type":     "lead.new | contract.signed | payment.overdue | ...",
+  "summary":  "Mario via form sito · Trastevere · 1500€",
+  "priority": "urgent | high | normal | low",
+  "ref":      { "collection": "leads", "id": "abc123" },
+  "ownerId":  "uid-landlord",
+  "payload":  { "name":"Mario", "phone":"+39...", "property":"..." },
+  "dedupKey": "form-lead-2026-06-08-mario-trastevere"
+}
+```
 
 Avanziamo pilastro per pilastro, ogni step testato sul Mini prima del
 prossimo.

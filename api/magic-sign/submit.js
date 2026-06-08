@@ -296,6 +296,30 @@ export default async function handler(req, res) {
     contractId, role, fullySigned,
   }, 'magic-sign');
 
+  // Realtime event so the Mac-side daemon wakes Homie immediately:
+  // - if both parties signed → contract.signed (urgent: docs to send,
+  //   tenant user to create, property to flip to "rented", listing
+  //   sync, lead to close)
+  // - if only one signed → contract.signed/low (informational; the
+  //   missing signer may need a nudge)
+  try {
+    const { fsCreate } = await import('../homie/_lib.js');
+    fsCreate('agentNotifications', {
+      type: 'contract.signed',
+      summary: fullySigned
+        ? `Contratto firmato da TUTTI · ${contractId} (chiudere il flow)`
+        : `Contratto firmato da ${role} · ${contractId} (manca l'altra parte)`,
+      priority: fullySigned ? 'urgent' : 'low',
+      ref: { collection: 'contracts', id: contractId },
+      payload: { contractId, role, fullySigned },
+      dedupKey: `contract-signed-${contractId}-${role}`,
+      status: 'pending',
+      actor: 'magic-sign',
+      createdAt: new Date().toISOString(),
+      attempts: 0,
+    }).catch(e => console.warn('[magic-sign/submit] notify failed:', e.message));
+  } catch (e) { /* never block the response */ }
+
   return res.status(200).json({
     ok: true,
     role,
