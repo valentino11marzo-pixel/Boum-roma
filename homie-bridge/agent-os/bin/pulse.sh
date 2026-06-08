@@ -79,6 +79,26 @@ fi
 
 # Build a tight, token-cheap context. No full payloads — just the delta.
 context="$(printf 'PULSE %s (since %s)\n' "$now" "$last_pulse")"
+
+# Memory injection — for each chat with a new message, prepend the local
+# profile so Homie picks up the conversation with continuity. Free, runs
+# from disk.
+if [ -n "$wa_delta" ] && [ -x "$HERE/memory.sh" ]; then
+    mem_block=""
+    while IFS= read -r chat_line; do
+        chat_id="${chat_line%%:*}"
+        chat_id="${chat_id%% (*}"  # strip "(senderName)" suffix
+        chat_id="${chat_id%% [*}"  # strip "[N msg]" suffix
+        chat_id="${chat_id%% }"
+        [ -z "$chat_id" ] && continue
+        prof="$(bash "$HERE/memory.sh" inject "$chat_id" 2>/dev/null)"
+        [ -n "$prof" ] && mem_block="${mem_block:+$mem_block
+
+}$prof"
+    done < <(printf '%s\n' "$wa_delta" | head -5)
+    [ -n "$mem_block" ] && context="$(printf '%s\n\n%s' "$context" "$mem_block")"
+fi
+
 if [ -n "$wa_delta" ]; then
     context="$(printf '%s\n\nWHATSAPP — %d nuovi messaggi:\n%s' \
         "$context" "$wa_count" "$wa_delta")"

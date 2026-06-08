@@ -61,11 +61,14 @@ L'installer:
 
 ## Stato attuale del package
 
-- [x] L1 sense → `pulse.sh` v0.1 — live sul Mini
-- [x] L5 affidabilità → `health.sh` v0.1 — dead-man switch ogni 2 min
-- [ ] L5 costi → `telemetry.sh`
-- [ ] L6 memoria → `memory.sh`
+- [x] **L1 sense** → `pulse.sh` v0.1 — gate gratuito ogni 15 min
+- [x] **L5 affidabilità** → `health.sh` v0.1 — dead-man switch ogni 2 min
+- [x] **L5 costi** → `telemetry.sh` v0.1 — digest 09:00 + budget cap
+- [x] **L6 memoria** → `memory.sh` v0.1 — profilo per contatto, iniettato in pulse
 - [ ] Event-driven realtime (portal → push diretto a pulse)
+- [ ] Espansioni future (Sofia inbound, tenant concierge chat, predictive
+      re-let, multi-channel inbox, owner onboarding agent — vedi backlog
+      idee nei commenti del progetto)
 
 Avanziamo pilastro per pilastro, ogni step testato sul Mini prima del
 prossimo.

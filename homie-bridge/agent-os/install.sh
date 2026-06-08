@@ -21,8 +21,12 @@ LINK="$HOME/agent-os"
 PLIST_DIR="$HOME/Library/LaunchAgents"
 PLIST="$PLIST_DIR/com.boomrome.pulse.plist"
 HEALTH_PLIST="$PLIST_DIR/com.boomrome.health.plist"
+TELEMETRY_PLIST="$PLIST_DIR/com.boomrome.telemetry.plist"
+MEMORY_PLIST="$PLIST_DIR/com.boomrome.memory.plist"
 PULSE_BIN="$HOME/agent-os/bin/pulse.sh"
 HEALTH_BIN="$HOME/agent-os/bin/health.sh"
+TELEMETRY_BIN="$HOME/agent-os/bin/telemetry.sh"
+MEMORY_BIN="$HOME/agent-os/bin/memory.sh"
 
 ok()   { printf '  \033[32m✓\033[0m %s\n' "$*"; }
 warn() { printf '  \033[33m!\033[0m %s\n' "$*"; }
@@ -71,23 +75,42 @@ else
     warn "health NON trovato in list — controlla $HEALTH_PLIST"
 fi
 
-# 5) Smoke-test
-bold "5/6  Smoke-test pulse.sh + health.sh"
-mkdir -p "$HERE/state"
-if bash "$PULSE_BIN" >/dev/null 2>&1; then
-    ok "pulse exit 0"
+# 5) launchd · telemetry (ogni ora — costi, budget cap, digest 09:00)
+bold "5/8  Registra launchd com.boomrome.telemetry (ogni ora)"
+printf '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0">\n<dict>\n  <key>Label</key><string>com.boomrome.telemetry</string>\n  <key>ProgramArguments</key>\n  <array>\n    <string>/bin/bash</string>\n    <string>%s</string>\n  </array>\n  <key>StartInterval</key><integer>3600</integer>\n  <key>RunAtLoad</key><true/>\n  <key>StandardOutPath</key><string>%s/state/launchd.telemetry.log</string>\n  <key>StandardErrorPath</key><string>%s/state/launchd.telemetry.err</string>\n  <key>EnvironmentVariables</key>\n  <dict>\n    <key>PATH</key><string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>\n  </dict>\n</dict>\n</plist>\n' "$TELEMETRY_BIN" "$HERE" "$HERE" > "$TELEMETRY_PLIST"
+launchctl unload "$TELEMETRY_PLIST" 2>/dev/null || true
+launchctl load "$TELEMETRY_PLIST"
+if launchctl list | grep -q com.boomrome.telemetry; then
+    ok "telemetry registrato (digest giornaliero + budget cap)"
 else
-    warn "pulse exit ≠ 0 — guarda $HERE/state/pulse.log"
-fi
-if bash "$HEALTH_BIN" >/dev/null 2>&1; then
-    ok "health exit 0"
-    tail -2 "$HERE/state/health.log" 2>/dev/null | sed 's/^/    /'
-else
-    warn "health exit ≠ 0 — guarda $HERE/state/health.log"
+    warn "telemetry NON trovato in list"
 fi
 
-# 6) Disabilita la vecchia boom-sweep di OpenClaw (era a vision, cara)
-bold "6/6  Disabilita boom-sweep OpenClaw (sostituita da pulse)"
+# 6) launchd · memory (ogni ora — refresh profili per-contatto)
+bold "6/8  Registra launchd com.boomrome.memory (ogni ora)"
+printf '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0">\n<dict>\n  <key>Label</key><string>com.boomrome.memory</string>\n  <key>ProgramArguments</key>\n  <array>\n    <string>/bin/bash</string>\n    <string>%s</string>\n  </array>\n  <key>StartInterval</key><integer>3600</integer>\n  <key>RunAtLoad</key><true/>\n  <key>StandardOutPath</key><string>%s/state/launchd.memory.log</string>\n  <key>StandardErrorPath</key><string>%s/state/launchd.memory.err</string>\n  <key>EnvironmentVariables</key>\n  <dict>\n    <key>PATH</key><string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>\n  </dict>\n</dict>\n</plist>\n' "$MEMORY_BIN" "$HERE" "$HERE" > "$MEMORY_PLIST"
+launchctl unload "$MEMORY_PLIST" 2>/dev/null || true
+launchctl load "$MEMORY_PLIST"
+if launchctl list | grep -q com.boomrome.memory; then
+    ok "memory registrato (profili per contatto WhatsApp)"
+else
+    warn "memory NON trovato in list"
+fi
+
+# 7) Smoke-test tutta la fleet
+bold "7/8  Smoke-test pulse + health + telemetry + memory"
+mkdir -p "$HERE/state"
+for bin in "$PULSE_BIN" "$HEALTH_BIN" "$TELEMETRY_BIN" "$MEMORY_BIN"; do
+    name="$(basename "$bin" .sh)"
+    if bash "$bin" >/dev/null 2>&1; then
+        ok "$name exit 0"
+    else
+        warn "$name exit ≠ 0 — guarda $HERE/state/$name.log"
+    fi
+done
+
+# 8) Disabilita la vecchia boom-sweep di OpenClaw (era a vision, cara)
+bold "8/8  Disabilita boom-sweep OpenClaw (sostituita da pulse)"
 if command -v openclaw >/dev/null 2>&1; then
     SWEEP_ID="$(python3 -c "
 import json
@@ -110,26 +133,34 @@ else
 fi
 
 echo
-bold "✅  Pulse + Health installati."
+bold "✅  BOOM Agent OS installato — 4 pilastri attivi."
 cat <<EOF
 
-  Pulse (ogni 15 min): legge gratis WhatsApp (wacli testo) e il portal
-  (boom risk + snapshot fingerprint), sveglia Homie SOLO sui cambiamenti
-  veri.
-
-  Health (ogni 2 min): dead-man switch. Sorveglia tutta la flotta
-  com.boomrome.*, ti scrive su Telegram se qualcosa muore (es. exit 127)
-  e tenta il restart automatico. Avvisa solo sui cambi di stato, niente
-  spam.
+  Pulse     (15 min)  L1 Sense       — gate WhatsApp+portal, sveglia
+                                      Homie solo sui delta veri
+  Health    (2 min)   L5 Affidabilità — dead-man switch, auto-restart
+                                      della flotta com.boomrome.*
+  Telemetry (1 ora)   L5 Costi       — digest 09:00 + budget cap
+                                      (default €5/giorno, override
+                                      con BUDGET_DAILY_EUR)
+  Memory    (1 ora)   L6 Memoria     — profili per contatto WhatsApp
+                                      iniettati nel risveglio di Homie
 
   Verifica:
     tail -f $HERE/state/pulse.log
     tail -f $HERE/state/health.log
+    tail -f $HERE/state/telemetry.log
+    cat   $HERE/state/metrics.json
+    ls    $HERE/state/profiles/
     launchctl list | grep boomrome
 
+  Consultare la memoria di un contatto:
+    $HOME/agent-os/bin/memory.sh show "<chatId>"
+    $HOME/agent-os/bin/memory.sh inject "<chatId>"   # come la vede Homie
+
   Per disinstallare:
-    launchctl unload $PLIST $HEALTH_PLIST && rm $PLIST $HEALTH_PLIST
-    rm $LINK
-    (boom-sweep la riattivi con: openclaw cron enable <id>)
+    for P in $PLIST $HEALTH_PLIST $TELEMETRY_PLIST $MEMORY_PLIST; do
+      launchctl unload "\$P" && rm "\$P"
+    done && rm $LINK
 
 EOF
