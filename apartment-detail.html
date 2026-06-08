@@ -772,7 +772,7 @@
         .bmx-arm{opacity:0;transform:translateY(24px)}
         .bmx-arm.bmx-in{opacity:1;transform:none;transition:opacity .8s cubic-bezier(.16,1,.3,1),transform .8s cubic-bezier(.16,1,.3,1)}
         /* Ledger card */
-        .bmx-ledger{max-width:760px;margin:0 auto;background:linear-gradient(180deg,#101012,#0A0A0A);border:1px solid rgba(255,255,255,.07);border-radius:20px;padding:28px;position:relative;overflow:hidden}
+        .bmx-ledger{max-width:760px;margin:0 auto;background:var(--dark-void);border:1px solid rgba(255,255,255,.06);border-radius:20px;padding:28px;position:relative;overflow:hidden}
         .bmx-ledger::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(255,215,0,.5),transparent)}
         @media(max-width:560px){.bmx-ledger{padding:22px 18px}}
         .bmx-ey{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#666;margin-bottom:16px}
@@ -782,6 +782,13 @@
         .bmx-row-s{font-size:12px;color:#666;line-height:1.4}
         .bmx-row-v{font-size:17px;color:#fff;white-space:nowrap;font-weight:300}
         .bmx-chip{display:inline-flex;align-items:center;gap:4px;font-size:9.5px;letter-spacing:.5px;text-transform:uppercase;color:#00FF88;background:rgba(0,255,136,.08);border:1px solid rgba(0,255,136,.22);padding:3px 8px;border-radius:100px;margin-left:8px}
+        .bmx-row-fee{align-items:flex-start}
+        .bmx-fee-opts{display:flex;align-items:center;gap:12px;flex-shrink:0}
+        .bmx-fee-opt{display:flex;flex-direction:column;align-items:flex-end;gap:2px;text-align:right}
+        .bmx-fee-k{font-size:10px;letter-spacing:.5px;text-transform:uppercase;color:#666;white-space:nowrap}
+        .bmx-fee-v{font-size:16px;color:#fff;font-weight:300;white-space:nowrap}
+        .bmx-fee-or{font-size:10px;color:#555;text-transform:uppercase;letter-spacing:1px}
+        @media(max-width:520px){.bmx-row-fee{flex-direction:column;gap:12px}.bmx-fee-opts{align-self:stretch;justify-content:flex-start;gap:22px}.bmx-fee-opt{align-items:flex-start;text-align:left}}
         .bmx-tiles{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:18px 0}
         @media(max-width:480px){.bmx-tiles{grid-template-columns:1fr}}
         .bmx-tile{background:#08080A;border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:16px}
@@ -790,6 +797,7 @@
         .bmx-tile-v{font-size:clamp(22px,3vw,28px);font-weight:200;color:#fff;line-height:1}
         .bmx-tile.green .bmx-tile-v{color:#00FF88}
         .bmx-tile-s{font-size:11.5px;color:#999;margin-top:8px;line-height:1.45}
+        .bmx-pre{font-size:15px;color:#999;font-weight:300;margin-right:1px}
         .bmx-total{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:18px 20px;background:rgba(255,215,0,.05);border:1px solid rgba(255,215,0,.18);border-radius:14px}
         .bmx-total span{font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#999}
         .bmx-total b{font-size:clamp(26px,3.6vw,36px);font-weight:200;color:#FFD700;white-space:nowrap}
@@ -826,7 +834,7 @@
         /* Included vs separate */
         .bmx-incl{max-width:760px;margin:48px auto 0;display:grid;grid-template-columns:1fr 1fr;gap:14px}
         @media(max-width:560px){.bmx-incl{grid-template-columns:1fr}}
-        .bmx-col{background:linear-gradient(180deg,#101012,#0A0A0A);border:1px solid rgba(255,255,255,.07);border-radius:16px;padding:22px}
+        .bmx-col{background:var(--dark-void);border:1px solid rgba(255,255,255,.06);border-radius:20px;padding:24px}
         .bmx-col-h{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:14px;font-weight:600}
         .bmx-col-h.yes{color:#00FF88}
         .bmx-col-h.sep{color:#888}
@@ -890,23 +898,24 @@
           if(rent<=0){
             host.innerHTML = '<div class="bmx-fallback">This home is priced on request. <a href="#inquiryCard">Ask us</a> and we\'ll send your full, itemised move-in cost — first month, deposit and agency fee — before you commit to anything.</div>';
           } else {
-            const dep2 = rent*2, dep3 = rent*3;
             const pct = opts.agencyPct!=null ? Number(opts.agencyPct) : 0.10;   // BOOM commission: 10% of the annual rent
-            const fee = Math.round(rent*12*pct);
-            const cost = rent + fee;
-            const dueFrom = rent + fee + dep2;
+            const dep = rent;                       // deposit: one month, held with guarantees
+            const feeFlat = rent;                   // agency fee — scenario A: one month
+            const feePct = Math.round(rent*12*pct); // agency fee — scenario B: 10% of the annual rent
+            const costFrom = rent + feeFlat;        // your spend, lower scenario
+            const dueFrom = rent + dep + feeFlat;   // cash at signing, lower scenario
             host.innerHTML =
               '<div class="bmx-ey">To move into this home</div>'+
               '<div class="bmx-row"><div class="bmx-row-l"><div class="bmx-row-t">First month’s rent</div><div class="bmx-row-s">Your first month in the apartment.</div></div><div class="bmx-row-v">'+fmt(rent)+'</div></div>'+
-              '<div class="bmx-row"><div class="bmx-row-l"><div class="bmx-row-t">Security deposit <span class="bmx-chip">↩ Refundable</span></div><div class="bmx-row-s">2 months (3 on a 4+4 contract) — held safe, comes back to you.</div></div><div class="bmx-row-v">'+fmt(dep2)+'–'+fmt(dep3)+'</div></div>'+
-              '<div class="bmx-row"><div class="bmx-row-l"><div class="bmx-row-t">BOOM agency fee</div><div class="bmx-row-s">10% of the annual rent — one-time, only when you sign.</div></div><div class="bmx-row-v">'+fmt(fee)+'</div></div>'+
+              '<div class="bmx-row"><div class="bmx-row-l"><div class="bmx-row-t">Security deposit <span class="bmx-chip">↩ Refundable</span></div><div class="bmx-row-s">One month, held safe with full guarantees — it comes back to you.</div></div><div class="bmx-row-v">'+fmt(dep)+'</div></div>'+
+              '<div class="bmx-row bmx-row-fee"><div class="bmx-row-l"><div class="bmx-row-t">BOOM agency fee</div><div class="bmx-row-s">It varies by apartment — some owners set a flat month, others 10% of the year. You’ll always know which before you sign.</div></div><div class="bmx-fee-opts"><div class="bmx-fee-opt"><span class="bmx-fee-k">One month</span><span class="bmx-fee-v">'+fmt(feeFlat)+'</span></div><span class="bmx-fee-or">or</span><div class="bmx-fee-opt"><span class="bmx-fee-k">10% / year</span><span class="bmx-fee-v">'+fmt(feePct)+'</span></div></div></div>'+
               '<div class="bmx-tiles">'+
-                '<div class="bmx-tile"><div class="bmx-tile-k">What it costs you</div><div class="bmx-tile-v" id="bmxCost">'+fmt(cost)+'</div><div class="bmx-tile-s">First month + agency fee. Spent once — no surprises later.</div></div>'+
-                '<div class="bmx-tile green"><div class="bmx-tile-k">Comes back to you</div><div class="bmx-tile-v">'+fmt(dep2)+'–'+fmt(dep3)+'</div><div class="bmx-tile-s">Your deposit, returned in full — minus documented damage only.</div></div>'+
+                '<div class="bmx-tile"><div class="bmx-tile-k">What it costs you</div><div class="bmx-tile-v"><span class="bmx-pre">from</span> <span id="bmxCost">'+fmt(costFrom)+'</span></div><div class="bmx-tile-s">Your first month + the agency fee. Paid once — no surprises later.</div></div>'+
+                '<div class="bmx-tile green"><div class="bmx-tile-k">Comes back to you</div><div class="bmx-tile-v">'+fmt(dep)+'</div><div class="bmx-tile-s">Your one-month deposit, returned in full — minus documented damage only.</div></div>'+
               '</div>'+
               '<div class="bmx-total"><span>Due at signing, from</span><b id="bmxTotal">'+fmt(dueFrom)+'</b></div>'+
               '<div class="bmx-pay">🔒 Paid securely via Stripe, in English — card accepted. Want to lock it in first? <a href="#inquiryCard">Reserve &amp; hold from €300</a> — fully refundable, deducted from your first month.</div>';
-            root.__counts = [['bmxCost',cost],['bmxTotal',dueFrom]];
+            root.__counts = [['bmxCost',costFrom],['bmxTotal',dueFrom]];
           }
           if(!reduce){ root.querySelectorAll('.bmx-armable').forEach(function(el){ el.classList.add('bmx-arm'); }); }
           const animate = function(){
