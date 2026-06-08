@@ -68,6 +68,7 @@
     { "source": "/dashboard", "destination": "/dashboard.html" },
     { "source": "/thank-you", "destination": "/thank-you.html" },
     { "source": "/admin", "destination": "/admin.html" },
+    { "source": "/growth", "destination": "/growth.html" },
     { "source": "/admin-flats", "destination": "/admin-flats.html" },
     { "source": "/owner", "destination": "/owner.html" },
     { "source": "/owner-dashboard", "destination": "/owner-dashboard.html" },

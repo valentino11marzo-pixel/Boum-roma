@@ -1,6 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-EYCD59RDVJ"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-EYCD59RDVJ');
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Onboarding — BOOM Rome</title>
@@ -806,5 +814,6 @@
         function fakeSuccess(){document.getElementById('progress').style.display='none';document.querySelectorAll('.step').forEach(s=>s.classList.remove('active'));document.getElementById('summaryBox').innerHTML='';document.getElementById('successScreen').classList.add('show')}
     </script>
     <script defer src="/js/boom-pixel.js"></script>
+    <script defer src="/js/boom-track.js"></script>
 </body>
 </html>
