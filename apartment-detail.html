@@ -936,6 +936,153 @@
         };
         </script>
 
+        <!-- ════════ BOOM AI CONCIERGE — ask this apartment anything ════════ -->
+        <style>
+        .bask{max-width:880px;margin:64px auto 10px;padding:0 20px}
+        .bask-head{text-align:center;margin-bottom:28px}
+        .bask-lbl{display:inline-flex;align-items:center;gap:6px;color:#FFD700;font-size:11px;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px}
+        .bask-head h2{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-weight:200;font-size:clamp(24px,3.4vw,40px);color:#fff;letter-spacing:-.01em;margin:0}
+        .bask-head h2 .g{color:#FFD700}
+        .bask-head p{max-width:560px;margin:12px auto 0;color:#999;font-size:14.5px;line-height:1.6}
+        .bask-card{background:var(--dark-void);border:1px solid rgba(255,215,0,.15);border-radius:20px;padding:20px;position:relative;overflow:hidden}
+        .bask-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(255,215,0,.6),transparent)}
+        .bask-stream{display:flex;flex-direction:column;gap:14px;max-height:440px;overflow-y:auto;padding:8px 6px 4px;scrollbar-width:thin}
+        .bask-msg{display:flex;gap:11px;align-items:flex-start;animation:baskIn .4s cubic-bezier(.16,1,.3,1)}
+        @keyframes baskIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+        .bask-msg.bask-me{flex-direction:row-reverse}
+        .bask-ava{flex:0 0 auto;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;background:linear-gradient(135deg,#FFD700,#FFA500);color:#000;box-shadow:0 0 16px rgba(255,215,0,.3)}
+        .bask-me .bask-ava{background:rgba(255,255,255,.08);color:#fff;box-shadow:none;font-size:15px}
+        .bask-bubble{max-width:82%;padding:12px 15px;border-radius:14px;font-size:14px;line-height:1.55;color:#e8e8e8;background:#141416;border:1px solid rgba(255,255,255,.06);white-space:pre-wrap;word-break:break-word}
+        .bask-me .bask-bubble{background:rgba(255,215,0,.08);border-color:rgba(255,215,0,.2);color:#fff}
+        .bask-typing{display:flex;gap:4px;padding:4px 2px}
+        .bask-typing i{width:6px;height:6px;border-radius:50%;background:#FFD700;animation:baskDot 1.2s infinite}
+        .bask-typing i:nth-child(2){animation-delay:.2s}.bask-typing i:nth-child(3){animation-delay:.4s}
+        @keyframes baskDot{0%,60%,100%{opacity:.3;transform:translateY(0)}30%{opacity:1;transform:translateY(-3px)}}
+        .bask-chips{display:flex;flex-wrap:wrap;gap:8px;margin:16px 4px 0}
+        .bask-chip{padding:8px 13px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:100px;font-size:12.5px;color:var(--text-secondary);cursor:pointer;transition:all .25s;font-family:inherit;white-space:nowrap}
+        .bask-chip:hover{border-color:var(--gold);color:var(--gold);background:rgba(255,215,0,.05);transform:translateY(-1px)}
+        .bask-input{display:flex;gap:10px;margin-top:14px}
+        .bask-input input{flex:1;min-width:0;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:13px 16px;color:#fff;font-family:inherit;font-size:14px;outline:none;transition:border-color .25s}
+        .bask-input input:focus{border-color:var(--gold)}
+        .bask-input input::placeholder{color:#666}
+        .bask-input button{flex:0 0 auto;width:48px;border:none;border-radius:12px;background:linear-gradient(135deg,#FFD700,#FFA500);color:#000;font-size:20px;font-weight:600;cursor:pointer;transition:all .25s}
+        .bask-input button:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(255,215,0,.3)}
+        .bask-input button:disabled{opacity:.5;cursor:default;transform:none;box-shadow:none}
+        .bask-foot{margin-top:13px;text-align:center;font-size:11.5px;color:#666}
+        .bask-foot a{color:var(--gold);text-decoration:none;border-bottom:1px solid rgba(255,215,0,.3)}
+        /* Scroll-spine section navigator (desktop only) */
+        .bspine{position:fixed;right:24px;top:50%;transform:translateY(-50%);z-index:60;display:none;flex-direction:column;gap:15px}
+        @media(min-width:1180px){.bspine.ready{display:flex}}
+        .bspine a{position:relative;width:11px;height:11px;border-radius:50%;border:1.5px solid rgba(255,255,255,.25);transition:all .3s;cursor:pointer}
+        .bspine a:hover{border-color:var(--gold)}
+        .bspine a.on{background:var(--gold);border-color:var(--gold);box-shadow:0 0 0 4px rgba(255,215,0,.14)}
+        .bspine a span{position:absolute;right:22px;top:50%;transform:translateY(-50%);white-space:nowrap;font-size:10.5px;letter-spacing:1px;text-transform:uppercase;color:var(--text-secondary);background:rgba(0,0,0,.72);padding:4px 10px;border-radius:6px;opacity:0;pointer-events:none;transition:opacity .25s}
+        .bspine a:hover span{opacity:1}
+        .bspine a.on span{opacity:1;color:var(--gold)}
+        @media(prefers-reduced-motion:reduce){.bask-msg{animation:none}.bask-typing i{animation:none}.bspine a{transition:none}}
+        </style>
+        <nav class="bspine" id="bspine" aria-label="Jump to section"></nav>
+        <section class="bask" id="boomAsk" aria-label="Ask this apartment anything">
+          <div class="bask-head">
+            <span class="bask-lbl">⚡ BOOM AI · instant answers</span>
+            <h2>Ask this home <span class="g">anything</span>.</h2>
+            <p>Costs, the contract, the neighbourhood, how fast you can move in — our AI knows this apartment and answers in seconds. Honest, and on 24/7.</p>
+          </div>
+          <div class="bask-card">
+            <div class="bask-stream" id="baskStream" aria-live="polite">
+              <div class="bask-msg bask-ai">
+                <div class="bask-ava">✦</div>
+                <div class="bask-bubble">Hi 👋 I'm BOOM's concierge for this apartment. Ask me anything — or tap a question below.</div>
+              </div>
+            </div>
+            <div class="bask-chips" id="baskChips"></div>
+            <form class="bask-input" id="baskForm">
+              <input id="baskQ" type="text" autocomplete="off" maxlength="600" placeholder="Ask about cost, deposit, the area, move-in…" aria-label="Ask about this apartment">
+              <button type="submit" id="baskSend" aria-label="Send question">→</button>
+            </form>
+            <div class="bask-foot">AI answers based on this listing · always confirmed by our team · <a href="https://wa.me/393313251961" target="_blank" rel="noopener">talk to a human</a></div>
+          </div>
+        </section>
+        <script>
+        (function(){
+          // ───── BOOM AI Concierge ─────
+          const stream=document.getElementById('baskStream'),
+                chipsWrap=document.getElementById('baskChips'),
+                form=document.getElementById('baskForm'),
+                input=document.getElementById('baskQ'),
+                sendBtn=document.getElementById('baskSend');
+          if(stream&&form){
+            const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+            const WA="message BOOM on WhatsApp at +39 331 325 1961 and we’ll answer instantly.";
+            const listingId=function(){
+              const m=location.pathname.match(/\/listing\/([^\/?#]+)/); if(m)return decodeURIComponent(m[1]);
+              const q=new URLSearchParams(location.search).get('id'); if(q)return q;
+              return (window.__boomListing&&window.__boomListing.id)||'';
+            };
+            const history=[]; let busy=false;
+            const CHIPS=['💰 Total cost to move in?','🛡️ How does the deposit work?','📍 What’s the area like?','🎓 Good for students?','⚡ How fast can I move in?','🎥 Can I see it on video?'];
+            CHIPS.forEach(function(c){
+              const b=document.createElement('button'); b.type='button'; b.className='bask-chip'; b.textContent=c;
+              b.addEventListener('click',function(){ if(busy)return; ask(c.replace(/^[^A-Za-z0-9]+\s*/,'')); });
+              chipsWrap.appendChild(b);
+            });
+            function bubble(role,text){
+              const wrap=document.createElement('div'); wrap.className='bask-msg '+(role==='me'?'bask-me':'bask-ai');
+              const ava=document.createElement('div'); ava.className='bask-ava'; ava.textContent=role==='me'?'🙂':'✦';
+              const bub=document.createElement('div'); bub.className='bask-bubble'; bub.textContent=text;
+              wrap.appendChild(ava); wrap.appendChild(bub); stream.appendChild(wrap); stream.scrollTop=stream.scrollHeight; return bub;
+            }
+            function typing(){
+              const wrap=document.createElement('div'); wrap.className='bask-msg bask-ai';
+              wrap.innerHTML='<div class="bask-ava">✦</div><div class="bask-bubble"><div class="bask-typing"><i></i><i></i><i></i></div></div>';
+              stream.appendChild(wrap); stream.scrollTop=stream.scrollHeight; return wrap;
+            }
+            function reveal(bub,text){
+              if(reduce){ bub.textContent=text; return; }
+              bub.textContent=''; var i=0, step=Math.max(1,Math.round(text.length/90));
+              (function go(){ i+=step; bub.textContent=text.slice(0,i); stream.scrollTop=stream.scrollHeight; if(i<text.length)setTimeout(go,12); else bub.textContent=text; })();
+            }
+            async function ask(q){
+              q=(q||'').trim(); if(!q||busy)return; busy=true; sendBtn.disabled=true; input.value='';
+              bubble('me',q); const t=typing();
+              try{
+                const r=await fetch('/api/ask-listing',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:listingId(),question:q,history:history.slice(-6)})});
+                const data=await r.json().catch(function(){return{};});
+                t.remove();
+                const a=(data&&data.answer)?String(data.answer):("I couldn’t reach our AI just now — "+WA);
+                reveal(bubble('ai',''),a); history.push({q:q,a:a});
+                if(window.gtag)try{gtag('event','ai_concierge_ask',{listing_id:listingId()});}catch(e){}
+              }catch(e){ t.remove(); bubble('ai',"I couldn’t reach our AI just now — "+WA); }
+              finally{ busy=false; sendBtn.disabled=false; input.focus(); }
+            }
+            form.addEventListener('submit',function(e){ e.preventDefault(); ask(input.value); });
+          }
+          // ───── Scroll-spine section navigator ─────
+          window.__boomSpine=function(){
+            const spine=document.getElementById('bspine'); if(!spine)return;
+            const defs=[['mediaSection','Photos'],['descSection','Details'],['mapSection','Location'],['boomMoney','Costs'],['boomAsk','Ask AI'],['m48','Move-in']];
+            spine.innerHTML='';
+            const items=defs.map(function(d){
+              const el=document.getElementById(d[0]); if(!el||el.offsetParent===null)return null;
+              const a=document.createElement('a'); a.href='javascript:void 0'; a.setAttribute('aria-label',d[1]);
+              const s=document.createElement('span'); s.textContent=d[1]; a.appendChild(s);
+              a.addEventListener('click',function(ev){ ev.preventDefault(); el.scrollIntoView({behavior:'smooth',block:'start'}); });
+              spine.appendChild(a); return {a:a,el:el};
+            }).filter(Boolean);
+            if(items.length<3){ spine.classList.remove('ready'); return; }
+            spine.classList.add('ready');
+            if('IntersectionObserver' in window){
+              if(spine.__io)spine.__io.disconnect();
+              spine.__io=new IntersectionObserver(function(es){
+                es.forEach(function(e){ if(e.isIntersecting) items.forEach(function(it){ it.a.classList.toggle('on', it.el===e.target); }); });
+              },{rootMargin:'-45% 0px -50% 0px',threshold:0});
+              items.forEach(function(it){ spine.__io.observe(it.el); });
+            }
+          };
+          if(document.readyState!=='loading') window.__boomSpine(); else document.addEventListener('DOMContentLoaded',window.__boomSpine);
+        })();
+        </script>
+
         <!-- More apartments in this neighborhood — auto-populated from Firestore -->
         <section class="zone-footer" id="zoneFooter" hidden></section>
 
@@ -1440,6 +1587,7 @@
         // The money, explained — itemised move-in cost computed from this listing's real rent
         if(window.__boomListing) window.__boomListing.rent = Number(d.price)||0;
         if(window.buildMoney) window.buildMoney(Number(d.price)||0, {});
+        if(window.__boomSpine) window.__boomSpine();   // rebuild section nav once content sections exist
 
         // Specs
         const sEl=document.getElementById('aptSpecs'),specs=[];
