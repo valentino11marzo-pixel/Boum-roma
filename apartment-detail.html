@@ -692,6 +692,7 @@
                             <a class="route-link" id="routeBike" href="#" target="_blank"><span class="route-icon">🚲</span>Cycling</a>
                         </div>
                     </div>
+                    <div class="hood" id="hoodPanel" hidden></div>
                 </div>
             </div>
 
@@ -759,6 +760,84 @@
                 </div>
             </div>
         </div><!-- /.apt-content -->
+
+        <!-- ======== VERIFICATION — proof, not promises ======== -->
+        <style>
+        .bver{max-width:1080px;margin:60px auto 10px;padding:0 20px}
+        @media(min-width:760px){.bver{padding:0 50px}}
+        .bver-head{text-align:center;margin-bottom:30px}
+        .bver-lbl{display:inline-flex;align-items:center;gap:6px;color:#FFD700;font-size:11px;letter-spacing:3px;text-transform:uppercase;margin-bottom:10px}
+        .bver-head h2{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-weight:200;font-size:clamp(24px,3.4vw,40px);color:#fff;letter-spacing:-.01em;margin:0}
+        .bver-head h2 .g{color:#FFD700}
+        .bver-head p{max-width:580px;margin:12px auto 0;color:#999;font-size:14.5px;line-height:1.6}
+        .bver-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+        @media(max-width:760px){.bver-grid{grid-template-columns:1fr 1fr}}
+        @media(max-width:480px){.bver-grid{grid-template-columns:1fr}}
+        .bver-card{background:var(--dark-void);border:1px solid rgba(255,255,255,.06);border-radius:16px;padding:20px;transition:border-color .3s,transform .3s}
+        .bver-card:hover{border-color:rgba(255,215,0,.2);transform:translateY(-3px)}
+        .bver-ic{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;background:rgba(0,255,136,.08);border:1px solid rgba(0,255,136,.2);margin-bottom:13px}
+        .bver-t{font-size:15px;color:#fff;font-weight:500;margin-bottom:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+        .bver-badge{font-size:9px;letter-spacing:.5px;text-transform:uppercase;color:#00FF88;background:rgba(0,255,136,.1);border:1px solid rgba(0,255,136,.25);padding:2px 7px;border-radius:100px}
+        .bver-d{font-size:12.5px;color:#999;line-height:1.55}
+        .bver-d a{color:var(--gold);text-decoration:none;border-bottom:1px solid rgba(255,215,0,.3)}
+        .bver-foot{text-align:center;margin-top:22px;font-size:12.5px;color:#666}
+        .bver-foot a{color:var(--gold);text-decoration:none}
+        /* Neighbourhood intelligence (inside Location) */
+        .hood{margin-top:16px;background:linear-gradient(180deg,#101012,#0A0A0A);border:1px solid rgba(255,255,255,.06);border-radius:16px;padding:22px}
+        .hood-h{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#FFD700;margin-bottom:8px}
+        .hood-tag{font-size:16px;color:#fff;font-weight:300;line-height:1.45;margin-bottom:16px}
+        .hood-rows{display:flex;flex-direction:column;gap:12px;margin-bottom:16px}
+        .hood-row{display:flex;gap:12px;align-items:flex-start}
+        .hood-ic{flex:0 0 auto;width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;background:rgba(255,215,0,.07);border:1px solid rgba(255,215,0,.15)}
+        .hood-rt{font-size:13.5px;color:#ddd;line-height:1.45}
+        .hood-rt b{display:block;font-size:10.5px;letter-spacing:.5px;text-transform:uppercase;color:#777;font-weight:600;margin-bottom:2px}
+        .hood-suits{display:flex;flex-wrap:wrap;gap:7px}
+        .hood-chip{font-size:11.5px;color:var(--text-secondary);background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:100px;padding:5px 12px}
+        </style>
+        <section class="bver" id="boomVerify" aria-label="Why you can trust this listing">
+          <div class="bver-head">
+            <span class="bver-lbl">✓ Verified by BOOM</span>
+            <h2>Proof, not <span class="g">promises</span>.</h2>
+            <p>Rome's rental market runs on trust you usually can't check. Here is exactly why this listing is real.</p>
+          </div>
+          <div class="bver-grid">
+            <div class="bver-card"><div class="bver-ic">🎥</div><div class="bver-t">We filmed it ourselves <span class="bver-badge">Verified</span></div><div class="bver-d">A BOOM agent visited and recorded this exact apartment — no stock photos, no surprises. <a href="#mediaSection">See the walkthrough →</a></div></div>
+            <div class="bver-card"><div class="bver-ic">🪪</div><div class="bver-t">Owner is ID-checked</div><div class="bver-d">We verify the landlord's identity and legal right to rent before a listing ever goes live.</div></div>
+            <div class="bver-card"><div class="bver-ic">📜</div><div class="bver-t">Registered legal contract</div><div class="bver-d">A real Italian lease, registered with the Agenzia delle Entrate — available in English.</div></div>
+            <div class="bver-card"><div class="bver-ic">🛡️</div><div class="bver-t">Deposit protected</div><div class="bver-d">Held to the letter of Italian law and returned at move-out, minus documented damage only.</div></div>
+            <div class="bver-card"><div class="bver-ic">🏢</div><div class="bver-t">BOOM-managed end to end</div><div class="bver-d">One accountable team from application to keys to move-out — not a faceless portal.</div></div>
+            <div class="bver-card"><div class="bver-ic">⭐</div><div class="bver-t">Rated 4.9 by tenants</div><div class="bver-d">47 verified Google reviews from people who moved in with BOOM. <a href="https://share.google/xikmVxQCRuKOdWcND" target="_blank" rel="noopener">Read them →</a></div></div>
+          </div>
+          <div class="bver-foot">See something off? <a href="https://wa.me/393313251961" target="_blank" rel="noopener">Tell us</a> — we take verification seriously.</div>
+        </section>
+        <script>
+        (function(){
+          var esc=function(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');};
+          var ZONES={
+            'trastevere':{name:'Trastevere',tagline:'Rome’s most beloved bohemian quarter — cobbles, ivy and trattorias.',transit:'Tram 8 straight to the centre; Trastevere rail station close by.',walk:'A highly walkable maze of lanes — you won’t need transport much.',essentials:'Markets, wine bars and classic trattorias on every corner.',suits:['Nightlife lovers','Students','Couples']},
+            'centro-storico':{name:'Centro Storico',tagline:'The historic heart — Pantheon, Piazza Navona and the Trevi at your door.',transit:'Largely pedestrian; Spagna & Barberini metro (Line A) on the edges.',walk:'Everything on foot, surrounded by landmarks.',essentials:'Cafés, boutiques and monuments steps from the door.',suits:['First time in Rome','Walk everywhere','Couples']},
+            'monti':{name:'Monti',tagline:'Rome’s coolest little village, right beside the Colosseum.',transit:'Cavour & Colosseo metro (Line B); buses along Via Nazionale.',walk:'Very walkable, charming hilly lanes.',essentials:'Vintage shops, wine bars and indie eateries.',suits:['Creatives','Aperitivo crowd','Young professionals']},
+            'prati':{name:'Prati',tagline:'Elegant, orderly and green — right by the Vatican.',transit:'Ottaviano, Lepanto & Cipro metro (Line A).',walk:'Wide boulevards make for very easy walking.',essentials:'Cola di Rienzo shopping and a daily covered market.',suits:['Professionals','Families','Quiet seekers']},
+            'pigneto':{name:'Pigneto',tagline:'Rome’s edgy, artsy east side — its little Berlin.',transit:'Trams 5/14, Pigneto rail and frequent buses.',walk:'Walkable pedestrian strip; very bike-friendly.',essentials:'Street art, craft beer and live music.',suits:['Students','Night owls','Budget']},
+            'testaccio':{name:'Testaccio',tagline:'Authentic, food-obsessed and proudly local.',transit:'Piramide metro (Line B) and buses.',walk:'Compact and flat — easy on foot.',essentials:'The legendary Testaccio market and classic Roman kitchens.',suits:['Foodies','Locals at heart','Couples']},
+            'ostiense':{name:'Ostiense',tagline:'Post-industrial cool — galleries, street art and clubs.',transit:'Piramide & Garbatella metro (Line B); next to Roma Tre.',walk:'A little spread out; great for cycling.',essentials:'Eataly, murals and some of Rome’s best nightlife.',suits:['Students (Roma Tre)','Creatives','Nightlife']},
+            'trieste-coppede':{name:'Trieste & Coppedè',tagline:'Leafy, refined and residential — home to the fairy-tale Coppedè quarter.',transit:'Buses plus Sant’Agnese & Annibaliano (Line B1).',walk:'Quiet, tree-lined streets.',essentials:'Villa Ada park and calm neighbourhood cafés.',suits:['Families','Quiet seekers','Professionals']},
+            'san-lorenzo':{name:'San Lorenzo',tagline:'The university quarter — young, gritty and alive.',transit:'Termini & Tiburtina close by; trams everywhere.',walk:'Dense and very walkable.',essentials:'Cheap eats, bars and bookshops by Sapienza.',suits:['Students (Sapienza)','Budget','Nightlife']},
+            'esquilino':{name:'Esquilino',tagline:'Central and multicultural — right by Termini.',transit:'Termini & Vittorio Emanuele — both metro lines (A & B).',walk:'Flat and superbly connected.',essentials:'The global Esquilino market and Rome’s transport hub.',suits:['Commuters','Value seekers','First job in Rome']}
+          };
+          function row(ic,label,text){ return '<div class="hood-row"><div class="hood-ic">'+ic+'</div><div class="hood-rt"><b>'+label+'</b>'+esc(text)+'</div></div>'; }
+          window.renderHood=function(slug,zoneName){
+            var el=document.getElementById('hoodPanel'); if(!el)return;
+            var z=ZONES[slug]; if(!z){ el.hidden=true; return; }
+            el.hidden=false;
+            el.innerHTML=
+              '<div class="hood-h">Life in '+esc(zoneName||z.name)+'</div>'+
+              '<div class="hood-tag">'+esc(z.tagline)+'</div>'+
+              '<div class="hood-rows">'+row('🚇','Getting around',z.transit)+row('🚶','On foot',z.walk)+row('✨','The vibe',z.essentials)+'</div>'+
+              '<div class="hood-suits">'+z.suits.map(function(s){return '<span class="hood-chip">'+esc(s)+'</span>';}).join('')+'</div>';
+          };
+        })();
+        </script>
 
         <!-- ════════ THE MONEY — your move-in cost, deposit & fees, in full light ════════ -->
         <style>
@@ -1140,6 +1219,81 @@
             new IntersectionObserver(function(es){ es.forEach(function(e){ cVis=e.isIntersecting; }); upd(); },{threshold:0}).observe(content);
             if(foot) new IntersectionObserver(function(es){ es.forEach(function(e){ fVis=e.isIntersecting; }); upd(); },{threshold:0}).observe(foot);
           })();
+        })();
+        </script>
+
+        <!-- ======== BOOK A VIDEO TOUR — see it live before you commit ======== -->
+        <style>
+        .btour{max-width:1080px;margin:64px auto 10px;padding:0 20px}
+        @media(min-width:760px){.btour{padding:0 50px}}
+        .btour-card{display:grid;grid-template-columns:1.1fr 1fr;background:var(--dark-void);border:1px solid rgba(255,215,0,.15);border-radius:20px;overflow:hidden}
+        @media(max-width:760px){.btour-card{grid-template-columns:1fr}}
+        .btour-left{padding:30px;border-right:1px solid rgba(255,255,255,.06)}
+        @media(max-width:760px){.btour-left{border-right:none;border-bottom:1px solid rgba(255,255,255,.06)}}
+        .btour-lbl{display:inline-flex;align-items:center;gap:6px;color:#FFD700;font-size:11px;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px}
+        .btour-left h2{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-weight:200;font-size:clamp(22px,3vw,32px);color:#fff;letter-spacing:-.01em;margin:0 0 12px;line-height:1.15}
+        .btour-left h2 .g{color:#FFD700}
+        .btour-left p{color:#999;font-size:14px;line-height:1.6;margin-bottom:16px}
+        .btour-pts{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+        .btour-pts li{font-size:13px;color:var(--text-secondary)}
+        .btour-right{padding:30px;display:flex;flex-direction:column}
+        .btour-q{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#666;margin-bottom:10px}
+        .btour-days,.btour-times{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}
+        .btour-chip{padding:9px 13px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:10px;font-size:13px;color:var(--text-secondary);cursor:pointer;transition:all .2s;font-family:inherit;text-align:center;min-width:46px}
+        .btour-chip:hover{border-color:var(--gold);color:#fff}
+        .btour-chip.on{background:linear-gradient(135deg,#FFD700,#FFA500);color:#000;border-color:transparent;font-weight:600}
+        .btour-day-d{display:block;font-size:10px;opacity:.7;text-transform:uppercase;letter-spacing:.5px;margin-bottom:1px}
+        .btour-go{margin-top:auto;padding:14px;border:none;border-radius:12px;background:linear-gradient(135deg,#FFD700,#FFA500);color:#000;font-family:inherit;font-size:15px;font-weight:600;cursor:pointer;transition:all .25s}
+        .btour-go:disabled{opacity:.45;cursor:default}
+        .btour-go:not(:disabled):hover{transform:translateY(-2px);box-shadow:0 10px 30px rgba(255,215,0,.3)}
+        .btour-note{margin-top:11px;text-align:center;font-size:11.5px;color:#666}
+        </style>
+        <section class="btour" id="boomTour" aria-label="Book a live video tour">
+          <div class="btour-card">
+            <div class="btour-left">
+              <span class="btour-lbl">🎥 Live video tour</span>
+              <h2>See it live, <span class="g">on a video call</span>.</h2>
+              <p>Can't visit in person? A BOOM agent walks you through this exact apartment on a live video call — every room, every question, in real time. Free, no commitment.</p>
+              <ul class="btour-pts"><li>✓ Real-time, not a recording</li><li>✓ In English</li><li>✓ About 15 minutes</li></ul>
+            </div>
+            <div class="btour-right">
+              <div class="btour-q">Pick a day</div>
+              <div class="btour-days" id="btourDays"></div>
+              <div class="btour-q">Pick a time</div>
+              <div class="btour-times" id="btourTimes"></div>
+              <button class="btour-go" id="btourGo" type="button" disabled>Request this tour →</button>
+              <div class="btour-note">We'll confirm on WhatsApp within 2 hours.</div>
+            </div>
+          </div>
+        </section>
+        <script>
+        (function(){
+          var daysWrap=document.getElementById('btourDays'),timesWrap=document.getElementById('btourTimes'),go=document.getElementById('btourGo');
+          if(!daysWrap||!timesWrap||!go)return;
+          var selDay=null,selTime=null;
+          var DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+          var now=new Date();
+          for(var i=1;i<=7;i++){
+            var dt=new Date(now); dt.setDate(now.getDate()+i);
+            var b=document.createElement('button'); b.type='button'; b.className='btour-chip';
+            b.innerHTML='<span class="btour-day-d">'+DOW[dt.getDay()]+'</span>'+dt.getDate();
+            b.setAttribute('data-label',DOW[dt.getDay()]+' '+dt.getDate());
+            b.addEventListener('click',function(e){ var el=e.currentTarget; selDay=el.getAttribute('data-label'); [].forEach.call(daysWrap.children,function(x){x.classList.toggle('on',x===el);}); sync(); });
+            daysWrap.appendChild(b);
+          }
+          ['10:00','12:00','15:00','17:00','19:00'].forEach(function(t){
+            var b=document.createElement('button'); b.type='button'; b.className='btour-chip'; b.textContent=t;
+            b.addEventListener('click',function(e){ var el=e.currentTarget; selTime=t; [].forEach.call(timesWrap.children,function(x){x.classList.toggle('on',x===el);}); sync(); });
+            timesWrap.appendChild(b);
+          });
+          function sync(){ go.disabled=!(selDay&&selTime); }
+          go.addEventListener('click',function(){
+            if(!selDay||!selTime)return;
+            var nm=(window.__boomListing&&window.__boomListing.name)||(document.getElementById('aptName')&&document.getElementById('aptName').textContent)||'this apartment';
+            var msg='Hi BOOM! I’d like a live video tour of '+nm+' on '+selDay+' around '+selTime+'. (from boomrome.com)';
+            if(window.gtag)try{gtag('event','video_tour_request',{when:selDay+' '+selTime});}catch(e){}
+            window.open('https://wa.me/393313251961?text='+encodeURIComponent(msg),'_blank');
+          });
         })();
         </script>
 
@@ -1642,6 +1796,7 @@
           }
           // Render the "More in this zone" footer + price insight once we know the slug
           renderZoneFooter(d.zone,slug,id,Number(d.price)||0);
+          if(window.renderHood) window.renderHood(slug, (window.BOOM&&window.BOOM.zoneToName)?window.BOOM.zoneToName(d.zone):d.zone);
         }
 
         const price=d.price?`€${Number(d.price).toLocaleString()}`:'—';
