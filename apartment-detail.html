@@ -70,6 +70,7 @@
 
     <style>
         *{margin:0;padding:0;box-sizing:border-box;-webkit-font-smoothing:antialiased}
+        a{text-decoration:none}
         :root{--gold:#FFD700;--gold-dark:#FFD700;--gold-light:#FFD54F;--cyan:#00CED1;--green:#00FF88;--pure-black:#08080A;--dark-void:#0A0A0A;--dark-surface:#111;--text-primary:#FFF;--text-fade:#666;--text-secondary:#999}
         body{font-family:'Helvetica Neue',Helvetica,'Inter',-apple-system,sans-serif;background:var(--pure-black);color:var(--text-primary);font-weight:300;line-height:1.6}
 
@@ -130,7 +131,6 @@
         .badge-rented{background:rgba(255,59,48,0.1);color:#FF3B30}
         .badge-verified{background:rgba(255, 215, 0,0.1);color:var(--gold)}
         .badge-video{background:rgba(255,59,48,0.1);color:#FF3B30}
-        .badge-fresh{background:rgba(255,255,255,0.05);color:var(--text-secondary);border-color:rgba(255,255,255,0.14)}
         .apt-name{font-size:clamp(32px,5vw,56px);font-weight:100;text-transform:uppercase;letter-spacing:-1px;line-height:1.1;margin-bottom:10px}
         .apt-address{font-size:15px;color:var(--text-secondary);margin-bottom:10px}
         .apt-zone{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;background:rgba(255, 215, 0,0.08);border:1px solid rgba(255, 215, 0,0.22);border-radius:100px;font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:1.5px;font-weight:500;transition:all .25s;text-decoration:none}
@@ -151,7 +151,7 @@
 
         /* ===== MEDIA ===== */
         .media-section{max-width:1400px;margin:0 auto;padding:0 50px 50px}
-        .single-hero-img{width:100%;aspect-ratio:16/10;max-height:600px;object-fit:cover;border-radius:16px;border:1px solid rgba(255,255,255,0.06)}
+        .single-hero-img{width:100%;max-height:600px;object-fit:cover;border-radius:16px;border:1px solid rgba(255,255,255,0.06)}
         .media-placeholder{width:100%;height:400px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;background:var(--dark-void);border:1px dashed rgba(255,255,255,0.1);border-radius:16px;color:var(--text-fade)}
         .media-placeholder span{font-size:48px;opacity:.3}
 
@@ -182,30 +182,6 @@
         .video-section-label::before,.video-section-label::after{content:'';flex:1;height:1px;background:rgba(255,255,255,0.06)}
         .video-embed{border-radius:16px;overflow:hidden;border:1px solid rgba(255,255,255,0.06)}
         .video-embed iframe{width:100%;height:450px;border:none;display:block}
-
-        /* ===== VERIFIED BY BOOM — trust band (the differentiator) ===== */
-        .trust-band{max-width:1400px;margin:0 auto 50px;padding:0 50px}
-        .trust-band-inner{border:1px solid rgba(255,215,0,0.14);border-radius:20px;background:linear-gradient(135deg,rgba(255,215,0,0.05),rgba(255,255,255,0.015));padding:26px 30px}
-        .trust-band-head{display:flex;align-items:center;gap:14px;margin-bottom:20px;flex-wrap:wrap}
-        .trust-band-seal{display:inline-flex;align-items:center;gap:8px;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--gold);font-weight:600;white-space:nowrap}
-        .trust-band-seal svg{width:16px;height:16px}
-        .trust-band-sub{font-size:12.5px;color:var(--text-secondary);line-height:1.4}
-        .trust-band-link{font-size:12px;letter-spacing:.5px;color:var(--gold);white-space:nowrap;transition:opacity .25s}
-        .trust-band-link:hover{opacity:.7}
-        .trust-pillars{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:14px}
-        .trust-pillar{display:flex;flex-direction:column;gap:8px;padding:15px 15px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:12px;transition:border-color .3s,transform .3s,background .3s}
-        .trust-pillar:hover{border-color:rgba(255,215,0,0.25);background:rgba(255,215,0,0.03);transform:translateY(-2px)}
-        .trust-pillar-ico{width:34px;height:34px;display:flex;align-items:center;justify-content:center;background:rgba(255,215,0,0.08);border-radius:9px;font-size:17px}
-        .trust-pillar-t{font-size:13px;color:var(--text-primary);font-weight:500}
-        .trust-pillar-s{font-size:11px;color:var(--text-fade);line-height:1.45}
-        @media(max-width:768px){.trust-band{padding:0 20px}.trust-band-inner{padding:22px 20px}}
-
-        /* Safe scroll-reveal — class is added by JS, so content is never hidden if JS fails */
-        .reveal-up{opacity:0;transform:translateY(18px)}
-        .reveal-up.in{opacity:1;transform:none;transition:opacity .7s cubic-bezier(.16,1,.3,1),transform .7s cubic-bezier(.16,1,.3,1)}
-        .upsell-grid .upsell-card:nth-child(2).reveal-up.in{transition-delay:.08s}
-        .upsell-grid .upsell-card:nth-child(3).reveal-up.in{transition-delay:.16s}
-        @media(prefers-reduced-motion:reduce){.reveal-up,.reveal-up.in{opacity:1;transform:none;transition:none}}
 
         /* ===== TWO COLUMN ===== */
         .apt-content{max-width:1400px;margin:0 auto;padding:0 50px 80px;display:grid;grid-template-columns:1fr 380px;gap:50px;align-items:start}
@@ -243,16 +219,6 @@
         /* ===== MAP ===== */
         .map-container{border-radius:16px;overflow:hidden;border:1px solid rgba(255,255,255,0.06)}
         .map-container iframe{width:100%;height:350px;border:none;display:block;filter:invert(90%) hue-rotate(180deg) brightness(.95) contrast(1.1)}
-        /* Map facade — defer the Google Maps payload until the user asks for it (blazing) */
-        .map-facade{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;width:100%;height:350px;border:none;cursor:pointer;background:radial-gradient(120% 90% at 50% 0,rgba(255,215,0,0.06),transparent 55%),#0e0e12;color:var(--text-secondary);font-family:inherit;overflow:hidden;transition:background .3s}
-        .map-facade:hover{background:radial-gradient(120% 90% at 50% 0,rgba(255,215,0,0.11),transparent 55%),#0e0e12}
-        .map-facade-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,0.045) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.045) 1px,transparent 1px);background-size:34px 34px;-webkit-mask-image:radial-gradient(circle at 50% 44%,#000,transparent 72%);mask-image:radial-gradient(circle at 50% 44%,#000,transparent 72%);pointer-events:none}
-        .map-facade-pin{font-size:32px;filter:drop-shadow(0 6px 14px rgba(0,0,0,0.5));animation:mapPinBob 2.6s ease-in-out infinite;z-index:1}
-        @keyframes mapPinBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
-        .map-facade-cta{font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold);font-weight:600;z-index:1}
-        .map-facade-addr{font-size:12.5px;color:var(--text-fade);z-index:1;max-width:80%;text-align:center}
-        @media(max-width:768px){.map-facade{height:250px}}
-        @media(prefers-reduced-motion:reduce){.map-facade-pin{animation:none}}
         .distance-calc{padding:24px;background:var(--dark-void);border:1px solid rgba(255,255,255,0.06);border-radius:16px;margin-top:16px}
         .distance-calc-title{font-size:14px;font-weight:500;margin-bottom:14px}
         .distance-input-row{display:flex;gap:10px}
@@ -328,7 +294,7 @@
         .zone-footer-cta{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--gold);text-transform:uppercase;letter-spacing:2px;border-bottom:1px solid rgba(255, 215, 0,0.3);padding-bottom:4px;transition:all .25s}
         .zone-footer-cta:hover{color:var(--gold-light,#FFD54F);border-bottom-color:var(--gold)}
         .zone-footer-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:18px}
-        .zone-card{display:block;background:var(--dark-void);border:1px solid rgba(255,255,255,0.06);border-radius:14px;overflow:hidden;transition:all .3s;color:var(--text-primary)}
+        .zone-card{display:block;background:var(--dark-void);border:1px solid rgba(255,255,255,0.06);border-radius:14px;overflow:hidden;transition:all .3s;color:var(--text-primary);text-decoration:none}
         .zone-card:hover{transform:translateY(-3px);border-color:rgba(255, 215, 0,0.2);box-shadow:0 12px 36px rgba(0,0,0,0.4)}
         .zone-card-img{height:160px;background:linear-gradient(135deg,#1a1a1d,#0e0e10);background-size:cover;background-position:center}
         .zone-card-body{padding:18px}
@@ -563,6 +529,39 @@
 }
   </script>
 <!-- BOOM_JSONLD:END -->
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "How do I apply for an apartment?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Submit the 2-minute application on the page — a real person reviews it and replies within 2 hours."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I reserve a place before someone else takes it?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. A refundable €300 hold takes it off-market while we process your application."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Is the contract legal and the deposit protected?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. Every BOOM rental uses a registered legal contract with a correctly handled deposit."
+      }
+    }
+  ]
+}
+  </script>
+    <link rel="stylesheet" href="/css/boom-cinema.css">
 </head>
 <body>
 
@@ -584,12 +583,12 @@
                 <span class="logo-text">BOOM</span>
             </a>
             <div class="nav-links">
-                <a href="/apartments">Apartments</a>
-                <a href="/property-finding">Property Finding</a>
-                <a href="/deal-assistance">Deal Assistance</a>
-                <a href="/virtual-viewing">Virtual Viewing</a>
-                <a href="/concierge">Concierge</a>
-                <a href="/about">About</a>
+                <a href="/apartments.html">Apartments</a>
+                <a href="/property-finding.html">Property Finding</a>
+                <a href="/deal-assistance.html">Deal Assistance</a>
+                <a href="/virtual-viewing.html">Virtual Viewing</a>
+                <a href="/concierge.html">Concierge</a>
+                <a href="/about.html">About</a>
                 <a href="https://wa.me/393313251961" class="wa-link">WhatsApp</a>
             </div>
             <div class="hamburger" id="hamburger"><span></span><span></span><span></span></div>
@@ -598,13 +597,13 @@
 
     <div class="mobile-menu" id="mobileMenu">
         <a href="/">Home</a>
-        <a href="/apartments">Apartments</a>
-        <a href="/property-finding">Property Finding</a>
-        <a href="/deal-assistance">Deal Assistance</a>
-        <a href="/virtual-viewing">Virtual Viewing</a>
-        <a href="/concierge">Concierge</a>
-        <a href="/about">About</a>
-        <a href="/login">Login</a>
+        <a href="/apartments.html">Apartments</a>
+        <a href="/property-finding.html">Property Finding</a>
+        <a href="/deal-assistance.html">Deal Assistance</a>
+        <a href="/virtual-viewing.html">Virtual Viewing</a>
+        <a href="/concierge.html">Concierge</a>
+        <a href="/about.html">About</a>
+        <a href="/login.html">Login</a>
         <a href="https://wa.me/393313251961" class="wa-mob">WhatsApp Us</a>
     </div>
 
@@ -612,11 +611,11 @@
     <div class="page-loading" id="pageLoading"><div class="spinner"></div><p>Loading apartment details…</p></div>
 
     <!-- ERROR -->
-    <div class="page-error" id="pageError"><h2>Not Found</h2><p>This apartment listing could not be loaded.</p><a href="/apartments">Browse All Apartments</a></div>
+    <div class="page-error" id="pageError"><h2>Not Found</h2><p>This apartment listing could not be loaded.</p><a href="/apartments.html">Browse All Apartments</a></div>
 
     <!-- APARTMENT PAGE -->
     <div class="apartment-page" id="apartmentPage">
-        <div class="breadcrumb"><a href="/">Home</a><span class="sep">/</span><a href="/apartments">Apartments</a><span id="breadcrumbZoneWrap" hidden><span class="sep">/</span><a href="#" id="breadcrumbZone"></a></span><span class="sep">/</span><span class="current" id="breadcrumbName">—</span></div>
+        <div class="breadcrumb"><a href="/">Home</a><span class="sep">/</span><a href="/apartments.html">Apartments</a><span id="breadcrumbZoneWrap" hidden><span class="sep">/</span><a href="#" id="breadcrumbZone"></a></span><span class="sep">/</span><span class="current" id="breadcrumbName">—</span></div>
 
         <div class="apt-header">
             <div class="apt-header-top">
@@ -646,24 +645,6 @@
         </div>
 
         <div class="media-section" id="mediaSection"></div>
-
-        <!-- VERIFIED BY BOOM — trust band, the market differentiator -->
-        <section class="trust-band" id="trustBand" aria-label="Verified by BOOM">
-            <div class="trust-band-inner">
-                <div class="trust-band-head">
-                    <span class="trust-band-seal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 2 5 5v6c0 4.5 3 8.4 7 9 4-.6 7-4.5 7-9V5l-7-3z"/><path d="m9 12 2 2 4-4"/></svg>Verified by BOOM</span>
-                    <span class="trust-band-sub">Every home is checked by our team — and our tech — before you ever see it.</span>
-                    <a class="trust-band-link" href="/verified">How we verify →</a>
-                </div>
-                <div class="trust-pillars">
-                    <div class="trust-pillar"><div class="trust-pillar-ico">🎥</div><div class="trust-pillar-t">Video-verified</div><div class="trust-pillar-s">We filmed it ourselves — no stock photos.</div></div>
-                    <div class="trust-pillar"><div class="trust-pillar-ico">🛡️</div><div class="trust-pillar-t">On-site checked</div><div class="trust-pillar-s">A BOOM agent visited in person.</div></div>
-                    <div class="trust-pillar"><div class="trust-pillar-ico">📝</div><div class="trust-pillar-t">Legal contract</div><div class="trust-pillar-s">Registered, available in English.</div></div>
-                    <div class="trust-pillar"><div class="trust-pillar-ico">💶</div><div class="trust-pillar-t">Transparent pricing</div><div class="trust-pillar-s">All fees shown. No surprises.</div></div>
-                    <div class="trust-pillar"><div class="trust-pillar-ico">⚡</div><div class="trust-pillar-t">48-hour move-in</div><div class="trust-pillar-s">From application to keys, fast.</div></div>
-                </div>
-            </div>
-        </section>
 
         <div class="apt-cta-inline">
             <div class="aci-box">
@@ -727,7 +708,7 @@
                         <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.125.553 4.12 1.52 5.855L.052 23.709l5.997-1.573A11.94 11.94 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.82c-1.956 0-3.83-.528-5.47-1.528l-.392-.233-4.065 1.066 1.084-3.964-.256-.407A9.787 9.787 0 012.18 12c0-5.414 4.406-9.82 9.82-9.82 5.414 0 9.82 4.406 9.82 9.82 0 5.414-4.406 9.82-9.82 9.82z"/></svg>
                         Message on WhatsApp
                     </a>
-                    <a class="sidebar-secondary" href="/property-finding">Not this one? Find my perfect apartment →</a>
+                    <a class="sidebar-secondary" href="/property-finding.html">Not this one? Find my perfect apartment →</a>
                     <div class="sidebar-trust">
                         <div class="trust-item"><span class="ti">✓</span> Video-verified listing</div>
                         <div class="trust-item"><span class="ti">✓</span> No hidden fees</div>
@@ -779,200 +760,218 @@
             </div>
         </div><!-- /.apt-content -->
 
-        <!-- ════════ HOW THIS RENTAL WORKS — your money, explained ════════ -->
+        <!-- ════════ THE MONEY — your move-in cost, deposit & fees, in full light ════════ -->
         <style>
-        .bm{max-width:1100px;margin:60px auto 10px;padding:0 50px}
-        @media(max-width:768px){.bm{padding:0 20px;margin:44px auto 6px}}
-        .bm-head{text-align:center;margin-bottom:38px}
-        .bm-lbl{display:inline-block;color:var(--gold);font-size:11px;letter-spacing:3px;text-transform:uppercase;margin-bottom:12px}
-        .bm-head h2{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-weight:200;font-size:clamp(26px,3.6vw,42px);color:#fff;letter-spacing:-.01em;line-height:1.08;margin:0}
-        .bm-gold{color:var(--gold)}
-        .bm-head .bm-sub{max-width:580px;margin:14px auto 0;color:var(--text-secondary);font-size:15px;line-height:1.6}
-        .bm-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:18px;align-items:start}
-        @media(max-width:880px){.bm-grid{grid-template-columns:1fr}}
-        .bm-card{background:linear-gradient(180deg,#0E0E10,#0A0A0A);border:1px solid rgba(255,255,255,.07);border-radius:18px;padding:24px}
-        .bm-card-h{font-size:12px;letter-spacing:2px;text-transform:uppercase;color:var(--text-fade);margin-bottom:18px}
-        .bm-rows{display:flex;flex-direction:column;margin-bottom:18px}
-        .bm-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:13px 0;border-bottom:1px solid rgba(255,255,255,.05)}
-        .bm-row:last-child{border-bottom:0}
-        .bm-row-l{display:flex;flex-direction:column;gap:3px}
-        .bm-row-t{font-size:14.5px;color:#fff}
-        .bm-row-s{font-size:11.5px;color:var(--text-fade);line-height:1.4}
-        .bm-row-v{font-size:16px;color:#fff;font-weight:400;white-space:nowrap}
-        .bm-chip{display:inline-flex;align-items:center;gap:4px;font-size:9.5px;letter-spacing:.5px;text-transform:uppercase;color:#00FF88;background:rgba(0,255,136,.08);border:1px solid rgba(0,255,136,.22);padding:3px 8px;border-radius:100px;margin-left:6px;vertical-align:middle}
-        .bm-split{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:6px 0 16px}
-        @media(max-width:420px){.bm-split{grid-template-columns:1fr}}
-        .bm-split-col{background:#08080A;border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:15px}
-        .bm-split-col.bm-back{border-color:rgba(0,255,136,.2);background:rgba(0,255,136,.04)}
-        .bm-split-lbl{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--text-fade);margin-bottom:8px}
-        .bm-split-val{font-size:clamp(22px,3vw,30px);font-weight:200;color:#fff;line-height:1}
-        .bm-back .bm-split-val{color:#00FF88}
-        .bm-split-note{font-size:11.5px;color:var(--text-secondary);margin-top:8px;line-height:1.45}
-        .bm-total{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:16px 18px;background:rgba(255,215,0,.05);border:1px solid rgba(255,215,0,.18);border-radius:14px}
-        .bm-total span{font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--text-secondary)}
-        .bm-total b{font-size:clamp(24px,3.4vw,34px);font-weight:200;color:var(--gold);white-space:nowrap}
-        .bm-pay{margin-top:16px;font-size:12.5px;color:var(--text-fade);line-height:1.6}
-        .bm-pay a{color:var(--gold);text-decoration:none;border-bottom:1px solid rgba(212,175,55,.3)}
-        .bm-fallback{font-size:14.5px;color:var(--text-secondary);line-height:1.65}
-        .bm-side{display:flex;flex-direction:column;gap:18px}
-        .bm-life-track{position:relative}
-        .bm-life-line{position:absolute;left:7px;top:8px;bottom:8px;width:2px;background:rgba(255,255,255,.1);overflow:hidden}
-        .bm-life-line i{display:block;width:100%;height:0;background:linear-gradient(180deg,var(--gold),#FFA500);transition:height 1.7s cubic-bezier(.16,1,.3,1)}
-        .bm.on .bm-life-line i{height:100%}
-        .bm-life-step{position:relative;padding:0 0 18px 30px}
-        .bm-life-step:last-child{padding-bottom:0}
-        .bm-dot{position:absolute;left:0;top:3px;width:16px;height:16px;border-radius:50%;background:#0A0A0A;border:2px solid rgba(255,255,255,.2);transition:all .5s cubic-bezier(.16,1,.3,1)}
-        .bm.on .bm-dot{border-color:var(--gold);background:var(--gold);box-shadow:0 0 0 5px rgba(255,215,0,.1)}
-        .bm.on .bm-life-step:nth-child(2) .bm-dot{transition-delay:.15s}
-        .bm.on .bm-life-step:nth-child(3) .bm-dot{transition-delay:.45s}
-        .bm.on .bm-life-step:nth-child(4) .bm-dot{transition-delay:.75s}
-        .bm-st{font-size:14.5px;color:#fff;font-weight:500}
-        .bm-ss{font-size:12px;color:var(--text-secondary);margin-top:2px;line-height:1.45}
-        .bm-incl{display:grid;grid-template-columns:1fr 1fr;gap:18px}
-        @media(max-width:420px){.bm-incl{grid-template-columns:1fr}}
-        .bm-incl-h{font-size:11px;letter-spacing:1px;text-transform:uppercase;margin-bottom:12px;font-weight:600}
-        .bm-incl-h.bm-yes{color:#00FF88}
-        .bm-incl-h.bm-sep{color:var(--text-fade)}
-        .bm-incl ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:9px}
-        .bm-incl li{font-size:12.5px;color:var(--text-secondary);display:flex;align-items:flex-start;gap:8px;line-height:1.4}
-        .bm-incl li::before{content:'';flex-shrink:0;margin-top:6px;width:5px;height:5px;border-radius:50%}
-        .bm-yes-list li::before{background:#00FF88}
-        .bm-sep-list li::before{background:var(--text-fade)}
-        @media(prefers-reduced-motion:reduce){.bm-life-line i{transition:none}.bm-dot{transition:none}}
+        .bmx{max-width:1080px;margin:64px auto 10px;padding:0 20px}
+        @media(min-width:760px){.bmx{padding:0 50px}}
+        .bmx-head{text-align:center;margin-bottom:36px}
+        .bmx-lbl{display:inline-block;color:#FFD700;font-size:11px;letter-spacing:3px;text-transform:uppercase;margin-bottom:10px}
+        .bmx-head h2{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-weight:200;font-size:clamp(24px,3.4vw,40px);color:#fff;letter-spacing:-.01em;line-height:1.12;margin:0}
+        .bmx-head h2 .g{color:#FFD700}
+        .bmx-head p{max-width:580px;margin:14px auto 0;color:#999;font-size:15px;line-height:1.6}
+        .bmx-arm{opacity:0;transform:translateY(24px)}
+        .bmx-arm.bmx-in{opacity:1;transform:none;transition:opacity .8s cubic-bezier(.16,1,.3,1),transform .8s cubic-bezier(.16,1,.3,1)}
+        /* Ledger card */
+        .bmx-ledger{max-width:760px;margin:0 auto;background:linear-gradient(180deg,#101012,#0A0A0A);border:1px solid rgba(255,255,255,.07);border-radius:20px;padding:28px;position:relative;overflow:hidden}
+        .bmx-ledger::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(255,215,0,.5),transparent)}
+        @media(max-width:560px){.bmx-ledger{padding:22px 18px}}
+        .bmx-ey{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#666;margin-bottom:16px}
+        .bmx-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 0;border-bottom:1px solid rgba(255,255,255,.06)}
+        .bmx-row-l{display:flex;flex-direction:column;gap:3px;min-width:0}
+        .bmx-row-t{font-size:15px;color:#fff;display:flex;align-items:center;flex-wrap:wrap}
+        .bmx-row-s{font-size:12px;color:#666;line-height:1.4}
+        .bmx-row-v{font-size:17px;color:#fff;white-space:nowrap;font-weight:300}
+        .bmx-chip{display:inline-flex;align-items:center;gap:4px;font-size:9.5px;letter-spacing:.5px;text-transform:uppercase;color:#00FF88;background:rgba(0,255,136,.08);border:1px solid rgba(0,255,136,.22);padding:3px 8px;border-radius:100px;margin-left:8px}
+        .bmx-tiles{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:18px 0}
+        @media(max-width:480px){.bmx-tiles{grid-template-columns:1fr}}
+        .bmx-tile{background:#08080A;border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:16px}
+        .bmx-tile.green{border-color:rgba(0,255,136,.22);background:rgba(0,255,136,.04)}
+        .bmx-tile-k{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:#666;margin-bottom:8px}
+        .bmx-tile-v{font-size:clamp(22px,3vw,28px);font-weight:200;color:#fff;line-height:1}
+        .bmx-tile.green .bmx-tile-v{color:#00FF88}
+        .bmx-tile-s{font-size:11.5px;color:#999;margin-top:8px;line-height:1.45}
+        .bmx-total{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:18px 20px;background:rgba(255,215,0,.05);border:1px solid rgba(255,215,0,.18);border-radius:14px}
+        .bmx-total span{font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#999}
+        .bmx-total b{font-size:clamp(26px,3.6vw,36px);font-weight:200;color:#FFD700;white-space:nowrap}
+        .bmx-pay{margin-top:16px;font-size:12.5px;color:#666;line-height:1.6;text-align:center}
+        .bmx-pay a{color:#FFD700;text-decoration:none;border-bottom:1px solid rgba(255,215,0,.3)}
+        .bmx-fallback{font-size:14.5px;color:#999;line-height:1.65;text-align:center}
+        .bmx-fallback a{color:#FFD700;text-decoration:none;border-bottom:1px solid rgba(255,215,0,.3)}
+        /* Deposit lifecycle timeline (mirrors the 48h timeline language) */
+        .bmx-life{margin-top:48px}
+        .bmx-sub{text-align:center;font-size:19px;color:#fff;font-weight:300;margin-bottom:6px}
+        .bmx-sub2{text-align:center;font-size:13px;color:#666;margin-bottom:36px}
+        .bmx-track{position:relative;display:flex;flex-direction:column;gap:24px;max-width:840px;margin:0 auto}
+        .bmx-rail{position:absolute;left:21px;top:18px;bottom:18px;width:2px;background:rgba(255,255,255,.10);border-radius:2px;overflow:hidden}
+        .bmx-fill{position:absolute;left:0;top:0;width:100%;height:0;background:linear-gradient(180deg,#FFD700,#FFA500);box-shadow:0 0 10px rgba(255,215,0,.4);transition:height 1.7s cubic-bezier(.16,1,.3,1)}
+        .bmx.on .bmx-fill{height:100%}
+        .bmx-step{position:relative;z-index:1;display:flex;align-items:center;gap:16px}
+        .bmx-node{flex:0 0 auto;width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#0A0A0A;border:2px solid rgba(255,255,255,.16);color:rgba(255,255,255,.5);font-size:16px;font-weight:600;transition:all .55s cubic-bezier(.16,1,.3,1)}
+        .bmx.on .bmx-step .bmx-node{border-color:#FFD700;color:#000;background:linear-gradient(135deg,#FFD700,#FFA500);box-shadow:0 0 0 6px rgba(255,215,0,.12),0 8px 24px rgba(255,215,0,.25);transform:scale(1.05)}
+        .bmx.on .bmx-step:nth-child(2) .bmx-node{transition-delay:.1s}
+        .bmx.on .bmx-step:nth-child(3) .bmx-node{transition-delay:.45s}
+        .bmx.on .bmx-step:nth-child(4) .bmx-node{transition-delay:.8s}
+        .bmx.on .bmx-step:nth-child(5) .bmx-node{transition-delay:1.15s}
+        .bmx-t{font-size:16px;color:#fff;font-weight:500}
+        .bmx-s{font-size:12.5px;color:rgba(255,255,255,.55);margin-top:2px;line-height:1.45}
+        @media(min-width:760px){
+          .bmx-track{flex-direction:row;gap:18px;padding-top:54px}
+          .bmx-rail{left:8%;right:8%;top:21px;bottom:auto;width:auto;height:2px}
+          .bmx-fill{height:100%;width:0;transition:width 1.7s cubic-bezier(.16,1,.3,1)}
+          .bmx.on .bmx-fill{width:100%}
+          .bmx-step{flex:1;flex-direction:column;align-items:center;text-align:center;gap:14px}
+          .bmx-node{position:absolute;top:-54px;left:50%;transform:translateX(-50%)}
+          .bmx.on .bmx-step .bmx-node{transform:translateX(-50%) scale(1.05)}
+        }
+        /* Included vs separate */
+        .bmx-incl{max-width:760px;margin:48px auto 0;display:grid;grid-template-columns:1fr 1fr;gap:14px}
+        @media(max-width:560px){.bmx-incl{grid-template-columns:1fr}}
+        .bmx-col{background:linear-gradient(180deg,#101012,#0A0A0A);border:1px solid rgba(255,255,255,.07);border-radius:16px;padding:22px}
+        .bmx-col-h{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:14px;font-weight:600}
+        .bmx-col-h.yes{color:#00FF88}
+        .bmx-col-h.sep{color:#888}
+        .bmx-col ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:11px}
+        .bmx-col li{font-size:13px;color:#999;display:flex;align-items:flex-start;gap:9px;line-height:1.4}
+        .bmx-col li::before{content:'';flex-shrink:0;margin-top:6px;width:5px;height:5px;border-radius:50%}
+        .bmx-col.yes li::before{background:#00FF88}
+        .bmx-col.sep li::before{background:#555}
+        .bmx-foot{text-align:center;margin:30px auto 0;max-width:620px;font-size:12.5px;color:#666;line-height:1.7}
+        @media(prefers-reduced-motion:reduce){.bmx-fill{transition:none}.bmx-node{transition:none}.bmx-arm{opacity:1!important;transform:none!important}}
         </style>
-        <section class="bm" id="boomMoney" aria-label="How this rental works — your money explained">
-          <div class="bm-head">
-            <span class="bm-lbl">Your money, in full daylight</span>
-            <h2>Exactly what it costs.<br><span class="bm-gold">And exactly what comes back.</span></h2>
-            <p class="bm-sub">Every other agency in Rome hides the math until you're already at the table. We don't — here is every euro for this apartment, before you commit to anything.</p>
+        <section class="bmx" id="boomMoney" aria-label="How this rental works — your money, explained">
+          <div class="bmx-head bmx-armable">
+            <span class="bmx-lbl">The money — in full light</span>
+            <h2>Exactly what you pay.<br><span class="g">And exactly what comes back.</span></h2>
+            <p>Most agencies in Rome keep the math hidden until you're at the table. We do the opposite — here is every euro for this home, before you commit to anything.</p>
           </div>
-          <div class="bm-grid">
-            <div class="bm-card bm-ledger">
-              <div class="bm-card-h">To move into this apartment</div>
-              <div id="bmLedger"></div>
-            </div>
-            <div class="bm-side">
-              <div class="bm-card bm-life">
-                <div class="bm-card-h">Your deposit — and when you get it back</div>
-                <div class="bm-life-track">
-                  <div class="bm-life-line"><i></i></div>
-                  <div class="bm-life-step"><span class="bm-dot"></span><div class="bm-st">You pay it at signing</div><div class="bm-ss">Part of your move-in, through secure Stripe checkout.</div></div>
-                  <div class="bm-life-step"><span class="bm-dot"></span><div class="bm-st">It's protected — never spent</div><div class="bm-ss">Held as security under Italian law. It is not the landlord's income.</div></div>
-                  <div class="bm-life-step"><span class="bm-dot"></span><div class="bm-st">It stays yours while you live here</div><div class="bm-ss">Normal wear and tear is never deducted. Ever.</div></div>
-                  <div class="bm-life-step"><span class="bm-dot"></span><div class="bm-st">Returned when you move out</div><div class="bm-ss">In full — minus only damage we can document. We help you get it back.</div></div>
-                </div>
-              </div>
-              <div class="bm-card bm-incl">
-                <div class="bm-incl-col">
-                  <div class="bm-incl-h bm-yes">In your monthly rent</div>
-                  <ul class="bm-yes-list">
-                    <li>The apartment, exactly as you saw it filmed</li>
-                    <li>BOOM management &amp; 24/7 WhatsApp support</li>
-                    <li>A legal, registered contract — in English</li>
-                    <li>Move-in help &amp; deposit-back support</li>
-                  </ul>
-                </div>
-                <div class="bm-incl-col">
-                  <div class="bm-incl-h bm-sep">Billed to you separately</div>
-                  <ul class="bm-sep-list">
-                    <li>Electricity, water &amp; gas — your usage</li>
-                    <li>Internet / wifi</li>
-                    <li>Waste tax (TARI) &amp; condo fees</li>
-                    <li>We help you set every one up</li>
-                  </ul>
-                </div>
-              </div>
+          <div class="bmx-ledger bmx-armable" id="bmxLedger"></div>
+          <div class="bmx-life bmx-armable">
+            <div class="bmx-sub">Your deposit — and exactly when it returns</div>
+            <div class="bmx-sub2">The question every tenant asks. Here's the honest answer.</div>
+            <div class="bmx-track">
+              <div class="bmx-rail"><span class="bmx-fill"></span></div>
+              <div class="bmx-step"><div class="bmx-node">1</div><div class="bmx-txt"><div class="bmx-t">You pay it at signing</div><div class="bmx-s">Part of your move-in, through secure Stripe checkout.</div></div></div>
+              <div class="bmx-step"><div class="bmx-node">2</div><div class="bmx-txt"><div class="bmx-t">It's protected, never spent</div><div class="bmx-s">Held as security under Italian law — it is not income.</div></div></div>
+              <div class="bmx-step"><div class="bmx-node">3</div><div class="bmx-txt"><div class="bmx-t">It stays yours as you live</div><div class="bmx-s">Normal wear and tear is never deducted. Ever.</div></div></div>
+              <div class="bmx-step"><div class="bmx-node">4</div><div class="bmx-txt"><div class="bmx-t">Returned when you leave</div><div class="bmx-s">In full — minus only damage we can document. We help you get it back.</div></div></div>
             </div>
           </div>
+          <div class="bmx-incl bmx-armable">
+            <div class="bmx-col yes">
+              <div class="bmx-col-h yes">In your monthly rent</div>
+              <ul>
+                <li>The home, exactly as you saw it filmed</li>
+                <li>BOOM management &amp; 24/7 WhatsApp support</li>
+                <li>A legal, registered contract — in English</li>
+                <li>Move-in help &amp; deposit-back support</li>
+              </ul>
+            </div>
+            <div class="bmx-col sep">
+              <div class="bmx-col-h sep">Billed to you separately</div>
+              <ul>
+                <li>Electricity, water &amp; gas — your usage</li>
+                <li>Internet / wifi</li>
+                <li>Waste tax (TARI) &amp; condo fees</li>
+                <li>We help you set every one up</li>
+              </ul>
+            </div>
+          </div>
+          <div class="bmx-foot bmx-armable">Registered legal contract · deposit handled to the letter of Italian law · everything above, in writing, before you pay a cent.</div>
         </section>
         <script>
         window.buildMoney = function(rent, opts){
           opts = opts || {};
-          const fmt = n => '€'+Math.round(n).toLocaleString('en-US');
-          const host = document.getElementById('bmLedger'); if(!host) return;
-          const sec = document.getElementById('boomMoney');
+          const fmt = function(n){ return '€'+Math.round(n).toLocaleString('en-US'); };
+          const host = document.getElementById('bmxLedger'); if(!host) return;
+          const root = document.getElementById('boomMoney'); if(!root) return;
           const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
           rent = Number(rent)||0;
+          root.__counts = [];
           if(rent<=0){
-            host.innerHTML = '<div class="bm-fallback">This apartment is priced on request. <a href="#inquiryCard" style="color:var(--gold);text-decoration:none;border-bottom:1px solid rgba(212,175,55,.3)">Ask us</a> and we\'ll send your full, itemised move-in cost — first month, deposit and everything else — before you commit to anything.</div>';
-            if(sec) sec.classList.add('on');
-            return;
+            host.innerHTML = '<div class="bmx-fallback">This home is priced on request. <a href="#inquiryCard">Ask us</a> and we\'ll send your full, itemised move-in cost — first month, deposit and agency fee — before you commit to anything.</div>';
+          } else {
+            const dep2 = rent*2, dep3 = rent*3;
+            const pct = opts.agencyPct!=null ? Number(opts.agencyPct) : 0.10;   // BOOM commission: 10% of the annual rent
+            const fee = Math.round(rent*12*pct);
+            const cost = rent + fee;
+            const dueFrom = rent + fee + dep2;
+            host.innerHTML =
+              '<div class="bmx-ey">To move into this home</div>'+
+              '<div class="bmx-row"><div class="bmx-row-l"><div class="bmx-row-t">First month’s rent</div><div class="bmx-row-s">Your first month in the apartment.</div></div><div class="bmx-row-v">'+fmt(rent)+'</div></div>'+
+              '<div class="bmx-row"><div class="bmx-row-l"><div class="bmx-row-t">Security deposit <span class="bmx-chip">↩ Refundable</span></div><div class="bmx-row-s">2 months (3 on a 4+4 contract) — held safe, comes back to you.</div></div><div class="bmx-row-v">'+fmt(dep2)+'–'+fmt(dep3)+'</div></div>'+
+              '<div class="bmx-row"><div class="bmx-row-l"><div class="bmx-row-t">BOOM agency fee</div><div class="bmx-row-s">10% of the annual rent — one-time, only when you sign.</div></div><div class="bmx-row-v">'+fmt(fee)+'</div></div>'+
+              '<div class="bmx-tiles">'+
+                '<div class="bmx-tile"><div class="bmx-tile-k">What it costs you</div><div class="bmx-tile-v" id="bmxCost">'+fmt(cost)+'</div><div class="bmx-tile-s">First month + agency fee. Spent once — no surprises later.</div></div>'+
+                '<div class="bmx-tile green"><div class="bmx-tile-k">Comes back to you</div><div class="bmx-tile-v">'+fmt(dep2)+'–'+fmt(dep3)+'</div><div class="bmx-tile-s">Your deposit, returned in full — minus documented damage only.</div></div>'+
+              '</div>'+
+              '<div class="bmx-total"><span>Due at signing, from</span><b id="bmxTotal">'+fmt(dueFrom)+'</b></div>'+
+              '<div class="bmx-pay">🔒 Paid securely via Stripe, in English — card accepted. Want to lock it in first? <a href="#inquiryCard">Reserve &amp; hold from €300</a> — fully refundable, deducted from your first month.</div>';
+            root.__counts = [['bmxCost',cost],['bmxTotal',dueFrom]];
           }
-          const dep2 = rent*2, dep3 = rent*3;
-          const agencyMonths = Number(opts.agencyMonths)||0;
-          const vat = opts.vat!=null ? Number(opts.vat) : 0.22;
-          const fee = agencyMonths>0 ? Math.round(rent*agencyMonths*(1+vat)) : 0;
-          const realCost = rent + fee;
-          const dueFrom = rent + fee + dep2;
-          const feeRow = fee>0
-            ? '<div class="bm-row"><div class="bm-row-l"><div class="bm-row-t">Agency fee</div><div class="bm-row-s">'+agencyMonths+' month + VAT · one-time, only when you sign.</div></div><div class="bm-row-v">'+fmt(fee)+'</div></div>'
-            : '<div class="bm-row"><div class="bm-row-l"><div class="bm-row-t">BOOM agency fee</div><div class="bm-row-s">There isn\'t one. The number above is the number.</div></div><div class="bm-row-v" style="color:#00FF88">€0</div></div>';
-          const costNote = fee>0 ? 'First month + agency fee. The deposit returns to you.' : 'Just your first month — the deposit isn\'t a cost, it returns to you.';
-          host.innerHTML =
-            '<div class="bm-rows">'+
-              '<div class="bm-row"><div class="bm-row-l"><div class="bm-row-t">First month\'s rent</div><div class="bm-row-s">You\'d pay this anywhere.</div></div><div class="bm-row-v">'+fmt(rent)+'</div></div>'+
-              '<div class="bm-row"><div class="bm-row-l"><div class="bm-row-t">Security deposit <span class="bm-chip">↩ Refundable</span></div><div class="bm-row-s">2 months (3 on a 4+4 contract) — held safe, comes back to you.</div></div><div class="bm-row-v">'+fmt(dep2)+'–'+fmt(dep3)+'</div></div>'+
-              feeRow+
-            '</div>'+
-            '<div class="bm-split">'+
-              '<div class="bm-split-col"><div class="bm-split-lbl">Your real cost</div><div class="bm-split-val" id="bmCost">'+fmt(realCost)+'</div><div class="bm-split-note">'+costNote+'</div></div>'+
-              '<div class="bm-split-col bm-back"><div class="bm-split-lbl">Held as your deposit</div><div class="bm-split-val">'+fmt(dep2)+'–'+fmt(dep3)+'</div><div class="bm-split-note">↩ Yours. Returned at move-out, minus documented damage only.</div></div>'+
-            '</div>'+
-            '<div class="bm-total"><span>Due at signing, from</span><b id="bmTotal">'+fmt(dueFrom)+'</b></div>'+
-            '<div class="bm-pay">🔒 Paid securely via Stripe, in English — card accepted, no bank-transfer circus. Want to lock it in first? <a href="#inquiryCard">Reserve &amp; hold from €300</a> — 100% refundable, deducted from your first month.</div>';
-          const animate = () => {
-            sec.classList.add('on');
+          if(!reduce){ root.querySelectorAll('.bmx-armable').forEach(function(el){ el.classList.add('bmx-arm'); }); }
+          const animate = function(){
+            root.classList.add('on');
+            root.querySelectorAll('.bmx-arm').forEach(function(el){ el.classList.add('bmx-in'); });
             if(reduce) return;
-            [['bmCost',realCost],['bmTotal',dueFrom]].forEach(function(pair){
-              const el=document.getElementById(pair[0]); if(!el) return;
-              const to=pair[1], t0=performance.now(), dur=1100;
-              const tick=function(now){var p=Math.min(1,(now-t0)/dur), e=1-Math.pow(1-p,3); el.textContent=fmt(to*e); if(p<1)requestAnimationFrame(tick);};
+            (root.__counts||[]).forEach(function(p){
+              const el = document.getElementById(p[0]); if(!el) return;
+              const to = p[1], t0 = performance.now(), dur = 1100;
+              const tick = function(now){ var k=Math.min(1,(now-t0)/dur), e=1-Math.pow(1-k,3); el.textContent=fmt(to*e); if(k<1)requestAnimationFrame(tick); };
               requestAnimationFrame(tick);
             });
           };
           if('IntersectionObserver' in window){
-            const io=new IntersectionObserver(function(es){es.forEach(function(x){if(x.isIntersecting){animate();io.disconnect();}});},{threshold:.3});
-            io.observe(sec);
+            const io = new IntersectionObserver(function(es){ es.forEach(function(x){ if(x.isIntersecting){ animate(); io.disconnect(); } }); }, {threshold:.12});
+            io.observe(root);
           } else animate();
         };
         </script>
 
-        <!-- 48-hour move-in timeline -->
-        <style>
-        .m48{max-width:1100px;margin:50px auto 10px;padding:0 50px}
-        @media(max-width:768px){.m48{padding:0 20px}}
-        .m48-head{text-align:center;margin-bottom:42px}
-        .m48-lbl{display:inline-block;color:#FFD700;font-size:11px;letter-spacing:3px;text-transform:uppercase;margin-bottom:10px}
-        .m48-head h2{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-weight:200;font-size:clamp(24px,3.4vw,40px);color:#fff;letter-spacing:-.01em}
-        .m48-track{position:relative;display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
-        .m48-line{position:absolute;top:7px;left:12%;right:12%;height:2px;background:rgba(255,255,255,.1);overflow:hidden}
-        .m48-line i{display:block;height:100%;width:0;background:linear-gradient(90deg,#FFD700,#FFA500);transition:width 1.8s cubic-bezier(.16,1,.3,1)}
-        .m48.on .m48-line i{width:100%}
-        .m48-step{position:relative;text-align:center;padding-top:24px}
-        .m48-dot{position:absolute;top:0;left:50%;transform:translateX(-50%) scale(.4);width:16px;height:16px;border-radius:50%;background:#0A0A0A;border:2px solid rgba(255,255,255,.2);transition:all .5s cubic-bezier(.16,1,.3,1)}
-        .m48.on .m48-step .m48-dot{border-color:#FFD700;background:#FFD700;transform:translateX(-50%) scale(1);box-shadow:0 0 0 5px rgba(255,215,0,.12)}
-        .m48.on .m48-step:nth-child(3) .m48-dot{transition-delay:.35s}
-        .m48.on .m48-step:nth-child(4) .m48-dot{transition-delay:.75s}
-        .m48.on .m48-step:nth-child(5) .m48-dot{transition-delay:1.15s}
-        .m48-t{font-size:15px;color:#fff;font-weight:500}
-        .m48-s{font-size:12px;color:rgba(255,255,255,.5);margin-top:3px}
-        @media(max-width:600px){.m48-track{grid-template-columns:1fr 1fr;gap:28px 16px}.m48-line{display:none}}
-        @media(prefers-reduced-motion:reduce){.m48-line i{transition:none}.m48-step .m48-dot{transition:none}}
-        </style>
-        <section class="m48" id="m48">
-            <div class="m48-head"><span class="m48-lbl">Your move-in</span><h2>From application to keys — in 48 hours.</h2></div>
-            <div class="m48-track">
-                <div class="m48-line"><i></i></div>
-                <div class="m48-step"><span class="m48-dot"></span><div class="m48-t">Apply</div><div class="m48-s">2-minute form</div></div>
-                <div class="m48-step"><span class="m48-dot"></span><div class="m48-t">Approved</div><div class="m48-s">within 2 hours</div></div>
-                <div class="m48-step"><span class="m48-dot"></span><div class="m48-t">Sign &amp; pay</div><div class="m48-s">secure, in English</div></div>
-                <div class="m48-step"><span class="m48-dot"></span><div class="m48-t">Keys in hand</div><div class="m48-s">within 48 hours</div></div>
-            </div>
-        </section>
-        <script>(function(){var m=document.getElementById('m48');if(!m)return;var io=new IntersectionObserver(function(e){e.forEach(function(x){if(x.isIntersecting){m.classList.add('on');io.disconnect();}});},{threshold:.4});io.observe(m);})();</script>
-
         <!-- More apartments in this neighborhood — auto-populated from Firestore -->
         <section class="zone-footer" id="zoneFooter" hidden></section>
+
+        <!-- 48-hour move-in — scroll-driven timeline (mobile-first vertical, desktop horizontal) -->
+        <style>
+        .m48{max-width:1080px;margin:60px auto 10px;padding:0 20px}
+        .m48-head{text-align:center;margin-bottom:40px}
+        .m48-lbl{display:inline-block;color:#FFD700;font-size:11px;letter-spacing:3px;text-transform:uppercase;margin-bottom:10px}
+        .m48-head h2{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-weight:200;font-size:clamp(24px,3.4vw,40px);color:#fff;letter-spacing:-.01em}
+        /* mobile-first: vertical timeline */
+        .m48-track{position:relative;display:flex;flex-direction:column;gap:24px}
+        .m48-rail{position:absolute;left:21px;top:18px;bottom:18px;width:2px;background:rgba(255,255,255,.10);border-radius:2px;overflow:hidden}
+        .m48-fill{position:absolute;left:0;top:0;width:100%;height:calc(var(--p,0)*100%);background:linear-gradient(180deg,#FFD700,#FFA500);box-shadow:0 0 10px rgba(255,215,0,.4)}
+        .m48-step{position:relative;z-index:1;display:flex;align-items:center;gap:16px}
+        .m48-node{flex:0 0 auto;width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#0A0A0A;border:2px solid rgba(255,255,255,.16);color:rgba(255,255,255,.5);font-size:13px;font-weight:600;letter-spacing:.5px;transition:all .55s cubic-bezier(.16,1,.3,1)}
+        .m48-step.lit .m48-node{border-color:#FFD700;color:#000;background:linear-gradient(135deg,#FFD700,#FFA500);box-shadow:0 0 0 6px rgba(255,215,0,.12),0 8px 24px rgba(255,215,0,.25);transform:scale(1.05)}
+        .m48-t{font-size:16px;color:#fff;font-weight:500}
+        .m48-s{font-size:12.5px;color:rgba(255,255,255,.5);margin-top:2px;transition:color .55s}
+        .m48-step.lit .m48-s{color:rgba(255,255,255,.7)}
+        /* desktop: horizontal timeline */
+        @media(min-width:760px){
+          .m48{padding:0 50px}
+          .m48-track{flex-direction:row;gap:18px;padding-top:54px}
+          .m48-rail{left:8%;right:8%;top:21px;bottom:auto;width:auto;height:2px}
+          .m48-fill{height:100%;width:calc(var(--p,0)*100%)}
+          .m48-step{flex:1;flex-direction:column;align-items:center;text-align:center;gap:14px}
+          .m48-node{position:absolute;top:-54px;left:50%;transform:translateX(-50%)}
+          .m48-step.lit .m48-node{transform:translateX(-50%) scale(1.05)}
+        }
+        @media(prefers-reduced-motion:reduce){.m48-fill{height:100%!important;width:100%!important}.m48-node,.m48-s{transition:none!important}}
+        </style>
+        <section class="m48" id="m48" aria-label="Your move-in in 48 hours">
+            <div class="m48-head"><span class="m48-lbl">Your move-in</span><h2>From application to keys — in 48 hours.</h2></div>
+            <div class="m48-track" id="m48Track" style="--p:0">
+                <div class="m48-rail"><span class="m48-fill"></span></div>
+                <div class="m48-step"><div class="m48-node">01</div><div class="m48-txt"><div class="m48-t">Apply</div><div class="m48-s">2-minute form</div></div></div>
+                <div class="m48-step"><div class="m48-node">02</div><div class="m48-txt"><div class="m48-t">Approved</div><div class="m48-s">within 2 hours</div></div></div>
+                <div class="m48-step"><div class="m48-node">03</div><div class="m48-txt"><div class="m48-t">Sign &amp; pay</div><div class="m48-s">secure, in English</div></div></div>
+                <div class="m48-step"><div class="m48-node">04</div><div class="m48-txt"><div class="m48-t">Keys in hand</div><div class="m48-s">within 48 hours</div></div></div>
+            </div>
+        </section>
+        <script>(function(){var t=document.getElementById('m48Track');if(!t)return;var steps=[].slice.call(t.querySelectorAll('.m48-step'));
+        if(matchMedia('(prefers-reduced-motion:reduce)').matches){t.style.setProperty('--p',1);steps.forEach(function(s){s.classList.add('lit');});return;}
+        var tick=false;function upd(){tick=false;var r=t.getBoundingClientRect(),vh=innerHeight||document.documentElement.clientHeight;var p=(vh*0.82-r.top)/(r.height*0.62);p=Math.max(0,Math.min(1,p));t.style.setProperty('--p',p.toFixed(3));steps.forEach(function(s,i){s.classList.toggle('lit',p>=i/steps.length+0.02);});}
+        function on(){if(tick)return;tick=true;requestAnimationFrame(upd);}addEventListener('scroll',on,{passive:true});addEventListener('resize',on,{passive:true});upd();})();</script>
 
         <div class="upsell-section">
             <div class="upsell-header">
@@ -1016,7 +1015,7 @@
                         </ul>
                     </div>
                     <div class="upsell-card-bottom">
-                        <a href="/property-finding" class="upsell-card-cta cta-gold">Start Property Finding →</a>
+                        <a href="/property-finding.html" class="upsell-card-cta cta-gold">Start Property Finding →</a>
                     </div>
                 </div>
 
@@ -1039,7 +1038,7 @@
                         </ul>
                     </div>
                     <div class="upsell-card-bottom">
-                        <a href="/deal-assistance" class="upsell-card-cta cta-outline">Learn More →</a>
+                        <a href="/deal-assistance.html" class="upsell-card-cta cta-outline">Learn More →</a>
                     </div>
                 </div>
 
@@ -1062,7 +1061,7 @@
                         </ul>
                     </div>
                     <div class="upsell-card-bottom">
-                        <a href="/virtual-viewing" class="upsell-card-cta cta-outline">Learn More →</a>
+                        <a href="/virtual-viewing.html" class="upsell-card-cta cta-outline">Learn More →</a>
                     </div>
                 </div>
             </div>
@@ -1094,9 +1093,14 @@
                 <h3>BOOM</h3>
                 <p>Built in Rome, for Rome. If we can make Rome's rental market work, we can make it work anywhere.<br><br><strong>Egidi Immobiliare S.r.l.</strong><br>P.IVA 17322991005<br>REA RM - 1710623<br>Rome, Italy</p>
             </div>
-            <div class="footer-links"><h4>Services</h4><ul><li><a href="/apartments">Apartments</a></li><li><a href="/property-finding">Property Finding</a></li><li><a href="/deal-assistance">Deal Assistance</a></li><li><a href="/virtual-viewing">Virtual Viewing</a></li><li><a href="/concierge">Concierge</a></li></ul></div>
-            <div class="footer-links"><h4>Company</h4><ul><li><a href="/about">About</a></li><li><a href="/how-it-works">How It Works</a></li><li><a href="/verified">How We Verify</a></li><li><a href="/owners">For Owners</a></li><li><a href="/blog">Blog</a></li><li><a href="/faq">FAQ</a></li><li><a href="/contact">Contact</a></li></ul></div>
-            <div class="footer-links"><h4>Legal</h4><ul><li><a href="/terms">Terms</a></li><li><a href="/privacy">Privacy</a></li><li><a href="/login">Login</a></li></ul></div>
+            <div class="footer-links"><h4>Services</h4><ul><li><a href="/apartments.html">Apartments</a></li><li><a href="/property-finding.html">Property Finding</a></li><li><a href="/deal-assistance.html">Deal Assistance</a></li>
+                        <li><a href="/contract-check.html">Free Contract Check</a></li><li><a href="/virtual-viewing.html">Virtual Viewing</a></li><li><a href="/concierge.html">Concierge</a></li></ul></div>
+            <div class="footer-links"><h4>Company</h4><ul><li><a href="/about.html">About</a></li><li><a href="/how-it-works.html">How It Works</a></li><li><a href="/universities.html">For Universities</a></li>
+<li><a href="/corporate.html">For Companies</a></li>
+<li><a href="/research.html">For Research</a></li>
+                        <li><a href="/refer.html">Refer a Friend</a></li>
+<li><a href="/owners.html">For Owners</a></li><li><a href="/blog.html">Blog</a></li><li><a href="/faq.html">FAQ</a></li><li><a href="/contact.html">Contact</a></li></ul></div>
+            <div class="footer-links"><h4>Legal</h4><ul><li><a href="/terms.html">Terms</a></li><li><a href="/privacy.html">Privacy</a></li><li><a href="/login.html">Login</a></li></ul></div>
         </div>
         <div class="footer-bottom"><span>© 2025 BOOM — All Rights Reserved</span><span>Status: Operational</span></div>
     </footer>
@@ -1111,19 +1115,6 @@
     firebase.initializeApp({apiKey:"AIzaSyDDb8UeSc8RhO_VxQrhLrupu1aPD4rwRso",authDomain:"boom-property-dashboards.firebaseapp.com",projectId:"boom-property-dashboards",storageBucket:"boom-property-dashboards.firebasestorage.app",messagingSenderId:"937269017440",appId:"1:937269017440:web:41c1a0b1e1633c2f373c05"});
     const db=firebase.firestore();
     let aptAddress='',currentSlide=0,totalSlides=0,galleryImgs=[],lbIndex=0;
-
-    // Imgur thumbnail variants — shrink huge originals to the size actually shown.
-    // Suffixes: m=320, l=640, h=1024 (aspect kept). Only direct i.imgur.com links are
-    // rewritten; Firebase Storage / other hosts pass through untouched. Big speed win:
-    // the thumb strip and zone cards were loading full-resolution originals.
-    function imgThumb(url, suffix){
-      if(!url||typeof url!=='string')return url;
-      const m=url.match(/^(https?:\/\/i\.imgur\.com\/)([a-zA-Z0-9]{5,9})(\.[a-zA-Z]+)(\?.*)?$/);
-      return m?(m[1]+m[2]+suffix+m[3]):url;
-    }
-    const imgDisplay = u => imgThumb(u,'h');                 // ~1024px main display
-    const imgSet = u => { const l=imgThumb(u,'l'), h=imgThumb(u,'h'); return l!==u ? `${l} 640w, ${h} 1024w` : ''; };
-    const HERO_SIZES = '(max-width:1400px) 100vw, 1300px';
 
     document.addEventListener('DOMContentLoaded',()=>{
         const params=new URLSearchParams(window.location.search);
@@ -1142,7 +1133,7 @@
         }catch(e){
           console.warn('detail: direct read failed, trying proxy →',(e&&e.code)||e);
         }
-        // 2) Server-side proxy — survives denied client reads (rules tightened).
+        // 2) Server-side proxy — survives denied client reads (rules locked to admins).
         try{
           const r=await fetch('/api/listings?id='+encodeURIComponent(id),{cache:'no-store'});
           const j=await r.json();
@@ -1152,7 +1143,7 @@
     }
 
     // Shared resilient fetch of the whole catalog (direct → proxy), memoized so
-    // the zone footer never makes the page look broken when client reads fail.
+    // the zone footer never looks broken when client reads fail.
     let _allListings=null;
     async function getAllListings(){
       if(_allListings) return _allListings;
@@ -1170,29 +1161,18 @@
       const el = document.getElementById('zoneFooter');
       if(!el || !zoneLabel) return;
       try{
-        const isLive = l => { const s=(l.status||l.availabilityStatus||'').toLowerCase(); return !(s==='rented'||s==='affittato'||s==='off_market'); };
-        // Fast path: indexed equality query on the exact zone — one cheap read instead
-        // of scanning the whole collection on every single listing view.
-        let inZone = [];
-        try{
-          const exact = await db.collection('listings').where('zone','==',zoneLabel).get();
-          inZone = exact.docs.map(d=>({id:d.id, ...d.data()})).filter(isLive);
-        }catch(_){ /* fall through to the full scan */ }
-
-        // Fallback: when the exact-zone match is sparse (inconsistent zone fields, or
-        // sub-areas that share one neighborhood slug), do the fuzzy whole-collection scan.
-        if(inZone.length < 4){
-          const all = await getAllListings();
-          const terms = (window.BOOM && BOOM.allNeighborhoods)
-            ? (BOOM.allNeighborhoods().find(n=>n.slug===slug) || {}).terms
-            : null;
-          inZone = all.filter(l=>{
-            if(!isLive(l)) return false;
+        const all = await getAllListings();
+        const terms = (window.BOOM && BOOM.allNeighborhoods)
+          ? (BOOM.allNeighborhoods().find(n=>n.slug===slug) || {}).terms
+          : null;
+        const inZone = all
+          .filter(l=>{
+            const s=(l.status||l.availabilityStatus||'').toLowerCase();
+            if(s==='rented'||s==='affittato'||s==='off_market') return false;
             const blob=((l.zone||'')+' '+(l.neighborhood||'')+' '+(l.address||'')+' '+(l.name||'')).toLowerCase();
             if(terms && terms.length) return terms.some(t=>blob.includes(t));
             return blob.includes(zoneLabel.toLowerCase());
           });
-        }
         // Price intelligence: compare this listing to the neighborhood mean
         renderPriceInsight(inZone, currentPrice, zoneLabel);
         const sameZone = inZone.filter(l=>l.id!==currentId).slice(0,4);
@@ -1215,7 +1195,7 @@
               const meta = [sqm&&sqm+'m²', beds&&(beds+' bed'+(beds>1?'s':''))].filter(Boolean).join(' · ');
               const img = l.image||(l.images&&l.images[0])||'';
               return `<a class="zone-card" href="/listing/${encodeURIComponent(l.id)}">
-                <div class="zone-card-img"${img?` style="background-image:url('${imgThumb(img,'l')}')"`:''}></div>
+                <div class="zone-card-img"${img?` style="background-image:url('${img}')"`:''}></div>
                 <div class="zone-card-body">
                   <div class="zone-card-name">${(l.name||'Apartment')}</div>
                   ${meta?`<div class="zone-card-meta">${meta}</div>`:''}
@@ -1410,21 +1390,6 @@
         const si=sm[st]||sm['available'];
         bEl.innerHTML=`<span class="badge ${si.c}">${si.t}</span><span class="badge badge-verified">✓ Verified</span>`;
         if(d.videoUrl||d.youtubeUrl)bEl.innerHTML+='<span class="badge badge-video">▶ Video Tour</span>';
-        // Freshness chip — real "live inventory" trust signal. Only shown while genuinely
-        // fresh (≤3 weeks); we never advertise a stale date.
-        (function(){
-          const ts=d.createdAt||d.updatedAt;
-          const ms=ts&&(ts.toMillis?ts.toMillis():(ts.seconds?ts.seconds*1000:(typeof ts==='number'?ts:Date.parse(ts))));
-          if(!ms||isNaN(ms))return;
-          const days=Math.floor((Date.now()-ms)/864e5);
-          let label;
-          if(days<=0)label='Listed today';
-          else if(days===1)label='Listed yesterday';
-          else if(days<14)label='Listed '+days+' days ago';
-          else if(days<=21)label='Listed '+Math.round(days/7)+' weeks ago';
-          else return;
-          bEl.innerHTML+=`<span class="badge badge-fresh">🕓 ${label}</span>`;
-        })();
 
         document.getElementById('aptName').textContent=name;
         aptAddress=d.address||'Rome, Italy';
@@ -1463,9 +1428,9 @@
           const b=document.getElementById('reserveBox'); if(b) b.classList.add('show');
         })();
 
-        // "Your money, explained" — itemised move-in cost computed from this listing's real rent
-        window.__boomListing.rent = Number(d.price)||0;
-        if(window.buildMoney) window.buildMoney(Number(d.price)||0, { agencyMonths: Number(d.agencyMonths||0) });
+        // The money, explained — itemised move-in cost computed from this listing's real rent
+        if(window.__boomListing) window.__boomListing.rent = Number(d.price)||0;
+        if(window.buildMoney) window.buildMoney(Number(d.price)||0, {});
 
         // Specs
         const sEl=document.getElementById('aptSpecs'),specs=[];
@@ -1490,14 +1455,6 @@
 
         document.getElementById('pageLoading').style.display='none';
         var ap=document.getElementById('apartmentPage');ap.style.display='block';ap.classList.add('show');
-        // Safe staggered reveal for the trust band + service cards. The .reveal-up class
-        // is added here by JS, so content is never hidden if scripts fail or IO is missing.
-        if('IntersectionObserver' in window){
-            const rv=[...document.querySelectorAll('.trust-band, .upsell-card')];
-            rv.forEach(el=>el.classList.add('reveal-up'));
-            const rio=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');rio.unobserve(e.target);}});},{threshold:.12,rootMargin:'0px 0px -6% 0px'});
-            rv.forEach(el=>rio.observe(el));
-        }
 
         if(typeof gtag==='function')gtag('event','view_listing',{listing_id:id,listing_name:name,listing_price:d.price});
 
@@ -1566,21 +1523,20 @@
         // Check both videoUrl and youtubeUrl (portal uses youtubeUrl)
         const vUrl=d.videoUrl||d.youtubeUrl,hasV=!!vUrl,vId=hasV?exYT(vUrl):null;
 
-        const heroAttrs = u => { const s=imgSet(u); return `src="${imgDisplay(u)}"${s?` srcset="${s}" sizes="${HERO_SIZES}"`:''} fetchpriority="high" loading="eager" decoding="async"`; };
         if(!imgs.length&&!hasV){sec.innerHTML='<div class="media-placeholder"><span>📷</span><p>Photos coming soon</p></div>';return}
-        if(imgs.length===1&&!hasV){sec.innerHTML=`<img ${heroAttrs(imgs[0])} alt="Apartment photo" class="single-hero-img" onclick="openLightbox(0)">`;return}
-        if(imgs.length===1&&hasV&&vId){sec.innerHTML=`<img ${heroAttrs(imgs[0])} alt="Apartment photo" class="single-hero-img" onclick="openLightbox(0)"><div class="video-section"><div class="video-section-label">Video Tour</div><div class="video-embed"><iframe src="https://www.youtube.com/embed/${vId}?rel=0" allowfullscreen loading="lazy"></iframe></div></div>`;return}
+        if(imgs.length===1&&!hasV){sec.innerHTML=`<img src="${imgs[0]}" alt="Apartment photo" class="single-hero-img" loading="lazy" onclick="openLightbox(0)">`;return}
+        if(imgs.length===1&&hasV&&vId){sec.innerHTML=`<img src="${imgs[0]}" alt="Apartment photo" class="single-hero-img" loading="lazy" onclick="openLightbox(0)"><div class="video-section"><div class="video-section-label">Video Tour</div><div class="video-embed"><iframe src="https://www.youtube.com/embed/${vId}?rel=0" allowfullscreen loading="lazy"></iframe></div></div>`;return}
 
         const slides=[...imgs];const hasVS=hasV&&vId;
-        let sH=slides.map((img,i)=>{const s=imgSet(img);const set=s?` srcset="${s}" sizes="${HERO_SIZES}"`:'';const prio=i===0?'fetchpriority="high" loading="eager"':'loading="lazy"';return `<div class="carousel-slide"><img src="${imgDisplay(img)}"${set} alt="Photo ${i+1}" ${prio} decoding="async" onclick="openLightbox(${i})"></div>`;}).join('');
+        let sH=slides.map((img,i)=>`<div class="carousel-slide"><img src="${img}" alt="Photo ${i+1}" loading="lazy" onclick="openLightbox(${i})"></div>`).join('');
         if(hasVS)sH+=`<div class="carousel-slide video-slide"><iframe src="https://www.youtube.com/embed/${vId}?rel=0" allowfullscreen loading="lazy"></iframe></div>`;
         totalSlides=slides.length+(hasVS?1:0);
 
-        let tH=slides.map((img,i)=>`<div class="carousel-thumb ${i===0?'active':''}" onclick="goTo(${i})"><img src="${imgThumb(img,'m')}" alt="Thumb ${i+1}" loading="lazy" decoding="async"></div>`).join('');
+        let tH=slides.map((img,i)=>`<div class="carousel-thumb ${i===0?'active':''}" onclick="goTo(${i})"><img src="${img}" alt="Thumb ${i+1}"></div>`).join('');
         if(hasVS)tH+=`<div class="carousel-thumb video-thumb" onclick="goTo(${slides.length})"></div>`;
 
-        const expandBtn=`<button type="button" class="carousel-expand" aria-label="View all photos full screen" onclick="openLightbox(currentSlide<${slides.length}?currentSlide:0)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M21 16v5h-5M3 16v5h5"/></svg>${slides.length} photos</button>`;
-        sec.innerHTML=`<div class="carousel" id="carousel" role="region" aria-roledescription="carousel" aria-label="Apartment photos">${expandBtn}${hasVS?'<div class="carousel-video-badge" style="display:block">▶ Video Tour</div>':''}<div class="carousel-track" id="carouselTrack">${sH}</div><button type="button" class="carousel-btn carousel-prev" onclick="prev()" aria-label="Previous photo">‹</button><button type="button" class="carousel-btn carousel-next" onclick="next()" aria-label="Next photo">›</button><div class="carousel-counter" id="carouselCounter" aria-live="polite">1 / ${totalSlides}</div></div><div class="carousel-thumbs" id="carouselThumbs">${tH}</div>`;
+        const expandBtn=`<button class="carousel-expand" onclick="openLightbox(currentSlide<${slides.length}?currentSlide:0)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M8 3H3v5M16 3h5v5M21 16v5h-5M3 16v5h5"/></svg>${slides.length} photos</button>`;
+        sec.innerHTML=`<div class="carousel" id="carousel">${expandBtn}${hasVS?'<div class="carousel-video-badge" style="display:block">▶ Video Tour</div>':''}<div class="carousel-track" id="carouselTrack">${sH}</div><button class="carousel-btn carousel-prev" onclick="prev()">‹</button><button class="carousel-btn carousel-next" onclick="next()">›</button><div class="carousel-counter" id="carouselCounter">1 / ${totalSlides}</div></div><div class="carousel-thumbs" id="carouselThumbs">${tH}</div>`;
         initSwipe();
     }
 
@@ -1638,30 +1594,12 @@
         c.addEventListener('touchmove',e=>{dX=e.touches[0].clientX-sX},{passive:true});
         c.addEventListener('touchend',()=>{if(Math.abs(dX)>50){dX<0?next():prev()}dX=0});
     }
-    document.addEventListener('keydown',e=>{
-        if(!document.getElementById('lightbox').hidden) return;                       // lightbox owns the keys when open
-        const t=e.target; if(t && (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)||t.isContentEditable)) return; // don't hijack typing
-        if(totalSlides<2) return;                                                     // nothing to page through
-        if(e.key==='ArrowRight') next(); else if(e.key==='ArrowLeft') prev();
-    });
+    document.addEventListener('keydown',e=>{if(!document.getElementById('lightbox').hidden)return;if(e.key==='ArrowRight')next();if(e.key==='ArrowLeft')prev()});
 
     function buildMap(d){
         const c=document.getElementById('mapContainer');
         const addr=d.address||'Rome, Italy';
-        const q=encodeURIComponent(addr);
-        const safeAddr=String(addr).replace(/</g,'&lt;').replace(/"/g,'&quot;');
-        // Facade first — the Google Maps embed (heavy third-party payload) only loads on click.
-        c.innerHTML=`<button type="button" class="map-facade" id="mapFacade" aria-label="Load interactive map for ${safeAddr}">
-            <span class="map-facade-grid" aria-hidden="true"></span>
-            <span class="map-facade-pin" aria-hidden="true">📍</span>
-            <span class="map-facade-cta">Show interactive map</span>
-            <span class="map-facade-addr">${safeAddr}</span>
-        </button>`;
-        const fac=document.getElementById('mapFacade');
-        if(fac) fac.addEventListener('click',function(){
-            c.innerHTML=`<iframe src="https://maps.google.com/maps?q=${q}&t=&z=15&ie=UTF8&iwloc=&output=embed" allowfullscreen loading="lazy" referrerpolicy="no-referrer-when-downgrade" title="Map of ${safeAddr}"></iframe>`;
-            if(typeof gtag==='function')gtag('event','map_open',{listing:document.getElementById('breadcrumbName')?.textContent||''});
-        });
+        c.innerHTML=`<iframe src="https://maps.google.com/maps?q=${encodeURIComponent(addr)}&t=&z=15&ie=UTF8&iwloc=&output=embed" allowfullscreen loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>`;
     }
 
     function calcDistance(){const d=document.getElementById('distInput').value.trim();if(!d)return;showRoutes(aptAddress,d)}
@@ -1685,6 +1623,7 @@
     /* Mobile CTA bar: slide up once the user is engaged (immersive, not on load) */
     (function(){var bar=document.getElementById('mobileCta');if(!bar)return;function t(){bar.classList.toggle('in',window.scrollY>320);}addEventListener('scroll',t,{passive:true});t();})();
     </script>
+    <script defer src="/js/boom-cinema.js"></script>
     <script defer src="/js/boom-track.js"></script>
 </body>
 </html>
