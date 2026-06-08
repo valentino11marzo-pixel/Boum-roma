@@ -779,6 +779,164 @@
             </div>
         </div><!-- /.apt-content -->
 
+        <!-- ════════ HOW THIS RENTAL WORKS — your money, explained ════════ -->
+        <style>
+        .bm{max-width:1100px;margin:60px auto 10px;padding:0 50px}
+        @media(max-width:768px){.bm{padding:0 20px;margin:44px auto 6px}}
+        .bm-head{text-align:center;margin-bottom:38px}
+        .bm-lbl{display:inline-block;color:var(--gold);font-size:11px;letter-spacing:3px;text-transform:uppercase;margin-bottom:12px}
+        .bm-head h2{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-weight:200;font-size:clamp(26px,3.6vw,42px);color:#fff;letter-spacing:-.01em;line-height:1.08;margin:0}
+        .bm-gold{color:var(--gold)}
+        .bm-head .bm-sub{max-width:580px;margin:14px auto 0;color:var(--text-secondary);font-size:15px;line-height:1.6}
+        .bm-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:18px;align-items:start}
+        @media(max-width:880px){.bm-grid{grid-template-columns:1fr}}
+        .bm-card{background:linear-gradient(180deg,#0E0E10,#0A0A0A);border:1px solid rgba(255,255,255,.07);border-radius:18px;padding:24px}
+        .bm-card-h{font-size:12px;letter-spacing:2px;text-transform:uppercase;color:var(--text-fade);margin-bottom:18px}
+        .bm-rows{display:flex;flex-direction:column;margin-bottom:18px}
+        .bm-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:13px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+        .bm-row:last-child{border-bottom:0}
+        .bm-row-l{display:flex;flex-direction:column;gap:3px}
+        .bm-row-t{font-size:14.5px;color:#fff}
+        .bm-row-s{font-size:11.5px;color:var(--text-fade);line-height:1.4}
+        .bm-row-v{font-size:16px;color:#fff;font-weight:400;white-space:nowrap}
+        .bm-chip{display:inline-flex;align-items:center;gap:4px;font-size:9.5px;letter-spacing:.5px;text-transform:uppercase;color:#00FF88;background:rgba(0,255,136,.08);border:1px solid rgba(0,255,136,.22);padding:3px 8px;border-radius:100px;margin-left:6px;vertical-align:middle}
+        .bm-split{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:6px 0 16px}
+        @media(max-width:420px){.bm-split{grid-template-columns:1fr}}
+        .bm-split-col{background:#08080A;border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:15px}
+        .bm-split-col.bm-back{border-color:rgba(0,255,136,.2);background:rgba(0,255,136,.04)}
+        .bm-split-lbl{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--text-fade);margin-bottom:8px}
+        .bm-split-val{font-size:clamp(22px,3vw,30px);font-weight:200;color:#fff;line-height:1}
+        .bm-back .bm-split-val{color:#00FF88}
+        .bm-split-note{font-size:11.5px;color:var(--text-secondary);margin-top:8px;line-height:1.45}
+        .bm-total{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:16px 18px;background:rgba(255,215,0,.05);border:1px solid rgba(255,215,0,.18);border-radius:14px}
+        .bm-total span{font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--text-secondary)}
+        .bm-total b{font-size:clamp(24px,3.4vw,34px);font-weight:200;color:var(--gold);white-space:nowrap}
+        .bm-pay{margin-top:16px;font-size:12.5px;color:var(--text-fade);line-height:1.6}
+        .bm-pay a{color:var(--gold);text-decoration:none;border-bottom:1px solid rgba(212,175,55,.3)}
+        .bm-fallback{font-size:14.5px;color:var(--text-secondary);line-height:1.65}
+        .bm-side{display:flex;flex-direction:column;gap:18px}
+        .bm-life-track{position:relative}
+        .bm-life-line{position:absolute;left:7px;top:8px;bottom:8px;width:2px;background:rgba(255,255,255,.1);overflow:hidden}
+        .bm-life-line i{display:block;width:100%;height:0;background:linear-gradient(180deg,var(--gold),#FFA500);transition:height 1.7s cubic-bezier(.16,1,.3,1)}
+        .bm.on .bm-life-line i{height:100%}
+        .bm-life-step{position:relative;padding:0 0 18px 30px}
+        .bm-life-step:last-child{padding-bottom:0}
+        .bm-dot{position:absolute;left:0;top:3px;width:16px;height:16px;border-radius:50%;background:#0A0A0A;border:2px solid rgba(255,255,255,.2);transition:all .5s cubic-bezier(.16,1,.3,1)}
+        .bm.on .bm-dot{border-color:var(--gold);background:var(--gold);box-shadow:0 0 0 5px rgba(255,215,0,.1)}
+        .bm.on .bm-life-step:nth-child(2) .bm-dot{transition-delay:.15s}
+        .bm.on .bm-life-step:nth-child(3) .bm-dot{transition-delay:.45s}
+        .bm.on .bm-life-step:nth-child(4) .bm-dot{transition-delay:.75s}
+        .bm-st{font-size:14.5px;color:#fff;font-weight:500}
+        .bm-ss{font-size:12px;color:var(--text-secondary);margin-top:2px;line-height:1.45}
+        .bm-incl{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+        @media(max-width:420px){.bm-incl{grid-template-columns:1fr}}
+        .bm-incl-h{font-size:11px;letter-spacing:1px;text-transform:uppercase;margin-bottom:12px;font-weight:600}
+        .bm-incl-h.bm-yes{color:#00FF88}
+        .bm-incl-h.bm-sep{color:var(--text-fade)}
+        .bm-incl ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:9px}
+        .bm-incl li{font-size:12.5px;color:var(--text-secondary);display:flex;align-items:flex-start;gap:8px;line-height:1.4}
+        .bm-incl li::before{content:'';flex-shrink:0;margin-top:6px;width:5px;height:5px;border-radius:50%}
+        .bm-yes-list li::before{background:#00FF88}
+        .bm-sep-list li::before{background:var(--text-fade)}
+        @media(prefers-reduced-motion:reduce){.bm-life-line i{transition:none}.bm-dot{transition:none}}
+        </style>
+        <section class="bm" id="boomMoney" aria-label="How this rental works — your money explained">
+          <div class="bm-head">
+            <span class="bm-lbl">Your money, in full daylight</span>
+            <h2>Exactly what it costs.<br><span class="bm-gold">And exactly what comes back.</span></h2>
+            <p class="bm-sub">Every other agency in Rome hides the math until you're already at the table. We don't — here is every euro for this apartment, before you commit to anything.</p>
+          </div>
+          <div class="bm-grid">
+            <div class="bm-card bm-ledger">
+              <div class="bm-card-h">To move into this apartment</div>
+              <div id="bmLedger"></div>
+            </div>
+            <div class="bm-side">
+              <div class="bm-card bm-life">
+                <div class="bm-card-h">Your deposit — and when you get it back</div>
+                <div class="bm-life-track">
+                  <div class="bm-life-line"><i></i></div>
+                  <div class="bm-life-step"><span class="bm-dot"></span><div class="bm-st">You pay it at signing</div><div class="bm-ss">Part of your move-in, through secure Stripe checkout.</div></div>
+                  <div class="bm-life-step"><span class="bm-dot"></span><div class="bm-st">It's protected — never spent</div><div class="bm-ss">Held as security under Italian law. It is not the landlord's income.</div></div>
+                  <div class="bm-life-step"><span class="bm-dot"></span><div class="bm-st">It stays yours while you live here</div><div class="bm-ss">Normal wear and tear is never deducted. Ever.</div></div>
+                  <div class="bm-life-step"><span class="bm-dot"></span><div class="bm-st">Returned when you move out</div><div class="bm-ss">In full — minus only damage we can document. We help you get it back.</div></div>
+                </div>
+              </div>
+              <div class="bm-card bm-incl">
+                <div class="bm-incl-col">
+                  <div class="bm-incl-h bm-yes">In your monthly rent</div>
+                  <ul class="bm-yes-list">
+                    <li>The apartment, exactly as you saw it filmed</li>
+                    <li>BOOM management &amp; 24/7 WhatsApp support</li>
+                    <li>A legal, registered contract — in English</li>
+                    <li>Move-in help &amp; deposit-back support</li>
+                  </ul>
+                </div>
+                <div class="bm-incl-col">
+                  <div class="bm-incl-h bm-sep">Billed to you separately</div>
+                  <ul class="bm-sep-list">
+                    <li>Electricity, water &amp; gas — your usage</li>
+                    <li>Internet / wifi</li>
+                    <li>Waste tax (TARI) &amp; condo fees</li>
+                    <li>We help you set every one up</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+        <script>
+        window.buildMoney = function(rent, opts){
+          opts = opts || {};
+          const fmt = n => '€'+Math.round(n).toLocaleString('en-US');
+          const host = document.getElementById('bmLedger'); if(!host) return;
+          const sec = document.getElementById('boomMoney');
+          const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+          rent = Number(rent)||0;
+          if(rent<=0){
+            host.innerHTML = '<div class="bm-fallback">This apartment is priced on request. <a href="#inquiryCard" style="color:var(--gold);text-decoration:none;border-bottom:1px solid rgba(212,175,55,.3)">Ask us</a> and we\'ll send your full, itemised move-in cost — first month, deposit and everything else — before you commit to anything.</div>';
+            if(sec) sec.classList.add('on');
+            return;
+          }
+          const dep2 = rent*2, dep3 = rent*3;
+          const agencyMonths = Number(opts.agencyMonths)||0;
+          const vat = opts.vat!=null ? Number(opts.vat) : 0.22;
+          const fee = agencyMonths>0 ? Math.round(rent*agencyMonths*(1+vat)) : 0;
+          const realCost = rent + fee;
+          const dueFrom = rent + fee + dep2;
+          const feeRow = fee>0
+            ? '<div class="bm-row"><div class="bm-row-l"><div class="bm-row-t">Agency fee</div><div class="bm-row-s">'+agencyMonths+' month + VAT · one-time, only when you sign.</div></div><div class="bm-row-v">'+fmt(fee)+'</div></div>'
+            : '<div class="bm-row"><div class="bm-row-l"><div class="bm-row-t">BOOM agency fee</div><div class="bm-row-s">There isn\'t one. The number above is the number.</div></div><div class="bm-row-v" style="color:#00FF88">€0</div></div>';
+          const costNote = fee>0 ? 'First month + agency fee. The deposit returns to you.' : 'Just your first month — the deposit isn\'t a cost, it returns to you.';
+          host.innerHTML =
+            '<div class="bm-rows">'+
+              '<div class="bm-row"><div class="bm-row-l"><div class="bm-row-t">First month\'s rent</div><div class="bm-row-s">You\'d pay this anywhere.</div></div><div class="bm-row-v">'+fmt(rent)+'</div></div>'+
+              '<div class="bm-row"><div class="bm-row-l"><div class="bm-row-t">Security deposit <span class="bm-chip">↩ Refundable</span></div><div class="bm-row-s">2 months (3 on a 4+4 contract) — held safe, comes back to you.</div></div><div class="bm-row-v">'+fmt(dep2)+'–'+fmt(dep3)+'</div></div>'+
+              feeRow+
+            '</div>'+
+            '<div class="bm-split">'+
+              '<div class="bm-split-col"><div class="bm-split-lbl">Your real cost</div><div class="bm-split-val" id="bmCost">'+fmt(realCost)+'</div><div class="bm-split-note">'+costNote+'</div></div>'+
+              '<div class="bm-split-col bm-back"><div class="bm-split-lbl">Held as your deposit</div><div class="bm-split-val">'+fmt(dep2)+'–'+fmt(dep3)+'</div><div class="bm-split-note">↩ Yours. Returned at move-out, minus documented damage only.</div></div>'+
+            '</div>'+
+            '<div class="bm-total"><span>Due at signing, from</span><b id="bmTotal">'+fmt(dueFrom)+'</b></div>'+
+            '<div class="bm-pay">🔒 Paid securely via Stripe, in English — card accepted, no bank-transfer circus. Want to lock it in first? <a href="#inquiryCard">Reserve &amp; hold from €300</a> — 100% refundable, deducted from your first month.</div>';
+          const animate = () => {
+            sec.classList.add('on');
+            if(reduce) return;
+            [['bmCost',realCost],['bmTotal',dueFrom]].forEach(function(pair){
+              const el=document.getElementById(pair[0]); if(!el) return;
+              const to=pair[1], t0=performance.now(), dur=1100;
+              const tick=function(now){var p=Math.min(1,(now-t0)/dur), e=1-Math.pow(1-p,3); el.textContent=fmt(to*e); if(p<1)requestAnimationFrame(tick);};
+              requestAnimationFrame(tick);
+            });
+          };
+          if('IntersectionObserver' in window){
+            const io=new IntersectionObserver(function(es){es.forEach(function(x){if(x.isIntersecting){animate();io.disconnect();}});},{threshold:.3});
+            io.observe(sec);
+          } else animate();
+        };
+        </script>
+
         <!-- 48-hour move-in timeline -->
         <style>
         .m48{max-width:1100px;margin:50px auto 10px;padding:0 50px}
@@ -1304,6 +1462,10 @@
           const a=document.getElementById('reserveAmt'); if(a) a.textContent='€'+dep.toLocaleString('en-US');
           const b=document.getElementById('reserveBox'); if(b) b.classList.add('show');
         })();
+
+        // "Your money, explained" — itemised move-in cost computed from this listing's real rent
+        window.__boomListing.rent = Number(d.price)||0;
+        if(window.buildMoney) window.buildMoney(Number(d.price)||0, { agencyMonths: Number(d.agencyMonths||0) });
 
         // Specs
         const sEl=document.getElementById('aptSpecs'),specs=[];
