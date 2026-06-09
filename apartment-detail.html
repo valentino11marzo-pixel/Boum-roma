@@ -1489,6 +1489,103 @@
         <div class="footer-bottom"><span>© 2025 BOOM — All Rights Reserved</span><span>Status: Operational</span></div>
     </footer>
 
+    <!-- ======== HUMAN-FIRST RE-ARCHITECTURE (Pass 1): float AI · slim trust · fold money detail · one move-in act ======== -->
+    <style>
+    .bask-launch{position:fixed;right:22px;bottom:22px;z-index:85;display:inline-flex;align-items:center;gap:8px;padding:13px 20px;border:none;border-radius:100px;background:linear-gradient(135deg,#FFD700,#FFA500);color:#000;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 10px 34px rgba(255,215,0,.35);transition:transform .25s,opacity .25s}
+    .bask-launch:hover{transform:translateY(-2px)}
+    .bask-launch.hide{opacity:0;pointer-events:none;transform:translateY(10px)}
+    .bask-launch-i{font-size:16px}
+    @media(max-width:860px){.bask-launch{bottom:84px;right:14px;padding:11px 15px;font-size:13px}}
+    .baskpanel{position:fixed;right:22px;bottom:22px;z-index:86;width:min(400px,calc(100vw - 28px));max-height:min(72vh,640px);display:flex;flex-direction:column;background:#0A0A0A;border:1px solid rgba(255,215,0,.2);border-radius:18px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.6);opacity:0;transform:translateY(16px) scale(.98);pointer-events:none;transition:opacity .3s cubic-bezier(.16,1,.3,1),transform .3s cubic-bezier(.16,1,.3,1)}
+    .baskpanel.open{opacity:1;transform:none;pointer-events:auto}
+    @media(max-width:860px){.baskpanel{right:8px;left:8px;bottom:78px;width:auto;max-height:72vh}}
+    .baskpanel-h{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 16px;border-bottom:1px solid rgba(255,255,255,.07);font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#FFD700}
+    .baskpanel-x{background:transparent;border:none;color:#999;font-size:24px;line-height:1;cursor:pointer;padding:0 2px}
+    .baskpanel-x:hover{color:#fff}
+    .baskpanel .bask-card{border:none;border-radius:0;background:transparent;padding:14px 16px;overflow-y:auto}
+    .baskpanel .bask-card::before{display:none}
+    /* Slim verification into a scannable strip */
+    .bver--slim .bver-head{margin-bottom:18px}
+    .bver--slim .bver-head p{display:none}
+    .bver--slim .bver-grid{grid-template-columns:repeat(6,1fr);gap:8px}
+    @media(max-width:900px){.bver--slim .bver-grid{grid-template-columns:repeat(3,1fr)}}
+    @media(max-width:520px){.bver--slim .bver-grid{grid-template-columns:1fr 1fr}}
+    .bver--slim .bver-card{padding:14px 12px;text-align:center}
+    .bver--slim .bver-card:hover{transform:none}
+    .bver--slim .bver-ic{margin:0 auto 8px}
+    .bver--slim .bver-t{font-size:12px;justify-content:center;font-weight:500}
+    .bver--slim .bver-d,.bver--slim .bver-badge{display:none}
+    /* Fold money detail under a toggle */
+    .bmx-toggle{display:block;margin:22px auto 0;padding:11px 22px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:100px;color:var(--text-secondary);font-family:inherit;font-size:13px;cursor:pointer;transition:all .2s}
+    .bmx-toggle:hover{border-color:var(--gold);color:var(--gold)}
+    .bmx-tg-i{margin-left:6px}
+    /* Act 4 — one move-in, Apply as the single primary action */
+    .getit{max-width:1080px;margin:30px auto 0;padding:0 20px}
+    @media(min-width:760px){.getit{padding:0 50px}}
+    .getit-card{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;background:linear-gradient(135deg,rgba(255,215,0,.08),rgba(255,255,255,.02));border:1px solid rgba(255,215,0,.2);border-radius:18px;padding:22px 26px}
+    .getit-t{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-weight:200;font-size:clamp(18px,2.2vw,24px);color:#fff}
+    .getit-t b{color:#FFD700;font-weight:300}
+    .getit-acts{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+    .getit-apply{padding:14px 28px;border-radius:12px;background:linear-gradient(135deg,#FFD700,#FFA500);color:#000;font-size:15px;font-weight:600;text-decoration:none;white-space:nowrap;transition:transform .25s,box-shadow .25s}
+    .getit-apply:hover{transform:translateY(-2px);box-shadow:0 10px 30px rgba(255,215,0,.3)}
+    .getit-sec{color:#999;font-size:13px;text-decoration:none;border-bottom:1px solid rgba(255,255,255,.18);padding-bottom:2px;transition:all .2s}
+    .getit-sec:hover{color:#FFD700;border-color:#FFD700}
+    .btour--sec .btour-lbl{opacity:.85}
+    </style>
+    <script>
+    (function(){
+      // 1) Float the AI concierge into a launcher + panel (removes a mid-page hero)
+      try{
+        var sec=document.getElementById('boomAsk');
+        var card=sec&&sec.querySelector('.bask-card');
+        if(card){
+          var launch=document.createElement('button'); launch.type='button'; launch.className='bask-launch'; launch.setAttribute('aria-label','Ask about this home'); launch.innerHTML='<span class="bask-launch-i">✦</span> Ask about this home';
+          var panel=document.createElement('div'); panel.className='baskpanel'; panel.setAttribute('role','dialog'); panel.setAttribute('aria-label','BOOM AI concierge');
+          var head=document.createElement('div'); head.className='baskpanel-h'; head.innerHTML='<span>✦ Ask this home anything</span>';
+          var x=document.createElement('button'); x.className='baskpanel-x'; x.type='button'; x.setAttribute('aria-label','Close'); x.textContent='×'; head.appendChild(x);
+          panel.appendChild(head); panel.appendChild(card);
+          document.body.appendChild(panel); document.body.appendChild(launch);
+          if(sec.parentNode) sec.parentNode.removeChild(sec);
+          var setOpen=function(o){ panel.classList.toggle('open',o); launch.classList.toggle('hide',o); if(o){var i=document.getElementById('baskQ'); if(i) setTimeout(function(){i.focus();},150);} };
+          launch.addEventListener('click',function(){ setOpen(true); });
+          x.addEventListener('click',function(){ setOpen(false); });
+          document.addEventListener('keydown',function(e){ if(e.key==='Escape') setOpen(false); });
+          // Reveal the launcher only once the apartment has loaded (don't float over the spinner)
+          launch.style.display='none';
+          var ap=document.getElementById('apartmentPage');
+          var shown=function(){ return ap && (ap.classList.contains('show') || getComputedStyle(ap).display!=='none'); };
+          if(shown()){ launch.style.display=''; }
+          else { var n=0; var iv=setInterval(function(){ n++; var pl=document.getElementById('pageLoading'); var loaded=!pl||getComputedStyle(pl).display==='none'; if(shown()||loaded||n>30){ launch.style.display=''; clearInterval(iv); } },400); }
+          if(window.__boomSpine) try{ window.__boomSpine(); }catch(e){}
+        }
+      }catch(e){}
+      // 2) Slim the verification band
+      try{ var ver=document.getElementById('boomVerify'); if(ver) ver.classList.add('bver--slim'); }catch(e){}
+      // 3) Fold the deposit-lifecycle + included/separate under a toggle
+      try{
+        var money=document.getElementById('boomMoney');
+        var life=money&&money.querySelector('.bmx-life'), incl=money&&money.querySelector('.bmx-incl');
+        if(life&&incl){
+          life.style.display='none'; incl.style.display='none';
+          var tg=document.createElement('button'); tg.type='button'; tg.className='bmx-toggle'; tg.setAttribute('aria-expanded','false');
+          tg.innerHTML='How the deposit &amp; bills work <span class="bmx-tg-i">▾</span>';
+          life.parentNode.insertBefore(tg, life);
+          tg.addEventListener('click',function(){ var op=life.style.display==='none'; life.style.display=op?'':'none'; incl.style.display=op?'':'none'; tg.setAttribute('aria-expanded',op?'true':'false'); var i=tg.querySelector('.bmx-tg-i'); if(i)i.textContent=op?'▴':'▾'; });
+        }
+      }catch(e){}
+      // 4) Act 4 — Apply-primary move-in card after the 48h timeline; tour demoted to "see it first"
+      try{
+        var m48=document.getElementById('m48'), tour=document.getElementById('boomTour');
+        if(m48){
+          var getit=document.createElement('div'); getit.className='getit';
+          getit.innerHTML='<div class="getit-card"><div class="getit-t">Ready? <b>Apply in 2 minutes</b> — we reply within 2 hours.</div><div class="getit-acts"><a class="getit-apply" href="#inquiryCard" onclick="setTimeout(function(){var n=document.getElementById(\'iqName\');if(n)n.focus();},450)">Apply now →</a>'+(tour?'<a class="getit-sec" href="#boomTour" onclick="setTimeout(function(){var t=document.getElementById(\'boomTour\');if(t)t.scrollIntoView({behavior:\'smooth\',block:\'start\'});},10)">Prefer to see it live first?</a>':'')+'</div></div>';
+          m48.insertAdjacentElement('afterend', getit);
+          if(tour){ tour.classList.add('btour--sec'); getit.insertAdjacentElement('afterend', tour); }
+        }
+      }catch(e){}
+    })();
+    </script>
+
     <!-- Shared zone → neighborhood-slug helper (auto-generated from neighborhoods-data.js) -->
     <script src="/js/neighborhoods.js"></script>
 
