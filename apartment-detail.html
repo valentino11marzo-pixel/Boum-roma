@@ -2110,5 +2110,235 @@
     </script>
     <script defer src="/js/boom-cinema.js"></script>
     <script defer src="/js/boom-track.js"></script>
+
+    <!-- ======== MONEY, DECODED — immersive financial deep-dive (overlay) ======== -->
+    <style>
+    /* Launcher portal (injected into the money module) */
+    .mdx-launch{display:flex;align-items:center;justify-content:space-between;gap:16px;max-width:760px;margin:18px auto 0;padding:18px 22px;background:linear-gradient(135deg,rgba(255,215,0,.10),rgba(0,206,209,.05));border:1px solid rgba(255,215,0,.3);border-radius:16px;cursor:pointer;font-family:inherit;text-align:left;position:relative;overflow:hidden;isolation:isolate;transition:transform .3s cubic-bezier(.16,1,.3,1),box-shadow .3s}
+    .mdx-launch:hover{transform:translateY(-2px);box-shadow:0 16px 44px rgba(255,215,0,.18)}
+    .mdx-launch::after{content:'';position:absolute;inset:0;z-index:1;background:linear-gradient(105deg,transparent 38%,rgba(255,255,255,.16) 50%,transparent 62%);transform:translateX(-140%) skewX(-18deg);animation:mdxSheen 6.5s ease-in-out infinite;pointer-events:none}
+    @keyframes mdxSheen{0%,70%{transform:translateX(-140%) skewX(-18deg)}90%,100%{transform:translateX(140%) skewX(-18deg)}}
+    .mdx-launch-t{font-size:15px;color:#fff;font-weight:500}
+    .mdx-launch-t small{display:block;font-size:11.5px;color:#999;font-weight:400;margin-top:3px;letter-spacing:.2px}
+    .mdx-launch-go{flex:0 0 auto;width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#FFD700,#FFA500);color:#000;font-size:17px;font-weight:700}
+    /* Overlay shell */
+    #mdx{position:fixed;inset:0;z-index:210;background:#050507;display:none;opacity:0;transition:opacity .45s cubic-bezier(.16,1,.3,1)}
+    #mdx.open{display:block}
+    #mdx.in{opacity:1}
+    .mdx-bg{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+    .mdx-bg i{position:absolute;border-radius:50%;filter:blur(90px);opacity:.55;will-change:transform}
+    .mdx-bg .a1{width:60vmax;height:60vmax;left:-18vmax;top:-24vmax;background:radial-gradient(circle,rgba(255,215,0,.16),transparent 65%);animation:mdxF1 26s ease-in-out infinite alternate}
+    .mdx-bg .a2{width:50vmax;height:50vmax;right:-16vmax;top:30vmax;background:radial-gradient(circle,rgba(0,206,209,.10),transparent 65%);animation:mdxF2 32s ease-in-out infinite alternate}
+    .mdx-bg .a3{width:44vmax;height:44vmax;left:24vmax;bottom:-20vmax;background:radial-gradient(circle,rgba(255,165,0,.10),transparent 65%);animation:mdxF1 38s ease-in-out infinite alternate-reverse}
+    @keyframes mdxF1{0%{transform:translate(0,0) scale(1)}100%{transform:translate(7vmax,5vmax) scale(1.18)}}
+    @keyframes mdxF2{0%{transform:translate(0,0) scale(1)}100%{transform:translate(-6vmax,-4vmax) scale(1.12)}}
+    .mdx-gridbg{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);background-size:64px 64px;-webkit-mask-image:radial-gradient(ellipse at 50% 40%,#000 30%,transparent 78%);mask-image:radial-gradient(ellipse at 50% 40%,#000 30%,transparent 78%)}
+    .mdx-prog{position:absolute;top:0;left:0;height:2px;width:0;z-index:7;background:linear-gradient(90deg,#FFD54F,#FFD700,#FFA500);box-shadow:0 0 14px rgba(255,215,0,.6)}
+    .mdx-brand{position:absolute;top:24px;left:24px;z-index:7;font-size:10px;letter-spacing:3px;text-transform:uppercase;color:rgba(255,215,0,.85)}
+    .mdx-x{position:absolute;top:16px;right:18px;z-index:7;width:42px;height:42px;border-radius:50%;border:1px solid rgba(255,255,255,.16);background:rgba(0,0,0,.5);backdrop-filter:blur(8px);color:#fff;font-size:19px;cursor:pointer;transition:all .25s;font-family:inherit}
+    .mdx-x:hover{border-color:#FFD700;color:#FFD700;transform:rotate(90deg)}
+    .mdx-rail{position:absolute;right:16px;top:50%;transform:translateY(-50%);z-index:7;display:flex;flex-direction:column;gap:12px}
+    .mdx-rail button{position:relative;width:10px;height:10px;border-radius:50%;border:1.5px solid rgba(255,255,255,.25);background:transparent;cursor:pointer;padding:0;transition:all .3s}
+    .mdx-rail button.on{background:#FFD700;border-color:#FFD700;box-shadow:0 0 0 4px rgba(255,215,0,.15)}
+    .mdx-rail button span{position:absolute;right:20px;top:50%;transform:translateY(-50%);white-space:nowrap;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#999;background:rgba(0,0,0,.7);padding:3px 9px;border-radius:6px;opacity:0;pointer-events:none;transition:opacity .25s}
+    .mdx-rail button:hover span,.mdx-rail button.on span{opacity:1}
+    .mdx-rail button.on span{color:#FFD700}
+    @media(max-width:760px){.mdx-rail{right:8px}.mdx-rail button span{display:none}}
+    .mdx-scroll{position:absolute;inset:0;overflow-y:auto;scroll-snap-type:y proximity;scroll-behavior:smooth;scrollbar-width:none}
+    .mdx-scroll::-webkit-scrollbar{display:none}
+    .mdx-ch{min-height:100%;scroll-snap-align:start;display:flex;align-items:center;justify-content:center;padding:72px 18px}
+    .mdx-card{width:min(720px,94vw);background:rgba(14,14,16,.55);border:1px solid rgba(255,215,0,.14);border-radius:24px;padding:clamp(24px,4vw,40px);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);box-shadow:0 40px 100px -40px rgba(0,0,0,.9);opacity:0;transform:translateY(34px);transition:opacity .8s cubic-bezier(.16,1,.3,1),transform .8s cubic-bezier(.16,1,.3,1)}
+    .mdx-ch.lit .mdx-card{opacity:1;transform:none}
+    .mdx-ey{font-size:10.5px;letter-spacing:3px;text-transform:uppercase;color:#FFD700;margin-bottom:14px;display:flex;align-items:center;gap:10px}
+    .mdx-ey::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,rgba(255,215,0,.4),transparent)}
+    .mdx-h{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-weight:200;font-size:clamp(26px,4.6vw,44px);color:#fff;letter-spacing:-.01em;line-height:1.1;margin:0 0 14px}
+    .mdx-h .g{color:#FFD700}
+    .mdx-p{font-size:14.5px;color:#aaa;line-height:1.7;margin:0 0 18px}
+    .mdx-big{font-weight:100;font-size:clamp(46px,9vw,86px);color:#FFD700;line-height:1;letter-spacing:-.02em;margin:6px 0 4px;text-shadow:0 0 60px rgba(255,215,0,.25)}
+    .mdx-big small{font-size:clamp(15px,2.4vw,20px);color:#888;font-weight:300;letter-spacing:0;margin-left:8px}
+    .mdx-cap{font-size:12px;color:#777;margin-bottom:18px}
+    .mdx-rows{margin:14px 0;border-top:1px solid rgba(255,255,255,.07)}
+    .mdx-row{display:flex;align-items:baseline;justify-content:space-between;gap:14px;padding:12px 2px;border-bottom:1px solid rgba(255,255,255,.07);font-size:14px;color:#ddd}
+    .mdx-row b{font-weight:300;font-size:16px;color:#fff;white-space:nowrap}
+    .mdx-row .ok{color:#00FF88}
+    .mdx-terms{display:flex;flex-direction:column;gap:10px;margin:16px 0 4px}
+    .mdx-term{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.09);border-radius:14px;overflow:hidden}
+    .mdx-term-b{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;padding:14px 16px;background:transparent;border:none;cursor:pointer;font-family:inherit;text-align:left}
+    .mdx-term-b:hover .mdx-term-w{color:#FFD700}
+    .mdx-term-w{font-size:14.5px;color:#fff;font-style:italic;letter-spacing:.3px;transition:color .2s}
+    .mdx-term-w small{font-style:normal;color:#777;font-size:11.5px;margin-left:8px;letter-spacing:.2px}
+    .mdx-term-i{flex:0 0 auto;color:#FFD700;font-size:15px;transition:transform .3s}
+    .mdx-term.open .mdx-term-i{transform:rotate(45deg)}
+    .mdx-def{max-height:0;overflow:hidden;transition:max-height .45s cubic-bezier(.16,1,.3,1)}
+    .mdx-def-in{padding:0 16px 15px;font-size:13px;color:#9a9a9a;line-height:1.65}
+    .mdx-def-in b{color:#00FF88;font-weight:500}
+    .mdx-chips{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 4px}
+    .mdx-chip{font-size:11.5px;color:#bbb;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:100px;padding:6px 13px}
+    .mdx-chip.gold{color:#FFD700;border-color:rgba(255,215,0,.3);background:rgba(255,215,0,.06)}
+    .mdx-note{margin-top:14px;font-size:11px;color:#666;line-height:1.5}
+    .mdx-hint{position:absolute;bottom:22px;left:50%;transform:translateX(-50%);z-index:7;font-size:10px;letter-spacing:2.5px;text-transform:uppercase;color:#777;display:flex;flex-direction:column;align-items:center;gap:7px;pointer-events:none;transition:opacity .4s}
+    .mdx-hint.off{opacity:0}
+    .mdx-hint i{width:1px;height:26px;background:linear-gradient(180deg,#FFD700,transparent);animation:mdxDrop 1.8s ease-in-out infinite}
+    @keyframes mdxDrop{0%{transform:scaleY(0);transform-origin:top}45%{transform:scaleY(1);transform-origin:top}55%{transform:scaleY(1);transform-origin:bottom}100%{transform:scaleY(0);transform-origin:bottom}}
+    .mdx-cta{display:inline-flex;align-items:center;gap:9px;margin-top:18px;padding:15px 30px;border-radius:13px;background:linear-gradient(135deg,#FFD700,#FFA500);color:#000;font-size:15px;font-weight:600;text-decoration:none;border:none;cursor:pointer;font-family:inherit;transition:transform .25s,box-shadow .25s}
+    .mdx-cta:hover{transform:translateY(-2px);box-shadow:0 12px 36px rgba(255,215,0,.35)}
+    .mdx-cta2{display:inline-flex;margin:18px 0 0 16px;font-size:13px;color:#999;background:none;border:none;border-bottom:1px solid rgba(255,255,255,.2);padding:0 0 2px;cursor:pointer;font-family:inherit;transition:all .2s}
+    .mdx-cta2:hover{color:#FFD700;border-color:#FFD700}
+    @media(prefers-reduced-motion:reduce){
+      .mdx-bg i{animation:none!important}
+      .mdx-launch::after,.mdx-hint i{animation:none!important}
+      .mdx-card{opacity:1!important;transform:none!important;transition:none}
+      .mdx-scroll{scroll-behavior:auto}
+      #mdx{transition:none}
+    }
+    </style>
+    <div id="mdx" role="dialog" aria-modal="true" aria-label="Money, Decoded — the full financial picture" hidden>
+      <div class="mdx-bg"><i class="a1"></i><i class="a2"></i><i class="a3"></i></div>
+      <div class="mdx-gridbg"></div>
+      <div class="mdx-prog" id="mdxProg"></div>
+      <div class="mdx-brand">BOOM · Money, Decoded</div>
+      <button class="mdx-x" id="mdxX" type="button" aria-label="Close">✕</button>
+      <div class="mdx-rail" id="mdxRail" aria-label="Chapters"></div>
+      <div class="mdx-scroll" id="mdxScroll"></div>
+      <div class="mdx-hint" id="mdxHint"><span>Scroll</span><i></i></div>
+    </div>
+    <script>
+    (function(){
+      var mdx=document.getElementById('mdx'),scroll=document.getElementById('mdxScroll'),rail=document.getElementById('mdxRail'),prog=document.getElementById('mdxProg'),hint=document.getElementById('mdxHint'),xBtn=document.getElementById('mdxX');
+      if(!mdx||!scroll)return;
+      var reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+      var built=false,isOpen=false,io=null;
+      function fmt(n){return '€'+Math.round(n).toLocaleString('en-US');}
+      function term(w,tag,def){return '<div class="mdx-term"><button class="mdx-term-b" type="button" aria-expanded="false"><span class="mdx-term-w">'+w+'<small>'+tag+'</small></span><span class="mdx-term-i">+</span></button><div class="mdx-def"><div class="mdx-def-in">'+def+'</div></div></div>';}
+      function build(){
+        if(built)return; built=true;
+        var L=window.__boomListing||{};
+        var rent=Number(L.rent)||0, has=rent>0;
+        var dep=rent, feeF=rent, feeP=Math.round(rent*12*.10);
+        var due=rent+dep+feeF, reg=Math.round(rent*12*.02/2), half=rent/2;
+        var name=L.name||'this apartment';
+        var V=function(n){return has?fmt(n):'—';};
+        var CH=[
+          {label:'Intro',html:
+            '<div class="mdx-ey">'+name+' · the full financial picture</div>'+
+            '<h2 class="mdx-h">Every euro.<br>Every term. <span class="g">Decoded.</span></h2>'+
+            '<p class="mdx-p">Renting in Italy comes with words nobody translates and numbers nobody shows until it’s too late. In the next two minutes you’ll understand all of it — the law, the math, and exactly what it means for you. No fine print. Scroll.</p>'+
+            '<div class="mdx-chips"><span class="mdx-chip gold">7 chapters</span><span class="mdx-chip">~2 minutes</span><span class="mdx-chip">Real numbers for this home</span></div>'},
+          {label:'The cost',html:
+            '<div class="mdx-ey">Chapter 01 · what you’d actually pay</div>'+
+            '<h2 class="mdx-h">One number. <span class="g">Nothing after it.</span></h2>'+
+            '<div class="mdx-big"><span data-count="'+due+'">'+(has?'€0':'—')+'</span><small>due at signing, from</small></div>'+
+            '<div class="mdx-rows">'+
+              '<div class="mdx-row"><span>First month’s rent</span><b>'+V(rent)+'</b></div>'+
+              '<div class="mdx-row"><span>Security deposit — <span class="ok">returns to you ↩</span></span><b>'+V(dep)+'</b></div>'+
+              '<div class="mdx-row"><span>Agency fee — one month <em style="color:#777;font-style:normal">or</em> 10%/year, varies per home</span><b>'+(has?fmt(feeF)+' / '+fmt(feeP):'—')+'</b></div>'+
+            '</div>'+
+            '<p class="mdx-p">That is the entire universe of what moving in can cost. No “admin fees”, no “check-in fees”, no surprises invented at the table — if it’s not above, it doesn’t exist.</p>'},
+          {label:'Deposit',html:
+            '<div class="mdx-ey">Chapter 02 · your money, parked — not spent</div>'+
+            '<h2 class="mdx-h">Il deposito <span class="g">cauzionale</span></h2>'+
+            '<div class="mdx-big"><span data-count="'+dep+'">'+(has?'€0':'—')+'</span><small>one month — and it comes back</small></div>'+
+            '<div class="mdx-terms">'+
+              term('deposito cauzionale','the security deposit','Italian law — <b>Art. 11, Legge 392/1978</b> — caps deposits at three months’ rent. BOOM asks for <b>one</b>. It is collateral held with guarantees, not the landlord’s income: legally it never stops being your money.')+
+              term('interessi legali','interest on your deposit','Under the same law, a held deposit must earn <b>legal interest in your favour</b>. Most renters are never told this. Now you have been.')+
+              term('usura normale','normal wear & tear','Living somewhere leaves traces — faded paint, small scuffs. By law that is <b>never deductible</b> from your deposit. Only real, documented damage is, and we walk the apartment with you at move-out so there are no inventions.')+
+            '</div>'},
+          {label:'The fee',html:
+            '<div class="mdx-ey">Chapter 03 · the only thing BOOM earns</div>'+
+            '<h2 class="mdx-h">La <span class="g">provvigione</span></h2>'+
+            '<div class="mdx-rows">'+
+              '<div class="mdx-row"><span>Scenario A — flat</span><b>'+V(feeF)+' · one month</b></div>'+
+              '<div class="mdx-row"><span>Scenario B — percentage</span><b>'+V(feeP)+' · 10% of the year</b></div>'+
+            '</div>'+
+            '<p class="mdx-p">Which one applies varies home by home — and you’ll know yours <b style="color:#fff;font-weight:500">before</b> you sign, in writing. It’s charged <b style="color:#fff;font-weight:500">once</b>, only when you actually sign. Never monthly, never renewed, never hidden in the rent.</p>'+
+            '<p class="mdx-p" style="margin-bottom:0">What it pays for: the in-person video verification, the ID-checked owner, the registered bilingual contract, the 48-hour move-in logistics, and a team on WhatsApp for your entire stay — including getting your deposit back.</p>'},
+          {label:'Contract',html:
+            '<div class="mdx-ey">Chapter 04 · the paper that protects you</div>'+
+            '<h2 class="mdx-h">Il <span class="g">contratto</span></h2>'+
+            '<p class="mdx-p">In Italy, an unregistered lease means you legally barely exist in the home. Registration is everything — it’s what makes residency, deposit rights and rent receipts real.</p>'+
+            '<div class="mdx-terms">'+
+              term('contratto registrato','registered lease','Your lease is registered with the <b>Agenzia delle Entrate</b> (Italy’s revenue agency). That registration is your legal armour: proof of residence for permits and visas, enforceable deposit rights, official rent receipts.')+
+              term('imposta di registro','registration tax','Normally about <b>2% of the annual rent</b>, typically split with the landlord — for this home roughly <b>'+(has?fmt(reg):'—')+'</b> for your half, per year. But often it’s <b>€0</b> — see the next term.')+
+              term('cedolare secca','the landlord’s flat tax','A flat-tax regime many landlords opt into. If yours does, <b>registration tax and stamp duty vanish for you entirely</b> — and the rent can’t be raised by ISTAT inflation updates during the term.')+
+              term('contratto transitorio','temporary contract','A fully legal lease format for <b>1–18 months</b>, built for study, work or relocation periods — the most common choice for internationals. Same registration, same protections.')+
+            '</div>'+
+            '<div class="mdx-note">Always bilingual — you sign in English next to the Italian, understanding every line. General guidance, not tax advice: your contract states the exact figures.</div>'},
+          {label:'Monthly',html:
+            '<div class="mdx-ey">Chapter 05 · life, per month</div>'+
+            '<h2 class="mdx-h">Le <span class="g">spese</span> — the monthly reality</h2>'+
+            '<div class="mdx-big"><span data-count="'+rent+'">'+(has?'€0':'—')+'</span><small>/month rent'+(has?' · ≈ '+fmt(half)+' each with a flatmate':'')+'</small></div>'+
+            '<div class="mdx-terms">'+
+              term('utenze','utilities','Electricity, gas and water — billed on <b>your actual usage</b>, in your name. Plan roughly <b>€100–180 per person</b> monthly in a typical Rome flat; we help you activate every account.')+
+              term('TARI','waste tax','Rome’s rubbish-collection tax, owed by whoever occupies the home. Usually a few hundred euros <b>per year</b>, size-dependent. We tell you the figure for this home before you sign.')+
+              term('spese condominiali','building fees','Stairs, lift, lighting, the portiere. Whether they’re inside your rent or billed separately is stated <b>in the contract, in writing</b> — never discovered later.')+
+            '</div>'},
+          {label:'Protection',html:
+            '<div class="mdx-ey">Chapter 06 · how the money physically moves</div>'+
+            '<h2 class="mdx-h">No envelopes. <span class="g">Ever.</span></h2>'+
+            '<div class="mdx-rows">'+
+              '<div class="mdx-row"><span>Every payment</span><b>Stripe · card · receipt</b></div>'+
+              '<div class="mdx-row"><span>Reserve &amp; hold</span><b>€300 · <span class="ok">100% refundable</span></b></div>'+
+              '<div class="mdx-row"><span>Your deposit</span><b>held under the registered contract</b></div>'+
+            '</div>'+
+            '<p class="mdx-p">Everything goes through secure Stripe checkout, in English, with a receipt for every euro. The €300 reserve takes the home off-market while we process you — refunded if you’re not approved, deducted from your first month if you are. Cash in envelopes is how Rome’s rental horror stories start; it is not how BOOM works.</p>'},
+          {label:'Ready',html:
+            '<div class="mdx-ey">Chapter 07 · the whole point</div>'+
+            '<h2 class="mdx-h">Zero <span class="g">surprises.</span></h2>'+
+            '<p class="mdx-p">You now know more about Italian rental money than most people who’ve rented here for years: a one-month deposit that legally stays yours, a fee declared before you sign, a registered contract that armours you, and every payment receipted.</p>'+
+            '<div class="mdx-chips"><span class="mdx-chip gold">1-month deposit ↩</span><span class="mdx-chip gold">Fee told upfront</span><span class="mdx-chip gold">Registered contract</span><span class="mdx-chip gold">Stripe receipts</span></div>'+
+            '<button class="mdx-cta" type="button" data-act="apply">Apply in 2 minutes →</button>'+
+            '<button class="mdx-cta2" type="button" data-act="ask">or ask the AI anything</button>'}
+        ];
+        scroll.innerHTML=CH.map(function(c){return '<section class="mdx-ch"><div class="mdx-card">'+c.html+'</div></section>';}).join('');
+        rail.innerHTML=CH.map(function(c,i){return '<button type="button" data-i="'+i+'" aria-label="'+c.label+'"><span>'+c.label+'</span></button>';}).join('');
+        var chs=[].slice.call(scroll.querySelectorAll('.mdx-ch')),dots=[].slice.call(rail.querySelectorAll('button'));
+        rail.addEventListener('click',function(e){var b=e.target.closest('button[data-i]');if(b)chs[Number(b.getAttribute('data-i'))].scrollIntoView({behavior:reduce?'auto':'smooth'});});
+        scroll.addEventListener('click',function(e){
+          var tb=e.target.closest('.mdx-term-b');
+          if(tb){var t=tb.parentNode,d=t.querySelector('.mdx-def'),open=!t.classList.contains('open');t.classList.toggle('open',open);tb.setAttribute('aria-expanded',open?'true':'false');d.style.maxHeight=open?d.scrollHeight+'px':'0';return;}
+          var act=e.target.closest('[data-act]');
+          if(act){var a=act.getAttribute('data-act');close();
+            if(a==='apply'){var f=document.getElementById('inquiryCard');if(f){f.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(function(){var n=document.getElementById('iqName');if(n)n.focus();},500);}}
+            if(a==='ask'){setTimeout(function(){var l=document.querySelector('.bask-launch');if(l)l.click();},350);}
+          }
+        });
+        function countUp(el){var to=Number(el.getAttribute('data-count'))||0;if(el.__done)return;el.__done=true;if(reduce||to<=0){el.textContent=to>0?fmt(to):el.textContent;return;}var t0=performance.now(),dur=1200;(function tick(now){var k=Math.min(1,(now-t0)/dur),e2=1-Math.pow(1-k,3);el.textContent=fmt(to*e2);if(k<1)requestAnimationFrame(tick);})(t0);}
+        io=new IntersectionObserver(function(es){es.forEach(function(en){var i=chs.indexOf(en.target);if(en.isIntersecting){en.target.classList.add('lit');dots.forEach(function(d,j){d.classList.toggle('on',j===i);});[].forEach.call(en.target.querySelectorAll('[data-count]'),countUp);if(i>0)hint.classList.add('off');}});},{root:scroll,threshold:.4});
+        chs.forEach(function(c){io.observe(c);});
+        scroll.addEventListener('scroll',function(){var m=scroll.scrollHeight-scroll.clientHeight;prog.style.width=(m>0?(scroll.scrollTop/m)*100:0)+'%';if(scroll.scrollTop>40)hint.classList.add('off');},{passive:true});
+      }
+      function onKey(e){
+        if(e.key==='Escape'){close();return;}
+        if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();var chs=[].slice.call(scroll.querySelectorAll('.mdx-ch'));if(!chs.length)return;var cur=Math.round(scroll.scrollTop/scroll.clientHeight);var nx=Math.max(0,Math.min(chs.length-1,cur+(e.key==='ArrowDown'?1:-1)));chs[nx].scrollIntoView({behavior:reduce?'auto':'smooth'});}
+      }
+      function open(){
+        build(); if(isOpen)return; isOpen=true;
+        mdx.hidden=false; mdx.classList.add('open');
+        requestAnimationFrame(function(){requestAnimationFrame(function(){mdx.classList.add('in');});});
+        document.documentElement.style.overflow='hidden';
+        document.addEventListener('keydown',onKey);
+        if(window.gtag)try{gtag('event','money_decoded_open',{listing_id:(window.__boomListing||{}).id||''});}catch(e){}
+      }
+      function close(){
+        if(!isOpen)return; isOpen=false;
+        mdx.classList.remove('in');
+        document.documentElement.style.overflow='';
+        document.removeEventListener('keydown',onKey);
+        setTimeout(function(){mdx.classList.remove('open');mdx.hidden=true;},reduce?0:420);
+      }
+      xBtn.addEventListener('click',close);
+      window.openMoneyDecoded=open;
+      // Launcher portal inside the money module
+      try{
+        var money=document.getElementById('boomMoney'),ledger=document.getElementById('bmxLedger');
+        if(money&&ledger){
+          var b=document.createElement('button');b.type='button';b.className='mdx-launch';b.setAttribute('aria-haspopup','dialog');
+          b.innerHTML='<span class="mdx-launch-t">⚡ Money, Decoded — the immersive deep dive<small>Every Italian rental term &amp; every euro for this home, explained in 2 minutes</small></span><span class="mdx-launch-go">→</span>';
+          b.addEventListener('click',open);
+          ledger.insertAdjacentElement('afterend',b);
+        }
+      }catch(e){}
+    })();
+    </script>
 </body>
 </html>
