@@ -59,9 +59,10 @@ export default async function handler(req, res) {
   const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
   if (rateLimited(ip)) return res.status(429).json({ ok: false, error: 'rate_limited' });
 
-  // ── Channel: this endpoint serves the Canone Check (landlord) AND the
-  //    Match Quiz (tenant). Same leads pipeline, different framing. ──
-  const channel = body.channel === 'match_quiz' ? 'match_quiz' : 'canone_check';
+  // ── Channel: this endpoint serves the Canone Check (landlord), the
+  //    Match Quiz (tenant) AND BOOM Shield (tenant or landlord). Same leads
+  //    pipeline, different framing. ──
+  const channel = ['match_quiz', 'shield'].includes(body.channel) ? body.channel : 'canone_check';
   const leadType = body.leadType === 'tenant' ? 'tenant' : 'landlord';
 
   // ── Calc snapshot from the tool (all optional / sanitised) ──
@@ -78,6 +79,8 @@ export default async function handler(req, res) {
   let summary;
   if (channel === 'match_quiz') {
     summary = clip(body.message, 500) || 'Lead da Match Quiz (studente/inquilino).';
+  } else if (channel === 'shield') {
+    summary = clip(body.message, 500) || `Lead da BOOM Shield (${leadType === 'tenant' ? 'inquilino · zero deposito' : 'proprietario · affitto garantito'}).`;
   } else {
     const parts = [];
     if (calc.zona) parts.push(`Zona: ${calc.zona}`);
@@ -96,7 +99,7 @@ export default async function handler(req, res) {
   const now = new Date();
   const lead = {
     source: 'web',                 // valid source read by portal + cockpit
-    service: channel === 'match_quiz' ? 'Match Quiz' : 'Canone Check',
+    service: channel === 'match_quiz' ? 'Match Quiz' : channel === 'shield' ? 'BOOM Shield' : 'Canone Check',
     leadType,
     name, email: email || null, phone: phone || null,
     message: summary,
@@ -118,7 +121,8 @@ export default async function handler(req, res) {
 
   try {
     const { id } = await fsCreate('leads', lead);
-    logActivity(channel === 'match_quiz' ? 'Lead da Match Quiz' : 'Lead da Canone Check', 'lead', { leadId: id, zona: zone, budget }, channel);
+    const svcLabel = channel === 'match_quiz' ? 'Match Quiz' : channel === 'shield' ? 'BOOM Shield' : 'Canone Check';
+    logActivity(`Lead da ${svcLabel}`, 'lead', { leadId: id, zona: zone, budget }, channel);
 
     // Fire-and-forget event for the realtime daemon on the Mac Mini.
     // If notify fails (network blip, secret missing) the lead is already
@@ -126,7 +130,7 @@ export default async function handler(req, res) {
     // fingerprint, just slower. We never block the user response on this.
     fsCreate('agentNotifications', {
       type: 'lead.new',
-      summary: `Lead da ${channel === 'match_quiz' ? 'Match Quiz' : 'Canone Check'} · ${name}${zone ? ' · ' + zone : ''}${budget ? ' · ' + budget + '€' : ''}`,
+      summary: `Lead da ${svcLabel} · ${name}${zone ? ' · ' + zone : ''}${budget ? ' · ' + budget + '€' : ''}`,
       priority: 'high',
       ref: { collection: 'leads', id },
       payload: { name, email, phone, zone, budget, channel, source: 'canone-lead' },

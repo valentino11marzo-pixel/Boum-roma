@@ -5595,6 +5595,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             <!-- SECTION 4 — SOLDI -->
             ${renderDashMoney({ thisMonthRev, revGrowth, collectionRate, paidThisMonth, expectedThisMonth, pipeline, activeClientsCount: activeClients.length, overdueTotal, overduePaymentsCount: overduePayments.length, occupancyRate, rentedProperties, availableProps, expiringContractsCount: expiringContracts.length })}
 
+            <!-- SECTION 5 — COMANDO: Shield · Zero-Vacancy · Burocrazia (the 3 engines, one glance) -->
+            ${renderDashCommand()}
+
             <!-- QUICK LINKS — share intake URLs -->
             <div style="display:flex;gap:8px;margin:24px 0 16px;flex-wrap:wrap">
                 <button onclick="navigator.clipboard.writeText('https://boomrome.com/portal.html?intake=1');this.innerHTML='✅ Copied!';setTimeout(()=>this.innerHTML='📋 Intake Lead',1500)" class="dash-pill">📋 Intake Lead</button>
@@ -6191,6 +6194,67 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         }).then(() => {
             toast('success', 'Bozza aggiornata', 'Ora puoi approvarla');
         }).catch(e => toast('error', 'Errore', e.message));
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // DASHBOARD — COMANDO strip: surfaces the 3 centralized engines (Shield /
+    // Zero-Vacancy / Burocrazia) as one glanceable, €-ordered decision row.
+    // Reads the same engines the native pages use; deep-links into them.
+    // ═══════════════════════════════════════════════════════════════════════════
+    function renderDashCommand() {
+        try {
+            const eur = n => '€' + Math.round(n || 0).toLocaleString('it-IT');
+            const cards = [];
+
+            // ── Rischio · Shield (window.BOOM_UW) ──
+            const UW = window.BOOM_UW;
+            if (UW) {
+                const today = new Date();
+                const ACTIVE = c => { const s = String(c.status || '').toLowerCase(); return s === '' || s.includes('attiv') || s.includes('active') || s.includes('firmat') || s.includes('signed'); };
+                const byContract = {}, byTenant = {};
+                (S.payments || []).forEach(p => { const c = p.contractId; if (c) (byContract[c] ||= []).push(p); const t = p.tenantId; if (t) (byTenant[t] ||= []).push(p); });
+                let elig = 0, risk = 0, premiumPool = 0, expLoss = 0;
+                (S.contracts || []).filter(ACTIVE).forEach(c => {
+                    const tid = c.tenantId || c.tenant || c.id;
+                    const rent = Number(c.rent ?? c.rentAmount ?? c.monthlyRent ?? c.canone ?? 0) || 0;
+                    const pays = (byContract[c.id] || []).concat(byTenant[tid] || []);
+                    const seen = new Set(); const uniq = pays.filter(p => !seen.has(p.id) && seen.add(p.id));
+                    const m = UW.computeTenantMetrics(uniq, rent, today);
+                    const sc = UW.scoreTenant(m); const band = UW.bandFor(sc.score); const econ = UW.tenantEconomics(band, rent);
+                    if (econ.eligible && m.overdueCount === 0) { elig++; premiumPool += econ.premium; expLoss += econ.expectedLoss; }
+                    if (band === 'C' || band === 'D' || m.overdueCount) risk++;
+                });
+                cards.push({ onclick: "goTo('underwriting')", accent: risk ? 'orange' : 'gold', icon: '🛡️', title: 'Rischio · Shield', big: elig, bigLabel: 'garantibili (A/B)', sub: `${risk} a rischio · margine ${eur(premiumPool - expLoss)}/anno` });
+            }
+
+            // ── Zero-Vacancy (window.BOOM_RELET) ──
+            const RL = window.BOOM_RELET;
+            if (RL) {
+                const scan = RL.scan(S.contracts || [], S.properties || [], S.leads || [], { today: new Date(), horizonDays: 90 });
+                cards.push({ onclick: "goTo('relet')", accent: scan.counts.urgent ? 'red' : (scan.counts.expiring ? 'gold' : 'green'), icon: '🏘️', title: 'Zero-Vacancy', big: scan.counts.expiring, bigLabel: 'in uscita ≤90gg', sub: `${scan.counts.uncovered} senza domanda · ${eur(scan.incomeAtRisk)}/mese a rischio` });
+            }
+
+            // ── Burocrazia (deadlines + registrazioni in coda) ──
+            const deadlines = (S.deadlines || []).filter(d => d.status !== 'done');
+            const overdueD = deadlines.filter(d => { const x = daysUntil(d.date); return x !== null && x < 0; }).length;
+            const soonD = deadlines.filter(d => { const x = daysUntil(d.date); return x !== null && x >= 0 && x <= 14; }).length;
+            const regPending = S.regPending || 0;
+            cards.push({ onclick: "goTo('burocrazia')", accent: overdueD ? 'red' : (soonD || regPending ? 'orange' : 'green'), icon: '📝', title: 'Burocrazia', big: overdueD + soonD, bigLabel: 'scadenze ≤14gg', sub: `${overdueD} scadute · ${regPending} registrazioni in coda` });
+
+            if (!cards.length) return '';
+            return `<section class="dash-section">
+                <div class="dash-section-head"><h2 class="dash-section-title">Comando · Patrimonio &amp; Rischio</h2></div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px">
+                    ${cards.map(c => `
+                        <div class="card clickable" onclick="${c.onclick}" style="cursor:pointer;border-left:3px solid var(--${c.accent});padding:14px 16px">
+                            <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-secondary);letter-spacing:1px;text-transform:uppercase">${c.icon} ${c.title}</div>
+                            <div style="font-size:26px;font-weight:700;color:var(--${c.accent});margin:6px 0 2px">${c.big}</div>
+                            <div style="font-size:11px;color:var(--text-muted)">${c.bigLabel}</div>
+                            <div style="font-size:12px;color:var(--text-secondary);margin-top:8px">${c.sub}</div>
+                        </div>`).join('')}
+                </div>
+            </section>`;
+        } catch (e) { console.error('Command strip error:', e); return ''; }
     }
 
     // ═══════════════════════════════════════════════════════════════════════════

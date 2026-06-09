@@ -86,6 +86,8 @@
     { "source": "/blog-tenant-rights", "destination": "/blog-tenant-rights.html" },
     { "source": "/blog-visa-residency", "destination": "/blog-visa-residency.html" },
     { "source": "/canone", "destination": "/canone.html" },
+    { "source": "/boom-shield", "destination": "/boom-shield.html" },
+    { "source": "/shield", "destination": "/boom-shield.html" },
     { "source": "/match", "destination": "/match.html" },
     { "source": "/pass-studio", "destination": "/pass-studio.html" },
     { "source": "/pass-demo", "destination": "/pass-demo.html" },
