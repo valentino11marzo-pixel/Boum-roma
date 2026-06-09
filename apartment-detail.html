@@ -562,6 +562,8 @@
 }
   </script>
     <link rel="stylesheet" href="/css/boom-cinema.css">
+<script>document.documentElement.classList.add('boom-js')</script>
+<style>.boom-js #boomAsk,.boom-js #boomTour{display:none}</style>
 </head>
 <body>
 
@@ -1531,6 +1533,10 @@
     .getit-sec{color:#999;font-size:13px;text-decoration:none;border-bottom:1px solid rgba(255,255,255,.18);padding-bottom:2px;transition:all .2s}
     .getit-sec:hover{color:#FFD700;border-color:#FFD700}
     .btour--sec .btour-lbl{opacity:.85}
+    .upsell-more{display:block;text-align:center;margin-top:18px;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold);text-decoration:none;border:none}
+    .upsell-more:hover{text-decoration:underline}
+    .sidebar-secondary--quiet{border:none;background:transparent;font-size:12px;color:#777;padding:8px}
+    .sidebar-secondary--quiet:hover{border:none;color:var(--gold)}
     </style>
     <script>
     (function(){
@@ -1583,6 +1589,33 @@
           if(tour){ tour.classList.add('btour--sec'); getit.insertAdjacentElement('afterend', tour); }
         }
       }catch(e){}
+      // 5) FOUC guard reveal — tour was moved above; boomAsk only survives if the float failed
+      try{
+        var t2=document.getElementById('boomTour'); if(t2) t2.style.display='block';
+        var a2=document.getElementById('boomAsk'); if(a2) a2.style.display='block';
+      }catch(e){}
+      // 6) One service, not three — keep the featured card, link to the rest
+      try{
+        var us=document.querySelector('.upsell-section');
+        if(us){
+          var cards=[].slice.call(us.querySelectorAll('.upsell-card'));
+          var kept=us.querySelector('.upsell-card.featured')||cards[0];
+          if(kept&&cards.length>1){
+            cards.forEach(function(c){ if(c!==kept) c.style.display='none'; });
+            var pop=kept.querySelector('.upsell-card-popular'); if(pop) pop.style.display='none';
+            var top=kept.querySelector('.upsell-card-top'); if(top) top.style.paddingTop='32px';
+            var grid=kept.closest('.upsell-grid')||kept.parentNode;
+            if(grid){ grid.style.gridTemplateColumns='minmax(0,560px)'; grid.style.justifyContent='center'; }
+            if(grid&&!us.querySelector('.upsell-more')){
+              var more=document.createElement('a'); more.className='upsell-more'; more.href='/how-it-works';
+              more.textContent='Explore all BOOM services →';
+              grid.insertAdjacentElement('afterend', more);
+            }
+          }
+        }
+      }catch(e){}
+      // 7) Sidebar: one voice — quiet the exit link under the form
+      try{ var ex=document.querySelector('.sidebar-secondary'); if(ex) ex.classList.add('sidebar-secondary--quiet'); }catch(e){}
     })();
     </script>
 
@@ -2135,6 +2168,8 @@
     .mdx-gridbg{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);background-size:64px 64px;-webkit-mask-image:radial-gradient(ellipse at 50% 40%,#000 30%,transparent 78%);mask-image:radial-gradient(ellipse at 50% 40%,#000 30%,transparent 78%)}
     .mdx-prog{position:absolute;top:0;left:0;height:2px;width:0;z-index:7;background:linear-gradient(90deg,#FFD54F,#FFD700,#FFA500);box-shadow:0 0 14px rgba(255,215,0,.6)}
     .mdx-brand{position:absolute;top:24px;left:24px;z-index:7;font-size:10px;letter-spacing:3px;text-transform:uppercase;color:rgba(255,215,0,.85)}
+    .mdx-count{position:absolute;top:24px;left:50%;transform:translateX(-50%);z-index:7;font-size:10px;letter-spacing:2.5px;color:#777;font-variant-numeric:tabular-nums}
+    @media(max-width:560px){.mdx-count{display:none}}
     .mdx-x{position:absolute;top:16px;right:18px;z-index:7;width:42px;height:42px;border-radius:50%;border:1px solid rgba(255,255,255,.16);background:rgba(0,0,0,.5);backdrop-filter:blur(8px);color:#fff;font-size:19px;cursor:pointer;transition:all .25s;font-family:inherit}
     .mdx-x:hover{border-color:#FFD700;color:#FFD700;transform:rotate(90deg)}
     .mdx-rail{position:absolute;right:16px;top:50%;transform:translateY(-50%);z-index:7;display:flex;flex-direction:column;gap:12px}
@@ -2197,6 +2232,7 @@
       <div class="mdx-gridbg"></div>
       <div class="mdx-prog" id="mdxProg"></div>
       <div class="mdx-brand">BOOM · Money, Decoded</div>
+      <div class="mdx-count" id="mdxCount"></div>
       <button class="mdx-x" id="mdxX" type="button" aria-label="Close">✕</button>
       <div class="mdx-rail" id="mdxRail" aria-label="Chapters"></div>
       <div class="mdx-scroll" id="mdxScroll"></div>
@@ -2303,7 +2339,8 @@
           }
         });
         function countUp(el){var to=Number(el.getAttribute('data-count'))||0;if(el.__done)return;el.__done=true;if(reduce||to<=0){el.textContent=to>0?fmt(to):el.textContent;return;}var t0=performance.now(),dur=1200;(function tick(now){var k=Math.min(1,(now-t0)/dur),e2=1-Math.pow(1-k,3);el.textContent=fmt(to*e2);if(k<1)requestAnimationFrame(tick);})(t0);}
-        io=new IntersectionObserver(function(es){es.forEach(function(en){var i=chs.indexOf(en.target);if(en.isIntersecting){en.target.classList.add('lit');dots.forEach(function(d,j){d.classList.toggle('on',j===i);});[].forEach.call(en.target.querySelectorAll('[data-count]'),countUp);if(i>0)hint.classList.add('off');}});},{root:scroll,threshold:.4});
+        var cnt=document.getElementById('mdxCount');
+        io=new IntersectionObserver(function(es){es.forEach(function(en){var i=chs.indexOf(en.target);if(en.isIntersecting){en.target.classList.add('lit');dots.forEach(function(d,j){d.classList.toggle('on',j===i);});if(cnt)cnt.textContent=('0'+(i+1)).slice(-2)+' / '+('0'+chs.length).slice(-2);[].forEach.call(en.target.querySelectorAll('[data-count]'),countUp);if(i>0)hint.classList.add('off');}});},{root:scroll,threshold:.4});
         chs.forEach(function(c){io.observe(c);});
         scroll.addEventListener('scroll',function(){var m=scroll.scrollHeight-scroll.clientHeight;prog.style.width=(m>0?(scroll.scrollTop/m)*100:0)+'%';if(scroll.scrollTop>40)hint.classList.add('off');},{passive:true});
       }
@@ -2328,6 +2365,17 @@
       }
       xBtn.addEventListener('click',close);
       window.openMoneyDecoded=open;
+      // Cross-link: a chip inside the AI concierge opens the deep dive
+      try{
+        var chips=document.getElementById('baskChips');
+        if(chips){
+          var ch=document.createElement('button'); ch.type='button'; ch.className='bask-chip'; ch.textContent='⚡ Decode the money';
+          ch.addEventListener('click',function(){ var x2=document.querySelector('.baskpanel-x'); if(x2)x2.click(); open(); });
+          chips.appendChild(ch);
+        }
+      }catch(e){}
+      // Deep link: /listing/xyz#decoded auto-opens the experience (shareable from WhatsApp/ads)
+      try{ if(/^#(decoded|money)$/.test(location.hash)) setTimeout(open,700); }catch(e){}
       // Launcher portal inside the money module
       try{
         var money=document.getElementById('boomMoney'),ledger=document.getElementById('bmxLedger');
