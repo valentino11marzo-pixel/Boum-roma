@@ -121,6 +121,14 @@
       mix-blend-mode:screen;will-change:transform;animation:spin 30s linear infinite}
     .dome .sweep2{background:conic-gradient(from 180deg at 50% 50%, transparent 0 70%, rgba(120,140,210,.07) 84%, transparent 92%);
       mix-blend-mode:screen;will-change:transform;animation:spin 44s linear infinite reverse}
+    /* dome volume + shaft of light + engraved rim */
+    .dome .shade{background:radial-gradient(circle at 50% 47%, rgba(255,243,208,.05) 0%, transparent 32%, rgba(0,0,0,.14) 76%, rgba(0,0,0,.22) 100%)}
+    .dome .beam{background:conic-gradient(from 0deg at 50% 50%, transparent 0 85%, rgba(255,242,205,.10) 90%, transparent 95%);mix-blend-mode:screen;filter:blur(6px);will-change:transform;animation:spin 70s linear infinite reverse}
+    .dome .rim{inset:10%;
+      -webkit-mask:radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+              mask:radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+      background:conic-gradient(from 200deg, transparent, rgba(233,199,102,.6), transparent 110deg, rgba(233,199,102,.3) 230deg, transparent);
+      will-change:transform;animation:spin 96s linear infinite reverse}
     /* glowing oculus */
     .dome .oculus{background:radial-gradient(circle at 50% 50%, rgba(255,244,210,.55), rgba(246,228,166,.18) 16%, rgba(233,199,102,.05) 30%, transparent 46%);
       animation:pulse 7.5s ease-in-out infinite}
@@ -275,7 +283,7 @@
       .auth{min-height:100svh;padding-top:96px}
       .auth::before{display:none}
       .dome{left:50%;top:32%;width:min(640px,92vw);height:min(640px,92vw);opacity:.62}
-      .dome .sweep,.dome .sweep2{display:none}            /* drop mix-blend layers on mobile for speed */
+      .dome .sweep,.dome .sweep2,.dome .beam,.dome .rim{display:none}   /* drop mix-blend layers on mobile for speed */
       .auth{background:#0a0a0c;backdrop-filter:none;-webkit-backdrop-filter:none}  /* solid panel = cheaper paint */
       .field input{font-size:16px}                         /* 16px prevents iOS focus-zoom */
       .tint{background:radial-gradient(70% 50% at 50% 30%, rgba(8,8,10,.45), rgba(8,8,10,.92) 75%),linear-gradient(0deg, rgba(8,8,10,.9), transparent 60%)}
@@ -309,8 +317,11 @@
     <div class="dome">
       <div class="rings"></div>
       <div class="spokes"></div>
+      <div class="shade"></div>
+      <div class="beam"></div>
       <div class="sweep"></div>
       <div class="sweep2"></div>
+      <div class="rim"></div>
       <div class="oculus"></div>
     </div>
     <span class="mote m1"></span><span class="mote m2"></span><span class="mote m3"></span><span class="mote m4"></span>
