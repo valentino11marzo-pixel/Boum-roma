@@ -9275,6 +9275,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                         <span class="badge ${statusConfig.color}">${statusConfig.text}</span>
                         ${overdueCount > 0 ? `<span class="badge red" style="font-size:9px">⚠️ ${overdueCount} pagamenti in ritardo</span>` : ''}
                         ${c.tenantPassGenerated && c.landlordPassGenerated ? `<span class="badge gold" style="font-size:9px"> Passes sent</span>` : ''}
+                        ${c.signatureStatus === 'none' ? `<span class="badge orange" style="font-size:9px">○ Da firmare</span>` : (c.signatureStatus === 'partial' ? `<span class="badge gold" style="font-size:9px">◐ Firma parziale</span>` : '')}
                     </div>
                     <div class="list-subtitle" style="margin-top:4px">
                         <span>👤 ${t?.name || 'N/A'}</span>
@@ -19995,6 +19996,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     async function sendSignatureReminder(contractId) {
         const contract = S.contracts.find(c => c.id === contractId);
         if (!contract) return;
+        // 24h cooldown — avoid spamming signers with reminders.
+        const _lr = contract.lastReminderAt ? new Date(contract.lastReminderAt.toDate ? contract.lastReminderAt.toDate() : contract.lastReminderAt).getTime() : 0;
+        if (_lr && Date.now() - _lr < 24 * 60 * 60 * 1000) {
+            const _h = Math.ceil((24 * 60 * 60 * 1000 - (Date.now() - _lr)) / 3600000);
+            toast('info', 'Promemoria già inviato', 'Riprova tra ~' + _h + 'h (anti-spam).');
+            return;
+        }
         const property = S.properties.find(p => p.id === contract.propertyId);
         let sent = 0;
         const genToken = () => crypto.randomUUID ? crypto.randomUUID() : ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c => (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16));
@@ -20010,6 +20018,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const tenant = S.users.find(u => u.id === contract.tenantId);
             if (tenant) { await sendSignatureEmail(tenant, contract, property, 'tenant'); await createNotification(tenant.id, 'contract', '✏️ Promemoria: Firma contratto', 'Il contratto per ' + (property?.name || 'immobile') + ' è in attesa della tua firma', { contractId, skipEmail: true }); sent++; }
         }
+        if (sent) { try { await db.collection('contracts').doc(contractId).update({ lastReminderAt: firebase.firestore.FieldValue.serverTimestamp() }); contract.lastReminderAt = new Date(); } catch (e) {} }
         toast('success', sent ? '📧 Promemoria inviato!' : 'Nessun promemoria da inviare');
     }
     
