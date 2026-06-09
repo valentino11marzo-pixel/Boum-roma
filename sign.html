@@ -408,18 +408,19 @@
     }
 
     function loadContract(){
-      fetch('/api/sign/get',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ token: TOKEN }) })
-        .then(function(r){ return r.json().catch(function(){return {ok:false};}); })
-        .then(function(j){
-          if(!j || !j.ok){
-            if(j && j.error==='invalid_or_used') return centered(ICON_LINK,'Link not valid','This link is invalid or has already been used.', SUPPORT);
+      fetch('/api/magic-sign/lookup',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ token: TOKEN }) })
+        .then(function(r){ return r.json().catch(function(){return {ok:false};}).then(function(j){ return { status:r.status, j:j||{} }; }); })
+        .then(function(res){
+          var j=res.j;
+          if(res.status===410 || j.error==='already_signed'){
+            var done = j.signatureStatus==='complete';
+            return centered(ICON_CHECK,'Already signed', done?'This contract is fully signed and active.':'Your signature is recorded. We’re waiting for the other party to sign.', '');
+          }
+          if(!j.ok){
+            if(j.error==='invalid_or_used' || j.error==='missing_token') return centered(ICON_LINK,'Link not valid','This link is invalid or has already been used.', SUPPORT);
             return centered(ICON_WARN,'Something went wrong','We couldn’t load this contract. Please try again in a moment.', SUPPORT);
           }
           S.data=j; S.role=j.role||'tenant';
-          if(j.alreadySigned){
-            var done = (j.contract && j.contract.signatureStatus==='complete');
-            return centered(ICON_CHECK,'Already signed', done?'This contract is fully signed and active.':'Your signature is recorded. We’re waiting for the other party to sign.', '');
-          }
           renderReview();
         })
         .catch(function(){ centered(ICON_WARN,'Connection needed','We couldn’t reach the signing service. Check your connection and refresh.', SUPPORT); });
@@ -646,21 +647,43 @@
     }
 
     // ═══════════════ SUBMIT ═══════════════
+    function sha256Hex(s){
+      try {
+        return window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(String(s))).then(function(buf){
+          return Array.prototype.map.call(new Uint8Array(buf), function(b){ return ('0'+b.toString(16)).slice(-2); }).join('');
+        }).catch(function(){ return ''; });
+      } catch(e){ return Promise.resolve(''); }
+    }
+    function fetchIP(){
+      return fetch('/api/get-ip').then(function(r){ return r.json(); }).then(function(j){ return (j&&j.ip)||''; }).catch(function(){ return ''; });
+    }
     function submit(){
       if(DEMO){ setTimeout(function(){ renderSuccess(false); }, 550); return; }
-      fetch('/api/sign/submit',{ method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ token: TOKEN, signature: S.signature, idData: Object.assign({}, S.id, { name: S.id.name || (S.data.signer&&S.data.signer.name) || '' }) }) })
-        .then(function(r){ return r.json().catch(function(){return {ok:false};}); })
-        .then(function(j){
-          if(!j||!j.ok){
-            var b=document.getElementById('s-sign'); if(b){ b.disabled=false; b.textContent='Sign contract'; }
-            return flash(j&&j.error==='rate_limited' ? 'Too many attempts — please wait a moment.' : 'We couldn’t record your signature. Please try again.');
-          }
-          // Post-signature obligations + tenant onboarding (magic link + welcome
-          // emails) are run server-side by /api/sign/submit on completion.
-          renderSuccess(!!j.complete);
-        })
-        .catch(function(){ var b=document.getElementById('s-sign'); if(b){ b.disabled=false; b.textContent='Sign contract'; } flash('Connection lost. Please try again.'); });
+      var signer = S.data.signer || {};
+      Promise.all([ sha256Hex(CONSENT), fetchIP() ]).then(function(arr){
+        var payload = {
+          token: TOKEN,
+          signature: S.signature,
+          signerIP: arr[1],
+          signerName: S.id.name || signer.name || '',
+          signerEmail: signer.email || '',
+          identity: { cf:S.id.cf||'', address:S.id.address||'', dob:S.id.dob||'', pob:S.id.pob||'', docType:S.id.docType||'', docNum:S.id.docNum||'', nationality:S.id.nationality||'' },
+          phone: { number:S.id.phone||'', verified: !!S.id.phoneVerified, verifiedAt:S.id.phoneVerifiedAt||'' },
+          consent: { text: CONSENT, hash: arr[0], at: new Date().toISOString() }
+        };
+        return fetch('/api/magic-sign/submit',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+      })
+      .then(function(r){ return r.json().catch(function(){return {ok:false};}); })
+      .then(function(j){
+        if(!j||!j.ok){
+          var b=document.getElementById('s-sign'); if(b){ b.disabled=false; b.textContent='Sign contract'; }
+          return flash(j&&j.error==='rate_limited' ? 'Too many attempts — please wait a moment.' : 'We couldn’t record your signature. Please try again.');
+        }
+        // Obligations + FES certificate + tenant magic link + welcome emails are
+        // produced server-side by /api/magic-sign/submit on full completion.
+        renderSuccess(!!j.fullySigned);
+      })
+      .catch(function(){ var b=document.getElementById('s-sign'); if(b){ b.disabled=false; b.textContent='Sign contract'; } flash('Connection lost. Please try again.'); });
     }
 
     // ═══════════════ STEP 5 — SUCCESS ═══════════════
