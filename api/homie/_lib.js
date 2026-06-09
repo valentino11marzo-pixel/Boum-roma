@@ -11,6 +11,8 @@
 //   FIREBASE_ADMIN_PASS   → password for the above user
 //   FIREBASE_PROJECT_ID   → boom-property-dashboards
 
+import crypto from 'node:crypto';
+
 const PROJECT_ID = process.env.FIREBASE_PROJECT_ID || 'boom-property-dashboards';
 const API_KEY    = process.env.FIREBASE_API_KEY;
 
@@ -119,6 +121,15 @@ export async function fsPatch(docPath, data) {
     throw new Error(`Firestore patch failed (${res.status}): ${txt}`);
   }
   return await res.json();
+}
+
+// Constant-time string comparison (avoids leaking secrets via timing).
+export function secretEqual(provided, expected) {
+  if (typeof provided !== 'string' || typeof expected !== 'string') return false;
+  const a = Buffer.from(provided, 'utf8');
+  const b = Buffer.from(expected, 'utf8');
+  if (a.length !== b.length) return false;
+  try { return crypto.timingSafeEqual(a, b); } catch { return false; }
 }
 
 // Validate the shared secret on inbound calls. Returns true if ok; on

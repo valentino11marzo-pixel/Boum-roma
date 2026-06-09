@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Sign — BOOM Rome</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon-32x32.png" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#08080A">
+  <meta name="color-scheme" content="dark">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  <!-- CSP — allows Firebase Auth (email + phone OTP) and reCAPTCHA, nothing else. -->
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    base-uri 'self';
+    object-src 'none';
+    frame-ancestors 'self';
+    form-action 'self';
+    script-src 'self' 'unsafe-inline' https://www.gstatic.com https://www.google.com https://apis.google.com https://cdnjs.cloudflare.com;
+    worker-src 'self' blob: https://cdnjs.cloudflare.com;
+    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+    font-src 'self' https://fonts.gstatic.com;
+    img-src 'self' data: blob: https:;
+    connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com https://*.googleapis.com https://boom-property-dashboards.firebaseapp.com https://firebasestorage.googleapis.com https://cdnjs.cloudflare.com;
+    frame-src https://www.google.com https://boom-property-dashboards.firebaseapp.com;
+    upgrade-insecure-requests;
+  ">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap"></noscript>
+
+  <!-- Firebase Auth — deferred (email account + phone OTP). -->
+  <script defer src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+
+  <style>
+    *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+    :root{
+      --bg:#08080A; --panel:rgba(13,13,16,.74);
+      --field:rgba(255,255,255,.045); --field-hover:rgba(255,255,255,.07); --field-focus:rgba(255,255,255,.09);
+      --text:#F1F1F3; --text-2:rgba(241,241,243,.66); --text-3:rgba(241,241,243,.42); --text-4:rgba(241,241,243,.24);
+      --line:rgba(255,255,255,.10); --line-2:rgba(255,255,255,.06);
+      --gold:#E9C766; --gold-bright:#F6E4A6; --gold-deep:#B98E2E;
+      --green:#5FD08C; --red:#F08585;
+      --display:'Helvetica Neue','Helvetica Neue LT','Arial Nova',Helvetica,Arial,'Inter',sans-serif;
+      --ui:'Inter','Helvetica Neue',Helvetica,Arial,sans-serif;
+      --ease:cubic-bezier(.22,1,.36,1);
+    }
+    html{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+    body{font-family:var(--ui);background:var(--bg);color:var(--text);font-weight:400;min-height:100svh;
+      line-height:1.5;letter-spacing:-.011em;position:relative;overflow-x:hidden;
+      display:flex;align-items:flex-start;justify-content:center;
+      padding:max(28px,env(safe-area-inset-top)) 18px max(28px,env(safe-area-inset-bottom))}
+
+    /* ── Animated Roman geometry backdrop (coherent with the login) ── */
+    .scene{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+    .bloom{position:absolute;left:50%;top:-8%;width:760px;height:760px;transform:translateX(-50%);
+      background:radial-gradient(circle, rgba(233,199,102,.13), transparent 62%);filter:blur(8px);animation:breathe 13s ease-in-out infinite}
+    @keyframes breathe{0%,100%{opacity:.7}50%{opacity:1}}
+    .dome{position:absolute;top:-24%;left:50%;width:min(820px,150vw);height:min(820px,150vw);transform:translateX(-50%);
+      -webkit-mask:radial-gradient(circle at 50% 50%, #000 4%, rgba(0,0,0,.7) 26%, transparent 58%);
+              mask:radial-gradient(circle at 50% 50%, #000 4%, rgba(0,0,0,.7) 26%, transparent 58%);opacity:.55}
+    .dome>div{position:absolute;inset:0;border-radius:50%}
+    .dome .rings{background:repeating-radial-gradient(circle at 50% 50%, transparent 0 36px, rgba(233,199,102,.15) 36px 37px);will-change:transform;animation:ringbreath 16s ease-in-out infinite}
+    @keyframes ringbreath{0%,100%{transform:scale(1)}50%{transform:scale(1.012)}}
+    .dome .spokes{background:repeating-conic-gradient(from 0deg at 50% 50%, rgba(233,199,102,.13) 0 .30deg, transparent .30deg 7.5deg);will-change:transform;animation:spin 120s linear infinite}
+    /* dome volume — brighter toward the oculus, deepening toward the rim */
+    .dome .shade{background:radial-gradient(circle at 50% 47%, rgba(255,243,208,.06) 0%, transparent 30%, rgba(0,0,0,.16) 74%, rgba(0,0,0,.26) 100%)}
+    /* a shaft of light turning through the oculus */
+    .dome .beam{background:conic-gradient(from 0deg at 50% 50%, transparent 0 84%, rgba(255,242,205,.12) 90%, transparent 96%);mix-blend-mode:screen;filter:blur(5px);will-change:transform;animation:spin 70s linear infinite reverse}
+    .dome .sweep{background:conic-gradient(from 0deg at 50% 50%, transparent 0 58%, rgba(246,228,166,.18) 76%, transparent 92%);mix-blend-mode:screen;will-change:transform;animation:spin 30s linear infinite}
+    .dome .sweep2{background:conic-gradient(from 150deg at 50% 50%, transparent 0 70%, rgba(150,160,220,.08) 84%, transparent 93%);mix-blend-mode:screen;will-change:transform;animation:spin 46s linear infinite reverse}
+    /* engraved gold rim, slowly turning */
+    .dome .rim{inset:9%;
+      -webkit-mask:radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+              mask:radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+      background:conic-gradient(from 200deg, transparent, rgba(233,199,102,.7), transparent 110deg, rgba(233,199,102,.35) 230deg, transparent);
+      will-change:transform;animation:spin 90s linear infinite reverse}
+    /* the oculus — a defined opening of light */
+    .dome .oculus{background:radial-gradient(circle at 50% 50%, rgba(255,250,232,.75) 0%, rgba(246,228,166,.34) 8%, rgba(233,199,102,.10) 18%, transparent 34%);animation:pulse 7.5s ease-in-out infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    @keyframes pulse{0%,100%{opacity:.62;transform:scale(.99)}50%{opacity:1;transform:scale(1.04)}}
+    .mote{position:absolute;border-radius:50%;background:radial-gradient(circle,rgba(246,228,166,.5),transparent 70%)}
+    .m1{width:4px;height:4px;left:24%;top:16%;animation:mv 18s ease-in-out infinite}
+    .m2{width:3px;height:3px;left:72%;top:22%;animation:mv 24s ease-in-out infinite 2s}
+    .m3{width:3px;height:3px;left:60%;top:11%;animation:mv 20s ease-in-out infinite 1s}
+    @keyframes mv{0%,100%{transform:translate(0,0);opacity:.22}50%{transform:translate(10px,-16px);opacity:.7}}
+    .vignette{position:fixed;inset:0;z-index:0;pointer-events:none;
+      background:radial-gradient(ellipse 92% 72% at 50% 24%, transparent 42%, rgba(0,0,0,.74) 100%)}
+    .grain{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.02;
+      background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+    .shell{position:relative;z-index:2;width:100%;max-width:440px;margin-top:8px}
+
+    /* header */
+    .head{display:flex;flex-direction:column;align-items:center;text-align:center;margin-bottom:18px}
+    .logo{width:42px;height:42px;filter:drop-shadow(0 0 14px rgba(233,199,102,.5));margin-bottom:14px}
+    .wordmark{font-family:var(--display);font-weight:300;font-size:17px;letter-spacing:9px;text-transform:uppercase;
+      background:linear-gradient(180deg,#fff,#E7DFCB 55%,#C9AE6C);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;padding-left:9px}
+    .kicker{margin-top:7px;font-size:10px;font-weight:600;letter-spacing:3px;text-transform:uppercase;color:var(--text-4)}
+
+    /* progress */
+    .progress{display:flex;gap:6px;justify-content:center;margin:16px 0 22px}
+    .progress i{height:3px;width:26px;border-radius:3px;background:rgba(255,255,255,.10);transition:background .4s var(--ease),width .4s var(--ease)}
+    .progress i.on{background:var(--gold);width:34px}
+    .progress i.done{background:rgba(233,199,102,.45)}
+
+    /* card */
+    .card{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:22px;
+      padding:26px 24px;backdrop-filter:blur(22px) saturate(1.2);-webkit-backdrop-filter:blur(22px) saturate(1.2);
+      box-shadow:0 1px 0 rgba(255,255,255,.05) inset, 0 26px 60px -24px rgba(0,0,0,.85)}
+    .card::before{content:'';position:absolute;top:-1px;left:22px;right:22px;height:1px;
+      background:linear-gradient(90deg,transparent,rgba(246,228,166,.5),transparent)}
+
+    .step{animation:fade .45s var(--ease)}
+    @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+    h1.t{font-family:var(--display);font-weight:300;font-size:23px;letter-spacing:-.01em;margin-bottom:6px}
+    p.sub{font-size:13px;color:var(--text-3);margin-bottom:20px;line-height:1.55}
+
+    /* summary card (review) */
+    .summary{border:1px solid var(--line);border-radius:16px;padding:18px;background:rgba(255,255,255,.02);margin-bottom:18px}
+    .summary .prop{padding-left:13px;border-left:2px solid var(--gold);margin-bottom:16px}
+    .summary .prop .lbl{font-size:9px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:rgba(233,199,102,.7);margin-bottom:5px}
+    .summary .prop .name{font-family:var(--display);font-weight:300;font-size:18px}
+    .summary .prop .addr{font-size:12px;color:var(--text-3);margin-top:2px}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .cell .k{font-size:9.5px;font-weight:600;letter-spacing:1.4px;text-transform:uppercase;color:var(--text-4);margin-bottom:3px}
+    .cell .v{font-size:14px;font-weight:500}
+    .cell .v.gold{color:var(--gold)}
+    .pdflink{display:inline-flex;align-items:center;gap:7px;margin-top:16px;font-size:12px;font-weight:500;color:var(--text-2);text-decoration:none}
+    .pdflink:hover{color:var(--gold)}
+
+    /* fields */
+    .field{margin-bottom:13px}
+    .field label{display:block;font-size:11.5px;font-weight:500;color:var(--text-2);margin:0 0 6px 2px}
+    .field .hint{font-size:11px;color:var(--text-4);font-weight:400}
+    .inp{width:100%;height:46px;padding:0 14px;background:var(--field);border:1px solid var(--line);border-radius:11px;
+      color:var(--text);font-family:var(--ui);font-size:16px;font-weight:400;letter-spacing:-.01em;outline:none;
+      transition:border-color .2s var(--ease),background .2s var(--ease),box-shadow .2s var(--ease)}
+    .inp::placeholder{color:var(--text-4)}
+    .inp:hover{background:var(--field-hover);border-color:rgba(255,255,255,.17)}
+    .inp:focus{border-color:rgba(233,199,102,.6);background:var(--field-focus);box-shadow:0 0 0 3px rgba(233,199,102,.13)}
+    .inp.bad{border-color:rgba(240,133,133,.6);box-shadow:0 0 0 3px rgba(240,133,133,.12)}
+    .inp.mono{font-variant-numeric:tabular-nums;letter-spacing:1px;text-transform:uppercase}
+    select.inp{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:36px}
+    .err{font-size:11.5px;color:#F2A0A0;margin:5px 2px 0;display:none}
+    .err.show{display:block}
+    .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+    /* buttons */
+    .btn{position:relative;width:100%;height:50px;border:none;border-radius:13px;cursor:pointer;
+      background:linear-gradient(180deg,var(--gold-bright),var(--gold) 46%,var(--gold-deep));color:#1c1503;
+      font-family:var(--ui);font-size:14px;font-weight:600;letter-spacing:-.01em;
+      box-shadow:0 1px 0 rgba(255,255,255,.4) inset, 0 8px 22px -10px rgba(233,199,102,.5);
+      transition:filter .2s var(--ease),transform .12s var(--ease);margin-top:6px}
+    .btn:hover:not(:disabled){filter:brightness(1.05)} .btn:active:not(:disabled){transform:scale(.99)}
+    .btn:disabled{opacity:.45;cursor:not-allowed}
+    .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--text-2);box-shadow:none}
+    .btn.ghost:hover:not(:disabled){border-color:rgba(255,255,255,.2);color:var(--text);filter:none}
+    .btnrow{display:flex;gap:10px;margin-top:8px}
+    .btnrow .btn{margin-top:0}
+    .btnrow .ghost{flex:0 0 38%}
+    .spin{display:inline-block;width:17px;height:17px;border:2px solid rgba(28,21,3,.3);border-top-color:#1c1503;border-radius:50%;animation:rot .7s linear infinite;vertical-align:-3px}
+    @keyframes rot{to{transform:rotate(360deg)}}
+
+    /* signature pad */
+    .pad-wrap{position:relative;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#fbfbf9;margin-bottom:6px}
+    #pad{display:block;width:100%;height:200px;touch-action:none;cursor:crosshair}
+    .pad-base{position:absolute;left:18px;right:18px;bottom:54px;height:1px;background:rgba(0,0,0,.14);pointer-events:none}
+    .pad-base::after{content:'×';position:absolute;left:0;bottom:2px;color:rgba(0,0,0,.3);font-size:13px}
+    .pad-tools{position:absolute;top:8px;right:8px;display:flex;gap:6px}
+    .pad-tools button{height:30px;padding:0 11px;border:none;border-radius:8px;background:rgba(0,0,0,.06);color:#333;
+      font-family:var(--ui);font-size:11px;font-weight:600;cursor:pointer}
+    .pad-tools button:hover{background:rgba(0,0,0,.11)}
+    .pad-ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:rgba(0,0,0,.22);
+      font-size:13px;font-weight:500;pointer-events:none}
+    .consent{display:flex;gap:11px;align-items:flex-start;margin:16px 0 4px;cursor:pointer}
+    .consent input{width:19px;height:19px;flex-shrink:0;accent-color:var(--gold);margin-top:1px}
+    .consent span{font-size:12px;color:var(--text-2);line-height:1.55}
+    .consent b{color:var(--gold);font-weight:600}
+
+    /* otp boxes */
+    .otpwrap{margin:6px 0 4px}
+    .otpboxes{display:flex;gap:8px;justify-content:space-between}
+    .otpboxes input{width:100%;height:54px;text-align:center;font-size:22px;font-weight:600;
+      background:var(--field);border:1px solid var(--line);border-radius:11px;color:var(--text);outline:none;font-variant-numeric:tabular-nums}
+    .otpboxes input:focus{border-color:rgba(233,199,102,.6);box-shadow:0 0 0 3px rgba(233,199,102,.13)}
+    .resend{display:block;width:100%;text-align:center;background:none;border:none;color:var(--text-3);cursor:pointer;
+      font-family:var(--ui);font-size:12px;font-weight:500;margin-top:14px}
+    .resend:hover:not(:disabled){color:var(--gold)} .resend:disabled{color:var(--text-4);cursor:default}
+
+    /* message / states */
+    .msg{display:flex;align-items:flex-start;gap:9px;padding:11px 13px;border-radius:11px;font-size:12.5px;line-height:1.5;margin-bottom:16px}
+    .msg.error{background:rgba(240,133,133,.09);border:1px solid rgba(240,133,133,.26);color:#F2A0A0}
+    .msg.ok{background:rgba(95,208,140,.09);border:1px solid rgba(95,208,140,.26);color:#92E4C2}
+    .center{text-align:center;padding:14px 4px}
+    .center .ic{width:60px;height:60px;border-radius:50%;display:grid;place-items:center;margin:6px auto 16px;
+      border:1px solid var(--line);background:rgba(255,255,255,.03)}
+    .center h2{font-family:var(--display);font-weight:300;font-size:22px;margin-bottom:8px}
+    .center p{font-size:13px;color:var(--text-3);line-height:1.6;max-width:34ch;margin:0 auto}
+    .center a.btn{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;width:auto;padding:0 22px;margin-top:18px}
+
+    .statuscard{border:1px solid var(--line);border-radius:14px;padding:4px 16px;margin:18px 0;text-align:left}
+    .statuscard .r{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line-2);font-size:12px}
+    .statuscard .r:last-child{border-bottom:none}
+    .statuscard .r .k{color:var(--text-3)} .statuscard .r .v{color:var(--text);font-weight:500}
+    .statuscard .r .v.green{color:var(--green)}
+
+    .next{background:rgba(255,255,255,.02);border-radius:12px;padding:14px 16px;margin-top:16px;text-align:left}
+    .next .n{display:flex;gap:10px;align-items:flex-start;font-size:12px;color:var(--text-3);padding:4px 0}
+    .next .n::before{content:'';width:5px;height:5px;border-radius:50%;background:var(--gold);margin-top:6px;flex-shrink:0}
+
+    .pwrap{position:relative}
+    .pwrap .toggle{position:absolute;right:8px;top:7px;height:32px;padding:0 9px;background:transparent;border:none;color:var(--text-4);
+      font-family:var(--ui);font-size:11px;font-weight:600;cursor:pointer;border-radius:7px}
+    .pwrap .toggle:hover{color:var(--text-2);background:rgba(255,255,255,.05)}
+
+    /* trust footer */
+    .trust{display:flex;align-items:center;justify-content:center;gap:7px;margin-top:18px;
+      font-size:10.5px;font-weight:500;letter-spacing:.3px;color:var(--text-4)}
+    .trust svg{color:var(--green);opacity:.7}
+
+    /* skeleton */
+    .sk{height:14px;border-radius:6px;background:linear-gradient(90deg,rgba(255,255,255,.05),rgba(255,255,255,.1),rgba(255,255,255,.05));
+      background-size:200% 100%;animation:sh 1.3s linear infinite;margin:10px 0}
+    @keyframes sh{to{background-position:-200% 0}}
+
+    #recaptcha-container{position:fixed;bottom:0;left:0}
+
+    /* ── Elevation: motion + premium polish (coherent across the brand) ── */
+    .head .logo{animation:logofloat 6s ease-in-out infinite}
+    @keyframes logofloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+    .card{animation:cardin .8s var(--ease) both}
+    @keyframes cardin{from{opacity:0;transform:translateY(16px) scale(.985)}to{opacity:1;transform:none}}
+    .step{animation:stepin .5s var(--ease)}
+    @keyframes stepin{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+    .btn{overflow:hidden}
+    .btn:not(.ghost)::after{content:'';position:absolute;top:0;left:-130%;width:55%;height:100%;
+      background:linear-gradient(100deg,transparent,rgba(255,255,255,.5),transparent);transform:skewX(-18deg);transition:left .7s var(--ease);pointer-events:none}
+    .btn:not(.ghost):hover:not(:disabled)::after{left:140%}
+    .progress i.on{box-shadow:0 0 10px rgba(233,199,102,.5)}
+    .pad-wrap{box-shadow:inset 0 0 0 1px rgba(255,255,255,.6), 0 10px 26px -14px rgba(0,0,0,.6)}
+    .pad-wrap::after{content:'';position:absolute;top:9px;left:9px;width:15px;height:15px;border-top:1.5px solid rgba(233,199,102,.45);border-left:1.5px solid rgba(233,199,102,.45);border-radius:3px 0 0 0;pointer-events:none}
+    .success-ring{position:relative}
+    .success-ring::before,.success-ring::after{content:'';position:absolute;inset:-1px;border-radius:50%;border:1px solid rgba(95,208,140,.55)}
+    .success-ring::before{animation:ring 1.9s var(--ease) infinite}
+    .success-ring::after{animation:ring 1.9s var(--ease) .65s infinite}
+    @keyframes ring{0%{transform:scale(1);opacity:.7}100%{transform:scale(1.8);opacity:0}}
+    .draw{stroke-dasharray:46;stroke-dashoffset:46;animation:draw .65s var(--ease) .2s forwards}
+    @keyframes draw{to{stroke-dashoffset:0}}
+    /* tailored-PDF viewer */
+    .pdfview{max-height:300px;overflow:auto;border:1px solid var(--line);border-radius:12px;background:#16161a;padding:10px;display:flex;flex-direction:column;align-items:center;gap:10px}
+    .pdfloading{color:var(--text-4);font-size:12px;padding:26px 14px;text-align:center;line-height:1.5}
+    .pdfpage{position:relative;box-shadow:0 6px 16px rgba(0,0,0,.45);border-radius:3px;overflow:hidden;background:#fff;flex-shrink:0}
+    .pdfpage canvas{display:block}
+    .fieldbox{position:absolute;border:1.5px dashed var(--gold);background:rgba(233,199,102,.16);border-radius:3px;
+      display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:#7a5e16;pointer-events:none;box-shadow:0 0 0 3px rgba(233,199,102,.08)}
+    @media (max-width:480px){.dome{width:min(600px,155vw);height:min(600px,155vw)}.dome .sweep2,.dome .beam,.dome .rim{display:none}}
+    @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition-duration:.01ms!important}.draw{stroke-dashoffset:0}.success-ring::before,.success-ring::after{display:none}}
+  </style>
+</head>
+<body>
+  <div class="scene" aria-hidden="true">
+    <div class="bloom"></div>
+    <div class="dome">
+      <div class="rings"></div>
+      <div class="spokes"></div>
+      <div class="shade"></div>
+      <div class="beam"></div>
+      <div class="sweep"></div>
+      <div class="sweep2"></div>
+      <div class="rim"></div>
+      <div class="oculus"></div>
+    </div>
+    <span class="mote m1"></span><span class="mote m2"></span><span class="mote m3"></span>
+  </div>
+  <div class="vignette" aria-hidden="true"></div>
+  <div class="grain" aria-hidden="true"></div>
+
+  <main class="shell">
+    <div class="head">
+      <svg class="logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="BOOM Rome">
+        <defs><linearGradient id="g" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#FFF7DC"/><stop offset="50%" stop-color="#EBCB6E"/><stop offset="100%" stop-color="#AE831C"/></linearGradient></defs>
+        <g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#g)">
+          <path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z m610 -144 c743 -103 1436 -459 1919 -985 338 -367 562 -751 704 -1205 276 -879 132 -1858 -388 -2640 -242 -364 -493 -615 -900 -900 l-70 -49 109 104 c413 396 679 919 767 1505 33 217 33 558 0 765 -75 476 -257 896 -549 1265 -127 161 -363 380 -549 511 -300 211 -689 363 -1079 420 -172 26 -604 26 -764 0 -296 -47 -545 -128 -808 -262 -236 -122 -440 -271 -632 -464 -486 -485 -749 -1121 -751 -1815 -1 -611 170 -1148 515 -1608 100 -134 286 -335 382 -413 33 -27 -8 -2 -91 55 -513 351 -904 805 -1143 1331 -71 156 -136 336 -168 465 -9 33 -19 76 -24 95 -5 19 -20 100 -34 180 -59 343 -60 740 0 1070 81 456 229 826 479 1200 246 368 558 669 949 917 386 245 881 418 1321 462 61 6 124 13 140 15 73 10 556 -4 665 -19z m-60 -1329 c105 -16 258 -49 335 -72 82 -26 197 -66 240 -84 149 -65 190 -84 266 -126 677 -379 1129 -1049 1246 -1849 27 -182 24 -517 -5 -695 -75 -458 -225 -813 -500 -1179 -116 -154 -340 -369 -527 -506 -44 -32 -87 -63 -95 -69 -8 -6 35 39 96 99 178 177 283 321 397 550 161 322 231 676 205 1045 -32 467 -223 902 -542 1237 -239 251 -521 426 -873 542 -79 26 -273 67 -383 81 -108 13 -349 13 -465 0 -276 -32 -597 -145 -834 -293 -224 -140 -466 -378 -613 -602 -307 -470 -407 -1055 -273 -1599 80 -327 217 -589 454 -871 71 -84 73 -88 31 -56 -293 225 -547 535 -718 877 -34 68 -65 143 -122 294 -42 112 -101 383 -120 555 -14 127 -14 401 0 534 51 482 223 912 516 1288 269 344 654 620 1085 778 160 59 400 115 574 134 121 13 508 5 625 -13z m-30 -1165 c401 -81 721 -242 992 -499 643 -612 769 -1607 300 -2367 -118 -190 -291 -386 -463 -524 -137 -111 -148 -113 -49 -12 110 112 206 248 275 386 67 137 98 222 132 367 24 103 26 132 27 323 0 182 -3 224 -22 310 -47 211 -126 394 -245 569 -126 186 -358 387 -564 490 -384 191 -823 225 -1218 95 -482 -160 -854 -541 -1004 -1029 -117 -379 -81 -810 96 -1165 37 -72 130 -215 166 -252 17 -18 26 -33 20 -33 -6 0 -61 52 -121 116 -259 272 -424 575 -511 934 -111 459 -18 1006 245 1430 298 483 791 797 1379 880 110 16 448 4 565 -19z m-239 -911 c360 -28 680 -171 925 -415 194 -193 317 -415 382 -688 24 -102 26 -130 26 -312 0 -191 -1 -205 -30 -320 -53 -205 -132 -372 -251 -535 -58 -79 -263 -288 -323 -330 -31 -22 -29 -18 18 35 195 220 312 519 312 795 0 325 -121 614 -350 841 -369 364 -926 453 -1385 222 -336 -170 -578 -499 -636 -865 -19 -126 -7 -371 25 -490 44 -162 97 -284 173 -398 9 -14 -4 -5 -30 20 -26 24 -45 51 -42 58 2 7 1 11 -4 7 -11 -6 -58 51 -118 140 -109 163 -183 347 -219 545 -23 127 -23 351 -1 489 55 335 248 677 492 871 261 208 530 311 881 338 11 1 81 -3 155 -8z m29 -714 c459 -74 823 -428 895 -869 58 -358 -60 -696 -345 -987 l-34 -35 22 35 c115 182 179 403 168 575 -14 235 -104 433 -268 591 -137 134 -287 209 -472 239 -115 19 -187 19 -303 0 -337 -55 -612 -302 -704 -635 -32 -113 -34 -325 -5 -440 23 -92 70 -213 98 -254 l21 -31 -31 29 c-39 36 -120 152 -155 221 -35 71 -81 215 -102 319 -25 130 -17 357 17 476 102 354 357 618 706 730 152 49 331 62 492 36z m-73 -567 c178 -24 327 -101 454 -236 137 -143 199 -303 201 -513 1 -162 -42 -309 -135 -453 -52 -82 -73 -97 -38 -28 51 99 67 290 36 412 -57 219 -251 413 -466 464 -75 17 -236 20 -311 4 -213 -44 -422 -247 -473 -460 -31 -133 -13 -325 41 -431 35 -70 8 -47 -52 43 -58 88 -90 167 -114 286 -25 121 -25 220 -1 331 33 146 84 243 186 351 171 183 413 266 672 230z m15 -470 c80 -17 186 -76 248 -139 106 -107 158 -248 147 -398 -6 -92 -25 -152 -79 -250 -45 -82 -60 -91 -27 -17 18 41 21 62 17 149 -4 89 -8 108 -35 162 -43 82 -126 165 -209 205 -58 29 -80 34 -158 37 -112 5 -184 -12 -259 -62 -182 -121 -251 -323 -171 -506 l24 -55 -25 30 c-36 44 -92 162 -104 223 -39 189 14 369 146 492 105 99 204 139 345 139 48 1 111 -4 140 -10z"/>
+        </g>
+      </svg>
+      <div class="wordmark">BOOM</div>
+      <div class="kicker">Secure Signing</div>
+    </div>
+
+    <div class="progress" id="progress" aria-hidden="true"></div>
+
+    <div class="card">
+      <div id="flow"><div class="sk" style="width:55%"></div><div class="sk"></div><div class="sk" style="width:80%"></div><div class="sk" style="width:40%"></div></div>
+    </div>
+
+    <div class="trust">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg>
+      <span>Encrypted · IP &amp; timestamp recorded · FES (Art. 21 CAD)</span>
+    </div>
+  </main>
+
+  <div id="recaptcha-container"></div>
+
+  <script>
+  (function(){
+    'use strict';
+    var FLOW = document.getElementById('flow');
+    var PROG = document.getElementById('progress');
+    var qs = new URLSearchParams(location.search);
+
+    // Tailored-PDF ("Magic Sign Custom") links: ?req=&role=&t= (or legacy ?csign=&role=&t=)
+    var CUSTOM = null;
+    (function(){
+      var rid = (qs.get('req') || qs.get('csign') || '').trim();
+      var role = (qs.get('role') || '').trim();
+      var t = (qs.get('t') || '').trim();
+      if (rid && (role==='tenant'||role==='landlord') && t) CUSTOM = { req: rid, role: role, token: t };
+    })();
+
+    var TOKEN = (qs.get('token') || qs.get('sign') || '').trim();
+    var DEMO = (qs.get('demo') || '').trim(); // demo=1 (standard) | demo=custom — walkthrough with mock data, no real API/OTP
+
+    // ── State ──
+    var S = { data:null, role:'tenant', step:0, id:{}, phoneVerified:false, signature:null, auth:null };
+
+    // ── Helpers ──
+    function el(html){ var d=document.createElement('div'); d.innerHTML=html.trim(); return d.firstChild; }
+    function setProgress(n){ // 0..4 of 4 steps; -1 hides
+      if(n<0){ PROG.innerHTML=''; return; }
+      var h='';
+      for(var i=1;i<=4;i++){ h += '<i class="'+(i<n?'done':(i===n?'on':''))+'"></i>'; }
+      PROG.innerHTML=h;
+    }
+    function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+    function money(n){ if(n==null||n==='') return '—'; var v=Number(n); return isNaN(v)?esc(n):('€'+v.toLocaleString('it-IT')); }
+    function dateStr(d){ if(!d) return 'TBD'; try{ return new Date(d).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}); }catch(e){ return esc(d); } }
+
+    // ── Codice Fiscale checksum validation ──
+    function validCF(cf){
+      cf=(cf||'').toUpperCase().trim();
+      if(!/^[A-Z0-9]{16}$/.test(cf)) return false;
+      var odd={'0':1,'1':0,'2':5,'3':7,'4':9,'5':13,'6':15,'7':17,'8':19,'9':21,'A':1,'B':0,'C':5,'D':7,'E':9,'F':13,'G':15,'H':17,'I':19,'J':21,'K':2,'L':4,'M':18,'N':20,'O':11,'P':3,'Q':6,'R':8,'S':12,'T':14,'U':16,'V':10,'W':22,'X':25,'Y':24,'Z':23};
+      var even={'0':0,'1':1,'2':2,'3':3,'4':4,'5':5,'6':6,'7':7,'8':8,'9':9,'A':0,'B':1,'C':2,'D':3,'E':4,'F':5,'G':6,'H':7,'I':8,'J':9,'K':10,'L':11,'M':12,'N':13,'O':14,'P':15,'Q':16,'R':17,'S':18,'T':19,'U':20,'V':21,'W':22,'X':23,'Y':24,'Z':25};
+      var sum=0;
+      for(var i=0;i<15;i++){ var ch=cf[i]; sum += (i%2===0)?odd[ch]:even[ch]; }
+      var expect=String.fromCharCode(65+(sum%26));
+      return expect===cf[15];
+    }
+
+    // ── Error/centered states ──
+    function centered(icon,title,text,cta){
+      setProgress(-1);
+      FLOW.innerHTML='';
+      FLOW.appendChild(el('<div class="step center"><div class="ic">'+icon+'</div><h2>'+esc(title)+'</h2><p>'+text+'</p>'+(cta||'')+'</div>'));
+    }
+    var ICON_WARN='<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#F0A0A0" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>';
+    var ICON_LINK='<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#E9C766" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>';
+    var ICON_CHECK='<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#5FD08C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
+    var ICON_CHECK_ANIM='<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#5FD08C" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path class="draw" d="M20 6 9 17l-5-5"/></svg>';
+    var SUPPORT='<a class="btn ghost" style="display:inline-flex;width:auto;padding:0 22px;margin-top:18px;align-items:center;justify-content:center" href="https://wa.me/393313251961" target="_blank" rel="noopener noreferrer">Contact BOOM</a>';
+
+    // ═══════════════ BOOT ═══════════════
+    document.addEventListener('DOMContentLoaded', function(){
+      // Tailored-PDF flow needs no Firebase (token-gated, no OTP/account).
+      if(DEMO){ startDemo(); return; }
+      if(CUSTOM){ loadCustom(); return; }
+      if(typeof firebase==='undefined'){
+        centered(ICON_WARN,'Connection needed','We couldn’t load the signing service. Check your connection and refresh.', SUPPORT);
+        return;
+      }
+      if(!TOKEN){
+        centered(ICON_LINK,'Invalid link','This signing link is missing or malformed. Please use the link from your email.', SUPPORT);
+        return;
+      }
+      firebase.initializeApp({ apiKey:"AIzaSyDDb8UeSc8RhO_VxQrhLrupu1aPD4rwRso", authDomain:"boom-property-dashboards.firebaseapp.com", projectId:"boom-property-dashboards" });
+      S.auth = firebase.auth();
+      S.auth.signInAnonymously().catch(function(){ /* phone OTP + account step will surface a clear error if truly blocked */ });
+      loadContract();
+    });
+
+    // ── Demo walkthrough (mock data; no real contract, API or OTP) ──
+    var DEMO_DATA = { ok:true, role:'tenant', alreadySigned:false,
+      contract:{ id:'demo', rent:1450, deposit:2900, startDate:'2026-07-01', endDate:'2027-06-30', type:'transitorio', tenantId:'t', propertyId:'p', paymentDay:5 },
+      property:{ name:'Trastevere Loft', address:'Via della Lungaretta 12, Roma', ownerId:'o' },
+      signer:{ name:'Demo Tenant', email:'demo@boomrome.com', cf:'RSSMRA85T10A562S', dob:'1985-12-10', pob:'Roma, Italy', address:'Via della Lungaretta 12, Roma', docType:'passport', docNum:'YA1234567', nationality:'Italy', phone:'' },
+      otherParty:{ name:'Giulia Bianchi' } };
+    function demoBadge(){ if(document.getElementById('_demoBadge')) return; document.body.appendChild(el('<div id="_demoBadge" style="position:fixed;top:14px;right:14px;z-index:60;padding:5px 11px;border-radius:999px;border:1px solid var(--line);background:rgba(20,20,24,.7);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);font-size:9.5px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold)">Demo</div>')); }
+    function startDemo(){
+      demoBadge();
+      if(DEMO==='custom'){
+        CUSTOM={ req:'demo', role:'tenant', token:'demo' };
+        renderCustom({ ok:true, title:'Lease Addendum', role:'tenant', pageCount:2, originalPdfUrl:'', alreadySigned:false, status:'sent', requiredRoles:['tenant','landlord'],
+          fields:[ {page:1,role:'tenant',kind:'signature',xr:0.12,yr:0.74,wr:0.34,hr:0.09}, {page:1,role:'tenant',kind:'date',xr:0.56,yr:0.75,wr:0.22,hr:0.06}, {page:2,role:'tenant',kind:'initials',xr:0.70,yr:0.10,wr:0.16,hr:0.05} ] });
+      } else {
+        S.data=DEMO_DATA; S.role='tenant'; renderReview();
+      }
+    }
+
+    function loadContract(){
+      fetch('/api/sign/get',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ token: TOKEN }) })
+        .then(function(r){ return r.json().catch(function(){return {ok:false};}); })
+        .then(function(j){
+          if(!j || !j.ok){
+            if(j && j.error==='invalid_or_used') return centered(ICON_LINK,'Link not valid','This link is invalid or has already been used.', SUPPORT);
+            return centered(ICON_WARN,'Something went wrong','We couldn’t load this contract. Please try again in a moment.', SUPPORT);
+          }
+          S.data=j; S.role=j.role||'tenant';
+          if(j.alreadySigned){
+            var done = (j.contract && j.contract.signatureStatus==='complete');
+            return centered(ICON_CHECK,'Already signed', done?'This contract is fully signed and active.':'Your signature is recorded. We’re waiting for the other party to sign.', '');
+          }
+          renderReview();
+        })
+        .catch(function(){ centered(ICON_WARN,'Connection needed','We couldn’t reach the signing service. Check your connection and refresh.', SUPPORT); });
+    }
+
+    // ═══════════════ STEP 1 — REVIEW ═══════════════
+    function renderReview(){
+      setProgress(1); S.step=1;
+      var c=S.data.contract||{}, p=S.data.property||{}, signer=S.data.signer||{};
+      var dur = (c.startDate && c.endDate) ? Math.max(1, Math.round((new Date(c.endDate)-new Date(c.startDate))/(1000*60*60*24*30))) : null;
+      var typeLabel = c.type==='studenti' ? 'Student' : 'Transitional';
+      var otherLabel = S.role==='tenant' ? 'Landlord' : 'Tenant';
+      var otherName = (S.data.otherParty && S.data.otherParty.name) || '—';
+      var pdf = (S.data.contract && S.data.contract.generatedPDF) || '';
+      FLOW.innerHTML='';
+      FLOW.appendChild(el(
+        '<div class="step">'+
+          '<h1 class="t">Review your contract</h1>'+
+          '<p class="sub">Welcome'+(signer.name?(', '+esc(signer.name)):'')+'. Please review the terms before signing.</p>'+
+          '<div class="summary">'+
+            '<div class="prop"><div class="lbl">Property</div><div class="name">'+esc(p.name||p.title||'Apartment')+'</div><div class="addr">'+esc(p.address||'')+'</div></div>'+
+            '<div class="grid2">'+
+              '<div class="cell"><div class="k">Monthly rent</div><div class="v gold">'+money(c.rent)+'</div></div>'+
+              '<div class="cell"><div class="k">Duration</div><div class="v">'+(dur?(dur+' months'):'—')+'</div></div>'+
+              '<div class="cell"><div class="k">Start date</div><div class="v">'+dateStr(c.startDate)+'</div></div>'+
+              '<div class="cell"><div class="k">Deposit</div><div class="v">'+money(c.deposit)+'</div></div>'+
+              '<div class="cell"><div class="k">'+otherLabel+'</div><div class="v">'+esc(otherName)+'</div></div>'+
+              '<div class="cell"><div class="k">Type</div><div class="v">'+typeLabel+'</div></div>'+
+            '</div>'+
+            (pdf?('<a class="pdflink" href="'+esc(pdf)+'" target="_blank" rel="noopener noreferrer"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg> View full contract PDF</a>'):'')+
+          '</div>'+
+          '<button class="btn" id="rev-next">Continue</button>'+
+        '</div>'
+      ));
+      document.getElementById('rev-next').onclick=renderIdentity;
+    }
+
+    // ═══════════════ STEP 2 — IDENTITY ═══════════════
+    function renderIdentity(){
+      setProgress(2); S.step=2;
+      var s=S.data.signer||{};
+      FLOW.innerHTML='';
+      FLOW.appendChild(el(
+        '<div class="step">'+
+          '<h1 class="t">Verify your details</h1>'+
+          '<p class="sub">Required by Italian law to register the contract. Your data is encrypted.</p>'+
+          '<div class="field"><label>Full name</label><input class="inp" id="i-name" value="'+esc(s.name||'')+'" placeholder="Name Surname" autocomplete="name"></div>'+
+          '<div class="row2">'+
+            '<div class="field"><label>Date of birth</label><input class="inp" id="i-dob" type="date" value="'+esc(s.dob||'')+'"></div>'+
+            '<div class="field"><label>Place of birth</label><input class="inp" id="i-pob" value="'+esc(s.pob||'')+'" placeholder="City, Country"></div>'+
+          '</div>'+
+          '<div class="field"><label>Codice Fiscale <span class="hint">— 16 characters</span></label><input class="inp mono" id="i-cf" maxlength="16" value="'+esc(s.cf||'')+'" placeholder="RSSMRA85T10A562S"><div class="err" id="e-cf">That Codice Fiscale doesn’t look valid.</div></div>'+
+          '<div class="field"><label>Current address</label><input class="inp" id="i-addr" value="'+esc(s.address||'')+'" placeholder="Street, number, city" autocomplete="street-address"></div>'+
+          '<div class="row2">'+
+            '<div class="field"><label>Document</label><select class="inp" id="i-doctype"><option value="passport">Passport</option><option value="id">Carta d’identità</option><option value="permit">Permesso di soggiorno</option></select></div>'+
+            '<div class="field"><label>Document no.</label><input class="inp" id="i-docnum" value="'+esc(s.docNum||'')+'" placeholder="Number"></div>'+
+          '</div>'+
+          '<div class="field"><label>Nationality</label><input class="inp" id="i-nat" value="'+esc(s.nationality||'')+'" placeholder="Country"></div>'+
+          '<div class="btnrow"><button class="btn ghost" id="i-back">Back</button><button class="btn" id="i-next">Continue</button></div>'+
+        '</div>'
+      ));
+      var cf=document.getElementById('i-cf');
+      cf.oninput=function(){ cf.value=cf.value.toUpperCase(); document.getElementById('e-cf').classList.remove('show'); cf.classList.remove('bad'); };
+      document.getElementById('i-back').onclick=renderReview;
+      document.getElementById('i-next').onclick=function(){
+        var g=function(id){ return (document.getElementById(id).value||'').trim(); };
+        var data={ name:g('i-name'), dob:g('i-dob'), pob:g('i-pob'), cf:g('i-cf').toUpperCase(), address:g('i-addr'), docType:g('i-doctype'), docNum:g('i-docnum'), nationality:g('i-nat') };
+        var firstBad=null;
+        ['i-name','i-dob','i-pob','i-cf','i-addr','i-docnum','i-nat'].forEach(function(id){
+          var inp=document.getElementById(id); var bad=!(inp.value||'').trim();
+          inp.classList.toggle('bad',bad); if(bad&&!firstBad) firstBad=inp;
+        });
+        if(!validCF(data.cf)){ cf.classList.add('bad'); document.getElementById('e-cf').classList.add('show'); if(!firstBad) firstBad=cf; }
+        if(firstBad){ firstBad.focus(); firstBad.scrollIntoView({block:'center',behavior:'smooth'}); return; }
+        S.id=data;
+        renderPhone();
+      };
+    }
+
+    // ═══════════════ STEP 3 — PHONE OTP ═══════════════
+    var _otp={ verifier:null, confirm:null, timer:0 };
+    function renderPhone(){
+      setProgress(3); S.step=3;
+      var s=S.data.signer||{};
+      var pre=(s.phone&&/^\+/.test(s.phone))? '' : '+39';
+      FLOW.innerHTML='';
+      FLOW.appendChild(el(
+        '<div class="step" id="otp-send">'+
+          '<h1 class="t">Verify your phone</h1>'+
+          '<p class="sub">We’ll text a 6-digit code to confirm it’s really you.</p>'+
+          '<div class="row2" style="grid-template-columns:84px 1fr">'+
+            '<div class="field"><label>Code</label><input class="inp" id="o-pre" value="'+pre+'" style="text-align:center"></div>'+
+            '<div class="field"><label>Mobile number</label><input class="inp" id="o-num" type="tel" inputmode="tel" value="'+esc((s.phone||'').replace(/^\+39/,''))+'" placeholder="333 123 4567"></div>'+
+          '</div>'+
+          '<button class="btn" id="o-send">Send code</button>'+
+          '<div class="btnrow" style="margin-top:10px"><button class="btn ghost" id="o-back">Back</button></div>'+
+        '</div>'
+      ));
+      document.getElementById('o-back').onclick=renderIdentity;
+      document.getElementById('o-send').onclick=sendOtp;
+    }
+    function sendOtp(){
+      if(DEMO){ renderOtpVerify('+39 333 012 3456'); return; }
+      var btn=document.getElementById('o-send');
+      var pre=(document.getElementById('o-pre').value||'+39').replace(/[^\d+]/g,'');
+      var num=(document.getElementById('o-num').value||'').replace(/\D/g,'');
+      if(num.length<6){ document.getElementById('o-num').classList.add('bad'); return; }
+      var phone=(pre.charAt(0)==='+'?pre:('+'+pre))+num;
+      btn.disabled=true; btn.innerHTML='<span class="spin"></span>';
+      try{
+        if(!_otp.verifier){ _otp.verifier=new firebase.auth.RecaptchaVerifier('recaptcha-container',{size:'invisible'}); }
+      }catch(e){}
+      var user=S.auth.currentUser;
+      var p = user ? user.linkWithPhoneNumber(phone,_otp.verifier) : S.auth.signInWithPhoneNumber(phone,_otp.verifier);
+      p.then(function(cr){ _otp.confirm=cr; renderOtpVerify(phone); })
+       .catch(function(err){
+          // phone already linked to this anon flow is fine → treat as verifiable via signIn
+          if(err && err.code==='auth/credential-already-in-use'){ S.auth.signInWithPhoneNumber(phone,_otp.verifier).then(function(cr){ _otp.confirm=cr; renderOtpVerify(phone); }).catch(otpError(btn)); return; }
+          otpError(btn)(err);
+       });
+    }
+    function otpError(btn){ return function(err){
+      btn.disabled=false; btn.textContent='Send code';
+      var m='Couldn’t send the code. Check the number and try again.';
+      if(err&&err.code==='auth/too-many-requests') m='Too many attempts. Please wait a few minutes and try again.';
+      else if(err&&err.code==='auth/invalid-phone-number') m='That phone number doesn’t look valid.';
+      flash(m);
+    };}
+    function renderOtpVerify(phone){
+      setProgress(3);
+      FLOW.innerHTML='';
+      FLOW.appendChild(el(
+        '<div class="step">'+
+          '<h1 class="t">Enter the code</h1>'+
+          '<p class="sub">Sent to <b style="color:var(--gold)">'+esc(phone)+'</b></p>'+
+          '<div class="otpwrap"><div class="otpboxes" id="o-boxes">'+
+            '<input maxlength="1" inputmode="numeric" autocomplete="one-time-code"><input maxlength="1" inputmode="numeric"><input maxlength="1" inputmode="numeric"><input maxlength="1" inputmode="numeric"><input maxlength="1" inputmode="numeric"><input maxlength="1" inputmode="numeric">'+
+          '</div></div>'+
+          '<button class="btn" id="o-verify" disabled>Verify</button>'+
+          '<button class="resend" id="o-resend">Change number</button>'+
+        '</div>'
+      ));
+      var boxes=[].slice.call(document.querySelectorAll('#o-boxes input'));
+      function code(){ return boxes.map(function(b){return b.value;}).join(''); }
+      function refresh(){ document.getElementById('o-verify').disabled = code().length!==6; }
+      boxes.forEach(function(b,i){
+        b.oninput=function(){ b.value=b.value.replace(/\D/g,'').slice(0,1); if(b.value&&boxes[i+1]) boxes[i+1].focus(); refresh(); if(code().length===6) verify(); };
+        b.onkeydown=function(e){ if(e.key==='Backspace'&&!b.value&&boxes[i-1]) boxes[i-1].focus(); };
+        b.onpaste=function(e){ var t=(e.clipboardData.getData('text')||'').replace(/\D/g,'').slice(0,6); if(t){ e.preventDefault(); t.split('').forEach(function(d,k){ if(boxes[k]) boxes[k].value=d; }); refresh(); if(t.length===6) verify(); } };
+      });
+      boxes[0].focus();
+      document.getElementById('o-resend').onclick=renderPhone;
+      document.getElementById('o-verify').onclick=verify;
+      function verify(){
+        if(DEMO){ S.phoneVerified=true; S.id.phoneVerified=true; S.id.phoneVerifiedAt=new Date().toISOString(); renderSign(); return; }
+        var c=code(); if(c.length!==6||!_otp.confirm) return;
+        var btn=document.getElementById('o-verify'); btn.disabled=true; btn.innerHTML='<span class="spin"></span>';
+        _otp.confirm.confirm(c).then(function(){
+          S.phoneVerified=true; S.id.phoneVerified=true; S.id.phoneVerifiedAt=new Date().toISOString();
+          S.id.phone=esc(phone);
+          renderSign();
+        }).catch(function(){
+          btn.disabled=false; btn.textContent='Verify';
+          boxes.forEach(function(b){b.value='';}); boxes[0].focus();
+          flash('That code didn’t match. Please try again.');
+        });
+      }
+    }
+
+    // ═══════════════ STEP 4 — SIGNATURE ═══════════════
+    var CONSENT='I confirm my identity and accept all lease terms. This digital signature is legally valid (FES — Art. 21 CAD).';
+    function renderSign(){
+      setProgress(4); S.step=4;
+      FLOW.innerHTML='';
+      FLOW.appendChild(el(
+        '<div class="step">'+
+          '<h1 class="t">Sign your contract</h1>'+
+          '<p class="sub">Draw your signature in the box below.</p>'+
+          '<div class="pad-wrap"><canvas id="pad"></canvas><div class="pad-base"></div><div class="pad-ph" id="pad-ph">Sign here</div>'+
+            '<div class="pad-tools"><button id="pad-undo" type="button">Undo</button><button id="pad-clear" type="button">Clear</button></div></div>'+
+          '<label class="consent"><input type="checkbox" id="consent"><span>I confirm my identity and accept all lease terms. This digital signature is legally valid <b>(FES — Art. 21 CAD)</b>.</span></label>'+
+          '<div class="btnrow"><button class="btn ghost" id="s-back">Back</button><button class="btn" id="s-sign" disabled>Sign contract</button></div>'+
+        '</div>'
+      ));
+      var pad=initPad(document.getElementById('pad'), document.getElementById('pad-ph'));
+      document.getElementById('pad-undo').onclick=function(){ pad.undo(); ready(); };
+      document.getElementById('pad-clear').onclick=function(){ pad.clear(); ready(); };
+      var consent=document.getElementById('consent');
+      consent.onchange=ready;
+      document.getElementById('s-back').onclick=renderPhone;
+      var signBtn=document.getElementById('s-sign');
+      function ready(){ signBtn.disabled = !(pad.hasInk() && consent.checked); }
+      pad.onChange=ready;
+      signBtn.onclick=function(){
+        if(!pad.hasInk()||!consent.checked) return;
+        signBtn.disabled=true; signBtn.innerHTML='<span class="spin"></span>';
+        S.signature=pad.toDataURL();
+        submit();
+      };
+    }
+
+    function initPad(canvas, ph){
+      var ctx=canvas.getContext('2d'); var dpr=Math.max(1,Math.min(3,window.devicePixelRatio||1));
+      var strokes=[], cur=null, drawing=false, inked=false;
+      function size(){ var r=canvas.getBoundingClientRect(); canvas.width=Math.round(r.width*dpr); canvas.height=Math.round(200*dpr); ctx.scale(dpr,dpr); redraw(); }
+      function pos(e){ var r=canvas.getBoundingClientRect(); var t=e.touches?e.touches[0]:e; return {x:t.clientX-r.left,y:t.clientY-r.top}; }
+      function redraw(){ ctx.clearRect(0,0,canvas.width,canvas.height); ctx.lineWidth=2.4; ctx.lineCap='round'; ctx.lineJoin='round'; ctx.strokeStyle='#101010';
+        strokes.forEach(function(st){ if(st.length<2) return; ctx.beginPath(); ctx.moveTo(st[0].x,st[0].y); for(var i=1;i<st.length;i++){ var a=st[i-1],b=st[i]; ctx.quadraticCurveTo(a.x,a.y,(a.x+b.x)/2,(a.y+b.y)/2);} ctx.stroke(); }); }
+      function start(e){ e.preventDefault(); drawing=true; cur=[pos(e)]; }
+      function move(e){ if(!drawing) return; e.preventDefault(); cur.push(pos(e));
+        ctx.lineWidth=2.4; ctx.lineCap='round'; ctx.lineJoin='round'; ctx.strokeStyle='#101010';
+        var n=cur.length; if(n>1){ var a=cur[n-2],b=cur[n-1]; ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.quadraticCurveTo(a.x,a.y,(a.x+b.x)/2,(a.y+b.y)/2); ctx.stroke(); }
+        if(!inked){ inked=true; ph.style.display='none'; } }
+      function end(){ if(drawing&&cur&&cur.length){ strokes.push(cur); } drawing=false; cur=null; if(api.onChange) api.onChange(); }
+      canvas.addEventListener('mousedown',start); canvas.addEventListener('mousemove',move); window.addEventListener('mouseup',end); canvas.addEventListener('mouseleave',end);
+      canvas.addEventListener('touchstart',start,{passive:false}); canvas.addEventListener('touchmove',move,{passive:false}); canvas.addEventListener('touchend',end);
+      var api={ onChange:null,
+        clear:function(){ strokes=[]; inked=false; ph.style.display='flex'; redraw(); },
+        undo:function(){ strokes.pop(); inked=strokes.length>0; ph.style.display=inked?'none':'flex'; redraw(); },
+        hasInk:function(){ var pts=0; strokes.forEach(function(s){pts+=s.length;}); return pts>=8; },
+        toDataURL:function(){ return canvas.toDataURL('image/png'); } };
+      size(); window.addEventListener('resize',function(){ ctx.setTransform(1,0,0,1,0,0); size(); });
+      return api;
+    }
+
+    // ═══════════════ SUBMIT ═══════════════
+    function submit(){
+      if(DEMO){ setTimeout(function(){ renderSuccess(false); }, 550); return; }
+      fetch('/api/sign/submit',{ method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ token: TOKEN, signature: S.signature, idData: Object.assign({}, S.id, { name: S.id.name || (S.data.signer&&S.data.signer.name) || '' }) }) })
+        .then(function(r){ return r.json().catch(function(){return {ok:false};}); })
+        .then(function(j){
+          if(!j||!j.ok){
+            var b=document.getElementById('s-sign'); if(b){ b.disabled=false; b.textContent='Sign contract'; }
+            return flash(j&&j.error==='rate_limited' ? 'Too many attempts — please wait a moment.' : 'We couldn’t record your signature. Please try again.');
+          }
+          // Post-signature obligations + tenant onboarding (magic link + welcome
+          // emails) are run server-side by /api/sign/submit on completion.
+          renderSuccess(!!j.complete);
+        })
+        .catch(function(){ var b=document.getElementById('s-sign'); if(b){ b.disabled=false; b.textContent='Sign contract'; } flash('Connection lost. Please try again.'); });
+    }
+
+    // ═══════════════ STEP 5 — SUCCESS ═══════════════
+    function renderSuccess(complete){
+      setProgress(-1);
+      var roleLabel=S.role==='tenant'?'Tenant':'Landlord';
+      var email=(S.data.signer&&S.data.signer.email)||'';
+      var nextItems = complete
+        ? ['Your contract is now active','Rent reminders are scheduled automatically','A confirmation is on its way to your email']
+        : ['The other party will be notified to sign','You’ll get a confirmation once it’s fully signed'];
+      FLOW.innerHTML='';
+      var accountHtml='';
+      if(S.role==='tenant'){
+        accountHtml=
+          '<div class="summary" style="margin-top:18px;text-align:left">'+
+            '<div class="prop" style="border-color:var(--gold)"><div class="lbl">Activate your portal</div></div>'+
+            '<p style="font-size:12px;color:var(--text-3);margin:-6px 0 14px;line-height:1.5">Create a password to access your documents, payments and support.</p>'+
+            '<div class="field"><label>Email</label><input class="inp" id="ac-email" type="email" value="'+esc(email)+'" placeholder="you@email.com"></div>'+
+            '<div class="field"><label>Choose a password</label><div class="pwrap"><input class="inp" id="ac-pass" type="password" placeholder="Min. 6 characters" style="padding-right:62px"><button class="toggle" id="ac-tog" type="button">Show</button></div></div>'+
+            '<button class="btn" id="ac-create">Create my account</button>'+
+            '<button class="resend" id="ac-skip" style="margin-top:10px">Skip for now</button>'+
+          '</div>';
+      } else {
+        accountHtml='<a class="btn" href="/portal.html" style="display:flex;align-items:center;justify-content:center;text-decoration:none;margin-top:18px">Open portal</a>';
+      }
+      FLOW.appendChild(el(
+        '<div class="step center" style="text-align:left">'+
+          '<div style="text-align:center"><div class="ic success-ring" style="border-color:rgba(95,208,140,.4)">'+ICON_CHECK_ANIM+'</div>'+
+            '<h2 style="text-align:center">'+(complete?'Contract complete':'Signed successfully')+'</h2>'+
+            '<p style="text-align:center;margin-bottom:4px">'+(complete?'Both parties have signed. Your agreement is active.':'Your signature has been recorded.')+'</p></div>'+
+          '<div class="statuscard">'+
+            '<div class="r"><span class="k">Status</span><span class="v '+(complete?'green':'')+'">'+(complete?'Fully signed':'Awaiting other party')+'</span></div>'+
+            '<div class="r"><span class="k">Signed</span><span class="v">'+new Date().toLocaleString('en-GB')+'</span></div>'+
+            '<div class="r"><span class="k">Role</span><span class="v">'+roleLabel+'</span></div>'+
+          '</div>'+
+          accountHtml+
+          '<div class="next">'+nextItems.map(function(n){return '<div class="n">'+esc(n)+'</div>';}).join('')+'</div>'+
+        '</div>'
+      ));
+      if(S.role==='tenant'){
+        var tog=document.getElementById('ac-tog'), pass=document.getElementById('ac-pass');
+        tog.onclick=function(){ var sh=pass.type==='password'; pass.type=sh?'text':'password'; tog.textContent=sh?'Hide':'Show'; };
+        document.getElementById('ac-skip').onclick=function(){ centered(ICON_CHECK,'All done','You can sign in anytime from boomrome.com with the credentials we set up for you.', '<a class="btn ghost" href="/portal.html" style="display:inline-flex;width:auto;padding:0 22px;margin-top:18px;align-items:center;justify-content:center;text-decoration:none">Go to portal</a>'); };
+        document.getElementById('ac-create').onclick=createAccount;
+      }
+    }
+    function createAccount(){
+      if(DEMO){ centered(ICON_CHECK,'Demo complete','This was a preview of the BOOM signing experience. In production this step creates your portal account.', '<a class="btn ghost" href="/sign?demo=1" style="display:inline-flex;width:auto;padding:0 22px;margin-top:18px;align-items:center;justify-content:center;text-decoration:none">Replay</a>'); return; }
+      var email=(document.getElementById('ac-email').value||'').trim();
+      var pass=(document.getElementById('ac-pass').value||'');
+      if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ document.getElementById('ac-email').classList.add('bad'); return; }
+      if(pass.length<6){ document.getElementById('ac-pass').classList.add('bad'); return; }
+      var btn=document.getElementById('ac-create'); btn.disabled=true; btn.innerHTML='<span class="spin"></span>';
+      S.auth.signOut().catch(function(){}).then(function(){
+        return S.auth.signInWithEmailAndPassword(email,pass).catch(function(err){
+          if(err&&err.code==='auth/user-not-found') return S.auth.createUserWithEmailAndPassword(email,pass);
+          throw err;
+        });
+      }).then(function(){ location.href='/portal.html'; })
+        .catch(function(err){
+          btn.disabled=false; btn.textContent='Create my account';
+          if(err&&err.code==='auth/wrong-password') flash('That email already has an account. Use your existing password, or contact BOOM.');
+          else if(err&&err.code==='auth/email-already-in-use') flash('That email is already registered. Try signing in instead.');
+          else flash('We couldn’t create the account. Please try again.');
+        });
+    }
+
+    // ═══════════════ TAILORED PDF (Magic Sign Custom) ═══════════════
+    function loadCustom(){
+      setProgress(-1);
+      FLOW.innerHTML='<div class="sk" style="width:50%"></div><div class="sk" style="height:150px"></div><div class="sk" style="width:70%"></div>';
+      fetch('/api/sign/custom/get',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(CUSTOM) })
+        .then(function(r){ return r.json().catch(function(){return {ok:false};}); })
+        .then(function(j){
+          if(!j||!j.ok){
+            if(j&&(j.error==='not_found'||j.error==='invalid_token')) return centered(ICON_LINK,'Link not valid','This document link is invalid or has expired.', SUPPORT);
+            return centered(ICON_WARN,'Something went wrong','We couldn’t load this document. Please try again.', SUPPORT);
+          }
+          if(j.alreadySigned){
+            var done = j.status==='complete';
+            return centered(ICON_CHECK,'Already signed', done?'This document is fully signed.':'Your signature is recorded. We’re waiting for the other party.', '');
+          }
+          renderCustom(j);
+        })
+        .catch(function(){ centered(ICON_WARN,'Connection needed','We couldn’t reach the signing service. Check your connection and refresh.', SUPPORT); });
+    }
+
+    function renderCustom(d){
+      FLOW.innerHTML='';
+      FLOW.appendChild(el(
+        '<div class="step">'+
+          '<h1 class="t">Sign “'+esc(d.title||'Document')+'”</h1>'+
+          '<p class="sub">Your fields are highlighted below. Draw your signature once — we’ll place it on every one.</p>'+
+          (d.originalPdfUrl?('<a class="pdflink" href="'+esc(d.originalPdfUrl)+'" target="_blank" rel="noopener noreferrer" style="margin:0 0 14px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg> Open full PDF</a>'):'')+
+          '<div class="pdfview" id="pdfview"><div class="pdfloading">Loading document…</div></div>'+
+          '<div style="margin-top:18px"><div class="field" style="margin-bottom:8px"><label>Your signature</label></div>'+
+            '<div class="pad-wrap"><canvas id="pad"></canvas><div class="pad-base"></div><div class="pad-ph" id="pad-ph">Sign here</div>'+
+            '<div class="pad-tools"><button id="pad-undo" type="button">Undo</button><button id="pad-clear" type="button">Clear</button></div></div></div>'+
+          '<label class="consent"><input type="checkbox" id="consent"><span>I confirm my identity and accept this document. This digital signature is legally valid <b>(FES — Art. 21 CAD)</b>.</span></label>'+
+          '<button class="btn" id="c-sign" disabled>Sign document</button>'+
+        '</div>'
+      ));
+      var pad=initPad(document.getElementById('pad'), document.getElementById('pad-ph'));
+      document.getElementById('pad-undo').onclick=function(){ pad.undo(); ready(); };
+      document.getElementById('pad-clear').onclick=function(){ pad.clear(); ready(); };
+      var consent=document.getElementById('consent'); consent.onchange=ready;
+      var signBtn=document.getElementById('c-sign');
+      function ready(){ signBtn.disabled = !(pad.hasInk() && consent.checked); }
+      pad.onChange=ready;
+      signBtn.onclick=function(){
+        if(!pad.hasInk()||!consent.checked) return;
+        signBtn.disabled=true; signBtn.innerHTML='<span class="spin"></span>';
+        if(DEMO){ setTimeout(function(){ customSuccess(false,''); }, 550); return; }
+        var sig=pad.toDataURL();
+        fetch('/api/sign/custom/submit',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ req:CUSTOM.req, role:CUSTOM.role, token:CUSTOM.token, signature:sig }) })
+          .then(function(r){ return r.json().catch(function(){return {ok:false};}); })
+          .then(function(j){
+            if(!j||!j.ok){ signBtn.disabled=false; signBtn.textContent='Sign document'; return flash(j&&j.error==='rate_limited'?'Too many attempts — please wait a moment.':'We couldn’t record your signature. Please try again.'); }
+            customSuccess(!!j.complete, j.signedPdfUrl||'');
+          })
+          .catch(function(){ signBtn.disabled=false; signBtn.textContent='Sign document'; flash('Connection lost. Please try again.'); });
+      };
+      renderPdf(d);
+    }
+
+    function customSuccess(complete, pdfUrl){
+      setProgress(-1);
+      var cta = (complete && pdfUrl) ? '<a class="btn" href="'+esc(pdfUrl)+'" target="_blank" rel="noopener noreferrer" style="display:inline-flex;width:auto;padding:0 22px;margin-top:18px;align-items:center;justify-content:center;text-decoration:none">Download signed PDF</a>' : '';
+      FLOW.innerHTML='';
+      FLOW.appendChild(el('<div class="step center"><div class="ic success-ring" style="border-color:rgba(95,208,140,.4)">'+ICON_CHECK_ANIM+'</div>'+
+        '<h2>'+(complete?'Document complete':'Signed successfully')+'</h2>'+
+        '<p>'+(complete?'All parties have signed. The signed document is ready.':'Your signature has been recorded. We’ll notify you when it’s fully signed.')+'</p>'+cta+'</div>'));
+    }
+
+    function renderMockPdf(host, d){
+      host.innerHTML='';
+      var width=Math.max(220,(host.clientWidth||340)-20);
+      var pages=Math.max(1, d.pageCount||1);
+      var byPage={}; (d.fields||[]).forEach(function(f){ var p=(f.page||1); (byPage[p]=byPage[p]||[]).push(f); });
+      for(var n=1;n<=pages;n++){
+        var h=Math.round(width*1.414);
+        var wrap=document.createElement('div'); wrap.className='pdfpage'; wrap.style.width=width+'px'; wrap.style.height=h+'px';
+        wrap.style.backgroundImage='repeating-linear-gradient(#fff, #fff 21px, rgba(0,0,0,.05) 22px, #fff 23px)';
+        var hdr=document.createElement('div'); hdr.style.cssText='position:absolute;top:20px;left:22px;width:42%;height:11px;background:rgba(0,0,0,.16);border-radius:3px'; wrap.appendChild(hdr);
+        (byPage[n]||[]).forEach(function(f){ var b=document.createElement('div'); b.className='fieldbox';
+          b.style.left=((Number(f.xr)||0)*width)+'px'; b.style.top=((Number(f.yr)||0)*h)+'px';
+          b.style.width=((Number(f.wr)||0.18)*width)+'px'; b.style.height=((Number(f.hr)||0.05)*h)+'px';
+          b.textContent=(f.kind==='date'?'Date':(f.kind==='initials'?'Initials':'Sign')); wrap.appendChild(b); });
+        host.appendChild(wrap);
+      }
+    }
+    function renderPdf(d){
+      var host=document.getElementById('pdfview'); if(!host) return;
+      if(DEMO || !d.originalPdfUrl){ renderMockPdf(host, d); return; }
+      ensurePdfJs(function(err){
+        if(err||!window.pdfjsLib){ host.innerHTML='<div class="pdfloading">Preview unavailable — use “Open full PDF” above. Your fields will still be signed.</div>'; return; }
+        fetch(d.originalPdfUrl).then(function(r){ return r.arrayBuffer(); }).then(function(buf){
+          return window.pdfjsLib.getDocument({ data: buf }).promise;
+        }).then(function(pdf){
+          host.innerHTML='';
+          var width=Math.max(220,(host.clientWidth||340)-20);
+          var byPage={}; (d.fields||[]).forEach(function(f){ var p=(f.page||1); (byPage[p]=byPage[p]||[]).push(f); });
+          var chain=Promise.resolve();
+          for(var n=1;n<=pdf.numPages;n++){ (function(n){ chain=chain.then(function(){ return pdf.getPage(n).then(function(page){
+            var vp0=page.getViewport({scale:1}); var scale=width/vp0.width; var vp=page.getViewport({scale:scale});
+            var wrap=document.createElement('div'); wrap.className='pdfpage'; wrap.style.width=vp.width+'px'; wrap.style.height=vp.height+'px';
+            var cv=document.createElement('canvas'); var dpr=Math.min(2,window.devicePixelRatio||1);
+            cv.width=Math.floor(vp.width*dpr); cv.height=Math.floor(vp.height*dpr); cv.style.width=vp.width+'px'; cv.style.height=vp.height+'px';
+            var cx=cv.getContext('2d'); cx.scale(dpr,dpr); wrap.appendChild(cv); host.appendChild(wrap);
+            (byPage[n]||[]).forEach(function(f){ var b=document.createElement('div'); b.className='fieldbox';
+              b.style.left=((Number(f.xr)||0)*vp.width)+'px'; b.style.top=((Number(f.yr)||0)*vp.height)+'px';
+              b.style.width=((Number(f.wr)||0.18)*vp.width)+'px'; b.style.height=((Number(f.hr)||0.05)*vp.height)+'px';
+              b.textContent=(f.kind==='date'?'Date':(f.kind==='initials'?'Initials':'Sign')); wrap.appendChild(b); });
+            return page.render({ canvasContext:cx, viewport:vp }).promise;
+          }); }); })(n); }
+          return chain;
+        }).catch(function(){ host.innerHTML='<div class="pdfloading">Preview unavailable — use “Open full PDF” above. Your fields will still be signed.</div>'; });
+      });
+    }
+
+    function ensurePdfJs(cb){
+      if(window.pdfjsLib){ cb(); return; }
+      var s=document.createElement('script'); s.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+      s.onload=function(){ try{ window.pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; }catch(e){} cb(); };
+      s.onerror=function(){ cb(new Error('pdfjs_load')); };
+      document.head.appendChild(s);
+    }
+
+    // ── transient toast ──
+    function flash(text){
+      var t=document.getElementById('_flash'); if(t) t.remove();
+      t=el('<div id="_flash" class="msg error" style="position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:50;max-width:380px;width:calc(100% - 36px);box-shadow:0 12px 30px rgba(0,0,0,.5)">'+
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span>'+esc(text)+'</span></div>');
+      document.body.appendChild(t);
+      setTimeout(function(){ if(t) t.remove(); },5200);
+    }
+  })();
+  </script>
+</body>
+</html>

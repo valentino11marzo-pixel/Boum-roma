@@ -23,6 +23,7 @@
 
 import { fsGet, fsPatch, fsList, readJson, logActivity } from '../homie/_lib.js';
 import { findContractByToken, commitWrites, setCors } from './_shared.js';
+import { finalizeContract } from '../sign/_finalize.js';
 
 const SIG_MAX_LEN = 800_000; // ~600 KB base64 — generous for canvas signatures
 
@@ -289,6 +290,10 @@ export default async function handler(req, res) {
         }
       } catch (e) { console.warn('[magic-sign/submit] payment schedule:', e.message); }
     }
+
+    // (f) Post-signature: fiscal+procedural obligations, FES signing certificate,
+    // server-issued tenant magic link, welcome emails. Idempotent (contract.finalizedAt).
+    try { await finalizeContract(fullContract); } catch (e) { console.warn('[magic-sign/submit] finalize:', e.message); }
   }
 
   // ── 7. Audit ───────────────────────────────────────────
