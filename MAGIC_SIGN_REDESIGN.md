@@ -64,11 +64,11 @@ It consumes server endpoints and carries none of the admin weight:
 
 | Endpoint | Status | Purpose |
 |---|---|---|
-| `POST /api/sign/get` | ✅ built | Resolve standard contract by token (read mediator) |
-| `POST /api/sign/submit` | ✅ built | Record signature + identity + completion automation |
-| `POST /api/sign/finalize` | ▢ to build | Post-completion, server-side: signed PDF (pdf-lib), passes, emails, **server-issued magic link** |
-| `POST /api/sign/custom/get` | ▢ to build | Resolve a `signRequests` doc by `{req, role, token}`; return fields + original PDF URL |
-| `POST /api/sign/custom/submit` | ▢ to build | Store the role's signature; on completion embed all signatures into the PDF server-side |
+| `POST /api/magic-sign/lookup` | ✅ live (main) | Resolve standard contract by token (read mediator) |
+| `POST /api/magic-sign/submit` | ✅ live (main) | Record signature + identity + completion automation + finalize |
+| `api/sign/_finalize.js` | ✅ built (in-process) | Post-completion, server-side: signed PDF (pdf-lib), passes, emails, **server-issued magic link** |
+| `POST /api/sign/custom/get` | ✅ built | Resolve a `signRequests` doc by `{req, role, token}`; return fields + original PDF URL |
+| `POST /api/sign/custom/submit` | ✅ built | Store the role's signature; on completion embed all signatures into the PDF server-side |
 
 **Why server-side finalize/embed:** removes ~600 KB of client PDF libs from the signer,
 makes the signed artifact reliable and consistent, fixes coordinate drift (the server

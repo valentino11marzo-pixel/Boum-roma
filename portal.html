@@ -2736,6 +2736,10 @@ Valentyne - BOOM Rome`
             }
 
             var otherSigned = !!result.fullySigned;
+            // When the server-side finalize ran (obligations + FES certificate
+            // + 72h magic link + tenant/landlord welcome emails), skip the
+            // client-side welcome sends below or every signer gets doubles.
+            var serverFinalized = !!result.finalized;
             // Synthesize a freshData shape so the existing showMagicSignSuccess
             // call below (and post-signature side effects) keep their old field
             // names without an extra round-trip.
@@ -2761,13 +2765,15 @@ Valentyne - BOOM Rome`
                         var landlordUser = passResult && passResult.landlordUser;
                         var contractUsed = (passResult && passResult.contract) || Object.assign({ id: contractId }, freshData);
                         var propertyUsed = (passResult && passResult.property) || (msData && msData.property);
-                        try { await sendTenantWelcomeWithMagicLink(contractUsed, tenantPassUrl); }
-                        catch (e) { console.warn('Tenant welcome:', e); }
-                        try { await sendLandlordWelcomeWithPass(contractUsed, landlordUser, propertyUsed, landlordPassUrl); }
-                        catch (e) { console.warn('Landlord welcome:', e); }
+                        if (!serverFinalized) {
+                            try { await sendTenantWelcomeWithMagicLink(contractUsed, tenantPassUrl); }
+                            catch (e) { console.warn('Tenant welcome:', e); }
+                            try { await sendLandlordWelcomeWithPass(contractUsed, landlordUser, propertyUsed, landlordPassUrl); }
+                            catch (e) { console.warn('Landlord welcome:', e); }
+                        }
                     } catch (passFlowErr) {
                         console.warn('[postSignaturePassFlow]', passFlowErr);
-                        sendTenantWelcomeWithMagicLink(Object.assign({ id: contractId }, freshData), '').catch(function(e){ console.warn('Tenant welcome fallback:', e); });
+                        if (!serverFinalized) sendTenantWelcomeWithMagicLink(Object.assign({ id: contractId }, freshData), '').catch(function(e){ console.warn('Tenant welcome fallback:', e); });
                     }
                 })();
             }

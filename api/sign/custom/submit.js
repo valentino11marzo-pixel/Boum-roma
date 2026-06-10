@@ -6,14 +6,14 @@
 // once at known page dimensions — fixing the client-render coordinate drift —
 // and keeps the signer page light.
 //
-// NOT YET DEPLOYED — staging test required (verify page indexing + storage
-// bucket + Storage rules permit the admin upload). The signing token is the
-// sole authority; idempotent per role.
+// The signing token is the sole authority; idempotent per role. The admin
+// upload requires the signRequests/** match in storage.rules (deployed via
+// `firebase deploy --only storage` — NOT by the Vercel deploy).
 //
 // Request:  POST { req, role, token, signature(dataURL) }
 // Response: { ok, complete, signedPdfUrl? }
 
-import { fsGet, fsPatch, getAdminToken, secretEqual } from '../../homie/_lib.js';
+import { fsGet, fsPatch, getAdminToken, secretEqual, FS_BASE, toFsFields } from '../../homie/_lib.js';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 
 export const config = { api: { bodyParser: { sizeLimit: '6mb' } } };
@@ -116,19 +116,38 @@ export default async function handler(req, res) {
     mine.signedAt = now.toISOString();
     mine.signIP = ip;
     mine.signUA = String(req.headers['user-agent'] || '').slice(0, 200);
-    signers[role] = mine;
 
-    const required = Array.isArray(doc.requiredRoles) && doc.requiredRoles.length ? doc.requiredRoles : Object.keys(signers);
-    const complete = required.every(r => signers[r] && signers[r].signedAt);
+    // Write ONLY signers.{role} (per-field updateMask) — patching the whole
+    // `signers` map would make two roles signing at the same moment a
+    // last-write-wins race that silently drops one signature.
+    {
+      const adminTok = await getAdminToken();
+      const fields = toFsFields({ signers: { [role]: mine }, updatedAt: now });
+      const mask = ['signers.' + role, 'updatedAt'].map(f => 'updateMask.fieldPaths=' + encodeURIComponent(f)).join('&');
+      const r2 = await fetch(`${FS_BASE}/signRequests/${reqId}?${mask}`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${adminTok}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fields }),
+      });
+      if (!r2.ok) throw new Error('patch_signer_' + r2.status + ': ' + (await r2.text()).slice(0, 200));
+    }
 
-    const patch = { signers, updatedAt: now, status: complete ? 'complete' : 'partial' };
+    // Re-read so completeness is computed from BOTH parties' fresh state —
+    // a concurrent signer's write is visible by now.
+    const fresh = (await fsGet(`signRequests/${reqId}`)) || doc;
+    const freshSigners = fresh.signers || {};
+    freshSigners[role] = mine;
+    const required = Array.isArray(fresh.requiredRoles) && fresh.requiredRoles.length ? fresh.requiredRoles : Object.keys(freshSigners);
+    const complete = required.every(r => freshSigners[r] && freshSigners[r].signedAt);
+
+    const patch = { status: complete ? 'complete' : 'partial' };
 
     if (complete && doc.originalPdfUrl) {
       try {
         const orig = await fetch(doc.originalPdfUrl);
         if (!orig.ok) throw new Error('fetch_original_' + orig.status);
         const bytes = Buffer.from(await orig.arrayBuffer());
-        const signed = await buildSignedPdf(bytes, doc.fields, signers);
+        const signed = await buildSignedPdf(bytes, fresh.fields || doc.fields, freshSigners);
         const path = `signRequests/${reqId}/signed.pdf`;
         patch.signedPdfUrl = await uploadPdf(path, Buffer.from(signed));
         patch.signedPdfPath = path;

@@ -676,6 +676,9 @@
       .then(function(r){ return r.json().catch(function(){return {ok:false};}); })
       .then(function(j){
         if(!j||!j.ok){
+          // A timed-out first attempt may have recorded the signature anyway —
+          // the retry then gets 410 already_signed. That's success, not failure.
+          if(j&&j.error==='already_signed'){ renderSuccess(j.signatureStatus==='complete'); return; }
           var b=document.getElementById('s-sign'); if(b){ b.disabled=false; b.textContent='Sign contract'; }
           return flash(j&&j.error==='rate_limited' ? 'Too many attempts — please wait a moment.' : 'We couldn’t record your signature. Please try again.');
         }

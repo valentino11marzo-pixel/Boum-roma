@@ -14,7 +14,7 @@ onboarding. This drives `api/sign/_finalize.js`._
 
 ## 1. The moment both parties sign (atomic, server-side)
 
-When `/api/sign/submit` records the **second** signature (`signatureStatus =
+When `/api/magic-sign/submit` records the **second** signature (`signatureStatus =
 complete`), it runs, in order:
 
 1. **Contract activation** — `status: active`, `fullySignedAt` (already done in submit).

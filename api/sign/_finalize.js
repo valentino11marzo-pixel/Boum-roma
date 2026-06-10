@@ -1,6 +1,6 @@
 // api/sign/_finalize.js
 // Runs once a standard contract is FULLY signed (called server-side by
-// api/sign/submit on completion). It:
+// api/magic-sign/submit on completion). It:
 //   1. generates the full post-signature obligations (fiscal + procedural —
 //      see POST_SIGNATURE_OBLIGATIONS.md);
 //   2. builds a tamper-evident FES signing certificate PDF (signatures + audit)
@@ -10,7 +10,7 @@
 // Idempotent via contract.finalizedAt.
 //
 // Note: the RLI registration deadline + monthly payments are created by
-// api/sign/submit; finalize adds everything else.
+// api/magic-sign/submit; finalize adds everything else.
 
 import crypto from 'node:crypto';
 import { fsCreate, fsPatch, fsGet, getAdminToken } from '../homie/_lib.js';
@@ -22,7 +22,7 @@ const GOLD = '#B8860B';
 const STORAGE_BUCKET = process.env.FIREBASE_STORAGE_BUCKET || 'boom-property-dashboards.firebasestorage.app';
 const MS_CONSENT = 'I confirm my identity and accept all lease terms. This digital signature is legally valid (FES — Art. 21 CAD).';
 
-const EU_KEYS = ['ital','franc','german','tedesc','spagn','spain','portog','portug','paesi bassi','oland','netherl','dutch','belg','austri','irland','ireland','grec','greece','hellen','svez','swed','danim','denmark','danish','finland','finlandi','pol on','polon','polish','cech','czech','slovacch','slovak','sloven','ungher','hungar','magyar','romen','romania','romanian','bulgar','croat','eston','letton','latvia','lituan','lithuan','lussemburg','luxembourg','malt','cipr','cypr','norv','norway','island','iceland','liechtenstein','svizz','switzerl','swiss','europe'];
+const EU_KEYS = ['ital','franc','german','tedesc','spagn','spain','portog','portug','paesi bassi','oland','netherl','dutch','belg','austri','irland','ireland','grec','greece','hellen','svez','swed','danim','denmark','danish','finland','finlandi','poland','polon','polish','cech','czech','slovacch','slovak','sloven','ungher','hungar','magyar','romen','romania','romanian','bulgar','croat','eston','letton','latvia','lituan','lithuan','lussemburg','luxembourg','malt','cipr','cypr','norv','norway','island','iceland','liechtenstein','svizz','switzerl','swiss','europe'];
 function isEU(nat){
   if(!nat) return false;
   const n = String(nat).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim();
@@ -76,9 +76,12 @@ export async function finalizeContract(contract){
   add('Voltura / attivazione utenze (luce, gas, acqua)', { type:'procedural', date: addDays(start, 7), owner:'tenant', priority:'medium', category:'procedural' });
   add('Cambio residenza/domicilio – Anagrafe (se applicabile)', { type:'procedural', date: addDays(start, 20), owner:'tenant', priority:'low', category:'procedural', legalRef:'DPR 223/1989' });
   add('Dichiarazione redditi: canone da dichiarare (CU/Redditi PF)', { type:'fiscal', date: ymd(new Date(now.getFullYear()+1, 5, 30)), owner:'landlord', priority:'low' });
-  add('Consegna chiavi + verbale di consegna e lettura contatori', { type:'procedural', date: ymd(start), owner:'admin', priority:'high', category:'procedural' });
+  // Signing can happen after the lease start date — don't create the key
+  // handover / inventory items already overdue, give them until tomorrow.
+  const atLeastTomorrow = (d) => (d < ymd(now) ? addDays(now, 1) : d);
+  add('Consegna chiavi + verbale di consegna e lettura contatori', { type:'procedural', date: atLeastTomorrow(ymd(start)), owner:'admin', priority:'high', category:'procedural' });
   add(`Verifica APE allegato + deposito cauzionale incassato${contract.deposit?(' ('+money(contract.deposit)+')'):''}`, { type:'procedural', date: addDays(signDate, 3), owner:'admin', priority:'high', category:'procedural' });
-  add('Inventario / stato dei luoghi firmato', { type:'procedural', date: ymd(start), owner:'admin', priority:'medium', category:'procedural' });
+  add('Inventario / stato dei luoghi firmato', { type:'procedural', date: atLeastTomorrow(ymd(start)), owner:'admin', priority:'medium', category:'procedural' });
 
   // Write obligations in parallel (the admin token is already warm) to keep
   // the signer's wait short.
@@ -87,9 +90,16 @@ export async function finalizeContract(contract){
   obResults.forEach(r => { if (r.status === 'rejected') console.warn('[finalize] obligation failed:', r.reason && r.reason.message); });
 
   // ── FES signing certificate PDF (server-side, tamper-evident) ──
+  // Contracts created by the portal wizard carry no tenantName/landlordName
+  // fields — fall back to the user docs so the certificate never prints
+  // "Firmatario: -" on a legal document.
   let certUrl = '';
   try {
-    const bytes = await buildCertificate(contract, property);
+    const bytes = await buildCertificate({
+      ...contract,
+      tenantName: contract.tenantName || (tenant && tenant.name) || '',
+      landlordName: contract.landlordName || (landlord && landlord.name) || '',
+    }, property);
     certUrl = await uploadPdf(`contracts/${contract.id}/signing-certificate.pdf`, Buffer.from(bytes));
   } catch(e){ console.warn('[finalize] certificate failed:', e.message); }
 
@@ -113,9 +123,17 @@ export async function finalizeContract(contract){
   const landlordName = (landlord && landlord.name) || contract.landlordName || 'there';
   const certLine = certUrl ? `<p style="margin:14px 0 0;font-size:13px"><a href="${esc(certUrl)}" style="color:${GOLD};text-decoration:none">⬇ Download your signing certificate (PDF)</a></p>` : '';
 
+  // Both emails run in parallel with a hard timeout: nodemailer has no socket
+  // timeout configured, and this runs inside the signer's request — a stalled
+  // SMTP connection must never push the response past the function limit.
+  const withTimeout = (p, ms, tag) => Promise.race([
+    p, new Promise((_, rej) => setTimeout(() => rej(new Error(tag + '_timeout')), ms)),
+  ]);
+  const emailJobs = [];
+
   if (tenantEmail) {
-    try {
-      await sendEmail({
+    emailJobs.push(withTimeout(
+      sendEmail({
         to: tenantEmail,
         subject: '🔑 Welcome home — your BOOM contract is active',
         html: emailShell('Welcome home', `
@@ -132,8 +150,8 @@ export async function finalizeContract(contract){
             <li>Residence/domicile registration if you need it</li>
           </ul>
         `),
-      });
-    } catch(e){ console.warn('[finalize] tenant email failed:', e.message); }
+      }), 15000, 'tenant_email',
+    ).catch(e => console.warn('[finalize] tenant email failed:', e.message)));
   }
 
   if (landlordEmail) {
@@ -142,8 +160,8 @@ export async function finalizeContract(contract){
       : ['Decision: cedolare secca vs registro+bollo', 'Imposta di registro 2% (min €67) + bollo €16'])
       .concat(['Registrazione contratto (RLI) entro 30 giorni'])
       .concat(nonEU ? ['Cessione di fabbricato alla Questura entro 48h (conduttore extra‑UE)'] : []);
-    try {
-      await sendEmail({
+    emailJobs.push(withTimeout(
+      sendEmail({
         to: landlordEmail,
         subject: '✓ Your BOOM lease is signed — what’s next',
         html: emailShell('Lease signed', `
@@ -154,9 +172,11 @@ export async function finalizeContract(contract){
           ${btn(BASE+'/portal.html', 'Open dashboard')}
           ${certLine}
         `),
-      });
-    } catch(e){ console.warn('[finalize] landlord email failed:', e.message); }
+      }), 15000, 'landlord_email',
+    ).catch(e => console.warn('[finalize] landlord email failed:', e.message)));
   }
+
+  await Promise.all(emailJobs);
 
   try { await fsPatch(`contracts/${contract.id}`, { finalizedAt: now, magicLinkId: magicId, signingCertificateUrl: certUrl }); } catch(e){ console.warn('[finalize] mark failed:', e.message); }
 
