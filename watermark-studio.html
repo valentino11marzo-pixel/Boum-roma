@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>BOOM. Watermark Studio — Strumento interno</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<script defer src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<style>
+    :root {
+        --gold: #D4AF37;
+        --gold-light: rgba(212,175,55,0.15);
+        --gold-dark: #B8960C;
+        --bg: #08080A;
+        --bg-card: #0A0A0A;
+        --bg-elevated: #141414;
+        --bg-input: #1A1A1A;
+        --border: rgba(255,255,255,0.08);
+        --text: #FFF;
+        --text-secondary: #999;
+        --text-muted: #666;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: 'Helvetica Neue', 'Inter', Helvetica, Arial, sans-serif;
+        font-weight: 300;
+        -webkit-font-smoothing: antialiased;
+        background-image: radial-gradient(ellipse 70% 45% at 50% -10%, rgba(212,175,55,0.07), transparent);
+    }
+
+    /* ── Layout ─────────────────────────────────────────────────────────── */
+    header {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 18px 28px; border-bottom: 1px solid var(--border);
+        position: sticky; top: 0; background: rgba(8,8,10,0.92);
+        backdrop-filter: blur(12px); z-index: 50;
+    }
+    .brand { display: flex; align-items: baseline; gap: 14px; }
+    .brand .word { font-size: 22px; letter-spacing: 4px; font-weight: 300; }
+    .brand .word b { color: var(--gold); font-weight: 300; }
+    .brand .sub { font-size: 11px; letter-spacing: 3px; color: var(--text-secondary); text-transform: uppercase; }
+    .badge-internal {
+        font-size: 10px; letter-spacing: 2px; color: var(--gold);
+        border: 1px solid rgba(212,175,55,0.35); border-radius: 100px;
+        padding: 5px 12px; text-transform: uppercase; white-space: nowrap;
+    }
+
+    main {
+        display: grid; grid-template-columns: 1fr 360px; gap: 20px;
+        padding: 20px 28px 60px; max-width: 1480px; margin: 0 auto;
+    }
+    @media (max-width: 980px) { main { grid-template-columns: 1fr; } }
+
+    .card {
+        background: var(--bg-card); border: 1px solid var(--border);
+        border-radius: 16px; padding: 18px;
+    }
+    .card h3 {
+        font-size: 11px; letter-spacing: 2.5px; text-transform: uppercase;
+        color: var(--text-secondary); font-weight: 400; margin-bottom: 14px;
+        display: flex; justify-content: space-between; align-items: center;
+    }
+
+    /* ── Preview ────────────────────────────────────────────────────────── */
+    #stage {
+        position: relative; border-radius: 16px; overflow: hidden;
+        border: 1px solid var(--border); background: #050505;
+        display: flex; align-items: center; justify-content: center;
+        min-height: 380px;
+    }
+    #previewCanvas { max-width: 100%; max-height: 70vh; display: block; cursor: grab; touch-action: none; }
+    #previewCanvas.dragging { cursor: grabbing; }
+    #dropHint {
+        position: absolute; inset: 0; display: flex; flex-direction: column;
+        align-items: center; justify-content: center; gap: 14px; text-align: center;
+        cursor: pointer; padding: 30px;
+    }
+    #dropHint .ring {
+        width: 84px; height: 84px; border-radius: 50%;
+        border: 1px solid rgba(212,175,55,0.4);
+        display: flex; align-items: center; justify-content: center; font-size: 30px;
+        animation: pulse 2.6s ease-in-out infinite;
+    }
+    @keyframes pulse {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(212,175,55,0.18); }
+        50% { box-shadow: 0 0 0 18px rgba(212,175,55,0); }
+    }
+    #dropHint .t1 { font-size: 15px; letter-spacing: 1px; }
+    #dropHint .t2 { font-size: 12px; color: var(--text-muted); letter-spacing: 0.5px; line-height: 1.7; }
+    #stage.dragover { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold) inset; }
+
+    .stage-bar {
+        display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+        margin-top: 12px;
+    }
+    #specs { font-size: 11px; color: var(--text-muted); letter-spacing: 0.5px; margin-left: auto; }
+
+    /* ── Thumbnails ─────────────────────────────────────────────────────── */
+    #thumbs { display: flex; gap: 10px; overflow-x: auto; padding: 4px 2px; margin-top: 14px; }
+    #thumbs:empty { display: none; }
+    .thumb {
+        position: relative; flex: 0 0 auto; width: 76px; height: 76px;
+        border-radius: 10px; overflow: hidden; cursor: pointer;
+        border: 2px solid var(--border); background: #000;
+    }
+    .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0.85; }
+    .thumb.active { border-color: var(--gold); }
+    .thumb.active img { opacity: 1; }
+    .thumb .x {
+        position: absolute; top: 3px; right: 3px; width: 18px; height: 18px;
+        border-radius: 50%; background: rgba(0,0,0,0.7); color: #fff;
+        font-size: 11px; line-height: 18px; text-align: center; border: none; cursor: pointer;
+    }
+
+    /* ── Controls ───────────────────────────────────────────────────────── */
+    aside { display: flex; flex-direction: column; gap: 16px; }
+
+    .presets { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .preset {
+        border: 1px solid var(--border); background: var(--bg-elevated);
+        color: var(--text); border-radius: 10px; padding: 10px 8px;
+        font-size: 11px; letter-spacing: 1.2px; cursor: pointer;
+        text-transform: uppercase; font-family: inherit; font-weight: 300;
+        transition: all .15s;
+    }
+    .preset small { display: block; color: var(--text-muted); letter-spacing: 0.3px; text-transform: none; margin-top: 3px; font-size: 10px; }
+    .preset:hover { border-color: rgba(212,175,55,0.5); }
+    .preset.active { border-color: var(--gold); background: var(--gold-light); }
+    .preset.active small { color: var(--text-secondary); }
+
+    .row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+    .row:last-child { margin-bottom: 0; }
+    .row label { font-size: 11.5px; color: var(--text-secondary); letter-spacing: 0.8px; flex: 0 0 92px; }
+    .row output { font-size: 11px; color: var(--gold); min-width: 38px; text-align: right; font-variant-numeric: tabular-nums; }
+
+    input[type=range] { flex: 1; appearance: none; height: 3px; background: var(--bg-input); border-radius: 2px; outline: none; }
+    input[type=range]::-webkit-slider-thumb {
+        appearance: none; width: 15px; height: 15px; border-radius: 50%;
+        background: var(--gold); cursor: pointer; border: 3px solid #08080A;
+        box-shadow: 0 0 0 1px var(--gold);
+    }
+    input[type=range]::-moz-range-thumb {
+        width: 12px; height: 12px; border-radius: 50%; background: var(--gold);
+        cursor: pointer; border: none;
+    }
+    input[type=text] {
+        flex: 1; background: var(--bg-input); border: 1px solid var(--border);
+        color: var(--text); border-radius: 8px; padding: 8px 10px;
+        font-size: 13px; font-family: inherit; letter-spacing: 1px; min-width: 0;
+    }
+    input[type=text]:focus { outline: none; border-color: var(--gold); }
+    select {
+        flex: 1; background: var(--bg-input); border: 1px solid var(--border);
+        color: var(--text); border-radius: 8px; padding: 8px 10px;
+        font-size: 12.5px; font-family: inherit; min-width: 0;
+    }
+
+    .seg { display: flex; flex: 1; background: var(--bg-input); border-radius: 8px; padding: 3px; gap: 3px; }
+    .seg button {
+        flex: 1; border: none; background: transparent; color: var(--text-secondary);
+        font-size: 11px; letter-spacing: 0.5px; padding: 6px 4px; border-radius: 6px;
+        cursor: pointer; font-family: inherit; font-weight: 300;
+    }
+    .seg button.active { background: var(--gold); color: #000; font-weight: 500; }
+
+    .switch { position: relative; width: 36px; height: 20px; flex: 0 0 auto; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .switch i {
+        position: absolute; inset: 0; background: var(--bg-input); border-radius: 100px;
+        transition: .2s; border: 1px solid var(--border);
+    }
+    .switch i::before {
+        content: ''; position: absolute; width: 14px; height: 14px; border-radius: 50%;
+        background: var(--text-secondary); top: 2px; left: 2px; transition: .2s;
+    }
+    .switch input:checked + i { background: var(--gold-light); border-color: var(--gold); }
+    .switch input:checked + i::before { background: var(--gold); transform: translateX(16px); }
+
+    .grid9 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; flex: 1; }
+    .grid9 button {
+        aspect-ratio: 2.2; border: 1px solid var(--border); background: var(--bg-elevated);
+        border-radius: 6px; cursor: pointer; position: relative;
+    }
+    .grid9 button::after {
+        content: ''; position: absolute; width: 6px; height: 6px; border-radius: 50%;
+        background: var(--text-muted); top: 50%; left: 50%; transform: translate(-50%,-50%);
+    }
+    .grid9 button:hover { border-color: rgba(212,175,55,0.5); }
+    .grid9 button.active { border-color: var(--gold); }
+    .grid9 button.active::after { background: var(--gold); }
+
+    .btn {
+        border: 1px solid var(--border); background: var(--bg-elevated); color: var(--text);
+        border-radius: 10px; padding: 10px 16px; font-size: 12px; letter-spacing: 1.5px;
+        text-transform: uppercase; cursor: pointer; font-family: inherit; font-weight: 300;
+        transition: all .15s; user-select: none;
+    }
+    .btn:hover { border-color: rgba(212,175,55,0.5); }
+    .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+    .btn-gold {
+        background: var(--gold); color: #000; border-color: var(--gold); font-weight: 500;
+        box-shadow: 0 4px 24px rgba(212,175,55,0.25);
+    }
+    .btn-gold:hover { background: #E2C04F; }
+    .btn-block { width: 100%; }
+    .btn-sm { padding: 7px 12px; font-size: 10.5px; }
+
+    .hint { font-size: 10.5px; color: var(--text-muted); letter-spacing: 0.4px; line-height: 1.6; margin-top: 10px; }
+    .hint b { color: var(--gold); font-weight: 400; }
+
+    #toast {
+        position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%) translateY(80px);
+        background: var(--bg-elevated); border: 1px solid var(--gold); color: var(--text);
+        padding: 11px 22px; border-radius: 100px; font-size: 13px; letter-spacing: 0.5px;
+        transition: transform .25s; z-index: 100; pointer-events: none; opacity: 0;
+        box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+    footer { text-align: center; padding: 24px; font-size: 11px; color: var(--text-muted); letter-spacing: 1px; }
+    .privacy-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #4CAF50; margin-right: 6px; vertical-align: 1px; }
+</style>
+</head>
+<body>
+
+<header>
+    <div class="brand">
+        <div class="word">BOOM<b>.</b></div>
+        <div class="sub">Watermark Studio</div>
+    </div>
+    <div class="badge-internal">Strumento interno</div>
+</header>
+
+<main>
+    <!-- ════════ PREVIEW ════════ -->
+    <section>
+        <div id="stage">
+            <canvas id="previewCanvas" style="display:none"></canvas>
+            <div id="dropHint">
+                <div class="ring">⬆</div>
+                <div class="t1">Trascina le foto qui, clicca, o incolla (Ctrl+V)</div>
+                <div class="t2">JPG · PNG · WEBP — più foto insieme.<br>Le immagini restano sul tuo computer: nessun upload, nessun server.</div>
+            </div>
+            <input type="file" id="fileInput" accept="image/*" multiple style="display:none">
+        </div>
+
+        <div class="stage-bar">
+            <button class="btn btn-sm" id="btnAdd">+ Aggiungi foto</button>
+            <button class="btn btn-sm" id="btnCompare" disabled>👁 Tieni premuto: originale</button>
+            <button class="btn btn-sm" id="btnClear" disabled>Svuota</button>
+            <div id="specs"></div>
+        </div>
+
+        <div id="thumbs"></div>
+    </section>
+
+    <!-- ════════ CONTROLS ════════ -->
+    <aside>
+        <div class="card">
+            <h3>Stile firma <span style="color:var(--gold);letter-spacing:1px;text-transform:none">5 design studiati</span></h3>
+            <div class="presets" id="presets"></div>
+        </div>
+
+        <div class="card">
+            <h3>Testo</h3>
+            <div class="row"><label>Marchio</label><input type="text" id="inText" maxlength="24"></div>
+            <div class="row"><label>Punto oro</label><label class="switch"><input type="checkbox" id="inDot"><i></i></label><span style="font-size:11px;color:var(--text-muted)">il punto finale dorato — la firma BOOM</span></div>
+            <div class="row"><label>Sottotitolo</label><input type="text" id="inSub" maxlength="32" placeholder="es. ROMA o BOOMROME.COM"></div>
+        </div>
+
+        <div class="card">
+            <h3>Aspetto</h3>
+            <div class="row"><label>Colore</label>
+                <div class="seg" id="segScheme">
+                    <button data-v="classic">Bianco+Oro</button>
+                    <button data-v="gold">Oro</button>
+                    <button data-v="dark">Nero</button>
+                    <button data-v="white">Bianco</button>
+                </div>
+            </div>
+            <div class="row"><label>Dimensione</label><input type="range" id="inScale" min="2" max="40" step="0.5"><output id="outScale"></output></div>
+            <div class="row"><label>Opacità</label><input type="range" id="inOpacity" min="5" max="100" step="1"><output id="outOpacity"></output></div>
+            <div class="row"><label>Spaziatura</label><input type="range" id="inSpacing" min="0" max="30" step="1"><output id="outSpacing"></output></div>
+            <div class="row"><label>Rotazione</label><input type="range" id="inRotation" min="-45" max="45" step="1"><output id="outRotation"></output></div>
+            <div class="row" id="rowDensity" style="display:none"><label>Densità</label><input type="range" id="inDensity" min="2" max="8" step="1"><output id="outDensity"></output></div>
+            <div class="row"><label>Ombra</label><label class="switch"><input type="checkbox" id="inShadow"><i></i></label><span style="font-size:11px;color:var(--text-muted)">leggibilità su foto chiare</span></div>
+        </div>
+
+        <div class="card" id="cardPos">
+            <h3>Posizione</h3>
+            <div class="row">
+                <label>Ancoraggio</label>
+                <div class="grid9" id="grid9"></div>
+            </div>
+            <div class="hint">Oppure <b>trascina la firma direttamente sulla foto</b>. Frecce della tastiera per regolazioni fini.</div>
+        </div>
+
+        <div class="card" id="cardLogo" style="display:none">
+            <h3>Logo personalizzato</h3>
+            <button class="btn btn-block btn-sm" id="btnLogo">Carica logo PNG / SVG</button>
+            <input type="file" id="logoInput" accept="image/*" style="display:none">
+            <div class="hint" id="logoName">Nessun logo caricato — usa un PNG con sfondo trasparente.</div>
+        </div>
+
+        <div class="card">
+            <h3>Esporta</h3>
+            <div class="row"><label>Formato</label>
+                <div class="seg" id="segFormat">
+                    <button data-v="jpeg">JPG</button>
+                    <button data-v="png">PNG</button>
+                </div>
+            </div>
+            <div class="row" id="rowQuality"><label>Qualità</label><input type="range" id="inQuality" min="70" max="100" step="1"><output id="outQuality"></output></div>
+            <div class="row"><label>Lato max</label>
+                <select id="inMaxSide">
+                    <option value="0">Originale</option>
+                    <option value="3000">3000 px</option>
+                    <option value="2048">2048 px — portali immobiliari</option>
+                    <option value="1600">1600 px</option>
+                    <option value="1200">1200 px — social</option>
+                </select>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:14px">
+                <button class="btn btn-gold btn-block" id="btnExport" disabled>⬇ Scarica foto</button>
+                <button class="btn btn-block" id="btnExportAll" disabled>ZIP tutte</button>
+            </div>
+            <div class="hint" style="text-align:center" id="exportHint"></div>
+        </div>
+
+        <button class="btn btn-sm" id="btnReset" style="align-self:center">Reimposta tutto</button>
+    </aside>
+</main>
+
+<footer><span class="privacy-dot"></span>Elaborazione 100% locale nel browser — le foto non vengono mai caricate su alcun server. © BOOM Roma</footer>
+<div id="toast"></div>
+
+<script>
+'use strict';
+/* ═══════════════════════════════════════════════════════════════════════
+   BOOM Watermark Studio — strumento interno per stagisti / team.
+   Tutto client-side: FileReader → canvas → download. Nessun Firebase,
+   nessuna rete. Il motore drawMark() lavora in pixel-immagine così la
+   stessa funzione genera sia l'anteprima sia l'export a piena risoluzione.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+// ── Logo BOOM (anelli concentrici) senza sfondo, ricolorabile ───────────
+const SEAL_PATH = "M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z m610 -144 c743 -103 1436 -459 1919 -985 338 -367 562 -751 704 -1205 276 -879 132 -1858 -388 -2640 -242 -364 -493 -615 -900 -900 l-70 -49 109 104 c413 396 679 919 767 1505 33 217 33 558 0 765 -75 476 -257 896 -549 1265 -127 161 -363 380 -549 511 -300 211 -689 363 -1079 420 -172 26 -604 26 -764 0 -296 -47 -545 -128 -808 -262 -236 -122 -440 -271 -632 -464 -486 -485 -749 -1121 -751 -1815 -1 -611 170 -1148 515 -1608 100 -134 286 -335 382 -413 33 -27 -8 -2 -91 55 -513 351 -904 805 -1143 1331 -71 156 -136 336 -168 465 -9 33 -19 76 -24 95 -5 19 -20 100 -34 180 -59 343 -60 740 0 1070 81 456 229 826 479 1200 246 368 558 669 949 917 386 245 881 418 1321 462 61 6 124 13 140 15 73 10 556 -4 665 -19z m-60 -1329 c105 -16 258 -49 335 -72 82 -26 197 -66 240 -84 149 -65 190 -84 266 -126 677 -379 1129 -1049 1246 -1849 27 -182 24 -517 -5 -695 -75 -458 -225 -813 -500 -1179 -116 -154 -340 -369 -527 -506 -44 -32 -87 -63 -95 -69 -8 -6 35 39 96 99 178 177 283 321 397 550 161 322 231 676 205 1045 -32 467 -223 902 -542 1237 -239 251 -521 426 -873 542 -79 26 -273 67 -383 81 -108 13 -349 13 -465 0 -276 -32 -597 -145 -834 -293 -224 -140 -466 -378 -613 -602 -307 -470 -407 -1055 -273 -1599 80 -327 217 -589 454 -871 71 -84 73 -88 31 -56 -293 225 -547 535 -718 877 -34 68 -65 143 -122 294 -42 112 -101 383 -120 555 -14 127 -14 401 0 534 51 482 223 912 516 1288 269 344 654 620 1085 778 160 59 400 115 574 134 121 13 508 5 625 -13z m-30 -1165 c401 -81 721 -242 992 -499 643 -612 769 -1607 300 -2367 -118 -190 -291 -386 -463 -524 -137 -111 -148 -113 -49 -12 110 112 206 248 275 386 67 137 98 222 132 367 24 103 26 132 27 323 0 182 -3 224 -22 310 -47 211 -126 394 -245 569 -126 186 -358 387 -564 490 -384 191 -823 225 -1218 95 -482 -160 -854 -541 -1004 -1029 -117 -379 -81 -810 96 -1165 37 -72 130 -215 166 -252 17 -18 26 -33 20 -33 -6 0 -61 52 -121 116 -259 272 -424 575 -511 934 -111 459 -18 1006 245 1430 298 483 791 797 1379 880 110 16 448 4 565 -19z m-239 -911 c360 -28 680 -171 925 -415 194 -193 317 -415 382 -688 24 -102 26 -130 26 -312 0 -191 -1 -205 -30 -320 -53 -205 -132 -372 -251 -535 -58 -79 -263 -288 -323 -330 -31 -22 -29 -18 18 35 195 220 312 519 312 795 0 325 -121 614 -350 841 -369 364 -926 453 -1385 222 -336 -170 -578 -499 -636 -865 -19 -126 -7 -371 25 -490 44 -162 97 -284 173 -398 9 -14 -4 -5 -30 20 -26 24 -45 51 -42 58 2 7 1 11 -4 7 -11 -6 -58 51 -118 140 -109 163 -183 347 -219 545 -23 127 -23 351 -1 489 55 335 248 677 492 871 261 208 530 311 881 338 11 1 81 -3 155 -8z m29 -714 c459 -74 823 -428 895 -869 58 -358 -60 -696 -345 -987 l-34 -35 22 35 c115 182 179 403 168 575 -14 235 -104 433 -268 591 -137 134 -287 209 -472 239 -115 19 -187 19 -303 0 -337 -55 -612 -302 -704 -635 -32 -113 -34 -325 -5 -440 23 -92 70 -213 98 -254 l21 -31 -31 29 c-39 36 -120 152 -155 221 -35 71 -81 215 -102 319 -25 130 -17 357 17 476 102 354 357 618 706 730 152 49 331 62 492 36z m-73 -567 c178 -24 327 -101 454 -236 137 -143 199 -303 201 -513 1 -162 -42 -309 -135 -453 -52 -82 -73 -97 -38 -28 51 99 67 290 36 412 -57 219 -251 413 -466 464 -75 17 -236 20 -311 4 -213 -44 -422 -247 -473 -460 -31 -133 -13 -325 41 -431 35 -70 8 -47 -52 43 -58 88 -90 167 -114 286 -25 121 -25 220 -1 331 33 146 84 243 186 351 171 183 413 266 672 230z m15 -470 c80 -17 186 -76 248 -139 106 -107 158 -248 147 -398 -6 -92 -25 -152 -79 -250 -45 -82 -60 -91 -27 -17 18 41 21 62 17 149 -4 89 -8 108 -35 162 -43 82 -126 165 -209 205 -58 29 -80 34 -158 37 -112 5 -184 -12 -259 -62 -182 -121 -251 -323 -171 -506 l24 -55 -25 30 c-36 44 -92 162 -104 223 -39 189 14 369 146 492 105 99 204 139 345 139 48 1 111 -4 140 -10z";
+const sealCache = {};
+function sealImage(fill, cb) {
+    if (sealCache[fill]) { cb(sealCache[fill]); return; }
+    const grad = fill === 'gold'
+        ? '<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFD54F"/><stop offset="1" stop-color="#F5A623"/></linearGradient></defs>'
+        : '';
+    const f = fill === 'gold' ? 'url(#g)' : fill;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">${grad}<g transform="translate(0,1024) scale(0.1,-0.1)" fill="${f}"><path d="${SEAL_PATH}"/></g></svg>`;
+    const img = new Image();
+    img.onload = () => { sealCache[fill] = img; cb(img); };
+    img.src = 'data:image/svg+xml;base64,' + btoa(svg);
+}
+
+// ── Stato ────────────────────────────────────────────────────────────────
+const DEFAULTS = {
+    mode: 'firma',                 // firma | sigillo | editoriale | pattern | cornice | logo
+    text: 'BOOM', dot: true, sub: 'ROMA',
+    scheme: 'classic',             // classic | gold | dark | white
+    scale: 4.5, opacity: 90, spacing: 6, rotation: 0, density: 4,
+    shadow: true,
+    pos: { x: 0.13, y: 0.92 },
+    format: 'jpeg', quality: 92, maxSide: 0,
+};
+let cfg = loadCfg();
+let photos = [];       // { img: HTMLImageElement, name: string, dataUrl: string }
+let activeIdx = -1;
+let userLogo = null;   // Image caricata per la modalità "logo"
+let showOriginal = false;
+
+function loadCfg() {
+    try {
+        const saved = JSON.parse(localStorage.getItem('boomWmStudio') || 'null');
+        if (saved && typeof saved === 'object') return Object.assign({}, DEFAULTS, saved, { pos: Object.assign({}, DEFAULTS.pos, saved.pos) });
+    } catch (e) {}
+    return JSON.parse(JSON.stringify(DEFAULTS));
+}
+function saveCfg() { try { localStorage.setItem('boomWmStudio', JSON.stringify(cfg)); } catch (e) {} }
+
+// ── Schemi colore ────────────────────────────────────────────────────────
+function colors() {
+    switch (cfg.scheme) {
+        case 'gold':  return { main: '#D4AF37', accent: '#D4AF37', seal: 'gold' };
+        case 'dark':  return { main: '#0B0B0C', accent: '#B8960C', seal: '#0B0B0C' };
+        case 'white': return { main: '#FFFFFF', accent: '#FFFFFF', seal: '#FFFFFF' };
+        default:      return { main: '#FFFFFF', accent: '#D4AF37', seal: 'gold' };
+    }
+}
+
+// ── Helper testo: letter-spacing manuale (compatibile ovunque) ──────────
+function spacedWidth(ctx, text, ls) {
+    let w = 0;
+    for (const ch of text) w += ctx.measureText(ch).width + ls;
+    return Math.max(0, w - ls);
+}
+function drawSpaced(ctx, text, x, y, ls) {
+    let cx = x;
+    for (const ch of text) { ctx.fillText(ch, cx, y); cx += ctx.measureText(ch).width + ls; }
+    return cx - x - ls;
+}
+
+/* ── Motore filigrana ────────────────────────────────────────────────────
+   drawMark(ctx, W, H) disegna in pixel-immagine: tutte le misure sono
+   relative a W così l'export a piena risoluzione è identico all'anteprima. */
+function drawMark(ctx, W, H) {
+    const c = colors();
+    const fs = Math.max(12, W * cfg.scale / 100);            // font-size base
+    const ls = fs * cfg.spacing / 100;                       // letter-spacing
+    const alpha = cfg.opacity / 100;
+    const px = cfg.pos.x * W, py = cfg.pos.y * H;
+    const font = w => `${w} ${fs}px 'Helvetica Neue', Helvetica, Inter, Arial, sans-serif`;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.textBaseline = 'alphabetic';
+    if (cfg.shadow && cfg.scheme !== 'dark') {
+        ctx.shadowColor = 'rgba(0,0,0,0.5)';
+        ctx.shadowBlur = fs * 0.35;
+        ctx.shadowOffsetY = fs * 0.04;
+    }
+
+    const drawBlock = () => {                                // firma / editoriale
+        ctx.font = font(300);
+        const mainW = spacedWidth(ctx, cfg.text, ls) + (cfg.dot ? ctx.measureText('.').width + ls : 0);
+        const subFs = fs * 0.32;
+        const subLs = subFs * 0.9;
+        ctx.translate(px, py);
+        ctx.rotate(cfg.rotation * Math.PI / 180);
+        // marchio
+        ctx.fillStyle = c.main;
+        const used = drawSpaced(ctx, cfg.text, -mainW / 2, 0, ls);
+        if (cfg.dot) { ctx.fillStyle = c.accent; ctx.fillText('.', -mainW / 2 + used + ls, 0); }
+        // sottotitolo centrato sotto
+        if (cfg.sub) {
+            ctx.font = `400 ${subFs}px 'Helvetica Neue', Helvetica, Inter, Arial, sans-serif`;
+            const sw = spacedWidth(ctx, cfg.sub, subLs);
+            ctx.fillStyle = c.accent;
+            drawSpaced(ctx, cfg.sub, -sw / 2, subFs * 1.9, subLs);
+        }
+    };
+
+    switch (cfg.mode) {
+        case 'firma':
+        case 'editoriale':
+            drawBlock();
+            break;
+
+        case 'sigillo': {
+            const seal = sealCache[c.seal];
+            const d = fs * 2.6;                              // diametro sigillo
+            ctx.translate(px, py);
+            ctx.rotate(cfg.rotation * Math.PI / 180);
+            if (seal) ctx.drawImage(seal, -d / 2, -d, d, d);
+            ctx.font = `300 ${fs * 0.62}px 'Helvetica Neue', Helvetica, Inter, Arial, sans-serif`;
+            const tls = fs * 0.62 * 0.25;
+            const tw = spacedWidth(ctx, cfg.text, tls) + (cfg.dot ? ctx.measureText('.').width + tls : 0);
+            ctx.fillStyle = c.main;
+            const u = drawSpaced(ctx, cfg.text, -tw / 2, fs * 0.85, tls);
+            if (cfg.dot) { ctx.fillStyle = c.accent; ctx.fillText('.', -tw / 2 + u + tls, fs * 0.85); }
+            if (cfg.sub) {
+                const sfs = fs * 0.3;
+                ctx.font = `400 ${sfs}px 'Helvetica Neue', Helvetica, Inter, Arial, sans-serif`;
+                const sw = spacedWidth(ctx, cfg.sub, sfs * 0.9);
+                ctx.fillStyle = c.accent;
+                drawSpaced(ctx, cfg.sub, -sw / 2, fs * 0.85 + sfs * 1.8, sfs * 0.9);
+            }
+            break;
+        }
+
+        case 'pattern': {
+            ctx.shadowColor = 'transparent';
+            ctx.font = font(300);
+            const label = cfg.text + (cfg.dot ? '.' : '') + (cfg.sub ? '  ' + cfg.sub : '');
+            const tw = spacedWidth(ctx, label, ls);
+            const diag = Math.hypot(W, H);
+            const stepX = tw + fs * 3;
+            const stepY = (diag / cfg.density);
+            ctx.translate(W / 2, H / 2);
+            ctx.rotate(cfg.rotation * Math.PI / 180);
+            ctx.fillStyle = c.main;
+            let rowI = 0;
+            for (let y = -diag / 2; y <= diag / 2; y += stepY, rowI++) {
+                const off = (rowI % 2) * stepX / 2;
+                for (let x = -diag / 2 - stepX + off; x <= diag / 2 + stepX; x += stepX) {
+                    const used = drawSpaced(ctx, cfg.text, x, y, ls);
+                    if (cfg.dot) { ctx.fillStyle = c.accent; ctx.fillText('.', x + used + ls, y); ctx.fillStyle = c.main; }
+                    if (cfg.sub) {
+                        ctx.font = `400 ${fs * 0.55}px 'Helvetica Neue', Helvetica, Inter, Arial, sans-serif`;
+                        ctx.fillText('  ' + cfg.sub, x + used + ls + ctx.measureText('.').width, y);
+                        ctx.font = font(300);
+                    }
+                }
+            }
+            break;
+        }
+
+        case 'cornice': {
+            const inset = W * 0.035;
+            ctx.strokeStyle = c.accent;
+            ctx.lineWidth = Math.max(1, W * 0.0016);
+            ctx.strokeRect(inset, inset, W - inset * 2, H - inset * 2);
+            // wordmark in basso al centro, dentro la cornice
+            ctx.font = font(300);
+            const mainW = spacedWidth(ctx, cfg.text, ls) + (cfg.dot ? ctx.measureText('.').width + ls : 0);
+            const baseY = H - inset - fs * 0.9;
+            ctx.fillStyle = c.main;
+            const used = drawSpaced(ctx, cfg.text, (W - mainW) / 2, baseY, ls);
+            if (cfg.dot) { ctx.fillStyle = c.accent; ctx.fillText('.', (W - mainW) / 2 + used + ls, baseY); }
+            if (cfg.sub) {
+                const sfs = fs * 0.3;
+                ctx.font = `400 ${sfs}px 'Helvetica Neue', Helvetica, Inter, Arial, sans-serif`;
+                const sw = spacedWidth(ctx, cfg.sub, sfs * 0.9);
+                ctx.fillStyle = c.accent;
+                drawSpaced(ctx, cfg.sub, (W - sw) / 2, baseY + sfs * 1.9, sfs * 0.9);
+            }
+            // filetti laterali al sottotitolo in alto
+            const topY = inset + fs * 0.55;
+            ctx.font = `400 ${fs * 0.26}px 'Helvetica Neue', Helvetica, Inter, Arial, sans-serif`;
+            const topTxt = 'B O O M R O M E . C O M';
+            const tw2 = ctx.measureText(topTxt).width;
+            ctx.fillStyle = c.accent;
+            ctx.fillText(topTxt, (W - tw2) / 2, topY);
+            break;
+        }
+
+        case 'logo': {
+            if (userLogo) {
+                const lw = W * cfg.scale / 100 * 3.2;
+                const lh = lw * (userLogo.naturalHeight / userLogo.naturalWidth);
+                ctx.translate(px, py);
+                ctx.rotate(cfg.rotation * Math.PI / 180);
+                ctx.drawImage(userLogo, -lw / 2, -lh / 2, lw, lh);
+            }
+            break;
+        }
+    }
+    ctx.restore();
+}
+
+// ── Preset: i 5 design studiati ──────────────────────────────────────────
+const PRESETS = [
+    { id: 'firma',      label: 'Firma',      desc: 'la classica firma BOOM. in angolo',
+      set: { mode: 'firma', scale: 4.5, opacity: 90, spacing: 6, rotation: 0, shadow: true, scheme: 'classic', sub: 'ROMA', pos: { x: 0.13, y: 0.92 } } },
+    { id: 'sigillo',    label: 'Sigillo',    desc: 'logo ad anelli + wordmark, da timbro',
+      set: { mode: 'sigillo', scale: 5.5, opacity: 85, spacing: 8, rotation: 0, shadow: true, scheme: 'classic', sub: 'ROMA', pos: { x: 0.5, y: 0.86 } } },
+    { id: 'editoriale', label: 'Editoriale', desc: 'wordmark grande, effetto rivista',
+      set: { mode: 'editoriale', scale: 14, opacity: 22, spacing: 18, rotation: 0, shadow: false, scheme: 'white', sub: 'BOOMROME.COM', pos: { x: 0.5, y: 0.5 } } },
+    { id: 'pattern',    label: 'Pattern',    desc: 'ripetuta in diagonale, anti-furto',
+      set: { mode: 'pattern', scale: 3.2, opacity: 14, spacing: 10, rotation: -30, density: 4, shadow: false, scheme: 'white', sub: '', pos: { x: 0.5, y: 0.5 } } },
+    { id: 'cornice',    label: 'Cornice',    desc: 'bordo oro sottile, stile luxury',
+      set: { mode: 'cornice', scale: 4, opacity: 92, spacing: 10, rotation: 0, shadow: true, scheme: 'classic', sub: 'ROMA · PROPERTY', pos: { x: 0.5, y: 0.5 } } },
+    { id: 'logo',       label: 'Logo file',  desc: 'carica un tuo PNG trasparente',
+      set: { mode: 'logo', scale: 6, opacity: 85, rotation: 0, shadow: false, pos: { x: 0.13, y: 0.9 } } },
+];
+
+// ── UI refs ──────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const stage = $('stage'), canvas = $('previewCanvas'), ctxP = canvas.getContext('2d');
+const dropHint = $('dropHint'), fileInput = $('fileInput'), thumbs = $('thumbs');
+
+function toast(msg) {
+    const t = $('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(t._h);
+    t._h = setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+// ── Render anteprima ─────────────────────────────────────────────────────
+let rafPending = false;
+function render() {
+    if (rafPending) return;
+    rafPending = true;
+    requestAnimationFrame(() => { rafPending = false; renderNow(); });
+}
+function renderNow() {
+    const ph = photos[activeIdx];
+    const has = !!ph;
+    canvas.style.display = has ? 'block' : 'none';
+    dropHint.style.display = has ? 'none' : 'flex';
+    $('btnCompare').disabled = !has;
+    $('btnClear').disabled = !photos.length;
+    $('btnExport').disabled = !has;
+    $('btnExportAll').disabled = photos.length < 2;
+    $('exportHint').textContent = photos.length > 1 ? `${photos.length} foto in coda — “ZIP tutte” le firma in un colpo` : '';
+    if (!has) { $('specs').textContent = ''; return; }
+
+    const img = ph.img;
+    // anteprima ridimensionata (max ~1400px) per fluidità; export usa piena risoluzione
+    const maxPrev = 1400;
+    const k = Math.min(1, maxPrev / Math.max(img.naturalWidth, img.naturalHeight));
+    canvas.width = Math.round(img.naturalWidth * k);
+    canvas.height = Math.round(img.naturalHeight * k);
+    ctxP.drawImage(img, 0, 0, canvas.width, canvas.height);
+    if (!showOriginal) drawMark(ctxP, canvas.width, canvas.height);
+    $('specs').textContent = `${ph.name} — ${img.naturalWidth}×${img.naturalHeight}px · foto ${activeIdx + 1}/${photos.length}`;
+}
+
+// ── Caricamento foto ─────────────────────────────────────────────────────
+function addFiles(fileList) {
+    const files = Array.from(fileList || []).filter(f => f.type.startsWith('image/'));
+    if (!files.length) { toast('Nessuna immagine valida'); return; }
+    let pending = files.length;
+    files.forEach(f => {
+        const reader = new FileReader();
+        reader.onload = e => {
+            const img = new Image();
+            img.onload = () => {
+                photos.push({ img, name: f.name.replace(/\.[^.]+$/, ''), dataUrl: e.target.result });
+                if (activeIdx < 0) activeIdx = 0;
+                if (--pending === 0) { renderThumbs(); render(); toast(files.length + (files.length === 1 ? ' foto caricata' : ' foto caricate')); }
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(f);
+    });
+}
+
+function renderThumbs() {
+    thumbs.innerHTML = photos.map((p, i) => `
+        <div class="thumb ${i === activeIdx ? 'active' : ''}" data-i="${i}">
+            <img src="${p.dataUrl}" alt="">
+            <button class="x" data-x="${i}" title="Rimuovi">✕</button>
+        </div>`).join('');
+}
+thumbs.addEventListener('click', e => {
+    const x = e.target.closest('[data-x]');
+    if (x) {
+        const i = +x.dataset.x;
+        photos.splice(i, 1);
+        if (activeIdx >= photos.length) activeIdx = photos.length - 1;
+        renderThumbs(); render();
+        return;
+    }
+    const t = e.target.closest('.thumb');
+    if (t) { activeIdx = +t.dataset.i; renderThumbs(); render(); }
+});
+
+// drag & drop + click + incolla
+dropHint.addEventListener('click', () => fileInput.click());
+$('btnAdd').addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', () => { addFiles(fileInput.files); fileInput.value = ''; });
+['dragover', 'dragenter'].forEach(ev => stage.addEventListener(ev, e => { e.preventDefault(); stage.classList.add('dragover'); }));
+['dragleave', 'drop'].forEach(ev => stage.addEventListener(ev, e => { e.preventDefault(); stage.classList.remove('dragover'); }));
+stage.addEventListener('drop', e => addFiles(e.dataTransfer.files));
+document.addEventListener('paste', e => {
+    const items = Array.from(e.clipboardData ? e.clipboardData.items : []).filter(i => i.type.startsWith('image/'));
+    if (items.length) addFiles(items.map(i => i.getAsFile()).filter(Boolean));
+});
+
+$('btnClear').addEventListener('click', () => { photos = []; activeIdx = -1; renderThumbs(); render(); });
+
+// confronto con l'originale (tieni premuto)
+const cmp = $('btnCompare');
+const cmpOn = () => { showOriginal = true; render(); };
+const cmpOff = () => { showOriginal = false; render(); };
+cmp.addEventListener('mousedown', cmpOn);
+cmp.addEventListener('touchstart', e => { e.preventDefault(); cmpOn(); });
+['mouseup', 'mouseleave', 'touchend', 'touchcancel'].forEach(ev => cmp.addEventListener(ev, cmpOff));
+
+// ── Trascinamento della firma sulla foto ────────────────────────────────
+const DRAGGABLE = { firma: 1, sigillo: 1, editoriale: 1, logo: 1 };
+let dragging = false;
+function posFromEvent(e) {
+    const r = canvas.getBoundingClientRect();
+    const cx = (e.touches ? e.touches[0].clientX : e.clientX) - r.left;
+    const cy = (e.touches ? e.touches[0].clientY : e.clientY) - r.top;
+    return { x: Math.min(0.98, Math.max(0.02, cx / r.width)), y: Math.min(0.98, Math.max(0.02, cy / r.height)) };
+}
+canvas.addEventListener('pointerdown', e => {
+    if (!DRAGGABLE[cfg.mode] || activeIdx < 0) return;
+    dragging = true;
+    canvas.classList.add('dragging');
+    canvas.setPointerCapture(e.pointerId);
+    cfg.pos = posFromEvent(e); syncGrid9(); render();
+});
+canvas.addEventListener('pointermove', e => { if (dragging) { cfg.pos = posFromEvent(e); syncGrid9(); render(); } });
+['pointerup', 'pointercancel'].forEach(ev => canvas.addEventListener(ev, () => { if (dragging) { dragging = false; canvas.classList.remove('dragging'); saveCfg(); } }));
+
+// frecce tastiera = regolazione fine
+document.addEventListener('keydown', e => {
+    if (!DRAGGABLE[cfg.mode] || activeIdx < 0) return;
+    if (/^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName)) return;
+    const step = e.shiftKey ? 0.03 : 0.006;
+    const map = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] };
+    if (!map[e.key]) return;
+    e.preventDefault();
+    cfg.pos.x = Math.min(0.98, Math.max(0.02, cfg.pos.x + map[e.key][0]));
+    cfg.pos.y = Math.min(0.98, Math.max(0.02, cfg.pos.y + map[e.key][1]));
+    syncGrid9(); saveCfg(); render();
+});
+
+// ── Controlli ────────────────────────────────────────────────────────────
+function bindRange(id, key, outId, fmt) {
+    const el = $(id), out = $(outId);
+    el.addEventListener('input', () => { cfg[key] = +el.value; out.textContent = fmt(+el.value); saveCfg(); render(); });
+    el._sync = () => { el.value = cfg[key]; out.textContent = fmt(cfg[key]); };
+}
+bindRange('inScale', 'scale', 'outScale', v => v + '%');
+bindRange('inOpacity', 'opacity', 'outOpacity', v => v + '%');
+bindRange('inSpacing', 'spacing', 'outSpacing', v => v);
+bindRange('inRotation', 'rotation', 'outRotation', v => v + '°');
+bindRange('inDensity', 'density', 'outDensity', v => '×' + v);
+bindRange('inQuality', 'quality', 'outQuality', v => v + '%');
+
+function bindText(id, key) {
+    const el = $(id);
+    el.addEventListener('input', () => { cfg[key] = el.value; saveCfg(); render(); });
+    el._sync = () => { el.value = cfg[key]; };
+}
+bindText('inText', 'text');
+bindText('inSub', 'sub');
+
+$('inDot').addEventListener('change', e => { cfg.dot = e.target.checked; saveCfg(); render(); });
+$('inShadow').addEventListener('change', e => { cfg.shadow = e.target.checked; saveCfg(); render(); });
+$('inMaxSide').addEventListener('change', e => { cfg.maxSide = +e.target.value; saveCfg(); });
+
+function bindSeg(id, key, after) {
+    const seg = $(id);
+    seg.addEventListener('click', e => {
+        const b = e.target.closest('button'); if (!b) return;
+        cfg[key] = b.dataset.v;
+        seg.querySelectorAll('button').forEach(x => x.classList.toggle('active', x === b));
+        if (after) after();
+        saveCfg(); render();
+    });
+    seg._sync = () => seg.querySelectorAll('button').forEach(x => x.classList.toggle('active', x.dataset.v === cfg[key]));
+}
+bindSeg('segScheme', 'scheme', () => preloadSeal());
+bindSeg('segFormat', 'format', () => { $('rowQuality').style.display = cfg.format === 'jpeg' ? '' : 'none'; });
+
+// griglia 9 posizioni
+const GRID = [[0.13, 0.1], [0.5, 0.1], [0.87, 0.1], [0.13, 0.5], [0.5, 0.5], [0.87, 0.5], [0.13, 0.92], [0.5, 0.92], [0.87, 0.92]];
+const grid9 = $('grid9');
+grid9.innerHTML = GRID.map((g, i) => `<button data-g="${i}" title="Posizione"></button>`).join('');
+grid9.addEventListener('click', e => {
+    const b = e.target.closest('[data-g]'); if (!b) return;
+    const g = GRID[+b.dataset.g];
+    cfg.pos = { x: g[0], y: g[1] };
+    syncGrid9(); saveCfg(); render();
+});
+function syncGrid9() {
+    grid9.querySelectorAll('button').forEach((b, i) => {
+        const g = GRID[i];
+        b.classList.toggle('active', Math.abs(g[0] - cfg.pos.x) < 0.06 && Math.abs(g[1] - cfg.pos.y) < 0.06);
+    });
+}
+
+// preset
+const presetsEl = $('presets');
+presetsEl.innerHTML = PRESETS.map(p => `<button class="preset" data-p="${p.id}">${p.label}<small>${p.desc}</small></button>`).join('');
+presetsEl.addEventListener('click', e => {
+    const b = e.target.closest('[data-p]'); if (!b) return;
+    const p = PRESETS.find(x => x.id === b.dataset.p);
+    Object.assign(cfg, JSON.parse(JSON.stringify(p.set)));
+    saveCfg(); syncAll(); render();
+});
+
+// logo personalizzato
+$('btnLogo').addEventListener('click', () => $('logoInput').click());
+$('logoInput').addEventListener('change', e => {
+    const f = e.target.files[0]; if (!f) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+        const img = new Image();
+        img.onload = () => { userLogo = img; $('logoName').innerHTML = '<b>' + f.name + '</b> — trascinalo sulla foto per posizionarlo.'; render(); };
+        img.src = ev.target.result;
+    };
+    reader.readAsDataURL(f);
+    e.target.value = '';
+});
+
+$('btnReset').addEventListener('click', () => {
+    cfg = JSON.parse(JSON.stringify(DEFAULTS));
+    saveCfg(); syncAll(); render();
+    toast('Impostazioni reimpostate');
+});
+
+function syncAll() {
+    ['inScale', 'inOpacity', 'inSpacing', 'inRotation', 'inDensity', 'inQuality', 'inText', 'inSub'].forEach(id => $(id)._sync && $(id)._sync());
+    $('segScheme')._sync(); $('segFormat')._sync();
+    $('inDot').checked = cfg.dot;
+    $('inShadow').checked = cfg.shadow;
+    $('inMaxSide').value = String(cfg.maxSide);
+    $('rowQuality').style.display = cfg.format === 'jpeg' ? '' : 'none';
+    $('rowDensity').style.display = cfg.mode === 'pattern' ? '' : 'none';
+    $('cardPos').style.display = DRAGGABLE[cfg.mode] ? '' : 'none';
+    $('cardLogo').style.display = cfg.mode === 'logo' ? '' : 'none';
+    presetsEl.querySelectorAll('.preset').forEach(b => b.classList.toggle('active', b.dataset.p === cfg.mode));
+    syncGrid9();
+    preloadSeal();
+}
+function preloadSeal() { sealImage(colors().seal, () => render()); }
+
+// ── Export ───────────────────────────────────────────────────────────────
+function renderFull(ph) {
+    return new Promise(resolve => {
+        const img = ph.img;
+        let w = img.naturalWidth, h = img.naturalHeight;
+        if (cfg.maxSide > 0) {
+            const k = Math.min(1, cfg.maxSide / Math.max(w, h));
+            w = Math.round(w * k); h = Math.round(h * k);
+        }
+        const cv = document.createElement('canvas');
+        cv.width = w; cv.height = h;
+        const cx = cv.getContext('2d');
+        cx.drawImage(img, 0, 0, w, h);
+        drawMark(cx, w, h);
+        const mime = cfg.format === 'png' ? 'image/png' : 'image/jpeg';
+        cv.toBlob(b => resolve(b), mime, cfg.quality / 100);
+    });
+}
+function downloadBlob(blob, name) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+}
+function safeName(s) { return (s || 'foto').replace(/[^a-zA-Z0-9_-]+/g, '_').replace(/^_+|_+$/g, '') || 'foto'; }
+const ext = () => cfg.format === 'png' ? 'png' : 'jpg';
+
+$('btnExport').addEventListener('click', async () => {
+    const ph = photos[activeIdx]; if (!ph) return;
+    const blob = await renderFull(ph);
+    if (!blob) { toast('Errore durante la generazione'); return; }
+    downloadBlob(blob, `BOOM_${safeName(ph.name)}.${ext()}`);
+    toast('Foto firmata scaricata ✓');
+});
+
+$('btnExportAll').addEventListener('click', async () => {
+    if (!photos.length) return;
+    if (typeof JSZip === 'undefined') { toast('JSZip non ancora caricato — riprova'); return; }
+    toast('Preparazione ZIP…');
+    const zip = new JSZip();
+    const folder = zip.folder('BOOM_foto_firmate');
+    let n = 0;
+    for (const ph of photos) {
+        const blob = await renderFull(ph);
+        if (blob) folder.file(`BOOM_${String(++n).padStart(2, '0')}_${safeName(ph.name)}.${ext()}`, blob);
+    }
+    const out = await zip.generateAsync({ type: 'blob' });
+    downloadBlob(out, 'BOOM_foto_firmate.zip');
+    toast(n + ' foto firmate nello ZIP ✓');
+});
+
+// ── Avvio ────────────────────────────────────────────────────────────────
+syncAll();
+render();
+</script>
+</body>
+</html>
