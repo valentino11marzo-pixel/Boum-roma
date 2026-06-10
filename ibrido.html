@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BOOM — Il primo ibrido tra portale e agenzia | Roma</title>
+    <meta name="description" content="La libertà di un portale. La responsabilità di un'agenzia. BOOM è la terza cosa: pubblichi tu, gestiamo noi, e della solvibilità rispondiamo legalmente. Prima locazione gratuita.">
+    <meta name="robots" content="noindex, follow">
+    <meta name="theme-color" content="#08080A">
+    <meta name="color-scheme" content="dark">
+    <link rel="icon" href="/favicon.ico" sizes="any">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/boom-film.css">
+    <style>
+        /* ═══════════════ BOOM design tokens (da index.html) ═══════════════ */
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --gold: #FFD700; --gold-light: #FFE55C; --gold-dark: #E5C200;
+            --cyan: #00CED1; --green: #00FF88; --violet: #635BFF;
+            --black: #030303; --void: #060607;
+            --surface: #0B0B0C; --surface-elevated: #121214; --surface-hover: #1A1A1D; --surface-card: #0E0E10;
+            --text-primary: #FAFAFA;
+            --text-secondary: rgba(250,250,250,0.72);
+            --text-tertiary: rgba(250,250,250,0.44);
+            --text-muted: rgba(250,250,250,0.24);
+            --border-subtle: rgba(255,255,255,0.04);
+            --border-default: rgba(255,255,255,0.08);
+            --border-hover: rgba(255,215,0,0.25);
+            --border-gold: rgba(255,215,0,0.12);
+            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            --font-display: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+            --sp-md: 16px; --sp-lg: 24px; --sp-xl: 32px; --sp-2xl: 48px; --sp-3xl: 64px; --sp-4xl: 96px; --sp-5xl: 128px;
+        }
+        html { -webkit-font-smoothing: antialiased; scroll-behavior: smooth; scroll-padding-top: 104px; }
+        body { font-family: var(--font-sans); background: var(--black); color: var(--text-primary); font-weight: 300; line-height: 1.6; overflow-x: hidden; }
+        body::before {
+            content: ''; position: fixed; inset: 0; opacity: 0.012; pointer-events: none; z-index: 9999;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+        }
+        a { color: inherit; text-decoration: none; }
+        ::selection { background: var(--gold); color: var(--black); }
+        .container { width: 100%; max-width: 1320px; margin: 0 auto; padding: 0 var(--sp-lg); }
+        @media (min-width: 768px) { .container { padding: 0 var(--sp-2xl); } }
+
+        /* ambient */
+        .tech-bg { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+        .tech-orb { position: absolute; border-radius: 50%; filter: blur(80px); animation: orb 24s ease-in-out infinite; }
+        .o1 { width: 600px; height: 600px; background: radial-gradient(circle, var(--gold) 0%, transparent 70%); top: -220px; right: -120px; opacity: 0.05; }
+        .o2 { width: 520px; height: 520px; background: radial-gradient(circle, var(--violet) 0%, transparent 70%); bottom: -180px; left: -140px; opacity: 0.045; animation-delay: -9s; }
+        @keyframes orb { 0%,100% { transform: translate(0,0) scale(1); } 33% { transform: translate(30px,-20px) scale(1.05); } 66% { transform: translate(-20px,28px) scale(0.96); } }
+        .tech-grid {
+            position: absolute; inset: 0;
+            background-image: linear-gradient(rgba(255,215,0,0.015) 1px, transparent 1px), linear-gradient(90deg, rgba(255,215,0,0.015) 1px, transparent 1px);
+            background-size: 80px 80px;
+            -webkit-mask-image: radial-gradient(ellipse at center, black 0%, transparent 70%);
+            mask-image: radial-gradient(ellipse at center, black 0%, transparent 70%);
+        }
+        .scroll-progress { position: fixed; top: 0; left: 0; width: 0%; height: 2px; background: linear-gradient(90deg, var(--gold), var(--gold-light)); z-index: 10002; }
+        .demo-badge { position: fixed; bottom: 18px; left: 18px; z-index: 10000; padding: 7px 15px; background: rgba(6,6,7,0.85); border: 1px solid var(--border-gold); color: var(--gold); font-size: 9px; letter-spacing: 2.5px; text-transform: uppercase; backdrop-filter: blur(12px); border-radius: 100px; pointer-events: none; }
+
+        /* ═══════════════ CINEMATIC OPENING ═══════════════ */
+        .intro { position: fixed; inset: 0; z-index: 10001; background: var(--black); display: flex; align-items: center; justify-content: center; transition: opacity 0.9s var(--ease-out), visibility 0.9s; }
+        .intro.out { opacity: 0; visibility: hidden; pointer-events: none; }
+        .intro-line {
+            position: absolute; padding: 0 24px; text-align: center;
+            font-family: var(--font-display); font-weight: 200; text-transform: uppercase; letter-spacing: -0.01em;
+            font-size: clamp(26px, 4.6vw, 58px); line-height: 1.2; color: var(--text-primary);
+            opacity: 0; transform: translateY(26px) scale(0.99); filter: blur(6px);
+            transition: opacity 0.7s var(--ease-out), transform 0.7s var(--ease-out), filter 0.7s var(--ease-out);
+        }
+        .intro-line .dim { color: var(--text-tertiary); }
+        .intro-line .gold { color: var(--gold); font-weight: 300; }
+        .intro-line.on { opacity: 1; transform: none; filter: blur(0); }
+        .intro-line.off { opacity: 0; transform: translateY(-22px); filter: blur(6px); }
+        .intro-skip { position: absolute; bottom: 34px; right: 38px; font-size: 10px; letter-spacing: 2.5px; text-transform: uppercase; color: var(--text-muted); background: none; border: none; cursor: pointer; font-family: var(--font-sans); transition: color 0.3s; }
+        .intro-skip:hover { color: var(--gold); }
+        .intro-bar { position: absolute; bottom: 0; left: 0; height: 2px; width: 0; background: var(--gold); transition: width 0.4s linear; }
+
+        /* ═══════════════ NAV ═══════════════ */
+        .nav { position: fixed; top: 0; left: 0; right: 0; z-index: 10000; padding: var(--sp-lg) 0; transition: all 0.4s var(--ease-out); background: linear-gradient(180deg, rgba(3,3,3,1) 0%, rgba(3,3,3,0.9) 60%, transparent 100%); }
+        .nav.scrolled { background: rgba(3,3,3,0.96); backdrop-filter: blur(20px); border-bottom: 1px solid var(--border-subtle); padding: var(--sp-md) 0; }
+        .nav-inner { display: flex; align-items: center; justify-content: space-between; }
+        .logo { display: flex; align-items: center; gap: var(--sp-md); transition: transform 0.3s var(--ease-out); }
+        .logo:hover { transform: scale(1.02); }
+        .logo-mark { width: 54px; height: 54px; filter: drop-shadow(0 0 20px rgba(255,215,0,0.4)); }
+        .logo-text { font-family: var(--font-display); font-size: 26px; font-weight: 300; letter-spacing: 4px; text-transform: uppercase; }
+        .nav-links { display: none; align-items: center; gap: var(--sp-xl); }
+        @media (min-width: 1024px) { .nav-links { display: flex; } }
+        .nav-link { font-size: 11px; font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-secondary); transition: color 0.3s; position: relative; }
+        .nav-link::after { content: ''; position: absolute; bottom: -4px; left: 0; width: 0; height: 1px; background: var(--gold); transition: width 0.3s var(--ease-out); }
+        .nav-link:hover { color: var(--text-primary); }
+        .nav-link:hover::after { width: 100%; }
+        .nav-cta { padding: 11px 22px; border: 1px solid var(--gold); color: var(--gold); font-size: 10px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; border-radius: 100px; transition: all 0.3s var(--ease-out); }
+        .nav-cta:hover { background: var(--gold); color: var(--black); }
+
+        /* ═══════════════ BUTTONS ═══════════════ */
+        .btn { position: relative; overflow: hidden; display: inline-flex; align-items: center; justify-content: center; gap: 10px; padding: 18px 38px; font-size: 11px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; border-radius: 100px; border: 1px solid transparent; cursor: pointer; font-family: var(--font-sans); transition: transform 0.4s var(--ease-out), box-shadow 0.4s var(--ease-out), border-color 0.4s var(--ease-out), background 0.4s var(--ease-out); }
+        .btn::after { content: ''; position: absolute; inset: 0; background: linear-gradient(115deg, transparent 30%, rgba(255,255,255,0.45), transparent 70%); transform: translateX(-130%); transition: transform 0.7s var(--ease-out); pointer-events: none; }
+        .btn:hover::after { transform: translateX(130%); }
+        .btn-primary { background: var(--gold); color: var(--black); }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 40px rgba(255,215,0,0.4); }
+        .btn-secondary { background: transparent; border: 1px solid var(--border-default); color: var(--text-primary); }
+        .btn-secondary:hover { border-color: var(--gold); background: rgba(255,215,0,0.05); }
+
+        .eyebrow { display: inline-flex; align-items: center; gap: 8px; margin-bottom: var(--sp-lg); }
+        .eyebrow-dot { width: 8px; height: 8px; background: var(--green); border-radius: 50%; animation: pulse 2s ease-in-out infinite; }
+        @keyframes pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.6; transform: scale(0.9); } }
+        .eyebrow-text { font-size: 11px; font-weight: 500; letter-spacing: 2px; text-transform: uppercase; color: var(--text-secondary); }
+        .section-title { font-family: var(--font-display); font-weight: 200; font-size: clamp(30px, 4.6vw, 56px); line-height: 1.1; letter-spacing: -0.02em; text-transform: uppercase; }
+        .section-title .gold { color: var(--gold); font-weight: 300; }
+        .reveal { opacity: 0; transform: translateY(36px); transition: opacity 0.9s var(--ease-out), transform 0.9s var(--ease-out); }
+        .reveal.in { opacity: 1; transform: none; }
+
+        /* ═══════════════ HERO ═══════════════ */
+        .hero { position: relative; min-height: 100vh; min-height: 100svh; display: flex; align-items: center; padding: var(--sp-5xl) 0 var(--sp-3xl); overflow: hidden; z-index: 2; }
+        .hero-glow { position: absolute; width: 760px; height: 760px; border-radius: 50%; filter: blur(120px); background: var(--gold); pointer-events: none; }
+        .hg1 { top: -320px; right: -220px; opacity: 0.10; animation: floatSlow 20s ease-in-out infinite; }
+        .hg2 { bottom: -420px; left: -300px; opacity: 0.06; animation: floatSlow 26s ease-in-out infinite reverse; }
+        @keyframes floatSlow { 0%,100% { transform: translate(0,0); } 50% { transform: translate(30px,-30px); } }
+        .hero-frame { position: absolute; inset: 16px; pointer-events: none; z-index: 1; }
+        .hero-frame::before, .hero-frame::after { content: ''; position: absolute; width: 100px; height: 100px; background-size: 100% 1px, 1px 100%; background-repeat: no-repeat; }
+        .hero-frame::before { top: 0; left: 0; background-image: linear-gradient(90deg, rgba(255,215,0,0.25), transparent), linear-gradient(180deg, rgba(255,215,0,0.25), transparent); background-position: top left, top left; }
+        .hero-frame::after { bottom: 0; right: 0; background-image: linear-gradient(270deg, rgba(255,215,0,0.25), transparent), linear-gradient(0deg, rgba(255,215,0,0.25), transparent); background-position: bottom right, bottom right; }
+        .hero-content { position: relative; z-index: 2; max-width: 880px; }
+        .hero-title { font-family: var(--font-display); font-size: clamp(34px, 6vw, 78px); font-weight: 200; line-height: 1.07; letter-spacing: -0.02em; text-transform: uppercase; margin-bottom: var(--sp-lg); }
+        .hero-title .gold { color: var(--gold); font-weight: 300; }
+        .hero-sub { font-size: clamp(15px, 1.7vw, 19px); color: var(--text-secondary); max-width: 560px; line-height: 1.8; margin-bottom: var(--sp-2xl); }
+        .hero-sub strong { color: var(--text-primary); font-weight: 500; }
+        .hero-actions { display: flex; flex-direction: column; gap: var(--sp-md); }
+        @media (min-width: 480px) { .hero-actions { flex-direction: row; gap: var(--sp-lg); } }
+        .hero-kicker { margin-top: var(--sp-3xl); font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-muted); }
+        .hero-kicker b { color: var(--text-tertiary); font-weight: 500; }
+        .h-line { display: block; }
+        .h-word { display: inline-block; opacity: 0; transform: translateY(0.45em); filter: blur(5px); transition: opacity 0.7s var(--ease-out), transform 0.7s var(--ease-out), filter 0.7s var(--ease-out); }
+        .hero.play .h-word { opacity: 1; transform: none; filter: blur(0); }
+        .hero-sub, .hero-actions, .hero-kicker, .hero .eyebrow { opacity: 0; transform: translateY(18px); transition: opacity 0.8s var(--ease-out), transform 0.8s var(--ease-out); }
+        .hero.play .eyebrow { opacity: 1; transform: none; transition-delay: 0.1s; }
+        .hero.play .hero-sub { opacity: 1; transform: none; transition-delay: 0.9s; }
+        .hero.play .hero-actions { opacity: 1; transform: none; transition-delay: 1.05s; }
+        .hero.play .hero-kicker { opacity: 1; transform: none; transition-delay: 1.25s; }
+
+        /* ═══════════════ SPLIT — il centro della pagina ═══════════════ */
+        .split-section { position: relative; z-index: 2; padding: var(--sp-5xl) 0; }
+        .split-head { text-align: center; max-width: 720px; margin: 0 auto var(--sp-3xl); }
+        .split-head p { font-size: 15px; color: var(--text-secondary); margin-top: var(--sp-lg); line-height: 1.8; }
+        .split {
+            --x: 50%;
+            position: relative; height: min(72vh, 620px); min-height: 480px;
+            border: 1px solid var(--border-default); border-radius: 24px; overflow: hidden;
+            background: var(--surface-card); cursor: ew-resize; touch-action: pan-y; user-select: none;
+            box-shadow: 0 24px 80px rgba(0,0,0,0.7);
+        }
+        .split-pane { position: absolute; inset: 0; display: flex; align-items: center; }
+        .pane-inner { width: 50%; padding: clamp(24px, 5vw, 72px); }
+        .pane-portale { background:
+            radial-gradient(900px 500px at 12% 18%, rgba(99,91,255,0.10), transparent 60%),
+            linear-gradient(135deg, #0A0A0E 0%, #08080A 100%); }
+        .pane-portale::after { content: ''; position: absolute; inset: 0; pointer-events: none;
+            background-image: linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+            background-size: 56px 56px; -webkit-mask-image: linear-gradient(90deg, black, transparent 75%); mask-image: linear-gradient(90deg, black, transparent 75%); }
+        .pane-agenzia { background:
+            radial-gradient(900px 520px at 88% 80%, rgba(255,215,0,0.12), transparent 60%),
+            linear-gradient(225deg, #0F0D06 0%, #0A0906 100%);
+            clip-path: inset(0 0 0 var(--x)); justify-content: flex-end; }
+        .pane-agenzia .pane-inner { margin-left: auto; text-align: right; }
+        .pane-word { font-family: var(--font-display); font-weight: 100; text-transform: uppercase; letter-spacing: -0.02em; font-size: clamp(34px, 5.2vw, 72px); line-height: 1; margin-bottom: var(--sp-sm, 8px); }
+        .pane-portale .pane-word { color: var(--text-primary); }
+        .pane-agenzia .pane-word { color: var(--gold); font-weight: 200; }
+        .pane-tag { font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: var(--text-muted); margin-bottom: var(--sp-xl); }
+        .pane-list { list-style: none; display: grid; gap: 14px; max-width: 380px; }
+        .pane-agenzia .pane-list { margin-left: auto; }
+        .pane-list li { font-size: clamp(13px, 1.3vw, 15px); color: var(--text-secondary); line-height: 1.6; padding-left: 18px; position: relative; }
+        .pane-agenzia .pane-list li { padding-left: 0; padding-right: 18px; }
+        .pane-list li::before { content: ''; position: absolute; left: 0; top: 0.62em; width: 7px; height: 1px; background: var(--text-muted); }
+        .pane-agenzia .pane-list li::before { left: auto; right: 0; background: var(--gold); }
+        .pane-list li em { color: var(--text-primary); font-style: normal; font-weight: 500; }
+        .split-divider { position: absolute; top: 0; bottom: 0; left: var(--x); width: 1px; background: linear-gradient(180deg, transparent, var(--gold) 18%, var(--gold) 82%, transparent); z-index: 5; pointer-events: none; box-shadow: 0 0 24px rgba(255,215,0,0.35); }
+        .split-handle {
+            position: absolute; top: 50%; left: var(--x); transform: translate(-50%,-50%); z-index: 6;
+            width: 72px; height: 72px; border-radius: 50%;
+            background: rgba(6,6,7,0.85); border: 1px solid var(--gold); backdrop-filter: blur(10px);
+            display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+            color: var(--gold); pointer-events: none;
+            box-shadow: 0 0 0 8px rgba(255,215,0,0.05), 0 0 44px rgba(255,215,0,0.25);
+        }
+        .split-handle b { font-family: var(--font-display); font-size: 12px; letter-spacing: 2px; font-weight: 400; }
+        .split-handle span { font-size: 11px; letter-spacing: 1px; }
+        .split.idle { animation: none; }
+        .split.breathe { animation: breathe 6s ease-in-out infinite; }
+        @keyframes breathe { 0%,100% { --x: 50%; } 30% { --x: 44%; } 70% { --x: 56%; } }
+        @property --x { syntax: '<percentage>'; inherits: false; initial-value: 50%; }
+        .split-foot { display: flex; justify-content: center; margin-top: var(--sp-lg); font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-muted); gap: 8px; align-items: center; }
+        .split-foot svg { width: 14px; height: 14px; opacity: 0.6; }
+
+        /* ═══════════════ FILM ═══════════════ */
+        .film-section { position: relative; z-index: 2; padding: var(--sp-5xl) 0; background: var(--surface); border-top: 1px solid var(--border-subtle); border-bottom: 1px solid var(--border-subtle); }
+        .film-head { text-align: center; max-width: 720px; margin: 0 auto var(--sp-3xl); }
+        .film-head p { font-size: 15px; color: var(--text-secondary); margin-top: var(--sp-lg); line-height: 1.8; }
+
+        /* ═══════════════ MANIFESTO ═══════════════ */
+        .manifesto { position: relative; z-index: 2; padding: var(--sp-5xl) 0; }
+        .manifesto-inner { max-width: 980px; margin: 0 auto; text-align: center; }
+        .manifesto-kicker { font-size: 10px; letter-spacing: 4px; text-transform: uppercase; color: var(--text-muted); margin-bottom: var(--sp-2xl); }
+        .manifesto-text { font-family: var(--font-display); font-weight: 200; font-size: clamp(26px, 4.4vw, 54px); line-height: 1.32; letter-spacing: -0.01em; }
+        .manifesto-text .w { color: var(--text-muted); transition: color 0.5s var(--ease-out); }
+        .manifesto-text .w.lit { color: var(--text-primary); }
+        .manifesto-text .w.k { font-weight: 300; }
+        .manifesto-text .w.k.lit { color: var(--gold); }
+        .manifesto-note { margin-top: var(--sp-2xl); font-size: 13px; color: var(--text-tertiary); letter-spacing: 0.5px; }
+
+        /* ═══════════════ CONDIZIONI ═══════════════ */
+        .terms { position: relative; z-index: 2; padding: var(--sp-5xl) 0; background: var(--surface); border-top: 1px solid var(--border-subtle); border-bottom: 1px solid var(--border-subtle); }
+        .terms-grid { display: grid; grid-template-columns: 1fr; gap: 1px; background: var(--border-subtle); border: 1px solid var(--border-subtle); border-radius: 20px; overflow: hidden; margin-top: var(--sp-3xl); }
+        @media (min-width: 820px) { .terms-grid { grid-template-columns: 1fr 1fr; } }
+        .term { background: var(--surface-card); padding: clamp(32px, 4vw, 64px); transition: background 0.4s var(--ease-out); }
+        .term:hover { background: var(--surface-hover); }
+        .term-k { font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: var(--text-tertiary); margin-bottom: var(--sp-lg); }
+        .term-v { font-family: var(--font-display); font-size: clamp(28px, 3.4vw, 44px); font-weight: 200; letter-spacing: -0.02em; line-height: 1.1; margin-bottom: var(--sp-md); }
+        .term-v .gold { color: var(--gold); font-weight: 300; }
+        .term p { font-size: 14px; color: var(--text-tertiary); line-height: 1.8; max-width: 420px; }
+        .term p em { color: var(--text-secondary); font-style: normal; }
+        .terms-note { text-align: center; margin-top: var(--sp-xl); font-size: 12px; color: var(--text-muted); }
+
+        /* ═══════════════ FINAL ═══════════════ */
+        .final { position: relative; z-index: 2; text-align: center; padding: var(--sp-5xl) 0; }
+        .final h2 { font-family: var(--font-display); font-size: clamp(40px, 7vw, 84px); font-weight: 200; letter-spacing: -0.02em; line-height: 1.05; text-transform: uppercase; margin-bottom: var(--sp-lg); }
+        .final h2 .gold { color: var(--gold); font-weight: 300; }
+        .final p { font-size: 16px; color: var(--text-secondary); max-width: 480px; margin: 0 auto var(--sp-2xl); line-height: 1.8; }
+        .final-actions { display: flex; flex-direction: column; align-items: center; gap: var(--sp-md); }
+        @media (min-width: 480px) { .final-actions { flex-direction: row; justify-content: center; gap: var(--sp-lg); } }
+        .motto { font-size: 11px; letter-spacing: 4px; text-transform: uppercase; color: var(--text-muted); margin-top: var(--sp-4xl); }
+        .motto b { color: var(--gold); font-weight: 500; }
+
+        footer { position: relative; z-index: 2; border-top: 1px solid var(--border-subtle); padding: var(--sp-2xl) 0; }
+        .footer-inner { display: flex; justify-content: space-between; align-items: center; gap: var(--sp-lg); flex-wrap: wrap; font-size: 12px; color: var(--text-muted); }
+        .footer-inner a { color: var(--text-tertiary); transition: color 0.3s; }
+        .footer-inner a:hover { color: var(--gold); }
+
+        @media (max-width: 640px) {
+            .pane-inner { width: 62%; }
+            .split { min-height: 520px; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { animation: none !important; transition: none !important; }
+            .reveal, .hero .eyebrow, .hero-sub, .hero-actions, .hero-kicker { opacity: 1 !important; transform: none !important; }
+            .h-word { opacity: 1 !important; transform: none !important; filter: none !important; }
+            .intro { display: none !important; }
+            .manifesto-text .w { color: var(--text-primary); }
+            .manifesto-text .w.k { color: var(--gold); }
+        }
+    </style>
+</head>
+<body>
+    <div class="scroll-progress" id="progress"></div>
+    <div class="demo-badge">Anteprima</div>
+
+    <div class="tech-bg">
+        <div class="tech-orb o1"></div>
+        <div class="tech-orb o2"></div>
+        <div class="tech-grid"></div>
+    </div>
+
+    <!-- ═══════════ CINEMATIC OPENING ═══════════ -->
+    <div class="intro" id="intro" aria-hidden="true">
+        <div class="intro-line" data-i="0"><span class="dim">C'erano i portali.</span><br>Nessuno che risponde.</div>
+        <div class="intro-line" data-i="1"><span class="dim">C'erano le agenzie.</span><br>Nessuna trasparenza.</div>
+        <div class="intro-line" data-i="2">Noi siamo<br><span class="gold">la terza cosa.</span></div>
+        <button class="intro-skip" id="introSkip">Salta →</button>
+        <div class="intro-bar" id="introBar"></div>
+    </div>
+
+    <!-- ═══════════ NAV ═══════════ -->
+    <nav class="nav" id="nav">
+        <div class="container nav-inner">
+            <a href="/" class="logo">
+                <svg class="logo-mark" viewBox="0 0 1024 1024">
+                    <defs><linearGradient id="lg" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#FFE55C"/><stop offset="100%" stop-color="#E5C200"/></linearGradient></defs>
+                    <g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#lg)"><path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z"/></g>
+                </svg>
+                <span class="logo-text">BOOM</span>
+            </a>
+            <div class="nav-links">
+                <a href="/apartments.html" class="nav-link">Appartamenti</a>
+                <a href="/owners.html" class="nav-link">Per Proprietari</a>
+                <a href="/how-it-works.html" class="nav-link">Come Funziona</a>
+                <a href="https://wa.me/393313251961" class="nav-cta">Parliamone</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ═══════════ HERO ═══════════ -->
+    <section class="hero" id="hero">
+        <div class="hero-glow hg1"></div>
+        <div class="hero-glow hg2"></div>
+        <div class="hero-frame"></div>
+        <div class="container hero-content">
+            <div class="eyebrow">
+                <span class="eyebrow-dot"></span>
+                <span class="eyebrow-text">Roma · Il primo ibrido portale–agenzia</span>
+            </div>
+            <h1 class="hero-title" id="heroTitle">
+                <span class="h-line">La libertà di un portale.</span>
+                <span class="h-line gold">La responsabilità di un'agenzia.</span>
+            </h1>
+            <p class="hero-sub">
+                Pubblichi tu, come su un portale. Gestiamo noi, come un'agenzia.
+                E della solvibilità dell'inquilino <strong>rispondiamo legalmente noi</strong> — è scritto nel mandato.
+                La prima locazione è gratuita.
+            </p>
+            <div class="hero-actions">
+                <a href="https://wa.me/393313251961" class="btn btn-primary">Affida casa tua</a>
+                <a href="#film" class="btn btn-secondary">Guarda come lavoriamo</a>
+            </div>
+            <div class="hero-kicker">Egidi Immobiliare S.r.l. · <b>agenzia registrata</b> · P.IVA 17322991005</div>
+        </div>
+    </section>
+
+    <!-- ═══════════ SPLIT ═══════════ -->
+    <section class="split-section" id="ibrido">
+        <div class="container">
+            <div class="split-head">
+                <div class="eyebrow" style="justify-content:center"><span class="eyebrow-dot"></span><span class="eyebrow-text">Due mondi, una casa</span></div>
+                <h2 class="section-title reveal">Perché scegliere,<br><span class="gold">quando puoi avere entrambi?</span></h2>
+                <p class="reveal">Trascina la linea. Da una parte il controllo che ti dà un portale, dall'altra il lavoro che fa un'agenzia. In mezzo, BOOM: li facciamo convivere.</p>
+            </div>
+
+            <div class="split breathe reveal" id="split" role="slider" aria-label="Confronto portale e agenzia" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50" tabindex="0">
+                <div class="split-pane pane-portale">
+                    <div class="pane-inner">
+                        <div class="pane-word">Portale</div>
+                        <div class="pane-tag">Quello che fai tu</div>
+                        <ul class="pane-list">
+                            <li><em>Pubblichi in due minuti</em> — bastano le foto, al testo pensa la nostra AI.</li>
+                            <li><em>Vedi tutto, sempre</em> — candidati, visite, contratto, incassi: nel tuo portale, in tempo reale.</li>
+                            <li><em>Decidi tu</em> — l'inquilino lo scegli tu, tra i profili che superano la nostra selezione.</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="split-pane pane-agenzia">
+                    <div class="pane-inner">
+                        <div class="pane-word">Agenzia</div>
+                        <div class="pane-tag">Quello che facciamo noi</div>
+                        <ul class="pane-list">
+                            <li><em>Selezioniamo e verifichiamo</em> — reddito, referenze, storia. Di persona, non con un algoritmo.</li>
+                            <li><em>Contratto e adempimenti</em> — registrazione, cedolare, comunicazioni: tutto gestito.</li>
+                            <li><em>Rispondiamo noi</em> — la solvibilità dell'inquilino è responsabilità nostra, nel mandato.</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="split-divider"></div>
+                <div class="split-handle"><span>⇄</span><b>BOOM</b></div>
+            </div>
+            <div class="split-foot">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 9l-4 3 4 3M16 9l4 3-4 3"/></svg>
+                Trascina per esplorare i due mondi
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════ PRODUCT FILM ═══════════ -->
+    <section class="film-section" id="film">
+        <div class="container">
+            <div class="film-head">
+                <div class="eyebrow" style="justify-content:center"><span class="eyebrow-dot"></span><span class="eyebrow-text">Il sistema, dal vivo</span></div>
+                <h2 class="section-title reveal">Il tuo affitto, gestito.<br><span class="gold">Guardalo lavorare.</span></h2>
+                <p class="reveal">Non uno spot: il percorso reale che il tuo immobile fa dentro BOOM, dall'annuncio al primo accredito.</p>
+            </div>
+
+            <div class="boom-film reveal">
+                <div class="bf-frame">
+                    <div class="bf-bar"><span class="bf-dot"></span><span class="bf-dot"></span><span class="bf-dot"></span><span class="bf-url">app.boomrome.com/proprietari</span><span class="bf-live"><b>●</b> LIVE</span></div>
+                    <div class="bf-body">
+                        <aside class="bf-side">
+                            <div class="bf-brand"><i></i> BOOM</div>
+                            <div class="bf-nav"><span class="ic">📷</span> Annuncio <span class="dotk"></span></div>
+                            <div class="bf-nav"><span class="ic">🔍</span> Selezione <span class="dotk"></span></div>
+                            <div class="bf-nav"><span class="ic">📝</span> Contratto <span class="dotk"></span></div>
+                            <div class="bf-nav"><span class="ic">💶</span> Incassi <span class="dotk"></span></div>
+                            <div class="bf-nav"><span class="ic">📊</span> Portale <span class="dotk"></span></div>
+                        </aside>
+                        <div class="bf-stage">
+                            <div class="bf-scene" data-pill="01 · Annuncio" data-cap="Mandi le foto — l'AI prepara l'annuncio, tu lo approvi">
+                                <div class="bf-h"><span class="step">1</span> L'annuncio si scrive da solo</div>
+                                <div class="bf-scan"><span>L'AI legge foto e planimetria…</span><span class="bf-scanbar"></span></div>
+                                <div class="bf-lead">
+                                    <div class="bf-lead-top"><div class="bf-av">🏠</div><div><div class="bf-lead-name">Bilocale · Testaccio</div><div class="bf-lead-sub">bozza generata · in attesa della tua approvazione</div></div></div>
+                                    <div class="bf-field">Testo annuncio <span class="v" style="margin-left:auto">scritto ✓</span></div>
+                                    <div class="bf-field">Dati catastali &amp; APE <span class="v" style="margin-left:auto">estratti ✓</span></div>
+                                    <div class="bf-field">Canone suggerito <span class="v" style="margin-left:auto">dal mercato reale</span></div>
+                                    <span class="bf-ok" style="margin-top:10px">✓ Pronto — approvi tu, con un tocco</span>
+                                </div>
+                            </div>
+                            <div class="bf-scene" data-pill="02 · Selezione" data-cap="Verifichiamo reddito, referenze e storia — ti presentiamo solo chi passa">
+                                <div class="bf-h"><span class="step">2</span> Selezione, non speranza</div>
+                                <div class="bf-lead">
+                                    <div class="bf-lead-top"><div class="bf-av">L</div><div><div class="bf-lead-name">Léa M. · ricercatrice</div><div class="bf-lead-sub">candidata per il tuo bilocale</div></div></div>
+                                    <div class="bf-field">Rapporto reddito/canone <span class="v" style="margin-left:auto">3,4 : 1</span></div>
+                                    <div class="bf-field">Referenze precedenti <span class="v" style="margin-left:auto">verificate ✓</span></div>
+                                    <div class="bf-field">Documenti &amp; identità <span class="v" style="margin-left:auto">verificati ✓</span></div>
+                                    <span class="bf-ok" style="margin-top:10px">✓ Idonea — la decisione resta tua</span>
+                                </div>
+                            </div>
+                            <div class="bf-scene" data-pill="03 · Contratto" data-cap="Firma digitale, registrazione e adempimenti — senza che tu muova un dito">
+                                <div class="bf-h"><span class="step">3</span> Contratto &amp; registrazione</div>
+                                <div class="bf-doc">
+                                    <div class="bf-doc-h">📄 Contratto di locazione · Bilocale Testaccio</div>
+                                    <div class="bf-line m"></div><div class="bf-line"></div><div class="bf-line s"></div>
+                                    <div class="bf-sign"><small>Firmato digitalmente</small><svg viewBox="0 0 120 38"><path d="M4 26 C 16 6, 24 6, 30 22 S 44 34, 52 16 S 70 4, 80 22 C 86 30, 96 30, 116 12"/></svg></div>
+                                    <div class="bf-badges"><span class="bf-ok">✓ Firmato da entrambe le parti</span><span class="bf-ok">✓ Registrato all'Agenzia delle Entrate</span></div>
+                                </div>
+                            </div>
+                            <div class="bf-scene" data-pill="04 · Incassi" data-cap="Canone puntuale — e se l'inquilino non paga, rispondiamo noi">
+                                <div class="bf-h"><span class="step">4</span> Il canone, puntuale</div>
+                                <div class="bf-lead">
+                                    <div class="bf-field">Canone di ottobre <span class="v" style="margin-left:auto">accreditato ✓</span></div>
+                                    <div class="bf-field">Canone di novembre <span class="v" style="margin-left:auto">programmato</span></div>
+                                    <div class="bf-field">Adempimenti fiscali <span class="v" style="margin-left:auto">in regola ✓</span></div>
+                                    <span class="bf-ok" style="margin-top:10px">✓ Solvibilità garantita — è nel mandato</span>
+                                </div>
+                            </div>
+                            <div class="bf-scene" data-pill="05 · Portale" data-cap="Tutto il tuo immobile, in una schermata — per sempre">
+                                <div class="bf-h"><span class="step">5</span> Il tuo portale</div>
+                                <div class="bf-pass">
+                                    <div class="bf-pass-top"><b>BOOM</b><span class="bf-pass-type">Portale proprietario</span></div>
+                                    <div class="bf-pass-row"><div><div class="k">Contratto</div><div class="val">Attivo</div></div><div><div class="k">Documenti</div><div class="val">Archiviati</div></div></div>
+                                    <div class="bf-pass-qr"></div>
+                                </div>
+                                <span class="bf-ok" style="margin-top:16px">✓ Accesso riservato, in tempo reale, per sempre</span>
+                            </div>
+                            <div class="bf-cursor"><svg width="20" height="20" viewBox="0 0 24 24" fill="#fff"><path d="M5 3l15 9-6 1.6L11.4 21 5 3z"/></svg></div>
+                            <div class="bf-cap"><span class="pill">01 · Annuncio</span><span class="txt">Mandi le foto — l'AI prepara l'annuncio, tu lo approvi</span></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="bf-track">
+                    <div class="bf-tick"></div><div class="bf-tick"></div><div class="bf-tick"></div><div class="bf-tick"></div><div class="bf-tick"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════ MANIFESTO ═══════════ -->
+    <section class="manifesto" id="manifesto">
+        <div class="container manifesto-inner">
+            <div class="manifesto-kicker">La differenza, in una frase</div>
+            <p class="manifesto-text" id="manifestoText">
+                Se l'inquilino che selezioniamo non paga, <span class="k">ne rispondiamo legalmente noi.</span> È scritto nel mandato — non in una brochure.
+            </p>
+            <div class="manifesto-note">Niente polizze con gli asterischi. Una responsabilità nostra, nero su bianco.</div>
+        </div>
+    </section>
+
+    <!-- ═══════════ CONDIZIONI ═══════════ -->
+    <section class="terms" id="condizioni">
+        <div class="container">
+            <div class="split-head" style="margin-bottom:0">
+                <div class="eyebrow" style="justify-content:center"><span class="eyebrow-dot"></span><span class="eyebrow-text">Le condizioni — tutte qui</span></div>
+                <h2 class="section-title reveal" style="text-align:center">Due righe.<br><span class="gold">Nessuna sorpresa.</span></h2>
+            </div>
+            <div class="terms-grid reveal">
+                <div class="term">
+                    <div class="term-k">01 · La prima locazione</div>
+                    <div class="term-v"><span class="gold">Gratuita.</span></div>
+                    <p>Foto professionali, annuncio, selezione, contratto, registrazione: <em>tutto incluso, zero costi</em>. È il nostro modo di presentarci: ci giudichi sul lavoro, non sulle promesse.</p>
+                </div>
+                <div class="term">
+                    <div class="term-k">02 · Poi, se ti trovi bene</div>
+                    <div class="term-v">Una fee fissa annuale.</div>
+                    <p>Un mandato pluriennale con una cifra fissa, <em>locazioni illimitate e adempimenti inclusi</em>. Niente percentuali sul canone, niente voci in piccolo.</p>
+                </div>
+            </div>
+            <div class="terms-note">La casa resta tua. L'inquilino lo scegli tu. Noi rispondiamo del resto.</div>
+        </div>
+    </section>
+
+    <!-- ═══════════ FINAL ═══════════ -->
+    <section class="final">
+        <div class="container">
+            <h2 class="reveal">Parliamone.<br><span class="gold">Da persone.</span></h2>
+            <p class="reveal">Nessun form da compilare, nessuna chiamata commerciale. Scrivici di casa tua: ti rispondiamo noi, gli stessi che poi la gestiranno.</p>
+            <div class="final-actions reveal">
+                <a href="https://wa.me/393313251961" class="btn btn-primary">Scrivici su WhatsApp</a>
+                <a href="/owners.html" class="btn btn-secondary">Scopri di più sui proprietari</a>
+            </div>
+            <div class="motto reveal">Semplice. <b>Non facile.</b></div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="container footer-inner">
+            <span>© 2026 BOOM — Roma · <strong style="color:var(--text-tertiary)">Egidi Immobiliare S.r.l.</strong> · P.IVA 17322991005</span>
+            <span><a href="/owners.html">Per Proprietari</a> &nbsp;·&nbsp; <a href="/terms.html">Termini</a> &nbsp;·&nbsp; <a href="/privacy.html">Privacy</a></span>
+        </div>
+    </footer>
+
+    <script>
+        (function () {
+            'use strict';
+            var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+            var $ = function (id) { return document.getElementById(id); };
+
+            /* ── Cinematic opening ─────────────────────────────────────── */
+            var intro = $('intro'), hero = $('hero');
+            function startHero() { requestAnimationFrame(function () { hero.classList.add('play'); animateTitle(); }); }
+            function closeIntro() {
+                if (!intro || intro.classList.contains('out')) return;
+                intro.classList.add('out');
+                document.body.style.overflow = '';
+                startHero();
+                setTimeout(function () { intro.remove(); }, 1000);
+            }
+            if (reduce || !intro) { if (intro) intro.remove(); hero.classList.add('play'); animateTitle(true); }
+            else {
+                document.body.style.overflow = 'hidden';
+                var lines = intro.querySelectorAll('.intro-line');
+                var bar = $('introBar');
+                var DUR = 1500, i = 0;
+                function step() {
+                    if (!document.body.contains(intro)) return;
+                    if (i > 0) lines[i - 1].classList.replace('on', 'off');
+                    if (i >= lines.length) { setTimeout(closeIntro, 350); return; }
+                    lines[i].classList.add('on');
+                    bar.style.width = ((i + 1) / lines.length * 100) + '%';
+                    i++;
+                    setTimeout(step, DUR);
+                }
+                setTimeout(step, 250);
+                $('introSkip').addEventListener('click', closeIntro);
+                intro.addEventListener('click', function (e) { if (e.target === intro) closeIntro(); });
+                setTimeout(closeIntro, 6500); /* failsafe */
+            }
+
+            /* ── Hero kinetic title (word by word) ─────────────────────── */
+            function animateTitle(instant) {
+                var title = $('heroTitle');
+                if (!title || title.dataset.done) return;
+                title.dataset.done = '1';
+                var lines = title.querySelectorAll('.h-line');
+                var delay = 0;
+                lines.forEach(function (line) {
+                    var gold = line.classList.contains('gold');
+                    var words = line.textContent.trim().split(/\s+/);
+                    line.innerHTML = words.map(function (w) { return '<span class="h-word"' + (gold ? ' style="color:var(--gold);font-weight:300"' : '') + '>' + w + '</span>'; }).join(' ');
+                    line.querySelectorAll('.h-word').forEach(function (w) {
+                        w.style.transitionDelay = instant ? '0s' : (delay + 's');
+                        delay += 0.07;
+                    });
+                });
+            }
+
+            /* ── Nav + progress ────────────────────────────────────────── */
+            var nav = $('nav'), progress = $('progress');
+            addEventListener('scroll', function () {
+                nav.classList.toggle('scrolled', scrollY > 50);
+                var h = document.documentElement.scrollHeight - innerHeight;
+                progress.style.width = (h > 0 ? (scrollY / h) * 100 : 0) + '%';
+            }, { passive: true });
+
+            /* ── Reveal ────────────────────────────────────────────────── */
+            var obs = new IntersectionObserver(function (es) {
+                es.forEach(function (x) { if (x.isIntersecting) { x.target.classList.add('in'); obs.unobserve(x.target); } });
+            }, { threshold: 0.12 });
+            document.querySelectorAll('.reveal').forEach(function (el) { obs.observe(el); });
+
+            /* ── Split drag ────────────────────────────────────────────── */
+            var split = $('split');
+            if (split) {
+                var dragging = false, touched = false;
+                function setX(clientX) {
+                    var r = split.getBoundingClientRect();
+                    var p = Math.max(12, Math.min(88, (clientX - r.left) / r.width * 100));
+                    split.style.setProperty('--x', p + '%');
+                    split.setAttribute('aria-valuenow', Math.round(p));
+                }
+                function wake() { if (!touched) { touched = true; split.classList.remove('breathe'); } }
+                split.addEventListener('pointerdown', function (e) { dragging = true; wake(); setX(e.clientX); split.setPointerCapture(e.pointerId); });
+                split.addEventListener('pointermove', function (e) { if (dragging) setX(e.clientX); });
+                split.addEventListener('pointerup', function () { dragging = false; });
+                split.addEventListener('pointercancel', function () { dragging = false; });
+                split.addEventListener('keydown', function (e) {
+                    var cur = parseFloat(getComputedStyle(split).getPropertyValue('--x')) || 50;
+                    if (e.key === 'ArrowLeft') { wake(); split.style.setProperty('--x', Math.max(12, cur - 4) + '%'); e.preventDefault(); }
+                    if (e.key === 'ArrowRight') { wake(); split.style.setProperty('--x', Math.min(88, cur + 4) + '%'); e.preventDefault(); }
+                });
+                if (reduce) split.classList.remove('breathe');
+            }
+
+            /* ── Manifesto: scroll-driven word lighting ────────────────── */
+            var mText = $('manifestoText');
+            if (mText && !reduce) {
+                var keyClass = false;
+                var html = '';
+                mText.childNodes.forEach(function (node) {
+                    if (node.nodeType === 3) {
+                        node.textContent.trim().split(/\s+/).forEach(function (w) { if (w) html += '<span class="w">' + w + '</span> '; });
+                    } else if (node.nodeType === 1) {
+                        node.textContent.trim().split(/\s+/).forEach(function (w) { if (w) html += '<span class="w k">' + w + '</span> '; });
+                    }
+                });
+                mText.innerHTML = html;
+                var words = mText.querySelectorAll('.w');
+                addEventListener('scroll', function () {
+                    var r = mText.getBoundingClientRect();
+                    var start = innerHeight * 0.85, end = innerHeight * 0.25;
+                    var p = Math.max(0, Math.min(1, (start - r.top) / (start - end)));
+                    var lit = Math.floor(p * words.length);
+                    words.forEach(function (w, idx) { w.classList.toggle('lit', idx < lit); });
+                }, { passive: true });
+            }
+        })();
+    </script>
+    <script defer src="/js/boom-film.js"></script>
+    <script defer src="/js/boom-motion.js"></script>
+    <script defer src="/js/boom-track.js"></script>
+</body>
+</html>
