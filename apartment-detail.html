@@ -2253,14 +2253,28 @@
 
     function buildMap(d){
         const c=document.getElementById('mapContainer');
-        const addr=d.address||'Rome, Italy';
+        const zone=d.zone||d.neighborhood||'';
+        const addr=d.address||(zone?zone+', Rome, Italy':'Rome, Italy');
         const classic=()=>{c.innerHTML=`<iframe src="https://maps.google.com/maps?q=${encodeURIComponent(addr)}&t=&z=15&ie=UTF8&iwloc=&output=embed" allowfullscreen loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>`};
-        const lat=Number(d.lat),lng=Number(d.lng);
-        if(!(isFinite(lat)&&isFinite(lng)&&lat&&lng)){classic();return}
-        // 3D flyover facade — WebGL map loads only on tap (zero cost otherwise)
+        const lat=Number(d.lat),lng=Number(d.lng),hasCoords=isFinite(lat)&&isFinite(lng)&&!!lat&&!!lng;
+        // Where to fly: real coords if the listing has them, else geocode the address on tap.
+        const where=d.address?d.address+', Rome, Italy':(zone?zone+', Rome, Italy':'');
+        if(!hasCoords&&!where){classic();return}
+        // 3D flyover facade — WebGL + geocode resolve only on tap (zero cost otherwise)
         c.innerHTML=`<div class="map3d-facade"><button type="button" class="map3d-go" id="map3dGo"><span>◆ Explore the block in 3D</span><small>A cinematic flyover of the building’s surroundings</small></button><button type="button" class="map3d-alt" id="map3dAlt">or open the classic map</button></div>`;
         document.getElementById('map3dAlt').addEventListener('click',function(e){e.stopPropagation();classic()});
-        document.getElementById('map3dGo').addEventListener('click',function(){launch3DMap(c,lat,lng,classic)});
+        document.getElementById('map3dGo').addEventListener('click',function(){
+            if(hasCoords){launch3DMap(c,lat,lng,classic);return}
+            const sp=this.querySelector('span');if(sp)sp.textContent='◆ Locating the block…';
+            geocodeRome(where).then(co=>{ if(co)launch3DMap(c,co[1],co[0],classic); else classic(); }).catch(classic);
+        });
+    }
+    // Browser geocode (Nominatim) — only ever fires on an explicit 3D tap; cached per session.
+    function geocodeRome(q){
+        try{const cd=sessionStorage.getItem('boomgeo:'+q);if(cd)return Promise.resolve(JSON.parse(cd));}catch(e){}
+        return fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=it&q='+encodeURIComponent(q),{headers:{Accept:'application/json'}})
+            .then(r=>r.ok?r.json():null)
+            .then(j=>{ if(Array.isArray(j)&&j[0]&&j[0].lat&&j[0].lon){const co=[Number(j[0].lon),Number(j[0].lat)];try{sessionStorage.setItem('boomgeo:'+q,JSON.stringify(co))}catch(e){}return co;} return null; });
     }
     function launch3DMap(c,lat,lng,fallback){
         c.innerHTML='<div class="map3d" id="map3d"><div class="map3d-loading">Preparing the flyover…</div></div>';
