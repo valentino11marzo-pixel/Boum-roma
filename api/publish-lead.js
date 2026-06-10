@@ -79,6 +79,12 @@ export default async function handler(req, res) {
     expectedRent: Math.max(0, Math.min(20000, parseInt(b.expectedRent, 10) || 0)),
     message: String(b.message || '').slice(0, 1500),
     photoCount: photos.length, // bytes live in leadPhotos/<id>, off the hot list query
+    consent: {
+      given: b.consent === true,
+      text: String(b.consentText || '').slice(0, 400),
+      at: new Date().toISOString(),
+      ip,
+    },
     language: 'it',
     sourceRef: 'ibrido.html',
     ip,
