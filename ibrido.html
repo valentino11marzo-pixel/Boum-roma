@@ -121,6 +121,41 @@
         .hg1 { top: -320px; right: -220px; opacity: 0.10; animation: floatSlow 20s ease-in-out infinite; }
         .hg2 { bottom: -420px; left: -300px; opacity: 0.06; animation: floatSlow 26s ease-in-out infinite reverse; }
         @keyframes floatSlow { 0%,100% { transform: translate(0,0); } 50% { transform: translate(30px,-30px); } }
+
+        /* ── Cinematic Rome dawn (hero film, code-generated) ───────────── */
+        .cine-sky { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; will-change: transform; }
+        .sky-grad { position: absolute; inset: 0; background: linear-gradient(180deg, #030303 0%, #050505 40%, #0a0805 62%, #150d04 82%, #1d1204 100%); }
+        .sky-sun { position: absolute; left: 50%; bottom: 0; width: 120vw; height: 80vh; transform: translate(-50%,24%); opacity: 0;
+            background: radial-gradient(ellipse 44% 64% at 50% 100%, rgba(255,201,77,0.32), rgba(255,160,30,0.10) 40%, transparent 66%);
+            transition: transform 2.6s var(--ease-out), opacity 2.2s var(--ease-out); }
+        .hero.sky-on .sky-sun { opacity: 1; transform: translate(-50%,0); }
+        .sky-rays { position: absolute; left: 50%; bottom: -10%; width: 150vmax; height: 150vmax; opacity: 0;
+            background: repeating-conic-gradient(from 0deg at 50% 50%, rgba(255,212,92,0.045) 0deg, transparent 4deg 15deg);
+            -webkit-mask-image: radial-gradient(circle at 50% 50%, black, transparent 44%); mask-image: radial-gradient(circle at 50% 50%, black, transparent 44%);
+            transform: translate(-50%,44%); animation: rayspin 100s linear infinite; transition: opacity 3s var(--ease-out) 0.5s; }
+        .hero.sky-on .sky-rays { opacity: 1; }
+        @keyframes rayspin { to { transform: translate(-50%,44%) rotate(360deg); } }
+        .sky-rings { position: absolute; left: 50%; bottom: 1%; transform: translate(-50%,28%); width: min(78vh,700px); height: min(78vh,700px); }
+        .sky-ring { position: absolute; inset: 0; border: 1px solid rgba(255,215,0,0.16); border-radius: 50%; opacity: 0; transform: scale(0.55); transition: opacity 1.6s var(--ease-out), transform 1.9s var(--ease-out); }
+        .sky-ring.r2 { inset: 14%; } .sky-ring.r3 { inset: 28%; }
+        .hero.sky-on .sky-ring { opacity: 1; transform: scale(1); }
+        .hero.sky-on .sky-ring.r2 { transition-delay: 0.12s; } .hero.sky-on .sky-ring.r3 { transition-delay: 0.24s; }
+        .sky-core { position: absolute; left: 50%; top: 50%; width: 14px; height: 14px; border-radius: 50%; opacity: 0; transform: translate(-50%,-50%) scale(0.4);
+            background: radial-gradient(circle, #fff, rgba(255,215,0,0.9) 40%, transparent 72%); box-shadow: 0 0 40px 8px rgba(255,200,60,0.5);
+            transition: opacity 1.4s ease 0.4s, transform 1.6s var(--ease-out) 0.4s; }
+        .hero.sky-on .sky-core { opacity: 1; transform: translate(-50%,-50%) scale(1); animation: corepulse 4s ease-in-out infinite 2s; }
+        @keyframes corepulse { 0%,100% { box-shadow: 0 0 40px 8px rgba(255,200,60,0.5); } 50% { box-shadow: 0 0 64px 14px rgba(255,200,60,0.8); } }
+        .skyline { position: absolute; left: -2%; right: -2%; bottom: 0; width: 104%; height: auto; z-index: 1; opacity: 0; transform: translateY(26px);
+            filter: drop-shadow(0 -1px 0 rgba(255,215,0,0.22));
+            transition: opacity 1.9s var(--ease-out) 0.35s, transform 1.9s var(--ease-out) 0.35s; }
+        .hero.sky-on .skyline { opacity: 1; transform: none; }
+        .skyline .wins rect { opacity: 0; transition: opacity 1.2s ease 1.4s; }
+        .hero.sky-on .skyline .wins rect { opacity: 0.6; animation: winflick 7s ease-in-out infinite; }
+        .skyline .wins rect:nth-child(odd) { animation-delay: -3.5s; } .skyline .wins rect:nth-child(3n) { animation-delay: -1.8s; }
+        @keyframes winflick { 0%,100% { opacity: 0.42; } 50% { opacity: 0.82; } }
+        .sky-haze { position: absolute; left: 0; right: 0; bottom: 0; height: 46%; z-index: 2; background: linear-gradient(180deg, transparent, rgba(18,12,4,0.55) 55%, #030303); }
+        @media (max-width: 640px) { .sky-rings { width: min(54vh,420px); height: min(54vh,420px); } }
+
         .hero-frame { position: absolute; inset: 16px; pointer-events: none; z-index: 1; }
         .hero-frame::before, .hero-frame::after { content: ''; position: absolute; width: 100px; height: 100px; background-size: 100% 1px, 1px 100%; background-repeat: no-repeat; }
         .hero-frame::before { top: 0; left: 0; background-image: linear-gradient(90deg, rgba(255,215,0,0.25), transparent), linear-gradient(180deg, rgba(255,215,0,0.25), transparent); background-position: top left, top left; }
@@ -294,8 +329,59 @@
 
     <!-- ═══════════ HERO ═══════════ -->
     <section class="hero" id="hero">
-        <div class="hero-glow hg1"></div>
-        <div class="hero-glow hg2"></div>
+        <div class="cine-sky" id="cineSky">
+            <div class="sky-grad"></div>
+            <div class="sky-rays"></div>
+            <div class="sky-sun"></div>
+            <div class="sky-rings"><div class="sky-ring r1"></div><div class="sky-ring r2"></div><div class="sky-ring r3"></div><div class="sky-core"></div></div>
+            <svg class="skyline" viewBox="0 0 1440 360" preserveAspectRatio="xMidYMax meet" aria-hidden="true">
+                <g fill="#070707">
+                    <rect x="10" y="192" width="68" height="168"/>
+                    <rect x="84" y="150" width="52" height="210"/>
+                    <rect x="146" y="206" width="78" height="154"/>
+                    <rect x="234" y="168" width="58" height="192"/>
+                    <rect x="300" y="228" width="52" height="132"/>
+                    <!-- pino romano -->
+                    <rect x="366" y="214" width="8" height="146"/>
+                    <ellipse cx="372" cy="198" rx="52" ry="26"/>
+                    <ellipse cx="344" cy="208" rx="34" ry="22"/>
+                    <ellipse cx="402" cy="206" rx="34" ry="22"/>
+                    <ellipse cx="372" cy="182" rx="40" ry="24"/>
+                    <rect x="430" y="198" width="62" height="162"/>
+                    <rect x="500" y="158" width="48" height="202"/>
+                    <rect x="556" y="214" width="70" height="146"/>
+                    <rect x="634" y="182" width="52" height="178"/>
+                    <rect x="694" y="222" width="54" height="138"/>
+                    <!-- San Pietro -->
+                    <rect x="746" y="250" width="170" height="110"/>
+                    <rect x="788" y="210" width="86" height="44"/>
+                    <path d="M788,210 A43,58 0 0 1 874,210 Z"/>
+                    <rect x="824" y="176" width="14" height="36"/>
+                    <circle cx="831" cy="174" r="8"/>
+                    <rect x="829" y="150" width="4" height="16"/><rect x="824" y="155" width="14" height="4"/>
+                    <rect x="930" y="204" width="48" height="156"/>
+                    <rect x="984" y="168" width="70" height="192"/>
+                    <rect x="1060" y="218" width="54" height="142"/>
+                    <!-- cupola minore -->
+                    <rect x="1140" y="288" width="92" height="72"/>
+                    <path d="M1158,288 A28,34 0 0 1 1214,288 Z"/>
+                    <rect x="1180" y="262" width="12" height="28"/><circle cx="1186" cy="260" r="6"/>
+                    <rect x="1240" y="194" width="62" height="166"/>
+                    <rect x="1310" y="158" width="46" height="202"/>
+                    <rect x="1364" y="210" width="72" height="150"/>
+                </g>
+                <g class="wins" fill="#FFD27A">
+                    <rect x="100" y="172" width="4" height="6"/><rect x="100" y="202" width="4" height="6"/>
+                    <rect x="118" y="172" width="4" height="6"/><rect x="118" y="202" width="4" height="6"/>
+                    <rect x="250" y="190" width="4" height="6"/><rect x="270" y="190" width="4" height="6"/>
+                    <rect x="514" y="180" width="4" height="6"/><rect x="514" y="210" width="4" height="6"/>
+                    <rect x="780" y="282" width="4" height="6"/><rect x="862" y="282" width="4" height="6"/><rect x="870" y="306" width="4" height="6"/>
+                    <rect x="1000" y="190" width="4" height="6"/><rect x="1018" y="190" width="4" height="6"/><rect x="1000" y="222" width="4" height="6"/>
+                    <rect x="1324" y="180" width="4" height="6"/><rect x="1342" y="212" width="4" height="6"/>
+                </g>
+            </svg>
+            <div class="sky-haze"></div>
+        </div>
         <div class="hero-frame"></div>
         <div class="container hero-content">
             <div class="eyebrow">
@@ -501,11 +587,12 @@
         (function () {
             'use strict';
             var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+            var canHover = matchMedia('(hover: hover)').matches;
             var $ = function (id) { return document.getElementById(id); };
 
             /* ── Cinematic opening ─────────────────────────────────────── */
             var intro = $('intro'), hero = $('hero');
-            function startHero() { requestAnimationFrame(function () { hero.classList.add('play'); animateTitle(); }); }
+            function startHero() { requestAnimationFrame(function () { hero.classList.add('play', 'sky-on'); animateTitle(); }); }
             function closeIntro() {
                 if (!intro || intro.classList.contains('out')) return;
                 intro.classList.add('out');
@@ -513,7 +600,7 @@
                 startHero();
                 setTimeout(function () { intro.remove(); }, 1000);
             }
-            if (reduce || !intro) { if (intro) intro.remove(); hero.classList.add('play'); animateTitle(true); }
+            if (reduce || !intro) { if (intro) intro.remove(); hero.classList.add('play', 'sky-on'); animateTitle(true); }
             else {
                 document.body.style.overflow = 'hidden';
                 var lines = intro.querySelectorAll('.intro-line');
@@ -610,6 +697,23 @@
                     var lit = Math.floor(p * words.length);
                     words.forEach(function (w, idx) { w.classList.toggle('lit', idx < lit); });
                 }, { passive: true });
+            }
+
+            /* ── Cinematic camera parallax on the hero dawn ────────────── */
+            var sky = $('cineSky');
+            if (sky && !reduce) {
+                var tx = 0, ty = 0, cx = 0, cy = 0, sc = 0, raf = 0;
+                function apply() { sky.style.transform = 'translate3d(' + cx.toFixed(2) + 'px,' + (cy + sc).toFixed(2) + 'px,0)'; }
+                function loop() {
+                    cx += (tx - cx) * 0.08; cy += (ty - cy) * 0.08; apply(); raf = 0;
+                    if (Math.abs(tx - cx) > 0.1 || Math.abs(ty - cy) > 0.1) raf = requestAnimationFrame(loop);
+                }
+                if (canHover) addEventListener('mousemove', function (e) {
+                    tx = (e.clientX / innerWidth - 0.5) * -22;
+                    ty = (e.clientY / innerHeight - 0.5) * -14;
+                    if (!raf) raf = requestAnimationFrame(loop);
+                });
+                addEventListener('scroll', function () { sc = Math.min(scrollY, innerHeight) * 0.16; apply(); }, { passive: true });
             }
         })();
     </script>
