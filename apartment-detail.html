@@ -879,6 +879,43 @@
         .bmx-tile.green .bmx-tile-v{color:#00FF88}
         .bmx-tile-s{font-size:11.5px;color:#999;margin-top:8px;line-height:1.45}
         .bmx-pre{font-size:15px;color:#999;font-weight:300;margin-right:1px}
+        /* ── Apple-style payment story (pinned scrollytelling) ── */
+        .pay{max-width:1000px;margin:0 auto}
+        .pay-track{height:320vh;position:relative}
+        .pay-stage{position:sticky;top:96px;min-height:min(620px,calc(100svh - 130px));display:grid;grid-template-columns:.85fr 1.15fr;gap:clamp(24px,4vw,56px);align-items:center}
+        @media(max-width:760px){.pay-track{height:300vh}.pay-stage{grid-template-columns:1fr;gap:20px;align-content:center;top:80px}}
+        .pay-k{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:#666;margin-bottom:12px;font-variant-numeric:tabular-nums}
+        .pay-t{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-weight:200;font-size:clamp(26px,3.6vw,44px);color:#fff;line-height:1.08;letter-spacing:-.01em;transition:opacity .35s,transform .35s}
+        .pay-s{margin-top:10px;font-size:14px;color:#999;line-height:1.6;max-width:320px;transition:opacity .35s,transform .35s}
+        .pay-side.sw .pay-t,.pay-side.sw .pay-s{opacity:0;transform:translateY(8px)}
+        .pay-dots{display:flex;gap:7px;margin-top:24px}
+        .pay-dots i{width:24px;height:3px;border-radius:2px;background:rgba(255,255,255,.12);transition:background .35s}
+        .pay-dots i.on{background:linear-gradient(90deg,#FFD700,#FFA500)}
+        .pay-sheet{background:linear-gradient(180deg,rgba(24,24,28,.92),rgba(12,12,15,.96));border:1px solid rgba(255,255,255,.1);border-radius:26px;padding:6px 24px 22px;box-shadow:0 50px 120px -40px rgba(0,0,0,.9),inset 0 1px 0 rgba(255,255,255,.07);backdrop-filter:blur(20px)}
+        .pay-sh{display:flex;justify-content:space-between;align-items:center;padding:16px 2px 13px;border-bottom:1px solid rgba(255,255,255,.08);font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#777}
+        .pay-lock{color:#00FF88;letter-spacing:.5px}
+        .pay-row{display:flex;justify-content:space-between;align-items:baseline;gap:14px;padding:16px 2px;border-bottom:1px solid rgba(255,255,255,.06);opacity:.16;transform:translateY(6px);transition:opacity .55s cubic-bezier(.16,1,.3,1),transform .55s cubic-bezier(.16,1,.3,1)}
+        .pay-row.on{opacity:1;transform:none}
+        .pay-row>span{font-size:14px;color:#ccc}
+        .pay-row>span i{font-style:normal;display:block;font-size:11px;color:#666;margin-top:3px;line-height:1.45}
+        .pay-row b{font-weight:300;font-size:18px;color:#fff;white-space:nowrap;font-variant-numeric:tabular-nums}
+        .pay-back{color:#00FF88!important}
+        .pay-seg{display:inline-flex;background:#0a0a0c;border:1px solid rgba(255,255,255,.1);border-radius:100px;padding:2px;margin-left:10px;vertical-align:middle}
+        .pay-seg button{border:none;background:transparent;color:#777;font-family:inherit;font-size:10.5px;font-weight:600;padding:5px 11px;border-radius:100px;cursor:pointer;transition:all .2s}
+        .pay-seg button.on{background:linear-gradient(135deg,#FFD700,#FFA500);color:#000}
+        .pay-total{display:flex;justify-content:space-between;align-items:baseline;padding:18px 2px 4px;opacity:.14;transform:translateY(6px);transition:opacity .55s cubic-bezier(.16,1,.3,1),transform .55s cubic-bezier(.16,1,.3,1)}
+        .pay-total.on{opacity:1;transform:none}
+        .pay-total span{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#999}
+        .pay-total b{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-weight:200;font-size:clamp(28px,4vw,42px);color:#FFD700;font-variant-numeric:tabular-nums}
+        .pay-go{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:14px;opacity:0;transform:translateY(8px);transition:opacity .55s cubic-bezier(.16,1,.3,1),transform .55s cubic-bezier(.16,1,.3,1)}
+        .pay-go.on{opacity:1;transform:none}
+        .pay-go p{font-size:11.5px;color:#777;line-height:1.5;margin:0}
+        .pay-go a{flex-shrink:0;padding:12px 24px;border-radius:11px;background:linear-gradient(135deg,#FFD700,#FFA500);color:#000;font-size:13.5px;font-weight:600;text-decoration:none;white-space:nowrap;transition:transform .25s,box-shadow .25s}
+        .pay-go a:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(255,215,0,.3)}
+        .pay.pay-static .pay-track{height:auto}
+        .pay.pay-static .pay-stage{position:static;min-height:0;display:block}
+        .pay.pay-static .pay-side{display:none}
+        @media(prefers-reduced-motion:reduce){.pay-track{height:auto!important}.pay-stage{position:static!important;min-height:0}.pay-row,.pay-total,.pay-go{opacity:1!important;transform:none!important}.pay-side .pay-t,.pay-side .pay-s{transition:none}}
         .bmx-afford{max-width:760px;margin:16px auto 0;background:var(--dark-void);border:1px solid rgba(255,255,255,.06);border-radius:20px;padding:24px}
         .bmx-afford-h{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#666;margin-bottom:16px}
         .bmx-afford-row{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:16px}
@@ -946,7 +983,22 @@
             <h2>Exactly what you pay.<br><span class="g">And exactly what comes back.</span></h2>
             <p>Most agencies in Rome keep the math hidden until you're at the table. We do the opposite — here is every euro for this home, before you commit to anything.</p>
           </div>
-          <div class="bmx-ledger bmx-armable" id="bmxLedger"></div>
+          <div class="pay" id="payFlow">
+            <div class="pay-track" id="payTrack">
+              <div class="pay-stage">
+                <div class="pay-side">
+                  <div class="pay-k" id="payN">01 · 04</div>
+                  <div class="pay-t" id="payT">Your first month</div>
+                  <div class="pay-s" id="payS">It’s the only rent you pay to move in — you’d pay this anywhere.</div>
+                  <div class="pay-dots" aria-hidden="true"><i class="on"></i><i></i><i></i><i></i></div>
+                </div>
+                <div class="pay-sheet">
+                  <div class="pay-sh"><span>BOOM · your move-in</span><span class="pay-lock">🔒 Stripe secured</span></div>
+                  <div class="pay-body" id="bmxLedger"></div>
+                </div>
+              </div>
+            </div>
+          </div>
           <div class="bmx-afford bmx-armable" id="bmxAfford" hidden></div>
           <div class="bmx-life bmx-armable">
             <div class="bmx-sub">Your deposit — and exactly when it returns</div>
@@ -990,27 +1042,66 @@
           const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
           rent = Number(rent)||0;
           root.__counts = [];
+          var flow = document.getElementById('payFlow'), track = document.getElementById('payTrack');
           if(rent<=0){
-            host.innerHTML = '<div class="bmx-fallback">This home is priced on request. <a href="#inquiryCard">Ask us</a> and we\'ll send your full, itemised move-in cost — first month, deposit and agency fee — before you commit to anything.</div>';
+            if(flow) flow.classList.add('pay-static');
+            host.innerHTML = '<div class="bmx-fallback" style="padding:18px 2px">This home is priced on request. <a href="#inquiryCard">Ask us</a> and we\'ll send your full, itemised move-in cost — first month, deposit and agency fee — before you commit to anything.</div>';
           } else {
             const pct = opts.agencyPct!=null ? Number(opts.agencyPct) : 0.10;   // BOOM commission: 10% of the annual rent
             const dep = rent;                       // deposit: one month, held with guarantees
             const feeFlat = rent;                   // agency fee — scenario A: one month
             const feePct = Math.round(rent*12*pct); // agency fee — scenario B: 10% of the annual rent
-            const costFrom = rent + feeFlat;        // your spend, lower scenario
             const dueFrom = rent + dep + feeFlat;   // cash at signing, lower scenario
             host.innerHTML =
-              '<div class="bmx-ey">To move into this home</div>'+
-              '<div class="bmx-row"><div class="bmx-row-l"><div class="bmx-row-t">First month’s rent</div><div class="bmx-row-s">Your first month in the apartment.</div></div><div class="bmx-row-v">'+fmt(rent)+'</div></div>'+
-              '<div class="bmx-row"><div class="bmx-row-l"><div class="bmx-row-t">Security deposit <span class="bmx-chip">↩ Refundable</span></div><div class="bmx-row-s">One month, held safe with full guarantees — it comes back to you.</div></div><div class="bmx-row-v">'+fmt(dep)+'</div></div>'+
-              '<div class="bmx-row bmx-row-fee"><div class="bmx-row-l"><div class="bmx-row-t">BOOM agency fee</div><div class="bmx-row-s">It varies by apartment — some owners set a flat month, others 10% of the year. You’ll always know which before you sign.</div></div><div class="bmx-fee-opts"><div class="bmx-fee-opt"><span class="bmx-fee-k">One month</span><span class="bmx-fee-v">'+fmt(feeFlat)+'</span></div><span class="bmx-fee-or">or</span><div class="bmx-fee-opt"><span class="bmx-fee-k">10% / year</span><span class="bmx-fee-v">'+fmt(feePct)+'</span></div></div></div>'+
-              '<div class="bmx-tiles">'+
-                '<div class="bmx-tile"><div class="bmx-tile-k">What it costs you</div><div class="bmx-tile-v"><span class="bmx-pre">from</span> <span id="bmxCost">'+fmt(costFrom)+'</span></div><div class="bmx-tile-s">Your first month + the agency fee. Paid once — no surprises later.</div></div>'+
-                '<div class="bmx-tile green"><div class="bmx-tile-k">Comes back to you</div><div class="bmx-tile-v">'+fmt(dep)+'</div><div class="bmx-tile-s">Your one-month deposit, returned in full — minus documented damage only.</div></div>'+
-              '</div>'+
-              '<div class="bmx-total"><span>Due at signing, from</span><b id="bmxTotal">'+fmt(dueFrom)+'</b></div>'+
-              '<div class="bmx-pay">🔒 Paid securely via Stripe, in English — card accepted. Want to lock it in first? <a href="#inquiryCard">Reserve &amp; hold from €300</a> — fully refundable, deducted from your first month.</div>';
-            root.__counts = [['bmxCost',costFrom],['bmxTotal',dueFrom]];
+              '<div class="pay-row" data-ps="1"><span>First month’s rent<i>You’d pay this anywhere.</i></span><b>'+fmt(rent)+'</b></div>'+
+              '<div class="pay-row" data-ps="2"><span>Security deposit<i class="pay-back">↩ One month — it returns to you.</i></span><b>'+fmt(dep)+'</b></div>'+
+              '<div class="pay-row" data-ps="3"><span>BOOM agency fee<span class="pay-seg" id="paySeg"><button type="button" data-m="A" class="on">1 month</button><button type="button" data-m="B">10% / yr</button></span><i>Varies per home — always in writing, before you sign.</i></span><b id="payFee">'+fmt(feeFlat)+'</b></div>'+
+              '<div class="pay-total" data-ps="4"><span>Due at signing</span><b id="payDue">'+fmt(dueFrom)+'</b></div>'+
+              '<div class="pay-go" data-ps="4"><p>Card, in English, a receipt for every euro — via Stripe.</p><a href="#inquiryCard">Apply →</a></div>';
+            // fee scenario toggle
+            var fee = feeFlat;
+            var seg2 = document.getElementById('paySeg');
+            if(seg2) seg2.addEventListener('click', function(e){
+              var b = e.target.closest('button[data-m]'); if(!b) return;
+              fee = b.getAttribute('data-m')==='A' ? feeFlat : feePct;
+              [].forEach.call(seg2.querySelectorAll('button'), function(x){ x.classList.toggle('on', x===b); });
+              document.getElementById('payFee').textContent = fmt(fee);
+              document.getElementById('payDue').textContent = fmt(rent+dep+fee);
+            });
+            // pinned story driver — 4 steps mapped to scroll progress through the track
+            var STEPS = [
+              ['01 · 04','Your first month','It’s the only rent you pay to move in — you’d pay this anywhere.'],
+              ['02 · 04','Your deposit','One month, held safe under Italian law. It comes back to you when you leave.'],
+              ['03 · 04','BOOM’s fee — once','A flat month or 10% of the year, depending on the home. In writing, before you sign.'],
+              ['04 · 04','That’s everything.','Paid securely with Stripe — and never a euro that isn’t on this sheet.']
+            ];
+            var cur = 0, sideEl = flow ? flow.querySelector('.pay-side') : null;
+            var dots2 = flow ? [].slice.call(flow.querySelectorAll('.pay-dots i')) : [];
+            var setStep = function(s){
+              if(s===cur) return; cur = s;
+              [].forEach.call(host.querySelectorAll('[data-ps]'), function(el){ el.classList.toggle('on', Number(el.getAttribute('data-ps'))<=s); });
+              dots2.forEach(function(d,i){ d.classList.toggle('on', i<s); });
+              var st = STEPS[s-1];
+              if(sideEl && st){
+                sideEl.classList.add('sw');
+                setTimeout(function(){
+                  var n=document.getElementById('payN'), t=document.getElementById('payT'), x=document.getElementById('payS');
+                  if(n) n.textContent=st[0]; if(t) t.textContent=st[1]; if(x) x.textContent=st[2];
+                  sideEl.classList.remove('sw');
+                }, reduce?0:170);
+              }
+            };
+            if(reduce || !track){ setStep(4); }
+            else {
+              var onScr = function(){
+                var r = track.getBoundingClientRect();
+                var span = track.offsetHeight - window.innerHeight;
+                var p = span>0 ? Math.min(1, Math.max(0, -r.top/span)) : 1;
+                setStep(p<.2 ? 1 : p<.48 ? 2 : p<.76 ? 3 : 4);
+              };
+              window.addEventListener('scroll', onScr, {passive:true});
+              onScr();
+            }
             // Affordability + flatmate split — interactive, client-side
             var aff=document.getElementById('bmxAfford');
             if(aff){
