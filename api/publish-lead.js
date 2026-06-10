@@ -68,8 +68,9 @@ export default async function handler(req, res) {
     channel: 'ibrido-publish',
     leadType: 'owner',
     status: 'new',
-    grade: 'A', // an owner self-publishing is the hottest supply lead we have
-    intent: 'owner wants BOOM to rent & manage their property (first rental free)',
+    approvalStatus: 'pending', // owner submitted; BOOM curates & approves before it goes live
+    grade: 'A', // an owner submitting their property is the hottest supply lead we have
+    intent: 'owner submitted property for BOOM curation + approval (online within 1h, first rental free)',
     name,
     phone,
     email,

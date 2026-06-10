@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BOOM — Il primo ibrido tra portale e agenzia | Roma</title>
-    <meta name="description" content="La libertà di un portale. La responsabilità di un'agenzia. BOOM è la terza cosa: pubblichi tu, gestiamo noi, e della solvibilità rispondiamo legalmente. Prima locazione gratuita.">
+    <meta name="description" content="La libertà di un portale. La responsabilità di un'agenzia. Candidi il tuo immobile, il team BOOM lo porta a livello mercato e lo approva: online in un'ora, mai grezzo. Della solvibilità rispondiamo legalmente noi. Prima locazione gratuita.">
     <meta name="robots" content="noindex, follow">
     <meta name="theme-color" content="#08080A">
     <meta name="color-scheme" content="dark">
@@ -237,7 +237,14 @@
 
         /* ═══════════════ PUBBLICA (prodotto) ═══════════════ */
         .pub-section { position: relative; z-index: 2; padding: var(--sp-5xl) 0; }
-        .pub-grid { display: grid; grid-template-columns: 1fr; gap: var(--sp-2xl); margin-top: var(--sp-3xl); align-items: start; }
+        .pub-steps { list-style: none; display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-lg); max-width: 920px; margin: var(--sp-2xl) auto 0; padding: 0; }
+        @media (max-width: 720px) { .pub-steps { grid-template-columns: 1fr; gap: var(--sp-md); } }
+        .pub-steps li { display: flex; gap: 14px; align-items: flex-start; padding: 18px 20px; background: var(--surface-card); border: 1px solid var(--border-subtle); border-radius: 14px; }
+        .pub-steps .ps-n { font-family: var(--font-display); font-size: 13px; font-weight: 300; letter-spacing: 1px; color: var(--gold); border: 1px solid var(--border-gold); border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .pub-steps b { display: block; font-size: 13px; font-weight: 500; letter-spacing: 0.3px; margin-bottom: 3px; color: var(--text-primary); }
+        .pub-steps em { font-style: normal; font-size: 11.5px; line-height: 1.5; color: var(--text-tertiary); }
+        .pcard-note { margin-top: var(--sp-md); font-size: 11px; line-height: 1.6; text-align: center; color: var(--text-muted); max-width: 360px; margin-left: auto; margin-right: auto; }
+        .pub-grid { display: grid; grid-template-columns: 1fr; gap: var(--sp-2xl); margin-top: var(--sp-2xl); align-items: start; }
         @media (min-width: 980px) { .pub-grid { grid-template-columns: 1.05fr 0.95fr; gap: var(--sp-3xl); } }
         .pub-form { background: var(--surface-card); border: 1px solid var(--border-default); border-radius: 20px; padding: clamp(24px, 3.4vw, 44px); position: relative; }
         .pub-form::before { content: ''; position: absolute; top: 0; left: 14%; right: 14%; height: 1px; background: linear-gradient(90deg, transparent, var(--gold), transparent); opacity: 0.5; }
@@ -445,12 +452,12 @@
                 <span class="h-line gold">La responsabilità di un'agenzia.</span>
             </h1>
             <p class="hero-sub">
-                Pubblichi tu, come su un portale. Gestiamo noi, come un'agenzia.
+                Lo candidi con la libertà di un portale. Lo portiamo a livello mercato e lo gestiamo come un'agenzia — niente annunci grezzi.
                 E della solvibilità dell'inquilino <strong>rispondiamo legalmente noi</strong> — è scritto nel mandato.
                 La prima locazione è gratuita.
             </p>
             <div class="hero-actions">
-                <a href="#pubblica" class="btn btn-primary">Pubblica casa tua — gratis</a>
+                <a href="#pubblica" class="btn btn-primary">Candida il tuo immobile</a>
                 <a href="#film" class="btn btn-secondary">Guarda come lavoriamo</a>
             </div>
             <div class="hero-kicker">Egidi Immobiliare S.r.l. · <b>agenzia registrata</b> · P.IVA 17322991005</div>
@@ -503,15 +510,20 @@
     <section class="pub-section" id="pubblica">
         <div class="container">
             <div class="split-head">
-                <div class="eyebrow" style="justify-content:center"><span class="eyebrow-dot"></span><span class="eyebrow-text">Provalo adesso — gratis</span></div>
-                <h2 class="section-title reveal" style="text-align:center">Carica le foto.<br><span class="gold">Guarda casa tua diventare BOOM.</span></h2>
-                <p class="reveal">Nessuna registrazione. Compili, vedi il tuo annuncio comporsi dal vivo, e se ti piace lo pubblichi. Ci pensiamo noi da lì in poi.</p>
+                <div class="eyebrow" style="justify-content:center"><span class="eyebrow-dot"></span><span class="eyebrow-text">Candida il tuo immobile</span></div>
+                <h2 class="section-title reveal" style="text-align:center">Il tuo immobile online in un'ora.<br><span class="gold">Curato e approvato dal nostro team.</span></h2>
+                <p class="reveal">Non è un portale fai-da-te. Carichi foto e dati, il team BOOM porta l'annuncio allo standard più alto del mercato — sopra qualunque competitor — e lo approva. Niente annunci grezzi: solo immobili pronti, online entro un'ora.</p>
             </div>
+            <ol class="pub-steps reveal" aria-label="Come funziona">
+                <li><span class="ps-n">01</span><div><b>Candidi</b><em>Foto e dati essenziali. Due minuti, dal telefono.</em></div></li>
+                <li><span class="ps-n">02</span><div><b>Curiamo &amp; approviamo</b><em>Il team BOOM rifinisce l'annuncio a livello mercato e ne verifica la qualità.</em></div></li>
+                <li><span class="ps-n">03</span><div><b>Online in un'ora</b><em>Pubblicato, gestito, con solvibilità garantita. La casa resta tua.</em></div></li>
+            </ol>
             <div class="pub-grid reveal">
                 <form class="pub-form" id="pubForm" autocomplete="on" novalidate>
                     <input type="text" name="website" id="pfHoney" tabindex="-1" aria-hidden="true" style="position:absolute;left:-5000px">
                     <div class="fld">
-                        <label>Foto di casa tua <span class="soft">(fino a 3 — restano sul tuo telefono finché non pubblichi)</span></label>
+                        <label>Foto dell'immobile <span class="soft">(fino a 3 — le rifiniamo noi a livello mercato. Restano sul tuo telefono finché non invii)</span></label>
                         <div class="drop" id="pfDrop" role="button" tabindex="0">
                             <span id="pfDropLabel">Tocca per scegliere le foto</span>
                             <input type="file" id="pfPhotos" accept="image/*" multiple hidden>
@@ -534,25 +546,26 @@
                         <div class="fld"><label>WhatsApp / telefono</label><input type="tel" id="pfPhone" placeholder="+39 333 123 4567" autocomplete="tel"></div>
                     </div>
                     <label class="consent"><input type="checkbox" id="pfConsent"><span>Ho letto la <a href="/privacy.html" target="_blank" rel="noopener">Privacy Policy</a> e acconsento a essere ricontattato da BOOM riguardo al mio immobile.</span></label>
-                    <button type="submit" class="btn btn-primary" id="pfSubmit" style="width:100%">Pubblica gratis — un click</button>
-                    <div class="engine-foot" style="margin-top:14px">Prima locazione gratuita · la casa resta tua · <b>ti ricontattiamo entro 24h</b></div>
+                    <button type="submit" class="btn btn-primary" id="pfSubmit" style="width:100%">Candida il tuo immobile</button>
+                    <div class="engine-foot" style="margin-top:14px">Prima locazione gratuita · la casa resta tua · <b>approvazione entro 1 ora</b></div>
                     <div class="pub-err" id="pfErr" role="alert"></div>
                 </form>
                 <div class="pub-stage">
-                    <div class="pub-stage-k">La tua casa, come la vedrà il mondo</div>
+                    <div class="pub-stage-k">Come apparirà, una volta curato dal nostro team</div>
                     <article class="pcard" id="pCard" aria-live="polite">
-                        <div class="pcard-media" id="pcMedia"><span class="pcard-empty">Le tue foto<br>appariranno qui</span><span class="pcard-badge">✓ Gestito da BOOM</span></div>
+                        <div class="pcard-media" id="pcMedia"><span class="pcard-empty">Le tue foto<br>appariranno qui</span><span class="pcard-badge">Standard BOOM</span></div>
                         <div class="pcard-body">
                             <h3 id="pcTitle">Bilocale · Testaccio</h3>
                             <div class="pcard-meta" id="pcMeta">— m² · Roma</div>
                             <div class="pcard-row"><span class="pcard-price" id="pcPrice">€ —<small>/mese</small></span><span class="pcard-tag">Solvibilità garantita</span></div>
                         </div>
                     </article>
+                    <p class="pcard-note">Questa è l'anteprima. Il tuo annuncio definitivo lo prepara il team BOOM, allo standard più alto del mercato, prima di andare online.</p>
                     <div class="pub-success" id="pubOk" hidden>
                         <div class="pub-ok-ring">✓</div>
-                        <h3>Sei dentro.</h3>
-                        <p>Casa tua è nel sistema BOOM <span id="okRef"></span>. Un nostro responsabile ti scrive <b>entro 24 ore</b> — di solito molto prima.</p>
-                        <a class="btn btn-secondary" id="okWa" href="https://wa.me/393313251961" target="_blank" rel="noopener">Anticipaci tu su WhatsApp</a>
+                        <h3>Candidatura ricevuta.</h3>
+                        <p>Il tuo immobile <span id="okRef"></span> è in lavorazione. Il team BOOM lo sta portando a livello mercato e, una volta approvato, va <b>online entro un'ora</b>. Ti avvisiamo noi a ogni passaggio.</p>
+                        <a class="btn btn-secondary" id="okWa" href="https://wa.me/393313251961" target="_blank" rel="noopener">Parlane subito col team su WhatsApp</a>
                     </div>
                 </div>
             </div>
@@ -928,12 +941,12 @@
                         if (!j.ok) throw new Error(j.error || 'server');
                         form.style.display = 'none';
                         $('okRef').textContent = j.id ? '(rif. ' + String(j.id).slice(0, 6).toUpperCase() + ')' : '';
-                        $('okWa').href = 'https://wa.me/393313251961?text=' + encodeURIComponent('Ciao BOOM! Ho appena pubblicato casa mia dal sito (' + TYPE_LABEL[$('pfType').value] + ' a ' + ZONE_LABEL[$('pfZone').value] + ').');
+                        $('okWa').href = 'https://wa.me/393313251961?text=' + encodeURIComponent('Ciao BOOM! Ho appena candidato il mio immobile dal sito (' + TYPE_LABEL[$('pfType').value] + ' a ' + ZONE_LABEL[$('pfZone').value] + '). Quando va online?');
                         $('pubOk').hidden = false;
                         if (typeof gtag === 'function') gtag('event', 'generate_lead', { event_category: 'ibrido', event_label: $('pfZone').value, value: 1 });
                         $('pubOk').scrollIntoView({ behavior: 'smooth', block: 'center' });
                     }).catch(function () {
-                        btn.disabled = false; btn.textContent = 'Pubblica gratis — un click';
+                        btn.disabled = false; btn.textContent = 'Candida il tuo immobile';
                         fail('Qualcosa non ha funzionato. Riprova, o scrivici direttamente su WhatsApp.');
                     });
                 });
