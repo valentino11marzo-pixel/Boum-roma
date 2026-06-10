@@ -715,7 +715,7 @@
                     <div class="sidebar-trust">
                         <div class="trust-item"><span class="ti">✓</span> Video-verified listing</div>
                         <div class="trust-item"><span class="ti">✓</span> No hidden fees</div>
-                        <div class="trust-item"><span class="ti">✓</span> English contract available</div>
+                        <div class="trust-item"><span class="ti">✓</span> Deposit fully refundable</div>
                         <div class="trust-item"><span class="ti">✓</span> 24/7 WhatsApp support</div>
                         <div class="trust-item"><span class="ti">✓</span> 48-hour move-in</div>
                     </div>
@@ -805,7 +805,7 @@
           <div class="bver-grid">
             <div class="bver-card"><div class="bver-ic">🎥</div><div class="bver-t">We filmed it ourselves <span class="bver-badge">Verified</span></div><div class="bver-d">A BOOM agent visited and recorded this exact apartment — no stock photos, no surprises. <a href="#mediaSection">See the walkthrough →</a></div></div>
             <div class="bver-card"><div class="bver-ic">🪪</div><div class="bver-t">Owner is ID-checked</div><div class="bver-d">We verify the landlord's identity and legal right to rent before a listing ever goes live.</div></div>
-            <div class="bver-card"><div class="bver-ic">📜</div><div class="bver-t">Registered legal contract</div><div class="bver-d">A real Italian lease, registered with the Agenzia delle Entrate — available in English.</div></div>
+            <div class="bver-card"><div class="bver-ic">📜</div><div class="bver-t">Registered &amp; in English</div><div class="bver-d">A real Italian lease, registered with the Agenzia delle Entrate.</div></div>
             <div class="bver-card"><div class="bver-ic">🛡️</div><div class="bver-t">Deposit protected</div><div class="bver-d">Held to the letter of Italian law and returned at move-out, minus documented damage only.</div></div>
             <div class="bver-card"><div class="bver-ic">🏢</div><div class="bver-t">BOOM-managed end to end</div><div class="bver-d">One accountable team from application to keys to move-out — not a faceless portal.</div></div>
             <div class="bver-card"><div class="bver-ic">⭐</div><div class="bver-t">Rated 4.9 by tenants</div><div class="bver-d">47 verified Google reviews from people who moved in with BOOM. <a href="https://share.google/xikmVxQCRuKOdWcND" target="_blank" rel="noopener">Read them →</a></div></div>
@@ -979,7 +979,7 @@
               </ul>
             </div>
           </div>
-          <div class="bmx-foot bmx-armable">Registered legal contract · deposit handled to the letter of Italian law · everything above, in writing, before you pay a cent.</div>
+          <div class="bmx-foot bmx-armable">Every figure above is in your contract, in writing, before you pay a cent · deposit handled to the letter of Italian law.</div>
         </section>
         <script>
         window.buildMoney = function(rent, opts){
@@ -1342,6 +1342,60 @@
         var tick=false;function upd(){tick=false;var r=t.getBoundingClientRect(),vh=innerHeight||document.documentElement.clientHeight;var p=(vh*0.82-r.top)/(r.height*0.62);p=Math.max(0,Math.min(1,p));t.style.setProperty('--p',p.toFixed(3));steps.forEach(function(s,i){s.classList.toggle('lit',p>=i/steps.length+0.02);});}
         function on(){if(tick)return;tick=true;requestAnimationFrame(upd);}addEventListener('scroll',on,{passive:true});addEventListener('resize',on,{passive:true});upd();})();</script>
 
+        <!-- ======== FAQ — answers before the questions ======== -->
+        <style>
+        .faq{max-width:860px;margin:64px auto 10px;padding:0 20px}
+        .faq-head{text-align:center;margin-bottom:30px}
+        .faq-lbl{display:inline-block;color:#FFD700;font-size:11px;letter-spacing:3px;text-transform:uppercase;margin-bottom:10px}
+        .faq-head h2{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-weight:200;font-size:clamp(24px,3.4vw,40px);color:#fff;letter-spacing:-.01em;margin:0}
+        .faq-head h2 .g{color:#FFD700}
+        .faq-list{display:flex;flex-direction:column;gap:10px}
+        .faq-it{background:var(--dark-void);border:1px solid rgba(255,255,255,.07);border-radius:14px;overflow:hidden;transition:border-color .25s}
+        .faq-it.open{border-color:rgba(255,215,0,.22)}
+        .faq-q{display:flex;align-items:center;justify-content:space-between;gap:16px;width:100%;padding:18px 20px;background:transparent;border:none;cursor:pointer;font-family:inherit;text-align:left;font-size:15px;color:#fff}
+        .faq-q:hover{color:#FFD700}
+        .faq-pi{flex:0 0 auto;color:#FFD700;font-size:18px;transition:transform .3s}
+        .faq-it.open .faq-pi{transform:rotate(45deg)}
+        .faq-a{max-height:0;overflow:hidden;transition:max-height .4s cubic-bezier(.16,1,.3,1)}
+        .faq-a div{padding:0 20px 18px;font-size:14px;color:var(--text-secondary);line-height:1.65}
+        .faq-a b{color:#fff;font-weight:500}
+        .faq-foot{text-align:center;margin-top:20px;font-size:13px;color:var(--text-fade)}
+        .faq-foot button{background:none;border:none;color:#FFD700;font-family:inherit;font-size:13px;cursor:pointer;border-bottom:1px solid rgba(255,215,0,.3);padding:0 0 1px}
+        @media(prefers-reduced-motion:reduce){.faq-a{transition:none}.faq-pi{transition:none}}
+        </style>
+        <section class="faq" id="boomFaq" aria-label="Frequently asked questions">
+          <div class="faq-head">
+            <span class="faq-lbl">Good to know</span>
+            <h2>Answers, <span class="g">before you even ask</span>.</h2>
+          </div>
+          <div class="faq-list" id="faqList"></div>
+          <div class="faq-foot">Still wondering something specific? <button type="button" id="faqAsk">Ask our AI →</button></div>
+        </section>
+        <script>
+        (function(){
+          var list=document.getElementById('faqList'); if(!list)return;
+          var Q=[
+            ['Who pays the agency fee — and how much?','You do, and only <b>once</b>, when you sign: either one month’s rent or 10% of the annual rent — it varies per home and we always tell you which up front. Never monthly, never hidden in the rent.'],
+            ['Is the deposit refundable?','Yes. It’s <b>one month</b>, held safe under Italian law and returned at move-out — minus only documented damage. Normal wear and tear is never deducted.'],
+            ['What’s not included in the rent?','Your own utilities (electricity, water, gas), internet, and the TARI waste tax. We help you set every one up — nothing is left for you to figure out alone.'],
+            ['What’s the minimum stay?','From short transitory stays to long-term — tell us your dates and we match the right contract format for you. Plenty of internationals stay a few months.'],
+            ['Can I see it before I sign?','Absolutely. Book a <b>free live video tour</b> above, or visit in person. Every home is also video-verified by a BOOM agent, so what you see is exactly what you get.'],
+            ['What do I need to apply?','To start, just your contact details — no documents, no fee. To sign later: a passport or ID, and proof of income or university enrolment.'],
+            ['How fast can I really move in?','As fast as <b>48 hours</b> from approval. We reply to every application within 2 hours, and handle the contract and keys for you.'],
+            ['Is it still available?','Our listings are kept current and video-verified. If you’re worried it’ll go, you can <b>reserve &amp; hold</b> it (fully refundable) while we process your application.']
+          ];
+          list.innerHTML=Q.map(function(q){return '<div class="faq-it"><button class="faq-q" type="button" aria-expanded="false">'+q[0]+'<span class="faq-pi">+</span></button><div class="faq-a"><div>'+q[1]+'</div></div></div>';}).join('');
+          list.addEventListener('click',function(e){
+            var b=e.target.closest('.faq-q'); if(!b)return;
+            var it=b.parentNode,a=it.querySelector('.faq-a'),open=!it.classList.contains('open');
+            it.classList.toggle('open',open); b.setAttribute('aria-expanded',open?'true':'false');
+            a.style.maxHeight=open?a.scrollHeight+'px':'0';
+          });
+          var ask=document.getElementById('faqAsk');
+          if(ask)ask.addEventListener('click',function(){var l=document.querySelector('.bask-launch');if(l)l.click();else{var f=document.getElementById('inquiryCard');if(f)f.scrollIntoView({behavior:'smooth',block:'center'});}});
+        })();
+        </script>
+
         <div class="upsell-section">
             <div class="upsell-header">
                 <span class="upsell-tag">How Can We Help</span>
@@ -1533,6 +1587,9 @@
     .getit-sec{color:#999;font-size:13px;text-decoration:none;border-bottom:1px solid rgba(255,255,255,.18);padding-bottom:2px;transition:all .2s}
     .getit-sec:hover{color:#FFD700;border-color:#FFD700}
     .btour--sec .btour-lbl{opacity:.85}
+    .upsell--calm .upsell-card{transition:border-color .25s,transform .25s}
+    .upsell--calm .upsell-card:hover{transform:translateY(-3px);box-shadow:none;border-color:rgba(255,215,0,.22)}
+    .upsell--calm .upsell-card-popular{display:none!important}
     .upsell-more{display:block;text-align:center;margin-top:18px;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold);text-decoration:none;border:none}
     .upsell-more:hover{text-decoration:underline}
     .sidebar-secondary--quiet{border:none;background:transparent;font-size:12px;color:#777;padding:8px}
@@ -1594,24 +1651,14 @@
         var t2=document.getElementById('boomTour'); if(t2) t2.style.display='block';
         var a2=document.getElementById('boomAsk'); if(a2) a2.style.display='block';
       }catch(e){}
-      // 6) One service, not three — keep the featured card, link to the rest
+      // 6) Services presented calmly — show the full BOOM range, just not as competing heroes
       try{
         var us=document.querySelector('.upsell-section');
         if(us){
-          var cards=[].slice.call(us.querySelectorAll('.upsell-card'));
-          var kept=us.querySelector('.upsell-card.featured')||cards[0];
-          if(kept&&cards.length>1){
-            cards.forEach(function(c){ if(c!==kept) c.style.display='none'; });
-            var pop=kept.querySelector('.upsell-card-popular'); if(pop) pop.style.display='none';
-            var top=kept.querySelector('.upsell-card-top'); if(top) top.style.paddingTop='32px';
-            var grid=kept.closest('.upsell-grid')||kept.parentNode;
-            if(grid){ grid.style.gridTemplateColumns='minmax(0,560px)'; grid.style.justifyContent='center'; }
-            if(grid&&!us.querySelector('.upsell-more')){
-              var more=document.createElement('a'); more.className='upsell-more'; more.href='/how-it-works';
-              more.textContent='Explore all BOOM services →';
-              grid.insertAdjacentElement('afterend', more);
-            }
-          }
+          us.classList.add('upsell--calm');
+          var pop=us.querySelector('.upsell-card-popular'); if(pop) pop.style.display='none';
+          var feat=us.querySelector('.upsell-card.featured');
+          if(feat){ feat.classList.remove('featured'); var ft=feat.querySelector('.upsell-card-top'); if(ft) ft.style.paddingTop='28px'; }
         }
       }catch(e){}
       // 7) Sidebar: one voice — quiet the exit link under the form
@@ -2259,7 +2306,7 @@
             '<div class="mdx-ey">'+name+' · the full financial picture</div>'+
             '<h2 class="mdx-h">Every euro.<br>Every term. <span class="g">Decoded.</span></h2>'+
             '<p class="mdx-p">Renting in Italy comes with words nobody translates and numbers nobody shows until it’s too late. In the next two minutes you’ll understand all of it — the law, the math, and exactly what it means for you. No fine print. Scroll.</p>'+
-            '<div class="mdx-chips"><span class="mdx-chip gold">7 chapters</span><span class="mdx-chip">~2 minutes</span><span class="mdx-chip">Real numbers for this home</span></div>'},
+            '<div class="mdx-chips"><span class="mdx-chip gold">No fine print</span><span class="mdx-chip">~2 minutes</span><span class="mdx-chip">Real numbers for this home</span></div>'},
           {label:'The cost',html:
             '<div class="mdx-ey">Chapter 01 · what you’d actually pay</div>'+
             '<h2 class="mdx-h">One number. <span class="g">Nothing after it.</span></h2>'+
@@ -2275,9 +2322,8 @@
             '<h2 class="mdx-h">Il deposito <span class="g">cauzionale</span></h2>'+
             '<div class="mdx-big"><span data-count="'+dep+'">'+(has?'€0':'—')+'</span><small>one month — and it comes back</small></div>'+
             '<div class="mdx-terms">'+
-              term('deposito cauzionale','the security deposit','Italian law — <b>Art. 11, Legge 392/1978</b> — caps deposits at three months’ rent. BOOM asks for <b>one</b>. It is collateral held with guarantees, not the landlord’s income: legally it never stops being your money.')+
-              term('interessi legali','interest on your deposit','Under the same law, a held deposit must earn <b>legal interest in your favour</b>. Most renters are never told this. Now you have been.')+
-              term('usura normale','normal wear & tear','Living somewhere leaves traces — faded paint, small scuffs. By law that is <b>never deductible</b> from your deposit. Only real, documented damage is, and we walk the apartment with you at move-out so there are no inventions.')+
+              term('deposito cauzionale','the security deposit','By law a deposit can’t exceed three months. BOOM asks for <b>one</b> — held as a guarantee, never spent, and legally still <b>your money</b>.')+
+              term('usura normale','normal wear &amp; tear','Faded paint and small scuffs from living there are <b>never deducted</b>. Only real, documented damage is — and we check the apartment with you at move-out.')+
             '</div>'},
           {label:'The fee',html:
             '<div class="mdx-ey">Chapter 03 · the only thing BOOM earns</div>'+
@@ -2287,18 +2333,18 @@
               '<div class="mdx-row"><span>Scenario B — percentage</span><b>'+V(feeP)+' · 10% of the year</b></div>'+
             '</div>'+
             '<p class="mdx-p">Which one applies varies home by home — and you’ll know yours <b style="color:#fff;font-weight:500">before</b> you sign, in writing. It’s charged <b style="color:#fff;font-weight:500">once</b>, only when you actually sign. Never monthly, never renewed, never hidden in the rent.</p>'+
-            '<p class="mdx-p" style="margin-bottom:0">What it pays for: the in-person video verification, the ID-checked owner, the registered bilingual contract, the 48-hour move-in logistics, and a team on WhatsApp for your entire stay — including getting your deposit back.</p>'},
+            '<p class="mdx-p" style="margin-bottom:0">It pays for the in-person video verification, the ID-checked owner, the registered contract, the 48-hour move-in, and a team on WhatsApp for your whole stay — right through to getting your deposit back.</p>'},
           {label:'Contract',html:
             '<div class="mdx-ey">Chapter 04 · the paper that protects you</div>'+
             '<h2 class="mdx-h">Il <span class="g">contratto</span></h2>'+
-            '<p class="mdx-p">In Italy, an unregistered lease means you legally barely exist in the home. Registration is everything — it’s what makes residency, deposit rights and rent receipts real.</p>'+
+            '<p class="mdx-p">In Italy, only a <b style="color:#fff;font-weight:500">registered</b> lease is real — it’s what gives you residency rights, deposit protection and official rent receipts.</p>'+
             '<div class="mdx-terms">'+
               term('contratto registrato','registered lease','Your lease is registered with the <b>Agenzia delle Entrate</b> (Italy’s revenue agency). That registration is your legal armour: proof of residence for permits and visas, enforceable deposit rights, official rent receipts.')+
               term('imposta di registro','registration tax','Normally about <b>2% of the annual rent</b>, typically split with the landlord — for this home roughly <b>'+(has?fmt(reg):'—')+'</b> for your half, per year. But often it’s <b>€0</b> — see the next term.')+
               term('cedolare secca','the landlord’s flat tax','A flat-tax regime many landlords opt into. If yours does, <b>registration tax and stamp duty vanish for you entirely</b> — and the rent can’t be raised by ISTAT inflation updates during the term.')+
               term('contratto transitorio','temporary contract','A fully legal lease format for <b>1–18 months</b>, built for study, work or relocation periods — the most common choice for internationals. Same registration, same protections.')+
             '</div>'+
-            '<div class="mdx-note">Always bilingual — you sign in English next to the Italian, understanding every line. General guidance, not tax advice: your contract states the exact figures.</div>'},
+            '<div class="mdx-note">You sign in English alongside the Italian, understanding every line. Guidance only, not tax advice — your contract states the exact figures.</div>'},
           {label:'Monthly',html:
             '<div class="mdx-ey">Chapter 05 · life, per month</div>'+
             '<h2 class="mdx-h">Le <span class="g">spese</span> — the monthly reality</h2>'+
@@ -2378,12 +2424,12 @@
       try{ if(/^#(decoded|money)$/.test(location.hash)) setTimeout(open,700); }catch(e){}
       // Launcher portal inside the money module
       try{
-        var money=document.getElementById('boomMoney'),ledger=document.getElementById('bmxLedger');
-        if(money&&ledger){
+        var money=document.getElementById('boomMoney');
+        if(money){
           var b=document.createElement('button');b.type='button';b.className='mdx-launch';b.setAttribute('aria-haspopup','dialog');
-          b.innerHTML='<span class="mdx-launch-t">⚡ Money, Decoded — the immersive deep dive<small>Every Italian rental term &amp; every euro for this home, explained in 2 minutes</small></span><span class="mdx-launch-go">→</span>';
+          b.innerHTML='<span class="mdx-launch-t">⚡ See the full money picture, decoded<small>Every term and every euro for this home — clear, in 2 minutes.</small></span><span class="mdx-launch-go">→</span>';
           b.addEventListener('click',open);
-          ledger.insertAdjacentElement('afterend',b);
+          money.appendChild(b);
         }
       }catch(e){}
     })();
