@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BOOM — Il primo ibrido tra portale e agenzia | Roma</title>
+    <title>BOOM — Il primo ibrido tra portale e agenzia | Roma · Cinema</title>
     <meta name="description" content="La libertà di un portale. La responsabilità di un'agenzia. BOOM è la terza cosa: pubblichi tu, gestiamo noi, e della solvibilità rispondiamo legalmente. Prima locazione gratuita.">
     <meta name="robots" content="noindex, follow">
     <meta name="theme-color" content="#08080A">
@@ -156,6 +156,23 @@
         .sky-haze { position: absolute; left: 0; right: 0; bottom: 0; height: 46%; z-index: 2; background: linear-gradient(180deg, transparent, rgba(18,12,4,0.55) 55%, #030303); }
         .sky-dust { position: absolute; inset: 0; z-index: 1; opacity: 0; transition: opacity 2.5s ease 1s; }
         .hero.sky-on .sky-dust { opacity: 1; }
+        /* theater staging: the product film becomes the protagonist */
+        .film-section { background: #000; position: relative; overflow: hidden; }
+        .film-section::before { content: ''; position: absolute; inset: 0; pointer-events: none;
+            background: radial-gradient(ellipse 76% 58% at 50% 46%, rgba(255,215,0,0.07), transparent 70%); }
+        .film-section::after { content: ''; position: absolute; inset: 0; pointer-events: none;
+            box-shadow: inset 0 0 220px 60px #000; }
+        .film-section .boom-film { max-width: 1100px; margin: 0 auto; position: relative; z-index: 1; }
+        .film-section .bf-frame { box-shadow: 0 0 0 1px rgba(255,215,0,0.10), 0 60px 160px -40px rgba(0,0,0,0.95), 0 0 120px rgba(255,215,0,0.07); }
+        .trailer { position: relative; z-index: 1; overflow: hidden; margin: 0 0 var(--sp-xl); padding: 14px 0; border-top: 1px solid var(--border-gold); border-bottom: 1px solid var(--border-gold); }
+        .trailer-track { display: flex; gap: 64px; width: max-content; animation: marquee 26s linear infinite; }
+        @keyframes marquee { to { transform: translateX(-50%); } }
+        .trailer-track span { font-family: var(--font-display); font-weight: 200; font-size: 13px; letter-spacing: 5px; text-transform: uppercase; color: var(--text-tertiary); white-space: nowrap; }
+        .trailer-track span b { color: var(--gold); font-weight: 300; }
+        .seats { position: relative; z-index: 1; display: flex; justify-content: center; gap: 8px; margin-top: var(--sp-xl); }
+        .seats i { width: 34px; height: 5px; border-radius: 3px; background: rgba(255,255,255,0.06); }
+        .seats i:nth-child(3) { background: rgba(255,215,0,0.35); }
+        @media (prefers-reduced-motion: reduce) { .trailer-track { animation: none; } }
         @media (max-width: 640px) { .sky-rings { width: min(54vh,420px); height: min(54vh,420px); } }
 
         .hero-frame { position: absolute; inset: 16px; pointer-events: none; z-index: 1; }
@@ -459,6 +476,12 @@
                 <p class="reveal">Non uno spot: il percorso reale che il tuo immobile fa dentro BOOM, dall'annuncio al primo accredito.</p>
             </div>
 
+            <div class="trailer" aria-hidden="true">
+                <div class="trailer-track">
+                    <span>Il percorso del tuo immobile <b>· senza tagli ·</b></span><span>Annuncio <b>AI</b></span><span>Selezione <b>verificata</b></span><span>Contratto <b>registrato</b></span><span>Canone <b>puntuale</b></span><span>Portale <b>in tempo reale</b></span>
+                    <span>Il percorso del tuo immobile <b>· senza tagli ·</b></span><span>Annuncio <b>AI</b></span><span>Selezione <b>verificata</b></span><span>Contratto <b>registrato</b></span><span>Canone <b>puntuale</b></span><span>Portale <b>in tempo reale</b></span>
+                </div>
+            </div>
             <div class="boom-film reveal">
                 <div class="bf-frame">
                     <div class="bf-bar"><span class="bf-dot"></span><span class="bf-dot"></span><span class="bf-dot"></span><span class="bf-url">app.boomrome.com/proprietari</span><span class="bf-live"><b>●</b> LIVE</span></div>
@@ -528,6 +551,7 @@
                 <div class="bf-track">
                     <div class="bf-tick"></div><div class="bf-tick"></div><div class="bf-tick"></div><div class="bf-tick"></div><div class="bf-tick"></div>
                 </div>
+                <div class="seats" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
             </div>
         </div>
     </section>

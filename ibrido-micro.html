@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BOOM — Il primo ibrido tra portale e agenzia | Roma</title>
+    <title>BOOM — Il primo ibrido tra portale e agenzia | Roma · Micro</title>
     <meta name="description" content="La libertà di un portale. La responsabilità di un'agenzia. BOOM è la terza cosa: pubblichi tu, gestiamo noi, e della solvibilità rispondiamo legalmente. Prima locazione gratuita.">
     <meta name="robots" content="noindex, follow">
     <meta name="theme-color" content="#08080A">
@@ -156,6 +156,17 @@
         .sky-haze { position: absolute; left: 0; right: 0; bottom: 0; height: 46%; z-index: 2; background: linear-gradient(180deg, transparent, rgba(18,12,4,0.55) 55%, #030303); }
         .sky-dust { position: absolute; inset: 0; z-index: 1; opacity: 0; transition: opacity 2.5s ease 1s; }
         .hero.sky-on .sky-dust { opacity: 1; }
+        /* micro-interaction layer: gold cursor, tilt, magnetic */
+        @media (hover: hover) and (pointer: fine) {
+            body { cursor: none; }
+            a, button, select, input, [role="slider"] { cursor: none; }
+            .cur-dot { position: fixed; z-index: 10003; width: 6px; height: 6px; border-radius: 50%; background: var(--gold); pointer-events: none; transform: translate(-50%,-50%); }
+            .cur-ring { position: fixed; z-index: 10003; width: 34px; height: 34px; border-radius: 50%; border: 1px solid rgba(255,215,0,0.45); pointer-events: none; transform: translate(-50%,-50%); transition: width 0.25s var(--ease-out), height 0.25s var(--ease-out), border-color 0.25s, background 0.25s; }
+            .cur-ring.hot { width: 58px; height: 58px; border-color: var(--gold); background: rgba(255,215,0,0.06); }
+        }
+        .tiltable { transform-style: preserve-3d; will-change: transform; transition: transform 0.35s var(--ease-out), box-shadow 0.35s var(--ease-out); }
+        .tiltable .glare { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0; background: radial-gradient(420px circle at var(--gx,50%) var(--gy,50%), rgba(255,215,0,0.10), transparent 55%); transition: opacity 0.35s; }
+        .tiltable:hover .glare { opacity: 1; }
         @media (max-width: 640px) { .sky-rings { width: min(54vh,420px); height: min(54vh,420px); } }
 
         .hero-frame { position: absolute; inset: 16px; pointer-events: none; z-index: 1; }
@@ -301,14 +312,7 @@
         <div class="tech-grid"></div>
     </div>
 
-    <!-- ═══════════ CINEMATIC OPENING ═══════════ -->
-    <div class="intro" id="intro" aria-hidden="true">
-        <div class="intro-line" data-i="0"><span class="dim">C'erano i portali.</span><br>Nessuno che risponde.</div>
-        <div class="intro-line" data-i="1"><span class="dim">C'erano le agenzie.</span><br>Nessuna trasparenza.</div>
-        <div class="intro-line" data-i="2">Noi siamo<br><span class="gold">la terza cosa.</span></div>
-        <button class="intro-skip" id="introSkip">Salta →</button>
-        <div class="intro-bar" id="introBar"></div>
-    </div>
+    <!-- micro variant: instant hero, no opening sequence -->
 
     <!-- ═══════════ NAV ═══════════ -->
     <nav class="nav" id="nav">
@@ -768,6 +772,41 @@
                 });
                 addEventListener('scroll', function () { sc = Math.min(scrollY, innerHeight) * 0.16; apply(); }, { passive: true });
             }
+
+            /* ── Gold cursor ───────────────────────────────────────────── */
+            if (canHover && !reduce) {
+                var dot = document.createElement('div'), ring = document.createElement('div');
+                dot.className = 'cur-dot'; ring.className = 'cur-ring';
+                document.body.append(dot, ring);
+                var rx = innerWidth/2, ry = innerHeight/2, mx2 = rx, my2 = ry;
+                addEventListener('mousemove', function (e) {
+                    mx2 = e.clientX; my2 = e.clientY;
+                    dot.style.left = mx2 + 'px'; dot.style.top = my2 + 'px';
+                    var t = e.target.closest && e.target.closest('a,button,select,input,[role="slider"]');
+                    ring.classList.toggle('hot', !!t);
+                });
+                (function rloop() { rx += (mx2-rx)*0.18; ry += (my2-ry)*0.18; ring.style.left = rx+'px'; ring.style.top = ry+'px'; requestAnimationFrame(rloop); })();
+            }
+            /* ── Magnetic CTAs ─────────────────────────────────────────── */
+            if (canHover && !reduce) document.querySelectorAll('.btn, .nav-cta').forEach(function (b) {
+                b.addEventListener('mousemove', function (e) {
+                    var r = b.getBoundingClientRect();
+                    b.style.transform = 'translate(' + (e.clientX-r.left-r.width/2)*0.18 + 'px,' + (e.clientY-r.top-r.height/2)*0.3 + 'px)';
+                });
+                b.addEventListener('mouseleave', function () { b.style.transform = ''; });
+            });
+            /* ── 3D tilt + glare on cards ──────────────────────────────── */
+            if (canHover && !reduce) document.querySelectorAll('.term, .bf-frame').forEach(function (c) {
+                c.classList.add('tiltable');
+                if (getComputedStyle(c).position === 'static') c.style.position = 'relative';
+                var g = document.createElement('span'); g.className = 'glare'; c.appendChild(g);
+                c.addEventListener('mousemove', function (e) {
+                    var r = c.getBoundingClientRect(), px = (e.clientX-r.left)/r.width, py = (e.clientY-r.top)/r.height;
+                    c.style.transform = 'perspective(900px) rotateY(' + ((px-0.5)*5).toFixed(2) + 'deg) rotateX(' + ((0.5-py)*5).toFixed(2) + 'deg)';
+                    c.style.setProperty('--gx', (px*100)+'%'); c.style.setProperty('--gy', (py*100)+'%');
+                });
+                c.addEventListener('mouseleave', function () { c.style.transform = ''; });
+            });
         })();
     </script>
     <script defer src="/js/boom-film.js"></script>

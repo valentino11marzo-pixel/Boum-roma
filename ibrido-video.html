@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BOOM — Il primo ibrido tra portale e agenzia | Roma</title>
+    <title>BOOM — Il primo ibrido tra portale e agenzia | Roma · Regia video</title>
     <meta name="description" content="La libertà di un portale. La responsabilità di un'agenzia. BOOM è la terza cosa: pubblichi tu, gestiamo noi, e della solvibilità rispondiamo legalmente. Prima locazione gratuita.">
     <meta name="robots" content="noindex, follow">
     <meta name="theme-color" content="#08080A">
@@ -156,6 +156,15 @@
         .sky-haze { position: absolute; left: 0; right: 0; bottom: 0; height: 46%; z-index: 2; background: linear-gradient(180deg, transparent, rgba(18,12,4,0.55) 55%, #030303); }
         .sky-dust { position: absolute; inset: 0; z-index: 1; opacity: 0; transition: opacity 2.5s ease 1s; }
         .hero.sky-on .sky-dust { opacity: 1; }
+        /* real-footage hero layer (graded, with generated-dawn fallback) */
+        .cine-video { position: absolute; inset: 0; z-index: 2; opacity: 0; transition: opacity 2.4s var(--ease-out); pointer-events: none; }
+        .cine-video.on { opacity: 1; }
+        .cine-video video { width: 100%; height: 100%; object-fit: cover; filter: brightness(0.42) saturate(0.85) contrast(1.06) sepia(0.18); transform: scale(1.04); animation: vken 32s ease-in-out infinite alternate; }
+        @keyframes vken { from { transform: scale(1.04); } to { transform: scale(1.12); } }
+        .cine-video::after { content: ''; position: absolute; inset: 0;
+            background: linear-gradient(180deg, rgba(3,3,3,0.72), rgba(3,3,3,0.28) 45%, rgba(3,3,3,0.88)),
+                        radial-gradient(ellipse 70% 56% at 50% 100%, rgba(255,196,60,0.16), transparent 70%); }
+        .vid-credit { position: absolute; right: 14px; bottom: 10px; z-index: 3; font-size: 9px; letter-spacing: 0.6px; color: rgba(250,250,250,0.22); }
         @media (max-width: 640px) { .sky-rings { width: min(54vh,420px); height: min(54vh,420px); } }
 
         .hero-frame { position: absolute; inset: 16px; pointer-events: none; z-index: 1; }
@@ -386,6 +395,13 @@
             <div class="sky-haze"></div>
         </div>
         <div class="hero-frame"></div>
+        <div class="cine-video" id="cineVideo" aria-hidden="true">
+            <video muted loop playsinline preload="metadata" id="heroVideo" poster="">
+                <source src="/assets/video/rome-hero.mp4" type="video/mp4">
+                <source src="https://upload.wikimedia.org/wikipedia/commons/transcoded/6/61/2160p_Demo_-_3840x2160_pixel_4k_Video_-_a_timelapse_project_by_Florian_Friedrich.webm/2160p_Demo_-_3840x2160_pixel_4k_Video_-_a_timelapse_project_by_Florian_Friedrich.webm.720p.vp9.webm" type="video/webm">
+            </video>
+            <span class="vid-credit">Video: F. Friedrich · CC BY · Wikimedia Commons</span>
+        </div>
         <div class="container hero-content">
             <div class="eyebrow">
                 <span class="eyebrow-dot"></span>
@@ -768,6 +784,17 @@
                 });
                 addEventListener('scroll', function () { sc = Math.min(scrollY, innerHeight) * 0.16; apply(); }, { passive: true });
             }
+
+            /* ── Real-footage hero: play when ready, vanish on failure ── */
+            (function () {
+                var wrap = $('cineVideo'), v = $('heroVideo');
+                if (!wrap || !v || reduce) { if (wrap) wrap.remove(); return; }
+                var ok = false;
+                function arm() { ok = true; wrap.classList.add('on'); var p = v.play(); if (p && p.catch) p.catch(function(){ wrap.remove(); }); }
+                v.addEventListener('canplay', arm, { once: true });
+                v.addEventListener('error', function () { wrap.remove(); }, true);
+                setTimeout(function () { if (!ok) wrap.remove(); }, 6000); /* dawn remains beneath */
+            })();
         })();
     </script>
     <script defer src="/js/boom-film.js"></script>
