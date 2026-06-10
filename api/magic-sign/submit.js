@@ -23,6 +23,7 @@
 
 import { fsGet, fsPatch, fsList, readJson, logActivity } from '../homie/_lib.js';
 import { findContractByToken, commitWrites, setCors } from './_shared.js';
+import { finalizeContract } from '../sign/_finalize.js';
 
 const SIG_MAX_LEN = 800_000; // ~600 KB base64 — generous for canvas signatures
 
@@ -62,12 +63,19 @@ export default async function handler(req, res) {
   const { contract, role } = hit;
   const contractId = contract.id;
   const already = role === 'tenant' ? !!contract.tenantSignature : !!contract.landlordSignature;
-  if (already) return res.status(410).json({ ok: false, error: 'already_signed', role });
+  // signatureStatus lets a retrying signer (e.g. after a timed-out first
+  // attempt that DID record the signature) render the right success state.
+  if (already) return res.status(410).json({ ok: false, error: 'already_signed', role, signatureStatus: contract.signatureStatus || 'partial' });
 
   // ── 2. Build the signature update for the contract ──────
   const id = body.identity || {};
   const phone = body.phone || {};
   const consent = body.consent;
+  // Very old browsers without crypto.subtle send an empty hash — the server
+  // knows the consent text, so compute it here rather than store ''.
+  if (!consent.hash) {
+    try { consent.hash = (await import('node:crypto')).createHash('sha256').update(consent.text, 'utf8').digest('hex'); } catch (_) {}
+  }
   const nowISO = new Date().toISOString();
 
   const upd = {};
@@ -188,6 +196,7 @@ export default async function handler(req, res) {
   }
 
   // ── 6. Cascading writes when BOTH parties have signed ──
+  let finalized = false;
   if (fullySigned) {
     const fullContract = { ...fresh, ...upd, id: contractId };
     const property = propertyDoc || {};
@@ -289,6 +298,15 @@ export default async function handler(req, res) {
         }
       } catch (e) { console.warn('[magic-sign/submit] payment schedule:', e.message); }
     }
+
+    // (f) Post-signature: fiscal+procedural obligations, FES signing certificate,
+    // server-issued tenant magic link, welcome emails. Idempotent (contract.finalizedAt).
+    // `finalized` is returned to the portal client so it skips its own
+    // (duplicate) welcome-email + magic-link flow when the server handled it.
+    try {
+      const fin = await finalizeContract(fullContract);
+      finalized = !!(fin && fin.ok);
+    } catch (e) { console.warn('[magic-sign/submit] finalize:', e.message); }
   }
 
   // ── 7. Audit ───────────────────────────────────────────
@@ -326,5 +344,6 @@ export default async function handler(req, res) {
     contractId,
     signatureStatus: upd.signatureStatus,
     fullySigned,
+    finalized,
   });
 }

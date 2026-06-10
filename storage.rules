@@ -107,6 +107,22 @@ service firebase.storage {
       allow delete: if isAdmin();
     }
 
+    // ─── contracts/{contractId}/** ────────────────────────────────────
+    // FES signing certificates generated server-side (api/sign/_finalize.js)
+    // with the admin ID token — Storage rules apply to it, so without this
+    // match every certificate upload 403s. Recipients download through the
+    // tokenized ?alt=media&token= URL, which bypasses rules.
+    match /contracts/{contractId}/{allPaths=**} {
+      allow read, write: if isAdmin();
+    }
+
+    // ─── signRequests/{reqId}/** ──────────────────────────────────────
+    // Signed tailored-PDF outputs (api/sign/custom/submit.js), uploaded with
+    // the same admin ID token. Same tokenized-URL delivery for signers.
+    match /signRequests/{reqId}/{allPaths=**} {
+      allow read, write: if isAdmin();
+    }
+
     // ─── Default deny ─────────────────────────────────────────────────
     match /{allPaths=**} {
       allow read, write: if false;

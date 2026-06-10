@@ -43,6 +43,7 @@
     { "source": "/about", "destination": "/about.html" },
     { "source": "/contact", "destination": "/contact.html" },
     { "source": "/login", "destination": "/login.html" },
+    { "source": "/sign", "destination": "/sign.html" },
     { "source": "/portal", "destination": "/portal.html" },
     { "source": "/owners", "destination": "/owners.html" },
     { "source": "/deals", "destination": "/deals.html" },
@@ -114,7 +115,7 @@
       ]
     },
     {
-      "source": "/(dashboard|client-portal|owner-dashboard|tenant-registration|login|onboarding|pre-arrival|precheck|thank-you|proppass|pass-delivery|form-tenant|form-landlord)(.*)",
+      "source": "/(dashboard|client-portal|owner-dashboard|tenant-registration|login|sign|onboarding|pre-arrival|precheck|thank-you|proppass|pass-delivery|form-tenant|form-landlord)(.*)",
       "headers": [
         { "key": "X-Robots-Tag", "value": "noindex, follow" }
       ]
@@ -167,6 +168,12 @@
       "includeFiles": "apartment-detail.html"
     },
     "api/geocode-all.js": {
+      "maxDuration": 60
+    },
+    "api/magic-sign/submit.js": {
+      "maxDuration": 60
+    },
+    "api/sign/custom/submit.js": {
       "maxDuration": 60
     }
   },
