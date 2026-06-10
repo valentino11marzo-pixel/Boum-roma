@@ -215,6 +215,28 @@
 
         /* ===== MAP ===== */
         .map-container{border-radius:16px;overflow:hidden;border:1px solid rgba(255,255,255,0.06)}
+        /* 3D flyover */
+        .map3d-facade{position:relative;height:360px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:radial-gradient(ellipse at 50% 40%,#15151B,#0A0A0C);overflow:hidden}
+        .map3d-facade::before{content:'';position:absolute;inset:-40%;background-image:linear-gradient(rgba(255,215,0,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(255,215,0,.05) 1px,transparent 1px);background-size:46px 46px;transform:perspective(420px) rotateX(58deg);transform-origin:50% 80%;-webkit-mask-image:radial-gradient(ellipse at 50% 55%,#000 25%,transparent 72%);mask-image:radial-gradient(ellipse at 50% 55%,#000 25%,transparent 72%);pointer-events:none}
+        .map3d-go{position:relative;display:flex;flex-direction:column;align-items:center;gap:5px;padding:16px 30px;border:1px solid rgba(255,215,0,.35);border-radius:14px;background:rgba(255,215,0,.08);color:var(--gold);font-family:inherit;font-size:15px;font-weight:600;cursor:pointer;transition:all .3s;backdrop-filter:blur(6px)}
+        .map3d-go:hover{background:var(--gold);color:#000;transform:translateY(-2px);box-shadow:0 14px 40px rgba(255,215,0,.25)}
+        .map3d-go small{font-size:11px;font-weight:400;color:var(--text-secondary)}
+        .map3d-go:hover small{color:rgba(0,0,0,.65)}
+        .map3d-alt{position:relative;background:none;border:none;color:#666;font-size:11.5px;cursor:pointer;font-family:inherit;border-bottom:1px solid rgba(255,255,255,.15);padding:0 0 1px}
+        .map3d-alt:hover{color:var(--gold)}
+        .map3d{position:relative;height:430px}
+        .map3d-loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#777;font-size:11px;letter-spacing:2.5px;text-transform:uppercase;z-index:2;pointer-events:none}
+        .boom-pin{display:flex;flex-direction:column;align-items:center;gap:6px}
+        .boom-pin b{font-size:9px;letter-spacing:2px;color:#000;background:linear-gradient(135deg,#FFD700,#FFA500);padding:4px 10px;border-radius:100px;white-space:nowrap}
+        .boom-pin i{width:13px;height:13px;border-radius:50%;background:#FFD700;box-shadow:0 0 0 5px rgba(255,215,0,.25);animation:pinP 2.2s infinite}
+        @keyframes pinP{0%{box-shadow:0 0 0 0 rgba(255,215,0,.45)}70%{box-shadow:0 0 0 16px rgba(255,215,0,0)}100%{box-shadow:0 0 0 0 rgba(255,215,0,0)}}
+        @media(max-width:600px){.map3d-facade{height:300px}.map3d{height:370px}}
+        @media(prefers-reduced-motion:reduce){.boom-pin i{animation:none}}
+        /* True 3D scan block */
+        .m3d{margin-top:18px}
+        .m3d-head{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+        .m3d-lbl{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--gold)}
+        .m3d-sub{font-size:12.5px;color:var(--text-secondary)}
         .map-container iframe{width:100%;height:350px;border:none;display:block;filter:invert(90%) hue-rotate(180deg) brightness(.95) contrast(1.1)}
         .distance-calc{padding:24px;background:var(--dark-void);border:1px solid rgba(255,255,255,0.06);border-radius:16px;margin-top:16px}
         .distance-calc-title{font-size:14px;font-weight:500;margin-bottom:14px}
@@ -2084,6 +2106,7 @@
         if(d.tags&&d.tags.length){document.getElementById('tagsSection').style.display='block';document.getElementById('tagsWrap').innerHTML=d.tags.map(t=>`<span class="tag">${t}</span>`).join('')}
 
         buildMedia(d);
+        buildModel3D(d);
         buildMap(d);
         setupActions(d,id);
 
@@ -2231,7 +2254,65 @@
     function buildMap(d){
         const c=document.getElementById('mapContainer');
         const addr=d.address||'Rome, Italy';
-        c.innerHTML=`<iframe src="https://maps.google.com/maps?q=${encodeURIComponent(addr)}&t=&z=15&ie=UTF8&iwloc=&output=embed" allowfullscreen loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>`;
+        const classic=()=>{c.innerHTML=`<iframe src="https://maps.google.com/maps?q=${encodeURIComponent(addr)}&t=&z=15&ie=UTF8&iwloc=&output=embed" allowfullscreen loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>`};
+        const lat=Number(d.lat),lng=Number(d.lng);
+        if(!(isFinite(lat)&&isFinite(lng)&&lat&&lng)){classic();return}
+        // 3D flyover facade — WebGL map loads only on tap (zero cost otherwise)
+        c.innerHTML=`<div class="map3d-facade"><button type="button" class="map3d-go" id="map3dGo"><span>◆ Explore the block in 3D</span><small>A cinematic flyover of the building’s surroundings</small></button><button type="button" class="map3d-alt" id="map3dAlt">or open the classic map</button></div>`;
+        document.getElementById('map3dAlt').addEventListener('click',function(e){e.stopPropagation();classic()});
+        document.getElementById('map3dGo').addEventListener('click',function(){launch3DMap(c,lat,lng,classic)});
+    }
+    function launch3DMap(c,lat,lng,fallback){
+        c.innerHTML='<div class="map3d" id="map3d"><div class="map3d-loading">Preparing the flyover…</div></div>';
+        const fail=()=>{try{fallback()}catch(e){}};
+        const boot=()=>{try{
+            const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+            const map=new maplibregl.Map({container:'map3d',style:'https://tiles.openfreemap.org/styles/liberty',center:[lng,lat],zoom:reduce?16.4:13.6,pitch:reduce?60:0,bearing:reduce?-18:0,cooperativeGestures:true,antialias:true});
+            map.addControl(new maplibregl.NavigationControl({visualizePitch:true}),'top-right');
+            map.addControl(new maplibregl.FullscreenControl(),'top-right');
+            map.on('load',function(){
+                try{ // grade the basemap into BOOM dark
+                    map.getStyle().layers.forEach(function(L){try{
+                        if(L.type==='symbol'&&/poi|housenumber|airport|aeroway/.test(L.id)){map.setLayoutProperty(L.id,'visibility','none');return}
+                        if(L.type==='background')map.setPaintProperty(L.id,'background-color','#0B0B0E');
+                        else if(L.type==='fill')map.setPaintProperty(L.id,'fill-color',/water/.test(L.id)?'#10181F':/park|grass|wood|green/.test(L.id)?'#101510':'#121216');
+                        else if(L.type==='line')map.setPaintProperty(L.id,'line-color',/primary|trunk|motorway|major/.test(L.id)?'#2B2B33':'#1C1C22');
+                        else if(L.type==='symbol'){map.setPaintProperty(L.id,'text-color','#9A9AA2');map.setPaintProperty(L.id,'text-halo-color','#0B0B0E')}
+                    }catch(e){}});
+                    const srcs=Object.keys(map.getStyle().sources||{});
+                    const src=srcs.find(function(s){return /openmaptiles|vector|planet/i.test(s)})||srcs[0];
+                    if(src)map.addLayer({id:'boom-3d',type:'fill-extrusion',source:src,'source-layer':'building',minzoom:13,paint:{'fill-extrusion-color':'#26262E','fill-extrusion-height':['coalesce',['get','render_height'],14],'fill-extrusion-base':['coalesce',['get','render_min_height'],0],'fill-extrusion-opacity':.94}});
+                }catch(e){}
+                try{
+                    const el=document.createElement('div');el.className='boom-pin';el.innerHTML='<b>THE FLAT</b><i></i>';
+                    new maplibregl.Marker({element:el,anchor:'bottom'}).setLngLat([lng,lat]).addTo(map);
+                }catch(e){}
+                const lo=c.querySelector('.map3d-loading');if(lo)lo.remove();
+                if(window.gtag)try{gtag('event','map3d_open')}catch(e){}
+                if(reduce)return;
+                map.flyTo({center:[lng,lat],zoom:16.5,pitch:62,bearing:-18,duration:4200});
+                let stop=false;
+                ['pointerdown','wheel','touchstart'].forEach(function(ev){map.getContainer().addEventListener(ev,function(){stop=true},{once:true,passive:true})});
+                map.once('moveend',function(){(function spin(){if(stop||document.hidden)return;map.setBearing(map.getBearing()+0.05);requestAnimationFrame(spin)})()});
+            });
+        }catch(e){fail()}};
+        if(window.maplibregl){boot();return}
+        const css=document.createElement('link');css.rel='stylesheet';css.href='https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css';document.head.appendChild(css);
+        const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.min.js';s.onload=boot;s.onerror=fail;document.head.appendChild(s);
+    }
+    // True 3D scan of the flat (GLB) → interactive dollhouse + AR. Appears only when the
+    // listing carries a model3d/modelUrl field — never invented, never faked.
+    function buildModel3D(d){
+        const glb=d.model3d||d.modelUrl;if(!glb)return;
+        const sec=document.getElementById('mediaSection');if(!sec)return;
+        const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if(!window.customElements.get('model-viewer')){const s=document.createElement('script');s.type='module';s.src='https://cdn.jsdelivr.net/npm/@google/model-viewer@3.5.0/dist/model-viewer.min.js';document.head.appendChild(s)}
+        const usdz=d.modelUsdz?` ios-src="${d.modelUsdz}"`:'';
+        const rot=reduce?'':' auto-rotate auto-rotate-delay="1200" rotation-per-second="8deg"';
+        const w=document.createElement('div');w.className='m3d';
+        w.innerHTML=`<div class="m3d-head"><span class="m3d-lbl">◆ Walk the space</span><span class="m3d-sub">A true 3D scan of this exact apartment — drag to orbit, or open it in AR in your own room.</span></div><model-viewer src="${glb}"${usdz}${rot} camera-controls ar ar-modes="webxr scene-viewer quick-look" shadow-intensity="1" exposure="0.92" style="width:100%;height:440px;background:#0A0A0C;border-radius:16px;border:1px solid rgba(255,255,255,.07)"></model-viewer>`;
+        sec.appendChild(w);
+        if(window.gtag)try{gtag('event','model3d_present')}catch(e){}
     }
 
     function calcDistance(){const d=document.getElementById('distInput').value.trim();if(!d)return;showRoutes(aptAddress,d)}
