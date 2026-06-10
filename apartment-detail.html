@@ -562,6 +562,8 @@
 }
   </script>
     <link rel="stylesheet" href="/css/boom-cinema.css">
+<script>document.documentElement.classList.add('boom-js')</script>
+<style>.boom-js #boomAsk,.boom-js #boomTour{display:none}</style>
 </head>
 <body>
 
@@ -692,6 +694,7 @@
                             <a class="route-link" id="routeBike" href="#" target="_blank"><span class="route-icon">🚲</span>Cycling</a>
                         </div>
                     </div>
+                    <div class="hood" id="hoodPanel" hidden></div>
                 </div>
             </div>
 
@@ -712,7 +715,7 @@
                     <div class="sidebar-trust">
                         <div class="trust-item"><span class="ti">✓</span> Video-verified listing</div>
                         <div class="trust-item"><span class="ti">✓</span> No hidden fees</div>
-                        <div class="trust-item"><span class="ti">✓</span> English contract available</div>
+                        <div class="trust-item"><span class="ti">✓</span> Deposit fully refundable</div>
                         <div class="trust-item"><span class="ti">✓</span> 24/7 WhatsApp support</div>
                         <div class="trust-item"><span class="ti">✓</span> 48-hour move-in</div>
                     </div>
@@ -760,8 +763,632 @@
             </div>
         </div><!-- /.apt-content -->
 
-        <!-- More apartments in this neighborhood — auto-populated from Firestore -->
-        <section class="zone-footer" id="zoneFooter" hidden></section>
+        <!-- ======== VERIFICATION — proof, not promises ======== -->
+        <style>
+        .bver{max-width:1080px;margin:60px auto 10px;padding:0 20px}
+        @media(min-width:760px){.bver{padding:0 50px}}
+        .bver-head{text-align:center;margin-bottom:30px}
+        .bver-lbl{display:inline-flex;align-items:center;gap:6px;color:#FFD700;font-size:11px;letter-spacing:3px;text-transform:uppercase;margin-bottom:10px}
+        .bver-head h2{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-weight:200;font-size:clamp(24px,3.4vw,40px);color:#fff;letter-spacing:-.01em;margin:0}
+        .bver-head h2 .g{color:#FFD700}
+        .bver-head p{max-width:580px;margin:12px auto 0;color:#999;font-size:14.5px;line-height:1.6}
+        .bver-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+        @media(max-width:760px){.bver-grid{grid-template-columns:1fr 1fr}}
+        @media(max-width:480px){.bver-grid{grid-template-columns:1fr}}
+        .bver-card{background:var(--dark-void);border:1px solid rgba(255,255,255,.06);border-radius:16px;padding:20px;transition:border-color .3s,transform .3s}
+        .bver-card:hover{border-color:rgba(255,215,0,.2);transform:translateY(-3px)}
+        .bver-ic{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;background:rgba(0,255,136,.08);border:1px solid rgba(0,255,136,.2);margin-bottom:13px}
+        .bver-t{font-size:15px;color:#fff;font-weight:500;margin-bottom:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+        .bver-badge{font-size:9px;letter-spacing:.5px;text-transform:uppercase;color:#00FF88;background:rgba(0,255,136,.1);border:1px solid rgba(0,255,136,.25);padding:2px 7px;border-radius:100px}
+        .bver-d{font-size:12.5px;color:#999;line-height:1.55}
+        .bver-d a{color:var(--gold);text-decoration:none;border-bottom:1px solid rgba(255,215,0,.3)}
+        .bver-foot{text-align:center;margin-top:22px;font-size:12.5px;color:#666}
+        .bver-foot a{color:var(--gold);text-decoration:none}
+        /* Neighbourhood intelligence (inside Location) */
+        .hood{margin-top:16px;background:linear-gradient(180deg,#101012,#0A0A0A);border:1px solid rgba(255,255,255,.06);border-radius:16px;padding:22px}
+        .hood-h{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#FFD700;margin-bottom:8px}
+        .hood-tag{font-size:16px;color:#fff;font-weight:300;line-height:1.45;margin-bottom:16px}
+        .hood-rows{display:flex;flex-direction:column;gap:12px;margin-bottom:16px}
+        .hood-row{display:flex;gap:12px;align-items:flex-start}
+        .hood-ic{flex:0 0 auto;width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;background:rgba(255,215,0,.07);border:1px solid rgba(255,215,0,.15)}
+        .hood-rt{font-size:13.5px;color:#ddd;line-height:1.45}
+        .hood-rt b{display:block;font-size:10.5px;letter-spacing:.5px;text-transform:uppercase;color:#777;font-weight:600;margin-bottom:2px}
+        .hood-suits{display:flex;flex-wrap:wrap;gap:7px}
+        .hood-chip{font-size:11.5px;color:var(--text-secondary);background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:100px;padding:5px 12px}
+        </style>
+        <section class="bver" id="boomVerify" aria-label="Why you can trust this listing">
+          <div class="bver-head">
+            <span class="bver-lbl">✓ Verified by BOOM</span>
+            <h2>Proof, not <span class="g">promises</span>.</h2>
+            <p>Rome's rental market runs on trust you usually can't check. Here is exactly why this listing is real.</p>
+          </div>
+          <div class="bver-grid">
+            <div class="bver-card"><div class="bver-ic">🎥</div><div class="bver-t">We filmed it ourselves <span class="bver-badge">Verified</span></div><div class="bver-d">A BOOM agent visited and recorded this exact apartment — no stock photos, no surprises. <a href="#mediaSection">See the walkthrough →</a></div></div>
+            <div class="bver-card"><div class="bver-ic">🪪</div><div class="bver-t">Owner is ID-checked</div><div class="bver-d">We verify the landlord's identity and legal right to rent before a listing ever goes live.</div></div>
+            <div class="bver-card"><div class="bver-ic">📜</div><div class="bver-t">Registered &amp; in English</div><div class="bver-d">A real Italian lease, registered with the Agenzia delle Entrate.</div></div>
+            <div class="bver-card"><div class="bver-ic">🛡️</div><div class="bver-t">Deposit protected</div><div class="bver-d">Held to the letter of Italian law and returned at move-out, minus documented damage only.</div></div>
+            <div class="bver-card"><div class="bver-ic">🏢</div><div class="bver-t">BOOM-managed end to end</div><div class="bver-d">One accountable team from application to keys to move-out — not a faceless portal.</div></div>
+            <div class="bver-card"><div class="bver-ic">⭐</div><div class="bver-t">Rated 4.9 by tenants</div><div class="bver-d">47 verified Google reviews from people who moved in with BOOM. <a href="https://share.google/xikmVxQCRuKOdWcND" target="_blank" rel="noopener">Read them →</a></div></div>
+          </div>
+          <div class="bver-foot">See something off? <a href="https://wa.me/393313251961" target="_blank" rel="noopener">Tell us</a> — we take verification seriously.</div>
+        </section>
+        <script>
+        (function(){
+          var esc=function(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');};
+          var ZONES={
+            'trastevere':{name:'Trastevere',tagline:'Rome’s most beloved bohemian quarter — cobbles, ivy and trattorias.',transit:'Tram 8 straight to the centre; Trastevere rail station close by.',walk:'A highly walkable maze of lanes — you won’t need transport much.',essentials:'Markets, wine bars and classic trattorias on every corner.',suits:['Nightlife lovers','Students','Couples']},
+            'centro-storico':{name:'Centro Storico',tagline:'The historic heart — Pantheon, Piazza Navona and the Trevi at your door.',transit:'Largely pedestrian; Spagna & Barberini metro (Line A) on the edges.',walk:'Everything on foot, surrounded by landmarks.',essentials:'Cafés, boutiques and monuments steps from the door.',suits:['First time in Rome','Walk everywhere','Couples']},
+            'monti':{name:'Monti',tagline:'Rome’s coolest little village, right beside the Colosseum.',transit:'Cavour & Colosseo metro (Line B); buses along Via Nazionale.',walk:'Very walkable, charming hilly lanes.',essentials:'Vintage shops, wine bars and indie eateries.',suits:['Creatives','Aperitivo crowd','Young professionals']},
+            'prati':{name:'Prati',tagline:'Elegant, orderly and green — right by the Vatican.',transit:'Ottaviano, Lepanto & Cipro metro (Line A).',walk:'Wide boulevards make for very easy walking.',essentials:'Cola di Rienzo shopping and a daily covered market.',suits:['Professionals','Families','Quiet seekers']},
+            'pigneto':{name:'Pigneto',tagline:'Rome’s edgy, artsy east side — its little Berlin.',transit:'Trams 5/14, Pigneto rail and frequent buses.',walk:'Walkable pedestrian strip; very bike-friendly.',essentials:'Street art, craft beer and live music.',suits:['Students','Night owls','Budget']},
+            'testaccio':{name:'Testaccio',tagline:'Authentic, food-obsessed and proudly local.',transit:'Piramide metro (Line B) and buses.',walk:'Compact and flat — easy on foot.',essentials:'The legendary Testaccio market and classic Roman kitchens.',suits:['Foodies','Locals at heart','Couples']},
+            'ostiense':{name:'Ostiense',tagline:'Post-industrial cool — galleries, street art and clubs.',transit:'Piramide & Garbatella metro (Line B); next to Roma Tre.',walk:'A little spread out; great for cycling.',essentials:'Eataly, murals and some of Rome’s best nightlife.',suits:['Students (Roma Tre)','Creatives','Nightlife']},
+            'trieste-coppede':{name:'Trieste & Coppedè',tagline:'Leafy, refined and residential — home to the fairy-tale Coppedè quarter.',transit:'Buses plus Sant’Agnese & Annibaliano (Line B1).',walk:'Quiet, tree-lined streets.',essentials:'Villa Ada park and calm neighbourhood cafés.',suits:['Families','Quiet seekers','Professionals']},
+            'san-lorenzo':{name:'San Lorenzo',tagline:'The university quarter — young, gritty and alive.',transit:'Termini & Tiburtina close by; trams everywhere.',walk:'Dense and very walkable.',essentials:'Cheap eats, bars and bookshops by Sapienza.',suits:['Students (Sapienza)','Budget','Nightlife']},
+            'esquilino':{name:'Esquilino',tagline:'Central and multicultural — right by Termini.',transit:'Termini & Vittorio Emanuele — both metro lines (A & B).',walk:'Flat and superbly connected.',essentials:'The global Esquilino market and Rome’s transport hub.',suits:['Commuters','Value seekers','First job in Rome']}
+          };
+          function row(ic,label,text){ return '<div class="hood-row"><div class="hood-ic">'+ic+'</div><div class="hood-rt"><b>'+label+'</b>'+esc(text)+'</div></div>'; }
+          window.renderHood=function(slug,zoneName){
+            var el=document.getElementById('hoodPanel'); if(!el)return;
+            var z=ZONES[slug]; if(!z){ el.hidden=true; return; }
+            el.hidden=false;
+            el.innerHTML=
+              '<div class="hood-h">Life in '+esc(zoneName||z.name)+'</div>'+
+              '<div class="hood-tag">'+esc(z.tagline)+'</div>'+
+              '<div class="hood-rows">'+row('🚇','Getting around',z.transit)+row('🚶','On foot',z.walk)+row('✨','The vibe',z.essentials)+'</div>'+
+              '<div class="hood-suits">'+z.suits.map(function(s){return '<span class="hood-chip">'+esc(s)+'</span>';}).join('')+'</div>';
+          };
+        })();
+        </script>
+
+        <!-- ════════ THE MONEY — your move-in cost, deposit & fees, in full light ════════ -->
+        <style>
+        .bmx{max-width:1080px;margin:64px auto 10px;padding:0 20px}
+        @media(min-width:760px){.bmx{padding:0 50px}}
+        .bmx-head{text-align:center;margin-bottom:36px}
+        .bmx-lbl{display:inline-block;color:#FFD700;font-size:11px;letter-spacing:3px;text-transform:uppercase;margin-bottom:10px}
+        .bmx-head h2{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-weight:200;font-size:clamp(24px,3.4vw,40px);color:#fff;letter-spacing:-.01em;line-height:1.12;margin:0}
+        .bmx-head h2 .g{color:#FFD700}
+        .bmx-head p{max-width:580px;margin:14px auto 0;color:#999;font-size:15px;line-height:1.6}
+        .bmx-arm{opacity:0;transform:translateY(24px)}
+        .bmx-arm.bmx-in{opacity:1;transform:none;transition:opacity .8s cubic-bezier(.16,1,.3,1),transform .8s cubic-bezier(.16,1,.3,1)}
+        /* Ledger card */
+        .bmx-ledger{max-width:760px;margin:0 auto;background:var(--dark-void);border:1px solid rgba(255,255,255,.06);border-radius:20px;padding:28px;position:relative;overflow:hidden}
+        .bmx-ledger::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(255,215,0,.5),transparent)}
+        @media(max-width:560px){.bmx-ledger{padding:22px 18px}}
+        .bmx-ey{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#666;margin-bottom:16px}
+        .bmx-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 0;border-bottom:1px solid rgba(255,255,255,.06)}
+        .bmx-row-l{display:flex;flex-direction:column;gap:3px;min-width:0}
+        .bmx-row-t{font-size:15px;color:#fff;display:flex;align-items:center;flex-wrap:wrap}
+        .bmx-row-s{font-size:12px;color:#666;line-height:1.4}
+        .bmx-row-v{font-size:17px;color:#fff;white-space:nowrap;font-weight:300}
+        .bmx-chip{display:inline-flex;align-items:center;gap:4px;font-size:9.5px;letter-spacing:.5px;text-transform:uppercase;color:#00FF88;background:rgba(0,255,136,.08);border:1px solid rgba(0,255,136,.22);padding:3px 8px;border-radius:100px;margin-left:8px}
+        .bmx-row-fee{align-items:flex-start}
+        .bmx-fee-opts{display:flex;align-items:center;gap:12px;flex-shrink:0}
+        .bmx-fee-opt{display:flex;flex-direction:column;align-items:flex-end;gap:2px;text-align:right}
+        .bmx-fee-k{font-size:10px;letter-spacing:.5px;text-transform:uppercase;color:#666;white-space:nowrap}
+        .bmx-fee-v{font-size:16px;color:#fff;font-weight:300;white-space:nowrap}
+        .bmx-fee-or{font-size:10px;color:#555;text-transform:uppercase;letter-spacing:1px}
+        @media(max-width:520px){.bmx-row-fee{flex-direction:column;gap:12px}.bmx-fee-opts{align-self:stretch;justify-content:flex-start;gap:22px}.bmx-fee-opt{align-items:flex-start;text-align:left}}
+        .bmx-tiles{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:18px 0}
+        @media(max-width:480px){.bmx-tiles{grid-template-columns:1fr}}
+        .bmx-tile{background:#08080A;border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:16px}
+        .bmx-tile.green{border-color:rgba(0,255,136,.22);background:rgba(0,255,136,.04)}
+        .bmx-tile-k{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:#666;margin-bottom:8px}
+        .bmx-tile-v{font-size:clamp(22px,3vw,28px);font-weight:200;color:#fff;line-height:1}
+        .bmx-tile.green .bmx-tile-v{color:#00FF88}
+        .bmx-tile-s{font-size:11.5px;color:#999;margin-top:8px;line-height:1.45}
+        .bmx-pre{font-size:15px;color:#999;font-weight:300;margin-right:1px}
+        /* ── Apple-style payment story (pinned scrollytelling) ── */
+        .pay{max-width:1000px;margin:0 auto}
+        .pay-track{height:320vh;position:relative}
+        .pay-stage{position:sticky;top:96px;min-height:min(620px,calc(100svh - 130px));display:grid;grid-template-columns:.85fr 1.15fr;gap:clamp(24px,4vw,56px);align-items:center}
+        @media(max-width:760px){.pay-track{height:300vh}.pay-stage{grid-template-columns:1fr;gap:20px;align-content:center;top:80px}}
+        .pay-k{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:#666;margin-bottom:12px;font-variant-numeric:tabular-nums}
+        .pay-t{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-weight:200;font-size:clamp(26px,3.6vw,44px);color:#fff;line-height:1.08;letter-spacing:-.01em;transition:opacity .35s,transform .35s}
+        .pay-s{margin-top:10px;font-size:14px;color:#999;line-height:1.6;max-width:320px;transition:opacity .35s,transform .35s}
+        .pay-side.sw .pay-t,.pay-side.sw .pay-s{opacity:0;transform:translateY(8px)}
+        .pay-dots{display:flex;gap:7px;margin-top:24px}
+        .pay-dots i{width:24px;height:3px;border-radius:2px;background:rgba(255,255,255,.12);transition:background .35s}
+        .pay-dots i.on{background:linear-gradient(90deg,#FFD700,#FFA500)}
+        .pay-sheet{background:linear-gradient(180deg,rgba(24,24,28,.92),rgba(12,12,15,.96));border:1px solid rgba(255,255,255,.1);border-radius:26px;padding:6px 24px 22px;box-shadow:0 50px 120px -40px rgba(0,0,0,.9),inset 0 1px 0 rgba(255,255,255,.07);backdrop-filter:blur(20px)}
+        .pay-sh{display:flex;justify-content:space-between;align-items:center;padding:16px 2px 13px;border-bottom:1px solid rgba(255,255,255,.08);font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#777}
+        .pay-lock{color:#00FF88;letter-spacing:.5px}
+        .pay-row{display:flex;justify-content:space-between;align-items:baseline;gap:14px;padding:16px 2px;border-bottom:1px solid rgba(255,255,255,.06);opacity:.16;transform:translateY(6px);transition:opacity .55s cubic-bezier(.16,1,.3,1),transform .55s cubic-bezier(.16,1,.3,1)}
+        .pay-row.on{opacity:1;transform:none}
+        .pay-row>span{font-size:14px;color:#ccc}
+        .pay-row>span i{font-style:normal;display:block;font-size:11px;color:#666;margin-top:3px;line-height:1.45}
+        .pay-row b{font-weight:300;font-size:18px;color:#fff;white-space:nowrap;font-variant-numeric:tabular-nums}
+        .pay-back{color:#00FF88!important}
+        .pay-seg{display:inline-flex;background:#0a0a0c;border:1px solid rgba(255,255,255,.1);border-radius:100px;padding:2px;margin-left:10px;vertical-align:middle}
+        .pay-seg button{border:none;background:transparent;color:#777;font-family:inherit;font-size:10.5px;font-weight:600;padding:5px 11px;border-radius:100px;cursor:pointer;transition:all .2s}
+        .pay-seg button.on{background:linear-gradient(135deg,#FFD700,#FFA500);color:#000}
+        .pay-total{display:flex;justify-content:space-between;align-items:baseline;padding:18px 2px 4px;opacity:.14;transform:translateY(6px);transition:opacity .55s cubic-bezier(.16,1,.3,1),transform .55s cubic-bezier(.16,1,.3,1)}
+        .pay-total.on{opacity:1;transform:none}
+        .pay-total span{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#999}
+        .pay-total b{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-weight:200;font-size:clamp(28px,4vw,42px);color:#FFD700;font-variant-numeric:tabular-nums}
+        .pay-go{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:14px;opacity:0;transform:translateY(8px);transition:opacity .55s cubic-bezier(.16,1,.3,1),transform .55s cubic-bezier(.16,1,.3,1)}
+        .pay-go.on{opacity:1;transform:none}
+        .pay-go p{font-size:11.5px;color:#777;line-height:1.5;margin:0}
+        .pay-go a{flex-shrink:0;padding:12px 24px;border-radius:11px;background:linear-gradient(135deg,#FFD700,#FFA500);color:#000;font-size:13.5px;font-weight:600;text-decoration:none;white-space:nowrap;transition:transform .25s,box-shadow .25s}
+        .pay-go a:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(255,215,0,.3)}
+        .pay.pay-static .pay-track{height:auto}
+        .pay.pay-static .pay-stage{position:static;min-height:0;display:block}
+        .pay.pay-static .pay-side{display:none}
+        @media(prefers-reduced-motion:reduce){.pay-track{height:auto!important}.pay-stage{position:static!important;min-height:0}.pay-row,.pay-total,.pay-go{opacity:1!important;transform:none!important}.pay-side .pay-t,.pay-side .pay-s{transition:none}}
+        .bmx-afford{max-width:760px;margin:16px auto 0;background:var(--dark-void);border:1px solid rgba(255,255,255,.06);border-radius:20px;padding:24px}
+        .bmx-afford-h{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#666;margin-bottom:16px}
+        .bmx-afford-row{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:16px}
+        .bmx-afford-q{font-size:14px;color:#fff}
+        .bmx-seg{display:inline-flex;background:#08080A;border:1px solid rgba(255,255,255,.08);border-radius:100px;padding:3px}
+        .bmx-seg button{border:none;background:transparent;color:var(--text-secondary);font-family:inherit;font-size:13px;font-weight:600;padding:7px 16px;border-radius:100px;cursor:pointer;transition:all .2s}
+        .bmx-seg button.on{background:linear-gradient(135deg,#FFD700,#FFA500);color:#000}
+        .bmx-afford-out{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+        @media(max-width:560px){.bmx-afford-out{grid-template-columns:1fr}}
+        .bmx-afford-tile{background:#08080A;border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:15px;text-align:center}
+        .bmx-afford-k{font-size:10.5px;letter-spacing:1px;text-transform:uppercase;color:#666;margin-bottom:8px}
+        .bmx-afford-v{font-size:clamp(20px,2.6vw,26px);font-weight:200;color:#fff;line-height:1}
+        .bmx-afford-s{font-size:11px;color:#999;margin-top:7px;line-height:1.35}
+        .bmx-total{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:18px 20px;background:rgba(255,215,0,.05);border:1px solid rgba(255,215,0,.18);border-radius:14px}
+        .bmx-total span{font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#999}
+        .bmx-total b{font-size:clamp(26px,3.6vw,36px);font-weight:200;color:#FFD700;white-space:nowrap}
+        .bmx-pay{margin-top:16px;font-size:12.5px;color:#666;line-height:1.6;text-align:center}
+        .bmx-pay a{color:#FFD700;text-decoration:none;border-bottom:1px solid rgba(255,215,0,.3)}
+        .bmx-fallback{font-size:14.5px;color:#999;line-height:1.65;text-align:center}
+        .bmx-fallback a{color:#FFD700;text-decoration:none;border-bottom:1px solid rgba(255,215,0,.3)}
+        /* Deposit lifecycle timeline (mirrors the 48h timeline language) */
+        .bmx-life{margin-top:48px}
+        .bmx-sub{text-align:center;font-size:19px;color:#fff;font-weight:300;margin-bottom:6px}
+        .bmx-sub2{text-align:center;font-size:13px;color:#666;margin-bottom:36px}
+        .bmx-track{position:relative;display:flex;flex-direction:column;gap:24px;max-width:840px;margin:0 auto}
+        .bmx-rail{position:absolute;left:21px;top:18px;bottom:18px;width:2px;background:rgba(255,255,255,.10);border-radius:2px;overflow:hidden}
+        .bmx-fill{position:absolute;left:0;top:0;width:100%;height:0;background:linear-gradient(180deg,#FFD700,#FFA500);box-shadow:0 0 10px rgba(255,215,0,.4);transition:height 1.7s cubic-bezier(.16,1,.3,1)}
+        .bmx.on .bmx-fill{height:100%}
+        .bmx-step{position:relative;z-index:1;display:flex;align-items:center;gap:16px}
+        .bmx-node{flex:0 0 auto;width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#0A0A0A;border:2px solid rgba(255,255,255,.16);color:rgba(255,255,255,.5);font-size:16px;font-weight:600;transition:all .55s cubic-bezier(.16,1,.3,1)}
+        .bmx.on .bmx-step .bmx-node{border-color:#FFD700;color:#000;background:linear-gradient(135deg,#FFD700,#FFA500);box-shadow:0 0 0 6px rgba(255,215,0,.12),0 8px 24px rgba(255,215,0,.25);transform:scale(1.05)}
+        .bmx.on .bmx-step:nth-child(2) .bmx-node{transition-delay:.1s}
+        .bmx.on .bmx-step:nth-child(3) .bmx-node{transition-delay:.45s}
+        .bmx.on .bmx-step:nth-child(4) .bmx-node{transition-delay:.8s}
+        .bmx.on .bmx-step:nth-child(5) .bmx-node{transition-delay:1.15s}
+        .bmx-t{font-size:16px;color:#fff;font-weight:500}
+        .bmx-s{font-size:12.5px;color:rgba(255,255,255,.55);margin-top:2px;line-height:1.45}
+        @media(min-width:760px){
+          .bmx-track{flex-direction:row;gap:18px;padding-top:54px}
+          .bmx-rail{left:8%;right:8%;top:21px;bottom:auto;width:auto;height:2px}
+          .bmx-fill{height:100%;width:0;transition:width 1.7s cubic-bezier(.16,1,.3,1)}
+          .bmx.on .bmx-fill{width:100%}
+          .bmx-step{flex:1;flex-direction:column;align-items:center;text-align:center;gap:14px}
+          .bmx-node{position:absolute;top:-54px;left:50%;transform:translateX(-50%)}
+          .bmx.on .bmx-step .bmx-node{transform:translateX(-50%) scale(1.05)}
+        }
+        /* Included vs separate */
+        .bmx-incl{max-width:760px;margin:48px auto 0;display:grid;grid-template-columns:1fr 1fr;gap:14px}
+        @media(max-width:560px){.bmx-incl{grid-template-columns:1fr}}
+        .bmx-col{background:var(--dark-void);border:1px solid rgba(255,255,255,.06);border-radius:20px;padding:24px}
+        .bmx-col-h{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:14px;font-weight:600}
+        .bmx-col-h.yes{color:#00FF88}
+        .bmx-col-h.sep{color:#888}
+        .bmx-col ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:11px}
+        .bmx-col li{font-size:13px;color:#999;display:flex;align-items:flex-start;gap:9px;line-height:1.4}
+        .bmx-col li::before{content:'';flex-shrink:0;margin-top:6px;width:5px;height:5px;border-radius:50%}
+        .bmx-col.yes li::before{background:#00FF88}
+        .bmx-col.sep li::before{background:#555}
+        .bmx-foot{text-align:center;margin:30px auto 0;max-width:620px;font-size:12.5px;color:#666;line-height:1.7}
+        @media(prefers-reduced-motion:reduce){.bmx-fill{transition:none}.bmx-node{transition:none}.bmx-arm{opacity:1!important;transform:none!important}}
+        </style>
+        <section class="bmx" id="boomMoney" aria-label="How this rental works — your money, explained">
+          <div class="bmx-head bmx-armable">
+            <span class="bmx-lbl">The money — in full light</span>
+            <h2>Exactly what you pay.<br><span class="g">And exactly what comes back.</span></h2>
+            <p>Most agencies in Rome keep the math hidden until you're at the table. We do the opposite — here is every euro for this home, before you commit to anything.</p>
+          </div>
+          <div class="pay" id="payFlow">
+            <div class="pay-track" id="payTrack">
+              <div class="pay-stage">
+                <div class="pay-side">
+                  <div class="pay-k" id="payN">01 · 04</div>
+                  <div class="pay-t" id="payT">Your first month</div>
+                  <div class="pay-s" id="payS">It’s the only rent you pay to move in — you’d pay this anywhere.</div>
+                  <div class="pay-dots" aria-hidden="true"><i class="on"></i><i></i><i></i><i></i></div>
+                </div>
+                <div class="pay-sheet">
+                  <div class="pay-sh"><span>BOOM · your move-in</span><span class="pay-lock">🔒 Stripe secured</span></div>
+                  <div class="pay-body" id="bmxLedger"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="bmx-afford bmx-armable" id="bmxAfford" hidden></div>
+          <div class="bmx-life bmx-armable">
+            <div class="bmx-sub">Your deposit — and exactly when it returns</div>
+            <div class="bmx-sub2">The question every tenant asks. Here's the honest answer.</div>
+            <div class="bmx-track">
+              <div class="bmx-rail"><span class="bmx-fill"></span></div>
+              <div class="bmx-step"><div class="bmx-node">1</div><div class="bmx-txt"><div class="bmx-t">You pay it at signing</div><div class="bmx-s">Part of your move-in, through secure Stripe checkout.</div></div></div>
+              <div class="bmx-step"><div class="bmx-node">2</div><div class="bmx-txt"><div class="bmx-t">It's protected, never spent</div><div class="bmx-s">Held as security under Italian law — it is not income.</div></div></div>
+              <div class="bmx-step"><div class="bmx-node">3</div><div class="bmx-txt"><div class="bmx-t">It stays yours as you live</div><div class="bmx-s">Normal wear and tear is never deducted. Ever.</div></div></div>
+              <div class="bmx-step"><div class="bmx-node">4</div><div class="bmx-txt"><div class="bmx-t">Returned when you leave</div><div class="bmx-s">In full — minus only damage we can document. We help you get it back.</div></div></div>
+            </div>
+          </div>
+          <div class="bmx-incl bmx-armable">
+            <div class="bmx-col yes">
+              <div class="bmx-col-h yes">In your monthly rent</div>
+              <ul>
+                <li>The home, exactly as you saw it filmed</li>
+                <li>BOOM management &amp; 24/7 WhatsApp support</li>
+                <li>A legal, registered contract — in English</li>
+                <li>Move-in help &amp; deposit-back support</li>
+              </ul>
+            </div>
+            <div class="bmx-col sep">
+              <div class="bmx-col-h sep">Billed to you separately</div>
+              <ul>
+                <li>Electricity, water &amp; gas — your usage</li>
+                <li>Internet / wifi</li>
+                <li>Waste tax (TARI) &amp; condo fees</li>
+                <li>We help you set every one up</li>
+              </ul>
+            </div>
+          </div>
+          <div class="bmx-foot bmx-armable">Every figure above is in your contract, in writing, before you pay a cent · deposit handled to the letter of Italian law.</div>
+        </section>
+        <script>
+        window.buildMoney = function(rent, opts){
+          opts = opts || {};
+          const fmt = function(n){ return '€'+Math.round(n).toLocaleString('en-US'); };
+          const host = document.getElementById('bmxLedger'); if(!host) return;
+          const root = document.getElementById('boomMoney'); if(!root) return;
+          const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+          rent = Number(rent)||0;
+          root.__counts = [];
+          var flow = document.getElementById('payFlow'), track = document.getElementById('payTrack');
+          if(rent<=0){
+            if(flow) flow.classList.add('pay-static');
+            host.innerHTML = '<div class="bmx-fallback" style="padding:18px 2px">This home is priced on request. <a href="#inquiryCard">Ask us</a> and we\'ll send your full, itemised move-in cost — first month, deposit and agency fee — before you commit to anything.</div>';
+          } else {
+            const pct = opts.agencyPct!=null ? Number(opts.agencyPct) : 0.10;   // BOOM commission: 10% of the annual rent
+            const dep = rent;                       // deposit: one month, held with guarantees
+            const feeFlat = rent;                   // agency fee — scenario A: one month
+            const feePct = Math.round(rent*12*pct); // agency fee — scenario B: 10% of the annual rent
+            const dueFrom = rent + dep + feeFlat;   // cash at signing, lower scenario
+            host.innerHTML =
+              '<div class="pay-row" data-ps="1"><span>First month’s rent<i>You’d pay this anywhere.</i></span><b>'+fmt(rent)+'</b></div>'+
+              '<div class="pay-row" data-ps="2"><span>Security deposit<i class="pay-back">↩ One month — it returns to you.</i></span><b>'+fmt(dep)+'</b></div>'+
+              '<div class="pay-row" data-ps="3"><span>BOOM agency fee<span class="pay-seg" id="paySeg"><button type="button" data-m="A" class="on">1 month</button><button type="button" data-m="B">10% / yr</button></span><i>Varies per home — always in writing, before you sign.</i></span><b id="payFee">'+fmt(feeFlat)+'</b></div>'+
+              '<div class="pay-total" data-ps="4"><span>Due at signing</span><b id="payDue">'+fmt(dueFrom)+'</b></div>'+
+              '<div class="pay-go" data-ps="4"><p>Card, in English, a receipt for every euro — via Stripe.</p><a href="#inquiryCard">Apply →</a></div>';
+            // fee scenario toggle
+            var fee = feeFlat;
+            var seg2 = document.getElementById('paySeg');
+            if(seg2) seg2.addEventListener('click', function(e){
+              var b = e.target.closest('button[data-m]'); if(!b) return;
+              fee = b.getAttribute('data-m')==='A' ? feeFlat : feePct;
+              [].forEach.call(seg2.querySelectorAll('button'), function(x){ x.classList.toggle('on', x===b); });
+              document.getElementById('payFee').textContent = fmt(fee);
+              document.getElementById('payDue').textContent = fmt(rent+dep+fee);
+            });
+            // pinned story driver — 4 steps mapped to scroll progress through the track
+            var STEPS = [
+              ['01 · 04','Your first month','It’s the only rent you pay to move in — you’d pay this anywhere.'],
+              ['02 · 04','Your deposit','One month, held safe under Italian law. It comes back to you when you leave.'],
+              ['03 · 04','BOOM’s fee — once','A flat month or 10% of the year, depending on the home. In writing, before you sign.'],
+              ['04 · 04','That’s everything.','Paid securely with Stripe — and never a euro that isn’t on this sheet.']
+            ];
+            var cur = 0, sideEl = flow ? flow.querySelector('.pay-side') : null;
+            var dots2 = flow ? [].slice.call(flow.querySelectorAll('.pay-dots i')) : [];
+            var setStep = function(s){
+              if(s===cur) return; cur = s;
+              [].forEach.call(host.querySelectorAll('[data-ps]'), function(el){ el.classList.toggle('on', Number(el.getAttribute('data-ps'))<=s); });
+              dots2.forEach(function(d,i){ d.classList.toggle('on', i<s); });
+              var st = STEPS[s-1];
+              if(sideEl && st){
+                sideEl.classList.add('sw');
+                setTimeout(function(){
+                  var n=document.getElementById('payN'), t=document.getElementById('payT'), x=document.getElementById('payS');
+                  if(n) n.textContent=st[0]; if(t) t.textContent=st[1]; if(x) x.textContent=st[2];
+                  sideEl.classList.remove('sw');
+                }, reduce?0:170);
+              }
+            };
+            if(reduce || !track){ setStep(4); }
+            else {
+              var onScr = function(){
+                var r = track.getBoundingClientRect();
+                var span = track.offsetHeight - window.innerHeight;
+                var p = span>0 ? Math.min(1, Math.max(0, -r.top/span)) : 1;
+                setStep(p<.2 ? 1 : p<.48 ? 2 : p<.76 ? 3 : 4);
+              };
+              window.addEventListener('scroll', onScr, {passive:true});
+              onScr();
+            }
+            // Affordability + flatmate split — interactive, client-side
+            var aff=document.getElementById('bmxAfford');
+            if(aff){
+              aff.hidden=false;
+              aff.innerHTML=
+                '<div class="bmx-afford-h">Afford it · split it</div>'+
+                '<div class="bmx-afford-row"><div class="bmx-afford-q">Sharing with flatmates?</div><div class="bmx-seg" id="bmxSeg">'+[1,2,3,4].map(function(n){return '<button type="button" data-n="'+n+'"'+(n===1?' class="on"':'')+'>'+(n===4?'4+':n)+'</button>';}).join('')+'</div></div>'+
+                '<div class="bmx-afford-out">'+
+                  '<div class="bmx-afford-tile"><div class="bmx-afford-k">Rent / person</div><div class="bmx-afford-v" id="bmxPP">'+fmt(rent)+'</div><div class="bmx-afford-s">per month</div></div>'+
+                  '<div class="bmx-afford-tile"><div class="bmx-afford-k">Move-in / person</div><div class="bmx-afford-v" id="bmxPPmove">'+fmt(dueFrom)+'</div><div class="bmx-afford-s">from · incl. deposit</div></div>'+
+                  '<div class="bmx-afford-tile"><div class="bmx-afford-k">Comfortable income</div><div class="bmx-afford-v" id="bmxInc">'+fmt(Math.round(rent*3/50)*50)+'</div><div class="bmx-afford-s">per person / mo · rent ≈ a third</div></div>'+
+                '</div>';
+              var seg=document.getElementById('bmxSeg');
+              if(seg) seg.addEventListener('click',function(e){
+                var b=e.target.closest&&e.target.closest('button[data-n]'); if(!b)return;
+                var n=Number(b.getAttribute('data-n'))||1, pp=rent/n;
+                [].forEach.call(seg.querySelectorAll('button'),function(x){ x.classList.toggle('on',x===b); });
+                document.getElementById('bmxPP').textContent=fmt(pp);
+                document.getElementById('bmxPPmove').textContent=fmt(dueFrom/n);
+                document.getElementById('bmxInc').textContent=fmt(Math.round(pp*3/50)*50);
+              });
+            }
+          }
+          if(!reduce){ root.querySelectorAll('.bmx-armable').forEach(function(el){ el.classList.add('bmx-arm'); }); }
+          const animate = function(){
+            root.classList.add('on');
+            root.querySelectorAll('.bmx-arm').forEach(function(el){ el.classList.add('bmx-in'); });
+            if(reduce) return;
+            (root.__counts||[]).forEach(function(p){
+              const el = document.getElementById(p[0]); if(!el) return;
+              const to = p[1], t0 = performance.now(), dur = 1100;
+              const tick = function(now){ var k=Math.min(1,(now-t0)/dur), e=1-Math.pow(1-k,3); el.textContent=fmt(to*e); if(k<1)requestAnimationFrame(tick); };
+              requestAnimationFrame(tick);
+            });
+          };
+          if('IntersectionObserver' in window){
+            const io = new IntersectionObserver(function(es){ es.forEach(function(x){ if(x.isIntersecting){ animate(); io.disconnect(); } }); }, {threshold:.12});
+            io.observe(root);
+          } else animate();
+        };
+        </script>
+
+        <!-- ════════ BOOM AI CONCIERGE — ask this apartment anything ════════ -->
+        <style>
+        .bask{max-width:880px;margin:64px auto 10px;padding:0 20px}
+        .bask-head{text-align:center;margin-bottom:28px}
+        .bask-lbl{display:inline-flex;align-items:center;gap:6px;color:#FFD700;font-size:11px;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px}
+        .bask-head h2{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-weight:200;font-size:clamp(24px,3.4vw,40px);color:#fff;letter-spacing:-.01em;margin:0}
+        .bask-head h2 .g{color:#FFD700}
+        .bask-head p{max-width:560px;margin:12px auto 0;color:#999;font-size:14.5px;line-height:1.6}
+        .bask-card{background:var(--dark-void);border:1px solid rgba(255,215,0,.15);border-radius:20px;padding:20px;position:relative;overflow:hidden}
+        .bask-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(255,215,0,.6),transparent)}
+        .bask-stream{display:flex;flex-direction:column;gap:14px;max-height:440px;overflow-y:auto;padding:8px 6px 4px;scrollbar-width:thin}
+        .bask-msg{display:flex;gap:11px;align-items:flex-start;animation:baskIn .4s cubic-bezier(.16,1,.3,1)}
+        @keyframes baskIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+        .bask-msg.bask-me{flex-direction:row-reverse}
+        .bask-ava{flex:0 0 auto;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;background:linear-gradient(135deg,#FFD700,#FFA500);color:#000;box-shadow:0 0 16px rgba(255,215,0,.3)}
+        .bask-me .bask-ava{background:rgba(255,255,255,.08);color:#fff;box-shadow:none;font-size:15px}
+        .bask-bubble{max-width:82%;padding:12px 15px;border-radius:14px;font-size:14px;line-height:1.55;color:#e8e8e8;background:#141416;border:1px solid rgba(255,255,255,.06);white-space:pre-wrap;word-break:break-word}
+        .bask-me .bask-bubble{background:rgba(255,215,0,.08);border-color:rgba(255,215,0,.2);color:#fff}
+        .bask-typing{display:flex;gap:4px;padding:4px 2px}
+        .bask-typing i{width:6px;height:6px;border-radius:50%;background:#FFD700;animation:baskDot 1.2s infinite}
+        .bask-typing i:nth-child(2){animation-delay:.2s}.bask-typing i:nth-child(3){animation-delay:.4s}
+        @keyframes baskDot{0%,60%,100%{opacity:.3;transform:translateY(0)}30%{opacity:1;transform:translateY(-3px)}}
+        .bask-chips{display:flex;flex-wrap:wrap;gap:8px;margin:16px 4px 0}
+        .bask-chip{padding:8px 13px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:100px;font-size:12.5px;color:var(--text-secondary);cursor:pointer;transition:all .25s;font-family:inherit;white-space:nowrap}
+        .bask-chip:hover{border-color:var(--gold);color:var(--gold);background:rgba(255,215,0,.05);transform:translateY(-1px)}
+        .bask-input{display:flex;gap:10px;margin-top:14px}
+        .bask-input input{flex:1;min-width:0;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:13px 16px;color:#fff;font-family:inherit;font-size:14px;outline:none;transition:border-color .25s}
+        .bask-input input:focus{border-color:var(--gold)}
+        .bask-input input::placeholder{color:#666}
+        .bask-input button{flex:0 0 auto;width:48px;border:none;border-radius:12px;background:linear-gradient(135deg,#FFD700,#FFA500);color:#000;font-size:20px;font-weight:600;cursor:pointer;transition:all .25s}
+        .bask-input button:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(255,215,0,.3)}
+        .bask-input button:disabled{opacity:.5;cursor:default;transform:none;box-shadow:none}
+        .bask-foot{margin-top:13px;text-align:center;font-size:11.5px;color:#666}
+        .bask-foot a{color:var(--gold);text-decoration:none;border-bottom:1px solid rgba(255,215,0,.3)}
+        /* Scroll-spine section navigator (desktop only) */
+        .bspine{position:fixed;right:24px;top:50%;transform:translateY(-50%);z-index:60;display:none;flex-direction:column;gap:15px}
+        @media(min-width:1180px){.bspine.ready{display:flex}}
+        .bspine a{position:relative;width:11px;height:11px;border-radius:50%;border:1.5px solid rgba(255,255,255,.25);transition:all .3s;cursor:pointer}
+        .bspine a:hover{border-color:var(--gold)}
+        .bspine a.on{background:var(--gold);border-color:var(--gold);box-shadow:0 0 0 4px rgba(255,215,0,.14)}
+        .bspine a span{position:absolute;right:22px;top:50%;transform:translateY(-50%);white-space:nowrap;font-size:10.5px;letter-spacing:1px;text-transform:uppercase;color:var(--text-secondary);background:rgba(0,0,0,.72);padding:4px 10px;border-radius:6px;opacity:0;pointer-events:none;transition:opacity .25s}
+        .bspine a:hover span{opacity:1}
+        .bspine a.on span{opacity:1;color:var(--gold)}
+        @media(prefers-reduced-motion:reduce){.bask-msg{animation:none}.bask-typing i{animation:none}.bspine a{transition:none}}
+        /* Desktop sticky CTA — keeps name/price/Apply present in the lower half of the page */
+        .dsticky{position:fixed;bottom:0;left:0;right:0;z-index:80;transform:translateY(120%);transition:transform .45s cubic-bezier(.16,1,.3,1);background:rgba(8,8,10,.94);backdrop-filter:blur(18px);border-top:1px solid rgba(255,215,0,.16);display:none}
+        @media(min-width:861px){.dsticky{display:block}}
+        .dsticky.in{transform:none}
+        .dsticky-in{max-width:1400px;margin:0 auto;padding:13px 50px;display:flex;align-items:center;justify-content:space-between;gap:24px}
+        .dsticky-info{display:flex;align-items:baseline;gap:16px;min-width:0}
+        .dsticky-name{font-size:16px;color:#fff;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:40vw}
+        .dsticky-price{font-size:19px;color:var(--gold);font-weight:300;white-space:nowrap}
+        .dsticky-price small{font-size:11px;color:var(--text-fade);margin-left:2px}
+        .dsticky-cta{display:flex;gap:10px;flex-shrink:0}
+        .dsticky-reserve{display:inline-flex;align-items:center;padding:11px 18px;border:1px solid var(--gold);border-radius:11px;color:var(--gold);font-size:13.5px;font-weight:600;text-decoration:none;white-space:nowrap;transition:all .25s}
+        .dsticky-reserve:hover{background:rgba(255,215,0,.08)}
+        .dsticky-apply{display:inline-flex;align-items:center;padding:11px 22px;border-radius:11px;background:linear-gradient(135deg,#FFD700,#FFA500);color:#000;font-size:13.5px;font-weight:600;text-decoration:none;white-space:nowrap;transition:all .25s}
+        .dsticky-apply:hover{transform:translateY(-1px);box-shadow:0 8px 22px rgba(255,215,0,.3)}
+        </style>
+        <nav class="bspine" id="bspine" aria-label="Jump to section"></nav>
+        <section class="bask" id="boomAsk" aria-label="Ask this apartment anything">
+          <div class="bask-head">
+            <span class="bask-lbl">⚡ BOOM AI · instant answers</span>
+            <h2>Ask this home <span class="g">anything</span>.</h2>
+            <p>Costs, the contract, the neighbourhood, how fast you can move in — our AI knows this apartment and answers in seconds. Honest, and on 24/7.</p>
+          </div>
+          <div class="bask-card">
+            <div class="bask-stream" id="baskStream" aria-live="polite">
+              <div class="bask-msg bask-ai">
+                <div class="bask-ava">✦</div>
+                <div class="bask-bubble">Hi 👋 I'm BOOM's concierge for this apartment. Ask me anything — or tap a question below.</div>
+              </div>
+            </div>
+            <div class="bask-chips" id="baskChips"></div>
+            <form class="bask-input" id="baskForm">
+              <input id="baskQ" type="text" autocomplete="off" maxlength="600" placeholder="Ask about cost, deposit, the area, move-in…" aria-label="Ask about this apartment">
+              <button type="submit" id="baskSend" aria-label="Send question">→</button>
+            </form>
+            <div class="bask-foot">AI answers based on this listing · always confirmed by our team · <a href="https://wa.me/393313251961" target="_blank" rel="noopener">talk to a human</a></div>
+          </div>
+        </section>
+        <script>
+        (function(){
+          // ───── BOOM AI Concierge ─────
+          const stream=document.getElementById('baskStream'),
+                chipsWrap=document.getElementById('baskChips'),
+                form=document.getElementById('baskForm'),
+                input=document.getElementById('baskQ'),
+                sendBtn=document.getElementById('baskSend');
+          if(stream&&form){
+            const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+            const WA="message BOOM on WhatsApp at +39 331 325 1961 and we’ll answer instantly.";
+            const listingId=function(){
+              const m=location.pathname.match(/\/listing\/([^\/?#]+)/); if(m)return decodeURIComponent(m[1]);
+              const q=new URLSearchParams(location.search).get('id'); if(q)return q;
+              return (window.__boomListing&&window.__boomListing.id)||'';
+            };
+            const history=[]; let busy=false;
+            const CHIPS=['💰 Total cost to move in?','🛡️ How does the deposit work?','📍 What’s the area like?','🎓 Good for students?','⚡ How fast can I move in?','🎥 Can I see it on video?'];
+            CHIPS.forEach(function(c){
+              const b=document.createElement('button'); b.type='button'; b.className='bask-chip'; b.textContent=c;
+              b.addEventListener('click',function(){ if(busy)return; ask(c.replace(/^[^A-Za-z0-9]+\s*/,'')); });
+              chipsWrap.appendChild(b);
+            });
+            function bubble(role,text){
+              const wrap=document.createElement('div'); wrap.className='bask-msg '+(role==='me'?'bask-me':'bask-ai');
+              const ava=document.createElement('div'); ava.className='bask-ava'; ava.textContent=role==='me'?'🙂':'✦';
+              const bub=document.createElement('div'); bub.className='bask-bubble'; bub.textContent=text;
+              wrap.appendChild(ava); wrap.appendChild(bub); stream.appendChild(wrap); stream.scrollTop=stream.scrollHeight; return bub;
+            }
+            function typing(){
+              const wrap=document.createElement('div'); wrap.className='bask-msg bask-ai';
+              wrap.innerHTML='<div class="bask-ava">✦</div><div class="bask-bubble"><div class="bask-typing"><i></i><i></i><i></i></div></div>';
+              stream.appendChild(wrap); stream.scrollTop=stream.scrollHeight; return wrap;
+            }
+            function reveal(bub,text){
+              if(reduce){ bub.textContent=text; return; }
+              bub.textContent=''; var i=0, step=Math.max(1,Math.round(text.length/90));
+              (function go(){ i+=step; bub.textContent=text.slice(0,i); stream.scrollTop=stream.scrollHeight; if(i<text.length)setTimeout(go,12); else bub.textContent=text; })();
+            }
+            async function ask(q){
+              q=(q||'').trim(); if(!q||busy)return; busy=true; sendBtn.disabled=true; input.value='';
+              bubble('me',q); const t=typing();
+              try{
+                const r=await fetch('/api/ask-listing',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:listingId(),question:q,history:history.slice(-6)})});
+                const data=await r.json().catch(function(){return{};});
+                t.remove();
+                const a=(data&&data.answer)?String(data.answer):("I couldn’t reach our AI just now — "+WA);
+                reveal(bubble('ai',''),a); history.push({q:q,a:a});
+                if(window.gtag)try{gtag('event','ai_concierge_ask',{listing_id:listingId()});}catch(e){}
+              }catch(e){ t.remove(); bubble('ai',"I couldn’t reach our AI just now — "+WA); }
+              finally{ busy=false; sendBtn.disabled=false; input.focus(); }
+            }
+            form.addEventListener('submit',function(e){ e.preventDefault(); ask(input.value); });
+          }
+          // ───── Scroll-spine section navigator ─────
+          window.__boomSpine=function(){
+            const spine=document.getElementById('bspine'); if(!spine)return;
+            const defs=[['mediaSection','Photos'],['descSection','Details'],['mapSection','Location'],['boomMoney','Costs'],['boomAsk','Ask AI'],['m48','Move-in']];
+            spine.innerHTML='';
+            const items=defs.map(function(d){
+              const el=document.getElementById(d[0]); if(!el||el.offsetParent===null)return null;
+              const a=document.createElement('a'); a.href='javascript:void 0'; a.setAttribute('aria-label',d[1]);
+              const s=document.createElement('span'); s.textContent=d[1]; a.appendChild(s);
+              a.addEventListener('click',function(ev){ ev.preventDefault(); el.scrollIntoView({behavior:'smooth',block:'start'}); });
+              spine.appendChild(a); return {a:a,el:el};
+            }).filter(Boolean);
+            if(items.length<3){ spine.classList.remove('ready'); return; }
+            spine.classList.add('ready');
+            if('IntersectionObserver' in window){
+              if(spine.__io)spine.__io.disconnect();
+              spine.__io=new IntersectionObserver(function(es){
+                es.forEach(function(e){ if(e.isIntersecting) items.forEach(function(it){ it.a.classList.toggle('on', it.el===e.target); }); });
+              },{rootMargin:'-45% 0px -50% 0px',threshold:0});
+              items.forEach(function(it){ spine.__io.observe(it.el); });
+            }
+          };
+          if(document.readyState!=='loading') window.__boomSpine(); else document.addEventListener('DOMContentLoaded',window.__boomSpine);
+          // ───── Desktop sticky CTA — show once the sticky sidebar has scrolled away, hide over the footer ─────
+          (function(){
+            const bar=document.getElementById('dsticky'); if(!bar)return;
+            const content=document.querySelector('.apt-content'), foot=document.querySelector('footer');
+            if(!content||!('IntersectionObserver' in window))return;
+            let cVis=true, fVis=false;
+            const upd=function(){ const show=!cVis&&!fVis; bar.classList.toggle('in',show); bar.setAttribute('aria-hidden',show?'false':'true'); };
+            new IntersectionObserver(function(es){ es.forEach(function(e){ cVis=e.isIntersecting; }); upd(); },{threshold:0}).observe(content);
+            if(foot) new IntersectionObserver(function(es){ es.forEach(function(e){ fVis=e.isIntersecting; }); upd(); },{threshold:0}).observe(foot);
+          })();
+        })();
+        </script>
+
+        <!-- ======== BOOK A VIDEO TOUR — see it live before you commit ======== -->
+        <style>
+        .btour{max-width:1080px;margin:64px auto 10px;padding:0 20px}
+        @media(min-width:760px){.btour{padding:0 50px}}
+        .btour-card{display:grid;grid-template-columns:1.1fr 1fr;background:var(--dark-void);border:1px solid rgba(255,215,0,.15);border-radius:20px;overflow:hidden}
+        @media(max-width:760px){.btour-card{grid-template-columns:1fr}}
+        .btour-left{padding:30px;border-right:1px solid rgba(255,255,255,.06)}
+        @media(max-width:760px){.btour-left{border-right:none;border-bottom:1px solid rgba(255,255,255,.06)}}
+        .btour-lbl{display:inline-flex;align-items:center;gap:6px;color:#FFD700;font-size:11px;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px}
+        .btour-left h2{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-weight:200;font-size:clamp(22px,3vw,32px);color:#fff;letter-spacing:-.01em;margin:0 0 12px;line-height:1.15}
+        .btour-left h2 .g{color:#FFD700}
+        .btour-left p{color:#999;font-size:14px;line-height:1.6;margin-bottom:16px}
+        .btour-pts{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+        .btour-pts li{font-size:13px;color:var(--text-secondary)}
+        .btour-right{padding:30px;display:flex;flex-direction:column}
+        .btour-q{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#666;margin-bottom:10px}
+        .btour-days,.btour-times{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}
+        .btour-chip{padding:9px 13px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:10px;font-size:13px;color:var(--text-secondary);cursor:pointer;transition:all .2s;font-family:inherit;text-align:center;min-width:46px}
+        .btour-chip:hover{border-color:var(--gold);color:#fff}
+        .btour-chip.on{background:linear-gradient(135deg,#FFD700,#FFA500);color:#000;border-color:transparent;font-weight:600}
+        .btour-day-d{display:block;font-size:10px;opacity:.7;text-transform:uppercase;letter-spacing:.5px;margin-bottom:1px}
+        .btour-go{margin-top:auto;padding:14px;border:none;border-radius:12px;background:linear-gradient(135deg,#FFD700,#FFA500);color:#000;font-family:inherit;font-size:15px;font-weight:600;cursor:pointer;transition:all .25s}
+        .btour-go:disabled{opacity:.45;cursor:default}
+        .btour-go:not(:disabled):hover{transform:translateY(-2px);box-shadow:0 10px 30px rgba(255,215,0,.3)}
+        .btour-note{margin-top:11px;text-align:center;font-size:11.5px;color:#666}
+        </style>
+        <section class="btour" id="boomTour" aria-label="Book a live video tour">
+          <div class="btour-card">
+            <div class="btour-left">
+              <span class="btour-lbl">🎥 Live video tour</span>
+              <h2>See it live, <span class="g">on a video call</span>.</h2>
+              <p>Can't visit in person? A BOOM agent walks you through this exact apartment on a live video call — every room, every question, in real time. Free, no commitment.</p>
+              <ul class="btour-pts"><li>✓ Real-time, not a recording</li><li>✓ In English</li><li>✓ About 15 minutes</li></ul>
+            </div>
+            <div class="btour-right">
+              <div class="btour-q">Pick a day</div>
+              <div class="btour-days" id="btourDays"></div>
+              <div class="btour-q">Pick a time</div>
+              <div class="btour-times" id="btourTimes"></div>
+              <button class="btour-go" id="btourGo" type="button" disabled>Request this tour →</button>
+              <div class="btour-note">We'll confirm on WhatsApp within 2 hours.</div>
+            </div>
+          </div>
+        </section>
+        <script>
+        (function(){
+          var daysWrap=document.getElementById('btourDays'),timesWrap=document.getElementById('btourTimes'),go=document.getElementById('btourGo');
+          if(!daysWrap||!timesWrap||!go)return;
+          var selDay=null,selTime=null;
+          var DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+          var now=new Date();
+          for(var i=1;i<=7;i++){
+            var dt=new Date(now); dt.setDate(now.getDate()+i);
+            var b=document.createElement('button'); b.type='button'; b.className='btour-chip';
+            b.innerHTML='<span class="btour-day-d">'+DOW[dt.getDay()]+'</span>'+dt.getDate();
+            b.setAttribute('data-label',DOW[dt.getDay()]+' '+dt.getDate());
+            b.addEventListener('click',function(e){ var el=e.currentTarget; selDay=el.getAttribute('data-label'); [].forEach.call(daysWrap.children,function(x){x.classList.toggle('on',x===el);}); sync(); });
+            daysWrap.appendChild(b);
+          }
+          ['10:00','12:00','15:00','17:00','19:00'].forEach(function(t){
+            var b=document.createElement('button'); b.type='button'; b.className='btour-chip'; b.textContent=t;
+            b.addEventListener('click',function(e){ var el=e.currentTarget; selTime=t; [].forEach.call(timesWrap.children,function(x){x.classList.toggle('on',x===el);}); sync(); });
+            timesWrap.appendChild(b);
+          });
+          function sync(){ go.disabled=!(selDay&&selTime); }
+          go.addEventListener('click',function(){
+            if(!selDay||!selTime)return;
+            var nm=(window.__boomListing&&window.__boomListing.name)||(document.getElementById('aptName')&&document.getElementById('aptName').textContent)||'this apartment';
+            var msg='Hi BOOM! I’d like a live video tour of '+nm+' on '+selDay+' around '+selTime+'. (from boomrome.com)';
+            if(window.gtag)try{gtag('event','video_tour_request',{when:selDay+' '+selTime});}catch(e){}
+            window.open('https://wa.me/393313251961?text='+encodeURIComponent(msg),'_blank');
+          });
+        })();
+        </script>
 
         <!-- 48-hour move-in — scroll-driven timeline (mobile-first vertical, desktop horizontal) -->
         <style>
@@ -805,6 +1432,60 @@
         if(matchMedia('(prefers-reduced-motion:reduce)').matches){t.style.setProperty('--p',1);steps.forEach(function(s){s.classList.add('lit');});return;}
         var tick=false;function upd(){tick=false;var r=t.getBoundingClientRect(),vh=innerHeight||document.documentElement.clientHeight;var p=(vh*0.82-r.top)/(r.height*0.62);p=Math.max(0,Math.min(1,p));t.style.setProperty('--p',p.toFixed(3));steps.forEach(function(s,i){s.classList.toggle('lit',p>=i/steps.length+0.02);});}
         function on(){if(tick)return;tick=true;requestAnimationFrame(upd);}addEventListener('scroll',on,{passive:true});addEventListener('resize',on,{passive:true});upd();})();</script>
+
+        <!-- ======== FAQ — answers before the questions ======== -->
+        <style>
+        .faq{max-width:860px;margin:64px auto 10px;padding:0 20px}
+        .faq-head{text-align:center;margin-bottom:30px}
+        .faq-lbl{display:inline-block;color:#FFD700;font-size:11px;letter-spacing:3px;text-transform:uppercase;margin-bottom:10px}
+        .faq-head h2{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-weight:200;font-size:clamp(24px,3.4vw,40px);color:#fff;letter-spacing:-.01em;margin:0}
+        .faq-head h2 .g{color:#FFD700}
+        .faq-list{display:flex;flex-direction:column;gap:10px}
+        .faq-it{background:var(--dark-void);border:1px solid rgba(255,255,255,.07);border-radius:14px;overflow:hidden;transition:border-color .25s}
+        .faq-it.open{border-color:rgba(255,215,0,.22)}
+        .faq-q{display:flex;align-items:center;justify-content:space-between;gap:16px;width:100%;padding:18px 20px;background:transparent;border:none;cursor:pointer;font-family:inherit;text-align:left;font-size:15px;color:#fff}
+        .faq-q:hover{color:#FFD700}
+        .faq-pi{flex:0 0 auto;color:#FFD700;font-size:18px;transition:transform .3s}
+        .faq-it.open .faq-pi{transform:rotate(45deg)}
+        .faq-a{max-height:0;overflow:hidden;transition:max-height .4s cubic-bezier(.16,1,.3,1)}
+        .faq-a div{padding:0 20px 18px;font-size:14px;color:var(--text-secondary);line-height:1.65}
+        .faq-a b{color:#fff;font-weight:500}
+        .faq-foot{text-align:center;margin-top:20px;font-size:13px;color:var(--text-fade)}
+        .faq-foot button{background:none;border:none;color:#FFD700;font-family:inherit;font-size:13px;cursor:pointer;border-bottom:1px solid rgba(255,215,0,.3);padding:0 0 1px}
+        @media(prefers-reduced-motion:reduce){.faq-a{transition:none}.faq-pi{transition:none}}
+        </style>
+        <section class="faq" id="boomFaq" aria-label="Frequently asked questions">
+          <div class="faq-head">
+            <span class="faq-lbl">Good to know</span>
+            <h2>Answers, <span class="g">before you even ask</span>.</h2>
+          </div>
+          <div class="faq-list" id="faqList"></div>
+          <div class="faq-foot">Still wondering something specific? <button type="button" id="faqAsk">Ask our AI →</button></div>
+        </section>
+        <script>
+        (function(){
+          var list=document.getElementById('faqList'); if(!list)return;
+          var Q=[
+            ['Who pays the agency fee — and how much?','You do, and only <b>once</b>, when you sign: either one month’s rent or 10% of the annual rent — it varies per home and we always tell you which up front. Never monthly, never hidden in the rent.'],
+            ['Is the deposit refundable?','Yes. It’s <b>one month</b>, held safe under Italian law and returned at move-out — minus only documented damage. Normal wear and tear is never deducted.'],
+            ['What’s not included in the rent?','Your own utilities (electricity, water, gas), internet, and the TARI waste tax. We help you set every one up — nothing is left for you to figure out alone.'],
+            ['What’s the minimum stay?','From short transitory stays to long-term — tell us your dates and we match the right contract format for you. Plenty of internationals stay a few months.'],
+            ['Can I see it before I sign?','Absolutely. Book a <b>free live video tour</b> above, or visit in person. Every home is also video-verified by a BOOM agent, so what you see is exactly what you get.'],
+            ['What do I need to apply?','To start, just your contact details — no documents, no fee. To sign later: a passport or ID, and proof of income or university enrolment.'],
+            ['How fast can I really move in?','As fast as <b>48 hours</b> from approval. We reply to every application within 2 hours, and handle the contract and keys for you.'],
+            ['Is it still available?','Our listings are kept current and video-verified. If you’re worried it’ll go, you can <b>reserve &amp; hold</b> it (fully refundable) while we process your application.']
+          ];
+          list.innerHTML=Q.map(function(q){return '<div class="faq-it"><button class="faq-q" type="button" aria-expanded="false">'+q[0]+'<span class="faq-pi">+</span></button><div class="faq-a"><div>'+q[1]+'</div></div></div>';}).join('');
+          list.addEventListener('click',function(e){
+            var b=e.target.closest('.faq-q'); if(!b)return;
+            var it=b.parentNode,a=it.querySelector('.faq-a'),open=!it.classList.contains('open');
+            it.classList.toggle('open',open); b.setAttribute('aria-expanded',open?'true':'false');
+            a.style.maxHeight=open?a.scrollHeight+'px':'0';
+          });
+          var ask=document.getElementById('faqAsk');
+          if(ask)ask.addEventListener('click',function(){var l=document.querySelector('.bask-launch');if(l)l.click();else{var f=document.getElementById('inquiryCard');if(f)f.scrollIntoView({behavior:'smooth',block:'center'});}});
+        })();
+        </script>
 
         <div class="upsell-section">
             <div class="upsell-header">
@@ -901,6 +1582,9 @@
         </div>
     </div>
 
+    <!-- More apartments in this neighborhood — auto-populated from Firestore (end-of-page, after the full pitch) -->
+    <section class="zone-footer" id="zoneFooter" hidden></section>
+
     <!-- LIGHTBOX -->
     <div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Photo viewer" hidden>
         <button class="lightbox-close" id="lbClose" aria-label="Close">×</button>
@@ -908,6 +1592,20 @@
         <img class="lightbox-img" id="lbImg" src="" alt="">
         <button class="lightbox-nav lightbox-next" id="lbNext" aria-label="Next">›</button>
         <div class="lightbox-counter" id="lbCounter"></div>
+    </div>
+
+    <!-- DESKTOP STICKY CTA (appears in the lower half, where the sticky sidebar ends) -->
+    <div class="dsticky" id="dsticky" aria-hidden="true">
+        <div class="dsticky-in">
+            <div class="dsticky-info">
+                <span class="dsticky-name" id="dstickyName"></span>
+                <span class="dsticky-price" id="dstickyPrice"></span>
+            </div>
+            <div class="dsticky-cta">
+                <a class="dsticky-reserve" href="#inquiryCard" onclick="setTimeout(function(){var b=document.getElementById('reserveBox');if(b)b.scrollIntoView({behavior:'smooth',block:'center'});},500)">🔒 Reserve &amp; hold</a>
+                <a class="dsticky-apply" href="#inquiryCard" onclick="setTimeout(function(){var n=document.getElementById('iqName');if(n)n.focus();},450)">Apply in 2 minutes</a>
+            </div>
+        </div>
     </div>
 
     <!-- MOBILE CTA -->
@@ -937,6 +1635,127 @@
         </div>
         <div class="footer-bottom"><span>© 2025 BOOM — All Rights Reserved</span><span>Status: Operational</span></div>
     </footer>
+
+    <!-- ======== HUMAN-FIRST RE-ARCHITECTURE (Pass 1): float AI · slim trust · fold money detail · one move-in act ======== -->
+    <style>
+    .bask-launch{position:fixed;right:22px;bottom:22px;z-index:85;display:inline-flex;align-items:center;gap:8px;padding:13px 20px;border:none;border-radius:100px;background:linear-gradient(135deg,#FFD700,#FFA500);color:#000;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 10px 34px rgba(255,215,0,.35);transition:transform .25s,opacity .25s}
+    .bask-launch:hover{transform:translateY(-2px)}
+    .bask-launch.hide{opacity:0;pointer-events:none;transform:translateY(10px)}
+    .bask-launch-i{font-size:16px}
+    @media(max-width:860px){.bask-launch{bottom:84px;right:14px;padding:11px 15px;font-size:13px}}
+    .baskpanel{position:fixed;right:22px;bottom:22px;z-index:86;width:min(400px,calc(100vw - 28px));max-height:min(72vh,640px);display:flex;flex-direction:column;background:#0A0A0A;border:1px solid rgba(255,215,0,.2);border-radius:18px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.6);opacity:0;transform:translateY(16px) scale(.98);pointer-events:none;transition:opacity .3s cubic-bezier(.16,1,.3,1),transform .3s cubic-bezier(.16,1,.3,1)}
+    .baskpanel.open{opacity:1;transform:none;pointer-events:auto}
+    @media(max-width:860px){.baskpanel{right:8px;left:8px;bottom:78px;width:auto;max-height:72vh}}
+    .baskpanel-h{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 16px;border-bottom:1px solid rgba(255,255,255,.07);font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#FFD700}
+    .baskpanel-x{background:transparent;border:none;color:#999;font-size:24px;line-height:1;cursor:pointer;padding:0 2px}
+    .baskpanel-x:hover{color:#fff}
+    .baskpanel .bask-card{border:none;border-radius:0;background:transparent;padding:14px 16px;overflow-y:auto}
+    .baskpanel .bask-card::before{display:none}
+    /* Slim verification into a scannable strip */
+    .bver--slim .bver-head{margin-bottom:18px}
+    .bver--slim .bver-head p{display:none}
+    .bver--slim .bver-grid{grid-template-columns:repeat(6,1fr);gap:8px}
+    @media(max-width:900px){.bver--slim .bver-grid{grid-template-columns:repeat(3,1fr)}}
+    @media(max-width:520px){.bver--slim .bver-grid{grid-template-columns:1fr 1fr}}
+    .bver--slim .bver-card{padding:14px 12px;text-align:center}
+    .bver--slim .bver-card:hover{transform:none}
+    .bver--slim .bver-ic{margin:0 auto 8px}
+    .bver--slim .bver-t{font-size:12px;justify-content:center;font-weight:500}
+    .bver--slim .bver-d,.bver--slim .bver-badge{display:none}
+    /* Fold money detail under a toggle */
+    .bmx-toggle{display:block;margin:22px auto 0;padding:11px 22px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:100px;color:var(--text-secondary);font-family:inherit;font-size:13px;cursor:pointer;transition:all .2s}
+    .bmx-toggle:hover{border-color:var(--gold);color:var(--gold)}
+    .bmx-tg-i{margin-left:6px}
+    /* Act 4 — one move-in, Apply as the single primary action */
+    .getit{max-width:1080px;margin:30px auto 0;padding:0 20px}
+    @media(min-width:760px){.getit{padding:0 50px}}
+    .getit-card{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;background:linear-gradient(135deg,rgba(255,215,0,.08),rgba(255,255,255,.02));border:1px solid rgba(255,215,0,.2);border-radius:18px;padding:22px 26px}
+    .getit-t{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-weight:200;font-size:clamp(18px,2.2vw,24px);color:#fff}
+    .getit-t b{color:#FFD700;font-weight:300}
+    .getit-acts{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+    .getit-apply{padding:14px 28px;border-radius:12px;background:linear-gradient(135deg,#FFD700,#FFA500);color:#000;font-size:15px;font-weight:600;text-decoration:none;white-space:nowrap;transition:transform .25s,box-shadow .25s}
+    .getit-apply:hover{transform:translateY(-2px);box-shadow:0 10px 30px rgba(255,215,0,.3)}
+    .getit-sec{color:#999;font-size:13px;text-decoration:none;border-bottom:1px solid rgba(255,255,255,.18);padding-bottom:2px;transition:all .2s}
+    .getit-sec:hover{color:#FFD700;border-color:#FFD700}
+    .btour--sec .btour-lbl{opacity:.85}
+    .upsell--calm .upsell-card{transition:border-color .25s,transform .25s}
+    .upsell--calm .upsell-card:hover{transform:translateY(-3px);box-shadow:none;border-color:rgba(255,215,0,.22)}
+    .upsell--calm .upsell-card-popular{display:none!important}
+    .upsell-more{display:block;text-align:center;margin-top:18px;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold);text-decoration:none;border:none}
+    .upsell-more:hover{text-decoration:underline}
+    .sidebar-secondary--quiet{border:none;background:transparent;font-size:12px;color:#777;padding:8px}
+    .sidebar-secondary--quiet:hover{border:none;color:var(--gold)}
+    </style>
+    <script>
+    (function(){
+      // 1) Float the AI concierge into a launcher + panel (removes a mid-page hero)
+      try{
+        var sec=document.getElementById('boomAsk');
+        var card=sec&&sec.querySelector('.bask-card');
+        if(card){
+          var launch=document.createElement('button'); launch.type='button'; launch.className='bask-launch'; launch.setAttribute('aria-label','Ask about this home'); launch.innerHTML='<span class="bask-launch-i">✦</span> Ask about this home';
+          var panel=document.createElement('div'); panel.className='baskpanel'; panel.setAttribute('role','dialog'); panel.setAttribute('aria-label','BOOM AI concierge');
+          var head=document.createElement('div'); head.className='baskpanel-h'; head.innerHTML='<span>✦ Ask this home anything</span>';
+          var x=document.createElement('button'); x.className='baskpanel-x'; x.type='button'; x.setAttribute('aria-label','Close'); x.textContent='×'; head.appendChild(x);
+          panel.appendChild(head); panel.appendChild(card);
+          document.body.appendChild(panel); document.body.appendChild(launch);
+          if(sec.parentNode) sec.parentNode.removeChild(sec);
+          var setOpen=function(o){ panel.classList.toggle('open',o); launch.classList.toggle('hide',o); if(o){var i=document.getElementById('baskQ'); if(i) setTimeout(function(){i.focus();},150);} };
+          launch.addEventListener('click',function(){ setOpen(true); });
+          x.addEventListener('click',function(){ setOpen(false); });
+          document.addEventListener('keydown',function(e){ if(e.key==='Escape') setOpen(false); });
+          // Reveal the launcher only once the apartment has loaded (don't float over the spinner)
+          launch.style.display='none';
+          var ap=document.getElementById('apartmentPage');
+          var shown=function(){ return ap && (ap.classList.contains('show') || getComputedStyle(ap).display!=='none'); };
+          if(shown()){ launch.style.display=''; }
+          else { var n=0; var iv=setInterval(function(){ n++; var pl=document.getElementById('pageLoading'); var loaded=!pl||getComputedStyle(pl).display==='none'; if(shown()||loaded||n>30){ launch.style.display=''; clearInterval(iv); } },400); }
+          if(window.__boomSpine) try{ window.__boomSpine(); }catch(e){}
+        }
+      }catch(e){}
+      // 2) Slim the verification band
+      try{ var ver=document.getElementById('boomVerify'); if(ver) ver.classList.add('bver--slim'); }catch(e){}
+      // 3) Fold the deposit-lifecycle + included/separate under a toggle
+      try{
+        var money=document.getElementById('boomMoney');
+        var life=money&&money.querySelector('.bmx-life'), incl=money&&money.querySelector('.bmx-incl');
+        if(life&&incl){
+          life.style.display='none'; incl.style.display='none';
+          var tg=document.createElement('button'); tg.type='button'; tg.className='bmx-toggle'; tg.setAttribute('aria-expanded','false');
+          tg.innerHTML='How the deposit &amp; bills work <span class="bmx-tg-i">▾</span>';
+          life.parentNode.insertBefore(tg, life);
+          tg.addEventListener('click',function(){ var op=life.style.display==='none'; life.style.display=op?'':'none'; incl.style.display=op?'':'none'; tg.setAttribute('aria-expanded',op?'true':'false'); var i=tg.querySelector('.bmx-tg-i'); if(i)i.textContent=op?'▴':'▾'; });
+        }
+      }catch(e){}
+      // 4) Act 4 — Apply-primary move-in card after the 48h timeline; tour demoted to "see it first"
+      try{
+        var m48=document.getElementById('m48'), tour=document.getElementById('boomTour');
+        if(m48){
+          var getit=document.createElement('div'); getit.className='getit';
+          getit.innerHTML='<div class="getit-card"><div class="getit-t">Ready? <b>Apply in 2 minutes</b> — we reply within 2 hours.</div><div class="getit-acts"><a class="getit-apply" href="#inquiryCard" onclick="setTimeout(function(){var n=document.getElementById(\'iqName\');if(n)n.focus();},450)">Apply now →</a>'+(tour?'<a class="getit-sec" href="#boomTour" onclick="setTimeout(function(){var t=document.getElementById(\'boomTour\');if(t)t.scrollIntoView({behavior:\'smooth\',block:\'start\'});},10)">Prefer to see it live first?</a>':'')+'</div></div>';
+          m48.insertAdjacentElement('afterend', getit);
+          if(tour){ tour.classList.add('btour--sec'); getit.insertAdjacentElement('afterend', tour); }
+        }
+      }catch(e){}
+      // 5) FOUC guard reveal — tour was moved above; boomAsk only survives if the float failed
+      try{
+        var t2=document.getElementById('boomTour'); if(t2) t2.style.display='block';
+        var a2=document.getElementById('boomAsk'); if(a2) a2.style.display='block';
+      }catch(e){}
+      // 6) Services presented calmly — show the full BOOM range, just not as competing heroes
+      try{
+        var us=document.querySelector('.upsell-section');
+        if(us){
+          us.classList.add('upsell--calm');
+          var pop=us.querySelector('.upsell-card-popular'); if(pop) pop.style.display='none';
+          var feat=us.querySelector('.upsell-card.featured');
+          if(feat){ feat.classList.remove('featured'); var ft=feat.querySelector('.upsell-card-top'); if(ft) ft.style.paddingTop='28px'; }
+        }
+      }catch(e){}
+      // 7) Sidebar: one voice — quiet the exit link under the form
+      try{ var ex=document.querySelector('.sidebar-secondary'); if(ex) ex.classList.add('sidebar-secondary--quiet'); }catch(e){}
+    })();
+    </script>
 
     <!-- Shared zone → neighborhood-slug helper (auto-generated from neighborhoods-data.js) -->
     <script src="/js/neighborhoods.js"></script>
@@ -1245,6 +2064,7 @@
           }
           // Render the "More in this zone" footer + price insight once we know the slug
           renderZoneFooter(d.zone,slug,id,Number(d.price)||0);
+          if(window.renderHood) window.renderHood(slug, (window.BOOM&&window.BOOM.zoneToName)?window.BOOM.zoneToName(d.zone):d.zone);
         }
 
         const price=d.price?`€${Number(d.price).toLocaleString()}`:'—';
@@ -1260,6 +2080,13 @@
           const a=document.getElementById('reserveAmt'); if(a) a.textContent='€'+dep.toLocaleString('en-US');
           const b=document.getElementById('reserveBox'); if(b) b.classList.add('show');
         })();
+
+        // The money, explained — itemised move-in cost computed from this listing's real rent
+        if(window.__boomListing) window.__boomListing.rent = Number(d.price)||0;
+        if(window.buildMoney) window.buildMoney(Number(d.price)||0, {});
+        if(window.__boomSpine) window.__boomSpine();   // rebuild section nav once content sections exist
+        var _dn=document.getElementById('dstickyName'); if(_dn) _dn.textContent=d.name||'Apartment';
+        var _dp=document.getElementById('dstickyPrice'); if(_dp) _dp.innerHTML=price+' <small>/mo</small>';
 
         // Specs
         const sEl=document.getElementById('aptSpecs'),specs=[];
@@ -1454,5 +2281,249 @@
     </script>
     <script defer src="/js/boom-cinema.js"></script>
     <script defer src="/js/boom-track.js"></script>
+
+    <!-- ======== MONEY, DECODED — immersive financial deep-dive (overlay) ======== -->
+    <style>
+    /* Launcher portal (injected into the money module) */
+    .mdx-launch{display:flex;align-items:center;justify-content:space-between;gap:16px;max-width:760px;margin:18px auto 0;padding:18px 22px;background:linear-gradient(135deg,rgba(255,215,0,.10),rgba(0,206,209,.05));border:1px solid rgba(255,215,0,.3);border-radius:16px;cursor:pointer;font-family:inherit;text-align:left;position:relative;overflow:hidden;isolation:isolate;transition:transform .3s cubic-bezier(.16,1,.3,1),box-shadow .3s}
+    .mdx-launch:hover{transform:translateY(-2px);box-shadow:0 16px 44px rgba(255,215,0,.18)}
+    .mdx-launch::after{content:'';position:absolute;inset:0;z-index:1;background:linear-gradient(105deg,transparent 38%,rgba(255,255,255,.16) 50%,transparent 62%);transform:translateX(-140%) skewX(-18deg);animation:mdxSheen 6.5s ease-in-out infinite;pointer-events:none}
+    @keyframes mdxSheen{0%,70%{transform:translateX(-140%) skewX(-18deg)}90%,100%{transform:translateX(140%) skewX(-18deg)}}
+    .mdx-launch-t{font-size:15px;color:#fff;font-weight:500}
+    .mdx-launch-t small{display:block;font-size:11.5px;color:#999;font-weight:400;margin-top:3px;letter-spacing:.2px}
+    .mdx-launch-go{flex:0 0 auto;width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#FFD700,#FFA500);color:#000;font-size:17px;font-weight:700}
+    /* Overlay shell */
+    #mdx{position:fixed;inset:0;z-index:210;background:#050507;display:none;opacity:0;transition:opacity .45s cubic-bezier(.16,1,.3,1)}
+    #mdx.open{display:block}
+    #mdx.in{opacity:1}
+    .mdx-bg{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+    .mdx-bg i{position:absolute;border-radius:50%;filter:blur(90px);opacity:.55;will-change:transform}
+    .mdx-bg .a1{width:60vmax;height:60vmax;left:-18vmax;top:-24vmax;background:radial-gradient(circle,rgba(255,215,0,.16),transparent 65%);animation:mdxF1 26s ease-in-out infinite alternate}
+    .mdx-bg .a2{width:50vmax;height:50vmax;right:-16vmax;top:30vmax;background:radial-gradient(circle,rgba(0,206,209,.10),transparent 65%);animation:mdxF2 32s ease-in-out infinite alternate}
+    .mdx-bg .a3{width:44vmax;height:44vmax;left:24vmax;bottom:-20vmax;background:radial-gradient(circle,rgba(255,165,0,.10),transparent 65%);animation:mdxF1 38s ease-in-out infinite alternate-reverse}
+    @keyframes mdxF1{0%{transform:translate(0,0) scale(1)}100%{transform:translate(7vmax,5vmax) scale(1.18)}}
+    @keyframes mdxF2{0%{transform:translate(0,0) scale(1)}100%{transform:translate(-6vmax,-4vmax) scale(1.12)}}
+    .mdx-gridbg{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);background-size:64px 64px;-webkit-mask-image:radial-gradient(ellipse at 50% 40%,#000 30%,transparent 78%);mask-image:radial-gradient(ellipse at 50% 40%,#000 30%,transparent 78%)}
+    .mdx-prog{position:absolute;top:0;left:0;height:2px;width:0;z-index:7;background:linear-gradient(90deg,#FFD54F,#FFD700,#FFA500);box-shadow:0 0 14px rgba(255,215,0,.6)}
+    .mdx-brand{position:absolute;top:24px;left:24px;z-index:7;font-size:10px;letter-spacing:3px;text-transform:uppercase;color:rgba(255,215,0,.85)}
+    .mdx-count{position:absolute;top:24px;left:50%;transform:translateX(-50%);z-index:7;font-size:10px;letter-spacing:2.5px;color:#777;font-variant-numeric:tabular-nums}
+    @media(max-width:560px){.mdx-count{display:none}}
+    .mdx-x{position:absolute;top:16px;right:18px;z-index:7;width:42px;height:42px;border-radius:50%;border:1px solid rgba(255,255,255,.16);background:rgba(0,0,0,.5);backdrop-filter:blur(8px);color:#fff;font-size:19px;cursor:pointer;transition:all .25s;font-family:inherit}
+    .mdx-x:hover{border-color:#FFD700;color:#FFD700;transform:rotate(90deg)}
+    .mdx-rail{position:absolute;right:16px;top:50%;transform:translateY(-50%);z-index:7;display:flex;flex-direction:column;gap:12px}
+    .mdx-rail button{position:relative;width:10px;height:10px;border-radius:50%;border:1.5px solid rgba(255,255,255,.25);background:transparent;cursor:pointer;padding:0;transition:all .3s}
+    .mdx-rail button.on{background:#FFD700;border-color:#FFD700;box-shadow:0 0 0 4px rgba(255,215,0,.15)}
+    .mdx-rail button span{position:absolute;right:20px;top:50%;transform:translateY(-50%);white-space:nowrap;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#999;background:rgba(0,0,0,.7);padding:3px 9px;border-radius:6px;opacity:0;pointer-events:none;transition:opacity .25s}
+    .mdx-rail button:hover span,.mdx-rail button.on span{opacity:1}
+    .mdx-rail button.on span{color:#FFD700}
+    @media(max-width:760px){.mdx-rail{right:8px}.mdx-rail button span{display:none}}
+    .mdx-scroll{position:absolute;inset:0;overflow-y:auto;scroll-snap-type:y proximity;scroll-behavior:smooth;scrollbar-width:none}
+    .mdx-scroll::-webkit-scrollbar{display:none}
+    .mdx-ch{min-height:100%;scroll-snap-align:start;display:flex;align-items:center;justify-content:center;padding:72px 18px}
+    .mdx-card{width:min(720px,94vw);background:rgba(14,14,16,.55);border:1px solid rgba(255,215,0,.14);border-radius:24px;padding:clamp(24px,4vw,40px);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);box-shadow:0 40px 100px -40px rgba(0,0,0,.9);opacity:0;transform:translateY(34px);transition:opacity .8s cubic-bezier(.16,1,.3,1),transform .8s cubic-bezier(.16,1,.3,1)}
+    .mdx-ch.lit .mdx-card{opacity:1;transform:none}
+    .mdx-ey{font-size:10.5px;letter-spacing:3px;text-transform:uppercase;color:#FFD700;margin-bottom:14px;display:flex;align-items:center;gap:10px}
+    .mdx-ey::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,rgba(255,215,0,.4),transparent)}
+    .mdx-h{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-weight:200;font-size:clamp(26px,4.6vw,44px);color:#fff;letter-spacing:-.01em;line-height:1.1;margin:0 0 14px}
+    .mdx-h .g{color:#FFD700}
+    .mdx-p{font-size:14.5px;color:#aaa;line-height:1.7;margin:0 0 18px}
+    .mdx-big{font-weight:100;font-size:clamp(46px,9vw,86px);color:#FFD700;line-height:1;letter-spacing:-.02em;margin:6px 0 4px;text-shadow:0 0 60px rgba(255,215,0,.25)}
+    .mdx-big small{font-size:clamp(15px,2.4vw,20px);color:#888;font-weight:300;letter-spacing:0;margin-left:8px}
+    .mdx-cap{font-size:12px;color:#777;margin-bottom:18px}
+    .mdx-rows{margin:14px 0;border-top:1px solid rgba(255,255,255,.07)}
+    .mdx-row{display:flex;align-items:baseline;justify-content:space-between;gap:14px;padding:12px 2px;border-bottom:1px solid rgba(255,255,255,.07);font-size:14px;color:#ddd}
+    .mdx-row b{font-weight:300;font-size:16px;color:#fff;white-space:nowrap}
+    .mdx-row .ok{color:#00FF88}
+    .mdx-terms{display:flex;flex-direction:column;gap:10px;margin:16px 0 4px}
+    .mdx-term{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.09);border-radius:14px;overflow:hidden}
+    .mdx-term-b{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;padding:14px 16px;background:transparent;border:none;cursor:pointer;font-family:inherit;text-align:left}
+    .mdx-term-b:hover .mdx-term-w{color:#FFD700}
+    .mdx-term-w{font-size:14.5px;color:#fff;font-style:italic;letter-spacing:.3px;transition:color .2s}
+    .mdx-term-w small{font-style:normal;color:#777;font-size:11.5px;margin-left:8px;letter-spacing:.2px}
+    .mdx-term-i{flex:0 0 auto;color:#FFD700;font-size:15px;transition:transform .3s}
+    .mdx-term.open .mdx-term-i{transform:rotate(45deg)}
+    .mdx-def{max-height:0;overflow:hidden;transition:max-height .45s cubic-bezier(.16,1,.3,1)}
+    .mdx-def-in{padding:0 16px 15px;font-size:13px;color:#9a9a9a;line-height:1.65}
+    .mdx-def-in b{color:#00FF88;font-weight:500}
+    .mdx-chips{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 4px}
+    .mdx-chip{font-size:11.5px;color:#bbb;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:100px;padding:6px 13px}
+    .mdx-chip.gold{color:#FFD700;border-color:rgba(255,215,0,.3);background:rgba(255,215,0,.06)}
+    .mdx-note{margin-top:14px;font-size:11px;color:#666;line-height:1.5}
+    .mdx-hint{position:absolute;bottom:22px;left:50%;transform:translateX(-50%);z-index:7;font-size:10px;letter-spacing:2.5px;text-transform:uppercase;color:#777;display:flex;flex-direction:column;align-items:center;gap:7px;pointer-events:none;transition:opacity .4s}
+    .mdx-hint.off{opacity:0}
+    .mdx-hint i{width:1px;height:26px;background:linear-gradient(180deg,#FFD700,transparent);animation:mdxDrop 1.8s ease-in-out infinite}
+    @keyframes mdxDrop{0%{transform:scaleY(0);transform-origin:top}45%{transform:scaleY(1);transform-origin:top}55%{transform:scaleY(1);transform-origin:bottom}100%{transform:scaleY(0);transform-origin:bottom}}
+    .mdx-cta{display:inline-flex;align-items:center;gap:9px;margin-top:18px;padding:15px 30px;border-radius:13px;background:linear-gradient(135deg,#FFD700,#FFA500);color:#000;font-size:15px;font-weight:600;text-decoration:none;border:none;cursor:pointer;font-family:inherit;transition:transform .25s,box-shadow .25s}
+    .mdx-cta:hover{transform:translateY(-2px);box-shadow:0 12px 36px rgba(255,215,0,.35)}
+    .mdx-cta2{display:inline-flex;margin:18px 0 0 16px;font-size:13px;color:#999;background:none;border:none;border-bottom:1px solid rgba(255,255,255,.2);padding:0 0 2px;cursor:pointer;font-family:inherit;transition:all .2s}
+    .mdx-cta2:hover{color:#FFD700;border-color:#FFD700}
+    @media(prefers-reduced-motion:reduce){
+      .mdx-bg i{animation:none!important}
+      .mdx-launch::after,.mdx-hint i{animation:none!important}
+      .mdx-card{opacity:1!important;transform:none!important;transition:none}
+      .mdx-scroll{scroll-behavior:auto}
+      #mdx{transition:none}
+    }
+    </style>
+    <div id="mdx" role="dialog" aria-modal="true" aria-label="Money, Decoded — the full financial picture" hidden>
+      <div class="mdx-bg"><i class="a1"></i><i class="a2"></i><i class="a3"></i></div>
+      <div class="mdx-gridbg"></div>
+      <div class="mdx-prog" id="mdxProg"></div>
+      <div class="mdx-brand">BOOM · Money, Decoded</div>
+      <div class="mdx-count" id="mdxCount"></div>
+      <button class="mdx-x" id="mdxX" type="button" aria-label="Close">✕</button>
+      <div class="mdx-rail" id="mdxRail" aria-label="Chapters"></div>
+      <div class="mdx-scroll" id="mdxScroll"></div>
+      <div class="mdx-hint" id="mdxHint"><span>Scroll</span><i></i></div>
+    </div>
+    <script>
+    (function(){
+      var mdx=document.getElementById('mdx'),scroll=document.getElementById('mdxScroll'),rail=document.getElementById('mdxRail'),prog=document.getElementById('mdxProg'),hint=document.getElementById('mdxHint'),xBtn=document.getElementById('mdxX');
+      if(!mdx||!scroll)return;
+      var reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+      var built=false,isOpen=false,io=null;
+      function fmt(n){return '€'+Math.round(n).toLocaleString('en-US');}
+      function term(w,tag,def){return '<div class="mdx-term"><button class="mdx-term-b" type="button" aria-expanded="false"><span class="mdx-term-w">'+w+'<small>'+tag+'</small></span><span class="mdx-term-i">+</span></button><div class="mdx-def"><div class="mdx-def-in">'+def+'</div></div></div>';}
+      function build(){
+        if(built)return; built=true;
+        var L=window.__boomListing||{};
+        var rent=Number(L.rent)||0, has=rent>0;
+        var dep=rent, feeF=rent, feeP=Math.round(rent*12*.10);
+        var due=rent+dep+feeF, reg=Math.round(rent*12*.02/2), half=rent/2;
+        var name=L.name||'this apartment';
+        var V=function(n){return has?fmt(n):'—';};
+        var CH=[
+          {label:'Intro',html:
+            '<div class="mdx-ey">'+name+' · the full financial picture</div>'+
+            '<h2 class="mdx-h">Every euro.<br>Every term. <span class="g">Decoded.</span></h2>'+
+            '<p class="mdx-p">Renting in Italy comes with words nobody translates and numbers nobody shows until it’s too late. In the next two minutes you’ll understand all of it — the law, the math, and exactly what it means for you. No fine print. Scroll.</p>'+
+            '<div class="mdx-chips"><span class="mdx-chip gold">No fine print</span><span class="mdx-chip">~2 minutes</span><span class="mdx-chip">Real numbers for this home</span></div>'},
+          {label:'The cost',html:
+            '<div class="mdx-ey">Chapter 01 · what you’d actually pay</div>'+
+            '<h2 class="mdx-h">One number. <span class="g">Nothing after it.</span></h2>'+
+            '<div class="mdx-big"><span data-count="'+due+'">'+(has?'€0':'—')+'</span><small>due at signing, from</small></div>'+
+            '<div class="mdx-rows">'+
+              '<div class="mdx-row"><span>First month’s rent</span><b>'+V(rent)+'</b></div>'+
+              '<div class="mdx-row"><span>Security deposit — <span class="ok">returns to you ↩</span></span><b>'+V(dep)+'</b></div>'+
+              '<div class="mdx-row"><span>Agency fee — one month <em style="color:#777;font-style:normal">or</em> 10%/year, varies per home</span><b>'+(has?fmt(feeF)+' / '+fmt(feeP):'—')+'</b></div>'+
+            '</div>'+
+            '<p class="mdx-p">That is the entire universe of what moving in can cost. No “admin fees”, no “check-in fees”, no surprises invented at the table — if it’s not above, it doesn’t exist.</p>'},
+          {label:'Deposit',html:
+            '<div class="mdx-ey">Chapter 02 · your money, parked — not spent</div>'+
+            '<h2 class="mdx-h">Il deposito <span class="g">cauzionale</span></h2>'+
+            '<div class="mdx-big"><span data-count="'+dep+'">'+(has?'€0':'—')+'</span><small>one month — and it comes back</small></div>'+
+            '<div class="mdx-terms">'+
+              term('deposito cauzionale','the security deposit','By law a deposit can’t exceed three months. BOOM asks for <b>one</b> — held as a guarantee, never spent, and legally still <b>your money</b>.')+
+              term('usura normale','normal wear &amp; tear','Faded paint and small scuffs from living there are <b>never deducted</b>. Only real, documented damage is — and we check the apartment with you at move-out.')+
+            '</div>'},
+          {label:'The fee',html:
+            '<div class="mdx-ey">Chapter 03 · the only thing BOOM earns</div>'+
+            '<h2 class="mdx-h">La <span class="g">provvigione</span></h2>'+
+            '<div class="mdx-rows">'+
+              '<div class="mdx-row"><span>Scenario A — flat</span><b>'+V(feeF)+' · one month</b></div>'+
+              '<div class="mdx-row"><span>Scenario B — percentage</span><b>'+V(feeP)+' · 10% of the year</b></div>'+
+            '</div>'+
+            '<p class="mdx-p">Which one applies varies home by home — and you’ll know yours <b style="color:#fff;font-weight:500">before</b> you sign, in writing. It’s charged <b style="color:#fff;font-weight:500">once</b>, only when you actually sign. Never monthly, never renewed, never hidden in the rent.</p>'+
+            '<p class="mdx-p" style="margin-bottom:0">It pays for the in-person video verification, the ID-checked owner, the registered contract, the 48-hour move-in, and a team on WhatsApp for your whole stay — right through to getting your deposit back.</p>'},
+          {label:'Contract',html:
+            '<div class="mdx-ey">Chapter 04 · the paper that protects you</div>'+
+            '<h2 class="mdx-h">Il <span class="g">contratto</span></h2>'+
+            '<p class="mdx-p">In Italy, only a <b style="color:#fff;font-weight:500">registered</b> lease is real — it’s what gives you residency rights, deposit protection and official rent receipts.</p>'+
+            '<div class="mdx-terms">'+
+              term('contratto registrato','registered lease','Your lease is registered with the <b>Agenzia delle Entrate</b> (Italy’s revenue agency). That registration is your legal armour: proof of residence for permits and visas, enforceable deposit rights, official rent receipts.')+
+              term('imposta di registro','registration tax','Normally about <b>2% of the annual rent</b>, typically split with the landlord — for this home roughly <b>'+(has?fmt(reg):'—')+'</b> for your half, per year. But often it’s <b>€0</b> — see the next term.')+
+              term('cedolare secca','the landlord’s flat tax','A flat-tax regime many landlords opt into. If yours does, <b>registration tax and stamp duty vanish for you entirely</b> — and the rent can’t be raised by ISTAT inflation updates during the term.')+
+              term('contratto transitorio','temporary contract','A fully legal lease format for <b>1–18 months</b>, built for study, work or relocation periods — the most common choice for internationals. Same registration, same protections.')+
+            '</div>'+
+            '<div class="mdx-note">You sign in English alongside the Italian, understanding every line. Guidance only, not tax advice — your contract states the exact figures.</div>'},
+          {label:'Monthly',html:
+            '<div class="mdx-ey">Chapter 05 · life, per month</div>'+
+            '<h2 class="mdx-h">Le <span class="g">spese</span> — the monthly reality</h2>'+
+            '<div class="mdx-big"><span data-count="'+rent+'">'+(has?'€0':'—')+'</span><small>/month rent'+(has?' · ≈ '+fmt(half)+' each with a flatmate':'')+'</small></div>'+
+            '<div class="mdx-terms">'+
+              term('utenze','utilities','Electricity, gas and water — billed on <b>your actual usage</b>, in your name. Plan roughly <b>€100–180 per person</b> monthly in a typical Rome flat; we help you activate every account.')+
+              term('TARI','waste tax','Rome’s rubbish-collection tax, owed by whoever occupies the home. Usually a few hundred euros <b>per year</b>, size-dependent. We tell you the figure for this home before you sign.')+
+              term('spese condominiali','building fees','Stairs, lift, lighting, the portiere. Whether they’re inside your rent or billed separately is stated <b>in the contract, in writing</b> — never discovered later.')+
+            '</div>'},
+          {label:'Protection',html:
+            '<div class="mdx-ey">Chapter 06 · how the money physically moves</div>'+
+            '<h2 class="mdx-h">No envelopes. <span class="g">Ever.</span></h2>'+
+            '<div class="mdx-rows">'+
+              '<div class="mdx-row"><span>Every payment</span><b>Stripe · card · receipt</b></div>'+
+              '<div class="mdx-row"><span>Reserve &amp; hold</span><b>€300 · <span class="ok">100% refundable</span></b></div>'+
+              '<div class="mdx-row"><span>Your deposit</span><b>held under the registered contract</b></div>'+
+            '</div>'+
+            '<p class="mdx-p">Everything goes through secure Stripe checkout, in English, with a receipt for every euro. The €300 reserve takes the home off-market while we process you — refunded if you’re not approved, deducted from your first month if you are. Cash in envelopes is how Rome’s rental horror stories start; it is not how BOOM works.</p>'},
+          {label:'Ready',html:
+            '<div class="mdx-ey">Chapter 07 · the whole point</div>'+
+            '<h2 class="mdx-h">Zero <span class="g">surprises.</span></h2>'+
+            '<p class="mdx-p">You now know more about Italian rental money than most people who’ve rented here for years: a one-month deposit that legally stays yours, a fee declared before you sign, a registered contract that armours you, and every payment receipted.</p>'+
+            '<div class="mdx-chips"><span class="mdx-chip gold">1-month deposit ↩</span><span class="mdx-chip gold">Fee told upfront</span><span class="mdx-chip gold">Registered contract</span><span class="mdx-chip gold">Stripe receipts</span></div>'+
+            '<button class="mdx-cta" type="button" data-act="apply">Apply in 2 minutes →</button>'+
+            '<button class="mdx-cta2" type="button" data-act="ask">or ask the AI anything</button>'}
+        ];
+        scroll.innerHTML=CH.map(function(c){return '<section class="mdx-ch"><div class="mdx-card">'+c.html+'</div></section>';}).join('');
+        rail.innerHTML=CH.map(function(c,i){return '<button type="button" data-i="'+i+'" aria-label="'+c.label+'"><span>'+c.label+'</span></button>';}).join('');
+        var chs=[].slice.call(scroll.querySelectorAll('.mdx-ch')),dots=[].slice.call(rail.querySelectorAll('button'));
+        rail.addEventListener('click',function(e){var b=e.target.closest('button[data-i]');if(b)chs[Number(b.getAttribute('data-i'))].scrollIntoView({behavior:reduce?'auto':'smooth'});});
+        scroll.addEventListener('click',function(e){
+          var tb=e.target.closest('.mdx-term-b');
+          if(tb){var t=tb.parentNode,d=t.querySelector('.mdx-def'),open=!t.classList.contains('open');t.classList.toggle('open',open);tb.setAttribute('aria-expanded',open?'true':'false');d.style.maxHeight=open?d.scrollHeight+'px':'0';return;}
+          var act=e.target.closest('[data-act]');
+          if(act){var a=act.getAttribute('data-act');close();
+            if(a==='apply'){var f=document.getElementById('inquiryCard');if(f){f.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(function(){var n=document.getElementById('iqName');if(n)n.focus();},500);}}
+            if(a==='ask'){setTimeout(function(){var l=document.querySelector('.bask-launch');if(l)l.click();},350);}
+          }
+        });
+        function countUp(el){var to=Number(el.getAttribute('data-count'))||0;if(el.__done)return;el.__done=true;if(reduce||to<=0){el.textContent=to>0?fmt(to):el.textContent;return;}var t0=performance.now(),dur=1200;(function tick(now){var k=Math.min(1,(now-t0)/dur),e2=1-Math.pow(1-k,3);el.textContent=fmt(to*e2);if(k<1)requestAnimationFrame(tick);})(t0);}
+        var cnt=document.getElementById('mdxCount');
+        io=new IntersectionObserver(function(es){es.forEach(function(en){var i=chs.indexOf(en.target);if(en.isIntersecting){en.target.classList.add('lit');dots.forEach(function(d,j){d.classList.toggle('on',j===i);});if(cnt)cnt.textContent=('0'+(i+1)).slice(-2)+' / '+('0'+chs.length).slice(-2);[].forEach.call(en.target.querySelectorAll('[data-count]'),countUp);if(i>0)hint.classList.add('off');}});},{root:scroll,threshold:.4});
+        chs.forEach(function(c){io.observe(c);});
+        scroll.addEventListener('scroll',function(){var m=scroll.scrollHeight-scroll.clientHeight;prog.style.width=(m>0?(scroll.scrollTop/m)*100:0)+'%';if(scroll.scrollTop>40)hint.classList.add('off');},{passive:true});
+      }
+      function onKey(e){
+        if(e.key==='Escape'){close();return;}
+        if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();var chs=[].slice.call(scroll.querySelectorAll('.mdx-ch'));if(!chs.length)return;var cur=Math.round(scroll.scrollTop/scroll.clientHeight);var nx=Math.max(0,Math.min(chs.length-1,cur+(e.key==='ArrowDown'?1:-1)));chs[nx].scrollIntoView({behavior:reduce?'auto':'smooth'});}
+      }
+      function open(){
+        build(); if(isOpen)return; isOpen=true;
+        mdx.hidden=false; mdx.classList.add('open');
+        requestAnimationFrame(function(){requestAnimationFrame(function(){mdx.classList.add('in');});});
+        document.documentElement.style.overflow='hidden';
+        document.addEventListener('keydown',onKey);
+        if(window.gtag)try{gtag('event','money_decoded_open',{listing_id:(window.__boomListing||{}).id||''});}catch(e){}
+      }
+      function close(){
+        if(!isOpen)return; isOpen=false;
+        mdx.classList.remove('in');
+        document.documentElement.style.overflow='';
+        document.removeEventListener('keydown',onKey);
+        setTimeout(function(){mdx.classList.remove('open');mdx.hidden=true;},reduce?0:420);
+      }
+      xBtn.addEventListener('click',close);
+      window.openMoneyDecoded=open;
+      // Cross-link: a chip inside the AI concierge opens the deep dive
+      try{
+        var chips=document.getElementById('baskChips');
+        if(chips){
+          var ch=document.createElement('button'); ch.type='button'; ch.className='bask-chip'; ch.textContent='⚡ Decode the money';
+          ch.addEventListener('click',function(){ var x2=document.querySelector('.baskpanel-x'); if(x2)x2.click(); open(); });
+          chips.appendChild(ch);
+        }
+      }catch(e){}
+      // Deep link: /listing/xyz#decoded auto-opens the experience (shareable from WhatsApp/ads)
+      try{ if(/^#(decoded|money)$/.test(location.hash)) setTimeout(open,700); }catch(e){}
+      // Launcher portal inside the money module
+      try{
+        var money=document.getElementById('boomMoney');
+        if(money){
+          var b=document.createElement('button');b.type='button';b.className='mdx-launch';b.setAttribute('aria-haspopup','dialog');
+          b.innerHTML='<span class="mdx-launch-t">⚡ See the full money picture, decoded<small>Every term and every euro for this home — clear, in 2 minutes.</small></span><span class="mdx-launch-go">→</span>';
+          b.addEventListener('click',open);
+          money.appendChild(b);
+        }
+      }catch(e){}
+    })();
+    </script>
 </body>
 </html>

@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>BOOM — Listing Experience V2 (Preview)</title>
+<link rel="preconnect" href="https://i.imgur.com" crossorigin>
+<link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ════════ BOOM V2 — editorial cinema ════════ */
+:root{
+  --gold:#FFD700;--gold2:#FFA500;--green:#00FF88;
+  --bg:#050507;--card:rgba(255,255,255,.025);--card2:#0B0B0E;
+  --line:rgba(255,255,255,.08);--line-gold:rgba(255,215,0,.22);
+  --t1:#FFFFFF;--t2:#A6A6AD;--t3:#62626B;
+  --disp:'Helvetica Neue',Helvetica,Inter,Arial,sans-serif;
+  --ease:cubic-bezier(.16,1,.3,1);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:86px}
+body{background:var(--bg);color:var(--t1);font-family:Inter,system-ui,sans-serif;font-weight:300;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+a{color:inherit}
+button{font-family:inherit}
+::selection{background:rgba(255,215,0,.25)}
+
+/* ambient aurora */
+.aur{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none}
+.aur i{position:absolute;border-radius:50%;filter:blur(100px);opacity:.5;will-change:transform}
+.aur .a{width:56vmax;height:56vmax;left:-16vmax;top:-20vmax;background:radial-gradient(circle,rgba(255,215,0,.13),transparent 65%);animation:af1 30s ease-in-out infinite alternate}
+.aur .b{width:46vmax;height:46vmax;right:-14vmax;top:36vmax;background:radial-gradient(circle,rgba(0,206,209,.07),transparent 65%);animation:af2 38s ease-in-out infinite alternate}
+@keyframes af1{to{transform:translate(6vmax,5vmax) scale(1.15)}}
+@keyframes af2{to{transform:translate(-5vmax,-4vmax) scale(1.1)}}
+
+/* progress hairline */
+.prog{position:fixed;top:0;left:0;height:2px;width:0;z-index:300;background:linear-gradient(90deg,#FFD54F,var(--gold),var(--gold2));box-shadow:0 0 12px rgba(255,215,0,.5)}
+
+/* header */
+.hd{position:fixed;top:0;left:0;right:0;z-index:200;display:flex;align-items:center;justify-content:space-between;padding:18px 26px;transition:background .4s,backdrop-filter .4s,border-color .4s;border-bottom:1px solid transparent}
+.hd.solid{background:rgba(5,5,7,.82);backdrop-filter:blur(16px);border-color:var(--line)}
+.hd-logo{font-family:var(--disp);font-weight:200;font-size:21px;letter-spacing:6px;text-decoration:none}
+.hd-logo b{color:var(--gold);font-weight:300}
+.hd-right{display:flex;align-items:center;gap:18px}
+.hd-back{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--t2);text-decoration:none;transition:color .2s}
+.hd-back:hover{color:var(--gold)}
+.hd-wa{display:inline-flex;align-items:center;gap:7px;padding:9px 16px;border-radius:100px;border:1px solid var(--line);font-size:12px;color:var(--t1);text-decoration:none;transition:all .25s;backdrop-filter:blur(8px)}
+.hd-wa:hover{border-color:#25D366;color:#25D366}
+@media(max-width:600px){.hd{padding:14px 16px}.hd-back{display:none}}
+
+/* loader / error */
+.boot{position:fixed;inset:0;z-index:400;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;transition:opacity .5s,visibility .5s}
+.boot.off{opacity:0;visibility:hidden}
+.boot-dot{width:10px;height:10px;border-radius:50%;background:var(--gold);animation:bp 1.4s ease-in-out infinite}
+@keyframes bp{0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(255,215,0,.4)}50%{transform:scale(1.25);box-shadow:0 0 0 14px rgba(255,215,0,0)}}
+.boot-t{font-size:10px;letter-spacing:4px;text-transform:uppercase;color:var(--t3)}
+.err{display:none;text-align:center;padding:40vh 20px 0}
+.err h2{font-family:var(--disp);font-weight:200;font-size:30px;margin-bottom:10px}
+.err a{color:var(--gold)}
+
+/* ════════ HERO ════════ */
+.hero{position:relative;height:100svh;min-height:560px;overflow:hidden}
+.hero-img{position:absolute;inset:0;background-size:cover;background-position:center;transform:scale(1.06);animation:ken 28s ease-in-out infinite alternate}
+@keyframes ken{to{transform:scale(1.13)}}
+.hero-scrim{position:absolute;inset:0;background:linear-gradient(180deg,rgba(5,5,7,.55) 0%,rgba(5,5,7,.05) 38%,rgba(5,5,7,.2) 62%,rgba(5,5,7,.92) 100%)}
+.hero-badges{position:absolute;top:84px;left:26px;display:flex;gap:8px;flex-wrap:wrap}
+.hbadge{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:100px;font-size:10px;font-weight:500;letter-spacing:1.2px;text-transform:uppercase;backdrop-filter:blur(10px);border:1px solid var(--line)}
+.hbadge.av{color:var(--green);background:rgba(0,255,136,.1);border-color:rgba(0,255,136,.3)}
+.hbadge.vf{color:var(--gold);background:rgba(255,215,0,.1);border-color:var(--line-gold)}
+.hbadge.vd{color:#fff;background:rgba(255,59,48,.25);border-color:rgba(255,59,48,.4)}
+.hero-glass{position:absolute;left:0;right:0;bottom:0;padding:26px clamp(18px,4vw,48px) calc(28px + env(safe-area-inset-bottom))}
+.hero-in{max-width:1240px;margin:0 auto;display:flex;align-items:flex-end;justify-content:space-between;gap:26px;flex-wrap:wrap}
+.hero-name{font-family:var(--disp);font-weight:100;font-size:clamp(38px,7vw,84px);line-height:.98;letter-spacing:-.02em;text-transform:uppercase;overflow:hidden}
+.hero-name span{display:inline-block;transform:translateY(110%);transition:transform 1.1s var(--ease) .15s}
+.on .hero-name span{transform:none}
+.hero-sub{display:flex;align-items:center;gap:12px;margin-top:14px;flex-wrap:wrap}
+.hero-zone{display:inline-flex;align-items:center;gap:7px;padding:7px 15px;border-radius:100px;background:rgba(255,215,0,.1);border:1px solid var(--line-gold);font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--gold);text-decoration:none}
+.hero-zone::before{content:'';width:5px;height:5px;border-radius:50%;background:currentColor}
+.hero-addr{font-size:13px;color:var(--t2)}
+.hero-price-card{flex-shrink:0;text-align:right;background:rgba(10,10,13,.55);border:1px solid var(--line-gold);border-radius:18px;padding:18px 24px;backdrop-filter:blur(16px)}
+.hero-price{font-family:var(--disp);font-weight:100;font-size:clamp(32px,4.4vw,52px);color:var(--gold);line-height:1;font-variant-numeric:tabular-nums}
+.hero-price small{font-size:13px;color:var(--t2);font-weight:300;margin-left:4px}
+.hero-price-note{margin-top:5px;font-size:10.5px;letter-spacing:1px;text-transform:uppercase;color:var(--t3)}
+.hero-cue{position:absolute;bottom:calc(10px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:6px;font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--t3)}
+.hero-cue i{width:1px;height:24px;background:linear-gradient(180deg,var(--gold),transparent);animation:cue 1.8s ease-in-out infinite}
+@keyframes cue{0%{transform:scaleY(0);transform-origin:top}45%{transform:scaleY(1);transform-origin:top}55%{transform:scaleY(1);transform-origin:bottom}100%{transform:scaleY(0);transform-origin:bottom}}
+
+/* chapter nav */
+.cnav{position:sticky;top:0;z-index:150;background:rgba(5,5,7,.85);backdrop-filter:blur(18px);border-bottom:1px solid var(--line)}
+.cnav-in{max-width:1240px;margin:0 auto;display:flex;gap:4px;padding:0 16px;overflow-x:auto;scrollbar-width:none}
+.cnav-in::-webkit-scrollbar{display:none}
+.cnav a{position:relative;flex-shrink:0;padding:16px 16px;font-size:11px;letter-spacing:1.8px;text-transform:uppercase;color:var(--t3);text-decoration:none;transition:color .25s}
+.cnav a:hover{color:var(--t1)}
+.cnav a.on{color:var(--gold)}
+.cnav a::after{content:'';position:absolute;left:16px;right:16px;bottom:-1px;height:2px;background:linear-gradient(90deg,var(--gold),var(--gold2));transform:scaleX(0);transform-origin:left;transition:transform .35s var(--ease)}
+.cnav a.on::after{transform:scaleX(1)}
+
+/* shared section chrome */
+.sec{max-width:1240px;margin:0 auto;padding:clamp(56px,9vw,110px) clamp(18px,4vw,48px) 0}
+.eyebrow{display:flex;align-items:center;gap:14px;font-size:10.5px;letter-spacing:3.5px;text-transform:uppercase;color:var(--gold);margin-bottom:16px}
+.eyebrow::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,var(--line-gold),transparent)}
+.h2{font-family:var(--disp);font-weight:200;font-size:clamp(27px,4vw,46px);letter-spacing:-.01em;line-height:1.08;margin-bottom:14px}
+.h2 .g{color:var(--gold)}
+.lead{max-width:600px;color:var(--t2);font-size:15px;line-height:1.7}
+.rv{opacity:0;transform:translateY(30px);transition:opacity .9s var(--ease),transform .9s var(--ease)}
+.rv.in{opacity:1;transform:none}
+
+/* facts strip */
+.facts{display:flex;gap:12px;overflow-x:auto;padding:26px 0 4px;scrollbar-width:none}
+.facts::-webkit-scrollbar{display:none}
+.fact{flex:0 0 auto;min-width:118px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 18px;text-align:center}
+.fact b{display:block;font-family:var(--disp);font-weight:200;font-size:24px;margin-bottom:3px}
+.fact span{font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--t3)}
+
+/* gallery */
+.gal{display:grid;grid-template-columns:repeat(4,1fr);grid-auto-rows:150px;gap:10px;margin-top:30px}
+.gal-it{position:relative;border-radius:16px;overflow:hidden;cursor:pointer;border:1px solid var(--line);background:var(--card2)}
+.gal-it img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .8s var(--ease)}
+.gal-it:hover img{transform:scale(1.05)}
+.gal-it.main{grid-column:span 2;grid-row:span 2}
+.gal-more{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(5,5,7,.6);backdrop-filter:blur(4px);font-size:14px;letter-spacing:1px;color:#fff}
+.gal-video{position:absolute;left:12px;bottom:12px;display:inline-flex;align-items:center;gap:7px;padding:8px 15px;border-radius:100px;background:rgba(0,0,0,.65);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.2);font-size:11px;letter-spacing:1px;text-transform:uppercase;color:#fff}
+@media(max-width:760px){.gal{grid-template-columns:repeat(2,1fr);grid-auto-rows:130px}}
+
+/* story */
+.story{display:grid;grid-template-columns:1.2fr .8fr;gap:clamp(26px,4vw,56px);margin-top:34px;align-items:start}
+@media(max-width:860px){.story{grid-template-columns:1fr}}
+.desc{font-size:16px;line-height:1.85;color:var(--t2)}
+.feat{display:flex;flex-wrap:wrap;gap:9px}
+.feat span{display:inline-flex;align-items:center;gap:8px;padding:10px 16px;background:var(--card);border:1px solid var(--line);border-radius:12px;font-size:13px;color:var(--t2);transition:border-color .25s}
+.feat span:hover{border-color:var(--line-gold)}
+.avail{display:inline-flex;align-items:center;gap:10px;margin-top:22px;padding:13px 18px;border-radius:12px;background:rgba(0,255,136,.06);border:1px solid rgba(0,255,136,.2);font-size:13.5px;color:var(--green)}
+
+/* area */
+.area{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:32px}
+@media(max-width:860px){.area{grid-template-columns:1fr}}
+.map{position:relative;border-radius:18px;overflow:hidden;border:1px solid var(--line);min-height:330px;background:var(--card2);cursor:pointer}
+.map iframe{width:100%;height:100%;min-height:330px;border:0;filter:invert(90%) hue-rotate(180deg) brightness(.95) contrast(1.05)}
+.map-cta{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--t2);font-size:13px}
+.map-cta b{display:flex;align-items:center;justify-content:center;width:52px;height:52px;border-radius:50%;background:rgba(255,215,0,.12);border:1px solid var(--line-gold);font-size:20px}
+.zone-card{background:linear-gradient(180deg,#0E0E12,#0A0A0D);border:1px solid var(--line);border-radius:18px;padding:26px}
+.zone-tag{font-family:var(--disp);font-weight:200;font-size:21px;line-height:1.35;margin-bottom:18px}
+.zrow{display:flex;gap:13px;align-items:flex-start;padding:11px 0;border-top:1px solid var(--line)}
+.zrow i{flex:0 0 auto;width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-style:normal;font-size:14px;background:rgba(255,215,0,.07);border:1px solid var(--line-gold)}
+.zrow div{font-size:13px;color:var(--t2);line-height:1.5}
+.zrow div b{display:block;font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:var(--t3);font-weight:600;margin-bottom:2px}
+.zsuits{display:flex;flex-wrap:wrap;gap:7px;margin-top:14px}
+.zsuits span{font-size:11px;color:var(--t2);background:var(--card);border:1px solid var(--line);border-radius:100px;padding:5px 12px}
+
+/* ════════ COSTS — interactive receipt ════════ */
+.money{display:grid;grid-template-columns:1.05fr .95fr;gap:clamp(18px,3vw,30px);margin-top:34px;align-items:start}
+@media(max-width:900px){.money{grid-template-columns:1fr}}
+.receipt{position:relative;background:#0D0D11;border:1px solid var(--line-gold);border-radius:20px;padding:28px;overflow:hidden}
+.receipt::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(255,215,0,.6),transparent)}
+.rc-h{display:flex;justify-content:space-between;align-items:center;font-size:10px;letter-spacing:2.5px;text-transform:uppercase;color:var(--t3);margin-bottom:18px}
+.rc-h b{color:var(--gold);font-weight:500}
+.rc-row{display:flex;justify-content:space-between;align-items:baseline;gap:14px;padding:13px 0;border-bottom:1px dashed rgba(255,255,255,.1);font-size:14px;color:var(--t2)}
+.rc-row em{font-style:normal;display:block;font-size:11px;color:var(--t3);margin-top:3px}
+.rc-row b{font-weight:400;font-size:16.5px;color:#fff;white-space:nowrap;font-variant-numeric:tabular-nums}
+.rc-back{color:var(--green)}
+.rc-chip{display:inline-block;font-size:9px;letter-spacing:.6px;text-transform:uppercase;color:var(--green);background:rgba(0,255,136,.08);border:1px solid rgba(0,255,136,.25);border-radius:100px;padding:2px 8px;margin-left:7px;vertical-align:middle}
+.rc-fee-seg{display:inline-flex;background:#08080A;border:1px solid var(--line);border-radius:100px;padding:3px;margin:14px 0 2px}
+.rc-fee-seg button{border:none;background:transparent;color:var(--t3);font-size:11.5px;font-weight:600;letter-spacing:.3px;padding:7px 14px;border-radius:100px;cursor:pointer;transition:all .2s}
+.rc-fee-seg button.on{background:linear-gradient(135deg,var(--gold),var(--gold2));color:#000}
+.rc-fee-note{font-size:11px;color:var(--t3);margin:8px 0 4px;line-height:1.5}
+.rc-total{display:flex;justify-content:space-between;align-items:baseline;margin-top:16px;padding:17px 18px;background:rgba(255,215,0,.06);border:1px solid var(--line-gold);border-radius:14px}
+.rc-total span{font-size:10.5px;letter-spacing:1.6px;text-transform:uppercase;color:var(--t2)}
+.rc-total b{font-family:var(--disp);font-weight:200;font-size:clamp(26px,3.4vw,36px);color:var(--gold);font-variant-numeric:tabular-nums}
+.rc-pay{margin-top:14px;font-size:11.5px;color:var(--t3);line-height:1.6;text-align:center}
+.rc-pay a{color:var(--gold);text-decoration:none}
+.split{margin-top:16px;background:#0D0D11;border:1px solid var(--line);border-radius:18px;padding:20px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.split-q{font-size:13px;color:var(--t2)}
+.split-q b{display:block;color:#fff;font-weight:500;font-size:14px}
+.seg{display:inline-flex;background:#08080A;border:1px solid var(--line);border-radius:100px;padding:3px}
+.seg button{border:none;background:transparent;color:var(--t3);font-size:13px;font-weight:600;padding:7px 15px;border-radius:100px;cursor:pointer;transition:all .2s}
+.seg button.on{background:linear-gradient(135deg,var(--gold),var(--gold2));color:#000}
+.split-out{font-size:13px;color:var(--t2)}
+.split-out b{color:var(--gold);font-weight:400;font-size:17px;font-variant-numeric:tabular-nums}
+/* terms decoder */
+.dec{display:flex;flex-direction:column;gap:10px}
+.dec-h{font-size:10.5px;letter-spacing:2.5px;text-transform:uppercase;color:var(--t3);margin-bottom:4px}
+.term{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.term>button{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;padding:15px 17px;background:transparent;border:none;cursor:pointer;text-align:left}
+.term-w{font-size:14px;color:#fff;font-style:italic;letter-spacing:.3px}
+.term-w small{font-style:normal;color:var(--t3);font-size:11px;margin-left:8px}
+.term-i{color:var(--gold);font-size:15px;transition:transform .3s}
+.term.open .term-i{transform:rotate(45deg)}
+.term-d{max-height:0;overflow:hidden;transition:max-height .4s var(--ease)}
+.term-d div{padding:0 17px 14px;font-size:12.5px;color:var(--t2);line-height:1.65}
+.term-d b{color:var(--green);font-weight:500}
+
+/* trust strip */
+.trust{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-top:30px}
+@media(max-width:900px){.trust{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:520px){.trust{grid-template-columns:repeat(2,1fr)}}
+.tr{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 10px;text-align:center;transition:border-color .25s}
+.tr:hover{border-color:rgba(0,255,136,.3)}
+.tr i{display:block;font-style:normal;font-size:19px;margin-bottom:8px}
+.tr span{font-size:10.5px;line-height:1.4;color:var(--t2);display:block}
+.trust-foot{margin-top:16px;text-align:center;font-size:12px;color:var(--t3)}
+.trust-foot a{color:var(--gold);text-decoration:none}
+
+/* move-in */
+.steps{position:relative;display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:44px;padding-top:40px}
+@media(max-width:760px){.steps{grid-template-columns:1fr;padding-top:0;padding-left:40px}}
+.rail{position:absolute;top:14px;left:9%;right:9%;height:2px;background:rgba(255,255,255,.09);overflow:hidden;border-radius:2px}
+.rail i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--gold),var(--gold2));box-shadow:0 0 10px rgba(255,215,0,.4);transition:width 1.6s var(--ease)}
+.in .rail i{width:100%}
+@media(max-width:760px){.rail{left:13px;right:auto;top:8px;bottom:8px;width:2px;height:auto}.rail i{width:100%;height:0;transition:height 1.6s var(--ease)}.in .rail i{height:100%;width:100%}}
+.step{position:relative;text-align:center}
+@media(max-width:760px){.step{text-align:left}}
+.step-n{position:absolute;top:-40px;left:50%;transform:translateX(-50%) scale(.85);width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#0A0A0D;border:2px solid rgba(255,255,255,.18);font-size:11px;font-weight:600;color:var(--t3);transition:all .5s var(--ease)}
+.in .step-n{border-color:var(--gold);background:linear-gradient(135deg,var(--gold),var(--gold2));color:#000;transform:translateX(-50%) scale(1);box-shadow:0 0 0 5px rgba(255,215,0,.12)}
+@media(max-width:760px){.step-n{left:-40px;top:0;transform:scale(.85)}.in .step-n{transform:scale(1)}}
+.in .step:nth-child(3) .step-n{transition-delay:.25s}.in .step:nth-child(4) .step-n{transition-delay:.5s}.in .step:nth-child(5) .step-n{transition-delay:.75s}
+.step b{display:block;font-size:15px;font-weight:500;margin-bottom:4px}
+.step span{font-size:12px;color:var(--t3)}
+/* tour picker */
+.tour{margin-top:40px;display:grid;grid-template-columns:1fr 1fr;background:var(--card2);border:1px solid var(--line-gold);border-radius:20px;overflow:hidden}
+@media(max-width:760px){.tour{grid-template-columns:1fr}}
+.tour-l{padding:28px;border-right:1px solid var(--line)}
+@media(max-width:760px){.tour-l{border-right:none;border-bottom:1px solid var(--line)}}
+.tour-l h3{font-family:var(--disp);font-weight:200;font-size:24px;margin-bottom:10px}
+.tour-l h3 .g{color:var(--gold)}
+.tour-l p{font-size:13.5px;color:var(--t2);line-height:1.65}
+.tour-r{padding:28px;display:flex;flex-direction:column}
+.tour-q{font-size:10px;letter-spacing:1.6px;text-transform:uppercase;color:var(--t3);margin:0 0 9px}
+.tchips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+.tchip{padding:9px 13px;background:var(--card);border:1px solid var(--line);border-radius:10px;font-size:13px;color:var(--t2);cursor:pointer;transition:all .2s;border:1px solid var(--line);text-align:center;min-width:46px}
+.tchip:hover{border-color:var(--gold);color:#fff}
+.tchip.on{background:linear-gradient(135deg,var(--gold),var(--gold2));color:#000;font-weight:600;border-color:transparent}
+.tchip small{display:block;font-size:9px;text-transform:uppercase;letter-spacing:.5px;opacity:.7}
+.tour-go{margin-top:auto;padding:14px;border:none;border-radius:12px;background:linear-gradient(135deg,var(--gold),var(--gold2));color:#000;font-size:14.5px;font-weight:600;cursor:pointer;transition:all .25s}
+.tour-go:disabled{opacity:.4;cursor:default}
+.tour-go:not(:disabled):hover{transform:translateY(-2px);box-shadow:0 10px 30px rgba(255,215,0,.3)}
+
+/* apply */
+.apply-wrap{max-width:660px;margin:0 auto}
+.apply-card{background:linear-gradient(180deg,#0E0E12,#0A0A0D);border:1px solid var(--line-gold);border-radius:22px;padding:clamp(24px,4vw,40px);position:relative;overflow:hidden}
+.apply-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(255,215,0,.6),transparent)}
+.apply-card h3{font-family:var(--disp);font-weight:200;font-size:clamp(23px,3vw,30px);margin-bottom:6px}
+.apply-card>p{font-size:13px;color:var(--t3);margin-bottom:22px}
+.apply-card input,.apply-card select,.apply-card textarea{width:100%;background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:11px;padding:13px 15px;color:#fff;font-family:inherit;font-size:14px;margin-bottom:11px;outline:none;transition:border-color .25s}
+.apply-card input:focus,.apply-card textarea:focus,.apply-card select:focus{border-color:var(--gold)}
+.apply-card textarea{resize:vertical;min-height:74px}
+.apply-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:520px){.apply-row{grid-template-columns:1fr}}
+.apply-card select{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath fill='%23FFD700' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:34px;cursor:pointer}
+.apply-card select option{background:#0e0e12}
+.apply-go{width:100%;padding:15px;border:none;border-radius:12px;background:linear-gradient(135deg,var(--gold),var(--gold2));color:#000;font-size:15px;font-weight:600;cursor:pointer;transition:all .25s;position:relative;overflow:hidden;isolation:isolate}
+.apply-go::after{content:'';position:absolute;inset:0;background:linear-gradient(105deg,transparent 38%,rgba(255,255,255,.35) 50%,transparent 62%);transform:translateX(-140%) skewX(-18deg);animation:sheen 7s ease-in-out infinite}
+@keyframes sheen{0%,72%{transform:translateX(-140%) skewX(-18deg)}90%,100%{transform:translateX(140%) skewX(-18deg)}}
+.apply-go:hover{transform:translateY(-2px);box-shadow:0 12px 36px rgba(255,215,0,.3)}
+.apply-go:disabled{opacity:.55;cursor:default;transform:none}
+.apply-note{margin-top:13px;text-align:center;font-size:11px;color:var(--t3)}
+.apply-ok{display:none;text-align:center;padding:26px 0 10px;color:var(--green);font-size:15px;line-height:1.6}
+.reserve{margin-top:20px;padding-top:20px;border-top:1px solid var(--line);text-align:center}
+.reserve p{font-size:12.5px;color:var(--t2);margin-bottom:12px}
+.reserve a{display:inline-flex;align-items:center;gap:8px;padding:12px 24px;border:1px solid var(--gold);border-radius:12px;color:var(--gold);font-size:13.5px;font-weight:600;text-decoration:none;transition:all .25s}
+.reserve a:hover{background:rgba(255,215,0,.08)}
+
+/* footer */
+.ft{margin-top:clamp(60px,9vw,110px);border-top:1px solid var(--line);padding:34px clamp(18px,4vw,48px) calc(110px + env(safe-area-inset-bottom));text-align:center}
+.ft .hd-logo{font-size:17px}
+.ft p{margin-top:10px;font-size:11px;color:var(--t3);letter-spacing:.4px}
+.ft a{color:var(--t2);text-decoration:none}
+
+/* sticky action bar */
+.bar{position:fixed;left:0;right:0;bottom:0;z-index:180;background:rgba(5,5,7,.9);backdrop-filter:blur(20px);border-top:1px solid var(--line-gold);transform:translateY(110%);transition:transform .5s var(--ease)}
+.bar.in{transform:none}
+.bar-in{max-width:1240px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px clamp(16px,4vw,48px) calc(12px + env(safe-area-inset-bottom))}
+.bar-info{min-width:0}
+.bar-name{font-size:13px;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar-price{font-family:var(--disp);font-weight:200;font-size:20px;color:var(--gold);font-variant-numeric:tabular-nums}
+.bar-price small{font-size:11px;color:var(--t3)}
+.bar-cta{display:flex;gap:10px;flex-shrink:0}
+.bar-apply{display:inline-flex;align-items:center;padding:12px 24px;border-radius:11px;background:linear-gradient(135deg,var(--gold),var(--gold2));color:#000;font-size:14px;font-weight:600;text-decoration:none;white-space:nowrap;transition:all .25s}
+.bar-apply:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(255,215,0,.3)}
+.bar-wa{display:inline-flex;align-items:center;justify-content:center;width:44px;border-radius:11px;border:1px solid var(--line);color:#25D366;font-size:18px;text-decoration:none;transition:border-color .25s}
+.bar-wa:hover{border-color:#25D366}
+
+/* AI concierge */
+.ai-fab{position:fixed;right:18px;bottom:86px;z-index:190;display:inline-flex;align-items:center;gap:8px;padding:12px 18px;border:none;border-radius:100px;background:#0E0E12;border:1px solid var(--line-gold);color:var(--gold);font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 12px 40px rgba(0,0,0,.5);transition:all .3s}
+.ai-fab:hover{background:rgba(255,215,0,.08);transform:translateY(-2px)}
+.ai-fab.hide{opacity:0;pointer-events:none}
+.ai{position:fixed;right:14px;bottom:86px;z-index:195;width:min(390px,calc(100vw - 28px));max-height:min(68vh,600px);display:flex;flex-direction:column;background:#0A0A0D;border:1px solid var(--line-gold);border-radius:18px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.65);opacity:0;transform:translateY(14px) scale(.98);pointer-events:none;transition:all .3s var(--ease)}
+.ai.open{opacity:1;transform:none;pointer-events:auto}
+.ai-h{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-bottom:1px solid var(--line);font-size:10px;letter-spacing:1.8px;text-transform:uppercase;color:var(--gold)}
+.ai-x{background:none;border:none;color:var(--t2);font-size:22px;cursor:pointer;line-height:1}
+.ai-s{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:12px;padding:14px;scrollbar-width:thin}
+.ai-m{display:flex;gap:10px;align-items:flex-start}
+.ai-m.me{flex-direction:row-reverse}
+.ai-a{flex:0 0 auto;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;background:linear-gradient(135deg,var(--gold),var(--gold2));color:#000}
+.ai-m.me .ai-a{background:rgba(255,255,255,.08);color:#fff}
+.ai-b{max-width:82%;padding:11px 14px;border-radius:13px;font-size:13.5px;line-height:1.55;color:#E6E6E6;background:#141418;border:1px solid var(--line);white-space:pre-wrap;word-break:break-word}
+.ai-m.me .ai-b{background:rgba(255,215,0,.08);border-color:var(--line-gold);color:#fff}
+.ai-chips{display:flex;gap:7px;flex-wrap:wrap;padding:0 14px 10px}
+.ai-chip{padding:7px 12px;background:var(--card);border:1px solid var(--line);border-radius:100px;font-size:11.5px;color:var(--t2);cursor:pointer;transition:all .2s}
+.ai-chip:hover{border-color:var(--gold);color:var(--gold)}
+.ai-f{display:flex;gap:9px;padding:0 14px 14px}
+.ai-f input{flex:1;min-width:0;background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:11px;padding:12px 14px;color:#fff;font-family:inherit;font-size:13.5px;outline:none}
+.ai-f input:focus{border-color:var(--gold)}
+.ai-f button{flex:0 0 auto;width:44px;border:none;border-radius:11px;background:linear-gradient(135deg,var(--gold),var(--gold2));color:#000;font-size:18px;cursor:pointer}
+.ai-f button:disabled{opacity:.5}
+.ai-typing{display:flex;gap:4px}
+.ai-typing i{width:6px;height:6px;border-radius:50%;background:var(--gold);animation:tp 1.2s infinite}
+.ai-typing i:nth-child(2){animation-delay:.2s}.ai-typing i:nth-child(3){animation-delay:.4s}
+@keyframes tp{0%,60%,100%{opacity:.3}30%{opacity:1;transform:translateY(-3px)}}
+
+/* lightbox */
+.lb{position:fixed;inset:0;z-index:350;background:rgba(3,3,5,.93);backdrop-filter:blur(10px);display:none;align-items:center;justify-content:center}
+.lb.open{display:flex}
+.lb img{max-width:92vw;max-height:86vh;border-radius:12px}
+.lb button{position:absolute;background:rgba(0,0,0,.5);border:1px solid var(--line);color:#fff;cursor:pointer;border-radius:50%;width:44px;height:44px;font-size:18px;transition:all .25s}
+.lb button:hover{border-color:var(--gold);color:var(--gold)}
+.lb-x{top:18px;right:18px}
+.lb-p{left:14px;top:50%;transform:translateY(-50%)}
+.lb-n{right:14px;top:50%;transform:translateY(-50%)}
+.lb-c{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);font-size:12px;color:var(--t2);letter-spacing:1px}
+
+@media(prefers-reduced-motion:reduce){
+  .aur i,.hero-img,.hero-cue i,.apply-go::after{animation:none!important}
+  .rv{opacity:1!important;transform:none!important}
+  .hero-name span{transform:none!important;transition:none}
+  html{scroll-behavior:auto}
+  .rail i{transition:none}
+  .step-n{transition:none}
+}
+</style>
+</head>
+<body>
+<div class="aur"><i class="a"></i><i class="b"></i></div>
+<div class="prog" id="prog"></div>
+
+<header class="hd" id="hd">
+  <a class="hd-logo" href="/">BO<b>O</b>M</a>
+  <div class="hd-right">
+    <a class="hd-back" href="/apartments">← All apartments</a>
+    <a class="hd-wa" href="https://wa.me/393313251961" target="_blank" rel="noopener">💬 WhatsApp</a>
+  </div>
+</header>
+
+<div class="boot" id="boot"><div class="boot-dot"></div><div class="boot-t">BOOM · Rome</div></div>
+<div class="err" id="err"><h2>Listing not found</h2><p style="color:var(--t2);margin-top:6px">It may have just been rented. <a href="/apartments">Browse all apartments →</a></p></div>
+
+<main id="page" style="display:none">
+
+  <!-- HERO -->
+  <section class="hero" id="top">
+    <div class="hero-img" id="heroImg"></div>
+    <div class="hero-scrim"></div>
+    <div class="hero-badges" id="heroBadges"></div>
+    <div class="hero-glass"><div class="hero-in">
+      <div>
+        <h1 class="hero-name"><span id="heroName"></span></h1>
+        <div class="hero-sub">
+          <a class="hero-zone" id="heroZone" href="/apartments"></a>
+          <span class="hero-addr" id="heroAddr"></span>
+        </div>
+      </div>
+      <div class="hero-price-card">
+        <div class="hero-price"><span id="heroPrice"></span><small>/mo</small></div>
+        <div class="hero-price-note">all fees included · no hidden costs</div>
+      </div>
+    </div></div>
+    <div class="hero-cue"><span>Scroll</span><i></i></div>
+  </section>
+
+  <!-- CHAPTER NAV -->
+  <nav class="cnav" aria-label="Page sections"><div class="cnav-in" id="cnav">
+    <a href="#gallery">Gallery</a><a href="#storySec">The home</a><a href="#areaSec">The area</a><a href="#moneySec">The money</a><a href="#movein">Move-in</a><a href="#applySec">Apply</a>
+  </div></nav>
+
+  <!-- GALLERY + FACTS -->
+  <section class="sec" id="gallery">
+    <div class="facts rv" id="facts"></div>
+    <div class="gal rv" id="gal"></div>
+  </section>
+
+  <!-- STORY -->
+  <section class="sec" id="storySec">
+    <div class="rv"><div class="eyebrow">Chapter 01 · the home</div>
+    <h2 class="h2" id="storyTitle">Inside the <span class="g">home</span>.</h2></div>
+    <div class="story rv">
+      <div><div class="desc" id="desc"></div><div id="availWrap"></div></div>
+      <div><div class="eyebrow" style="margin-bottom:14px">Features</div><div class="feat" id="feat"></div></div>
+    </div>
+  </section>
+
+  <!-- AREA -->
+  <section class="sec" id="areaSec">
+    <div class="rv"><div class="eyebrow">Chapter 02 · the area</div>
+    <h2 class="h2">Life around <span class="g" id="zoneName2">here</span>.</h2></div>
+    <div class="area rv">
+      <div class="map" id="map"><div class="map-cta"><b>🗺️</b><span>Tap to load the map</span></div></div>
+      <div class="zone-card" id="zoneCard"></div>
+    </div>
+  </section>
+
+  <!-- MONEY -->
+  <section class="sec" id="moneySec">
+    <div class="rv"><div class="eyebrow">Chapter 03 · the money, in full light</div>
+    <h2 class="h2">Exactly what you pay.<br><span class="g">And exactly what comes back.</span></h2>
+    <p class="lead">Most agencies keep the math hidden until you’re at the table. Here is every euro for this home — before you commit to anything.</p></div>
+    <div class="money rv">
+      <div class="receipt" id="receipt"></div>
+      <div>
+        <div class="split" id="split"></div>
+        <div class="dec" style="margin-top:16px">
+          <div class="dec-h">Decode the terms</div>
+          <div id="decoder"></div>
+        </div>
+      </div>
+    </div>
+    <div class="trust rv" id="trustStrip"></div>
+    <div class="trust-foot rv">Rated <b style="color:#fff">4.9</b> by tenants on <a href="https://share.google/xikmVxQCRuKOdWcND" target="_blank" rel="noopener">47 Google reviews →</a></div>
+  </section>
+
+  <!-- MOVE-IN -->
+  <section class="sec" id="movein">
+    <div class="rv"><div class="eyebrow">Chapter 04 · from yes to keys</div>
+    <h2 class="h2">Moved in, in <span class="g">48 hours</span>.</h2></div>
+    <div class="steps rv" id="steps">
+      <div class="rail"><i></i></div>
+      <div class="step"><div class="step-n">01</div><b>Apply</b><span>2-minute form</span></div>
+      <div class="step"><div class="step-n">02</div><b>Approved</b><span>within 2 hours</span></div>
+      <div class="step"><div class="step-n">03</div><b>Sign &amp; pay</b><span>Stripe · in English</span></div>
+      <div class="step"><div class="step-n">04</div><b>Keys</b><span>as fast as 48h</span></div>
+    </div>
+    <div class="tour rv">
+      <div class="tour-l">
+        <h3>Can’t visit? <span class="g">See it live.</span></h3>
+        <p>A BOOM agent walks you through this exact apartment on a live video call — every room, every question, real time. Free, in English, ~15 minutes.</p>
+      </div>
+      <div class="tour-r">
+        <p class="tour-q">Pick a day</p><div class="tchips" id="tourDays"></div>
+        <p class="tour-q">Pick a time</p><div class="tchips" id="tourTimes"></div>
+        <button class="tour-go" id="tourGo" disabled>Request this tour →</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- APPLY -->
+  <section class="sec" id="applySec">
+    <div class="apply-wrap rv">
+      <div class="apply-card">
+        <h3>Apply for this home</h3>
+        <p>No fee to apply · reply within 2 hours · you could be in within 48.</p>
+        <form id="applyForm">
+          <input type="text" id="fName" placeholder="Your name" required>
+          <input type="email" id="fEmail" placeholder="Your email" required>
+          <input type="tel" id="fPhone" placeholder="WhatsApp number (optional)">
+          <div class="apply-row">
+            <input type="date" id="fMove" aria-label="Preferred move-in date">
+            <select id="fDur" aria-label="Length of stay"><option value="">Length of stay</option><option>1–3 months</option><option>3–6 months</option><option>6–12 months</option><option>12+ months</option></select>
+          </div>
+          <textarea id="fMsg" placeholder="Anything we should know? (optional)"></textarea>
+          <button class="apply-go" id="fGo" type="submit">Apply in 2 minutes →</button>
+          <div class="apply-note">🔒 Private &amp; no commitment. A real person reviews every application.</div>
+        </form>
+        <div class="apply-ok" id="applyOk">✓ Application received!<br>Our team will contact you within 2 hours.</div>
+        <div class="reserve">
+          <p>Scared it goes to someone else? Lock it while we process you.</p>
+          <a id="reserveBtn" href="https://wa.me/393313251961" target="_blank" rel="noopener">🔒 Reserve &amp; hold — <span id="reserveAmt">€300</span> · 100% refundable</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="ft">
+  <a class="hd-logo" href="/">BO<b>O</b>M</a>
+  <p>Egidi Immobiliare S.r.l. · P.IVA 17322991005 · Rome, Italy · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a></p>
+</footer>
+
+<!-- sticky bar -->
+<div class="bar" id="bar"><div class="bar-in">
+  <div class="bar-info"><div class="bar-name" id="barName"></div><div class="bar-price"><span id="barPrice"></span><small> /mo</small></div></div>
+  <div class="bar-cta">
+    <a class="bar-wa" href="https://wa.me/393313251961" target="_blank" rel="noopener" aria-label="WhatsApp">💬</a>
+    <a class="bar-apply" href="#applySec">Apply now</a>
+  </div>
+</div></div>
+
+<!-- AI concierge -->
+<button class="ai-fab" id="aiFab">✦ Ask about this home</button>
+<div class="ai" id="ai" role="dialog" aria-label="BOOM AI concierge">
+  <div class="ai-h"><span>✦ Ask this home anything</span><button class="ai-x" id="aiX" aria-label="Close">×</button></div>
+  <div class="ai-s" id="aiS"><div class="ai-m"><div class="ai-a">✦</div><div class="ai-b">Hi 👋 I’m BOOM’s concierge for this apartment. Costs, the area, the contract, timing — ask me anything.</div></div></div>
+  <div class="ai-chips" id="aiChips"></div>
+  <form class="ai-f" id="aiF"><input id="aiQ" maxlength="600" autocomplete="off" placeholder="Ask about cost, deposit, the area…" aria-label="Your question"><button type="submit" id="aiGo">→</button></form>
+</div>
+
+<!-- lightbox -->
+<div class="lb" id="lb"><button class="lb-x" id="lbX">✕</button><button class="lb-p" id="lbP">‹</button><img id="lbImg" alt="Apartment photo"><button class="lb-n" id="lbN">›</button><div class="lb-c" id="lbC"></div></div>
+
+<script>
+/* V2 ENGINE */
+(function(){
+'use strict';
+var PROJECT='boom-property-dashboards', KEY='AIzaSyDDb8UeSc8RhO_VxQrhLrupu1aPD4rwRso';
+var WA='https://wa.me/393313251961';
+var reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+var $=function(id){return document.getElementById(id);};
+var fmt=function(n){return '€'+Math.round(n).toLocaleString('en-US');};
+var esc=function(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');};
+
+var id=new URLSearchParams(location.search).get('id')||'navona';
+
+function fv(v){if(v==null)return undefined;var k=Object.keys(v)[0],x=v[k];
+  if(k==='integerValue'||k==='doubleValue')return Number(x);
+  if(k==='booleanValue')return x; if(k==='nullValue')return null;
+  if(k==='arrayValue')return ((x&&x.values)||[]).map(fv);
+  if(k==='mapValue'){var o={},f=(x&&x.fields)||{};for(var kk in f)o[kk]=fv(f[kk]);return o;}
+  return x;}
+
+var ZONES={
+ 'trastevere':{tag:'Rome’s most beloved bohemian quarter — cobbles, ivy and trattorias.',transit:'Tram 8 to the centre; Trastevere rail close by.',walk:'A highly walkable maze of lanes.',vibe:'Markets, wine bars, classic trattorias.',suits:['Nightlife','Students','Couples']},
+ 'centro-storico':{tag:'The historic heart — Pantheon, Navona and the Trevi at your door.',transit:'Mostly pedestrian; Spagna &amp; Barberini (Line A) on the edges.',walk:'Everything on foot, surrounded by landmarks.',vibe:'Cafés, boutiques and monuments at the door.',suits:['First time in Rome','Walk everywhere','Couples']},
+ 'monti':{tag:'Rome’s coolest little village, beside the Colosseum.',transit:'Cavour &amp; Colosseo (Line B); Via Nazionale buses.',walk:'Charming, hilly, very walkable.',vibe:'Vintage shops, wine bars, indie eateries.',suits:['Creatives','Aperitivo crowd','Young pros']},
+ 'prati':{tag:'Elegant, orderly and green — right by the Vatican.',transit:'Ottaviano, Lepanto &amp; Cipro (Line A).',walk:'Wide boulevards, easy walking.',vibe:'Cola di Rienzo shopping, daily market.',suits:['Professionals','Families','Quiet']},
+ 'pigneto':{tag:'Rome’s edgy, artsy east side — its little Berlin.',transit:'Trams 5/14, Pigneto rail, frequent buses.',walk:'Walkable strip; very bike-friendly.',vibe:'Street art, craft beer, live music.',suits:['Students','Night owls','Budget']},
+ 'testaccio':{tag:'Authentic, food-obsessed and proudly local.',transit:'Piramide (Line B) and buses.',walk:'Compact and flat.',vibe:'The legendary market, Roman kitchens.',suits:['Foodies','Locals at heart','Couples']},
+ 'ostiense':{tag:'Post-industrial cool — galleries, street art, clubs.',transit:'Piramide &amp; Garbatella (Line B); Roma Tre.',walk:'Spread out; great cycling.',vibe:'Eataly, murals, the best nightlife.',suits:['Students','Creatives','Nightlife']},
+ 'trieste-coppede':{tag:'Leafy and refined — the fairy-tale Coppedè quarter.',transit:'Buses + S.Agnese &amp; Annibaliano (B1).',walk:'Quiet tree-lined streets.',vibe:'Villa Ada park, calm cafés.',suits:['Families','Quiet','Professionals']},
+ 'san-lorenzo':{tag:'The university quarter — young, gritty, alive.',transit:'Termini &amp; Tiburtina close; trams everywhere.',walk:'Dense and very walkable.',vibe:'Cheap eats, bars, bookshops by Sapienza.',suits:['Students','Budget','Nightlife']},
+ 'esquilino':{tag:'Central and multicultural — right by Termini.',transit:'Termini — both metro lines (A &amp; B).',walk:'Flat and superbly connected.',vibe:'The global market, Rome’s transport hub.',suits:['Commuters','Value','First job']}
+};
+var ZTERMS=[['trastevere',['trastevere','gianicolo']],['centro-storico',['centro storico','navona','pantheon','centro','trevi','campo de','spagna','coronari','farnese']],['monti',['monti','colosseo','cavour','colosseum']],['prati',['prati','vatican','vaticano','ottaviano','lepanto','angelico','cola di rienzo','mazzini']],['pigneto',['pigneto','casilina','centocelle']],['testaccio',['testaccio','mattatoio']],['ostiense',['ostiense','garbatella','marconi','piramide','gazometro']],['trieste-coppede',['trieste','copped','parioli','salario','nomentano','levico','villa ada']],['san-lorenzo',['san lorenzo','sapienza','tiburtina','verano']],['esquilino',['esquilino','termini','vittorio']]];
+function zoneSlug(z){if(!z)return null;var s=String(z).toLowerCase();for(var i=0;i<ZTERMS.length;i++){for(var j=0;j<ZTERMS[i][1].length;j++){if(s.indexOf(ZTERMS[i][1][j])!==-1)return ZTERMS[i][0];}}return null;}
+
+function exYT(u){if(!u)return null;var m=String(u).match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/);return m?m[1]:null;}
+
+var D=null, IMGS=[], lbIdx=0;
+
+fetch('https://firestore.googleapis.com/v1/projects/'+PROJECT+'/databases/(default)/documents/listings/'+encodeURIComponent(id)+'?key='+KEY)
+ .then(function(r){if(!r.ok)throw 0;return r.json();})
+ .then(function(doc){var f=doc.fields||{},d={};for(var k in f)d[k]=fv(f[k]);render(d);})
+ .catch(function(){ $('boot').classList.add('off'); $('err').style.display='block'; });
+
+function render(d){
+  D=d;
+  var name=d.name||'Apartment', zone=d.zone||d.neighborhood||'', rent=Number(d.price)||0;
+  document.title=name+' — BOOM V2 Preview';
+  IMGS=(d.images&&d.images.length?d.images:(d.image?[d.image]:[])).filter(Boolean);
+  var vId=exYT(d.videoUrl||d.youtubeUrl);
+
+  // hero
+  if(IMGS[0]) $('heroImg').style.backgroundImage='url("'+IMGS[0]+'")';
+  $('heroName').textContent=name;
+  $('heroAddr').textContent=d.address||'Rome, Italy';
+  var slug=zoneSlug(zone);
+  var zEl=$('heroZone');
+  if(zone){zEl.textContent=zone; if(slug)zEl.href='/apartments-in/'+slug;}else zEl.style.display='none';
+  var price=rent?fmt(rent):'—';
+  $('heroPrice').textContent=price; $('barPrice').textContent=price; $('barName').textContent=name;
+  var st=String(d.status||'available').toLowerCase(), bd=$('heroBadges');
+  bd.innerHTML = (/rented|affittato/.test(st)?'<span class="hbadge" style="color:#FF6B60;background:rgba(255,59,48,.15);border-color:rgba(255,59,48,.35)">● Rented</span>':/waitlist/.test(st)?'<span class="hbadge" style="color:#FF9500;background:rgba(255,149,0,.12);border-color:rgba(255,149,0,.3)">● Waitlist</span>':'<span class="hbadge av">● Available</span>')
+    +'<span class="hbadge vf">✓ Verified by BOOM</span>'+(vId?'<span class="hbadge vd">▶ Video tour</span>':'');
+
+  // facts
+  var beds=d.beds||d.bedrooms, sqm=d.sqm||d.size, facts=[];
+  if(sqm)facts.push([sqm+'m²','Size']); if(beds)facts.push([beds,beds>1?'Bedrooms':'Bedroom']);
+  if(d.bathrooms)facts.push([d.bathrooms,d.bathrooms>1?'Bathrooms':'Bathroom']);
+  if(d.floor)facts.push([d.floor,'Floor']); if(d.type)facts.push([d.type,'Type']);
+  if(d.furnished){var fl={yes:'Yes',partial:'Partial',no:'No'};facts.push([fl[d.furnished]||d.furnished,'Furnished']);}
+  $('facts').innerHTML=facts.map(function(f){return '<div class="fact"><b>'+esc(f[0])+'</b><span>'+esc(f[1])+'</span></div>';}).join('');
+
+  // gallery
+  var g=$('gal'), shown=IMGS.slice(0,5);
+  g.innerHTML=shown.map(function(src,i){
+    var more=(i===shown.length-1&&IMGS.length>shown.length)?'<div class="gal-more">+'+(IMGS.length-shown.length)+' photos</div>':'';
+    var vbtn=(i===0&&vId)?'<span class="gal-video">▶ Play tour</span>':'';
+    return '<div class="gal-it'+(i===0?' main':'')+'" data-i="'+i+'"><img src="'+esc(src)+'" alt="'+esc(name)+' — photo '+(i+1)+'" loading="'+(i===0?'eager':'lazy')+'">'+more+vbtn+'</div>';
+  }).join('');
+  g.addEventListener('click',function(e){
+    var it=e.target.closest('.gal-it'); if(!it)return;
+    if(e.target.closest('.gal-video')&&vId){window.open('https://www.youtube.com/watch?v='+vId,'_blank');return;}
+    openLb(Number(it.getAttribute('data-i'))||0);
+  });
+
+  // story
+  $('storyTitle').innerHTML='Inside <span class="g">'+esc(name)+'</span>.';
+  $('desc').innerHTML=d.description?esc(d.description).replace(/\n/g,'<br>'):'A verified BOOM home in '+esc(zone||'Rome')+'. Ask us anything about it — we filmed it ourselves.';
+  if(d.availableDate)$('availWrap').innerHTML='<div class="avail">📅 Available from <b style="margin-left:4px">'+esc(d.availableDate)+'</b></div>';
+  var feats=(d.features&&d.features.length?d.features:d.tags||[]).slice(0,14);
+  $('feat').innerHTML=feats.length?feats.map(function(f){return '<span>✓ '+esc(f)+'</span>';}).join(''):'<span>✓ Verified condition — ask for the full list</span>';
+
+  // area
+  if(zone){$('zoneName2').textContent=zone;}
+  var Z=slug&&ZONES[slug];
+  $('zoneCard').innerHTML=Z?
+    '<div class="eyebrow" style="margin-bottom:12px">Life in '+esc(zone)+'</div><div class="zone-tag">'+Z.tag+'</div>'+
+    '<div class="zrow"><i>🚇</i><div><b>Getting around</b>'+Z.transit+'</div></div>'+
+    '<div class="zrow"><i>🚶</i><div><b>On foot</b>'+Z.walk+'</div></div>'+
+    '<div class="zrow"><i>✨</i><div><b>The vibe</b>'+Z.vibe+'</div></div>'+
+    '<div class="zsuits">'+Z.suits.map(function(s){return '<span>'+s+'</span>';}).join('')+'</div>'
+    :'<div class="eyebrow" style="margin-bottom:12px">The area</div><div class="zone-tag">A verified BOOM location in Rome — ask the concierge what life here is like.</div>';
+  var addr=encodeURIComponent(d.address||zone||'Rome, Italy');
+  var mapSrc=(d.lat&&d.lng)?('https://www.google.com/maps?q='+d.lat+','+d.lng+'&z=16&output=embed'):('https://www.google.com/maps?q='+addr+'&z=16&output=embed');
+  $('map').addEventListener('click',function(){this.innerHTML='<iframe src="'+mapSrc+'" loading="lazy" title="Map"></iframe>';},{once:true});
+
+  // money
+  buildMoney(rent);
+
+  // reserve amount
+  var hold=Number(d.holdingDeposit||d.reservationFee||0); hold=hold>0?Math.min(2000,Math.max(100,Math.round(hold))):300;
+  $('reserveAmt').textContent=fmt(hold);
+  $('reserveBtn').href=WA+'?text='+encodeURIComponent('Hi BOOM! I want to reserve & hold '+name+' ('+fmt(hold)+' refundable). (from V2 preview)');
+
+  // reveal
+  $('boot').classList.add('off');
+  var page=$('page'); page.style.display='block';
+  requestAnimationFrame(function(){requestAnimationFrame(function(){document.body.classList.add('on'); wire();});});
+}
+
+function buildMoney(rent){
+  var has=rent>0, dep=rent, feeA=rent, feeB=Math.round(rent*12*.10), mode='A';
+  var r=$('receipt');
+  function draw(){
+    var fee=mode==='A'?feeA:feeB, due=rent+dep+fee;
+    r.innerHTML=
+      '<div class="rc-h"><span>BOOM · move-in receipt</span><b>transparent by design</b></div>'+
+      '<div class="rc-row"><span>First month’s rent<em>You’d pay this anywhere.</em></span><b>'+(has?fmt(rent):'—')+'</b></div>'+
+      '<div class="rc-row"><span>Security deposit<span class="rc-chip">↩ returns to you</span><em>One month, held with guarantees under Italian law.</em></span><b class="rc-back">'+(has?fmt(dep):'—')+'</b></div>'+
+      '<div class="rc-row" style="border-bottom:none"><span>BOOM agency fee<em>Varies per home: a flat month or 10% of the year — always told before you sign.</em>'+
+      '<span class="rc-fee-seg" id="feeSeg"><button type="button" data-m="A"'+(mode==='A'?' class="on"':'')+'>One month</button><button type="button" data-m="B"'+(mode==='B'?' class="on"':'')+'>10% / year</button></span></span><b id="feeVal">'+(has?fmt(fee):'—')+'</b></div>'+
+      '<div class="rc-total"><span>Due at signing</span><b id="dueVal">'+(has?fmt(due):'—')+'</b></div>'+
+      '<div class="rc-pay">🔒 Paid via Stripe, in English, card accepted — receipts for every euro.</div>';
+    var seg=$('feeSeg');
+    if(seg)seg.addEventListener('click',function(e){var b2=e.target.closest('button[data-m]');if(!b2)return;mode=b2.getAttribute('data-m');draw();});
+  }
+  draw();
+  // split
+  var s=$('split'), n=1;
+  function drawSplit(){
+    var pp=rent/n, inc=Math.round(pp*3/50)*50;
+    s.innerHTML='<div class="split-q"><b>Sharing with flatmates?</b>Rent per person, instantly.</div>'+
+      '<div class="seg" id="splitSeg">'+[1,2,3,4].map(function(k){return '<button type="button" data-n="'+k+'"'+(k===n?' class="on"':'')+'>'+(k===4?'4+':k)+'</button>';}).join('')+'</div>'+
+      '<div class="split-out">'+(has?('<b>'+fmt(pp)+'</b> /person · comfy income ≈ '+fmt(inc)+'/mo'):'—')+'</div>';
+    var seg=$('splitSeg');
+    if(seg)seg.addEventListener('click',function(e){var b2=e.target.closest('button[data-n]');if(!b2)return;n=Number(b2.getAttribute('data-n'))||1;drawSplit();});
+  }
+  drawSplit();
+  // decoder
+  var T=[
+   ['deposito cauzionale','the deposit','Italian law (Art. 11, L.392/1978) caps deposits at three months — BOOM asks for <b>one</b>. It legally stays your money, must earn <b>interest in your favour</b>, and normal wear can never be deducted.'],
+   ['la provvigione','the agency fee','Charged <b>once</b>, only when you sign: a flat month or 10% of the annual rent, depending on the home. Never monthly, never hidden in the rent.'],
+   ['cedolare secca','the landlord’s flat tax','If your landlord opts in, <b>registration tax and stamp duty vanish for you</b> — and the rent can’t be raised by inflation updates during the term.'],
+   ['utenze · TARI · condominio','monthly extras','Utilities run on your usage (≈ €100–180/person). TARI is Rome’s waste tax; building fees are stated <b>in the contract, in writing</b> — never discovered later.']
+  ];
+  $('decoder').innerHTML=T.map(function(t){return '<div class="term"><button type="button" aria-expanded="false"><span class="term-w">'+t[0]+'<small>'+t[1]+'</small></span><span class="term-i">+</span></button><div class="term-d"><div>'+t[2]+'</div></div></div>';}).join('');
+  $('decoder').addEventListener('click',function(e){
+    var b2=e.target.closest('.term>button'); if(!b2)return;
+    var t=b2.parentNode,dv=t.querySelector('.term-d'),open=!t.classList.contains('open');
+    t.classList.toggle('open',open); b2.setAttribute('aria-expanded',open?'true':'false');
+    dv.style.maxHeight=open?dv.scrollHeight+'px':'0';
+  });
+  // trust strip
+  var TR=[['🎥','We filmed it ourselves'],['🪪','Owner ID-checked'],['📜','Registered contract'],['🛡️','Deposit protected'],['🏢','BOOM-managed'],['💬','24/7 WhatsApp']];
+  $('trustStrip').innerHTML=TR.map(function(t){return '<div class="tr"><i>'+t[0]+'</i><span>'+t[1]+'</span></div>';}).join('');
+}
+
+function wire(){
+  // progress + header + bar
+  var hero=document.querySelector('.hero');
+  addEventListener('scroll',function(){
+    var h=document.documentElement, m=h.scrollHeight-innerHeight;
+    $('prog').style.width=(m>0?(h.scrollTop/m)*100:0)+'%';
+    $('hd').classList.toggle('solid',h.scrollTop>40);
+  },{passive:true});
+  if('IntersectionObserver' in window){
+    new IntersectionObserver(function(es){es.forEach(function(e){ $('bar').classList.toggle('in',!e.isIntersecting); var f=$('aiFab'); if(f&&!$('ai').classList.contains('open'))f.classList.toggle('hide',e.isIntersecting); });},{threshold:0}).observe(hero);
+    // reveals
+    var ro=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');ro.unobserve(e.target);}});},{threshold:.14,rootMargin:'0px 0px -6%'});
+    document.querySelectorAll('.rv,.steps').forEach(function(el){ro.observe(el);});
+    // scrollspy
+    var links=[].slice.call(document.querySelectorAll('#cnav a'));
+    var so=new IntersectionObserver(function(es){es.forEach(function(e){ if(e.isIntersecting){var sid='#'+e.target.id; links.forEach(function(a){a.classList.toggle('on',a.getAttribute('href')===sid);});} });},{rootMargin:'-40% 0px -55%'});
+    links.forEach(function(a){var t=document.querySelector(a.getAttribute('href')); if(t)so.observe(t);});
+  } else { document.querySelectorAll('.rv').forEach(function(el){el.classList.add('in');}); $('bar').classList.add('in'); }
+  // tour picker
+  var selD=null,selT=null,DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],now=new Date();
+  for(var i=1;i<=7;i++){(function(i){
+    var dt=new Date(now); dt.setDate(now.getDate()+i);
+    var b=document.createElement('button'); b.type='button'; b.className='tchip';
+    b.innerHTML='<small>'+DOW[dt.getDay()]+'</small>'+dt.getDate();
+    b.addEventListener('click',function(){selD=DOW[dt.getDay()]+' '+dt.getDate();[].forEach.call($('tourDays').children,function(x){x.classList.toggle('on',x===b);});sync();});
+    $('tourDays').appendChild(b);
+  })(i);}
+  ['10:00','12:00','15:00','17:00','19:00'].forEach(function(t){
+    var b=document.createElement('button'); b.type='button'; b.className='tchip'; b.textContent=t;
+    b.addEventListener('click',function(){selT=t;[].forEach.call($('tourTimes').children,function(x){x.classList.toggle('on',x===b);});sync();});
+    $('tourTimes').appendChild(b);
+  });
+  function sync(){$('tourGo').disabled=!(selD&&selT);}
+  $('tourGo').addEventListener('click',function(){
+    if(!selD||!selT)return;
+    window.open(WA+'?text='+encodeURIComponent('Hi BOOM! I’d like a live video tour of '+(D&&D.name||'this apartment')+' on '+selD+' around '+selT+'. (from V2 preview)'),'_blank');
+  });
+  // apply form → Firestore REST, WhatsApp fallback
+  $('applyForm').addEventListener('submit',function(e){
+    e.preventDefault();
+    var go=$('fGo'); go.disabled=true; go.textContent='Sending…';
+    var fields={
+      name:{stringValue:$('fName').value.trim()},
+      email:{stringValue:$('fEmail').value.trim()},
+      phone:{stringValue:$('fPhone').value.trim()},
+      moveIn:{stringValue:$('fMove').value},
+      duration:{stringValue:$('fDur').value},
+      message:{stringValue:$('fMsg').value.trim()},
+      listingId:{stringValue:id},
+      listingName:{stringValue:(D&&D.name)||''},
+      source:{stringValue:'detail-v2-preview'},
+      status:{stringValue:'new'},
+      createdAt:{timestampValue:new Date().toISOString()}
+    };
+    fetch('https://firestore.googleapis.com/v1/projects/'+PROJECT+'/databases/(default)/documents/leads?key='+KEY,{
+      method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({fields:fields})
+    }).then(function(r){if(!r.ok)throw 0;
+      $('applyForm').style.display='none'; $('applyOk').style.display='block';
+    }).catch(function(){
+      go.disabled=false; go.textContent='Apply in 2 minutes →';
+      window.open(WA+'?text='+encodeURIComponent('Hi BOOM! I want to apply for '+((D&&D.name)||'a listing')+'. Name: '+$('fName').value+' · Move-in: '+$('fMove').value),'_blank');
+    });
+  });
+  // AI concierge
+  var hist=[],busy=false;
+  ['💰 Total cost to move in?','🛡️ How does the deposit work?','📍 What’s the area like?','⚡ How fast can I move in?'].forEach(function(c){
+    var b=document.createElement('button'); b.type='button'; b.className='ai-chip'; b.textContent=c;
+    b.addEventListener('click',function(){ask(c.replace(/^[^A-Za-z0-9]+\s*/,''));});
+    $('aiChips').appendChild(b);
+  });
+  function bub(role,text){var w=document.createElement('div');w.className='ai-m'+(role==='me'?' me':'');
+    w.innerHTML='<div class="ai-a">'+(role==='me'?'🙂':'✦')+'</div>';
+    var b=document.createElement('div');b.className='ai-b';b.textContent=text;w.appendChild(b);
+    $('aiS').appendChild(w);$('aiS').scrollTop=$('aiS').scrollHeight;return b;}
+  function typing(){var w=document.createElement('div');w.className='ai-m';w.innerHTML='<div class="ai-a">✦</div><div class="ai-b"><span class="ai-typing"><i></i><i></i><i></i></span></div>';$('aiS').appendChild(w);$('aiS').scrollTop=$('aiS').scrollHeight;return w;}
+  function ask(q){
+    q=(q||'').trim(); if(!q||busy)return; busy=true; $('aiGo').disabled=true; $('aiQ').value='';
+    bub('me',q); var t=typing();
+    fetch('/api/ask-listing',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:id,question:q,history:hist.slice(-6)})})
+    .then(function(r){return r.json();}).then(function(d2){
+      t.remove(); var a=(d2&&d2.answer)||'I couldn’t reach our AI just now — message us on WhatsApp and we’ll answer instantly.';
+      bub('ai',a); hist.push({q:q,a:a});
+    }).catch(function(){t.remove();bub('ai','I couldn’t reach our AI just now — message us on WhatsApp at +39 331 325 1961.');})
+    .then(function(){busy=false;$('aiGo').disabled=false;$('aiQ').focus();});
+  }
+  $('aiF').addEventListener('submit',function(e){e.preventDefault();ask($('aiQ').value);});
+  $('aiFab').addEventListener('click',function(){$('ai').classList.add('open');$('aiFab').classList.add('hide');setTimeout(function(){$('aiQ').focus();},150);});
+  $('aiX').addEventListener('click',function(){$('ai').classList.remove('open');if(scrollY>innerHeight*.6)$('aiFab').classList.remove('hide');});
+  document.addEventListener('keydown',function(e){if(e.key==='Escape'){$('ai').classList.remove('open');closeLb();}});
+}
+
+/* lightbox */
+function openLb(i){if(!IMGS.length)return;lbIdx=i;drawLb();$('lb').classList.add('open');}
+function closeLb(){$('lb').classList.remove('open');}
+function drawLb(){$('lbImg').src=IMGS[lbIdx];$('lbC').textContent=(lbIdx+1)+' / '+IMGS.length;}
+$('lbX').addEventListener('click',closeLb);
+$('lb').addEventListener('click',function(e){if(e.target===this)closeLb();});
+$('lbP').addEventListener('click',function(){lbIdx=(lbIdx-1+IMGS.length)%IMGS.length;drawLb();});
+$('lbN').addEventListener('click',function(){lbIdx=(lbIdx+1)%IMGS.length;drawLb();});
+document.addEventListener('keydown',function(e){if(!$('lb').classList.contains('open'))return;if(e.key==='ArrowRight'){lbIdx=(lbIdx+1)%IMGS.length;drawLb();}if(e.key==='ArrowLeft'){lbIdx=(lbIdx-1+IMGS.length)%IMGS.length;drawLb();}});
+})();
+</script>
+</body>
+</html>
