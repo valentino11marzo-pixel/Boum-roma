@@ -90,6 +90,7 @@
     { "source": "/match", "destination": "/match.html" },
     { "source": "/pass-studio", "destination": "/pass-studio.html" },
     { "source": "/watermark-studio", "destination": "/watermark-studio.html" },
+    { "source": "/media-studio", "destination": "/media-studio.html" },
     { "source": "/pass-demo", "destination": "/pass-demo.html" },
     { "source": "/underwriting", "destination": "/underwriting.html" },
     { "source": "/compliance", "destination": "/compliance.html" },
@@ -109,7 +110,7 @@
       ]
     },
     {
-      "source": "/(portal|admin|admin-flats|setup-firebase|seed-listings|boom-doc-parser|boom_doc_parser|cockpit-preview|underwriting|compliance|relet|pass-studio|watermark-studio|portal.html|admin.html|admin-flats.html|setup-firebase.html|seed-listings.html|boom_doc_parser.html|cockpit-preview.html|underwriting.html|compliance.html|relet.html|pass-studio.html|watermark-studio.html)(.*)",
+      "source": "/(portal|admin|admin-flats|setup-firebase|seed-listings|boom-doc-parser|boom_doc_parser|cockpit-preview|underwriting|compliance|relet|pass-studio|watermark-studio|media-studio|portal.html|admin.html|admin-flats.html|setup-firebase.html|seed-listings.html|boom_doc_parser.html|cockpit-preview.html|underwriting.html|compliance.html|relet.html|pass-studio.html|watermark-studio.html|media-studio.html)(.*)",
       "headers": [
         { "key": "X-Robots-Tag", "value": "noindex, nofollow, noarchive, nosnippet" },
         { "key": "Cache-Control", "value": "private, no-store, max-age=0" }

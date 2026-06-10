@@ -1,0 +1,1508 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>BOOM. Media Studio — Produzione media interna</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<script defer src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<style>
+    :root {
+        --gold: #D4AF37;
+        --gold-light: rgba(212,175,55,0.15);
+        --gold-dark: #B8960C;
+        --bg: #08080A;
+        --bg-card: #0A0A0A;
+        --bg-elevated: #141414;
+        --bg-input: #1A1A1A;
+        --border: rgba(255,255,255,0.08);
+        --text: #FFF;
+        --text-secondary: #999;
+        --text-muted: #666;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+        background: var(--bg); color: var(--text);
+        font-family: 'Helvetica Neue', 'Inter', Helvetica, Arial, sans-serif;
+        font-weight: 300; -webkit-font-smoothing: antialiased;
+        background-image: radial-gradient(ellipse 70% 45% at 50% -10%, rgba(212,175,55,0.07), transparent);
+    }
+
+    header {
+        display: flex; align-items: center; justify-content: space-between; gap: 14px;
+        padding: 16px 26px; border-bottom: 1px solid var(--border);
+        position: sticky; top: 0; background: rgba(8,8,10,0.92);
+        backdrop-filter: blur(12px); z-index: 50;
+    }
+    .brand { display: flex; align-items: baseline; gap: 14px; }
+    .brand .word { font-size: 22px; letter-spacing: 4px; }
+    .brand .word b { color: var(--gold); font-weight: 300; }
+    .brand .sub { font-size: 11px; letter-spacing: 3px; color: var(--text-secondary); text-transform: uppercase; }
+    .hdr-right { display: flex; align-items: center; gap: 12px; }
+    .hdr-right a { color: var(--text-muted); font-size: 11px; letter-spacing: 1px; text-decoration: none; }
+    .hdr-right a:hover { color: var(--gold); }
+    .badge-internal {
+        font-size: 10px; letter-spacing: 2px; color: var(--gold);
+        border: 1px solid rgba(212,175,55,0.35); border-radius: 100px;
+        padding: 5px 12px; text-transform: uppercase; white-space: nowrap;
+    }
+
+    main {
+        display: grid; grid-template-columns: 1fr 396px; gap: 18px;
+        padding: 18px 26px 60px; max-width: 1560px; margin: 0 auto;
+    }
+    @media (max-width: 1020px) { main { grid-template-columns: 1fr; } }
+
+    .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 16px; }
+    .card h3 {
+        font-size: 11px; letter-spacing: 2.5px; text-transform: uppercase;
+        color: var(--text-secondary); font-weight: 400; margin-bottom: 12px;
+        display: flex; justify-content: space-between; align-items: center;
+    }
+
+    /* ── Stage ──────────────────────────────────────────────────────────── */
+    #stage {
+        position: relative; border-radius: 16px; overflow: hidden;
+        border: 1px solid var(--border); background: #050505;
+        display: flex; align-items: center; justify-content: center; min-height: 420px;
+    }
+    #previewCanvas { max-width: 100%; max-height: 72vh; display: block; touch-action: none; }
+    #previewCanvas.grab { cursor: grab; }
+    #previewCanvas.grabbing { cursor: grabbing; }
+    #dropHint {
+        position: absolute; inset: 0; display: flex; flex-direction: column;
+        align-items: center; justify-content: center; gap: 14px; text-align: center;
+        cursor: pointer; padding: 30px;
+    }
+    #dropHint .ring {
+        width: 84px; height: 84px; border-radius: 50%;
+        border: 1px solid rgba(212,175,55,0.4);
+        display: flex; align-items: center; justify-content: center; font-size: 30px;
+        animation: pulse 2.6s ease-in-out infinite;
+    }
+    @keyframes pulse {
+        0%,100% { box-shadow: 0 0 0 0 rgba(212,175,55,0.18); }
+        50% { box-shadow: 0 0 0 18px rgba(212,175,55,0); }
+    }
+    #dropHint .t1 { font-size: 15px; letter-spacing: 1px; }
+    #dropHint .t2 { font-size: 12px; color: var(--text-muted); letter-spacing: 0.5px; line-height: 1.7; }
+    #stage.dragover { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold) inset; }
+    #dragTip {
+        position: absolute; left: 12px; top: 12px; pointer-events: none;
+        background: rgba(0,0,0,0.65); border: 1px solid var(--border); border-radius: 100px;
+        padding: 5px 12px; font-size: 10.5px; letter-spacing: 1px; color: var(--text-secondary);
+        display: none;
+    }
+
+    .stage-bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
+    #specs { font-size: 11px; color: var(--text-muted); letter-spacing: 0.5px; margin-left: auto; }
+
+    #thumbs { display: flex; gap: 10px; overflow-x: auto; padding: 4px 2px; margin-top: 12px; }
+    #thumbs:empty { display: none; }
+    .thumb {
+        position: relative; flex: 0 0 auto; width: 72px; height: 72px;
+        border-radius: 10px; overflow: hidden; cursor: pointer;
+        border: 2px solid var(--border); background: #000;
+    }
+    .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0.85; }
+    .thumb.active { border-color: var(--gold); }
+    .thumb.active img { opacity: 1; }
+    .thumb .x {
+        position: absolute; top: 3px; right: 3px; width: 18px; height: 18px;
+        border-radius: 50%; background: rgba(0,0,0,0.7); color: #fff;
+        font-size: 11px; line-height: 18px; text-align: center; border: none; cursor: pointer;
+    }
+
+    /* ── Pannello ───────────────────────────────────────────────────────── */
+    aside { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+
+    .quick { display: flex; gap: 8px; flex-wrap: wrap; }
+    .quick button {
+        border: 1px solid var(--border); background: var(--bg-elevated); color: var(--text);
+        border-radius: 100px; padding: 8px 14px; font-size: 10.5px; letter-spacing: 1.2px;
+        text-transform: uppercase; cursor: pointer; font-family: inherit; font-weight: 300;
+    }
+    .quick button:hover { border-color: var(--gold); color: var(--gold); }
+
+    .tabs { display: flex; background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 4px; gap: 4px; }
+    .tabs button {
+        flex: 1; border: none; background: transparent; color: var(--text-secondary);
+        font-size: 11px; letter-spacing: 1px; padding: 9px 4px; border-radius: 9px;
+        cursor: pointer; font-family: inherit; font-weight: 300; text-transform: uppercase;
+    }
+    .tabs button.active { background: var(--gold); color: #000; font-weight: 500; }
+
+    .pane { display: none; flex-direction: column; gap: 14px; }
+    .pane.active { display: flex; }
+
+    .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+    .chip {
+        border: 1px solid var(--border); background: var(--bg-elevated); color: var(--text);
+        border-radius: 8px; padding: 7px 11px; font-size: 11px; letter-spacing: 0.8px;
+        cursor: pointer; font-family: inherit; font-weight: 300;
+    }
+    .chip:hover { border-color: rgba(212,175,55,0.5); }
+    .chip.active { border-color: var(--gold); background: var(--gold-light); color: var(--gold); }
+
+    .row { display: flex; align-items: center; gap: 10px; margin-bottom: 11px; }
+    .row:last-child { margin-bottom: 0; }
+    .row label { font-size: 11.5px; color: var(--text-secondary); letter-spacing: 0.8px; flex: 0 0 88px; }
+    .row output { font-size: 11px; color: var(--gold); min-width: 40px; text-align: right; font-variant-numeric: tabular-nums; }
+
+    input[type=range] { flex: 1; appearance: none; height: 3px; background: var(--bg-input); border-radius: 2px; outline: none; min-width: 0; }
+    input[type=range]::-webkit-slider-thumb {
+        appearance: none; width: 15px; height: 15px; border-radius: 50%;
+        background: var(--gold); cursor: pointer; border: 3px solid #08080A;
+        box-shadow: 0 0 0 1px var(--gold);
+    }
+    input[type=range]::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: var(--gold); cursor: pointer; border: none; }
+    input[type=text] {
+        flex: 1; background: var(--bg-input); border: 1px solid var(--border);
+        color: var(--text); border-radius: 8px; padding: 8px 10px;
+        font-size: 13px; font-family: inherit; letter-spacing: 0.5px; min-width: 0;
+    }
+    input[type=text]:focus { outline: none; border-color: var(--gold); }
+    select {
+        flex: 1; background: var(--bg-input); border: 1px solid var(--border);
+        color: var(--text); border-radius: 8px; padding: 8px 10px;
+        font-size: 12.5px; font-family: inherit; min-width: 0;
+    }
+
+    .seg { display: flex; flex: 1; background: var(--bg-input); border-radius: 8px; padding: 3px; gap: 3px; min-width: 0; }
+    .seg button {
+        flex: 1; border: none; background: transparent; color: var(--text-secondary);
+        font-size: 10.5px; letter-spacing: 0.4px; padding: 6px 3px; border-radius: 6px;
+        cursor: pointer; font-family: inherit; font-weight: 300; white-space: nowrap;
+    }
+    .seg button.active { background: var(--gold); color: #000; font-weight: 500; }
+
+    .switch { position: relative; width: 36px; height: 20px; flex: 0 0 auto; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .switch i { position: absolute; inset: 0; background: var(--bg-input); border-radius: 100px; transition: .2s; border: 1px solid var(--border); }
+    .switch i::before { content: ''; position: absolute; width: 14px; height: 14px; border-radius: 50%; background: var(--text-secondary); top: 2px; left: 2px; transition: .2s; }
+    .switch input:checked + i { background: var(--gold-light); border-color: var(--gold); }
+    .switch input:checked + i::before { background: var(--gold); transform: translateX(16px); }
+
+    .btn {
+        border: 1px solid var(--border); background: var(--bg-elevated); color: var(--text);
+        border-radius: 10px; padding: 10px 16px; font-size: 12px; letter-spacing: 1.5px;
+        text-transform: uppercase; cursor: pointer; font-family: inherit; font-weight: 300;
+        transition: all .15s; user-select: none;
+    }
+    .btn:hover { border-color: rgba(212,175,55,0.5); }
+    .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+    .btn-gold { background: var(--gold); color: #000; border-color: var(--gold); font-weight: 500; box-shadow: 0 4px 24px rgba(212,175,55,0.25); }
+    .btn-gold:hover { background: #E2C04F; }
+    .btn-block { width: 100%; }
+    .btn-sm { padding: 7px 12px; font-size: 10.5px; }
+
+    .hint { font-size: 10.5px; color: var(--text-muted); letter-spacing: 0.4px; line-height: 1.6; margin-top: 8px; }
+    .hint b { color: var(--gold); font-weight: 400; }
+
+    .checklist { display: flex; flex-direction: column; gap: 8px; }
+    .checklist label {
+        display: flex; align-items: center; gap: 10px; font-size: 12px;
+        color: var(--text-secondary); cursor: pointer; letter-spacing: 0.4px;
+    }
+    .checklist input { accent-color: var(--gold); width: 15px; height: 15px; }
+
+    .textlayers { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+    .textlayer {
+        display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+        background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 8px;
+        font-size: 12px; cursor: pointer;
+    }
+    .textlayer.active { border-color: var(--gold); }
+    .textlayer span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .textlayer button { border: none; background: none; color: var(--text-muted); cursor: pointer; font-size: 13px; }
+    .textlayer button:hover { color: #ff6b6b; }
+
+    #reelProgress { display: none; margin-top: 10px; }
+    #reelProgress .bar { background: var(--bg-input); border-radius: 4px; height: 5px; overflow: hidden; }
+    #reelProgress .fill { background: var(--gold); height: 100%; width: 0%; transition: width .2s; }
+    #reelProgress .lbl { font-size: 10.5px; color: var(--text-muted); margin-top: 5px; letter-spacing: 0.5px; }
+
+    #toast {
+        position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%) translateY(80px);
+        background: var(--bg-elevated); border: 1px solid var(--gold); color: var(--text);
+        padding: 11px 22px; border-radius: 100px; font-size: 13px; letter-spacing: 0.5px;
+        transition: transform .25s; z-index: 100; pointer-events: none; opacity: 0;
+        box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+    footer { text-align: center; padding: 24px; font-size: 11px; color: var(--text-muted); letter-spacing: 1px; }
+    .privacy-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #4CAF50; margin-right: 6px; vertical-align: 1px; }
+</style>
+</head>
+<body>
+
+<header>
+    <div class="brand">
+        <div class="word">BOOM<b>.</b></div>
+        <div class="sub">Media Studio</div>
+    </div>
+    <div class="hdr-right">
+        <a href="/watermark-studio">Filigrana semplice →</a>
+        <div class="badge-internal">Produzione interna</div>
+    </div>
+</header>
+
+<main>
+    <!-- ════════ STAGE ════════ -->
+    <section>
+        <div id="stage">
+            <canvas id="previewCanvas" style="display:none"></canvas>
+            <div id="dragTip"></div>
+            <div id="dropHint">
+                <div class="ring">⬆</div>
+                <div class="t1">Trascina le foto qui, clicca, o incolla (Ctrl+V)</div>
+                <div class="t2">JPG · PNG · WEBP — più foto insieme.<br>Tutto resta sul tuo computer: nessun upload, nessun server.</div>
+            </div>
+            <input type="file" id="fileInput" accept="image/*" multiple style="display:none">
+        </div>
+        <div class="stage-bar">
+            <button class="btn btn-sm" id="btnAdd">+ Aggiungi foto</button>
+            <button class="btn btn-sm" id="btnCompare" disabled>👁 Tieni premuto: originale</button>
+            <button class="btn btn-sm" id="btnClear" disabled>Svuota</button>
+            <div id="specs"></div>
+        </div>
+        <div id="thumbs"></div>
+    </section>
+
+    <!-- ════════ PANNELLO ════════ -->
+    <aside>
+        <div class="card">
+            <h3>Lanci rapidi <span style="color:var(--gold);text-transform:none;letter-spacing:0.5px">template pronti</span></h3>
+            <div class="quick" id="quick"></div>
+        </div>
+
+        <div class="tabs" id="tabs">
+            <button data-tab="regola" class="active">Regola</button>
+            <button data-tab="formato">Formato</button>
+            <button data-tab="brand">Brand</button>
+            <button data-tab="testo">Testo</button>
+            <button data-tab="export">Export</button>
+        </div>
+
+        <!-- ── REGOLA ── -->
+        <div class="pane active" id="pane-regola">
+            <div class="card">
+                <h3>Look fotografico</h3>
+                <div class="chips" id="grades"></div>
+            </div>
+            <div class="card">
+                <h3>Regolazioni manuali</h3>
+                <div class="row"><label>Luminosità</label><input type="range" id="adjBright" min="50" max="150" step="1"><output id="outBright"></output></div>
+                <div class="row"><label>Contrasto</label><input type="range" id="adjContrast" min="50" max="150" step="1"><output id="outContrast"></output></div>
+                <div class="row"><label>Saturazione</label><input type="range" id="adjSat" min="0" max="200" step="1"><output id="outSat"></output></div>
+                <div class="row"><label>Temperatura</label><input type="range" id="adjTemp" min="-40" max="40" step="1"><output id="outTemp"></output></div>
+                <div class="row"><label>Vignettatura</label><input type="range" id="adjVign" min="0" max="60" step="1"><output id="outVign"></output></div>
+                <div style="display:flex;gap:8px;margin-top:12px">
+                    <button class="btn btn-sm btn-block" id="btnAdjAll">Applica a tutte</button>
+                    <button class="btn btn-sm btn-block" id="btnAdjReset">Reset</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── FORMATO ── -->
+        <div class="pane" id="pane-formato">
+            <div class="card">
+                <h3>Proporzioni</h3>
+                <div class="chips" id="aspects"></div>
+                <div class="row" style="margin-top:14px"><label>Zoom</label><input type="range" id="frameZoom" min="100" max="300" step="1"><output id="outZoom"></output></div>
+                <div class="hint"><b>Trascina la foto</b> per inquadrare, rotella del mouse per lo zoom. Il punto scelto guida anche i ritagli automatici dell'export.</div>
+                <div style="display:flex;gap:8px;margin-top:12px">
+                    <button class="btn btn-sm btn-block" id="btnFrameAll">Applica formato a tutte</button>
+                    <button class="btn btn-sm btn-block" id="btnFrameReset">Reset</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── BRAND ── -->
+        <div class="pane" id="pane-brand">
+            <div class="card">
+                <h3>Filigrana</h3>
+                <div class="chips" id="wmModes"></div>
+                <div id="wmControls" style="margin-top:14px">
+                    <div class="row"><label>Marchio</label><input type="text" id="wmText" maxlength="24"></div>
+                    <div class="row"><label>Punto oro</label><label class="switch"><input type="checkbox" id="wmDot"><i></i></label><label style="flex:1">Sottotitolo</label><input type="text" id="wmSub" maxlength="32" style="flex:1.4"></div>
+                    <div class="row"><label>Colore</label>
+                        <div class="seg" id="wmScheme">
+                            <button data-v="classic">Bianco+Oro</button>
+                            <button data-v="gold">Oro</button>
+                            <button data-v="dark">Nero</button>
+                            <button data-v="white">Bianco</button>
+                        </div>
+                    </div>
+                    <div class="row"><label>Dimensione</label><input type="range" id="wmScale" min="2" max="40" step="0.5"><output id="outWmScale"></output></div>
+                    <div class="row"><label>Opacità</label><input type="range" id="wmOpacity" min="5" max="100" step="1"><output id="outWmOpacity"></output></div>
+                    <div class="row"><label>Spaziatura</label><input type="range" id="wmSpacing" min="0" max="30" step="1"><output id="outWmSpacing"></output></div>
+                    <div class="row" id="rowWmDensity" style="display:none"><label>Densità</label><input type="range" id="wmDensity" min="2" max="8" step="1"><output id="outWmDensity"></output></div>
+                    <div class="hint">Nel tab Brand <b>trascini la filigrana</b> direttamente sulla foto.</div>
+                </div>
+            </div>
+            <div class="card">
+                <h3>Badge annuncio <label class="switch"><input type="checkbox" id="badgeOn"><i></i></label></h3>
+                <div class="row"><label>Testo</label><input type="text" id="badgeText" maxlength="20"></div>
+                <div class="row"><label>Stile</label>
+                    <div class="seg" id="badgeStyle">
+                        <button data-v="gold">Oro pieno</button>
+                        <button data-v="line">Bordo oro</button>
+                    </div>
+                </div>
+                <div class="row"><label>Angolo</label>
+                    <div class="seg" id="badgeCorner">
+                        <button data-v="tl">↖</button><button data-v="tr">↗</button><button data-v="bl">↙</button><button data-v="br">↘</button>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <h3>Striscia annuncio <label class="switch"><input type="checkbox" id="infoOn"><i></i></label></h3>
+                <div class="row"><label>Zona</label><input type="text" id="infoZona" maxlength="28" placeholder="PRATI · ROMA"></div>
+                <div class="row"><label>Prezzo</label><input type="text" id="infoPrezzo" maxlength="18" placeholder="€ 1.850 / mese"></div>
+                <div class="row"><label>Locali</label><input type="text" id="infoLocali" maxlength="14" placeholder="2 camere"></div>
+                <div class="row"><label>Metri²</label><input type="text" id="infoMq" maxlength="10" placeholder="85 mq"></div>
+            </div>
+            <div class="card">
+                <h3>Scrim leggibilità <label class="switch"><input type="checkbox" id="scrimOn"><i></i></label></h3>
+                <div class="row"><label>Intensità</label><input type="range" id="scrimStrength" min="20" max="90" step="1"><output id="outScrim"></output></div>
+                <div class="hint">Sfumatura scura sul fondo della foto: fa risaltare striscia, testi e filigrana.</div>
+            </div>
+        </div>
+
+        <!-- ── TESTO ── -->
+        <div class="pane" id="pane-testo">
+            <div class="card">
+                <h3>Livelli di testo</h3>
+                <div class="textlayers" id="textLayers"></div>
+                <button class="btn btn-sm btn-block" id="btnAddText">+ Aggiungi testo</button>
+                <div id="textProps" style="display:none;margin-top:14px">
+                    <div class="row"><label>Contenuto</label><input type="text" id="txtStr" maxlength="60"></div>
+                    <div class="row"><label>Colore</label>
+                        <div class="seg" id="txtColor">
+                            <button data-v="#FFFFFF">Bianco</button>
+                            <button data-v="#D4AF37">Oro</button>
+                            <button data-v="#0B0B0C">Nero</button>
+                        </div>
+                    </div>
+                    <div class="row"><label>Dimensione</label><input type="range" id="txtSize" min="1.5" max="16" step="0.1"><output id="outTxtSize"></output></div>
+                    <div class="row"><label>Spaziatura</label><input type="range" id="txtSpacing" min="0" max="40" step="1"><output id="outTxtSpacing"></output></div>
+                    <div class="hint">Nel tab Testo <b>trascini il livello selezionato</b> sulla foto.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── EXPORT ── -->
+        <div class="pane" id="pane-export">
+            <div class="card">
+                <h3>Destinazioni</h3>
+                <div class="checklist" id="targets"></div>
+                <div class="row" style="margin-top:14px"><label>Qualità JPG</label><input type="range" id="expQuality" min="70" max="100" step="1"><output id="outQuality"></output></div>
+                <div style="display:flex;gap:8px;margin-top:12px">
+                    <button class="btn btn-gold btn-block" id="btnExportOne" disabled>⬇ Questa foto</button>
+                    <button class="btn btn-block" id="btnExportAll" disabled>ZIP tutte</button>
+                </div>
+                <div class="hint">Ogni destinazione viene ritagliata automaticamente intorno all'inquadratura scelta nel tab Formato — un click, tutti i formati.</div>
+            </div>
+            <div class="card">
+                <h3>Reel video <span style="color:var(--gold);text-transform:none;letter-spacing:0.5px">beta</span></h3>
+                <div class="row"><label>Formato</label>
+                    <select id="reelAspect">
+                        <option value="9:16">Story / Reel · 1080×1920</option>
+                        <option value="1:1">Quadrato · 1080×1080</option>
+                        <option value="16:9">Orizzontale · 1920×1080</option>
+                    </select>
+                </div>
+                <div class="row"><label>Sec / foto</label>
+                    <select id="reelSec">
+                        <option value="2.5">2,5 secondi</option>
+                        <option value="3" selected>3 secondi</option>
+                        <option value="4">4 secondi</option>
+                    </select>
+                </div>
+                <button class="btn btn-block" id="btnReel" disabled>🎬 Genera reel</button>
+                <div id="reelProgress"><div class="bar"><div class="fill" id="reelFill"></div></div><div class="lbl" id="reelLbl"></div></div>
+                <div class="hint">Slideshow con effetto Ken Burns, sigla BOOM in apertura e chiusura, filigrana. Tieni la scheda del browser in primo piano durante la generazione.</div>
+            </div>
+        </div>
+    </aside>
+</main>
+
+<footer><span class="privacy-dot"></span>Elaborazione 100% locale nel browser — foto e video non vengono mai caricati su alcun server. © BOOM Roma</footer>
+<div id="toast"></div>
+
+<script>
+'use strict';
+/* ═══════════════════════════════════════════════════════════════════════
+   BOOM Media Studio — pipeline media interna per stagisti / team.
+   Compositore a livelli, tutto client-side:
+     foto (ritaglio + color grading) → scrim → badge → striscia annuncio
+     → testi liberi → filigrana
+   La stessa composeTo() genera anteprima, export multi-formato e i
+   fotogrammi del reel video, così ciò che vedi è ciò che esporti.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+// ── Logo BOOM (anelli concentrici) senza sfondo, ricolorabile ───────────
+const SEAL_PATH = "M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z m610 -144 c743 -103 1436 -459 1919 -985 338 -367 562 -751 704 -1205 276 -879 132 -1858 -388 -2640 -242 -364 -493 -615 -900 -900 l-70 -49 109 104 c413 396 679 919 767 1505 33 217 33 558 0 765 -75 476 -257 896 -549 1265 -127 161 -363 380 -549 511 -300 211 -689 363 -1079 420 -172 26 -604 26 -764 0 -296 -47 -545 -128 -808 -262 -236 -122 -440 -271 -632 -464 -486 -485 -749 -1121 -751 -1815 -1 -611 170 -1148 515 -1608 100 -134 286 -335 382 -413 33 -27 -8 -2 -91 55 -513 351 -904 805 -1143 1331 -71 156 -136 336 -168 465 -9 33 -19 76 -24 95 -5 19 -20 100 -34 180 -59 343 -60 740 0 1070 81 456 229 826 479 1200 246 368 558 669 949 917 386 245 881 418 1321 462 61 6 124 13 140 15 73 10 556 -4 665 -19z m-60 -1329 c105 -16 258 -49 335 -72 82 -26 197 -66 240 -84 149 -65 190 -84 266 -126 677 -379 1129 -1049 1246 -1849 27 -182 24 -517 -5 -695 -75 -458 -225 -813 -500 -1179 -116 -154 -340 -369 -527 -506 -44 -32 -87 -63 -95 -69 -8 -6 35 39 96 99 178 177 283 321 397 550 161 322 231 676 205 1045 -32 467 -223 902 -542 1237 -239 251 -521 426 -873 542 -79 26 -273 67 -383 81 -108 13 -349 13 -465 0 -276 -32 -597 -145 -834 -293 -224 -140 -466 -378 -613 -602 -307 -470 -407 -1055 -273 -1599 80 -327 217 -589 454 -871 71 -84 73 -88 31 -56 -293 225 -547 535 -718 877 -34 68 -65 143 -122 294 -42 112 -101 383 -120 555 -14 127 -14 401 0 534 51 482 223 912 516 1288 269 344 654 620 1085 778 160 59 400 115 574 134 121 13 508 5 625 -13z m-30 -1165 c401 -81 721 -242 992 -499 643 -612 769 -1607 300 -2367 -118 -190 -291 -386 -463 -524 -137 -111 -148 -113 -49 -12 110 112 206 248 275 386 67 137 98 222 132 367 24 103 26 132 27 323 0 182 -3 224 -22 310 -47 211 -126 394 -245 569 -126 186 -358 387 -564 490 -384 191 -823 225 -1218 95 -482 -160 -854 -541 -1004 -1029 -117 -379 -81 -810 96 -1165 37 -72 130 -215 166 -252 17 -18 26 -33 20 -33 -6 0 -61 52 -121 116 -259 272 -424 575 -511 934 -111 459 -18 1006 245 1430 298 483 791 797 1379 880 110 16 448 4 565 -19z m-239 -911 c360 -28 680 -171 925 -415 194 -193 317 -415 382 -688 24 -102 26 -130 26 -312 0 -191 -1 -205 -30 -320 -53 -205 -132 -372 -251 -535 -58 -79 -263 -288 -323 -330 -31 -22 -29 -18 18 35 195 220 312 519 312 795 0 325 -121 614 -350 841 -369 364 -926 453 -1385 222 -336 -170 -578 -499 -636 -865 -19 -126 -7 -371 25 -490 44 -162 97 -284 173 -398 9 -14 -4 -5 -30 20 -26 24 -45 51 -42 58 2 7 1 11 -4 7 -11 -6 -58 51 -118 140 -109 163 -183 347 -219 545 -23 127 -23 351 -1 489 55 335 248 677 492 871 261 208 530 311 881 338 11 1 81 -3 155 -8z m29 -714 c459 -74 823 -428 895 -869 58 -358 -60 -696 -345 -987 l-34 -35 22 35 c115 182 179 403 168 575 -14 235 -104 433 -268 591 -137 134 -287 209 -472 239 -115 19 -187 19 -303 0 -337 -55 -612 -302 -704 -635 -32 -113 -34 -325 -5 -440 23 -92 70 -213 98 -254 l21 -31 -31 29 c-39 36 -120 152 -155 221 -35 71 -81 215 -102 319 -25 130 -17 357 17 476 102 354 357 618 706 730 152 49 331 62 492 36z m-73 -567 c178 -24 327 -101 454 -236 137 -143 199 -303 201 -513 1 -162 -42 -309 -135 -453 -52 -82 -73 -97 -38 -28 51 99 67 290 36 412 -57 219 -251 413 -466 464 -75 17 -236 20 -311 4 -213 -44 -422 -247 -473 -460 -31 -133 -13 -325 41 -431 35 -70 8 -47 -52 43 -58 88 -90 167 -114 286 -25 121 -25 220 -1 331 33 146 84 243 186 351 171 183 413 266 672 230z m15 -470 c80 -17 186 -76 248 -139 106 -107 158 -248 147 -398 -6 -92 -25 -152 -79 -250 -45 -82 -60 -91 -27 -17 18 41 21 62 17 149 -4 89 -8 108 -35 162 -43 82 -126 165 -209 205 -58 29 -80 34 -158 37 -112 5 -184 -12 -259 -62 -182 -121 -251 -323 -171 -506 l24 -55 -25 30 c-36 44 -92 162 -104 223 -39 189 14 369 146 492 105 99 204 139 345 139 48 1 111 -4 140 -10z";
+const sealCache = {};
+function sealImage(fill, cb) {
+    if (sealCache[fill]) { cb(sealCache[fill]); return; }
+    const grad = fill === 'gold'
+        ? '<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFD54F"/><stop offset="1" stop-color="#F5A623"/></linearGradient></defs>'
+        : '';
+    const f = fill === 'gold' ? 'url(#g)' : fill;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">${grad}<g transform="translate(0,1024) scale(0.1,-0.1)" fill="${f}"><path d="${SEAL_PATH}"/></g></svg>`;
+    const img = new Image();
+    img.onload = () => { sealCache[fill] = img; cb(img); };
+    img.src = 'data:image/svg+xml;base64,' + btoa(svg);
+}
+
+// ── Stato ────────────────────────────────────────────────────────────────
+const DEFAULT_ADJ = { bright: 100, contrast: 100, sat: 100, temp: 0, vign: 0 };
+const DEFAULT_FRAME = { aspect: 'orig', zoom: 1, ox: 0.5, oy: 0.5 };
+const DEFAULT_BRAND = {
+    wm: { mode: 'firma', text: 'BOOM', dot: true, sub: 'ROMA', scheme: 'classic',
+          scale: 4.5, opacity: 90, spacing: 6, rotation: 0, density: 4, shadow: true,
+          pos: { x: 0.13, y: 0.92 } },
+    badge: { on: false, text: 'NUOVO', style: 'gold', corner: 'tl' },
+    scrim: { on: false, strength: 55 },
+    info: { on: false, zona: '', prezzo: '', locali: '', mq: '' },
+    quality: 92,
+};
+let brand = loadBrand();
+let photos = [];        // { img, name, dataUrl, adj:{}, frame:{} }
+let activeIdx = -1;
+let texts = [];         // { str, x, y, size (% larghezza), color, spacing }
+let selText = -1;
+let tab = 'regola';
+let showOriginal = false;
+
+function loadBrand() {
+    try {
+        const saved = JSON.parse(localStorage.getItem('boomMediaStudio') || 'null');
+        if (saved && typeof saved === 'object') {
+            const b = JSON.parse(JSON.stringify(DEFAULT_BRAND));
+            Object.assign(b.wm, saved.wm || {}); Object.assign(b.badge, saved.badge || {});
+            Object.assign(b.scrim, saved.scrim || {}); Object.assign(b.info, saved.info || {});
+            if (saved.quality) b.quality = saved.quality;
+            return b;
+        }
+    } catch (e) {}
+    return JSON.parse(JSON.stringify(DEFAULT_BRAND));
+}
+function saveBrand() { try { localStorage.setItem('boomMediaStudio', JSON.stringify(brand)); } catch (e) {} }
+
+const ASPECTS = [
+    { id: 'orig', label: 'Originale', v: null },
+    { id: '4:3', label: '4:3 portali', v: 4 / 3 },
+    { id: '3:2', label: '3:2', v: 3 / 2 },
+    { id: '16:9', label: '16:9', v: 16 / 9 },
+    { id: '1:1', label: '1:1 IG', v: 1 },
+    { id: '4:5', label: '4:5 IG', v: 4 / 5 },
+    { id: '9:16', label: '9:16 Story', v: 9 / 16 },
+];
+function aspectValue(id, img) {
+    const a = ASPECTS.find(x => x.id === id);
+    return (a && a.v) || (img ? img.naturalWidth / img.naturalHeight : 4 / 3);
+}
+
+const GRADES = [
+    { id: 'naturale', label: 'Naturale', adj: { bright: 100, contrast: 100, sat: 100, temp: 0, vign: 0 } },
+    { id: 'romaoro', label: 'Roma Oro', adj: { bright: 102, contrast: 105, sat: 108, temp: 18, vign: 12 } },
+    { id: 'luminoso', label: 'Luminoso', adj: { bright: 109, contrast: 97, sat: 104, temp: 6, vign: 0 } },
+    { id: 'crepuscolo', label: 'Crepuscolo', adj: { bright: 96, contrast: 111, sat: 112, temp: -13, vign: 22 } },
+    { id: 'bn', label: 'B/N Editoriale', adj: { bright: 102, contrast: 113, sat: 0, temp: 0, vign: 10 } },
+];
+
+const TARGETS = [
+    { id: 'portale', label: 'Portali immobiliari — JPG 2048px', maxSide: 2048, on: true },
+    { id: 'web', label: 'Sito / web — JPG 1600px', maxSide: 1600, on: false },
+    { id: 'igpost', label: 'Instagram post — 1080×1350', w: 1080, h: 1350, aspect: 4 / 5, on: false },
+    { id: 'igsq', label: 'Instagram quadrato — 1080×1080', w: 1080, h: 1080, aspect: 1, on: false },
+    { id: 'story', label: 'Instagram story — 1080×1920', w: 1080, h: 1920, aspect: 9 / 16, on: false },
+    { id: 'full', label: 'Piena risoluzione', maxSide: 0, on: false },
+];
+
+const WM_MODES = [
+    { id: 'none', label: 'Nessuna' },
+    { id: 'firma', label: 'Firma' },
+    { id: 'sigillo', label: 'Sigillo' },
+    { id: 'editoriale', label: 'Editoriale' },
+    { id: 'pattern', label: 'Pattern' },
+    { id: 'cornice', label: 'Cornice' },
+];
+
+// Template = bundle di configurazioni: formato + brand in un click.
+const TEMPLATES = [
+    { id: 'story-nuovo', label: 'Story · Nuovo', apply() {
+        setAspectAll('9:16');
+        brand.badge = { on: true, text: 'NUOVO', style: 'gold', corner: 'tl' };
+        brand.scrim = { on: true, strength: 60 };
+        brand.info.on = true;
+        Object.assign(brand.wm, { mode: 'firma', scale: 4.5, opacity: 92, scheme: 'classic', sub: 'ROMA', pos: { x: 0.5, y: 0.07 } });
+    } },
+    { id: 'post-esclusiva', label: 'Post · Esclusiva', apply() {
+        setAspectAll('4:5');
+        brand.badge = { on: true, text: 'ESCLUSIVA', style: 'line', corner: 'tr' };
+        brand.scrim = { on: true, strength: 45 };
+        brand.info.on = true;
+        Object.assign(brand.wm, { mode: 'cornice', scale: 4, opacity: 92, scheme: 'classic', sub: 'ROMA' });
+    } },
+    { id: 'copertina', label: 'Copertina portale', apply() {
+        setAspectAll('4:3');
+        brand.badge.on = false; brand.scrim.on = false; brand.info.on = false;
+        Object.assign(brand.wm, { mode: 'firma', scale: 4.5, opacity: 90, scheme: 'classic', sub: 'ROMA', pos: { x: 0.13, y: 0.92 } });
+    } },
+    { id: 'affittato', label: 'Affittato', apply() {
+        brand.badge = { on: true, text: 'AFFITTATO', style: 'gold', corner: 'tr' };
+        Object.assign(brand.wm, { mode: 'editoriale', scale: 13, opacity: 26, scheme: 'white', sub: 'BOOMROME.COM', pos: { x: 0.5, y: 0.5 } });
+    } },
+];
+
+// ── Schemi colore filigrana ──────────────────────────────────────────────
+function wmColors(wm) {
+    switch (wm.scheme) {
+        case 'gold':  return { main: '#D4AF37', accent: '#D4AF37', seal: 'gold' };
+        case 'dark':  return { main: '#0B0B0C', accent: '#B8960C', seal: '#0B0B0C' };
+        case 'white': return { main: '#FFFFFF', accent: '#FFFFFF', seal: '#FFFFFF' };
+        default:      return { main: '#FFFFFF', accent: '#D4AF37', seal: 'gold' };
+    }
+}
+
+// ── Helper testo: letter-spacing manuale ────────────────────────────────
+const FONT = "'Helvetica Neue', Helvetica, Inter, Arial, sans-serif";
+function spacedWidth(ctx, text, ls) {
+    let w = 0;
+    for (const ch of text) w += ctx.measureText(ch).width + ls;
+    return Math.max(0, w - ls);
+}
+function drawSpaced(ctx, text, x, y, ls) {
+    let cx = x;
+    for (const ch of text) { ctx.fillText(ch, cx, y); cx += ctx.measureText(ch).width + ls; }
+    return cx - x - ls;
+}
+function roundRectPath(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+}
+
+/* ── Ritaglio: rettangolo sorgente da proporzioni + zoom + inquadratura ── */
+function cropRect(img, aspect, frame) {
+    const iw = img.naturalWidth, ih = img.naturalHeight;
+    let cw = Math.min(iw, ih * aspect), ch = cw / aspect;
+    cw /= frame.zoom; ch /= frame.zoom;
+    let cx = frame.ox * iw, cy = frame.oy * ih;
+    cx = Math.max(cw / 2, Math.min(iw - cw / 2, cx));
+    cy = Math.max(ch / 2, Math.min(ih - ch / 2, cy));
+    return { sx: cx - cw / 2, sy: cy - ch / 2, sw: cw, sh: ch };
+}
+
+/* ── Color grading ───────────────────────────────────────────────────────
+   Dove ctx.filter è supportato usiamo il filtro GPU; altrove fallback a
+   un singolo passaggio sui pixel (luminosità+contrasto+saturazione). */
+function ctxHasFilter(ctx) { return typeof ctx.filter === 'string'; }
+function filterString(adj) { return `brightness(${adj.bright}%) contrast(${adj.contrast}%) saturate(${adj.sat}%)`; }
+function pixelAdjust(ctx, W, H, adj) {
+    if (adj.bright === 100 && adj.contrast === 100 && adj.sat === 100) return;
+    const id = ctx.getImageData(0, 0, W, H), d = id.data;
+    const b = adj.bright / 100, c = adj.contrast / 100, s = adj.sat / 100;
+    for (let i = 0; i < d.length; i += 4) {
+        let r = d[i] * b, g = d[i + 1] * b, bl = d[i + 2] * b;
+        r = (r - 128) * c + 128; g = (g - 128) * c + 128; bl = (bl - 128) * c + 128;
+        const luma = r * 0.299 + g * 0.587 + bl * 0.114;
+        d[i] = luma + (r - luma) * s;
+        d[i + 1] = luma + (g - luma) * s;
+        d[i + 2] = luma + (bl - luma) * s;
+    }
+    ctx.putImageData(id, 0, 0);
+}
+function drawPhotoLayer(ctx, W, H, ph, aspect) {
+    const r = cropRect(ph.img, aspect, ph.frame);
+    if (ctxHasFilter(ctx)) {
+        ctx.save();
+        ctx.filter = filterString(ph.adj);
+        ctx.drawImage(ph.img, r.sx, r.sy, r.sw, r.sh, 0, 0, W, H);
+        ctx.restore();
+    } else {
+        ctx.drawImage(ph.img, r.sx, r.sy, r.sw, r.sh, 0, 0, W, H);
+        pixelAdjust(ctx, W, H, ph.adj);
+    }
+    // temperatura: velo caldo/freddo in soft-light
+    if (ph.adj.temp !== 0) {
+        ctx.save();
+        ctx.globalCompositeOperation = 'soft-light';
+        ctx.globalAlpha = Math.min(0.85, Math.abs(ph.adj.temp) / 40);
+        ctx.fillStyle = ph.adj.temp > 0 ? '#FF9E3D' : '#3D7DFF';
+        ctx.fillRect(0, 0, W, H);
+        ctx.restore();
+    }
+    // vignettatura
+    if (ph.adj.vign > 0) {
+        ctx.save();
+        const g = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.42, W / 2, H / 2, Math.hypot(W, H) / 2);
+        g.addColorStop(0, 'rgba(0,0,0,0)');
+        g.addColorStop(1, `rgba(0,0,0,${ph.adj.vign / 100})`);
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, W, H);
+        ctx.restore();
+    }
+}
+
+/* ── Livelli brand ──────────────────────────────────────────────────────── */
+function drawScrim(ctx, W, H, scrim) {
+    if (!scrim.on) return;
+    const g = ctx.createLinearGradient(0, H * 0.55, 0, H);
+    g.addColorStop(0, 'rgba(0,0,0,0)');
+    g.addColorStop(1, `rgba(0,0,0,${scrim.strength / 100})`);
+    ctx.save(); ctx.fillStyle = g; ctx.fillRect(0, H * 0.55, W, H * 0.45); ctx.restore();
+}
+
+function drawBadge(ctx, W, H, badge) {
+    if (!badge.on || !badge.text) return;
+    const fs = Math.max(11, W * 0.024);
+    const ls = fs * 0.22;
+    ctx.save();
+    ctx.font = `500 ${fs}px ${FONT}`;
+    const tw = spacedWidth(ctx, badge.text.toUpperCase(), ls);
+    const padX = fs * 0.9, padY = fs * 0.55;
+    const bw = tw + padX * 2, bh = fs + padY * 2;
+    const m = W * 0.04;
+    const x = badge.corner.includes('l') ? m : W - m - bw;
+    const y = badge.corner.includes('t') ? m : H - m - bh;
+    roundRectPath(ctx, x, y, bw, bh, bh / 2);
+    if (badge.style === 'gold') {
+        ctx.fillStyle = '#D4AF37'; ctx.fill();
+        ctx.fillStyle = '#000';
+    } else {
+        ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fill();
+        ctx.strokeStyle = '#D4AF37'; ctx.lineWidth = Math.max(1, W * 0.0012); ctx.stroke();
+        ctx.fillStyle = '#D4AF37';
+    }
+    ctx.textBaseline = 'middle';
+    drawSpaced(ctx, badge.text.toUpperCase(), x + padX, y + bh / 2 + fs * 0.06, ls);
+    ctx.restore();
+}
+
+function drawInfoBar(ctx, W, H, info, aspect) {
+    if (!info.on) return;
+    const parts = [info.locali, info.mq].map(s => (s || '').trim()).filter(Boolean);
+    const zona = (info.zona || '').trim().toUpperCase();
+    const prezzo = (info.prezzo || '').trim();
+    if (!zona && !prezzo && !parts.length) return;
+    const bh = Math.max(46, W * 0.085);
+    const inset = aspect < 0.8 ? H * 0.055 : 0;     // su 9:16 evita la UI di Instagram
+    const y = H - inset - bh;
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.58)';
+    ctx.fillRect(0, y, W, bh);
+    ctx.fillStyle = 'rgba(212,175,55,0.85)';
+    ctx.fillRect(0, y, W, Math.max(1, H * 0.0016));
+    const pad = W * 0.045;
+    ctx.textBaseline = 'middle';
+    // sinistra: zona + dettagli
+    const zfs = bh * 0.30;
+    ctx.font = `300 ${zfs}px ${FONT}`;
+    ctx.fillStyle = '#FFF';
+    let lx = pad;
+    if (zona) lx += drawSpaced(ctx, zona, pad, y + bh * (parts.length ? 0.36 : 0.5), zfs * 0.28) + zfs * 0.28;
+    if (parts.length) {
+        const dfs = bh * 0.22;
+        ctx.font = `300 ${dfs}px ${FONT}`;
+        ctx.fillStyle = 'rgba(255,255,255,0.65)';
+        ctx.fillText(parts.join('  ·  '), pad, y + bh * (zona ? 0.7 : 0.5));
+    }
+    // destra: prezzo in oro
+    if (prezzo) {
+        const pfs = bh * 0.38;
+        ctx.font = `400 ${pfs}px ${FONT}`;
+        ctx.fillStyle = '#D4AF37';
+        const pw = ctx.measureText(prezzo).width;
+        ctx.fillText(prezzo, W - pad - pw, y + bh * 0.5);
+    }
+    ctx.restore();
+}
+
+function drawTexts(ctx, W, H) {
+    for (const t of texts) {
+        if (!t.str) continue;
+        const fs = Math.max(10, W * t.size / 100);
+        const ls = fs * t.spacing / 100;
+        ctx.save();
+        ctx.font = `300 ${fs}px ${FONT}`;
+        ctx.textBaseline = 'middle';
+        ctx.shadowColor = 'rgba(0,0,0,0.45)'; ctx.shadowBlur = fs * 0.3;
+        ctx.fillStyle = t.color;
+        const tw = spacedWidth(ctx, t.str, ls);
+        drawSpaced(ctx, t.str, t.x * W - tw / 2, t.y * H, ls);
+        ctx.restore();
+    }
+}
+
+/* ── Filigrana (stesso motore del Watermark Studio, parametrizzato) ────── */
+function drawMark(ctx, W, H, wm) {
+    if (!wm || wm.mode === 'none') return;
+    const c = wmColors(wm);
+    const fs = Math.max(12, W * wm.scale / 100);
+    const ls = fs * wm.spacing / 100;
+    const px = wm.pos.x * W, py = wm.pos.y * H;
+    const font = w => `${w} ${fs}px ${FONT}`;
+    ctx.save();
+    ctx.globalAlpha = wm.opacity / 100;
+    ctx.textBaseline = 'alphabetic';
+    if (wm.shadow && wm.scheme !== 'dark') {
+        ctx.shadowColor = 'rgba(0,0,0,0.5)';
+        ctx.shadowBlur = fs * 0.35;
+        ctx.shadowOffsetY = fs * 0.04;
+    }
+    const drawBlock = () => {
+        ctx.font = font(300);
+        const mainW = spacedWidth(ctx, wm.text, ls) + (wm.dot ? ctx.measureText('.').width + ls : 0);
+        const subFs = fs * 0.32, subLs = subFs * 0.9;
+        ctx.translate(px, py);
+        ctx.rotate(wm.rotation * Math.PI / 180);
+        ctx.fillStyle = c.main;
+        const used = drawSpaced(ctx, wm.text, -mainW / 2, 0, ls);
+        if (wm.dot) { ctx.fillStyle = c.accent; ctx.fillText('.', -mainW / 2 + used + ls, 0); }
+        if (wm.sub) {
+            ctx.font = `400 ${subFs}px ${FONT}`;
+            const sw = spacedWidth(ctx, wm.sub, subLs);
+            ctx.fillStyle = c.accent;
+            drawSpaced(ctx, wm.sub, -sw / 2, subFs * 1.9, subLs);
+        }
+    };
+    switch (wm.mode) {
+        case 'firma':
+        case 'editoriale':
+            drawBlock();
+            break;
+        case 'sigillo': {
+            const seal = sealCache[c.seal];
+            const d = fs * 2.6;
+            ctx.translate(px, py);
+            ctx.rotate(wm.rotation * Math.PI / 180);
+            if (seal) ctx.drawImage(seal, -d / 2, -d, d, d);
+            ctx.font = `300 ${fs * 0.62}px ${FONT}`;
+            const tls = fs * 0.62 * 0.25;
+            const tw = spacedWidth(ctx, wm.text, tls) + (wm.dot ? ctx.measureText('.').width + tls : 0);
+            ctx.fillStyle = c.main;
+            const u = drawSpaced(ctx, wm.text, -tw / 2, fs * 0.85, tls);
+            if (wm.dot) { ctx.fillStyle = c.accent; ctx.fillText('.', -tw / 2 + u + tls, fs * 0.85); }
+            if (wm.sub) {
+                const sfs = fs * 0.3;
+                ctx.font = `400 ${sfs}px ${FONT}`;
+                const sw = spacedWidth(ctx, wm.sub, sfs * 0.9);
+                ctx.fillStyle = c.accent;
+                drawSpaced(ctx, wm.sub, -sw / 2, fs * 0.85 + sfs * 1.8, sfs * 0.9);
+            }
+            break;
+        }
+        case 'pattern': {
+            ctx.shadowColor = 'transparent';
+            ctx.font = font(300);
+            const tw = spacedWidth(ctx, wm.text + (wm.dot ? '.' : ''), ls);
+            const diag = Math.hypot(W, H);
+            const stepX = tw + fs * 3;
+            const stepY = diag / wm.density;
+            ctx.translate(W / 2, H / 2);
+            ctx.rotate((wm.rotation || -30) * Math.PI / 180);
+            ctx.fillStyle = c.main;
+            let rowI = 0;
+            for (let y = -diag / 2; y <= diag / 2; y += stepY, rowI++) {
+                const off = (rowI % 2) * stepX / 2;
+                for (let x = -diag / 2 - stepX + off; x <= diag / 2 + stepX; x += stepX) {
+                    const used = drawSpaced(ctx, wm.text, x, y, ls);
+                    if (wm.dot) { ctx.fillStyle = c.accent; ctx.fillText('.', x + used + ls, y); ctx.fillStyle = c.main; }
+                }
+            }
+            break;
+        }
+        case 'cornice': {
+            const inset = W * 0.035;
+            ctx.strokeStyle = c.accent;
+            ctx.lineWidth = Math.max(1, W * 0.0016);
+            ctx.strokeRect(inset, inset, W - inset * 2, H - inset * 2);
+            ctx.font = font(300);
+            const mainW = spacedWidth(ctx, wm.text, ls) + (wm.dot ? ctx.measureText('.').width + ls : 0);
+            const baseY = H - inset - fs * 0.9;
+            ctx.fillStyle = c.main;
+            const used = drawSpaced(ctx, wm.text, (W - mainW) / 2, baseY, ls);
+            if (wm.dot) { ctx.fillStyle = c.accent; ctx.fillText('.', (W - mainW) / 2 + used + ls, baseY); }
+            if (wm.sub) {
+                const sfs = fs * 0.3;
+                ctx.font = `400 ${sfs}px ${FONT}`;
+                const sw = spacedWidth(ctx, wm.sub, sfs * 0.9);
+                ctx.fillStyle = c.accent;
+                drawSpaced(ctx, wm.sub, (W - sw) / 2, baseY + sfs * 1.9, sfs * 0.9);
+            }
+            const topFs = fs * 0.26;
+            ctx.font = `400 ${topFs}px ${FONT}`;
+            const topTxt = 'BOOMROME.COM';
+            const tls2 = topFs * 0.9;
+            const tw2 = spacedWidth(ctx, topTxt, tls2);
+            ctx.fillStyle = c.accent;
+            drawSpaced(ctx, topTxt, (W - tw2) / 2, inset + fs * 0.55, tls2);
+            break;
+        }
+    }
+    ctx.restore();
+}
+
+/* ── Compositore: la pipeline completa, in pixel di destinazione ────────── */
+function composeTo(ctx, W, H, ph, opts) {
+    opts = opts || {};
+    const aspect = opts.aspect || aspectValue(ph.frame.aspect, ph.img);
+    drawPhotoLayer(ctx, W, H, ph, aspect);
+    if (opts.photoOnly) return;
+    drawScrim(ctx, W, H, brand.scrim);
+    drawBadge(ctx, W, H, brand.badge);
+    drawInfoBar(ctx, W, H, brand.info, aspect);
+    drawTexts(ctx, W, H);
+    drawMark(ctx, W, H, brand.wm);
+}
+
+// ── UI refs ──────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const stage = $('stage'), canvas = $('previewCanvas'), ctxP = canvas.getContext('2d');
+const dropHint = $('dropHint'), fileInput = $('fileInput'), thumbs = $('thumbs');
+
+function toast(msg) {
+    const t = $('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(t._h);
+    t._h = setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+// ── Render anteprima ─────────────────────────────────────────────────────
+let rafPending = false;
+function render() {
+    if (rafPending) return;
+    rafPending = true;
+    requestAnimationFrame(() => { rafPending = false; renderNow(); });
+}
+function renderNow() {
+    const ph = photos[activeIdx];
+    const has = !!ph;
+    canvas.style.display = has ? 'block' : 'none';
+    dropHint.style.display = has ? 'none' : 'flex';
+    ['btnCompare', 'btnExportOne'].forEach(id => $(id).disabled = !has);
+    $('btnClear').disabled = !photos.length;
+    $('btnExportAll').disabled = !photos.length;
+    $('btnReel').disabled = !photos.length;
+    if (!has) { $('specs').textContent = ''; return; }
+
+    const A = aspectValue(ph.frame.aspect, ph.img);
+    const maxPrev = 1400;
+    let W, H;
+    if (A >= 1) { W = Math.min(maxPrev, ph.img.naturalWidth); H = Math.round(W / A); }
+    else { H = Math.min(maxPrev, ph.img.naturalHeight); W = Math.round(H * A); }
+    canvas.width = W; canvas.height = H;
+    if (showOriginal) {
+        const r = cropRect(ph.img, A, ph.frame);
+        ctxP.drawImage(ph.img, r.sx, r.sy, r.sw, r.sh, 0, 0, W, H);
+    } else {
+        composeTo(ctxP, W, H, ph);
+    }
+    $('specs').textContent = `${ph.name} — ${ph.img.naturalWidth}×${ph.img.naturalHeight}px · foto ${activeIdx + 1}/${photos.length}`;
+    updateDragTip();
+}
+function updateDragTip() {
+    const tip = $('dragTip');
+    const msgs = {
+        formato: '✋ Trascina per inquadrare · rotella = zoom',
+        brand: brand.wm.mode !== 'none' && brand.wm.mode !== 'pattern' && brand.wm.mode !== 'cornice' ? '✋ Trascina la filigrana' : '',
+        testo: selText >= 0 ? '✋ Trascina il testo selezionato' : '',
+    };
+    const m = msgs[tab] || '';
+    tip.textContent = m;
+    tip.style.display = m && photos.length ? 'block' : 'none';
+    canvas.classList.toggle('grab', !!m);
+}
+
+// ── Caricamento foto ─────────────────────────────────────────────────────
+function addFiles(fileList) {
+    const files = Array.from(fileList || []).filter(f => f.type.startsWith('image/'));
+    if (!files.length) { toast('Nessuna immagine valida'); return; }
+    let pending = files.length;
+    files.forEach(f => {
+        const reader = new FileReader();
+        reader.onload = e => {
+            const img = new Image();
+            img.onload = () => {
+                photos.push({
+                    img, name: f.name.replace(/\.[^.]+$/, ''), dataUrl: e.target.result,
+                    adj: Object.assign({}, DEFAULT_ADJ),
+                    frame: JSON.parse(JSON.stringify(DEFAULT_FRAME)),
+                });
+                if (activeIdx < 0) activeIdx = 0;
+                if (--pending === 0) {
+                    renderThumbs(); syncPhotoControls(); render();
+                    toast(files.length + (files.length === 1 ? ' foto caricata' : ' foto caricate'));
+                }
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(f);
+    });
+}
+function renderThumbs() {
+    thumbs.innerHTML = photos.map((p, i) => `
+        <div class="thumb ${i === activeIdx ? 'active' : ''}" data-i="${i}">
+            <img src="${p.dataUrl}" alt="">
+            <button class="x" data-x="${i}" title="Rimuovi">✕</button>
+        </div>`).join('');
+}
+thumbs.addEventListener('click', e => {
+    const x = e.target.closest('[data-x]');
+    if (x) {
+        photos.splice(+x.dataset.x, 1);
+        if (activeIdx >= photos.length) activeIdx = photos.length - 1;
+        renderThumbs(); syncPhotoControls(); render();
+        return;
+    }
+    const t = e.target.closest('.thumb');
+    if (t) { activeIdx = +t.dataset.i; renderThumbs(); syncPhotoControls(); render(); }
+});
+dropHint.addEventListener('click', () => fileInput.click());
+$('btnAdd').addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', () => { addFiles(fileInput.files); fileInput.value = ''; });
+['dragover', 'dragenter'].forEach(ev => stage.addEventListener(ev, e => { e.preventDefault(); stage.classList.add('dragover'); }));
+['dragleave', 'drop'].forEach(ev => stage.addEventListener(ev, e => { e.preventDefault(); stage.classList.remove('dragover'); }));
+stage.addEventListener('drop', e => addFiles(e.dataTransfer.files));
+document.addEventListener('paste', e => {
+    const items = Array.from(e.clipboardData ? e.clipboardData.items : []).filter(i => i.type.startsWith('image/'));
+    if (items.length) addFiles(items.map(i => i.getAsFile()).filter(Boolean));
+});
+$('btnClear').addEventListener('click', () => { photos = []; activeIdx = -1; renderThumbs(); render(); });
+
+const cmp = $('btnCompare');
+const cmpOn = () => { showOriginal = true; render(); };
+const cmpOff = () => { showOriginal = false; render(); };
+cmp.addEventListener('mousedown', cmpOn);
+cmp.addEventListener('touchstart', e => { e.preventDefault(); cmpOn(); });
+['mouseup', 'mouseleave', 'touchend', 'touchcancel'].forEach(ev => cmp.addEventListener(ev, cmpOff));
+
+// ── Interazioni sul canvas (dipendono dal tab attivo) ────────────────────
+let dragging = false, dragStart = null;
+function evPos(e) {
+    const r = canvas.getBoundingClientRect();
+    return { x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height };
+}
+canvas.addEventListener('pointerdown', e => {
+    const ph = photos[activeIdx]; if (!ph) return;
+    const p = evPos(e);
+    if (tab === 'formato') {
+        dragging = 'pan'; dragStart = { p, ox: ph.frame.ox, oy: ph.frame.oy };
+    } else if (tab === 'brand' && brand.wm.mode !== 'none' && brand.wm.mode !== 'pattern' && brand.wm.mode !== 'cornice') {
+        dragging = 'wm'; brand.wm.pos = { x: clamp01(p.x), y: clamp01(p.y) };
+    } else if (tab === 'testo' && selText >= 0) {
+        dragging = 'text'; texts[selText].x = clamp01(p.x); texts[selText].y = clamp01(p.y);
+    } else return;
+    canvas.classList.add('grabbing');
+    canvas.setPointerCapture(e.pointerId);
+    render();
+});
+canvas.addEventListener('pointermove', e => {
+    if (!dragging) return;
+    const ph = photos[activeIdx]; if (!ph) return;
+    const p = evPos(e);
+    if (dragging === 'pan') {
+        // sposto l'inquadratura in direzione opposta al gesto (pan naturale)
+        const A = aspectValue(ph.frame.aspect, ph.img);
+        const r = cropRect(ph.img, A, ph.frame);
+        ph.frame.ox = dragStart.ox - (p.x - dragStart.p.x) * (r.sw / ph.img.naturalWidth);
+        ph.frame.oy = dragStart.oy - (p.y - dragStart.p.y) * (r.sh / ph.img.naturalHeight);
+        ph.frame.ox = clamp01(ph.frame.ox); ph.frame.oy = clamp01(ph.frame.oy);
+    } else if (dragging === 'wm') {
+        brand.wm.pos = { x: clamp01(p.x), y: clamp01(p.y) };
+    } else if (dragging === 'text') {
+        texts[selText].x = clamp01(p.x); texts[selText].y = clamp01(p.y);
+    }
+    render();
+});
+['pointerup', 'pointercancel'].forEach(ev => canvas.addEventListener(ev, () => {
+    if (dragging) { dragging = false; canvas.classList.remove('grabbing'); saveBrand(); }
+}));
+canvas.addEventListener('wheel', e => {
+    if (tab !== 'formato') return;
+    const ph = photos[activeIdx]; if (!ph) return;
+    e.preventDefault();
+    ph.frame.zoom = Math.min(3, Math.max(1, ph.frame.zoom * (e.deltaY < 0 ? 1.06 : 1 / 1.06)));
+    $('frameZoom').value = Math.round(ph.frame.zoom * 100);
+    $('outZoom').textContent = Math.round(ph.frame.zoom * 100) + '%';
+    render();
+}, { passive: false });
+function clamp01(v) { return Math.min(0.98, Math.max(0.02, v)); }
+
+// ── Tabs ─────────────────────────────────────────────────────────────────
+$('tabs').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    tab = b.dataset.tab;
+    document.querySelectorAll('#tabs button').forEach(x => x.classList.toggle('active', x === b));
+    document.querySelectorAll('.pane').forEach(p => p.classList.toggle('active', p.id === 'pane-' + tab));
+    updateDragTip();
+});
+
+// ── Lanci rapidi ─────────────────────────────────────────────────────────
+$('quick').innerHTML = TEMPLATES.map(t => `<button data-t="${t.id}">${t.label}</button>`).join('');
+$('quick').addEventListener('click', e => {
+    const b = e.target.closest('[data-t]'); if (!b) return;
+    TEMPLATES.find(t => t.id === b.dataset.t).apply();
+    saveBrand(); syncBrandControls(); syncPhotoControls(); render();
+    toast('Template applicato — rifinisci nei tab');
+});
+function setAspectAll(id) { photos.forEach(p => { p.frame.aspect = id; }); }
+
+// ── Controlli REGOLA ─────────────────────────────────────────────────────
+$('grades').innerHTML = GRADES.map(g => `<button class="chip" data-g="${g.id}">${g.label}</button>`).join('');
+$('grades').addEventListener('click', e => {
+    const b = e.target.closest('[data-g]'); if (!b) return;
+    const ph = photos[activeIdx]; if (!ph) { toast('Carica prima una foto'); return; }
+    Object.assign(ph.adj, GRADES.find(g => g.id === b.dataset.g).adj);
+    syncPhotoControls(); render();
+});
+function bindAdj(id, key, outId, fmt) {
+    const el = $(id), out = $(outId);
+    el.addEventListener('input', () => {
+        const ph = photos[activeIdx]; if (!ph) return;
+        ph.adj[key] = +el.value; out.textContent = fmt(+el.value); render();
+    });
+    el._sync = () => { const ph = photos[activeIdx]; const v = ph ? ph.adj[key] : DEFAULT_ADJ[key]; el.value = v; out.textContent = fmt(v); };
+}
+bindAdj('adjBright', 'bright', 'outBright', v => v + '%');
+bindAdj('adjContrast', 'contrast', 'outContrast', v => v + '%');
+bindAdj('adjSat', 'sat', 'outSat', v => v + '%');
+bindAdj('adjTemp', 'temp', 'outTemp', v => (v > 0 ? '+' : '') + v);
+bindAdj('adjVign', 'vign', 'outVign', v => v + '%');
+$('btnAdjAll').addEventListener('click', () => {
+    const ph = photos[activeIdx]; if (!ph) return;
+    photos.forEach(p => Object.assign(p.adj, ph.adj));
+    toast('Regolazioni applicate a tutte le foto');
+});
+$('btnAdjReset').addEventListener('click', () => {
+    const ph = photos[activeIdx]; if (!ph) return;
+    Object.assign(ph.adj, DEFAULT_ADJ);
+    syncPhotoControls(); render();
+});
+
+// ── Controlli FORMATO ────────────────────────────────────────────────────
+$('aspects').innerHTML = ASPECTS.map(a => `<button class="chip" data-a="${a.id}">${a.label}</button>`).join('');
+$('aspects').addEventListener('click', e => {
+    const b = e.target.closest('[data-a]'); if (!b) return;
+    const ph = photos[activeIdx]; if (!ph) { toast('Carica prima una foto'); return; }
+    ph.frame.aspect = b.dataset.a;
+    syncPhotoControls(); render();
+});
+$('frameZoom').addEventListener('input', () => {
+    const ph = photos[activeIdx]; if (!ph) return;
+    ph.frame.zoom = +$('frameZoom').value / 100;
+    $('outZoom').textContent = $('frameZoom').value + '%';
+    render();
+});
+$('btnFrameAll').addEventListener('click', () => {
+    const ph = photos[activeIdx]; if (!ph) return;
+    photos.forEach(p => Object.assign(p.frame, { aspect: ph.frame.aspect, zoom: ph.frame.zoom }));
+    toast('Formato applicato a tutte le foto');
+    render();
+});
+$('btnFrameReset').addEventListener('click', () => {
+    const ph = photos[activeIdx]; if (!ph) return;
+    Object.assign(ph.frame, JSON.parse(JSON.stringify(DEFAULT_FRAME)));
+    syncPhotoControls(); render();
+});
+
+function syncPhotoControls() {
+    ['adjBright', 'adjContrast', 'adjSat', 'adjTemp', 'adjVign'].forEach(id => $(id)._sync());
+    const ph = photos[activeIdx];
+    const z = ph ? Math.round(ph.frame.zoom * 100) : 100;
+    $('frameZoom').value = z; $('outZoom').textContent = z + '%';
+    document.querySelectorAll('#aspects .chip').forEach(c =>
+        c.classList.toggle('active', !!ph && c.dataset.a === ph.frame.aspect));
+}
+
+// ── Controlli BRAND ──────────────────────────────────────────────────────
+$('wmModes').innerHTML = WM_MODES.map(m => `<button class="chip" data-m="${m.id}">${m.label}</button>`).join('');
+$('wmModes').addEventListener('click', e => {
+    const b = e.target.closest('[data-m]'); if (!b) return;
+    brand.wm.mode = b.dataset.m;
+    saveBrand(); syncBrandControls(); render();
+});
+function bindWm(id, key, outId, fmt) {
+    const el = $(id), out = outId && $(outId);
+    el.addEventListener('input', () => {
+        brand.wm[key] = el.type === 'checkbox' ? el.checked : (el.type === 'range' ? +el.value : el.value);
+        if (out) out.textContent = fmt(brand.wm[key]);
+        saveBrand(); render();
+    });
+    el._sync = () => {
+        if (el.type === 'checkbox') el.checked = brand.wm[key];
+        else el.value = brand.wm[key];
+        if (out) out.textContent = fmt(brand.wm[key]);
+    };
+}
+bindWm('wmText', 'text');
+bindWm('wmSub', 'sub');
+bindWm('wmDot', 'dot');
+bindWm('wmScale', 'scale', 'outWmScale', v => v + '%');
+bindWm('wmOpacity', 'opacity', 'outWmOpacity', v => v + '%');
+bindWm('wmSpacing', 'spacing', 'outWmSpacing', v => v);
+bindWm('wmDensity', 'density', 'outWmDensity', v => '×' + v);
+$('wmScheme').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    brand.wm.scheme = b.dataset.v;
+    sealImage(wmColors(brand.wm).seal, () => render());
+    saveBrand(); syncBrandControls(); render();
+});
+
+function bindObj(id, obj, key, isCheck, outId, fmt) {
+    const el = $(id), out = outId && $(outId);
+    el.addEventListener('input', () => {
+        obj[key] = isCheck ? el.checked : (el.type === 'range' ? +el.value : el.value);
+        if (out) out.textContent = fmt(obj[key]);
+        saveBrand(); render();
+    });
+    el._sync = () => {
+        if (isCheck) el.checked = obj[key]; else el.value = obj[key];
+        if (out) out.textContent = fmt ? fmt(obj[key]) : '';
+    };
+    return el;
+}
+bindObj('badgeOn', brand.badge, 'on', true);
+bindObj('badgeText', brand.badge, 'text', false);
+bindObj('infoOn', brand.info, 'on', true);
+bindObj('infoZona', brand.info, 'zona', false);
+bindObj('infoPrezzo', brand.info, 'prezzo', false);
+bindObj('infoLocali', brand.info, 'locali', false);
+bindObj('infoMq', brand.info, 'mq', false);
+bindObj('scrimOn', brand.scrim, 'on', true);
+bindObj('scrimStrength', brand.scrim, 'strength', false, 'outScrim', v => v + '%');
+['badgeStyle', 'badgeCorner'].forEach(id => {
+    const seg = $(id), key = id === 'badgeStyle' ? 'style' : 'corner';
+    seg.addEventListener('click', e => {
+        const b = e.target.closest('button'); if (!b) return;
+        brand.badge[key] = b.dataset.v;
+        seg.querySelectorAll('button').forEach(x => x.classList.toggle('active', x === b));
+        saveBrand(); render();
+    });
+    seg._sync = () => seg.querySelectorAll('button').forEach(x => x.classList.toggle('active', x.dataset.v === brand.badge[key]));
+});
+
+function syncBrandControls() {
+    document.querySelectorAll('#wmModes .chip').forEach(c => c.classList.toggle('active', c.dataset.m === brand.wm.mode));
+    $('wmControls').style.display = brand.wm.mode === 'none' ? 'none' : '';
+    $('rowWmDensity').style.display = brand.wm.mode === 'pattern' ? '' : 'none';
+    ['wmText', 'wmSub', 'wmDot', 'wmScale', 'wmOpacity', 'wmSpacing', 'wmDensity'].forEach(id => $(id)._sync());
+    $('wmScheme').querySelectorAll('button').forEach(x => x.classList.toggle('active', x.dataset.v === brand.wm.scheme));
+    ['badgeOn', 'badgeText', 'infoOn', 'infoZona', 'infoPrezzo', 'infoLocali', 'infoMq', 'scrimOn', 'scrimStrength'].forEach(id => $(id)._sync());
+    $('badgeStyle')._sync(); $('badgeCorner')._sync();
+    updateDragTip();
+}
+
+// ── Controlli TESTO ──────────────────────────────────────────────────────
+$('btnAddText').addEventListener('click', () => {
+    texts.push({ str: 'NUOVO TESTO', x: 0.5, y: 0.3, size: 4, color: '#FFFFFF', spacing: 14 });
+    selText = texts.length - 1;
+    syncTextControls(); render();
+});
+function syncTextControls() {
+    $('textLayers').innerHTML = texts.map((t, i) => `
+        <div class="textlayer ${i === selText ? 'active' : ''}" data-i="${i}">
+            <span>${t.str ? t.str.replace(/</g, '&lt;') : '(vuoto)'}</span>
+            <button data-del="${i}" title="Elimina">🗑</button>
+        </div>`).join('') || '<div class="hint">Nessun testo. Aggiungi un titolo, un prezzo, una call-to-action…</div>';
+    const has = selText >= 0 && texts[selText];
+    $('textProps').style.display = has ? '' : 'none';
+    if (has) {
+        const t = texts[selText];
+        $('txtStr').value = t.str;
+        $('txtSize').value = t.size; $('outTxtSize').textContent = t.size + '%';
+        $('txtSpacing').value = t.spacing; $('outTxtSpacing').textContent = t.spacing;
+        $('txtColor').querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.v === t.color));
+    }
+    updateDragTip();
+}
+$('textLayers').addEventListener('click', e => {
+    const del = e.target.closest('[data-del]');
+    if (del) {
+        texts.splice(+del.dataset.del, 1);
+        if (selText >= texts.length) selText = texts.length - 1;
+        syncTextControls(); render();
+        return;
+    }
+    const l = e.target.closest('.textlayer');
+    if (l) { selText = +l.dataset.i; syncTextControls(); render(); }
+});
+$('txtStr').addEventListener('input', () => {
+    if (selText < 0) return;
+    texts[selText].str = $('txtStr').value;
+    const span = $('textLayers').querySelectorAll('.textlayer span')[selText];
+    if (span) span.textContent = texts[selText].str || '(vuoto)';
+    render();
+});
+$('txtSize').addEventListener('input', () => {
+    if (selText < 0) return;
+    texts[selText].size = +$('txtSize').value;
+    $('outTxtSize').textContent = texts[selText].size + '%';
+    render();
+});
+$('txtSpacing').addEventListener('input', () => {
+    if (selText < 0) return;
+    texts[selText].spacing = +$('txtSpacing').value;
+    $('outTxtSpacing').textContent = texts[selText].spacing;
+    render();
+});
+$('txtColor').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b || selText < 0) return;
+    texts[selText].color = b.dataset.v;
+    syncTextControls(); render();
+});
+
+// ── EXPORT ───────────────────────────────────────────────────────────────
+$('targets').innerHTML = TARGETS.map(t =>
+    `<label><input type="checkbox" data-t="${t.id}" ${t.on ? 'checked' : ''}> ${t.label}</label>`).join('');
+$('targets').addEventListener('change', e => {
+    const t = TARGETS.find(x => x.id === e.target.dataset.t);
+    if (t) t.on = e.target.checked;
+});
+$('expQuality').addEventListener('input', () => {
+    brand.quality = +$('expQuality').value;
+    $('outQuality').textContent = brand.quality + '%';
+    saveBrand();
+});
+
+function renderTarget(ph, target) {
+    return new Promise(resolve => {
+        let W, H;
+        const A = target.aspect || aspectValue(ph.frame.aspect, ph.img);
+        if (target.w) { W = target.w; H = target.h; }
+        else {
+            const r = cropRect(ph.img, A, ph.frame);
+            let k = 1;
+            if (target.maxSide > 0) k = Math.min(1, target.maxSide / Math.max(r.sw, r.sh));
+            W = Math.round(r.sw * k); H = Math.round(r.sh * k);
+        }
+        const cv = document.createElement('canvas');
+        cv.width = W; cv.height = H;
+        const cx = cv.getContext('2d');
+        composeTo(cx, W, H, ph, { aspect: A });
+        cv.toBlob(b => resolve(b), 'image/jpeg', brand.quality / 100);
+    });
+}
+function downloadBlob(blob, name) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+}
+function safeName(s) { return (s || 'foto').replace(/[^a-zA-Z0-9_-]+/g, '_').replace(/^_+|_+$/g, '') || 'foto'; }
+function activeTargets() {
+    const list = TARGETS.filter(t => t.on);
+    return list.length ? list : [TARGETS[0]];
+}
+
+$('btnExportOne').addEventListener('click', async () => {
+    const ph = photos[activeIdx]; if (!ph) return;
+    const list = activeTargets();
+    if (list.length === 1) {
+        const blob = await renderTarget(ph, list[0]);
+        downloadBlob(blob, `BOOM_${list[0].id}_${safeName(ph.name)}.jpg`);
+        toast('Foto esportata ✓');
+        return;
+    }
+    if (typeof JSZip === 'undefined') { toast('JSZip non ancora caricato — riprova'); return; }
+    const zip = new JSZip();
+    for (const t of list) {
+        const blob = await renderTarget(ph, t);
+        if (blob) zip.file(`${t.id}/BOOM_${safeName(ph.name)}.jpg`, blob);
+    }
+    downloadBlob(await zip.generateAsync({ type: 'blob' }), `BOOM_${safeName(ph.name)}_formati.zip`);
+    toast(list.length + ' formati esportati ✓');
+});
+
+$('btnExportAll').addEventListener('click', async () => {
+    if (!photos.length) return;
+    if (typeof JSZip === 'undefined') { toast('JSZip non ancora caricato — riprova'); return; }
+    const list = activeTargets();
+    toast('Preparazione ZIP…');
+    const zip = new JSZip();
+    let n = 0;
+    for (const t of list) {
+        let i = 0;
+        for (const ph of photos) {
+            const blob = await renderTarget(ph, t);
+            if (blob) { zip.file(`${t.id}/BOOM_${String(++i).padStart(2, '0')}_${safeName(ph.name)}.jpg`, blob); n++; }
+        }
+    }
+    downloadBlob(await zip.generateAsync({ type: 'blob' }), 'BOOM_media_export.zip');
+    toast(`${n} file in ${list.length} ${list.length === 1 ? 'formato' : 'formati'} ✓`);
+});
+
+// ── REEL VIDEO ───────────────────────────────────────────────────────────
+let reelBusy = false;
+$('btnReel').addEventListener('click', async () => {
+    if (reelBusy || !photos.length) return;
+    if (!window.MediaRecorder) { toast('Registrazione video non supportata da questo browser'); return; }
+    const mime = ['video/mp4;codecs=avc1', 'video/webm;codecs=vp9', 'video/webm']
+        .find(m => MediaRecorder.isTypeSupported(m));
+    if (!mime) { toast('Nessun formato video supportato'); return; }
+
+    reelBusy = true;
+    $('btnReel').disabled = true;
+    $('reelProgress').style.display = 'block';
+    const setProg = (pct, lbl) => { $('reelFill').style.width = pct + '%'; $('reelLbl').textContent = lbl; };
+
+    try {
+        const dims = { '9:16': [1080, 1920], '1:1': [1080, 1080], '16:9': [1920, 1080] }[$('reelAspect').value];
+        const per = +$('reelSec').value;
+        const [W, H] = dims;
+        const A = W / H;
+
+        await new Promise(res => sealImage('gold', res));
+        // pre-rendo ogni foto con grading applicato (lato lungo ≤ 2200px):
+        // i fotogrammi poi sono semplici drawImage, fluidi a 30fps.
+        setProg(2, 'Preparazione foto…');
+        const frames = [];
+        for (const ph of photos) {
+            const k = Math.min(1, 2200 / Math.max(ph.img.naturalWidth, ph.img.naturalHeight));
+            const cw = Math.round(ph.img.naturalWidth * k), chh = Math.round(ph.img.naturalHeight * k);
+            const cv = document.createElement('canvas');
+            cv.width = cw; cv.height = chh;
+            const c = cv.getContext('2d');
+            const full = { img: ph.img, adj: ph.adj, frame: { aspect: 'orig', zoom: 1, ox: 0.5, oy: 0.5 } };
+            drawPhotoLayer(c, cw, chh, full, ph.img.naturalWidth / ph.img.naturalHeight);
+            frames.push(cv);
+            await new Promise(r => setTimeout(r, 0));
+        }
+
+        const cv = document.createElement('canvas');
+        cv.width = W; cv.height = H;
+        const c = cv.getContext('2d');
+        const stream = cv.captureStream(30);
+        const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 12000000 });
+        const chunks = [];
+        rec.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+        const stopped = new Promise(r => { rec.onstop = r; });
+        rec.start(250);
+
+        const INTRO = 2.0, OUTRO = 2.2, FADE = 0.45;
+        const total = INTRO + photos.length * per + OUTRO;
+        const t0 = performance.now();
+        await new Promise(res => {
+            function frame(now) {
+                const t = (now - t0) / 1000;
+                if (t >= total) { res(); return; }
+                drawReelFrame(c, W, H, A, t, { INTRO, OUTRO, per, FADE, total, frames });
+                setProg(4 + Math.round(t / total * 92), `Registrazione… ${Math.round(t)}s / ${Math.round(total)}s`);
+                requestAnimationFrame(frame);
+            }
+            requestAnimationFrame(frame);
+        });
+        rec.stop();
+        await stopped;
+        const blob = new Blob(chunks, { type: mime.split(';')[0] });
+        const ext = mime.includes('mp4') ? 'mp4' : 'webm';
+        downloadBlob(blob, `BOOM_reel.${ext}`);
+        setProg(100, 'Fatto ✓');
+        toast(`Reel generato (${ext.toUpperCase()}) ✓`);
+    } catch (e) {
+        console.warn('[Reel]', e);
+        toast('Errore nella generazione del reel');
+    } finally {
+        reelBusy = false;
+        $('btnReel').disabled = !photos.length;
+        setTimeout(() => { $('reelProgress').style.display = 'none'; }, 2500);
+    }
+});
+
+function easeInOut(t) { return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; }
+function drawReelFrame(c, W, H, A, t, o) {
+    c.clearRect(0, 0, W, H);
+    c.fillStyle = '#08080A'; c.fillRect(0, 0, W, H);
+
+    const brandCard = (alpha, subline) => {
+        c.save();
+        c.globalAlpha = alpha;
+        const seal = sealCache['gold'];
+        const d = W * 0.3;
+        if (seal) c.drawImage(seal, W / 2 - d / 2, H / 2 - d * 0.85, d, d);
+        const fs = W * 0.085;
+        c.font = `300 ${fs}px ${FONT}`;
+        c.textBaseline = 'alphabetic';
+        const ls = fs * 0.18;
+        const tw = spacedWidth(c, 'BOOM', ls) + c.measureText('.').width + ls;
+        c.fillStyle = '#FFF';
+        const used = drawSpaced(c, 'BOOM', W / 2 - tw / 2, H / 2 + d * 0.42, ls);
+        c.fillStyle = '#D4AF37';
+        c.fillText('.', W / 2 - tw / 2 + used + ls, H / 2 + d * 0.42);
+        if (subline) {
+            const sfs = fs * 0.26;
+            c.font = `400 ${sfs}px ${FONT}`;
+            const sls = sfs * 0.9;
+            const sw = spacedWidth(c, subline, sls);
+            c.fillStyle = '#D4AF37';
+            drawSpaced(c, subline, W / 2 - sw / 2, H / 2 + d * 0.42 + sfs * 2.4, sls);
+        }
+        c.restore();
+    };
+
+    if (t < o.INTRO) {
+        const k = easeInOut(Math.min(1, t / (o.INTRO * 0.7)));
+        const out = t > o.INTRO - o.FADE ? (o.INTRO - t) / o.FADE : 1;
+        brandCard(k * out, 'ROMA');
+        return;
+    }
+    if (t >= o.total - o.OUTRO) {
+        const lt = (t - (o.total - o.OUTRO)) / o.OUTRO;
+        brandCard(easeInOut(Math.min(1, lt * 1.6)), 'BOOMROME.COM');
+        return;
+    }
+    // segmento foto con Ken Burns
+    const pt = t - o.INTRO;
+    const i = Math.min(o.frames.length - 1, Math.floor(pt / o.per));
+    const lt = (pt - i * o.per) / o.per;          // 0..1 dentro la foto corrente
+    const src = o.frames[i];
+    const zoomIn = i % 2 === 0;
+    const z = zoomIn ? 1.04 + 0.12 * easeInOut(lt) : 1.16 - 0.12 * easeInOut(lt);
+    const drift = (i % 4 < 2 ? 1 : -1) * 0.04 * (lt - 0.5);
+    const sw0 = Math.min(src.width, src.height * A);
+    const sh0 = sw0 / A;
+    const sw = sw0 / z, sh = sh0 / z;
+    const cx = src.width / 2 + drift * src.width, cy = src.height / 2;
+    const sx = Math.max(0, Math.min(src.width - sw, cx - sw / 2));
+    const sy = Math.max(0, Math.min(src.height - sh, cy - sh / 2));
+    c.drawImage(src, sx, sy, sw, sh, 0, 0, W, H);
+    // filigrana firma, piccola e costante
+    drawMark(c, W, H, { mode: 'firma', text: brand.wm.text || 'BOOM', dot: true, sub: brand.wm.sub || 'ROMA',
+        scheme: 'classic', scale: 4, opacity: 88, spacing: 6, rotation: 0, density: 4, shadow: true,
+        pos: { x: 0.5, y: 0.93 } });
+    // dissolvenza ai bordi del segmento
+    const edge = Math.min(lt * o.per, (1 - lt) * o.per);
+    if (edge < o.FADE) {
+        c.save();
+        c.globalAlpha = 1 - edge / o.FADE;
+        c.fillStyle = '#08080A';
+        c.fillRect(0, 0, W, H);
+        c.restore();
+    }
+}
+
+// ── Avvio ────────────────────────────────────────────────────────────────
+$('expQuality').value = brand.quality;
+$('outQuality').textContent = brand.quality + '%';
+sealImage(wmColors(brand.wm).seal, () => render());
+syncBrandControls();
+syncPhotoControls();
+syncTextControls();
+render();
+</script>
+</body>
+</html>

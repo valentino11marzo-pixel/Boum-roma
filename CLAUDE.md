@@ -55,6 +55,7 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 | `apartment-detail.html` | Dynamic single-property page (loads from Firestore). |
 | `boom_doc_parser.html` | AI document parser UI (uses Claude API). |
 | `watermark-studio.html` | Standalone watermark tool for interns/team. 100% client-side (no Firebase): upload photos, customize the BOOM mark live (6 styles: firma, sigillo, editoriale, pattern, cornice, custom logo), drag to position, batch ZIP export. |
+| `media-studio.html` | Pro media production tool (superset of watermark-studio, also 100% client-side). Layered compositor: color grading (5 looks + manual), crop/aspect per channel with focal framing, branding system (watermark + badge + listing info bar + scrim), draggable text layers, social templates, multi-format batch export (portali/IG/story ZIP), Ken Burns video reel generator (MediaRecorder). |
 | `vercel.json` | Deployment config, rewrites, cron schedule. |
 | `js/firebase-config.js` | Firebase project config (`boom-property-dashboards`). |
 | `js/boom-portal.js` | Shared portal lib — `window.BoomPortal` API. |
