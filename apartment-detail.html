@@ -139,8 +139,8 @@
         .apt-zone[href="#"]{pointer-events:none;background:rgba(255,255,255,0.05);border-color:rgba(255,255,255,0.08);color:var(--text-secondary)}
         .apt-zone[href="#"]::before{display:none}
         .apt-price-block{text-align:right;flex-shrink:0}
-        .apt-price{font-size:clamp(36px,5vw,56px);font-weight:100;color:var(--gold);line-height:1}
-        .apt-price-label{font-size:14px;color:var(--text-fade);margin-top:4px}
+        .apt-price{font-size:clamp(36px,5vw,56px);font-weight:100;color:var(--gold);line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+        .apt-price-label{font-size:10px;letter-spacing:1.6px;text-transform:uppercase;color:var(--text-fade);margin-top:7px}
 
         /* Specs */
         .apt-specs{display:flex;gap:10px;flex-wrap:wrap;margin-top:30px;padding-top:26px;border-top:1px solid rgba(255,255,255,0.06)}
@@ -154,6 +154,15 @@
         /* ===== MEDIA ===== */
         .media-section{max-width:1400px;margin:0 auto;padding:0 50px 50px}
         .single-hero-img{width:100%;max-height:600px;object-fit:cover;border-radius:16px;border:1px solid rgba(255,255,255,0.06)}
+        .gal{display:grid;grid-template-columns:repeat(4,1fr);grid-auto-rows:150px;gap:10px}
+        .gal-it{position:relative;border-radius:16px;overflow:hidden;cursor:pointer;border:1px solid rgba(255,255,255,0.07);background:var(--dark-void)}
+        .gal-it img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .8s cubic-bezier(.16,1,.3,1)}
+        .gal-it:hover img{transform:scale(1.05)}
+        .gal-it.main{grid-column:span 2;grid-row:span 2}
+        .gal-more{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(8,8,10,.62);backdrop-filter:blur(3px);font-size:15px;letter-spacing:.5px;color:#fff}
+        .gal-video{position:absolute;left:12px;bottom:12px;display:inline-flex;align-items:center;gap:7px;padding:9px 16px;border-radius:100px;background:rgba(0,0,0,.6);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.2);font-size:11px;letter-spacing:1px;text-transform:uppercase;color:#fff;cursor:pointer;transition:all .25s}
+        .gal-video:hover{background:var(--gold);color:#000;border-color:var(--gold)}
+        @media(max-width:760px){.gal{grid-template-columns:repeat(2,1fr);grid-auto-rows:128px}.gal-it.main{grid-column:span 2}}
         .media-placeholder{width:100%;height:400px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;background:var(--dark-void);border:1px dashed rgba(255,255,255,0.1);border-radius:16px;color:var(--text-fade)}
         .media-placeholder span{font-size:48px;opacity:.3}
 
@@ -189,12 +198,12 @@
         .apt-content{max-width:1400px;margin:0 auto;padding:0 50px 80px;display:grid;grid-template-columns:1fr 380px;gap:50px;align-items:start}
         .content-section{margin-bottom:50px}
         .content-section-title{font-size:11px;text-transform:uppercase;letter-spacing:3px;color:var(--gold);font-weight:600;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid rgba(255, 215, 0,0.15)}
-        .apt-description{font-size:16px;line-height:1.8;color:var(--text-secondary);font-weight:300}
+        .apt-description{font-size:17px;line-height:1.9;color:var(--text-secondary);font-weight:300;max-width:64ch}
 
         /* Features */
         .features-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
-        .feature-item{display:flex;align-items:center;gap:10px;padding:12px 16px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:10px;font-size:14px;color:var(--text-secondary);transition:all .3s}
-        .feature-item:hover{border-color:rgba(255, 215, 0,0.2);background:rgba(255, 215, 0,0.03)}
+        .feature-item{display:flex;align-items:center;gap:10px;padding:13px 18px;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.07);border-radius:12px;font-size:14px;color:var(--text-secondary);transition:border-color .25s,transform .25s,background .25s}
+        .feature-item:hover{border-color:rgba(255, 215, 0,0.22);background:rgba(255, 215, 0,0.03);transform:translateY(-2px)}
         .feature-icon{width:32px;height:32px;display:flex;align-items:center;justify-content:center;background:rgba(255, 215, 0,0.08);border-radius:8px;font-size:16px;flex-shrink:0}
 
         /* Tags */
@@ -2148,17 +2157,15 @@
         if(imgs.length===1&&!hasV){sec.innerHTML=`<img src="${imgs[0]}" alt="Apartment photo" class="single-hero-img" loading="lazy" onclick="openLightbox(0)">`;return}
         if(imgs.length===1&&hasV&&vId){sec.innerHTML=`<img src="${imgs[0]}" alt="Apartment photo" class="single-hero-img" loading="lazy" onclick="openLightbox(0)"><div class="video-section"><div class="video-section-label">Video Tour</div><div class="video-embed"><iframe src="https://www.youtube.com/embed/${vId}?rel=0" allowfullscreen loading="lazy"></iframe></div></div>`;return}
 
-        const slides=[...imgs];const hasVS=hasV&&vId;
-        let sH=slides.map((img,i)=>`<div class="carousel-slide"><img src="${img}" alt="Photo ${i+1}" loading="lazy" onclick="openLightbox(${i})"></div>`).join('');
-        if(hasVS)sH+=`<div class="carousel-slide video-slide"><iframe src="https://www.youtube.com/embed/${vId}?rel=0" allowfullscreen loading="lazy"></iframe></div>`;
-        totalSlides=slides.length+(hasVS?1:0);
-
-        let tH=slides.map((img,i)=>`<div class="carousel-thumb ${i===0?'active':''}" onclick="goTo(${i})"><img src="${img}" alt="Thumb ${i+1}"></div>`).join('');
-        if(hasVS)tH+=`<div class="carousel-thumb video-thumb" onclick="goTo(${slides.length})"></div>`;
-
-        const expandBtn=`<button class="carousel-expand" onclick="openLightbox(currentSlide<${slides.length}?currentSlide:0)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M8 3H3v5M16 3h5v5M21 16v5h-5M3 16v5h5"/></svg>${slides.length} photos</button>`;
-        sec.innerHTML=`<div class="carousel" id="carousel">${expandBtn}${hasVS?'<div class="carousel-video-badge" style="display:block">▶ Video Tour</div>':''}<div class="carousel-track" id="carouselTrack">${sH}</div><button class="carousel-btn carousel-prev" onclick="prev()">‹</button><button class="carousel-btn carousel-next" onclick="next()">›</button><div class="carousel-counter" id="carouselCounter">1 / ${totalSlides}</div></div><div class="carousel-thumbs" id="carouselThumbs">${tH}</div>`;
-        initSwipe();
+        // No photos but a video → embed it; otherwise an asymmetric editorial gallery
+        if(!imgs.length){ if(vId) sec.innerHTML=`<div style="border-radius:16px;overflow:hidden;border:1px solid rgba(255,255,255,.06)"><iframe src="https://www.youtube.com/embed/${vId}?rel=0" allowfullscreen loading="lazy" style="width:100%;height:480px;border:0;display:block"></iframe></div>`; return; }
+        const shown=imgs.slice(0,5);
+        const cells=shown.map((src,i)=>{
+          const more=(i===shown.length-1&&imgs.length>shown.length)?`<div class="gal-more">+${imgs.length-shown.length} photos</div>`:'';
+          const vb=(i===0&&vId)?`<span class="gal-video" onclick="event.stopPropagation();window.open('https://www.youtube.com/watch?v=${vId}','_blank')">▶ Play tour</span>`:'';
+          return `<div class="gal-it${i===0?' main':''}" onclick="openLightbox(${i})"><img src="${src}" alt="Photo ${i+1}" loading="${i===0?'eager':'lazy'}">${more}${vb}</div>`;
+        }).join('');
+        sec.innerHTML=`<div class="gal" id="galGrid">${cells}</div>`;
     }
 
     /* ── LIGHTBOX ── */
