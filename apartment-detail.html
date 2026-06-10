@@ -1659,6 +1659,8 @@
     .upsell-more:hover{text-decoration:underline}
     .sidebar-secondary--quiet{border:none;background:transparent;font-size:12px;color:#777;padding:8px}
     .sidebar-secondary--quiet:hover{border:none;color:var(--gold)}
+    /* Skip layout/paint of below-the-fold acts until they approach the viewport */
+    .bver,.btour,.m48,.faq,.upsell-section,.zone-footer,footer{content-visibility:auto;contain-intrinsic-size:auto 640px}
     </style>
     <script>
     (function(){
@@ -1741,6 +1743,8 @@
     firebase.initializeApp({apiKey:"AIzaSyDDb8UeSc8RhO_VxQrhLrupu1aPD4rwRso",authDomain:"boom-property-dashboards.firebaseapp.com",projectId:"boom-property-dashboards",storageBucket:"boom-property-dashboards.firebasestorage.app",messagingSenderId:"937269017440",appId:"1:937269017440:web:41c1a0b1e1633c2f373c05"});
     const db=firebase.firestore();
     let aptAddress='',currentSlide=0,totalSlides=0,galleryImgs=[],lbIndex=0;
+    // Right-size imgur photos (l=640px, h=1024px). Originals stay full-size in the lightbox.
+    function imgSized(u,s){u=String(u||'');if(!/i\.imgur\.com/.test(u))return u;return u.replace(/(\/[A-Za-z0-9]{7})(\.(?:jpe?g|png|webp))/i,'$1'+s+'$2')}
 
     document.addEventListener('DOMContentLoaded',()=>{
         const params=new URLSearchParams(window.location.search);
@@ -1819,7 +1823,7 @@
               const sqm = l.sqm||l.size;
               const beds = l.beds||l.bedrooms;
               const meta = [sqm&&sqm+'m²', beds&&(beds+' bed'+(beds>1?'s':''))].filter(Boolean).join(' · ');
-              const img = l.image||(l.images&&l.images[0])||'';
+              const img = imgSized(l.image||(l.images&&l.images[0])||'','l');
               return `<a class="zone-card" href="/listing/${encodeURIComponent(l.id)}">
                 <div class="zone-card-img"${img?` style="background-image:url('${img}')"`:''}></div>
                 <div class="zone-card-body">
@@ -2154,8 +2158,8 @@
         const vUrl=d.videoUrl||d.youtubeUrl,hasV=!!vUrl,vId=hasV?exYT(vUrl):null;
 
         if(!imgs.length&&!hasV){sec.innerHTML='<div class="media-placeholder"><span>📷</span><p>Photos coming soon</p></div>';return}
-        if(imgs.length===1&&!hasV){sec.innerHTML=`<img src="${imgs[0]}" alt="Apartment photo" class="single-hero-img" loading="lazy" onclick="openLightbox(0)">`;return}
-        if(imgs.length===1&&hasV&&vId){sec.innerHTML=`<img src="${imgs[0]}" alt="Apartment photo" class="single-hero-img" loading="lazy" onclick="openLightbox(0)"><div class="video-section"><div class="video-section-label">Video Tour</div><div class="video-embed"><iframe src="https://www.youtube.com/embed/${vId}?rel=0" allowfullscreen loading="lazy"></iframe></div></div>`;return}
+        if(imgs.length===1&&!hasV){sec.innerHTML=`<img src="${imgSized(imgs[0],'h')}" alt="Apartment photo" class="single-hero-img" loading="eager" fetchpriority="high" decoding="async" onclick="openLightbox(0)">`;return}
+        if(imgs.length===1&&hasV&&vId){sec.innerHTML=`<img src="${imgSized(imgs[0],'h')}" alt="Apartment photo" class="single-hero-img" loading="eager" fetchpriority="high" decoding="async" onclick="openLightbox(0)"><div class="video-section"><div class="video-section-label">Video Tour</div><div class="video-embed"><iframe src="https://www.youtube.com/embed/${vId}?rel=0" allowfullscreen loading="lazy"></iframe></div></div>`;return}
 
         // No photos but a video → embed it; otherwise an asymmetric editorial gallery
         if(!imgs.length){ if(vId) sec.innerHTML=`<div style="border-radius:16px;overflow:hidden;border:1px solid rgba(255,255,255,.06)"><iframe src="https://www.youtube.com/embed/${vId}?rel=0" allowfullscreen loading="lazy" style="width:100%;height:480px;border:0;display:block"></iframe></div>`; return; }
@@ -2163,7 +2167,7 @@
         const cells=shown.map((src,i)=>{
           const more=(i===shown.length-1&&imgs.length>shown.length)?`<div class="gal-more">+${imgs.length-shown.length} photos</div>`:'';
           const vb=(i===0&&vId)?`<span class="gal-video" onclick="event.stopPropagation();window.open('https://www.youtube.com/watch?v=${vId}','_blank')">▶ Play tour</span>`:'';
-          return `<div class="gal-it${i===0?' main':''}" onclick="openLightbox(${i})"><img src="${src}" alt="Photo ${i+1}" loading="${i===0?'eager':'lazy'}">${more}${vb}</div>`;
+          return `<div class="gal-it${i===0?' main':''}" onclick="openLightbox(${i})"><img src="${imgSized(src,i===0?'h':'l')}" alt="Photo ${i+1}" loading="${i===0?'eager':'lazy'}" decoding="async"${i===0?' fetchpriority="high"':''}>${more}${vb}</div>`;
         }).join('');
         sec.innerHTML=`<div class="gal" id="galGrid">${cells}</div>`;
     }
@@ -2497,5 +2501,6 @@
       }catch(e){}
     })();
     </script>
+<script type="speculationrules">{"prefetch":[{"where":{"href_matches":"/listing/*"},"eagerness":"moderate"}]}</script>
 </body>
 </html>
