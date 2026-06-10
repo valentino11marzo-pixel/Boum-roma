@@ -333,6 +333,45 @@
         .footer-inner a { color: var(--text-tertiary); transition: color 0.3s; }
         .footer-inner a:hover { color: var(--gold); }
 
+        /* ═══════════════ CHI SIAMO (identity) ═══════════════ */
+        .who { position: relative; z-index: 2; padding: var(--sp-5xl) 0; }
+        .who-inner { max-width: 920px; margin: 0 auto; text-align: center; }
+        .who-mark { width: 62px; height: 62px; margin: 0 auto var(--sp-lg); display: block; filter: drop-shadow(0 0 26px rgba(255,215,0,0.32)); }
+        .who p { font-size: 15px; color: var(--text-secondary); max-width: 640px; margin: var(--sp-lg) auto 0; line-height: 1.85; }
+        .who p strong { color: var(--text-primary); font-weight: 500; }
+        .who-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: var(--sp-2xl); }
+        .who-chip { display: inline-flex; align-items: center; gap: 9px; padding: 11px 18px; border: 1px solid var(--border-default); border-radius: 100px; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--text-secondary); background: var(--surface-card); transition: border-color 0.3s var(--ease-out), color 0.3s var(--ease-out); }
+        .who-chip:hover { border-color: var(--border-hover); color: var(--text-primary); }
+        .who-chip i { width: 5px; height: 5px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 8px rgba(255,215,0,0.6); flex-shrink: 0; }
+
+        /* ── conversione al picco emotivo (dopo il manifesto) ── */
+        .manifesto-cta { margin-top: var(--sp-3xl); display: flex; flex-direction: column; align-items: center; gap: 14px; }
+        .manifesto-cta-sub { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-muted); }
+
+        /* ── value stack: cosa c'è dentro la prima locazione gratuita ── */
+        .incl { list-style: none; display: flex; flex-wrap: wrap; justify-content: center; gap: 12px 26px; margin: var(--sp-2xl) auto 0; max-width: 860px; padding: 0; }
+        .incl li { font-size: 12.5px; letter-spacing: 0.3px; color: var(--text-secondary); display: inline-flex; align-items: center; gap: 9px; }
+        .incl li::before { content: '✓'; color: var(--gold); font-size: 11px; font-weight: 700; }
+
+        /* ═══════════════ CONVERSION DOCK (CTA contestuale) ═══════════════ */
+        .dock { position: fixed; left: 50%; bottom: 20px; transform: translate(-50%, 150%); z-index: 9998;
+            display: flex; align-items: center; gap: 14px; padding: 9px 9px 9px 18px; max-width: calc(100vw - 24px);
+            background: rgba(8,8,10,0.82); backdrop-filter: blur(18px) saturate(140%); -webkit-backdrop-filter: blur(18px) saturate(140%);
+            border: 1px solid var(--border-gold); border-radius: 100px;
+            box-shadow: 0 18px 60px rgba(0,0,0,0.6), 0 0 50px rgba(255,215,0,0.06);
+            opacity: 0; pointer-events: none; transition: transform 0.7s var(--ease-out), opacity 0.55s var(--ease-out); }
+        .dock.show { transform: translate(-50%, 0); opacity: 1; pointer-events: auto; }
+        .dock-mark { width: 30px; height: 30px; flex-shrink: 0; filter: drop-shadow(0 0 12px rgba(255,215,0,0.4)); }
+        .dock-txt { display: flex; flex-direction: column; line-height: 1.3; min-width: 0; }
+        .dock-txt b { font-size: 12.5px; font-weight: 500; letter-spacing: 0.2px; color: var(--text-primary); white-space: nowrap; }
+        .dock-txt span { font-size: 9px; letter-spacing: 1.4px; text-transform: uppercase; color: var(--text-tertiary); white-space: nowrap; }
+        .dock-cta { flex-shrink: 0; position: relative; overflow: hidden; display: inline-flex; align-items: center; gap: 8px; padding: 12px 22px; border-radius: 100px; background: var(--gold); color: var(--black); font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; white-space: nowrap; transition: transform 0.3s var(--ease-out), box-shadow 0.3s var(--ease-out); }
+        .dock-cta:hover { transform: translateY(-1px); box-shadow: 0 8px 26px rgba(255,215,0,0.35); }
+        .dock-cta::after { content: ''; position: absolute; inset: 0; background: linear-gradient(115deg, transparent 30%, rgba(255,255,255,0.5), transparent 70%); transform: translateX(-130%); pointer-events: none; }
+        .dock.pulse .dock-cta::after { transition: transform 0.85s var(--ease-out); transform: translateX(130%); }
+        @media (min-width: 720px) { .dock { left: auto; right: 24px; transform: translate(0, 150%); } .dock.show { transform: translate(0, 0); } }
+        @media (max-width: 380px) { .dock-txt span { display: none; } }
+
         @media (max-width: 640px) {
             .pane-inner { width: 62%; }
             .split { min-height: 520px; }
@@ -654,6 +693,24 @@
         </div>
     </section>
 
+    <!-- ═══════════ CHI SIAMO ═══════════ -->
+    <section class="who" id="chi-siamo">
+        <div class="container who-inner">
+            <svg class="who-mark reveal" viewBox="0 0 1024 1024" aria-hidden="true">
+                <g transform="translate(0,1024) scale(0.1,-0.1)" fill="#FFD700"><path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z"/></g>
+            </svg>
+            <div class="manifesto-kicker reveal">Chi c'è dietro</div>
+            <h2 class="section-title reveal">Non un'app che sparisce.<br><span class="gold">Un'agenzia vera, a Roma.</span></h2>
+            <p class="reveal">Dietro BOOM c'è <strong>Egidi Immobiliare</strong>: un'agenzia registrata, con una partita IVA, un mandato che firmi e delle persone che ti rispondono col loro nome. La tecnologia la mettiamo noi — ma la responsabilità la prendiamo per iscritto, non in una brochure.</p>
+            <div class="who-chips reveal">
+                <span class="who-chip"><i></i> Egidi Immobiliare S.r.l.</span>
+                <span class="who-chip"><i></i> Agenzia registrata · P.IVA 17322991005</span>
+                <span class="who-chip"><i></i> Mandato scritto</span>
+                <span class="who-chip"><i></i> Roma — di persona</span>
+            </div>
+        </div>
+    </section>
+
     <!-- ═══════════ MANIFESTO ═══════════ -->
     <section class="manifesto" id="manifesto">
         <div class="container manifesto-inner">
@@ -662,6 +719,10 @@
                 Se l'inquilino che selezioniamo non paga, <span class="k">ne rispondiamo legalmente noi.</span> È scritto nel mandato — non in una brochure.
             </p>
             <div class="manifesto-note">Niente polizze con gli asterischi. Una responsabilità nostra, nero su bianco.</div>
+            <div class="manifesto-cta reveal">
+                <a href="#pubblica" class="btn btn-primary">Candida il tuo immobile</a>
+                <span class="manifesto-cta-sub">La prima locazione è gratuita · online in un'ora</span>
+            </div>
         </div>
     </section>
 
@@ -685,6 +746,16 @@
                 </div>
             </div>
             <div class="terms-note">La casa resta tua. L'inquilino lo scegli tu. Noi rispondiamo del resto.</div>
+            <ul class="incl reveal" aria-label="Tutto incluso nella prima locazione">
+                <li>Foto professionali</li>
+                <li>Annuncio a livello mercato</li>
+                <li>Selezione inquilini</li>
+                <li>Contratto &amp; firma digitale</li>
+                <li>Registrazione</li>
+                <li>Cedolare &amp; adempimenti</li>
+                <li>Portale proprietario</li>
+                <li>Solvibilità garantita</li>
+            </ul>
         </div>
     </section>
 
@@ -707,6 +778,15 @@
             <span><a href="/owners.html">Per Proprietari</a> &nbsp;·&nbsp; <a href="/terms.html">Termini</a> &nbsp;·&nbsp; <a href="/privacy.html">Privacy</a></span>
         </div>
     </footer>
+
+    <!-- ═══════════ CONVERSION DOCK (CTA contestuale) ═══════════ -->
+    <div class="dock" id="dock" aria-hidden="true">
+        <svg class="dock-mark" viewBox="0 0 1024 1024" aria-hidden="true">
+            <g transform="translate(0,1024) scale(0.1,-0.1)" fill="#FFD700"><path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z"/></g>
+        </svg>
+        <div class="dock-txt"><b id="dockTitle">Candida il tuo immobile</b><span id="dockSub">Prima locazione gratuita</span></div>
+        <a class="dock-cta" id="dockCta" href="#pubblica">Inizia</a>
+    </div>
 
     <script>
         (function () {
@@ -967,6 +1047,45 @@
                     if (!raf) raf = requestAnimationFrame(loop);
                 });
                 addEventListener('scroll', function () { sc = Math.min(scrollY, innerHeight) * 0.16; apply(); }, { passive: true });
+            }
+
+            /* ── Conversion dock: la CTA giusta nel momento giusto ─────── */
+            var dock = $('dock');
+            if (dock) {
+                var dockTitle = $('dockTitle'), dockSub = $('dockSub'), dockCta = $('dockCta');
+                var pubSec = $('pubblica'), finalSec = document.querySelector('.final');
+                var WA_DOCK = 'https://wa.me/393313251961?text=' + encodeURIComponent('Ciao BOOM! Vorrei candidare il mio immobile a Roma — mi raccontate come funziona?');
+                var converted = false, mode = '';
+                function inView(el) { if (!el) return false; var r = el.getBoundingClientRect(); return r.top < innerHeight * 0.85 && r.bottom > innerHeight * 0.15; }
+                function setMode(m) {
+                    if (m === mode) return; mode = m;
+                    if (m === 'apply') {
+                        dockTitle.textContent = 'Candida il tuo immobile';
+                        dockSub.textContent = 'Prima locazione gratuita';
+                        dockCta.textContent = 'Inizia'; dockCta.href = '#pubblica'; dockCta.removeAttribute('target');
+                    } else {
+                        dockTitle.textContent = 'Parlane col team';
+                        dockSub.textContent = 'Ti rispondono persone, non un bot';
+                        dockCta.textContent = 'WhatsApp'; dockCta.href = WA_DOCK; dockCta.target = '_blank'; dockCta.rel = 'noopener';
+                    }
+                    if (!reduce) { dock.classList.remove('pulse'); void dock.offsetWidth; dock.classList.add('pulse'); }
+                }
+                function updateDock() {
+                    if (converted) { dock.classList.remove('show'); return; }
+                    var pastHero = scrollY > innerHeight * 0.62;
+                    if (!pastHero || inView(pubSec) || inView(finalSec)) { dock.classList.remove('show'); dock.setAttribute('aria-hidden', 'true'); return; }
+                    var passedForm = pubSec && pubSec.getBoundingClientRect().bottom < innerHeight * 0.3;
+                    setMode(passedForm ? 'talk' : 'apply');
+                    dock.classList.add('show'); dock.setAttribute('aria-hidden', 'false');
+                }
+                addEventListener('scroll', updateDock, { passive: true });
+                addEventListener('resize', updateDock);
+                updateDock();
+                var okEl = $('pubOk');
+                if (okEl) {
+                    new MutationObserver(function () { if (!okEl.hidden) { converted = true; dock.classList.remove('show'); } })
+                        .observe(okEl, { attributes: true, attributeFilter: ['hidden'] });
+                }
             }
         })();
     </script>
