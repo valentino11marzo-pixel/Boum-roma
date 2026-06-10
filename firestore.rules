@@ -183,6 +183,7 @@ service cloud.firestore {
 
     // ─── Admin-only operational collections ───────────────────────────
     match /leads/{x}                      { allow read, write: if isAdmin(); }
+    match /leadPhotos/{x}                  { allow read, write: if isAdmin(); }
     match /pfsClients/{x}                  { allow read, write: if isAdmin(); }
     match /pfsProperties/{x}               { allow read, write: if isAdmin(); }
     match /pfsActivities/{x}               { allow read, write: if isAdmin(); }

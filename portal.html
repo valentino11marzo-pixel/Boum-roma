@@ -5336,7 +5336,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const waMsg = (p) => encodeURIComponent('Ciao! A ' + (p.zone || 'Roma') + ' si sta liberando un appartamento a ' + eur(p.rent) + '/mese. Ti interessa una visita con BOOM?');
         const matchRow = (p, m) => { const ph = m.lead.phone ? String(m.lead.phone).replace(/\D/g, '') : ''; return `
                     <div class="list-item" style="padding-left:32px;background:var(--bg-elevated)"><div class="list-icon"><span style="font-weight:700;color:var(${m.score >= 70 ? '--green' : m.score >= 50 ? '--orange' : '--text-muted'})">${m.score}</span></div>
-                    <div class="list-content"><div class="list-title">${m.lead.name || 'Lead'}</div><div class="list-subtitle">${m.lead.zone || 'zona flessibile'}${m.lead.budget ? ' · ' + eur(m.lead.budget) : ''} · ${(m.reasons || []).slice(0, 2).join(', ')}</div></div>
+                    <div class="list-content"><div class="list-title">${esc(m.lead.name) || 'Lead'}</div><div class="list-subtitle">${esc(m.lead.zone) || 'zona flessibile'}${m.lead.budget ? ' · ' + eur(m.lead.budget) : ''} · ${esc((m.reasons || []).slice(0, 2).join(', '))}</div></div>
                     ${ph ? `<a class="btn btn-xs" href="https://wa.me/${ph}?text=${waMsg(p)}" target="_blank">WhatsApp</a>` : '<span style="font-size:11px;color:var(--text-muted)">no tel</span>'}</div>`; };
         return `
             <div class="page-header"><div><h1 class="page-title">🏘️ Zero-Vacancy</h1><p class="page-subtitle">${scan.counts.expiring} in uscita ≤90gg · ${scan.counts.uncovered} senza domanda · clicca una riga per i lead</p></div></div>

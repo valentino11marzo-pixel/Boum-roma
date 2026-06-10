@@ -9,7 +9,11 @@
 //        message?, photos?: [dataUrl x3], website?: honeypot }
 // 200 { ok:true, id }   400 validation   429 rate   500 error
 
-import { fsCreate, readJson } from './homie/_lib.js';
+import { fsCreate, fsPatch, readJson } from './homie/_lib.js';
+
+// 3 photos (~160KB base64 each) + fields fit under Vercel's 1MB body cap and
+// Firestore's 1MB doc cap, but make the intent explicit rather than implicit.
+export const config = { api: { bodyParser: { sizeLimit: '1mb' } } };
 
 const ZONES = new Set(['trastevere', 'testaccio', 'monti', 'prati', 'centro-storico',
   'san-lorenzo', 'ostiense', 'esquilino', 'pigneto', 'trieste', 'altra']);
@@ -45,7 +49,10 @@ export default async function handler(req, res) {
   const email = String(b.email || '').trim();
   const zone = String(b.zone || '').trim();
   const propertyType = String(b.propertyType || '').trim();
-  if (name.length < 2 || name.length > 80) return res.status(400).json({ ok: false, error: 'name' });
+  // Reject markup / control chars: this name is rendered in the admin portal.
+  if (name.length < 2 || name.length > 80 || /[<>\x00-\x1f]/.test(name)) {
+    return res.status(400).json({ ok: false, error: 'name' });
+  }
   if (!phone && !email) return res.status(400).json({ ok: false, error: 'contact' });
   if (!ZONES.has(zone) || !TYPES.has(propertyType)) return res.status(400).json({ ok: false, error: 'fields' });
 
@@ -71,10 +78,7 @@ export default async function handler(req, res) {
     mq: Math.max(0, Math.min(1000, parseInt(b.mq, 10) || 0)),
     expectedRent: Math.max(0, Math.min(20000, parseInt(b.expectedRent, 10) || 0)),
     message: String(b.message || '').slice(0, 1500),
-    photoCount: photos.length,
-    photo1: photos[0] || '',
-    photo2: photos[1] || '',
-    photo3: photos[2] || '',
+    photoCount: photos.length, // bytes live in leadPhotos/<id>, off the hot list query
     language: 'it',
     sourceRef: 'ibrido.html',
     ip,
@@ -83,6 +87,15 @@ export default async function handler(req, res) {
 
   try {
     const { id } = await fsCreate('leads', doc);
+    // Photos are written to a sibling doc so portal.html / cockpit lead-list
+    // reads (.limit(100) / realtime .limit(50)) never pull the base64 blobs.
+    if (photos.length) {
+      try {
+        await fsPatch(`leadPhotos/${id}`, { leadId: id, photos, createdAt: doc.createdAt });
+      } catch (e) {
+        console.error('publish-lead photos', e); // lead already saved — don't fail the submit
+      }
+    }
     return res.status(200).json({ ok: true, id });
   } catch (e) {
     console.error('publish-lead', e);
