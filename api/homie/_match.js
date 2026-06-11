@@ -5,10 +5,14 @@
 // so it's straightforward to unit-test or call from the admin UI bulk
 // matcher in the future.
 //
-// Why this lives next to the endpoint and not in /js/: pfsClients fields
-// are persisted as the raw strings the form collected ("€800-€1,200",
-// "Studio", "3+", "Trastevere, Monti"), so the parsing logic is tightly
-// coupled to the existing pfsClients schema written by stripe-webhook.js.
+// Why this lives next to the endpoint and not in /js/: pfsClients docs
+// are written by two different surfaces with two different shapes, and the
+// parsing logic is tightly coupled to both:
+//   - stripe-webhook.js: raw intake strings ("€800-€1,200", "Studio",
+//     "3+", preferred_areas: "Trastevere, Monti")
+//   - portal.html admin form (savePFSClient/updatePFSClient): numeric
+//     budget (= max) + numeric minBudget, zone: "Trastevere, Monti",
+//     bedrooms: '' | '1' | '2' | '3' (where '3' is the "3+" option)
 
 // ─── Budget parsing ──────────────────────────────────────────────────
 // "€800-€1,200" → { min: 800, max: 1200 }
@@ -61,6 +65,28 @@ export function parseAreas(raw) {
     .filter(s => s.length >= 3);
 }
 
+// ─── Client budget range ─────────────────────────────────────────────
+// Normalizes both pfsClients shapes to { min, max }:
+//   - number (portal form)        → max, with optional numeric minBudget floor
+//   - bare numeric string "1500"  → ceiling, NOT an exact-match point
+//   - "€800-€1,200" / "3000+"     → parsed range (stripe intake)
+export function clientBudgetRange(client) {
+  if (!client) return null;
+  const raw = client.budget;
+  if (raw == null || raw === '') return null;
+  const minB = Number(client.minBudget);
+  const floor = isFinite(minB) && minB > 0 ? minB : 0;
+  if (typeof raw === 'number') {
+    return isFinite(raw) && raw > 0 ? { min: floor, max: raw } : null;
+  }
+  const s = String(raw).trim();
+  if (/^[€\d.,\s]+$/.test(s) && !/-/.test(s)) {
+    const parsed = parseBudgetRange(s);
+    return parsed ? { min: floor, max: parsed.max } : null;
+  }
+  return parseBudgetRange(s);
+}
+
 // Normalize a property's address/zone the same way for comparison.
 export function normalizeForMatch(text) {
   if (!text) return '';
@@ -79,7 +105,7 @@ export function scoreMatch(property, client) {
   let reject = null;
 
   // Budget (0–50)
-  const budgetRange = parseBudgetRange(client.budget);
+  const budgetRange = clientBudgetRange(client);
   const price = typeof property.price === 'number' ? property.price : parseFloat(property.price);
   if (budgetRange && isFinite(price)) {
     if (price >= budgetRange.min && price <= budgetRange.max) {
@@ -111,8 +137,9 @@ export function scoreMatch(property, client) {
     ? property.bedrooms
     : (typeof property.rooms === 'number' ? property.rooms : null);
   if (wantBeds != null && haveBeds != null) {
-    // "3+" matches anything >= 3
-    const wantsThreePlus = String(client.bedrooms || '').trim().endsWith('+');
+    // "3+" matches anything >= 3. The portal form's top option saves the
+    // bare value '3' but its label is "3+ bedrooms", so numeric 3 means 3+.
+    const wantsThreePlus = String(client.bedrooms || '').trim().endsWith('+') || wantBeds >= 3;
     const exact = wantsThreePlus ? (haveBeds >= wantBeds) : (haveBeds === wantBeds);
     if (exact) {
       score += 30;
@@ -125,8 +152,8 @@ export function scoreMatch(property, client) {
     }
   }
 
-  // Areas (0–20)
-  const wantedAreas = parseAreas(client.preferred_areas);
+  // Areas (0–20) — stripe intake writes preferred_areas, portal form writes zone
+  const wantedAreas = parseAreas(client.preferred_areas || client.zone);
   const propertyText = normalizeForMatch(
     [property.address, property.zone, property.title].filter(Boolean).join(' ')
   );
