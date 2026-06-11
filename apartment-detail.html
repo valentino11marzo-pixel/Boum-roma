@@ -196,7 +196,7 @@
 
         /* ===== TWO COLUMN ===== */
         .apt-content{max-width:1400px;margin:0 auto;padding:0 50px 80px;display:grid;grid-template-columns:1fr 380px;gap:50px;align-items:start}
-        .content-section{margin-bottom:50px}
+        .content-section{margin-bottom:34px}
         .content-section-title{font-size:11px;text-transform:uppercase;letter-spacing:3px;color:var(--gold);font-weight:600;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid rgba(255, 215, 0,0.15)}
         .apt-description{font-size:17px;line-height:1.9;color:var(--text-secondary);font-weight:300;max-width:64ch}
 
@@ -877,9 +877,9 @@
         .bmx-pre{font-size:15px;color:#999;font-weight:300;margin-right:1px}
         /* ── Apple-style payment story (pinned scrollytelling) ── */
         .pay{max-width:1000px;margin:0 auto}
-        .pay-track{height:320vh;position:relative}
+        .pay-track{height:160vh;position:relative}
         .pay-stage{position:sticky;top:96px;min-height:min(620px,calc(100svh - 130px));display:grid;grid-template-columns:.85fr 1.15fr;gap:clamp(24px,4vw,56px);align-items:center}
-        @media(max-width:760px){.pay-track{height:300vh}.pay-stage{grid-template-columns:1fr;gap:20px;align-content:center;top:80px}}
+        @media(max-width:760px){.pay-track{height:200vh}.pay-stage{grid-template-columns:1fr;gap:20px;align-content:center;top:80px}}
         .pay-k{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:#666;margin-bottom:12px;font-variant-numeric:tabular-nums}
         .pay-t{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-weight:200;font-size:clamp(26px,3.6vw,44px);color:#fff;line-height:1.08;letter-spacing:-.01em;transition:opacity .35s,transform .35s}
         .pay-s{margin-top:10px;font-size:14px;color:#999;line-height:1.6;max-width:320px;transition:opacity .35s,transform .35s}
@@ -1685,6 +1685,9 @@
     /* Reserve the gallery height so injecting photos never pushes the page (CLS) */
     .media-section{min-height:330px}
     @media(max-width:760px){.media-section{min-height:400px}}
+    /* Tighter rhythm — get to the point, don't make them wander */
+    .bver,.bmx,.btour,.m48,.faq{margin-top:42px}
+    .upsell-section{padding-top:24px}
     /* Mobile lightness: kill always-on GPU effects that can stutter scrolling */
     @media(max-width:860px){
       .cine-ambient{display:none!important}

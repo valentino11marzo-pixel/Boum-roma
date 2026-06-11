@@ -123,6 +123,10 @@ CRON_SECRET
 # Homie Mac bridge (inbound webhooks)
 HOMIE_SECRET                 # shared secret sent as X-Homie-Secret header
 
+# Telegram listing wizard bot
+WIZARD_SECRET                # shared secret sent as X-Wizard-Secret header
+                             # (optional — falls back to HOMIE_SECRET)
+
 # PFS radar (api/pfs/*)
 PFS_IMAP_USER                # optional — alert mailbox if ≠ GMAIL_USER
 PFS_IMAP_PASS                # optional — its app password (IMAP read)
@@ -146,6 +150,16 @@ Webhook called by the Mac-side Homie agent when it filters a new lead from Immob
 
 ### POST `/api/homie/action`
 Webhook for Homie's proposed actions (reply draft, schedule viewing, qualify, archive). Writes to `action_queue` collection. Supports idempotent retries via `contextHash` field and auto-apply for high-confidence tier-1 actions.
+
+### POST `/api/wizard/publish`
+Publish bridge for the Telegram listing wizard bot. Auth via `X-Wizard-Secret`
+header (env `WIZARD_SECRET`, falls back to `HOMIE_SECRET` / `X-Homie-Secret`).
+Accepts either the raw Firestore REST `{ fields: {...} }` payload the bot
+already builds, or a plain JSON listing object. Optional `?id=<docId>` (or
+`body.id`) makes it an upsert; otherwise Firestore auto-IDs. Writes to
+`listings` under admin credentials — direct unauthenticated writes to
+firestore.googleapis.com are denied by `firestore.rules` (admin-only).
+Returns `{ ok, id, url }`.
 
 ### POST `/api/magic-sign/lookup`
 Public endpoint for the Magic-Sign UI. Body: `{ token }`. Looks up the
