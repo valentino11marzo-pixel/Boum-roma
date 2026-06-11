@@ -32,6 +32,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/css/boom-film.css">
+    <noscript><style>.intro{display:none!important}.reveal,.h-word,.hero-sub,.hero-actions,.hero-kicker,.hero .eyebrow{opacity:1!important;transform:none!important;filter:none!important}</style></noscript>
     <style>
         /* ═══════════════ BOOM design tokens (da index.html) ═══════════════ */
         *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -43,7 +44,7 @@
             --text-primary: #FAFAFA;
             --text-secondary: rgba(250,250,250,0.72);
             --text-tertiary: rgba(250,250,250,0.44);
-            --text-muted: rgba(250,250,250,0.24);
+            --text-muted: rgba(250,250,250,0.42);
             --border-subtle: rgba(255,255,255,0.04);
             --border-default: rgba(255,255,255,0.08);
             --border-hover: rgba(255,215,0,0.25);
@@ -403,9 +404,12 @@
         .est-disc b { color: var(--text-tertiary); font-weight: 500; }
         .est-toast { position: fixed; left: 50%; bottom: 84px; transform: translate(-50%, 20px); z-index: 10003; padding: 12px 20px; background: rgba(8,8,10,0.92); border: 1px solid var(--border-gold); border-radius: 100px; color: var(--gold); font-size: 12px; letter-spacing: 0.5px; opacity: 0; pointer-events: none; transition: opacity 0.3s var(--ease-out), transform 0.3s var(--ease-out); }
         .est-toast.on { opacity: 1; transform: translate(-50%, 0); }
+        .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+        .pfflash { animation: pfflash 1.3s var(--ease-out); }
+        @keyframes pfflash { 0% { box-shadow: 0 0 0 0 rgba(255,215,0,0.55); border-color: var(--gold); } 100% { box-shadow: 0 0 0 6px rgba(255,215,0,0); } }
 
         /* ═══════════════ CONVERSION DOCK (CTA contestuale) ═══════════════ */
-        .dock { position: fixed; left: 50%; bottom: 20px; transform: translate(-50%, 150%); z-index: 9998;
+        .dock { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translate(-50%, 150%); z-index: 9998;
             display: flex; align-items: center; gap: 14px; padding: 9px 9px 9px 18px; max-width: calc(100vw - 24px);
             background: rgba(8,8,10,0.82); backdrop-filter: blur(18px) saturate(140%); -webkit-backdrop-filter: blur(18px) saturate(140%);
             border: 1px solid var(--border-gold); border-radius: 100px;
@@ -542,9 +546,8 @@
                 <span class="h-line gold">La responsabilità di un'agenzia.</span>
             </h1>
             <p class="hero-sub">
-                Lo candidi con la libertà di un portale. Lo portiamo a livello mercato e lo gestiamo come un'agenzia — niente annunci grezzi.
-                E della solvibilità dell'inquilino <strong>rispondiamo legalmente noi</strong> — è scritto nel mandato.
-                La prima locazione è gratuita.
+                Candidi la tua casa con la libertà di un portale. La portiamo a livello mercato e la gestiamo come un'agenzia — niente annunci grezzi.
+                E della solvibilità dell'inquilino <strong>rispondiamo legalmente noi</strong>: è scritto nel mandato.
             </p>
             <div class="hero-actions">
                 <a href="#stima" class="btn btn-primary">Scopri quanto rende</a>
@@ -582,18 +585,19 @@
                     </div>
                     <div class="est-fld">
                         <label for="eMq">Metri quadri</label>
-                        <input type="number" id="eMq" value="65" min="15" max="600" inputmode="numeric">
+                        <input type="number" id="eMq" value="65" min="15" max="900" inputmode="numeric">
                     </div>
                     <div class="est-fld">
                         <label>Arredamento</label>
                         <div class="seg" id="eSegArr" role="group" aria-label="Arredamento">
-                            <button type="button" class="on" data-v="si">Arredato</button>
-                            <button type="button" data-v="parziale">Parziale</button>
-                            <button type="button" data-v="no">Vuoto</button>
+                            <button type="button" class="on" data-v="si" aria-pressed="true">Arredato</button>
+                            <button type="button" data-v="parziale" aria-pressed="false">Parziale</button>
+                            <button type="button" data-v="no" aria-pressed="false">Vuoto</button>
                         </div>
                     </div>
                 </div>
-                <div class="est-result" aria-live="polite">
+                <div class="est-result">
+                    <span id="eLive" class="sr-only" aria-live="polite"></span>
                     <div class="est-kw">Canone concordato stimato</div>
                     <div class="est-big"><span id="eBig">€ —</span><small>/mese</small></div>
                     <div class="est-hi" id="eHi">—</div>
@@ -657,7 +661,7 @@
             <div class="split-head">
                 <div class="eyebrow" style="justify-content:center"><span class="eyebrow-dot"></span><span class="eyebrow-text">Candida il tuo immobile</span></div>
                 <h2 class="section-title reveal" style="text-align:center">Il tuo immobile online in un'ora.<br><span class="gold">Curato e approvato dal nostro team.</span></h2>
-                <p class="reveal">Non è un portale fai-da-te. Carichi foto e dati, il team BOOM porta l'annuncio allo standard più alto del mercato — sopra qualunque competitor — e lo approva. Niente annunci grezzi: solo immobili pronti, online entro un'ora.</p>
+                <p class="reveal">Non è un portale fai-da-te. Carichi foto e dati, il team BOOM porta l'annuncio allo standard più alto del nostro mercato e lo approva. Niente annunci grezzi: solo immobili pronti, di norma online entro un'ora negli orari di lavoro.</p>
             </div>
             <ol class="pub-steps reveal" aria-label="Come funziona">
                 <li><span class="ps-n">01</span><div><b>Candidi</b><em>Foto e dati essenziali. Due minuti, dal telefono.</em></div></li>
@@ -666,7 +670,7 @@
             </ol>
             <div class="pub-grid reveal">
                 <form class="pub-form" id="pubForm" autocomplete="on" novalidate>
-                    <input type="text" name="website" id="pfHoney" tabindex="-1" aria-hidden="true" style="position:absolute;left:-5000px">
+                    <input type="text" name="url_confirm" id="pfHoney" tabindex="-1" aria-hidden="true" autocomplete="off" style="position:absolute;left:-5000px">
                     <div class="fld">
                         <label>Foto dell'immobile <span class="soft">(fino a 3 — le rifiniamo noi a livello mercato. Restano sul tuo telefono finché non invii)</span></label>
                         <div class="drop" id="pfDrop" role="button" tabindex="0">
@@ -692,7 +696,7 @@
                     </div>
                     <label class="consent"><input type="checkbox" id="pfConsent"><span>Ho letto la <a href="/privacy.html" target="_blank" rel="noopener">Privacy Policy</a> e acconsento a essere ricontattato da BOOM riguardo al mio immobile.</span></label>
                     <button type="submit" class="btn btn-primary" id="pfSubmit" style="width:100%">Candida il tuo immobile</button>
-                    <div class="engine-foot" style="margin-top:14px">Prima locazione gratuita · la casa resta tua · <b>approvazione entro 1 ora</b></div>
+                    <div class="engine-foot" style="margin-top:14px">Prima locazione gratuita · la casa resta tua · <b>approvata e online entro un'ora (in orario di lavoro)</b></div>
                     <div class="pub-err" id="pfErr" role="alert"></div>
                 </form>
                 <div class="pub-stage">
@@ -709,7 +713,7 @@
                     <div class="pub-success" id="pubOk" hidden>
                         <div class="pub-ok-ring">✓</div>
                         <h3>Candidatura ricevuta.</h3>
-                        <p>Il tuo immobile <span id="okRef"></span> è in lavorazione. Il team BOOM lo sta portando a livello mercato e, una volta approvato, va <b>online entro un'ora</b>. Ti avvisiamo noi a ogni passaggio.</p>
+                        <p>Il tuo immobile <span id="okRef"></span> è in lavorazione. Il team BOOM lo sta portando a livello mercato e, una volta approvato, va <b>online entro un'ora</b> (negli orari di lavoro). Ti avvisiamo noi a ogni passaggio.</p>
                         <a class="btn btn-secondary" id="okWa" href="https://wa.me/393313251961" target="_blank" rel="noopener">Parlane subito col team su WhatsApp</a>
                     </div>
                 </div>
@@ -869,7 +873,7 @@
     <section class="final">
         <div class="container">
             <h2 class="reveal">Parliamone.<br><span class="gold">Da persone.</span></h2>
-            <p class="reveal">Nessun form da compilare, nessuna chiamata commerciale. Scrivici di casa tua: ti rispondiamo noi, gli stessi che poi la gestiranno.</p>
+            <p class="reveal">Preferisci parlare prima di candidare? Nessuna chiamata commerciale: scrivici di casa tua e ti rispondiamo noi, gli stessi che poi la gestiranno.</p>
             <div class="final-actions reveal">
                 <a href="https://wa.me/393313251961" class="btn btn-primary">Scrivici su WhatsApp</a>
                 <a href="/owners.html" class="btn btn-secondary">Scopri di più sui proprietari</a>
@@ -1025,10 +1029,23 @@
                     split.setAttribute('aria-valuenow', Math.round(p));
                 }
                 function wake() { if (!touched) { touched = true; split.classList.remove('breathe'); } }
-                split.addEventListener('pointerdown', function (e) { dragging = true; wake(); setX(e.clientX); split.setPointerCapture(e.pointerId); });
-                split.addEventListener('pointermove', function (e) { if (dragging) setX(e.clientX); });
-                split.addEventListener('pointerup', function () { dragging = false; });
-                split.addEventListener('pointercancel', function () { dragging = false; });
+                var pdX = 0, pdY = 0, decided = false;
+                split.addEventListener('pointerdown', function (e) {
+                    dragging = true; decided = false; pdX = e.clientX; pdY = e.clientY;
+                    if (e.pointerType === 'mouse') { decided = true; wake(); setX(e.clientX); split.setPointerCapture(e.pointerId); }
+                });
+                split.addEventListener('pointermove', function (e) {
+                    if (!dragging) return;
+                    if (!decided) {                                   /* touch/pen: parti solo con intento orizzontale, lascia scorrere la pagina */
+                        var dx = Math.abs(e.clientX - pdX), dy = Math.abs(e.clientY - pdY);
+                        if (dx < 6 && dy < 6) return;
+                        if (dy > dx) { dragging = false; return; }
+                        decided = true; wake(); split.setPointerCapture(e.pointerId);
+                    }
+                    setX(e.clientX); e.preventDefault();
+                });
+                split.addEventListener('pointerup', function () { dragging = false; decided = false; });
+                split.addEventListener('pointercancel', function () { dragging = false; decided = false; });
                 split.addEventListener('keydown', function (e) {
                     var cur = parseFloat(getComputedStyle(split).getPropertyValue('--x')) || 50;
                     if (e.key === 'ArrowLeft') { wake(); split.style.setProperty('--x', Math.max(12, cur - 4) + '%'); e.preventDefault(); }
@@ -1070,10 +1087,10 @@
                     'centro-storico': ['Centro Storico', 12.6, 18.3, 26.2, 31.5], 'san-lorenzo': ['San Lorenzo', 4.4, 8.1, 11.6, 13.6],
                     ostiense: ['Ostiense', 6.1, 7.7, 11.0, 12.5], esquilino: ['Esquilino', 7.0, 9.2, 13.1, 15.7],
                     pigneto: ['Pigneto', 4.4, 7.3, 10.5, 13.1], trieste: ['Trieste / Coppedè', 10.5, 13.9, 19.9, 23.9],
-                    altra: ['Roma', 6.1, 8.2, 11.8, 13.5]
+                    altra: ['Roma', 4.1, 6.4, 9.1, 11.0]   /* banda periferica conservativa: "altra zona" copre anche le suburbane */
                 };
                 var eMq = $('eMq'), arr = 'si', last = null, shownVal = 0, raf = 0, fired = false;
-                var euro = function (n) { return '€ ' + Math.round(n).toLocaleString('it-IT'); };
+                var euro = function (n) { return '€ ' + Math.round(n).toLocaleString('it-IT'); };
                 function coeff(mq) { return mq < 46 ? 1.30 : mq < 70 ? 1.15 : mq <= 120 ? 1.00 : 0.85; }
                 function countTo(target) {
                     var to = Math.round(target);
@@ -1082,34 +1099,39 @@
                     cancelAnimationFrame(raf);
                     (function tick(now) {
                         var p = Math.min(1, (now - start) / dur), e = 1 - Math.pow(1 - p, 3);
-                        $('eBig').textContent = euro(f + (to - f) * e);
+                        var v = f + (to - f) * e; shownVal = v;            /* tieni shownVal vivo: niente salti se interrotto */
+                        $('eBig').textContent = euro(v);
                         if (p < 1) raf = requestAnimationFrame(tick); else shownVal = to;
                     })(start);
                 }
-                function calc() {
+                function calc(userInit) {
                     var z = Z[eZone.value] || Z.altra, mq = Math.max(0, Math.min(900, parseInt(eMq.value, 10) || 0));
-                    if (!mq) { $('eBig').textContent = '€ —'; $('eHi').textContent = '—'; $('eSave').textContent = '€ —'; $('eRange').textContent = '—'; $('eSup').textContent = '—'; last = null; shownVal = 0; return; }
+                    if (!mq) { $('eBig').textContent = '€ —'; $('eHi').textContent = '—'; $('eSave').textContent = '€ —'; $('eRange').textContent = '—'; $('eSup').textContent = '—'; last = null; shownVal = 0; window.BOOM_EST = null; return; }
                     var sup = mq * coeff(mq);
                     var mod = arr === 'si' ? 0.15 : arr === 'parziale' ? 0.07 : 0;
                     var unitF = ((z[2] + z[3]) / 2) * (1 + mod);
-                    if (unitF > z[3] * 1.35) unitF = z[3] * 1.35;            /* stesso cap del motore BOOM */
+                    if (unitF > z[4]) unitF = z[4];                          /* cap al tetto legale (C.max): mai sopra l'intervallo mostrato */
                     var mensile = unitF * sup, annuo = mensile * 12, risp = annuo * 0.11;
                     var loMese = z[1] * sup, hiMese = z[4] * sup;            /* tetto legale A.min → C.max */
                     last = { zona: z[0], zoneKey: eZone.value, mq: mq, mensile: Math.round(mensile), annuo: Math.round(annuo), risp: Math.round(risp), lo: Math.round(loMese), hi: Math.round(hiMese) };
+                    window.BOOM_EST = last;
                     countTo(mensile);
-                    $('eHi').textContent = 'fino a ' + euro(hiMese) + '/mese nel concordato';
+                    $('eHi').textContent = eZone.value === 'altra'
+                        ? 'Stima indicativa — la zona esatta cambia il tetto'
+                        : 'fino a ' + euro(hiMese) + '/mese nel concordato';
                     $('eSave').textContent = euro(risp);
                     $('eRange').textContent = euro(loMese) + '–' + euro(hiMese) + '/mese';
                     $('eSup').textContent = sup.toFixed(0) + ' mq';
-                    if (!fired && typeof gtag === 'function') { fired = true; gtag('event', 'estimate_view', { event_category: 'ibrido', event_label: z[0], value: Math.round(mensile) }); }
+                    $('eLive').textContent = 'Stima: ' + Math.round(mensile).toLocaleString('it-IT') + ' euro al mese a ' + z[0] + '.';
+                    if (userInit && !fired && typeof gtag === 'function') { fired = true; gtag('event', 'estimate_view', { event_category: 'ibrido', event_label: z[0], value: Math.round(mensile) }); }
                 }
-                eZone.addEventListener('input', calc);
-                eMq.addEventListener('input', calc);
+                eZone.addEventListener('input', function () { calc(true); });
+                eMq.addEventListener('input', function () { calc(true); });
                 $('eSegArr').addEventListener('click', function (ev) {
                     var b = ev.target.closest('button'); if (!b) return;
                     arr = b.dataset.v;
-                    this.querySelectorAll('button').forEach(function (x) { x.classList.toggle('on', x === b); });
-                    calc();
+                    this.querySelectorAll('button').forEach(function (x) { var on = x === b; x.classList.toggle('on', on); x.setAttribute('aria-pressed', on ? 'true' : 'false'); });
+                    calc(true);
                 });
                 /* stima → candidatura: precompila il form e portaci sopra */
                 $('eGo').addEventListener('click', function (ev) {
@@ -1118,10 +1140,19 @@
                         var zsel = $('pfZone'); if (zsel && Z[last.zoneKey]) zsel.value = last.zoneKey;
                         if ($('pfMq')) $('pfMq').value = last.mq;
                         if ($('pfRent')) $('pfRent').value = last.mensile;
-                        ['pfZone', 'pfMq', 'pfRent'].forEach(function (id) { var el = $(id); if (el) el.dispatchEvent(new Event('input', { bubbles: true })); });
+                        var tsel = $('pfType'); if (tsel) tsel.value = last.mq <= 45 ? 'mono' : last.mq <= 70 ? 'bilo' : last.mq <= 110 ? 'trilo' : 'quadri';
+                        ['pfZone', 'pfType', 'pfMq', 'pfRent'].forEach(function (id) {
+                            var el = $(id); if (!el) return;
+                            el.dispatchEvent(new Event('input', { bubbles: true }));
+                            if (!reduce) { el.classList.remove('pfflash'); void el.offsetWidth; el.classList.add('pfflash'); }
+                        });
                         if (typeof gtag === 'function') gtag('event', 'estimate_to_apply', { event_category: 'ibrido', event_label: last.zona });
                     }
-                    var t = $('pubblica'); if (t) { t.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' }); }
+                    var t = $('pubblica');
+                    if (t) {
+                        t.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+                        setTimeout(function () { var n = $('pfName'); if (n) n.focus({ preventScroll: true }); }, reduce ? 0 : 650);
+                    }
                 });
                 /* condividi la stima — il motore virale */
                 var toast;
@@ -1131,7 +1162,7 @@
                     setTimeout(function () { toast.classList.remove('on'); }, 2200);
                 }
                 $('eShare').addEventListener('click', function () {
-                    var url = 'https://www.boomrome.com/ibrido';
+                    var url = 'https://www.boomrome.com/ibrido' + (last ? ('?z=' + encodeURIComponent(last.zoneKey) + '&mq=' + last.mq + '&a=' + arr) : '');
                     var txt = last
                         ? 'La mia casa a ' + last.zona + ' (' + last.mq + ' mq) può rendere ~' + euro(last.mensile) + '/mese a canone concordato, e risparmierei ~' + euro(last.risp) + '/anno di tasse. Calcolato con BOOM:'
                         : 'Scopri quanto rende la tua casa a Roma a canone concordato, con BOOM:';
@@ -1140,6 +1171,17 @@
                     else if (navigator.clipboard) { navigator.clipboard.writeText(txt + ' ' + url).then(function () { flash('Stima copiata — incollala dove vuoi ✓'); }, function () { window.open('https://wa.me/?text=' + encodeURIComponent(txt + ' ' + url), '_blank', 'noopener'); }); }
                     else { window.open('https://wa.me/?text=' + encodeURIComponent(txt + ' ' + url), '_blank', 'noopener'); }
                 });
+                /* deep-link: /ibrido?z=testaccio&mq=65&a=si apre la stima già configurata */
+                try {
+                    var qp = new URLSearchParams(location.search);
+                    var qz = qp.get('z'), qmq = parseInt(qp.get('mq'), 10), qa = qp.get('a');
+                    if (qz && Z[qz]) eZone.value = qz;
+                    if (qmq > 0) eMq.value = Math.min(900, qmq);
+                    if (qa === 'si' || qa === 'parziale' || qa === 'no') {
+                        arr = qa;
+                        $('eSegArr').querySelectorAll('button').forEach(function (x) { var on = x.dataset.v === qa; x.classList.toggle('on', on); x.setAttribute('aria-pressed', on ? 'true' : 'false'); });
+                    }
+                } catch (e) { }
                 calc();
             })();
 
@@ -1154,11 +1196,18 @@
                     return new Promise(function (ok) {
                         var img = new Image(), url = URL.createObjectURL(file);
                         img.onload = function () {
-                            var M = 760, w = img.width, h = img.height, s = Math.min(1, M / Math.max(w, h));
-                            var c = document.createElement('canvas'); c.width = Math.round(w * s); c.height = Math.round(h * s);
-                            c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
                             URL.revokeObjectURL(url);
-                            ok(c.toDataURL('image/jpeg', 0.7));
+                            function render(max, q) {
+                                var w = img.width, h = img.height, s = Math.min(1, max / Math.max(w, h));
+                                var c = document.createElement('canvas'); c.width = Math.round(w * s); c.height = Math.round(h * s);
+                                c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+                                return c.toDataURL('image/jpeg', q);
+                            }
+                            /* resta sotto il tetto del server (160k char): scendi di qualità, poi di pixel */
+                            var q = 0.72, data = render(820, q);
+                            while (data.length > 150000 && q > 0.4) { q -= 0.08; data = render(820, q); }
+                            if (data.length > 150000) data = render(620, 0.6);
+                            ok(data.length > 158000 ? null : data);   /* meglio saltarla che far fallire tutta la candidatura */
                         };
                         img.onerror = function () { URL.revokeObjectURL(url); ok(null); };
                         img.src = url;
@@ -1168,7 +1217,7 @@
                     var t = $('pfType').value, z = $('pfZone').value, mq = parseInt($('pfMq').value, 10) || 0, r = parseInt($('pfRent').value, 10) || 0;
                     $('pcTitle').textContent = TYPE_LABEL[t] + ' · ' + ZONE_LABEL[z];
                     $('pcMeta').textContent = (mq ? mq + ' m²' : '— m²') + ' · Roma';
-                    $('pcPrice').innerHTML = (r ? '€' + r.toLocaleString('it-IT') : '€ —') + '<small>/mese</small>';
+                    $('pcPrice').innerHTML = (r ? '€ ' + r.toLocaleString('it-IT') : '€ —') + '<small>/mese</small>';
                     var m = $('pcMedia');
                     m.querySelectorAll('img').forEach(function (i) { i.remove(); });
                     photos.forEach(function (p) { var i = new Image(); i.src = p; i.alt = ''; m.appendChild(i); });
@@ -1177,13 +1226,16 @@
                 ['pfType', 'pfZone', 'pfMq', 'pfRent'].forEach(function (id) { $(id).addEventListener('input', renderCard); });
                 $('pfDrop').addEventListener('click', function () { $('pfPhotos').click(); });
                 $('pfPhotos').addEventListener('change', function (e) {
-                    var files = Array.prototype.slice.call(e.target.files, 0, 3);
+                    var all = e.target.files, extra = all.length > 3;
+                    var files = Array.prototype.slice.call(all, 0, 3);
                     if (!files.length) return;
                     $('pfDropLabel').textContent = 'Preparo le foto…';
                     Promise.all(files.map(compress)).then(function (out) {
                         photos = out.filter(Boolean);
-                        $('pfDrop').classList.add('has');
-                        $('pfDropLabel').textContent = '✓ ' + photos.length + (photos.length === 1 ? ' foto pronta' : ' foto pronte');
+                        $('pfDrop').classList.toggle('has', photos.length > 0);
+                        $('pfDropLabel').textContent = photos.length
+                            ? '✓ ' + photos.length + (photos.length === 1 ? ' foto pronta' : ' foto pronte') + (extra ? ' (max 3)' : '')
+                            : 'Foto troppo pesante — provane un\'altra';
                         renderCard();
                         $('pCard').style.transform = 'scale(1.015)';
                         setTimeout(function () { $('pCard').style.transform = ''; }, 350);
@@ -1194,29 +1246,43 @@
                     ev.preventDefault();
                     $('pfErr').classList.remove('on');
                     var name = $('pfName').value.trim(), phone = $('pfPhone').value.trim();
+                    var digits = (phone.match(/\d/g) || []).length;
                     if (name.length < 2) return fail('Dicci il tuo nome — serve per ricontattarti.');
-                    if (phone.length < 6) return fail('Lasciaci un numero WhatsApp: è lì che ti rispondiamo.');
+                    if (digits < 8) return fail('Lasciaci un numero di telefono valido: è lì che ti rispondiamo.');
                     if (!$('pfConsent').checked) return fail('Spunta il consenso privacy per poterti ricontattare.');
                     var btn = $('pfSubmit'); btn.disabled = true; btn.textContent = 'Invio la candidatura…';
+                    function waRecover() {
+                        return 'https://wa.me/393313251961?text=' + encodeURIComponent('Ciao BOOM! Vorrei candidare il mio immobile (' + (TYPE_LABEL[$('pfType').value] || '') + ' a ' + (ZONE_LABEL[$('pfZone').value] || 'Roma') + (name ? ', ' + name : '') + '). Dal sito non è andato a buon fine.');
+                    }
+                    function failRecover(msg) {
+                        var e = $('pfErr'); e.textContent = msg + ' ';
+                        var a = document.createElement('a');
+                        a.href = waRecover(); a.target = '_blank'; a.rel = 'noopener';
+                        a.style.cssText = 'color:var(--gold);text-decoration:underline;white-space:nowrap';
+                        a.textContent = 'Candidati su WhatsApp →';
+                        e.appendChild(a); e.classList.add('on');
+                        btn.disabled = false; btn.textContent = 'Candida il tuo immobile';
+                    }
+                    var ERR = { rate: 'Troppi tentativi: riprova tra qualche minuto.', photo: 'Una foto è troppo pesante: toglila o usane una più leggera.', name: 'Controlla il nome inserito.', email: 'Controlla l\'indirizzo email.', phone: 'Controlla il numero di telefono.', contact: 'Lasciaci un recapito.', fields: 'Controlla zona e tipologia.' };
                     fetch('/api/publish-lead', {
                         method: 'POST', headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             name: name, phone: phone, zone: $('pfZone').value, propertyType: $('pfType').value,
                             mq: $('pfMq').value, expectedRent: $('pfRent').value, photos: photos,
+                            estimate: window.BOOM_EST || null,
                             consent: true, consentText: $('pfConsent').nextElementSibling.textContent.trim(),
                             website: $('pfHoney').value
                         })
-                    }).then(function (r) { return r.json(); }).then(function (j) {
-                        if (!j.ok) throw new Error(j.error || 'server');
+                    }).then(function (r) { return r.json().catch(function () { return { ok: false }; }); }).then(function (j) {
+                        if (!j.ok) { failRecover(ERR[j.error] || 'Qualcosa non ha funzionato.'); return; }
                         form.style.display = 'none';
-                        $('okRef').textContent = j.id ? '(rif. ' + String(j.id).slice(0, 6).toUpperCase() + ')' : '';
+                        $('okRef').textContent = (j.id && j.id !== 'ok') ? '(rif. ' + String(j.id).slice(0, 6).toUpperCase() + ')' : '';
                         $('okWa').href = 'https://wa.me/393313251961?text=' + encodeURIComponent('Ciao BOOM! Ho appena candidato il mio immobile dal sito (' + TYPE_LABEL[$('pfType').value] + ' a ' + ZONE_LABEL[$('pfZone').value] + '). Quando va online?');
                         $('pubOk').hidden = false;
-                        if (typeof gtag === 'function') gtag('event', 'generate_lead', { event_category: 'ibrido', event_label: $('pfZone').value, value: 1 });
+                        if (typeof gtag === 'function') gtag('event', 'lead_submitted', { event_category: 'ibrido', event_label: $('pfZone').value, value: 1 });
                         $('pubOk').scrollIntoView({ behavior: 'smooth', block: 'center' });
                     }).catch(function () {
-                        btn.disabled = false; btn.textContent = 'Candida il tuo immobile';
-                        fail('Qualcosa non ha funzionato. Riprova, o scrivici direttamente su WhatsApp.');
+                        failRecover('Niente connessione, a quanto pare.');
                     });
                 });
             })();
@@ -1242,7 +1308,7 @@
             var dock = $('dock');
             if (dock) {
                 var dockTitle = $('dockTitle'), dockSub = $('dockSub'), dockCta = $('dockCta');
-                var pubSec = $('pubblica'), finalSec = document.querySelector('.final');
+                var pubSec = $('pubblica'), finalSec = document.querySelector('.final'), stimaSec = $('stima'), badge = document.querySelector('.demo-badge');
                 var WA_DOCK = 'https://wa.me/393313251961?text=' + encodeURIComponent('Ciao BOOM! Vorrei candidare il mio immobile a Roma — mi raccontate come funziona?');
                 var converted = false, mode = '';
                 function inView(el) { if (!el) return false; var r = el.getBoundingClientRect(); return r.top < innerHeight * 0.85 && r.bottom > innerHeight * 0.15; }
@@ -1259,20 +1325,25 @@
                     }
                     if (!reduce) { dock.classList.remove('pulse'); void dock.offsetWidth; dock.classList.add('pulse'); }
                 }
+                function show(on) {
+                    dock.classList.toggle('show', on);
+                    dock.setAttribute('aria-hidden', on ? 'false' : 'true');
+                    if (dockCta) dockCta.tabIndex = on ? 0 : -1;
+                    if (badge) badge.style.opacity = (on && innerWidth < 720) ? '0' : '';
+                }
                 function updateDock() {
-                    if (converted) { dock.classList.remove('show'); return; }
+                    if (converted) { show(false); return; }
                     var pastHero = scrollY > innerHeight * 0.62;
-                    if (!pastHero || inView(pubSec) || inView(finalSec)) { dock.classList.remove('show'); dock.setAttribute('aria-hidden', 'true'); return; }
-                    var passedForm = pubSec && pubSec.getBoundingClientRect().bottom < innerHeight * 0.3;
-                    setMode(passedForm ? 'talk' : 'apply');
-                    dock.classList.add('show'); dock.setAttribute('aria-hidden', 'false');
+                    if (!pastHero || inView(pubSec) || inView(finalSec) || inView(stimaSec)) { show(false); return; }
+                    setMode(pubSec && pubSec.getBoundingClientRect().bottom < innerHeight * 0.3 ? 'talk' : 'apply');
+                    show(true);
                 }
                 addEventListener('scroll', updateDock, { passive: true });
                 addEventListener('resize', updateDock);
                 updateDock();
                 var okEl = $('pubOk');
                 if (okEl) {
-                    new MutationObserver(function () { if (!okEl.hidden) { converted = true; dock.classList.remove('show'); } })
+                    new MutationObserver(function () { if (!okEl.hidden) { converted = true; show(false); } })
                         .observe(okEl, { attributes: true, attributeFilter: ['hidden'] });
                 }
             }

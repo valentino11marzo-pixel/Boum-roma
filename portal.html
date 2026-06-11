@@ -7458,7 +7458,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                             ${l.intakeForm && l.notes ? `<div style="margin-top:6px;font-size:12px;color:var(--text-secondary);font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:500px">"${esc(l.notes.substring(0, 120))}"</div>` : ''}
                             ${!l.intakeForm && (l.message || l.leadMessage) ? `<div style="margin-top:6px;font-size:12px;color:var(--text-secondary);font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:500px">"${esc((l.message || l.leadMessage).substring(0, 120))}"</div>` : ''}
                             <div style="margin-top:6px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-                                ${l.email || l.leadEmail ? `<a href="mailto:${l.email || l.leadEmail}" class="btn btn-xs btn-secondary" onclick="event.stopPropagation()">📧 Email</a>` : ''}
+                                ${l.email || l.leadEmail ? `<a href="mailto:${esc(l.email || l.leadEmail)}" class="btn btn-xs btn-secondary" onclick="event.stopPropagation()">📧 Email</a>` : ''}
                                 ${l.phone || l.leadPhone ? `<a href="https://wa.me/${(l.phone || l.leadPhone || '').replace(/[^0-9+]/g, '')}" target="_blank" class="btn btn-xs btn-success" onclick="event.stopPropagation()">💬 WhatsApp</a>` : ''}
                                 ${isNew || isResponded ? `<button class="btn btn-xs" onclick="event.stopPropagation();convertLeadToClient('${l.id}')">→ Converti in Client</button>` : ''}
                                 ${isNew || isResponded ? `<button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();scheduleViewingFromLead('${l.id}')">📅 Schedule Viewing</button>` : ''}
@@ -8103,7 +8103,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
         // ── Quick-action buttons depending on kind / phase ────────────────────
         const wa = phone ? `https://wa.me/${String(phone).replace(/\D/g, '')}` : null;
-        const mailto = email ? `mailto:${email}` : null;
+        const mailto = email ? `mailto:${esc(email)}` : null;
         const quickActions = [];
         if (wa) quickActions.push(`<a class="btn btn-sm" href="${wa}" target="_blank">💬 WhatsApp</a>`);
         if (mailto) quickActions.push(`<a class="btn btn-sm btn-secondary" href="${mailto}">📧 Email</a>`);

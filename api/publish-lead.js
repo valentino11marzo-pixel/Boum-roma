@@ -19,6 +19,12 @@ const ZONES = new Set(['trastevere', 'testaccio', 'monti', 'prati', 'centro-stor
   'san-lorenzo', 'ostiense', 'esquilino', 'pigneto', 'trieste', 'altra']);
 const TYPES = new Set(['mono', 'bilo', 'trilo', 'quadri']);
 const MAX_PHOTO_CHARS = 160_000; // ~120KB binary per thumbnail
+// email/phone are rendered in the admin portal (mailto:/tel: hrefs) — keep markup
+// and quotes out so a public POST can't store a stored-XSS payload.
+const EMAIL_RE = /^[^\s@<>"'&]+@[^\s@<>"'&]+\.[a-z]{2,}$/i;
+const PHONE_RE = /^[+\d][\d\s().\-]{5,24}$/;
+const PHOTO_RE = /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/;
+const clampInt = (v, max) => Math.max(0, Math.min(max, parseInt(v, 10) || 0));
 
 // Best-effort per-instance rate limit (Vercel instances are ephemeral).
 const hits = new Map();
@@ -54,14 +60,27 @@ export default async function handler(req, res) {
     return res.status(400).json({ ok: false, error: 'name' });
   }
   if (!phone && !email) return res.status(400).json({ ok: false, error: 'contact' });
+  if (email && !EMAIL_RE.test(email)) return res.status(400).json({ ok: false, error: 'email' });
+  if (phone && !PHONE_RE.test(phone)) return res.status(400).json({ ok: false, error: 'phone' });
   if (!ZONES.has(zone) || !TYPES.has(propertyType)) return res.status(400).json({ ok: false, error: 'fields' });
 
   const photos = Array.isArray(b.photos) ? b.photos.slice(0, 3) : [];
   for (const p of photos) {
-    if (typeof p !== 'string' || !p.startsWith('data:image/jpeg;base64,') || p.length > MAX_PHOTO_CHARS) {
+    if (typeof p !== 'string' || !PHOTO_RE.test(p) || p.length > MAX_PHOTO_CHARS) {
       return res.status(400).json({ ok: false, error: 'photo' });
     }
   }
+
+  // Estimate snapshot from the /ibrido calculator (all optional, sanitised) —
+  // lets the team open the call with the exact figure the owner saw.
+  const e = b.estimate && typeof b.estimate === 'object' ? b.estimate : null;
+  const estimate = e ? {
+    zona: String(e.zona || '').slice(0, 80).replace(/[<>\x00-\x1f]/g, ''),
+    mq: clampInt(e.mq, 900),
+    mensile: clampInt(e.mensile, 100000),
+    annuo: clampInt(e.annuo, 2000000),
+    risparmioAnnuo: clampInt(e.risp ?? e.risparmioAnnuo, 500000),
+  } : null;
 
   const doc = {
     source: 'web',
@@ -78,6 +97,7 @@ export default async function handler(req, res) {
     propertyType,
     mq: Math.max(0, Math.min(1000, parseInt(b.mq, 10) || 0)),
     expectedRent: Math.max(0, Math.min(20000, parseInt(b.expectedRent, 10) || 0)),
+    estimate,
     message: String(b.message || '').slice(0, 1500),
     photoCount: photos.length, // bytes live in leadPhotos/<id>, off the hot list query
     consent: {
