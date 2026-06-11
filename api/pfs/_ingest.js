@@ -16,6 +16,7 @@
 import crypto from 'node:crypto';
 import { fsPatch, fsGet, fsList, logActivity } from '../homie/_lib.js';
 import { scoreMatch, DEFAULT_THRESHOLD } from '../homie/_match.js';
+import { tgNotify } from './_health.js';
 
 export const ACTIVE_STAGES = new Set([
   'payment_confirmed', 'searching', 'options', 'viewing', 'closing',
@@ -191,6 +192,26 @@ export async function ingestProperty(raw, opts = {}) {
     });
   } catch (err) {
     console.warn('[pfs/_ingest] matchSummary write failed:', err.message);
+  }
+
+  // ── 5. "Qualcosa di pronto" → Telegram ───────────────────
+  // Fires only when at least one client actually received the property —
+  // a ready-to-act match, not noise. Env-optional, never blocks ingest.
+  if (pushedTo.length && process.env.TELEGRAM_BOT_TOKEN) {
+    const esc = s => String(s || '').replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+    const what = esc(property.title || property.address || 'Annuncio');
+    const specs = [
+      '€' + Math.round(price) + '/mese',
+      property.bedrooms != null ? property.bedrooms + ' cam' : null,
+      property.sqm ? property.sqm + ' m²' : null,
+    ].filter(Boolean).join(' · ');
+    const who = pushedTo.map(p => `${esc(p.name || p.clientId)} (${p.score})`).join(', ');
+    const flag = advertiser === 'unknown' ? '\n⚠️ Inserzionista da verificare' : '';
+    await tgNotify(
+      `🏠 <b>Match pronto!</b>\n${what}\n${specs}\n→ <b>${who}</b>${flag}\n\n` +
+      `<a href="${esc(sourceUrl)}">Apri annuncio</a> · ` +
+      `<a href="https://boomrome.com/pfs-command">Command Center</a>`
+    );
   }
 
   await logActivity('pfs_property_ingested', 'pfs_radar', {

@@ -4,41 +4,40 @@
 // on a schedule, with zero dependency on saved searches created inside
 // Immobiliare/Idealista accounts.
 //
-// The generated URL is a sane DEFAULT (price ceiling, recency sort).
-// Portal filter params change without notice and zone slugs are not
-// guessable for every quartiere, so each radarSearches doc supports a
-// `urlOverride` field: open the generated URL in a browser, refine the
-// filters there (zona esatta, "da privati", camere), paste the final URL
-// in the command center → the cron uses the override from then on.
-// Zone + bedrooms are enforced at scoring time by _match.js regardless,
-// so an over-broad search URL costs fetches, never wrong pushes.
+// URL grammar VERIFIED against live indexed URLs (June 2026):
+//   Immobiliare:  /affitto-case/roma/[<zona>/]da-privati/?prezzoMassimo=N
+//                 e.g. immobiliare.it/affitto-case/roma/prati/da-privati/
+//                 → "da-privati" is a real path filter (only private ads)
+//   Idealista:    /affitto-case/<scope>/con-prezzo_N,prezzo-min_M/?ordine=da-privati-asc
+//                 e.g. idealista.it/affitto-case/roma-roma/con-prezzo_500/
+//                 → "con-…" segments comma-join; da-privati-asc sorts
+//                   private advertisers first (no hard filter exists)
+//
+// Design rule: NEVER emit a guessed slug. Zones outside the verified maps
+// fall back to the city-wide page (always loads); zone precision is
+// enforced at scoring time by _match.js anyway, and every radarSearches
+// doc supports `urlOverride` — open the URL, refine filters on the
+// portal, paste the final URL in the command center.
+// Room-count segments exist on both portals but are deliberately not
+// emitted (locali≠bedrooms mapping over-filters); scoring handles beds.
 
 import { clientBudgetRange } from '../homie/_match.js';
 
-// Well-known Idealista zone slugs for Rome (extend as clients need them).
+// Verified Immobiliare zone slugs (path: /affitto-case/roma/<slug>/)
+const IMMOBILIARE_ZONES = {
+  'monti': 'monti',
+  'prati': 'prati',
+  'trastevere': 'testaccio-trastevere',
+  'testaccio': 'testaccio-trastevere',
+};
+
+// Verified Idealista zone paths (replace the roma-roma scope)
 const IDEALISTA_ZONES = {
-  'centro storico': 'zona-centro-storico',
-  'centro': 'zona-centro-storico',
-  'trastevere': 'zona-trastevere',
-  'testaccio': 'zona-testaccio',
-  'monti': 'zona-monti',
-  'prati': 'zona-prati',
-  'parioli': 'zona-parioli',
-  'flaminio': 'zona-flaminio',
-  'salario': 'zona-salario',
-  'trieste': 'zona-trieste',
-  'nomentano': 'zona-nomentano',
-  'san lorenzo': 'zona-san-lorenzo',
-  'pigneto': 'zona-pigneto',
-  'san giovanni': 'zona-san-giovanni',
-  'appio latino': 'zona-appio-latino',
-  'ostiense': 'zona-ostiense',
-  'garbatella': 'zona-garbatella',
-  'monteverde': 'zona-monteverde',
-  'aurelio': 'zona-aurelio',
-  'balduina': 'zona-balduina',
-  'eur': 'zona-eur',
-  'monte sacro': 'zona-monte-sacro',
+  'centro': 'roma/centro',
+  'centro storico': 'roma/centro',
+  'trastevere': 'roma/trastevere-testaccio/trastevere',
+  'testaccio': 'roma/trastevere-testaccio',
+  'prati': 'roma/prati-mazzini/prati',
 };
 
 function firstZone(client) {
@@ -55,28 +54,30 @@ export function buildSearchUrls(client) {
   const zone = firstZone(client);
   const out = [];
 
-  // Immobiliare — query params, newest first
+  // ── Immobiliare — /da-privati/ path filter + price query params ──
   {
+    const zoneSlug = zone && IMMOBILIARE_ZONES[zone] ? IMMOBILIARE_ZONES[zone] + '/' : '';
     const p = new URLSearchParams({ criterio: 'dataModifica', ordine: 'desc' });
     if (max) p.set('prezzoMassimo', String(max));
     if (min) p.set('prezzoMinimo', String(min));
     out.push({
       portal: 'immobiliare',
-      url: `https://www.immobiliare.it/affitto-case/roma/?${p.toString()}`,
-      label: `Immobiliare · Roma${zone ? ' · ' + zone : ''}${max ? ' · ≤€' + max : ''}`,
+      url: `https://www.immobiliare.it/affitto-case/roma/${zoneSlug}da-privati/?${p.toString()}`,
+      label: `Immobiliare · Roma${zoneSlug ? ' · ' + zone : ''} · privati${max ? ' · ≤€' + max : ''}`,
     });
   }
 
-  // Idealista — path segments; known zone slug if we have one
+  // ── Idealista — con-… segments + private-first ordering ──
   {
-    const zoneSlug = zone && IDEALISTA_ZONES[zone] ? IDEALISTA_ZONES[zone] + '/' : '';
+    const scope = (zone && IDEALISTA_ZONES[zone]) || 'roma-roma';
     const segs = [];
-    if (max) segs.push(`con-prezzo_${max}`);
-    const segPath = segs.length ? segs.join(',') + '/' : '';
+    if (max) segs.push(`prezzo_${max}`);
+    if (min) segs.push(`prezzo-min_${min}`);
+    const segPath = segs.length ? `con-${segs.join(',')}/` : '';
     out.push({
       portal: 'idealista',
-      url: `https://www.idealista.it/affitto-case/roma-roma/${zoneSlug}${segPath}?ordine=pubblicazione-desc`,
-      label: `Idealista · Roma${zone ? ' · ' + zone : ''}${max ? ' · ≤€' + max : ''}`,
+      url: `https://www.idealista.it/affitto-case/${scope}/${segPath}?ordine=da-privati-asc`,
+      label: `Idealista · Roma${scope !== 'roma-roma' ? ' · ' + zone : ''} · privati prima${max ? ' · ≤€' + max : ''}`,
     });
   }
 

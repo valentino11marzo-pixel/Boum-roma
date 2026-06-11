@@ -12,7 +12,7 @@ import { fsGet, fsPatch } from '../homie/_lib.js';
 const ALERT_COOLDOWN_MS = 6 * 3600 * 1000;
 const FAILURES_BEFORE_ALERT = 3;
 
-async function tgNotify(text) {
+export async function tgNotify(text) {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   const chatId = process.env.TELEGRAM_CHAT_ID;
   if (!token || !chatId) return false;

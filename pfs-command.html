@@ -1251,8 +1251,28 @@ function startListeners() {
         renderHealth();
         renderAttention();
     }, function (err) {
-        BoomPortal.toast('Errore stato radar: ' + ((err && err.message) || 'errore di connessione'), { type: 'error' });
+        // Regola Firestore non ancora deployata o permesso negato → fallback
+        // sull'endpoint server (legge sotto credenziali admin) + polling.
+        console.warn('[PFS] health via Firestore non disponibile, uso /api/pfs/health:', err && err.message);
+        pollHealthViaApi();
+        if (!state._healthPoll) state._healthPoll = setInterval(pollHealthViaApi, 90000);
     });
+
+    function pollHealthViaApi() {
+        firebase.auth().currentUser.getIdToken().then(function (token) {
+            return fetch('/api/pfs/health', { headers: { 'Authorization': 'Bearer ' + token } });
+        }).then(function (r) { return r.json(); }).then(function (data) {
+            if (!data || !data.ok) return;
+            var h = {};
+            ['inbox', 'market', 'sync'].forEach(function (k) { if (data.health && data.health[k]) h[k] = data.health[k]; });
+            state.health = h;
+            state.loaded.health = true;
+            renderHealth();
+            renderAttention();
+        }).catch(function (e) {
+            console.warn('[PFS] health API fallback fallito:', e && e.message);
+        });
+    }
 
     BoomPortal.listen(db.collection('pfsProperties').orderBy('lastSeenAt', 'desc').limit(120), function (snap) {
         var arr = [];
