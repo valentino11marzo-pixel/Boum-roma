@@ -195,6 +195,7 @@ service cloud.firestore {
     match /deadlines/{x}                   { allow read, write: if isAdmin(); }
     match /tasks/{x}                       { allow read, write: if isAdmin(); }
     match /radarSearches/{x}               { allow read, write: if isAdmin(); }
+    match /pfsRadarHealth/{x}              { allow read, write: if isAdmin(); }
     match /preProperties/{x}               { allow read, write: if isAdmin(); }
     match /ziShortlists/{x}                { allow read, write: if isAdmin(); }
     match /contractRegistrations/{x}       { allow read, write: if isAdmin(); }

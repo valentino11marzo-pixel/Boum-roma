@@ -18,6 +18,8 @@
   },
   "homepage": "https://github.com/valentino11marzo-pixel/Boum-roma#readme",
   "dependencies": {
+    "imapflow": "^1.4.0",
+    "mailparser": "^3.9.9",
     "nodemailer": "^6.9.13",
     "passkit-generator": "^3.5.7",
     "pdf-lib": "^1.17.1",
