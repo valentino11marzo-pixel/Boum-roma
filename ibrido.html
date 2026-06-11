@@ -8,6 +8,22 @@
     <meta name="robots" content="noindex, follow">
     <meta name="theme-color" content="#08080A">
     <meta name="color-scheme" content="dark">
+    <link rel="canonical" href="https://www.boomrome.com/ibrido">
+    <!-- Open Graph / Twitter — il link condiviso (WhatsApp, LinkedIn, iMessage) -->
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="BOOM — Roma">
+    <meta property="og:locale" content="it_IT">
+    <meta property="og:url" content="https://www.boomrome.com/ibrido">
+    <meta property="og:title" content="Quanto rende davvero la tua casa a Roma?">
+    <meta property="og:description" content="Scoprilo in 10 secondi — canone concordato + risparmio fiscale. Poi BOOM la cura, la affitta e risponde della solvibilità. La prima locazione è gratuita.">
+    <meta property="og:image" content="https://www.boomrome.com/og-ibrido.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="BOOM — il primo ibrido tra portale e agenzia, Roma">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Quanto rende davvero la tua casa a Roma?">
+    <meta name="twitter:description" content="Stima gratuita del canone concordato + risparmio fiscale. La prima locazione con BOOM è gratis.">
+    <meta name="twitter:image" content="https://www.boomrome.com/og-ibrido.png">
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-EYCD59RDVJ"></script>
     <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-EYCD59RDVJ');</script>
     <link rel="icon" href="/favicon.ico" sizes="any">
@@ -353,6 +369,41 @@
         .incl li { font-size: 12.5px; letter-spacing: 0.3px; color: var(--text-secondary); display: inline-flex; align-items: center; gap: 9px; }
         .incl li::before { content: '✓'; color: var(--gold); font-size: 11px; font-weight: 700; }
 
+        /* ═══════════════ STIMA — quanto rende la tua casa ═══════════════ */
+        .est { position: relative; z-index: 3; padding: var(--sp-4xl) 0 var(--sp-5xl); }
+        .est-head { text-align: center; max-width: 720px; margin: 0 auto var(--sp-2xl); }
+        .est-head p { font-size: 15px; color: var(--text-secondary); margin-top: var(--sp-lg); line-height: 1.8; }
+        .est-head p strong { color: var(--text-primary); font-weight: 500; }
+        .est-card { display: grid; grid-template-columns: 1fr; background: var(--surface-card); border: 1px solid var(--border-gold); border-radius: 24px; overflow: hidden; box-shadow: 0 30px 90px rgba(0,0,0,0.7), 0 0 60px rgba(255,215,0,0.05); }
+        @media (min-width: 880px) { .est-card { grid-template-columns: 0.92fr 1.08fr; } }
+        .est-controls { padding: clamp(26px,3.6vw,44px); border-bottom: 1px solid var(--border-subtle); }
+        @media (min-width: 880px) { .est-controls { border-bottom: none; border-right: 1px solid var(--border-subtle); } }
+        .est-fld { margin-bottom: var(--sp-lg); }
+        .est-fld:last-child { margin-bottom: 0; }
+        .est-fld label { display: block; font-size: 9px; text-transform: uppercase; letter-spacing: 2px; color: var(--text-tertiary); margin-bottom: 9px; }
+        .est-fld select, .est-fld input { width: 100%; padding: 14px 16px; background: var(--surface-elevated); border: 1px solid var(--border-default); border-radius: 12px; color: var(--text-primary); font-family: inherit; font-size: 15px; font-weight: 300; -webkit-appearance: none; appearance: none; transition: border-color 0.3s var(--ease-out); }
+        .est-fld select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23FFD700' fill='none'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 16px center; }
+        .est-fld select:focus, .est-fld input:focus { outline: none; border-color: var(--border-hover); }
+        .seg { display: flex; gap: 8px; }
+        .seg button { flex: 1; padding: 13px 6px; background: var(--surface-elevated); border: 1px solid var(--border-default); border-radius: 12px; color: var(--text-secondary); font-family: inherit; font-size: 12px; letter-spacing: 0.4px; cursor: pointer; transition: border-color 0.25s var(--ease-out), color 0.25s var(--ease-out), background 0.25s var(--ease-out); }
+        .seg button.on { border-color: var(--gold); color: var(--gold); background: rgba(255,215,0,0.06); }
+        .est-result { padding: clamp(26px,3.6vw,44px); display: flex; flex-direction: column; justify-content: center; background: radial-gradient(620px 420px at 82% 8%, rgba(255,215,0,0.08), transparent 62%); }
+        .est-kw { font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 10px; }
+        .est-big { font-family: var(--font-display); font-weight: 200; font-size: clamp(46px, 8.5vw, 84px); line-height: 0.98; letter-spacing: -0.02em; color: var(--gold); display: flex; align-items: baseline; gap: 7px; }
+        .est-big small { font-size: 0.26em; color: var(--text-tertiary); letter-spacing: 0; font-weight: 300; }
+        .est-hi { font-size: 12px; letter-spacing: 1px; text-transform: uppercase; color: var(--text-secondary); margin-top: 11px; }
+        .est-save { margin-top: var(--sp-lg); padding: 14px 16px; border: 1px solid var(--border-gold); border-radius: 12px; background: rgba(0,255,136,0.03); font-size: 13px; color: var(--text-secondary); line-height: 1.55; }
+        .est-save b { color: var(--green); font-weight: 600; }
+        .est-meta { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: var(--sp-md); font-size: 11px; color: var(--text-muted); }
+        .est-meta b { color: var(--text-tertiary); font-weight: 500; }
+        .est-actions { display: flex; flex-direction: column; gap: 10px; margin-top: var(--sp-lg); }
+        @media (min-width: 420px) { .est-actions { flex-direction: row; } .est-actions .btn { flex: 1; } }
+        .est-actions .btn { padding: 15px 18px; }
+        .est-disc { margin-top: var(--sp-md); font-size: 10.5px; line-height: 1.55; color: var(--text-muted); }
+        .est-disc b { color: var(--text-tertiary); font-weight: 500; }
+        .est-toast { position: fixed; left: 50%; bottom: 84px; transform: translate(-50%, 20px); z-index: 10003; padding: 12px 20px; background: rgba(8,8,10,0.92); border: 1px solid var(--border-gold); border-radius: 100px; color: var(--gold); font-size: 12px; letter-spacing: 0.5px; opacity: 0; pointer-events: none; transition: opacity 0.3s var(--ease-out), transform 0.3s var(--ease-out); }
+        .est-toast.on { opacity: 1; transform: translate(-50%, 0); }
+
         /* ═══════════════ CONVERSION DOCK (CTA contestuale) ═══════════════ */
         .dock { position: fixed; left: 50%; bottom: 20px; transform: translate(-50%, 150%); z-index: 9998;
             display: flex; align-items: center; gap: 14px; padding: 9px 9px 9px 18px; max-width: calc(100vw - 24px);
@@ -496,10 +547,65 @@
                 La prima locazione è gratuita.
             </p>
             <div class="hero-actions">
-                <a href="#pubblica" class="btn btn-primary">Candida il tuo immobile</a>
+                <a href="#stima" class="btn btn-primary">Scopri quanto rende</a>
                 <a href="#film" class="btn btn-secondary">Guarda come lavoriamo</a>
             </div>
             <div class="hero-kicker">Egidi Immobiliare S.r.l. · <b>agenzia registrata</b> · P.IVA 17322991005</div>
+        </div>
+    </section>
+
+    <!-- ═══════════ STIMA — quanto rende la tua casa ═══════════ -->
+    <section class="est" id="stima">
+        <div class="container">
+            <div class="est-head">
+                <div class="eyebrow" style="justify-content:center"><span class="eyebrow-dot"></span><span class="eyebrow-text">Stima gratuita · 10 secondi</span></div>
+                <h2 class="section-title reveal">La tua casa rende più<br><span class="gold">di quanto pensi. Legalmente.</span></h2>
+                <p class="reveal">Scegli zona e metri quadri: ti diciamo subito quanto può rendere a <strong>canone concordato</strong> — e quanto risparmi di tasse con la cedolare al 10%. Tutto sull'Accordo Territoriale di Roma 2023.</p>
+            </div>
+            <div class="est-card reveal">
+                <div class="est-controls">
+                    <div class="est-fld">
+                        <label for="eZone">Zona</label>
+                        <select id="eZone">
+                            <option value="testaccio" selected>Testaccio</option>
+                            <option value="trastevere">Trastevere</option>
+                            <option value="monti">Monti</option>
+                            <option value="centro-storico">Centro Storico / Tridente</option>
+                            <option value="prati">Prati</option>
+                            <option value="trieste">Trieste / Coppedè</option>
+                            <option value="esquilino">Esquilino</option>
+                            <option value="san-lorenzo">San Lorenzo</option>
+                            <option value="ostiense">Ostiense</option>
+                            <option value="pigneto">Pigneto</option>
+                            <option value="altra">Altra zona di Roma</option>
+                        </select>
+                    </div>
+                    <div class="est-fld">
+                        <label for="eMq">Metri quadri</label>
+                        <input type="number" id="eMq" value="65" min="15" max="600" inputmode="numeric">
+                    </div>
+                    <div class="est-fld">
+                        <label>Arredamento</label>
+                        <div class="seg" id="eSegArr" role="group" aria-label="Arredamento">
+                            <button type="button" class="on" data-v="si">Arredato</button>
+                            <button type="button" data-v="parziale">Parziale</button>
+                            <button type="button" data-v="no">Vuoto</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="est-result" aria-live="polite">
+                    <div class="est-kw">Canone concordato stimato</div>
+                    <div class="est-big"><span id="eBig">€ —</span><small>/mese</small></div>
+                    <div class="est-hi" id="eHi">—</div>
+                    <div class="est-save">Con la cedolare secca al 10% (al posto del 21%) risparmi circa <b id="eSave">€ —</b> di tasse l'anno — più IMU ridotta.</div>
+                    <div class="est-meta"><span>Intervallo legale: <b id="eRange">—</b></span><span>Superficie conv.: <b id="eSup">—</b></span></div>
+                    <div class="est-actions">
+                        <a href="#pubblica" class="btn btn-primary" id="eGo">Bloccala — candida la casa</a>
+                        <button type="button" class="btn btn-secondary" id="eShare">Condividi la stima</button>
+                    </div>
+                    <p class="est-disc"><b>È una stima.</b> La cifra certificata sull'Accordo Territoriale la firma il nostro team — gratis, insieme alla prima locazione.</p>
+                </div>
+            </div>
         </div>
     </section>
 
@@ -954,6 +1060,89 @@
                 }, { passive: true });
             }
 
+            /* ── Stima: quanto rende la tua casa (value-first, condivisibile) ── */
+            (function () {
+                var eZone = $('eZone'); if (!eZone) return;
+                /* [label, A.min, B.min, B.max, C.max] — Accordo Territoriale Roma 2023 */
+                var Z = {
+                    testaccio: ['Testaccio', 10.5, 13.2, 15.3, 17.6], trastevere: ['Trastevere', 12.6, 15.4, 22.0, 26.4],
+                    monti: ['Monti', 10.5, 13.2, 18.9, 22.6], prati: ['Prati', 10.5, 12.8, 18.4, 22.0],
+                    'centro-storico': ['Centro Storico', 12.6, 18.3, 26.2, 31.5], 'san-lorenzo': ['San Lorenzo', 4.4, 8.1, 11.6, 13.6],
+                    ostiense: ['Ostiense', 6.1, 7.7, 11.0, 12.5], esquilino: ['Esquilino', 7.0, 9.2, 13.1, 15.7],
+                    pigneto: ['Pigneto', 4.4, 7.3, 10.5, 13.1], trieste: ['Trieste / Coppedè', 10.5, 13.9, 19.9, 23.9],
+                    altra: ['Roma', 6.1, 8.2, 11.8, 13.5]
+                };
+                var eMq = $('eMq'), arr = 'si', last = null, shownVal = 0, raf = 0, fired = false;
+                var euro = function (n) { return '€ ' + Math.round(n).toLocaleString('it-IT'); };
+                function coeff(mq) { return mq < 46 ? 1.30 : mq < 70 ? 1.15 : mq <= 120 ? 1.00 : 0.85; }
+                function countTo(target) {
+                    var to = Math.round(target);
+                    if (reduce) { shownVal = to; $('eBig').textContent = euro(to); return; }
+                    var f = shownVal, start = performance.now(), dur = 650;
+                    cancelAnimationFrame(raf);
+                    (function tick(now) {
+                        var p = Math.min(1, (now - start) / dur), e = 1 - Math.pow(1 - p, 3);
+                        $('eBig').textContent = euro(f + (to - f) * e);
+                        if (p < 1) raf = requestAnimationFrame(tick); else shownVal = to;
+                    })(start);
+                }
+                function calc() {
+                    var z = Z[eZone.value] || Z.altra, mq = Math.max(0, Math.min(900, parseInt(eMq.value, 10) || 0));
+                    if (!mq) { $('eBig').textContent = '€ —'; $('eHi').textContent = '—'; $('eSave').textContent = '€ —'; $('eRange').textContent = '—'; $('eSup').textContent = '—'; last = null; shownVal = 0; return; }
+                    var sup = mq * coeff(mq);
+                    var mod = arr === 'si' ? 0.15 : arr === 'parziale' ? 0.07 : 0;
+                    var unitF = ((z[2] + z[3]) / 2) * (1 + mod);
+                    if (unitF > z[3] * 1.35) unitF = z[3] * 1.35;            /* stesso cap del motore BOOM */
+                    var mensile = unitF * sup, annuo = mensile * 12, risp = annuo * 0.11;
+                    var loMese = z[1] * sup, hiMese = z[4] * sup;            /* tetto legale A.min → C.max */
+                    last = { zona: z[0], zoneKey: eZone.value, mq: mq, mensile: Math.round(mensile), annuo: Math.round(annuo), risp: Math.round(risp), lo: Math.round(loMese), hi: Math.round(hiMese) };
+                    countTo(mensile);
+                    $('eHi').textContent = 'fino a ' + euro(hiMese) + '/mese nel concordato';
+                    $('eSave').textContent = euro(risp);
+                    $('eRange').textContent = euro(loMese) + '–' + euro(hiMese) + '/mese';
+                    $('eSup').textContent = sup.toFixed(0) + ' mq';
+                    if (!fired && typeof gtag === 'function') { fired = true; gtag('event', 'estimate_view', { event_category: 'ibrido', event_label: z[0], value: Math.round(mensile) }); }
+                }
+                eZone.addEventListener('input', calc);
+                eMq.addEventListener('input', calc);
+                $('eSegArr').addEventListener('click', function (ev) {
+                    var b = ev.target.closest('button'); if (!b) return;
+                    arr = b.dataset.v;
+                    this.querySelectorAll('button').forEach(function (x) { x.classList.toggle('on', x === b); });
+                    calc();
+                });
+                /* stima → candidatura: precompila il form e portaci sopra */
+                $('eGo').addEventListener('click', function (ev) {
+                    ev.preventDefault();
+                    if (last) {
+                        var zsel = $('pfZone'); if (zsel && Z[last.zoneKey]) zsel.value = last.zoneKey;
+                        if ($('pfMq')) $('pfMq').value = last.mq;
+                        if ($('pfRent')) $('pfRent').value = last.mensile;
+                        ['pfZone', 'pfMq', 'pfRent'].forEach(function (id) { var el = $(id); if (el) el.dispatchEvent(new Event('input', { bubbles: true })); });
+                        if (typeof gtag === 'function') gtag('event', 'estimate_to_apply', { event_category: 'ibrido', event_label: last.zona });
+                    }
+                    var t = $('pubblica'); if (t) { t.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' }); }
+                });
+                /* condividi la stima — il motore virale */
+                var toast;
+                function flash(msg) {
+                    if (!toast) { toast = document.createElement('div'); toast.className = 'est-toast'; toast.setAttribute('role', 'status'); document.body.appendChild(toast); }
+                    toast.textContent = msg; toast.classList.add('on');
+                    setTimeout(function () { toast.classList.remove('on'); }, 2200);
+                }
+                $('eShare').addEventListener('click', function () {
+                    var url = 'https://www.boomrome.com/ibrido';
+                    var txt = last
+                        ? 'La mia casa a ' + last.zona + ' (' + last.mq + ' mq) può rendere ~' + euro(last.mensile) + '/mese a canone concordato, e risparmierei ~' + euro(last.risp) + '/anno di tasse. Calcolato con BOOM:'
+                        : 'Scopri quanto rende la tua casa a Roma a canone concordato, con BOOM:';
+                    if (typeof gtag === 'function') gtag('event', 'estimate_share', { event_category: 'ibrido', event_label: last ? last.zona : 'na' });
+                    if (navigator.share) { navigator.share({ title: 'BOOM — Quanto rende la tua casa', text: txt, url: url }).catch(function () { }); }
+                    else if (navigator.clipboard) { navigator.clipboard.writeText(txt + ' ' + url).then(function () { flash('Stima copiata — incollala dove vuoi ✓'); }, function () { window.open('https://wa.me/?text=' + encodeURIComponent(txt + ' ' + url), '_blank', 'noopener'); }); }
+                    else { window.open('https://wa.me/?text=' + encodeURIComponent(txt + ' ' + url), '_blank', 'noopener'); }
+                });
+                calc();
+            })();
+
             /* ── Pubblica: live listing preview + real lead submit ─────── */
             (function () {
                 var form = $('pubForm'); if (!form) return;
@@ -1008,7 +1197,7 @@
                     if (name.length < 2) return fail('Dicci il tuo nome — serve per ricontattarti.');
                     if (phone.length < 6) return fail('Lasciaci un numero WhatsApp: è lì che ti rispondiamo.');
                     if (!$('pfConsent').checked) return fail('Spunta il consenso privacy per poterti ricontattare.');
-                    var btn = $('pfSubmit'); btn.disabled = true; btn.textContent = 'Pubblico…';
+                    var btn = $('pfSubmit'); btn.disabled = true; btn.textContent = 'Invio la candidatura…';
                     fetch('/api/publish-lead', {
                         method: 'POST', headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
