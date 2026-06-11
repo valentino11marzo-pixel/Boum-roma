@@ -55,7 +55,7 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 | `apartment-detail.html` | Dynamic single-property page (loads from Firestore). |
 | `boom_doc_parser.html` | AI document parser UI (uses Claude API). |
 | `watermark-studio.html` | Standalone watermark tool for interns/team. 100% client-side (no Firebase): upload photos, customize the BOOM mark live (6 styles: firma, sigillo, editoriale, pattern, cornice, custom logo), drag to position, batch ZIP export. |
-| `media-studio.html` | Pro media production tool (superset of watermark-studio, also 100% client-side). Layered compositor: color grading (5 looks + manual), crop/aspect per channel with focal framing, branding system (watermark + badge + listing info bar + scrim), draggable text layers, social templates, multi-format batch export (portali/IG/story ZIP), Ken Burns video reel generator (MediaRecorder). |
+| `media-studio.html` | Pro media production tool (superset of watermark-studio, photo processing 100% client-side). Layered compositor: auto-enhance (histogram analysis), color grading (5 looks + manual + saveable custom looks), unsharp-mask sharpening, horizon straighten, live histogram, crop/aspect per channel with focal framing + composition guides, branding system (watermark + badge + listing info bar + scrim), draggable text layers, social templates, multi-format batch export with smart ×2 upscale (portali/IG/story ZIP), Ken Burns video reel generator (MediaRecorder), AI listing copywriter (via `/api/media/caption`). |
 | `vercel.json` | Deployment config, rewrites, cron schedule. |
 | `js/firebase-config.js` | Firebase project config (`boom-property-dashboards`). |
 | `js/boom-portal.js` | Shared portal lib — `window.BoomPortal` API. |
@@ -170,6 +170,13 @@ Admin/landlord (Firebase ID token). Body `{ fileUrl }` or `{ base64,
 mediaType }`. Fetches the file server-side, sends to Claude (haiku), returns
 `{ category, text, entities:{ dates, amounts, codiceFiscale, iban,
 partitaIva, fiscalYear } }`. Anthropic key stays server-side.
+
+### POST `/api/media/caption`
+Public, rate-limited (8/min/IP) copywriter for media-studio.html. Body:
+`{ tipo: 'ig-post'|'ig-story'|'portale'|'breve', lingua: 'it'|'en', zona,
+prezzo, locali, mq, extra }`. The prompt is built entirely server-side from
+length-capped fields (no general proxying possible); model pinned to haiku,
+max_tokens 500. CORS: boomrome.com + *.vercel.app previews. Returns `{ text }`.
 
 ### POST `/api/homie/property`
 Homie → PFS bridge. Homie scrapes a property (Immobiliare/Idealista/etc.), calls this with the listing data. Writes the master record to `pfsProperties/<sha1(sourceUrl)>` (idempotent), then iterates active PFS clients, scores each against the listing using `api/homie/_match.js`, and pushes matching properties (score ≥ 60) into the client's `portalProperties` array. Client-portal.html already listens and triggers a "New Property!" alert on the client's phone. Auth via `X-Homie-Secret`. See file header for payload schema.

@@ -193,6 +193,7 @@
     }
     .btn:hover { border-color: rgba(212,175,55,0.5); }
     .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+    .btn.on { border-color: var(--gold); color: var(--gold); }
     .btn-gold { background: var(--gold); color: #000; border-color: var(--gold); font-weight: 500; box-shadow: 0 4px 24px rgba(212,175,55,0.25); }
     .btn-gold:hover { background: #E2C04F; }
     .btn-block { width: 100%; }
@@ -266,6 +267,7 @@
         <div class="stage-bar">
             <button class="btn btn-sm" id="btnAdd">+ Aggiungi foto</button>
             <button class="btn btn-sm" id="btnCompare" disabled>👁 Tieni premuto: originale</button>
+            <button class="btn btn-sm" id="btnGuides">▦ Guide</button>
             <button class="btn btn-sm" id="btnClear" disabled>Svuota</button>
             <div id="specs"></div>
         </div>
@@ -291,15 +293,20 @@
         <div class="pane active" id="pane-regola">
             <div class="card">
                 <h3>Look fotografico</h3>
+                <button class="btn btn-gold btn-sm btn-block" id="btnAuto" style="margin-bottom:12px">✨ Auto-migliora — analisi istogramma</button>
                 <div class="chips" id="grades"></div>
+                <div class="chips" id="myLooks" style="margin-top:8px"></div>
+                <button class="btn btn-sm btn-block" id="btnSaveLook" style="margin-top:10px">＋ Salva il look attuale</button>
             </div>
             <div class="card">
                 <h3>Regolazioni manuali</h3>
+                <canvas id="histCv" style="width:100%;height:54px;display:block;margin-bottom:12px;border-radius:8px;background:rgba(255,255,255,0.03)"></canvas>
                 <div class="row"><label>Luminosità</label><input type="range" id="adjBright" min="50" max="150" step="1"><output id="outBright"></output></div>
                 <div class="row"><label>Contrasto</label><input type="range" id="adjContrast" min="50" max="150" step="1"><output id="outContrast"></output></div>
                 <div class="row"><label>Saturazione</label><input type="range" id="adjSat" min="0" max="200" step="1"><output id="outSat"></output></div>
                 <div class="row"><label>Temperatura</label><input type="range" id="adjTemp" min="-40" max="40" step="1"><output id="outTemp"></output></div>
                 <div class="row"><label>Vignettatura</label><input type="range" id="adjVign" min="0" max="60" step="1"><output id="outVign"></output></div>
+                <div class="row"><label>Nitidezza</label><input type="range" id="adjSharp" min="0" max="100" step="1"><output id="outSharp"></output></div>
                 <div style="display:flex;gap:8px;margin-top:12px">
                     <button class="btn btn-sm btn-block" id="btnAdjAll">Applica a tutte</button>
                     <button class="btn btn-sm btn-block" id="btnAdjReset">Reset</button>
@@ -313,7 +320,8 @@
                 <h3>Proporzioni</h3>
                 <div class="chips" id="aspects"></div>
                 <div class="row" style="margin-top:14px"><label>Zoom</label><input type="range" id="frameZoom" min="100" max="300" step="1"><output id="outZoom"></output></div>
-                <div class="hint"><b>Trascina la foto</b> per inquadrare, rotella del mouse per lo zoom. Il punto scelto guida anche i ritagli automatici dell'export.</div>
+                <div class="row"><label>Raddrizza</label><input type="range" id="frameRot" min="-10" max="10" step="0.2"><output id="outRot"></output></div>
+                <div class="hint"><b>Trascina la foto</b> per inquadrare, rotella del mouse per lo zoom. Il punto scelto guida anche i ritagli automatici dell'export. "Raddrizza" corregge l'orizzonte storto con ritaglio automatico dei bordi.</div>
                 <div style="display:flex;gap:8px;margin-top:12px">
                     <button class="btn btn-sm btn-block" id="btnFrameAll">Applica formato a tutte</button>
                     <button class="btn btn-sm btn-block" id="btnFrameReset">Reset</button>
@@ -393,6 +401,28 @@
                     <div class="hint">Nel tab Testo <b>trascini il livello selezionato</b> sulla foto.</div>
                 </div>
             </div>
+            <div class="card">
+                <h3>Copywriter AI <span style="color:var(--gold);text-transform:none;letter-spacing:0.5px">testi annuncio</span></h3>
+                <div class="row"><label>Canale</label>
+                    <select id="aiTipo">
+                        <option value="ig-post">Instagram — post</option>
+                        <option value="ig-story">Instagram — story</option>
+                        <option value="portale">Portale immobiliare</option>
+                        <option value="breve">WhatsApp cliente</option>
+                    </select>
+                </div>
+                <div class="row"><label>Lingua</label>
+                    <div class="seg" id="aiLang">
+                        <button data-v="it" class="active">Italiano</button>
+                        <button data-v="en">English</button>
+                    </div>
+                </div>
+                <div class="row"><label>Punti forza</label><input type="text" id="aiExtra" maxlength="120" placeholder="es. terrazzo, ristrutturato 2024, metro a 200m"></div>
+                <button class="btn btn-block" id="btnAi">✍ Genera testo</button>
+                <textarea id="aiOut" readonly style="display:none;width:100%;margin-top:10px;background:var(--bg-input);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:10px;font-size:12.5px;font-family:inherit;line-height:1.6;min-height:120px;resize:vertical"></textarea>
+                <button class="btn btn-sm btn-block" id="btnAiCopy" style="display:none;margin-top:8px">📋 Copia testo</button>
+                <div class="hint">Usa Zona / Prezzo / Locali / Mq dalla <b>Striscia annuncio</b> (tab Brand). Solo questi campi vengono inviati al server — mai le foto.</div>
+            </div>
         </div>
 
         <!-- ── EXPORT ── -->
@@ -401,6 +431,7 @@
                 <h3>Destinazioni</h3>
                 <div class="checklist" id="targets"></div>
                 <div class="row" style="margin-top:14px"><label>Qualità JPG</label><input type="range" id="expQuality" min="70" max="100" step="1"><output id="outQuality"></output></div>
+                <div class="row"><label>Upscale ×2</label><label class="switch"><input type="checkbox" id="expUpscale"><i></i></label><span style="font-size:11px;color:var(--text-muted)">ingrandisce le foto piccole con nitidezza extra</span></div>
                 <div style="display:flex;gap:8px;margin-top:12px">
                     <button class="btn btn-gold btn-block" id="btnExportOne" disabled>⬇ Questa foto</button>
                     <button class="btn btn-block" id="btnExportAll" disabled>ZIP tutte</button>
@@ -461,8 +492,8 @@ function sealImage(fill, cb) {
 }
 
 // ── Stato ────────────────────────────────────────────────────────────────
-const DEFAULT_ADJ = { bright: 100, contrast: 100, sat: 100, temp: 0, vign: 0 };
-const DEFAULT_FRAME = { aspect: 'orig', zoom: 1, ox: 0.5, oy: 0.5 };
+const DEFAULT_ADJ = { bright: 100, contrast: 100, sat: 100, temp: 0, vign: 0, sharp: 0 };
+const DEFAULT_FRAME = { aspect: 'orig', zoom: 1, ox: 0.5, oy: 0.5, rot: 0 };
 const DEFAULT_BRAND = {
     wm: { mode: 'firma', text: 'BOOM', dot: true, sub: 'ROMA', scheme: 'classic',
           scale: 4.5, opacity: 90, spacing: 6, rotation: 0, density: 4, shadow: true,
@@ -471,6 +502,7 @@ const DEFAULT_BRAND = {
     scrim: { on: false, strength: 55 },
     info: { on: false, zona: '', prezzo: '', locali: '', mq: '' },
     quality: 92,
+    upscale: false,
 };
 let brand = loadBrand();
 let photos = [];        // { img, name, dataUrl, adj:{}, frame:{} }
@@ -488,6 +520,7 @@ function loadBrand() {
             Object.assign(b.wm, saved.wm || {}); Object.assign(b.badge, saved.badge || {});
             Object.assign(b.scrim, saved.scrim || {}); Object.assign(b.info, saved.info || {});
             if (saved.quality) b.quality = saved.quality;
+            if (typeof saved.upscale === 'boolean') b.upscale = saved.upscale;
             return b;
         }
     } catch (e) {}
@@ -624,17 +657,74 @@ function pixelAdjust(ctx, W, H, adj) {
     }
     ctx.putImageData(id, 0, 0);
 }
+/* Unsharp mask: blur separabile O(n) + blend dell'alta frequenza. */
+function boxBlurRGB(src, W, H, rad) {
+    const tmp = new Float32Array(src.length);
+    const out = new Float32Array(src.length);
+    const div = rad * 2 + 1;
+    for (let y = 0; y < H; y++) {
+        const row = y * W;
+        let sr = 0, sg = 0, sb = 0;
+        for (let x = -rad; x <= rad; x++) {
+            const i = (row + Math.min(W - 1, Math.max(0, x))) * 4;
+            sr += src[i]; sg += src[i + 1]; sb += src[i + 2];
+        }
+        for (let x = 0; x < W; x++) {
+            const o = (row + x) * 4;
+            tmp[o] = sr / div; tmp[o + 1] = sg / div; tmp[o + 2] = sb / div;
+            const iA = (row + Math.min(W - 1, x + rad + 1)) * 4;
+            const iS = (row + Math.max(0, x - rad)) * 4;
+            sr += src[iA] - src[iS]; sg += src[iA + 1] - src[iS + 1]; sb += src[iA + 2] - src[iS + 2];
+        }
+    }
+    for (let x = 0; x < W; x++) {
+        let sr = 0, sg = 0, sb = 0;
+        for (let y = -rad; y <= rad; y++) {
+            const i = (Math.min(H - 1, Math.max(0, y)) * W + x) * 4;
+            sr += tmp[i]; sg += tmp[i + 1]; sb += tmp[i + 2];
+        }
+        for (let y = 0; y < H; y++) {
+            const o = (y * W + x) * 4;
+            out[o] = sr / div; out[o + 1] = sg / div; out[o + 2] = sb / div;
+            const iA = (Math.min(H - 1, y + rad + 1) * W + x) * 4;
+            const iS = (Math.max(0, y - rad) * W + x) * 4;
+            sr += tmp[iA] - tmp[iS]; sg += tmp[iA + 1] - tmp[iS + 1]; sb += tmp[iA + 2] - tmp[iS + 2];
+        }
+    }
+    return out;
+}
+function unsharp(ctx, W, H, amount) {
+    const id = ctx.getImageData(0, 0, W, H), d = id.data;
+    const rad = Math.max(1, Math.round(Math.min(W, H) / 700));
+    const blur = boxBlurRGB(d, W, H, rad);
+    const k = amount / 100 * 0.9;
+    for (let i = 0; i < d.length; i += 4) {
+        d[i] += (d[i] - blur[i]) * k;
+        d[i + 1] += (d[i + 1] - blur[i + 1]) * k;
+        d[i + 2] += (d[i + 2] - blur[i + 2]) * k;
+    }
+    ctx.putImageData(id, 0, 0);
+}
 function drawPhotoLayer(ctx, W, H, ph, aspect) {
     const r = cropRect(ph.img, aspect, ph.frame);
-    if (ctxHasFilter(ctx)) {
-        ctx.save();
-        ctx.filter = filterString(ph.adj);
-        ctx.drawImage(ph.img, r.sx, r.sy, r.sw, r.sh, 0, 0, W, H);
-        ctx.restore();
+    const rot = (ph.frame.rot || 0) * Math.PI / 180;
+    const useF = ctxHasFilter(ctx);
+    ctx.save();
+    if (useF) ctx.filter = filterString(ph.adj);
+    if (rot) {
+        // raddrizzamento: ruoto e sovra-scalo quanto basta a coprire i bordi
+        const c0 = Math.abs(Math.cos(rot)), s0 = Math.abs(Math.sin(rot));
+        const cover = Math.max((W * c0 + H * s0) / W, (W * s0 + H * c0) / H);
+        ctx.translate(W / 2, H / 2);
+        ctx.rotate(rot);
+        ctx.scale(cover, cover);
+        ctx.drawImage(ph.img, r.sx, r.sy, r.sw, r.sh, -W / 2, -H / 2, W, H);
     } else {
         ctx.drawImage(ph.img, r.sx, r.sy, r.sw, r.sh, 0, 0, W, H);
-        pixelAdjust(ctx, W, H, ph.adj);
     }
+    ctx.restore();
+    if (!useF) pixelAdjust(ctx, W, H, ph.adj);
+    if (ph.adj.sharp > 0) unsharp(ctx, W, H, ph.adj.sharp);
     // temperatura: velo caldo/freddo in soft-light
     if (ph.adj.temp !== 0) {
         ctx.save();
@@ -911,8 +1001,74 @@ function renderNow() {
     } else {
         composeTo(ctxP, W, H, ph);
     }
-    $('specs').textContent = `${ph.name} — ${ph.img.naturalWidth}×${ph.img.naturalHeight}px · foto ${activeIdx + 1}/${photos.length}`;
+    if (guidesOn && !showOriginal) drawGuides(ctxP, W, H, A);
+    const lowRes = Math.max(ph.img.naturalWidth, ph.img.naturalHeight) < 1600;
+    $('specs').textContent = `${ph.name} — ${ph.img.naturalWidth}×${ph.img.naturalHeight}px · foto ${activeIdx + 1}/${photos.length}`
+        + (lowRes ? ' · ⚠ risoluzione bassa (attiva Upscale ×2 in Export)' : '');
+    scheduleHist();
     updateDragTip();
+}
+
+/* ── Guide di composizione (solo anteprima, mai negli export) ──────────── */
+let guidesOn = false;
+function drawGuides(ctx, W, H, A) {
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([6, 6]);
+    for (const f of [1 / 3, 2 / 3]) {
+        ctx.beginPath(); ctx.moveTo(W * f, 0); ctx.lineTo(W * f, H); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, H * f); ctx.lineTo(W, H * f); ctx.stroke();
+    }
+    ctx.setLineDash([]);
+    if (A < 0.8) {
+        // zone coperte dalla UI di Instagram nelle story
+        ctx.fillStyle = 'rgba(255,90,90,0.13)';
+        ctx.fillRect(0, 0, W, H * 0.13);
+        ctx.fillRect(0, H * 0.8, W, H * 0.2);
+        ctx.fillStyle = 'rgba(255,140,140,0.75)';
+        ctx.font = `400 ${Math.max(10, W * 0.022)}px ${FONT}`;
+        ctx.fillText('ZONA UI INSTAGRAM', W * 0.04, H * 0.115);
+        ctx.fillText('ZONA UI INSTAGRAM', W * 0.04, H * 0.83);
+    }
+    ctx.restore();
+}
+$('btnGuides').addEventListener('click', () => {
+    guidesOn = !guidesOn;
+    $('btnGuides').classList.toggle('on', guidesOn);
+    render();
+});
+
+/* ── Istogramma luminanza (debounced, sul render della sola foto) ──────── */
+let histT = null;
+function scheduleHist() { clearTimeout(histT); histT = setTimeout(drawHist, 130); }
+function drawHist() {
+    const cv = $('histCv');
+    const ph = photos[activeIdx];
+    const cw = cv.clientWidth || 320;
+    cv.width = cw; cv.height = 54;
+    const c = cv.getContext('2d');
+    c.clearRect(0, 0, cw, 54);
+    if (!ph) return;
+    try {
+        const A = aspectValue(ph.frame.aspect, ph.img);
+        const w = 200, h = Math.max(1, Math.round(200 / A));
+        const off = document.createElement('canvas');
+        off.width = w; off.height = h;
+        drawPhotoLayer(off.getContext('2d'), w, h, ph, A);
+        const d = off.getContext('2d').getImageData(0, 0, w, h).data;
+        const bins = new Array(64).fill(0);
+        for (let i = 0; i < d.length; i += 4) {
+            bins[Math.min(63, (d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114) >> 2)]++;
+        }
+        const mx = Math.max.apply(null, bins) || 1;
+        const bw = cw / 64;
+        c.fillStyle = 'rgba(212,175,55,0.75)';
+        for (let i = 0; i < 64; i++) {
+            const bh = Math.round(bins[i] / mx * 50);
+            c.fillRect(i * bw, 54 - bh, Math.max(1, bw - 1), bh);
+        }
+    } catch (e) { /* getImageData può fallire solo su browser antichi */ }
 }
 function updateDragTip() {
     const tip = $('dragTip');
@@ -1043,13 +1199,27 @@ canvas.addEventListener('wheel', e => {
 function clamp01(v) { return Math.min(0.98, Math.max(0.02, v)); }
 
 // ── Tabs ─────────────────────────────────────────────────────────────────
+const TAB_ORDER = ['regola', 'formato', 'brand', 'testo', 'export'];
+function switchTab(name) {
+    tab = name;
+    document.querySelectorAll('#tabs button').forEach(x => x.classList.toggle('active', x.dataset.tab === name));
+    document.querySelectorAll('.pane').forEach(p => p.classList.toggle('active', p.id === 'pane-' + name));
+    updateDragTip();
+}
 $('tabs').addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
-    tab = b.dataset.tab;
-    document.querySelectorAll('#tabs button').forEach(x => x.classList.toggle('active', x === b));
-    document.querySelectorAll('.pane').forEach(p => p.classList.toggle('active', p.id === 'pane-' + tab));
-    updateDragTip();
+    switchTab(b.dataset.tab);
 });
+
+// scorciatoie: 1-5 tab · G guide · O (tieni premuto) originale
+document.addEventListener('keydown', e => {
+    const ae = document.activeElement;
+    if (ae && /^(INPUT|SELECT|TEXTAREA)$/.test(ae.tagName)) return;
+    if (e.key >= '1' && e.key <= '5') switchTab(TAB_ORDER[+e.key - 1]);
+    else if (e.key === 'g' || e.key === 'G') { guidesOn = !guidesOn; $('btnGuides').classList.toggle('on', guidesOn); render(); }
+    else if ((e.key === 'o' || e.key === 'O') && !e.repeat) cmpOn();
+});
+document.addEventListener('keyup', e => { if (e.key === 'o' || e.key === 'O') cmpOff(); });
 
 // ── Lanci rapidi ─────────────────────────────────────────────────────────
 $('quick').innerHTML = TEMPLATES.map(t => `<button data-t="${t.id}">${t.label}</button>`).join('');
@@ -1082,6 +1252,77 @@ bindAdj('adjContrast', 'contrast', 'outContrast', v => v + '%');
 bindAdj('adjSat', 'sat', 'outSat', v => v + '%');
 bindAdj('adjTemp', 'temp', 'outTemp', v => (v > 0 ? '+' : '') + v);
 bindAdj('adjVign', 'vign', 'outVign', v => v + '%');
+bindAdj('adjSharp', 'sharp', 'outSharp', v => v + '%');
+
+/* ── Auto-migliora: istogramma → percentili → slider ────────────────────
+   Analisi su una miniatura 260px: livelli (p2/p50/p98), cast colore
+   (media R vs B), saturazione media. Imposta gli slider, che restano
+   regolabili: nessuna magia nascosta, tutto trasparente. */
+function autoEnhance(ph) {
+    const k = 260 / Math.max(ph.img.naturalWidth, ph.img.naturalHeight);
+    const w = Math.max(1, Math.round(ph.img.naturalWidth * k));
+    const h = Math.max(1, Math.round(ph.img.naturalHeight * k));
+    const cv = document.createElement('canvas');
+    cv.width = w; cv.height = h;
+    const c = cv.getContext('2d');
+    c.drawImage(ph.img, 0, 0, w, h);
+    const d = c.getImageData(0, 0, w, h).data;
+    const hist = new Array(256).fill(0);
+    let sumR = 0, sumB = 0, sumSat = 0;
+    const n = d.length / 4;
+    for (let i = 0; i < d.length; i += 4) {
+        const r = d[i], g = d[i + 1], b = d[i + 2];
+        hist[Math.round(r * 0.299 + g * 0.587 + b * 0.114)]++;
+        sumR += r; sumB += b;
+        const mx = Math.max(r, g, b);
+        sumSat += mx ? (mx - Math.min(r, g, b)) / mx : 0;
+    }
+    let acc = 0, p2 = 0, p50 = 128, p98 = 255;
+    for (let i = 0; i < 256; i++) {
+        acc += hist[i];
+        if (acc < n * 0.02) p2 = i;
+        if (acc < n * 0.50) p50 = i;
+        if (acc < n * 0.98) p98 = i;
+    }
+    const adj = ph.adj;
+    adj.bright = Math.round(Math.min(128, Math.max(82, 100 + (122 - p50) * 0.35)));
+    adj.contrast = Math.round(Math.min(132, Math.max(96, 100 * 230 / Math.max(60, p98 - p2))));
+    adj.temp = Math.round(Math.min(22, Math.max(-22, -(sumR - sumB) / n * 0.35)));
+    const avgSat = sumSat / n;
+    adj.sat = avgSat < 0.14 ? 112 : (avgSat > 0.45 ? 96 : 104);
+    if (!adj.sharp) adj.sharp = 22;
+}
+$('btnAuto').addEventListener('click', () => {
+    const ph = photos[activeIdx]; if (!ph) { toast('Carica prima una foto'); return; }
+    autoEnhance(ph);
+    syncPhotoControls(); render();
+    toast('Auto-migliorata — rifinisci gli slider se vuoi');
+});
+
+/* ── Look personalizzati (salvati in localStorage) ──────────────────── */
+let myLooks = [];
+try { myLooks = JSON.parse(localStorage.getItem('boomMediaLooks') || '[]'); } catch (e) {}
+function saveMyLooks() { try { localStorage.setItem('boomMediaLooks', JSON.stringify(myLooks)); } catch (e) {} }
+function renderMyLooks() {
+    $('myLooks').innerHTML = myLooks.map((l, i) =>
+        `<button class="chip" data-l="${i}">★ ${String(l.name).replace(/</g, '&lt;')} <span data-dl="${i}" style="margin-left:4px;color:var(--text-muted)">✕</span></button>`).join('');
+}
+$('myLooks').addEventListener('click', e => {
+    const del = e.target.closest('[data-dl]');
+    if (del) { myLooks.splice(+del.dataset.dl, 1); saveMyLooks(); renderMyLooks(); return; }
+    const b = e.target.closest('[data-l]'); if (!b) return;
+    const ph = photos[activeIdx]; if (!ph) { toast('Carica prima una foto'); return; }
+    Object.assign(ph.adj, myLooks[+b.dataset.l].adj);
+    syncPhotoControls(); render();
+});
+$('btnSaveLook').addEventListener('click', () => {
+    const ph = photos[activeIdx]; if (!ph) { toast('Carica prima una foto'); return; }
+    const name = (prompt('Nome del look (es. "Attico sera"):') || '').trim();
+    if (!name) return;
+    myLooks.push({ name: name.slice(0, 18), adj: Object.assign({}, ph.adj) });
+    saveMyLooks(); renderMyLooks();
+    toast('Look salvato ★');
+});
 $('btnAdjAll').addEventListener('click', () => {
     const ph = photos[activeIdx]; if (!ph) return;
     photos.forEach(p => Object.assign(p.adj, ph.adj));
@@ -1107,6 +1348,12 @@ $('frameZoom').addEventListener('input', () => {
     $('outZoom').textContent = $('frameZoom').value + '%';
     render();
 });
+$('frameRot').addEventListener('input', () => {
+    const ph = photos[activeIdx]; if (!ph) return;
+    ph.frame.rot = +$('frameRot').value;
+    $('outRot').textContent = ph.frame.rot.toFixed(1) + '°';
+    render();
+});
 $('btnFrameAll').addEventListener('click', () => {
     const ph = photos[activeIdx]; if (!ph) return;
     photos.forEach(p => Object.assign(p.frame, { aspect: ph.frame.aspect, zoom: ph.frame.zoom }));
@@ -1120,10 +1367,12 @@ $('btnFrameReset').addEventListener('click', () => {
 });
 
 function syncPhotoControls() {
-    ['adjBright', 'adjContrast', 'adjSat', 'adjTemp', 'adjVign'].forEach(id => $(id)._sync());
+    ['adjBright', 'adjContrast', 'adjSat', 'adjTemp', 'adjVign', 'adjSharp'].forEach(id => $(id)._sync());
     const ph = photos[activeIdx];
     const z = ph ? Math.round(ph.frame.zoom * 100) : 100;
     $('frameZoom').value = z; $('outZoom').textContent = z + '%';
+    const rot = ph ? (ph.frame.rot || 0) : 0;
+    $('frameRot').value = rot; $('outRot').textContent = rot.toFixed(1) + '°';
     document.querySelectorAll('#aspects .chip').forEach(c =>
         c.classList.toggle('active', !!ph && c.dataset.a === ph.frame.aspect));
 }
@@ -1277,22 +1526,74 @@ $('expQuality').addEventListener('input', () => {
     $('outQuality').textContent = brand.quality + '%';
     saveBrand();
 });
+$('expUpscale').addEventListener('change', e => { brand.upscale = e.target.checked; saveBrand(); });
+
+// ── Copywriter AI (solo i campi testuali vanno al server, mai le foto) ──
+let aiBusy = false, aiLangV = 'it';
+$('aiLang').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    aiLangV = b.dataset.v;
+    $('aiLang').querySelectorAll('button').forEach(x => x.classList.toggle('active', x === b));
+});
+$('btnAi').addEventListener('click', async () => {
+    if (aiBusy) return;
+    aiBusy = true;
+    $('btnAi').disabled = true;
+    $('btnAi').textContent = 'Scrittura in corso…';
+    try {
+        const res = await fetch('/api/media/caption', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                tipo: $('aiTipo').value, lingua: aiLangV,
+                zona: brand.info.zona, prezzo: brand.info.prezzo,
+                locali: brand.info.locali, mq: brand.info.mq,
+                extra: $('aiExtra').value,
+            }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.text) throw new Error(data.error || 'risposta non valida');
+        $('aiOut').value = data.text;
+        $('aiOut').style.display = 'block';
+        $('btnAiCopy').style.display = '';
+    } catch (e) {
+        toast('Copywriter non disponibile: ' + e.message);
+    } finally {
+        aiBusy = false;
+        $('btnAi').disabled = false;
+        $('btnAi').textContent = '✍ Genera testo';
+    }
+});
+$('btnAiCopy').addEventListener('click', () => {
+    navigator.clipboard.writeText($('aiOut').value)
+        .then(() => toast('Testo copiato 📋'))
+        .catch(() => { $('aiOut').select(); document.execCommand('copy'); toast('Testo copiato 📋'); });
+});
 
 function renderTarget(ph, target) {
     return new Promise(resolve => {
-        let W, H;
+        let W, H, upscaled = false;
         const A = target.aspect || aspectValue(ph.frame.aspect, ph.img);
         if (target.w) { W = target.w; H = target.h; }
         else {
             const r = cropRect(ph.img, A, ph.frame);
             let k = 1;
-            if (target.maxSide > 0) k = Math.min(1, target.maxSide / Math.max(r.sw, r.sh));
+            if (target.maxSide > 0) {
+                k = target.maxSide / Math.max(r.sw, r.sh);
+                // upscale ×2 max per foto sotto la dimensione richiesta
+                k = brand.upscale ? Math.min(k, 2) : Math.min(k, 1);
+                upscaled = k > 1;
+            }
             W = Math.round(r.sw * k); H = Math.round(r.sh * k);
         }
         const cv = document.createElement('canvas');
         cv.width = W; cv.height = H;
         const cx = cv.getContext('2d');
-        composeTo(cx, W, H, ph, { aspect: A });
+        cx.imageSmoothingEnabled = true;
+        cx.imageSmoothingQuality = 'high';
+        // sull'upscale aggiungo nitidezza per compensare l'interpolazione
+        const phr = upscaled ? Object.assign({}, ph, { adj: Object.assign({}, ph.adj, { sharp: Math.max(ph.adj.sharp, 32) }) }) : ph;
+        composeTo(cx, W, H, phr, { aspect: A });
         cv.toBlob(b => resolve(b), 'image/jpeg', brand.quality / 100);
     });
 }
@@ -1498,7 +1799,9 @@ function drawReelFrame(c, W, H, A, t, o) {
 // ── Avvio ────────────────────────────────────────────────────────────────
 $('expQuality').value = brand.quality;
 $('outQuality').textContent = brand.quality + '%';
+$('expUpscale').checked = !!brand.upscale;
 sealImage(wmColors(brand.wm).seal, () => render());
+renderMyLooks();
 syncBrandControls();
 syncPhotoControls();
 syncTextControls();
