@@ -1683,6 +1683,13 @@
     .sidebar-secondary--quiet:hover{border:none;color:var(--gold)}
     /* Skip layout/paint of below-the-fold acts until they approach the viewport */
     .bver,.btour,.m48,.faq,.upsell-section,.zone-footer,footer{content-visibility:auto;contain-intrinsic-size:auto 640px}
+    /* Mobile lightness: kill always-on GPU effects that can stutter scrolling */
+    @media(max-width:860px){
+      .cine-ambient{display:none!important}
+      .cine-on .single-hero-img,.cine-on .carousel-slide img{animation:none!important}
+      .mobile-cta{backdrop-filter:none;-webkit-backdrop-filter:none;background:rgba(5,5,7,.97)}
+      .cine-cta::after,.mdx-launch::after{display:none!important}
+    }
     </style>
     <script>
     (function(){
@@ -2256,35 +2263,55 @@
         const zone=d.zone||d.neighborhood||'';
         const addr=d.address||(zone?zone+', Rome, Italy':'Rome, Italy');
         const classic=()=>{c.innerHTML=`<iframe src="https://maps.google.com/maps?q=${encodeURIComponent(addr)}&t=&z=15&ie=UTF8&iwloc=&output=embed" allowfullscreen loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>`};
-        const lat=Number(d.lat),lng=Number(d.lng),hasCoords=isFinite(lat)&&isFinite(lng)&&!!lat&&!!lng;
-        // Where to fly: real coords if the listing has them, else geocode the address on tap.
-        const where=d.address?d.address+', Rome, Italy':(zone?zone+', Rome, Italy':'');
-        if(!hasCoords&&!where){classic();return}
-        // 3D flyover facade — WebGL + geocode resolve only on tap (zero cost otherwise)
+        const lat=Number(d.lat),lng=Number(d.lng),exact=isFinite(lat)&&isFinite(lng)&&!!lat&&!!lng;
+        // Static Rome zone centers [lng,lat] — the no-network guarantee that the flyover always opens.
+        const ZC={'trastevere':[12.4692,41.8867],'centro-storico':[12.4735,41.8986],'monti':[12.4884,41.8925],'prati':[12.4632,41.9073],'pigneto':[12.5285,41.8885],'testaccio':[12.4757,41.8758],'ostiense':[12.4790,41.8645],'trieste-coppede':[12.4990,41.9210],'san-lorenzo':[12.5151,41.9000],'esquilino':[12.5010,41.8950]};
+        const slug=(window.BOOM&&window.BOOM.zoneToSlug)?window.BOOM.zoneToSlug(zone||d.address||''):null;
+        const zc=(slug&&ZC[slug])||null;
+        if(!exact&&!zc&&!d.address){classic();return}
+        // 3D flyover facade — WebGL resolves only on tap (zero cost otherwise)
         c.innerHTML=`<div class="map3d-facade"><button type="button" class="map3d-go" id="map3dGo"><span>◆ Explore the block in 3D</span><small>A cinematic flyover of the building’s surroundings</small></button><button type="button" class="map3d-alt" id="map3dAlt">or open the classic map</button></div>`;
         document.getElementById('map3dAlt').addEventListener('click',function(e){e.stopPropagation();classic()});
         document.getElementById('map3dGo').addEventListener('click',function(){
-            if(hasCoords){launch3DMap(c,lat,lng,classic);return}
+            if(exact){launch3DMap(c,lat,lng,classic,false);return}
+            if(zc){
+                // Launch instantly on the zone centre; refine to the exact block if geocoding succeeds.
+                const api=launch3DMap(c,zc[1],zc[0],classic,true);
+                if(d.address&&api)geocodeRome(d.address+', Rome, Italy',3500).then(function(co){if(co)api.refine(co[1],co[0])}).catch(function(e){console.warn('BOOM 3D: refine geocode failed',e&&e.message)});
+                return;
+            }
             const sp=this.querySelector('span');if(sp)sp.textContent='◆ Locating the block…';
-            geocodeRome(where).then(co=>{ if(co)launch3DMap(c,co[1],co[0],classic); else classic(); }).catch(classic);
+            geocodeRome(d.address+', Rome, Italy',4000).then(function(co){ if(co)launch3DMap(c,co[1],co[0],classic,false); else {console.warn('BOOM 3D: geocode returned nothing');classic();} }).catch(function(e){console.warn('BOOM 3D: geocode failed',e&&e.message);classic()});
         });
     }
-    // Browser geocode (Nominatim) — only ever fires on an explicit 3D tap; cached per session.
-    function geocodeRome(q){
+    // Browser geocode (Nominatim) with a hard timeout — only fires on an explicit 3D tap; cached per session.
+    function geocodeRome(q,ms){
         try{const cd=sessionStorage.getItem('boomgeo:'+q);if(cd)return Promise.resolve(JSON.parse(cd));}catch(e){}
-        return fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=it&q='+encodeURIComponent(q),{headers:{Accept:'application/json'}})
+        const ctl=('AbortController' in window)?new AbortController():null;
+        if(ctl)setTimeout(function(){try{ctl.abort()}catch(e){}},ms||3500);
+        return fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=it&q='+encodeURIComponent(q),{headers:{Accept:'application/json'},signal:ctl?ctl.signal:undefined})
             .then(r=>r.ok?r.json():null)
             .then(j=>{ if(Array.isArray(j)&&j[0]&&j[0].lat&&j[0].lon){const co=[Number(j[0].lon),Number(j[0].lat)];try{sessionStorage.setItem('boomgeo:'+q,JSON.stringify(co))}catch(e){}return co;} return null; });
     }
-    function launch3DMap(c,lat,lng,fallback){
+    function launch3DMap(c,lat,lng,fallback,approx){
         c.innerHTML='<div class="map3d" id="map3d"><div class="map3d-loading">Preparing the flyover…</div></div>';
         const fail=()=>{try{fallback()}catch(e){}};
+        const api={_loaded:false,_map:null,_marker:null,_label:null,refine:function(nlat,nlng){try{
+            if(api._marker)api._marker.setLngLat([nlng,nlat]);
+            if(api._label)api._label.textContent='THE FLAT';
+            if(api._map&&api._loaded)api._map.easeTo({center:[nlng,nlat],zoom:16.5,duration:1800});
+        }catch(e){}}};
         const boot=()=>{try{
             const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
-            const map=new maplibregl.Map({container:'map3d',style:'https://tiles.openfreemap.org/styles/liberty',center:[lng,lat],zoom:reduce?16.4:13.6,pitch:reduce?60:0,bearing:reduce?-18:0,cooperativeGestures:true,antialias:true});
+            const map=new maplibregl.Map({container:'map3d',style:'https://tiles.openfreemap.org/styles/liberty',center:[lng,lat],zoom:reduce?(approx?15.6:16.4):13.6,pitch:reduce?60:0,bearing:reduce?-18:0,cooperativeGestures:true,antialias:true});
+            api._map=map;
+            // Watchdog: if the style never loads (tiles blocked/offline), bail out to the classic map.
+            const dog=setTimeout(function(){ if(!api._loaded){console.warn('BOOM 3D: style load timeout');if(window.gtag)try{gtag('event','map3d_fail',{reason:'style-timeout'})}catch(e){} try{map.remove()}catch(e){} fail(); } },9000);
+            map.on('error',function(ev){console.warn('BOOM 3D: maplibre error',ev&&ev.error&&ev.error.message)});
             map.addControl(new maplibregl.NavigationControl({visualizePitch:true}),'top-right');
             map.addControl(new maplibregl.FullscreenControl(),'top-right');
             map.on('load',function(){
+                api._loaded=true;clearTimeout(dog);
                 try{ // grade the basemap into BOOM dark
                     map.getStyle().layers.forEach(function(L){try{
                         if(L.type==='symbol'&&/poi|housenumber|airport|aeroway/.test(L.id)){map.setLayoutProperty(L.id,'visibility','none');return}
@@ -2298,21 +2325,25 @@
                     if(src)map.addLayer({id:'boom-3d',type:'fill-extrusion',source:src,'source-layer':'building',minzoom:13,paint:{'fill-extrusion-color':'#26262E','fill-extrusion-height':['coalesce',['get','render_height'],14],'fill-extrusion-base':['coalesce',['get','render_min_height'],0],'fill-extrusion-opacity':.94}});
                 }catch(e){}
                 try{
-                    const el=document.createElement('div');el.className='boom-pin';el.innerHTML='<b>THE FLAT</b><i></i>';
-                    new maplibregl.Marker({element:el,anchor:'bottom'}).setLngLat([lng,lat]).addTo(map);
+                    const el=document.createElement('div');el.className='boom-pin';
+                    const b=document.createElement('b');b.textContent=approx?'THE NEIGHBOURHOOD':'THE FLAT';
+                    const i=document.createElement('i');el.appendChild(b);el.appendChild(i);
+                    api._label=b;
+                    api._marker=new maplibregl.Marker({element:el,anchor:'bottom'}).setLngLat([lng,lat]).addTo(map);
                 }catch(e){}
                 const lo=c.querySelector('.map3d-loading');if(lo)lo.remove();
-                if(window.gtag)try{gtag('event','map3d_open')}catch(e){}
+                if(window.gtag)try{gtag('event','map3d_open',{mode:approx?'zone':'exact'})}catch(e){}
                 if(reduce)return;
-                map.flyTo({center:[lng,lat],zoom:16.5,pitch:62,bearing:-18,duration:4200});
+                map.flyTo({center:[lng,lat],zoom:approx?15.8:16.5,pitch:62,bearing:-18,duration:4200});
                 let stop=false;
                 ['pointerdown','wheel','touchstart'].forEach(function(ev){map.getContainer().addEventListener(ev,function(){stop=true},{once:true,passive:true})});
                 map.once('moveend',function(){(function spin(){if(stop||document.hidden)return;map.setBearing(map.getBearing()+0.05);requestAnimationFrame(spin)})()});
             });
-        }catch(e){fail()}};
-        if(window.maplibregl){boot();return}
+        }catch(e){console.warn('BOOM 3D: init failed (WebGL?)',e&&e.message);if(window.gtag)try{gtag('event','map3d_fail',{reason:'init'})}catch(_){}fail()}};
+        if(window.maplibregl){boot();return api}
         const css=document.createElement('link');css.rel='stylesheet';css.href='https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css';document.head.appendChild(css);
-        const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.min.js';s.onload=boot;s.onerror=fail;document.head.appendChild(s);
+        const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.min.js';s.onload=boot;s.onerror=function(){console.warn('BOOM 3D: maplibre CDN blocked');if(window.gtag)try{gtag('event','map3d_fail',{reason:'cdn'})}catch(_){}fail()};document.head.appendChild(s);
+        return api;
     }
     // True 3D scan of the flat (GLB) → interactive dollhouse + AR. Appears only when the
     // listing carries a model3d/modelUrl field — never invented, never faked.
