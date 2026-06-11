@@ -436,6 +436,67 @@
         .kit-cta { margin-top: var(--sp-2xl); display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; }
         .kit-cta span { font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-muted); }
 
+        /* ═══════════════ VIVILO — il primo anno, scroll-driven ═══════════════ */
+        .live { position: relative; z-index: 2; }
+        .live-track { height: 480vh; position: relative; }
+        .live.static .live-track { height: auto; }
+        .live-stage { position: sticky; top: 0; height: 100vh; height: 100svh; display: flex; align-items: center; overflow: hidden;
+            background: radial-gradient(900px 600px at 78% 30%, rgba(255,215,0,0.05), transparent 60%), var(--black); }
+        .live.static .live-stage { position: relative; height: auto; padding: var(--sp-4xl) 0; }
+        .lv-grid { display: grid; grid-template-columns: 1fr; gap: var(--sp-lg); align-items: center; width: 100%; }
+        @media (min-width: 880px) { .lv-grid { grid-template-columns: 1.1fr 0.9fr; gap: var(--sp-3xl); } }
+        .lv-eyebrow { font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: var(--text-muted); margin-bottom: var(--sp-lg); }
+        .lv-kicker { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: var(--gold); margin-bottom: var(--sp-md); min-height: 14px; }
+        .lv-line { font-family: var(--font-display); font-weight: 200; text-transform: uppercase; letter-spacing: -0.02em; font-size: clamp(30px, 5vw, 64px); line-height: 1.06; min-height: 2.25em; }
+        .lv-line span { display: block; }
+        .lv-line .l2 { color: var(--gold); font-weight: 300; }
+        .lv-line.sw span { animation: lvIn 0.55s var(--ease-out) both; }
+        .lv-line.sw .l2 { animation-delay: 0.08s; }
+        @keyframes lvIn { from { opacity: 0; transform: translateY(16px); filter: blur(4px); } to { opacity: 1; transform: none; filter: blur(0); } }
+        .lv-progress { margin-top: var(--sp-xl); height: 2px; background: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden; max-width: 320px; }
+        .lv-progress i { display: block; height: 100%; background: linear-gradient(90deg, var(--gold), var(--gold-light)); transform-origin: left; transform: scaleX(0); }
+        .lv-hint { margin-top: 10px; font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-muted); }
+        .lv-cta { margin-top: var(--sp-lg); opacity: 0; transform: translateY(10px); pointer-events: none; transition: opacity 0.5s var(--ease-out), transform 0.5s var(--ease-out); }
+        .lv-cta.on { opacity: 1; transform: none; pointer-events: auto; }
+        .lv-phone-wrap { display: flex; justify-content: center; }
+        .lv-phone { width: min(330px, 78vw); border-radius: 42px; border: 1px solid var(--border-default); background: #0a0a0c; padding: 12px; box-shadow: 0 40px 100px rgba(0,0,0,0.75), 0 0 60px rgba(255,215,0,0.05); }
+        .lv-screen { border-radius: 32px; overflow: hidden; background: linear-gradient(180deg, #0c0c10, #060608); min-height: 470px; display: flex; flex-direction: column; padding: 18px 14px 14px; }
+        .lv-clock { text-align: center; margin-bottom: 14px; }
+        .lv-clock b { font-family: var(--font-display); font-weight: 200; font-size: 34px; letter-spacing: 1px; }
+        .lv-notifs { display: flex; flex-direction: column; gap: 10px; flex: 1; }
+        .lv-n { background: rgba(255,255,255,0.06); backdrop-filter: blur(10px); border: 1px solid var(--border-subtle); border-radius: 16px; padding: 12px 14px; opacity: 0; transform: translateY(-14px) scale(0.97); transition: opacity 0.5s var(--ease-out), transform 0.5s var(--ease-out); }
+        .lv-n.on { opacity: 1; transform: none; }
+        .lv-n .h { display: flex; align-items: center; gap: 6px; font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 5px; }
+        .lv-n .h i { width: 10px; height: 10px; border-radius: 3px; background: var(--gold); display: inline-block; }
+        .lv-n .h time { margin-left: auto; letter-spacing: 0.5px; text-transform: none; color: var(--text-muted); }
+        .lv-n b { display: block; font-size: 13px; font-weight: 500; margin-bottom: 2px; }
+        .lv-n span { font-size: 11.5px; line-height: 1.5; color: var(--text-tertiary); }
+        .lv-total { margin-top: auto; border-top: 1px solid var(--border-subtle); padding-top: 12px; display: flex; align-items: baseline; justify-content: space-between; opacity: 0; transition: opacity 0.6s var(--ease-out); }
+        .lv-total.on { opacity: 1; }
+        .lv-total span { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-tertiary); }
+        .lv-total b { font-family: var(--font-display); font-weight: 200; font-size: 26px; color: var(--gold); }
+        @media (max-width: 879px) {
+            .live-stage { align-items: flex-start; padding-top: 86px; }
+            .lv-line { font-size: clamp(26px, 7.4vw, 38px); min-height: 2.2em; }
+            .lv-screen { min-height: 340px; }
+            .lv-phone { width: min(280px, 78vw); }
+            .lv-progress { margin-top: var(--sp-md); }
+        }
+
+        /* ═══════════════ CONFRONTO ONESTO ═══════════════ */
+        .cmp { position: relative; z-index: 2; padding: var(--sp-5xl) 0; }
+        .cmp-grid { display: grid; grid-template-columns: 1fr; gap: var(--sp-lg); margin-top: var(--sp-3xl); }
+        @media (min-width: 980px) { .cmp-grid { grid-template-columns: repeat(3, 1fr); } }
+        .cmp-card { background: var(--surface-card); border: 1px solid var(--border-subtle); border-radius: 20px; padding: clamp(24px, 2.6vw, 36px); display: flex; flex-direction: column; transition: border-color 0.4s var(--ease-out), transform 0.4s var(--ease-out); }
+        .cmp-card:hover { border-color: var(--border-hover); transform: translateY(-3px); }
+        .cmp-k { font-size: 10px; letter-spacing: 2.5px; text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 12px; }
+        .cmp-promise { font-family: var(--font-display); font-size: 21px; font-weight: 300; line-height: 1.25; margin-bottom: var(--sp-lg); color: var(--text-primary); }
+        .cmp-card ul { list-style: none; display: grid; gap: 10px; margin: 0 0 var(--sp-lg); padding: 0; }
+        .cmp-card li { font-size: 13px; line-height: 1.6; color: var(--text-tertiary); padding-left: 16px; position: relative; }
+        .cmp-card li::before { content: ''; position: absolute; left: 0; top: 0.6em; width: 7px; height: 1px; background: var(--text-muted); }
+        .cmp-boom { margin-top: auto; border-top: 1px solid var(--border-gold); padding-top: 14px; font-size: 13px; line-height: 1.65; color: var(--text-secondary); }
+        .cmp-boom b { color: var(--gold); font-weight: 500; }
+
         /* ═══════════════ CONVERSION DOCK (CTA contestuale) ═══════════════ */
         .dock { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translate(-50%, 150%); z-index: 9998;
             display: flex; align-items: center; gap: 14px; padding: 9px 9px 9px 18px; max-width: calc(100vw - 24px);
@@ -684,6 +745,33 @@
         </div>
     </section>
 
+    <!-- ═══════════ VIVILO — il primo anno, in trenta secondi ═══════════ -->
+    <section class="live" id="vivilo">
+        <div class="live-track" id="liveTrack">
+            <div class="live-stage">
+                <div class="container lv-grid">
+                    <div class="lv-copy">
+                        <div class="lv-eyebrow">Vivilo · il tuo primo anno con BOOM, in trenta secondi</div>
+                        <div class="lv-kicker" id="lvDate">Giorno zero · 10:02</div>
+                        <h2 class="lv-line" id="lvLine"><span class="l1">Due minuti.</span><span class="l2">Candidi la casa.</span></h2>
+                        <div class="lv-progress" aria-hidden="true"><i id="lvFill"></i></div>
+                        <div class="lv-hint" id="lvHint">Continua a scorrere — il tempo passa da solo</div>
+                        <div class="lv-cta" id="lvCta"><a href="#pubblica" class="btn btn-primary">Inizia il tuo giorno zero</a></div>
+                    </div>
+                    <div class="lv-phone-wrap" aria-hidden="true">
+                        <div class="lv-phone">
+                            <div class="lv-screen">
+                                <div class="lv-clock"><b>09:41</b></div>
+                                <div class="lv-notifs" id="lvNotifs"></div>
+                                <div class="lv-total" id="lvTotal"><span>Incassati finora</span><b id="lvTotalV">€ 0</b></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <!-- ═══════════ DOTAZIONE — il sistema incluso ═══════════ -->
     <section class="kit" id="dotazione">
         <div class="container">
@@ -887,6 +975,50 @@
                     <div class="bf-tick"></div><div class="bf-tick"></div><div class="bf-tick"></div><div class="bf-tick"></div><div class="bf-tick"></div>
                 </div>
             </div>
+        </div>
+    </section>
+
+    <!-- ═══════════ CONFRONTO ONESTO ═══════════ -->
+    <section class="cmp" id="confronto">
+        <div class="container">
+            <div class="split-head">
+                <div class="eyebrow" style="justify-content:center"><span class="eyebrow-dot"></span><span class="eyebrow-text">Il confronto onesto</span></div>
+                <h2 class="section-title reveal" style="text-align:center">Le alternative esistono.<br><span class="gold">Guardiamole in faccia.</span></h2>
+                <p class="reveal">Nessuna caricatura: ognuna di queste strade ha un senso. Ma ha anche un conto — e preferiamo mostrartelo noi, prima.</p>
+            </div>
+            <div class="cmp-grid reveal">
+                <div class="cmp-card">
+                    <div class="cmp-k">Il portale fai-da-te</div>
+                    <div class="cmp-promise">«Pubblichi gratis, decidi tutto tu.»</div>
+                    <ul>
+                        <li>Decine di contatti non verificati: li filtri tu, uno a uno, tra curiosi e truffe.</li>
+                        <li>Visite, contratto, registrazione, scadenze fiscali: tutto sulle tue spalle.</li>
+                        <li>Se l'inquilino smette di pagare, il problema è soltanto tuo.</li>
+                    </ul>
+                    <div class="cmp-boom"><b>Da BOOM</b> — la stessa libertà, ma selezione, contratto e fisco li facciamo noi. E della solvibilità rispondiamo noi.</div>
+                </div>
+                <div class="cmp-card">
+                    <div class="cmp-k">L'agenzia tradizionale</div>
+                    <div class="cmp-promise">«Ci occupiamo di tutto noi.»</div>
+                    <ul>
+                        <li>In genere una mensilità + IVA a ogni nuovo contratto.</li>
+                        <li>La gestione, se la vuoi, è un altro contratto e un altro costo annuo.</li>
+                        <li>Dopo la firma, della morosità non risponde quasi mai nessuno.</li>
+                    </ul>
+                    <div class="cmp-boom"><b>Da BOOM</b> — prima locazione gratuita, poi una fee fissa annuale con locazioni e gestione incluse. La responsabilità è scritta nel mandato.</div>
+                </div>
+                <div class="cmp-card">
+                    <div class="cmp-k">L'affitto garantito online</div>
+                    <div class="cmp-promise">«Ti paghiamo noi, sempre.»</div>
+                    <ul>
+                        <li>Spesso una mensilità d'ingresso, più una percentuale del canone ogni mese, per sempre.</li>
+                        <li>L'inquilino lo conosce la piattaforma — non tu.</li>
+                        <li>La «garanzia» vive nelle condizioni del servizio, non in un mandato d'agenzia firmato.</li>
+                    </ul>
+                    <div class="cmp-boom"><b>Da BOOM</b> — nessuna percentuale mensile. L'inquilino lo scegli tu. E la solvibilità è una responsabilità legale nostra, nero su bianco.</div>
+                </div>
+            </div>
+            <div class="terms-note">Confronto per categorie, non per nomi: le condizioni dei singoli operatori variano. Le nostre sono più sotto, in due righe.</div>
         </div>
     </section>
 
@@ -1391,11 +1523,86 @@
                 addEventListener('scroll', function () { sc = Math.min(scrollY, innerHeight) * 0.16; apply(); }, { passive: true });
             }
 
+            /* ── Vivilo: il primo anno, guidato dallo scroll ───────────── */
+            (function () {
+                var track = $('liveTrack'); if (!track) return;
+                var live = track.parentElement;
+                var RENT = 1450;
+                var BEATS = [
+                    { at: 0.00, date: 'Giorno zero · 10:02', l1: 'Due minuti.', l2: 'Candidi la casa.', n: [
+                        { t: 'Candidatura ricevuta', s: 'Bilocale · Testaccio — il team la sta già lavorando', time: 'adesso' }] },
+                    { at: 0.12, date: 'Giorno zero · 11:00', l1: 'Un’ora dopo.', l2: 'Online. Curato.', n: [
+                        { t: 'Il tuo annuncio è online', s: 'Foto rifinite, testo scritto, canone di mercato', time: '1 ora dopo' },
+                        { t: '8 richieste in 24 ore', s: 'L’AI le sta filtrando una per una — tu non senti squillare niente', time: 'il giorno dopo' }] },
+                    { at: 0.27, date: 'Giorno 6', l1: 'La selezione lavora.', l2: 'Tu no.', n: [
+                        { t: '14 candidati → 3 idonei', s: 'Reddito, referenze e documenti verificati di persona', time: 'giorno 6' },
+                        { t: 'Léa M. · ricercatrice', s: 'Reddito/canone 3,4 : 1 · referenze verificate ✓', time: 'giorno 6' }] },
+                    { at: 0.42, date: 'Giorno 12', l1: 'La firma.', l2: 'Dal telefono.', n: [
+                        { t: 'Contratto firmato ✓', s: 'Entrambe le parti, firma digitale guidata', time: 'giorno 12' },
+                        { t: 'Registrato all’Agenzia delle Entrate', s: 'Cedolare al 10% attivata — adempimenti nostri', time: 'giorno 12' }] },
+                    { at: 0.58, date: 'Mese 1', l1: 'Il primo accredito.', l2: 'Puntuale.', n: [
+                        { t: 'Canone di ottobre accreditato', s: '€ 1.450 sul tuo conto — come ogni mese, da oggi', time: 'mese 1' }] },
+                    { at: 0.74, date: 'Mese 6', l1: 'Sei mesi.', l2: 'Zero telefonate.', n: [
+                        { t: 'Canone di marzo accreditato', s: 'Sesto su sei. E se non pagasse, risponderemmo noi', time: 'mese 6' },
+                        { t: 'Scadenza cedolare gestita ✓', s: 'Non te n’eri accorto. Appunto.', time: 'mese 6' }] },
+                    { at: 0.90, date: 'Mese 12', l1: 'Un anno dopo.', l2: 'Tu non hai fatto niente.', n: [
+                        { t: 'Canone di settembre accreditato', s: 'Dodicesimo su dodici', time: 'mese 12' },
+                        { t: 'TaxPack pronto per il commercialista', s: 'Tutto l’anno fiscale, in un download', time: 'mese 12' }] }
+                ];
+                var cur = -1, timers = [];
+                function render(i) {
+                    cur = i;
+                    var b = BEATS[i];
+                    $('lvDate').textContent = b.date;
+                    var line = $('lvLine');
+                    line.classList.remove('sw'); void line.offsetWidth;
+                    line.innerHTML = '<span class="l1">' + b.l1 + '</span><span class="l2">' + b.l2 + '</span>';
+                    line.classList.add('sw');
+                    timers.forEach(clearTimeout); timers = [];
+                    var box = $('lvNotifs'), html = '';
+                    b.n.forEach(function (n) {
+                        html += '<div class="lv-n"><div class="h"><i></i>BOOM<time>' + n.time + '</time></div><b>' + n.t + '</b><span>' + n.s + '</span></div>';
+                    });
+                    box.innerHTML = html;
+                    box.querySelectorAll('.lv-n').forEach(function (el, k) {
+                        timers.push(setTimeout(function () { el.classList.add('on'); }, 80 + k * 160));
+                    });
+                }
+                function update() {
+                    var r = track.getBoundingClientRect();
+                    var span = r.height - innerHeight;
+                    var p = span > 0 ? Math.max(0, Math.min(1, -r.top / span)) : 0;
+                    var i = 0;
+                    for (var k = 0; k < BEATS.length; k++) if (p >= BEATS[k].at) i = k;
+                    if (i !== cur) render(i);
+                    $('lvFill').style.transform = 'scaleX(' + p + ')';
+                    var months = p < 0.56 ? 0 : Math.max(1, Math.min(12, Math.round(1 + (p - 0.58) / 0.32 * 11)));
+                    $('lvTotal').classList.toggle('on', months > 0);
+                    $('lvTotalV').textContent = '€ ' + (months * RENT).toLocaleString('it-IT');
+                    $('lvCta').classList.toggle('on', p > 0.88);
+                    $('lvHint').style.opacity = p > 0.85 ? '0' : '';
+                }
+                if (reduce) {
+                    live.classList.add('static');
+                    render(BEATS.length - 1);
+                    $('lvNotifs').querySelectorAll('.lv-n').forEach(function (el) { el.classList.add('on'); });
+                    $('lvFill').style.transform = 'scaleX(1)';
+                    $('lvTotal').classList.add('on');
+                    $('lvTotalV').textContent = '€ ' + (12 * RENT).toLocaleString('it-IT');
+                    $('lvCta').classList.add('on');
+                    $('lvHint').style.display = 'none';
+                } else {
+                    addEventListener('scroll', update, { passive: true });
+                    addEventListener('resize', update);
+                    update();
+                }
+            })();
+
             /* ── Conversion dock: la CTA giusta nel momento giusto ─────── */
             var dock = $('dock');
             if (dock) {
                 var dockTitle = $('dockTitle'), dockSub = $('dockSub'), dockCta = $('dockCta');
-                var pubSec = $('pubblica'), finalSec = document.querySelector('.final'), stimaSec = $('stima'), badge = document.querySelector('.demo-badge');
+                var pubSec = $('pubblica'), finalSec = document.querySelector('.final'), stimaSec = $('stima'), liveSec = $('vivilo'), badge = document.querySelector('.demo-badge');
                 var WA_DOCK = 'https://wa.me/393313251961?text=' + encodeURIComponent('Ciao BOOM! Vorrei candidare il mio immobile a Roma — mi raccontate come funziona?');
                 var converted = false, mode = '';
                 function inView(el) { if (!el) return false; var r = el.getBoundingClientRect(); return r.top < innerHeight * 0.85 && r.bottom > innerHeight * 0.15; }
@@ -1421,7 +1628,7 @@
                 function updateDock() {
                     if (converted) { show(false); return; }
                     var pastHero = scrollY > innerHeight * 0.62;
-                    if (!pastHero || inView(pubSec) || inView(finalSec) || inView(stimaSec)) { show(false); return; }
+                    if (!pastHero || inView(pubSec) || inView(finalSec) || inView(stimaSec) || inView(liveSec)) { show(false); return; }
                     setMode(pubSec && pubSec.getBoundingClientRect().bottom < innerHeight * 0.3 ? 'talk' : 'apply');
                     show(true);
                 }
