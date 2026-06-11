@@ -79,6 +79,7 @@
     { "source": "/setup-firebase", "destination": "/setup-firebase.html" },
     { "source": "/boom-doc-parser", "destination": "/boom_doc_parser.html" },
     { "source": "/cockpit-preview", "destination": "/cockpit-preview.html" },
+    { "source": "/pfs-command", "destination": "/pfs-command.html" },
     { "source": "/blog-47-steps", "destination": "/blog-47-steps.html" },
     { "source": "/blog-contract-types", "destination": "/blog-contract-types.html" },
     { "source": "/blog-cost-calculator", "destination": "/blog-cost-calculator.html" },
@@ -108,7 +109,7 @@
       ]
     },
     {
-      "source": "/(portal|admin|admin-flats|setup-firebase|seed-listings|boom-doc-parser|boom_doc_parser|cockpit-preview|underwriting|compliance|relet|pass-studio|portal.html|admin.html|admin-flats.html|setup-firebase.html|seed-listings.html|boom_doc_parser.html|cockpit-preview.html|underwriting.html|compliance.html|relet.html|pass-studio.html)(.*)",
+      "source": "/(portal|admin|admin-flats|setup-firebase|seed-listings|boom-doc-parser|boom_doc_parser|cockpit-preview|pfs-command|pfs-command.html|underwriting|compliance|relet|pass-studio|portal.html|admin.html|admin-flats.html|setup-firebase.html|seed-listings.html|boom_doc_parser.html|cockpit-preview.html|underwriting.html|compliance.html|relet.html|pass-studio.html)(.*)",
       "headers": [
         { "key": "X-Robots-Tag", "value": "noindex, nofollow, noarchive, nosnippet" },
         { "key": "Cache-Control", "value": "private, no-store, max-age=0" }
@@ -175,6 +176,15 @@
     },
     "api/sign/custom/submit.js": {
       "maxDuration": 60
+    },
+    "api/pfs/scan-inbox.js": {
+      "maxDuration": 60
+    },
+    "api/pfs/scan-market.js": {
+      "maxDuration": 60
+    },
+    "api/pfs/sync-searches.js": {
+      "maxDuration": 60
     }
   },
   "crons": [
@@ -185,6 +195,18 @@
     {
       "path": "/api/telegram/notify-pending",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/pfs/scan-inbox",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/pfs/scan-market",
+      "schedule": "7,37 * * * *"
+    },
+    {
+      "path": "/api/pfs/sync-searches",
+      "schedule": "15 5 * * *"
     }
   ]
 }
