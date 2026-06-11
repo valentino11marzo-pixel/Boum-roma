@@ -46,7 +46,6 @@
   <meta name="twitter:description" content="Verified apartment details, photos, location and amenities in Rome. Book a video viewing or apply in minutes. Legal contract, transparent fees, BOOM-managed.">
   <meta name="twitter:image" content="https://www.boomrome.com/BOOMsocialprofile.png">
   <meta name="twitter:image:alt" content="Apartment Details — Rome Verified Rental | BOOM">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="dns-prefetch" href="https://www.googletagmanager.com">
   <link rel="dns-prefetch" href="https://www.google-analytics.com">
@@ -66,7 +65,8 @@
       gtag('config', 'G-EYCD59RDVJ');
     </script>
 
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=optional" rel="stylesheet" media="print" onload="this.media='all'">
+    <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=optional" rel="stylesheet"></noscript>
 
     <style>
         *{margin:0;padding:0;box-sizing:border-box;-webkit-font-smoothing:antialiased}
@@ -632,7 +632,7 @@
     <div class="page-error" id="pageError"><h2>Not Found</h2><p>This apartment listing could not be loaded.</p><a href="/apartments.html">Browse All Apartments</a></div>
 
     <!-- APARTMENT PAGE -->
-    <div class="apartment-page" id="apartmentPage">
+    <div class="apartment-page" id="apartmentPage" role="main">
         <div class="breadcrumb"><a href="/">Home</a><span class="sep">/</span><a href="/apartments.html">Apartments</a><span id="breadcrumbZoneWrap" hidden><span class="sep">/</span><a href="#" id="breadcrumbZone"></a></span><span class="sep">/</span><span class="current" id="breadcrumbName">—</span></div>
 
         <div class="apt-header">
@@ -1682,7 +1682,9 @@
     .sidebar-secondary--quiet{border:none;background:transparent;font-size:12px;color:#777;padding:8px}
     .sidebar-secondary--quiet:hover{border:none;color:var(--gold)}
     /* Skip layout/paint of below-the-fold acts until they approach the viewport */
-    .bver,.btour,.m48,.faq,.upsell-section,.zone-footer,footer{content-visibility:auto;contain-intrinsic-size:auto 640px}
+    /* Reserve the gallery height so injecting photos never pushes the page (CLS) */
+    .media-section{min-height:330px}
+    @media(max-width:760px){.media-section{min-height:400px}}
     /* Mobile lightness: kill always-on GPU effects that can stutter scrolling */
     @media(max-width:860px){
       .cine-ambient{display:none!important}
@@ -1784,6 +1786,8 @@
     });
 
     async function loadApartment(id){
+        // 0) Server-injected data (SSR by /api/listing) — instant render, no Firestore round-trip.
+        try{ if(window.__LISTING && (!window.__LISTING_ID || window.__LISTING_ID===id)){ renderApartment(window.__LISTING, id); return; } }catch(e){}
         // 1) Live read from Firestore (fast path).
         try{
           const doc=await db.collection('listings').doc(id).get();
