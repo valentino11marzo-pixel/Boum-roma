@@ -226,6 +226,9 @@
         .map3d-alt:hover{color:var(--gold)}
         .map3d{position:relative;height:430px}
         .map3d-loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#777;font-size:11px;letter-spacing:2.5px;text-transform:uppercase;z-index:2;pointer-events:none}
+        .map3d-legend{position:absolute;left:12px;bottom:12px;z-index:3;display:flex;flex-wrap:wrap;gap:8px 12px;max-width:calc(100% - 24px);padding:8px 12px;background:rgba(8,8,10,.72);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.1);border-radius:10px;font-size:10px;letter-spacing:.3px;color:#cbcbcb;pointer-events:none}
+        .map3d-legend span{display:inline-flex;align-items:center;gap:5px}
+        .map3d-legend i{width:8px;height:8px;border-radius:50%}
         .boom-pin{display:flex;flex-direction:column;align-items:center;gap:6px}
         .boom-pin b{font-size:9px;letter-spacing:2px;color:#000;background:linear-gradient(135deg,#FFD700,#FFA500);padding:4px 10px;border-radius:100px;white-space:nowrap}
         .boom-pin i{width:13px;height:13px;border-radius:50%;background:#FFD700;box-shadow:0 0 0 5px rgba(255,215,0,.25);animation:pinP 2.2s infinite}
@@ -721,7 +724,6 @@
                     <h3>Apply for this apartment</h3>
                     <p>No fee to apply. We reply within 2 hours — and you could be moved in within 48.</p>
                     <form id="inquiryForm">
-                        <input type="text" name="company" id="iqCompany" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
                         <input type="text" name="name" id="iqName" placeholder="Your name" required>
                         <input type="email" name="email" id="iqEmail" placeholder="Your email" required>
                         <input type="tel" name="phone" id="iqPhone" placeholder="WhatsApp number (optional)">
@@ -2139,7 +2141,7 @@
             btn.disabled=true;btn.textContent='Sending…';
             try{
                 const _v=(elId)=>{const el=document.getElementById(elId);return el?el.value:'';};
-                const resp=await fetch('/api/apply',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+                await db.collection('leads').add({
                     name: document.getElementById('iqName').value,
                     email: document.getElementById('iqEmail').value,
                     phone: document.getElementById('iqPhone').value||'',
@@ -2147,12 +2149,13 @@
                     duration: _v('iqDuration'),
                     occupants: _v('iqOccupants'),
                     message: document.getElementById('formMessage').value||'',
-                    company: _v('iqCompany'),
+                    source: 'apartment-detail',
+                    type: 'application',
                     listingId: id,
-                    listingName: name
-                })});
-                const j=await resp.json().catch(()=>({}));
-                if(!resp.ok||!j.ok) throw new Error(j.error||('http_'+resp.status));
+                    listingName: name,
+                    status: 'new',
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
                 iqForm.style.display='none';document.getElementById('inquirySuccess').style.display='block';
                 if(typeof gtag==='function')gtag('event','inquiry_sent',{listing_id:id,listing_name:name});
             }catch(err){btn.textContent='Error — try again';btn.disabled=false;console.error('Inquiry error:',err)}
@@ -2319,8 +2322,10 @@
             map.addControl(new maplibregl.FullscreenControl(),'top-right');
             map.on('load',function(){
                 api._loaded=true;clearTimeout(dog);
-                try{ // grade the basemap into BOOM dark
+                try{ // grade the basemap into BOOM dark + capture a usable glyph font
+                    var boomFont=['Noto Sans Regular'];
                     map.getStyle().layers.forEach(function(L){try{
+                        if(L.type==='symbol'&&L.layout&&L.layout['text-font']&&!boomFont.__got){boomFont=L.layout['text-font'];boomFont.__got=true;}
                         if(L.type==='symbol'&&/poi|housenumber|airport|aeroway/.test(L.id)){map.setLayoutProperty(L.id,'visibility','none');return}
                         if(L.type==='background')map.setPaintProperty(L.id,'background-color','#0B0B0E');
                         else if(L.type==='fill')map.setPaintProperty(L.id,'fill-color',/water/.test(L.id)?'#10181F':/park|grass|wood|green/.test(L.id)?'#101510':'#121216');
@@ -2329,14 +2334,37 @@
                     }catch(e){}});
                     const srcs=Object.keys(map.getStyle().sources||{});
                     const src=srcs.find(function(s){return /openmaptiles|vector|planet/i.test(s)})||srcs[0];
-                    if(src)map.addLayer({id:'boom-3d',type:'fill-extrusion',source:src,'source-layer':'building',minzoom:13,paint:{'fill-extrusion-color':'#26262E','fill-extrusion-height':['coalesce',['get','render_height'],14],'fill-extrusion-base':['coalesce',['get','render_min_height'],0],'fill-extrusion-opacity':.94}});
+                    if(src){
+                        map.addLayer({id:'boom-3d',type:'fill-extrusion',source:src,'source-layer':'building',minzoom:13,paint:{'fill-extrusion-color':'#26262E','fill-extrusion-height':['coalesce',['get','render_height'],14],'fill-extrusion-base':['coalesce',['get','render_min_height'],0],'fill-extrusion-opacity':.94}});
+                        // Points of interest, coloured by category — straight from the tile data (keyless)
+                        var POI=['match',['get','class'],
+                            'railway','#00CED1','subway','#00CED1','bus','#00CED1','bus_stop','#00CED1','station','#00CED1',
+                            'grocery','#00FF88','supermarket','#00FF88','convenience','#00FF88','marketplace','#00FF88','greengrocer','#00FF88',
+                            'cafe','#FFD700','bakery','#FFD54F','restaurant','#FFA500','bar','#FFA500','pub','#FFA500','fast_food','#FFA500','ice_cream','#FFD54F',
+                            'pharmacy','#FF6B6B','hospital','#FF6B6B','doctors','#FF6B6B','clinic','#FF6B6B',
+                            'park','#5CCB6A','garden','#5CCB6A','playground','#5CCB6A','pitch','#5CCB6A',
+                            'school','#B98BFF','college','#B98BFF','university','#B98BFF','library','#B98BFF',
+                            '#8A8A93'];
+                        try{ map.addLayer({id:'boom-poi',type:'circle',source:src,'source-layer':'poi',minzoom:14,filter:['<=',['coalesce',['get','rank'],99],8],paint:{'circle-radius':['interpolate',['linear'],['zoom'],14,2.4,16,4.2,18,6.6],'circle-color':POI,'circle-opacity':.92,'circle-blur':.12,'circle-stroke-width':1,'circle-stroke-color':'rgba(0,0,0,.55)'}}); }catch(e){}
+                        try{ map.addLayer({id:'boom-poi-glow',type:'circle',source:src,'source-layer':'poi',minzoom:15,filter:['<=',['coalesce',['get','rank'],99],4],paint:{'circle-radius':['interpolate',['linear'],['zoom'],15,8,18,17],'circle-color':POI,'circle-opacity':.16,'circle-blur':1}},'boom-poi'); }catch(e){}
+                        try{ map.addLayer({id:'boom-transit',type:'symbol',source:src,'source-layer':'poi',minzoom:14.5,filter:['match',['get','class'],['railway','subway','station'],true,false],layout:{'text-field':['coalesce',['get','name'],''],'text-font':boomFont,'text-size':10.5,'text-offset':[0,1.2],'text-anchor':'top'},paint:{'text-color':'#5FE6E8','text-halo-color':'#06080A','text-halo-width':1.5}}); }catch(e){}
+                    }
                 }catch(e){}
+                try{ if(map.setSky)map.setSky({'sky-color':'#0a0a12','horizon-color':'#1c1208','fog-color':'#0B0B0E','sky-horizon-blend':.6,'horizon-fog-blend':.5,'fog-ground-blend':.4,'atmosphere-blend':['interpolate',['linear'],['zoom'],0,.7,13,.25]}); }catch(e){}
                 try{
                     const el=document.createElement('div');el.className='boom-pin';
                     const b=document.createElement('b');b.textContent=approx?'THE NEIGHBOURHOOD':'THE FLAT';
                     const i=document.createElement('i');el.appendChild(b);el.appendChild(i);
                     api._label=b;
                     api._marker=new maplibregl.Marker({element:el,anchor:'bottom'}).setLngLat([lng,lat]).addTo(map);
+                }catch(e){}
+                try{
+                    var lg=document.getElementById('map3d');
+                    if(lg&&!lg.querySelector('.map3d-legend')){
+                        var leg=document.createElement('div');leg.className='map3d-legend';
+                        leg.innerHTML='<span><i style="background:#00CED1"></i>Metro</span><span><i style="background:#FFD700"></i>Food</span><span><i style="background:#00FF88"></i>Shops</span><span><i style="background:#FF6B6B"></i>Health</span><span><i style="background:#5CCB6A"></i>Parks</span>';
+                        lg.appendChild(leg);
+                    }
                 }catch(e){}
                 const lo=c.querySelector('.map3d-loading');if(lo)lo.remove();
                 if(window.gtag)try{gtag('event','map3d_open',{mode:approx?'zone':'exact'})}catch(e){}
