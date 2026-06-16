@@ -12,6 +12,7 @@ mirror. See bot/README.md.
 
 import os
 import json
+import base64
 import logging
 import time
 import urllib.parse
@@ -149,6 +150,27 @@ def storage_upload(path, file_bytes, content_type='image/jpeg'):
     r = http_requests.post(url, headers=headers, data=file_bytes)
     r.raise_for_status()
     return f'https://firebasestorage.googleapis.com/v0/b/{STORAGE_BUCKET}/o/{encoded_path}?alt=media'
+
+# ─── Fault-tolerant publish (secure endpoint, fallback to direct) ─────────────
+
+def upload_photo(path, file_bytes, content_type='image/jpeg'):
+    """Upload a listing photo via the secure wizard endpoint; on any failure
+    fall back to a direct Storage upload (current behaviour). Returns the URL."""
+    res = wizard_post('/api/wizard/upload', {
+        'path': path, 'contentType': content_type,
+        'base64': base64.b64encode(bytes(file_bytes)).decode('ascii'),
+    })
+    if res and res.get('ok') and res.get('url'):
+        return res['url']
+    return storage_upload(path, bytes(file_bytes), content_type)
+
+def publish_listing(listing):
+    """Publish a listing via the secure wizard endpoint; on any failure fall
+    back to a direct Firestore create (current behaviour). Returns the doc id."""
+    res = wizard_post('/api/wizard/publish', listing)
+    if res and res.get('ok') and res.get('id'):
+        return res['id']
+    return fs_create('listings', listing)
 
 # ─── Logging ──────────────────────────────────────────────────────────────────
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -419,13 +441,13 @@ async def confirm_cb(update, context):
         try:
             tg_file = await context.bot.get_file(file_id); file_bytes = await tg_file.download_as_bytearray()
             ts = int(datetime.now(timezone.utc).timestamp() * 1000)
-            url = storage_upload(f"listings/{ts}_photo_{i}.jpg", bytes(file_bytes))
+            url = upload_photo(f"listings/{ts}_photo_{i}.jpg", bytes(file_bytes))
             image_urls.append(url); logger.info(f"Uploaded {i+1}/{len(photo_ids)}")
         except Exception as e: logger.error(f"Photo upload error: {e}")
     now = datetime.now(timezone.utc).isoformat() + 'Z'
     listing = {'name': d.get('name',''), 'address': d.get('address',''), 'zone': d.get('zone',''), 'price': d.get('price',0), 'type': d.get('type',''), 'status': 'available', 'beds': d.get('beds',0), 'bedrooms': d.get('beds',0), 'sqm': d.get('sqm',0), 'size': d.get('sqm',0), 'floor': str(d.get('floor','')), 'bathrooms': d.get('bathrooms',0), 'furnished': d.get('furnished','no'), 'availableDate': d.get('availableDate','Subito'), 'concordato': d.get('concordato','tbd'), 'description': d.get('description',''), 'descriptionIt': d.get('descriptionIt',''), 'features': d.get('features',[]), 'tags': [t for t in [d.get('zone','').lower(), d.get('type','').lower(), 'concordato' if d.get('concordato') is True else '', 'furnished' if d.get('furnished') == 'yes' else ''] if t], 'image': image_urls[0] if image_urls else '', 'images': image_urls, 'videoUrl': '', 'createdAt': now, 'updatedAt': now, 'createdBy': 'homie'}
     try:
-        doc_id = fs_create('listings', listing); detail_url = f"{SITE_URL}/apartment-detail?id={doc_id}"
+        doc_id = publish_listing(listing); detail_url = f"{SITE_URL}/apartment-detail?id={doc_id}"
         await context.bot.send_message(chat_id=ADMIN_CHAT_ID, text=f"━━━━━━━━━━━━━━━━━━━━━━\n✅ *LISTING PUBBLICATO!*\n━━━━━━━━━━━━━━━━━━━━━━\n\n🏠 *{listing['name']}*\n📍 {listing['address']}, {listing['zone']}\n💶 €{listing['price']:,}/mese\n📐 {listing['sqm']}mq · Piano {listing['floor']}\n📸 {len(image_urls)} foto\n\n🔗 *Link per il cliente:*\n`{detail_url}`\n\n☝️ Tocca per copiare", parse_mode='Markdown')
         logger.info(f"Listing created: {doc_id}")
     except Exception as e:
