@@ -263,9 +263,148 @@ section { scroll-margin-top: 16px; }
 .ni-icon { font-size: 18px; }
 .ni-label { font-size: 8px; text-transform: uppercase; letter-spacing: 1.5px; }
 @media (min-width: 1100px) { #bottom-nav { display: none; } }
+
+/* ════════════════ 2030 COCKPIT ═══════════════════════════════
+   Ambient, glass, triage, palette, briefing, micro-interactions */
+
+/* ── Ambient gold glows (transform-only, behind content) ───── */
+.amb { position: fixed; z-index: -1; pointer-events: none; border-radius: 50%; will-change: transform; }
+.amb-1 { top: -340px; left: 50%; width: 900px; height: 720px; margin-left: -450px; background: radial-gradient(closest-side, rgba(212,175,55,0.05), transparent 70%); }
+.amb-2 { top: 28vh; left: 58%; width: 720px; height: 720px; margin-left: -360px; background: radial-gradient(closest-side, rgba(212,175,55,0.035), transparent 70%); animation: amb-drift 40s ease-in-out infinite alternate; }
+@keyframes amb-drift { from { transform: translate3d(-130px,-40px,0); } to { transform: translate3d(130px,70px,0); } }
+
+/* ── Glassmorphism (graceful fallback: solid bg already set) ── */
+@supports ((backdrop-filter: blur(18px)) or (-webkit-backdrop-filter: blur(18px))) {
+    .modal, .hpop, .palette, #brief-panel, .tg-card, .tg-zero {
+        background: rgba(20,20,20,0.7);
+        -webkit-backdrop-filter: blur(18px);
+        backdrop-filter: blur(18px);
+        border-color: rgba(212,175,55,0.12);
+    }
+    #triage-overlay { -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); }
+    #palette-overlay { -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+}
+
+/* ── LIVE indicator ──────────────────────────────────────────── */
+.live-ind { display: inline-flex; align-items: center; gap: 6px; font-size: 9px; letter-spacing: 2.5px; text-transform: uppercase; color: var(--gold); padding: 5px 11px; border: 1px solid rgba(212,175,55,0.25); border-radius: 100px; user-select: none; }
+.live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 8px var(--gold-glow); animation: pulse 2.2s ease-in-out infinite; }
+.live-ind.down { color: var(--text-muted); border-color: var(--border); }
+.live-ind.down .live-dot { background: var(--text-muted); box-shadow: none; animation: none; }
+
+/* ── Topbar CTA cluster + triage badge ───────────────────────── */
+.tb-cta { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.btn-cmd { font-size: 14px; padding: 9px 13px; }
+.btn-triage { display: inline-flex; align-items: center; gap: 8px; }
+.tbadge { min-width: 20px; height: 20px; padding: 0 6px; border-radius: 100px; background: #000; color: var(--gold); font-size: 11px; font-weight: 700; letter-spacing: 0; display: inline-flex; align-items: center; justify-content: center; font-variant-numeric: tabular-nums; }
+
+/* ── Briefing del giorno ─────────────────────────────────────── */
+#brief-wrap { max-width: 1400px; margin: 0 auto; padding: 14px 20px 0; }
+#brief-strip { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--text-secondary); letter-spacing: .6px; }
+.bs-counters { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; flex: 1; min-width: 200px; }
+.bs-item { white-space: nowrap; }
+.bs-item b { color: var(--gold); font-weight: 600; font-size: 15px; font-variant-numeric: tabular-nums; }
+#brief-panel { margin-top: 12px; background: var(--bg-elevated); border: 1px solid rgba(212,175,55,0.18); border-radius: 16px; padding: 16px 18px; animation: brief-slide .35s cubic-bezier(.22,.9,.28,1.15); }
+#brief-panel[hidden] { display: none; }
+@keyframes brief-slide { from { opacity: 0; transform: translateY(-10px); } }
+.bp-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.bp-title { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: var(--gold); }
+.bp-tools { display: flex; gap: 6px; }
+#brief-body { font-size: 13px; line-height: 1.7; color: var(--text-secondary); word-break: break-word; }
+#brief-body b { color: var(--text); font-weight: 600; }
+#brief-body i { color: var(--gold); }
+
+/* ── Modalità Triage ─────────────────────────────────────────── */
+body.triage-lock { overflow: hidden; }
+#triage-overlay { position: fixed; inset: 0; z-index: 8500; background: rgba(5,5,6,0.88); display: flex; flex-direction: column; padding: 16px 16px calc(16px + env(safe-area-inset-bottom)); animation: fadein .2s ease; }
+#triage-overlay[hidden] { display: none; }
+.tg-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; max-width: 560px; width: 100%; margin: 0 auto 10px; }
+.tg-title { font-size: 12px; letter-spacing: 4px; text-transform: uppercase; color: var(--gold); }
+.tg-count { font-size: 12px; color: var(--text-secondary); letter-spacing: 2px; min-width: 56px; font-variant-numeric: tabular-nums; }
+.tg-bar { max-width: 560px; width: 100%; margin: 0 auto 14px; height: 2px; background: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden; flex-shrink: 0; }
+.tg-fill { height: 100%; width: 0; background: linear-gradient(90deg, var(--gold-dark), var(--gold)); transition: width .35s cubic-bezier(.22,.9,.28,1.15); }
+.tg-stage { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 0; max-width: 560px; width: 100%; margin: 0 auto; }
+.tg-card { width: 100%; max-height: 100%; overflow-y: auto; overflow-x: hidden; background: var(--bg-elevated); border: 1px solid rgba(212,175,55,0.18); border-radius: 24px; touch-action: pan-y; transition: transform .25s cubic-bezier(.22,.9,.28,1.15), box-shadow .25s, opacity .25s; animation: tg-in .3s cubic-bezier(.22,.9,.28,1.15); }
+@keyframes tg-in { from { opacity: 0; transform: translateY(18px) scale(.97); } }
+.tg-card.dragging { transition: none; }
+.tg-card.lean-right { box-shadow: 0 0 0 1px rgba(0,210,106,0.5), 0 0 44px rgba(0,210,106,0.25); }
+.tg-card.lean-left { box-shadow: 0 0 0 1px rgba(255,69,58,0.5), 0 0 44px rgba(255,69,58,0.22); }
+.tg-card.fly-right { transform: translateX(120%) rotate(8deg); opacity: 0; }
+.tg-card.fly-left { transform: translateX(-120%) rotate(-8deg); opacity: 0; }
+.tg-card.fly-down { transform: translateY(40px); opacity: 0; }
+.tg-media { position: relative; height: 220px; background: linear-gradient(135deg, #1c1c1c, #0a0a0a); flex-shrink: 0; }
+.tg-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.tg-ph { height: 100%; display: flex; align-items: center; justify-content: center; font-size: 64px; opacity: .8; }
+.tg-body { padding: 18px 20px 20px; display: flex; flex-direction: column; gap: 10px; }
+.tg-price { font-size: 34px; font-weight: 600; color: var(--gold); letter-spacing: .5px; }
+.tg-price span { font-size: 13px; font-weight: 300; color: var(--text-secondary); }
+.tg-name { font-size: 16px; line-height: 1.35; }
+.tg-addr { font-size: 13px; color: var(--text-secondary); }
+.tg-meta { font-size: 12px; color: var(--text-muted); letter-spacing: .5px; }
+.tg-reasons { background: rgba(255,255,255,0.04); border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; gap: 5px; }
+.tg-reason { font-size: 11px; color: var(--text-muted); line-height: 1.5; }
+.tg-reason b { color: var(--text-secondary); font-weight: 500; }
+.tg-link { font-size: 12px; color: var(--gold); letter-spacing: 1px; }
+.tg-link:hover { text-decoration: underline; }
+.tg-foot { max-width: 560px; width: 100%; margin: 14px auto 0; display: flex; flex-direction: column; gap: 10px; flex-shrink: 0; }
+.tg-wa-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.tg-btn-row { display: flex; gap: 8px; }
+.tg-skip { flex: 1; padding: 14px; border-radius: 14px; background: var(--bg-card); border: 1px solid var(--border); color: var(--text-secondary); font-size: 12px; letter-spacing: 1px; }
+.tg-skip:hover { border-color: rgba(255,255,255,0.25); color: var(--text); }
+.tg-discard { flex: 1; padding: 14px; border-radius: 14px; background: var(--red-light); border: 1px solid rgba(255,69,58,0.35); color: var(--red); font-size: 12px; letter-spacing: 1px; }
+.tg-done { flex: 1.4; padding: 14px; border-radius: 14px; background: var(--gold); color: #000; font-weight: 700; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; }
+.tg-done:hover { box-shadow: 0 6px 20px var(--gold-glow); }
+.tg-hint { text-align: center; font-size: 10px; color: var(--text-muted); letter-spacing: 1px; margin-top: 10px; flex-shrink: 0; }
+.tg-zero { text-align: center; padding: 44px 40px; border-radius: 24px; background: var(--bg-elevated); border: 1px solid rgba(212,175,55,0.18); animation: zero-pulse 1.4s ease-in-out infinite; }
+@keyframes zero-pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(212,175,55,0); } 50% { box-shadow: 0 0 60px 0 rgba(212,175,55,0.25); } }
+.tg-zero-icon { font-size: 54px; margin-bottom: 14px; }
+.tg-zero-title { font-size: 18px; letter-spacing: 4px; text-transform: uppercase; color: var(--gold); margin-bottom: 8px; }
+.tg-zero-sub { font-size: 12px; color: var(--text-secondary); letter-spacing: 1px; }
+@media (max-width: 700px) { .tg-hint { display: none; } .tg-media { height: 180px; } .tg-price { font-size: 28px; } }
+
+/* ── Command palette ─────────────────────────────────────────── */
+#palette-overlay { position: fixed; inset: 0; z-index: 8600; background: rgba(0,0,0,0.7); display: flex; align-items: flex-start; justify-content: center; padding: 12vh 16px 16px; animation: fadein .15s ease; }
+#palette-overlay[hidden] { display: none; }
+.palette { width: 100%; max-width: 520px; background: var(--bg-elevated); border: 1px solid rgba(212,175,55,0.25); border-radius: 18px; overflow: hidden; box-shadow: 0 30px 80px rgba(0,0,0,0.6); animation: pal-in .2s cubic-bezier(.22,.9,.28,1.15); }
+@keyframes pal-in { from { opacity: 0; transform: translateY(-12px) scale(.98); } }
+#palette-input { width: 100%; padding: 16px 18px; background: transparent; border: none; border-bottom: 1px solid var(--border); font-size: 15px; }
+#palette-input:focus { outline: none; }
+#palette-list { max-height: 46vh; overflow-y: auto; padding: 8px; }
+.pal-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; text-align: left; padding: 11px 12px; border-radius: 10px; font-size: 13px; color: var(--text); transition: background .12s; }
+.pal-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pal-type { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-muted); flex-shrink: 0; }
+.pal-item.sel { background: var(--gold-light); }
+.pal-item.sel .pal-type { color: var(--gold); }
+.pal-empty { padding: 18px; text-align: center; font-size: 12px; color: var(--text-muted); letter-spacing: 1px; }
+
+/* ── Micro-interactions (springy) ────────────────────────────── */
+.fcard, .ccard, .srow, .att-row { transition: transform .25s cubic-bezier(.22,.9,.28,1.15), border-color .25s, box-shadow .25s; }
+@media (hover: hover) {
+    .fcard:hover { transform: translateY(-3px); box-shadow: 0 14px 34px rgba(0,0,0,0.45); }
+    .ccard:hover, .srow:hover { transform: translateY(-1px); }
+}
+.btn, .btn-ghost, .abtn, .wa-btn, .o-save, .hchip, .chk, .mchip {
+    transition-property: transform, background, color, border-color, box-shadow, opacity;
+    transition-duration: .2s;
+    transition-timing-function: cubic-bezier(.22,.9,.28,1.15);
+}
+.btn:active, .btn-ghost:active, .abtn:active, .wa-btn:active, .o-save:active, .hchip:active,
+.tg-done:active, .tg-skip:active, .tg-discard:active, .pal-item:active, .nav-item:active { transform: scale(.97); }
+.fcard.is-new { animation: card-in .5s cubic-bezier(.22,.9,.28,1.15), ring-pulse 2s ease-out; }
+@keyframes card-in { from { opacity: 0; transform: translateY(14px); } }
+@keyframes ring-pulse { 0% { box-shadow: 0 0 0 0 rgba(212,175,55,0.55); } 100% { box-shadow: 0 0 0 14px rgba(212,175,55,0); } }
+.flash-ring { animation: ring-pulse 2s ease-out; border-color: var(--gold) !important; }
+
+/* ── Reduced motion: kill it all ─────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+    html { scroll-behavior: auto; }
+}
 </style>
 </head>
 <body>
+
+<div class="amb amb-1" aria-hidden="true"></div>
+<div class="amb amb-2" aria-hidden="true"></div>
 
 <div id="auth-shield">
     <div class="shield-logo"></div>
@@ -279,8 +418,13 @@ section { scroll-margin-top: 16px; }
             <div class="tb-brand">
                 <div class="tb-dot"></div>
                 <div class="tb-title">PFS Command<small>Boom Roma · Property Finding</small></div>
+                <span id="live-ind" class="live-ind down" title="Connessione realtime…"><span class="live-dot"></span>Live</span>
             </div>
-            <button id="btn-add-listing" class="btn">➕ Aggiungi annuncio</button>
+            <div class="tb-cta">
+                <button id="btn-palette" class="btn-ghost btn-cmd" title="Comandi rapidi (Ctrl+K)" aria-label="Comandi rapidi (Ctrl+K)">⌘</button>
+                <button id="btn-triage" class="btn btn-triage" title="Tutto gestito ✓" disabled>⚡ Triage<span id="triage-badge" class="tbadge" hidden>0</span></button>
+                <button id="btn-add-listing" class="btn">➕ Aggiungi annuncio</button>
+            </div>
         </div>
         <div class="tb-rows">
             <div class="hchips" id="health-chips"></div>
@@ -292,6 +436,28 @@ section { scroll-margin-top: 16px; }
         </div>
         <div id="health-pop-wrap"></div>
     </header>
+
+    <div id="brief-wrap">
+        <div id="brief-strip">
+            <div class="bs-counters" aria-live="polite">
+                <span class="bs-item">Oggi: <b id="bs-new">0</b> nuovi</span>
+                <span class="bs-item">· <b id="bs-match">0</b> match</span>
+                <span class="bs-item">· <b id="bs-triage">0</b> da gestire</span>
+                <span class="bs-item">· ❤️ <b id="bs-likes">0</b> like</span>
+            </div>
+            <button id="btn-brief" class="btn-ghost">🧠 Brief AI</button>
+        </div>
+        <div id="brief-panel" hidden>
+            <div class="bp-head">
+                <span class="bp-title">🧠 Briefing del giorno</span>
+                <div class="bp-tools">
+                    <button id="brief-copy" class="abtn">📋 Copia</button>
+                    <button id="brief-close" class="abtn" aria-label="Chiudi briefing">✕</button>
+                </div>
+            </div>
+            <div id="brief-body"></div>
+        </div>
+    </div>
 
     <main class="layout">
         <section id="sec-feed">
@@ -369,6 +535,25 @@ section { scroll-margin-top: 16px; }
     </div>
 </div>
 
+<div id="triage-overlay" hidden>
+    <div class="tg-head">
+        <span class="tg-count" id="tg-count">0 / 0</span>
+        <span class="tg-title">⚡ Triage</span>
+        <button id="tg-exit" class="abtn" aria-label="Esci dal triage">✕ Esci</button>
+    </div>
+    <div class="tg-bar"><div class="tg-fill" id="tg-fill"></div></div>
+    <div class="tg-stage" id="tg-stage"></div>
+    <div class="tg-foot" id="tg-foot"></div>
+    <div class="tg-hint">⏎ Gestito · ⌫ Scarta · → Dopo · 1-3 WhatsApp · Esc Esci</div>
+</div>
+
+<div id="palette-overlay" hidden>
+    <div class="palette" role="dialog" aria-modal="true" aria-label="Comandi rapidi">
+        <input id="palette-input" type="text" placeholder="Cerca comandi, clienti, annunci…" autocomplete="off" spellcheck="false">
+        <div id="palette-list" role="listbox"></div>
+    </div>
+</div>
+
 <script>
 (function () {
 'use strict';
@@ -442,6 +627,57 @@ function waPhone(phone) {
     return d;
 }
 
+var REDUCED_MOTION = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+// normalizzazione case/accenti per ricerche fuzzy-ish
+function norm(s) {
+    s = String(s == null ? '' : s).toLowerCase();
+    try { s = s.normalize('NFD').replace(new RegExp('[\\u0300-\\u036f]', 'g'), ''); } catch (e) { /* vecchi browser */ }
+    return s;
+}
+function cssEsc(s) {
+    return (window.CSS && CSS.escape) ? CSS.escape(String(s)) : String(s).replace(/["'\\\][(){}#.:>+~*^$|=\s]/g, '\\$&');
+}
+
+function buzz() {
+    if (navigator.vibrate) { try { navigator.vibrate(12); } catch (e) { /* noop */ } }
+}
+
+function findProp(id) {
+    for (var i = 0; i < state.properties.length; i++) if (state.properties[i].id === id) return state.properties[i];
+    return null;
+}
+
+// count-up rAF 400ms (briefing strip)
+var countAnims = {};
+function countUp(el, to) {
+    if (!el) return;
+    to = Math.max(0, Math.round(Number(to) || 0));
+    var from = parseInt(String(el.textContent).replace(/\D/g, ''), 10) || 0;
+    if (from === to || REDUCED_MOTION || !window.requestAnimationFrame) { el.textContent = String(to); return; }
+    var key = el.id || '_';
+    var token = {};
+    countAnims[key] = token;
+    var start = null;
+    function step(ts) {
+        if (countAnims[key] !== token) return;
+        if (start == null) start = ts;
+        var t = Math.min(1, (ts - start) / 400);
+        var eased = 1 - Math.pow(1 - t, 3);
+        el.textContent = String(Math.round(from + (to - from) * eased));
+        if (t < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+}
+
+function flashEl(el) {
+    if (!el) return;
+    el.classList.remove('flash-ring');
+    void el.offsetWidth; // restart animation
+    el.classList.add('flash-ring');
+    setTimeout(function () { el.classList.remove('flash-ring'); }, 2200);
+}
+
 /* ──────────────────────── Constants ──────────────────────── */
 var SOURCES = [
     { key: 'inbox',  label: 'Inbox',   icon: '📨', freshMin: 45 },
@@ -494,7 +730,10 @@ var state = {
     expandedOutreach: {},     // propId → true
     outreachDraft: {},        // propId → {status, note}
     editSearch: null,         // search id in edit mode
-    editSearchVal: null
+    editSearchVal: null,
+    knownIds: null,           // Set di id già visti (per rilevare nuovi arrivi realtime)
+    newIds: null,             // Set di id appena arrivati (animazione is-new)
+    live: { props: false, clients: false, searches: false }
 };
 
 /* ─────────────────────────── API ─────────────────────────── */
@@ -644,7 +883,7 @@ function feedCard(p) {
         return '<option value="' + k + '"' + (k === oStatus ? ' selected' : '') + '>' + OUTREACH[k].label + '</option>';
     }).join('');
 
-    return '<article class="fcard" data-id="' + esc(p.id) + '">' +
+    return '<article class="fcard' + (state.newIds && state.newIds.has(p.id) ? ' is-new' : '') + '" data-id="' + esc(p.id) + '">' +
         '<div class="fc-media">' + media +
             '<div class="badge-row">' +
                 '<span class="pbadge">' + esc(p.source || '?') + '</span>' +
@@ -880,6 +1119,443 @@ function renderAttention() {
             '<div class="att-actions"><button class="abtn" data-action="ingest" data-url="' + esc(it.sourceUrl || '') + '" data-source="' + esc(it.source || 'manual') + '">➕ Ingerisci</button></div>' +
         '</div>';
     }).join('');
+}
+
+/* ─────────────────── Briefing del giorno ─────────────────── */
+function todayStart() {
+    var d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d.getTime();
+}
+
+function updateBrief() {
+    var t0 = todayStart();
+    var newToday = 0, matchToday = 0;
+    state.properties.forEach(function (p) {
+        var d = toDate(p.scrapedAt) || toDate(p.lastSeenAt);
+        if (!d || d.getTime() < t0) return;
+        newToday++;
+        var ms = p.matchSummary || {};
+        if (Array.isArray(ms.pushedTo) && ms.pushedTo.length) matchToday++;
+    });
+    var likes = 0;
+    state.clients.forEach(function (c) {
+        (Array.isArray(c.portalActivity) ? c.portalActivity : []).forEach(function (a) {
+            if (!a || a.type !== 'like') return;
+            var d = toDate(a.timestamp);
+            if (d && d.getTime() >= t0) likes++;
+        });
+    });
+    var q = triageQueue().length;
+    countUp($('bs-new'), newToday);
+    countUp($('bs-match'), matchToday);
+    countUp($('bs-triage'), q);
+    countUp($('bs-likes'), likes);
+    updateTriageBadge(q);
+}
+
+var briefBusy = false;
+var briefPlain = '';
+
+function runBrief() {
+    if (briefBusy) return;
+    briefBusy = true;
+    if (triage.open) closeTriage();
+    var btn = $('btn-brief');
+    btn.disabled = true;
+    btn.classList.add('pending');
+    btn.textContent = '🧠 Analizzo…';
+    apiPost('/api/pfs/brief', {}).then(function (r) {
+        var raw = String(r.brief || '').trim();
+        if (!raw) { BoomPortal.toast('Brief vuoto: riprova tra poco', { type: 'warning' }); return; }
+        briefPlain = raw.replace(/<\/?[bi]>/g, '');
+        // sicurezza: escape totale, poi ri-abilita SOLO le coppie <b></b> e <i></i>
+        var html = esc(raw)
+            .replace(/&lt;(b|i)&gt;([\s\S]*?)&lt;\/\1&gt;/g, '<$1>$2</$1>')
+            .replace(/\n/g, '<br>');
+        $('brief-body').innerHTML = html;
+        $('brief-panel').hidden = false;
+        $('brief-panel').scrollIntoView({ behavior: REDUCED_MOTION ? 'auto' : 'smooth', block: 'nearest' });
+    }).catch(function (err) {
+        BoomPortal.toast('Errore brief: ' + (err && err.message ? err.message : err), { type: 'error' });
+    }).then(function () {
+        briefBusy = false;
+        btn.disabled = false;
+        btn.classList.remove('pending');
+        btn.textContent = '🧠 Brief AI';
+    });
+}
+
+/* ──────────────────── Modalità Triage ────────────────────── */
+var triage = { open: false, ids: [], idx: 0, total: 0, anim: false, dragging: false };
+
+// coda: match pushati + non agenzia + outreach assente o "da_contattare"
+function triageQueue() {
+    return state.properties.filter(function (p) {
+        var ms = p.matchSummary || {};
+        if (!(Array.isArray(ms.pushedTo) && ms.pushedTo.length)) return false;
+        if (p.advertiser === 'agency') return false;
+        var o = p.outreach;
+        return !o || o.status === 'da_contattare';
+    }); // state.properties è già ordinato lastSeenAt desc
+}
+
+function updateTriageBadge(q) {
+    if (q == null) q = triageQueue().length;
+    var btn = $('btn-triage'), badge = $('triage-badge');
+    if (!btn || !badge) return;
+    badge.textContent = String(q);
+    badge.hidden = q === 0;
+    btn.disabled = q === 0 && !triage.open;
+    btn.title = q === 0 ? 'Tutto gestito ✓' : q + ' da gestire';
+}
+
+function openTriage() {
+    var q = triageQueue();
+    if (!q.length) { BoomPortal.toast('Tutto gestito ✓', { type: 'info' }); return; }
+    triage.open = true;
+    triage.ids = q.map(function (p) { return p.id; });
+    triage.idx = 0;
+    triage.total = triage.ids.length;
+    triage.anim = false;
+    triage.dragging = false;
+    document.body.classList.add('triage-lock');
+    $('triage-overlay').hidden = false;
+    renderTriage();
+    updateTriageBadge();
+}
+
+function closeTriage() {
+    triage.open = false;
+    $('triage-overlay').hidden = true;
+    document.body.classList.remove('triage-lock');
+    updateTriageBadge();
+}
+
+// prop corrente, saltando id spariti dallo state
+function triageCurrent() {
+    while (triage.idx < triage.ids.length) {
+        var p = findProp(triage.ids[triage.idx]);
+        if (p) return p;
+        triage.idx++;
+    }
+    return null;
+}
+
+function triageCardHtml(p) {
+    var advKey = (p.advertiser === 'private' || p.advertiser === 'agency') ? p.advertiser : 'unknown';
+    var adv = ADV[advKey];
+    var img = safeUrl(Array.isArray(p.images) && p.images.length ? p.images[0] : '');
+    var url = safeUrl(p.sourceUrl);
+    var ms = p.matchSummary || {};
+    var pushed = Array.isArray(ms.pushedTo) ? ms.pushedTo : [];
+    var media = img
+        ? '<img src="' + esc(img) + '" alt="" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'"><div class="tg-ph" style="display:none">🏠</div>'
+        : '<div class="tg-ph">🏠</div>';
+    var title = p.title || p.address || 'Annuncio senza titolo';
+    var addrParts = [];
+    if (p.address && p.address !== title) addrParts.push(p.address);
+    if (p.zone) addrParts.push(p.zone);
+    var meta = [];
+    if (p.bedrooms) meta.push('🛏 ' + esc(p.bedrooms) + ' cam');
+    if (p.sqm) meta.push('📐 ' + esc(p.sqm) + ' m²');
+    if (p.furnished) meta.push('🛋 Arredato');
+    meta.push('🕐 ' + esc(relTime(p.lastSeenAt)));
+    var chips = pushed.map(function (m) {
+        return '<span class="mchip ' + scoreClass(m.score) + '">' + esc(m.name) + ' ' + esc(m.score) + '</span>';
+    }).join('');
+    var reasons = pushed.map(function (m) {
+        var rs = Array.isArray(m.reasons) && m.reasons.length ? m.reasons.join(' · ') : '';
+        return rs ? '<div class="tg-reason"><b>' + esc(m.name) + '</b> — ' + esc(rs) + '</div>' : '';
+    }).join('');
+    return '<div class="tg-card" data-id="' + esc(p.id) + '">' +
+        '<div class="tg-media">' + media +
+            '<div class="badge-row">' +
+                '<span class="pbadge">' + esc(p.source || '?') + '</span>' +
+                '<span class="pbadge ' + adv.cls + '">' + adv.label + '</span>' +
+            '</div>' +
+        '</div>' +
+        '<div class="tg-body">' +
+            '<div class="tg-price">€ ' + fmtPrice(p.price) + ' <span>/mese</span></div>' +
+            '<div class="tg-name">' + esc(title) + '</div>' +
+            (addrParts.length ? '<div class="tg-addr">📍 ' + esc(addrParts.join(' · ')) + '</div>' : '') +
+            '<div class="tg-meta">' + meta.join(' · ') + '</div>' +
+            (chips ? '<div class="fc-matches">' + chips + '</div>' : '') +
+            (reasons ? '<div class="tg-reasons">' + reasons + '</div>' : '') +
+            (url ? '<a class="tg-link" href="' + esc(url) + '" target="_blank" rel="noopener">Apri annuncio ↗</a>' : '') +
+        '</div></div>';
+}
+
+function triageFootHtml(p) {
+    var ms = p.matchSummary || {};
+    var pushed = Array.isArray(ms.pushedTo) ? ms.pushedTo : [];
+    var wa = pushed.slice(0, 3).map(function (m, i) {
+        var first = String(m.name || '').trim().split(/\s+/)[0] || 'Cliente';
+        return '<button class="wa-btn" data-taction="wa" data-idx="' + i + '">💬 → ' + esc(first) + '</button>';
+    }).join('');
+    return '<div class="tg-wa-row">' + wa +
+            '<button class="abtn" data-taction="owner">📋 Proprietario</button></div>' +
+        '<div class="tg-btn-row">' +
+            '<button class="tg-skip" data-taction="skip">↷ Dopo</button>' +
+            '<button class="tg-discard" data-taction="discard">✕ Scarta</button>' +
+            '<button class="tg-done" data-taction="done">✓ Gestito</button>' +
+        '</div>';
+}
+
+function renderTriage() {
+    var p = triageCurrent();
+    if (!p) {
+        $('tg-count').textContent = triage.total + ' / ' + triage.total;
+        $('tg-fill').style.width = '100%';
+        $('tg-stage').innerHTML = '<div class="tg-zero"><div class="tg-zero-icon">🏆</div>' +
+            '<div class="tg-zero-title">Inbox zero.</div>' +
+            '<div class="tg-zero-sub">Tutto gestito. Ottimo lavoro.</div></div>';
+        $('tg-foot').innerHTML = '';
+        setTimeout(function () { if (triage.open) closeTriage(); }, 1500);
+        return;
+    }
+    $('tg-count').textContent = Math.min(triage.idx + 1, triage.total) + ' / ' + triage.total;
+    $('tg-fill').style.width = ((triage.idx / triage.total) * 100) + '%';
+    $('tg-stage').innerHTML = triageCardHtml(p);
+    $('tg-foot').innerHTML = triageFootHtml(p);
+}
+
+// stessa shape outreach di saveOutreach (status, note, updatedAt, by, contactedAt-once)
+function triageWrite(p, status) {
+    var existing = p.outreach || {};
+    var outreach = { status: status, note: existing.note || '', updatedAt: new Date().toISOString(), by: 'admin' };
+    if (existing.contactedAt) outreach.contactedAt = existing.contactedAt;
+    else if (CONTACT_STATUSES.indexOf(status) !== -1) outreach.contactedAt = new Date().toISOString();
+    db.collection('pfsProperties').doc(p.id).set({ outreach: outreach }, { merge: true }).catch(function (err) {
+        BoomPortal.toast('Errore outreach: ' + (err && err.message ? err.message : err), { type: 'error' });
+    });
+}
+
+// kind: 'done' | 'discard' | 'skip' — fromSwipe: il fling è già animato inline
+function triageAct(kind, fromSwipe) {
+    if (!triage.open || triage.anim) return;
+    var p = triageCurrent();
+    if (!p) return;
+    buzz();
+    if (kind === 'done') triageWrite(p, 'contattato');
+    else if (kind === 'discard') triageWrite(p, 'scartato');
+    triage.anim = true;
+    var card = $('tg-stage').querySelector('.tg-card');
+    if (card && !REDUCED_MOTION && !fromSwipe) {
+        card.classList.remove('dragging');
+        card.classList.add(kind === 'done' ? 'fly-right' : kind === 'discard' ? 'fly-left' : 'fly-down');
+    }
+    setTimeout(function () {
+        triage.anim = false;
+        triage.idx++;
+        if (triage.open) renderTriage();
+    }, REDUCED_MOTION ? 0 : 240);
+}
+
+function triageWa(p, i) {
+    var pushed = (p.matchSummary && p.matchSummary.pushedTo) || [];
+    var m = pushed[i];
+    if (!m) return;
+    buzz();
+    var client = state.clientsById[m.clientId];
+    var msg = encodeURIComponent(waMessage((client && client.name) || m.name, p));
+    var phone = waPhone(client && client.phone);
+    var wa = phone ? 'https://wa.me/' + phone + '?text=' + msg : 'https://wa.me/?text=' + msg;
+    if (!phone) BoomPortal.toast('Telefono cliente mancante: scegli il contatto in WhatsApp', { type: 'info' });
+    window.open(wa, '_blank', 'noopener');
+}
+
+// swipe deck su mobile: destra = gestito, sinistra = scarta
+function bindTriageTouch() {
+    var stage = $('tg-stage');
+    var startX = 0, startY = 0, dx = 0, horiz = null, card = null;
+    stage.addEventListener('touchstart', function (e) {
+        if (!triage.open || triage.anim || REDUCED_MOTION) return;
+        card = stage.querySelector('.tg-card');
+        if (!card) return;
+        var t = e.touches[0];
+        startX = t.clientX; startY = t.clientY;
+        dx = 0; horiz = null;
+        triage.dragging = true;
+        card.classList.add('dragging');
+    }, { passive: true });
+    stage.addEventListener('touchmove', function (e) {
+        if (!triage.dragging || !card) return;
+        var t = e.touches[0];
+        dx = t.clientX - startX;
+        var dy = t.clientY - startY;
+        if (horiz === null && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) horiz = Math.abs(dx) > Math.abs(dy);
+        if (!horiz) return;
+        card.style.transform = 'translateX(' + dx + 'px) rotate(' + (dx * 0.04) + 'deg)';
+        card.classList.toggle('lean-right', dx > 60);
+        card.classList.toggle('lean-left', dx < -60);
+    }, { passive: true });
+    function endDrag() {
+        if (!triage.dragging || !card) { triage.dragging = false; return; }
+        triage.dragging = false;
+        card.classList.remove('dragging');
+        if (horiz && Math.abs(dx) > 90) {
+            var dir = dx > 0 ? 1 : -1;
+            card.style.transition = 'transform .25s ease, opacity .25s ease';
+            card.style.transform = 'translateX(' + (dir * (window.innerWidth || 600)) + 'px) rotate(' + (dir * 10) + 'deg)';
+            card.style.opacity = '0';
+            triageAct(dir > 0 ? 'done' : 'discard', true);
+        } else {
+            card.style.transform = '';
+            card.classList.remove('lean-right', 'lean-left');
+        }
+        card = null;
+    }
+    stage.addEventListener('touchend', endDrag);
+    stage.addEventListener('touchcancel', endDrag);
+}
+
+/* ─────────────────── Command palette (⌘K) ────────────────── */
+var palette = { open: false, items: [], sel: 0 };
+var paletteRecent = []; // id azioni usate di recente (solo in memoria)
+
+function jumpSection(id) {
+    return function () {
+        if (triage.open) closeTriage();
+        var el = $(id);
+        if (el) el.scrollIntoView({ behavior: REDUCED_MOTION ? 'auto' : 'smooth', block: 'start' });
+    };
+}
+
+var PALETTE_ACTIONS = [
+    { id: 'act-inbox',     type: 'Azione',  label: '📨 Scan inbox',        kw: 'scansiona email alert', run: function () { runAction('inbox', $('btn-scan-inbox')); } },
+    { id: 'act-market',    type: 'Azione',  label: '🌐 Scan mercato',      kw: 'scansiona portali scraping', run: function () { runAction('market', $('btn-scan-market')); } },
+    { id: 'act-sync',      type: 'Azione',  label: '🔄 Sync ricerche',     kw: 'sincronizza search auto', run: function () { runAction('sync', $('btn-sync-searches')); } },
+    { id: 'act-brief',     type: 'Azione',  label: '🧠 Brief AI',          kw: 'briefing giorno punto situazione', run: function () { runBrief(); } },
+    { id: 'act-add',       type: 'Azione',  label: '➕ Aggiungi annuncio', kw: 'nuovo manuale ingest', run: function () { if (triage.open) closeTriage(); openModal(); } },
+    { id: 'act-triage',    type: 'Azione',  label: '⚡ Avvia triage',      kw: 'coda gestisci match', run: function () { openTriage(); } },
+    { id: 'go-feed',       type: 'Sezione', label: '📡 Vai a: Feed',          kw: 'radar annunci', run: jumpSection('sec-feed') },
+    { id: 'go-clients',    type: 'Sezione', label: '👥 Vai a: Clienti',       kw: 'pfs attivi', run: jumpSection('sec-clients') },
+    { id: 'go-searches',   type: 'Sezione', label: '🔍 Vai a: Ricerche',      kw: 'automatiche url override', run: jumpSection('sec-searches') },
+    { id: 'go-attention',  type: 'Sezione', label: '⚠️ Vai a: Da verificare', kw: 'attenzione errori', run: jumpSection('sec-attention') }
+];
+
+function jumpClient(id) {
+    if (triage.open) closeTriage();
+    var el = document.querySelector('#clients-list .ccard[data-id="' + cssEsc(id) + '"]');
+    if (!el) { BoomPortal.toast('Cliente non visibile (non attivo)', { type: 'info' }); return; }
+    el.scrollIntoView({ behavior: REDUCED_MOTION ? 'auto' : 'smooth', block: 'center' });
+    flashEl(el);
+}
+
+// porta la card nel feed: se è filtrata, azzera i filtri per mostrarla
+function revealProp(id) {
+    if (triage.open) closeTriage();
+    var sel = '#feed-list .fcard[data-id="' + cssEsc(id) + '"]';
+    var el = document.querySelector(sel);
+    if (!el) {
+        state.filters = { q: '', source: '', advertiser: '', onlyMatch: false, showAgency: true };
+        $('f-q').value = '';
+        $('f-source').value = '';
+        $('f-adv').value = '';
+        $('f-match').checked = false;
+        $('f-agency').checked = true;
+        renderFeed();
+        el = document.querySelector(sel);
+    }
+    if (!el) { BoomPortal.toast('Annuncio non più nel feed', { type: 'info' }); return; }
+    el.scrollIntoView({ behavior: REDUCED_MOTION ? 'auto' : 'smooth', block: 'center' });
+    flashEl(el);
+}
+
+function buildPaletteItems(q) {
+    var nq = norm(q);
+    var items = [];
+    PALETTE_ACTIONS.forEach(function (a) {
+        if (!nq || norm(a.label + ' ' + a.kw).indexOf(nq) !== -1) {
+            items.push({ type: a.type, label: a.label, actionId: a.id, run: a.run });
+        }
+    });
+    // le azioni usate di recente salgono in cima
+    items.sort(function (x, y) {
+        var rx = paletteRecent.indexOf(x.actionId); if (rx === -1) rx = 99;
+        var ry = paletteRecent.indexOf(y.actionId); if (ry === -1) ry = 99;
+        return rx - ry;
+    });
+    state.clients.filter(isActiveClient).forEach(function (c) {
+        var name = c.name || 'Senza nome';
+        if (!nq || norm(name).indexOf(nq) !== -1) {
+            items.push({ type: 'Cliente', label: '👤 ' + name, run: (function (id) { return function () { jumpClient(id); }; })(c.id) });
+        }
+    });
+    if (nq) {
+        state.properties.forEach(function (p) {
+            if (norm([p.title, p.address, p.zone].join(' ')).indexOf(nq) === -1) return;
+            var label = (p.title || p.address || 'Annuncio') + (p.zone ? ' · ' + p.zone : '');
+            items.push({ type: 'Annuncio', label: '🏠 ' + label, run: (function (id) { return function () { revealProp(id); }; })(p.id) });
+        });
+    }
+    return items.slice(0, 14);
+}
+
+function renderPalette() {
+    var list = $('palette-list');
+    if (!palette.items.length) {
+        list.innerHTML = '<div class="pal-empty">Nessun risultato</div>';
+        return;
+    }
+    list.innerHTML = palette.items.map(function (it, i) {
+        return '<button class="pal-item' + (i === palette.sel ? ' sel' : '') + '" data-pidx="' + i + '" role="option">' +
+            '<span class="pal-label">' + esc(it.label) + '</span>' +
+            '<span class="pal-type">' + esc(it.type) + '</span></button>';
+    }).join('');
+    var selEl = list.querySelector('.sel');
+    if (selEl && selEl.scrollIntoView) selEl.scrollIntoView({ block: 'nearest' });
+}
+
+function openPalette() {
+    palette.open = true;
+    palette.sel = 0;
+    $('palette-input').value = '';
+    palette.items = buildPaletteItems('');
+    $('palette-overlay').hidden = false;
+    renderPalette();
+    setTimeout(function () { $('palette-input').focus(); }, 30);
+}
+
+function closePalette() {
+    palette.open = false;
+    $('palette-overlay').hidden = true;
+}
+
+function paletteRun(i) {
+    var it = palette.items[i];
+    if (!it) return;
+    closePalette();
+    if (it.actionId) {
+        paletteRecent = [it.actionId].concat(paletteRecent.filter(function (x) { return x !== it.actionId; })).slice(0, 6);
+    }
+    try { it.run(); } catch (e) { console.error('[PFS palette]', e); }
+}
+
+/* ───────────────── LIVE indicator + new-card ─────────────── */
+function updateLive() {
+    var el = $('live-ind');
+    if (!el) return;
+    var ok = state.live.props && state.live.clients && state.live.searches;
+    el.classList.toggle('down', !ok);
+    el.title = ok ? 'Realtime attivo' : 'Connessione realtime…';
+}
+
+// rileva gli id genuinamente nuovi dopo il primo snapshot
+function trackNewProps(arr) {
+    if (state.knownIds) {
+        var fresh = [];
+        arr.forEach(function (p) { if (!state.knownIds.has(p.id)) fresh.push(p.id); });
+        if (fresh.length) {
+            if (!state.newIds) state.newIds = new Set();
+            fresh.forEach(function (id) { state.newIds.add(id); });
+            setTimeout(function () {
+                if (state.newIds) fresh.forEach(function (id) { state.newIds.delete(id); });
+            }, 2400);
+        }
+    }
+    state.knownIds = new Set(arr.map(function (p) { return p.id; }));
 }
 
 /* ────────────────────── Header actions ───────────────────── */
@@ -1216,6 +1892,83 @@ function bindUI() {
         if (e.key === 'Escape' && !$('modal-overlay').hidden) closeModal();
     });
 
+    // Triage
+    $('btn-triage').addEventListener('click', function () { openTriage(); });
+    $('tg-exit').addEventListener('click', closeTriage);
+    $('triage-overlay').addEventListener('click', function (e) {
+        var b = e.target.closest('[data-taction]');
+        if (!b) return;
+        var act = b.getAttribute('data-taction');
+        if (act === 'done' || act === 'discard' || act === 'skip') { triageAct(act); return; }
+        var p = triageCurrent();
+        if (!p) return;
+        if (act === 'owner') {
+            buzz();
+            copyText(ownerMessage(p)).then(function (ok) {
+                if (ok) BoomPortal.toast('Messaggio per il proprietario copiato 📋');
+                else BoomPortal.toast('Copia non riuscita — copia manualmente', { type: 'warning' });
+            });
+        } else if (act === 'wa') {
+            triageWa(p, parseInt(b.getAttribute('data-idx'), 10) || 0);
+        }
+    });
+    bindTriageTouch();
+
+    // Command palette
+    $('btn-palette').addEventListener('click', function () { if (palette.open) closePalette(); else openPalette(); });
+    $('palette-overlay').addEventListener('click', function (e) { if (e.target === this) closePalette(); });
+    $('palette-input').addEventListener('input', function () {
+        palette.items = buildPaletteItems(this.value);
+        palette.sel = 0;
+        renderPalette();
+    });
+    $('palette-input').addEventListener('keydown', function (e) {
+        if (e.key === 'ArrowDown') { e.preventDefault(); palette.sel = Math.min(palette.items.length - 1, palette.sel + 1); renderPalette(); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); palette.sel = Math.max(0, palette.sel - 1); renderPalette(); }
+        else if (e.key === 'Enter') { e.preventDefault(); paletteRun(palette.sel); }
+        else if (e.key === 'Escape') { e.preventDefault(); closePalette(); }
+    });
+    $('palette-list').addEventListener('click', function (e) {
+        var it = e.target.closest('[data-pidx]');
+        if (it) paletteRun(parseInt(it.getAttribute('data-pidx'), 10));
+    });
+
+    // Brief AI
+    $('btn-brief').addEventListener('click', runBrief);
+    $('brief-close').addEventListener('click', function () { $('brief-panel').hidden = true; });
+    $('brief-copy').addEventListener('click', function () {
+        if (!briefPlain) { BoomPortal.toast('Nessun brief da copiare', { type: 'info' }); return; }
+        copyText(briefPlain).then(function (ok) {
+            BoomPortal.toast(ok ? 'Brief copiato 📋' : 'Copia non riuscita', { type: ok ? 'success' : 'warning' });
+        });
+    });
+
+    // Scorciatoie globali: ⌘K palette, tastiera triage
+    document.addEventListener('keydown', function (e) {
+        if ((e.metaKey || e.ctrlKey) && String(e.key).toLowerCase() === 'k') {
+            e.preventDefault();
+            if (palette.open) closePalette(); else openPalette();
+            return;
+        }
+        if (palette.open) {
+            if (e.key === 'Escape') closePalette();
+            return; // frecce/Enter gestiti dall'input
+        }
+        if (!triage.open) return;
+        if (e.metaKey || e.ctrlKey || e.altKey) return;
+        var tag = e.target && e.target.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+        if (tag === 'BUTTON' && e.key === 'Enter') return; // Enter su un bottone focalizzato = click nativo
+        if (e.key === 'Enter') { e.preventDefault(); triageAct('done'); }
+        else if (e.key === 'Backspace') { e.preventDefault(); triageAct('discard'); }
+        else if (e.key === 'ArrowRight') { e.preventDefault(); triageAct('skip'); }
+        else if (e.key === 'Escape') { e.preventDefault(); closeTriage(); }
+        else if (e.key === '1' || e.key === '2' || e.key === '3') {
+            var p = triageCurrent();
+            if (p) triageWa(p, parseInt(e.key, 10) - 1);
+        }
+    });
+
     // Bottom nav: smooth scroll + scrollspy
     var navItems = document.querySelectorAll('#bottom-nav .nav-item');
     navItems.forEach(function (item) {
@@ -1277,10 +2030,23 @@ function startListeners() {
     BoomPortal.listen(db.collection('pfsProperties').orderBy('lastSeenAt', 'desc').limit(120), function (snap) {
         var arr = [];
         snap.forEach(function (d) { arr.push(Object.assign({ id: d.id }, d.data())); });
+        trackNewProps(arr); // animazione is-new sui nuovi arrivi
         state.properties = arr;
         state.loaded.props = true;
+        state.live.props = true;
         renderFeed();
+        updateBrief();
+        updateLive();
+        // triage aperto: ri-renderizza solo se la card mostrata è sparita
+        if (triage.open && !triage.anim && !triage.dragging) {
+            var cur = triageCurrent();
+            var cardEl = $('tg-stage').querySelector('.tg-card');
+            var shownId = cardEl ? cardEl.getAttribute('data-id') : null;
+            if (!cur || cur.id !== shownId) renderTriage();
+        }
     }, function (err) {
+        state.live.props = false;
+        updateLive();
         BoomPortal.toast('Errore feed annunci: ' + ((err && err.message) || 'errore di connessione'), { type: 'error' });
     });
 
@@ -1291,9 +2057,14 @@ function startListeners() {
         state.clientsById = {};
         arr.forEach(function (c) { state.clientsById[c.id] = c; });
         state.loaded.clients = true;
+        state.live.clients = true;
         renderClients();
         renderFeed(); // i pulsanti WhatsApp dipendono dai telefoni clienti
+        updateBrief();
+        updateLive();
     }, function (err) {
+        state.live.clients = false;
+        updateLive();
         BoomPortal.toast('Errore clienti: ' + ((err && err.message) || 'errore di connessione'), { type: 'error' });
     });
 
@@ -1306,8 +2077,12 @@ function startListeners() {
         });
         state.searches = arr;
         state.loaded.searches = true;
+        state.live.searches = true;
         renderSearches();
+        updateLive();
     }, function (err) {
+        state.live.searches = false;
+        updateLive();
         BoomPortal.toast('Errore ricerche: ' + ((err && err.message) || 'errore di connessione'), { type: 'error' });
     });
 }
@@ -1323,8 +2098,9 @@ function startListeners() {
         bindUI();
         // placeholder di caricamento prima dei primi snapshot
         renderHealth(); renderFeed(); renderClients(); renderSearches(); renderAttention();
+        updateBrief(); updateLive();
         startListeners();
-        setInterval(renderHealth, 60000); // tempi relativi e freschezza chip
+        setInterval(function () { renderHealth(); updateBrief(); }, 60000); // tempi relativi, freschezza chip, rollover mezzanotte
     } catch (e) {
         // requireAuth gestisce redirect + toast; lasciamo lo shield visibile
         console.warn('[PFS Command] auth gate:', e && e.message);
