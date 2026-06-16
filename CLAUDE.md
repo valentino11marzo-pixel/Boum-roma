@@ -170,6 +170,14 @@ returns `{ ok, en, it }` — a polished bilingual description from Claude
 bot can't call Claude directly. Bot falls back to a template if this is
 unavailable.
 
+### POST `/api/wizard/upload`
+Photo-upload bridge for the Telegram wizard bot. Auth via `X-Wizard-Secret`
+(same secret as `/api/wizard/publish`). Body `{ base64, path?, contentType? }`
+(base64 may be a data: URI). Uploads to Firebase Storage under admin
+credentials (forced under the `listings/` prefix) and returns
+`{ ok, url, path }`. Lets the bot store photos without holding Firebase admin
+creds; the bot falls back to a direct Storage upload if this is unavailable.
+
 ### POST `/api/magic-sign/lookup`
 Public endpoint for the Magic-Sign UI. Body: `{ token }`. Looks up the
 contract by `tenantSignToken` or `landlordSignToken`, returns sanitized

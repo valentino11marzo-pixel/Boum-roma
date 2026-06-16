@@ -103,8 +103,9 @@ Rollback = copy `.bak` back and restart.
       the built-in template if the AI/secret is unavailable.
 - [x] **Suggested legal rent** — indicative canone concordato range (Accordo
       Territoriale Roma 2023, fascia B) shown at the price step.
-- [ ] **Fault-tolerant publishing** — publish via `POST /api/wizard/publish`
-      (+ a photo-upload endpoint) with fallback to direct writes, so rule/role
-      changes can't break the bot again. *(next deploy)*
+- [x] **Fault-tolerant publishing** — photos go through `POST /api/wizard/upload`
+      and the listing through `POST /api/wizard/publish`, each falling back to a
+      direct Storage/Firestore write, so a rule/role change can't break the
+      publish flow again.
 - [ ] **Health heartbeat + alert** — bot writes `heartbeat/listing-wizard`; a
       cron pings Telegram if it goes stale.
