@@ -471,10 +471,42 @@
       document.getElementById('rev-next').onclick=renderIdentity;
     }
 
-    // ═══════════════ STEP 2 — IDENTITY ═══════════════
+    // ═══════════════ STEP 2 — IDENTITY (auto-staged: confirm if known, fill if not) ═══════════════
+    function idFrom(s){ return { name:s.name||'', dob:s.dob||'', pob:s.pob||'', cf:(s.cf||'').toUpperCase(), address:s.address||'', docType:s.docType||'passport', docNum:s.docNum||'', nationality:s.nationality||'' }; }
+    function identityComplete(s){ var d=idFrom(s); return !!(d.name&&d.dob&&d.pob&&d.address&&d.docNum&&d.nationality&&validCF(d.cf)); }
+    function docLabel(t){ return t==='id'?'Carta d’identità':(t==='permit'?'Permesso di soggiorno':'Passport'); }
     function renderIdentity(){
       setProgress(2); S.step=2;
       var s=S.data.signer||{};
+      if(identityComplete(s)) renderIdentityConfirm(s); else renderIdentityForm(s);
+    }
+    // Known client → one-tap confirm (Model C: the link arrives "ready to sign").
+    function renderIdentityConfirm(s){
+      var d=idFrom(s);
+      FLOW.innerHTML='';
+      FLOW.appendChild(el(
+        '<div class="step">'+
+          '<h1 class="t">Confirm your details</h1>'+
+          '<p class="sub">We already have your information — just check it’s correct before signing.</p>'+
+          '<div class="summary"><div class="grid2">'+
+            '<div class="cell"><div class="k">Full name</div><div class="v">'+esc(d.name)+'</div></div>'+
+            '<div class="cell"><div class="k">Codice Fiscale</div><div class="v">'+esc(d.cf)+'</div></div>'+
+            '<div class="cell"><div class="k">Date of birth</div><div class="v">'+esc(d.dob)+'</div></div>'+
+            '<div class="cell"><div class="k">Place of birth</div><div class="v">'+esc(d.pob)+'</div></div>'+
+            '<div class="cell"><div class="k">Document</div><div class="v">'+esc(docLabel(d.docType))+' · '+esc(d.docNum)+'</div></div>'+
+            '<div class="cell"><div class="k">Nationality</div><div class="v">'+esc(d.nationality)+'</div></div>'+
+            '<div class="cell" style="grid-column:1/-1"><div class="k">Address</div><div class="v">'+esc(d.address)+'</div></div>'+
+          '</div></div>'+
+          '<div class="btnrow"><button class="btn ghost" id="i-edit">Edit</button><button class="btn" id="i-ok">Confirm &amp; continue</button></div>'+
+        '</div>'
+      ));
+      document.getElementById('i-edit').onclick=function(){ renderIdentityForm(s); };
+      document.getElementById('i-ok').onclick=function(){ S.id=d; renderPhone(); };
+    }
+    // Unknown / incomplete client → full form (Model C: "fill first").
+    function renderIdentityForm(s){
+      setProgress(2); S.step=2;
+      s=s||S.data.signer||{};
       FLOW.innerHTML='';
       FLOW.appendChild(el(
         '<div class="step">'+
@@ -488,7 +520,11 @@
           '<div class="field"><label>Codice Fiscale <span class="hint">— 16 characters</span></label><input class="inp mono" id="i-cf" maxlength="16" value="'+esc(s.cf||'')+'" placeholder="RSSMRA85T10A562S"><div class="err" id="e-cf">That Codice Fiscale doesn’t look valid.</div></div>'+
           '<div class="field"><label>Current address</label><input class="inp" id="i-addr" value="'+esc(s.address||'')+'" placeholder="Street, number, city" autocomplete="street-address"></div>'+
           '<div class="row2">'+
-            '<div class="field"><label>Document</label><select class="inp" id="i-doctype"><option value="passport">Passport</option><option value="id">Carta d’identità</option><option value="permit">Permesso di soggiorno</option></select></div>'+
+            '<div class="field"><label>Document</label><select class="inp" id="i-doctype">'+
+              '<option value="passport"'+(s.docType==='passport'?' selected':'')+'>Passport</option>'+
+              '<option value="id"'+(s.docType==='id'?' selected':'')+'>Carta d’identità</option>'+
+              '<option value="permit"'+(s.docType==='permit'?' selected':'')+'>Permesso di soggiorno</option>'+
+            '</select></div>'+
             '<div class="field"><label>Document no.</label><input class="inp" id="i-docnum" value="'+esc(s.docNum||'')+'" placeholder="Number"></div>'+
           '</div>'+
           '<div class="field"><label>Nationality</label><input class="inp" id="i-nat" value="'+esc(s.nationality||'')+'" placeholder="Country"></div>'+
