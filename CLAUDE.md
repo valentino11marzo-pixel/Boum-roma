@@ -161,6 +161,15 @@ already builds, or a plain JSON listing object. Optional `?id=<docId>` (or
 firestore.googleapis.com are denied by `firestore.rules` (admin-only).
 Returns `{ ok, id, url }`.
 
+### POST `/api/wizard/describe`
+AI listing-copy for the Telegram wizard bot. Auth via `X-Wizard-Secret`
+(same secret as `/api/wizard/publish`). Body is the structured listing
+(`type, zone, sqm, floor, beds, bathrooms, furnished, price, features[], …`);
+returns `{ ok, en, it }` — a polished bilingual description from Claude
+(`claude-haiku-4-5-20251001`). The `ANTHROPIC_API_KEY` stays server-side; the
+bot can't call Claude directly. Bot falls back to a template if this is
+unavailable.
+
 ### POST `/api/magic-sign/lookup`
 Public endpoint for the Magic-Sign UI. Body: `{ token }`. Looks up the
 contract by `tenantSignToken` or `landlordSignToken`, returns sanitized

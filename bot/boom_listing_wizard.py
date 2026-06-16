@@ -39,6 +39,31 @@ PROJECT_ID = os.environ.get('FIREBASE_PROJECT_ID', 'boom-property-dashboards')
 STORAGE_BUCKET = os.environ.get('FIREBASE_BUCKET', 'boom-property-dashboards.firebasestorage.app')
 SITE_URL = 'https://www.boomrome.com'
 
+# BOOM wizard API (server-side endpoints, authed with a shared secret). Used for
+# AI descriptions now, and for fault-tolerant publishing later. Optional: if the
+# secret is unset every call returns None and the bot falls back to direct mode.
+WIZARD_API_BASE = os.environ.get('WIZARD_API_BASE', 'https://www.boomrome.com')
+WIZARD_SECRET = os.environ.get('WIZARD_SECRET') or os.environ.get('HOMIE_SECRET', '')
+
+def wizard_post(path, payload, timeout=35):
+    """POST to a BOOM wizard endpoint with the shared secret. Returns parsed
+    JSON on success, or None on any failure so the caller can fall back."""
+    if not WIZARD_SECRET:
+        return None
+    try:
+        r = http_requests.post(
+            f'{WIZARD_API_BASE}{path}',
+            headers={'Content-Type': 'application/json', 'X-Wizard-Secret': WIZARD_SECRET},
+            json=payload, timeout=timeout,
+        )
+        if r.status_code != 200:
+            logger.warning(f'wizard api {path} -> {r.status_code}: {r.text[:200]}')
+            return None
+        return r.json()
+    except Exception as e:
+        logger.warning(f'wizard api {path} failed: {e}')
+        return None
+
 # ─── Firebase REST Auth ───────────────────────────────────────────────────────
 _fb_token = None
 _fb_token_exp = 0
@@ -145,6 +170,50 @@ PRICE_QUICK = [('€700','700'),('€800','800'),('€900','900'),('€1.000','1
 AVAILABLE_OPTIONS = [('📍 Subito','Subito'),('📅 1 Maggio','2026-05-01'),('📅 1 Giugno','2026-06-01'),('📅 1 Luglio','2026-07-01'),('📅 1 Agosto','2026-08-01'),('📅 1 Settembre','2026-09-01'),('✏️ Altra data','custom')]
 FEATURES_LIST = [('🌡️ AC','ac'),('🏗️ Ascensore','elevator'),('🌿 Balcone','balcony'),('☀️ Terrazzo','terrace'),('👕 Lavatrice','washing_machine'),('🍽️ Lavastoviglie','dishwasher'),('🅿️ Posto auto','parking'),('📦 Cantina','storage'),('🐾 Animali OK','pets_allowed'),('📶 WiFi incl.','wifi'),('🪟 Doppi vetri','double_glazing'),('🔐 Portiere','doorman')]
 
+# ─── Canone concordato (indicative) ───────────────────────────────────────────
+# Fascia B €/mq bands from the Accordo Territoriale Roma 2023 (the same table
+# the public /canone tool uses). Subset mapped to this wizard's zone list — the
+# hint is indicative (mid "fascia B"); the certified value still needs the
+# property's exact classification + asseverazione.
+CANONE_BANDS = {  # code: (micro-zone label, B.min €/mq, B.max €/mq)
+    'B1': ('Testaccio', 13.20, 15.30), 'B4': ('Monti', 13.20, 18.90),
+    'B14': ('Trastevere', 15.40, 22.00), 'B18': ('Esquilino', 9.20, 13.10),
+    'B31': ('Centro/Tridente', 18.30, 26.20), 'C1': ('Parioli', 13.80, 19.80),
+    'C4': ('Nomentano', 13.80, 19.80), 'C8': ('Tuscolano/Appio', 7.90, 11.30),
+    'C9': ('San Giovanni/Appio', 8.60, 12.30), 'C13': ('Monteverde', 8.20, 11.80),
+    'C15': ('Aurelio', 8.40, 12.00), 'C17': ('Balduina', 8.20, 11.80),
+    'C32': ('Ostiense', 7.70, 11.00), 'C40': ('Prati', 12.80, 18.40),
+    'C43': ('Trionfale', 10.50, 15.00), 'C46': ('Trieste', 13.90, 19.90),
+    'C49': ('Flaminio', 12.80, 18.40), 'C51': ('Appio Latino', 8.20, 11.80),
+    'D29': ('EUR', 10.50, 15.10),
+}
+CANONE_ZONE_MAP = {
+    'Prati': 'C40', 'Centro': 'B31', 'Trastevere': 'B14', 'Testaccio': 'B1',
+    'Monti': 'B4', 'San Giovanni': 'C9', 'Parioli': 'C1', 'Flaminio': 'C49',
+    'Ostiense': 'C32', 'EUR': 'D29', 'Monteverde': 'C13', 'Balduina': 'C17',
+    'Trieste': 'C46', 'Nomentano': 'C4', 'Trionfale': 'C43', 'Aurelio': 'C15',
+    'Tuscolano': 'C8', 'Appio Latino': 'C51', 'Esquilino': 'B18',
+}
+
+def canone_estimate(zone_name, sqm):
+    """Indicative canone concordato monthly range (low, high, micro-zone label)
+    for a wizard zone + sqm, or None if the zone isn't mapped / sqm missing."""
+    code = CANONE_ZONE_MAP.get((zone_name or '').strip())
+    band = CANONE_BANDS.get(code) if code else None
+    if not band:
+        return None
+    try:
+        calp = float(sqm)
+    except (TypeError, ValueError):
+        return None
+    if calp <= 0:
+        return None
+    # superficie convenzionale: size coefficient (pertinenze unknown here)
+    coeff = 1.30 if calp < 46 else 1.15 if calp < 70 else 1.00 if calp <= 120 else 0.85
+    sup = calp * coeff
+    label, b_min, b_max = band
+    return (round(b_min * sup), round(b_max * sup), label)
+
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 def is_admin(update: Update) -> bool:
     return update.effective_chat.id == ADMIN_CHAT_ID
@@ -218,7 +287,14 @@ async def beds_cb(update, context):
 
 async def bathrooms_cb(update, context):
     q = update.callback_query; await q.answer(); context.user_data['bathrooms'] = int(q.data.replace('bath_', ''))
-    await q.edit_message_text(f"✅ {context.user_data['bathrooms']} bagni\n\n{progress_bar(8)}\n\n*8/14* — Prezzo mensile?\n_(tocca o scrivi)_", parse_mode='Markdown', reply_markup=make_keyboard(PRICE_QUICK, cols=3, prefix='pr_')); return PRICE
+    hint = ''
+    try:
+        est = canone_estimate(context.user_data.get('zone', ''), context.user_data.get('sqm'))
+        if est:
+            hint = f"💡 _Canone concordato indicativo ({est[2]}): €{est[0]:,}–€{est[1]:,}/mese (fascia B)_\n\n"
+    except Exception as e:
+        logger.warning(f'canone hint: {e}')
+    await q.edit_message_text(f"✅ {context.user_data['bathrooms']} bagni\n\n{progress_bar(8)}\n\n{hint}*8/14* — Prezzo mensile?\n_(tocca o scrivi)_", parse_mode='Markdown', reply_markup=make_keyboard(PRICE_QUICK, cols=3, prefix='pr_')); return PRICE
 
 async def price_cb(update, context):
     q = update.callback_query; await q.answer(); context.user_data['price'] = int(q.data.replace('pr_', ''))
@@ -271,12 +347,29 @@ async def feature_cb(update, context):
 
 async def description_cb(update, context):
     q = update.callback_query; await q.answer(); val = q.data.replace('desc_', ''); d = context.user_data
+    label = '⏭ Senza descrizione'
     if val == 'auto':
-        furn_text = {'yes': 'fully furnished', 'partial': 'partially furnished', 'no': 'unfurnished'}
-        feats = d.get('features', []); feat_text = f" Features include {', '.join(feats)}." if feats else ""
-        d['description'] = f"Beautiful {d.get('type', 'apartment')} in {d.get('zone', 'Rome')}, {d.get('sqm', '')}sqm on floor {d.get('floor', 'N/A')}, {furn_text.get(d.get('furnished', 'no'), 'unfurnished')}. {d.get('beds', '')} beds, {d.get('bathrooms', '')} bathroom{'s' if d.get('bathrooms', 1) > 1 else ''}.{feat_text} €{d.get('price', 0):,}/month."
-    else: d['description'] = ''
-    await q.edit_message_text(f"{'✅ Descrizione generata' if val == 'auto' else '⏭ Senza descrizione'}\n\n{progress_bar(14)}\n\n*14/14* — 📸 *Manda le foto!*\n\nInvia foto una alla volta o in gruppo.\n/done quando hai finito · /skip per saltare", parse_mode='Markdown'); return PHOTOS
+        await q.edit_message_text("⏳ Genero la descrizione con l'AI…")
+        ai = wizard_post('/api/wizard/describe', {
+            'type': d.get('type'), 'zone': d.get('zone'), 'address': d.get('address'),
+            'sqm': d.get('sqm'), 'floor': d.get('floor'), 'beds': d.get('beds'),
+            'bathrooms': d.get('bathrooms'), 'furnished': d.get('furnished'),
+            'price': d.get('price'), 'features': d.get('features', []),
+            'availableDate': d.get('availableDate'), 'concordato': d.get('concordato'),
+        })
+        if ai and ai.get('ok') and ai.get('en'):
+            d['description'] = ai['en'].strip()
+            if ai.get('it'): d['descriptionIt'] = ai['it'].strip()
+            label = '✅ Descrizione AI (IT/EN)'
+        else:
+            # Fallback: original built-in template (AI unavailable / no secret).
+            furn_text = {'yes': 'fully furnished', 'partial': 'partially furnished', 'no': 'unfurnished'}
+            feats = d.get('features', []); feat_text = f" Features include {', '.join(feats)}." if feats else ""
+            d['description'] = f"Beautiful {d.get('type', 'apartment')} in {d.get('zone', 'Rome')}, {d.get('sqm', '')}sqm on floor {d.get('floor', 'N/A')}, {furn_text.get(d.get('furnished', 'no'), 'unfurnished')}. {d.get('beds', '')} beds, {d.get('bathrooms', '')} bathroom{'s' if d.get('bathrooms', 1) > 1 else ''}.{feat_text} €{d.get('price', 0):,}/month."
+            label = '✅ Descrizione generata (modello base)'
+    else:
+        d['description'] = ''
+    await q.edit_message_text(f"{label}\n\n{progress_bar(14)}\n\n*14/14* — 📸 *Manda le foto!*\n\nInvia foto una alla volta o in gruppo.\n/done quando hai finito · /skip per saltare", parse_mode='Markdown'); return PHOTOS
 
 async def description_text(update, context):
     context.user_data['description'] = update.message.text.strip()
@@ -330,7 +423,7 @@ async def confirm_cb(update, context):
             image_urls.append(url); logger.info(f"Uploaded {i+1}/{len(photo_ids)}")
         except Exception as e: logger.error(f"Photo upload error: {e}")
     now = datetime.now(timezone.utc).isoformat() + 'Z'
-    listing = {'name': d.get('name',''), 'address': d.get('address',''), 'zone': d.get('zone',''), 'price': d.get('price',0), 'type': d.get('type',''), 'status': 'available', 'beds': d.get('beds',0), 'bedrooms': d.get('beds',0), 'sqm': d.get('sqm',0), 'size': d.get('sqm',0), 'floor': str(d.get('floor','')), 'bathrooms': d.get('bathrooms',0), 'furnished': d.get('furnished','no'), 'availableDate': d.get('availableDate','Subito'), 'concordato': d.get('concordato','tbd'), 'description': d.get('description',''), 'features': d.get('features',[]), 'tags': [t for t in [d.get('zone','').lower(), d.get('type','').lower(), 'concordato' if d.get('concordato') is True else '', 'furnished' if d.get('furnished') == 'yes' else ''] if t], 'image': image_urls[0] if image_urls else '', 'images': image_urls, 'videoUrl': '', 'createdAt': now, 'updatedAt': now, 'createdBy': 'homie'}
+    listing = {'name': d.get('name',''), 'address': d.get('address',''), 'zone': d.get('zone',''), 'price': d.get('price',0), 'type': d.get('type',''), 'status': 'available', 'beds': d.get('beds',0), 'bedrooms': d.get('beds',0), 'sqm': d.get('sqm',0), 'size': d.get('sqm',0), 'floor': str(d.get('floor','')), 'bathrooms': d.get('bathrooms',0), 'furnished': d.get('furnished','no'), 'availableDate': d.get('availableDate','Subito'), 'concordato': d.get('concordato','tbd'), 'description': d.get('description',''), 'descriptionIt': d.get('descriptionIt',''), 'features': d.get('features',[]), 'tags': [t for t in [d.get('zone','').lower(), d.get('type','').lower(), 'concordato' if d.get('concordato') is True else '', 'furnished' if d.get('furnished') == 'yes' else ''] if t], 'image': image_urls[0] if image_urls else '', 'images': image_urls, 'videoUrl': '', 'createdAt': now, 'updatedAt': now, 'createdBy': 'homie'}
     try:
         doc_id = fs_create('listings', listing); detail_url = f"{SITE_URL}/apartment-detail?id={doc_id}"
         await context.bot.send_message(chat_id=ADMIN_CHAT_ID, text=f"━━━━━━━━━━━━━━━━━━━━━━\n✅ *LISTING PUBBLICATO!*\n━━━━━━━━━━━━━━━━━━━━━━\n\n🏠 *{listing['name']}*\n📍 {listing['address']}, {listing['zone']}\n💶 €{listing['price']:,}/mese\n📐 {listing['sqm']}mq · Piano {listing['floor']}\n📸 {len(image_urls)} foto\n\n🔗 *Link per il cliente:*\n`{detail_url}`\n\n☝️ Tocca per copiare", parse_mode='Markdown')

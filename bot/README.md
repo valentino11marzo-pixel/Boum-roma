@@ -23,6 +23,10 @@ FIREBASE_ADMIN_EMAIL=...        # admin account (must have users/{uid}.role == '
 FIREBASE_ADMIN_PASS=...
 FIREBASE_PROJECT_ID=boom-property-dashboards
 FIREBASE_BUCKET=boom-property-dashboards.firebasestorage.app
+WIZARD_SECRET=...               # shared secret for the BOOM wizard API
+                                # (AI descriptions; same value as on Vercel).
+                                # Optional — if unset, AI features fall back to
+                                # the built-in template; everything else works.
 ```
 
 > The publish account **must** have a Firestore `users/{uid}` doc with
@@ -77,14 +81,30 @@ launchctl load   ~/Library/LaunchAgents/com.boom.listing-wizard.plist   # start
 When this mirror changes, copy the new `boom_listing_wizard.py` onto the Mac
 mini (keeping the local `.env`), then restart via the unload/load above.
 
-## Roadmap (planned improvements)
+## Deploying an update to the Mac mini
 
-1. **Fault-tolerant publishing** — publish through `POST /api/wizard/publish`
-   (+ a photo-upload endpoint) instead of writing to Firestore/Storage
-   directly, so rule/role changes can never break the bot again.
-2. **Health heartbeat + alert** — bot writes `heartbeat/listing-wizard`; a cron
-   pings Telegram if it goes stale (know within minutes if it's down).
-3. **AI descriptions (IT/EN)** — replace the template "auto-genera" with a
-   Claude-written bilingual description (`/api/wizard/describe`).
-4. **Suggested legal rent** — surface the canone concordato estimate for the
-   zone/sqm at the price step (reuse the project's canone engine).
+```bash
+# from the Mac mini, with the live folder backed up first:
+cp /Users/boomserver/boom-listing-wizard/boom_listing_wizard.py \
+   /Users/boomserver/boom-listing-wizard/boom_listing_wizard.py.bak
+# copy the new boom_listing_wizard.py into /Users/boomserver/boom-listing-wizard/
+# then restart:
+launchctl unload ~/Library/LaunchAgents/com.boom.listing-wizard.plist 2>/dev/null
+pkill -f boom_listing_wizard.py 2>/dev/null
+launchctl load   ~/Library/LaunchAgents/com.boom.listing-wizard.plist
+# (if launchd isn't installed yet, just: python3 boom_listing_wizard.py &)
+```
+Rollback = copy `.bak` back and restart.
+
+## Roadmap
+
+- [x] **AI descriptions (IT/EN)** — `/api/wizard/describe` (Claude); the
+      "auto-genera" option now writes a bilingual description, falling back to
+      the built-in template if the AI/secret is unavailable.
+- [x] **Suggested legal rent** — indicative canone concordato range (Accordo
+      Territoriale Roma 2023, fascia B) shown at the price step.
+- [ ] **Fault-tolerant publishing** — publish via `POST /api/wizard/publish`
+      (+ a photo-upload endpoint) with fallback to direct writes, so rule/role
+      changes can't break the bot again. *(next deploy)*
+- [ ] **Health heartbeat + alert** — bot writes `heartbeat/listing-wizard`; a
+      cron pings Telegram if it goes stale.
