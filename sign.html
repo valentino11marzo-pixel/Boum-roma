@@ -579,17 +579,17 @@
       if(num.length<6){ document.getElementById('o-num').classList.add('bad'); return; }
       var phone=(pre.charAt(0)==='+'?pre:('+'+pre))+num;
       btn.disabled=true; btn.innerHTML='<span class="spin"></span>';
-      try{
-        if(!_otp.verifier){ _otp.verifier=new firebase.auth.RecaptchaVerifier('recaptcha-container',{size:'invisible'}); }
-      }catch(e){}
-      var user=S.auth.currentUser;
-      var p = user ? user.linkWithPhoneNumber(phone,_otp.verifier) : S.auth.signInWithPhoneNumber(phone,_otp.verifier);
-      p.then(function(cr){ _otp.confirm=cr; renderOtpVerify(phone); })
-       .catch(function(err){
-          // phone already linked to this anon flow is fine → treat as verifiable via signIn
-          if(err && err.code==='auth/credential-already-in-use'){ S.auth.signInWithPhoneNumber(phone,_otp.verifier).then(function(cr){ _otp.confirm=cr; renderOtpVerify(phone); }).catch(otpError(btn)); return; }
-          otpError(btn)(err);
-       });
+      // Fresh invisible reCAPTCHA each send — its token is single-use; reusing
+      // the verifier silently breaks a second attempt.
+      try{ if(_otp.verifier){ _otp.verifier.clear(); _otp.verifier=null; } }catch(e){}
+      try{ _otp.verifier=new firebase.auth.RecaptchaVerifier('recaptcha-container',{size:'invisible'}); }catch(e){}
+      // signInWithPhoneNumber (NOT link): we only need to prove the signer
+      // controls this number. linkWithPhoneNumber fails with
+      // credential-already-in-use when the number was verified before (e.g. an
+      // earlier test) — which surfaced to the user as a false "wrong code".
+      S.auth.signInWithPhoneNumber(phone,_otp.verifier)
+       .then(function(cr){ _otp.confirm=cr; renderOtpVerify(phone); })
+       .catch(otpError(btn));
     }
     function otpError(btn){ return function(err){
       btn.disabled=false; btn.textContent='Send code';
@@ -631,10 +631,17 @@
           S.phoneVerified=true; S.id.phoneVerified=true; S.id.phoneVerifiedAt=new Date().toISOString();
           S.id.phone=esc(phone);
           renderSign();
-        }).catch(function(){
+        }).catch(function(err){
+          // A correct code can still reject if the number was previously linked
+          // to another account — the phone IS verified, so proceed.
+          if(err && err.code==='auth/credential-already-in-use'){
+            S.phoneVerified=true; S.id.phoneVerified=true; S.id.phoneVerifiedAt=new Date().toISOString(); S.id.phone=esc(phone); renderSign(); return;
+          }
           btn.disabled=false; btn.textContent='Verify';
           boxes.forEach(function(b){b.value='';}); boxes[0].focus();
-          flash('That code didn’t match. Please try again.');
+          var m='That code didn’t match. Please try again.';
+          if(err&&err.code==='auth/code-expired') m='That code expired — tap “Change number” to get a new one.';
+          flash(m);
         });
       }
     }
