@@ -395,13 +395,26 @@
       property:{ name:'Trastevere Loft', address:'Via della Lungaretta 12, Roma', ownerId:'o' },
       signer:{ name:'Demo Tenant', email:'demo@boomrome.com', cf:'RSSMRA85T10A562S', dob:'1985-12-10', pob:'Roma, Italy', address:'Via della Lungaretta 12, Roma', docType:'passport', docNum:'YA1234567', nationality:'Italy', phone:'' },
       otherParty:{ name:'Giulia Bianchi' } };
+    // Landlord variant — same contract/property, signer is the landlord.
+    var DEMO_DATA_LL = { ok:true, role:'landlord', alreadySigned:false,
+      contract: DEMO_DATA.contract,
+      property: DEMO_DATA.property,
+      signer:{ name:'Giulia Bianchi', email:'landlord@boomrome.com', cf:'RSSMRA85T10A562S', dob:'1980-01-01', pob:'Roma, Italy', address:'Via dei Coronari 8, Roma', docType:'id', docNum:'CA9988776', nationality:'Italy', phone:'' },
+      otherParty:{ name:'Demo Tenant' } };
     function demoBadge(){ if(document.getElementById('_demoBadge')) return; document.body.appendChild(el('<div id="_demoBadge" style="position:fixed;top:14px;right:14px;z-index:60;padding:5px 11px;border-radius:999px;border:1px solid var(--line);background:rgba(20,20,24,.7);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);font-size:9.5px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold)">Demo</div>')); }
     function startDemo(){
       demoBadge();
-      if(DEMO==='custom'){
-        CUSTOM={ req:'demo', role:'tenant', token:'demo' };
-        renderCustom({ ok:true, title:'Lease Addendum', role:'tenant', pageCount:2, originalPdfUrl:'', alreadySigned:false, status:'sent', requiredRoles:['tenant','landlord'],
-          fields:[ {page:1,role:'tenant',kind:'signature',xr:0.12,yr:0.74,wr:0.34,hr:0.09}, {page:1,role:'tenant',kind:'date',xr:0.56,yr:0.75,wr:0.22,hr:0.06}, {page:2,role:'tenant',kind:'initials',xr:0.70,yr:0.10,wr:0.16,hr:0.05} ] });
+      // Role-aware demo: ?demo=1 (tenant std) | ?demo=landlord (landlord std)
+      //                  ?demo=custom (tenant PDF) | ?demo=custom-landlord (landlord PDF)
+      //                  ?demo=1&role=landlord also works.
+      var dRole = (qs.get('role')||'').trim()==='landlord' ? 'landlord' : 'tenant';
+      if(DEMO==='custom' || DEMO==='custom-landlord'){
+        var cr = (DEMO==='custom-landlord') ? 'landlord' : dRole;
+        CUSTOM={ req:'demo', role:cr, token:'demo' };
+        renderCustom({ ok:true, title:'Lease Addendum', role:cr, pageCount:2, originalPdfUrl:'', alreadySigned:false, status:'sent', requiredRoles:['tenant','landlord'],
+          fields:[ {page:1,role:cr,kind:'signature',xr:0.12,yr:0.74,wr:0.34,hr:0.09}, {page:1,role:cr,kind:'date',xr:0.56,yr:0.75,wr:0.22,hr:0.06}, {page:2,role:cr,kind:'initials',xr:0.70,yr:0.10,wr:0.16,hr:0.05} ] });
+      } else if(DEMO==='landlord' || dRole==='landlord'){
+        S.data=DEMO_DATA_LL; S.role='landlord'; renderReview();
       } else {
         S.data=DEMO_DATA; S.role='tenant'; renderReview();
       }
@@ -458,10 +471,42 @@
       document.getElementById('rev-next').onclick=renderIdentity;
     }
 
-    // ═══════════════ STEP 2 — IDENTITY ═══════════════
+    // ═══════════════ STEP 2 — IDENTITY (auto-staged: confirm if known, fill if not) ═══════════════
+    function idFrom(s){ return { name:s.name||'', dob:s.dob||'', pob:s.pob||'', cf:(s.cf||'').toUpperCase(), address:s.address||'', docType:s.docType||'passport', docNum:s.docNum||'', nationality:s.nationality||'' }; }
+    function identityComplete(s){ var d=idFrom(s); return !!(d.name&&d.dob&&d.pob&&d.address&&d.docNum&&d.nationality&&validCF(d.cf)); }
+    function docLabel(t){ return t==='id'?'Carta d’identità':(t==='permit'?'Permesso di soggiorno':'Passport'); }
     function renderIdentity(){
       setProgress(2); S.step=2;
       var s=S.data.signer||{};
+      if(identityComplete(s)) renderIdentityConfirm(s); else renderIdentityForm(s);
+    }
+    // Known client → one-tap confirm (Model C: the link arrives "ready to sign").
+    function renderIdentityConfirm(s){
+      var d=idFrom(s);
+      FLOW.innerHTML='';
+      FLOW.appendChild(el(
+        '<div class="step">'+
+          '<h1 class="t">Confirm your details</h1>'+
+          '<p class="sub">We already have your information — just check it’s correct before signing.</p>'+
+          '<div class="summary"><div class="grid2">'+
+            '<div class="cell"><div class="k">Full name</div><div class="v">'+esc(d.name)+'</div></div>'+
+            '<div class="cell"><div class="k">Codice Fiscale</div><div class="v">'+esc(d.cf)+'</div></div>'+
+            '<div class="cell"><div class="k">Date of birth</div><div class="v">'+esc(d.dob)+'</div></div>'+
+            '<div class="cell"><div class="k">Place of birth</div><div class="v">'+esc(d.pob)+'</div></div>'+
+            '<div class="cell"><div class="k">Document</div><div class="v">'+esc(docLabel(d.docType))+' · '+esc(d.docNum)+'</div></div>'+
+            '<div class="cell"><div class="k">Nationality</div><div class="v">'+esc(d.nationality)+'</div></div>'+
+            '<div class="cell" style="grid-column:1/-1"><div class="k">Address</div><div class="v">'+esc(d.address)+'</div></div>'+
+          '</div></div>'+
+          '<div class="btnrow"><button class="btn ghost" id="i-edit">Edit</button><button class="btn" id="i-ok">Confirm &amp; continue</button></div>'+
+        '</div>'
+      ));
+      document.getElementById('i-edit').onclick=function(){ renderIdentityForm(s); };
+      document.getElementById('i-ok').onclick=function(){ S.id=d; renderPhone(); };
+    }
+    // Unknown / incomplete client → full form (Model C: "fill first").
+    function renderIdentityForm(s){
+      setProgress(2); S.step=2;
+      s=s||S.data.signer||{};
       FLOW.innerHTML='';
       FLOW.appendChild(el(
         '<div class="step">'+
@@ -475,7 +520,11 @@
           '<div class="field"><label>Codice Fiscale <span class="hint">— 16 characters</span></label><input class="inp mono" id="i-cf" maxlength="16" value="'+esc(s.cf||'')+'" placeholder="RSSMRA85T10A562S"><div class="err" id="e-cf">That Codice Fiscale doesn’t look valid.</div></div>'+
           '<div class="field"><label>Current address</label><input class="inp" id="i-addr" value="'+esc(s.address||'')+'" placeholder="Street, number, city" autocomplete="street-address"></div>'+
           '<div class="row2">'+
-            '<div class="field"><label>Document</label><select class="inp" id="i-doctype"><option value="passport">Passport</option><option value="id">Carta d’identità</option><option value="permit">Permesso di soggiorno</option></select></div>'+
+            '<div class="field"><label>Document</label><select class="inp" id="i-doctype">'+
+              '<option value="passport"'+(s.docType==='passport'?' selected':'')+'>Passport</option>'+
+              '<option value="id"'+(s.docType==='id'?' selected':'')+'>Carta d’identità</option>'+
+              '<option value="permit"'+(s.docType==='permit'?' selected':'')+'>Permesso di soggiorno</option>'+
+            '</select></div>'+
             '<div class="field"><label>Document no.</label><input class="inp" id="i-docnum" value="'+esc(s.docNum||'')+'" placeholder="Number"></div>'+
           '</div>'+
           '<div class="field"><label>Nationality</label><input class="inp" id="i-nat" value="'+esc(s.nationality||'')+'" placeholder="Country"></div>'+
@@ -530,17 +579,17 @@
       if(num.length<6){ document.getElementById('o-num').classList.add('bad'); return; }
       var phone=(pre.charAt(0)==='+'?pre:('+'+pre))+num;
       btn.disabled=true; btn.innerHTML='<span class="spin"></span>';
-      try{
-        if(!_otp.verifier){ _otp.verifier=new firebase.auth.RecaptchaVerifier('recaptcha-container',{size:'invisible'}); }
-      }catch(e){}
-      var user=S.auth.currentUser;
-      var p = user ? user.linkWithPhoneNumber(phone,_otp.verifier) : S.auth.signInWithPhoneNumber(phone,_otp.verifier);
-      p.then(function(cr){ _otp.confirm=cr; renderOtpVerify(phone); })
-       .catch(function(err){
-          // phone already linked to this anon flow is fine → treat as verifiable via signIn
-          if(err && err.code==='auth/credential-already-in-use'){ S.auth.signInWithPhoneNumber(phone,_otp.verifier).then(function(cr){ _otp.confirm=cr; renderOtpVerify(phone); }).catch(otpError(btn)); return; }
-          otpError(btn)(err);
-       });
+      // Fresh invisible reCAPTCHA each send — its token is single-use; reusing
+      // the verifier silently breaks a second attempt.
+      try{ if(_otp.verifier){ _otp.verifier.clear(); _otp.verifier=null; } }catch(e){}
+      try{ _otp.verifier=new firebase.auth.RecaptchaVerifier('recaptcha-container',{size:'invisible'}); }catch(e){}
+      // signInWithPhoneNumber (NOT link): we only need to prove the signer
+      // controls this number. linkWithPhoneNumber fails with
+      // credential-already-in-use when the number was verified before (e.g. an
+      // earlier test) — which surfaced to the user as a false "wrong code".
+      S.auth.signInWithPhoneNumber(phone,_otp.verifier)
+       .then(function(cr){ _otp.confirm=cr; renderOtpVerify(phone); })
+       .catch(otpError(btn));
     }
     function otpError(btn){ return function(err){
       btn.disabled=false; btn.textContent='Send code';
@@ -582,10 +631,17 @@
           S.phoneVerified=true; S.id.phoneVerified=true; S.id.phoneVerifiedAt=new Date().toISOString();
           S.id.phone=esc(phone);
           renderSign();
-        }).catch(function(){
+        }).catch(function(err){
+          // A correct code can still reject if the number was previously linked
+          // to another account — the phone IS verified, so proceed.
+          if(err && err.code==='auth/credential-already-in-use'){
+            S.phoneVerified=true; S.id.phoneVerified=true; S.id.phoneVerifiedAt=new Date().toISOString(); S.id.phone=esc(phone); renderSign(); return;
+          }
           btn.disabled=false; btn.textContent='Verify';
           boxes.forEach(function(b){b.value='';}); boxes[0].focus();
-          flash('That code didn’t match. Please try again.');
+          var m='That code didn’t match. Please try again.';
+          if(err&&err.code==='auth/code-expired') m='That code expired — tap “Change number” to get a new one.';
+          flash(m);
         });
       }
     }
