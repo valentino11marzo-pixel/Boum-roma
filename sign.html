@@ -395,13 +395,26 @@
       property:{ name:'Trastevere Loft', address:'Via della Lungaretta 12, Roma', ownerId:'o' },
       signer:{ name:'Demo Tenant', email:'demo@boomrome.com', cf:'RSSMRA85T10A562S', dob:'1985-12-10', pob:'Roma, Italy', address:'Via della Lungaretta 12, Roma', docType:'passport', docNum:'YA1234567', nationality:'Italy', phone:'' },
       otherParty:{ name:'Giulia Bianchi' } };
+    // Landlord variant — same contract/property, signer is the landlord.
+    var DEMO_DATA_LL = { ok:true, role:'landlord', alreadySigned:false,
+      contract: DEMO_DATA.contract,
+      property: DEMO_DATA.property,
+      signer:{ name:'Giulia Bianchi', email:'landlord@boomrome.com', cf:'RSSMRA85T10A562S', dob:'1980-01-01', pob:'Roma, Italy', address:'Via dei Coronari 8, Roma', docType:'id', docNum:'CA9988776', nationality:'Italy', phone:'' },
+      otherParty:{ name:'Demo Tenant' } };
     function demoBadge(){ if(document.getElementById('_demoBadge')) return; document.body.appendChild(el('<div id="_demoBadge" style="position:fixed;top:14px;right:14px;z-index:60;padding:5px 11px;border-radius:999px;border:1px solid var(--line);background:rgba(20,20,24,.7);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);font-size:9.5px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold)">Demo</div>')); }
     function startDemo(){
       demoBadge();
-      if(DEMO==='custom'){
-        CUSTOM={ req:'demo', role:'tenant', token:'demo' };
-        renderCustom({ ok:true, title:'Lease Addendum', role:'tenant', pageCount:2, originalPdfUrl:'', alreadySigned:false, status:'sent', requiredRoles:['tenant','landlord'],
-          fields:[ {page:1,role:'tenant',kind:'signature',xr:0.12,yr:0.74,wr:0.34,hr:0.09}, {page:1,role:'tenant',kind:'date',xr:0.56,yr:0.75,wr:0.22,hr:0.06}, {page:2,role:'tenant',kind:'initials',xr:0.70,yr:0.10,wr:0.16,hr:0.05} ] });
+      // Role-aware demo: ?demo=1 (tenant std) | ?demo=landlord (landlord std)
+      //                  ?demo=custom (tenant PDF) | ?demo=custom-landlord (landlord PDF)
+      //                  ?demo=1&role=landlord also works.
+      var dRole = (qs.get('role')||'').trim()==='landlord' ? 'landlord' : 'tenant';
+      if(DEMO==='custom' || DEMO==='custom-landlord'){
+        var cr = (DEMO==='custom-landlord') ? 'landlord' : dRole;
+        CUSTOM={ req:'demo', role:cr, token:'demo' };
+        renderCustom({ ok:true, title:'Lease Addendum', role:cr, pageCount:2, originalPdfUrl:'', alreadySigned:false, status:'sent', requiredRoles:['tenant','landlord'],
+          fields:[ {page:1,role:cr,kind:'signature',xr:0.12,yr:0.74,wr:0.34,hr:0.09}, {page:1,role:cr,kind:'date',xr:0.56,yr:0.75,wr:0.22,hr:0.06}, {page:2,role:cr,kind:'initials',xr:0.70,yr:0.10,wr:0.16,hr:0.05} ] });
+      } else if(DEMO==='landlord' || dRole==='landlord'){
+        S.data=DEMO_DATA_LL; S.role='landlord'; renderReview();
       } else {
         S.data=DEMO_DATA; S.role='tenant'; renderReview();
       }
