@@ -7966,7 +7966,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             // 4) Send magic-sign links via email (tenant + landlord)
             progress('4/4 · Invio i link di firma…');
             const ctrDoc = (await db.collection('contracts').doc(contractId).get()).data();
-            const baseUrl = window.location.origin + window.location.pathname;
+            const baseUrl = window.location.origin + '/sign';   // premium signer page (sign.html)
             const tenantLink = `${baseUrl}?sign=${ctrDoc.tenantSignToken}`;
             const property = (S.properties || []).find(p => p.id === w.propertyId) || {};
             const landlord = property.ownerId ? (S.users || []).find(u => u.id === property.ownerId) : null;
@@ -17857,7 +17857,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function copyMagicSignLink(reqId, role) {
         const req = S.signRequests.find(r => r.id === reqId);
         const token = req?.signers?.[role]?.token || '';
-        const url = `https://boomrome.com/portal.html?csign=${reqId}&role=${role}&t=${token}`;
+        const url = `https://boomrome.com/sign?csign=${reqId}&role=${role}&t=${token}`;
         navigator.clipboard.writeText(url);
         toast('success', 'Link copiato', `Firma ${role === 'tenant' ? 'inquilino' : 'locatore'}`);
     }
@@ -19575,9 +19575,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
     async function sendSignatureEmail(user, contract, property, role) {
         if (!user?.email) return false;
-        var portalUrl = window.location.origin + window.location.pathname;
+        var signBase = window.location.origin + '/sign';   // premium signer page (sign.html)
         var token = role === 'tenant' ? contract.tenantSignToken : contract.landlordSignToken;
-        var signLink = token ? portalUrl + '?sign=' + token : portalUrl;
+        var signLink = token ? signBase + '?sign=' + token : signBase;
         var firstName = (user.name || '').split(' ')[0];
         var roleLabel = role === 'landlord' ? 'Landlord' : 'Tenant';
         var vh = 'BOOM-' + btoa((contract.id||'') + (contract.startDate||'') + contract.rent).substring(0,12).toUpperCase();
@@ -22347,7 +22347,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             links.push({
                 audience: 'tenant', icon: '🖋️', title: 'Firma il contratto',
                 subtitle: 'Magic Sign — firma da telefono, accetta termini, genera PDF',
-                url: `${base}/portal.html?sign=${encodeURIComponent(c.tenantSignToken)}`,
+                url: `${base}/sign?sign=${encodeURIComponent(c.tenantSignToken)}`,
                 target: tenant,
                 waText: (n) => `Ciao ${n}, ecco il link per firmare il contratto di locazione per ${prop?.name || 'l\'immobile'}. Si firma direttamente dal telefono: {URL}\n\n— BOOM Roma`,
                 emailSubj: `BOOM · Firma contratto ${prop?.name || ''}`.trim(),
@@ -22398,7 +22398,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             links.push({
                 audience: 'landlord', icon: '🖋️', title: 'Firma il contratto',
                 subtitle: 'Firma da telefono come locatore',
-                url: `${base}/portal.html?sign=${encodeURIComponent(c.landlordSignToken)}`,
+                url: `${base}/sign?sign=${encodeURIComponent(c.landlordSignToken)}`,
                 target: landlord,
                 waText: (n) => `Ciao ${n}, ecco il link per firmare il contratto di locazione di ${prop?.name || 'l\'immobile'} come proprietario. Si firma dal telefono: {URL}\n\n— BOOM Roma`,
                 emailSubj: `BOOM · Firma contratto ${prop?.name || ''}`.trim(),
