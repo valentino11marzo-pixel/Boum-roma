@@ -721,6 +721,7 @@
                     <h3>Apply for this apartment</h3>
                     <p>No fee to apply. We reply within 2 hours — and you could be moved in within 48.</p>
                     <form id="inquiryForm">
+                        <input type="text" name="company" id="iqCompany" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
                         <input type="text" name="name" id="iqName" placeholder="Your name" required>
                         <input type="email" name="email" id="iqEmail" placeholder="Your email" required>
                         <input type="tel" name="phone" id="iqPhone" placeholder="WhatsApp number (optional)">
@@ -2138,7 +2139,7 @@
             btn.disabled=true;btn.textContent='Sending…';
             try{
                 const _v=(elId)=>{const el=document.getElementById(elId);return el?el.value:'';};
-                await db.collection('leads').add({
+                const resp=await fetch('/api/apply',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
                     name: document.getElementById('iqName').value,
                     email: document.getElementById('iqEmail').value,
                     phone: document.getElementById('iqPhone').value||'',
@@ -2146,13 +2147,12 @@
                     duration: _v('iqDuration'),
                     occupants: _v('iqOccupants'),
                     message: document.getElementById('formMessage').value||'',
-                    source: 'apartment-detail',
-                    type: 'application',
+                    company: _v('iqCompany'),
                     listingId: id,
-                    listingName: name,
-                    status: 'new',
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
+                    listingName: name
+                })});
+                const j=await resp.json().catch(()=>({}));
+                if(!resp.ok||!j.ok) throw new Error(j.error||('http_'+resp.status));
                 iqForm.style.display='none';document.getElementById('inquirySuccess').style.display='block';
                 if(typeof gtag==='function')gtag('event','inquiry_sent',{listing_id:id,listing_name:name});
             }catch(err){btn.textContent='Error — try again';btn.disabled=false;console.error('Inquiry error:',err)}
