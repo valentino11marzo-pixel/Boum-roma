@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  BOOM Listing Wizard — launchd agent (auto-start + auto-restart)
+
+  Keeps the Telegram listing bot alive: starts it when boomserver logs in
+  (RunAtLoad) and restarts it automatically if it crashes or the Mac mini
+  reboots (KeepAlive). See bot/README.md for install steps.
+
+  NOTE: this is a LaunchAgent (runs as the boomserver user), so the Mac mini
+  must auto-login boomserver for it to come back after a reboot:
+  System Settings -> Users & Groups -> Automatic login -> boomserver.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.boom.listing-wizard</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Library/Frameworks/Python.framework/Versions/3.13/bin/python3</string>
+        <string>/Users/boomserver/boom-listing-wizard/boom_listing_wizard.py</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/boomserver/boom-listing-wizard</string>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <true/>
+
+    <!-- Wait 15s before relaunching after an exit, so a crash-loop doesn't spin. -->
+    <key>ThrottleInterval</key>
+    <integer>15</integer>
+
+    <key>StandardOutPath</key>
+    <string>/Users/boomserver/boom-listing-wizard/wizard.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/boomserver/boom-listing-wizard/wizard.err.log</string>
+</dict>
+</plist>

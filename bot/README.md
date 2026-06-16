@@ -1,0 +1,90 @@
+# BOOM Listing Wizard — Telegram bot
+
+Telegram bot that publishes apartments to the public `listings` catalog (and
+manages them: `/rent`, `/reactivate`, `/delete`, `/listings`). Runs on the
+**Mac mini** (`boomserver@Mac-mini-di-BOOM`), polling Telegram. Writes to
+Firestore + Storage via the Firebase REST API using the admin account
+`valentino@boomrome.com` (same email/password pattern as `api/reminder-cron.js`).
+
+This folder is the **version-controlled mirror** of the live copy at
+`/Users/boomserver/boom-listing-wizard/`. The live `.env` (secrets) is **not**
+committed.
+
+## Requirements on the Mac mini
+
+- Python 3.13 with `python-telegram-bot`, `requests`, `python-dotenv`
+- A `.env` next to the script (loaded via `python-dotenv`):
+
+```
+BOOM_TELEGRAM_BOT_TOKEN=...     # from BotFather
+BOOM_TELEGRAM_CHAT_ID=...       # admin chat id (only this chat may command)
+FIREBASE_API_KEY=...            # public web key
+FIREBASE_ADMIN_EMAIL=...        # admin account (must have users/{uid}.role == 'admin')
+FIREBASE_ADMIN_PASS=...
+FIREBASE_PROJECT_ID=boom-property-dashboards
+FIREBASE_BUCKET=boom-property-dashboards.firebasestorage.app
+```
+
+> The publish account **must** have a Firestore `users/{uid}` doc with
+> `role: 'admin'`, otherwise every write fails with `PERMISSION_DENIED`
+> (the security rules gate `listings`/`leads`/etc. on that role).
+
+## Keep it alive (launchd — auto-start + auto-restart)
+
+Without a supervisor the bot does **not** come back after a reboot or crash —
+it just goes silently offline. `com.boom.listing-wizard.plist` fixes that
+(`KeepAlive` restarts on crash, `RunAtLoad` starts it on login).
+
+Install on the Mac mini (one time):
+
+```bash
+# 1) Make sure nothing already auto-starts it (avoid a double instance)
+ls ~/Library/LaunchAgents/ 2>/dev/null | grep -i boom
+launchctl list | grep -i boom
+
+# 2) Install the agent
+mkdir -p ~/Library/LaunchAgents
+cp /Users/boomserver/boom-listing-wizard/com.boom.listing-wizard.plist ~/Library/LaunchAgents/
+#    (or copy this repo's bot/com.boom.listing-wizard.plist there)
+
+# 3) Verify the Python path in the plist matches this machine
+ls -l /Library/Frameworks/Python.framework/Versions/3.13/bin/python3
+
+# 4) Stop the current un-supervised process, then hand control to launchd
+pkill -f boom_listing_wizard.py
+launchctl load ~/Library/LaunchAgents/com.boom.listing-wizard.plist
+
+# 5) Confirm it's running under launchd (shows a PID)
+launchctl list | grep boom
+```
+
+Then send the bot `/help` on Telegram to confirm it answers. Logs:
+`~/boom-listing-wizard/wizard.log` and `wizard.err.log`.
+
+> For the bot to come back **after a reboot**, the Mac mini must auto-login
+> `boomserver` (System Settings → Users & Groups → Automatic login), because a
+> LaunchAgent runs inside the user session.
+
+To stop/restart manually:
+
+```bash
+launchctl unload ~/Library/LaunchAgents/com.boom.listing-wizard.plist   # stop
+launchctl load   ~/Library/LaunchAgents/com.boom.listing-wizard.plist   # start
+```
+
+## Updating the bot
+
+When this mirror changes, copy the new `boom_listing_wizard.py` onto the Mac
+mini (keeping the local `.env`), then restart via the unload/load above.
+
+## Roadmap (planned improvements)
+
+1. **Fault-tolerant publishing** — publish through `POST /api/wizard/publish`
+   (+ a photo-upload endpoint) instead of writing to Firestore/Storage
+   directly, so rule/role changes can never break the bot again.
+2. **Health heartbeat + alert** — bot writes `heartbeat/listing-wizard`; a cron
+   pings Telegram if it goes stale (know within minutes if it's down).
+3. **AI descriptions (IT/EN)** — replace the template "auto-genera" with a
+   Claude-written bilingual description (`/api/wizard/describe`).
+4. **Suggested legal rent** — surface the canone concordato estimate for the
+   zone/sqm at the price step (reuse the project's canone engine).
