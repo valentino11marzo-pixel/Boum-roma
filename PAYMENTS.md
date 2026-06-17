@@ -217,6 +217,53 @@ PAY_TEST_SECRET             any long random string (guards the harness)
    charges real money until then.
 3. **Receipts/IVA detail** — confirm the *ricevuta* format + whether the mgmt fee
    is invoiced separately (Phase 3).
+4. **Direct-to-landlord-IBAN?** — decide whether to add the Connect-Custom model
+   below (lets rent settle straight onto the landlord's IBAN). Requires enabling
+   **Connect** in the Stripe dashboard + per-landlord KYC. Preview:
+   `preview-owner-payouts.html`.
+
+---
+
+## 7. Optional upgrade — direct payout to the landlord's IBAN (Stripe Connect Custom)
+
+The collect-into-BOOM model above ships now with zero landlord friction. A second
+model lets rent land **directly on the landlord's bank account**, with BOOM
+never holding the funds and its fee taken automatically. The landlord **does not
+create a Stripe account** — BOOM provisions a **Connect _Custom_** account via API
+from the IBAN + identity data the landlord provides.
+
+**How it works**
+- BOOM enables **Connect** (Custom accounts) in the Stripe dashboard.
+- Landlord onboarding (in the BOOM owner portal): enter IBAN + holder →
+  `accounts.create({ type:'custom', country:'IT', capabilities:{ sepa_debit_payments, transfers } })`
+  with an external bank account = the IBAN.
+- **KYC (legally mandatory for direct payout):** Stripe requires the landlord's
+  name, DOB, address and usually an ID document before it releases payouts. Done
+  once, via Stripe's hosted verification or an embedded flow. *No way around this
+  under EU AML — it's the law, not a Stripe quirk.*
+- Tenant pays exactly as before; the rent PaymentIntent uses a **destination
+  charge**: `transfer_data:{ destination: <landlordAccountId> }` +
+  `application_fee_amount: <BOOM fee>`. Stripe routes the net straight to the
+  landlord's connected account → their IBAN; BOOM keeps only the fee.
+
+**Trade-offs vs collect-into-BOOM**
+
+| | Direct-to-IBAN (Connect Custom) | Collect-into-BOOM (built) |
+|---|---|---|
+| Landlord setup | IBAN + 1× ID verification | nothing |
+| BOOM holds funds | **No** (cleaner, less licensing exposure) | briefly |
+| Payout speed | Stripe payout schedule to landlord | after BOOM remits |
+| Build cost | + Connect onboarding, KYC, account mgmt, Connect fees | done |
+| Card fee on rent | borne by platform (BOOM) as today | same |
+
+**New env/setup if we add it:** enable Connect in dashboard; no new secret
+(same `STRIPE_SECRET_KEY`). New endpoints `api/payments/connect-onboard.js`
+(create Custom account + onboarding/KYC link) and a `transfer_data` branch in
+`pay-rent.js`; `contracts.payment.landlordAccountId` on the doc.
+
+**Recommendation:** offer **both** — default collect-into-BOOM, opt into
+direct-IBAN per landlord. Same tenant button; the only change is whether a
+`transfer_data.destination` is attached at charge time.
 
 ---
 
