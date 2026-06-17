@@ -138,10 +138,10 @@ function injectSeo(html, d, id) {
   // Preload the hero photo (sized like the client gallery: imgur 'h' = 1024px) so the
   // browser fetches it in parallel with the JS/Firestore boot instead of after it (LCP).
   const heroImg = images[0] || d.coverImage || d.image || '';
-  const heroSized = /i\.imgur\.com/.test(heroImg)
-    ? heroImg.replace(/(\/[A-Za-z0-9]{7})(\.(?:jpe?g|png|webp))/i, '$1h$2')
+  const heroOpt = /^https?:\/\//.test(heroImg)
+    ? '/_vercel/image?url=' + encodeURIComponent(heroImg) + '&w=1280&q=72'
     : heroImg;
-  const preload = heroImg ? '<link rel="preload" as="image" fetchpriority="high" href="' + esc(heroSized) + '">\n' : '';
+  const preload = heroImg ? '<link rel="preload" as="image" fetchpriority="high" href="' + esc(heroOpt) + '">\n' : '';
   // Inject the already-read listing so the client renders instantly — no Firebase SDK
   // load + Firestore round-trip on the critical path. The client falls back to a live
   // read if this is absent (e.g. on /apartment-detail without SSR).

@@ -2,6 +2,16 @@
   "version": 2,
   "cleanUrls": true,
   "trailingSlash": false,
+  "images": {
+    "remotePatterns": [
+      { "protocol": "https", "hostname": "i.imgur.com" },
+      { "protocol": "https", "hostname": "imgur.com" }
+    ],
+    "formats": ["image/avif", "image/webp"],
+    "sizes": [320, 480, 640, 768, 828, 1080, 1280, 1920],
+    "qualities": [50, 72, 75],
+    "minimumCacheTTL": 2678400
+  },
   "redirects": [
     { "source": "/index.html", "destination": "/", "permanent": true },
     { "source": "/apartments.html", "destination": "/apartments", "permanent": true },
