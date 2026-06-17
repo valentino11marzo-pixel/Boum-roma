@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Rent Payments — Test Harness (SEPA) — BOOM</title>
+    <script src="https://js.stripe.com/v3/"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root { --gold:#D4AF37; --bg:#08080A; --card:#0C0C0E; --el:#16161A; --in:#1A1A1A; --bd:rgba(255,255,255,0.1); --tx:#fff; --tx2:#9a9a9a; --green:#00D26A; --red:#FF3B30; --blue:#0A84FF; }
+        * { box-sizing:border-box; margin:0; }
+        body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--tx); padding:28px 18px 60px; -webkit-font-smoothing:antialiased; }
+        .wrap { max-width:560px; margin:0 auto; }
+        h1 { font-size:22px; font-weight:300; letter-spacing:0.3px; }
+        h1 b { font-weight:700; color:var(--gold); }
+        .mode { display:inline-block; font-size:10px; letter-spacing:1px; text-transform:uppercase; padding:4px 10px; border-radius:100px; margin-left:8px; }
+        .mode.test { background:rgba(255,159,10,0.15); color:#FF9F0A; }
+        .mode.live { background:var(--red); color:#fff; }
+        p.lead { color:var(--tx2); font-size:13px; margin:8px 0 22px; line-height:1.6; }
+        .card { background:var(--card); border:1px solid var(--bd); border-radius:16px; padding:18px; margin-bottom:16px; }
+        .card h2 { font-size:13px; letter-spacing:1px; text-transform:uppercase; color:var(--tx2); margin-bottom:14px; }
+        label { display:block; font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--tx2); margin:12px 0 6px; }
+        input { width:100%; background:var(--in); border:1px solid var(--bd); border-radius:10px; padding:11px 13px; color:var(--tx); font-family:inherit; font-size:13px; outline:none; }
+        input:focus { border-color:var(--gold); }
+        .StripeElement { background:var(--in); border:1px solid var(--bd); border-radius:10px; padding:12px 13px; }
+        .StripeElement--focus { border-color:var(--gold); }
+        .row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+        button { width:100%; padding:13px; border:none; border-radius:11px; font-family:inherit; font-size:13px; font-weight:700; cursor:pointer; margin-top:16px; }
+        .btn-gold { background:var(--gold); color:#000; } .btn-gold:disabled { opacity:.5; cursor:not-allowed; }
+        .btn-ghost { background:var(--el); color:var(--tx); border:1px solid var(--bd); }
+        .hint { font-size:11px; color:var(--tx2); margin-top:8px; line-height:1.5; }
+        .hint code { color:var(--gold); }
+        .log { background:#000; border:1px solid var(--bd); border-radius:12px; padding:14px; font-family:ui-monospace,monospace; font-size:11.5px; line-height:1.55; white-space:pre-wrap; word-break:break-word; max-height:340px; overflow:auto; color:#cfcfcf; }
+        .log .ok { color:var(--green); } .log .err { color:var(--red); } .log .info { color:var(--blue); } .log .dim { color:#666; }
+        a { color:var(--gold); }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <h1>Rent Payments <b>Test Harness</b><span class="mode" id="modeChip">…</span></h1>
+    <p class="lead">Validate the SEPA Direct Debit flow end-to-end against Stripe <b>test mode</b>: set up a mandate, then debit a period. Watch the ledger move <code>created → processing → paid</code> via the webhook. No real money. See <a href="PAYMENTS.md">PAYMENTS.md</a>.</p>
+
+    <div class="card">
+        <h2>0 · Connessione</h2>
+        <label>Test secret (PAY_TEST_SECRET)</label>
+        <input id="secret" type="password" placeholder="il valore di PAY_TEST_SECRET">
+        <div class="hint">Salvato solo in questa scheda (sessionStorage). Richiesto dagli endpoint in test mode.</div>
+    </div>
+
+    <div class="card">
+        <h2>1 · Contratto & inquilino</h2>
+        <div class="row">
+            <div><label>Contract ID</label><input id="contractId" value="test-contract-01"></div>
+            <div><label>Periodo</label><input id="period" value="2026-07"></div>
+        </div>
+        <div class="row">
+            <div><label>Nome inquilino</label><input id="name" value="Marco Rossi"></div>
+            <div><label>Email</label><input id="email" value="marco@example.com"></div>
+        </div>
+        <label>Importo canone (EUR)</label>
+        <input id="amount" value="1800" inputmode="numeric">
+    </div>
+
+    <div class="card">
+        <h2>2 · IBAN (SEPA)</h2>
+        <div id="iban" class="StripeElement"></div>
+        <div class="hint">Usa un <a href="https://docs.stripe.com/testing#sepa-direct-debit" target="_blank">IBAN di test Stripe</a>. Prova rapida: <code>DE89370400440532013000</code> (successo).</div>
+        <button class="btn-gold" id="btnMandate" disabled>① Imposta mandato SEPA</button>
+        <button class="btn-gold" id="btnPay" disabled>② Paga affitto (addebito SEPA)</button>
+    </div>
+
+    <div class="card">
+        <h2>Log</h2>
+        <div class="log" id="log"><span class="dim">In attesa…</span></div>
+    </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const logEl = $('log');
+function log(msg, cls='') { const t = new Date().toLocaleTimeString('it-IT'); logEl.innerHTML += `\n<span class="dim">${t}</span> <span class="${cls}">${msg}</span>`; logEl.scrollTop = logEl.scrollHeight; }
+function logJson(obj) { logEl.innerHTML += `\n<span class="dim">${JSON.stringify(obj, null, 2)}</span>`; logEl.scrollTop = logEl.scrollHeight; }
+
+// persist secret in this tab
+$('secret').value = sessionStorage.getItem('payTestSecret') || '';
+$('secret').addEventListener('input', e => sessionStorage.setItem('payTestSecret', e.target.value));
+
+async function api(path, body) {
+    const r = await fetch(path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Pay-Test-Secret': $('secret').value },
+        body: JSON.stringify(body),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { log(`HTTP ${r.status} on ${path}`, 'err'); logJson(j); throw new Error(j.error || r.status); }
+    return j;
+}
+
+let stripe, ibanEl;
+(async function init() {
+    try {
+        const cfg = await (await fetch('/api/payments/config')).json();
+        const chip = $('modeChip');
+        chip.textContent = cfg.mode || '?'; chip.className = 'mode ' + (cfg.mode === 'live' ? 'live' : 'test');
+        if (!cfg.ok || !cfg.publishableKey) { log('Config non pronta: ' + (cfg.configError || 'publishable key mancante'), 'err'); log('Imposta STRIPE_PUBLISHABLE_KEY_TEST e STRIPE_SECRET_KEY_TEST su Vercel.', 'info'); return; }
+        if (cfg.mode === 'live') { log('⚠️ MODE = LIVE. Questa è una harness di test — esci dalla modalità live.', 'err'); return; }
+        stripe = Stripe(cfg.publishableKey);
+        const elements = stripe.elements();
+        ibanEl = elements.create('iban', { supportedCountries: ['SEPA'], placeholderCountry: 'IT', style: { base: { color: '#fff', fontFamily: 'Inter, sans-serif', '::placeholder': { color: '#666' } } } });
+        ibanEl.mount('#iban');
+        $('btnMandate').disabled = false; $('btnPay').disabled = false;
+        log('Stripe.js pronto (mode=' + cfg.mode + ', SEPA Direct Debit).', 'ok');
+    } catch (e) { log('Init fallita: ' + e.message, 'err'); }
+})();
+
+$('btnMandate').onclick = async () => {
+    try {
+        $('btnMandate').disabled = true;
+        log('Creo SetupIntent…', 'info');
+        const r = await api('/api/payments/setup-mandate', { contractId: $('contractId').value, tenant: { name: $('name').value, email: $('email').value } });
+        log('SetupIntent ok · customer ' + r.customerId, 'ok');
+        log('Confermo mandato SEPA con IBAN…', 'info');
+        const res = await stripe.confirmSepaDebitSetup(r.clientSecret, { payment_method: { sepa_debit: ibanEl, billing_details: { name: $('name').value, email: $('email').value } } });
+        if (res.error) { log('Mandato: ' + res.error.message, 'err'); }
+        else { log('✅ Mandato attivo · ' + res.setupIntent.status + ' (il webhook lo salva sul contratto)', 'ok'); }
+    } catch (e) { log('Errore mandato: ' + e.message, 'err'); }
+    finally { $('btnMandate').disabled = false; }
+};
+
+$('btnPay').onclick = async () => {
+    try {
+        $('btnPay').disabled = true;
+        const amountCents = Math.round(parseFloat($('amount').value || '0') * 100);
+        log('Creo PaymentIntent per ' + $('period').value + ' (€' + ($('amount').value) + ')…', 'info');
+        const r = await api('/api/payments/pay-rent', { contractId: $('contractId').value, period: $('period').value, amountCents });
+        if (r.idempotent) { log('Periodo già ' + r.status + ' — niente doppio addebito.', 'ok'); return; }
+        log('PaymentIntent ' + r.paymentIntentId + ' · status ' + r.status, 'info');
+        log('Confermo addebito SEPA…', 'info');
+        const res = await stripe.confirmSepaDebitPayment(r.clientSecret, { payment_method: { sepa_debit: ibanEl, billing_details: { name: $('name').value, email: $('email').value } } });
+        if (res.error) { log('Pagamento: ' + res.error.message, 'err'); }
+        else { log('✅ Addebito avviato · ' + res.paymentIntent.status + ' — SEPA impiega 1–2 gg. Il webhook scriverà rentPayments/' + ($('contractId').value) + '_' + ($('period').value) + '.', 'ok'); }
+    } catch (e) { log('Errore pagamento: ' + e.message, 'err'); }
+    finally { $('btnPay').disabled = false; }
+};
+</script>
+</body>
+</html>

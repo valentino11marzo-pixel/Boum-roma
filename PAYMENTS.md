@@ -2,8 +2,9 @@
 
 > Decision-grade design for collecting **monthly rent** through the tenant portal,
 > "for real" — built so the **fee reality is solved**, not absorbed silently.
-> Status: **design approved-in-principle, implementation pending go-live sign-off.**
-> Prototype: `preview-tenant.html` (Affitto tab) already reflects this design.
+> Status: **Phase 1 built in Stripe test mode** (`api/payments/*` +
+> `pay-rent-test.html`), live-locked until `RENT_PAYMENTS_LIVE=true`. See §5b.
+> Prototype: `preview-tenant.html` (Affitto tab) reflects this design.
 
 ---
 
@@ -19,9 +20,11 @@
   pre-notification email 1–2 days prior.
 - **Who pays the ~€6:** **BOOM absorbs it** (netted from the management fee). The
   tenant sees *commissione €0*. €6 is noise against the management fee.
-- **Money flow:** ship Phase 1 collecting into BOOM's existing Stripe account
-  (manual landlord remittance); migrate to **Stripe Connect** (auto landlord
-  payout, BOOM never holds client funds) as the scalable target.
+- **Money flow (decided):** **collect into BOOM's account, BOOM remits to the
+  landlord by ordinary SEPA credit transfer — which is free.** So there is **no
+  fee on the owner payout**; optionally a small management fee if the owner wants
+  BOOM to manage/track. **No Stripe Connect** — forcing an Italian landlord to
+  onboard to Stripe is unacceptable friction. BOOM stays in control of the flow.
 
 ---
 
@@ -74,19 +77,16 @@ These are the things that bite if you ship SEPA naively. Each has a mitigation.
    - *Mitigation:* reuse `reminder-cron.js` to send a pre-notification 1–2 days
      before each autopay run; the mandate text states the reduced notice.
 
-5. **Money transmission / licensing.** Collecting rent and remitting to owners is
-   sensitive. Two clean models:
-   - **Phase 1 (fast):** rent lands in BOOM's own Stripe account; BOOM remits to
-     the owner by SEPA credit transfer under its management mandate. Simple,
-     reuses today's setup, BOOM briefly holds funds.
-   - **Phase 3 (clean/scalable):** **Stripe Connect** — each landlord is a
-     connected (Express) account; a *destination charge* with
-     `application_fee_amount` = BOOM's fee routes rent straight to the landlord.
-     **BOOM never holds client money**, sidestepping payment-institution
-     licensing concerns.
-   - *Action:* confirm the Phase 1 hold-and-remit model with the
-     accountant/legal; Connect is the target once volume justifies per-landlord
-     KYC onboarding.
+5. **Money transmission / licensing (decided: collect-into-BOOM, no Connect).**
+   Rent lands in BOOM's own Stripe account; BOOM remits to the owner by ordinary
+   **SEPA credit transfer (free)** under its management mandate. BOOM briefly
+   holds funds and stays in control. **Stripe Connect was rejected** — onboarding
+   each Italian landlord to Stripe is ultra-friction, and the free credit
+   transfer already gives a zero-fee payout. The owner can opt into a small
+   management fee; otherwise they receive the rent in full.
+   - *Action:* confirm the hold-and-remit model with the accountant/legal (an
+     agency collecting rent under mandato is normal; keep clean records). Revisit
+     Connect only if scale ever makes per-landlord onboarding worth it — not now.
 
 6. **Receipts / tax (IT).** Residential rent is generally **VAT-exempt** and often
    under **cedolare secca** (already modelled in `fiscal-engine.js`). Generate a
@@ -138,30 +138,85 @@ On `succeeded`: write the receipt, advance the ledger, queue the owner payout
 
 ## 5. Phased rollout
 
-- **Phase 1 — real, minimal.** SEPA mandate setup + manual **"Paga ora"** debit
-  into BOOM's account → webhook writes receipt + ledger → tenant & owner see it.
-  Landlord remitted manually. *No Connect.* Ships real money movement fastest.
-- **Phase 2 — autopay.** Monthly cron + pre-notification + failed-payment dunning.
-- **Phase 3 — Connect.** Destination charges → automatic landlord payout +
-  application fee + per-landlord KYC onboarding.
+- **Phase 1 — real, minimal.** ✅ *Built (test mode).* SEPA mandate setup +
+  manual **"Paga ora"** debit into BOOM's account → webhook writes the ledger →
+  tenant & owner see it. Landlord remitted by free SEPA credit transfer. No
+  Connect.
+- **Phase 2 — autopay.** Monthly cron + pre-notification + failed-payment
+  dunning. *(Next.)*
+- **Phase 3 — receipts & owner reconciliation.** Auto *ricevuta* PDF on
+  settlement, owner payout tracking in the portal.
 - **Phase 4 — card fallback.** SCA card for non-IBAN tenants; Apple/Google Pay.
 
-**Always build & validate in Stripe _test mode_ first**, then flip live after one
-real SEPA debit against your own IBAN settles end-to-end.
+*(Stripe Connect intentionally not planned — see §3.5.)*
+
+**Always validate in Stripe _test mode_ first** (the code refuses to use a live
+key unless `RENT_PAYMENTS_LIVE=true`), then flip live after one real SEPA debit
+against your own IBAN settles end-to-end.
 
 ---
 
-## 6. Open decisions (need your call before I write live code)
+## 5b. What's built (test mode) — files, env, test plan
 
-1. **Fee bearer** — confirm **BOOM absorbs the ~€6** (netted from the mgmt fee),
-   tenant pays €0. *(Recommended.)*
-2. **Money flow for Phase 1** — confirm **collect-into-BOOM + manual remittance**
-   to start, Connect later. *(Recommended.)* Or go Connect-first.
-3. **Same Stripe account?** Confirm the account behind `STRIPE_SECRET_KEY` is the
-   one that should hold/route rent (it currently takes PFS + reservation
-   payments).
-4. **Go-live gate** — writing `api/payments/*` touches real money, so I'll build
-   it in **test mode**, you validate, then we flip live together.
+**Endpoints (`api/payments/`)** — all default to Stripe test; a live key is used
+only when `RENT_PAYMENTS_LIVE=true` and `STRIPE_SECRET_KEY` is `sk_live_…`.
+
+| File | What it does |
+|---|---|
+| `_lib.js` | Safe key resolution (test-first + live guard), test-secret gate, idempotent ledger id, fee estimate |
+| `config.js` | `GET` → `{ mode, publishableKey }` for Stripe.js |
+| `setup-mandate.js` | `POST` → Customer + SEPA SetupIntent `client_secret` |
+| `pay-rent.js` | `POST` → rent PaymentIntent (manual or off-session autopay), opens the ledger row; idempotent on `contractId+period` |
+| `webhook.js` | Dedicated rent webhook (own secret) → advances `rentPayments/<id>`, persists the mandate on the contract. **Separate from the live `stripe-webhook.js` so it can't disturb PFS/reservations.** |
+
+**Harness:** `pay-rent-test.html` (noindex) — set up a mandate + debit a period
+with a Stripe test IBAN and watch the ledger move.
+
+**Firestore:** `rentPayments/{contractId}_{period}` (ledger) and
+`contracts/{id}.payment` (`stripeCustomerId, sepaPmId, mandateId, ibanLast4,
+status`) + `lastPaidPeriod`.
+
+**Env to add (test):**
+```
+RENT_PAYMENTS_LIVE          (leave unset / not "true" for test)
+STRIPE_SECRET_KEY_TEST      sk_test_…
+STRIPE_PUBLISHABLE_KEY_TEST pk_test_…
+STRIPE_RENT_WEBHOOK_SECRET  whsec_…   (from the test webhook endpoint below)
+PAY_TEST_SECRET             any long random string (guards the harness)
+```
+
+**Test plan:**
+1. Add the env vars above on Vercel (Preview/Production for this branch).
+2. In the Stripe **test** dashboard, add a webhook → URL `…/api/payments/webhook`,
+   events: `setup_intent.succeeded`, `payment_intent.processing`,
+   `payment_intent.succeeded`, `payment_intent.payment_failed`,
+   `charge.refunded`. Copy its signing secret into `STRIPE_RENT_WEBHOOK_SECRET`.
+3. Open `/pay-rent-test.html`, paste `PAY_TEST_SECRET`, set up a mandate with a
+   test IBAN (`DE89370400440532013000`), then **Paga affitto**.
+4. Confirm `rentPayments/test-contract-01_2026-07` goes `processing → paid` and
+   `contracts/test-contract-01.payment.status = active`. (Test SEPA settles after
+   a short delay; you can also advance it from the Stripe test dashboard.)
+5. Only after a clean test run: set `RENT_PAYMENTS_LIVE=true` with the live keys
+   and a live webhook, and do one real debit on your own IBAN before launch.
+
+---
+
+## 6. Decisions & remaining gates
+
+**Decided:**
+- ✅ **SEPA Direct Debit first**, card only as non-IBAN fallback.
+- ✅ **BOOM absorbs the ~€6** (netted from the mgmt fee); tenant pays €0.
+- ✅ **Collect-into-BOOM + free SEPA credit-transfer payout**; **no Connect**.
+
+**Remaining gates (yours):**
+1. **Stripe account** — confirm whether rent should use the **same** Stripe
+   account as PFS/reservations (just add a test key), or a separate one. The
+   code reads `STRIPE_SECRET_KEY_TEST` so either works.
+2. **Go-live** — code is built **test-mode-locked**. After you run the test plan
+   above and it's clean, we set `RENT_PAYMENTS_LIVE=true` together. Nothing
+   charges real money until then.
+3. **Receipts/IVA detail** — confirm the *ricevuta* format + whether the mgmt fee
+   is invoiced separately (Phase 3).
 
 ---
 
