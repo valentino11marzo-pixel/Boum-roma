@@ -166,26 +166,7 @@
         .media-placeholder{width:100%;height:400px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;background:var(--dark-void);border:1px dashed rgba(255,255,255,0.1);border-radius:16px;color:var(--text-fade)}
         .media-placeholder span{font-size:48px;opacity:.3}
 
-        /* Carousel */
-        .carousel{position:relative;border-radius:16px;overflow:hidden;border:1px solid rgba(255,255,255,0.06);background:var(--dark-void)}
-        .carousel-track{display:flex;transition:transform .4s cubic-bezier(.25,.46,.45,.94);will-change:transform}
-        .carousel-slide{min-width:100%;position:relative}
-        .carousel-slide img{width:100%;height:550px;object-fit:cover;display:block}
-        .carousel-slide.video-slide{display:flex;align-items:center;justify-content:center;background:#000}
-        .carousel-slide.video-slide iframe{width:100%;height:550px;border:none}
-        .carousel-btn{position:absolute;top:50%;transform:translateY(-50%);width:48px;height:48px;background:rgba(0,0,0,0.7);border:1px solid rgba(255,255,255,0.15);border-radius:50%;color:#fff;font-size:18px;cursor:pointer;transition:all .3s;display:flex;align-items:center;justify-content:center;z-index:10;backdrop-filter:blur(10px)}
-        .carousel-btn:hover{background:rgba(0,0,0,0.9);border-color:var(--gold);color:var(--gold)}
-        .carousel-prev{left:16px}.carousel-next{right:16px}
-        .carousel-counter{position:absolute;bottom:16px;right:16px;padding:6px 14px;background:rgba(0,0,0,0.7);border-radius:100px;font-size:12px;color:rgba(255,255,255,0.8);backdrop-filter:blur(10px);z-index:10}
-        .carousel-video-badge{position:absolute;top:16px;right:16px;padding:6px 14px;background:rgba(255,59,48,0.9);border-radius:100px;font-size:11px;font-weight:600;color:#fff;z-index:10;display:none}
-        .carousel-thumbs{display:flex;gap:8px;margin-top:12px;overflow-x:auto;padding:4px 0;scrollbar-width:none}
-        .carousel-thumbs::-webkit-scrollbar{display:none}
-        .carousel-thumb{width:72px;height:50px;flex-shrink:0;border-radius:8px;overflow:hidden;cursor:pointer;border:2px solid transparent;opacity:.5;transition:all .3s}
-        .carousel-thumb.active{border-color:var(--gold);opacity:1}
-        .carousel-thumb:hover{opacity:.8}
-        .carousel-thumb img{width:100%;height:100%;object-fit:cover}
-        .carousel-thumb.video-thumb{position:relative;background:#111;display:flex;align-items:center;justify-content:center}
-        .carousel-thumb.video-thumb::after{content:'▶';position:absolute;color:#FF3B30;font-size:18px}
+        /* (legacy carousel styles removed — the gallery uses .gal) */
 
         /* Video section */
         .video-section{margin-top:30px}
@@ -1794,7 +1775,7 @@
     const FB_CONFIG={apiKey:"AIzaSyDDb8UeSc8RhO_VxQrhLrupu1aPD4rwRso",authDomain:"boom-property-dashboards.firebaseapp.com",projectId:"boom-property-dashboards",storageBucket:"boom-property-dashboards.firebasestorage.app",messagingSenderId:"937269017440",appId:"1:937269017440:web:41c1a0b1e1633c2f373c05"};
     let db=null;
     function getDB(){ if(!db){ try{ if(window.firebase){ if(!firebase.apps.length) firebase.initializeApp(FB_CONFIG); db=firebase.firestore(); } }catch(e){} } return db; }
-    let aptAddress='',currentSlide=0,totalSlides=0,galleryImgs=[],lbIndex=0;
+    let aptAddress='',galleryImgs=[],lbIndex=0;
     // Right-size imgur photos (l=640px, h=1024px). Originals stay full-size in the lightbox.
     function imgSized(u,s){u=String(u||'');if(!/i\.imgur\.com/.test(u))return u;return u.replace(/(\/[A-Za-z0-9]{7})(\.(?:jpe?g|png|webp))/i,'$1'+s+'$2')}
     // Optimised delivery via Vercel Image (AVIF/WebP, exact width). The markup's
@@ -2270,24 +2251,7 @@
     })();
 
     function exYT(u){if(!u)return null;const m=u.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/);return m?m[1]:null}
-    function goTo(i){currentSlide=i;updC()}
-    function next(){currentSlide=(currentSlide+1)%totalSlides;updC()}
-    function prev(){currentSlide=(currentSlide-1+totalSlides)%totalSlides;updC()}
-    function updC(){
-        const t=document.getElementById('carouselTrack');if(!t)return;
-        t.style.transform=`translateX(-${currentSlide*100}%)`;
-        document.getElementById('carouselCounter').textContent=`${currentSlide+1} / ${totalSlides}`;
-        document.querySelectorAll('.carousel-thumb').forEach((th,i)=>th.classList.toggle('active',i===currentSlide));
-        const a=document.querySelector('.carousel-thumb.active');if(a)a.scrollIntoView({behavior:'smooth',inline:'center',block:'nearest'});
-    }
-    function initSwipe(){
-        const c=document.getElementById('carousel');if(!c)return;
-        let sX=0,dX=0;
-        c.addEventListener('touchstart',e=>{sX=e.touches[0].clientX},{passive:true});
-        c.addEventListener('touchmove',e=>{dX=e.touches[0].clientX-sX},{passive:true});
-        c.addEventListener('touchend',()=>{if(Math.abs(dX)>50){dX<0?next():prev()}dX=0});
-    }
-    document.addEventListener('keydown',e=>{if(!document.getElementById('lightbox').hidden)return;if(e.key==='ArrowRight')next();if(e.key==='ArrowLeft')prev()});
+    /* (legacy carousel JS removed — the editorial gallery + lightbox replace it) */
 
     function buildMap(d){
         const c=document.getElementById('mapContainer');
