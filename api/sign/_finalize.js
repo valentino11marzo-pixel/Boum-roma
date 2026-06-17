@@ -15,7 +15,8 @@
 import crypto from 'node:crypto';
 import { fsCreate, fsPatch, fsGet, getAdminToken } from '../homie/_lib.js';
 import { sendEmail } from '../agent/_lib.js';
-import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+// pdf-lib is imported lazily inside buildCertificate so a load failure only
+// skips the certificate — obligations, magic link and welcome emails still run.
 
 const BASE = 'https://www.boomrome.com';
 const GOLD = '#B8860B';
@@ -196,6 +197,7 @@ async function uploadPdf(path, bytes){
 
 // ── FES signing certificate (one A4 page, signatures + audit trail) ──
 async function buildCertificate(c, property){
+  const { PDFDocument, StandardFonts, rgb } = await import('pdf-lib');
   const pdf = await PDFDocument.create();
   const page = pdf.addPage([595, 842]);
   const font = await pdf.embedFont(StandardFonts.Helvetica);
