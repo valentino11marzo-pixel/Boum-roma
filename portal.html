@@ -4227,7 +4227,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             .onSnapshot(snapshot => {
                 S.maintenance = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 const active = m => m.status !== 'resolved' && m.status !== 'closed' && m.status !== 'done';
-                const fresh = S.maintenance.filter(m => active(m) && !S._maintSeen.has(m.id));
+                const firstRun = !S._maintInit; S._maintInit = true;   // don't alert for pre-existing tickets on login
+                const fresh = firstRun ? [] : S.maintenance.filter(m => active(m) && !S._maintSeen.has(m.id));
                 S._maintSeen = new Set(S.maintenance.map(m => m.id));
                 if (fresh.length) {
                     const top = fresh.find(m => m.priority === 'urgent') || fresh[0];
@@ -4260,7 +4261,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             .onSnapshot(snapshot => {
                 S.agentFeed = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
                     .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
-                const fresh = S.agentFeed.filter(a => !S._agentSeen.has(a.id));
+                const firstRun = !S._agentInit; S._agentInit = true;   // don't alert for queued backlog on login
+                const fresh = firstRun ? [] : S.agentFeed.filter(a => !S._agentSeen.has(a.id));
                 S._agentSeen = new Set(S.agentFeed.map(a => a.id));
                 const hot = fresh.filter(a => a.priority === 'urgent' || a.priority === 'high');
                 if (hot.length) {
