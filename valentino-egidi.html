@@ -3,585 +3,359 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Valentino Egidi — Mediatore immobiliare · Roma MMXXX</title>
-<meta name="description" content="Compravendita immobiliare a Roma senza copioni. Onesto fino all'imbarazzo, preciso fino al decimale. Affitti medio termine con BOOM.">
+<title>Valentino Egidi — Vendi casa a Roma al prezzo vero · Mediatore immobiliare</title>
+<meta name="description" content="Il mediatore più tecnologico di Roma. Vendi casa al prezzo vero, seguìto da un solo nome. Valutazione onesta e gratuita in 48 ore. Egidi Immobiliare.">
 <meta name="robots" content="noindex, nofollow">
-<meta name="theme-color" content="#0D0F12">
-<style>
-/* ══════════════════════════════════════════════════════════════
-   VALENTINO EGIDI — ROMA MMXXX  ·  v3 "studio-grade"
-   Rationalist-industrial × 2030 tech × Roman travertine
-   Type: Helvetica Neue 300 only (from BOOM identity)
-   Material narrative: graphite/steel  ⇄  travertine stone
-   Self-contained · bilingual IT/EN · sound optional · a11y safe
-   ══════════════════════════════════════════════════════════════ */
-*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
-
-:root{
-  --void:#08090B;
-  --graphite:#0D0F12;
-  --graphite-2:#12151A;
-  --concrete:#171B20;
-  --concrete-2:#1F242B;
-  --steel:#ECEEF1;
-  --steel-2:rgba(236,238,241,.58);
-  --steel-3:rgba(236,238,241,.32);
-  --steel-4:rgba(236,238,241,.13);
-  --line:rgba(236,238,241,.12);
-  --line-2:rgba(236,238,241,.055);
-  --travertine:#CDC4AF;
-  --travertine-2:#BCB199;
-  --stone-ink:#16140E;
-  --stone-ink-2:rgba(22,20,14,.62);
-  --ember:#FF4A1E;
-  --ember-2:#FF7A4D;
-  --ember-dim:rgba(255,74,30,.14);
-  --gold:#E9B949;                 /* used ONLY in the BOOM bridge */
-  --font:'Helvetica Neue','Helvetica Neue LT','HelveticaNeue',Helvetica,Arial,sans-serif;
-  --e1:cubic-bezier(.16,1,.3,1);
-  --e2:cubic-bezier(.76,0,.24,1);
-  --e3:cubic-bezier(.85,0,.15,1);
-}
-
-html{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;scroll-behavior:smooth}
-body{font-family:var(--font);font-weight:300;background:var(--graphite);color:var(--steel);line-height:1.55;overflow-x:hidden;letter-spacing:.01em}
-::selection{background:var(--ember);color:#fff}
-img{max-width:100%;display:block}
-a{color:inherit;text-decoration:none}
-h1,h2,h3,h4{font-weight:300;letter-spacing:-.012em}
-body.lock{overflow:hidden;height:100vh}
-
-/* grain */
-.grain{position:fixed;inset:0;z-index:7;pointer-events:none;opacity:.045;mix-blend-mode:overlay;
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
-/* pointer spotlight (depth) */
-.spot{position:fixed;width:620px;height:620px;left:0;top:0;z-index:0;pointer-events:none;border-radius:50%;
-  background:radial-gradient(circle,rgba(255,74,30,.10),transparent 62%);transform:translate(-50%,-50%);opacity:0;transition:opacity .6s}
-body.cur-on .spot{opacity:1}
-
-.wrap{max-width:1340px;margin:0 auto;padding:0 48px}
-@media(max-width:680px){.wrap{padding:0 20px}}
-
-/* technical micro-label */
-.tag{font-size:11px;font-weight:300;letter-spacing:.3em;text-transform:uppercase;font-variant-numeric:tabular-nums}
-.tag .sq{display:inline-block;width:7px;height:7px;background:var(--ember);margin-right:12px;vertical-align:1px}
-.num{font-variant-numeric:tabular-nums;letter-spacing:.04em}
-
-/* ── PRELOADER ─────────────────────────────────────────────── */
-.pre{position:fixed;inset:0;z-index:1000;background:var(--void);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:30px;
-  transition:clip-path 1s var(--e3),opacity .6s;clip-path:inset(0 0 0 0)}
-.pre.done{clip-path:inset(0 0 100% 0);pointer-events:none}
-.pre-mark{width:74px;height:74px}
-.pre-mark .dr{fill:none;stroke:var(--steel);stroke-width:3;stroke-dasharray:1;stroke-dashoffset:1;pathLength:1;
-  animation:draw 1.3s var(--e1) forwards}
-.pre-mark .tick{fill:var(--ember);opacity:0;animation:tickin .4s ease 1s forwards}
-@keyframes draw{to{stroke-dashoffset:0}}
-@keyframes tickin{to{opacity:1}}
-.pre-row{display:flex;align-items:baseline;gap:16px;overflow:hidden}
-.pre-name{font-size:13px;letter-spacing:.42em;text-transform:uppercase;color:var(--steel-2);
-  transform:translateY(110%);animation:rise .7s var(--e1) .55s forwards}
-@keyframes rise{to{transform:none}}
-.pre-count{position:absolute;bottom:34px;right:44px;font-size:13px;letter-spacing:.1em;color:var(--steel-3);font-variant-numeric:tabular-nums}
-.pre-bar{position:absolute;bottom:0;left:0;height:2px;width:0;background:var(--ember)}
-
-/* ── custom cursor ─────────────────────────────────────────── */
-.cur{position:fixed;top:0;left:0;z-index:9999;width:30px;height:30px;transform:translate(-50%,-50%);pointer-events:none;will-change:transform;
-  display:flex;align-items:center;justify-content:center;transition:width .3s var(--e1),height .3s var(--e1),background .3s,border-radius .3s}
-.cur::before,.cur::after{content:"";position:absolute;background:var(--ember);transition:opacity .25s}
-.cur::before{left:50%;top:0;width:1px;height:100%;transform:translateX(-50%)}
-.cur::after{top:50%;left:0;height:1px;width:100%;transform:translateY(-50%)}
-.cur-tx{font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:#fff;opacity:0;white-space:nowrap;transition:opacity .25s}
-.cur.grow{width:52px;height:52px;border:1px solid var(--ember)}
-.cur.grow::before,.cur.grow::after{opacity:0}
-.cur.label{width:auto;height:auto;padding:9px 14px;background:var(--ember);border-radius:100px}
-.cur.label::before,.cur.label::after{opacity:0}
-.cur.label .cur-tx{opacity:1}
-.cur-d{position:fixed;top:0;left:0;z-index:9999;width:4px;height:4px;background:var(--ember);transform:translate(-50%,-50%);pointer-events:none;will-change:transform;transition:opacity .3s}
-.cur.label ~ .cur-d{opacity:0}
-body.cur-on,body.cur-on *{cursor:none!important}
-@media(hover:none){.cur,.cur-d,.spot{display:none!important}}
-
-/* top progress + section rail */
-.prog{position:fixed;top:0;left:0;height:2px;width:0;background:var(--ember);z-index:95}
-.rail{position:fixed;right:30px;top:50%;transform:translateY(-50%);z-index:80;display:flex;flex-direction:column;gap:14px}
-@media(max-width:1100px){.rail{display:none}}
-.rail a{display:flex;align-items:center;gap:10px;justify-content:flex-end;color:var(--steel-3);font-size:10px;letter-spacing:.16em;font-variant-numeric:tabular-nums;transition:.3s}
-.rail a .ln{width:18px;height:1px;background:var(--steel-4);transition:.4s var(--e1)}
-.rail a:hover,.rail a.on{color:var(--ember)}
-.rail a.on .ln,.rail a:hover .ln{width:34px;background:var(--ember)}
-
-/* ── NAV ───────────────────────────────────────────────────── */
-nav{position:fixed;top:0;left:0;right:0;z-index:90;transition:.5s var(--e1)}
-nav.scrolled{background:color-mix(in srgb,var(--graphite) 82%,transparent);backdrop-filter:blur(14px);border-bottom:1px solid var(--line-2)}
-.nav-in{display:flex;align-items:center;justify-content:space-between;height:78px}
-.logo{display:flex;align-items:center;gap:13px}
-.logo svg{width:30px;height:30px}
-.logo .mk{fill:none;stroke:var(--steel);stroke-width:4}
-.logo .mt{fill:var(--ember)}
-.logo b{font-size:17px;font-weight:300;letter-spacing:.2em;text-transform:uppercase}
-.nav-r{display:flex;align-items:center;gap:4px}
-.nav-link{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--steel-2);padding:10px 13px;transition:.3s;position:relative}
-.nav-link::after{content:"";position:absolute;left:13px;right:13px;bottom:6px;height:1px;background:var(--ember);transform:scaleX(0);transform-origin:left;transition:transform .4s var(--e1)}
-.nav-link:hover{color:var(--steel)}
-.nav-link:hover::after{transform:scaleX(1)}
-@media(max-width:820px){.nav-link.h{display:none}}
-.nav-cta{border:1px solid var(--steel);padding:11px 20px;font-size:11px;letter-spacing:.2em;text-transform:uppercase;transition:.35s var(--e1)}
-.nav-cta:hover{background:var(--ember);border-color:var(--ember);color:#fff}
-
-/* ── HERO ──────────────────────────────────────────────────── */
-.hero{position:relative;min-height:100svh;display:flex;flex-direction:column;justify-content:center;padding:130px 0 70px;overflow:hidden}
-.hero-blueprint{position:absolute;inset:0;z-index:0;opacity:.15;will-change:transform}
-.hero-blueprint .bp-arch{stroke:var(--steel);stroke-width:1;fill:none}
-.hero-grid{position:absolute;inset:0;z-index:0;opacity:.5;background-image:linear-gradient(var(--line-2) 1px,transparent 1px),linear-gradient(90deg,var(--line-2) 1px,transparent 1px);background-size:78px 78px;mask-image:radial-gradient(circle at 28% 42%,#000,transparent 78%)}
-.hero-scan{position:absolute;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--ember),transparent);opacity:.45;z-index:1;animation:scan 7.5s linear infinite}
-@keyframes scan{0%{top:6%}50%{top:90%}100%{top:6%}}
-.hero-hud{position:absolute;top:96px;right:48px;text-align:right;line-height:2.05;z-index:3}
-.hero-hud .tag{display:block;color:var(--steel-3)}
-.hero-hud .tag b{color:var(--ember);font-weight:300}
-@media(max-width:1100px){.hero-hud{display:none}}
-/* travertine monolith */
-.monolith{position:absolute;right:0;top:0;bottom:0;width:23vw;max-width:340px;background:linear-gradient(180deg,var(--travertine),var(--travertine-2));z-index:1;
-  display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:120px 0 56px;overflow:hidden;will-change:transform}
-.monolith::before{content:"";position:absolute;inset:0;opacity:.55;mix-blend-mode:multiply;
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='t'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.035 .08' numOctaves='3'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .45 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23t)'/%3E%3C/svg%3E")}
-.monolith .m-mark{width:62px;height:62px;position:relative;z-index:2}
-.monolith .m-mark .mk{fill:none;stroke:var(--stone-ink);stroke-width:4}
-.monolith .m-mark .mt{fill:var(--ember)}
-.monolith .m-vert{writing-mode:vertical-rl;transform:rotate(180deg);font-size:12px;letter-spacing:.5em;text-transform:uppercase;color:var(--stone-ink-2);position:relative;z-index:2}
-@media(max-width:1100px){.monolith{display:none}}
-.hero-in{position:relative;z-index:2}
-.hero .tag.ey{color:var(--ember)}
-.hero h1{font-size:clamp(42px,8.6vw,124px);line-height:.95;text-transform:uppercase;letter-spacing:-.014em;font-weight:300;max-width:15ch;margin-top:30px}
-.hero h1 .s{color:var(--ember)}
-.hero-sub{font-size:clamp(15px,1.7vw,20px);color:var(--steel-2);max-width:54ch;margin-top:34px}
-.hero-cta{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-top:48px}
-.btn{font-size:12px;letter-spacing:.18em;text-transform:uppercase;padding:18px 32px;transition:.4s var(--e1);display:inline-flex;align-items:center;gap:12px;border:1px solid transparent;will-change:transform}
-.btn-fill{background:var(--ember);color:#fff}
-.btn-fill:hover{background:var(--steel);color:var(--graphite)}
-.btn-line{border-color:var(--line);color:var(--steel)}
-.btn-line:hover{border-color:var(--steel)}
-.hero-foot{display:flex;gap:14px;align-items:center;margin-top:62px;color:var(--steel-3)}
-.hero-foot .ln{width:54px;height:1px;background:var(--steel-3);position:relative;overflow:hidden}
-.hero-foot .ln::after{content:"";position:absolute;inset:0;background:var(--ember);animation:slide 2.6s var(--e1) infinite}
-@keyframes slide{0%{transform:translateX(-100%)}55%,100%{transform:translateX(100%)}}
-
-/* ── MARQUEE ───────────────────────────────────────────────── */
-.marq{border-top:1px solid var(--line);border-bottom:1px solid var(--line);overflow:hidden;padding:17px 0;background:var(--graphite-2)}
-.marq-track{display:flex;width:max-content;white-space:nowrap;animation:marq 36s linear infinite}
-.marq:hover .marq-track{animation-play-state:paused}
-.marq span{font-size:clamp(15px,1.9vw,22px);text-transform:uppercase;letter-spacing:.16em;padding:0 28px;display:inline-flex;align-items:center;gap:28px;color:var(--steel-2)}
-.marq span::after{content:"";width:7px;height:7px;background:var(--ember);transform:rotate(45deg)}
-@keyframes marq{to{transform:translateX(-50%)}}
-
-/* ── SECTIONS ──────────────────────────────────────────────── */
-section{position:relative;z-index:2}
-.blk{padding:150px 0}
-@media(max-width:680px){.blk{padding:92px 0}}
-.s-head{max-width:66ch;margin-bottom:80px}
-.s-title{font-size:clamp(28px,5.4vw,68px);line-height:1.0;text-transform:uppercase;letter-spacing:-.012em;margin-top:20px;font-weight:300}
-.s-title .s{color:var(--ember)}
-.s-lead{color:var(--steel-2);font-size:clamp(15px,1.6vw,18px);max-width:58ch;margin-top:24px}
-
-/* MANIFESTO */
-.theses{border-top:1px solid var(--line)}
-.thesis{display:grid;grid-template-columns:130px 1fr;gap:30px;align-items:baseline;padding:42px 0;border-bottom:1px solid var(--line);transition:padding .5s var(--e1),background .5s var(--e1)}
-.thesis:hover{background:var(--ember-dim);padding-left:22px;padding-right:22px}
-.thesis .no{font-size:13px;color:var(--ember);letter-spacing:.16em;font-variant-numeric:tabular-nums}
-.thesis p{font-size:clamp(21px,3.4vw,40px);line-height:1.1;text-transform:uppercase;letter-spacing:-.006em}
-@media(max-width:680px){.thesis{grid-template-columns:1fr;gap:10px}}
-
-/* DIZIONARIO */
-.ht{background:var(--graphite-2)}
-.ht-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line);margin-top:10px}
-@media(max-width:760px){.ht-grid{grid-template-columns:1fr}}
-.ht-row{background:var(--graphite);padding:28px 30px;transition:background .4s var(--e1);position:relative}
-.ht-row:hover,.ht-row.open{background:var(--concrete-2)}
-.ht-row .lab{font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:var(--steel-3);display:block;margin-bottom:10px}
-.ht-row .said{font-size:clamp(19px,2.2vw,27px);text-transform:uppercase;letter-spacing:.01em}
-.ht-mean{margin-top:22px;padding-top:18px;border-top:1px solid var(--line);position:relative}
-.ht-mean .lab{color:var(--ember)}
-.ht-mean .truth{font-size:clamp(15px,1.8vw,18px);color:var(--steel);clip-path:inset(0 100% 0 0);transition:clip-path .55s var(--e1) .05s}
-.ht-row:hover .ht-mean .truth,.ht-row.open .ht-mean .truth{clip-path:inset(0 0 0 0)}
-.ht-mean::after{content:"";position:absolute;left:0;bottom:0;height:calc(100% - 28px);width:100%;background:repeating-linear-gradient(90deg,var(--ember) 0 11px,#101010 11px 22px);transition:transform .55s var(--e2);transform-origin:right;pointer-events:none}
-.ht-row:hover .ht-mean::after,.ht-row.open .ht-mean::after{transform:scaleX(0)}
-.ht-hint{margin-top:28px;color:var(--steel-3);font-size:11px;letter-spacing:.18em;text-transform:uppercase}
-
-/* MONUMENT */
-.monument{position:relative;min-height:108vh;display:flex;flex-direction:column;justify-content:center;align-items:center;overflow:hidden;background:var(--graphite);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
-.monu-stage{position:absolute;left:50%;bottom:0;width:min(1100px,96vw);z-index:0;transform:translateX(-50%);will-change:transform}
-.facade .f-stone{fill:var(--travertine)}
-.facade .f-seam{stroke:rgba(0,0,0,.16);stroke-width:1}
-.facade .f-void{fill:var(--graphite)}
-.monu-stage::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,var(--graphite) 1%,transparent 24%,transparent 66%,rgba(13,15,18,.7))}
-.monu-fg{position:relative;z-index:2;text-align:center;padding:0 22px;margin-bottom:9vh;will-change:transform}
-.monu-fg .over{color:var(--ember);letter-spacing:.55em;margin-bottom:28px}
-.monu-fg h2{font-size:clamp(40px,11.5vw,158px);line-height:.88;text-transform:uppercase;letter-spacing:-.022em;font-weight:300}
-.monu-fg .sub{color:var(--steel-2);letter-spacing:.42em;text-transform:uppercase;font-size:clamp(11px,1.5vw,15px);margin-top:28px}
-
-/* METHOD */
-.steps{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line)}
-.step{padding:38px 30px 46px;border-right:1px solid var(--line);transition:background .5s var(--e1)}
-.step:last-child{border-right:none}
-.step:hover{background:var(--concrete)}
-.step .sn{font-size:12px;color:var(--ember);letter-spacing:.16em;font-variant-numeric:tabular-nums}
-.step h3{font-size:23px;text-transform:uppercase;letter-spacing:.01em;margin:24px 0 14px}
-.step p{color:var(--steel-2);font-size:14.5px}
-@media(max-width:880px){.steps{grid-template-columns:1fr 1fr}.step:nth-child(2){border-right:none}.step:nth-child(-n+2){border-bottom:1px solid var(--line)}}
-@media(max-width:520px){.steps{grid-template-columns:1fr}.step{border-right:none;border-bottom:1px solid var(--line)}.step:last-child{border-bottom:none}}
-
-/* BUY / SELL */
-.duo{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line)}
-@media(max-width:760px){.duo{grid-template-columns:1fr}}
-.duo-card{background:var(--graphite);padding:52px 46px;transition:background .5s var(--e1)}
-.duo-card:hover{background:var(--concrete)}
-.duo-card .tag{color:var(--ember)}
-.duo-card h3{font-size:clamp(26px,3.6vw,40px);text-transform:uppercase;margin:16px 0 28px;letter-spacing:-.01em}
-.duo-card ul{list-style:none;display:flex;flex-direction:column;gap:18px}
-.duo-card li{display:grid;grid-template-columns:26px 1fr;gap:12px;color:var(--steel-2);font-size:16px}
-.duo-card li b{color:var(--steel);font-weight:300;border-bottom:1px solid var(--ember)}
-.duo-card li .ck{color:var(--ember)}
-
-/* METRICS */
-.metrics{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--line)}
-@media(max-width:760px){.metrics{grid-template-columns:1fr 1fr}}
-.metric{padding:50px 24px 0;border-right:1px solid var(--line)}
-.metric:last-child{border-right:none}
-@media(max-width:760px){.metric:nth-child(2){border-right:none}.metric:nth-child(-n+2){padding-bottom:50px;border-bottom:1px solid var(--line)}}
-.metric .v{font-size:clamp(46px,7.4vw,94px);line-height:1;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
-.metric .v .u{font-size:.4em;color:var(--ember);margin-left:3px}
-.metric .k{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--steel-2);margin-top:18px;max-width:22ch}
-
-/* ── BOOM BRIDGE (rentals division) ────────────────────────── */
-.boom{background:var(--concrete);border-top:1px solid var(--line);border-bottom:1px solid var(--line);position:relative;overflow:hidden}
-.boom::before{content:"";position:absolute;top:-40%;right:-10%;width:60%;height:180%;background:radial-gradient(circle,rgba(233,185,73,.10),transparent 60%);pointer-events:none}
-.boom-head{max-width:70ch;margin-bottom:60px}
-.boom-head .tag{color:var(--gold)}
-.boom-head .tag .sq{background:var(--gold)}
-.boom-head h2{font-size:clamp(28px,5vw,62px);line-height:1.0;text-transform:uppercase;letter-spacing:-.012em;margin-top:20px}
-.boom-head h2 .g{color:var(--gold)}
-.boom-head p{color:var(--steel-2);font-size:clamp(15px,1.6vw,18px);max-width:62ch;margin-top:24px}
-.systems{display:grid;grid-template-columns:1fr auto 1fr;align-items:stretch;gap:0;border:1px solid var(--line)}
-@media(max-width:760px){.systems{grid-template-columns:1fr}}
-.sys{padding:44px 40px;background:var(--graphite)}
-.sys .role{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--steel-3)}
-.sys .nm{font-size:clamp(24px,3vw,34px);text-transform:uppercase;letter-spacing:.02em;margin:14px 0 10px}
-.sys.boomx .nm{color:var(--gold)}
-.sys .dsc{color:var(--steel-2);font-size:15px;max-width:34ch}
-.sys .meta{margin-top:22px;display:flex;flex-wrap:wrap;gap:8px}
-.sys .chip{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;border:1px solid var(--line);padding:7px 12px;color:var(--steel-2)}
-.sys.boomx .chip{border-color:rgba(233,185,73,.3)}
-.sys-div{display:flex;align-items:center;justify-content:center;padding:0 22px;background:var(--graphite);border-left:1px solid var(--line);border-right:1px solid var(--line);color:var(--steel-3);font-size:22px}
-@media(max-width:760px){.sys-div{padding:18px;border:none;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}.sys-div .rot{transform:rotate(90deg)}}
-.boom-cta-row{margin-top:42px;display:flex;gap:16px;align-items:center;flex-wrap:wrap}
-.btn-gold{background:var(--gold);color:#1a1404}
-.btn-gold:hover{background:var(--steel);color:var(--graphite)}
-.boom-note{color:var(--steel-3);font-size:12px;letter-spacing:.1em;text-transform:uppercase}
-
-/* WORDS */
-.words{background:var(--graphite-2)}
-.words-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);margin-top:10px}
-@media(max-width:880px){.words-grid{grid-template-columns:1fr}}
-.quote{background:var(--graphite);padding:40px 34px}
-.quote .q{color:var(--ember);font-size:42px;line-height:0;display:block;height:26px}
-.quote p{font-size:20px;line-height:1.35;color:var(--steel)}
-.quote .who{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--steel-3);margin-top:24px}
-
-/* CONTACT (travertine slab) */
-.contact{background:linear-gradient(180deg,var(--travertine),var(--travertine-2));color:var(--stone-ink);position:relative;overflow:hidden}
-.contact::before{content:"";position:absolute;inset:0;opacity:.5;mix-blend-mode:multiply;pointer-events:none;
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='t2'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.035 .08' numOctaves='3'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .45 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23t2)'/%3E%3C/svg%3E")}
-.contact .tag{color:var(--stone-ink-2)}
-.contact .s-title{color:var(--stone-ink)}.contact .s-title .s{color:var(--ember)}
-.contact-lead{color:var(--stone-ink-2);font-size:clamp(16px,1.8vw,20px);max-width:54ch;margin-top:24px}
-.contact-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:56px;align-items:end;margin-top:64px;position:relative;z-index:2}
-@media(max-width:760px){.contact-grid{grid-template-columns:1fr;gap:44px}}
-.mag{display:inline-flex;align-items:center;gap:14px;background:var(--stone-ink);color:var(--travertine);padding:25px 42px;font-size:13px;letter-spacing:.16em;text-transform:uppercase;transition:background .35s,color .35s;will-change:transform}
-.mag:hover{background:var(--ember);color:#fff}
-.mag .ar{transition:transform .4s var(--e1)}
-.mag:hover .ar{transform:translateX(7px)}
-.cdetails{font-size:13px;line-height:2.5;letter-spacing:.06em;text-transform:uppercase;color:var(--stone-ink-2)}
-.cdetails .l{color:rgba(22,20,14,.42)}
-.cdetails a{border-bottom:1px solid rgba(22,20,14,.3);transition:.3s}
-.cdetails a:hover{color:var(--ember);border-color:var(--ember)}
-
-/* FOOTER */
-footer{background:var(--void);padding:0 0 48px}
-.foot-eco{display:flex;flex-wrap:wrap;gap:12px 26px;align-items:center;padding:36px 0;border-bottom:1px solid var(--line);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--steel-3)}
-.foot-eco b{color:var(--steel);font-weight:300}
-.foot-eco .gd{color:var(--gold)}
-.foot-eco .div{color:var(--ember)}
-.foot-eco a:hover{color:var(--ember)}
-.foot-bot{display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;padding-top:26px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--steel-3);font-variant-numeric:tabular-nums}
-
-/* reveal */
-.rv{opacity:0;transform:translateY(30px);transition:opacity 1s var(--e1),transform 1s var(--e1)}
-.rv.in{opacity:1;transform:none}
-.s-head .rv,.hero-in>.rv{}
-[data-stagger]>*{opacity:0;transform:translateY(24px);transition:opacity .9s var(--e1),transform .9s var(--e1)}
-[data-stagger].in>*{opacity:1;transform:none}
-[data-stagger].in>*:nth-child(2){transition-delay:.08s}
-[data-stagger].in>*:nth-child(3){transition-delay:.16s}
-[data-stagger].in>*:nth-child(4){transition-delay:.24s}
-[data-stagger].in>*:nth-child(5){transition-delay:.32s}
-
-/* control deck */
-.deck{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:120;display:flex;align-items:center;gap:6px;border:1px solid var(--line);background:color-mix(in srgb,var(--graphite) 84%,transparent);backdrop-filter:blur(14px);padding:5px}
-.deck .grp{display:flex}
-.deck button{font-family:var(--font);font-weight:300;font-size:11px;letter-spacing:.12em;color:var(--steel-3);background:none;border:none;cursor:pointer;padding:9px 14px;transition:.3s}
-.deck button.on{background:var(--ember);color:#fff}
-.deck .sep{width:1px;align-self:stretch;background:var(--line);margin:4px 2px}
-
-@media(prefers-reduced-motion:reduce){
-  *{animation:none!important;scroll-behavior:auto}
-  .rv,[data-stagger]>*{opacity:1;transform:none;transition:none}
-  .marq-track{animation:none}
-  .cur,.cur-d,.spot{display:none!important}
-  body.cur-on,body.cur-on *{cursor:auto!important}
-  .pre{display:none}
-}
-</style>
+<meta name="theme-color" content="#F4F1EA">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/valentino.css">
+<script src="/js/valentino.js" defer></script>
 </head>
-<body class="lock">
+<body>
 
-<div class="grain"></div>
-<div class="spot" id="spot"></div>
-<div class="cur" id="cur"><span class="cur-tx"></span></div><div class="cur-d" id="curd"></div>
-<div class="prog" id="prog"></div>
-
-<!-- PRELOADER -->
-<div class="pre" id="pre">
-  <svg class="pre-mark" viewBox="0 0 100 100" aria-hidden="true">
-    <rect class="dr" x="14" y="14" width="72" height="72" pathLength="1"/>
-    <path class="dr" d="M34 86 V54 a16 16 0 0 1 32 0 V86" pathLength="1"/>
-    <rect class="tick" x="44" y="20" width="12" height="5"/>
-  </svg>
-  <div class="pre-row"><span class="pre-name">Valentino Egidi — Roma MMXXX</span></div>
-  <div class="pre-count num" id="preCount">00</div>
-  <div class="pre-bar" id="preBar"></div>
+<!-- BOOT -->
+<div class="boot" id="boot">
+  <svg viewBox="0 0 100 100" aria-hidden="true"><rect class="mk" x="14" y="14" width="72" height="72" pathLength="1"/><path class="mk" d="M34 86 V54 a16 16 0 0 1 32 0 V86" pathLength="1"/><rect class="mt" x="44" y="20" width="12" height="5"/></svg>
+  <div class="bl">Valentino Egidi · sistema pronto</div>
+  <div class="bc">Roma · MMXXX</div>
 </div>
 
-<!-- shared SVG defs -->
-<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
-  <pattern id="bp" width="120" height="153" patternUnits="userSpaceOnUse"><path class="bp-arch" d="M24 153 V72 a36 36 0 0 1 72 0 V153"/></pattern>
-  <pattern id="fac" width="120" height="153" patternUnits="userSpaceOnUse">
-    <rect class="f-stone" width="120" height="153"/><rect class="f-seam" width="120" height="153" fill="none"/>
-    <path class="f-void" d="M24 153 V72 a36 36 0 0 1 72 0 V153 Z"/>
-  </pattern>
-</defs></svg>
+<div class="prog" id="prog"></div>
+<div class="cur" id="cur"><span class="cl"></span></div><div class="curd" id="curd"></div>
 
 <!-- NAV -->
-<nav id="nav"><div class="wrap nav-in">
-  <a href="#top" class="logo" data-cur="HOME">
+<nav id="nav"><div class="nav-in">
+  <a href="/valentino-egidi" class="brand">
     <svg viewBox="0 0 100 100" aria-hidden="true"><rect class="mk" x="14" y="14" width="72" height="72"/><path class="mk" d="M34 86 V54 a16 16 0 0 1 32 0 V86"/><rect class="mt" x="44" y="20" width="12" height="5"/></svg>
-    <b>Valentino Egidi</b>
+    Valentino Egidi
   </a>
+  <div class="nav-mid">
+    <a href="/valentino-vendi" data-it="Vendi" data-en="Sell">Vendi</a>
+    <a href="/valentino-compra" data-it="Compra" data-en="Buy">Compra</a>
+    <a href="/valentino-indirizzi" data-it="Indirizzi" data-en="Listings">Indirizzi</a>
+    <a href="/valentino-chi-sono" data-it="Chi sono" data-en="About">Chi sono</a>
+    <span class="nav-ind" id="navInd"></span>
+  </div>
   <div class="nav-r">
-    <a href="#manifesto" class="nav-link h" data-it="Manifesto" data-en="Manifesto">Manifesto</a>
-    <a href="#dizionario" class="nav-link h" data-it="Dizionario" data-en="Dictionary">Dizionario</a>
-    <a href="#metodo" class="nav-link h" data-it="Metodo" data-en="Method">Metodo</a>
-    <a href="#boom" class="nav-link h" data-it="Affitti" data-en="Rentals">Affitti</a>
-    <a href="#contatti" class="nav-cta" data-cur="SCRIVIMI" data-it="Parliamo" data-en="Let's talk">Parliamo</a>
+    <div class="langtog"><button data-lang="it" class="on">IT</button><button data-lang="en">EN</button></div>
+    <a href="#valuta" class="nav-cta" data-it="Valuta casa tua" data-en="Value your home">Valuta casa tua</a>
   </div>
 </div></nav>
 
 <!-- HERO -->
-<header class="hero" id="top" data-sec="00">
-  <svg class="hero-blueprint parallax" data-speed="0.1" preserveAspectRatio="xMidYMid slice"><rect width="100%" height="100%" fill="url(#bp)"/></svg>
-  <div class="hero-grid"></div>
-  <div class="hero-scan"></div>
-  <div class="monolith parallax" data-speed="0.06">
-    <svg class="m-mark" viewBox="0 0 100 100" aria-hidden="true"><rect class="mk" x="14" y="14" width="72" height="72"/><path class="mk" d="M34 86 V54 a16 16 0 0 1 32 0 V86"/><rect class="mt" x="44" y="20" width="12" height="5"/></svg>
-    <div class="m-vert">Via dei Coronari · Roma</div>
-  </div>
+<header class="hero" id="top">
+  <div class="grid-bg"></div>
   <div class="hero-hud">
-    <span class="tag" data-it="ROMA · CENTRO STORICO" data-en="ROME · OLD TOWN">ROMA · CENTRO STORICO</span>
-    <span class="tag num">41.9009°N · 12.4833°E</span>
-    <span class="tag num"><b id="clock">--:--:--</b> · ROMA MMXXX</span>
-    <span class="tag" data-it="SISTEMA · ONESTÀ ATTIVA" data-en="SYSTEM · HONESTY ON">SISTEMA · ONESTÀ ATTIVA</span>
+    <span class="lab">Egidi Immobiliare · Roma MMXXX</span>
+    <span class="lab">41.9009°N · 12.4833°E</span>
+    <span class="lab"><b id="clock">--:--:--</b> · Roma</span>
+    <span class="lab" id="telem" data-home="Home">Scroll 000% · Home</span>
   </div>
-  <div class="wrap hero-in" data-stagger>
-    <div class="tag ey"><span class="sq"></span><span data-it="Mediatore immobiliare — compravendita" data-en="Real estate broker — buying & selling">Mediatore immobiliare — compravendita</span></div>
-    <h1 data-it="Ti dico la <span class='s'>verità</span> sulla casa. Anche quando non conviene." data-en="I tell you the <span class='s'>truth</span> about the property. Even when it's inconvenient.">Ti dico la <span class="s">verità</span> sulla casa. Anche quando non conviene.</h1>
-    <p class="hero-sub" data-it="Compravendita a Roma senza copioni, senza euforia finta, senza sorprese al rogito. Solo numeri, contesto e una risposta diretta — la stessa che darei a un amico." data-en="Buying and selling in Rome with no scripts, no fake urgency, no surprises at signing. Just numbers, context and a straight answer — the same I'd give a friend.">Compravendita a Roma senza copioni, senza euforia finta, senza sorprese al rogito. Solo numeri, contesto e una risposta diretta — la stessa che darei a un amico.</p>
-    <div class="hero-cta">
-      <a href="https://wa.me/393313251961" target="_blank" class="btn btn-fill" data-mag data-cur="WHATSAPP" data-it="Scrivimi su WhatsApp" data-en="Message me on WhatsApp">Scrivimi su WhatsApp</a>
-      <a href="#manifesto" class="btn btn-line" data-it="Perché diverso →" data-en="Why I'm different →">Perché diverso →</a>
+  <div class="wrap hero-in">
+    <div>
+      <div class="eyebrow"><span class="sq"></span> <span data-it="Mediatore immobiliare · Roma · vendite" data-en="Real-estate broker · Rome · sales">Mediatore immobiliare · Roma · vendite</span></div>
+      <h1 class="kin" data-it="Vendi casa al prezzo <span class='e'>vero</span>. Seguìto da un solo nome: il mio." data-en="Sell your home at the <span class='e'>real</span> price. Handled by one name: mine.">Vendi casa al prezzo <span class="e">vero</span>. Seguìto da un solo nome: il mio.</h1>
+      <p class="sub" data-it="Il mediatore più tecnologico di Roma: dati, media editoriali e una dashboard privata. La precisione di un artigiano, in un solo nome che risponde. Inizia da una valutazione onesta, gratis, in 48 ore." data-en="Rome's most technological broker: data, editorial media and a private dashboard. The precision of a craftsman, in one name that answers. Start with an honest valuation — free, in 48 hours.">Il mediatore più tecnologico di Roma: dati, media editoriali e una dashboard privata. La precisione di un artigiano, in un solo nome che risponde. Inizia da una valutazione onesta, gratis, in 48 ore.</p>
+      <div class="cta">
+        <a href="#valuta" class="btn btn-ink" data-cursor="Valuta" data-it="Scopri quanto vale casa tua" data-en="See what your home is worth">Scopri quanto vale casa tua</a>
+        <a href="#perche" class="btn btn-line" data-it="Perché me <span class='ar'>→</span>" data-en="Why me <span class='ar'>→</span>">Perché me <span class="ar">→</span></a>
+      </div>
+      <div class="hero-trust">
+        <span class="t"><span class="dot"></span> <span data-it="Gratis e senza vincoli" data-en="Free, no strings">Gratis e senza vincoli</span></span>
+        <span class="t"><span class="dot"></span> <span data-it="Risposta in 48h, da me" data-en="Reply in 48h, from me">Risposta in 48h, da me</span></span>
+      </div>
     </div>
-    <div class="hero-foot tag"><span class="ln"></span><span data-it="Scorri — non è il solito sito d'agenzia" data-en="Scroll — not the usual agency site">Scorri — non è il solito sito d'agenzia</span></div>
+    <div class="hero-fig" id="heroFig" data-tilt="6">
+      <figure class="ph" data-tint="clay"><img src="https://images.unsplash.com/photo-1552832230-c0197dd311b5?auto=format&fit=crop&w=1400&q=80" alt="Roma" onerror="this.style.opacity=0"></figure>
+      <canvas id="trav" aria-hidden="true"></canvas>
+      <div class="etch"><svg viewBox="0 0 100 100" aria-hidden="true"><rect class="mk" x="14" y="14" width="72" height="72"/><path class="mk" d="M34 86 V54 a16 16 0 0 1 32 0 V86"/><rect class="mt" x="44" y="20" width="12" height="5"/></svg></div>
+      <div class="frame"></div>
+      <div class="cap"><span>Travertino · campione VE—01</span><span class="e">● live</span></div>
+    </div>
   </div>
+  <div class="hero-foot"><span class="ln"></span> <span data-it="Scorri — la vendita, in chiaro" data-en="Scroll — selling, in the clear">Scorri — la vendita, in chiaro</span></div>
 </header>
 
-<!-- MARQUEE -->
-<div class="marq" aria-hidden="true"><div class="marq-track" id="marq"></div></div>
+<!-- POSITIONING -->
+<section class="posb">
+  <div class="wrap" style="display:grid;grid-template-columns:1.3fr 1fr;gap:50px;align-items:center;padding:60px 0">
+    <div class="rv">
+      <span class="idx" style="display:block;margin-bottom:16px">§ <span data-it="Posizionamento" data-en="Positioning">Posizionamento</span></span>
+      <h2 style="font-size:clamp(24px,3.3vw,40px);line-height:1.1;letter-spacing:-.02em;font-weight:300" data-it="Un solo nome. La <span class='e'>tecnologia</span> di una grande agenzia, la <span class='e'>precisione di un artigiano</span>." data-en="One name. The <span class='e'>technology</span> of a big agency, the <span class='e'>precision of a craftsman</span>.">Un solo nome. La <span class="e">tecnologia</span> di una grande agenzia, la <span class="e">precisione di un artigiano</span>.</h2>
+    </div>
+    <p class="rv" style="color:var(--ink-2);font-size:15.5px;max-width:46ch" data-it="Non un'agenzia con cento incarichi e zero attenzione. Io, la tua casa, e gli strumenti più avanzati sul mercato. Seguìta come fosse l'unica. Perché, per come lavoro, lo è." data-en="Not an agency with a hundred mandates and zero attention. Me, your home, and the most advanced tools on the market. Followed as if it were the only one. Because, the way I work, it is.">Non un'agenzia con cento incarichi e zero attenzione. Io, la tua casa, e gli strumenti più avanzati sul mercato. Seguìta come fosse l'unica. Perché, per come lavoro, lo è.</p>
+  </div>
+</section>
 
-<!-- MANIFESTO -->
-<section class="blk" id="manifesto" data-sec="01">
+<!-- STORY -->
+<section class="story" id="metodo">
+  <div class="story-stage">
+    <div class="scene" data-scene>
+      <figure class="ph" data-tint="clay"><img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=2000&q=80" alt="" onerror="this.style.opacity=0"></figure>
+      <div class="veil"></div>
+      <div class="wrap scene-txt"><div class="n" data-it="01 — Come vendo" data-en="01 — How I sell">01 — Come vendo</div><h2 data-it="Un prezzo <em>onesto</em> vende prima." data-en="An <em>honest</em> price sells faster.">Un prezzo <em>onesto</em> vende prima.</h2><p data-it="Più in fretta di uno gonfiato, e a condizioni migliori. Te lo dimostro con i comparabili reali." data-en="Faster than an inflated one, and on better terms. I prove it with real comparables.">Più in fretta di uno gonfiato, e a condizioni migliori. Te lo dimostro con i comparabili reali.</p></div>
+    </div>
+    <div class="scene" data-scene>
+      <figure class="ph" data-tint="stone"><img src="https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=2000&q=80" alt="" onerror="this.style.opacity=0"></figure>
+      <div class="veil"></div>
+      <div class="wrap scene-txt"><div class="n" data-it="02 — Come vendo" data-en="02 — How I sell">02 — Come vendo</div><h2 data-it="Foto e annuncio come un <em>editoriale</em>." data-en="Photos and listing like an <em>editorial</em>.">Foto e annuncio come un <em>editoriale</em>.</h2><p data-it="La tua casa al suo meglio. Niente grandangolo bugiardo, niente fuffa." data-en="Your home at its best. No lying wide-angle, no fluff.">La tua casa al suo meglio. Niente grandangolo bugiardo, niente fuffa.</p></div>
+    </div>
+    <div class="scene" data-scene>
+      <figure class="ph" data-tint="ink"><img src="https://images.unsplash.com/photo-1523217582562-09d0def993a6?auto=format&fit=crop&w=2000&q=80" alt="" onerror="this.style.opacity=0"></figure>
+      <div class="veil"></div>
+      <div class="wrap scene-txt"><div class="n" data-it="03 — Come vendo" data-en="03 — How I sell">03 — Come vendo</div><h2 data-it="Filtro i curiosi. Porto <em>compratori veri</em>." data-en="I filter the curious. I bring <em>real buyers</em>.">Filtro i curiosi. Porto <em>compratori veri</em>.</h2><p data-it="Solo persone qualificate e offerte reali. Niente sfilate in casa tua." data-en="Only qualified people and real offers. No parades through your home.">Solo persone qualificate e offerte reali. Niente sfilate in casa tua.</p></div>
+    </div>
+    <div class="scene" data-scene>
+      <figure class="ph" data-tint="stone"><img src="https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?auto=format&fit=crop&w=2000&q=80" alt="" onerror="this.style.opacity=0"></figure>
+      <div class="veil"></div>
+      <div class="wrap scene-txt"><div class="n" data-it="04 — Come vendo" data-en="04 — How I sell">04 — Come vendo</div><h2 data-it="Segui tutto da una <em>dashboard</em>." data-en="Follow everything from a <em>dashboard</em>.">Segui tutto da una <em>dashboard</em>.</h2><p data-it="Visite, offerte, stato della vendita — in tempo reale. Zero sorprese al rogito." data-en="Viewings, offers, sale status — in real time. Zero surprises at closing.">Visite, offerte, stato della vendita — in tempo reale. Zero sorprese al rogito.</p></div>
+    </div>
+    <div class="story-rail" id="storyRail"></div>
+  </div>
+</section>
+
+<!-- PILLARS -->
+<section class="blk" id="perche">
+  <div class="wrap">
+    <div class="s-head ctr rv">
+      <div class="tag"><span class="id">§01</span> <span data-it="Perché lavorare con me" data-en="Why work with me">Perché lavorare con me</span></div>
+      <h2 class="s-title" data-it="Quattro motivi. <span class='e'>Nessun asterisco.</span>" data-en="Four reasons. <span class='e'>No fine print.</span>">Quattro motivi. <span class="e">Nessun asterisco.</span></h2>
+    </div>
+    <div class="pillars rv" data-st>
+      <div class="pillar">
+        <svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M5 21c0-4 3-6 7-6s7 2 7 6"/></svg>
+        <div class="pn">01 · Accountability</div>
+        <h3 data-it="Parli con me. Sempre." data-en="You talk to me. Always.">Parli con me. Sempre.</h3>
+        <p data-it="Niente call center, niente stagisti. Dalla valutazione al rogito, una sola persona risponde del risultato: io." data-en="No call centre, no interns. From valuation to closing, one person owns the result: me.">Niente call center, niente stagisti. Dalla valutazione al rogito, una sola persona risponde del risultato: io.</p>
+      </div>
+      <div class="pillar">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M12 3l2.5 5 5.5.8-4 4 1 5.5L12 21l-5-2.7 1-5.5-4-4 5.5-.8z"/></svg>
+        <div class="pn" data-it="02 · Esclusività" data-en="02 · Exclusivity">02 · Esclusività</div>
+        <h3 data-it="Pochi incarichi alla volta." data-en="Few mandates at a time.">Pochi incarichi alla volta.</h3>
+        <p data-it="Prendo poche case per volta, così le seguo davvero. Se ti dico sì, hai tutto me." data-en="I take few homes at a time, so I follow them for real. If I say yes, you get all of me.">Prendo poche case per volta, così le seguo davvero. Se ti dico sì, hai tutto me.</p>
+      </div>
+      <div class="pillar">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"/><path d="M9 12l2 2 4-4"/></svg>
+        <div class="pn" data-it="03 · Rischio zero" data-en="03 · Zero risk">03 · Rischio zero</div>
+        <h3 data-it="Gratis, senza vincoli." data-en="Free, no strings.">Gratis, senza vincoli.</h3>
+        <p data-it="La valutazione è gratuita e non ti lega a nulla. E se il prezzo che speri non è realistico, te lo dico prima — è il punto." data-en="The valuation is free and ties you to nothing. And if the price you hope for isn't realistic, I tell you first — that's the point.">La valutazione è gratuita e non ti lega a nulla. E se il prezzo che speri non è realistico, te lo dico prima — è il punto.</p>
+      </div>
+      <div class="pillar">
+        <svg class="ico" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>
+        <div class="pn" data-it="04 · Tecnologia" data-en="04 · Technology">04 · Tecnologia</div>
+        <h3 data-it="Strumenti da grande agenzia." data-en="Big-agency tools.">Strumenti da grande agenzia.</h3>
+        <p data-it="Valutazione data-driven, foto e video editoriali, una dashboard privata in tempo reale. La cura maniacale del dettaglio." data-en="Data-driven valuation, editorial photo and video, a private real-time dashboard. Obsessive attention to detail.">Valutazione data-driven, foto e video editoriali, una dashboard privata in tempo reale. La cura maniacale del dettaglio.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TECH -->
+<section class="blk tech" id="tecnologia">
   <div class="wrap">
     <div class="s-head rv">
-      <div class="tag"><span class="sq"></span><span>SEZ.01 — <span data-it="MANIFESTO" data-en="MANIFESTO">MANIFESTO</span></span></div>
-      <h2 class="s-title" data-it="Cinque cose che gli altri non ti diranno." data-en="Five things the others won't tell you.">Cinque cose che gli altri non ti diranno.</h2>
-      <p class="s-lead" data-it="Non vendo case. Rendo le decisioni difficili più facili da prendere, con onestà. Se questo costa una provvigione ogni tanto, va bene — la reputazione vale di più." data-en="I don't sell houses. I make hard decisions easier to make, honestly. If that costs me a commission now and then, fine — reputation is worth more.">Non vendo case. Rendo le decisioni difficili più facili da prendere, con onestà.</p>
+      <div class="tag"><span class="id">§02</span> <span data-it="La tecnologia che vende" data-en="The technology that sells">La tecnologia che vende</span></div>
+      <h2 class="s-title" data-it="Strumenti da grande agenzia.<br><span class='e'>Per la tua casa soltanto.</span>" data-en="Big-agency tools.<br><span class='e'>For your home alone.</span>">Strumenti da grande agenzia.<br><span class="e">Per la tua casa soltanto.</span></h2>
+      <p class="s-lead" data-it="Non per stupire. Per vendere prima, meglio, e senza ansie — con la precisione di un orologiaio." data-en="Not to impress. To sell faster, better, and without anxiety — with the precision of a watchmaker.">Non per stupire. Per vendere prima, meglio, e senza ansie — con la precisione di un orologiaio.</p>
     </div>
-    <div class="theses" data-stagger>
-      <div class="thesis"><div class="no">01</div><p data-it="Un prezzo onesto vende più in fretta di un prezzo gonfiato." data-en="An honest price sells faster than an inflated one.">Un prezzo onesto vende più in fretta di un prezzo gonfiato.</p></div>
-      <div class="thesis"><div class="no">02</div><p data-it="Se la casa non fa per te, te lo dico. Anche se perdo la provvigione." data-en="If the home is wrong for you, I'll say so. Even if it costs me the commission.">Se la casa non fa per te, te lo dico. Anche se perdo la provvigione.</p></div>
-      <div class="thesis"><div class="no">03</div><p data-it="I difetti prima dei pregi. Sempre." data-en="The flaws before the features. Always.">I difetti prima dei pregi. Sempre.</p></div>
-      <div class="thesis"><div class="no">04</div><p data-it="Niente aste mascherate, niente finti altri compratori." data-en="No fake bidding wars, no imaginary other buyers.">Niente aste mascherate, niente finti altri compratori.</p></div>
-      <div class="thesis"><div class="no">05</div><p data-it="I numeri parlano. Io li traduco, non li trucco." data-en="The numbers talk. I translate them — I don't fake them.">I numeri parlano. Io li traduco, non li trucco.</p></div>
+    <div class="tech-grid rv" data-st>
+      <div class="tcard"><div class="tn">01</div><h3 data-it="Valutazione data-driven" data-en="Data-driven valuation">Valutazione data-driven</h3><p data-it="Comparabili reali del tuo palazzo e della tua via, tempi e assorbimento. Il prezzo vero, non una sensazione." data-en="Real comparables from your building and street, timing and absorption. The real price, not a feeling.">Comparabili reali del tuo palazzo e della tua via, tempi e assorbimento. Il prezzo vero, non una sensazione.</p><span class="chip" data-it="Dati & comparabili" data-en="Data & comparables">Dati & comparabili</span></div>
+      <div class="tcard"><div class="tn">02</div><h3 data-it="Media editoriali" data-en="Editorial media">Media editoriali</h3><p data-it="Servizio fotografico e video curati come un magazine. La prima impressione decide il prezzo." data-en="Photography and video crafted like a magazine. The first impression sets the price.">Servizio fotografico e video curati come un magazine. La prima impressione decide il prezzo.</p><span class="chip">Foto · Video · Tour</span></div>
+      <div class="tcard"><div class="tn">03</div><h3 data-it="Dashboard privata" data-en="Private dashboard">Dashboard privata</h3><p data-it="Vedi tutto in tempo reale: visite, interesse, offerte, stato. Trasparenza totale, sempre." data-en="See everything in real time: viewings, interest, offers, status. Total transparency, always.">Vedi tutto in tempo reale: visite, interesse, offerte, stato. Trasparenza totale, sempre.</p><span class="chip" data-it="Tempo reale" data-en="Real time">Tempo reale</span></div>
+      <div class="tcard"><div class="tn">04</div><h3 data-it="Aggiornamenti dove sei" data-en="Updates where you are">Aggiornamenti dove sei</h3><p data-it="Notifiche su WhatsApp e pass Apple Wallet per ogni passo. Sai sempre cosa succede." data-en="WhatsApp notifications and an Apple Wallet pass for every step. You always know what's happening.">Notifiche su WhatsApp e pass Apple Wallet per ogni passo. Sai sempre cosa succede.</p><span class="chip">WhatsApp · Wallet</span></div>
+      <div class="tcard"><div class="tn">05</div><h3 data-it="Annuncio ottimizzato" data-en="Optimised listing">Annuncio ottimizzato</h3><p data-it="Testi e distribuzione sui canali giusti, con i numeri che contano. Niente esposizione sprecata." data-en="Copy and distribution on the right channels, with the numbers that matter. No wasted exposure.">Testi e distribuzione sui canali giusti, con i numeri che contano. Niente esposizione sprecata.</p><span class="chip" data-it="Distribuzione" data-en="Distribution">Distribuzione</span></div>
+      <div class="tcard"><div class="tn">06</div><h3 data-it="Tutto verificato e tracciato" data-en="Verified and tracked">Tutto verificato e tracciato</h3><p data-it="Documenti, visure, conformità: ordinati e pronti per il rogito. Zero corse last-minute." data-en="Documents, records, compliance: tidy and ready for closing. No last-minute scrambles.">Documenti, visure, conformità: ordinati e pronti per il rogito. Zero corse last-minute.</p><span class="chip">Compliance</span></div>
     </div>
   </div>
 </section>
 
-<!-- DIZIONARIO -->
-<section class="blk ht" id="dizionario" data-sec="02">
+<!-- COMPARISON -->
+<section class="blk" id="confronto">
   <div class="wrap">
-    <div class="s-head rv">
-      <div class="tag"><span class="sq"></span><span>SEZ.02 — <span data-it="DIZIONARIO" data-en="DICTIONARY">DIZIONARIO</span></span></div>
-      <h2 class="s-title" data-it="Cosa dicono gli annunci. <span class='s'>Cosa vuol dire.</span>" data-en="What the listings say. <span class='s'>What it means.</span>">Cosa dicono gli annunci. <span class="s">Cosa vuol dire.</span></h2>
-      <p class="s-lead" data-it="Passa il mouse (o tocca) per scoprire la traduzione. Con me non serve: te lo dico prima io." data-en="Hover (or tap) to reveal the translation. With me you won't need to — I tell you first.">Passa il mouse (o tocca) per scoprire la traduzione.</p>
+    <div class="s-head ctr rv">
+      <div class="tag"><span class="id">§03</span> <span data-it="Il confronto onesto" data-en="The honest comparison">Il confronto onesto</span></div>
+      <h2 class="s-title" data-it="L'agente medio. <span class='e'>Poi ci sono io.</span>" data-en="The average agent. <span class='e'>Then there's me.</span>">L'agente medio. <span class="e">Poi ci sono io.</span></h2>
     </div>
-    <div class="ht-grid rv" id="htGrid"></div>
-    <div class="ht-hint" data-it="↑ Tocca una voce per tradurla" data-en="↑ Tap an entry to translate it">↑ Tocca una voce per tradurla</div>
+    <div class="cmp rv">
+      <div class="cmp-row cmp-head"><div class="crit">&nbsp;</div><div class="avg" data-it="Agente medio" data-en="Average agent">Agente medio</div><div class="me">Valentino Egidi</div></div>
+      <div class="cmp-row"><div class="crit" data-it="Il prezzo" data-en="The price">Il prezzo</div><div class="avg" data-it="Gonfiato per prendere l'incarico" data-en="Inflated to win the mandate">Gonfiato per prendere l'incarico</div><div class="me" data-it="Vero, dal primo giorno" data-en="Real, from day one">Vero, dal primo giorno</div></div>
+      <div class="cmp-row"><div class="crit" data-it="I difetti" data-en="The flaws">I difetti</div><div class="avg" data-it="Nascosti finché non li scopri" data-en="Hidden until you find them">Nascosti finché non li scopri</div><div class="me" data-it="Dichiarati prima, da me" data-en="Declared upfront, by me">Dichiarati prima, da me</div></div>
+      <div class="cmp-row"><div class="crit" data-it="Chi ti segue" data-en="Who handles you">Chi ti segue</div><div class="avg" data-it="Stagista o call center" data-en="Intern or call centre">Stagista o call center</div><div class="me" data-it="Io, sempre, di persona" data-en="Me, always, in person">Io, sempre, di persona</div></div>
+      <div class="cmp-row"><div class="crit" data-it="Quanti incarichi" data-en="How many mandates">Quanti incarichi</div><div class="avg" data-it="Centinaia, dimenticati" data-en="Hundreds, forgotten">Centinaia, dimenticati</div><div class="me" data-it="Pochi, seguìti davvero" data-en="Few, truly followed">Pochi, seguìti davvero</div></div>
+      <div class="cmp-row"><div class="crit" data-it="La tecnologia" data-en="The technology">La tecnologia</div><div class="avg" data-it="Foto col telefono" data-en="Phone photos">Foto col telefono</div><div class="me" data-it="Dati, media editoriali, dashboard" data-en="Data, editorial media, dashboard">Dati, media editoriali, dashboard</div></div>
+      <div class="cmp-row"><div class="crit" data-it="Aste finte" data-en="Fake bidding wars">Aste finte</div><div class="avg" data-it="Capita" data-en="It happens">Capita</div><div class="me">Mai</div></div>
+    </div>
   </div>
 </section>
 
-<!-- MONUMENT -->
-<section class="monument" data-sec="03" aria-hidden="false">
-  <div class="monu-stage" id="monuStage"><svg class="facade" viewBox="0 0 960 459" preserveAspectRatio="xMidYMax meet"><rect width="960" height="459" fill="url(#fac)"/></svg></div>
-  <div class="monu-fg" id="monuFg">
-    <div class="tag over">ROMA · MMXXX</div>
-    <h2 data-it="La verità è<br>l'unica strategia." data-en="Truth is<br>the only strategy.">La verità è<br>l'unica strategia.</h2>
-    <div class="sub" data-it="Compravendita immobiliare · centro storico" data-en="Real estate · old town">Compravendita immobiliare · centro storico</div>
-  </div>
-</section>
-
-<!-- METHOD -->
-<section class="blk" id="metodo" data-sec="04">
+<!-- VALUATION -->
+<section class="blk val" id="valuta">
   <div class="wrap">
-    <div class="s-head rv">
-      <div class="tag"><span class="sq"></span><span>SEZ.04 — <span data-it="METODO" data-en="METHOD">METODO</span></span></div>
-      <h2 class="s-title" data-it="Pochi passaggi. Tutti tracciabili." data-en="Few steps. All traceable.">Pochi passaggi. Tutti tracciabili.</h2>
-    </div>
-    <div class="steps" data-stagger>
-      <div class="step"><div class="sn">01</div><h3 data-it="Valutazione vera" data-en="Real valuation">Valutazione vera</h3><p data-it="Il prezzo reale con i dati alla mano: comparabili, tempi di vendita, assorbimento. Non quello che vuoi sentirti dire." data-en="The real price, data in hand: comparables, time-on-market, absorption. Not what you want to hear.">Il prezzo reale con i dati alla mano. Non quello che vuoi sentirti dire.</p></div>
-      <div class="step"><div class="sn">02</div><h3 data-it="Strategia" data-en="Strategy">Strategia</h3><p data-it="Un piano scritto: prezzo, target, canali, tempi. Sai sempre cosa succede e perché." data-en="A written plan: price, target, channels, timing. You always know what's happening and why.">Un piano scritto: prezzo, target, canali, tempi. Sempre trasparente.</p></div>
-      <div class="step"><div class="sn">03</div><h3 data-it="Trattativa" data-en="Negotiation">Trattativa</h3><p data-it="Tratto con i dati, non con le emozioni. Compratori veri, offerte vere, niente teatrini." data-en="I negotiate with data, not emotion. Real buyers, real offers, no theatrics.">Tratto con i dati, non con le emozioni. Niente teatrini.</p></div>
-      <div class="step"><div class="sn">04</div><h3 data-it="Rogito" data-en="Closing">Rogito</h3><p data-it="Notaio, fisco e tempi gestiti fino alla firma. Zero sorprese sul prezzo finale." data-en="Notary, taxes and timing handled to signing. Zero surprises on the final number.">Notaio, fisco e tempi gestiti fino alla firma. Zero sorprese.</p></div>
+    <div class="val-grid">
+      <div class="rv">
+        <div class="eyebrow" data-it="Valutazione onesta" data-en="Honest valuation">Valutazione onesta</div>
+        <h2 data-it="Scopri il prezzo vero di casa tua. In 48 ore." data-en="Discover the real price of your home. In 48 hours.">Scopri il prezzo vero di casa tua. In 48 ore.</h2>
+        <p data-it="Niente cifre gonfiate per accaparrarmi l'incarico. Una valutazione sui comparabili reali del tuo palazzo e della tua via. E se il prezzo che speri non è realistico, te lo dico." data-en="No inflated figures to grab the mandate. A valuation on the real comparables of your building and street. And if the price you hope for isn't realistic, I tell you.">Niente cifre gonfiate per accaparrarmi l'incarico. Una valutazione sui comparabili reali del tuo palazzo e della tua via. E se il prezzo che speri non è realistico, te lo dico.</p>
+        <div class="reassure">
+          <div><span class="ck">✓</span> <span data-it="Gratuita e senza impegno. Non ti lega a nulla." data-en="Free and no obligation. Ties you to nothing.">Gratuita e senza impegno. Non ti lega a nulla.</span></div>
+          <div><span class="ck">✓</span> <span data-it="Basata sui dati, non sulle promesse." data-en="Based on data, not promises.">Basata sui dati, non sulle promesse.</span></div>
+          <div><span class="ck">✓</span> <span data-it="Risposta in 48 ore, da me, non da un call center." data-en="Reply in 48 hours, from me, not a call centre.">Risposta in 48 ore, da me, non da un call center.</span></div>
+        </div>
+        <div class="estim" id="estim">
+          <div class="el"><span data-it="// Stima indicativa di mercato" data-en="// Indicative market estimate">// Stima indicativa di mercato</span><span><b>€/m²</b></span></div>
+          <div class="estim-zones" id="zoneSel">
+            <button data-lo="6500" data-hi="9500">Centro Storico</button>
+            <button data-lo="5500" data-hi="7500">Prati</button>
+            <button data-lo="5000" data-hi="7000">Trastevere</button>
+            <button data-lo="5500" data-hi="8000">Monti</button>
+            <button data-lo="5000" data-hi="7500">Parioli</button>
+            <button data-lo="2500" data-hi="4500" data-it="Altro Roma" data-en="Other Rome">Altro Roma</button>
+          </div>
+          <div class="estim-range"><span id="estLo">—</span><span>–</span><span id="estHi">—</span><span class="u">€/m²</span></div>
+          <canvas id="estViz" class="estim-viz" aria-hidden="true"></canvas>
+          <div class="estim-bar"><i id="estBar"></i></div>
+          <div class="estim-total" id="estTotal" data-it="Seleziona una zona per la stima indicativa." data-en="Select a zone for the indicative estimate.">Seleziona una zona per la stima indicativa.</div>
+          <div class="estim-note" data-it="Range indicativo di mercato. Il valore <b>vero</b> di casa tua te lo dico io, sui comparabili reali." data-en="Indicative market range. The <b>real</b> value of your home, I tell you — on the real comparables.">Range indicativo di mercato. Il valore <b>vero</b> di casa tua te lo dico io, sui comparabili reali.</div>
+        </div>
+      </div>
+      <form class="vform rv" id="valForm">
+        <div class="step-lab"><span data-it="// Richiesta valutazione" data-en="// Valuation request">// Richiesta valutazione</span><span>30 s</span></div>
+        <div class="frow"><label data-it="Indirizzo dell'immobile" data-en="Property address">Indirizzo dell'immobile</label><input type="text" name="addr" data-it-ph="Via, civico — zona di Roma" data-en-ph="Street, number — area of Rome" placeholder="Via, civico — zona di Roma" required></div>
+        <div class="frow two">
+          <div><label data-it="Superficie (m²)" data-en="Size (m²)">Superficie (m²)</label><input type="number" name="mq" placeholder="es. 95" min="1"></div>
+          <div><label data-it="Il tuo nome" data-en="Your name">Il tuo nome</label><input type="text" name="nome" data-it-ph="Nome" data-en-ph="Name" placeholder="Nome" required></div>
+        </div>
+        <div class="frow"><label data-it="WhatsApp o email" data-en="WhatsApp or email">WhatsApp o email</label><input type="text" name="contact" data-it-ph="Come ti ricontatto" data-en-ph="How I reach you" placeholder="Come ti ricontatto" required></div>
+        <button type="submit" data-it="Richiedi la valutazione →" data-en="Request the valuation →">Richiedi la valutazione →</button>
+        <div class="fine" data-it="Apre WhatsApp con il messaggio già pronto · risposta entro 48h" data-en="Opens WhatsApp with the message ready · reply within 48h">Apre WhatsApp con il messaggio già pronto · risposta entro 48h</div>
+      </form>
     </div>
   </div>
 </section>
 
-<!-- BUY / SELL -->
+<!-- NUMBERS -->
 <section class="blk" style="padding-top:0">
   <div class="wrap">
-    <div class="duo" data-stagger>
-      <div class="duo-card">
-        <div class="tag" data-it="SE COMPRI" data-en="IF YOU BUY">SE COMPRI</div>
-        <h3 data-it="Solo case che reggono il tuo «perché»." data-en="Only homes that survive your “why”.">Solo case che reggono il tuo «perché».</h3>
-        <ul>
-          <li><span class="ck">→</span><span data-it="Ti mostro <b>cosa c'è che non va</b> prima che te ne accorga tu." data-en="I show you <b>what's wrong</b> before you notice it.">Ti mostro <b>cosa c'è che non va</b> prima che te ne accorga tu.</span></li>
-          <li><span class="ck">→</span><span data-it="Anche <b>off-market</b>, dalla rete del centro di Roma." data-en="Including <b>off-market</b>, from the central-Rome network.">Anche <b>off-market</b>, dalla rete del centro di Roma.</span></li>
-          <li><span class="ck">→</span><span data-it="Tratto sul prezzo con i <b>comparabili</b>, non con le sensazioni." data-en="I negotiate on <b>comparables</b>, not feelings.">Tratto sul prezzo con i <b>comparabili</b>, non con le sensazioni.</span></li>
-        </ul>
-      </div>
-      <div class="duo-card">
-        <div class="tag" data-it="SE VENDI" data-en="IF YOU SELL">SE VENDI</div>
-        <h3 data-it="Prezzo giusto dal giorno uno." data-en="The right price from day one.">Prezzo giusto dal giorno uno.</h3>
-        <ul>
-          <li><span class="ck">→</span><span data-it="Un prezzo onesto <b>vende prima</b> e a condizioni migliori." data-en="An honest price <b>sells sooner</b> and on better terms.">Un prezzo onesto <b>vende prima</b> e a condizioni migliori.</span></li>
-          <li><span class="ck">→</span><span data-it="Foto e annuncio <b>curati come un editoriale</b>, niente fuffa." data-en="Photos and listing <b>crafted like an editorial</b> — no fluff.">Foto e annuncio <b>curati come un editoriale</b>, niente fuffa.</span></li>
-          <li><span class="ck">→</span><span data-it="Filtro i curiosi: ti porto <b>compratori veri</b>." data-en="I filter tyre-kickers: I bring <b>real buyers</b>.">Filtro i curiosi: ti porto <b>compratori veri</b>.</span></li>
-        </ul>
-      </div>
+    <div class="s-head ctr rv">
+      <div class="tag"><span class="id">§04</span> <span data-it="Le regole della casa" data-en="House rules">Le regole della casa</span></div>
+      <h2 class="s-title" data-it="Quattro promesse. <span class='e'>Zero asterischi.</span>" data-en="Four promises. <span class='e'>Zero fine print.</span>">Quattro promesse. <span class="e">Zero asterischi.</span></h2>
+    </div>
+    <div class="nums rv" data-st>
+      <div class="numc"><div class="v" data-c="0">0</div><div class="k" data-it="Aste mascherate. Mai." data-en="Fake bidding wars. Ever.">Aste mascherate. Mai.</div></div>
+      <div class="numc"><div class="v" data-c="100">0<span class="u">%</span></div><div class="k" data-it="Dei difetti, dichiarati prima." data-en="Of flaws, declared upfront.">Dei difetti, dichiarati prima.</div></div>
+      <div class="numc"><div class="v" data-c="48">0<span class="u">h</span></div><div class="k" data-it="Per la tua valutazione." data-en="For your valuation.">Per la tua valutazione.</div></div>
+      <div class="numc"><div class="v" data-c="1">0</div><div class="k" data-it="Una sola versione dei fatti." data-en="One single version of the facts.">Una sola versione dei fatti.</div></div>
     </div>
   </div>
 </section>
 
-<!-- METRICS -->
+<!-- TESTIMONIALS -->
 <section class="blk" style="padding-top:0">
   <div class="wrap">
-    <div class="metrics" data-stagger>
-      <div class="metric"><div class="v" data-count="0">0</div><div class="k" data-it="Aste mascherate. Mai." data-en="Fake bidding wars. Ever.">Aste mascherate. Mai.</div></div>
-      <div class="metric"><div class="v" data-count="100">0<span class="u">%</span></div><div class="k" data-it="Dei difetti, dichiarati prima." data-en="Of flaws, disclosed upfront.">Dei difetti, dichiarati prima.</div></div>
-      <div class="metric"><div class="v" data-count="24">0<span class="u">h</span></div><div class="k" data-it="Tempo di risposta. Sul serio." data-en="Response time. For real.">Tempo di risposta. Sul serio.</div></div>
-      <div class="metric"><div class="v" data-count="1">0</div><div class="k" data-it="Una sola versione dei fatti." data-en="One single version of the facts.">Una sola versione dei fatti.</div></div>
+    <!-- NB: recensioni PLACEHOLDER — sostituire con quelle reali prima del lancio. -->
+    <div class="quotes rv" data-st>
+      <div class="quote"><span class="q">“</span><p data-it="È l'unico che mi ha detto di NON gonfiare il prezzo. Venduto in tre settimane, a condizioni migliori di quelle promesse dagli altri." data-en="The only one who told me NOT to inflate the price. Sold in three weeks, on better terms than the others promised.">È l'unico che mi ha detto di NON gonfiare il prezzo. Venduto in tre settimane, a condizioni migliori di quelle promesse dagli altri.</p><div class="who" data-it="— Cliente · vendita, Prati" data-en="— Client · sale, Prati">— Cliente · vendita, Prati</div><div class="stars">★★★★★</div></div>
+      <div class="quote"><span class="q">“</span><p data-it="Seguiva tutto lui, di persona. Sapevo sempre a che punto eravamo. Dopo dieci agenzie, riposante." data-en="He handled everything himself, in person. I always knew where we stood. After ten agencies, a relief.">Seguiva tutto lui, di persona. Sapevo sempre a che punto eravamo. Dopo dieci agenzie, riposante.</p><div class="who" data-it="— Cliente · vendita, Centro Storico" data-en="— Client · sale, Old Town">— Cliente · vendita, Centro Storico</div><div class="stars">★★★★★</div></div>
+      <div class="quote"><span class="q">“</span><p data-it="La dashboard per seguire le visite è una cosa che nessun'altra agenzia a Roma mi aveva mai dato." data-en="The dashboard to follow the viewings is something no other agency in Rome had ever given me.">La dashboard per seguire le visite è una cosa che nessun'altra agenzia a Roma mi aveva mai dato.</p><div class="who" data-it="— Cliente · vendita, Trastevere" data-en="— Client · sale, Trastevere">— Cliente · vendita, Trastevere</div><div class="stars">★★★★★</div></div>
     </div>
   </div>
 </section>
 
-<!-- BOOM BRIDGE -->
-<section class="blk boom" id="boom" data-sec="05">
+<!-- ZONES -->
+<section class="zones" id="quartieri">
+  <div class="zones-stage">
+    <div class="zones-head"><div class="eyebrow" data-it="Conosco ogni via" data-en="I know every street">Conosco ogni via</div><h2 data-it="Roma, quartiere per quartiere." data-en="Rome, neighbourhood by neighbourhood.">Roma, quartiere per quartiere.</h2></div>
+    <div class="zones-track" id="zonesTrack">
+      <article class="zcard"><figure class="ph" data-tint="clay"><img src="https://images.unsplash.com/photo-1531572753322-ad063cecc140?auto=format&fit=crop&w=1200&q=80" alt="" onerror="this.style.opacity=0"></figure><div class="grad"></div><div class="z-in"><div class="znum">01</div><h3>Centro Storico</h3><p data-it="Il cuore. Caro, ma reale — e so dove ogni euro ha un perché." data-en="The heart. Expensive, but real — and I know where every euro has a reason.">Il cuore. Caro, ma reale — e so dove ogni euro ha un perché.</p><div class="stat" data-it="Vendite · alta richiesta" data-en="Sales · high demand">Vendite · alta richiesta</div></div></article>
+      <article class="zcard"><figure class="ph" data-tint="stone"><img src="https://images.unsplash.com/photo-1555992828-ca4dbe41d294?auto=format&fit=crop&w=1200&q=80" alt="" onerror="this.style.opacity=0"></figure><div class="grad"></div><div class="z-in"><div class="znum">02</div><h3>Prati</h3><p data-it="Ordinato, borghese, sicuro. Umbertini e piani alti che vendo bene." data-en="Orderly, bourgeois, safe. Belle-époque blocks and high floors I sell well.">Ordinato, borghese, sicuro. Umbertini e piani alti che vendo bene.</p><div class="stat" data-it="Famiglie · tempi rapidi" data-en="Families · fast">Famiglie · tempi rapidi</div></div></article>
+      <article class="zcard"><figure class="ph" data-tint="ink"><img src="https://images.unsplash.com/photo-1542367592-8849eb950fd8?auto=format&fit=crop&w=1200&q=80" alt="" onerror="this.style.opacity=0"></figure><div class="grad"></div><div class="z-in"><div class="znum">03</div><h3>Trastevere</h3><p data-it="Bello e rumoroso. Lo dico ai compratori prima io: così l'offerta è seria." data-en="Beautiful and loud. I tell buyers first: that way the offer is serious.">Bello e rumoroso. Lo dico ai compratori prima io: così l'offerta è seria.</p><div class="stat" data-it="Investimento · resa alta" data-en="Investment · high yield">Investimento · resa alta</div></div></article>
+      <article class="zcard"><figure class="ph" data-tint="clay"><img src="https://images.unsplash.com/photo-1516483638261-f4dbaf036963?auto=format&fit=crop&w=1200&q=80" alt="" onerror="this.style.opacity=0"></figure><div class="grad"></div><div class="z-in"><div class="znum">04</div><h3>Monti</h3><p data-it="Di moda, vissuto, atipico. I prezzi cambiano via per via: io li conosco." data-en="Trendy, lived-in, atypical. Prices change street by street: I know them.">Di moda, vissuto, atipico. I prezzi cambiano via per via: io li conosco.</p><div class="stat" data-it="Giovani · forte domanda" data-en="Young · strong demand">Giovani · forte domanda</div></div></article>
+      <article class="zcard"><figure class="ph" data-tint="stone"><img src="https://images.unsplash.com/photo-1602343168117-bb8ffe3e2e9f?auto=format&fit=crop&w=1200&q=80" alt="" onerror="this.style.opacity=0"></figure><div class="grad"></div><div class="z-in"><div class="znum">05</div><h3>Parioli</h3><p data-it="Verde, silenzioso, premium. Ville e attici per chi cerca spazio." data-en="Green, quiet, premium. Villas and penthouses for those seeking space.">Verde, silenzioso, premium. Ville e attici per chi cerca spazio.</p><div class="stat" data-it="Premium · ville e attici" data-en="Premium · villas & penthouses">Premium · ville e attici</div></div></article>
+    </div>
+    <div class="zones-prog"><i id="zonesProg"></i></div>
+    <div class="zones-hint" data-it="Scorri — Roma si muove con te" data-en="Scroll — Rome moves with you">Scorri — Roma si muove con te</div>
+  </div>
+</section>
+
+<!-- BOOM -->
+<section class="blk boom" id="affitti">
   <div class="wrap">
-    <div class="boom-head rv">
-      <div class="tag"><span class="sq"></span><span>SEZ.05 — <span data-it="DIVISIONE AFFITTI" data-en="RENTALS DIVISION">DIVISIONE AFFITTI</span></span></div>
-      <h2 data-it="Comprare e vendere è metà del lavoro. Affittare è <span class='g'>BOOM</span>." data-en="Buying and selling is half the job. Renting is <span class='g'>BOOM</span>.">Comprare e vendere è metà del lavoro. Affittare è <span class="g">BOOM</span>.</h2>
-      <p data-it="BOOM è la nostra divisione dedicata agli affitti medio termine: appartamenti verificati a Roma, contratti legali, ingresso in 48 ore. Pensata per studenti, professionisti ed expat internazionali. Io ti seguo nella compravendita; per affittare — o mettere a reddito quello che compri — c'è BOOM." data-en="BOOM is our division for medium-term rentals: verified apartments in Rome, legal contracts, move-in within 48 hours. Built for students, professionals and international expats. I handle your buying and selling; to rent — or to put what you buy to work — there's BOOM.">BOOM è la nostra divisione dedicata agli affitti medio termine: appartamenti verificati a Roma, contratti legali, ingresso in 48 ore. Io ti seguo nella compravendita; per affittare — o mettere a reddito quello che compri — c'è BOOM.</p>
-    </div>
-    <div class="systems rv">
-      <div class="sys">
-        <div class="role" data-it="Compravendita" data-en="Buy & sell">Compravendita</div>
-        <div class="nm">Valentino Egidi</div>
-        <div class="dsc" data-it="Acquisto e vendita di immobili nel centro di Roma, con onestà e dati alla mano." data-en="Buying and selling property in central Rome, honestly and data-driven.">Acquisto e vendita di immobili nel centro di Roma, con onestà e dati alla mano.</div>
-        <div class="meta"><span class="chip" data-it="Acquisto" data-en="Purchase">Acquisto</span><span class="chip" data-it="Vendita" data-en="Sale">Vendita</span><span class="chip" data-it="Investimenti" data-en="Investment">Investimenti</span></div>
+    <div class="boom-tag"><span class="id">§05</span> <span data-it="L'ecosistema · Divisione affitti" data-en="The ecosystem · Rentals division">L'ecosistema · Divisione affitti</span></div>
+    <div class="boom-grid">
+      <div class="rv">
+        <div class="boom-mark">BOOM</div>
+        <h2 data-it="Non vuoi vendere? <span class='g'>Mettila a reddito con BOOM.</span>" data-en="Don't want to sell? <span class='g'>Put it to income with BOOM.</span>">Non vuoi vendere? <span class="g">Mettila a reddito con BOOM.</span></h2>
+        <p data-it="BOOM è la divisione del gruppo per gli affitti medio termine: appartamenti verificati, contratti legali, ingresso in 48 ore, inquilini selezionati. Io vendo o compro la tua casa; se vuoi farla rendere, la affidi a BOOM. Stessa proprietà, stessa onestà — Egidi Immobiliare." data-en="BOOM is the group's medium-term rentals division: verified apartments, legal contracts, move-in in 48 hours, selected tenants. I sell or buy your home; if you'd rather earn from it, you hand it to BOOM. Same ownership, same honesty — Egidi Immobiliare.">BOOM è la divisione del gruppo per gli affitti medio termine: appartamenti verificati, contratti legali, ingresso in 48 ore, inquilini selezionati. Io vendo o compro la tua casa; se vuoi farla rendere, la affidi a BOOM. Stessa proprietà, stessa onestà — Egidi Immobiliare.</p>
+        <div class="boom-meta"><span class="chip" data-it="Verificati" data-en="Verified">Verificati</span><span class="chip" data-it="48h ingresso" data-en="48h move-in">48h ingresso</span><span class="chip" data-it="Contratti legali" data-en="Legal contracts">Contratti legali</span><span class="chip" data-it="Expat & studenti" data-en="Expats & students">Expat & studenti</span></div>
+        <a href="https://www.boomrome.com" target="_blank" class="blink">Scopri BOOM <span class="ar">→</span></a>
       </div>
-      <div class="sys-div"><span class="rot">⇄</span></div>
-      <div class="sys boomx">
-        <div class="role" data-it="Affitti medio termine" data-en="Medium-term rentals">Affitti medio termine</div>
-        <div class="nm">BOOM</div>
-        <div class="dsc" data-it="Appartamenti verificati, contratti legali, ingresso in 48 ore. Da 1 a 18 mesi." data-en="Verified apartments, legal contracts, move-in in 48 hours. From 1 to 18 months.">Appartamenti verificati, contratti legali, ingresso in 48 ore. Da 1 a 18 mesi.</div>
-        <div class="meta"><span class="chip" data-it="Verificati" data-en="Verified">Verificati</span><span class="chip" data-it="48h ingresso" data-en="48h move-in">48h ingresso</span><span class="chip" data-it="Expat & studenti" data-en="Expats & students">Expat & studenti</span></div>
-      </div>
-    </div>
-    <div class="boom-cta-row rv">
-      <a href="https://www.boomrome.com" target="_blank" class="btn btn-gold" data-mag data-cur="VAI A BOOM" data-it="Scopri BOOM →" data-en="Discover BOOM →">Scopri BOOM →</a>
-      <span class="boom-note" data-it="Stessa proprietà · Egidi Immobiliare S.r.l." data-en="Same ownership · Egidi Immobiliare S.r.l.">Stessa proprietà · Egidi Immobiliare S.r.l.</span>
+      <div class="boom-fig rv"><figure class="ph" data-tint="ink"><img src="https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1300&q=80" alt="" onerror="this.style.opacity=0"></figure><div class="frame"></div></div>
     </div>
   </div>
 </section>
 
-<!-- WORDS -->
-<section class="blk words" id="parole" data-sec="06">
-  <div class="wrap">
-    <div class="s-head rv">
-      <div class="tag"><span class="sq"></span><span>SEZ.06 — <span data-it="PASSAPAROLA" data-en="WORD OF MOUTH">PASSAPAROLA</span></span></div>
-      <h2 class="s-title" data-it="Niente budget pubblicitario. <span class='s'>Solo i miei clienti.</span>" data-en="No ad budget. <span class='s'>Just my clients.</span>">Niente budget pubblicitario. <span class="s">Solo i miei clienti.</span></h2>
+<!-- BUYER -->
+<section class="blk buyer">
+  <div class="wrap buyer-in rv">
+    <div>
+      <div class="lab" data-it="// Cerchi casa, non la vendi?" data-en="// Looking to buy, not sell?">// Cerchi casa, non la vendi?</div>
+      <h3 data-it="Ti aiuto anche a comprare — <span class='e'>ma il mio lavoro migliore lo faccio per chi vende.</span>" data-en="I help you buy too — <span class='e'>but my best work is for those who sell.</span>">Ti aiuto anche a comprare — <span class="e">ma il mio lavoro migliore lo faccio per chi vende.</span></h3>
     </div>
-    <!-- NB: recensioni PLACEHOLDER — Valentino, sostituiscile con quelle reali. Niente finte: è il punto del brand. -->
-    <div class="words-grid" data-stagger>
-      <div class="quote"><span class="q">“</span><p data-it="È l'unico che mi ha detto di NON comprare una casa. Sei mesi dopo ne ho presa una migliore con lui." data-en="The only one who told me NOT to buy a place. Six months later I bought a better one with him.">È l'unico che mi ha detto di NON comprare una casa. Sei mesi dopo ne ho presa una migliore con lui.</p><div class="who" data-it="— Cliente · acquisto, Prati" data-en="— Client · purchase, Prati">— Cliente · acquisto, Prati</div></div>
-      <div class="quote"><span class="q">“</span><p data-it="Prezzo onesto, venduto in tre settimane. Gli altri promettevano 40.000€ in più e mesi di nulla." data-en="Honest price, sold in three weeks. The others promised €40k more and months of nothing.">Prezzo onesto, venduto in tre settimane. Gli altri promettevano 40.000€ in più e mesi di nulla.</p><div class="who" data-it="— Cliente · vendita, Trastevere" data-en="— Client · sale, Trastevere">— Cliente · vendita, Trastevere</div></div>
-      <div class="quote"><span class="q">“</span><p data-it="Ti dice le cose come stanno. Riposante, dopo aver parlato con dieci agenzie." data-en="He tells it like it is. A relief, after ten agencies.">Ti dice le cose come stanno. Riposante, dopo dieci agenzie.</p><div class="who" data-it="— Cliente · acquisto, Centro Storico" data-en="— Client · purchase, Old Town">— Cliente · acquisto, Centro Storico</div></div>
-    </div>
+    <a href="/valentino-compra" data-it="Scopri come compro →" data-en="See how I buy →">Scopri come compro →</a>
   </div>
 </section>
 
 <!-- CONTACT -->
-<section class="blk contact" id="contatti" data-sec="07">
-  <div class="wrap">
-    <div class="s-head rv" style="margin-bottom:0">
-      <div class="tag"><span class="sq"></span><span>SEZ.07 — <span data-it="CONTATTO" data-en="CONTACT">CONTATTO</span></span></div>
-      <h2 class="s-title" data-it="Una conversazione onesta. <span class='s'>Senza copione.</span>" data-en="An honest conversation. <span class='s'>No script.</span>">Una conversazione onesta. <span class="s">Senza copione.</span></h2>
-      <p class="contact-lead" data-it="Dimmi cosa cerchi, o cosa vuoi vendere. In due minuti ti dico se posso aiutarti davvero — e se non posso, ti dico a chi rivolgerti." data-en="Tell me what you want, or what you're selling. In two minutes I'll tell you if I can really help — and if I can't, I'll point you to who can.">Dimmi cosa cerchi, o cosa vuoi vendere. In due minuti ti dico se posso aiutarti davvero.</p>
-    </div>
-    <div class="contact-grid">
-      <div class="rv"><a href="https://wa.me/393313251961" target="_blank" class="mag" data-mag data-cur="SCRIVIMI" data-it="Scrivimi ora <span class='ar'>→</span>" data-en="Message me now <span class='ar'>→</span>">Scrivimi ora <span class="ar">→</span></a></div>
-      <div class="cdetails rv">
-        <div><span class="l">WhatsApp / Tel</span> · <a href="https://wa.me/393313251961" target="_blank">+39 331 325 1961</a></div>
-        <div><span class="l">Instagram</span> · <a href="https://instagram.com/r.egidi_immobiliare" target="_blank">@r.egidi_immobiliare</a></div>
-        <div><span class="l">Studio</span> · Via dei Coronari 181, Roma</div>
-      </div>
+<section class="contact" id="contatti">
+  <figure class="ph" data-tint="ink"><img src="https://images.unsplash.com/photo-1600121848594-d8644e57abab?auto=format&fit=crop&w=2000&q=80" alt="" onerror="this.style.opacity=0"></figure>
+  <div class="wrap inner">
+    <div class="tag">Parliamo</div>
+    <h2 data-it="Vendi casa a Roma? <span class='e'>Iniziamo dal prezzo vero.</span>" data-en="Selling in Rome? <span class='e'>Let's start from the real price.</span>">Vendi casa a Roma? <span class="e">Iniziamo dal prezzo vero.</span></h2>
+    <p class="contact-lead" data-it="Dimmi dov'è e com'è. In due minuti ti dico se posso aiutarti davvero — e quanto vale, sul serio. Pochi incarichi alla volta: se c'è posto, è tutto tuo." data-en="Tell me where it is and what it's like. In two minutes I'll tell you if I can really help — and what it's worth, for real. Few mandates at a time: if there's room, it's all yours.">Dimmi dov'è e com'è. In due minuti ti dico se posso aiutarti davvero — e quanto vale, sul serio. Pochi incarichi alla volta: se c'è posto, è tutto tuo.</p>
+    <a href="#valuta" class="btn btn-ink" data-it="Richiedi la valutazione onesta →" data-en="Request the honest valuation →">Richiedi la valutazione onesta →</a>
+    <div class="cmeta">
+      <span><a href="https://wa.me/393313251961" target="_blank">+39 331 325 1961</a></span>
+      <span><a href="https://instagram.com/r.egidi_immobiliare" target="_blank">@r.egidi_immobiliare</a></span>
+      <span>Via dei Coronari 181 · Roma</span>
     </div>
   </div>
 </section>
 
 <!-- FOOTER -->
 <footer><div class="wrap">
+  <div class="foot-grid">
+    <div>
+      <div class="bigmark"><svg viewBox="0 0 100 100" aria-hidden="true"><rect class="mk" x="14" y="14" width="72" height="72"/><path class="mk" d="M34 86 V54 a16 16 0 0 1 32 0 V86"/><rect class="mt" x="44" y="20" width="12" height="5"/></svg> Valentino Egidi</div>
+      <p data-it="Mediatore immobiliare a Roma. Compravendita onesta, tecnologica, seguìta da un solo nome." data-en="Real-estate broker in Rome. Honest, technological sales — handled by one name.">Mediatore immobiliare a Roma. Compravendita onesta, tecnologica, seguìta da un solo nome.</p>
+    </div>
+    <div>
+      <h4 data-it="Pagine" data-en="Pages">Pagine</h4>
+      <ul>
+        <li><a href="/valentino-vendi" data-it="Vendi casa" data-en="Sell your home">Vendi casa</a></li>
+        <li><a href="/valentino-compra" data-it="Compra casa" data-en="Buy a home">Compra casa</a></li>
+        <li><a href="/valentino-indirizzi" data-it="Indirizzi" data-en="Listings">Indirizzi</a></li>
+        <li><a href="/valentino-chi-sono" data-it="Chi sono" data-en="About">Chi sono</a></li>
+        <li><a href="/valentino-contatti" data-it="Contatti" data-en="Contact">Contatti</a></li>
+      </ul>
+    </div>
+    <div>
+      <h4 data-it="Contatti" data-en="Contact">Contatti</h4>
+      <ul>
+        <li><a href="https://wa.me/393313251961" target="_blank">+39 331 325 1961</a></li>
+        <li><a href="https://instagram.com/r.egidi_immobiliare" target="_blank">@r.egidi_immobiliare</a></li>
+        <li>Via dei Coronari 181, Roma</li>
+        <li><a href="https://www.boomrome.com" target="_blank">BOOM — affitti</a></li>
+      </ul>
+    </div>
+  </div>
   <div class="foot-eco">
-    <span data-it="L'ECOSISTEMA:" data-en="THE ECOSYSTEM:">L'ECOSISTEMA:</span>
-    <span><b>Valentino Egidi</b> — <span data-it="compravendita" data-en="buy &amp; sell">compravendita</span></span>
-    <span class="div">/</span>
+    <span data-it="L'ecosistema:" data-en="The ecosystem:">L'ecosistema:</span>
+    <span><b>Valentino Egidi</b> — <span data-it="compravendita" data-en="sales">compravendita</span></span>
+    <span class="dv">/</span>
     <a href="https://www.boomrome.com" target="_blank"><b class="gd">BOOM</b> — <span data-it="affitti medio termine" data-en="medium-term rentals">affitti medio termine</span></a>
-    <span class="div">/</span>
+    <span class="dv">/</span>
     <span><b>Egidi Immobiliare S.r.l.</b></span>
   </div>
   <div class="foot-bot">
@@ -590,150 +364,7 @@ footer{background:var(--void);padding:0 0 48px}
   </div>
 </div></footer>
 
-<!-- CONTROL DECK -->
-<div class="deck">
-  <div class="grp" id="langGrp"><button data-lang="it" class="on">IT</button><button data-lang="en">EN</button></div>
-  <div class="sep"></div>
-  <button id="soundBtn" data-it="♪ Suono" data-en="♪ Sound">♪ Suono</button>
-</div>
+<a href="#valuta" class="fab" id="fab"><span data-it="Valuta casa tua" data-en="Value your home">Valuta casa tua</span> <span class="ar">→</span></a>
 
-<script>
-/* ── data ──────────────────────────────────────────────────── */
-const MARQ={
-  it:["Onesto fino all'imbarazzo","Preciso fino al decimale","Nessun copione","I difetti prima","Prezzo vero, subito","Compratori veri","Niente fuffa","Roma MMXXX"],
-  en:["Honest to a fault","Precise to the decimal","No script","Flaws first","Real price, now","Real buyers","No fluff","Rome MMXXX"]
-};
-const DICT={
-  it:[["Caratteristico","Piccolo."],["Luminoso","Ha le finestre."],["Mansardato","In certi punti non ci stai in piedi."],["Open space","Mancano i muri."],["Zona in via di sviluppo","Per ora è scomoda."],["Da rivedere internamente","Ci sono 50.000€ di lavori."],["Soluzione esclusiva","Costa più del dovuto."],["Trattativa riservata","Il prezzo è imbarazzante da scrivere."],["Tranquillo","Non passa nessuno. Nemmeno l'autobus."],["Ideale per investimento","Non ci vivresti."]],
-  en:[["Cosy","Small."],["Bright","It has windows."],["Characterful","Old and unfixed."],["Open-plan","There are no walls."],["Up-and-coming area","Inconvenient, for now."],["Needs some TLC","€50,000 of work."],["Exclusive opportunity","Overpriced."],["Price on application","The number is embarrassing to print."],["Quiet street","Nothing comes by. Not even the bus."],["Great for investors","You wouldn't live here."]]
-};
-const LABELS={it:{said:"L'annuncio dice",mean:"Vuol dire",cur:"TRADUCI"},en:{said:"The listing says",mean:"It means",cur:"TRANSLATE"}};
-let LANG='it';
-const reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;
-const fine=matchMedia('(hover:hover) and (pointer:fine)').matches;
-
-/* ── sound (optional, WebAudio synth) ──────────────────────── */
-let AC=null,soundOn=false;
-function actx(){if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)()}catch(e){}}return AC}
-function blip(freq=440,dur=.035,type='square',gain=.04){
-  if(!soundOn)return;const c=actx();if(!c)return;
-  const o=c.createOscillator(),g=c.createGain();o.type=type;o.frequency.value=freq;
-  g.gain.value=gain;o.connect(g);g.connect(c.destination);const t=c.currentTime;
-  o.start(t);g.gain.setValueAtTime(gain,t);g.gain.exponentialRampToValueAtTime(.0001,t+dur);o.stop(t+dur+.02);
-}
-
-/* ── builders ──────────────────────────────────────────────── */
-function buildMarquee(){const one=MARQ[LANG].map(t=>`<span>${t}</span>`).join('');document.getElementById('marq').innerHTML=one+one;}
-function buildDict(){
-  const L=LABELS[LANG];
-  document.getElementById('htGrid').innerHTML=DICT[LANG].map(([s,m])=>`
-    <div class="ht-row" tabindex="0" data-cur="${L.cur}">
-      <span class="lab">${L.said}</span><div class="said">“${s}”</div>
-      <div class="ht-mean"><span class="lab">${L.mean}</span><div class="truth">${m}</div></div>
-    </div>`).join('');
-  document.querySelectorAll('#htGrid .ht-row').forEach(r=>{
-    const open=()=>{r.classList.toggle('open');blip(220,.05,'sine',.05)};
-    r.addEventListener('click',open);
-    r.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();open()}});
-    if(fine&&!reduce)bindCursor(r);
-  });
-}
-function setLang(l){
-  LANG=l;document.documentElement.lang=l;
-  document.querySelectorAll('[data-it]').forEach(el=>{const v=el.getAttribute('data-'+l);if(v!=null)el.innerHTML=v});
-  document.querySelectorAll('#langGrp button').forEach(b=>b.classList.toggle('on',b.dataset.lang===l));
-  buildMarquee();buildDict();
-}
-
-/* ── controls ──────────────────────────────────────────────── */
-document.getElementById('langGrp').addEventListener('click',e=>{const b=e.target.closest('button');if(b){setLang(b.dataset.lang);blip(660)}});
-document.getElementById('soundBtn').addEventListener('click',function(){soundOn=!soundOn;this.classList.toggle('on',soundOn);if(soundOn){actx();blip(880,.06,'sine',.05)}});
-
-/* ── nav + scroll-driven (single rAF) ──────────────────────── */
-const nav=document.getElementById('nav'),prog=document.getElementById('prog');
-const rail=document.getElementById('rail');
-const parEls=[...document.querySelectorAll('.parallax')];
-const secs=[...document.querySelectorAll('[data-sec]')];
-const monuStage=document.getElementById('monuStage'),monuFg=document.getElementById('monuFg');
-const monument=document.querySelector('.monument');
-let sTick=false;
-function onScroll(){
-  const y=scrollY,h=document.documentElement.scrollHeight-innerHeight;
-  nav.classList.toggle('scrolled',y>30);
-  prog.style.width=(h>0?(y/h*100):0)+'%';
-  if(!reduce){
-    parEls.forEach(el=>{const sp=+el.dataset.speed||0;const r=el.getBoundingClientRect();const c=r.top+r.height/2-innerHeight/2;
-      const base=el.classList.contains('monolith')?'':'';el.style.transform=base+`translateY(${(-c*sp).toFixed(1)}px)`});
-    if(monument){const r=monument.getBoundingClientRect();const p=Math.max(0,Math.min(1,1-(r.top+r.height/2)/(innerHeight+r.height/2)));
-      monuStage.style.transform=`translateX(-50%) translateY(${(1-p)*60}px) scale(${(.86+p*.18).toFixed(3)})`;
-      monuFg.style.transform=`translateY(${(p-.5)*-70}px)`;monuFg.style.opacity=(.35+p*.65).toFixed(2);}
-  }
-  // section rail active
-  let cur=secs[0];secs.forEach(s=>{if(s.getBoundingClientRect().top<=innerHeight*0.4)cur=s});
-  document.querySelectorAll('.rail a').forEach(a=>a.classList.toggle('on',a.dataset.t===cur.getAttribute('data-sec')));
-  sTick=false;
-}
-addEventListener('scroll',()=>{if(!sTick){requestAnimationFrame(onScroll);sTick=true}},{passive:true});
-
-/* build rail */
-(function(){const wrap=document.createElement('div');wrap.className='rail';wrap.id='rail';
-  secs.forEach(s=>{const id=s.id||'top';const n=s.getAttribute('data-sec');
-    wrap.insertAdjacentHTML('beforeend',`<a href="#${id}" data-t="${n}"><span>${n}</span><span class="ln"></span></a>`)});
-  document.body.appendChild(wrap);
-})();
-
-/* ── reveal ────────────────────────────────────────────────── */
-const io=new IntersectionObserver(es=>es.forEach(en=>{if(en.isIntersecting){en.target.classList.add('in');io.unobserve(en.target)}}),{threshold:.12});
-document.querySelectorAll('.rv,[data-stagger]').forEach(el=>io.observe(el));
-
-/* ── count-up ──────────────────────────────────────────────── */
-const cio=new IntersectionObserver(es=>es.forEach(en=>{
-  if(!en.isIntersecting)return;cio.unobserve(en.target);
-  const el=en.target,target=+el.dataset.count;let t0=null;
-  (function tick(ts){if(!t0)t0=ts;const p=Math.min((ts-t0)/1100,1),e=1-Math.pow(1-p,3);
-    el.childNodes[0].nodeValue=Math.round(e*target);if(p<1)requestAnimationFrame(tick)})(performance.now());
-}),{threshold:.6});
-document.querySelectorAll('.metric .v').forEach(el=>cio.observe(el));
-
-/* ── Rome clock ────────────────────────────────────────────── */
-const clk=document.getElementById('clock');
-function tickClock(){try{clk.textContent=new Intl.DateTimeFormat('it-IT',{timeZone:'Europe/Rome',hour:'2-digit',minute:'2-digit',second:'2-digit'}).format(new Date())}catch(e){}}
-tickClock();setInterval(tickClock,1000);
-
-/* ── cursor + spotlight + magnetic ─────────────────────────── */
-const cur=document.getElementById('cur'),curd=document.getElementById('curd'),curtx=cur.querySelector('.cur-tx'),spot=document.getElementById('spot');
-function bindCursor(el){
-  const lab=el.getAttribute('data-cur');
-  el.addEventListener('mouseenter',()=>{if(lab){cur.classList.add('label');curtx.textContent=lab}else{cur.classList.add('grow')}blip(520,.02,'sine',.025)});
-  el.addEventListener('mouseleave',()=>{cur.classList.remove('label','grow')});
-}
-if(fine&&!reduce){
-  document.body.classList.add('cur-on');
-  let cx=innerWidth/2,cy=innerHeight/2,tx=cx,ty=cy;
-  addEventListener('mousemove',e=>{tx=e.clientX;ty=e.clientY;curd.style.transform=`translate(${tx}px,${ty}px) translate(-50%,-50%)`;spot.style.transform=`translate(${tx}px,${ty}px) translate(-50%,-50%)`});
-  (function loop(){cx+=(tx-cx)*.2;cy+=(ty-cy)*.2;cur.style.transform=`translate(${cx}px,${cy}px) translate(-50%,-50%)`;requestAnimationFrame(loop)})();
-  document.querySelectorAll('a,button,[data-cur]').forEach(bindCursor);
-  document.querySelectorAll('[data-mag]').forEach(el=>{
-    el.addEventListener('mousemove',e=>{const r=el.getBoundingClientRect();el.style.transform=`translate(${(e.clientX-r.left-r.width/2)*.25}px,${(e.clientY-r.top-r.height/2)*.4}px)`});
-    el.addEventListener('mouseleave',()=>el.style.transform='');
-  });
-}
-
-/* ── preloader ─────────────────────────────────────────────── */
-function finishPre(){const pre=document.getElementById('pre');if(!pre||pre.classList.contains('done'))return;
-  pre.classList.add('done');document.body.classList.remove('lock');
-  document.querySelector('.hero-in')?.classList.add('in');setTimeout(()=>pre.remove(),1100);}
-if(reduce){document.body.classList.remove('lock');document.getElementById('pre')?.remove();document.querySelector('.hero-in')?.classList.add('in');}
-else{
-  const pc=document.getElementById('preCount'),pb=document.getElementById('preBar');let n=0;
-  const iv=setInterval(()=>{n=Math.min(100,n+Math.round(4+Math.random()*9));pc.textContent=String(n).padStart(2,'0');pb.style.width=n+'%';
-    if(n>=100){clearInterval(iv);setTimeout(finishPre,260)}},58);
-  addEventListener('load',()=>setTimeout(()=>{if(n<100){n=100;pc.textContent='100';pb.style.width='100%';finishPre()}},1700));
-  setTimeout(finishPre,4200); // hard safety
-}
-
-/* boot */
-setLang('it');onScroll();
-</script>
 </body>
 </html>
