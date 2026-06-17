@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Preview — Portale Cliente — BOOM Rome</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* === PREVIEW DEMO — autonomo, dati finti, nessun Firebase ===
+           Estetica fedele a client-portal.html (sola fonte: design tokens BOOM). */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --gold: #D4AF37;
+            --gold-light: rgba(212, 175, 55, 0.15);
+            --gold-glow: rgba(212, 175, 55, 0.5);
+            --bg: #000;
+            --bg-card: #0A0A0A;
+            --bg-elevated: #111;
+            --border: rgba(255,255,255,0.08);
+            --text: #FFF;
+            --text-secondary: #888;
+            --text-muted: #555;
+            --green: #00D26A;
+            --green-light: rgba(0, 210, 106, 0.15);
+            --red: #FF3B30;
+            --red-light: rgba(255, 59, 48, 0.15);
+        }
+        body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; -webkit-font-smoothing: antialiased; }
+
+        .header { position: fixed; top: 0; left: 0; right: 0; height: 64px; background: rgba(0,0,0,0.9); backdrop-filter: blur(20px); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; z-index: 100; }
+        .header-logo { display: flex; align-items: center; gap: 10px; }
+        .logo-mark { width: 32px; height: 32px; background: linear-gradient(135deg, var(--gold), #B8960C); border-radius: 50%; box-shadow: 0 0 18px var(--gold-glow); }
+        .header-logo-text { font-size: 13px; letter-spacing: 3px; }
+        .header-avatar { width: 36px; height: 36px; background: var(--gold); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #000; }
+
+        .main { padding: 80px 20px 100px; max-width: 500px; margin: 0 auto; }
+
+        .status-hero { text-align: center; padding: 32px 20px; margin-bottom: 24px; }
+        .status-icon { font-size: 64px; margin-bottom: 16px; }
+        .status-title { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+        .status-subtitle { font-size: 14px; color: var(--text-secondary); }
+        .status-badge { display: inline-flex; align-items: center; gap: 8px; margin-top: 16px; padding: 10px 20px; background: var(--green-light); border-radius: 100px; font-size: 13px; color: var(--green); }
+        .status-dot { width: 8px; height: 8px; background: var(--green); border-radius: 50%; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+        .progress { display: flex; justify-content: space-between; margin-bottom: 32px; position: relative; padding: 0 10px; }
+        .progress::before { content: ''; position: absolute; top: 16px; left: 30px; right: 30px; height: 3px; background: var(--border); }
+        .progress-fill { position: absolute; top: 16px; left: 30px; height: 3px; background: linear-gradient(90deg, var(--green), var(--gold)); transition: width 0.5s; }
+        .progress-step { display: flex; flex-direction: column; align-items: center; gap: 8px; position: relative; z-index: 1; }
+        .progress-dot { width: 32px; height: 32px; border-radius: 50%; background: var(--bg-card); border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; }
+        .progress-step.completed .progress-dot { background: var(--green); border-color: var(--green); color: #000; }
+        .progress-step.active .progress-dot { background: var(--gold); border-color: var(--gold); color: #000; box-shadow: 0 0 20px var(--gold-glow); }
+        .progress-label { font-size: 9px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
+
+        .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px; }
+        .stat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 16px; text-align: center; }
+        .stat-value { font-size: 24px; font-weight: 700; }
+        .stat-value.gold { color: var(--gold); }
+        .stat-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; margin-top: 4px; }
+
+        .section { margin-bottom: 24px; }
+        .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .section-title { font-size: 12px; text-transform: uppercase; letter-spacing: 2px; color: var(--text-secondary); }
+        .section-badge { padding: 5px 12px; background: var(--gold-light); color: var(--gold); border-radius: 100px; font-size: 12px; font-weight: 600; }
+
+        .property-stack { position: relative; height: 460px; margin-bottom: 16px; }
+        .property-card { position: absolute; width: 100%; background: var(--bg-card); border: 1px solid var(--border); border-radius: 20px; overflow: hidden; cursor: grab; }
+        .property-card:active { cursor: grabbing; }
+        .property-card.liked { transform: translateX(150%) rotate(20deg) !important; opacity: 0; transition: all 0.4s; }
+        .property-card.rejected { transform: translateX(-150%) rotate(-20deg) !important; opacity: 0; transition: all 0.4s; }
+        .property-image { height: 220px; background: linear-gradient(135deg, #1a1a1a, #0a0a0a); position: relative; overflow: hidden; }
+        .carousel { position: relative; width: 100%; height: 100%; }
+        .carousel-inner { display: flex; height: 100%; transition: transform 0.4s ease; }
+        .carousel-inner img { flex: 0 0 100%; width: 100%; height: 100%; object-fit: cover; }
+        .carousel-dots { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; z-index: 10; }
+        .carousel-dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.4); cursor: pointer; transition: all 0.3s; }
+        .carousel-dot.active { width: 20px; border-radius: 3px; background: var(--gold); }
+        .carousel-nav { position: absolute; top: 50%; transform: translateY(-50%); width: 32px; height: 32px; border-radius: 50%; background: rgba(0,0,0,0.5); backdrop-filter: blur(10px); border: none; color: #fff; font-size: 14px; cursor: pointer; z-index: 10; opacity: 0; transition: opacity 0.2s; }
+        .property-image:hover .carousel-nav { opacity: 1; }
+        .carousel-nav.prev { left: 8px; }
+        .carousel-nav.next { right: 8px; }
+        .image-counter { position: absolute; top: 12px; right: 12px; padding: 4px 10px; background: rgba(0,0,0,0.6); backdrop-filter: blur(10px); border-radius: 100px; font-size: 11px; z-index: 10; }
+        .property-image-overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 50%); pointer-events: none; }
+        .property-badges { position: absolute; top: 12px; left: 12px; display: flex; gap: 6px; }
+        .property-badge { padding: 6px 12px; background: rgba(0,0,0,0.7); backdrop-filter: blur(10px); border-radius: 100px; font-size: 12px; font-weight: 600; }
+        .property-badge.match { background: var(--green); color: #000; }
+        .property-badge.new { background: var(--gold); color: #000; }
+        .swipe-stamp { position: absolute; top: 50%; transform: translateY(-50%) rotate(-15deg); padding: 16px 24px; border-radius: 10px; font-size: 24px; font-weight: 800; text-transform: uppercase; opacity: 0; pointer-events: none; }
+        .swipe-stamp.like { right: 20px; border: 3px solid var(--green); color: var(--green); transform: translateY(-50%) rotate(15deg); }
+        .swipe-stamp.nope { left: 20px; border: 3px solid var(--red); color: var(--red); }
+        .property-card.swiping-right .swipe-stamp.like { opacity: 1; }
+        .property-card.swiping-left .swipe-stamp.nope { opacity: 1; }
+        .property-content { padding: 20px; }
+        .property-price { font-size: 28px; font-weight: 700; }
+        .property-price span { font-size: 14px; color: var(--text-secondary); }
+        .property-address { font-size: 13px; color: var(--text-secondary); margin-bottom: 12px; }
+        .property-features { display: flex; gap: 8px; flex-wrap: wrap; }
+        .property-feature { padding: 6px 12px; background: var(--bg-elevated); border-radius: 8px; font-size: 12px; color: var(--text-secondary); }
+
+        .swipe-actions { display: flex; justify-content: center; gap: 16px; }
+        .swipe-btn { width: 56px; height: 56px; border-radius: 50%; border: 2px solid; display: flex; align-items: center; justify-content: center; font-size: 24px; cursor: pointer; background: var(--bg-card); transition: all 0.2s; }
+        .swipe-btn:active { transform: scale(0.9); }
+        .swipe-btn.reject { border-color: var(--red); color: var(--red); }
+        .swipe-btn.reject:hover { background: var(--red); color: #fff; }
+        .swipe-btn.like { border-color: var(--green); color: var(--green); width: 64px; height: 64px; font-size: 28px; }
+        .swipe-btn.like:hover { background: var(--green); color: #000; }
+
+        .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 20px; margin-bottom: 12px; }
+        .contact-card { background: linear-gradient(135deg, var(--gold-light), transparent); border: 1px solid rgba(212,175,55,0.2); border-radius: 20px; padding: 20px; display: flex; align-items: center; gap: 16px; }
+        .contact-avatar { width: 48px; height: 48px; background: var(--gold); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+        .contact-info { flex: 1; }
+        .contact-name { font-weight: 600; }
+        .contact-role { font-size: 12px; color: var(--text-secondary); }
+        .contact-btn { padding: 12px 24px; background: var(--gold); color: #000; border: none; border-radius: 12px; font-weight: 700; cursor: pointer; }
+
+        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; height: 70px; background: rgba(0,0,0,0.95); backdrop-filter: blur(20px); border-top: 1px solid var(--border); display: flex; justify-content: space-around; align-items: center; z-index: 100; }
+        .nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--text-muted); cursor: pointer; padding: 8px 16px; }
+        .nav-item.active { color: var(--gold); }
+        .nav-item-icon { font-size: 20px; }
+        .nav-item-label { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; }
+
+        .toast { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%) translateY(100px); padding: 14px 24px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 100px; font-size: 14px; display: flex; align-items: center; gap: 10px; z-index: 1001; opacity: 0; transition: all 0.3s; }
+        .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+        .toast.success { border-color: var(--green); }
+
+        .new-property-alert { position: fixed; inset: 0; background: rgba(0,0,0,0.95); backdrop-filter: blur(20px); z-index: 2000; display: none; align-items: center; justify-content: center; flex-direction: column; padding: 40px; text-align: center; }
+        .new-property-alert.show { display: flex; }
+        .alert-icon { font-size: 64px; margin-bottom: 20px; animation: bounce 0.5s; }
+        @keyframes bounce { 0% { transform: scale(0); } 50% { transform: scale(1.2); } 100% { transform: scale(1); } }
+        .alert-title { font-size: 28px; font-weight: 700; color: var(--gold); margin-bottom: 8px; }
+        .alert-subtitle { color: var(--text-secondary); margin-bottom: 32px; }
+        .alert-btn { padding: 16px 40px; background: var(--gold); color: #000; border: none; border-radius: 14px; font-size: 16px; font-weight: 700; cursor: pointer; }
+
+        .empty { text-align: center; padding: 48px 24px; color: var(--text-muted); }
+        .empty-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }
+        .empty-title { font-size: 18px; margin-bottom: 8px; color: var(--text-secondary); }
+
+        #confetti { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 3000; }
+
+        /* Demo-only controls */
+        .demo-flag { position: fixed; top: 72px; left: 50%; transform: translateX(-50%); z-index: 200; font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-muted); background: var(--bg-card); border: 1px solid var(--border); padding: 4px 12px; border-radius: 100px; }
+        .demo-fab { position: fixed; right: 16px; bottom: 86px; z-index: 500; background: var(--bg-elevated); border: 1px solid var(--gold); color: var(--gold); border-radius: 100px; padding: 10px 16px; font-size: 12px; font-weight: 600; cursor: pointer; box-shadow: 0 8px 24px rgba(0,0,0,0.6); }
+    </style>
+</head>
+<body>
+    <canvas id="confetti"></canvas>
+    <div class="demo-flag">Anteprima Demo · Lato Cliente</div>
+    <div class="new-property-alert" id="newPropertyAlert">
+        <div class="alert-icon">🏠</div>
+        <div class="alert-title">Nuova proprietà!</div>
+        <div class="alert-subtitle">Il tuo agente ha aggiunto un'opzione</div>
+        <button class="alert-btn" onclick="dismissAlert()">Guarda ora →</button>
+    </div>
+
+    <header class="header">
+        <div class="header-logo"><div class="logo-mark"></div><div class="header-logo-text">BOOM</div></div>
+        <div class="header-avatar" id="userAvatar">M</div>
+    </header>
+    <main class="main" id="mainContent"></main>
+    <button class="demo-fab" onclick="simulateNew()">🔔 Simula nuovo immobile</button>
+    <nav class="bottom-nav">
+        <div class="nav-item active" onclick="showTab('home')" data-tab="home"><span class="nav-item-icon">🏠</span><span class="nav-item-label">Home</span></div>
+        <div class="nav-item" onclick="showTab('properties')" data-tab="properties"><span class="nav-item-icon">🔑</span><span class="nav-item-label">Immobili</span></div>
+        <div class="nav-item" onclick="showTab('contact')" data-tab="contact"><span class="nav-item-icon">💬</span><span class="nav-item-label">Agente</span></div>
+    </nav>
+    <div class="toast" id="toast"><span class="toast-icon">✓</span><span class="toast-text"></span></div>
+
+    <script>
+        // ---- Confetti ----
+        const canvas = document.getElementById('confetti');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+        function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+        resizeCanvas(); window.addEventListener('resize', resizeCanvas);
+        function createConfetti(x, y, count = 40) {
+            const colors = ['#D4AF37', '#00D26A', '#FF3B30', '#0A84FF'];
+            for (let i = 0; i < count; i++) particles.push({ x, y, vx: (Math.random() - 0.5) * 15, vy: Math.random() * -12 - 3, color: colors[Math.floor(Math.random() * colors.length)], size: Math.random() * 6 + 3, life: 1 });
+            animateConfetti();
+        }
+        function animateConfetti() {
+            if (!particles.length) return;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particles = particles.filter(p => { p.vy += 0.2; p.x += p.vx; p.y += p.vy; p.life -= 0.015; if (p.life <= 0) return false; ctx.globalAlpha = p.life; ctx.fillStyle = p.color; ctx.fillRect(p.x, p.y, p.size, p.size); return true; });
+            if (particles.length) requestAnimationFrame(animateConfetti);
+        }
+        function haptic() { try { if ('vibrate' in navigator) navigator.vibrate(10); } catch(e) {} }
+
+        // ---- Demo data (nessun Firebase) ----
+        const U = 'https://images.unsplash.com/';
+        const client = {
+            name: 'Marco Rossi', code: 'BOOM2024', status: 'options', stage: 2,
+            stats: { days: 12, reviewed: 5, match: 90 },
+            properties: [
+                { id: 'p1', address: 'Via del Corso 45, Centro Storico', price: 1450, rooms: 2, sqm: 72, match: 95, isNew: true,
+                  images: [U+'photo-1502672260266-1c1ef2d93688?w=900', U+'photo-1560448204-e02f11c3d0e2?w=900', U+'photo-1522708323590-d24dbb6b0267?w=900'],
+                  matchReasons: ['✓ 2 camere come richiesto', '✓ Centro Storico, zona preferita', '≈ €1.450 — entro budget'] },
+                { id: 'p2', address: 'Viale di Trastevere 112, Trastevere', price: 980, rooms: 1, sqm: 48, match: 88,
+                  images: [U+'photo-1554995207-c18c203602cb?w=900', U+'photo-1484154218962-a197022b5858?w=900'],
+                  matchReasons: ['✓ Arredato', '≈ 48 m²', '✓ Trastevere'] },
+                { id: 'p3', address: 'Via dei Coronari 18, Ponte', price: 1700, rooms: 2, sqm: 80, match: 91, isNew: true,
+                  images: [U+'photo-1493809842364-78817add7ffb?w=900', U+'photo-1505691938895-1758d7feb511?w=900'],
+                  matchReasons: ['✓ 2 bagni', '✓ Luminoso', '≈ 80 m²'] },
+                { id: 'p4', address: 'Via Ostiense 84, Ostiense', price: 850, rooms: 1, sqm: 42, match: 82,
+                  images: [U+'photo-1567496898669-ee935f5f647a?w=900'],
+                  matchReasons: ['≈ €850', '✓ Vicino metro B'] },
+                { id: 'p5', address: 'Piazza Bologna 7, Nomentano', price: 1200, rooms: 2, sqm: 68, match: 86,
+                  images: [U+'photo-1560185007-cde436f6a4d0?w=900', U+'photo-1560185008-a33f5c7b1844?w=900'],
+                  matchReasons: ['✓ 2 camere', '✓ Ben collegato'] }
+            ],
+            liked: [], rejected: []
+        };
+
+        let tab = 'home';
+        document.getElementById('userAvatar').textContent = client.name.charAt(0);
+
+        function showTab(t) { haptic(); tab = t; document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.tab === t)); render(); if (t === 'properties') startCarouselsAfterRender(); }
+        function dismissAlert() { document.getElementById('newPropertyAlert').classList.remove('show'); showTab('properties'); }
+
+        function render() {
+            const main = document.getElementById('mainContent');
+            const STATUS = { searching: { icon: '🔍', title: 'Ricerca in corso…', sub: 'Stiamo trovando opzioni' }, options: { icon: '🏠', title: 'Opzioni trovate!', sub: 'Guarda i tuoi immobili' }, viewing: { icon: '📅', title: 'Visita in arrivo', sub: 'Preparati a visitare' }, closing: { icon: '📝', title: 'Ci siamo quasi!', sub: 'Stiamo finalizzando' }, completed: { icon: '🎉', title: 'Congratulazioni!', sub: 'Benvenuto a casa!' } };
+            const s = STATUS[client.status] || STATUS.searching;
+            const avail = client.properties.filter(p => !client.liked.includes(p.id) && !client.rejected.includes(p.id));
+
+            if (tab === 'home') {
+                main.innerHTML = `
+                    <div class="status-hero">
+                        <div class="status-icon">${s.icon}</div>
+                        <div class="status-title">${s.title}</div>
+                        <div class="status-subtitle">${s.sub}</div>
+                        <div class="status-badge"><span class="status-dot"></span>Ricerca attiva</div>
+                    </div>
+                    <div class="progress">
+                        <div class="progress-fill" style="width:${(client.stage-1)/4*100}%"></div>
+                        ${[1,2,3,4,5].map(n => `<div class="progress-step ${client.stage > n ? 'completed' : ''} ${client.stage === n ? 'active' : ''}"><div class="progress-dot">${client.stage > n ? '✓' : n}</div><div class="progress-label">${['Ricerca','Opzioni','Visita','Contratto','Fatto'][n-1]}</div></div>`).join('')}
+                    </div>
+                    <div class="stats-grid">
+                        <div class="stat-card"><div class="stat-value">${client.stats.days}</div><div class="stat-label">Giorni</div></div>
+                        <div class="stat-card"><div class="stat-value">${avail.length}</div><div class="stat-label">Da vedere</div></div>
+                        <div class="stat-card"><div class="stat-value gold">${client.stats.match}%</div><div class="stat-label">Match</div></div>
+                    </div>
+                    ${avail.length ? `<div class="section"><div class="section-header"><div class="section-title">Ultimo arrivato</div><span class="section-badge">${avail.length} nuovi</span></div>
+                        <div class="card" onclick="showTab('properties')" style="cursor:pointer"><div style="display:flex;gap:12px;align-items:center">
+                            <img src="${avail[0].images[0]}" style="width:60px;height:60px;object-fit:cover;border-radius:10px">
+                            <div style="flex:1"><div style="font-weight:600">€${avail[0].price}/mese</div><div style="font-size:12px;color:var(--text-secondary)">${avail[0].address}</div></div>
+                            <div style="font-size:20px">→</div>
+                        </div></div>
+                    </div>` : ''}
+                    <div class="section"><div class="section-header"><div class="section-title">Il tuo agente</div></div>
+                        <div class="contact-card"><div class="contact-avatar">👤</div><div class="contact-info"><div class="contact-name">BOOM Team</div><div class="contact-role">Property Finding</div></div><button class="contact-btn" onclick="alert('Demo: aprirebbe WhatsApp')">Chat</button></div>
+                    </div>`;
+            } else if (tab === 'properties') {
+                if (avail.length) {
+                    const p = avail[0];
+                    main.innerHTML = `
+                        <div class="section"><div class="section-header"><div class="section-title">Scorri</div><span class="section-badge">${avail.length} rimasti</span></div>
+                            <div class="property-stack" id="stack">
+                                ${avail.slice(0,2).reverse().map((prop, i) => {
+                                    const imgs = prop.images;
+                                    return `
+                                    <div class="property-card" data-id="${prop.id}" data-images='${JSON.stringify(imgs)}' style="transform:scale(${1-i*0.05}) translateY(${i*10}px);z-index:${2-i}">
+                                        <div class="property-image">
+                                            <div class="carousel" data-idx="0">
+                                                <div class="carousel-inner">${imgs.map(img => `<img src="${img}" alt="">`).join('')}</div>
+                                                ${imgs.length > 1 ? `
+                                                    <button class="carousel-nav prev" onclick="event.stopPropagation();carouselNav('${prop.id}',-1)">‹</button>
+                                                    <button class="carousel-nav next" onclick="event.stopPropagation();carouselNav('${prop.id}',1)">›</button>
+                                                    <div class="carousel-dots">${imgs.map((_, idx) => `<div class="carousel-dot ${idx===0?'active':''}" onclick="event.stopPropagation();carouselGo('${prop.id}',${idx})"></div>`).join('')}</div>
+                                                    <div class="image-counter">1 / ${imgs.length}</div>
+                                                ` : ''}
+                                            </div>
+                                            <div class="property-image-overlay"></div>
+                                            <div class="property-badges">${prop.isNew ? '<div class="property-badge new">✨ Nuovo</div>' : ''}<div class="property-badge match">🎯 ${prop.match}%</div></div>
+                                            <div class="swipe-stamp like">LIKE</div><div class="swipe-stamp nope">NOPE</div>
+                                        </div>
+                                        <div class="property-content"><div class="property-price">€${prop.price}<span>/mese</span></div><div class="property-address">📍 ${prop.address}</div>
+                                            <div class="property-features"><div class="property-feature">🛏 ${prop.rooms}</div><div class="property-feature">📐 ${prop.sqm} m²</div></div>
+                                            ${prop.matchReasons && prop.matchReasons.length ? `<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)"><div style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-muted);margin-bottom:6px">Perché questo match</div>${prop.matchReasons.slice(0,3).map(r => `<div style="font-size:11px;color:${r.includes('✓') ? 'var(--green)' : 'var(--gold)'};margin-bottom:2px">${r}</div>`).join('')}</div>` : ''}
+                                        </div>
+                                    </div>`;
+                                }).join('')}
+                            </div>
+                            <div class="swipe-actions"><button class="swipe-btn reject" onclick="reject('${p.id}')">✕</button><button class="swipe-btn like" onclick="like('${p.id}')">♥</button></div>
+                        </div>
+                        ${client.liked.length ? `<div class="section" style="margin-top:24px"><div class="section-header"><div class="section-title">Piaciuti</div></div>
+                            ${client.properties.filter(x => client.liked.includes(x.id)).map(x => `<div class="card"><div style="display:flex;gap:12px;align-items:center">
+                                <img src="${x.images[0]}" style="width:50px;height:50px;object-fit:cover;border-radius:8px">
+                                <div style="flex:1"><div style="font-weight:600">€${x.price}/mese</div><div style="font-size:11px;color:var(--text-secondary)">${x.address}</div></div>
+                                <div style="color:var(--green)">♥</div>
+                            </div></div>`).join('')}
+                        </div>` : ''}`;
+                    initSwipe();
+                } else {
+                    main.innerHTML = `<div class="empty"><div class="empty-icon">🎉</div><div class="empty-title">Fatto!</div><p>Nessun altro immobile da vedere</p></div>
+                        ${client.liked.length ? `<div class="section"><div class="section-header"><div class="section-title">Piaciuti</div></div>
+                            ${client.properties.filter(x => client.liked.includes(x.id)).map(x => `<div class="card"><div style="display:flex;gap:12px;align-items:center">
+                                <img src="${x.images[0]}" style="width:50px;height:50px;object-fit:cover;border-radius:8px">
+                                <div><div style="font-weight:600">€${x.price}/mese</div><div style="font-size:11px;color:var(--text-secondary)">${x.address}</div></div>
+                            </div></div>`).join('')}
+                        </div>` : ''}`;
+                }
+            } else if (tab === 'contact') {
+                main.innerHTML = `
+                    <div class="section"><div class="section-header"><div class="section-title">Agente</div></div>
+                        <div class="contact-card" style="margin-bottom:20px"><div class="contact-avatar">👤</div><div class="contact-info"><div class="contact-name">BOOM Team</div><div class="contact-role">Property Finding</div></div><button class="contact-btn" onclick="alert('Demo: aprirebbe WhatsApp')">WhatsApp</button></div>
+                    </div>
+                    <div class="card"><h3 style="font-size:14px;margin-bottom:16px">🔒 Il tuo codice</h3><code style="font-size:18px;color:var(--gold)">${client.code}</code></div>`;
+            }
+        }
+
+        function initSwipe() {
+            const stack = document.getElementById('stack'); if (!stack) return;
+            const cards = stack.querySelectorAll('.property-card'); if (!cards.length) return;
+            const card = cards[cards.length - 1];
+            let startX = 0, curX = 0, dragging = false;
+            const start = e => { dragging = true; startX = e.touches ? e.touches[0].clientX : e.clientX; card.style.transition = 'none'; };
+            const move = e => { if (!dragging) return; curX = (e.touches ? e.touches[0].clientX : e.clientX) - startX; card.style.transform = `translateX(${curX}px) rotate(${curX * 0.05}deg)`; card.classList.toggle('swiping-right', curX > 50); card.classList.toggle('swiping-left', curX < -50); };
+            const end = () => { if (!dragging) return; dragging = false; card.style.transition = ''; const id = card.dataset.id; if (curX > 80) like(id); else if (curX < -80) reject(id); else { card.style.transform = ''; card.classList.remove('swiping-right', 'swiping-left'); } };
+            card.addEventListener('mousedown', start); card.addEventListener('touchstart', start, { passive: true });
+            document.addEventListener('mousemove', move); document.addEventListener('touchmove', move, { passive: true });
+            document.addEventListener('mouseup', end); document.addEventListener('touchend', end);
+        }
+
+        function like(id) {
+            const card = document.querySelector(`[data-id="${id}"]`); if (card) card.classList.add('liked');
+            client.liked.push(id); haptic(); createConfetti(window.innerWidth / 2, window.innerHeight / 2, 30);
+            showToast('Aggiunto ai preferiti! ♥');
+            setTimeout(render, 400);
+        }
+        function reject(id) {
+            const card = document.querySelector(`[data-id="${id}"]`); if (card) card.classList.add('rejected');
+            client.rejected.push(id); haptic();
+            setTimeout(render, 400);
+        }
+
+        function showToast(msg) { const t = document.getElementById('toast'); t.querySelector('.toast-text').textContent = msg; t.classList.add('show', 'success'); setTimeout(() => t.classList.remove('show'), 3000); }
+
+        // ---- Carousel ----
+        let carouselIntervals = {};
+        function carouselNav(propId, dir) { const card = document.querySelector(`[data-id="${propId}"]`); if (!card) return; const carousel = card.querySelector('.carousel'); const imgs = JSON.parse(card.dataset.images || '[]'); let idx = parseInt(carousel.dataset.idx) || 0; idx = (idx + dir + imgs.length) % imgs.length; carouselGo(propId, idx); }
+        function carouselGo(propId, idx) { const card = document.querySelector(`[data-id="${propId}"]`); if (!card) return; const carousel = card.querySelector('.carousel'); const inner = carousel.querySelector('.carousel-inner'); const dots = carousel.querySelectorAll('.carousel-dot'); const counter = carousel.querySelector('.image-counter'); const imgs = JSON.parse(card.dataset.images || '[]'); carousel.dataset.idx = idx; inner.style.transform = `translateX(-${idx * 100}%)`; dots.forEach((d, i) => d.classList.toggle('active', i === idx)); if (counter) counter.textContent = `${idx + 1} / ${imgs.length}`; resetCarouselAuto(propId); }
+        function startCarouselAuto(propId) { const card = document.querySelector(`[data-id="${propId}"]`); if (!card) return; const imgs = JSON.parse(card.dataset.images || '[]'); if (imgs.length <= 1) return; carouselIntervals[propId] = setInterval(() => carouselNav(propId, 1), 4000); }
+        function resetCarouselAuto(propId) { if (carouselIntervals[propId]) clearInterval(carouselIntervals[propId]); startCarouselAuto(propId); }
+        function stopAllCarousels() { Object.keys(carouselIntervals).forEach(id => clearInterval(carouselIntervals[id])); carouselIntervals = {}; }
+        function startCarouselsAfterRender() { stopAllCarousels(); setTimeout(function() { document.querySelectorAll('.property-card').forEach(c => { if (c.dataset.id) startCarouselAuto(c.dataset.id); }); }, 500); }
+
+        // ---- Demo: simulate "new property" push (come fa il listener Firestore reale) ----
+        let simN = 6;
+        function simulateNew() {
+            const id = 'p' + (simN++);
+            client.properties.unshift({ id, address: 'Via Margutta 33, Centro Storico', price: 1600, rooms: 2, sqm: 75, match: 93, isNew: true, images: [U+'photo-1493809842364-78817add7ffb?w=900', U+'photo-1502005229762-cf1b2da7c5d6?w=900'], matchReasons: ['✓ 2 camere', '✓ Strada iconica', '≈ €1.600'] });
+            document.getElementById('newPropertyAlert').classList.add('show');
+            createConfetti(window.innerWidth/2, window.innerHeight/2, 60);
+            render();
+        }
+
+        render();
+    </script>
+</body>
+</html>

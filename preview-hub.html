@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Interconnessione Portali — BOOM Rome</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --gold: #D4AF37; --gold-light: rgba(212,175,55,0.15); --gold-glow: rgba(212,175,55,0.4); --gold-dark:#B8960C;
+            --bg: #050506; --bg-card: #0C0C0E; --bg-elevated: #141416;
+            --border: rgba(255,255,255,0.08); --text: #FFF; --text-secondary: #9a9a9a; --text-muted: #5a5a5a;
+            --green: #00D26A; --blue: #0A84FF; --amber: #FF9F0A; --purple: #BF5AF2;
+        }
+        body { font-family: 'Inter', -apple-system, sans-serif; background: radial-gradient(1200px 600px at 50% -10%, rgba(212,175,55,0.06), transparent 70%), var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; min-height: 100vh; }
+        .wrap { max-width: 1180px; margin: 0 auto; padding: 40px 24px 80px; }
+
+        .top { text-align: center; margin-bottom: 40px; }
+        .top .logo { width: 56px; height: 56px; margin: 0 auto 18px; background: linear-gradient(135deg, var(--gold), var(--gold-dark)); border-radius: 50%; box-shadow: 0 0 36px var(--gold-glow); }
+        .top .kicker { font-size: 11px; letter-spacing: 5px; text-transform: uppercase; color: var(--gold); }
+        .top h1 { font-size: 34px; font-weight: 300; letter-spacing: 0.5px; margin-top: 12px; }
+        .top h1 b { font-weight: 700; }
+        .top p { color: var(--text-secondary); margin-top: 10px; font-size: 14px; max-width: 620px; margin-left: auto; margin-right: auto; line-height: 1.6; }
+
+        .section-label { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: var(--text-muted); text-align: center; margin: 48px 0 24px; }
+
+        /* ---- Interconnection diagram ---- */
+        .diagram { background: var(--bg-card); border: 1px solid var(--border); border-radius: 24px; padding: 28px; }
+        .actors { display: flex; justify-content: space-between; gap: 20px; margin-bottom: 8px; }
+        .actor { flex: 1; border: 1px solid var(--border); border-radius: 18px; padding: 18px; background: linear-gradient(135deg, rgba(212,175,55,0.06), transparent); }
+        .actor.client { background: linear-gradient(135deg, rgba(10,132,255,0.08), transparent); }
+        .actor .role { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--gold); }
+        .actor.client .role { color: var(--blue); }
+        .actor .ttl { font-size: 18px; font-weight: 700; margin-top: 6px; }
+        .actor .file { font-size: 11px; font-family: ui-monospace, monospace; color: var(--text-secondary); margin-top: 4px; }
+        .actor .desc { font-size: 12px; color: var(--text-secondary); margin-top: 8px; line-height: 1.5; }
+
+        .flow { margin-top: 22px; display: flex; flex-direction: column; gap: 0; }
+        .layer { display: grid; grid-template-columns: 150px 1fr 150px; align-items: center; gap: 16px; }
+        .layer .side { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
+        .layer .side.r { text-align: right; }
+        .node { border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; background: var(--bg-elevated); text-align: center; }
+        .node.firestore { border-color: rgba(255,159,10,0.35); }
+        .node.api { border-color: rgba(191,90,242,0.35); }
+        .node .nt { font-size: 13px; font-weight: 600; }
+        .node .chips { margin-top: 8px; display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
+        .chip { font-size: 10px; font-family: ui-monospace, monospace; padding: 3px 8px; border-radius: 6px; background: rgba(255,255,255,0.05); color: var(--text-secondary); border: 1px solid var(--border); }
+        .chip.fs { color: var(--amber); } .chip.ap { color: var(--purple); } .chip.cl { color: var(--blue); }
+        .arrow { display: grid; grid-template-columns: 150px 1fr 150px; gap: 16px; }
+        .arrow .a-mid { text-align: center; color: var(--text-muted); font-size: 18px; line-height: 1; padding: 6px 0; }
+        .arrow .a-mid small { display: block; font-size: 10px; color: var(--text-muted); margin-top: 2px; letter-spacing: 0.5px; }
+
+        .return { margin-top: 18px; border-top: 1px dashed var(--border); padding-top: 16px; display: flex; align-items: center; gap: 10px; justify-content: center; color: var(--green); font-size: 12px; }
+        .return .chip { color: var(--green); border-color: rgba(0,210,106,0.3); }
+
+        /* side rails */
+        .rails { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 26px; }
+        .rail { border: 1px solid var(--border); border-radius: 14px; padding: 16px; background: var(--bg-elevated); }
+        .rail .rt { font-size: 12px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--text-secondary); }
+        .rail .rd { font-size: 12px; color: var(--text-secondary); margin-top: 8px; line-height: 1.5; }
+        .rail .chips { margin-top: 10px; display: flex; gap: 6px; flex-wrap: wrap; }
+
+        /* ---- live device frames ---- */
+        .devices { display: flex; gap: 40px; justify-content: center; flex-wrap: wrap; align-items: flex-start; }
+        .device { width: 380px; max-width: 100%; }
+        .device .cap { text-align: center; margin-bottom: 14px; }
+        .device .cap .r { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--gold); }
+        .device .cap.client .r { color: var(--blue); }
+        .device .cap .n { font-size: 16px; font-weight: 600; margin-top: 3px; }
+        .device .cap .f { font-size: 11px; font-family: ui-monospace, monospace; color: var(--text-muted); }
+        .phone { background: #1a1a1c; border: 1px solid var(--border); border-radius: 44px; padding: 12px; box-shadow: 0 30px 80px rgba(0,0,0,0.6); }
+        .phone .screen { border-radius: 33px; overflow: hidden; background: #000; height: 760px; position: relative; }
+        .phone iframe { width: 100%; height: 100%; border: 0; display: block; }
+        .open-link { display: inline-flex; align-items: center; gap: 6px; margin-top: 14px; font-size: 12px; color: var(--gold); text-decoration: none; }
+        .device .actions { text-align: center; }
+
+        .note { text-align: center; color: var(--text-muted); font-size: 12px; margin-top: 36px; line-height: 1.6; }
+        .legend { display: flex; gap: 18px; justify-content: center; flex-wrap: wrap; margin: 18px 0 0; font-size: 11px; color: var(--text-secondary); }
+        .legend i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; vertical-align: middle; }
+
+        @media (max-width: 720px) {
+            .layer, .arrow { grid-template-columns: 1fr; }
+            .layer .side { display: none; }
+            .arrow .a-mid { padding: 4px 0; }
+            .rails { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <div class="top">
+        <div class="logo"></div>
+        <div class="kicker">BOOM Rome · Architettura</div>
+        <h1>Interconnessione <b>Proprietario ⇄ Cliente</b></h1>
+        <p>Come i due portali si parlano davvero: dall'immobile pubblicato dal proprietario, dentro il motore PFS, fino allo swipe del cliente — e ritorno, con l'interesse che torna visibile al proprietario. Ogni nodo riporta la collezione Firestore o l'endpoint API reale.</p>
+    </div>
+
+    <div class="section-label">La mappa dei dati</div>
+    <div class="diagram">
+        <div class="actors">
+            <div class="actor owner">
+                <div class="role">🏢 Proprietario</div>
+                <div class="ttl">Portale Proprietario</div>
+                <div class="file">owner-dashboard.html</div>
+                <div class="desc">Pubblica e gestisce gli immobili, vede rendita, occupazione, l'interesse dei clienti e le scadenze fiscali.</div>
+            </div>
+            <div class="actor client">
+                <div class="role">📱 Cliente</div>
+                <div class="ttl">Portale Cliente</div>
+                <div class="file">client-portal.html</div>
+                <div class="desc">Scorre gli immobili proposti (swipe), mette like, prenota visite. Riceve l'alert "Nuova proprietà" in tempo reale.</div>
+            </div>
+        </div>
+
+        <div class="flow">
+            <div class="layer">
+                <div class="side">🏢 il proprietario<br>pubblica</div>
+                <div class="node api"><div class="nt">Pubblicazione immobile</div><div class="chips"><span class="chip ap">POST /api/wizard/publish</span><span class="chip ap">/api/homie/property</span></div></div>
+                <div class="side r">scrittura<br>admin-only</div>
+            </div>
+            <div class="arrow"><div></div><div class="a-mid">▼<small>firestore.rules: solo admin scrive</small></div><div></div></div>
+
+            <div class="layer">
+                <div class="side">archivio<br>immobili</div>
+                <div class="node firestore"><div class="nt">Firestore — annunci</div><div class="chips"><span class="chip fs">listings</span><span class="chip fs">properties</span><span class="chip fs">pfsProperties</span></div></div>
+                <div class="side r">dedupe<br>sha1(sourceUrl)</div>
+            </div>
+            <div class="arrow"><div></div><div class="a-mid">▼<small>api/pfs/_ingest.js · scoring api/homie/_match.js</small></div><div></div></div>
+
+            <div class="layer">
+                <div class="side">motore<br>PFS radar</div>
+                <div class="node api"><div class="nt">Pipeline di matching</div><div class="chips"><span class="chip ap">api/pfs/scan-*</span><span class="chip ap">_match.js</span><span class="chip fs">radarSearches</span></div></div>
+                <div class="side r">push se<br>score ≥ 60</div>
+            </div>
+            <div class="arrow"><div></div><div class="a-mid">▼<small>match nel deck del cliente</small></div><div></div></div>
+
+            <div class="layer">
+                <div class="side">deck<br>del cliente</div>
+                <div class="node firestore"><div class="nt">Firestore — pfsClients</div><div class="chips"><span class="chip fs">pfsClients.portalProperties</span></div></div>
+                <div class="side r">onSnapshot<br>realtime</div>
+            </div>
+            <div class="arrow"><div></div><div class="a-mid">▼<small>📱 alert "Nuova proprietà" + swipe</small></div><div></div></div>
+
+            <div class="layer">
+                <div class="side">📱 il cliente<br>reagisce</div>
+                <div class="node"><div class="nt">Swipe · like / reject / visita</div><div class="chips"><span class="chip cl">client-portal.html</span><span class="chip fs">portalActivity</span></div></div>
+                <div class="side r">scrive<br>like → cloud</div>
+            </div>
+
+            <div class="return">
+                <span>↺ Ritorno al proprietario</span>
+                <span class="chip">portalActivity → owner-dashboard</span>
+                <span>tab "Interesse": like, visite prenotate, match %</span>
+            </div>
+        </div>
+
+        <div class="rails">
+            <div class="rail">
+                <div class="rt">📝 Contratto & Firma</div>
+                <div class="rd">Quando il cliente chiude, il contratto passa per la firma digitale remota; le scadenze fiscali si generano in automatico.</div>
+                <div class="chips"><span class="chip ap">/api/magic-sign/*</span><span class="chip fs">contracts</span><span class="chip ap">fiscal-engine.js</span></div>
+            </div>
+            <div class="rail">
+                <div class="rt">📁 Documenti & Fisco</div>
+                <div class="rd">Il proprietario condivide i documenti col commercialista con link tracciato e watermark, OCR con AI, Tax Pack annuale.</div>
+                <div class="chips"><span class="chip ap">/api/documents/share</span><span class="chip ap">/api/documents/ocr</span><span class="chip ap">taxpack-engine.js</span></div>
+            </div>
+        </div>
+
+        <div class="legend">
+            <span><i style="background:#BF5AF2"></i>Endpoint API serverless</span>
+            <span><i style="background:#FF9F0A"></i>Collezione Firestore</span>
+            <span><i style="background:#0A84FF"></i>UI portale cliente</span>
+            <span><i style="background:#00D26A"></i>Ritorno / feedback</span>
+        </div>
+    </div>
+
+    <div class="section-label">I due lati, vivi</div>
+    <div class="devices">
+        <div class="device">
+            <div class="cap owner"><div class="r">🏢 Proprietario</div><div class="n">Portale Proprietario</div><div class="f">preview-owner.html</div></div>
+            <div class="phone"><div class="screen"><iframe src="preview-owner.html" title="Portale Proprietario" loading="lazy"></iframe></div></div>
+            <div class="actions"><a class="open-link" href="preview-owner.html" target="_blank">Apri a schermo intero ↗</a></div>
+        </div>
+        <div class="device">
+            <div class="cap client"><div class="r">📱 Cliente</div><div class="n">Portale Cliente</div><div class="f">preview-client.html</div></div>
+            <div class="phone"><div class="screen"><iframe src="preview-client.html" title="Portale Cliente" loading="lazy"></iframe></div></div>
+            <div class="actions"><a class="open-link" href="preview-client.html" target="_blank">Apri a schermo intero ↗</a></div>
+        </div>
+    </div>
+
+    <div class="note">
+        Anteprime <b>autonome</b>: dati finti incorporati, nessuna connessione a Firebase, nessun deploy.<br>
+        Quando il look ci convince, lo innestiamo nei portali reali e colleghiamo le collezioni / API qui sopra.
+    </div>
+</div>
+</body>
+</html>
