@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Valentino Egidi — Direzione G · Identità propria (atelier tecnologico)</title>
+<title>Valentino Egidi — Direzione H · Tech Gem (atelier, elevato)</title>
 <meta name="description" content="Il mediatore più tecnologico di Roma. Vendi casa al prezzo vero, seguìto da un solo nome. Valutazione onesta in 48 ore.">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#F4F1EC">
@@ -294,7 +294,7 @@ footer{background:var(--paper);padding:0 0 46px;border-top:1px solid var(--line)
 @media(max-width:640px){.fab{right:14px;bottom:78px;padding:13px 16px}}
 
 /* reveal */
-.rv{opacity:0;transform:translateY(26px);transition:opacity 1s var(--e1),transform 1s var(--e1)}.rv.in{opacity:1;transform:none}
+.rv{opacity:0;transform:translateY(26px);filter:blur(7px);transition:opacity 1s var(--e1),transform 1s var(--e1),filter 1s var(--e1)}.rv.in{opacity:1;transform:none;filter:none}
 [data-st]>*{opacity:0;transform:translateY(20px);transition:opacity .9s var(--e1),transform .9s var(--e1)}
 [data-st].in>*{opacity:1;transform:none}
 [data-st].in>*:nth-child(2){transition-delay:.07s}[data-st].in>*:nth-child(3){transition-delay:.14s}
@@ -311,11 +311,50 @@ footer{background:var(--paper);padding:0 0 46px;border-top:1px solid var(--line)
 .no-pin .zones-head{position:relative;top:auto;padding:0 22px 36px}
 .no-pin .zones-track{flex-wrap:nowrap;overflow-x:auto;height:60vh;transform:none!important;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
 .no-pin .zcard{scroll-snap-align:center}
-@media(prefers-reduced-motion:reduce){*{animation:none!important}.rv,[data-st]>*{opacity:1;transform:none;transition:none}}
+/* ══ GEM ELEVATIONS ══════════════════════════════════════════ */
+/* custom precision cursor */
+.cur{position:fixed;top:0;left:0;z-index:300;width:30px;height:30px;border:1px solid var(--ember);border-radius:50%;transform:translate(-50%,-50%);pointer-events:none;display:flex;align-items:center;justify-content:center;
+  transition:width .28s var(--e1),height .28s var(--e1),background .28s,border-color .28s,border-radius .28s;will-change:transform}
+.cur .cl{font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:#fff;opacity:0;white-space:nowrap;transition:opacity .2s}
+.cur.lg{width:58px;height:58px;background:var(--ember-soft);border-color:transparent}
+.cur.lab{width:auto;height:auto;padding:8px 12px;border-radius:3px;background:var(--ink);border-color:var(--ink)}
+.cur.lab .cl{opacity:1}
+.curd{position:fixed;top:0;left:0;z-index:300;width:4px;height:4px;border-radius:50%;background:var(--ember);transform:translate(-50%,-50%);pointer-events:none;will-change:transform;transition:opacity .3s}
+.cur.lab~.curd{opacity:0}
+body.cur-on{cursor:none}body.cur-on a,body.cur-on button{cursor:none}
+.vform input{cursor:text!important}
+@media(hover:none){.cur,.curd{display:none!important}}
+/* living travertine canvas */
+.hero-fig #trav{position:absolute;inset:0;z-index:1;width:100%;height:100%;display:block}
+.hero-fig .etch{position:absolute;inset:0;z-index:2;pointer-events:none;display:flex;align-items:center;justify-content:center;opacity:.16}
+.hero-fig .etch svg{width:42%;max-width:150px}
+.hero-fig .etch .mk{fill:none;stroke:#1a160d;stroke-width:3}.hero-fig .etch .mt{fill:var(--ember)}
+.tiltwrap{transform-style:preserve-3d;transition:transform .5s var(--e1)}
+/* kinetic headline */
+.kin{clip-path:inset(0 0 102% 0);transform:translateY(.32em);filter:blur(8px);opacity:0;transition:clip-path 1.05s var(--e1),transform 1.05s var(--e1),filter 1.05s var(--e1),opacity 1.05s}
+.kin.in{clip-path:inset(0 0 -12% 0);transform:none;filter:none;opacity:1}
+/* live estimator */
+.estim{margin-top:30px;border:1px solid rgba(21,19,13,.2);border-radius:4px;padding:22px 22px;background:rgba(21,19,13,.04)}
+.estim .el{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:rgba(21,19,13,.6);display:flex;justify-content:space-between}
+.estim .el b{color:var(--ember);font-weight:400}
+.estim-zones{display:flex;flex-wrap:wrap;gap:7px;margin:16px 0 18px}
+.estim-zones button{font-family:var(--mono);font-size:11px;letter-spacing:.04em;color:var(--stone-ink);background:rgba(255,255,255,.32);border:1px solid rgba(21,19,13,.22);border-radius:2px;padding:8px 12px;cursor:pointer;transition:.25s var(--e1)}
+.estim-zones button:hover{border-color:var(--stone-ink)}
+.estim-zones button.on{background:var(--stone-ink);color:var(--travertine);border-color:var(--stone-ink)}
+.estim-range{font-size:clamp(26px,3.4vw,40px);letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1;display:flex;align-items:baseline;gap:8px}
+.estim-range .u{font-family:var(--mono);font-size:13px;letter-spacing:.06em;color:rgba(21,19,13,.55)}
+.estim-bar{height:4px;background:rgba(21,19,13,.14);border-radius:3px;margin:16px 0 10px;position:relative;overflow:hidden}
+.estim-bar i{position:absolute;left:0;top:0;height:100%;width:0;background:linear-gradient(90deg,var(--ember),var(--ember-2));border-radius:3px;transition:width .8s var(--e1)}
+.estim-total{font-family:var(--mono);font-size:12px;color:var(--stone-ink);letter-spacing:.02em;min-height:16px}
+.estim-note{font-family:var(--mono);font-size:10.5px;letter-spacing:.02em;color:rgba(21,19,13,.6);margin-top:12px;line-height:1.5}
+/* telemetry */
+#telem b{color:var(--ember);font-weight:400}
+@media(prefers-reduced-motion:reduce){*{animation:none!important}.rv,[data-st]>*{opacity:1;transform:none;filter:none;transition:none}.kin{clip-path:none;filter:none;opacity:1;transform:none}.cur,.curd{display:none!important}body.cur-on{cursor:auto}}
 </style>
 </head>
 <body>
 <div class="prog" id="prog"></div>
+<div class="cur" id="cur"><span class="cl"></span></div><div class="curd" id="curd"></div>
 
 <!-- NAV -->
 <nav id="nav"><div class="nav-in">
@@ -340,12 +379,12 @@ footer{background:var(--paper);padding:0 0 46px;border-top:1px solid var(--line)
     <span class="lab">Egidi Immobiliare · Roma MMXXX</span>
     <span class="lab">41.9009°N · 12.4833°E</span>
     <span class="lab"><b id="clock">--:--:--</b> · Roma</span>
-    <span class="lab">Sistema · <b>onestà attiva</b></span>
+    <span class="lab" id="telem">Scroll <b>000%</b> · Hero</span>
   </div>
   <div class="wrap hero-in">
     <div>
       <div class="eyebrow"><span class="sq"></span> Mediatore immobiliare · Roma · vendite</div>
-      <h1>Vendi casa al prezzo <span class="e">vero</span>. Seguìto da un solo nome: il mio.</h1>
+      <h1 class="kin">Vendi casa al prezzo <span class="e">vero</span>. Seguìto da un solo nome: il mio.</h1>
       <p class="sub">Il mediatore più tecnologico di Roma: dati, media editoriali e una dashboard privata. La precisione di un artigiano, in un solo nome che risponde. Inizia da una valutazione onesta, gratis, in 48 ore.</p>
       <div class="cta">
         <a href="#valuta" class="btn btn-ink">Scopri quanto vale casa tua</a>
@@ -356,10 +395,12 @@ footer{background:var(--paper);padding:0 0 46px;border-top:1px solid var(--line)
         <span class="t"><span class="dot"></span> Risposta in 48h, da me</span>
       </div>
     </div>
-    <div class="hero-fig">
+    <div class="hero-fig tiltwrap" id="heroFig" data-tilt="6">
       <figure class="ph" data-tint="clay"><img src="https://images.unsplash.com/photo-1552832230-c0197dd311b5?auto=format&fit=crop&w=1400&q=80" alt="Roma" onerror="this.style.opacity=0"></figure>
+      <canvas id="trav" aria-hidden="true"></canvas>
+      <div class="etch"><svg viewBox="0 0 100 100" aria-hidden="true"><rect class="mk" x="14" y="14" width="72" height="72"/><path class="mk" d="M34 86 V54 a16 16 0 0 1 32 0 V86"/><rect class="mt" x="44" y="20" width="12" height="5"/></svg></div>
       <div class="frame"></div>
-      <div class="cap"><span>Centro Storico · Roma</span><span class="e">VE—01</span></div>
+      <div class="cap"><span>Travertino · campione VE—01</span><span class="e">● live</span></div>
     </div>
   </div>
   <div class="hero-foot"><span class="ln"></span> Scorri — la vendita, in chiaro</div>
@@ -490,6 +531,21 @@ footer{background:var(--paper);padding:0 0 46px;border-top:1px solid var(--line)
           <div><span class="ck">✓</span> Basata sui dati, non sulle promesse.</div>
           <div><span class="ck">✓</span> Risposta in 48 ore, da me, non da un call center.</div>
         </div>
+        <div class="estim" id="estim">
+          <div class="el"><span>// Stima indicativa di mercato</span><span><b>€/m²</b></span></div>
+          <div class="estim-zones" id="zoneSel">
+            <button data-lo="6500" data-hi="9500">Centro Storico</button>
+            <button data-lo="5500" data-hi="7500">Prati</button>
+            <button data-lo="5000" data-hi="7000">Trastevere</button>
+            <button data-lo="5500" data-hi="8000">Monti</button>
+            <button data-lo="5000" data-hi="7500">Parioli</button>
+            <button data-lo="2500" data-hi="4500">Altro Roma</button>
+          </div>
+          <div class="estim-range"><span id="estLo">—</span><span>–</span><span id="estHi">—</span><span class="u">€/m²</span></div>
+          <div class="estim-bar"><i id="estBar"></i></div>
+          <div class="estim-total" id="estTotal">Seleziona una zona per la stima indicativa.</div>
+          <div class="estim-note">Range indicativo di mercato. Il valore <b>vero</b> di casa tua te lo dico io, sui comparabili reali del tuo palazzo.</div>
+        </div>
       </div>
       <form class="vform rv" id="valForm">
         <div class="step-lab"><span>// Richiesta valutazione</span><span>30 s</span></div>
@@ -613,8 +669,8 @@ footer{background:var(--paper);padding:0 0 46px;border-top:1px solid var(--line)
 
 <!-- preview switcher -->
 <div class="pv">
-  <b>Direzione <span class="e">G</span> · Valentino</b>
-  <a href="/preview-gem" style="background:var(--ember);color:#fff">H · Tech Gem ✦</a>
+  <b>Direzione <span class="e">H</span> · Tech Gem</b>
+  <a href="/preview-atelier">G · base</a>
   <a href="/preview-pro">F</a>
   <a href="/preview-synthesis">E</a>
 </div>
@@ -674,6 +730,130 @@ const clk=document.getElementById('clock');
 function tick(){try{clk.textContent=new Intl.DateTimeFormat('it-IT',{timeZone:'Europe/Rome',hour:'2-digit',minute:'2-digit',second:'2-digit'}).format(new Date())}catch(e){}}
 tick();setInterval(tick,1000);
 frame();
+</script>
+
+<!-- ══ GEM ENGINE ══════════════════════════════════════════════ -->
+<script>
+(function(){
+const reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;
+const fine=matchMedia('(hover:hover) and (pointer:fine)').matches;
+
+/* ── kinetic hero headline on load ── */
+requestAnimationFrame(()=>{const h=document.querySelector('.hero .kin');if(h)setTimeout(()=>h.classList.add('in'),120);});
+
+/* ── custom precision cursor ── */
+if(fine&&!reduce){
+  const cur=document.getElementById('cur'),curd=document.getElementById('curd'),cl=cur.querySelector('.cl');
+  document.body.classList.add('cur-on');
+  let tx=innerWidth/2,ty=innerHeight/2,cx=tx,cy=ty;
+  addEventListener('mousemove',e=>{tx=e.clientX;ty=e.clientY;curd.style.transform=`translate(${tx}px,${ty}px) translate(-50%,-50%)`;},{passive:true});
+  (function loop(){cx+=(tx-cx)*.2;cy+=(ty-cy)*.2;cur.style.transform=`translate(${cx}px,${cy}px) translate(-50%,-50%)`;requestAnimationFrame(loop);})();
+  const bind=el=>{const lab=el.getAttribute('data-cursor');
+    el.addEventListener('mouseenter',()=>{if(lab){cur.classList.add('lab');cl.textContent=lab;}else{cur.classList.add('lg');}});
+    el.addEventListener('mouseleave',()=>{cur.classList.remove('lab','lg');cl.textContent='';});};
+  document.querySelectorAll('a,button,[data-cursor],.dec-row,.zcard').forEach(bind);
+}
+
+/* ── 3D tilt ── */
+if(fine&&!reduce){
+  const tiltify=(el,max)=>{
+    el.addEventListener('mousemove',e=>{const r=el.getBoundingClientRect();
+      const px=(e.clientX-r.left)/r.width-.5,py=(e.clientY-r.top)/r.height-.5;
+      el.style.transform=`perspective(900px) rotateY(${(px*max).toFixed(2)}deg) rotateX(${(-py*max).toFixed(2)}deg)`;},{passive:true});
+    el.addEventListener('mouseleave',()=>{el.style.transform='';});
+  };
+  const fig=document.getElementById('heroFig');if(fig)tiltify(fig,+fig.dataset.tilt||6);
+  document.querySelectorAll('.pillar,.tcard').forEach(el=>tiltify(el,3.5));
+}
+
+/* ── interactive valuation estimator ── */
+(function(){
+  const sel=document.getElementById('zoneSel');if(!sel)return;
+  const loEl=document.getElementById('estLo'),hiEl=document.getElementById('estHi'),bar=document.getElementById('estBar'),tot=document.getElementById('estTotal');
+  const MAXHI=9500;const fmt=n=>n.toLocaleString('it-IT');
+  let raf=null;
+  const tween=(el,to)=>{const from=parseInt((el.textContent||'0').replace(/\D/g,''))||0;const t0=performance.now();
+    (function step(t){const p=Math.min((t-t0)/650,1),k=1-Math.pow(1-p,3);el.textContent=fmt(Math.round(from+(to-from)*k));if(p<1)requestAnimationFrame(step);})(performance.now());};
+  sel.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+    sel.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));
+    const lo=+b.dataset.lo,hi=+b.dataset.hi;
+    tween(loEl,lo);tween(hiEl,hi);
+    bar.style.width=Math.round(hi/MAXHI*100)+'%';
+    const mqIn=document.querySelector('#valForm input[name="mq"]');
+    const mq=mqIn&&parseFloat(mqIn.value)>0?parseFloat(mqIn.value):null;
+    tot.innerHTML=mq?`≈ <b style="color:var(--stone-ink)">${fmt(Math.round(lo*mq/1000))}k – ${fmt(Math.round(hi*mq/1000))}k €</b> per ${mq} m² <span style="opacity:.6">(indicativo)</span>`
+                   :`Inserisci i m² nel modulo per il totale indicativo.`;
+  });
+})();
+
+/* ── telemetry HUD ── */
+(function(){
+  const telem=document.getElementById('telem');if(!telem)return;
+  const secs=[['top','Hero'],['perche','Perché me'],['tecnologia','Tecnologia'],['confronto','Confronto'],['valuta','Valutazione'],['quartieri','Quartieri'],['affitti','BOOM'],['contatti','Contatti']]
+    .map(([id,n])=>({el:document.getElementById(id),n})).filter(s=>s.el);
+  let t=false;
+  const upd=()=>{const y=scrollY,h=document.documentElement.scrollHeight-innerHeight;
+    const pct=h>0?Math.round(y/h*100):0;let name='Hero';
+    secs.forEach(s=>{if(s.el.getBoundingClientRect().top<=innerHeight*0.4)name=s.n;});
+    telem.innerHTML=`Scroll <b>${String(pct).padStart(3,'0')}%</b> · ${name}`;t=false;};
+  addEventListener('scroll',()=>{if(!t){requestAnimationFrame(upd);t=true;}},{passive:true});upd();
+})();
+
+/* ── living travertine (WebGL) ── */
+(function(){
+  if(reduce)return;
+  const cv=document.getElementById('trav');if(!cv)return;
+  let gl;try{gl=cv.getContext('webgl')||cv.getContext('experimental-webgl');}catch(e){}
+  if(!gl){cv.remove();return;}
+  const vs=`attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}`;
+  const fs=`precision highp float;uniform vec2 u_res;uniform float u_time;uniform vec2 u_mouse;
+  float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+  float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);
+    float a=hash(i),b=hash(i+vec2(1,0)),c=hash(i+vec2(0,1)),d=hash(i+vec2(1,1));
+    return mix(mix(a,b,f.x),mix(c,d,f.x),f.y);}
+  float fbm(vec2 p){float v=0.,a=.5;for(int i=0;i<6;i++){v+=a*noise(p);p*=2.02;a*=.5;}return v;}
+  void main(){
+    vec2 uv=gl_FragCoord.xy/u_res.xy;
+    vec2 p=uv*vec2(u_res.x/u_res.y,1.)*2.1;
+    float t=u_time*0.035;
+    vec2 q=vec2(fbm(p+t),fbm(p+vec2(5.2,1.3)-t));
+    vec2 r=vec2(fbm(p+3.5*q+vec2(1.7,9.2)),fbm(p+3.5*q+vec2(8.3,2.8)));
+    float f=fbm(p+3.8*r);
+    float veins=abs(sin((p.x+f*3.2)*3.14159+r.x*4.0));veins=pow(1.0-veins,2.2);
+    vec3 base=mix(vec3(0.82,0.78,0.68),vec3(0.73,0.68,0.56),f);
+    vec3 col=mix(base,vec3(0.60,0.55,0.44),veins*0.55);
+    col=mix(col,vec3(0.88,0.85,0.76),smoothstep(0.45,0.95,f)*0.5);
+    float d=distance(uv,u_mouse);
+    col+=vec3(0.95,0.32,0.10)*smoothstep(0.55,0.0,d)*0.16;
+    col+=vec3(1.0,0.96,0.86)*smoothstep(0.32,0.0,d)*0.10;
+    col+=(hash(gl_FragCoord.xy+u_time)-0.5)*0.025;
+    gl_FragColor=vec4(col,1.0);
+  }`;
+  const sh=(t,s)=>{const o=gl.createShader(t);gl.shaderSource(o,s);gl.compileShader(o);
+    if(!gl.getShaderParameter(o,gl.COMPILE_STATUS)){return null;}return o;};
+  const v=sh(gl.VERTEX_SHADER,vs),f=sh(gl.FRAGMENT_SHADER,fs);
+  if(!v||!f){cv.remove();return;}
+  const pr=gl.createProgram();gl.attachShader(pr,v);gl.attachShader(pr,f);gl.linkProgram(pr);
+  if(!gl.getProgramParameter(pr,gl.LINK_STATUS)){cv.remove();return;}
+  gl.useProgram(pr);
+  const buf=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buf);
+  gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
+  const loc=gl.getAttribLocation(pr,'p');gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);
+  const uRes=gl.getUniformLocation(pr,'u_res'),uTime=gl.getUniformLocation(pr,'u_time'),uMouse=gl.getUniformLocation(pr,'u_mouse');
+  let W=0,H=0,mx=0.7,my=0.5,tmx=0.7,tmy=0.5;
+  const dpr=()=>Math.min(devicePixelRatio||1,2);
+  function size(){const r=cv.getBoundingClientRect();const d=dpr();W=Math.max(1,r.width*d);H=Math.max(1,r.height*d);cv.width=W;cv.height=H;gl.viewport(0,0,W,H);}
+  size();addEventListener('resize',size);
+  cv.parentElement.addEventListener('mousemove',e=>{const r=cv.getBoundingClientRect();tmx=(e.clientX-r.left)/r.width;tmy=1-(e.clientY-r.top)/r.height;},{passive:true});
+  let vis=true;
+  const ob=new IntersectionObserver(es=>es.forEach(e=>vis=e.isIntersecting),{threshold:0.01});ob.observe(cv);
+  const t0=performance.now();
+  (function render(now){requestAnimationFrame(render);if(!vis)return;
+    mx+=(tmx-mx)*.06;my+=(tmy-my)*.06;
+    gl.uniform2f(uRes,W,H);gl.uniform1f(uTime,(now-t0)/1000);gl.uniform2f(uMouse,mx,my);
+    gl.drawArrays(gl.TRIANGLES,0,3);})(t0);
+})();
+})();
 </script>
 </body>
 </html>
