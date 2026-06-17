@@ -94,7 +94,7 @@
         <div class="logo"></div>
         <div class="kicker">BOOM Rome · Architettura</div>
         <h1>Interconnessione <b>Proprietario ⇄ Cliente</b></h1>
-        <p>Come i due portali si parlano davvero: dall'immobile pubblicato dal proprietario, dentro il motore PFS, fino allo swipe del cliente — e ritorno, con l'interesse che torna visibile al proprietario. Ogni nodo riporta la collezione Firestore o l'endpoint API reale.</p>
+        <p>Come i due portali si parlano davvero: dall'immobile che <b>BOOM</b> pubblica per conto del proprietario, dentro il motore PFS, fino allo swipe del cliente — e ritorno, con lo <b>stato</b> che torna visibile al proprietario. Trattamento da agenzia: il proprietario consulta, BOOM opera. Ogni nodo riporta la collezione Firestore o l'endpoint API reale.</p>
     </div>
 
     <div class="section-label">La mappa dei dati</div>
@@ -104,7 +104,7 @@
                 <div class="role">🏢 Proprietario</div>
                 <div class="ttl">Portale Proprietario</div>
                 <div class="file">owner-dashboard.html</div>
-                <div class="desc">Pubblica e gestisce gli immobili, vede rendita, occupazione, l'interesse dei clienti e le scadenze fiscali.</div>
+                <div class="desc">Consulta il suo archivio — immobili, contratti, rendite, documenti, scadenze fiscali — e lo <b>stato</b> di ciò che BOOM sta facendo. Non pubblica nulla: gestisce BOOM (archivio + scadenze + stato).</div>
             </div>
             <div class="actor client">
                 <div class="role">📱 Cliente</div>
@@ -116,8 +116,8 @@
 
         <div class="flow">
             <div class="layer">
-                <div class="side">🏢 il proprietario<br>pubblica</div>
-                <div class="node api"><div class="nt">Pubblicazione immobile</div><div class="chips"><span class="chip ap">POST /api/wizard/publish</span><span class="chip ap">/api/homie/property</span></div></div>
+                <div class="side">🏛️ BOOM pubblica<br>(per il proprietario)</div>
+                <div class="node api"><div class="nt">BOOM mette l'immobile sul mercato</div><div class="chips"><span class="chip ap">POST /api/wizard/publish</span><span class="chip ap">/api/homie/property</span></div></div>
                 <div class="side r">scrittura<br>admin-only</div>
             </div>
             <div class="arrow"><div></div><div class="a-mid">▼<small>firestore.rules: solo admin scrive</small></div><div></div></div>
@@ -150,9 +150,9 @@
             </div>
 
             <div class="return">
-                <span>↺ Ritorno al proprietario</span>
-                <span class="chip">portalActivity → owner-dashboard</span>
-                <span>tab "Interesse": like, visite prenotate, match %</span>
+                <span>↺ Stato per il proprietario</span>
+                <span class="chip">→ portale proprietario</span>
+                <span>"BOOM sta lavorando per te": candidati, visite organizzate, contratto in firma</span>
             </div>
         </div>
 
