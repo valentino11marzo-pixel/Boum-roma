@@ -166,6 +166,15 @@
         .pill.active { border-color:var(--gold); color:var(--gold); background:var(--gold-light); }
         .miss-row { display:flex; align-items:center; gap:10px; padding:10px 18px; cursor:pointer; color:var(--text-secondary); font-size:13px; }
         .miss-row:hover{ color:var(--gold); } .miss-row + .miss-row { border-top:1px solid var(--border); }
+        .readiness { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+        .rd-item { display:flex; align-items:center; gap:10px; padding:12px 14px; background:var(--bg-elevated); border:1px solid var(--border); border-radius:12px; }
+        .rd-dot { width:10px; height:10px; border-radius:50%; flex:0 0 auto; }
+        .rd-info { flex:1; min-width:0; } .rd-name { font-size:13px; font-weight:600; } .rd-meta { font-size:11px; color:var(--text-secondary); margin-top:2px; }
+        .rd-pct { font-weight:700; font-size:13px; flex:0 0 auto; }
+        .compare { display:grid; grid-template-columns:1fr 1fr; }
+        .cmp-col { padding:18px; text-align:center; }
+        .cmp-col.win { background:var(--green-light); }
+        .cmp-col + .cmp-col { border-left:1px solid var(--border); }
 
         /* ---- Bottom nav (mobile) ---- */
         .bottom-nav { display:none; position:fixed; bottom:0; left:0; right:0; height:64px; background:rgba(8,8,10,0.96); backdrop-filter:blur(20px); border-top:1px solid var(--border); justify-content:space-around; align-items:center; z-index:200; }
@@ -186,6 +195,7 @@
             .agency-grid { grid-template-columns:repeat(2,1fr); }
             .summary { grid-template-columns:repeat(2,1fr); }
             .grid-2 { grid-template-columns:1fr; }
+            .readiness { grid-template-columns:1fr; }
             .pagehead h1 { font-size:22px; }
             .demo-flag { bottom:72px; }
         }
@@ -274,6 +284,12 @@
             { ico:'🏛️', name:'IMU — saldo', when:'16 dic 2026', amt:'€1.240', due:'tra 182 gg', cls:'ok' }
         ];
         const missingDocs=['Ricevute affitto Gen–Apr 2026 (Attico)','Fatture manutenzione detraibili 2026'];
+        const fiscalByProp=[
+            { name:'Loft Trastevere', regime:'Cedolare 21%', complete:100, tax:'imposta €4.536' },
+            { name:'Attico Nomentano', regime:'Cedolare 21%', complete:75, tax:'imposta €3.024' },
+            { name:'Bilocale Centro', regime:'in registrazione', complete:40, tax:'in attesa contratto' },
+            { name:'Studio Ostiense', regime:'—', complete:20, tax:'in promozione' }
+        ];
 
         // ---- derived ----
         const occ=props.filter(p=>p.status==='occupied');
@@ -405,13 +421,32 @@
             }
             else if(sec==='fisco'){
                 const ready=missingDocs.length===0;
+                const canoniAnno=monthly*12;
+                const ced=Math.round(canoniAnno*0.21);
+                const irpef=Math.round(canoniAnno*0.95*0.35);
+                const saving=irpef-ced;
                 m.innerHTML=`<h2 class="view-title">Fisco</h2><div class="view-sub">Calcolato dai tuoi contratti da <code style="color:var(--gold)">fiscal-engine.js</code> · <code style="color:var(--gold)">taxpack-engine.js</code>. Niente gergo: cosa devi, quando, quanto.</div>
                 <div class="fiscal-status ${ready?'ready':'almost'}">
                     <div class="fs-emoji">${ready?'✅':'⏳'}</div>
                     <div class="fs-main"><div class="fs-head">${ready?'Sei pronto per il commercialista':'Ci sei quasi'}</div><div class="fs-sub">${ready?'Pacchetto fiscale completo, pronto da scaricare.':missingDocs.length+' cose da sistemare — ci pensa BOOM, ma puoi caricarle tu.'}</div></div>
                     <button class="btn">${ready?'📦 Scarica pacchetto':'📁 Documenti mancanti'}</button>
                 </div>
-                <div class="money-line">Quest'anno hai incassato <b>${eur(monthly*6)}</b> · imposta cedolare secca stimata <b>${eur(monthly*6*0.21)}</b> <span style="color:var(--text-muted)">(21%)</span></div>
+                <div class="money-line">Quest'anno hai incassato <b>${eur(monthly*6)}</b> · imposta cedolare secca stimata <b>${eur(ced)}</b> <span style="color:var(--text-muted)">sull'anno (21%)</span></div>
+
+                <div class="card"><div class="card-header"><span class="card-title">🏠 Pronti, per immobile</span></div><div class="card-body">
+                    <div class="readiness">
+                    ${fiscalByProp.map(p=>{const col=p.complete>=100?'green':p.complete>=60?'gold':'red';return `<div class="rd-item"><span class="rd-dot" style="background:var(--${col})"></span><div class="rd-info"><div class="rd-name">${p.name}</div><div class="rd-meta">${p.regime} · ${p.tax}</div></div><div class="rd-pct" style="color:var(--${col})">${p.complete}%</div></div>`;}).join('')}
+                    </div>
+                </div></div>
+
+                <div class="card"><div class="card-header"><span class="card-title">⚖️ Cedolare secca vs IRPEF</span><span style="font-size:11px;color:var(--text-muted)">su ${eur(canoniAnno)}/anno</span></div>
+                    <div class="compare">
+                        <div class="cmp-col win"><div style="font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--green)">Cedolare 21%</div><div style="font-size:24px;font-weight:700;margin:6px 0">${eur(ced)}</div><div style="font-size:11px;color:var(--text-secondary)">✓ Consigliata</div></div>
+                        <div class="cmp-col"><div style="font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted)">IRPEF ord. (35%)</div><div style="font-size:24px;font-weight:700;margin:6px 0">${eur(irpef)}</div><div style="font-size:11px;color:var(--text-secondary)">+ addizionali</div></div>
+                    </div>
+                    <div style="padding:12px 18px;border-top:1px solid var(--border);font-size:12px;text-align:center;color:var(--text-secondary)">Con la cedolare secca risparmi <b style="color:var(--green)">${eur(saving)}</b> all'anno</div>
+                </div>
+
                 <div class="card"><div class="card-header"><span class="card-title">📅 Scadenzario fiscale</span><button class="btn btn-sm btn-secondary">🔔 Promemoria</button></div><div class="card-body flush">
                     ${fiscal.map(f=>`<div class="fisc-row"><div class="fisc-ico">${f.ico}</div><div class="fisc-l"><div class="fisc-name">${f.name}</div><div class="fisc-when">${f.when}</div></div><div><div class="fisc-amt">${f.amt}</div><div class="fisc-due ${f.cls}">${f.due}</div></div></div>`).join('')}
                 </div></div>
