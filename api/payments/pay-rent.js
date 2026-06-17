@@ -67,6 +67,22 @@ export default async function handler(req, res) {
       setup_future_usage: 'off_session',
     };
 
+    // Direct-to-landlord (Connect Custom): when the landlord's payout account is
+    // active, route the rent straight to their IBAN with a destination charge.
+    // BOOM keeps only the management fee (if any); the SEPA fee is borne by the
+    // platform so the landlord receives the full canone. Otherwise the charge
+    // settles into BOOM's balance (collect-into-BOOM) and is remitted by SEPA
+    // credit transfer.
+    const destination = contract?.payment?.landlordAccountId || null;
+    const payoutActive = contract?.payment?.payoutStatus === 'active';
+    const direct = !!(destination && payoutActive);
+    if (direct) {
+      base.transfer_data = { destination };
+      base.on_behalf_of = destination;
+      const feeCents = Number(contract?.payment?.mgmtFeeCents) || 0;
+      if (feeCents > 0) base.application_fee_amount = feeCents;
+    }
+
     let intent;
     if (offSession) {
       // Autopay — confirm now with the saved mandate, tenant not present.
@@ -92,6 +108,8 @@ export default async function handler(req, res) {
       currency: 'eur',
       status: intent.status === 'processing' ? 'processing' : 'created',
       method: 'sepa_debit',
+      payoutModel: direct ? 'direct' : 'boom',
+      landlordAccountId: direct ? destination : '',
       stripePaymentIntent: intent.id,
       mode,
       createdAt: new Date(),

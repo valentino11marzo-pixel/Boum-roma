@@ -217,18 +217,19 @@ PAY_TEST_SECRET             any long random string (guards the harness)
    charges real money until then.
 3. **Receipts/IVA detail** — confirm the *ricevuta* format + whether the mgmt fee
    is invoiced separately (Phase 3).
-4. **Direct-to-landlord-IBAN?** — decide whether to add the Connect-Custom model
-   below (lets rent settle straight onto the landlord's IBAN). Requires enabling
-   **Connect** in the Stripe dashboard + per-landlord KYC. Preview:
-   `preview-owner-payouts.html`.
+4. **Direct-to-landlord-IBAN** — ✅ built (§7). To validate it you must **enable
+   Connect** in the Stripe dashboard (Connect → Get started → Custom). Then run
+   `connect-test.html`. Preview of the landlord UX: `preview-owner-payouts.html`.
 
 ---
 
-## 7. Optional upgrade — direct payout to the landlord's IBAN (Stripe Connect Custom)
+## 7. Direct payout to the landlord's IBAN (Stripe Connect Custom) — ✅ built (test)
 
-The collect-into-BOOM model above ships now with zero landlord friction. A second
-model lets rent land **directly on the landlord's bank account**, with BOOM
-never holding the funds and its fee taken automatically. The landlord **does not
+The collect-into-BOOM model above ships now with zero landlord friction. This
+second model lets rent land **directly on the landlord's bank account**, with
+BOOM never holding the funds and its fee taken automatically. **Built in test
+mode** alongside Phase 1: `api/payments/connect-onboard.js` (+ `connect-status.js`)
+and a `transfer_data` branch in `pay-rent.js`; harness `connect-test.html`. The landlord **does not
 create a Stripe account** — BOOM provisions a **Connect _Custom_** account via API
 from the IBAN + identity data the landlord provides.
 

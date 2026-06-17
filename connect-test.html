@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Connect Onboarding — Test Harness — BOOM</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root { --gold:#D4AF37; --bg:#08080A; --card:#0C0C0E; --el:#16161A; --in:#1A1A1A; --bd:rgba(255,255,255,0.1); --tx:#fff; --tx2:#9a9a9a; --green:#00D26A; --red:#FF3B30; --blue:#0A84FF; }
+        * { box-sizing:border-box; margin:0; }
+        body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--tx); padding:28px 18px 60px; -webkit-font-smoothing:antialiased; }
+        .wrap { max-width:560px; margin:0 auto; }
+        h1 { font-size:22px; font-weight:300; } h1 b { font-weight:700; color:var(--gold); }
+        .mode { display:inline-block; font-size:10px; letter-spacing:1px; text-transform:uppercase; padding:4px 10px; border-radius:100px; margin-left:8px; background:rgba(255,159,10,0.15); color:#FF9F0A; }
+        p.lead { color:var(--tx2); font-size:13px; margin:8px 0 22px; line-height:1.6; }
+        .card { background:var(--card); border:1px solid var(--bd); border-radius:16px; padding:18px; margin-bottom:16px; }
+        .card h2 { font-size:13px; letter-spacing:1px; text-transform:uppercase; color:var(--tx2); margin-bottom:14px; }
+        label { display:block; font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--tx2); margin:12px 0 6px; }
+        input { width:100%; background:var(--in); border:1px solid var(--bd); border-radius:10px; padding:11px 13px; color:var(--tx); font-family:inherit; font-size:13px; outline:none; }
+        input:focus { border-color:var(--gold); }
+        .row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+        button { width:100%; padding:13px; border:none; border-radius:11px; font-family:inherit; font-size:13px; font-weight:700; cursor:pointer; margin-top:16px; }
+        .btn-gold { background:var(--gold); color:#000; } .btn-ghost { background:var(--el); color:var(--tx); border:1px solid var(--bd); }
+        .hint { font-size:11px; color:var(--tx2); margin-top:8px; line-height:1.5; } .hint code { color:var(--gold); }
+        a { color:var(--gold); word-break:break-all; }
+        .log { background:#000; border:1px solid var(--bd); border-radius:12px; padding:14px; font-family:ui-monospace,monospace; font-size:11.5px; line-height:1.55; white-space:pre-wrap; word-break:break-word; max-height:320px; overflow:auto; color:#cfcfcf; }
+        .log .ok { color:var(--green); } .log .err { color:var(--red); } .log .info { color:var(--blue); } .log .dim { color:#666; }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <h1>Connect Onboarding <b>Test Harness</b><span class="mode" id="modeChip">test</span></h1>
+    <p class="lead">Validate the landlord <b>direct-to-IBAN</b> flow: provision a Connect Custom account from an IBAN, get the hosted KYC link, then check when payouts go live. No real money. See <a href="PAYMENTS.md">PAYMENTS.md §7</a>.</p>
+
+    <div class="card">
+        <h2>0 · Connessione</h2>
+        <label>Test secret (PAY_TEST_SECRET)</label>
+        <input id="secret" type="password" placeholder="il valore di PAY_TEST_SECRET">
+        <div class="hint">Salvato solo in questa scheda. Richiede <code>RENT_PAYMENTS_LIVE</code> non attivo e <code>STRIPE_SECRET_KEY_TEST</code>.</div>
+    </div>
+
+    <div class="card">
+        <h2>1 · Proprietario</h2>
+        <label>Contract ID</label>
+        <input id="contractId" value="test-contract-01">
+        <div class="row">
+            <div><label>Intestatario</label><input id="holder" value="Valentino Egidi"></div>
+            <div><label>Email</label><input id="email" value="owner@example.com"></div>
+        </div>
+        <label>IBAN</label>
+        <input id="iban" value="IT60X0542811101000000123456">
+        <div class="hint">Test Stripe: un IBAN IT valido va bene; la verifica identità avviene sul flusso Stripe.</div>
+        <button class="btn-gold" id="btnCreate">① Crea account & link verifica</button>
+    </div>
+
+    <div class="card">
+        <h2>2 · Stato payout</h2>
+        <button class="btn-ghost" id="btnStatus">Controlla stato verifica</button>
+        <div class="hint">Dopo aver completato la verifica Stripe, <code>payoutsEnabled</code> diventa true e i <code>currentlyDue</code> si svuotano.</div>
+    </div>
+
+    <div class="card"><h2>Log</h2><div class="log" id="log"><span class="dim">In attesa…</span></div></div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const logEl = $('log');
+function log(m, c='') { const t=new Date().toLocaleTimeString('it-IT'); logEl.innerHTML += `\n<span class="dim">${t}</span> <span class="${c}">${m}</span>`; logEl.scrollTop=logEl.scrollHeight; }
+function logJson(o){ logEl.innerHTML += `\n<span class="dim">${JSON.stringify(o,null,2)}</span>`; logEl.scrollTop=logEl.scrollHeight; }
+
+$('secret').value = sessionStorage.getItem('payTestSecret') || '';
+$('secret').addEventListener('input', e => sessionStorage.setItem('payTestSecret', e.target.value));
+
+async function api(path, body) {
+    const r = await fetch(path, { method:'POST', headers:{ 'Content-Type':'application/json', 'X-Pay-Test-Secret':$('secret').value }, body:JSON.stringify(body) });
+    const j = await r.json().catch(()=>({}));
+    if (!r.ok) { log(`HTTP ${r.status} on ${path}`,'err'); logJson(j); throw new Error(j.error||r.status); }
+    return j;
+}
+
+$('btnCreate').onclick = async () => {
+    try {
+        $('btnCreate').disabled = true;
+        log('Creo account Connect Custom…','info');
+        const r = await api('/api/payments/connect-onboard', { contractId:$('contractId').value, holderName:$('holder').value, email:$('email').value, iban:$('iban').value, returnUrl: location.href });
+        log('Account creato · '+r.accountId,'ok');
+        log('Apri il link di verifica (KYC) Stripe:','info');
+        logEl.innerHTML += `\n<a href="${r.onboardingUrl}" target="_blank">${r.onboardingUrl}</a>`;
+    } catch(e){ log('Errore: '+e.message,'err'); }
+    finally { $('btnCreate').disabled = false; }
+};
+
+$('btnStatus').onclick = async () => {
+    try {
+        $('btnStatus').disabled = true;
+        const r = await api('/api/payments/connect-status', { contractId:$('contractId').value });
+        log(`Stato: ${r.status} · payoutsEnabled=${r.payoutsEnabled} · IBAN ••${r.ibanLast4||'?'}`, r.payoutsEnabled?'ok':'info');
+        if (r.currentlyDue?.length) { log('Ancora da fornire: '+r.currentlyDue.join(', '),'info'); }
+    } catch(e){ log('Errore: '+e.message,'err'); }
+    finally { $('btnStatus').disabled = false; }
+};
+</script>
+</body>
+</html>
