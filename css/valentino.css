@@ -4,6 +4,7 @@
    + ink + ember. Helvetica Neue 300 (display) × IBM Plex Mono (machine).
    Shared by every valentino-*.html page. BOOM appears ONLY in its own section.
    ═════════════════════════════════════════════════════════════════════════ */
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Allura&display=swap');
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 :root{
   --paper:#F4F1EA;--paper-2:#ECE6DB;--paper-3:#E3DCCD;
@@ -16,6 +17,8 @@
   --shadow:0 30px 70px -34px rgba(20,15,8,.30);--shadow-s:0 16px 34px -20px rgba(20,15,8,.22);
   --font:'Helvetica Neue','Helvetica Neue LT','HelveticaNeue',Helvetica,Arial,sans-serif;
   --mono:'IBM Plex Mono','Courier New',monospace;
+  --roman:'Cinzel','Trajan Pro','Times New Roman',serif;
+  --script:'Allura','Snell Roundhand',cursive;
   --e1:cubic-bezier(.16,1,.3,1);--e2:cubic-bezier(.62,.01,.05,1);
 }
 html{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;scroll-behavior:smooth}
@@ -355,6 +358,56 @@ footer{background:var(--paper);padding:0 0 46px;border-top:1px solid var(--line)
 [data-st].in>*:nth-child(4){transition-delay:.21s}[data-st].in>*:nth-child(5){transition-delay:.28s}[data-st].in>*:nth-child(6){transition-delay:.35s}
 #telem b{color:var(--ember);font-weight:400}
 
+/* ── SIGNATURE (writes on, script) ─────────────────────────── */
+.signature{font-family:var(--script);line-height:1;color:var(--ember);display:inline-block;clip-path:inset(0 100% 0 0);-webkit-clip-path:inset(0 100% 0 0);transition:clip-path 1.5s var(--e1),-webkit-clip-path 1.5s var(--e1)}
+.signature.drawn{clip-path:inset(0 -6% 0 0);-webkit-clip-path:inset(0 -6% 0 0)}
+
+/* ── PERSONA (personal brand — the name, the face) ─────────── */
+.persona{background:var(--ink);color:var(--paper);position:relative;overflow:hidden}
+.persona::before{content:"";position:absolute;inset:0;opacity:.5;mix-blend-mode:soft-light;pointer-events:none;background:radial-gradient(120% 90% at 85% 10%,rgba(229,66,26,.18),transparent 55%)}
+.persona .wrap{position:relative;z-index:2}
+.persona-grid{display:grid;grid-template-columns:.82fr 1.18fr;gap:62px;align-items:center}
+@media(max-width:860px){.persona-grid{grid-template-columns:1fr;gap:40px}}
+.persona-fig{position:relative;aspect-ratio:4/5;border-radius:4px;overflow:hidden;box-shadow:0 40px 80px -40px #000}
+.persona-fig .ph{position:absolute;inset:0;background:linear-gradient(160deg,#3a342a,#14120d)}
+.persona-fig .frame{position:absolute;inset:0;z-index:2;box-shadow:inset 0 0 0 1px rgba(244,241,234,.14)}
+.persona-fig .tagcorner{position:absolute;left:16px;bottom:14px;z-index:3;font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:rgba(244,241,234,.8)}
+.persona .insc{font-family:var(--mono);font-size:11px;letter-spacing:.34em;text-transform:uppercase;color:var(--ember-2);display:flex;align-items:center;gap:14px}
+.persona .insc .rule{flex:1;height:1px;background:rgba(244,241,234,.16);max-width:80px}
+.persona .roman{font-family:var(--roman);font-weight:600;font-size:clamp(40px,7.4vw,104px);letter-spacing:.03em;line-height:.92;text-transform:uppercase;margin-top:22px}
+.persona .roman .ln{display:block}
+.persona .role{font-family:var(--mono);font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:rgba(244,241,234,.55);margin-top:18px}
+.persona .first{font-size:clamp(18px,2vw,24px);line-height:1.4;color:rgba(244,241,234,.86);max-width:42ch;margin-top:26px;font-weight:300}
+.persona .first em{font-style:normal;color:var(--ember-2)}
+.persona .sigrow{display:flex;align-items:center;gap:24px;margin-top:30px;flex-wrap:wrap}
+.persona .sigrow .signature{font-size:clamp(46px,5.4vw,72px)}
+.persona .sigrow .who{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:rgba(244,241,234,.5);border-left:1px solid rgba(244,241,234,.2);padding-left:20px}
+
+/* ── DASHBOARD preview (technology, live) ──────────────────── */
+@keyframes pulse{0%{box-shadow:0 0 0 0 var(--ember-glow)}70%{box-shadow:0 0 0 7px rgba(229,66,26,0)}100%{box-shadow:0 0 0 0 rgba(229,66,26,0)}}
+.dash{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;box-shadow:var(--shadow)}
+.dash-bar{display:flex;align-items:center;gap:11px;padding:15px 22px;border-bottom:1px solid var(--line);font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+.dash-bar .dot{width:8px;height:8px;border-radius:50%;background:var(--ember);animation:pulse 2.2s infinite}
+.dash-bar .stamp{margin-left:auto;color:var(--ember);letter-spacing:.16em}
+.dash-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line)}
+@media(max-width:560px){.dash-grid{grid-template-columns:1fr}}
+.dstat{background:var(--card);padding:24px 22px}
+.dstat .dv{font-size:clamp(30px,4vw,46px);letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1}
+.dstat .dk{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);margin-top:9px}
+.dstat .spark{display:block;width:100%;height:30px;margin-top:14px}
+.dstat .delta{font-family:var(--mono);font-size:11px;color:#3f8f5c;margin-top:7px;letter-spacing:.04em}
+.dash-pipe{padding:30px 26px 26px}
+.dash-pipe .pl-head{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);margin-bottom:22px}
+.pipe{display:flex;position:relative}
+.pipe::before{content:"";position:absolute;left:7%;right:7%;top:7px;height:2px;background:var(--line)}
+.pipe-fill{position:absolute;left:7%;top:7px;height:2px;width:0;background:linear-gradient(90deg,var(--ember),var(--ember-2));transition:width 1.2s var(--e1)}
+.pnode{flex:1;display:flex;flex-direction:column;align-items:center;gap:11px;position:relative;z-index:2}
+.pnode .dotn{width:15px;height:15px;border-radius:50%;background:var(--paper);border:1.5px solid var(--line);transition:.45s var(--e1)}
+.pnode.on .dotn{background:var(--ember);border-color:var(--ember);box-shadow:0 0 0 4px var(--ember-soft)}
+.pnode .pl{font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);text-align:center;transition:.4s}
+.pnode.on .pl{color:var(--ink)}
+@media(max-width:560px){.pnode .pl{font-size:8.5px}}
+
 /* ── REDUCED MOTION ────────────────────────────────────────── */
 @media(prefers-reduced-motion:reduce){
   html{scroll-behavior:auto}*{animation:none!important}
@@ -367,4 +420,6 @@ footer{background:var(--paper);padding:0 0 46px;border-top:1px solid var(--line)
   .zones-head{position:relative;top:auto;padding:0 22px 36px}
   .zones-track{flex-wrap:nowrap;overflow-x:auto;height:60vh;transform:none!important;scroll-snap-type:x mandatory}
   .zcard{scroll-snap-align:center}
+  .signature{clip-path:none!important;-webkit-clip-path:none!important;transition:none}
+  .dash-bar .dot{animation:none}
 }

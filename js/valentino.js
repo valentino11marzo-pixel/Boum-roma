@@ -225,10 +225,42 @@ function initShader(){
     gl.drawArrays(gl.TRIANGLES,0,3);})(t0);
 }
 
+/* ── signature (writes on when seen) ───────────────────────── */
+function initSignature(){
+  const sigs=$$('.signature');if(!sigs.length)return;
+  if(reduce||!('IntersectionObserver'in window)){sigs.forEach(s=>s.classList.add('drawn'));return;}
+  const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){setTimeout(()=>e.target.classList.add('drawn'),200);io.unobserve(e.target);}}),{threshold:.5});
+  sigs.forEach(s=>io.observe(s));
+}
+
+/* ── dashboard preview: sparklines + automation pipeline ───── */
+function initDashboard(){
+  const dash=$('.dash');if(!dash)return;
+  const sparks=$$('.dash .spark').map(cv=>{const ctx=cv.getContext('2d');
+    const data=cv.dataset.pts?cv.dataset.pts.split(',').map(Number):Array.from({length:12},(_,i)=>0.2+i/11*0.7+Math.random()*0.12);
+    const size=()=>{const d=Math.min(devicePixelRatio||1,2),r=cv.getBoundingClientRect();cv.width=Math.max(1,r.width*d);cv.height=Math.max(1,r.height*d);if(ctx)ctx.setTransform(d,0,0,d,0,0);};
+    size();return{cv,ctx,data,size};});
+  function draw(s,prog){const{cv,ctx,data}=s;if(!ctx)return;const r=cv.getBoundingClientRect(),W=r.width,H=r.height;ctx.clearRect(0,0,W,H);
+    const max=Math.max.apply(0,data),min=Math.min.apply(0,data),X=i=>i/(data.length-1)*W,Y=v=>H-((v-min)/((max-min)||1))*(H-4)-2,n=Math.max(2,Math.round(data.length*prog));
+    ctx.beginPath();ctx.moveTo(X(0),H);for(let i=0;i<n;i++)ctx.lineTo(X(i),Y(data[i]));ctx.lineTo(X(n-1),H);ctx.closePath();ctx.fillStyle='rgba(229,66,26,.10)';ctx.fill();
+    ctx.beginPath();for(let i=0;i<n;i++){const px=X(i),py=Y(data[i]);i?ctx.lineTo(px,py):ctx.moveTo(px,py);}ctx.strokeStyle='#E5421A';ctx.lineWidth=1.5;ctx.stroke();
+    ctx.beginPath();ctx.arc(X(n-1),Y(data[n-1]),2.2,0,6.283);ctx.fillStyle='#E5421A';ctx.fill();}
+  function run(){
+    const fill=$('.pipe-fill'),nodes=$$('.pnode'),stage=+dash.dataset.stage||0.6,on=Math.max(1,Math.round(nodes.length*stage));
+    nodes.forEach((nd,i)=>setTimeout(()=>nd.classList.toggle('on',i<on),reduce?0:120*i+200));
+    if(fill&&nodes.length>1)setTimeout(()=>{fill.style.width=((on-1)/(nodes.length-1)*86)+'%';},reduce?0:320);
+    sparks.forEach(s=>{if(reduce){draw(s,1);return;}let st=null;(function step(t){if(!st)st=t;const p=Math.min((t-st)/1100,1);draw(s,Math.max(.12,1-Math.pow(1-p,3)));if(p<1)requestAnimationFrame(step);})(performance.now());});
+  }
+  if(reduce||!('IntersectionObserver'in window)){run();return;}
+  new IntersectionObserver((es,o)=>es.forEach(e=>{if(e.isIntersecting){run();o.disconnect();}}),{threshold:.3}).observe(dash);
+  addEventListener('resize',()=>sparks.forEach(s=>{s.size();draw(s,1);}));
+}
+
 /* ── boot all ──────────────────────────────────────────────── */
 function init(){
   initLang();initBoot();initTransitions();initCursor();initTiltMag();
   initReveals();initScroll();initClock();initFab();initForm();initEstimator();initShader();
+  initSignature();initDashboard();
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
