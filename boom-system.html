@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>BOOM Design System — One BOOM</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=optional" rel="stylesheet">
+<link rel="stylesheet" href="/css/boom-system.css">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--text-1);font-family:var(--font-text);font-weight:300;-webkit-font-smoothing:antialiased;padding:0 0 120px}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+  header.top{padding:64px 0 36px;border-bottom:1px solid var(--line);margin-bottom:8px}
+  .mark{font-family:var(--font-display);font-weight:200;font-size:30px;letter-spacing:8px}
+  .mark b{color:var(--gold);font-weight:300}
+  .sub{margin-top:14px;color:var(--text-2);max-width:62ch;line-height:1.7;font-size:15px}
+  .sub code{color:var(--gold);font-family:ui-monospace,monospace;font-size:13px}
+  section.blk{padding:46px 0;border-bottom:1px solid var(--line)}
+  .blk-h{font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--text-3);margin-bottom:22px}
+  .row{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start}
+  .grid{display:grid;gap:14px}
+  /* swatches */
+  .sw{width:150px}
+  .sw-chip{height:74px;border-radius:var(--r-1);border:1px solid var(--line)}
+  .sw-name{margin-top:8px;font-size:12.5px;color:var(--text-1)}
+  .sw-val{font-size:11px;color:var(--text-3);font-family:ui-monospace,monospace}
+  /* type scale */
+  .ts{display:flex;flex-direction:column;gap:16px}
+  .ts-row{display:flex;align-items:baseline;gap:18px;border-bottom:1px dashed var(--line);padding-bottom:14px}
+  .ts-tag{flex:0 0 120px;font-size:11px;color:var(--text-3);font-family:ui-monospace,monospace}
+  /* radius / elevation demo */
+  .rbox{width:120px;height:84px;background:var(--surface-2);border:1px solid var(--line-strong);display:flex;align-items:center;justify-content:center;color:var(--text-3);font-size:12px}
+  /* note */
+  .note{margin-top:18px;font-size:12.5px;color:var(--text-3);line-height:1.6}
+  .label{font-size:11px;color:var(--text-3);margin-bottom:10px;letter-spacing:.5px}
+</style>
+</head>
+<body>
+
+<header class="top"><div class="wrap">
+  <div class="mark">BO<b>O</b>M · DESIGN SYSTEM</div>
+  <p class="sub"><b style="color:#fff;font-weight:500">“One BOOM.”</b> The single source of truth. Every page imports <code>/css/boom-system.css</code>; nothing else defines these tokens. Primitives are namespaced <code>.bx-*</code> — a page opts in by using a class, so importing this changes nothing until we choose to. This page <em>is</em> the contract: what you see here is law across home, list and detail.</p>
+</div></header>
+
+<div class="wrap">
+
+  <!-- COLOR -->
+  <section class="blk">
+    <div class="blk-h">01 · Colour — one gold, one black ladder</div>
+    <div class="row">
+      <div class="sw"><div class="sw-chip" style="background:var(--gold)"></div><div class="sw-name">Gold</div><div class="sw-val">#FFD700</div></div>
+      <div class="sw"><div class="sw-chip" style="background:var(--grad-gold)"></div><div class="sw-name">Gradient (primary)</div><div class="sw-val">FFD700 → FFA500</div></div>
+      <div class="sw"><div class="sw-chip" style="background:var(--gold-soft)"></div><div class="sw-name">Gold soft</div><div class="sw-val">#FFD54F</div></div>
+      <div class="sw"><div class="sw-chip" style="background:var(--green)"></div><div class="sw-name">Green · refundable</div><div class="sw-val">#00FF88</div></div>
+      <div class="sw"><div class="sw-chip" style="background:var(--cyan)"></div><div class="sw-name">Cyan · transit</div><div class="sw-val">#00CED1</div></div>
+      <div class="sw"><div class="sw-chip" style="background:var(--danger)"></div><div class="sw-name">Danger</div><div class="sw-val">#FF6B6B</div></div>
+    </div>
+    <div class="row" style="margin-top:22px">
+      <div class="sw"><div class="sw-chip" style="background:var(--bg)"></div><div class="sw-name">Page</div><div class="sw-val">#08080A</div></div>
+      <div class="sw"><div class="sw-chip" style="background:var(--surface-1)"></div><div class="sw-name">Card</div><div class="sw-val">#0A0A0D</div></div>
+      <div class="sw"><div class="sw-chip" style="background:var(--surface-2)"></div><div class="sw-name">Raised</div><div class="sw-val">#101013</div></div>
+      <div class="sw"><div class="sw-chip" style="background:var(--surface-inset)"></div><div class="sw-name">Inset / field</div><div class="sw-val">#060608</div></div>
+    </div>
+    <p class="note">Resolves the drift: home was <code>#030303</code> + <code>#FFE55C</code>, detail was <code>#08080A</code> + <code>#FFD54F</code>. Now one of each.</p>
+  </section>
+
+  <!-- TYPE -->
+  <section class="blk">
+    <div class="blk-h">02 · Type — Helvetica Neue display, Inter text, with a weight floor (never 100)</div>
+    <div class="ts">
+      <div class="ts-row"><span class="ts-tag">.bx-h2 · 200</span><span class="bx-h2">Exactly what you pay. <span class="g">And what comes back.</span></span></div>
+      <div class="ts-row"><span class="ts-tag">eyebrow · 11/3px</span><span class="bx-eyebrow">Chapter 01 · the money</span></div>
+      <div class="ts-row"><span class="ts-tag">lead · 15/1.65</span><span class="bx-lead" style="margin:0">Most agencies hide the math until you're at the table. We don't — here is every euro, before you commit.</span></div>
+      <div class="ts-row"><span class="ts-tag">price · tabular</span><span class="bx-listing__price" style="font-size:32px">€1,800<small> /mo</small></span></div>
+      <div class="ts-row"><span class="ts-tag">body · text-2</span><span style="color:var(--text-2);font-size:15px;line-height:1.65">Secondary text now rests on a readability floor — <code style="color:var(--gold)">#B7B7BE</code>, not the old <code style="color:var(--gold)">#999</code> that went grey exactly where clarity matters most.</span></div>
+    </div>
+  </section>
+
+  <!-- BUTTONS -->
+  <section class="blk">
+    <div class="blk-h">03 · Buttons — one primary, for the whole product</div>
+    <div class="row" style="align-items:center">
+      <a class="bx-btn bx-btn--primary">Apply in 2 minutes →</a>
+      <a class="bx-btn bx-btn--ghost">🔒 Reserve &amp; hold</a>
+      <a class="bx-btn bx-btn--quiet">See the area</a>
+      <a class="bx-btn bx-btn--primary bx-btn--sm">Small primary</a>
+    </div>
+    <p class="note">One primary fill (the gold→amber gradient) ends the “solid gold vs gradient” split the audit found. Change <code>--grad-gold</code> once → every CTA on the site follows.</p>
+  </section>
+
+  <!-- BADGES + CHIPS -->
+  <section class="blk">
+    <div class="blk-h">04 · Badges &amp; chips</div>
+    <div class="label">Status badges</div>
+    <div class="row" style="align-items:center">
+      <span class="bx-badge bx-badge--ok">● Available</span>
+      <span class="bx-badge bx-badge--warn">● Waitlist</span>
+      <span class="bx-badge bx-badge--gold">✓ Verified by BOOM</span>
+      <span class="bx-badge bx-badge--ok">↩ Refundable</span>
+    </div>
+    <div class="label" style="margin-top:24px">Filter / tag chips</div>
+    <div class="row" style="align-items:center">
+      <span class="bx-chip">Budget</span>
+      <span class="bx-chip is-on">Trastevere</span>
+      <span class="bx-chip">2 bedrooms</span>
+      <span class="bx-chip">Terrace</span>
+    </div>
+  </section>
+
+  <!-- SECTION HEADER + CARD -->
+  <section class="blk">
+    <div class="blk-h">05 · Section header &amp; card</div>
+    <div class="bx-card" style="max-width:620px">
+      <div class="bx-eyebrow">Proof, not promises</div>
+      <h2 class="bx-h2">Why you can <span class="g">trust</span> this home.</h2>
+      <p class="bx-lead">The eyebrow + thin headline + gold underline is the universal section header — the same beat on every page, so the scroll feels like one continuous story.</p>
+      <div style="margin-top:18px"><a class="bx-btn bx-btn--primary bx-btn--sm">See the proof</a></div>
+    </div>
+  </section>
+
+  <!-- THE PROMISE STRIP -->
+  <section class="blk">
+    <div class="blk-h">06 · The BOOM promise — the spine of trust, identical everywhere</div>
+    <div class="bx-promise">
+      <span>Video-verified</span>
+      <span>1-month deposit ↩ refundable</span>
+      <span>Fee declared up front</span>
+      <span>Move in within 48h</span>
+    </div>
+    <p class="note">Same four claims, same order — on the homepage, on every listing card, and on the detail page. It already exists at ~80% across the site; this makes it one component.</p>
+  </section>
+
+  <!-- THE LISTING CARD -->
+  <section class="blk">
+    <div class="blk-h">07 · The one BOOM listing card — home carousel = list grid = “more in this zone”</div>
+    <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(260px,1fr));max-width:840px">
+      <a class="bx-listing">
+        <div class="bx-listing__img" style="background-image:linear-gradient(135deg,#1a1a1d,#0e0e10)">
+          <span class="bx-listing__badge bx-badge bx-badge--ok">● Available</span>
+        </div>
+        <div class="bx-listing__body">
+          <div class="bx-listing__zone">Centro Storico</div>
+          <div class="bx-listing__name">Coronari Classic</div>
+          <div class="bx-listing__price">€1,800<small> /mo</small></div>
+          <div class="bx-listing__meta"><span>2 bed</span><span>1 bath</span><span>70 m²</span></div>
+          <div class="bx-promise" style="margin-top:6px"><span>Verified</span><span>Deposit ↩</span></div>
+        </div>
+      </a>
+      <a class="bx-listing">
+        <div class="bx-listing__img" style="background-image:linear-gradient(135deg,#161b18,#0e0e10)">
+          <span class="bx-listing__badge bx-badge bx-badge--gold">✓ Verified</span>
+        </div>
+        <div class="bx-listing__body">
+          <div class="bx-listing__zone">Trastevere</div>
+          <div class="bx-listing__name">Vicolo del Cinque</div>
+          <div class="bx-listing__price">€1,450<small> /mo</small></div>
+          <div class="bx-listing__meta"><span>1 bed</span><span>1 bath</span><span>48 m²</span></div>
+          <div class="bx-promise" style="margin-top:6px"><span>Verified</span><span>48h move-in</span></div>
+        </div>
+      </a>
+    </div>
+    <p class="note">One atomic card → a person recognises “a BOOM home” anywhere in the journey.</p>
+  </section>
+
+  <!-- FIELDS -->
+  <section class="blk" style="border-bottom:none">
+    <div class="blk-h">08 · Fields &amp; radius ladder</div>
+    <div class="row" style="max-width:560px">
+      <input class="bx-field" placeholder="Try: 2 bedrooms in Trastevere under €2000…" style="flex:1;min-width:260px">
+      <a class="bx-btn bx-btn--primary">Search</a>
+    </div>
+    <div class="row" style="margin-top:30px;align-items:flex-end">
+      <div><div class="label">--r-1 · 12 (micro)</div><div class="rbox" style="border-radius:var(--r-1)">chips · inputs</div></div>
+      <div><div class="label">--r-2 · 20 (card)</div><div class="rbox" style="border-radius:var(--r-2)">cards</div></div>
+      <div><div class="label">--r-pill · 100</div><div class="rbox" style="border-radius:var(--r-pill);width:150px">pills</div></div>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>
