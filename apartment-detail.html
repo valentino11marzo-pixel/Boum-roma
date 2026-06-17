@@ -283,6 +283,14 @@
         .inquiry-card button:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(255, 215, 0,0.3)}
         .inquiry-card button:disabled{opacity:.5;cursor:not-allowed;transform:none}
         .apply-badge{display:inline-block;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold);background:rgba(255,215,0,0.10);border:1px solid rgba(255,215,0,0.25);padding:5px 11px;border-radius:100px;margin-bottom:14px}
+        .apply-badge .apply-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:#00FF88;margin-right:3px;vertical-align:middle;animation:applyPulse 2.4s infinite}
+        @keyframes applyPulse{0%{box-shadow:0 0 0 0 rgba(0,255,136,.5)}70%{box-shadow:0 0 0 7px rgba(0,255,136,0)}100%{box-shadow:0 0 0 0 rgba(0,255,136,0)}}
+        .apply-steps{display:flex;gap:6px;margin-bottom:18px}
+        .apply-step{flex:1;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:9px 5px;text-align:center}
+        .apply-step b{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-weight:200;font-size:17px;color:var(--gold);line-height:1}
+        .apply-step i{display:block;font-style:normal;font-size:11px;color:#fff;margin-top:4px}
+        .apply-step small{display:block;font-size:9px;color:var(--text-fade);text-transform:uppercase;letter-spacing:.4px;margin-top:1px}
+        @media(prefers-reduced-motion:reduce){.apply-badge .apply-dot{animation:none}}
         .inquiry-card select{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23FFD700' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:34px;cursor:pointer}
         .inquiry-card select option{background:#0e0e12;color:#fff}
         .apply-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
@@ -720,9 +728,14 @@
                     <a class="sidebar-secondary" href="/property-finding.html">Not this one? Find my perfect apartment →</a>
                 </div>
                 <div class="sidebar-card inquiry-card" id="inquiryCard">
-                    <span class="apply-badge">2-minute application</span>
-                    <h3>Apply for this apartment</h3>
-                    <p>No fee to apply. We reply within 2 hours — and you could be moved in within 48.</p>
+                    <span class="apply-badge"><i class="apply-dot"></i> Secure this home</span>
+                    <h3>Make it yours</h3>
+                    <p>No fee to apply. A real person replies within <b style="color:#fff;font-weight:500">2 hours</b> — keys in as little as 48.</p>
+                    <div class="apply-steps">
+                        <div class="apply-step"><b>1</b><i>Apply</i><small>2 min</small></div>
+                        <div class="apply-step"><b>2</b><i>Approved</i><small>&le; 2h</small></div>
+                        <div class="apply-step"><b>3</b><i>Keys</i><small>48h</small></div>
+                    </div>
                     <form id="inquiryForm">
                         <input type="text" name="name" id="iqName" placeholder="Your name" required>
                         <input type="email" name="email" id="iqEmail" placeholder="Your email" required>
@@ -745,17 +758,17 @@
                             <option>4+ people</option>
                         </select>
                         <textarea name="message" id="formMessage" placeholder="Anything we should know? (optional)"></textarea>
-                        <button type="submit" id="inquiryBtn">Submit application</button>
-                        <div class="apply-reassure">🔒 Private &amp; no commitment. A real person reviews every application.</div>
+                        <button type="submit" id="inquiryBtn">Apply in 2 minutes →</button>
+                        <div class="apply-reassure">🔒 Private &amp; no commitment · reviewed by a real person, never a bot.</div>
                     </form>
                     <div class="inquiry-success" id="inquirySuccess">✓ Application received! Our team will contact you within 2 hours.</div>
                     <div class="reserve-box" id="reserveBox">
-                        <div class="reserve-h">Want to lock it in? <b>Reserve &amp; hold this apartment.</b></div>
+                        <div class="reserve-h">Don't want to risk losing it?</div>
                         <button class="reserve-btn" id="reserveBtn" type="button">🔒 Reserve &amp; hold — <span id="reserveAmt">€300</span></button>
                         <div class="reserve-note">
-                            <span>100% refundable if not approved</span>
-                            <span>Deducted from your first month</span>
-                            <span>Off-market hold while we process your application</span>
+                            <span>Off-market the moment you reserve — no one else can apply</span>
+                            <span>100% refundable if you're not approved</span>
+                            <span>Deducted from your first month — not an extra cost</span>
                         </div>
                     </div>
                 </div>
@@ -1685,9 +1698,8 @@
     .sidebar-secondary--quiet{border:none;background:transparent;font-size:12px;color:#777;padding:8px}
     .sidebar-secondary--quiet:hover{border:none;color:var(--gold)}
     /* Skip layout/paint of below-the-fold acts until they approach the viewport */
-    /* Reserve the gallery height so injecting photos never pushes the page (CLS) */
-    .media-section{min-height:330px}
-    @media(max-width:760px){.media-section{min-height:400px}}
+    /* Reserve gallery space ONLY while empty (pre-render) — no black gap once filled */
+    .media-section:empty{min-height:300px}
     /* Tighter rhythm — get to the point, don't make them wander */
     .bver,.bmx,.btour,.m48,.faq{margin-top:42px}
     .upsell-section{padding-top:24px}
