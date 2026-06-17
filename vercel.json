@@ -175,6 +175,10 @@
     {
       "path": "/api/reminder-cron",
       "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/telegram/notify-pending",
+      "schedule": "* * * * *"
     }
   ]
 }
