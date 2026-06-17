@@ -62,16 +62,33 @@
         .rail .rd { font-size: 12px; color: var(--text-secondary); margin-top: 8px; line-height: 1.5; }
         .rail .chips { margin-top: 10px; display: flex; gap: 6px; flex-wrap: wrap; }
 
+        /* ---- lifecycle band ---- */
+        .lifecycle { display:grid; grid-template-columns:1fr auto 1fr auto 1fr; align-items:stretch; gap:12px; }
+        .lc-stage { border:1px solid var(--border); border-radius:18px; padding:18px; background:var(--bg-card); }
+        .lc-stage.client { background:linear-gradient(135deg,rgba(10,132,255,0.08),transparent); }
+        .lc-stage.tenant { background:linear-gradient(135deg,rgba(0,210,106,0.08),transparent); }
+        .lc-stage.owner { background:linear-gradient(135deg,rgba(212,175,55,0.07),transparent); }
+        .lc-stage .ic { font-size:22px; }
+        .lc-stage .rl { font-size:10px; letter-spacing:2px; text-transform:uppercase; margin-top:8px; color:var(--blue); }
+        .lc-stage.tenant .rl { color:var(--green); } .lc-stage.owner .rl { color:var(--gold); }
+        .lc-stage .nm { font-size:16px; font-weight:700; margin-top:3px; }
+        .lc-stage .fl { font-size:10px; font-family:ui-monospace,monospace; color:var(--text-muted); margin-top:3px; }
+        .lc-stage .ds { font-size:11px; color:var(--text-secondary); margin-top:9px; line-height:1.5; }
+        .lc-arrow { display:flex; flex-direction:column; align-items:center; justify-content:center; color:var(--text-muted); }
+        .lc-arrow .big { font-size:20px; } .lc-arrow small { font-size:9px; text-transform:uppercase; letter-spacing:1px; margin-top:4px; max-width:74px; text-align:center; line-height:1.3; }
+        @media (max-width:720px){ .lifecycle { grid-template-columns:1fr; } .lc-arrow { transform:rotate(90deg); padding:4px 0; } .lc-arrow small { display:none; } }
+
         /* ---- live device frames ---- */
-        .devices { display: flex; gap: 40px; justify-content: center; flex-wrap: wrap; align-items: flex-start; }
-        .device { width: 380px; max-width: 100%; }
+        .devices { display: flex; gap: 24px; justify-content: center; flex-wrap: wrap; align-items: flex-start; }
+        .device { width: 350px; max-width: 100%; }
         .device .cap { text-align: center; margin-bottom: 14px; }
         .device .cap .r { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--gold); }
         .device .cap.client .r { color: var(--blue); }
+        .device .cap.tenant .r { color: var(--green); }
         .device .cap .n { font-size: 16px; font-weight: 600; margin-top: 3px; }
         .device .cap .f { font-size: 11px; font-family: ui-monospace, monospace; color: var(--text-muted); }
         .phone { background: #1a1a1c; border: 1px solid var(--border); border-radius: 44px; padding: 12px; box-shadow: 0 30px 80px rgba(0,0,0,0.6); }
-        .phone .screen { border-radius: 33px; overflow: hidden; background: #000; height: 760px; position: relative; }
+        .phone .screen { border-radius: 33px; overflow: hidden; background: #000; height: 720px; position: relative; }
         .phone iframe { width: 100%; height: 100%; border: 0; display: block; }
         .open-link { display: inline-flex; align-items: center; gap: 6px; margin-top: 14px; font-size: 12px; color: var(--gold); text-decoration: none; }
         .device .actions { text-align: center; }
@@ -93,8 +110,8 @@
     <div class="top">
         <div class="logo"></div>
         <div class="kicker">BOOM Rome · Architettura</div>
-        <h1>Interconnessione <b>Proprietario ⇄ Cliente</b></h1>
-        <p>Come i due portali si parlano davvero: dall'immobile che <b>BOOM</b> pubblica per conto del proprietario, dentro il motore PFS, fino allo swipe del cliente — e ritorno, con lo <b>stato</b> che torna visibile al proprietario. Trattamento da agenzia: il proprietario consulta, BOOM opera. Ogni nodo riporta la collezione Firestore o l'endpoint API reale.</p>
+        <h1>Tre portali, <b>una sola casa</b></h1>
+        <p>Il ciclo di vita completo: il <b>Cliente</b> cerca e fa swipe finché non trova casa, firma e <b>diventa Inquilino</b> — paga l'affitto, segnala guasti, tiene i documenti — mentre il <b>Proprietario</b> osserva tutto da un'unica area. Trattamento da agenzia: cliente e inquilino vivono l'esperienza, il proprietario consulta, <b>BOOM opera</b>. Ogni nodo riporta la collezione Firestore o l'endpoint API reale.</p>
     </div>
 
     <div class="section-label">La mappa dei dati</div>
@@ -177,17 +194,40 @@
         </div>
     </div>
 
-    <div class="section-label">I due lati, vivi</div>
-    <div class="devices">
-        <div class="device">
-            <div class="cap owner"><div class="r">🏢 Proprietario</div><div class="n">Portale Proprietario</div><div class="f">preview-owner.html</div></div>
-            <div class="phone"><div class="screen"><iframe src="preview-owner.html" title="Portale Proprietario" loading="lazy"></iframe></div></div>
-            <div class="actions"><a class="open-link" href="preview-owner.html" target="_blank">Apri a schermo intero ↗</a></div>
+    <div class="section-label">Il ciclo di vita</div>
+    <div class="lifecycle">
+        <div class="lc-stage client">
+            <div class="ic">📱</div><div class="rl">Cliente · cerca</div><div class="nm">Trova casa</div><div class="fl">client-portal.html</div>
+            <div class="ds">Swipe sugli immobili che BOOM propone, like, prenota visite. Riceve l'alert "Nuova proprietà" in tempo reale.</div>
         </div>
+        <div class="lc-arrow"><span class="big">→</span><small>firma /api/magic-sign</small></div>
+        <div class="lc-stage tenant">
+            <div class="ic">🔑</div><div class="rl">Inquilino · vive</div><div class="nm">Abita la casa</div><div class="fl">tenant.html</div>
+            <div class="ds">Paga l'affitto in un tap, segnala guasti con foto, tiene contratto e ricevute, parla con BOOM. Tessera in Apple Wallet.</div>
+        </div>
+        <div class="lc-arrow"><span class="big">↺</span><small>stato &amp; rendite</small></div>
+        <div class="lc-stage owner">
+            <div class="ic">🏢</div><div class="rl">Proprietario · osserva</div><div class="nm">Supervisiona</div><div class="fl">owner-dashboard.html</div>
+            <div class="ds">Consulta immobili, contratti, rendite incassate, manutenzioni e scadenze fiscali. BOOM opera, lui controlla.</div>
+        </div>
+    </div>
+
+    <div class="section-label">I tre lati, vivi</div>
+    <div class="devices">
         <div class="device">
             <div class="cap client"><div class="r">📱 Cliente</div><div class="n">Portale Cliente</div><div class="f">preview-client.html</div></div>
             <div class="phone"><div class="screen"><iframe src="preview-client.html" title="Portale Cliente" loading="lazy"></iframe></div></div>
             <div class="actions"><a class="open-link" href="preview-client.html" target="_blank">Apri a schermo intero ↗</a></div>
+        </div>
+        <div class="device">
+            <div class="cap tenant"><div class="r">🔑 Inquilino</div><div class="n">Portale Inquilino</div><div class="f">preview-tenant.html</div></div>
+            <div class="phone"><div class="screen"><iframe src="preview-tenant.html" title="Portale Inquilino" loading="lazy"></iframe></div></div>
+            <div class="actions"><a class="open-link" href="preview-tenant.html" target="_blank">Apri a schermo intero ↗</a></div>
+        </div>
+        <div class="device">
+            <div class="cap owner"><div class="r">🏢 Proprietario</div><div class="n">Portale Proprietario</div><div class="f">preview-owner.html</div></div>
+            <div class="phone"><div class="screen"><iframe src="preview-owner.html" title="Portale Proprietario" loading="lazy"></iframe></div></div>
+            <div class="actions"><a class="open-link" href="preview-owner.html" target="_blank">Apri a schermo intero ↗</a></div>
         </div>
     </div>
 
