@@ -25,19 +25,21 @@ export default async function handler(req, res) {
   if (!chatId) return res.status(200).json({ ok: true, skipped: 'TELEGRAM_CHAT_ID not set' });
   if (!process.env.TELEGRAM_BOT_TOKEN) return res.status(200).json({ ok: true, skipped: 'TELEGRAM_BOT_TOKEN not set' });
 
-  // Fetch the most recent pending actions. We don't filter on
-  // telegramNotifiedAt at the query level (Firestore composite-index pain) —
-  // instead we pull recent pending and filter in code.
+  // Fetch pending actions. Use a single-field equality filter only — adding an
+  // orderBy on a DIFFERENT field (createdAt) needs a Firestore composite index
+  // that isn't provisioned, which made this 500 once Telegram env was set. We
+  // order in code instead.
   let pending;
   try {
     pending = await fsList('action_queue', {
       filter: { field: 'status', op: 'EQUAL', value: 'pending' },
-      orderBy: { field: 'createdAt', direction: 'DESCENDING' },
       limit: 50,
     });
   } catch (e) {
     return res.status(500).json({ ok: false, error: 'list_failed', details: e.message });
   }
+  const ts = v => v && v.toMillis ? v.toMillis() : (v && v._seconds ? v._seconds * 1000 : (v ? new Date(v).getTime() || 0 : 0));
+  pending = (pending || []).sort((a, b) => ts(b.createdAt) - ts(a.createdAt));
 
   const toNotify = (pending || [])
     .filter(a => !a.telegramNotifiedAt && !a.telegramMessageId)
