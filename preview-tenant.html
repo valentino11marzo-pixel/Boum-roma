@@ -251,9 +251,9 @@
             <div class="summary-line"><span class="lab">Canone</span><span id="paySumRent"></span></div>
             <div class="summary-line"><span class="lab">Commissione</span><span class="text-green">Gratis</span></div>
             <div class="summary-line total"><span>Totale</span><span id="paySumTotal"></span></div>
-            <div class="pay-method" style="margin-top:18px"><div class="pm-card">VISA</div><div style="flex:1"><div style="font-size:13px;font-weight:600">Visa •••• 4242</div><div style="font-size:11px;color:var(--text-muted)">Scade 08/27</div></div><span class="badge gray" style="cursor:pointer">Cambia</span></div>
-            <button class="btn btn-block" style="margin-top:14px" onclick="confirmPay()">🔒 Conferma pagamento</button>
-            <div style="text-align:center;font-size:10px;color:var(--text-muted);margin-top:12px">Pagamento sicuro · ricevuta automatica · demo, nessun addebito reale</div>
+            <div class="pay-method" style="margin-top:18px"><div class="pm-card" style="background:linear-gradient(135deg,#0a3d2e,#0a2540)">SEPA</div><div style="flex:1"><div style="font-size:13px;font-weight:600">Addebito diretto SEPA</div><div style="font-size:11px;color:var(--text-muted)">IT60 •••• 4242 · mandato attivo</div></div><span class="badge gray" style="cursor:pointer" onclick="toast('Demo: passa a carta (con commissione)')">Cambia</span></div>
+            <button class="btn btn-block" style="margin-top:14px" onclick="confirmPay()">🔒 Conferma addebito SEPA</button>
+            <div style="text-align:center;font-size:10px;color:var(--text-muted);margin-top:12px">Addebito SEPA sicuro · nessuna commissione carta · ricevuta automatica · demo, nessun addebito reale</div>
         </div>
     </div>
 
@@ -292,12 +292,12 @@
             autopay:false,
         };
         // rent cycle
-        const rent={ month:'Luglio 2026', amount:tenant.lease.rent, due:'2026-07-05', paid:false };
+        const rent={ month:'Luglio 2026', amount:tenant.lease.rent, due:'2026-07-05', paid:false, processing:false };
         let payments=[
-            { month:'Giugno 2026', amount:1800, status:'paid', date:'03 giu 2026', method:'Visa 4242' },
-            { month:'Maggio 2026', amount:1800, status:'paid', date:'02 mag 2026', method:'Visa 4242' },
+            { month:'Giugno 2026', amount:1800, status:'paid', date:'03 giu 2026', method:'Addebito SEPA' },
+            { month:'Maggio 2026', amount:1800, status:'paid', date:'02 mag 2026', method:'Addebito SEPA' },
             { month:'Aprile 2026', amount:1800, status:'paid', date:'04 apr 2026', method:'Bonifico' },
-            { month:'Marzo 2026', amount:1800, status:'paid', date:'03 mar 2026', method:'Visa 4242' },
+            { month:'Marzo 2026', amount:1800, status:'paid', date:'03 mar 2026', method:'Addebito SEPA' },
         ];
         let maintenance=[
             { id:'m1', title:'Infiltrazione bagno', cat:'Idraulico', ico:'🚿', when:'ieri', stage:3, pri:'urgent', note:'Tecnico assegnato — Giovedì 19 giu, 10:00–12:00', photos:1 },
@@ -339,17 +339,23 @@
 
         function rentBlock(){
             const d=daysTo(rent.due);
+            if(rent.processing){
+                return `<div class="rent-card" style="border-color:rgba(10,132,255,0.32);background:linear-gradient(135deg,rgba(10,132,255,0.12),transparent)">
+                    <div class="rent-top"><div><div class="rent-lbl">Affitto ${rent.month}</div><div class="rent-amt">${eur(rent.amount)}</div></div><span class="rent-pill" style="background:var(--blue-light);color:var(--blue)">⏳ In elaborazione</span></div>
+                    <div class="rent-meta">Addebito SEPA avviato · accredito in 1–2 giorni lavorativi</div>
+                </div>`;
+            }
             if(rent.paid){
                 return `<div class="rent-card paid">
                     <div class="rent-top"><div><div class="rent-lbl">Affitto ${rent.month}</div><div class="rent-amt">${eur(rent.amount)}</div></div><span class="rent-pill paid">✓ Pagato</span></div>
-                    <div class="rent-meta">Pagato oggi · ricevuta nel tuo archivio</div>
+                    <div class="rent-meta">Addebito SEPA completato · ricevuta nel tuo archivio</div>
                 </div>`;
             }
             const cls=d<=3?'due':'soon';
             const lbl=d<0?`In ritardo di ${-d} gg`:d===0?'Scade oggi':`Scade tra ${d} giorni`;
             return `<div class="rent-card">
                 <div class="rent-top"><div><div class="rent-lbl">Prossimo affitto · ${rent.month}</div><div class="rent-amt">${eur(rent.amount)}<span>/mese</span></div></div><span class="rent-pill ${cls}">${lbl}</span></div>
-                <div class="rent-meta">Scadenza ${fmt(rent.due)} · metodo Visa •••• 4242</div>
+                <div class="rent-meta">Scadenza ${fmt(rent.due)} · Addebito SEPA · IT60 •••• 4242 · <span class="text-green">commissione €0</span></div>
                 <div class="rent-actions"><button class="btn btn-block" onclick="openPay()">💳 Paga ora</button><button class="btn btn-secondary btn-sm" onclick="go('pagamenti')">Dettagli</button></div>
             </div>`;
         }
@@ -402,10 +408,11 @@
                 m.innerHTML=`<h2 class="view-title">Affitto <span class="dot">●</span></h2><div class="view-sub">Paga in un tap, ricevuta automatica nell'archivio. Niente bonifici da ricordare.</div>
                 ${rentBlock()}
                 <div class="section">
-                    <div class="section-header"><div class="section-title">Pagamento automatico</div></div>
+                    <div class="section-header"><div class="section-title">Metodo & automatico</div></div>
                     <div class="card" style="padding:0">
-                        <div class="setting-row"><div class="qa-ico" style="background:var(--gold-light)">⚡</div><div class="setting-main"><div class="setting-title">Addebito automatico</div><div class="setting-sub">Ogni mese il giorno della scadenza — zero pensieri</div></div><div class="toggle ${tenant.autopay?'on':''}" id="autopayToggle" onclick="toggleAutopay()"><i></i></div></div>
-                        <div class="setting-row"><div class="qa-ico" style="background:var(--blue-light)">💳</div><div class="setting-main"><div class="setting-title">Visa •••• 4242</div><div class="setting-sub">Metodo predefinito · scade 08/27</div></div><span class="badge gray" style="cursor:pointer">Gestisci</span></div>
+                        <div class="setting-row"><div class="qa-ico" style="background:var(--gold-light)">⚡</div><div class="setting-main"><div class="setting-title">Addebito automatico</div><div class="setting-sub">Ogni mese alla scadenza — ti avvisiamo 2 giorni prima</div></div><div class="toggle ${tenant.autopay?'on':''}" id="autopayToggle" onclick="toggleAutopay()"><i></i></div></div>
+                        <div class="setting-row"><div class="qa-ico" style="background:var(--green-light)">🏦</div><div class="setting-main"><div class="setting-title">Addebito SEPA · IT60 •••• 4242</div><div class="setting-sub">Predefinito · mandato attivo · <span class="text-green">commissione €0</span></div></div><span class="badge gray" style="cursor:pointer">Gestisci</span></div>
+                        <div class="setting-row"><div class="qa-ico" style="background:var(--blue-light)">💳</div><div class="setting-main"><div class="setting-title">Carta (riserva)</div><div class="setting-sub">Usata solo se l'addebito SEPA non va a buon fine</div></div><span class="badge gray" style="cursor:pointer">Aggiungi</span></div>
                     </div>
                 </div>
                 <div class="section">
@@ -462,19 +469,23 @@
         }
 
         // ---- Pay flow ----
-        function openPay(){ if(rent.paid){ toast('Affitto già pagato per questo mese ✓'); return; } haptic();
+        function openPay(){ if(rent.paid||rent.processing){ toast(rent.processing?'Addebito già in elaborazione ⏳':'Affitto già pagato per questo mese ✓'); return; } haptic();
             document.getElementById('paySub').textContent=`${rent.month} · ${tenant.property.name}`;
             document.getElementById('paySumRent').textContent=eur(rent.amount);
             document.getElementById('paySumTotal').textContent=eur(rent.amount);
             document.getElementById('payOverlay').classList.add('show');
         }
         function confirmPay(){
-            closeSheet('payOverlay'); rent.paid=true; haptic();
-            payments.unshift({ month:rent.month, amount:rent.amount, status:'paid', date:fmt(TODAY.toISOString()), method:'Visa 4242' });
-            documents.unshift({ name:`Ricevuta affitto — ${rent.month}`, type:'Ricevuta', date:fmt(TODAY.toISOString()), size:'88 KB', ico:'🧾' });
-            confetti(innerWidth/2, innerHeight/2, 60);
-            toast(`Affitto ${rent.month} pagato ✓ ricevuta pronta`);
-            render();
+            closeSheet('payOverlay'); haptic(); rent.processing=true; render();
+            toast('Addebito SEPA avviato · in elaborazione');
+            setTimeout(()=>{
+                rent.processing=false; rent.paid=true;
+                payments.unshift({ month:rent.month, amount:rent.amount, status:'paid', date:fmt(TODAY.toISOString()), method:'Addebito SEPA' });
+                documents.unshift({ name:`Ricevuta affitto — ${rent.month}`, type:'Ricevuta', date:fmt(TODAY.toISOString()), size:'88 KB', ico:'🧾' });
+                confetti(innerWidth/2, innerHeight/2, 60);
+                toast(`Affitto ${rent.month} incassato ✓ ricevuta pronta`);
+                render();
+            }, 1800);
         }
         function toggleAutopay(){ tenant.autopay=!tenant.autopay; haptic(); document.getElementById('autopayToggle').classList.toggle('on',tenant.autopay); toast(tenant.autopay?'Addebito automatico attivo ⚡':'Addebito automatico disattivato'); }
 
