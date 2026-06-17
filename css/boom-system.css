@@ -1,145 +1,173 @@
 /* ============================================================================
-   BOOM DESIGN SYSTEM — "One BOOM"  ·  the single source of truth
+   BOOM DESIGN SYSTEM v2 — "One BOOM"  ·  derived · perceptual · override-safe
    ----------------------------------------------------------------------------
-   Tokens + primitives. Every page imports THIS; nothing else (re)defines these.
-   Reference implementation: apartment-detail. Primitives are namespaced .bx-*
-   so importing this file changes nothing until a page opts in by using a class.
-
-   THE LAW (resolves the drift the audit found):
-   • ONE gold (#FFD700) + ONE gradient (gold→amber) as the single primary CTA.
-   • ONE black ladder (#08080A → #101013); no more #030303 vs #08080A.
-   • A READABILITY FLOOR: secondary text never goes below --text-2 (was #999).
-   • A weight floor: display headings 200 (never 100); body 300/400.
-   • ONE radius ladder: 12 (micro) · 20 (card) · 100 (pill).
-   • ONE motion easing.
-   Flip a brand decision once here → the whole product follows.
+   Architecture (why this is simpler to wield, not just fancier):
+   • Tier 1 PRIMITIVES — one brand hue in OKLCH; ramps via color-mix().
+   • Tier 2 SEMANTIC   — roles (bg, surface, text, accent, line, state…).
+   • Tier 3 COMPONENTS — .bx-* primitives consume only semantic tokens.
+   Change ONE number (--h-gold) → the whole identity re-harmonises in OKLCH.
+   Everything lives in @layer boom.* so importing never fights a page's CSS.
+   Same .bx-* API as v1 → drop-in upgrade.
+   OKLCH + color-mix are 2023+ baseline; a hex fallback block covers the rest.
    ========================================================================== */
 
-:root{
-  /* ── Brand · gold ───────────────────────────────────────────────────── */
-  --gold:#FFD700;
-  --gold-soft:#FFD54F;                                   /* the single light-gold */
-  --gold-deep:#FFA500;                                   /* gradient end */
-  --grad-gold:linear-gradient(135deg,#FFD700,#FFA500);   /* THE primary CTA fill */
-  --green:#00FF88;                                       /* refundable · yes · available */
-  --cyan:#00CED1;                                        /* transit · info */
-  --danger:#FF6B6B;
+@layer boom.tokens, boom.base, boom.components, boom.utilities;
 
-  /* ── Surfaces · one black ladder ────────────────────────────────────── */
-  --bg:#08080A;            /* page */
-  --surface-1:#0A0A0D;     /* card */
-  --surface-2:#101013;     /* raised / panel */
-  --surface-inset:#060608; /* wells / inputs */
-  --glass:rgba(8,8,10,.72);
-  --line:rgba(255,255,255,.07);
-  --line-strong:rgba(255,255,255,.12);
-  --line-gold:rgba(255,215,0,.22);
+@layer boom.tokens{
+  :root{
+    color-scheme: dark;
 
-  /* ── Text · with a readability floor ────────────────────────────────── */
-  --text-1:#FFFFFF;
-  --text-2:#B7B7BE;        /* secondary FLOOR — legible on #08080A (replaces #999) */
-  --text-3:#8A8A93;        /* tertiary — labels only, never body copy */
-  --text-on-gold:#0A0A0A;
+    /* ══ TIER 1 · PRIMITIVES — the identity pivots on these two numbers ══ */
+    --h-gold: 92;            /* brand hue  (92 = BOOM gold; try 35 rose, 155 emerald) */
+    --c-gold: 0.168;         /* brand chroma */
+    --gold-500: oklch(0.86 var(--c-gold) var(--h-gold));
+    --gold-600: oklch(0.77 calc(var(--c-gold) + .002) calc(var(--h-gold) - 28));  /* amber, same family */
+    --gold-300: oklch(0.90 calc(var(--c-gold) - .04) var(--h-gold));
+    /* neutral ramp — one cool-near-black hue, L drives the rest */
+    --n-0:  oklch(0.13 0.004 285);
+    --n-1:  oklch(0.155 0.004 285);
+    --n-2:  oklch(0.185 0.005 285);
+    --n-inset: oklch(0.11 0.004 285);
+    --white: oklch(1 0 0);
+    /* signal hues */
+    --green-500: oklch(0.88 0.23 158);
+    --cyan-500:  oklch(0.78 0.13 195);
+    --red-500:   oklch(0.72 0.17 22);
+    --amber-500: oklch(0.80 0.15 70);
 
-  /* ── Type ───────────────────────────────────────────────────────────── */
-  --font-display:'Helvetica Neue',Helvetica,Inter,Arial,sans-serif;
-  --font-text:Inter,-apple-system,system-ui,'Segoe UI',sans-serif;
-  --fs-eyebrow:11px; --fs-small:12.5px; --fs-body:15px;
+    /* ══ TIER 2 · SEMANTIC — the names every component & page uses ══ */
+    /* brand */
+    --gold: var(--gold-500);
+    --gold-soft: color-mix(in oklch, var(--gold-500) 72%, var(--white));
+    --gold-deep: var(--gold-600);
+    --grad-gold: linear-gradient(135deg, var(--gold-500), var(--gold-600));
+    --gold-wash: color-mix(in oklch, var(--gold-500) 8%, transparent);
+    --accent: var(--gold);
+    --on-accent: oklch(0.20 0.03 var(--h-gold));      /* readable text on gold, auto-tinted */
+    --text-on-gold: var(--on-accent);                 /* legacy alias */
+    /* signals + washes */
+    --green: var(--green-500); --cyan: var(--cyan-500); --danger: var(--red-500);
+    --green-wash: color-mix(in oklch, var(--green-500) 9%, transparent);
+    /* surfaces */
+    --bg: var(--n-0);
+    --surface-1: var(--n-1);
+    --surface-2: var(--n-2);
+    --surface-inset: var(--n-inset);
+    --glass: color-mix(in oklch, var(--n-0) 72%, transparent);
+    /* lines */
+    --line: color-mix(in oklch, var(--white) 7%, transparent);
+    --line-strong: color-mix(in oklch, var(--white) 12%, transparent);
+    --line-gold: color-mix(in oklch, var(--gold) 22%, transparent);
+    /* text — derived from neutral L for a guaranteed legibility floor */
+    --text-1: oklch(0.99 0 0);
+    --text-2: oklch(0.80 0.006 285);                  /* secondary FLOOR (~AA on --bg) */
+    --text-3: oklch(0.64 0.006 285);                  /* labels only */
+    /* state */
+    --state-hover: color-mix(in oklch, var(--white) 7%, transparent);
+    --state-press: color-mix(in oklch, var(--white) 12%, transparent);
+    --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px color-mix(in oklch, var(--accent) 70%, transparent);
 
-  /* ── Radius ladder ──────────────────────────────────────────────────── */
-  --r-1:12px;    /* micro: chips, inputs, small tiles */
-  --r-2:20px;    /* card */
-  --r-pill:100px;
+    /* ══ Type — fluid modular scale (≈1.2), Helvetica Neue display / Inter text ══ */
+    --font-display:'Helvetica Neue',Helvetica,Inter,Arial,sans-serif;
+    --font-text:Inter,-apple-system,system-ui,'Segoe UI',sans-serif;
+    --fs-eyebrow:.6875rem;                                   /* 11 */
+    --fs-small:clamp(.75rem,.72rem + .12vw,.8125rem);        /* 12–13 */
+    --fs-body:clamp(.9rem,.86rem + .2vw,.95rem);             /* ~15 */
+    --fs-lead:clamp(.95rem,.9rem + .25vw,1.05rem);
+    --fs-h2:clamp(1.5rem,1.05rem + 2vw,2.6rem);              /* 24–42 */
+    --fs-display:clamp(2rem,1.1rem + 4vw,3.5rem);
+    --weight-display:200;                                    /* floor — never 100 */
 
-  /* ── Rhythm ─────────────────────────────────────────────────────────── */
-  --space-section:clamp(44px,7vw,80px);
-  --pad-card:24px;
+    /* ══ Radius · space · motion · elevation ══ */
+    --r-1:12px; --r-2:20px; --r-pill:100px;
+    --pad-card:24px; --space-section:clamp(44px,7vw,80px);
+    --ease:cubic-bezier(.16,1,.3,1);
+    --dur-1:.18s; --dur-2:.3s; --dur-3:.6s;
+    --shadow-card:0 24px 60px -30px oklch(0 0 0 / .8);
+    --shadow-gold:0 12px 34px color-mix(in oklch, var(--gold) 30%, transparent);
+  }
 
-  /* ── Motion · one easing ────────────────────────────────────────────── */
-  --ease:cubic-bezier(.16,1,.3,1);
-  --t-fast:.2s; --t:.3s; --t-slow:.6s;
-
-  /* ── Elevation ──────────────────────────────────────────────────────── */
-  --shadow-card:0 24px 60px -30px rgba(0,0,0,.8);
-  --shadow-gold:0 12px 34px rgba(255,215,0,.3);
+  /* Fallback for engines without OKLCH/color-mix (pre-2023): pin the essentials. */
+  @supports not (color: oklch(0.5 0.1 90)){
+    :root{
+      --gold:#FFD700; --gold-soft:#FFD54F; --gold-deep:#FFA500;
+      --grad-gold:linear-gradient(135deg,#FFD700,#FFA500); --gold-wash:rgba(255,215,0,.08);
+      --on-accent:#0A0A0A; --text-on-gold:#0A0A0A;
+      --green:#00FF88; --cyan:#00CED1; --danger:#FF6B6B; --green-wash:rgba(0,255,136,.09);
+      --bg:#08080A; --surface-1:#0A0A0D; --surface-2:#101013; --surface-inset:#060608; --glass:rgba(8,8,10,.72);
+      --line:rgba(255,255,255,.07); --line-strong:rgba(255,255,255,.12); --line-gold:rgba(255,215,0,.22);
+      --text-1:#fff; --text-2:#B7B7BE; --text-3:#8A8A93;
+      --state-hover:rgba(255,255,255,.07); --state-press:rgba(255,255,255,.12);
+      --focus-ring:0 0 0 2px var(--bg),0 0 0 4px rgba(255,215,0,.7);
+      --shadow-card:0 24px 60px -30px rgba(0,0,0,.8); --shadow-gold:0 12px 34px rgba(255,215,0,.3);
+    }
+  }
 }
 
-/* ── PRIMITIVE · Button ────────────────────────────────────────────────── */
-.bx-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;
-  padding:14px 26px;border-radius:var(--r-1);border:1px solid transparent;
-  font-family:var(--font-text);font-size:15px;font-weight:600;letter-spacing:.2px;
-  text-decoration:none;cursor:pointer;white-space:nowrap;
-  transition:transform var(--t) var(--ease),box-shadow var(--t) var(--ease),background var(--t),color var(--t),border-color var(--t)}
-.bx-btn--primary{background:var(--grad-gold);color:var(--text-on-gold)}       /* the ONE primary */
-.bx-btn--primary:hover{transform:translateY(-2px);box-shadow:var(--shadow-gold)}
-.bx-btn--ghost{background:transparent;border-color:var(--gold);color:var(--gold)}
-.bx-btn--ghost:hover{background:rgba(255,215,0,.08)}
-.bx-btn--quiet{background:transparent;border-color:var(--line-strong);color:var(--text-2)}
-.bx-btn--quiet:hover{border-color:var(--gold);color:var(--gold)}
-.bx-btn--sm{padding:10px 18px;font-size:13.5px}
+@layer boom.base{
+  .bx-eyebrow{display:inline-flex;align-items:center;gap:10px;font-size:var(--fs-eyebrow);letter-spacing:3px;text-transform:uppercase;color:var(--accent);margin-bottom:12px}
+  .bx-eyebrow::after{content:'';width:34px;height:1px;background:linear-gradient(90deg,var(--line-gold),transparent)}
+  .bx-h2{font-family:var(--font-display);font-weight:var(--weight-display);font-size:var(--fs-h2);line-height:1.1;letter-spacing:-.01em;color:var(--text-1);margin:0}
+  .bx-h2 .g{color:var(--accent)}
+  .bx-lead{max-width:60ch;margin-top:12px;color:var(--text-2);font-size:var(--fs-lead);line-height:1.65}
+  :where(.bx-btn,.bx-chip,.bx-listing,a,button):focus-visible{outline:none;box-shadow:var(--focus-ring)}
+}
 
-/* ── PRIMITIVE · Card ──────────────────────────────────────────────────── */
-.bx-card{background:var(--surface-1);border:1px solid var(--line);border-radius:var(--r-2);
-  padding:var(--pad-card);transition:border-color var(--t),transform var(--t) var(--ease),box-shadow var(--t)}
-.bx-card--hover:hover{border-color:var(--line-gold);transform:translateY(-3px);box-shadow:var(--shadow-card)}
+@layer boom.components{
+  /* Button — one primary for the whole product */
+  .bx-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:14px 26px;border-radius:var(--r-1);border:1px solid transparent;font-family:var(--font-text);font-size:var(--fs-body);font-weight:600;letter-spacing:.2px;text-decoration:none;cursor:pointer;white-space:nowrap;transition:transform var(--dur-2) var(--ease),box-shadow var(--dur-2) var(--ease),background var(--dur-2),color var(--dur-2),border-color var(--dur-2)}
+  .bx-btn--primary{background:var(--grad-gold);color:var(--on-accent)}
+  .bx-btn--primary:hover{transform:translateY(-2px);box-shadow:var(--shadow-gold)}
+  .bx-btn--ghost{background:transparent;border-color:var(--accent);color:var(--accent)}
+  .bx-btn--ghost:hover{background:var(--gold-wash)}
+  .bx-btn--quiet{background:transparent;border-color:var(--line-strong);color:var(--text-2)}
+  .bx-btn--quiet:hover{border-color:var(--accent);color:var(--accent)}
+  .bx-btn--sm{padding:10px 18px;font-size:var(--fs-small)}
 
-/* ── PRIMITIVE · Badge / status pill ───────────────────────────────────── */
-.bx-badge{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:var(--r-pill);
-  font-size:10px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;
-  border:1px solid currentColor;background:rgba(255,255,255,.04)}
-.bx-badge--ok{color:var(--green);background:rgba(0,255,136,.08);border-color:rgba(0,255,136,.25)}
-.bx-badge--gold{color:var(--gold);background:rgba(255,215,0,.08);border-color:var(--line-gold)}
-.bx-badge--warn{color:#FF9F45;background:rgba(255,159,69,.1);border-color:rgba(255,159,69,.3)}
+  /* Card */
+  .bx-card{background:var(--surface-1);border:1px solid var(--line);border-radius:var(--r-2);padding:var(--pad-card);transition:border-color var(--dur-2),transform var(--dur-2) var(--ease),box-shadow var(--dur-2)}
+  .bx-card--hover:hover{border-color:var(--line-gold);transform:translateY(-3px);box-shadow:var(--shadow-card)}
 
-/* ── PRIMITIVE · Section header (eyebrow + thin headline + gold underline) ─ */
-.bx-eyebrow{display:inline-flex;align-items:center;gap:10px;font-size:var(--fs-eyebrow);
-  letter-spacing:3px;text-transform:uppercase;color:var(--gold);margin-bottom:12px}
-.bx-eyebrow::after{content:'';width:34px;height:1px;background:linear-gradient(90deg,var(--line-gold),transparent)}
-.bx-h2{font-family:var(--font-display);font-weight:200;font-size:clamp(24px,3.4vw,42px);
-  line-height:1.1;letter-spacing:-.01em;color:var(--text-1);margin:0}
-.bx-h2 .g{color:var(--gold)}
-.bx-lead{max-width:60ch;margin-top:12px;color:var(--text-2);font-size:var(--fs-body);line-height:1.65}
+  /* Badge / pill */
+  .bx-badge{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:var(--r-pill);font-size:10px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;border:1px solid currentColor;background:color-mix(in oklch,currentColor 8%,transparent)}
+  .bx-badge--ok{color:var(--green)} .bx-badge--gold{color:var(--accent)} .bx-badge--warn{color:var(--amber-500)}
 
-/* ── PRIMITIVE · Chip (filter / tag) ───────────────────────────────────── */
-.bx-chip{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:var(--r-pill);
-  background:rgba(255,255,255,.04);border:1px solid var(--line-strong);
-  font-family:var(--font-text);font-size:var(--fs-small);color:var(--text-2);cursor:pointer;transition:all var(--t-fast)}
-.bx-chip:hover,.bx-chip.is-on{border-color:var(--gold);color:var(--gold);background:rgba(255,215,0,.05)}
+  /* Chip */
+  .bx-chip{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:var(--r-pill);background:var(--state-hover);border:1px solid var(--line-strong);font-family:var(--font-text);font-size:var(--fs-small);color:var(--text-2);cursor:pointer;transition:all var(--dur-1)}
+  .bx-chip:hover,.bx-chip.is-on{border-color:var(--accent);color:var(--accent);background:var(--gold-wash)}
 
-/* ── PRIMITIVE · Field (input / select) ────────────────────────────────── */
-.bx-field{width:100%;background:var(--surface-inset);border:1px solid var(--line-strong);border-radius:var(--r-1);
-  padding:13px 15px;color:var(--text-1);font-family:var(--font-text);font-size:14px;outline:none;transition:border-color var(--t)}
-.bx-field:focus{border-color:var(--gold)}
-.bx-field::placeholder{color:var(--text-3)}
+  /* Field */
+  .bx-field{width:100%;background:var(--surface-inset);border:1px solid var(--line-strong);border-radius:var(--r-1);padding:13px 15px;color:var(--text-1);font-family:var(--font-text);font-size:14px;outline:none;transition:border-color var(--dur-2)}
+  .bx-field:focus{border-color:var(--accent)}
+  .bx-field::placeholder{color:var(--text-3)}
 
-/* ── PRIMITIVE · The BOOM promise strip (the spine of trust, everywhere) ──
-   Usage: <div class="bx-promise"><span>Video-verified</span>…</div>
-   Always these four, always this order — home, card, detail. */
-.bx-promise{display:flex;flex-wrap:wrap;gap:9px 18px;align-items:center}
-.bx-promise span{display:inline-flex;align-items:center;gap:7px;font-size:var(--fs-small);color:var(--text-2)}
-.bx-promise span::before{content:'✓';color:var(--green);font-weight:700}
+  /* The promise — the spine of trust, identical everywhere */
+  .bx-promise{display:flex;flex-wrap:wrap;gap:9px 18px;align-items:center}
+  .bx-promise span{display:inline-flex;align-items:center;gap:7px;font-size:var(--fs-small);color:var(--text-2)}
+  .bx-promise span::before{content:'✓';color:var(--green);font-weight:700}
 
-/* ── PRIMITIVE · The one BOOM listing card (atomic unit, used everywhere) ──
-   home carousel · list grid · "more in this zone" — identical, recognisable. */
-.bx-listing{display:flex;flex-direction:column;background:var(--surface-1);border:1px solid var(--line);
-  border-radius:var(--r-2);overflow:hidden;text-decoration:none;color:var(--text-1);
-  transition:border-color var(--t),transform var(--t) var(--ease),box-shadow var(--t)}
-.bx-listing:hover{border-color:var(--line-gold);transform:translateY(-4px);box-shadow:var(--shadow-card)}
-.bx-listing__img{aspect-ratio:4/3;background:var(--surface-2) center/cover no-repeat;position:relative}
-.bx-listing__badge{position:absolute;top:12px;left:12px}
-.bx-listing__body{padding:18px;display:flex;flex-direction:column;gap:8px}
-.bx-listing__zone{font-size:10.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-3)}
-.bx-listing__name{font-size:16px;font-weight:500;letter-spacing:-.01em}
-.bx-listing__price{font-family:var(--font-display);font-weight:200;font-size:24px;color:var(--gold);
-  font-variant-numeric:tabular-nums}
-.bx-listing__price small{font-size:12px;color:var(--text-3);font-weight:300}
-.bx-listing__meta{display:flex;gap:12px;font-size:12px;color:var(--text-2)}
+  /* The one BOOM listing card — adapts to ITS container, not the viewport */
+  .bx-listing{container-type:inline-size;display:flex;flex-direction:column;background:var(--surface-1);border:1px solid var(--line);border-radius:var(--r-2);overflow:hidden;text-decoration:none;color:var(--text-1);transition:border-color var(--dur-2),transform var(--dur-2) var(--ease),box-shadow var(--dur-2)}
+  .bx-listing:hover{border-color:var(--line-gold);transform:translateY(-4px);box-shadow:var(--shadow-card)}
+  .bx-listing__img{aspect-ratio:4/3;background:var(--surface-2) center/cover no-repeat;position:relative}
+  .bx-listing__badge{position:absolute;top:12px;left:12px}
+  .bx-listing__body{padding:18px;display:flex;flex-direction:column;gap:8px}
+  .bx-listing__zone{font-size:10.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-3)}
+  .bx-listing__name{font-size:16px;font-weight:500;letter-spacing:-.01em}
+  .bx-listing__price{font-family:var(--font-display);font-weight:var(--weight-display);font-size:24px;color:var(--accent);font-variant-numeric:tabular-nums}
+  .bx-listing__price small{font-size:12px;color:var(--text-3);font-weight:300}
+  .bx-listing__meta{display:flex;gap:12px;font-size:12px;color:var(--text-2)}
+  @container (max-width:240px){
+    .bx-listing__body{padding:14px}
+    .bx-listing__price{font-size:21px}
+    .bx-listing__meta{gap:9px;font-size:11px}
+  }
+}
 
-/* ── Surfaces helpers ──────────────────────────────────────────────────── */
-.bx-glass{background:var(--glass);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid var(--line)}
-
-/* ── Motion safety ─────────────────────────────────────────────────────── */
-@media(prefers-reduced-motion:reduce){
-  .bx-btn,.bx-card,.bx-chip,.bx-listing{transition:none}
-  .bx-btn--primary:hover,.bx-card--hover:hover,.bx-listing:hover{transform:none}
+@layer boom.utilities{
+  .bx-glass{background:var(--glass);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid var(--line)}
+  @media(prefers-reduced-motion:reduce){
+    .bx-btn,.bx-card,.bx-chip,.bx-listing{transition:none}
+    .bx-btn--primary:hover,.bx-card--hover:hover,.bx-listing:hover{transform:none}
+  }
 }
