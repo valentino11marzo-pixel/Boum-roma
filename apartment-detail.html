@@ -2333,6 +2333,19 @@
                         try{ map.addLayer({id:'boom-poi',type:'circle',source:src,'source-layer':'poi',minzoom:14,filter:['<=',['coalesce',['get','rank'],99],8],paint:{'circle-radius':['interpolate',['linear'],['zoom'],14,2.4,16,4.2,18,6.6],'circle-color':POI,'circle-opacity':.92,'circle-blur':.12,'circle-stroke-width':1,'circle-stroke-color':'rgba(0,0,0,.55)'}}); }catch(e){}
                         try{ map.addLayer({id:'boom-poi-glow',type:'circle',source:src,'source-layer':'poi',minzoom:15,filter:['<=',['coalesce',['get','rank'],99],4],paint:{'circle-radius':['interpolate',['linear'],['zoom'],15,8,18,17],'circle-color':POI,'circle-opacity':.16,'circle-blur':1}},'boom-poi'); }catch(e){}
                         try{ map.addLayer({id:'boom-transit',type:'symbol',source:src,'source-layer':'poi',minzoom:14.5,filter:['match',['get','class'],['railway','subway','station'],true,false],layout:{'text-field':['coalesce',['get','name'],''],'text-font':boomFont,'text-size':10.5,'text-offset':[0,1.2],'text-anchor':'top'},paint:{'text-color':'#5FE6E8','text-halo-color':'#06080A','text-halo-width':1.5}}); }catch(e){}
+                        // Walk-distance rings (5/10/15 min on foot) + a gold light beam on the exact building — immersive & genuinely useful
+                        try{
+                            var bcircle=function(clng,clat,rM,n){n=n||72;var co=[],dLat=rM/111320,dLng=rM/(111320*Math.cos(clat*Math.PI/180));for(var i=0;i<=n;i++){var a=i/n*2*Math.PI;co.push([clng+dLng*Math.cos(a),clat+dLat*Math.sin(a)]);}return {type:'Feature',properties:{},geometry:{type:'Polygon',coordinates:[co]}};};
+                            var ringDefs=[[350,'5 min'],[700,'10 min'],[1050,'15 min']];
+                            var ringFC={type:'FeatureCollection',features:ringDefs.map(function(d){var f=bcircle(lng,lat,d[0]);f.properties={m:d[1]};return f;})};
+                            map.addSource('boom-rings',{type:'geojson',data:ringFC});
+                            map.addLayer({id:'boom-rings-l',type:'line',source:'boom-rings',paint:{'line-color':'#FFD700','line-opacity':0.26,'line-width':1.4,'line-dasharray':[3,3]}});
+                            var ringLbls={type:'FeatureCollection',features:ringFC.features.map(function(f){var ring=f.geometry.coordinates[0];return {type:'Feature',properties:{m:'~'+f.properties.m+' walk'},geometry:{type:'Point',coordinates:ring[Math.floor(ring.length*0.12)]}};})};
+                            map.addSource('boom-rings-lbl',{type:'geojson',data:ringLbls});
+                            map.addLayer({id:'boom-rings-lbl-l',type:'symbol',source:'boom-rings-lbl',layout:{'text-field':['get','m'],'text-font':boomFont,'text-size':10,'text-allow-overlap':false},paint:{'text-color':'#FFD700','text-opacity':0.62,'text-halo-color':'#0B0B0E','text-halo-width':1.4}});
+                            map.addSource('boom-flat',{type:'geojson',data:bcircle(lng,lat,9,30)});
+                            map.addLayer({id:'boom-flat-beam',type:'fill-extrusion',source:'boom-flat',paint:{'fill-extrusion-color':'#FFD700','fill-extrusion-height':95,'fill-extrusion-base':0,'fill-extrusion-opacity':0.5}});
+                        }catch(e){console.warn('BOOM 3D: rings/beam failed',e&&e.message);}
                     }
                 }catch(e){}
                 try{ if(map.setSky)map.setSky({'sky-color':'#0a0a12','horizon-color':'#1c1208','fog-color':'#0B0B0E','sky-horizon-blend':.6,'horizon-fog-blend':.5,'fog-ground-blend':.4,'atmosphere-blend':['interpolate',['linear'],['zoom'],0,.7,13,.25]}); }catch(e){}
