@@ -312,6 +312,18 @@ export default async function handler(req, res) {
     } catch (e) { console.warn('[magic-sign/submit] finalize:', e.message); }
   }
 
+  // ── Stage notifications (server-side, best-effort, never blocking) ──
+  // Partial → confirm the signer + nudge the counterparty with their /sign
+  // link. Full → a concise milestone email to the operator (the party
+  // welcomes are sent by finalize). Fires even when signing happened on
+  // /sign with no portal open.
+  try {
+    const _n = await import('../sign/_notify.js');
+    const fullC = { ...fresh, ...upd, id: contractId };
+    if (fullySigned) { await _n.notifyAdminContractSigned(fullC, propertyDoc); }
+    else { await _n.notifyPartialSignature(fullC, role, propertyDoc); }
+  } catch (e) { console.warn('[magic-sign/submit] stage notify:', e.message); }
+
   // ── 7. Audit ───────────────────────────────────────────
   await logActivity('magic_sign_submitted', 'contract', {
     contractId, role, fullySigned,
