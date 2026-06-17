@@ -14,6 +14,7 @@ import { fsList, fsPatch } from '../homie/_lib.js';
 import { tgSend, fmtAction, actionKeyboard } from './_lib.js';
 
 const MAX_PER_RUN = 10; // cap so a backlog doesn't spam Telegram
+const esc = s => String(s || '').replace(/[&<>]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[c]));
 
 export default async function handler(req, res) {
   // Vercel cron auth
@@ -62,11 +63,47 @@ export default async function handler(req, res) {
     }
   }
 
+  // ── Also push high-priority business EVENTS, not just proposed actions. ──
+  // agentNotifications (contract.signed, maintenance.opened, lead.new, concierge
+  // emergencies) used to reach Telegram only via the Mac daemon. Push urgent/high
+  // ones server-side so the operator's phone pings even with the Mac off. No
+  // buttons — these are informational; the action loop above carries the buttons.
+  const HOT = new Set(['urgent', 'high']);
+  let events = [];
+  try {
+    events = await fsList('agentNotifications', {
+      filter: { field: 'status', op: 'EQUAL', value: 'pending' },
+      limit: 50,
+    });
+  } catch (_) { /* collection/rules absent → non-fatal */ }
+  const evToNotify = (events || [])
+    .filter(e => HOT.has(e.priority) && !e.telegramNotifiedAt)
+    .slice(0, MAX_PER_RUN);
+  const evResults = [];
+  for (const e of evToNotify) {
+    try {
+      const icon = e.priority === 'urgent' ? '🚨' : '🔔';
+      const mid = await tgSend(
+        chatId,
+        `${icon} <b>${esc(e.type || 'evento')}</b>\n${esc(e.summary || '')}\n\n<a href="https://www.boomrome.com/portal.html">Apri portale</a>`
+      );
+      await fsPatch(`agentNotifications/${e.id}`, {
+        telegramNotifiedAt: new Date(),
+        telegramMessageId: mid || null,
+        telegramChatId: chatId,
+      });
+      evResults.push({ id: e.id, ok: true });
+    } catch (err) {
+      evResults.push({ id: e.id, ok: false, error: err.message });
+    }
+  }
+
   return res.status(200).json({
     ok: true,
     scanned: pending.length,
     notified: results.filter(r => r.ok).length,
     failed:   results.filter(r => !r.ok).length,
+    events: { scanned: events.length, notified: evResults.filter(r => r.ok).length, failed: evResults.filter(r => !r.ok).length },
     results,
   });
 }
