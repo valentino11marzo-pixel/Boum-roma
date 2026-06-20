@@ -107,5 +107,13 @@ Rollback = copy `.bak` back and restart.
       and the listing through `POST /api/wizard/publish`, each falling back to a
       direct Storage/Firestore write, so a rule/role change can't break the
       publish flow again.
+- [x] **360° virtual tour** — after the YouTube-video step the wizard asks for
+      equirectangular panoramas (one per room, shot on an iPhone with Google
+      Street View / Panorama 360). Send them as *files* for full resolution; an
+      optional caption names the room. They upload via the same
+      `/api/wizard/upload` path and are stored on the listing as
+      `tour360: [{url, title}]`. `apartment-detail.html` renders them with
+      Pannellum (lazy-loaded from CDN) — drag to look around, tap a room or the
+      in-scene hotspot to walk between rooms.
 - [ ] **Health heartbeat + alert** — bot writes `heartbeat/listing-wizard`; a
       cron pings Telegram if it goes stale.

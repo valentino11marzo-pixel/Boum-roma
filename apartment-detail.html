@@ -175,6 +175,20 @@
         .video-embed{border-radius:16px;overflow:hidden;border:1px solid rgba(255,255,255,0.06)}
         .video-embed iframe{width:100%;height:450px;border:none;display:block}
 
+        /* 360° Virtual Tour */
+        .vtour{margin-top:30px}
+        .vtour-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+        .vtour-label{font-size:11px;text-transform:uppercase;letter-spacing:2px;color:var(--gold)}
+        .vtour-hint{font-size:11px;color:var(--text-fade)}
+        .vtour-stage{position:relative;border-radius:16px;overflow:hidden;border:1px solid rgba(255,255,255,0.06);background:#0A0A0C}
+        .vtour-viewer{width:100%;height:480px}
+        .vtour-loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#777;font-size:11px;letter-spacing:2.5px;text-transform:uppercase;pointer-events:none}
+        .vtour-rooms{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+        .vtour-room{padding:8px 16px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:100px;font-size:12px;color:var(--text-secondary);cursor:pointer;font-family:inherit;transition:border-color .25s,color .25s,background .25s}
+        .vtour-room:hover{border-color:var(--gold);color:var(--gold)}
+        .vtour-room.on{background:var(--gold);color:#000;border-color:var(--gold)}
+        @media(max-width:768px){.vtour-viewer{height:320px}}
+
         /* ===== TWO COLUMN ===== */
         .apt-content{max-width:1400px;margin:0 auto;padding:0 50px 80px;display:grid;grid-template-columns:1fr 380px;gap:50px;align-items:start}
         .content-section{margin-bottom:34px}
@@ -655,6 +669,7 @@
         </div>
 
         <div class="media-section" id="mediaSection"></div>
+        <div class="media-section" id="tourSection" style="display:none;padding-top:0"></div>
 
         <div class="apt-content">
             <div class="apt-main">
@@ -2060,6 +2075,7 @@
         const si=sm[st]||sm['available'];
         bEl.innerHTML=`<span class="badge ${si.c}">${si.t}</span><span class="badge badge-verified">✓ Verified</span>`;
         if(d.videoUrl||d.youtubeUrl)bEl.innerHTML+='<span class="badge badge-video">▶ Video Tour</span>';
+        if(tourScenes(d).length)bEl.innerHTML+='<span class="badge badge-verified">🌐 360° Tour</span>';
 
         document.getElementById('aptName').textContent=name;
         aptAddress=d.address||'Rome, Italy';
@@ -2124,6 +2140,7 @@
         if(d.tags&&d.tags.length){document.getElementById('tagsSection').style.display='block';document.getElementById('tagsWrap').innerHTML=d.tags.map(t=>`<span class="tag">${t}</span>`).join('')}
 
         buildMedia(d);
+        buildVirtualTour(d);
         buildModel3D(d);
         buildMap(d);
         setupActions(d,id);
@@ -2213,6 +2230,76 @@
         }).join('');
         sec.innerHTML=`<div class="gal" id="galGrid">${cells}</div>`;
     }
+
+    /* ── 360° VIRTUAL TOUR (Pannellum, lazy-loaded) ──
+       Reads d.tour360 — an array the listing bot fills from equirectangular
+       iPhone panoramas. Each entry may be a URL string or {url,title}. Also
+       tolerates a {scenes:[...]} / {panorama} shape for forward-compat. */
+    let _pnlmViewer=null,_pnlmPromise=null;
+    function tourScenes(d){
+        const raw=(d&&(d.tour360||d.virtualTour))||[];
+        const arr=Array.isArray(raw)?raw:(raw&&Array.isArray(raw.scenes)?raw.scenes:[]);
+        return arr.map((s,i)=>{
+            const url=typeof s==='string'?s:(s&&(s.url||s.panorama||s.image));
+            if(!url)return null;
+            const title=(s&&typeof s==='object'&&s.title)?String(s.title):('Room '+(i+1));
+            return {url,title};
+        }).filter(Boolean);
+    }
+    function loadPannellum(){
+        if(window.pannellum)return Promise.resolve();
+        if(_pnlmPromise)return _pnlmPromise;
+        _pnlmPromise=new Promise((res,rej)=>{
+            const css=document.createElement('link');
+            css.rel='stylesheet';css.href='https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.css';
+            document.head.appendChild(css);
+            const s=document.createElement('script');
+            s.src='https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js';
+            s.onload=()=>res();s.onerror=()=>rej(new Error('cdn'));
+            document.head.appendChild(s);
+        });
+        return _pnlmPromise;
+    }
+    function buildVirtualTour(d){
+        const sec=document.getElementById('tourSection');
+        if(!sec)return;
+        const scenes=tourScenes(d);
+        if(!scenes.length){sec.style.display='none';return}
+        sec.style.display='block';
+        sec.innerHTML=`<div class="vtour">
+            <div class="vtour-head">
+              <span class="vtour-label">◆ 360° Virtual Tour</span>
+              <span class="vtour-hint">Drag to look around${scenes.length>1?' · tap a room to move':''}</span>
+            </div>
+            <div class="vtour-stage">
+              <div class="vtour-viewer" id="vtourViewer"></div>
+              <div class="vtour-loading" id="vtourLoading">Loading the tour…</div>
+            </div>
+            ${scenes.length>1?`<div class="vtour-rooms">${scenes.map((s,i)=>`<button type="button" class="vtour-room${i===0?' on':''}" onclick="vtourGo(${i})">${s.title}</button>`).join('')}</div>`:''}
+          </div>`;
+        loadPannellum().then(()=>initPannellum(scenes)).catch(e=>{
+            console.warn('BOOM 360: pannellum load failed',e&&e.message);
+            sec.innerHTML='<div class="media-placeholder"><span>🌐</span><p>360° tour unavailable</p></div>';
+        });
+    }
+    function initPannellum(scenes){
+        if(!window.pannellum)return;
+        const cfg={default:{firstScene:'s0',sceneFadeDuration:800,autoLoad:true,showControls:true,compass:false,hotSpotDebug:false},scenes:{}};
+        scenes.forEach((s,i)=>{
+            const next=(i+1)%scenes.length;
+            cfg.scenes['s'+i]={type:'equirectangular',panorama:s.url,title:s.title,autoRotate:i===0?-2:0,
+                hotSpots:scenes.length>1?[{pitch:-3,yaw:0,type:'scene',text:'Go to '+scenes[next].title,sceneId:'s'+next}]:[]};
+        });
+        try{
+            _pnlmViewer=window.pannellum.viewer('vtourViewer',cfg);
+            const ld=document.getElementById('vtourLoading');if(ld)ld.style.display='none';
+            _pnlmViewer.on('scenechange',function(id){
+                const idx=parseInt(String(id).replace('s',''),10)||0;
+                document.querySelectorAll('.vtour-room').forEach((b,i)=>b.classList.toggle('on',i===idx));
+            });
+        }catch(e){console.warn('BOOM 360: viewer init failed',e&&e.message);}
+    }
+    function vtourGo(i){if(_pnlmViewer){try{_pnlmViewer.loadScene('s'+i)}catch(e){}}}
 
     /* ── LIGHTBOX ── */
     function openLightbox(i){

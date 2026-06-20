@@ -179,7 +179,7 @@ logger = logging.getLogger('BoomWizard')
 # ─── Conversation States ──────────────────────────────────────────────────────
 (ZONE, ADDRESS, TYPE, SQM, FLOOR, BEDS, BATHROOMS, PRICE,
  FURNISHED, AVAILABLE, CONCORDATO, FEATURES, DESCRIPTION,
- PHOTOS, VIDEO, CONFIRM) = range(16)
+ PHOTOS, VIDEO, TOUR360, CONFIRM) = range(17)
 
 # ─── Data ─────────────────────────────────────────────────────────────────────
 ZONES = ['Prati', 'Centro', 'Trastevere', 'Testaccio', 'Monti', 'San Giovanni', 'Parioli', 'Flaminio', 'Ostiense', 'EUR', 'Monteverde', 'Balduina', 'Trieste', 'Nomentano', 'Trionfale', 'Aurelio', 'Tuscolano', 'Appio Latino', 'Esquilino', 'Altro']
@@ -256,20 +256,23 @@ def progress_bar(step, total=14):
 def summary_text(data):
     features = ', '.join(data.get('features', [])) or 'Nessuna'
     photos_count = len(data.get('_photos', []))
+    tour_count = len(data.get('_tour360', []))
     furn_map = {'yes': '✅ Arredato', 'partial': '🔄 Parziale', 'no': '❌ Non arredato'}
     conc_map = {True: '✅ Sì', False: '❌ No', 'tbd': '❓ Da verificare'}
+    video_line = "🎬 *Video YouTube:* sì\n" if data.get('videoUrl') else ""
+    tour_line = f"🌐 *Virtual Tour 360°:* {tour_count} scene\n" if tour_count else ""
     return (f"━━━━━━━━━━━━━━━━━━━━━━\n🏠 *RIEPILOGO LISTING*\n━━━━━━━━━━━━━━━━━━━━━━\n\n"
         f"📍 *{data.get('name', 'N/A')}*\n🗺 {data.get('address', 'N/A')}, {data.get('zone', 'N/A')}\n\n"
         f"💶 *€{data.get('price', 0):,}/mese*\n📐 {data.get('sqm', '?')}mq · Piano {data.get('floor', '?')}\n"
         f"🛏 {data.get('beds', '?')} letti · 🚿 {data.get('bathrooms', '?')} bagni\n🏷 {data.get('type', '?').title()}\n"
         f"🪑 {furn_map.get(data.get('furnished'), '?')}\n📅 Disponibile: {data.get('availableDate', 'Subito')}\n"
         f"📜 Concordato: {conc_map.get(data.get('concordato'), '?')}\n\n✨ *Features:* {features}\n\n"
-        f"📝 _{data.get('description', 'Nessuna descrizione')}_\n\n📸 *{photos_count} foto* caricate\n\n━━━━━━━━━━━━━━━━━━━━━━")
+        f"📝 _{data.get('description', 'Nessuna descrizione')}_\n\n📸 *{photos_count} foto* caricate\n{video_line}{tour_line}\n━━━━━━━━━━━━━━━━━━━━━━")
 
 # ─── Conversation Flow ────────────────────────────────────────────────────────
 async def cmd_newlisting(update, context):
     if not is_admin(update): await update.message.reply_text("⛔ Non autorizzato."); return ConversationHandler.END
-    context.user_data.clear(); context.user_data['_photos'] = []; context.user_data['features'] = []
+    context.user_data.clear(); context.user_data['_photos'] = []; context.user_data['_tour360'] = []; context.user_data['features'] = []
     await update.message.reply_text(f"🏠 *Nuovo Listing BOOM*\n\n{progress_bar(1)}\n\n*1/14* — Zona?", parse_mode='Markdown', reply_markup=make_keyboard(ZONES, cols=3, prefix='z_'))
     return ZONE
 
@@ -411,22 +414,58 @@ async def photos_done(update, context):
         reply_markup=make_keyboard([('⏭ Salta','skip')], cols=1, prefix='vid_')
     ); return VIDEO
 
+# Prompt shown when it's time to send the 360° panoramas.
+TOUR_PROMPT = (
+    "🌐 *Virtual Tour 360°?*\n\n"
+    "Manda una o più *foto a 360°* (panoramiche equirettangolari), una per stanza.\n\n"
+    "📲 *Come scattarle con l'iPhone:* installa un'app gratuita tipo *Google Street View* "
+    "(o Panorama 360), tocca la fotocamera, gira lentamente su te stesso per catturare "
+    "tutta la stanza, salva. Ripeti per ogni stanza.\n\n"
+    "💡 Per la *massima qualità* invia ogni foto come *file* (📎 → File), non come foto "
+    "compressa. Aggiungi una *didascalia* per dare il nome alla stanza (es: \"Salotto\").\n\n"
+    "/done quando hai finito · /skip per saltare"
+)
+
 async def video_cb(update, context):
     q = update.callback_query; await q.answer()
     context.user_data['videoUrl'] = ''
-    d = context.user_data
-    await q.edit_message_text(summary_text(d), parse_mode='Markdown', reply_markup=make_keyboard([('✅ Pubblica!','pub'),('🗑 Annulla','cancel')], cols=2, prefix='cfm_')); return CONFIRM
+    await q.edit_message_text(TOUR_PROMPT, parse_mode='Markdown'); return TOUR360
 
 async def video_text(update, context):
     url = update.message.text.strip()
-    if 'youtube.com' in url or 'youtu.be' in url:
-        context.user_data['videoUrl'] = url
-        await update.message.reply_text(f"✅ Video aggiunto!")
+    context.user_data['videoUrl'] = url
+    msg = "✅ Video aggiunto!" if ('youtube.com' in url or 'youtu.be' in url) else "✅ URL salvato!"
+    await update.message.reply_text(msg)
+    await update.message.reply_text(TOUR_PROMPT, parse_mode='Markdown'); return TOUR360
+
+async def tour_received(update, context):
+    """Collect a 360° panorama. Accepts both a compressed photo and an
+    uncompressed image document (preferred — preserves the equirectangular
+    resolution the viewer needs). An optional caption becomes the room name."""
+    msg = update.message
+    title = (msg.caption or '').strip()
+    if msg.document:
+        context.user_data['_tour360'].append({
+            'file_id': msg.document.file_id,
+            'mime': msg.document.mime_type or 'image/jpeg',
+            'title': title,
+        })
+    elif msg.photo:
+        context.user_data['_tour360'].append({
+            'file_id': msg.photo[-1].file_id, 'mime': 'image/jpeg', 'title': title,
+        })
     else:
-        context.user_data['videoUrl'] = url
-        await update.message.reply_text(f"✅ URL salvato!")
+        return TOUR360
+    n = len(context.user_data['_tour360'])
+    await msg.reply_text(f"🌐 *{n}* scena/e 360°! Manda altre o /done", parse_mode='Markdown')
+    return TOUR360
+
+async def tour_done(update, context):
     d = context.user_data
     await update.message.reply_text(summary_text(d), parse_mode='Markdown', reply_markup=make_keyboard([('✅ Pubblica!','pub'),('🗑 Annulla','cancel')], cols=2, prefix='cfm_')); return CONFIRM
+
+async def tour_skip(update, context):
+    context.user_data['_tour360'] = []; return await tour_done(update, context)
 
 async def photos_skip(update, context):
     context.user_data['_photos'] = []; return await photos_done(update, context)
@@ -444,11 +483,24 @@ async def confirm_cb(update, context):
             url = upload_photo(f"listings/{ts}_photo_{i}.jpg", bytes(file_bytes))
             image_urls.append(url); logger.info(f"Uploaded {i+1}/{len(photo_ids)}")
         except Exception as e: logger.error(f"Photo upload error: {e}")
+    # 360° panoramas → tour scenes (each {url, title}) for the apartment-detail viewer
+    tour_items = d.pop('_tour360', []); tour_scenes = []
+    for i, item in enumerate(tour_items):
+        try:
+            tg_file = await context.bot.get_file(item['file_id']); file_bytes = await tg_file.download_as_bytearray()
+            ts = int(datetime.now(timezone.utc).timestamp() * 1000)
+            url = upload_photo(f"listings/{ts}_tour_{i}.jpg", bytes(file_bytes), item.get('mime', 'image/jpeg'))
+            scene = {'url': url}
+            if item.get('title'): scene['title'] = item['title']
+            tour_scenes.append(scene); logger.info(f"Uploaded 360° scene {i+1}/{len(tour_items)}")
+        except Exception as e: logger.error(f"Tour upload error: {e}")
+    video_url = d.get('videoUrl', '') or ''
     now = datetime.now(timezone.utc).isoformat() + 'Z'
-    listing = {'name': d.get('name',''), 'address': d.get('address',''), 'zone': d.get('zone',''), 'price': d.get('price',0), 'type': d.get('type',''), 'status': 'available', 'beds': d.get('beds',0), 'bedrooms': d.get('beds',0), 'sqm': d.get('sqm',0), 'size': d.get('sqm',0), 'floor': str(d.get('floor','')), 'bathrooms': d.get('bathrooms',0), 'furnished': d.get('furnished','no'), 'availableDate': d.get('availableDate','Subito'), 'concordato': d.get('concordato','tbd'), 'description': d.get('description',''), 'descriptionIt': d.get('descriptionIt',''), 'features': d.get('features',[]), 'tags': [t for t in [d.get('zone','').lower(), d.get('type','').lower(), 'concordato' if d.get('concordato') is True else '', 'furnished' if d.get('furnished') == 'yes' else ''] if t], 'image': image_urls[0] if image_urls else '', 'images': image_urls, 'videoUrl': '', 'createdAt': now, 'updatedAt': now, 'createdBy': 'homie'}
+    listing = {'name': d.get('name',''), 'address': d.get('address',''), 'zone': d.get('zone',''), 'price': d.get('price',0), 'type': d.get('type',''), 'status': 'available', 'beds': d.get('beds',0), 'bedrooms': d.get('beds',0), 'sqm': d.get('sqm',0), 'size': d.get('sqm',0), 'floor': str(d.get('floor','')), 'bathrooms': d.get('bathrooms',0), 'furnished': d.get('furnished','no'), 'availableDate': d.get('availableDate','Subito'), 'concordato': d.get('concordato','tbd'), 'description': d.get('description',''), 'descriptionIt': d.get('descriptionIt',''), 'features': d.get('features',[]), 'tags': [t for t in [d.get('zone','').lower(), d.get('type','').lower(), 'concordato' if d.get('concordato') is True else '', 'furnished' if d.get('furnished') == 'yes' else ''] if t], 'image': image_urls[0] if image_urls else '', 'images': image_urls, 'videoUrl': video_url, 'youtubeUrl': video_url, 'tour360': tour_scenes, 'createdAt': now, 'updatedAt': now, 'createdBy': 'homie'}
     try:
         doc_id = publish_listing(listing); detail_url = f"{SITE_URL}/apartment-detail?id={doc_id}"
-        await context.bot.send_message(chat_id=ADMIN_CHAT_ID, text=f"━━━━━━━━━━━━━━━━━━━━━━\n✅ *LISTING PUBBLICATO!*\n━━━━━━━━━━━━━━━━━━━━━━\n\n🏠 *{listing['name']}*\n📍 {listing['address']}, {listing['zone']}\n💶 €{listing['price']:,}/mese\n📐 {listing['sqm']}mq · Piano {listing['floor']}\n📸 {len(image_urls)} foto\n\n🔗 *Link per il cliente:*\n`{detail_url}`\n\n☝️ Tocca per copiare", parse_mode='Markdown')
+        tour_line = f"\n🌐 {len(tour_scenes)} scene 360°" if tour_scenes else ""
+        await context.bot.send_message(chat_id=ADMIN_CHAT_ID, text=f"━━━━━━━━━━━━━━━━━━━━━━\n✅ *LISTING PUBBLICATO!*\n━━━━━━━━━━━━━━━━━━━━━━\n\n🏠 *{listing['name']}*\n📍 {listing['address']}, {listing['zone']}\n💶 €{listing['price']:,}/mese\n📐 {listing['sqm']}mq · Piano {listing['floor']}\n📸 {len(image_urls)} foto{tour_line}\n\n🔗 *Link per il cliente:*\n`{detail_url}`\n\n☝️ Tocca per copiare", parse_mode='Markdown')
         logger.info(f"Listing created: {doc_id}")
     except Exception as e:
         logger.error(f"Firestore error: {e}"); await context.bot.send_message(chat_id=ADMIN_CHAT_ID, text=f"❌ Errore: {e}")
@@ -510,6 +562,7 @@ def main():
             DESCRIPTION: [CallbackQueryHandler(description_cb, pattern='^desc_'), MessageHandler(filters.TEXT & ~filters.COMMAND, description_text)],
             PHOTOS: [MessageHandler(filters.PHOTO, photo_received), CommandHandler('done', photos_done), CommandHandler('skip', photos_skip)],
             VIDEO: [CallbackQueryHandler(video_cb, pattern='^vid_'), MessageHandler(filters.TEXT & ~filters.COMMAND, video_text)],
+            TOUR360: [MessageHandler(filters.PHOTO | filters.Document.IMAGE, tour_received), CommandHandler('done', tour_done), CommandHandler('skip', tour_skip)],
             CONFIRM: [CallbackQueryHandler(confirm_cb, pattern='^cfm_')],
         },
         fallbacks=[CommandHandler('cancel', cancel)],
