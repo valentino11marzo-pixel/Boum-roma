@@ -1,5 +1,6 @@
 import Stripe from 'stripe';
 import crypto from 'node:crypto';
+import { fsGet, fsPatch, fsCreate } from './homie/_lib.js';
 
 export const config = { api: { bodyParser: false } };
 
@@ -169,6 +170,89 @@ async function handleReserve(res, session, m) {
   return res.status(200).json({ received: true, reservationId: 'res_' + docId });
 }
 
+// ── BOOM Pay rent-rail ledger + event router ──────────────────────────────
+async function payLedger(event, details) {
+  try { await fsCreate('payEvents', { event, ...details, createdAt: new Date() }); }
+  catch (e) { console.warn('[stripe-webhook] payEvents failed:', e.message); }
+}
+
+async function handlePayEvent(res, event) {
+  const obj = event.data.object;
+  const meta = obj.metadata || {};
+
+  if (event.type === 'payment_intent.succeeded') {
+    if (meta.kind === 'rent' && meta.paymentId) {
+      const nowIso = new Date().toISOString();
+      await fsPatch('payments/' + meta.paymentId, {
+        status: 'paid',
+        collectedAt: new Date(),
+        paidAt: nowIso,
+        paidDate: nowIso.split('T')[0],
+        stripeChargeId: obj.latest_charge || '',
+        passPaidPushed: false, // reminder-cron pushes "Pagato ✓" to the Wallet
+      });
+      await payLedger('rent_paid', { paymentId: meta.paymentId, contractId: meta.contractId || '', ownerId: meta.ownerId || '', amount: obj.amount || 0 });
+    }
+    return res.status(200).json({ received: true, handled: event.type });
+  }
+
+  if (event.type === 'payment_intent.payment_failed') {
+    if (meta.kind === 'rent' && meta.paymentId) {
+      await fsPatch('payments/' + meta.paymentId, {
+        status: 'failed',
+        failureReason: (obj.last_payment_error && obj.last_payment_error.message) || 'payment_failed',
+        lastFailedAt: new Date(),
+      });
+      await payLedger('rent_failed', { paymentId: meta.paymentId, reason: (obj.last_payment_error && obj.last_payment_error.code) || '' });
+    }
+    return res.status(200).json({ received: true, handled: event.type });
+  }
+
+  if (event.type === 'setup_intent.succeeded') {
+    if (meta.kind === 'mandate' && meta.contractId) {
+      await fsPatch('mandates/' + meta.contractId, {
+        status: 'active',
+        stripePaymentMethodId: obj.payment_method || '',
+        stripeMandateId: obj.mandate || '',
+        activatedAt: new Date(),
+      });
+      await payLedger('mandate_active', { contractId: meta.contractId, tenantId: meta.tenantId || '' });
+    }
+    return res.status(200).json({ received: true, handled: event.type });
+  }
+
+  if (event.type === 'account.updated' && meta.ownerId) {
+    await fsPatch('payProfiles/' + meta.ownerId, {
+      chargesEnabled: !!obj.charges_enabled,
+      payoutsEnabled: !!obj.payouts_enabled,
+      detailsSubmitted: !!obj.details_submitted,
+      updatedAt: new Date(),
+    });
+    return res.status(200).json({ received: true, handled: event.type });
+  }
+
+  if (event.type === 'payout.paid') {
+    await payLedger('payout_paid', { stripePayoutId: obj.id, amount: obj.amount || 0, arrivalDate: obj.arrival_date || 0, destination: obj.destination || '' });
+    return res.status(200).json({ received: true, handled: event.type });
+  }
+
+  if (event.type === 'charge.dispute.created') {
+    await payLedger('dispute_created', { disputeId: obj.id, amount: obj.amount || 0, reason: obj.reason || '', paymentIntentId: obj.payment_intent || '' });
+    try {
+      if (obj.payment_intent) {
+        const pi = await stripe.paymentIntents.retrieve(obj.payment_intent);
+        const pm = (pi && pi.metadata) || {};
+        if (pm.kind === 'rent' && pm.paymentId) {
+          await fsPatch('payments/' + pm.paymentId, { status: 'disputed', disputedAt: new Date() });
+        }
+      }
+    } catch (e) { console.warn('[stripe-webhook] dispute map failed:', e.message); }
+    return res.status(200).json({ received: true, handled: event.type });
+  }
+
+  return res.status(200).json({ received: true, ignored: event.type });
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).send('Method not allowed');
 
@@ -181,6 +265,20 @@ export default async function handler(req, res) {
   } catch (err) {
     console.error('Webhook signature failed:', err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  // BOOM Pay rent-rail events route here first.
+  const PAY_EVENTS = [
+    'payment_intent.succeeded', 'payment_intent.payment_failed',
+    'setup_intent.succeeded', 'account.updated', 'payout.paid',
+    'charge.dispute.created',
+  ];
+  if (PAY_EVENTS.includes(event.type)) {
+    try { return await handlePayEvent(res, event); }
+    catch (err) {
+      console.error('[stripe-webhook] pay event error:', err.message);
+      return res.status(200).json({ received: true, payError: err.message });
+    }
   }
 
   if (event.type !== 'checkout.session.completed') {
