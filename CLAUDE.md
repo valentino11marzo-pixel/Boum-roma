@@ -23,6 +23,10 @@ Premium rental management platform for Rome's apartment market. Serves tenants, 
   generate-pass.js        POST — creates Apple Wallet .pkpass files
   reminder-cron.js        Cron (*/15 * * * *) — Firebase sync + email reminders
   parse-docs.js           POST — Anthropic API proxy for document parsing
+  /pfs/                   PFS radar: scan-inbox (email alerts via IMAP),
+                          scan-market (portal scraping), sync-searches
+                          (auto-search generation), _ingest (shared pipeline),
+                          _health (heartbeats + Telegram alerts)
 /js/
   firebase-config.js      Firebase SDK init (project: boom-property-dashboards)
   boom-portal.js          Shared client lib for the 3 portals (auth guard,
@@ -60,6 +64,7 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 | `owner-dashboard.html` | Landlord/owner SPA. Firestore-backed, filtered by `ownerId`. |
 | `tenant.html` | Tenant SPA. Realtime property + maintenance feed. |
 | `client-portal.html` | PFS client swipe app. Reads `pfsClients` collection. |
+| `pfs-command.html` | PFS Command Center (admin). Radar feed, per-client match scores, outreach tracking, source health, search management. Backed by `api/pfs/*`. |
 | `sw.js` | Service worker (network-first HTML, cache-first static). |
 
 ## Brand & Design
@@ -117,6 +122,16 @@ CRON_SECRET
 
 # Homie Mac bridge (inbound webhooks)
 HOMIE_SECRET                 # shared secret sent as X-Homie-Secret header
+
+# Telegram listing wizard bot
+WIZARD_SECRET                # shared secret sent as X-Wizard-Secret header
+                             # (optional — falls back to HOMIE_SECRET)
+
+# PFS radar (api/pfs/*)
+PFS_IMAP_USER                # optional — alert mailbox if ≠ GMAIL_USER
+PFS_IMAP_PASS                # optional — its app password (IMAP read)
+TELEGRAM_BOT_TOKEN           # already used by api/telegram/*; pfs health alerts
+TELEGRAM_CHAT_ID
 ```
 
 ## API Endpoints
@@ -135,6 +150,33 @@ Webhook called by the Mac-side Homie agent when it filters a new lead from Immob
 
 ### POST `/api/homie/action`
 Webhook for Homie's proposed actions (reply draft, schedule viewing, qualify, archive). Writes to `action_queue` collection. Supports idempotent retries via `contextHash` field and auto-apply for high-confidence tier-1 actions.
+
+### POST `/api/wizard/publish`
+Publish bridge for the Telegram listing wizard bot. Auth via `X-Wizard-Secret`
+header (env `WIZARD_SECRET`, falls back to `HOMIE_SECRET` / `X-Homie-Secret`).
+Accepts either the raw Firestore REST `{ fields: {...} }` payload the bot
+already builds, or a plain JSON listing object. Optional `?id=<docId>` (or
+`body.id`) makes it an upsert; otherwise Firestore auto-IDs. Writes to
+`listings` under admin credentials — direct unauthenticated writes to
+firestore.googleapis.com are denied by `firestore.rules` (admin-only).
+Returns `{ ok, id, url }`.
+
+### POST `/api/wizard/describe`
+AI listing-copy for the Telegram wizard bot. Auth via `X-Wizard-Secret`
+(same secret as `/api/wizard/publish`). Body is the structured listing
+(`type, zone, sqm, floor, beds, bathrooms, furnished, price, features[], …`);
+returns `{ ok, en, it }` — a polished bilingual description from Claude
+(`claude-haiku-4-5-20251001`). The `ANTHROPIC_API_KEY` stays server-side; the
+bot can't call Claude directly. Bot falls back to a template if this is
+unavailable.
+
+### POST `/api/wizard/upload`
+Photo-upload bridge for the Telegram wizard bot. Auth via `X-Wizard-Secret`
+(same secret as `/api/wizard/publish`). Body `{ base64, path?, contentType? }`
+(base64 may be a data: URI). Uploads to Firebase Storage under admin
+credentials (forced under the `listings/` prefix) and returns
+`{ ok, url, path }`. Lets the bot store photos without holding Firebase admin
+creds; the bot falls back to a direct Storage upload if this is unavailable.
 
 ### POST `/api/magic-sign/lookup`
 Public endpoint for the Magic-Sign UI. Body: `{ token }`. Looks up the
@@ -170,7 +212,38 @@ mediaType }`. Fetches the file server-side, sends to Claude (haiku), returns
 partitaIva, fiscalYear } }`. Anthropic key stays server-side.
 
 ### POST `/api/homie/property`
-Homie → PFS bridge. Homie scrapes a property (Immobiliare/Idealista/etc.), calls this with the listing data. Writes the master record to `pfsProperties/<sha1(sourceUrl)>` (idempotent), then iterates active PFS clients, scores each against the listing using `api/homie/_match.js`, and pushes matching properties (score ≥ 60) into the client's `portalProperties` array. Client-portal.html already listens and triggers a "New Property!" alert on the client's phone. Auth via `X-Homie-Secret`. See file header for payload schema.
+Homie → PFS bridge. Homie scrapes a property (Immobiliare/Idealista/etc.), calls this with the listing data. Validates, then delegates to the shared ingestion pipeline `api/pfs/_ingest.js` (dedupe on `pfsProperties/<sha1(sourceUrl)>`, agency filter, scoring via `api/homie/_match.js`, push score ≥ 60 into each active client's `portalProperties` swipe deck). Client-portal.html already listens and triggers a "New Property!" alert on the client's phone. Auth via `X-Homie-Secret`. See file header for payload schema.
+
+## PFS Radar (automated market scan — api/pfs/*)
+
+The PFS pipeline finds rental listings for paying search clients with no
+manual monitoring. One shared ingestion path (`api/pfs/_ingest.js`):
+dedupe → advertiser policy (agency listings stored but NEVER pushed) →
+score every active `pfsClients` doc (`api/homie/_match.js`, both client
+schemas supported) → push into swipe decks → `matchSummary` persisted on
+the `pfsProperties` doc for the command center.
+
+| Endpoint (cron) | Schedule | What it does |
+|---|---|---|
+| `/api/pfs/scan-inbox` | */15 min | **Load-bearing source.** Reads Idealista/Immobiliare search-alert emails from the Gmail mailbox over IMAP (imapflow), reconstructs canonical listing URLs from tracking links (`api/pfs/_alertparse.js`), enriches from the detail page when possible, ingests. Stateless: re-scans a 3-day window, dedupe makes reruns no-ops. |
+| `/api/pfs/scan-market` | 2×/hour | Best-effort scraper of the auto-generated searches in `radarSearches` (portals 403 datacenter IPs at will — failures are expected and tracked). |
+| `/api/pfs/sync-searches` | daily | Auto-(re)generates one `radarSearches` doc per active client per portal from their stored criteria (`api/pfs/_searchurls.js`). Manual knobs `enabled`/`urlOverride` are never clobbered. Clients gone inactive → searches disabled. |
+| `/api/pfs/brief` | daily 06:00 UTC | AI daily briefing: compacts the last 48h (annunci, match, outreach, feedback clienti, salute fonti) and asks Claude (`claude-opus-4-8`, raw-fetch pattern) for an Italian operational brief. Cron → delivered to Telegram; command-center button → returned as JSON `{ ok, brief, stats }`. |
+
+All three accept POST with Vercel cron secret, `X-Homie-Secret`, or an
+admin Firebase ID token (the command center's "Scansiona ora" buttons) —
+see `api/pfs/_guard.js`. Every run writes a heartbeat to
+`pfsRadarHealth/<source>`; 3+ consecutive failures → Telegram alert
+(`api/pfs/_health.js`), recovery notified once. Listings that could not be
+auto-ingested (e.g. no price recoverable) land in
+`pfsRadarHealth.needsAttention` — surfaced in `pfs-command.html`, never
+silently dropped.
+
+### POST `/api/admin/match-test`
+Admin test harness + manual-ingest endpoint (Firebase ID token, role
+admin/owner/landlord). `dryRun:true` scores a hypothetical listing against
+every active client without writing; `dryRun:false` ingests + pushes for
+real. Backs the "Aggiungi annuncio" modal in `pfs-command.html`.
 
 ## Conventions
 

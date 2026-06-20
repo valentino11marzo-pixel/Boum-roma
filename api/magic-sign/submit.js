@@ -23,6 +23,9 @@
 
 import { fsGet, fsPatch, fsList, readJson, logActivity } from '../homie/_lib.js';
 import { findContractByToken, commitWrites, setCors } from './_shared.js';
+// finalizeContract is imported lazily at the call site (below) so a load
+// failure in the post-signature step (e.g. an unresolved pdf-lib) can NEVER
+// crash the signature write itself.
 
 const SIG_MAX_LEN = 800_000; // ~600 KB base64 — generous for canvas signatures
 
@@ -62,12 +65,19 @@ export default async function handler(req, res) {
   const { contract, role } = hit;
   const contractId = contract.id;
   const already = role === 'tenant' ? !!contract.tenantSignature : !!contract.landlordSignature;
-  if (already) return res.status(410).json({ ok: false, error: 'already_signed', role });
+  // signatureStatus lets a retrying signer (e.g. after a timed-out first
+  // attempt that DID record the signature) render the right success state.
+  if (already) return res.status(410).json({ ok: false, error: 'already_signed', role, signatureStatus: contract.signatureStatus || 'partial' });
 
   // ── 2. Build the signature update for the contract ──────
   const id = body.identity || {};
   const phone = body.phone || {};
   const consent = body.consent;
+  // Very old browsers without crypto.subtle send an empty hash — the server
+  // knows the consent text, so compute it here rather than store ''.
+  if (!consent.hash) {
+    try { consent.hash = (await import('node:crypto')).createHash('sha256').update(consent.text, 'utf8').digest('hex'); } catch (_) {}
+  }
   const nowISO = new Date().toISOString();
 
   const upd = {};
@@ -188,6 +198,7 @@ export default async function handler(req, res) {
   }
 
   // ── 6. Cascading writes when BOTH parties have signed ──
+  let finalized = false;
   if (fullySigned) {
     const fullContract = { ...fresh, ...upd, id: contractId };
     const property = propertyDoc || {};
@@ -289,12 +300,58 @@ export default async function handler(req, res) {
         }
       } catch (e) { console.warn('[magic-sign/submit] payment schedule:', e.message); }
     }
+
+    // (f) Post-signature: fiscal+procedural obligations, FES signing certificate,
+    // server-issued tenant magic link, welcome emails. Idempotent (contract.finalizedAt).
+    // `finalized` is returned to the portal client so it skips its own
+    // (duplicate) welcome-email + magic-link flow when the server handled it.
+    try {
+      const { finalizeContract } = await import('../sign/_finalize.js');
+      const fin = await finalizeContract(fullContract);
+      finalized = !!(fin && fin.ok);
+    } catch (e) { console.warn('[magic-sign/submit] finalize:', e.message); }
   }
+
+  // ── Stage notifications (server-side, best-effort, never blocking) ──
+  // Partial → confirm the signer + nudge the counterparty with their /sign
+  // link. Full → a concise milestone email to the operator (the party
+  // welcomes are sent by finalize). Fires even when signing happened on
+  // /sign with no portal open.
+  try {
+    const _n = await import('../sign/_notify.js');
+    const fullC = { ...fresh, ...upd, id: contractId };
+    if (fullySigned) { await _n.notifyAdminContractSigned(fullC, propertyDoc); }
+    else { await _n.notifyPartialSignature(fullC, role, propertyDoc); }
+  } catch (e) { console.warn('[magic-sign/submit] stage notify:', e.message); }
 
   // ── 7. Audit ───────────────────────────────────────────
   await logActivity('magic_sign_submitted', 'contract', {
     contractId, role, fullySigned,
   }, 'magic-sign');
+
+  // Realtime event so the Mac-side daemon wakes Homie immediately:
+  // - if both parties signed → contract.signed (urgent: docs to send,
+  //   tenant user to create, property to flip to "rented", listing
+  //   sync, lead to close)
+  // - if only one signed → contract.signed/low (informational; the
+  //   missing signer may need a nudge)
+  try {
+    const { fsCreate } = await import('../homie/_lib.js');
+    fsCreate('agentNotifications', {
+      type: 'contract.signed',
+      summary: fullySigned
+        ? `Contratto firmato da TUTTI · ${contractId} (chiudere il flow)`
+        : `Contratto firmato da ${role} · ${contractId} (manca l'altra parte)`,
+      priority: fullySigned ? 'urgent' : 'low',
+      ref: { collection: 'contracts', id: contractId },
+      payload: { contractId, role, fullySigned },
+      dedupKey: `contract-signed-${contractId}-${role}`,
+      status: 'pending',
+      actor: 'magic-sign',
+      createdAt: new Date().toISOString(),
+      attempts: 0,
+    }).catch(e => console.warn('[magic-sign/submit] notify failed:', e.message));
+  } catch (e) { /* never block the response */ }
 
   return res.status(200).json({
     ok: true,
@@ -302,5 +359,6 @@ export default async function handler(req, res) {
     contractId,
     signatureStatus: upd.signatureStatus,
     fullySigned,
+    finalized,
   });
 }

@@ -175,6 +175,21 @@
         .modal-body { padding: 25px; }
         .modal-footer { padding: 20px 25px; border-top: 1px solid rgba(255, 255, 255, 0.05); display: flex; justify-content: flex-end; gap: 10px; }
 
+        /* Homie concierge chat */
+        .chat-modal { max-width: 540px; height: min(80vh, 720px); display: flex; flex-direction: column; }
+        .chat-body { flex: 1; overflow-y: auto; padding: 20px 25px; display: flex; flex-direction: column; gap: 12px; }
+        .chat-msg { max-width: 80%; padding: 10px 14px; border-radius: 14px; font-size: 14px; line-height: 1.5; white-space: pre-wrap; }
+        .chat-msg.user { align-self: flex-end; background: rgba(255,215,0,0.08); border: 1px solid rgba(255,215,0,0.18); color: #fff; border-bottom-right-radius: 4px; }
+        .chat-msg.assistant { align-self: flex-start; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); color: #fff; border-bottom-left-radius: 4px; }
+        .chat-msg.system { align-self: center; font-size: 11px; color: var(--text-secondary); letter-spacing: 1px; text-transform: uppercase; padding: 4px 10px; }
+        .chat-typing { align-self: flex-start; color: var(--text-secondary); font-size: 13px; font-style: italic; padding: 6px 4px; }
+        .chat-footer { padding: 14px 18px; border-top: 1px solid rgba(255,255,255,0.05); display: flex; gap: 8px; }
+        .chat-footer input { flex: 1; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); color: #fff; padding: 12px 14px; font-size: 14px; font-family: inherit; outline: none; }
+        .chat-footer input:focus { border-color: var(--gold); }
+        .chat-footer button { background: var(--gold); color: #000; border: none; padding: 0 22px; font-weight: 600; cursor: pointer; font-size: 13px; letter-spacing: 1px; text-transform: uppercase; }
+        .chat-footer button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .action-pill { font-size: 11px; color: var(--gold); margin-top: 4px; opacity: 0.8; }
+
         .form-group { margin-bottom: 18px; }
         .form-label { display: block; font-size: 10px; font-weight: 400; text-transform: uppercase; letter-spacing: 2px; color: var(--text-secondary); margin-bottom: 8px; }
         .form-input, .form-select, .form-textarea { width: 100%; padding: 12px 15px; font-family: inherit; font-size: 14px; font-weight: 300; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.1); color: var(--text-primary); transition: all 0.3s; }
@@ -344,9 +359,9 @@
                     </div>
 
                     <div class="quick-actions">
+                        <div class="quick-action" onclick="openConcierge()"><div class="quick-action-icon">💬</div><h4>Ask Homie</h4><p>Concierge AI 24/7</p></div>
                         <div class="quick-action" onclick="openMaintenanceModal()"><div class="quick-action-icon">⚙</div><h4>Report Issue</h4><p>Maintenance request</p></div>
                         <div class="quick-action"><div class="quick-action-icon">€</div><h4>Payments</h4><p>View history</p></div>
-                        <div class="quick-action"><div class="quick-action-icon">📄</div><h4>Documents</h4><p>Contract & files</p></div>
                         <div class="quick-action"><div class="quick-action-icon">👤</div><h4>Profile</h4><p>Update info</p></div>
                     </div>
 
@@ -375,6 +390,23 @@
                 </div>
             </div>
         </main>
+    </div>
+
+    <!-- Concierge Chat Modal — "Ask Homie" -->
+    <div class="modal-overlay" id="conciergeModal">
+        <div class="modal chat-modal">
+            <div class="modal-header">
+                <h3>💬 Ask Homie</h3>
+                <button class="modal-close" onclick="closeConcierge()">×</button>
+            </div>
+            <div class="chat-body" id="conciergeBody">
+                <div class="chat-msg system">CONCIERGE 24/7 · risposte in italiano</div>
+            </div>
+            <div class="chat-footer">
+                <input id="conciergeInput" type="text" placeholder="Scrivi qui... (es. la caldaia non si accende)" onkeydown="if(event.key==='Enter')sendConcierge()" />
+                <button id="conciergeSend" onclick="sendConcierge()">Invia</button>
+            </div>
+        </div>
     </div>
 
     <!-- Maintenance Modal -->
@@ -457,6 +489,101 @@
         function openMaintenanceModal() { document.getElementById('maintenanceForm').reset(); document.getElementById('maintenanceModal').classList.add('active'); }
         function closeMaintenanceModal() { document.getElementById('maintenanceModal').classList.remove('active'); }
 
+        // ─── Concierge "Ask Homie" chat ────────────────────────────────
+        let conciergeHistory = [];
+
+        function openConcierge() {
+            const m = document.getElementById('conciergeModal');
+            m.classList.add('active');
+            if (conciergeHistory.length === 0) {
+                appendConciergeMsg('assistant',
+                    `Ciao ${currentUser?.name?.split(' ')[0] || ''}, sono Homie. Dimmi cosa ti serve: un guasto, una domanda sul contratto, o anche solo un consiglio sul quartiere. — Homie`);
+            }
+            setTimeout(() => document.getElementById('conciergeInput').focus(), 100);
+        }
+        function closeConcierge() { document.getElementById('conciergeModal').classList.remove('active'); }
+
+        function appendConciergeMsg(role, text, action) {
+            const body = document.getElementById('conciergeBody');
+            const div = document.createElement('div');
+            div.className = `chat-msg ${role}`;
+            div.textContent = text;
+            body.appendChild(div);
+            if (action?.type === 'emergency') {
+                const pill = document.createElement('div');
+                pill.className = 'action-pill';
+                pill.textContent = '🚨 Avvisato il proprietario con priorità urgente';
+                body.appendChild(pill);
+            } else if (action?.type === 'issue_flagged') {
+                const pill = document.createElement('div');
+                pill.className = 'action-pill';
+                pill.textContent = '✓ Segnalazione girata al proprietario';
+                body.appendChild(pill);
+            }
+            body.scrollTop = body.scrollHeight;
+        }
+
+        async function sendConcierge() {
+            const input = document.getElementById('conciergeInput');
+            const btn = document.getElementById('conciergeSend');
+            const msg = (input.value || '').trim();
+            if (!msg) return;
+            input.value = '';
+            btn.disabled = true;
+
+            appendConciergeMsg('user', msg);
+            conciergeHistory.push({ role: 'user', content: msg });
+
+            const body = document.getElementById('conciergeBody');
+            const typing = document.createElement('div');
+            typing.className = 'chat-typing';
+            typing.id = 'conciergeTyping';
+            typing.textContent = 'Homie sta scrivendo…';
+            body.appendChild(typing);
+            body.scrollTop = body.scrollHeight;
+
+            try {
+                const token = await firebase.auth().currentUser?.getIdToken().catch(() => null);
+                const ctx = {
+                    tenantId:    currentUser?.id,
+                    tenantName:  currentUser?.name,
+                    uid:         firebase.auth().currentUser?.uid,
+                    propertyId:  currentUser?.propertyId,
+                    propertyName:tenantProperty?.name,
+                    ownerId:     tenantProperty?.ownerId,
+                    rent:        tenantProperty?.rent,
+                    contractEnd: currentUser?.contractEnd,
+                };
+                const res = await fetch('/api/agent/concierge', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(token ? { 'X-Firebase-Token': token } : {}),
+                    },
+                    body: JSON.stringify({
+                        role: 'tenant',
+                        message: msg,
+                        context: ctx,
+                        history: conciergeHistory.slice(-6),
+                    }),
+                });
+                const data = await res.json();
+                document.getElementById('conciergeTyping')?.remove();
+                if (data.ok && data.reply) {
+                    appendConciergeMsg('assistant', data.reply, data.action);
+                    conciergeHistory.push({ role: 'assistant', content: data.reply });
+                } else {
+                    appendConciergeMsg('assistant', 'Mi spiace, ho un problema tecnico. Riprova tra poco o usa "Report Issue" per il proprietario.');
+                }
+            } catch (e) {
+                document.getElementById('conciergeTyping')?.remove();
+                appendConciergeMsg('assistant', 'Connessione interrotta. Riprova tra poco.');
+            } finally {
+                btn.disabled = false;
+                input.focus();
+            }
+        }
+
         async function submitMaintenance() {
             const category = document.getElementById('issueCategory').value;
             const priority = document.getElementById('issuePriority').value;
@@ -464,7 +591,8 @@
             if (!category || !description) { toast('Fill all fields', 'error'); return; }
 
             try {
-                await db.collection('maintenance').add({
+                const ref = await db.collection('maintenance').add({
+                    userId: currentUser.id,          // REQUIRED by firestore.rules (create + tenant read); was missing → every request was permission-denied
                     tenantId: currentUser.id,
                     tenantName: currentUser.name,
                     propertyId: currentUser.propertyId,
@@ -475,6 +603,29 @@
                 });
                 toast('Request submitted!', 'success');
                 closeMaintenanceModal();
+
+                // Realtime nudge: Homie wakes within ~15s instead of
+                // waiting for the next pulse. Fire-and-forget — the
+                // ticket is already saved on Firestore.
+                fetch('/api/agent/notify', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Agent-Public-Secret': window.__AGENT_PUB_SECRET || '',
+                    },
+                    body: JSON.stringify({
+                        type: 'maintenance.opened',
+                        priority: priority === 'urgent' ? 'urgent' : 'high',
+                        summary: `[${category}] ${tenantProperty?.name || 'Unknown'} · ${currentUser.name}: ${description.slice(0,140)}`,
+                        ref: { collection: 'maintenance', id: ref.id },
+                        ownerId: tenantProperty?.ownerId,
+                        payload: {
+                            ticketId: ref.id, category, priority, description,
+                            tenant: currentUser.name, property: tenantProperty?.name,
+                        },
+                        dedupKey: `maint-${ref.id}`,
+                    }),
+                }).catch(() => {/* never blocks the tenant */});
             } catch (error) { toast('Error submitting', 'error'); }
         }
 

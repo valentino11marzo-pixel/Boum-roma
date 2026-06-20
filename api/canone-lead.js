@@ -119,6 +119,24 @@ export default async function handler(req, res) {
   try {
     const { id } = await fsCreate('leads', lead);
     logActivity(channel === 'match_quiz' ? 'Lead da Match Quiz' : 'Lead da Canone Check', 'lead', { leadId: id, zona: zone, budget }, channel);
+
+    // Fire-and-forget event for the realtime daemon on the Mac Mini.
+    // If notify fails (network blip, secret missing) the lead is already
+    // saved — the regular 15-min pulse will pick it up via the snapshot
+    // fingerprint, just slower. We never block the user response on this.
+    fsCreate('agentNotifications', {
+      type: 'lead.new',
+      summary: `Lead da ${channel === 'match_quiz' ? 'Match Quiz' : 'Canone Check'} · ${name}${zone ? ' · ' + zone : ''}${budget ? ' · ' + budget + '€' : ''}`,
+      priority: 'high',
+      ref: { collection: 'leads', id },
+      payload: { name, email, phone, zone, budget, channel, source: 'canone-lead' },
+      dedupKey: `lead-${id}`,
+      status: 'pending',
+      actor: 'canone-lead',
+      createdAt: new Date().toISOString(),
+      attempts: 0,
+    }).catch(e => console.warn('[canone-lead] notify failed:', e.message));
+
     return res.status(200).json({ ok: true, id });
   } catch (err) {
     console.error('[canone-lead]', err);

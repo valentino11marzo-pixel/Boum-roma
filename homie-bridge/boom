@@ -195,6 +195,48 @@ function out(o) { process.stdout.write(JSON.stringify(o, null, 2) + '\n'); }
     case 'spec':
       return out(await call('agent/spec', null, 'GET'));
 
+    case 'message': {
+      // Mirror ONE WhatsApp/email message into the portal Inbox (Tier 1).
+      // Idempotent on --message-id. Analysis flags drive the 🤖 banner.
+      const body = stdin || {
+        direction: a.direction || 'in',
+        channel: a.channel || 'whatsapp',
+        body: a.body || a.text || '',
+        contactType: a['contact-type'], contactId: a['contact-id'],
+        phone: a.phone, email: a.email, name: a.name,
+        contactUid: a['contact-uid'], assignedLandlordId: a['assigned-landlord-id'],
+        messageId: a['message-id'], timestamp: a.timestamp,
+      };
+      if (!stdin) {
+        const analysis = {};
+        if (a.summary != null) analysis.summary = a.summary;
+        if (a.intent != null) analysis.intent = a.intent;
+        if (a['needs-reply'] != null) analysis.needsReply = (a['needs-reply'] === true || a['needs-reply'] === 'true');
+        if (a.urgency != null) analysis.urgency = a.urgency;
+        if (a['suggested-reply'] != null) analysis.suggestedReply = a['suggested-reply'];
+        if (Object.keys(analysis).length) body.analysis = analysis;
+        if (a.media) body.mediaUrls = String(a.media).split(',').map(s => s.trim()).filter(Boolean);
+      }
+      if (!body.body) die('--body required (the message text)');
+      return out(await call('homie/message', body));
+    }
+
+    case 'inbox-sync': {
+      // Reconcile conversation statuses after a full WhatsApp sweep.
+      // Batch via stdin: { updates: [...] }. Single via flags.
+      const body = stdin || {
+        updates: [{
+          conversationId: a['conversation-id'], contactType: a['contact-type'],
+          contactId: a['contact-id'], phone: a.phone,
+          status: a.status,
+          needsReply: a['needs-reply'] != null ? (a['needs-reply'] === true || a['needs-reply'] === 'true') : undefined,
+          urgency: a.urgency, aiSummary: a.summary, suggestedReply: a['suggested-reply'],
+        }],
+      };
+      if (!body.updates || !body.updates.length) die('provide --status/--needs-reply/... or pipe { updates: [...] }');
+      return out(await call('homie/inbox-sync', body));
+    }
+
     default:
       process.stdout.write(`boom — Homie ↔ BOOM Roma portal bridge
 
@@ -206,6 +248,11 @@ Commands:
   lead-create create a lead (Tier 1)            [--dedup]
   lead-update update a lead (Tier 1)            --id ...
   note        add a note to a lead             --lead ...
+  message     mirror a WhatsApp/email message into the Inbox (Tier 1)
+              --direction in|out|note --phone .. --body ".." [--message-id ..]
+              [--summary .. --needs-reply true --urgency med --suggested-reply ..]
+  inbox-sync  reconcile conversation status after a WhatsApp sweep
+              --phone .. --status open|snoozed|closed [--needs-reply ..] | or pipe {updates:[..]}
   action      PROPOSE a Tier-2 action (needs approval)  --kind reply|schedule_viewing|...
   ai-reply    get a Claude-drafted reply       --lead ...
   message     mirror a WhatsApp/email message into the Inbox (Tier 1)

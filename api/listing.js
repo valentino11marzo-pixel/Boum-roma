@@ -135,7 +135,18 @@ function injectSeo(html, d, id) {
     ],
   };
   const safe = (o) => JSON.stringify(o).replace(/</g, '\\u003c');
-  const scripts =
+  // Preload the hero photo (sized like the client gallery: imgur 'h' = 1024px) so the
+  // browser fetches it in parallel with the JS/Firestore boot instead of after it (LCP).
+  const heroImg = images[0] || d.coverImage || d.image || '';
+  const heroSized = /i\.imgur\.com/.test(heroImg)
+    ? heroImg.replace(/(\/[A-Za-z0-9]{7})(\.(?:jpe?g|png|webp))/i, '$1h$2')
+    : heroImg;
+  const preload = heroImg ? '<link rel="preload" as="image" fetchpriority="high" href="' + esc(heroSized) + '">\n' : '';
+  // Inject the already-read listing so the client renders instantly — no Firebase SDK
+  // load + Firestore round-trip on the critical path. The client falls back to a live
+  // read if this is absent (e.g. on /apartment-detail without SSR).
+  const dataScript = '<script>window.__LISTING=' + safe(d) + ';window.__LISTING_ID=' + JSON.stringify(id) + ';</script>\n';
+  const scripts = preload + dataScript +
     '<script type="application/ld+json" data-seo-dynamic>' + safe(ld) + '</script>\n' +
     '<script type="application/ld+json" data-seo-dynamic>' + safe(breadcrumb) + '</script>\n</head>';
   html = html.replace('</head>', scripts);

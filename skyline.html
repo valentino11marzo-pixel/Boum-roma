@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="description" content="Rent Rome from the sky — every BOOM apartment on a live 3D map of the city. Video-verified, transparent, 48-hour move-in.">
+<title>BOOM Skyline — rent Rome from the sky</title>
+<link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=optional" rel="stylesheet" media="print" onload="this.media='all'">
+<style>
+:root{--gold:#FFD700;--gold2:#FFA500;--bg:#08080A;--card:#0E0E12;--line:rgba(255,255,255,.09);--t1:#fff;--t2:#aaa;--t3:#777;--disp:'Helvetica Neue',Helvetica,Inter,Arial,sans-serif}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;background:var(--bg);color:var(--t1);font-family:Inter,system-ui,sans-serif;font-weight:300;overflow:hidden;-webkit-font-smoothing:antialiased}
+#map{position:absolute;inset:0}
+.maplibregl-ctrl-attrib{font-size:9px!important;opacity:.45}
+.bar{position:absolute;top:0;left:0;right:0;z-index:10;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px clamp(16px,4vw,32px);background:linear-gradient(180deg,rgba(8,8,10,.92),rgba(8,8,10,0));pointer-events:none}
+.bar>*{pointer-events:auto}
+.brand{display:flex;align-items:baseline;gap:14px;text-decoration:none}
+.brand .logo{font-family:var(--disp);font-weight:200;font-size:22px;letter-spacing:6px;color:#fff}
+.brand .logo b{color:var(--gold);font-weight:300}
+.brand .ttl{font-size:12px;letter-spacing:2px;text-transform:uppercase;color:var(--t2)}
+@media(max-width:640px){.brand .ttl{display:none}}
+.bar-back{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--t2);text-decoration:none;border:1px solid var(--line);border-radius:100px;padding:8px 16px;background:rgba(14,14,18,.6);backdrop-filter:blur(8px);transition:all .25s}
+.bar-back:hover{border-color:var(--gold);color:var(--gold)}
+.filters{position:absolute;top:64px;left:0;right:0;z-index:9;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;padding:0 16px;pointer-events:none}
+.filters .chip{pointer-events:auto;font-size:12px;color:var(--t2);background:rgba(14,14,18,.72);backdrop-filter:blur(10px);border:1px solid var(--line);border-radius:100px;padding:8px 15px;cursor:pointer;transition:all .2s}
+.filters .chip:hover{border-color:var(--gold);color:#fff}
+.filters .chip.on{background:linear-gradient(135deg,var(--gold),var(--gold2));color:#000;border-color:transparent;font-weight:600}
+.count{position:absolute;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:9;font-size:12px;letter-spacing:.5px;color:var(--t2);background:rgba(14,14,18,.8);backdrop-filter:blur(10px);border:1px solid var(--line);border-radius:100px;padding:9px 18px}
+.count b{color:var(--gold);font-weight:500}
+.sky-pin{display:inline-flex;flex-direction:column;align-items:center;cursor:pointer;transition:transform .2s}
+.sky-pin:hover{transform:translateY(-3px);z-index:50}
+.sky-pin .p{background:linear-gradient(135deg,#FFD700,#FFA500);color:#000;font-weight:700;font-size:12px;padding:5px 11px;border-radius:100px;white-space:nowrap;box-shadow:0 5px 16px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.18)}
+.sky-pin .p.rented{background:#26262c;color:#9a9aa2;box-shadow:0 4px 12px rgba(0,0,0,.5)}
+.sky-pin::after{content:'';width:2px;height:9px;background:linear-gradient(#FFA500,transparent)}
+.sky-pin.dim{opacity:.16;filter:grayscale(.7)}
+.maplibregl-popup-content{background:var(--card)!important;border:1px solid var(--line)!important;border-radius:16px!important;padding:0!important;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.6)!important;width:230px}
+.maplibregl-popup-close-button{color:#fff!important;font-size:20px!important;padding:2px 8px!important;z-index:2}
+.maplibregl-popup-tip{border-top-color:var(--card)!important;border-bottom-color:var(--card)!important}
+.pc-img{height:128px;background:linear-gradient(135deg,#17171c,#0e0e12) center/cover no-repeat}
+.pc-body{padding:13px 15px 15px}
+.pc-zone{font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--t3)}
+.pc-name{font-size:15px;font-weight:500;color:#fff;margin:3px 0 6px;letter-spacing:-.01em}
+.pc-price{font-family:var(--disp);font-weight:200;font-size:22px;color:var(--gold)}
+.pc-price small{font-size:11px;color:var(--t3)}
+.pc-go{display:block;margin-top:11px;text-align:center;background:linear-gradient(135deg,var(--gold),var(--gold2));color:#000;font-size:13px;font-weight:600;text-decoration:none;padding:10px;border-radius:10px}
+.load{position:absolute;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:var(--bg);transition:opacity .5s,visibility .5s}
+.load.off{opacity:0;visibility:hidden}
+.load .dot{width:10px;height:10px;border-radius:50%;background:var(--gold);animation:p 1.4s ease-in-out infinite}
+@keyframes p{0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(255,215,0,.4)}50%{transform:scale(1.25);box-shadow:0 0 0 14px rgba(255,215,0,0)}}
+.load .t{font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--t3)}
+.load .s{font-size:11px;color:var(--t3);max-width:280px;text-align:center;line-height:1.6}
+.sky-anchor{display:flex;align-items:center;gap:6px;font-size:11px;letter-spacing:.2px;color:var(--t2);background:rgba(14,14,18,.78);backdrop-filter:blur(8px);border:1px solid var(--line);border-radius:100px;padding:5px 10px;white-space:nowrap;opacity:.5;pointer-events:none;transition:opacity .35s,border-color .35s}
+.sky-anchor .ic{font-size:12px;line-height:1}
+.sky-anchor .d{color:var(--gold);font-weight:600;display:none}
+.sky-anchor.lit{opacity:1;border-color:rgba(255,215,0,.32)}
+.sky-anchor.lit .d{display:inline}
+.sky-anchor.lit .d::before{content:'· '}
+.count .hint{color:var(--t3);font-weight:300}
+@media(prefers-reduced-motion:reduce){.load .dot{animation:none}.sky-pin{transition:none}}
+</style>
+</head>
+<body>
+<div id="map"></div>
+
+<div class="bar">
+  <a class="brand" href="/"><span class="logo">BO<b>O</b>M</span><span class="ttl">Skyline · Rent Rome from the sky</span></a>
+  <a class="bar-back" href="/apartments">☰ List view</a>
+</div>
+
+<div class="filters" id="filters">
+  <button class="chip on" data-max="0">All</button>
+  <button class="chip" data-max="1500">≤ €1,500</button>
+  <button class="chip" data-max="2000">≤ €2,000</button>
+  <button class="chip" data-max="2500">≤ €2,500</button>
+</div>
+
+<div class="count" id="count" style="display:none"></div>
+
+<div class="load" id="load">
+  <div class="dot"></div>
+  <div class="t">BOOM · Skyline</div>
+  <div class="s" id="loadMsg">Mapping Rome…</div>
+</div>
+
+<script>
+(function(){
+'use strict';
+var ROME=[12.4924,41.8902];
+var $=function(id){return document.getElementById(id);};
+var msg=function(t){var m=$('loadMsg');if(m)m.textContent=t;};
+var fmt=function(n){return '€'+Math.round(n).toLocaleString('en-US');};
+var num=function(v){v=Number(v);return isFinite(v)?v:null;};
+var map=null, MARKERS=[], MAXFILTER=0;
+
+/* Rome neighbourhood centres [lng,lat,...keywords] — instant, zero geocoding.
+   Building-exact location lives in each listing's own 3D flyover. */
+var ZONES=[
+  [12.4735,41.8986,'centro storico','navona','coronari','ripetta','pantheon','spagna','trevi','campo de','farnese','centro'],
+  [12.4692,41.8867,'trastevere','gianicolo'],
+  [12.4924,41.8946,'monti','colosse','cavour'],
+  [12.4632,41.9100,'prati','mazzini','angelico','vatican','ottaviano','cola di rienzo','lepanto'],
+  [12.5380,41.8880,'pigneto','centocelle','casilina'],
+  [12.4757,41.8758,'testaccio'],
+  [12.4690,41.8560,'marconi','ostiense','garbatella','piramide','gazometro'],
+  [12.5050,41.9230,'trieste','copped','africano','salario','nomentano'],
+  [12.5151,41.9000,'san lorenzo','sapienza','verano'],
+  [12.5010,41.8950,'esquilino','vittorio emanuele','manzoni'],
+  [12.4760,41.9230,'flaminio'],
+  [12.4680,41.9380,'ponte milvio','tor di quinto','foro italico'],
+  [12.4880,41.9230,'parioli','villa ada'],
+  [12.4900,41.9070,'veneto','ludovisi','barberini'],
+  [12.5300,41.9430,"conca d'oro",'conca','jonio','annibaliano'],
+  [12.5230,41.9120,'tiburtina','bologna','pietralata']
+];
+function zoneCoord(l){
+  var z=(String(l.zone||l.neighborhood||'')+' '+String(l.address||'')).toLowerCase();
+  for(var i=0;i<ZONES.length;i++){var Z=ZONES[i];for(var k=2;k<Z.length;k++){if(z.indexOf(Z[k])!==-1)return [Z[0],Z[1]];}}
+  return null;
+}
+var _seen={};
+function spread(co){ // fan multiple listings around a shared zone centre so pins don't stack
+  var key=co[0].toFixed(3)+','+co[1].toFixed(3); var n=_seen[key]||0; _seen[key]=n+1;
+  if(n===0) return co.slice();
+  var ang=n*2.39996323, rad=0.0017*Math.sqrt(n);
+  return [co[0]+rad*Math.cos(ang), co[1]+rad*Math.sin(ang)];
+}
+
+/* ── Commute lines ── Rome's anchor hubs; tap a home to connect it to them.
+   Honest: straight-line distance + a walk estimate (not a routed commute). */
+var ANCHORS=[
+  [12.5018,41.9009,'Termini','metro'],
+  [12.4924,41.8902,'Colosseo','colosseo'],
+  [12.4534,41.9022,'Vaticano','vaticano'],
+  [12.4690,41.8870,'Trastevere','trastevere'],
+  [12.5135,41.9038,'Sapienza','sapienza']
+];
+var ANCHOR_ICON={metro:'🚇',colosseo:'🏛',vaticano:'⛪',trastevere:'🍷',sapienza:'🎓'};
+var ANCHOR_MK=[];
+function haversine(a,b){var R=6371,r=Math.PI/180,dy=(b[1]-a[1])*r,dx=(b[0]-a[0])*r,s=Math.pow(Math.sin(dy/2),2)+Math.cos(a[1]*r)*Math.cos(b[1]*r)*Math.pow(Math.sin(dx/2),2);return 2*R*Math.asin(Math.min(1,Math.sqrt(s)));}
+function arc(a,b,bow,n){ // quadratic-bezier bowed line → many coordinates (an elegant flight-path arc)
+  n=n||44;var pts=[],mx=(a[0]+b[0])/2,my=(a[1]+b[1])/2,dx=b[0]-a[0],dy=b[1]-a[1];
+  var cx=mx-dy*bow, cy=my+dx*bow;
+  for(var i=0;i<=n;i++){var t=i/n,u=1-t;pts.push([u*u*a[0]+2*u*t*cx+t*t*b[0], u*u*a[1]+2*u*t*cy+t*t*b[1]]);}
+  return pts;
+}
+function distLabel(km){return km<2.6 ? Math.round(km/4.8*60)+'′ walk' : (km<10?km.toFixed(1):Math.round(km))+' km';}
+function showLinks(co){
+  if(!map.getSource('links'))return;
+  var feats=[];
+  ANCHORS.forEach(function(A,i){
+    var to=[A[0],A[1]];
+    feats.push({type:'Feature',geometry:{type:'LineString',coordinates:arc(co,to,0.12,44)}});
+    var m=ANCHOR_MK[i]; if(m){m.el.classList.add('lit'); m.dEl.textContent=distLabel(haversine(co,to));}
+  });
+  map.getSource('links').setData({type:'FeatureCollection',features:feats});
+}
+function clearLinks(){
+  if(map.getSource('links'))map.getSource('links').setData({type:'FeatureCollection',features:[]});
+  ANCHOR_MK.forEach(function(m){m.el.classList.remove('lit');});
+}
+function buildAnchors(){
+  map.addSource('links',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
+  map.addLayer({id:'links-glow',type:'line',source:'links',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#FFD700','line-width':6,'line-blur':6,'line-opacity':.22}});
+  map.addLayer({id:'links-line',type:'line',source:'links',layout:{'line-cap':'round'},paint:{'line-color':'#FFE680','line-width':1.6,'line-opacity':.9,'line-dasharray':[1,1.6]}});
+  ANCHORS.forEach(function(A){
+    var el=document.createElement('div');el.className='sky-anchor';
+    var ic=document.createElement('span');ic.className='ic';ic.textContent=ANCHOR_ICON[A[3]]||'•';
+    var nm=document.createElement('span');nm.textContent=A[2];
+    var d=document.createElement('span');d.className='d';
+    el.appendChild(ic);el.appendChild(nm);el.appendChild(d);
+    ANCHOR_MK.push({el:el,dEl:d,mk:new maplibregl.Marker({element:el,anchor:'center'}).setLngLat([A[0],A[1]]).addTo(map)});
+  });
+  map.on('click',clearLinks); // tapping empty map dismisses the lines
+}
+
+function gradeDark(){
+  try{
+    map.getStyle().layers.forEach(function(L){try{
+      if(L.type==='symbol'&&/poi|housenumber|aeroway|airport/.test(L.id)){map.setLayoutProperty(L.id,'visibility','none');return;}
+      if(L.type==='background')map.setPaintProperty(L.id,'background-color','#0B0B0E');
+      else if(L.type==='fill')map.setPaintProperty(L.id,'fill-color',/water/.test(L.id)?'#10181F':/park|grass|wood|green/.test(L.id)?'#101510':'#121216');
+      else if(L.type==='line')map.setPaintProperty(L.id,'line-color',/primary|trunk|motorway|major/.test(L.id)?'#2B2B33':'#1C1C22');
+      else if(L.type==='symbol'){map.setPaintProperty(L.id,'text-color','#8A8A92');map.setPaintProperty(L.id,'text-halo-color','#0B0B0E');}
+    }catch(e){}});
+    var srcs=Object.keys(map.getStyle().sources||{});
+    var src=srcs.find(function(s){return /openmaptiles|vector|planet/i.test(s);})||srcs[0];
+    if(src)map.addLayer({id:'sky-3d',type:'fill-extrusion',source:src,'source-layer':'building',minzoom:13,paint:{'fill-extrusion-color':'#22222a','fill-extrusion-height':['coalesce',['get','render_height'],12],'fill-extrusion-base':['coalesce',['get','render_min_height'],0],'fill-extrusion-opacity':.92}});
+  }catch(e){}
+  try{ if(map.setSky)map.setSky({'sky-color':'#0a0a12','horizon-color':'#1c1208','fog-color':'#0B0B0E','sky-horizon-blend':.6,'horizon-fog-blend':.5,'fog-ground-blend':.4}); }catch(e){}
+}
+
+function makePin(l,co){
+  var price=num(l.price);
+  var rented=/rented|affittato|off_market/.test(String(l.status||'available').toLowerCase());
+  var el=document.createElement('div'); el.className='sky-pin'; el.__price=price||0; el.__rented=rented;
+  el.innerHTML='<span class="p'+(rented?' rented':'')+'">'+(price?fmt(price):'—')+'</span>';
+  var img=l.image||(l.images&&l.images[0])||'';
+  var pop=new maplibregl.Popup({offset:18,closeButton:true,maxWidth:'240px'}).setHTML(
+    '<div class="pc-img"'+(img?' style="background-image:url(\''+img.replace(/'/g,'')+'\')"':'')+'></div>'+
+    '<div class="pc-body"><div class="pc-zone">'+(l.zone||l.neighborhood||'Rome')+'</div>'+
+    '<div class="pc-name">'+(l.name||'Apartment')+'</div>'+
+    '<span class="pc-price">'+(price?fmt(price):'On request')+(price?'<small> /mo</small>':'')+'</span>'+
+    '<a class="pc-go" href="/listing/'+encodeURIComponent(l.id)+'">View this home →</a></div>'
+  );
+  el.addEventListener('click',function(){showLinks(co);});
+  MARKERS.push(new maplibregl.Marker({element:el,anchor:'bottom'}).setLngLat(co).setPopup(pop).addTo(map));
+}
+
+function applyFilter(){
+  var shown=0;
+  MARKERS.forEach(function(mk){
+    var el=mk.getElement();
+    var ok=(MAXFILTER===0)?!el.__rented:(el.__price>0&&el.__price<=MAXFILTER&&!el.__rented);
+    el.classList.toggle('dim',!ok); if(ok)shown++;
+  });
+  var c=$('count'); if(c){c.style.display='block'; c.innerHTML='<b>'+shown+'</b> homes'+(MAXFILTER?' under '+fmt(MAXFILTER):' across Rome')+'<span class="hint"> · tap one for its commute lines</span>';}
+}
+
+async function boot(){
+  var listings=[];
+  try{ var r=await fetch('/api/listings',{cache:'no-store'}); var j=await r.json(); listings=(j&&Array.isArray(j.listings))?j.listings:(Array.isArray(j)?j:[]); }catch(e){}
+  if(!listings.length){ msg('Could not load listings — try the list view.'); return; }
+  map=new maplibregl.Map({container:'map',style:'https://tiles.openfreemap.org/styles/liberty',center:ROME,zoom:11.2,pitch:55,bearing:-12,antialias:true});
+  map.addControl(new maplibregl.NavigationControl({visualizePitch:true}),'bottom-right');
+  map.addControl(new maplibregl.FullscreenControl(),'bottom-right');
+  await new Promise(function(res){ map.on('load',res); });
+  gradeDark();
+  buildAnchors();
+  $('load').classList.add('off');
+  var bounds=new maplibregl.LngLatBounds(), placed=0;
+  listings.forEach(function(l){
+    if(String(l.status||'').toLowerCase()==='draft' || !l.name) return;
+    var base=null, la=num(l.lat), ln=num(l.lng);
+    if(la&&ln) base=[ln,la]; else base=zoneCoord(l);
+    if(!base) return;
+    var co=spread(base);
+    makePin(l,co); bounds.extend(co); placed++;
+  });
+  if(placed){ try{ map.fitBounds(bounds,{padding:90,maxZoom:14.5,duration:1500,pitch:55}); }catch(e){} applyFilter(); }
+  else { msg('No mappable homes yet — try the list view.'); $('load').classList.remove('off'); }
+}
+
+[].forEach.call(document.querySelectorAll('#filters .chip'),function(c){
+  c.addEventListener('click',function(){
+    [].forEach.call(document.querySelectorAll('#filters .chip'),function(x){x.classList.toggle('on',x===c);});
+    MAXFILTER=Number(c.getAttribute('data-max'))||0; applyFilter();
+  });
+});
+
+(function loadMapLibre(){
+  if(window.maplibregl)return boot();
+  var css=document.createElement('link');css.rel='stylesheet';css.href='https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css';document.head.appendChild(css);
+  var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.min.js';
+  s.onload=function(){ boot().catch(function(e){console.error('Skyline:',e);msg('Something went wrong — try the list view.');}); };
+  s.onerror=function(){ msg('Map engine unavailable — open the list view.'); };
+  document.head.appendChild(s);
+})();
+})();
+</script>
+</body>
+</html>

@@ -1,41 +1,34 @@
 // api/casafari/import.js
-// Casafari → PFS bridge (web-account flow). The operator reviews listings on
-// it.casafari.com (deep-linked & pre-filtered to the client from the portal),
-// then imports the chosen ones straight into that client's swipe deck.
+// Casafari → PFS bridge (manual operator import).
+// The operator reviews Casafari (deep-linked + pre-filtered to the client),
+// picks a listing, and imports it straight into THAT client's swipe deck.
 //
-// Casafari has no sanctioned data API on a plain web account, so this is the
-// honest path: a human curates, BOOM ingests. It runs through the SAME
-// backbone as the Homie webhook (api/homie/_ingest.js) — one pipeline, one
-// pfsProperties master, one scorer — so curated and automatic sources never
-// drift apart. Because the operator already vetted the listing for THIS
-// client, we force-push (bypass the score threshold) but still record the
-// computed match score for display.
+// The radar (api/pfs/scan-inbox.js → _ingest.js) pushes a listing to EVERY
+// matching client above threshold. This path is different on purpose:
+// operator-curated for ONE chosen client, so it force-pushes regardless of
+// score. It deliberately reuses the shared pipeline's helpers (stableId,
+// sanitizeImages, scoreMatch) and writes the exact same pfsProperties master
+// + portalProperties entry shape — same data, no forked path, just a
+// single-client target the radar's bulk ingest doesn't express.
 //
-// Method:   POST
-// URL:      /api/casafari/import
-// Headers:  Authorization: Bearer <firebase-id-token>   (admin only)
-// Body:     {
-//   clientId:   string                      // required, pfsClients doc id
-//   listing?:   { url|sourceUrl, price, address?, zone?, bedrooms?, sqm?,
-//                 images?[], title?, description?, furnished? }
-//   listings?:  [ …listing ]                // batch (max 20)
-//   force?:     boolean                     // default true (operator-curated)
-//   threshold?: number                      // only used when force === false
-// }
+// Method:  POST    Auth: Bearer <firebase admin token>  (api/pfs/_guard.js)
+// Body: { clientId*, listing | listings[], force? (default true) }
+//   listing: { url|sourceUrl*, price*, address?, zone?, bedrooms?, sqm?,
+//              images?[], title?, description?, advertiser? }
 // Response: { ok, clientId, pushedCount, count, results:[{ url, propertyId,
-//             pushed, duplicate, score, reasons, error? }] }
+//             pushed, duplicate, clientFound, score, reasons, error? }] }
 
-import { readJson } from '../homie/_lib.js';
-import { requireRole, setCors } from '../_auth.js';
-import { normalizeProperty, ingestProperty } from '../homie/_ingest.js';
+import { readJson, fsGet, fsPatch, logActivity } from '../homie/_lib.js';
+import { scoreMatch, DEFAULT_THRESHOLD } from '../homie/_match.js';
+import { stableIdFromUrl, sanitizeImages } from '../pfs/_ingest.js';
+import { requireCronOrAdmin } from '../pfs/_guard.js';
 
 export default async function handler(req, res) {
-  setCors(req, res);
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method_not_allowed' });
 
-  const auth = await requireRole(req, res, ['admin']);
-  if (!auth) return;
+  const actor = await requireCronOrAdmin(req, res);
+  if (!actor) return; // guard already wrote 401/403
 
   let body;
   try { body = await readJson(req); }
@@ -45,52 +38,101 @@ export default async function handler(req, res) {
   const clientId = String(body.clientId || '').trim();
   if (!clientId) return res.status(400).json({ ok: false, error: 'clientId_required' });
 
-  const list = Array.isArray(body.listings)
-    ? body.listings
-    : (body.listing ? [body.listing] : []);
+  const list = Array.isArray(body.listings) ? body.listings : (body.listing ? [body.listing] : []);
   if (!list.length) return res.status(400).json({ ok: false, error: 'no_listings' });
+  const force = body.force !== false; // operator-curated → force by default
 
-  // Operator-curated for a chosen client → force-push by default.
-  const force = body.force !== false;
-  const threshold = Number.isFinite(body.threshold) ? body.threshold : undefined;
+  // Load the chosen client once; reused (and kept in sync) across a batch.
+  let client;
+  try { client = await fsGet('pfsClients/' + clientId); }
+  catch (e) { return res.status(500).json({ ok: false, error: 'client_lookup_failed', detail: e.message }); }
+  if (!client) return res.status(404).json({ ok: false, error: 'client_not_found' });
 
   const results = [];
   for (const raw of list.slice(0, 20)) {
-    const input = {
-      ...raw,
-      sourceUrl: raw.sourceUrl || raw.url,
-      source: (raw.source || 'casafari').toLowerCase(),
+    const sourceUrl = String(raw.sourceUrl || raw.url || '').trim();
+    const price = typeof raw.price === 'number' ? raw.price : parseFloat(raw.price);
+    if (!sourceUrl || !/^https?:\/\//.test(sourceUrl)) {
+      results.push({ ok: false, url: sourceUrl || null, error: 'sourceUrl must be a full http(s) URL' });
+      continue;
+    }
+    if (!isFinite(price) || price <= 0) {
+      results.push({ ok: false, url: sourceUrl, error: 'price (number > 0) is required' });
+      continue;
+    }
+
+    const stableId = stableIdFromUrl(sourceUrl);
+    const now = new Date();
+    const property = {
+      sourceUrl,
+      source: String(raw.source || 'casafari').toLowerCase(),
+      title: raw.title || null,
+      address: raw.address || null,
+      zone: raw.zone || null,
+      price,
+      bedrooms: typeof raw.bedrooms === 'number' ? raw.bedrooms : (parseInt(raw.bedrooms, 10) || null),
+      sqm: typeof raw.sqm === 'number' ? raw.sqm : (parseInt(raw.sqm, 10) || null),
+      bathrooms: typeof raw.bathrooms === 'number' ? raw.bathrooms : (parseInt(raw.bathrooms, 10) || null),
+      furnished: typeof raw.furnished === 'boolean' ? raw.furnished : null,
+      images: sanitizeImages(raw.images),
+      description: raw.description || null,
+      // The operator vetted it → 'private' unless told otherwise. (Only
+      // 'agency' is ever filtered out of client decks by the pipeline.)
+      advertiser: ['private', 'agency', 'unknown'].includes(raw.advertiser) ? raw.advertiser : 'private',
+      scrapedAt: raw.scrapedAt || now.toISOString(),
+      lastSeenAt: now,
+      ingestedBy: 'casafari-import:' + actor,
     };
-    const norm = normalizeProperty(input, { ingestedBy: 'casafari-import:' + auth.uid });
-    if (!norm.ok) {
-      results.push({ ok: false, url: input.sourceUrl || null, error: 'validation', details: norm.errors });
+
+    // Master record — same collection/shape the radar writes (idempotent).
+    try { await fsPatch('pfsProperties/' + stableId, property); }
+    catch (e) { console.error('[casafari/import] master write failed:', e.message); }
+
+    // Score for display; operator-curated push ignores the threshold/veto.
+    const { score, reasons, reject } = scoreMatch(property, client);
+    const existing = Array.isArray(client.portalProperties) ? client.portalProperties : [];
+    if (existing.some(p => p && p.id === stableId)) {
+      results.push({ ok: true, url: sourceUrl, propertyId: stableId, pushed: false, duplicate: true, clientFound: true, score, reasons });
+      continue;
+    }
+    if (!force && (reject || score < DEFAULT_THRESHOLD)) {
+      results.push({ ok: true, url: sourceUrl, propertyId: stableId, pushed: false, duplicate: false, clientFound: true, score, reasons });
       continue;
     }
 
-    const r = await ingestProperty(norm.property, norm.stableId, {
-      onlyClientId: clientId,
-      force,
-      threshold,
+    // Same deck-entry shape client-portal.html mapClient() consumes.
+    const entry = {
+      id: stableId,
+      address: property.address || property.title || sourceUrl,
+      price: Math.round(property.price),
+      rooms: property.bedrooms,
+      sqm: property.sqm,
+      match: score,
+      images: property.images || [],
+      description: property.description || '',
+      sourceUrl: property.sourceUrl,
+      source: property.source,
+      isNew: true,
+      addedAt: now.toISOString(),
       addedBy: 'casafari',
-    });
+      matchReasons: reasons,
+    };
+    const newProps = existing.concat([entry]);
+    const activity = (Array.isArray(client.portalActivity) ? client.portalActivity : [])
+      .concat([{ type: 'casafari_import', propertyId: stableId, score, timestamp: now.toISOString() }]);
 
-    if (r.ok === false) {
-      results.push({ ok: false, url: input.sourceUrl, propertyId: norm.stableId, error: r.error || 'ingest_failed' });
-      continue;
+    try {
+      await fsPatch('pfsClients/' + clientId, { portalProperties: newProps, portalActivity: activity });
+      client.portalProperties = newProps;  // keep local copy fresh for batch imports
+      client.portalActivity = activity;
+      await logActivity('casafari_imported', 'pfs_radar', { sourceUrl, price, propertyId: stableId, clientId, score }, actor);
+      results.push({ ok: true, url: sourceUrl, propertyId: stableId, pushed: true, duplicate: false, clientFound: true, score, reasons });
+    } catch (e) {
+      console.error('[casafari/import] push failed:', e.message);
+      results.push({ ok: false, url: sourceUrl, propertyId: stableId, error: e.message });
     }
-    const hit = r.pushedTo[0] || r.skipped[0] || r.belowThreshold[0] || null;
-    results.push({
-      ok: true,
-      url: input.sourceUrl,
-      propertyId: norm.stableId,
-      pushed: r.pushedTo.length > 0,
-      duplicate: r.skipped.length > 0,
-      clientFound: r.totalActiveClients > 0,
-      score: hit ? hit.score : null,
-      reasons: (r.pushedTo[0]?.reasons) || (r.belowThreshold[0]?.reasons) || [],
-    });
   }
 
-  const pushedCount = results.filter(x => x.pushed).length;
+  const pushedCount = results.filter(r => r.pushed).length;
   return res.status(200).json({ ok: true, clientId, pushedCount, count: results.length, results });
 }

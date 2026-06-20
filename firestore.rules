@@ -195,11 +195,15 @@ service cloud.firestore {
     match /deadlines/{x}                   { allow read, write: if isAdmin(); }
     match /tasks/{x}                       { allow read, write: if isAdmin(); }
     match /radarSearches/{x}               { allow read, write: if isAdmin(); }
+    match /pfsRadarHealth/{x}              { allow read, write: if isAdmin(); }
     match /preProperties/{x}               { allow read, write: if isAdmin(); }
     match /ziShortlists/{x}                { allow read, write: if isAdmin(); }
     match /contractRegistrations/{x}       { allow read, write: if isAdmin(); }
     match /contractRegistrationStatus/{x}  { allow read, write: if isAdmin(); }
     match /messageLog/{x}                  { allow read: if isAdmin(); allow write: if false; }
+    match /telegramState/{x}               { allow read, write: if isAdmin(); }
+    match /heartbeat/{x}                   { allow read, write: if isAdmin(); }
+    match /agentNotifications/{x}          { allow read, write: if isAdmin(); }
 
     // ─── Default deny ─────────────────────────────────────────────────
     match /{document=**} {

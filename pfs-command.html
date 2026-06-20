@@ -1,0 +1,2113 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
+<meta name="theme-color" content="#08080A">
+<meta name="color-scheme" content="dark">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>PFS Command · BOOM</title>
+<link rel="icon" href="https://www.boomrome.com/BOOMlogogoldicon512.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+<script src="/js/firebase-config.js"></script>
+<script src="/js/boom-portal.js"></script>
+
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+    --gold: #D4AF37;
+    --gold-light: rgba(212,175,55,0.15);
+    --gold-dark: #B8960C;
+    --gold-glow: rgba(212,175,55,0.4);
+    --bg: #000;
+    --bg-card: #0A0A0A;
+    --bg-elevated: #141414;
+    --bg-input: #1A1A1A;
+    --border: rgba(255,255,255,0.08);
+    --text: #FFF;
+    --text-secondary: #999;
+    --text-muted: #555;
+    --green: #00D26A;
+    --green-light: rgba(0,210,106,0.15);
+    --amber: #F5A524;
+    --amber-light: rgba(245,165,36,0.15);
+    --red: #FF453A;
+    --red-light: rgba(255,69,58,0.12);
+    --red-muted: #B05050;
+    --blue: #4D9BFF;
+    --blue-light: rgba(77,155,255,0.14);
+}
+html { scroll-behavior: smooth; }
+body {
+    font-family: 'Helvetica Neue', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-weight: 300;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+}
+::selection { background: var(--gold); color: #000; }
+a { color: inherit; text-decoration: none; }
+button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+input, select, textarea { font: inherit; color: var(--text); }
+
+/* ── Auth shield ─────────────────────────────────────────── */
+#auth-shield { position: fixed; inset: 0; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24px; z-index: 9000; }
+.shield-logo { width: 64px; height: 64px; border-radius: 50%; background: linear-gradient(135deg, var(--gold), var(--gold-dark)); box-shadow: 0 0 40px var(--gold-glow); animation: glowpulse 2.4s ease-in-out infinite; }
+@keyframes glowpulse { 0%,100% { box-shadow: 0 0 30px var(--gold-glow); } 50% { box-shadow: 0 0 60px var(--gold-glow); } }
+.shield-title { font-size: 14px; letter-spacing: 6px; color: var(--gold); text-transform: uppercase; }
+.shield-sub { font-size: 11px; letter-spacing: 3px; color: var(--text-muted); text-transform: uppercase; }
+
+/* ── Topbar ──────────────────────────────────────────────── */
+.topbar { background: rgba(0,0,0,0.92); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 1px solid var(--border); padding: 16px 20px 14px; z-index: 200; }
+.tb-row1 { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.tb-brand { display: flex; align-items: center; gap: 12px; }
+.tb-dot { width: 26px; height: 26px; border-radius: 50%; background: linear-gradient(135deg, var(--gold), var(--gold-dark)); box-shadow: 0 0 14px var(--gold-glow); flex-shrink: 0; }
+.tb-title { font-size: 15px; font-weight: 300; letter-spacing: 5px; text-transform: uppercase; }
+.tb-title small { display: block; font-size: 9px; letter-spacing: 3px; color: var(--text-muted); margin-top: 2px; }
+.tb-rows { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.hchips { display: flex; gap: 8px; flex-wrap: wrap; flex: 1; min-width: 0; }
+.hchip { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 100px; font-size: 11px; letter-spacing: 1px; cursor: pointer; transition: border-color .2s; user-select: none; }
+.hchip:hover { border-color: rgba(255,255,255,0.2); }
+.hchip.open { border-color: var(--gold); }
+.hchip .hlabel { text-transform: uppercase; letter-spacing: 2px; color: var(--text-secondary); }
+.hchip .htime { color: var(--text-muted); font-size: 10px; }
+.hdot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.hdot.ok { background: var(--green); box-shadow: 0 0 0 3px var(--green-light); animation: pulse 2s infinite; }
+.hdot.stale { background: var(--amber); box-shadow: 0 0 0 3px var(--amber-light); }
+.hdot.err { background: var(--red); box-shadow: 0 0 0 3px var(--red-light); animation: pulse 1.2s infinite; }
+.hdot.na { background: var(--text-muted); }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .45; } }
+.hpop { margin-top: 12px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 14px; padding: 16px; font-size: 12px; max-width: 640px; animation: fadein .2s ease; }
+@keyframes fadein { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.hpop-title { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: var(--gold); margin-bottom: 10px; }
+.hpop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px 16px; }
+.hpop-kv { display: flex; justify-content: space-between; gap: 8px; color: var(--text-secondary); }
+.hpop-kv b { color: var(--text); font-weight: 400; }
+.hpop-err { margin-top: 10px; padding: 8px 10px; background: var(--red-light); border-radius: 8px; color: var(--red); font-size: 11px; word-break: break-word; }
+.tb-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* ── Buttons ─────────────────────────────────────────────── */
+.btn { padding: 11px 18px; background: var(--gold); color: #000; border-radius: 12px; font-size: 11px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; transition: all .2s; white-space: nowrap; }
+.btn:hover { box-shadow: 0 6px 20px var(--gold-glow); }
+.btn-ghost { padding: 10px 14px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; font-size: 11px; letter-spacing: 1px; color: var(--text-secondary); transition: all .2s; white-space: nowrap; }
+.btn-ghost:hover { border-color: var(--gold); color: var(--gold); }
+.pending { opacity: .45; pointer-events: none; }
+button:disabled { opacity: .45; cursor: default; }
+.abtn { padding: 8px 12px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 10px; font-size: 11px; color: var(--text-secondary); transition: all .2s; }
+.abtn:hover { color: var(--gold); border-color: var(--gold); }
+.wa-btn { padding: 8px 12px; background: var(--green-light); border: 1px solid rgba(0,210,106,0.3); border-radius: 10px; font-size: 11px; color: var(--green); transition: all .2s; }
+.wa-btn:hover { background: var(--green); color: #000; }
+
+/* ── Layout ──────────────────────────────────────────────── */
+.layout { display: grid; gap: 28px; padding: 24px 20px 110px; max-width: 1400px; margin: 0 auto; grid-template-columns: 1fr; grid-template-areas: "feed" "clients" "searches" "attention"; }
+#sec-feed { grid-area: feed; min-width: 0; }
+#sec-clients { grid-area: clients; min-width: 0; }
+#sec-searches { grid-area: searches; min-width: 0; }
+#sec-attention { grid-area: attention; min-width: 0; }
+section { scroll-margin-top: 16px; }
+.sec-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 14px; }
+.sec-head h2 { font-size: 12px; font-weight: 400; letter-spacing: 4px; text-transform: uppercase; color: var(--text-secondary); }
+.sec-count { font-size: 11px; color: var(--text-muted); letter-spacing: 1px; }
+.hint { font-size: 11px; color: var(--text-muted); line-height: 1.6; margin-top: 12px; letter-spacing: .3px; }
+.muted-note { font-size: 11px; color: var(--text-muted); margin-top: 10px; letter-spacing: 1px; }
+@media (min-width: 1100px) {
+    .topbar { position: sticky; top: 0; }
+    .layout { grid-template-columns: minmax(0,1fr) 360px; grid-template-areas: "feed clients" "searches clients" "attention clients"; align-items: start; padding-bottom: 40px; }
+    section { scroll-margin-top: 150px; }
+}
+
+/* ── Filters ─────────────────────────────────────────────── */
+.filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 16px; }
+.filters input[type="text"] { flex: 1 1 180px; min-width: 0; padding: 10px 14px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 10px; font-size: 13px; }
+.filters input[type="text"]:focus { outline: none; border-color: var(--gold); }
+.filters select { padding: 10px 12px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 10px; font-size: 12px; color: var(--text-secondary); }
+.chk { display: inline-flex; align-items: center; gap: 7px; font-size: 11px; letter-spacing: 1px; color: var(--text-secondary); cursor: pointer; padding: 9px 12px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; user-select: none; }
+.chk input { accent-color: var(--gold); }
+
+/* ── Feed cards ──────────────────────────────────────────── */
+.feed-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 16px; }
+.fcard { background: var(--bg-card); border: 1px solid var(--border); border-radius: 18px; overflow: hidden; display: flex; flex-direction: column; transition: border-color .2s; }
+.fcard:hover { border-color: rgba(212,175,55,0.35); }
+.fc-media { position: relative; height: 165px; background: linear-gradient(135deg, #1a1a1a, #0a0a0a); }
+.fc-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.fc-ph { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 42px; background: linear-gradient(135deg, #1c1c1c, #0a0a0a); opacity: .8; }
+.badge-row { position: absolute; top: 10px; left: 10px; display: flex; gap: 6px; flex-wrap: wrap; max-width: calc(100% - 20px); }
+.pbadge { padding: 4px 10px; border-radius: 100px; font-size: 9px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); border: 1px solid var(--border); color: var(--text-secondary); }
+.adv-private { background: var(--gold-light); border-color: rgba(212,175,55,0.4); color: var(--gold); }
+.adv-unknown { background: var(--amber-light); border-color: rgba(245,165,36,0.4); color: var(--amber); }
+.adv-agency { background: var(--red-light); border-color: rgba(176,80,80,0.4); color: var(--red-muted); }
+.opill { position: absolute; top: 10px; right: 10px; padding: 4px 10px; border-radius: 100px; font-size: 9px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; backdrop-filter: blur(8px); }
+.st-gray { background: rgba(255,255,255,0.1); color: var(--text-secondary); }
+.st-blue { background: var(--blue-light); color: var(--blue); }
+.st-gold { background: var(--gold-light); color: var(--gold); }
+.st-green { background: var(--green-light); color: var(--green); }
+.st-red { background: var(--red-light); color: var(--red); }
+.fc-body { padding: 16px; display: flex; flex-direction: column; gap: 9px; flex: 1; }
+.fc-price { font-size: 24px; font-weight: 600; color: var(--gold); letter-spacing: .5px; }
+.fc-price span { font-size: 12px; font-weight: 300; color: var(--text-secondary); }
+.fc-title { font-size: 14px; font-weight: 400; line-height: 1.35; }
+.fc-addr { font-size: 12px; color: var(--text-secondary); }
+.fc-meta { font-size: 11px; color: var(--text-muted); letter-spacing: .5px; }
+.fc-matches { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.mchip { padding: 4px 10px; border-radius: 100px; font-size: 11px; font-weight: 500; }
+.mc-green { background: var(--green-light); color: var(--green); }
+.mc-gold { background: var(--gold-light); color: var(--gold); }
+.mc-dim { background: rgba(255,255,255,0.06); color: var(--text-secondary); }
+.mc-had { background: rgba(255,255,255,0.04); color: var(--text-muted); border: 1px dashed var(--border); }
+.below-toggle { font-size: 10px; letter-spacing: 1px; color: var(--text-muted); padding: 4px 8px; border-radius: 8px; }
+.below-toggle:hover { color: var(--text-secondary); }
+.fc-below { background: var(--bg-elevated); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+.below-row { display: flex; gap: 8px; align-items: baseline; font-size: 11px; }
+.below-row .bname { color: var(--text-secondary); min-width: 70px; }
+.below-row .breason { color: var(--text-muted); flex: 1; }
+.fc-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; }
+.fc-wa { display: flex; flex-wrap: wrap; gap: 6px; }
+.fc-outreach { background: var(--bg-elevated); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.fc-outreach select, .fc-outreach input { padding: 9px 12px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 10px; font-size: 12px; width: 100%; }
+.fc-outreach select:focus, .fc-outreach input:focus { outline: none; border-color: var(--gold); }
+.o-row { display: flex; gap: 8px; }
+.o-row select { flex: 1; }
+.o-save { padding: 9px 16px; background: var(--gold); color: #000; border-radius: 10px; font-size: 11px; font-weight: 600; letter-spacing: 1px; }
+
+/* ── Client cards ────────────────────────────────────────── */
+.ccard { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 16px; margin-bottom: 10px; }
+.cc-top { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.cc-name { font-size: 14px; font-weight: 400; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.spill { padding: 4px 10px; border-radius: 100px; font-size: 9px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; flex-shrink: 0; }
+.warn { cursor: pointer; font-size: 14px; flex-shrink: 0; }
+.cc-crit { font-size: 12px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 8px; }
+.cc-stats { display: flex; flex-wrap: wrap; gap: 10px; font-size: 11px; color: var(--text-muted); letter-spacing: .5px; }
+.cc-stats b { color: var(--text-secondary); font-weight: 500; }
+.cc-act { font-size: 10px; color: var(--text-muted); margin-top: 6px; letter-spacing: .5px; }
+
+/* ── Searches ────────────────────────────────────────────── */
+.srow { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; margin-bottom: 8px; }
+.srow-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.srow-label { font-size: 13px; flex: 1; min-width: 120px; }
+.srow-label .ovr { font-size: 9px; letter-spacing: 1px; color: var(--gold); border: 1px solid rgba(212,175,55,0.35); border-radius: 100px; padding: 2px 7px; margin-left: 6px; vertical-align: middle; }
+.p-immobiliare { color: #6BA8FF; border-color: rgba(107,168,255,0.35); }
+.p-idealista { color: #4FD08A; border-color: rgba(79,208,138,0.35); }
+.srow-meta { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; font-size: 11px; color: var(--text-muted); margin-top: 8px; letter-spacing: .4px; }
+.sdot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
+.dot-ok { background: var(--green); }
+.dot-err { background: var(--red); }
+.dot-na { background: var(--text-muted); }
+.srow-actions { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+.srow-edit { margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap; }
+.srow-edit input { flex: 1 1 220px; min-width: 0; padding: 9px 12px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 10px; font-size: 12px; }
+.srow-edit input:focus { outline: none; border-color: var(--gold); }
+.switch { position: relative; display: inline-block; width: 40px; height: 22px; flex-shrink: 0; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.switch .sl { position: absolute; inset: 0; background: var(--bg-input); border: 1px solid var(--border); border-radius: 100px; transition: all .2s; cursor: pointer; }
+.switch .sl::before { content: ''; position: absolute; width: 14px; height: 14px; left: 3px; top: 3px; border-radius: 50%; background: var(--text-muted); transition: all .2s; }
+.switch input:checked + .sl { background: var(--gold-light); border-color: var(--gold); }
+.switch input:checked + .sl::before { transform: translateX(18px); background: var(--gold); }
+
+/* ── Da verificare ───────────────────────────────────────── */
+.att-row { background: var(--bg-card); border: 1px solid rgba(245,165,36,0.2); border-radius: 14px; padding: 14px 16px; margin-bottom: 8px; display: flex; flex-direction: column; gap: 8px; }
+.att-main { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.att-reason { font-size: 13px; flex: 1; min-width: 140px; }
+.att-sub { font-size: 11px; color: var(--text-muted); width: 100%; word-break: break-word; }
+.att-meta { display: flex; gap: 10px; align-items: center; font-size: 11px; color: var(--text-muted); }
+.att-meta a { color: var(--text-secondary); }
+.att-meta a:hover { color: var(--gold); }
+.att-actions { display: flex; gap: 6px; }
+
+/* ── Empty states ────────────────────────────────────────── */
+.empty { grid-column: 1 / -1; text-align: center; padding: 44px 20px; background: var(--bg-card); border: 1px dashed var(--border); border-radius: 18px; }
+.empty-icon { font-size: 40px; margin-bottom: 12px; opacity: .8; }
+.empty-title { font-size: 13px; letter-spacing: 3px; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 8px; }
+.empty p { font-size: 12px; color: var(--text-muted); line-height: 1.6; max-width: 380px; margin: 0 auto 16px; }
+.empty .ebtns { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+
+/* ── Modal ───────────────────────────────────────────────── */
+#modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); z-index: 8000; display: flex; align-items: flex-start; justify-content: center; padding: 24px 16px; overflow-y: auto; animation: fadein .2s ease; }
+#modal-overlay[hidden] { display: none; }
+.modal { background: var(--bg-card); border: 1px solid rgba(212,175,55,0.25); border-radius: 20px; width: 100%; max-width: 580px; padding: 26px 24px; margin: auto 0; }
+.modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+.modal-title { font-size: 13px; letter-spacing: 4px; text-transform: uppercase; color: var(--gold); }
+.modal-close { font-size: 20px; color: var(--text-muted); padding: 4px 10px; }
+.modal-close:hover { color: var(--text); }
+.modal-src { font-size: 11px; color: var(--text-muted); letter-spacing: 1px; margin-bottom: 16px; }
+.mgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.mgrid .full { grid-column: 1 / -1; }
+.mfield label { display: block; font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 5px; }
+.mfield input, .mfield textarea { width: 100%; padding: 11px 13px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 10px; font-size: 13px; }
+.mfield input:focus, .mfield textarea:focus { outline: none; border-color: var(--gold); }
+.mfield textarea { resize: vertical; min-height: 64px; }
+.modal-actions { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+.modal-actions .btn, .modal-actions .btn-ghost { flex: 1; min-width: 150px; text-align: center; }
+#mf-results { margin-top: 18px; }
+.dr-title { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px; }
+.dr-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.dr-table th { text-align: left; font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-muted); font-weight: 400; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+.dr-table td { padding: 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.dr-table .reasons { color: var(--text-muted); font-size: 11px; }
+.sc-green { color: var(--green); font-weight: 600; }
+.sc-gold { color: var(--gold); font-weight: 600; }
+.sc-dim { color: var(--text-muted); }
+
+/* ── Bottom nav (mobile) ─────────────────────────────────── */
+#bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; height: 64px; background: rgba(0,0,0,0.95); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-top: 1px solid var(--border); display: flex; justify-content: space-around; align-items: center; padding-bottom: env(safe-area-inset-bottom); z-index: 300; }
+.nav-item { display: flex; flex-direction: column; align-items: center; gap: 3px; color: var(--text-muted); padding: 6px 14px; transition: color .2s; }
+.nav-item.active { color: var(--gold); }
+.ni-icon { font-size: 18px; }
+.ni-label { font-size: 8px; text-transform: uppercase; letter-spacing: 1.5px; }
+@media (min-width: 1100px) { #bottom-nav { display: none; } }
+
+/* ════════════════ 2030 COCKPIT ═══════════════════════════════
+   Ambient, glass, triage, palette, briefing, micro-interactions */
+
+/* ── Ambient gold glows (transform-only, behind content) ───── */
+.amb { position: fixed; z-index: -1; pointer-events: none; border-radius: 50%; will-change: transform; }
+.amb-1 { top: -340px; left: 50%; width: 900px; height: 720px; margin-left: -450px; background: radial-gradient(closest-side, rgba(212,175,55,0.05), transparent 70%); }
+.amb-2 { top: 28vh; left: 58%; width: 720px; height: 720px; margin-left: -360px; background: radial-gradient(closest-side, rgba(212,175,55,0.035), transparent 70%); animation: amb-drift 40s ease-in-out infinite alternate; }
+@keyframes amb-drift { from { transform: translate3d(-130px,-40px,0); } to { transform: translate3d(130px,70px,0); } }
+
+/* ── Glassmorphism (graceful fallback: solid bg already set) ── */
+@supports ((backdrop-filter: blur(18px)) or (-webkit-backdrop-filter: blur(18px))) {
+    .modal, .hpop, .palette, #brief-panel, .tg-card, .tg-zero {
+        background: rgba(20,20,20,0.7);
+        -webkit-backdrop-filter: blur(18px);
+        backdrop-filter: blur(18px);
+        border-color: rgba(212,175,55,0.12);
+    }
+    #triage-overlay { -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); }
+    #palette-overlay { -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+}
+
+/* ── LIVE indicator ──────────────────────────────────────────── */
+.live-ind { display: inline-flex; align-items: center; gap: 6px; font-size: 9px; letter-spacing: 2.5px; text-transform: uppercase; color: var(--gold); padding: 5px 11px; border: 1px solid rgba(212,175,55,0.25); border-radius: 100px; user-select: none; }
+.live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 8px var(--gold-glow); animation: pulse 2.2s ease-in-out infinite; }
+.live-ind.down { color: var(--text-muted); border-color: var(--border); }
+.live-ind.down .live-dot { background: var(--text-muted); box-shadow: none; animation: none; }
+
+/* ── Topbar CTA cluster + triage badge ───────────────────────── */
+.tb-cta { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.btn-cmd { font-size: 14px; padding: 9px 13px; }
+.btn-triage { display: inline-flex; align-items: center; gap: 8px; }
+.tbadge { min-width: 20px; height: 20px; padding: 0 6px; border-radius: 100px; background: #000; color: var(--gold); font-size: 11px; font-weight: 700; letter-spacing: 0; display: inline-flex; align-items: center; justify-content: center; font-variant-numeric: tabular-nums; }
+
+/* ── Briefing del giorno ─────────────────────────────────────── */
+#brief-wrap { max-width: 1400px; margin: 0 auto; padding: 14px 20px 0; }
+#brief-strip { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--text-secondary); letter-spacing: .6px; }
+.bs-counters { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; flex: 1; min-width: 200px; }
+.bs-item { white-space: nowrap; }
+.bs-item b { color: var(--gold); font-weight: 600; font-size: 15px; font-variant-numeric: tabular-nums; }
+#brief-panel { margin-top: 12px; background: var(--bg-elevated); border: 1px solid rgba(212,175,55,0.18); border-radius: 16px; padding: 16px 18px; animation: brief-slide .35s cubic-bezier(.22,.9,.28,1.15); }
+#brief-panel[hidden] { display: none; }
+@keyframes brief-slide { from { opacity: 0; transform: translateY(-10px); } }
+.bp-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.bp-title { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: var(--gold); }
+.bp-tools { display: flex; gap: 6px; }
+#brief-body { font-size: 13px; line-height: 1.7; color: var(--text-secondary); word-break: break-word; }
+#brief-body b { color: var(--text); font-weight: 600; }
+#brief-body i { color: var(--gold); }
+
+/* ── Modalità Triage ─────────────────────────────────────────── */
+body.triage-lock { overflow: hidden; }
+#triage-overlay { position: fixed; inset: 0; z-index: 8500; background: rgba(5,5,6,0.88); display: flex; flex-direction: column; padding: 16px 16px calc(16px + env(safe-area-inset-bottom)); animation: fadein .2s ease; }
+#triage-overlay[hidden] { display: none; }
+.tg-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; max-width: 560px; width: 100%; margin: 0 auto 10px; }
+.tg-title { font-size: 12px; letter-spacing: 4px; text-transform: uppercase; color: var(--gold); }
+.tg-count { font-size: 12px; color: var(--text-secondary); letter-spacing: 2px; min-width: 56px; font-variant-numeric: tabular-nums; }
+.tg-bar { max-width: 560px; width: 100%; margin: 0 auto 14px; height: 2px; background: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden; flex-shrink: 0; }
+.tg-fill { height: 100%; width: 0; background: linear-gradient(90deg, var(--gold-dark), var(--gold)); transition: width .35s cubic-bezier(.22,.9,.28,1.15); }
+.tg-stage { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 0; max-width: 560px; width: 100%; margin: 0 auto; }
+.tg-card { width: 100%; max-height: 100%; overflow-y: auto; overflow-x: hidden; background: var(--bg-elevated); border: 1px solid rgba(212,175,55,0.18); border-radius: 24px; touch-action: pan-y; transition: transform .25s cubic-bezier(.22,.9,.28,1.15), box-shadow .25s, opacity .25s; animation: tg-in .3s cubic-bezier(.22,.9,.28,1.15); }
+@keyframes tg-in { from { opacity: 0; transform: translateY(18px) scale(.97); } }
+.tg-card.dragging { transition: none; }
+.tg-card.lean-right { box-shadow: 0 0 0 1px rgba(0,210,106,0.5), 0 0 44px rgba(0,210,106,0.25); }
+.tg-card.lean-left { box-shadow: 0 0 0 1px rgba(255,69,58,0.5), 0 0 44px rgba(255,69,58,0.22); }
+.tg-card.fly-right { transform: translateX(120%) rotate(8deg); opacity: 0; }
+.tg-card.fly-left { transform: translateX(-120%) rotate(-8deg); opacity: 0; }
+.tg-card.fly-down { transform: translateY(40px); opacity: 0; }
+.tg-media { position: relative; height: 220px; background: linear-gradient(135deg, #1c1c1c, #0a0a0a); flex-shrink: 0; }
+.tg-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.tg-ph { height: 100%; display: flex; align-items: center; justify-content: center; font-size: 64px; opacity: .8; }
+.tg-body { padding: 18px 20px 20px; display: flex; flex-direction: column; gap: 10px; }
+.tg-price { font-size: 34px; font-weight: 600; color: var(--gold); letter-spacing: .5px; }
+.tg-price span { font-size: 13px; font-weight: 300; color: var(--text-secondary); }
+.tg-name { font-size: 16px; line-height: 1.35; }
+.tg-addr { font-size: 13px; color: var(--text-secondary); }
+.tg-meta { font-size: 12px; color: var(--text-muted); letter-spacing: .5px; }
+.tg-reasons { background: rgba(255,255,255,0.04); border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; gap: 5px; }
+.tg-reason { font-size: 11px; color: var(--text-muted); line-height: 1.5; }
+.tg-reason b { color: var(--text-secondary); font-weight: 500; }
+.tg-link { font-size: 12px; color: var(--gold); letter-spacing: 1px; }
+.tg-link:hover { text-decoration: underline; }
+.tg-foot { max-width: 560px; width: 100%; margin: 14px auto 0; display: flex; flex-direction: column; gap: 10px; flex-shrink: 0; }
+.tg-wa-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.tg-btn-row { display: flex; gap: 8px; }
+.tg-skip { flex: 1; padding: 14px; border-radius: 14px; background: var(--bg-card); border: 1px solid var(--border); color: var(--text-secondary); font-size: 12px; letter-spacing: 1px; }
+.tg-skip:hover { border-color: rgba(255,255,255,0.25); color: var(--text); }
+.tg-discard { flex: 1; padding: 14px; border-radius: 14px; background: var(--red-light); border: 1px solid rgba(255,69,58,0.35); color: var(--red); font-size: 12px; letter-spacing: 1px; }
+.tg-done { flex: 1.4; padding: 14px; border-radius: 14px; background: var(--gold); color: #000; font-weight: 700; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; }
+.tg-done:hover { box-shadow: 0 6px 20px var(--gold-glow); }
+.tg-hint { text-align: center; font-size: 10px; color: var(--text-muted); letter-spacing: 1px; margin-top: 10px; flex-shrink: 0; }
+.tg-zero { text-align: center; padding: 44px 40px; border-radius: 24px; background: var(--bg-elevated); border: 1px solid rgba(212,175,55,0.18); animation: zero-pulse 1.4s ease-in-out infinite; }
+@keyframes zero-pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(212,175,55,0); } 50% { box-shadow: 0 0 60px 0 rgba(212,175,55,0.25); } }
+.tg-zero-icon { font-size: 54px; margin-bottom: 14px; }
+.tg-zero-title { font-size: 18px; letter-spacing: 4px; text-transform: uppercase; color: var(--gold); margin-bottom: 8px; }
+.tg-zero-sub { font-size: 12px; color: var(--text-secondary); letter-spacing: 1px; }
+@media (max-width: 700px) { .tg-hint { display: none; } .tg-media { height: 180px; } .tg-price { font-size: 28px; } }
+
+/* ── Command palette ─────────────────────────────────────────── */
+#palette-overlay { position: fixed; inset: 0; z-index: 8600; background: rgba(0,0,0,0.7); display: flex; align-items: flex-start; justify-content: center; padding: 12vh 16px 16px; animation: fadein .15s ease; }
+#palette-overlay[hidden] { display: none; }
+.palette { width: 100%; max-width: 520px; background: var(--bg-elevated); border: 1px solid rgba(212,175,55,0.25); border-radius: 18px; overflow: hidden; box-shadow: 0 30px 80px rgba(0,0,0,0.6); animation: pal-in .2s cubic-bezier(.22,.9,.28,1.15); }
+@keyframes pal-in { from { opacity: 0; transform: translateY(-12px) scale(.98); } }
+#palette-input { width: 100%; padding: 16px 18px; background: transparent; border: none; border-bottom: 1px solid var(--border); font-size: 15px; }
+#palette-input:focus { outline: none; }
+#palette-list { max-height: 46vh; overflow-y: auto; padding: 8px; }
+.pal-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; text-align: left; padding: 11px 12px; border-radius: 10px; font-size: 13px; color: var(--text); transition: background .12s; }
+.pal-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pal-type { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-muted); flex-shrink: 0; }
+.pal-item.sel { background: var(--gold-light); }
+.pal-item.sel .pal-type { color: var(--gold); }
+.pal-empty { padding: 18px; text-align: center; font-size: 12px; color: var(--text-muted); letter-spacing: 1px; }
+
+/* ── Micro-interactions (springy) ────────────────────────────── */
+.fcard, .ccard, .srow, .att-row { transition: transform .25s cubic-bezier(.22,.9,.28,1.15), border-color .25s, box-shadow .25s; }
+@media (hover: hover) {
+    .fcard:hover { transform: translateY(-3px); box-shadow: 0 14px 34px rgba(0,0,0,0.45); }
+    .ccard:hover, .srow:hover { transform: translateY(-1px); }
+}
+.btn, .btn-ghost, .abtn, .wa-btn, .o-save, .hchip, .chk, .mchip {
+    transition-property: transform, background, color, border-color, box-shadow, opacity;
+    transition-duration: .2s;
+    transition-timing-function: cubic-bezier(.22,.9,.28,1.15);
+}
+.btn:active, .btn-ghost:active, .abtn:active, .wa-btn:active, .o-save:active, .hchip:active,
+.tg-done:active, .tg-skip:active, .tg-discard:active, .pal-item:active, .nav-item:active { transform: scale(.97); }
+.fcard.is-new { animation: card-in .5s cubic-bezier(.22,.9,.28,1.15), ring-pulse 2s ease-out; }
+@keyframes card-in { from { opacity: 0; transform: translateY(14px); } }
+@keyframes ring-pulse { 0% { box-shadow: 0 0 0 0 rgba(212,175,55,0.55); } 100% { box-shadow: 0 0 0 14px rgba(212,175,55,0); } }
+.flash-ring { animation: ring-pulse 2s ease-out; border-color: var(--gold) !important; }
+
+/* ── Reduced motion: kill it all ─────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+    html { scroll-behavior: auto; }
+}
+</style>
+</head>
+<body>
+
+<div class="amb amb-1" aria-hidden="true"></div>
+<div class="amb amb-2" aria-hidden="true"></div>
+
+<div id="auth-shield">
+    <div class="shield-logo"></div>
+    <div class="shield-title">PFS Command</div>
+    <div class="shield-sub">Verifica accesso…</div>
+</div>
+
+<div id="app" hidden>
+    <header class="topbar">
+        <div class="tb-row1">
+            <div class="tb-brand">
+                <div class="tb-dot"></div>
+                <div class="tb-title">PFS Command<small>Boom Roma · Property Finding</small></div>
+                <span id="live-ind" class="live-ind down" title="Connessione realtime…"><span class="live-dot"></span>Live</span>
+            </div>
+            <div class="tb-cta">
+                <button id="btn-palette" class="btn-ghost btn-cmd" title="Comandi rapidi (Ctrl+K)" aria-label="Comandi rapidi (Ctrl+K)">⌘</button>
+                <button id="btn-triage" class="btn btn-triage" title="Tutto gestito ✓" disabled>⚡ Triage<span id="triage-badge" class="tbadge" hidden>0</span></button>
+                <button id="btn-add-listing" class="btn">➕ Aggiungi annuncio</button>
+            </div>
+        </div>
+        <div class="tb-rows">
+            <div class="hchips" id="health-chips"></div>
+            <div class="tb-actions">
+                <button id="btn-scan-inbox" class="btn-ghost">📨 Scan inbox</button>
+                <button id="btn-scan-market" class="btn-ghost">🌐 Scan mercato</button>
+                <button id="btn-sync-searches" class="btn-ghost">🔄 Sync ricerche</button>
+            </div>
+        </div>
+        <div id="health-pop-wrap"></div>
+    </header>
+
+    <div id="brief-wrap">
+        <div id="brief-strip">
+            <div class="bs-counters" aria-live="polite">
+                <span class="bs-item">Oggi: <b id="bs-new">0</b> nuovi</span>
+                <span class="bs-item">· <b id="bs-match">0</b> match</span>
+                <span class="bs-item">· <b id="bs-triage">0</b> da gestire</span>
+                <span class="bs-item">· ❤️ <b id="bs-likes">0</b> like</span>
+            </div>
+            <button id="btn-brief" class="btn-ghost">🧠 Brief AI</button>
+        </div>
+        <div id="brief-panel" hidden>
+            <div class="bp-head">
+                <span class="bp-title">🧠 Briefing del giorno</span>
+                <div class="bp-tools">
+                    <button id="brief-copy" class="abtn">📋 Copia</button>
+                    <button id="brief-close" class="abtn" aria-label="Chiudi briefing">✕</button>
+                </div>
+            </div>
+            <div id="brief-body"></div>
+        </div>
+    </div>
+
+    <main class="layout">
+        <section id="sec-feed">
+            <div class="sec-head"><h2>Feed Radar</h2><span class="sec-count" id="feed-count"></span></div>
+            <div class="filters">
+                <input type="text" id="f-q" placeholder="Cerca titolo, indirizzo, zona…" autocomplete="off">
+                <select id="f-source">
+                    <option value="">Tutte le fonti</option>
+                    <option value="immobiliare">Immobiliare</option>
+                    <option value="idealista">Idealista</option>
+                    <option value="subito">Subito</option>
+                    <option value="whatsapp">WhatsApp</option>
+                    <option value="manual">Manuale</option>
+                </select>
+                <select id="f-adv">
+                    <option value="">Inserzionista</option>
+                    <option value="private">Privato</option>
+                    <option value="unknown">Da verificare</option>
+                    <option value="agency">Agenzia</option>
+                </select>
+                <label class="chk"><input type="checkbox" id="f-match"> Solo con match</label>
+                <label class="chk"><input type="checkbox" id="f-agency"> Mostra agenzie</label>
+            </div>
+            <div class="feed-grid" id="feed-list"></div>
+        </section>
+
+        <section id="sec-clients">
+            <div class="sec-head"><h2>Clienti</h2><span class="sec-count" id="clients-count"></span></div>
+            <div id="clients-list"></div>
+            <div class="muted-note" id="clients-inactive"></div>
+        </section>
+
+        <section id="sec-searches">
+            <div class="sec-head"><h2>Ricerche automatiche</h2><span class="sec-count" id="searches-count"></span></div>
+            <div id="searches-list"></div>
+            <p class="hint">💡 Apri l'URL, raffina i filtri sul portale (zona esatta, "da privati"), incolla qui l'URL finale con ✏️ URL.</p>
+        </section>
+
+        <section id="sec-attention">
+            <div class="sec-head"><h2>Da verificare</h2><span class="sec-count" id="attention-count"></span></div>
+            <div id="attention-list"></div>
+        </section>
+    </main>
+
+    <nav id="bottom-nav">
+        <a href="#sec-feed" class="nav-item active" data-target="sec-feed"><span class="ni-icon">📡</span><span class="ni-label">Feed</span></a>
+        <a href="#sec-clients" class="nav-item" data-target="sec-clients"><span class="ni-icon">👥</span><span class="ni-label">Clienti</span></a>
+        <a href="#sec-searches" class="nav-item" data-target="sec-searches"><span class="ni-icon">🔍</span><span class="ni-label">Ricerche</span></a>
+        <a href="#sec-attention" class="nav-item" data-target="sec-attention"><span class="ni-icon">⚠️</span><span class="ni-label">Verifica</span></a>
+    </nav>
+</div>
+
+<div id="modal-overlay" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-label="Aggiungi annuncio">
+        <div class="modal-head">
+            <div class="modal-title">Aggiungi annuncio</div>
+            <button class="modal-close" id="mf-close" aria-label="Chiudi">✕</button>
+        </div>
+        <div class="modal-src" id="mf-source-note">Fonte: manuale</div>
+        <div class="mgrid">
+            <div class="mfield full"><label for="mf-url">URL annuncio *</label><input type="url" id="mf-url" placeholder="https://…" autocomplete="off"></div>
+            <div class="mfield"><label for="mf-price">Prezzo €/mese *</label><input type="number" id="mf-price" min="0" step="50" placeholder="1200"></div>
+            <div class="mfield"><label for="mf-zone">Zona</label><input type="text" id="mf-zone" placeholder="Trastevere"></div>
+            <div class="mfield full"><label for="mf-title">Titolo</label><input type="text" id="mf-title" placeholder="Bilocale luminoso…"></div>
+            <div class="mfield full"><label for="mf-address">Indirizzo</label><input type="text" id="mf-address" placeholder="Via …"></div>
+            <div class="mfield"><label for="mf-bedrooms">Camere</label><input type="number" id="mf-bedrooms" min="0" step="1" placeholder="2"></div>
+            <div class="mfield"><label for="mf-sqm">m²</label><input type="number" id="mf-sqm" min="0" step="1" placeholder="70"></div>
+            <div class="mfield full"><label for="mf-desc">Descrizione</label><textarea id="mf-desc" placeholder="Note, dettagli…"></textarea></div>
+        </div>
+        <div class="modal-actions">
+            <button class="btn-ghost" id="mf-dry">🧪 Prova match (dry run)</button>
+            <button class="btn" id="mf-push">🚀 Ingerisci e proponi</button>
+        </div>
+        <div id="mf-results"></div>
+    </div>
+</div>
+
+<div id="triage-overlay" hidden>
+    <div class="tg-head">
+        <span class="tg-count" id="tg-count">0 / 0</span>
+        <span class="tg-title">⚡ Triage</span>
+        <button id="tg-exit" class="abtn" aria-label="Esci dal triage">✕ Esci</button>
+    </div>
+    <div class="tg-bar"><div class="tg-fill" id="tg-fill"></div></div>
+    <div class="tg-stage" id="tg-stage"></div>
+    <div class="tg-foot" id="tg-foot"></div>
+    <div class="tg-hint">⏎ Gestito · ⌫ Scarta · → Dopo · 1-3 WhatsApp · Esc Esci</div>
+</div>
+
+<div id="palette-overlay" hidden>
+    <div class="palette" role="dialog" aria-modal="true" aria-label="Comandi rapidi">
+        <input id="palette-input" type="text" placeholder="Cerca comandi, clienti, annunci…" autocomplete="off" spellcheck="false">
+        <div id="palette-list" role="listbox"></div>
+    </div>
+</div>
+
+<script>
+(function () {
+'use strict';
+
+/* ───────────────────────── Helpers ───────────────────────── */
+var $ = function (id) { return document.getElementById(id); };
+
+function esc(v) {
+    if (v == null) return '';
+    return String(v).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+}
+
+function safeUrl(u) {
+    return (typeof u === 'string' && /^https?:\/\//i.test(u.trim())) ? u.trim() : '';
+}
+
+// Firestore Timestamp | Date | ISO string | epoch → Date|null
+function toDate(v) {
+    if (!v) return null;
+    if (typeof v.toDate === 'function') { try { return v.toDate(); } catch (e) { return null; } }
+    if (v instanceof Date) return isNaN(v) ? null : v;
+    if (typeof v === 'object' && typeof v.seconds === 'number') return new Date(v.seconds * 1000);
+    var d = new Date(v);
+    return isNaN(d) ? null : d;
+}
+
+function relTime(v) {
+    var d = toDate(v);
+    if (!d) return '—';
+    var diff = Date.now() - d.getTime();
+    if (diff < 60e3) return 'adesso';
+    var m = Math.floor(diff / 60e3);
+    if (m < 60) return m + ' min fa';
+    var h = Math.floor(m / 60);
+    if (h < 24) return h + ' h fa';
+    if (h < 48) return 'ieri';
+    return ('0' + d.getDate()).slice(-2) + '/' + ('0' + (d.getMonth() + 1)).slice(-2);
+}
+
+var fmtN = new Intl.NumberFormat('it-IT');
+function fmtPrice(n) {
+    var x = typeof n === 'string' ? parseFloat(n) : n;
+    return (typeof x === 'number' && isFinite(x) && x > 0) ? fmtN.format(Math.round(x)) : '—';
+}
+
+function copyText(t) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        return navigator.clipboard.writeText(t).then(function () { return true; }).catch(function () { return legacyCopy(t); });
+    }
+    return Promise.resolve(legacyCopy(t));
+}
+function legacyCopy(t) {
+    var ta = document.createElement('textarea');
+    ta.value = t;
+    ta.style.cssText = 'position:fixed;top:-999px;opacity:0';
+    document.body.appendChild(ta);
+    ta.select();
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { /* noop */ }
+    ta.remove();
+    return ok;
+}
+
+function waPhone(phone) {
+    if (!phone) return '';
+    var d = String(phone).replace(/\D/g, '');
+    if (d.indexOf('00') === 0) d = d.slice(2);
+    if (d.length === 10 && d.charAt(0) === '3') d = '39' + d; // mobile IT senza prefisso
+    return d;
+}
+
+var REDUCED_MOTION = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+// normalizzazione case/accenti per ricerche fuzzy-ish
+function norm(s) {
+    s = String(s == null ? '' : s).toLowerCase();
+    try { s = s.normalize('NFD').replace(new RegExp('[\\u0300-\\u036f]', 'g'), ''); } catch (e) { /* vecchi browser */ }
+    return s;
+}
+function cssEsc(s) {
+    return (window.CSS && CSS.escape) ? CSS.escape(String(s)) : String(s).replace(/["'\\\][(){}#.:>+~*^$|=\s]/g, '\\$&');
+}
+
+function buzz() {
+    if (navigator.vibrate) { try { navigator.vibrate(12); } catch (e) { /* noop */ } }
+}
+
+function findProp(id) {
+    for (var i = 0; i < state.properties.length; i++) if (state.properties[i].id === id) return state.properties[i];
+    return null;
+}
+
+// count-up rAF 400ms (briefing strip)
+var countAnims = {};
+function countUp(el, to) {
+    if (!el) return;
+    to = Math.max(0, Math.round(Number(to) || 0));
+    var from = parseInt(String(el.textContent).replace(/\D/g, ''), 10) || 0;
+    if (from === to || REDUCED_MOTION || !window.requestAnimationFrame) { el.textContent = String(to); return; }
+    var key = el.id || '_';
+    var token = {};
+    countAnims[key] = token;
+    var start = null;
+    function step(ts) {
+        if (countAnims[key] !== token) return;
+        if (start == null) start = ts;
+        var t = Math.min(1, (ts - start) / 400);
+        var eased = 1 - Math.pow(1 - t, 3);
+        el.textContent = String(Math.round(from + (to - from) * eased));
+        if (t < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+}
+
+function flashEl(el) {
+    if (!el) return;
+    el.classList.remove('flash-ring');
+    void el.offsetWidth; // restart animation
+    el.classList.add('flash-ring');
+    setTimeout(function () { el.classList.remove('flash-ring'); }, 2200);
+}
+
+/* ──────────────────────── Constants ──────────────────────── */
+var SOURCES = [
+    { key: 'inbox',  label: 'Inbox',   icon: '📨', freshMin: 45 },
+    { key: 'market', label: 'Mercato', icon: '🌐', freshMin: 90 },
+    { key: 'sync',   label: 'Sync',    icon: '🔄', freshMin: 1560 } // 26 h
+];
+var STAT_LABELS = {
+    emailsSeen: 'Email viste', alerts: 'Alert', listingsFound: 'Annunci trovati',
+    ingested: 'Ingeriti', pushedTotal: 'Push totali', droppedAgency: 'Scartati (agenzia)',
+    searches: 'Ricerche', pagesOk: 'Pagine OK', pagesFailed: 'Pagine KO'
+};
+var ADV = {
+    'private': { label: 'Privato',      cls: 'adv-private' },
+    'unknown': { label: 'Da verificare', cls: 'adv-unknown' },
+    'agency':  { label: 'Agenzia',      cls: 'adv-agency' }
+};
+var OUTREACH = {
+    da_contattare:  { label: 'Da contattare',  cls: 'st-gray' },
+    contattato:     { label: 'Contattato',     cls: 'st-blue' },
+    risposto:       { label: 'Risposto',       cls: 'st-gold' },
+    visita_fissata: { label: 'Visita fissata', cls: 'st-green' },
+    chiuso:         { label: 'Chiuso',         cls: 'st-green' },
+    scartato:       { label: 'Scartato',       cls: 'st-red' }
+};
+// stati che implicano un primo contatto avvenuto (per contactedAt)
+var CONTACT_STATUSES = ['contattato', 'risposto', 'visita_fissata', 'chiuso'];
+var STAGES = {
+    lead:              { label: 'Lead',         cls: 'st-gray' },
+    payment_confirmed: { label: 'Pagamento OK', cls: 'st-blue' },
+    searching:         { label: 'In ricerca',   cls: 'st-gold' },
+    options:           { label: 'Opzioni',      cls: 'st-blue' },
+    viewing:           { label: 'Visite',       cls: 'st-green' },
+    closing:           { label: 'Chiusura',     cls: 'st-green' },
+    placed:            { label: 'Sistemato',    cls: 'st-gray' }
+};
+var ACTIVE_STAGES = ['payment_confirmed', 'searching', 'options', 'viewing', 'closing'];
+var PORTAL_NAMES = { immobiliare: 'Immobiliare.it', idealista: 'Idealista', subito: 'Subito.it', whatsapp: 'WhatsApp' };
+
+/* ────────────────────────── State ────────────────────────── */
+var state = {
+    health: {},               // source → doc
+    properties: [],
+    clients: [],
+    clientsById: {},
+    searches: [],
+    loaded: { health: false, props: false, clients: false, searches: false },
+    filters: { q: '', source: '', advertiser: '', onlyMatch: false, showAgency: false },
+    openHealth: null,
+    expandedBelow: {},        // propId → true
+    expandedOutreach: {},     // propId → true
+    outreachDraft: {},        // propId → {status, note}
+    editSearch: null,         // search id in edit mode
+    editSearchVal: null,
+    knownIds: null,           // Set di id già visti (per rilevare nuovi arrivi realtime)
+    newIds: null,             // Set di id appena arrivati (animazione is-new)
+    live: { props: false, clients: false, searches: false }
+};
+
+/* ─────────────────────────── API ─────────────────────────── */
+function apiPost(path, body) {
+    return firebase.auth().currentUser.getIdToken().then(function (token) {
+        return fetch(path, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            body: JSON.stringify(body || {})
+        });
+    }).then(function (res) {
+        return res.json().catch(function () { return {}; }).then(function (data) {
+            if (!res.ok || data.ok === false) {
+                throw new Error(data.error || data.message || ('HTTP ' + res.status));
+            }
+            return data;
+        });
+    });
+}
+
+/* ────────────────────── Render: health ───────────────────── */
+function healthStatus(key, freshMin) {
+    var h = state.health[key];
+    if (!h) return 'na';
+    if (h.ok === false) return 'err';
+    var d = toDate(h.lastRunAt);
+    if (!d) return 'stale';
+    return ((Date.now() - d.getTime()) / 60000) <= freshMin ? 'ok' : 'stale';
+}
+
+function renderHealth() {
+    var chips = SOURCES.map(function (s) {
+        var h = state.health[s.key];
+        var st = healthStatus(s.key, s.freshMin);
+        var t = h && h.lastRunAt ? relTime(h.lastRunAt) : 'mai';
+        return '<button class="hchip' + (state.openHealth === s.key ? ' open' : '') + '" data-hsource="' + s.key + '">' +
+            '<span class="hdot ' + st + '"></span>' +
+            '<span class="hlabel">' + s.icon + ' ' + s.label + '</span>' +
+            '<span class="htime">' + esc(t) + '</span></button>';
+    }).join('');
+    $('health-chips').innerHTML = chips;
+
+    var wrap = $('health-pop-wrap');
+    if (!state.openHealth) { wrap.innerHTML = ''; return; }
+    var src = null;
+    for (var i = 0; i < SOURCES.length; i++) if (SOURCES[i].key === state.openHealth) src = SOURCES[i];
+    var h = state.health[state.openHealth];
+    if (!h) {
+        wrap.innerHTML = '<div class="hpop"><div class="hpop-title">' + esc(src.label) + '</div>' +
+            '<div style="color:var(--text-muted);font-size:12px">Nessun dato: questa fonte non è ancora mai stata eseguita.</div></div>';
+        return;
+    }
+    var rows = [
+        '<div class="hpop-kv"><span>Stato</span><b>' + (h.ok === false ? '⛔ Errore' : '✓ OK') + '</b></div>',
+        '<div class="hpop-kv"><span>Ultimo run</span><b>' + esc(relTime(h.lastRunAt)) + '</b></div>',
+        '<div class="hpop-kv"><span>Ultimo OK</span><b>' + esc(relTime(h.lastOkAt)) + '</b></div>',
+        '<div class="hpop-kv"><span>Errori consecutivi</span><b>' + esc(h.consecutiveErrors || 0) + '</b></div>'
+    ];
+    var stats = h.stats || {};
+    Object.keys(stats).forEach(function (k) {
+        rows.push('<div class="hpop-kv"><span>' + esc(STAT_LABELS[k] || k) + '</span><b>' + esc(stats[k]) + '</b></div>');
+    });
+    var errHtml = h.lastError ? '<div class="hpop-err">⚠ ' + esc(h.lastError) + '</div>' : '';
+    wrap.innerHTML = '<div class="hpop"><div class="hpop-title">' + esc(src.icon + ' ' + src.label) + '</div>' +
+        '<div class="hpop-grid">' + rows.join('') + '</div>' + errHtml + '</div>';
+}
+
+/* ─────────────────────── Render: feed ────────────────────── */
+function scoreClass(s) {
+    var n = Number(s) || 0;
+    return n >= 80 ? 'mc-green' : n >= 60 ? 'mc-gold' : 'mc-dim';
+}
+
+function visibleProps() {
+    var f = state.filters;
+    var q = f.q.trim().toLowerCase();
+    return state.properties.filter(function (p) {
+        var adv = (p.advertiser === 'private' || p.advertiser === 'agency') ? p.advertiser : 'unknown';
+        if (f.advertiser) { if (adv !== f.advertiser) return false; }
+        else if (!f.showAgency && adv === 'agency') return false;
+        if (f.source && (p.source || '') !== f.source) return false;
+        var ms = p.matchSummary || {};
+        if (f.onlyMatch && !(Array.isArray(ms.pushedTo) && ms.pushedTo.length)) return false;
+        if (q) {
+            var hay = [p.title, p.address, p.zone, p.description].join(' ').toLowerCase();
+            if (hay.indexOf(q) === -1) return false;
+        }
+        return true;
+    });
+}
+
+function feedCard(p) {
+    var advKey = (p.advertiser === 'private' || p.advertiser === 'agency') ? p.advertiser : 'unknown';
+    var adv = ADV[advKey];
+    var img = safeUrl(Array.isArray(p.images) && p.images.length ? p.images[0] : '');
+    var url = safeUrl(p.sourceUrl);
+    var ms = p.matchSummary || {};
+    var pushed = Array.isArray(ms.pushedTo) ? ms.pushedTo : [];
+    var had = Array.isArray(ms.alreadyHad) ? ms.alreadyHad : [];
+    var below = Array.isArray(ms.belowThreshold) ? ms.belowThreshold : [];
+    var o = p.outreach || null;
+    var oInfo = o && OUTREACH[o.status];
+    var draft = state.outreachDraft[p.id] || {};
+    var oStatus = draft.status || (o && o.status) || 'da_contattare';
+    var oNote = draft.note != null ? draft.note : ((o && o.note) || '');
+    var belowOpen = !!state.expandedBelow[p.id];
+    var outreachOpen = !!state.expandedOutreach[p.id];
+
+    var media = img
+        ? '<img loading="lazy" src="' + esc(img) + '" alt="" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'"><div class="fc-ph" style="display:none">🏠</div>'
+        : '<div class="fc-ph">🏠</div>';
+
+    var title = p.title || p.address || 'Annuncio senza titolo';
+    var addrParts = [];
+    if (p.address && p.address !== title) addrParts.push(p.address);
+    if (p.zone) addrParts.push(p.zone);
+
+    var meta = [];
+    if (p.bedrooms) meta.push('🛏 ' + esc(p.bedrooms) + ' cam');
+    if (p.sqm) meta.push('📐 ' + esc(p.sqm) + ' m²');
+    if (p.furnished) meta.push('🛋 Arredato');
+    meta.push('🕐 ' + esc(relTime(p.lastSeenAt)));
+
+    var chips = pushed.map(function (m) {
+        return '<span class="mchip ' + scoreClass(m.score) + '">' + esc(m.name) + ' ' + esc(m.score) + '</span>';
+    }).concat(had.map(function (m) {
+        return '<span class="mchip mc-had" title="Già nel deck del cliente">' + esc(m.name) + ' ' + esc(m.score) + ' · già</span>';
+    }));
+    if (below.length) {
+        chips.push('<button class="below-toggle" data-action="toggle-below">' + (belowOpen ? '▴' : '▾') + ' Sotto soglia (' + below.length + ')</button>');
+    }
+    var belowHtml = below.length
+        ? '<div class="fc-below"' + (belowOpen ? '' : ' hidden') + '>' + below.map(function (b) {
+            var reason = Array.isArray(b.reasons) && b.reasons.length ? b.reasons[0] : '';
+            return '<div class="below-row"><span class="bname">' + esc(b.name) + '</span>' +
+                '<span class="' + scoreClass(b.score).replace('mc-', 'sc-') + '">' + esc(b.score) + '</span>' +
+                '<span class="breason">' + esc(reason) + '</span></div>';
+        }).join('') + '</div>'
+        : '';
+
+    var waBtns = pushed.map(function (m) {
+        var first = String(m.name || '').trim().split(/\s+/)[0] || 'Cliente';
+        return '<button class="wa-btn" data-action="wa-share" data-client="' + esc(m.clientId) + '" data-name="' + esc(m.name || first) + '">💬 ' + esc(first) + '</button>';
+    }).join('');
+
+    var statusOpts = Object.keys(OUTREACH).map(function (k) {
+        return '<option value="' + k + '"' + (k === oStatus ? ' selected' : '') + '>' + OUTREACH[k].label + '</option>';
+    }).join('');
+
+    return '<article class="fcard' + (state.newIds && state.newIds.has(p.id) ? ' is-new' : '') + '" data-id="' + esc(p.id) + '">' +
+        '<div class="fc-media">' + media +
+            '<div class="badge-row">' +
+                '<span class="pbadge">' + esc(p.source || '?') + '</span>' +
+                '<span class="pbadge ' + adv.cls + '">' + adv.label + '</span>' +
+            '</div>' +
+            (oInfo ? '<span class="opill ' + oInfo.cls + '">' + oInfo.label + '</span>' : '') +
+        '</div>' +
+        '<div class="fc-body">' +
+            '<div class="fc-price">€ ' + fmtPrice(p.price) + ' <span>/mese</span></div>' +
+            '<div class="fc-title">' + esc(title) + '</div>' +
+            (addrParts.length ? '<div class="fc-addr">📍 ' + esc(addrParts.join(' · ')) + '</div>' : '') +
+            '<div class="fc-meta">' + meta.join(' · ') + '</div>' +
+            (chips.length ? '<div class="fc-matches">' + chips.join('') + '</div>' : '') +
+            belowHtml +
+            (waBtns ? '<div class="fc-wa">' + waBtns + '</div>' : '') +
+            '<div class="fc-actions">' +
+                (url ? '<a class="abtn" href="' + esc(url) + '" target="_blank" rel="noopener">Apri annuncio ↗</a>' : '') +
+                '<button class="abtn" data-action="toggle-outreach">📞 Outreach ' + (outreachOpen ? '▴' : '▾') + '</button>' +
+                '<button class="abtn" data-action="copy-owner">📋 Copia messaggio proprietario</button>' +
+            '</div>' +
+            '<div class="fc-outreach"' + (outreachOpen ? '' : ' hidden') + '>' +
+                '<div class="o-row">' +
+                    '<select data-field="o-status">' + statusOpts + '</select>' +
+                    '<button class="o-save" data-action="save-outreach">Salva</button>' +
+                '</div>' +
+                '<input type="text" data-field="o-note" placeholder="Nota (es. risposto su WhatsApp…)" value="' + esc(oNote) + '">' +
+            '</div>' +
+        '</div></article>';
+}
+
+function renderFeed() {
+    var list = $('feed-list');
+    if (!state.loaded.props) {
+        list.innerHTML = '<div class="empty"><div class="empty-icon">📡</div><div class="empty-title">Caricamento feed…</div></div>';
+        $('feed-count').textContent = '';
+        return;
+    }
+    if (!state.properties.length) {
+        list.innerHTML = '<div class="empty"><div class="empty-icon">📡</div>' +
+            '<div class="empty-title">Nessun annuncio nel radar</div>' +
+            '<p>I cron riempiranno il feed automaticamente man mano che Homie scansiona email e portali. Puoi anche lanciare una scansione adesso.</p>' +
+            '<div class="ebtns"><button class="btn-ghost" data-action="scan-inbox">📨 Scan inbox</button>' +
+            '<button class="btn-ghost" data-action="scan-market">🌐 Scan mercato</button></div></div>';
+        $('feed-count').textContent = '0 annunci';
+        return;
+    }
+    var props = visibleProps();
+    var hiddenAgency = 0;
+    if (!state.filters.advertiser && !state.filters.showAgency) {
+        hiddenAgency = state.properties.filter(function (p) { return p.advertiser === 'agency'; }).length;
+    }
+    $('feed-count').textContent = props.length + ' annunci' + (hiddenAgency ? ' · ' + hiddenAgency + ' agenzie nascoste' : '');
+    if (!props.length) {
+        list.innerHTML = '<div class="empty"><div class="empty-icon">🔍</div>' +
+            '<div class="empty-title">Nessun risultato</div>' +
+            '<p>Nessun annuncio corrisponde ai filtri attivi.' + (hiddenAgency ? ' Ci sono ' + hiddenAgency + ' annunci di agenzia nascosti: attiva "Mostra agenzie" per vederli.' : '') + '</p></div>';
+        return;
+    }
+    list.innerHTML = props.map(feedCard).join('');
+}
+
+/* ────────────────────── Render: clients ──────────────────── */
+function fmtBudget(c) {
+    var b = c.budget;
+    if (typeof b === 'number' && b > 0) {
+        if (typeof c.minBudget === 'number' && c.minBudget > 0) return '€' + fmtN.format(c.minBudget) + '–€' + fmtN.format(b);
+        return '≤ €' + fmtN.format(b);
+    }
+    if (typeof b === 'string' && b.trim()) return b.trim();
+    return null;
+}
+
+function isActiveClient(c) {
+    return ACTIVE_STAGES.indexOf(c.stage) !== -1 || ACTIVE_STAGES.indexOf(c.portalStage) !== -1;
+}
+
+function clientCard(c) {
+    var stKey = STAGES[c.stage] ? c.stage : c.portalStage;
+    var stage = STAGES[stKey] || { label: c.stage || '—', cls: 'st-gray' };
+    var budget = fmtBudget(c);
+    var zone = String(c.zone || '').trim() || String(c.preferred_areas || '').trim();
+    var crit = [];
+    if (budget) crit.push('💰 ' + esc(budget));
+    if (zone) crit.push('📍 ' + esc(zone));
+    if (c.bedrooms) crit.push('🛏 ' + esc(c.bedrooms) + ' cam');
+    if (c.moveIn) crit.push('📅 ' + esc(c.moveIn));
+
+    var weak = [];
+    if (!budget) weak.push('budget mancante');
+    if (!zone) weak.push('zona/aree preferite mancanti');
+
+    var pp = Array.isArray(c.portalProperties) ? c.portalProperties : [];
+    var liked = 0, rejected = 0, news = 0;
+    pp.forEach(function (x) {
+        if (x.clientLiked) liked++;
+        if (x.clientRejected) rejected++;
+        if (x.isNew) news++;
+    });
+    var lastAct = null;
+    (Array.isArray(c.portalActivity) ? c.portalActivity : []).forEach(function (a) {
+        var d = toDate(a.timestamp);
+        if (d && (!lastAct || d > lastAct)) lastAct = d;
+    });
+
+    return '<div class="ccard" data-id="' + esc(c.id) + '">' +
+        '<div class="cc-top">' +
+            '<span class="cc-name">' + esc(c.name || 'Senza nome') + '</span>' +
+            (weak.length ? '<span class="warn" data-action="show-warn" data-warn="' + esc('Criteri deboli: ' + weak.join(', ')) + '" title="' + esc('Criteri deboli: ' + weak.join(', ')) + '">⚠️</span>' : '') +
+            '<span class="spill ' + stage.cls + '">' + esc(stage.label) + '</span>' +
+        '</div>' +
+        (crit.length ? '<div class="cc-crit">' + crit.join(' · ') + '</div>' : '<div class="cc-crit" style="color:var(--text-muted)">Nessun criterio impostato</div>') +
+        '<div class="cc-stats">' +
+            '<span><b>' + pp.length + '</b> proposte</span>' +
+            '<span>❤️ <b>' + liked + '</b></span>' +
+            '<span>✗ <b>' + rejected + '</b></span>' +
+            '<span>🆕 <b>' + news + '</b></span>' +
+        '</div>' +
+        '<div class="cc-act">Ultima attività: ' + (lastAct ? esc(relTime(lastAct)) : 'nessuna') + '</div>' +
+    '</div>';
+}
+
+function renderClients() {
+    var list = $('clients-list');
+    if (!state.loaded.clients) {
+        list.innerHTML = '<div class="empty"><div class="empty-icon">👥</div><div class="empty-title">Caricamento clienti…</div></div>';
+        $('clients-count').textContent = '';
+        $('clients-inactive').textContent = '';
+        return;
+    }
+    var active = state.clients.filter(isActiveClient);
+    var inactive = state.clients.length - active.length;
+    $('clients-count').textContent = active.length + ' attivi';
+    if (!active.length) {
+        list.innerHTML = '<div class="empty"><div class="empty-icon">👥</div>' +
+            '<div class="empty-title">Nessun cliente attivo</div>' +
+            '<p>I clienti PFS con stage attivo (pagamento confermato → chiusura) compaiono qui con criteri e statistiche del deck.</p></div>';
+    } else {
+        active.sort(function (a, b) { return String(a.name || '').localeCompare(String(b.name || '')); });
+        list.innerHTML = active.map(clientCard).join('');
+    }
+    $('clients-inactive').textContent = inactive > 0 ? '+ ' + inactive + ' clienti non attivi' : '';
+}
+
+/* ───────────────────── Render: searches ──────────────────── */
+function searchRow(s) {
+    var effUrl = safeUrl(s.urlOverride || s.searchUrl);
+    var dotCls = s.lastScanOk === true ? 'dot-ok' : (s.lastScanOk === false ? 'dot-err' : 'dot-na');
+    var editing = state.editSearch === s.id;
+    var editVal = editing && state.editSearchVal != null ? state.editSearchVal : (s.urlOverride || s.searchUrl || '');
+    var portalCls = s.portal === 'immobiliare' ? 'p-immobiliare' : (s.portal === 'idealista' ? 'p-idealista' : '');
+
+    return '<div class="srow" data-id="' + esc(s.id) + '">' +
+        '<div class="srow-top">' +
+            '<span class="pbadge ' + portalCls + '">' + esc(s.portal || '?') + '</span>' +
+            '<span class="srow-label">' + esc(s.label || s.name || 'Ricerca') + (s.urlOverride ? '<span class="ovr">override</span>' : '') + '</span>' +
+            '<label class="switch"><input type="checkbox" data-action="toggle-enabled"' + (s.enabled ? ' checked' : '') + '><span class="sl"></span></label>' +
+        '</div>' +
+        '<div class="srow-meta">' +
+            '<span>👤 ' + esc(s.clientName || '—') + '</span>' +
+            '<span><span class="sdot ' + dotCls + '"></span>' + (s.lastScanAt ? esc(relTime(s.lastScanAt)) : 'mai scansionata') + '</span>' +
+            '<span>Trovati: ' + esc(s.lastFound != null ? s.lastFound : '—') + '</span>' +
+            '<span>Nuovi: ' + esc(s.lastNew != null ? s.lastNew : '—') + '</span>' +
+        '</div>' +
+        '<div class="srow-actions">' +
+            (effUrl ? '<a class="abtn" href="' + esc(effUrl) + '" target="_blank" rel="noopener">Apri ↗</a>' : '') +
+            '<button class="abtn" data-action="edit-url">✏️ URL</button>' +
+        '</div>' +
+        (editing
+            ? '<div class="srow-edit">' +
+                '<input type="url" data-field="url-edit" value="' + esc(editVal) + '" placeholder="' + esc(s.searchUrl || 'https://…') + '">' +
+                '<button class="abtn" data-action="save-url">Salva</button>' +
+                '<button class="abtn" data-action="cancel-url">Annulla</button>' +
+              '</div>'
+            : '') +
+    '</div>';
+}
+
+function renderSearches() {
+    var list = $('searches-list');
+    if (!state.loaded.searches) {
+        list.innerHTML = '<div class="empty"><div class="empty-icon">🔍</div><div class="empty-title">Caricamento ricerche…</div></div>';
+        $('searches-count').textContent = '';
+        return;
+    }
+    $('searches-count').textContent = state.searches.length + ' ricerche';
+    if (!state.searches.length) {
+        list.innerHTML = '<div class="empty"><div class="empty-icon">🔍</div>' +
+            '<div class="empty-title">Nessuna ricerca automatica</div>' +
+            '<p>Le ricerche vengono generate dai criteri dei clienti attivi. Premi 🔄 Sync ricerche per crearle.</p>' +
+            '<div class="ebtns"><button class="btn-ghost" data-action="sync-searches">🔄 Sync ricerche</button></div></div>';
+        return;
+    }
+    list.innerHTML = state.searches.map(searchRow).join('');
+}
+
+/* ──────────────────── Render: da verificare ──────────────── */
+function attentionItems() {
+    var out = [];
+    SOURCES.forEach(function (s) {
+        var h = state.health[s.key];
+        var arr = h && Array.isArray(h.needsAttention) ? h.needsAttention : [];
+        arr.forEach(function (it) {
+            out.push({ sourceUrl: it.sourceUrl, source: it.source || s.key, reason: it.reason, subject: it.subject, at: it.at });
+        });
+    });
+    out.sort(function (a, b) {
+        return (toDate(b.at) ? toDate(b.at).getTime() : 0) - (toDate(a.at) ? toDate(a.at).getTime() : 0);
+    });
+    return out;
+}
+
+function renderAttention() {
+    var list = $('attention-list');
+    var items = attentionItems();
+    $('attention-count').textContent = items.length ? items.length + ' elementi' : '';
+    if (!items.length) {
+        list.innerHTML = '<div class="empty"><div class="empty-icon">✓</div>' +
+            '<div class="empty-title">Niente da verificare</div>' +
+            '<p>Gli annunci che Homie non riesce a classificare con certezza compariranno qui.</p></div>';
+        return;
+    }
+    list.innerHTML = items.map(function (it) {
+        var u = safeUrl(it.sourceUrl);
+        return '<div class="att-row">' +
+            '<div class="att-main">' +
+                '<span class="pbadge">' + esc(it.source || '?') + '</span>' +
+                '<span class="att-reason">' + esc(it.reason || 'Da verificare') + '</span>' +
+                (it.subject ? '<span class="att-sub">✉ ' + esc(it.subject) + '</span>' : '') +
+            '</div>' +
+            '<div class="att-meta"><span>🕐 ' + esc(relTime(it.at)) + '</span>' +
+                (u ? '<a href="' + esc(u) + '" target="_blank" rel="noopener">Apri ↗</a>' : '') +
+            '</div>' +
+            '<div class="att-actions"><button class="abtn" data-action="ingest" data-url="' + esc(it.sourceUrl || '') + '" data-source="' + esc(it.source || 'manual') + '">➕ Ingerisci</button></div>' +
+        '</div>';
+    }).join('');
+}
+
+/* ─────────────────── Briefing del giorno ─────────────────── */
+function todayStart() {
+    var d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d.getTime();
+}
+
+function updateBrief() {
+    var t0 = todayStart();
+    var newToday = 0, matchToday = 0;
+    state.properties.forEach(function (p) {
+        var d = toDate(p.scrapedAt) || toDate(p.lastSeenAt);
+        if (!d || d.getTime() < t0) return;
+        newToday++;
+        var ms = p.matchSummary || {};
+        if (Array.isArray(ms.pushedTo) && ms.pushedTo.length) matchToday++;
+    });
+    var likes = 0;
+    state.clients.forEach(function (c) {
+        (Array.isArray(c.portalActivity) ? c.portalActivity : []).forEach(function (a) {
+            if (!a || a.type !== 'like') return;
+            var d = toDate(a.timestamp);
+            if (d && d.getTime() >= t0) likes++;
+        });
+    });
+    var q = triageQueue().length;
+    countUp($('bs-new'), newToday);
+    countUp($('bs-match'), matchToday);
+    countUp($('bs-triage'), q);
+    countUp($('bs-likes'), likes);
+    updateTriageBadge(q);
+}
+
+var briefBusy = false;
+var briefPlain = '';
+
+function runBrief() {
+    if (briefBusy) return;
+    briefBusy = true;
+    if (triage.open) closeTriage();
+    var btn = $('btn-brief');
+    btn.disabled = true;
+    btn.classList.add('pending');
+    btn.textContent = '🧠 Analizzo…';
+    apiPost('/api/pfs/brief', {}).then(function (r) {
+        var raw = String(r.brief || '').trim();
+        if (!raw) { BoomPortal.toast('Brief vuoto: riprova tra poco', { type: 'warning' }); return; }
+        briefPlain = raw.replace(/<\/?[bi]>/g, '');
+        // sicurezza: escape totale, poi ri-abilita SOLO le coppie <b></b> e <i></i>
+        var html = esc(raw)
+            .replace(/&lt;(b|i)&gt;([\s\S]*?)&lt;\/\1&gt;/g, '<$1>$2</$1>')
+            .replace(/\n/g, '<br>');
+        $('brief-body').innerHTML = html;
+        $('brief-panel').hidden = false;
+        $('brief-panel').scrollIntoView({ behavior: REDUCED_MOTION ? 'auto' : 'smooth', block: 'nearest' });
+    }).catch(function (err) {
+        BoomPortal.toast('Errore brief: ' + (err && err.message ? err.message : err), { type: 'error' });
+    }).then(function () {
+        briefBusy = false;
+        btn.disabled = false;
+        btn.classList.remove('pending');
+        btn.textContent = '🧠 Brief AI';
+    });
+}
+
+/* ──────────────────── Modalità Triage ────────────────────── */
+var triage = { open: false, ids: [], idx: 0, total: 0, anim: false, dragging: false };
+
+// coda: match pushati + non agenzia + outreach assente o "da_contattare"
+function triageQueue() {
+    return state.properties.filter(function (p) {
+        var ms = p.matchSummary || {};
+        if (!(Array.isArray(ms.pushedTo) && ms.pushedTo.length)) return false;
+        if (p.advertiser === 'agency') return false;
+        var o = p.outreach;
+        return !o || o.status === 'da_contattare';
+    }); // state.properties è già ordinato lastSeenAt desc
+}
+
+function updateTriageBadge(q) {
+    if (q == null) q = triageQueue().length;
+    var btn = $('btn-triage'), badge = $('triage-badge');
+    if (!btn || !badge) return;
+    badge.textContent = String(q);
+    badge.hidden = q === 0;
+    btn.disabled = q === 0 && !triage.open;
+    btn.title = q === 0 ? 'Tutto gestito ✓' : q + ' da gestire';
+}
+
+function openTriage() {
+    var q = triageQueue();
+    if (!q.length) { BoomPortal.toast('Tutto gestito ✓', { type: 'info' }); return; }
+    triage.open = true;
+    triage.ids = q.map(function (p) { return p.id; });
+    triage.idx = 0;
+    triage.total = triage.ids.length;
+    triage.anim = false;
+    triage.dragging = false;
+    document.body.classList.add('triage-lock');
+    $('triage-overlay').hidden = false;
+    renderTriage();
+    updateTriageBadge();
+}
+
+function closeTriage() {
+    triage.open = false;
+    $('triage-overlay').hidden = true;
+    document.body.classList.remove('triage-lock');
+    updateTriageBadge();
+}
+
+// prop corrente, saltando id spariti dallo state
+function triageCurrent() {
+    while (triage.idx < triage.ids.length) {
+        var p = findProp(triage.ids[triage.idx]);
+        if (p) return p;
+        triage.idx++;
+    }
+    return null;
+}
+
+function triageCardHtml(p) {
+    var advKey = (p.advertiser === 'private' || p.advertiser === 'agency') ? p.advertiser : 'unknown';
+    var adv = ADV[advKey];
+    var img = safeUrl(Array.isArray(p.images) && p.images.length ? p.images[0] : '');
+    var url = safeUrl(p.sourceUrl);
+    var ms = p.matchSummary || {};
+    var pushed = Array.isArray(ms.pushedTo) ? ms.pushedTo : [];
+    var media = img
+        ? '<img src="' + esc(img) + '" alt="" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'"><div class="tg-ph" style="display:none">🏠</div>'
+        : '<div class="tg-ph">🏠</div>';
+    var title = p.title || p.address || 'Annuncio senza titolo';
+    var addrParts = [];
+    if (p.address && p.address !== title) addrParts.push(p.address);
+    if (p.zone) addrParts.push(p.zone);
+    var meta = [];
+    if (p.bedrooms) meta.push('🛏 ' + esc(p.bedrooms) + ' cam');
+    if (p.sqm) meta.push('📐 ' + esc(p.sqm) + ' m²');
+    if (p.furnished) meta.push('🛋 Arredato');
+    meta.push('🕐 ' + esc(relTime(p.lastSeenAt)));
+    var chips = pushed.map(function (m) {
+        return '<span class="mchip ' + scoreClass(m.score) + '">' + esc(m.name) + ' ' + esc(m.score) + '</span>';
+    }).join('');
+    var reasons = pushed.map(function (m) {
+        var rs = Array.isArray(m.reasons) && m.reasons.length ? m.reasons.join(' · ') : '';
+        return rs ? '<div class="tg-reason"><b>' + esc(m.name) + '</b> — ' + esc(rs) + '</div>' : '';
+    }).join('');
+    return '<div class="tg-card" data-id="' + esc(p.id) + '">' +
+        '<div class="tg-media">' + media +
+            '<div class="badge-row">' +
+                '<span class="pbadge">' + esc(p.source || '?') + '</span>' +
+                '<span class="pbadge ' + adv.cls + '">' + adv.label + '</span>' +
+            '</div>' +
+        '</div>' +
+        '<div class="tg-body">' +
+            '<div class="tg-price">€ ' + fmtPrice(p.price) + ' <span>/mese</span></div>' +
+            '<div class="tg-name">' + esc(title) + '</div>' +
+            (addrParts.length ? '<div class="tg-addr">📍 ' + esc(addrParts.join(' · ')) + '</div>' : '') +
+            '<div class="tg-meta">' + meta.join(' · ') + '</div>' +
+            (chips ? '<div class="fc-matches">' + chips + '</div>' : '') +
+            (reasons ? '<div class="tg-reasons">' + reasons + '</div>' : '') +
+            (url ? '<a class="tg-link" href="' + esc(url) + '" target="_blank" rel="noopener">Apri annuncio ↗</a>' : '') +
+        '</div></div>';
+}
+
+function triageFootHtml(p) {
+    var ms = p.matchSummary || {};
+    var pushed = Array.isArray(ms.pushedTo) ? ms.pushedTo : [];
+    var wa = pushed.slice(0, 3).map(function (m, i) {
+        var first = String(m.name || '').trim().split(/\s+/)[0] || 'Cliente';
+        return '<button class="wa-btn" data-taction="wa" data-idx="' + i + '">💬 → ' + esc(first) + '</button>';
+    }).join('');
+    return '<div class="tg-wa-row">' + wa +
+            '<button class="abtn" data-taction="owner">📋 Proprietario</button></div>' +
+        '<div class="tg-btn-row">' +
+            '<button class="tg-skip" data-taction="skip">↷ Dopo</button>' +
+            '<button class="tg-discard" data-taction="discard">✕ Scarta</button>' +
+            '<button class="tg-done" data-taction="done">✓ Gestito</button>' +
+        '</div>';
+}
+
+function renderTriage() {
+    var p = triageCurrent();
+    if (!p) {
+        $('tg-count').textContent = triage.total + ' / ' + triage.total;
+        $('tg-fill').style.width = '100%';
+        $('tg-stage').innerHTML = '<div class="tg-zero"><div class="tg-zero-icon">🏆</div>' +
+            '<div class="tg-zero-title">Inbox zero.</div>' +
+            '<div class="tg-zero-sub">Tutto gestito. Ottimo lavoro.</div></div>';
+        $('tg-foot').innerHTML = '';
+        setTimeout(function () { if (triage.open) closeTriage(); }, 1500);
+        return;
+    }
+    $('tg-count').textContent = Math.min(triage.idx + 1, triage.total) + ' / ' + triage.total;
+    $('tg-fill').style.width = ((triage.idx / triage.total) * 100) + '%';
+    $('tg-stage').innerHTML = triageCardHtml(p);
+    $('tg-foot').innerHTML = triageFootHtml(p);
+}
+
+// stessa shape outreach di saveOutreach (status, note, updatedAt, by, contactedAt-once)
+function triageWrite(p, status) {
+    var existing = p.outreach || {};
+    var outreach = { status: status, note: existing.note || '', updatedAt: new Date().toISOString(), by: 'admin' };
+    if (existing.contactedAt) outreach.contactedAt = existing.contactedAt;
+    else if (CONTACT_STATUSES.indexOf(status) !== -1) outreach.contactedAt = new Date().toISOString();
+    db.collection('pfsProperties').doc(p.id).set({ outreach: outreach }, { merge: true }).catch(function (err) {
+        BoomPortal.toast('Errore outreach: ' + (err && err.message ? err.message : err), { type: 'error' });
+    });
+}
+
+// kind: 'done' | 'discard' | 'skip' — fromSwipe: il fling è già animato inline
+function triageAct(kind, fromSwipe) {
+    if (!triage.open || triage.anim) return;
+    var p = triageCurrent();
+    if (!p) return;
+    buzz();
+    if (kind === 'done') triageWrite(p, 'contattato');
+    else if (kind === 'discard') triageWrite(p, 'scartato');
+    triage.anim = true;
+    var card = $('tg-stage').querySelector('.tg-card');
+    if (card && !REDUCED_MOTION && !fromSwipe) {
+        card.classList.remove('dragging');
+        card.classList.add(kind === 'done' ? 'fly-right' : kind === 'discard' ? 'fly-left' : 'fly-down');
+    }
+    setTimeout(function () {
+        triage.anim = false;
+        triage.idx++;
+        if (triage.open) renderTriage();
+    }, REDUCED_MOTION ? 0 : 240);
+}
+
+function triageWa(p, i) {
+    var pushed = (p.matchSummary && p.matchSummary.pushedTo) || [];
+    var m = pushed[i];
+    if (!m) return;
+    buzz();
+    var client = state.clientsById[m.clientId];
+    var msg = encodeURIComponent(waMessage((client && client.name) || m.name, p));
+    var phone = waPhone(client && client.phone);
+    var wa = phone ? 'https://wa.me/' + phone + '?text=' + msg : 'https://wa.me/?text=' + msg;
+    if (!phone) BoomPortal.toast('Telefono cliente mancante: scegli il contatto in WhatsApp', { type: 'info' });
+    window.open(wa, '_blank', 'noopener');
+}
+
+// swipe deck su mobile: destra = gestito, sinistra = scarta
+function bindTriageTouch() {
+    var stage = $('tg-stage');
+    var startX = 0, startY = 0, dx = 0, horiz = null, card = null;
+    stage.addEventListener('touchstart', function (e) {
+        if (!triage.open || triage.anim || REDUCED_MOTION) return;
+        card = stage.querySelector('.tg-card');
+        if (!card) return;
+        var t = e.touches[0];
+        startX = t.clientX; startY = t.clientY;
+        dx = 0; horiz = null;
+        triage.dragging = true;
+        card.classList.add('dragging');
+    }, { passive: true });
+    stage.addEventListener('touchmove', function (e) {
+        if (!triage.dragging || !card) return;
+        var t = e.touches[0];
+        dx = t.clientX - startX;
+        var dy = t.clientY - startY;
+        if (horiz === null && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) horiz = Math.abs(dx) > Math.abs(dy);
+        if (!horiz) return;
+        card.style.transform = 'translateX(' + dx + 'px) rotate(' + (dx * 0.04) + 'deg)';
+        card.classList.toggle('lean-right', dx > 60);
+        card.classList.toggle('lean-left', dx < -60);
+    }, { passive: true });
+    function endDrag() {
+        if (!triage.dragging || !card) { triage.dragging = false; return; }
+        triage.dragging = false;
+        card.classList.remove('dragging');
+        if (horiz && Math.abs(dx) > 90) {
+            var dir = dx > 0 ? 1 : -1;
+            card.style.transition = 'transform .25s ease, opacity .25s ease';
+            card.style.transform = 'translateX(' + (dir * (window.innerWidth || 600)) + 'px) rotate(' + (dir * 10) + 'deg)';
+            card.style.opacity = '0';
+            triageAct(dir > 0 ? 'done' : 'discard', true);
+        } else {
+            card.style.transform = '';
+            card.classList.remove('lean-right', 'lean-left');
+        }
+        card = null;
+    }
+    stage.addEventListener('touchend', endDrag);
+    stage.addEventListener('touchcancel', endDrag);
+}
+
+/* ─────────────────── Command palette (⌘K) ────────────────── */
+var palette = { open: false, items: [], sel: 0 };
+var paletteRecent = []; // id azioni usate di recente (solo in memoria)
+
+function jumpSection(id) {
+    return function () {
+        if (triage.open) closeTriage();
+        var el = $(id);
+        if (el) el.scrollIntoView({ behavior: REDUCED_MOTION ? 'auto' : 'smooth', block: 'start' });
+    };
+}
+
+var PALETTE_ACTIONS = [
+    { id: 'act-inbox',     type: 'Azione',  label: '📨 Scan inbox',        kw: 'scansiona email alert', run: function () { runAction('inbox', $('btn-scan-inbox')); } },
+    { id: 'act-market',    type: 'Azione',  label: '🌐 Scan mercato',      kw: 'scansiona portali scraping', run: function () { runAction('market', $('btn-scan-market')); } },
+    { id: 'act-sync',      type: 'Azione',  label: '🔄 Sync ricerche',     kw: 'sincronizza search auto', run: function () { runAction('sync', $('btn-sync-searches')); } },
+    { id: 'act-brief',     type: 'Azione',  label: '🧠 Brief AI',          kw: 'briefing giorno punto situazione', run: function () { runBrief(); } },
+    { id: 'act-add',       type: 'Azione',  label: '➕ Aggiungi annuncio', kw: 'nuovo manuale ingest', run: function () { if (triage.open) closeTriage(); openModal(); } },
+    { id: 'act-triage',    type: 'Azione',  label: '⚡ Avvia triage',      kw: 'coda gestisci match', run: function () { openTriage(); } },
+    { id: 'go-feed',       type: 'Sezione', label: '📡 Vai a: Feed',          kw: 'radar annunci', run: jumpSection('sec-feed') },
+    { id: 'go-clients',    type: 'Sezione', label: '👥 Vai a: Clienti',       kw: 'pfs attivi', run: jumpSection('sec-clients') },
+    { id: 'go-searches',   type: 'Sezione', label: '🔍 Vai a: Ricerche',      kw: 'automatiche url override', run: jumpSection('sec-searches') },
+    { id: 'go-attention',  type: 'Sezione', label: '⚠️ Vai a: Da verificare', kw: 'attenzione errori', run: jumpSection('sec-attention') }
+];
+
+function jumpClient(id) {
+    if (triage.open) closeTriage();
+    var el = document.querySelector('#clients-list .ccard[data-id="' + cssEsc(id) + '"]');
+    if (!el) { BoomPortal.toast('Cliente non visibile (non attivo)', { type: 'info' }); return; }
+    el.scrollIntoView({ behavior: REDUCED_MOTION ? 'auto' : 'smooth', block: 'center' });
+    flashEl(el);
+}
+
+// porta la card nel feed: se è filtrata, azzera i filtri per mostrarla
+function revealProp(id) {
+    if (triage.open) closeTriage();
+    var sel = '#feed-list .fcard[data-id="' + cssEsc(id) + '"]';
+    var el = document.querySelector(sel);
+    if (!el) {
+        state.filters = { q: '', source: '', advertiser: '', onlyMatch: false, showAgency: true };
+        $('f-q').value = '';
+        $('f-source').value = '';
+        $('f-adv').value = '';
+        $('f-match').checked = false;
+        $('f-agency').checked = true;
+        renderFeed();
+        el = document.querySelector(sel);
+    }
+    if (!el) { BoomPortal.toast('Annuncio non più nel feed', { type: 'info' }); return; }
+    el.scrollIntoView({ behavior: REDUCED_MOTION ? 'auto' : 'smooth', block: 'center' });
+    flashEl(el);
+}
+
+function buildPaletteItems(q) {
+    var nq = norm(q);
+    var items = [];
+    PALETTE_ACTIONS.forEach(function (a) {
+        if (!nq || norm(a.label + ' ' + a.kw).indexOf(nq) !== -1) {
+            items.push({ type: a.type, label: a.label, actionId: a.id, run: a.run });
+        }
+    });
+    // le azioni usate di recente salgono in cima
+    items.sort(function (x, y) {
+        var rx = paletteRecent.indexOf(x.actionId); if (rx === -1) rx = 99;
+        var ry = paletteRecent.indexOf(y.actionId); if (ry === -1) ry = 99;
+        return rx - ry;
+    });
+    state.clients.filter(isActiveClient).forEach(function (c) {
+        var name = c.name || 'Senza nome';
+        if (!nq || norm(name).indexOf(nq) !== -1) {
+            items.push({ type: 'Cliente', label: '👤 ' + name, run: (function (id) { return function () { jumpClient(id); }; })(c.id) });
+        }
+    });
+    if (nq) {
+        state.properties.forEach(function (p) {
+            if (norm([p.title, p.address, p.zone].join(' ')).indexOf(nq) === -1) return;
+            var label = (p.title || p.address || 'Annuncio') + (p.zone ? ' · ' + p.zone : '');
+            items.push({ type: 'Annuncio', label: '🏠 ' + label, run: (function (id) { return function () { revealProp(id); }; })(p.id) });
+        });
+    }
+    return items.slice(0, 14);
+}
+
+function renderPalette() {
+    var list = $('palette-list');
+    if (!palette.items.length) {
+        list.innerHTML = '<div class="pal-empty">Nessun risultato</div>';
+        return;
+    }
+    list.innerHTML = palette.items.map(function (it, i) {
+        return '<button class="pal-item' + (i === palette.sel ? ' sel' : '') + '" data-pidx="' + i + '" role="option">' +
+            '<span class="pal-label">' + esc(it.label) + '</span>' +
+            '<span class="pal-type">' + esc(it.type) + '</span></button>';
+    }).join('');
+    var selEl = list.querySelector('.sel');
+    if (selEl && selEl.scrollIntoView) selEl.scrollIntoView({ block: 'nearest' });
+}
+
+function openPalette() {
+    palette.open = true;
+    palette.sel = 0;
+    $('palette-input').value = '';
+    palette.items = buildPaletteItems('');
+    $('palette-overlay').hidden = false;
+    renderPalette();
+    setTimeout(function () { $('palette-input').focus(); }, 30);
+}
+
+function closePalette() {
+    palette.open = false;
+    $('palette-overlay').hidden = true;
+}
+
+function paletteRun(i) {
+    var it = palette.items[i];
+    if (!it) return;
+    closePalette();
+    if (it.actionId) {
+        paletteRecent = [it.actionId].concat(paletteRecent.filter(function (x) { return x !== it.actionId; })).slice(0, 6);
+    }
+    try { it.run(); } catch (e) { console.error('[PFS palette]', e); }
+}
+
+/* ───────────────── LIVE indicator + new-card ─────────────── */
+function updateLive() {
+    var el = $('live-ind');
+    if (!el) return;
+    var ok = state.live.props && state.live.clients && state.live.searches;
+    el.classList.toggle('down', !ok);
+    el.title = ok ? 'Realtime attivo' : 'Connessione realtime…';
+}
+
+// rileva gli id genuinamente nuovi dopo il primo snapshot
+function trackNewProps(arr) {
+    if (state.knownIds) {
+        var fresh = [];
+        arr.forEach(function (p) { if (!state.knownIds.has(p.id)) fresh.push(p.id); });
+        if (fresh.length) {
+            if (!state.newIds) state.newIds = new Set();
+            fresh.forEach(function (id) { state.newIds.add(id); });
+            setTimeout(function () {
+                if (state.newIds) fresh.forEach(function (id) { state.newIds.delete(id); });
+            }, 2400);
+        }
+    }
+    state.knownIds = new Set(arr.map(function (p) { return p.id; }));
+}
+
+/* ────────────────────── Header actions ───────────────────── */
+var pendingActions = {};
+
+function runAction(name, btn) {
+    if (pendingActions[name]) return Promise.resolve();
+    pendingActions[name] = true;
+    if (btn) { btn.disabled = true; btn.classList.add('pending'); }
+    var p;
+    if (name === 'inbox') {
+        p = apiPost('/api/pfs/scan-inbox', {}).then(function (r) {
+            var st = r.stats || {};
+            var pushed = Array.isArray(r.pushed) ? r.pushed.length : 0;
+            BoomPortal.toast('Inbox: ' + (st.emailsSeen != null ? st.emailsSeen + ' email · ' : '') + (st.ingested || 0) + ' annunci ingeriti · ' + pushed + ' push', { duration: 5000 });
+            var na = Array.isArray(r.needsAttention) ? r.needsAttention.length : 0;
+            if (na) BoomPortal.toast(na + ' annunci da verificare', { type: 'warning' });
+        });
+    } else if (name === 'market') {
+        p = apiPost('/api/pfs/scan-market', {}).then(function (r) {
+            BoomPortal.toast('Mercato: ' + (r.searches || 0) + ' ricerche · ' + (r.pagesOk || 0) + ' OK / ' + (r.pagesFailed || 0) + ' KO · ' + (r.ingested || 0) + ' ingeriti · ' + (r.pushedTotal || 0) + ' push',
+                { type: (r.pagesFailed > 0 ? 'warning' : 'success'), duration: 6000 });
+        });
+    } else if (name === 'sync') {
+        p = apiPost('/api/pfs/sync-searches', {}).then(function (r) {
+            var n = function (a) { return Array.isArray(a) ? a.length : (a || 0); };
+            BoomPortal.toast('Sync: ' + (r.activeClients || 0) + ' clienti attivi · ' + n(r.created) + ' create · ' + n(r.updated) + ' aggiornate · ' + n(r.disabled) + ' disattivate', { duration: 6000 });
+            if (n(r.errors)) BoomPortal.toast(n(r.errors) + ' errori durante il sync', { type: 'warning' });
+        });
+    } else {
+        p = Promise.resolve();
+    }
+    return p.catch(function (err) {
+        BoomPortal.toast('Errore: ' + (err && err.message ? err.message : err), { type: 'error' });
+    }).then(function () {
+        pendingActions[name] = false;
+        if (btn) { btn.disabled = false; btn.classList.remove('pending'); }
+    });
+}
+
+/* ───────────────────────── Outreach ──────────────────────── */
+function saveOutreach(card, propId) {
+    var prop = null;
+    for (var i = 0; i < state.properties.length; i++) if (state.properties[i].id === propId) prop = state.properties[i];
+    var status = card.querySelector('[data-field="o-status"]').value;
+    var note = card.querySelector('[data-field="o-note"]').value.trim();
+    if (!OUTREACH[status]) { BoomPortal.toast('Stato non valido', { type: 'error' }); return Promise.resolve(); }
+    var existing = (prop && prop.outreach) || {};
+    var outreach = { status: status, note: note, updatedAt: new Date().toISOString(), by: 'admin' };
+    if (existing.contactedAt) outreach.contactedAt = existing.contactedAt;
+    else if (CONTACT_STATUSES.indexOf(status) !== -1) outreach.contactedAt = new Date().toISOString();
+    return db.collection('pfsProperties').doc(propId).set({ outreach: outreach }, { merge: true })
+        .then(function () {
+            delete state.outreachDraft[propId];
+            BoomPortal.toast('Outreach aggiornato: ' + OUTREACH[status].label);
+        })
+        .catch(function (err) {
+            BoomPortal.toast('Errore salvataggio outreach: ' + (err && err.message ? err.message : err), { type: 'error' });
+        });
+}
+
+/* ─────────────────── WhatsApp / clipboard ────────────────── */
+function waMessage(name, p) {
+    var first = String(name || '').trim().split(/\s+/)[0] || 'ciao';
+    var what = p.title || p.address || 'appartamento';
+    var m = 'Ciao ' + first + '! 🏠 Nuova proposta BOOM: ' + what + ' — €' + fmtPrice(p.price) + '/mese';
+    if (p.bedrooms) m += ' · ' + p.bedrooms + ' cam';
+    if (p.sqm) m += ' · ' + p.sqm + ' m²';
+    m += '. Annuncio: ' + (safeUrl(p.sourceUrl) || '') + ' — Dimmi che ne pensi! 👍';
+    return m;
+}
+
+function ownerMessage(p) {
+    var portale = PORTAL_NAMES[p.source] || 'il portale';
+    return 'Buongiorno! Ho visto il suo annuncio su ' + portale + ' e sono molto interessata: cerco casa in zona con trasferimento a breve. Sarebbe possibile organizzare una visita nei prossimi giorni? Grazie mille!';
+}
+
+/* ────────────────────────── Modal ────────────────────────── */
+var modalSource = 'manual';
+
+function openModal(prefill) {
+    prefill = prefill || {};
+    modalSource = prefill.source || 'manual';
+    $('mf-url').value = prefill.sourceUrl || '';
+    $('mf-price').value = '';
+    $('mf-title').value = '';
+    $('mf-address').value = '';
+    $('mf-zone').value = '';
+    $('mf-bedrooms').value = '';
+    $('mf-sqm').value = '';
+    $('mf-desc').value = '';
+    $('mf-results').innerHTML = '';
+    $('mf-source-note').textContent = modalSource === 'manual' ? 'Fonte: manuale' : 'Fonte: ' + modalSource + ' (da verifica)';
+    $('modal-overlay').hidden = false;
+    setTimeout(function () { (prefill.sourceUrl ? $('mf-price') : $('mf-url')).focus(); }, 60);
+}
+
+function closeModal() { $('modal-overlay').hidden = true; }
+
+function collectModal(dry) {
+    var url = $('mf-url').value.trim();
+    var price = parseFloat(String($('mf-price').value).replace(',', '.'));
+    if (!safeUrl(url)) { BoomPortal.toast('Inserisci un URL valido (https://…)', { type: 'warning' }); return null; }
+    if (!isFinite(price) || price <= 0) { BoomPortal.toast('Inserisci un prezzo valido', { type: 'warning' }); return null; }
+    var body = { dryRun: !!dry, sourceUrl: url, source: modalSource || 'manual', price: Math.round(price) };
+    var t = $('mf-title').value.trim(); if (t) body.title = t;
+    var a = $('mf-address').value.trim(); if (a) body.address = a;
+    var z = $('mf-zone').value.trim(); if (z) body.zone = z;
+    var bd = parseInt($('mf-bedrooms').value, 10); if (bd > 0) body.bedrooms = bd;
+    var sq = parseInt($('mf-sqm').value, 10); if (sq > 0) body.sqm = sq;
+    var ds = $('mf-desc').value.trim(); if (ds) body.description = ds;
+    return body;
+}
+
+function renderDryResults(results) {
+    var box = $('mf-results');
+    if (!results.length) {
+        box.innerHTML = '<div class="dr-title">Risultato dry run</div><div style="font-size:12px;color:var(--text-muted)">Nessun cliente attivo da confrontare.</div>';
+        return;
+    }
+    var rows = results.slice().sort(function (a, b) { return (b.score || 0) - (a.score || 0); }).map(function (r) {
+        var sc = (Number(r.score) || 0) >= 80 ? 'sc-green' : (Number(r.score) || 0) >= 60 ? 'sc-gold' : 'sc-dim';
+        var push = r.wouldPush ? '<span class="sc-green">✓ push</span>' : (r.alreadyHasIt ? '<span class="sc-dim">già nel deck</span>' : '<span class="sc-dim">—</span>');
+        var reasons = Array.isArray(r.reasons) ? r.reasons.join(' · ') : '';
+        return '<tr><td>' + esc(r.name || r.clientId) + '</td><td class="' + sc + '">' + esc(r.score) + '</td><td>' + push + '</td><td class="reasons">' + esc(reasons) + '</td></tr>';
+    }).join('');
+    box.innerHTML = '<div class="dr-title">Risultato dry run — nessuna scrittura effettuata</div>' +
+        '<table class="dr-table"><thead><tr><th>Cliente</th><th>Score</th><th>Push</th><th>Motivi</th></tr></thead><tbody>' + rows + '</tbody></table>';
+}
+
+function doDryRun() {
+    var body = collectModal(true);
+    if (!body) return;
+    var btn = $('mf-dry');
+    btn.disabled = true; btn.classList.add('pending');
+    apiPost('/api/admin/match-test', body).then(function (r) {
+        renderDryResults(Array.isArray(r.results) ? r.results : []);
+    }).catch(function (err) {
+        BoomPortal.toast('Errore dry run: ' + (err && err.message ? err.message : err), { type: 'error' });
+    }).then(function () {
+        btn.disabled = false; btn.classList.remove('pending');
+    });
+}
+
+function doPush() {
+    var body = collectModal(false);
+    if (!body) return;
+    var btn = $('mf-push');
+    btn.disabled = true; btn.classList.add('pending');
+    apiPost('/api/admin/match-test', body).then(function (r) {
+        var names = (Array.isArray(r.pushedTo) ? r.pushedTo : []).map(function (x) {
+            return typeof x === 'string' ? x : ((x && (x.name || x.clientId)) || '?');
+        });
+        BoomPortal.toast(names.length ? 'Annuncio ingerito · push a: ' + names.join(', ') : 'Annuncio ingerito · nessun push (sotto soglia)', { duration: 6000 });
+        closeModal();
+    }).catch(function (err) {
+        BoomPortal.toast('Errore ingest: ' + (err && err.message ? err.message : err), { type: 'error' });
+    }).then(function () {
+        btn.disabled = false; btn.classList.remove('pending');
+    });
+}
+
+/* ─────────────────────── Event wiring ────────────────────── */
+function bindUI() {
+    // Header action buttons
+    $('btn-scan-inbox').addEventListener('click', function () { runAction('inbox', this); });
+    $('btn-scan-market').addEventListener('click', function () { runAction('market', this); });
+    $('btn-sync-searches').addEventListener('click', function () { runAction('sync', this); });
+    $('btn-add-listing').addEventListener('click', function () { openModal(); });
+
+    // Health chip popover (delegated) + outside click closes it
+    $('health-chips').addEventListener('click', function (e) {
+        var chip = e.target.closest('[data-hsource]');
+        if (!chip) return;
+        var key = chip.getAttribute('data-hsource');
+        state.openHealth = state.openHealth === key ? null : key;
+        renderHealth();
+    });
+    document.addEventListener('click', function (e) {
+        if (!state.openHealth) return;
+        if (e.target.closest('[data-hsource]') || e.target.closest('.hpop')) return;
+        state.openHealth = null;
+        renderHealth();
+    });
+
+    // Filters
+    var debounce = null;
+    $('f-q').addEventListener('input', function () {
+        clearTimeout(debounce);
+        var v = this.value;
+        debounce = setTimeout(function () { state.filters.q = v; renderFeed(); }, 150);
+    });
+    $('f-source').addEventListener('change', function () { state.filters.source = this.value; renderFeed(); });
+    $('f-adv').addEventListener('change', function () { state.filters.advertiser = this.value; renderFeed(); });
+    $('f-match').addEventListener('change', function () { state.filters.onlyMatch = this.checked; renderFeed(); });
+    $('f-agency').addEventListener('change', function () { state.filters.showAgency = this.checked; renderFeed(); });
+
+    // Feed (delegated clicks)
+    $('feed-list').addEventListener('click', function (e) {
+        var actEl = e.target.closest('[data-action]');
+        if (!actEl) return;
+        var action = actEl.getAttribute('data-action');
+        if (action === 'scan-inbox') { runAction('inbox', actEl); return; }
+        if (action === 'scan-market') { runAction('market', actEl); return; }
+        var card = actEl.closest('.fcard');
+        if (!card) return;
+        var id = card.getAttribute('data-id');
+        var prop = null;
+        for (var i = 0; i < state.properties.length; i++) if (state.properties[i].id === id) prop = state.properties[i];
+        if (!prop) return;
+
+        if (action === 'toggle-below') {
+            var bx = card.querySelector('.fc-below');
+            if (bx) {
+                bx.hidden = !bx.hidden;
+                if (bx.hidden) delete state.expandedBelow[id]; else state.expandedBelow[id] = true;
+                actEl.textContent = (bx.hidden ? '▾' : '▴') + ' Sotto soglia (' + ((prop.matchSummary && prop.matchSummary.belowThreshold) || []).length + ')';
+            }
+        } else if (action === 'toggle-outreach') {
+            var ox = card.querySelector('.fc-outreach');
+            if (ox) {
+                ox.hidden = !ox.hidden;
+                if (ox.hidden) delete state.expandedOutreach[id]; else state.expandedOutreach[id] = true;
+                actEl.textContent = '📞 Outreach ' + (ox.hidden ? '▾' : '▴');
+            }
+        } else if (action === 'save-outreach') {
+            saveOutreach(card, id);
+        } else if (action === 'copy-owner') {
+            copyText(ownerMessage(prop)).then(function (ok) {
+                if (ok) BoomPortal.toast('Messaggio per il proprietario copiato 📋');
+                else BoomPortal.toast('Copia non riuscita — copia manualmente', { type: 'warning' });
+            });
+        } else if (action === 'wa-share') {
+            var clientId = actEl.getAttribute('data-client');
+            var clientName = actEl.getAttribute('data-name');
+            var client = state.clientsById[clientId];
+            var msg = encodeURIComponent(waMessage((client && client.name) || clientName, prop));
+            var phone = waPhone(client && client.phone);
+            var wa = phone ? 'https://wa.me/' + phone + '?text=' + msg : 'https://wa.me/?text=' + msg;
+            if (!phone) BoomPortal.toast('Telefono cliente mancante: scegli il contatto in WhatsApp', { type: 'info' });
+            window.open(wa, '_blank', 'noopener');
+        }
+    });
+
+    // Feed: keep outreach drafts across realtime re-renders
+    function trackDraft(e) {
+        var el = e.target;
+        if (!el.matches || !el.matches('[data-field="o-status"],[data-field="o-note"]')) return;
+        var card = el.closest('.fcard');
+        if (!card) return;
+        var id = card.getAttribute('data-id');
+        var d = state.outreachDraft[id] || (state.outreachDraft[id] = {});
+        if (el.getAttribute('data-field') === 'o-status') d.status = el.value; else d.note = el.value;
+    }
+    $('feed-list').addEventListener('input', trackDraft);
+    $('feed-list').addEventListener('change', trackDraft);
+
+    // Clients (warning tooltips on tap)
+    $('clients-list').addEventListener('click', function (e) {
+        var w = e.target.closest('[data-action="show-warn"]');
+        if (w) BoomPortal.toast(w.getAttribute('data-warn'), { type: 'warning', duration: 4500 });
+    });
+
+    // Searches
+    $('searches-list').addEventListener('click', function (e) {
+        var actEl = e.target.closest('[data-action]');
+        if (!actEl) return;
+        var action = actEl.getAttribute('data-action');
+        if (action === 'sync-searches') { runAction('sync', actEl); return; }
+        var row = actEl.closest('.srow');
+        if (!row) return;
+        var id = row.getAttribute('data-id');
+        var s = null;
+        for (var i = 0; i < state.searches.length; i++) if (state.searches[i].id === id) s = state.searches[i];
+        if (!s) return;
+
+        if (action === 'edit-url') {
+            state.editSearch = state.editSearch === id ? null : id;
+            state.editSearchVal = null;
+            renderSearches();
+        } else if (action === 'cancel-url') {
+            state.editSearch = null;
+            state.editSearchVal = null;
+            renderSearches();
+        } else if (action === 'save-url') {
+            var input = row.querySelector('[data-field="url-edit"]');
+            var val = input ? input.value.trim() : '';
+            if (val && !safeUrl(val)) { BoomPortal.toast('URL non valido (deve iniziare con https://)', { type: 'warning' }); return; }
+            // vuoto o uguale all'URL generato → rimuove l'override
+            var payload = (!val || val === (s.searchUrl || ''))
+                ? { urlOverride: firebase.firestore.FieldValue.delete() }
+                : { urlOverride: val };
+            db.collection('radarSearches').doc(id).set(payload, { merge: true }).then(function () {
+                state.editSearch = null;
+                state.editSearchVal = null;
+                BoomPortal.toast(payload.urlOverride && typeof payload.urlOverride === 'string' ? 'URL override salvato' : 'Override rimosso: torna all\'URL generato');
+            }).catch(function (err) {
+                BoomPortal.toast('Errore salvataggio URL: ' + (err && err.message ? err.message : err), { type: 'error' });
+            });
+        }
+    });
+    $('searches-list').addEventListener('change', function (e) {
+        var el = e.target;
+        if (!el.matches || !el.matches('[data-action="toggle-enabled"]')) return;
+        var row = el.closest('.srow');
+        if (!row) return;
+        var id = row.getAttribute('data-id');
+        var val = el.checked;
+        db.collection('radarSearches').doc(id).set({ enabled: val }, { merge: true }).then(function () {
+            BoomPortal.toast(val ? 'Ricerca attivata' : 'Ricerca disattivata');
+        }).catch(function (err) {
+            el.checked = !val;
+            BoomPortal.toast('Errore: ' + (err && err.message ? err.message : err), { type: 'error' });
+        });
+    });
+    $('searches-list').addEventListener('input', function (e) {
+        var el = e.target;
+        if (el.matches && el.matches('[data-field="url-edit"]')) state.editSearchVal = el.value;
+    });
+
+    // Da verificare → prefill modal
+    $('attention-list').addEventListener('click', function (e) {
+        var b = e.target.closest('[data-action="ingest"]');
+        if (!b) return;
+        openModal({ sourceUrl: b.getAttribute('data-url'), source: b.getAttribute('data-source') });
+    });
+
+    // Modal
+    $('mf-close').addEventListener('click', closeModal);
+    $('mf-dry').addEventListener('click', doDryRun);
+    $('mf-push').addEventListener('click', doPush);
+    $('modal-overlay').addEventListener('click', function (e) { if (e.target === this) closeModal(); });
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && !$('modal-overlay').hidden) closeModal();
+    });
+
+    // Triage
+    $('btn-triage').addEventListener('click', function () { openTriage(); });
+    $('tg-exit').addEventListener('click', closeTriage);
+    $('triage-overlay').addEventListener('click', function (e) {
+        var b = e.target.closest('[data-taction]');
+        if (!b) return;
+        var act = b.getAttribute('data-taction');
+        if (act === 'done' || act === 'discard' || act === 'skip') { triageAct(act); return; }
+        var p = triageCurrent();
+        if (!p) return;
+        if (act === 'owner') {
+            buzz();
+            copyText(ownerMessage(p)).then(function (ok) {
+                if (ok) BoomPortal.toast('Messaggio per il proprietario copiato 📋');
+                else BoomPortal.toast('Copia non riuscita — copia manualmente', { type: 'warning' });
+            });
+        } else if (act === 'wa') {
+            triageWa(p, parseInt(b.getAttribute('data-idx'), 10) || 0);
+        }
+    });
+    bindTriageTouch();
+
+    // Command palette
+    $('btn-palette').addEventListener('click', function () { if (palette.open) closePalette(); else openPalette(); });
+    $('palette-overlay').addEventListener('click', function (e) { if (e.target === this) closePalette(); });
+    $('palette-input').addEventListener('input', function () {
+        palette.items = buildPaletteItems(this.value);
+        palette.sel = 0;
+        renderPalette();
+    });
+    $('palette-input').addEventListener('keydown', function (e) {
+        if (e.key === 'ArrowDown') { e.preventDefault(); palette.sel = Math.min(palette.items.length - 1, palette.sel + 1); renderPalette(); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); palette.sel = Math.max(0, palette.sel - 1); renderPalette(); }
+        else if (e.key === 'Enter') { e.preventDefault(); paletteRun(palette.sel); }
+        else if (e.key === 'Escape') { e.preventDefault(); closePalette(); }
+    });
+    $('palette-list').addEventListener('click', function (e) {
+        var it = e.target.closest('[data-pidx]');
+        if (it) paletteRun(parseInt(it.getAttribute('data-pidx'), 10));
+    });
+
+    // Brief AI
+    $('btn-brief').addEventListener('click', runBrief);
+    $('brief-close').addEventListener('click', function () { $('brief-panel').hidden = true; });
+    $('brief-copy').addEventListener('click', function () {
+        if (!briefPlain) { BoomPortal.toast('Nessun brief da copiare', { type: 'info' }); return; }
+        copyText(briefPlain).then(function (ok) {
+            BoomPortal.toast(ok ? 'Brief copiato 📋' : 'Copia non riuscita', { type: ok ? 'success' : 'warning' });
+        });
+    });
+
+    // Scorciatoie globali: ⌘K palette, tastiera triage
+    document.addEventListener('keydown', function (e) {
+        if ((e.metaKey || e.ctrlKey) && String(e.key).toLowerCase() === 'k') {
+            e.preventDefault();
+            if (palette.open) closePalette(); else openPalette();
+            return;
+        }
+        if (palette.open) {
+            if (e.key === 'Escape') closePalette();
+            return; // frecce/Enter gestiti dall'input
+        }
+        if (!triage.open) return;
+        if (e.metaKey || e.ctrlKey || e.altKey) return;
+        var tag = e.target && e.target.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+        if (tag === 'BUTTON' && e.key === 'Enter') return; // Enter su un bottone focalizzato = click nativo
+        if (e.key === 'Enter') { e.preventDefault(); triageAct('done'); }
+        else if (e.key === 'Backspace') { e.preventDefault(); triageAct('discard'); }
+        else if (e.key === 'ArrowRight') { e.preventDefault(); triageAct('skip'); }
+        else if (e.key === 'Escape') { e.preventDefault(); closeTriage(); }
+        else if (e.key === '1' || e.key === '2' || e.key === '3') {
+            var p = triageCurrent();
+            if (p) triageWa(p, parseInt(e.key, 10) - 1);
+        }
+    });
+
+    // Bottom nav: smooth scroll + scrollspy
+    var navItems = document.querySelectorAll('#bottom-nav .nav-item');
+    navItems.forEach(function (item) {
+        item.addEventListener('click', function (e) {
+            e.preventDefault();
+            var target = $(this.getAttribute('data-target'));
+            if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+    });
+    if ('IntersectionObserver' in window) {
+        var spy = new IntersectionObserver(function (entries) {
+            entries.forEach(function (en) {
+                if (!en.isIntersecting) return;
+                navItems.forEach(function (item) {
+                    item.classList.toggle('active', item.getAttribute('data-target') === en.target.id);
+                });
+            });
+        }, { rootMargin: '-30% 0px -60% 0px' });
+        ['sec-feed', 'sec-clients', 'sec-searches', 'sec-attention'].forEach(function (id) {
+            var el = $(id);
+            if (el) spy.observe(el);
+        });
+    }
+}
+
+/* ──────────────────── Firestore listeners ────────────────── */
+function startListeners() {
+    BoomPortal.listen(db.collection('pfsRadarHealth'), function (snap) {
+        var h = {};
+        snap.forEach(function (d) { h[d.id] = d.data(); });
+        state.health = h;
+        state.loaded.health = true;
+        renderHealth();
+        renderAttention();
+    }, function (err) {
+        // Regola Firestore non ancora deployata o permesso negato → fallback
+        // sull'endpoint server (legge sotto credenziali admin) + polling.
+        console.warn('[PFS] health via Firestore non disponibile, uso /api/pfs/health:', err && err.message);
+        pollHealthViaApi();
+        if (!state._healthPoll) state._healthPoll = setInterval(pollHealthViaApi, 90000);
+    });
+
+    function pollHealthViaApi() {
+        firebase.auth().currentUser.getIdToken().then(function (token) {
+            return fetch('/api/pfs/health', { headers: { 'Authorization': 'Bearer ' + token } });
+        }).then(function (r) { return r.json(); }).then(function (data) {
+            if (!data || !data.ok) return;
+            var h = {};
+            ['inbox', 'market', 'sync'].forEach(function (k) { if (data.health && data.health[k]) h[k] = data.health[k]; });
+            state.health = h;
+            state.loaded.health = true;
+            renderHealth();
+            renderAttention();
+        }).catch(function (e) {
+            console.warn('[PFS] health API fallback fallito:', e && e.message);
+        });
+    }
+
+    BoomPortal.listen(db.collection('pfsProperties').orderBy('lastSeenAt', 'desc').limit(120), function (snap) {
+        var arr = [];
+        snap.forEach(function (d) { arr.push(Object.assign({ id: d.id }, d.data())); });
+        trackNewProps(arr); // animazione is-new sui nuovi arrivi
+        state.properties = arr;
+        state.loaded.props = true;
+        state.live.props = true;
+        renderFeed();
+        updateBrief();
+        updateLive();
+        // triage aperto: ri-renderizza solo se la card mostrata è sparita
+        if (triage.open && !triage.anim && !triage.dragging) {
+            var cur = triageCurrent();
+            var cardEl = $('tg-stage').querySelector('.tg-card');
+            var shownId = cardEl ? cardEl.getAttribute('data-id') : null;
+            if (!cur || cur.id !== shownId) renderTriage();
+        }
+    }, function (err) {
+        state.live.props = false;
+        updateLive();
+        BoomPortal.toast('Errore feed annunci: ' + ((err && err.message) || 'errore di connessione'), { type: 'error' });
+    });
+
+    BoomPortal.listen(db.collection('pfsClients'), function (snap) {
+        var arr = [];
+        snap.forEach(function (d) { arr.push(Object.assign({ id: d.id }, d.data())); });
+        state.clients = arr;
+        state.clientsById = {};
+        arr.forEach(function (c) { state.clientsById[c.id] = c; });
+        state.loaded.clients = true;
+        state.live.clients = true;
+        renderClients();
+        renderFeed(); // i pulsanti WhatsApp dipendono dai telefoni clienti
+        updateBrief();
+        updateLive();
+    }, function (err) {
+        state.live.clients = false;
+        updateLive();
+        BoomPortal.toast('Errore clienti: ' + ((err && err.message) || 'errore di connessione'), { type: 'error' });
+    });
+
+    BoomPortal.listen(db.collection('radarSearches').where('auto', '==', true), function (snap) {
+        var arr = [];
+        snap.forEach(function (d) { arr.push(Object.assign({ id: d.id }, d.data())); });
+        arr.sort(function (a, b) {
+            return String(a.clientName || '').localeCompare(String(b.clientName || '')) ||
+                   String(a.label || '').localeCompare(String(b.label || ''));
+        });
+        state.searches = arr;
+        state.loaded.searches = true;
+        state.live.searches = true;
+        renderSearches();
+        updateLive();
+    }, function (err) {
+        state.live.searches = false;
+        updateLive();
+        BoomPortal.toast('Errore ricerche: ' + ((err && err.message) || 'errore di connessione'), { type: 'error' });
+    });
+}
+
+/* ─────────────────────────── Init ────────────────────────── */
+(async function init() {
+    try {
+        BoomPortal.registerServiceWorker();
+        const { user, profile } = await BoomPortal.requireAuth(['admin'], { loginUrl: '/login.html' });
+        void user; void profile; // gate superato: accesso admin verificato
+        $('auth-shield').style.display = 'none';
+        $('app').hidden = false;
+        bindUI();
+        // placeholder di caricamento prima dei primi snapshot
+        renderHealth(); renderFeed(); renderClients(); renderSearches(); renderAttention();
+        updateBrief(); updateLive();
+        startListeners();
+        setInterval(function () { renderHealth(); updateBrief(); }, 60000); // tempi relativi, freschezza chip, rollover mezzanotte
+    } catch (e) {
+        // requireAuth gestisce redirect + toast; lasciamo lo shield visibile
+        console.warn('[PFS Command] auth gate:', e && e.message);
+    }
+})();
+
+})();
+</script>
+</body>
+</html>

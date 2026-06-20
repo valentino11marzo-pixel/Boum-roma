@@ -11,7 +11,20 @@
 //   CRON_SECRET             → boom-cron-2026
 
 import nodemailer from 'nodemailer';
-import { pushPass } from './_passkit.js';
+
+// Wallet push is OPTIONAL — it must never take down the reminder cron.
+// A static `import … from './_passkit.js'` crashed the whole function at load
+// (ERR_MODULE_NOT_FOUND somewhere in the passkit chain → 500 every 15 min, no
+// reminders sent). Load it lazily and tolerate failure: log the exact reason
+// (so the underlying module issue can be fixed) and no-op the push.
+let _pushPass;
+async function pushPass(serial) {
+  if (_pushPass === undefined) {
+    try { _pushPass = (await import('./_passkit.js')).pushPass; }
+    catch (e) { console.error('pushPass module unavailable:', (e && e.message) || e); _pushPass = null; }
+  }
+  if (_pushPass) return _pushPass(serial);
+}
 
 const PROJECT_ID = process.env.FIREBASE_PROJECT_ID;
 const API_KEY    = process.env.FIREBASE_API_KEY;

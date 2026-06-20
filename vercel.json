@@ -2,6 +2,16 @@
   "version": 2,
   "cleanUrls": true,
   "trailingSlash": false,
+  "images": {
+    "remotePatterns": [
+      { "protocol": "https", "hostname": "i.imgur.com" },
+      { "protocol": "https", "hostname": "imgur.com" }
+    ],
+    "formats": ["image/avif", "image/webp"],
+    "sizes": [320, 480, 640, 768, 828, 1080, 1280, 1920],
+    "qualities": [50, 72, 75],
+    "minimumCacheTTL": 2678400
+  },
   "redirects": [
     { "source": "/index.html", "destination": "/", "permanent": true },
     { "source": "/apartments.html", "destination": "/apartments", "permanent": true },
@@ -63,7 +73,6 @@
     { "source": "/pre-arrival", "destination": "/pre-arrival.html" },
     { "source": "/deal-assistance", "destination": "/deal-assistance.html" },
     { "source": "/client-portal", "destination": "/client-portal.html" },
-    { "source": "/share", "destination": "/share.html" },
     { "source": "/property-finding", "destination": "/property-finding.html" },
     { "source": "/dashboard", "destination": "/dashboard.html" },
     { "source": "/thank-you", "destination": "/thank-you.html" },
@@ -84,14 +93,7 @@
     { "source": "/blog-neighborhood-guide", "destination": "/blog-neighborhood-guide.html" },
     { "source": "/blog-scam-bible", "destination": "/blog-scam-bible.html" },
     { "source": "/blog-tenant-rights", "destination": "/blog-tenant-rights.html" },
-    { "source": "/blog-visa-residency", "destination": "/blog-visa-residency.html" },
-    { "source": "/canone", "destination": "/canone.html" },
-    { "source": "/match", "destination": "/match.html" },
-    { "source": "/pass-studio", "destination": "/pass-studio.html" },
-    { "source": "/pass-demo", "destination": "/pass-demo.html" },
-    { "source": "/underwriting", "destination": "/underwriting.html" },
-    { "source": "/compliance", "destination": "/compliance.html" },
-    { "source": "/relet", "destination": "/relet.html" }
+    { "source": "/blog-visa-residency", "destination": "/blog-visa-residency.html" }
   ],
   "headers": [
     {
@@ -102,12 +104,11 @@
         { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
         { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=(self), interest-cohort=()" },
         { "key": "Strict-Transport-Security", "value": "max-age=63072000; includeSubDomains; preload" },
-        { "key": "X-DNS-Prefetch-Control", "value": "on" },
-        { "key": "Content-Security-Policy-Report-Only", "value": "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'self'; form-action 'self' https://api.web3forms.com; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://*.googleapis.com https://www.googletagmanager.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://js.stripe.com https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://unpkg.com; font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net; img-src 'self' data: blob: https:; connect-src 'self' https://*.googleapis.com https://*.firebaseapp.com https://*.firebaseio.com https://*.firebasestorage.app https://api.emailjs.com https://api.stripe.com https://www.google-analytics.com https://*.analytics.google.com https://region1.google-analytics.com https://www.googletagmanager.com https://api.web3forms.com https://i.imgur.com https://nominatim.openstreetmap.org https://api.ipify.org https://api.anthropic.com https://corsproxy.io https://api.codetabs.com https://thingproxy.freeboard.io https://cors.eu.org https://api.allorigins.win; frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://www.youtube.com https://www.google.com https://maps.google.com https://boom-property-dashboards.firebaseapp.com; worker-src 'self' blob:; manifest-src 'self'; upgrade-insecure-requests" }
+        { "key": "X-DNS-Prefetch-Control", "value": "on" }
       ]
     },
     {
-      "source": "/(portal|admin|admin-flats|setup-firebase|seed-listings|boom-doc-parser|boom_doc_parser|cockpit-preview|underwriting|compliance|relet|pass-studio|portal.html|admin.html|admin-flats.html|setup-firebase.html|seed-listings.html|boom_doc_parser.html|cockpit-preview.html|underwriting.html|compliance.html|relet.html|pass-studio.html)(.*)",
+      "source": "/(portal|admin|admin-flats|setup-firebase|seed-listings|boom-doc-parser|boom_doc_parser|cockpit-preview|portal.html|admin.html|admin-flats.html|setup-firebase.html|seed-listings.html|boom_doc_parser.html|cockpit-preview.html)(.*)",
       "headers": [
         { "key": "X-Robots-Tag", "value": "noindex, nofollow, noarchive, nosnippet" },
         { "key": "Cache-Control", "value": "private, no-store, max-age=0" }
@@ -174,6 +175,10 @@
     {
       "path": "/api/reminder-cron",
       "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/telegram/notify-pending",
+      "schedule": "* * * * *"
     }
   ]
 }

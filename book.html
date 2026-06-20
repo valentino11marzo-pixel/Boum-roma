@@ -231,6 +231,7 @@ body{font-family:'Helvetica Neue','Helvetica',-apple-system,sans-serif;font-weig
 }
   </script>
 <!-- BOOM_JSONLD:END -->
+    <link rel="stylesheet" href="/css/boom-cinema.css">
 </head>
 <body>
 
@@ -581,6 +582,7 @@ function esc(s){const d=document.createElement('div');d.textContent=s;return d.i
 function toast(tp,msg){const el=document.getElementById('toast');el.textContent=msg;el.className='toast '+(tp==='err'?'err':'ok')+' show';setTimeout(()=>el.classList.remove('show'),3000)}
 </script>
 <style>@keyframes drawChk{to{stroke-dashoffset:0}}</style>
+        <script defer src="/js/boom-cinema.js"></script>
     <script defer src="/js/boom-track.js"></script>
 </body>
 </html>
