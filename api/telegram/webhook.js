@@ -18,7 +18,10 @@
 import { fsGet, fsPatch, fsList, readJson } from '../homie/_lib.js';
 import { tgSend, tgEdit, tgAckCallback, requireWebhookSecret, isAuthorizedChat, fmtAction } from './_lib.js';
 
-const BASE = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://boomrome.com';
+// Canonical public host for self-calls (the executor). VERCEL_URL deployment
+// URLs can be auth-gated / unreliable for server-to-server self-fetches, which
+// made the approve button's executor silently fail; www is the stable alias.
+const BASE = process.env.PUBLIC_BASE_URL || 'https://www.boomrome.com';
 
 // Persistent per-chat state (so /edit can prompt → wait for next message).
 // Stored in a tiny Firestore doc so it survives serverless cold starts.
