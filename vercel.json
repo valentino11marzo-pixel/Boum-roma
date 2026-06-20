@@ -37,6 +37,8 @@
     { "source": "/faq-page", "destination": "/faq", "permanent": true }
   ],
   "rewrites": [
+    { "source": "/access", "destination": "/access.html" },
+    { "source": "/k", "destination": "/access.html" },
     { "source": "/listing/:id", "destination": "/api/listing" },
     { "source": "/listings-sitemap.xml", "destination": "/api/sitemap-listings" },
     { "source": "/book", "destination": "/book.html" },
@@ -116,7 +118,7 @@
       ]
     },
     {
-      "source": "/(dashboard|client-portal|owner-dashboard|tenant-registration|login|sign|onboarding|pre-arrival|precheck|thank-you|proppass|pass-delivery|form-tenant|form-landlord)(.*)",
+      "source": "/(access|k|dashboard|client-portal|owner-dashboard|tenant-registration|login|sign|onboarding|pre-arrival|precheck|thank-you|proppass|pass-delivery|form-tenant|form-landlord)(.*)",
       "headers": [
         { "key": "X-Robots-Tag", "value": "noindex, follow" }
       ]
