@@ -273,3 +273,59 @@ direct-IBAN per landlord. Same tenant button; the only change is whether a
 - Stripe local payment methods pricing: https://stripe.com/pricing/local-payment-methods
 - SEPA Direct Debit June 2024 pricing update (disputes vs failures): https://support.stripe.com/questions/june-2024-pricing-update-for-sepa-direct-debit
 - SEPA Direct Debit disputes (8-week / 13-month windows): https://support.stripe.com/questions/sepa-direct-debit-payment-disputes
+
+---
+
+## 8. Phase 2 + integration — shipped on this branch
+
+Built on the design above (no architecture change). What's new/fixed:
+
+- **Autopay (`autopay-run.js`, cron `0 6 * * *`).** Drives off the existing
+  `payments/*` schedule: sends the SEPA **pre-notification** email 1–2 days
+  before the due date, then fires the off-session debit on/after it. Idempotent
+  (ledger + Stripe Idempotency-Key + per-row flags). Live-locked like the rest.
+- **Autopay toggle (`autopay.js`).** Tenant turns monthly autopay on/off
+  (writes `contracts.autopay`; a tenant may only toggle their own contract).
+- **Shared charge core (`_lib.chargeRentPeriod`).** `pay-rent.js` and the cron
+  run identical charge logic (one source of truth, on/off-session).
+- **Wallet/portal bridge.** The rent webhook, on `payment_intent.succeeded`,
+  also flips the matching schedule row `payments/pay_<contractId>_<period>` to
+  `paid` — so `reminder-cron.js` pushes the tenant Apple Wallet pass to
+  "Pagato ✓" and the portal payment views settle. One money truth
+  (`rentPayments`), one schedule truth (`payments`), kept in sync.
+- **Unified auth (`_lib.requirePayAuth`).** LIVE = Firebase token only; TEST =
+  the harness secret **or** a real Firebase token — so the *real* tenant UI is
+  testable end-to-end against test keys before going live.
+- **Bug fix — `mergeContractPayment`.** `contracts.payment` is now patched with
+  nested field paths (`updateMask=payment.<key>`). Previously every write
+  replaced the whole `payment` map, so the mandate write clobbered the Connect
+  payout write (and vice-versa). Mandate, webhook and connect onboard/status all
+  merge safely now.
+- **Tenant UI (`rent.html`, linked from `tenant.html`).** One screen: activate
+  SEPA once (Stripe IBAN element), then "Paga ora" + autopay toggle + history.
+  Gold/black, Italian, mobile-first. `rentPayments` rule added to
+  `firestore.rules` (tenant/landlord read theirs via the contract; writes admin).
+
+### Go-live runbook (test first, always)
+1. **Vercel env (Preview + Production):**
+   `STRIPE_SECRET_KEY_TEST=sk_test_…`, `STRIPE_PUBLISHABLE_KEY_TEST=pk_test_…`,
+   `PAY_TEST_SECRET=<random>`, and `STRIPE_RENT_WEBHOOK_SECRET=whsec_…` (from
+   step 2). Leave `RENT_PAYMENTS_LIVE` unset.
+2. **Stripe TEST dashboard → Developers → Webhooks → add endpoint:**
+   `https://<deployment>/api/payments/webhook`, events: `setup_intent.succeeded`,
+   `payment_intent.processing`, `payment_intent.succeeded`,
+   `payment_intent.payment_failed`, `charge.refunded`. Copy its signing secret
+   into `STRIPE_RENT_WEBHOOK_SECRET`. This is a **second, separate** webhook —
+   the live `stripe-webhook.js` (PFS / reservations) is untouched.
+3. **Verify headless:** `/pay-rent-test.html` with `PAY_TEST_SECRET` + test IBAN
+   `DE89370400440532013000` → mandate → "Paga affitto" → watch
+   `rentPayments/<id>` go `processing → paid`.
+4. **Verify the real UI:** log in as a test tenant → `/rent` → activate mandate →
+   "Paga ora" → confirm the schedule row + the Wallet "Pagato ✓".
+5. **Go live:** set `RENT_PAYMENTS_LIVE=true` with `sk_live_`/`pk_live_` keys and
+   a **live** rent webhook (same 5 events) → `STRIPE_RENT_WEBHOOK_SECRET` = its
+   secret. Do one real debit on your own IBAN end-to-end before launch.
+6. **(Optional) direct-to-IBAN payouts:** a landlord runs `connect-onboard` →
+   hosted KYC; once `connect-status` returns `active`, that contract's rent
+   routes straight to their IBAN (BOOM keeps only `mgmtFeeCents`). Otherwise rent
+   collects into BOOM and is remitted by free SEPA credit transfer.

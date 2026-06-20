@@ -85,6 +85,17 @@ service cloud.firestore {
                                         'tenantNotes','proofUrl','proofName']));
     }
 
+    // ─── rentPayments (BOOM Pay money ledger — all writes server-side) ──
+    // Keyed <contractId>_<period>. Tenant/landlord read theirs via the contract.
+    match /rentPayments/{rId} {
+      allow read: if isAdmin()
+                  || (isTenant()
+                      && contractData(resource.data.contractId).tenantId == uid())
+                  || (isLandlord()
+                      && ownsProperty(contractData(resource.data.contractId).propertyId));
+      allow write: if isAdmin();
+    }
+
     // ─── maintenance ──────────────────────────────────────────────────
     match /maintenance/{mId} {
       allow read:   if isAdmin()

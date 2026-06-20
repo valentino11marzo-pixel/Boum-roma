@@ -5,21 +5,16 @@
 // Body: { contractId } or { accountId }
 // Auth: test mode -> X-Pay-Test-Secret; live mode -> Firebase ID token.
 
-import { setCors, requireRole } from '../_auth.js';
-import { readJson, fsGet, fsPatch } from '../homie/_lib.js';
-import { resolveStripe, requireTestSecret, isLive } from './_lib.js';
+import { setCors } from '../_auth.js';
+import { readJson, fsGet } from '../homie/_lib.js';
+import { resolveStripe, requirePayAuth, mergeContractPayment } from './_lib.js';
 
 export default async function handler(req, res) {
   setCors(req, res);
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method_not_allowed' });
 
-  if (isLive()) {
-    const auth = await requireRole(req, res, ['admin', 'landlord', 'owner']);
-    if (!auth) return;
-  } else if (!requireTestSecret(req, res)) {
-    return;
-  }
+  if (!(await requirePayAuth(req, res, ['admin', 'landlord', 'owner']))) return;
 
   const { stripe, mode, error } = resolveStripe();
   if (error) return res.status(503).json({ ok: false, error });
@@ -41,7 +36,7 @@ export default async function handler(req, res) {
     const status = ready ? 'active' : (acct.requirements?.disabled_reason ? 'blocked' : 'verification_pending');
 
     if (contractId) {
-      await fsPatch('contracts/' + contractId, { payment: { payoutStatus: status } }).catch(() => {});
+      await mergeContractPayment(contractId, { payoutStatus: status }).catch(() => {});
     }
 
     return res.status(200).json({

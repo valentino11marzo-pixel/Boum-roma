@@ -155,7 +155,7 @@
         .media-section{max-width:1400px;margin:0 auto;padding:0 50px 50px}
         .single-hero-img{width:100%;max-height:600px;object-fit:cover;border-radius:16px;border:1px solid rgba(255,255,255,0.06)}
         .gal{display:grid;grid-template-columns:repeat(4,1fr);grid-auto-rows:150px;gap:10px}
-        .gal-it{position:relative;border-radius:16px;overflow:hidden;cursor:pointer;border:1px solid rgba(255,255,255,0.07);background:var(--dark-void)}
+        .gal-it{position:relative;border-radius:16px;overflow:hidden;cursor:pointer;border:1px solid rgba(255,255,255,0.07);background:linear-gradient(135deg,#17171c,#0e0e12)}
         .gal-it img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .8s cubic-bezier(.16,1,.3,1)}
         .gal-it:hover img{transform:scale(1.05)}
         .gal-it.main{grid-column:span 2;grid-row:span 2}
@@ -166,26 +166,7 @@
         .media-placeholder{width:100%;height:400px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;background:var(--dark-void);border:1px dashed rgba(255,255,255,0.1);border-radius:16px;color:var(--text-fade)}
         .media-placeholder span{font-size:48px;opacity:.3}
 
-        /* Carousel */
-        .carousel{position:relative;border-radius:16px;overflow:hidden;border:1px solid rgba(255,255,255,0.06);background:var(--dark-void)}
-        .carousel-track{display:flex;transition:transform .4s cubic-bezier(.25,.46,.45,.94);will-change:transform}
-        .carousel-slide{min-width:100%;position:relative}
-        .carousel-slide img{width:100%;height:550px;object-fit:cover;display:block}
-        .carousel-slide.video-slide{display:flex;align-items:center;justify-content:center;background:#000}
-        .carousel-slide.video-slide iframe{width:100%;height:550px;border:none}
-        .carousel-btn{position:absolute;top:50%;transform:translateY(-50%);width:48px;height:48px;background:rgba(0,0,0,0.7);border:1px solid rgba(255,255,255,0.15);border-radius:50%;color:#fff;font-size:18px;cursor:pointer;transition:all .3s;display:flex;align-items:center;justify-content:center;z-index:10;backdrop-filter:blur(10px)}
-        .carousel-btn:hover{background:rgba(0,0,0,0.9);border-color:var(--gold);color:var(--gold)}
-        .carousel-prev{left:16px}.carousel-next{right:16px}
-        .carousel-counter{position:absolute;bottom:16px;right:16px;padding:6px 14px;background:rgba(0,0,0,0.7);border-radius:100px;font-size:12px;color:rgba(255,255,255,0.8);backdrop-filter:blur(10px);z-index:10}
-        .carousel-video-badge{position:absolute;top:16px;right:16px;padding:6px 14px;background:rgba(255,59,48,0.9);border-radius:100px;font-size:11px;font-weight:600;color:#fff;z-index:10;display:none}
-        .carousel-thumbs{display:flex;gap:8px;margin-top:12px;overflow-x:auto;padding:4px 0;scrollbar-width:none}
-        .carousel-thumbs::-webkit-scrollbar{display:none}
-        .carousel-thumb{width:72px;height:50px;flex-shrink:0;border-radius:8px;overflow:hidden;cursor:pointer;border:2px solid transparent;opacity:.5;transition:all .3s}
-        .carousel-thumb.active{border-color:var(--gold);opacity:1}
-        .carousel-thumb:hover{opacity:.8}
-        .carousel-thumb img{width:100%;height:100%;object-fit:cover}
-        .carousel-thumb.video-thumb{position:relative;background:#111;display:flex;align-items:center;justify-content:center}
-        .carousel-thumb.video-thumb::after{content:'▶';position:absolute;color:#FF3B30;font-size:18px}
+        /* (legacy carousel styles removed — the gallery uses .gal) */
 
         /* Video section */
         .video-section{margin-top:30px}
@@ -283,6 +264,14 @@
         .inquiry-card button:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(255, 215, 0,0.3)}
         .inquiry-card button:disabled{opacity:.5;cursor:not-allowed;transform:none}
         .apply-badge{display:inline-block;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold);background:rgba(255,215,0,0.10);border:1px solid rgba(255,215,0,0.25);padding:5px 11px;border-radius:100px;margin-bottom:14px}
+        .apply-badge .apply-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:#00FF88;margin-right:3px;vertical-align:middle;animation:applyPulse 2.4s infinite}
+        @keyframes applyPulse{0%{box-shadow:0 0 0 0 rgba(0,255,136,.5)}70%{box-shadow:0 0 0 7px rgba(0,255,136,0)}100%{box-shadow:0 0 0 0 rgba(0,255,136,0)}}
+        .apply-steps{display:flex;gap:6px;margin-bottom:18px}
+        .apply-step{flex:1;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:9px 5px;text-align:center}
+        .apply-step b{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-weight:200;font-size:17px;color:var(--gold);line-height:1}
+        .apply-step i{display:block;font-style:normal;font-size:11px;color:#fff;margin-top:4px}
+        .apply-step small{display:block;font-size:9px;color:var(--text-fade);text-transform:uppercase;letter-spacing:.4px;margin-top:1px}
+        @media(prefers-reduced-motion:reduce){.apply-badge .apply-dot{animation:none}}
         .inquiry-card select{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23FFD700' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:34px;cursor:pointer}
         .inquiry-card select option{background:#0e0e12;color:#fff}
         .apply-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
@@ -720,9 +709,14 @@
                     <a class="sidebar-secondary" href="/property-finding.html">Not this one? Find my perfect apartment →</a>
                 </div>
                 <div class="sidebar-card inquiry-card" id="inquiryCard">
-                    <span class="apply-badge">2-minute application</span>
-                    <h3>Apply for this apartment</h3>
-                    <p>No fee to apply. We reply within 2 hours — and you could be moved in within 48.</p>
+                    <span class="apply-badge"><i class="apply-dot"></i> Secure this home</span>
+                    <h3>Make it yours</h3>
+                    <p>No fee to apply. A real person replies within <b style="color:#fff;font-weight:500">2 hours</b> — keys in as little as 48.</p>
+                    <div class="apply-steps">
+                        <div class="apply-step"><b>1</b><i>Apply</i><small>2 min</small></div>
+                        <div class="apply-step"><b>2</b><i>Approved</i><small>&le; 2h</small></div>
+                        <div class="apply-step"><b>3</b><i>Keys</i><small>48h</small></div>
+                    </div>
                     <form id="inquiryForm">
                         <input type="text" name="name" id="iqName" placeholder="Your name" required>
                         <input type="email" name="email" id="iqEmail" placeholder="Your email" required>
@@ -745,17 +739,17 @@
                             <option>4+ people</option>
                         </select>
                         <textarea name="message" id="formMessage" placeholder="Anything we should know? (optional)"></textarea>
-                        <button type="submit" id="inquiryBtn">Submit application</button>
-                        <div class="apply-reassure">🔒 Private &amp; no commitment. A real person reviews every application.</div>
+                        <button type="submit" id="inquiryBtn">Apply in 2 minutes →</button>
+                        <div class="apply-reassure">🔒 Private &amp; no commitment · reviewed by a real person, never a bot.</div>
                     </form>
                     <div class="inquiry-success" id="inquirySuccess">✓ Application received! Our team will contact you within 2 hours.</div>
                     <div class="reserve-box" id="reserveBox">
-                        <div class="reserve-h">Want to lock it in? <b>Reserve &amp; hold this apartment.</b></div>
+                        <div class="reserve-h">Don't want to risk losing it?</div>
                         <button class="reserve-btn" id="reserveBtn" type="button">🔒 Reserve &amp; hold — <span id="reserveAmt">€300</span></button>
                         <div class="reserve-note">
-                            <span>100% refundable if not approved</span>
-                            <span>Deducted from your first month</span>
-                            <span>Off-market hold while we process your application</span>
+                            <span>Off-market the moment you reserve — no one else can apply</span>
+                            <span>100% refundable if you're not approved</span>
+                            <span>Deducted from your first month — not an extra cost</span>
                         </div>
                     </div>
                 </div>
@@ -1685,9 +1679,7 @@
     .sidebar-secondary--quiet{border:none;background:transparent;font-size:12px;color:#777;padding:8px}
     .sidebar-secondary--quiet:hover{border:none;color:var(--gold)}
     /* Skip layout/paint of below-the-fold acts until they approach the viewport */
-    /* Reserve the gallery height so injecting photos never pushes the page (CLS) */
-    .media-section{min-height:330px}
-    @media(max-width:760px){.media-section{min-height:400px}}
+    /* (Removed the gallery min-height reserve — when empty it showed as a near-black band on Safari before render.) */
     /* Tighter rhythm — get to the point, don't make them wander */
     .bver,.bmx,.btour,.m48,.faq{margin-top:42px}
     .upsell-section{padding-top:24px}
@@ -1774,29 +1766,38 @@
     <script src="/js/neighborhoods.js"></script>
 
     <!-- FIREBASE + APP -->
-    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+    <script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
     <script>
-    firebase.initializeApp({apiKey:"AIzaSyDDb8UeSc8RhO_VxQrhLrupu1aPD4rwRso",authDomain:"boom-property-dashboards.firebaseapp.com",projectId:"boom-property-dashboards",storageBucket:"boom-property-dashboards.firebasestorage.app",messagingSenderId:"937269017440",appId:"1:937269017440:web:41c1a0b1e1633c2f373c05"});
-    const db=firebase.firestore();
-    let aptAddress='',currentSlide=0,totalSlides=0,galleryImgs=[],lbIndex=0;
+    // Firebase loads DEFERRED (no longer render-blocking). Init lazily, only when a
+    // DB call is actually needed (zone footer / application submit). The listing
+    // itself renders instantly from window.__LISTING — zero SDK on the critical path.
+    const FB_CONFIG={apiKey:"AIzaSyDDb8UeSc8RhO_VxQrhLrupu1aPD4rwRso",authDomain:"boom-property-dashboards.firebaseapp.com",projectId:"boom-property-dashboards",storageBucket:"boom-property-dashboards.firebasestorage.app",messagingSenderId:"937269017440",appId:"1:937269017440:web:41c1a0b1e1633c2f373c05"};
+    let db=null;
+    function getDB(){ if(!db){ try{ if(window.firebase){ if(!firebase.apps.length) firebase.initializeApp(FB_CONFIG); db=firebase.firestore(); } }catch(e){} } return db; }
+    let aptAddress='',galleryImgs=[],lbIndex=0;
     // Right-size imgur photos (l=640px, h=1024px). Originals stay full-size in the lightbox.
     function imgSized(u,s){u=String(u||'');if(!/i\.imgur\.com/.test(u))return u;return u.replace(/(\/[A-Za-z0-9]{7})(\.(?:jpe?g|png|webp))/i,'$1'+s+'$2')}
+    // Optimised delivery via Vercel Image (AVIF/WebP, exact width). The markup's
+    // onerror falls back to the imgur-sized JPEG, so a photo can never break.
+    function imgOpt(u,w,q){u=String(u||'');if(!/^https?:\/\//.test(u))return u;return '/_vercel/image?url='+encodeURIComponent(u)+'&w='+(w||1080)+'&q='+(q||72)}
 
-    document.addEventListener('DOMContentLoaded',()=>{
+    // Boot immediately — this script sits at the end of <body>, so the DOM is ready
+    // and we render from window.__LISTING without waiting for the deferred SDK.
+    (function(){
         const params=new URLSearchParams(window.location.search);
         let id=params.get('id');
         if(!id){ const m=window.location.pathname.match(/\/listing\/([^\/?#]+)/); if(m) id=decodeURIComponent(m[1]); }
         if(!id){showError();return}
         loadApartment(id);
-    });
+    })();
 
     async function loadApartment(id){
         // 0) Server-injected data (SSR by /api/listing) — instant render, no Firestore round-trip.
         try{ if(window.__LISTING && (!window.__LISTING_ID || window.__LISTING_ID===id)){ renderApartment(window.__LISTING, id); return; } }catch(e){}
         // 1) Live read from Firestore (fast path).
         try{
-          const doc=await db.collection('listings').doc(id).get();
+          const _db=getDB(); const doc=await _db.collection('listings').doc(id).get();
           if(doc.exists){ renderApartment(doc.data(),id); return; }
           showError(); return;                 // genuinely missing → Not Found
         }catch(e){
@@ -1816,7 +1817,7 @@
     let _allListings=null;
     async function getAllListings(){
       if(_allListings) return _allListings;
-      try{ const snap=await db.collection('listings').get(); _allListings=snap.docs.map(d=>({id:d.id,...d.data()})); return _allListings; }catch(_){}
+      try{ const snap=await getDB().collection('listings').get(); _allListings=snap.docs.map(d=>({id:d.id,...d.data()})); return _allListings; }catch(_){}
       try{ const r=await fetch('/api/listings',{cache:'no-store'}); const j=await r.json(); if(j&&j.ok&&Array.isArray(j.listings)){ _allListings=j.listings; return _allListings; } }catch(_){}
       return _allListings||[];
     }
@@ -2141,7 +2142,8 @@
             btn.disabled=true;btn.textContent='Sending…';
             try{
                 const _v=(elId)=>{const el=document.getElementById(elId);return el?el.value:'';};
-                await db.collection('leads').add({
+                const _db=getDB(); if(!_db) throw new Error('sdk-not-ready');
+                await _db.collection('leads').add({
                     name: document.getElementById('iqName').value,
                     email: document.getElementById('iqEmail').value,
                     phone: document.getElementById('iqPhone').value||'',
@@ -2207,7 +2209,7 @@
         const cells=shown.map((src,i)=>{
           const more=(i===shown.length-1&&imgs.length>shown.length)?`<div class="gal-more">+${imgs.length-shown.length} photos</div>`:'';
           const vb=(i===0&&vId)?`<span class="gal-video" onclick="event.stopPropagation();window.open('https://www.youtube.com/watch?v=${vId}','_blank')">▶ Play tour</span>`:'';
-          return `<div class="gal-it${i===0?' main':''}" onclick="openLightbox(${i})"><img src="${imgSized(src,i===0?'h':'l')}" alt="Photo ${i+1}" loading="${i===0?'eager':'lazy'}" decoding="async"${i===0?' fetchpriority="high"':''}>${more}${vb}</div>`;
+          return `<div class="gal-it${i===0?' main':''}" onclick="openLightbox(${i})"><img src="${i===0?imgSized(src,'h'):imgOpt(src,640)}" onerror="this.onerror=null;this.src='${imgSized(src,i===0?'h':'l')}'" alt="Photo ${i+1}" loading="${i===0?'eager':'lazy'}" decoding="async"${i===0?' fetchpriority="high"':''}>${more}${vb}</div>`;
         }).join('');
         sec.innerHTML=`<div class="gal" id="galGrid">${cells}</div>`;
     }
@@ -2249,24 +2251,7 @@
     })();
 
     function exYT(u){if(!u)return null;const m=u.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/);return m?m[1]:null}
-    function goTo(i){currentSlide=i;updC()}
-    function next(){currentSlide=(currentSlide+1)%totalSlides;updC()}
-    function prev(){currentSlide=(currentSlide-1+totalSlides)%totalSlides;updC()}
-    function updC(){
-        const t=document.getElementById('carouselTrack');if(!t)return;
-        t.style.transform=`translateX(-${currentSlide*100}%)`;
-        document.getElementById('carouselCounter').textContent=`${currentSlide+1} / ${totalSlides}`;
-        document.querySelectorAll('.carousel-thumb').forEach((th,i)=>th.classList.toggle('active',i===currentSlide));
-        const a=document.querySelector('.carousel-thumb.active');if(a)a.scrollIntoView({behavior:'smooth',inline:'center',block:'nearest'});
-    }
-    function initSwipe(){
-        const c=document.getElementById('carousel');if(!c)return;
-        let sX=0,dX=0;
-        c.addEventListener('touchstart',e=>{sX=e.touches[0].clientX},{passive:true});
-        c.addEventListener('touchmove',e=>{dX=e.touches[0].clientX-sX},{passive:true});
-        c.addEventListener('touchend',()=>{if(Math.abs(dX)>50){dX<0?next():prev()}dX=0});
-    }
-    document.addEventListener('keydown',e=>{if(!document.getElementById('lightbox').hidden)return;if(e.key==='ArrowRight')next();if(e.key==='ArrowLeft')prev()});
+    /* (legacy carousel JS removed — the editorial gallery + lightbox replace it) */
 
     function buildMap(d){
         const c=document.getElementById('mapContainer');
@@ -2348,6 +2333,19 @@
                         try{ map.addLayer({id:'boom-poi',type:'circle',source:src,'source-layer':'poi',minzoom:14,filter:['<=',['coalesce',['get','rank'],99],8],paint:{'circle-radius':['interpolate',['linear'],['zoom'],14,2.4,16,4.2,18,6.6],'circle-color':POI,'circle-opacity':.92,'circle-blur':.12,'circle-stroke-width':1,'circle-stroke-color':'rgba(0,0,0,.55)'}}); }catch(e){}
                         try{ map.addLayer({id:'boom-poi-glow',type:'circle',source:src,'source-layer':'poi',minzoom:15,filter:['<=',['coalesce',['get','rank'],99],4],paint:{'circle-radius':['interpolate',['linear'],['zoom'],15,8,18,17],'circle-color':POI,'circle-opacity':.16,'circle-blur':1}},'boom-poi'); }catch(e){}
                         try{ map.addLayer({id:'boom-transit',type:'symbol',source:src,'source-layer':'poi',minzoom:14.5,filter:['match',['get','class'],['railway','subway','station'],true,false],layout:{'text-field':['coalesce',['get','name'],''],'text-font':boomFont,'text-size':10.5,'text-offset':[0,1.2],'text-anchor':'top'},paint:{'text-color':'#5FE6E8','text-halo-color':'#06080A','text-halo-width':1.5}}); }catch(e){}
+                        // Walk-distance rings (5/10/15 min on foot) + a gold light beam on the exact building — immersive & genuinely useful
+                        try{
+                            var bcircle=function(clng,clat,rM,n){n=n||72;var co=[],dLat=rM/111320,dLng=rM/(111320*Math.cos(clat*Math.PI/180));for(var i=0;i<=n;i++){var a=i/n*2*Math.PI;co.push([clng+dLng*Math.cos(a),clat+dLat*Math.sin(a)]);}return {type:'Feature',properties:{},geometry:{type:'Polygon',coordinates:[co]}};};
+                            var ringDefs=[[350,'5 min'],[700,'10 min'],[1050,'15 min']];
+                            var ringFC={type:'FeatureCollection',features:ringDefs.map(function(d){var f=bcircle(lng,lat,d[0]);f.properties={m:d[1]};return f;})};
+                            map.addSource('boom-rings',{type:'geojson',data:ringFC});
+                            map.addLayer({id:'boom-rings-l',type:'line',source:'boom-rings',paint:{'line-color':'#FFD700','line-opacity':0.26,'line-width':1.4,'line-dasharray':[3,3]}});
+                            var ringLbls={type:'FeatureCollection',features:ringFC.features.map(function(f){var ring=f.geometry.coordinates[0];return {type:'Feature',properties:{m:'~'+f.properties.m+' walk'},geometry:{type:'Point',coordinates:ring[Math.floor(ring.length*0.12)]}};})};
+                            map.addSource('boom-rings-lbl',{type:'geojson',data:ringLbls});
+                            map.addLayer({id:'boom-rings-lbl-l',type:'symbol',source:'boom-rings-lbl',layout:{'text-field':['get','m'],'text-font':boomFont,'text-size':10,'text-allow-overlap':false},paint:{'text-color':'#FFD700','text-opacity':0.62,'text-halo-color':'#0B0B0E','text-halo-width':1.4}});
+                            map.addSource('boom-flat',{type:'geojson',data:bcircle(lng,lat,9,30)});
+                            map.addLayer({id:'boom-flat-beam',type:'fill-extrusion',source:'boom-flat',paint:{'fill-extrusion-color':'#FFD700','fill-extrusion-height':95,'fill-extrusion-base':0,'fill-extrusion-opacity':0.5}});
+                        }catch(e){console.warn('BOOM 3D: rings/beam failed',e&&e.message);}
                     }
                 }catch(e){}
                 try{ if(map.setSky)map.setSky({'sky-color':'#0a0a12','horizon-color':'#1c1208','fog-color':'#0B0B0E','sky-horizon-blend':.6,'horizon-fog-blend':.5,'fog-ground-blend':.4,'atmosphere-blend':['interpolate',['linear'],['zoom'],0,.7,13,.25]}); }catch(e){}

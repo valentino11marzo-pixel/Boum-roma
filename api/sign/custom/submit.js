@@ -14,7 +14,8 @@
 // Response: { ok, complete, signedPdfUrl? }
 
 import { fsGet, fsPatch, getAdminToken, secretEqual, FS_BASE, toFsFields } from '../../homie/_lib.js';
-import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+// pdf-lib is imported lazily inside buildSignedPdf so a load failure degrades
+// to "signature recorded, PDF pending" instead of crashing the endpoint.
 
 export const config = { api: { bodyParser: { sizeLimit: '6mb' } } };
 
@@ -42,6 +43,7 @@ async function uploadPdf(path, bytes){
 
 // Embed every signed field into the original PDF. fields: [{page,role,kind,xr,yr,wr,hr}]
 async function buildSignedPdf(originalBytes, fields, signers){
+  const { PDFDocument, StandardFonts, rgb } = await import('pdf-lib');
   const pdf = await PDFDocument.load(originalBytes);
   const pages = pdf.getPages();
   const font = await pdf.embedFont(StandardFonts.Helvetica);

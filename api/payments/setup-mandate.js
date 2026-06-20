@@ -8,22 +8,16 @@
 // Body: { contractId, tenant?: { name, email } }
 // Auth: test mode -> X-Pay-Test-Secret; live mode -> Firebase ID token (tenant/admin/landlord/owner).
 
-import { setCors, requireRole } from '../_auth.js';
-import { readJson, fsGet, fsPatch } from '../homie/_lib.js';
-import { resolveStripe, requireTestSecret, isLive } from './_lib.js';
+import { setCors } from '../_auth.js';
+import { readJson, fsGet } from '../homie/_lib.js';
+import { resolveStripe, requirePayAuth, mergeContractPayment } from './_lib.js';
 
 export default async function handler(req, res) {
   setCors(req, res);
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method_not_allowed' });
 
-  // Auth
-  if (isLive()) {
-    const auth = await requireRole(req, res, ['tenant', 'admin', 'landlord', 'owner']);
-    if (!auth) return; // requireRole already wrote the response
-  } else if (!requireTestSecret(req, res)) {
-    return;
-  }
+  if (!(await requirePayAuth(req, res, ['tenant', 'admin', 'landlord', 'owner']))) return;
 
   const { stripe, mode, error } = resolveStripe();
   if (error) return res.status(503).json({ ok: false, error });
@@ -47,9 +41,10 @@ export default async function handler(req, res) {
         metadata: { service: 'RENT', contractId },
       });
       customerId = customer.id;
-      // Persist immediately so retries reuse the same customer.
-      await fsPatch('contracts/' + contractId, {
-        payment: { stripeCustomerId: customerId, email: email || '', status: 'mandate_pending' },
+      // Persist immediately so retries reuse the same customer (nested merge —
+      // never clobbers a landlord payout account already on the contract).
+      await mergeContractPayment(contractId, {
+        stripeCustomerId: customerId, email: email || '', status: 'mandate_pending',
       });
     }
 

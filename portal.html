@@ -4030,7 +4030,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             }
         });
         // Open maintenance
-        S.maintenance.filter(m => m.status === 'open' && m.priority === 'urgent').forEach(m => {
+        S.maintenance.filter(m => m.status !== 'resolved' && m.status !== 'closed' && m.status !== 'done' && m.priority === 'urgent').forEach(m => {
             S.notifications.push({ type: 'danger', title: 'Manutenzione urgente', text: m.title, id: m.id });
         });
         // Drop the ones the operator has explicitly cleared.
@@ -4214,6 +4214,69 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function stopHeartbeatListener() {
         if (S.heartbeatListener) { S.heartbeatListener(); S.heartbeatListener = null; }
         if (S._hbTick) { clearInterval(S._hbTick); S._hbTick = null; }
+    }
+
+    // Real-time maintenance listener — tenants file requests from tenant.html;
+    // the admin list was a one-shot .get() so new tickets only appeared on
+    // reload, with no alert. Keep it live and toast/push on each new ticket.
+    function startMaintenanceListener() {
+        if (!S.profile?.id || !isAdmin()) return;
+        if (S.maintenanceListener) S.maintenanceListener();
+        S._maintSeen = new Set((S.maintenance || []).map(m => m.id));
+        S.maintenanceListener = db.collection('maintenance')
+            .onSnapshot(snapshot => {
+                S.maintenance = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                const active = m => m.status !== 'resolved' && m.status !== 'closed' && m.status !== 'done';
+                const firstRun = !S._maintInit; S._maintInit = true;   // don't alert for pre-existing tickets on login
+                const fresh = firstRun ? [] : S.maintenance.filter(m => active(m) && !S._maintSeen.has(m.id));
+                S._maintSeen = new Set(S.maintenance.map(m => m.id));
+                if (fresh.length) {
+                    const top = fresh.find(m => m.priority === 'urgent') || fresh[0];
+                    const sub = (top.propertyName || '') + ' · ' + (top.category || '') + (top.tenantName ? ' — ' + top.tenantName : '');
+                    toast(top.priority === 'urgent' ? 'error' : 'info', 'Nuova manutenzione' + (fresh.length > 1 ? ' (' + fresh.length + ')' : ''), sub);
+                    document.getElementById('notifBtn')?.classList.add('notif-pulse');
+                    setTimeout(() => document.getElementById('notifBtn')?.classList.remove('notif-pulse'), 2000);
+                    if (document.hidden) sendBrowserNotification('🔧 Nuova manutenzione', sub);
+                }
+                buildNav();
+                if (S.page === 'maintenance' || S.page === 'dashboard') renderPage();
+            }, err => console.error('Maintenance listener error:', err));
+    }
+    function stopMaintenanceListener() {
+        if (S.maintenanceListener) { S.maintenanceListener(); S.maintenanceListener = null; }
+    }
+
+    // Real-time agent-event feed — the agentNotifications queue (lead.new,
+    // contract.signed, maintenance.opened, concierge emergencies) is written by
+    // several endpoints but was consumed ONLY by the off-repo Mac daemon, so if
+    // the Mac was off the admin never saw these. Surface them live in the portal
+    // so the operator has full awareness with OR without the Mac running.
+    function startAgentFeedListener() {
+        if (!S.profile?.id || !isAdmin()) return;
+        if (S.agentFeedListener) S.agentFeedListener();
+        S._agentSeen = new Set((S.agentFeed || []).map(a => a.id));
+        S.agentFeedListener = db.collection('agentNotifications')
+            .where('status', '==', 'pending')
+            .limit(50)
+            .onSnapshot(snapshot => {
+                S.agentFeed = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+                    .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+                const firstRun = !S._agentInit; S._agentInit = true;   // don't alert for queued backlog on login
+                const fresh = firstRun ? [] : S.agentFeed.filter(a => !S._agentSeen.has(a.id));
+                S._agentSeen = new Set(S.agentFeed.map(a => a.id));
+                const hot = fresh.filter(a => a.priority === 'urgent' || a.priority === 'high');
+                if (hot.length) {
+                    const top = hot.find(a => a.priority === 'urgent') || hot[0];
+                    toast(top.priority === 'urgent' ? 'error' : 'info', 'Avviso agente', top.summary || top.type || 'Nuovo evento');
+                    document.getElementById('notifBtn')?.classList.add('notif-pulse');
+                    setTimeout(() => document.getElementById('notifBtn')?.classList.remove('notif-pulse'), 2000);
+                    if (document.hidden) sendBrowserNotification('⚡ ' + (top.type || 'Avviso'), top.summary || '');
+                }
+                if (S.page === 'command-center' || S.page === 'dashboard') renderPage();
+            }, err => console.error('Agent feed listener error:', err));
+    }
+    function stopAgentFeedListener() {
+        if (S.agentFeedListener) { S.agentFeedListener(); S.agentFeedListener = null; }
     }
 
     // Derive a connection status from the last ping. Thresholds match the cockpit:
@@ -4918,6 +4981,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             stopSignRequestsListener();
             stopRadarListener();
             stopInboxListener();
+            stopMaintenanceListener();
+            stopAgentFeedListener();
             // Clear data cache
             localStorage.removeItem('boom_data_cache');
             try {
@@ -4961,7 +5026,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         startRadarListener();
         startInboxListener();
         startHeartbeatListener();
-        
+        startMaintenanceListener();
+        startAgentFeedListener();
+
         // Check scheduled notifications (admin only, once per session)
         if (isAdmin() && !window.scheduledNotifChecked) {
             window.scheduledNotifChecked = true;
@@ -4994,7 +5061,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (r === 'admin') {
             const activeClients = (S.clients || []).filter(c => !['completed', 'lost'].includes(c.stage)).length;
             const pendingInv = S.invoices.filter(i => i.status === 'pending').length;
-            const openMaint = S.maintenance.filter(m => m.status === 'open').length;
+            const openMaint = S.maintenance.filter(m => m.status !== 'resolved' && m.status !== 'closed' && m.status !== 'done').length;
             const overduePayments = S.payments.filter(p => p.status === 'pending' && isOverdue(p.dueDate)).length;
             const urgentDeadlines = (S.deadlines || []).filter(d => d.status !== 'done' && daysUntil(d.date) !== null && daysUntil(d.date) <= 7).length + (S.tasks || []).filter(t => t.status !== 'done' && t.priority === 'urgent').length;
             const urgentPFS = (S.pfsClients || []).filter(c => c.stage !== 'placed' && calculatePFSPriority && calculatePFSPriority(c) >= 70).length;
@@ -5044,7 +5111,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <div class="nav-item" onclick="logout()"><span class="nav-icon">🚪</span> Esci</div>
                 </div>`;
         } else if (r === 'landlord') {
-            const myMaint = getMyMaintenance().filter(m => m.status === 'open').length;
+            const myMaint = getMyMaintenance().filter(m => m.status !== 'resolved' && m.status !== 'closed').length;
             const myOverdue = getMyPayments().filter(p => p.status === 'pending' && isOverdue(p.dueDate)).length;
             const myUnreadInbox = (S.conversations || []).reduce((n, c) => n + (Number(c.unread) || 0), 0);
             sb.innerHTML = `

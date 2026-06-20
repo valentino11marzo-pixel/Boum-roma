@@ -9,21 +9,16 @@
 // Body: { contractId, holderName, iban, email?, businessType?, returnUrl?, refreshUrl? }
 // Auth: test mode -> X-Pay-Test-Secret; live mode -> Firebase ID token.
 
-import { setCors, requireRole } from '../_auth.js';
-import { readJson, fsGet, fsPatch } from '../homie/_lib.js';
-import { resolveStripe, requireTestSecret, isLive } from './_lib.js';
+import { setCors } from '../_auth.js';
+import { readJson, fsGet } from '../homie/_lib.js';
+import { resolveStripe, requirePayAuth, mergeContractPayment } from './_lib.js';
 
 export default async function handler(req, res) {
   setCors(req, res);
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method_not_allowed' });
 
-  if (isLive()) {
-    const auth = await requireRole(req, res, ['admin', 'landlord', 'owner']);
-    if (!auth) return;
-  } else if (!requireTestSecret(req, res)) {
-    return;
-  }
+  if (!(await requirePayAuth(req, res, ['admin', 'landlord', 'owner']))) return;
 
   const { stripe, mode, error } = resolveStripe();
   if (error) return res.status(503).json({ ok: false, error });
@@ -68,8 +63,8 @@ export default async function handler(req, res) {
         metadata: { service: 'RENT', contractId },
       });
       accountId = account.id;
-      await fsPatch('contracts/' + contractId, {
-        payment: { landlordAccountId: accountId, payoutModel: 'direct', payoutStatus: 'verification_pending' },
+      await mergeContractPayment(contractId, {
+        landlordAccountId: accountId, payoutModel: 'direct', payoutStatus: 'verification_pending',
       });
     }
 

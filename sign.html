@@ -729,14 +729,17 @@
         };
         return fetch('/api/magic-sign/submit',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
       })
-      .then(function(r){ return r.json().catch(function(){return {ok:false};}); })
+      .then(function(r){ return r.text().then(function(txt){ var j; try{ j=JSON.parse(txt); }catch(e){ j={ ok:false, error:'http_'+r.status, detail:(txt||'').slice(0,140) }; } return j; }); })
       .then(function(j){
         if(!j||!j.ok){
           // A timed-out first attempt may have recorded the signature anyway —
           // the retry then gets 410 already_signed. That's success, not failure.
           if(j&&j.error==='already_signed'){ renderSuccess(j.signatureStatus==='complete'); return; }
+          try{ console.error('[sign submit] failed:', j); }catch(e){}
           var b=document.getElementById('s-sign'); if(b){ b.disabled=false; b.textContent='Sign contract'; }
-          return flash(j&&j.error==='rate_limited' ? 'Too many attempts — please wait a moment.' : 'We couldn’t record your signature. Please try again.');
+          if(j&&j.error==='rate_limited') return flash('Too many attempts — please wait a moment.');
+          var why=(j&&(j.error||j.detail))?(' ['+esc(String(j.error||j.detail))+']'):'';
+          return flash('We couldn’t record your signature.'+why);
         }
         // Obligations + FES certificate + tenant magic link + welcome emails are
         // produced server-side by /api/magic-sign/submit on full completion.

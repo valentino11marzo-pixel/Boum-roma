@@ -23,7 +23,9 @@
 
 import { fsGet, fsPatch, fsList, readJson, logActivity } from '../homie/_lib.js';
 import { findContractByToken, commitWrites, setCors } from './_shared.js';
-import { finalizeContract } from '../sign/_finalize.js';
+// finalizeContract is imported lazily at the call site (below) so a load
+// failure in the post-signature step (e.g. an unresolved pdf-lib) can NEVER
+// crash the signature write itself.
 
 const SIG_MAX_LEN = 800_000; // ~600 KB base64 — generous for canvas signatures
 
@@ -304,10 +306,23 @@ export default async function handler(req, res) {
     // `finalized` is returned to the portal client so it skips its own
     // (duplicate) welcome-email + magic-link flow when the server handled it.
     try {
+      const { finalizeContract } = await import('../sign/_finalize.js');
       const fin = await finalizeContract(fullContract);
       finalized = !!(fin && fin.ok);
     } catch (e) { console.warn('[magic-sign/submit] finalize:', e.message); }
   }
+
+  // ── Stage notifications (server-side, best-effort, never blocking) ──
+  // Partial → confirm the signer + nudge the counterparty with their /sign
+  // link. Full → a concise milestone email to the operator (the party
+  // welcomes are sent by finalize). Fires even when signing happened on
+  // /sign with no portal open.
+  try {
+    const _n = await import('../sign/_notify.js');
+    const fullC = { ...fresh, ...upd, id: contractId };
+    if (fullySigned) { await _n.notifyAdminContractSigned(fullC, propertyDoc); }
+    else { await _n.notifyPartialSignature(fullC, role, propertyDoc); }
+  } catch (e) { console.warn('[magic-sign/submit] stage notify:', e.message); }
 
   // ── 7. Audit ───────────────────────────────────────────
   await logActivity('magic_sign_submitted', 'contract', {

@@ -9,8 +9,22 @@
 // — only for events whose metadata.service === 'RENT'. All writes are
 // idempotent (fsPatch create-or-update on rentPayments/<contract_period>).
 
-import { fsPatch, logActivity } from '../homie/_lib.js';
-import { resolveStripe, ledgerId } from './_lib.js';
+import { fsPatch, fsGet, logActivity } from '../homie/_lib.js';
+import { resolveStripe, ledgerId, mergeContractPayment } from './_lib.js';
+
+// Bridge a settled rent period onto the wallet/portal schedule doc the rest of
+// the app already reads (`payments/pay_<contractId>_<period>`, created by
+// api/magic-sign/submit.js). Marking it paid lets reminder-cron flip the tenant
+// Apple Wallet pass to "Pagato ✓" and the portal payment views to settled.
+// Only patches a schedule row that already exists — never creates a stray one.
+async function bridgeSchedule(contractId, period, patch) {
+  if (!contractId || !period) return;
+  const docId = 'pay_' + contractId + '_' + period;
+  try {
+    const existing = await fsGet('payments/' + docId);
+    if (existing) await fsPatch('payments/' + docId, patch);
+  } catch (e) { console.warn('[payments/webhook] schedule bridge:', e.message); }
+}
 
 export const config = { api: { bodyParser: false } };
 
@@ -68,14 +82,12 @@ export default async function handler(req, res) {
           last4 = pm?.sepa_debit?.last4 || null;
         }
       } catch { /* non-fatal */ }
-      await fsPatch('contracts/' + contractId, {
-        payment: {
-          stripeCustomerId: obj.customer || '',
-          sepaPmId: obj.payment_method || '',
-          mandateId: obj.mandate || '',
-          ibanLast4: last4 || '',
-          status: 'active',
-        },
+      await mergeContractPayment(contractId, {
+        stripeCustomerId: obj.customer || '',
+        sepaPmId: obj.payment_method || '',
+        mandateId: obj.mandate || '',
+        ibanLast4: last4 || '',
+        status: 'active',
       });
       await logActivity('rent_mandate_active', 'payments', { contractId, last4 }, 'stripe');
       return res.status(200).json({ received: true, handled: 'mandate_active' });
@@ -97,6 +109,12 @@ export default async function handler(req, res) {
       patch.amount = obj.amount_received || obj.amount || undefined;
       // Mark this period paid on the contract too (drives portal status).
       await fsPatch('contracts/' + contractId, { lastPaidPeriod: period, lastPaidAt: new Date() }).catch(() => {});
+      // Bridge → the wallet/portal schedule doc flips to paid ("Pagato ✓").
+      const nowIso = new Date().toISOString();
+      await bridgeSchedule(contractId, period, {
+        status: 'paid', paidAt: nowIso, paidDate: nowIso.split('T')[0],
+        paidVia: 'sepa', passPaidPushed: false,
+      });
     } else if (event.type === 'payment_intent.payment_failed') {
       patch.status = 'failed';
       patch.failReason = obj.last_payment_error?.message || obj.last_payment_error?.code || 'failed';
