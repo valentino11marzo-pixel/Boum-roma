@@ -184,19 +184,31 @@ export default async function handler(req, res) {
       }
 
       if (text === '/snapshot') {
-        // light snapshot via existing endpoint
-        const r = await fetch(`${BASE}/api/agent/state.snapshot`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Homie-Secret': process.env.HOMIE_SECRET || '' },
-          body: JSON.stringify({ scope: 'all' }),
-        });
-        const data = await r.json().catch(() => ({}));
-        const lines = [];
-        if (data.leads)   lines.push(`👥 Leads: ${data.leads.total ?? '—'} (${data.leads.new ?? 0} nuovi)`);
-        if (data.contracts) lines.push(`📄 Contratti attivi: ${data.contracts.active ?? '—'}`);
-        if (data.payments)  lines.push(`💶 Pagamenti overdue: ${data.payments.overdue ?? 0}`);
-        if (data.actionQueue) lines.push(`⚡ Pending: ${data.actionQueue.pending ?? 0}`);
-        await tgSend(chatId, '<b>📊 Snapshot</b>\n' + (lines.join('\n') || JSON.stringify(data).slice(0, 500)));
+        // Compute the snapshot directly from Firestore (admin token) instead of
+        // self-fetching our own HTTP endpoint over VERCEL_URL, which could come
+        // back empty and render as a bare "{}".
+        try {
+          const [leads, contracts, payments, pendingActions] = await Promise.all([
+            fsList('leads', { limit: 100 }),
+            fsList('contracts', { limit: 100 }),
+            fsList('payments', { limit: 100 }),
+            fsList('action_queue', { filter: { field: 'status', op: 'EQUAL', value: 'pending' }, limit: 50 }),
+          ]);
+          const newLeads = leads.filter(l => l.status === 'new' || !l.status).length;
+          const activeC = contracts.filter(c => c.status === 'active').length;
+          const unsigned = contracts.filter(c => c.status !== 'draft' && (!c.landlordSignature || !c.tenantSignature)).length;
+          const now = new Date();
+          const overdue = payments.filter(p => p.status === 'pending' && p.dueDate && new Date(p.dueDate) < now).length;
+          await tgSend(chatId, [
+            '<b>📊 Snapshot BOOM</b>',
+            `👥 Lead: ${leads.length} (${newLeads} nuovi)`,
+            `📄 Contratti attivi: ${activeC} · da firmare: ${unsigned}`,
+            `💶 Pagamenti scaduti: ${overdue}`,
+            `⚡ Azioni in attesa: ${pendingActions.length}`,
+          ].join('\n'));
+        } catch (e) {
+          await tgSend(chatId, '⚠️ Snapshot non disponibile al momento.');
+        }
         return res.status(200).json({ ok: true });
       }
 
