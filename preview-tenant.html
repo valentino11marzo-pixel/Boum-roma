@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Preview — Portale Inquilino — BOOM Rome</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* === PREVIEW DEMO — autonomo, dati finti, nessun Firebase ===
+           v2 — costruito sullo studio TENANT-EXPERIENCE.md: a casa, in controllo,
+           accudito. Home consapevole del ciclo di vita (benvenuto → vita → rinnovo),
+           ingresso guidato, deposito, avvisi proattivi, valutazione interventi,
+           profilo. Mappa al portale reale tenant.html. */
+        * { margin:0; padding:0; box-sizing:border-box; }
+        :root {
+            --gold:#D4AF37; --gold-dark:#B8960C; --gold-light:rgba(212,175,55,0.15); --gold-glow:rgba(212,175,55,0.45);
+            --bg:#000; --bg-card:#0A0A0B; --bg-elevated:#121214; --bg-input:#1A1A1C;
+            --border:rgba(255,255,255,0.08); --border-strong:rgba(255,255,255,0.15);
+            --text:#FFF; --text-secondary:#8a8a8a; --text-muted:#555;
+            --green:#00D26A; --green-light:rgba(0,210,106,0.13);
+            --orange:#FF9F0A; --orange-light:rgba(255,159,10,0.13);
+            --red:#FF3B30; --red-light:rgba(255,59,48,0.13);
+            --blue:#0A84FF; --blue-light:rgba(10,132,255,0.13);
+            --purple:#BF5AF2; --purple-light:rgba(191,90,242,0.13);
+        }
+        body { font-family:'Inter',-apple-system,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; -webkit-font-smoothing:antialiased; }
+        a { color:inherit; text-decoration:none; }
+
+        /* ---- Header ---- */
+        .header { position:fixed; top:0; left:0; right:0; height:62px; background:rgba(0,0,0,0.86); backdrop-filter:blur(22px); border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; padding:0 16px; z-index:100; }
+        .h-left { display:flex; align-items:center; gap:9px; }
+        .logo-mark { width:30px; height:30px; background:linear-gradient(135deg,var(--gold),var(--gold-dark)); border-radius:50%; box-shadow:0 0 16px var(--gold-glow); flex:0 0 auto; }
+        .h-title { font-size:12px; letter-spacing:2px; } .h-title small { display:block; font-size:9px; letter-spacing:1px; color:var(--text-muted); text-transform:uppercase; margin-top:1px; }
+        .h-right { display:flex; align-items:center; gap:10px; }
+        .icon-btn { width:36px; height:36px; background:var(--bg-elevated); border:1px solid var(--border); border-radius:10px; color:var(--text); font-size:15px; cursor:pointer; display:flex; align-items:center; justify-content:center; position:relative; }
+        .icon-btn .dot { position:absolute; top:-4px; right:-4px; min-width:15px; height:15px; background:var(--gold); color:#000; font-size:9px; font-weight:700; border-radius:8px; display:flex; align-items:center; justify-content:center; padding:0 3px; }
+        .avatar { width:34px; height:34px; background:linear-gradient(135deg,var(--gold),var(--gold-dark)); border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; color:#000; cursor:pointer; }
+
+        .main { padding:76px 16px 100px; max-width:520px; margin:0 auto; }
+
+        h2.view-title { font-size:22px; font-weight:300; letter-spacing:0.3px; margin-bottom:4px; }
+        h2.view-title .dot { color:var(--gold); }
+        .view-sub { color:var(--text-secondary); font-size:12px; margin-bottom:18px; line-height:1.5; }
+        .section { margin-bottom:22px; }
+        .section-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+        .section-title { font-size:11px; text-transform:uppercase; letter-spacing:2px; color:var(--text-secondary); }
+        .link { font-size:11px; color:var(--gold); cursor:pointer; }
+
+        /* ---- Buttons ---- */
+        .btn { padding:13px 18px; background:var(--gold); border:none; border-radius:12px; color:#000; font-family:inherit; font-size:13px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:7px; transition:transform .12s, filter .12s; }
+        .btn:active { transform:scale(0.97); }
+        .btn:hover { filter:brightness(1.05); }
+        .btn-block { width:100%; }
+        .btn-sm { padding:9px 13px; font-size:12px; border-radius:10px; }
+        .btn-secondary { background:var(--bg-elevated); color:var(--text); border:1px solid var(--border); }
+        .btn-secondary:active { border-color:var(--gold); }
+        .btn-success { background:var(--green); color:#000; }
+
+        /* ---- Cards ---- */
+        .card { background:var(--bg-card); border:1px solid var(--border); border-radius:18px; padding:18px; margin-bottom:14px; }
+        .card.flush { padding:6px 0; }
+        .card.gold-soft { background:linear-gradient(135deg,rgba(212,175,55,0.10),transparent); border-color:rgba(212,175,55,0.22); }
+
+        /* ---- Property hero ---- */
+        .home-hero { position:relative; border-radius:20px; overflow:hidden; margin-bottom:14px; min-height:176px; display:flex; align-items:flex-end; }
+        .home-hero img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+        .home-hero .scrim { position:absolute; inset:0; background:linear-gradient(to top,rgba(0,0,0,0.93) 0%,rgba(0,0,0,0.15) 62%,rgba(0,0,0,0.4) 100%); }
+        .home-hero .hh-body { position:relative; padding:18px; width:100%; }
+        .home-hero .hh-greet { font-size:12px; color:rgba(255,255,255,0.82); }
+        .home-hero .hh-name { font-size:23px; font-weight:700; margin-top:2px; letter-spacing:-0.2px; }
+        .home-hero .hh-addr { font-size:12px; color:rgba(255,255,255,0.78); margin-top:4px; }
+        .home-hero .hh-chips { display:flex; gap:6px; margin-top:10px; flex-wrap:wrap; }
+        .chip-glass { background:rgba(0,0,0,0.45); backdrop-filter:blur(8px); border:1px solid rgba(255,255,255,0.14); border-radius:100px; padding:5px 11px; font-size:11px; }
+        .chip-glass.green { color:var(--green); border-color:rgba(0,210,106,0.4); }
+
+        /* ---- Welcome / move-in ---- */
+        .welcome { position:relative; border-radius:18px; padding:18px; margin-bottom:14px; overflow:hidden; background:linear-gradient(135deg,rgba(212,175,55,0.16),rgba(191,90,242,0.06)); border:1px solid rgba(212,175,55,0.3); }
+        .welcome .wx { position:absolute; top:-30px; right:-20px; font-size:120px; opacity:0.06; }
+        .welcome .wtop { display:flex; align-items:center; justify-content:space-between; }
+        .welcome .wkick { font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:var(--gold); }
+        .welcome .wtitle { font-size:17px; font-weight:700; margin-top:3px; }
+        .welcome .wsub { font-size:12px; color:var(--text-secondary); margin-top:4px; }
+        .wbar { height:6px; background:rgba(255,255,255,0.08); border-radius:100px; margin:13px 0 4px; overflow:hidden; }
+        .wbar > i { display:block; height:100%; background:linear-gradient(90deg,var(--green),var(--gold)); border-radius:100px; transition:width .4s; }
+        .wbar-l { font-size:10px; color:var(--text-muted); }
+        .x-btn { width:24px; height:24px; border-radius:8px; background:rgba(0,0,0,0.25); border:none; color:var(--text-secondary); font-size:13px; cursor:pointer; }
+
+        /* ---- Needs-you ---- */
+        .needs { display:flex; align-items:center; gap:12px; padding:13px 15px; border-radius:14px; margin-bottom:9px; border:1px solid var(--border); background:var(--bg-card); cursor:pointer; transition:border-color .15s; }
+        .needs:active { border-color:var(--gold); }
+        .needs.gold { border-color:rgba(212,175,55,0.3); background:var(--gold-light); }
+        .needs.red { border-color:rgba(255,59,48,0.3); background:var(--red-light); }
+        .needs.blue { border-color:rgba(10,132,255,0.3); background:var(--blue-light); }
+        .needs-ico { font-size:18px; flex:0 0 auto; }
+        .needs-main { flex:1; min-width:0; } .needs-t { font-size:13px; font-weight:600; } .needs-s { font-size:11px; color:var(--text-secondary); margin-top:1px; }
+        .needs-arrow { color:var(--text-muted); font-size:14px; }
+
+        /* ---- Rent hero ---- */
+        .rent-card { background:linear-gradient(135deg,rgba(212,175,55,0.16),rgba(212,175,55,0.03)); border:1px solid rgba(212,175,55,0.3); border-radius:20px; padding:20px; margin-bottom:14px; }
+        .rent-card.paid { background:var(--green-light); border-color:rgba(0,210,106,0.32); }
+        .rent-top { display:flex; justify-content:space-between; align-items:flex-start; }
+        .rent-lbl { font-size:10px; text-transform:uppercase; letter-spacing:1.5px; color:var(--text-secondary); }
+        .rent-amt { font-size:38px; font-weight:800; letter-spacing:-0.5px; margin-top:2px; }
+        .rent-amt span { font-size:15px; font-weight:500; color:var(--text-secondary); }
+        .rent-meta { font-size:12px; color:var(--text-secondary); margin-top:6px; }
+        .rent-pill { font-size:11px; font-weight:700; padding:6px 12px; border-radius:100px; }
+        .rent-pill.due { background:var(--gold); color:#000; }
+        .rent-pill.soon { background:var(--orange-light); color:var(--orange); }
+        .rent-pill.paid { background:var(--green); color:#000; }
+        .rent-actions { display:flex; gap:8px; margin-top:16px; }
+
+        /* ---- Dates strip ---- */
+        .dates { display:grid; grid-template-columns:repeat(3,1fr); gap:9px; margin-bottom:18px; }
+        .date-c { background:var(--bg-card); border:1px solid var(--border); border-radius:14px; padding:13px; }
+        .date-c .di { font-size:15px; } .date-c .dv { font-size:14px; font-weight:700; margin-top:5px; } .date-c .dv.gold{color:var(--gold)} .date-c .dv.orange{color:var(--orange)}
+        .date-c .dl { font-size:9px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin-top:3px; }
+
+        /* ---- Quick actions ---- */
+        .qa-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+        .qa { background:var(--bg-card); border:1px solid var(--border); border-radius:14px; padding:15px; cursor:pointer; display:flex; align-items:center; gap:11px; transition:border-color .15s, transform .12s; }
+        .qa:active { border-color:var(--gold); transform:scale(0.98); }
+        .qa-ico { width:38px; height:38px; border-radius:11px; display:flex; align-items:center; justify-content:center; font-size:18px; background:var(--bg-elevated); flex:0 0 auto; }
+        .qa-tx { font-size:13px; font-weight:600; line-height:1.25; }
+        .qa-tx small { display:block; font-size:10px; color:var(--text-muted); font-weight:400; margin-top:1px; }
+
+        /* ---- Rows ---- */
+        .row { display:flex; align-items:center; gap:13px; padding:13px 16px; }
+        .row + .row { border-top:1px solid var(--border); }
+        .row-ico { width:40px; height:40px; border-radius:11px; background:var(--bg-elevated); display:flex; align-items:center; justify-content:center; font-size:17px; flex:0 0 auto; }
+        .row-main { flex:1; min-width:0; }
+        .row-title { font-size:13px; font-weight:600; }
+        .row-sub { font-size:11px; color:var(--text-muted); margin-top:2px; }
+        .row-right { text-align:right; flex:0 0 auto; }
+        .row-val { font-weight:700; font-size:13px; }
+
+        .badge { padding:4px 10px; border-radius:100px; font-size:10px; font-weight:700; letter-spacing:0.3px; }
+        .badge.green{background:var(--green-light);color:var(--green)} .badge.gold{background:var(--gold-light);color:var(--gold)}
+        .badge.orange{background:var(--orange-light);color:var(--orange)} .badge.red{background:var(--red-light);color:var(--red)}
+        .badge.blue{background:var(--blue-light);color:var(--blue)} .badge.gray{background:var(--bg-elevated);color:var(--text-muted)}
+        .badge.purple{background:var(--purple-light);color:var(--purple)}
+        .text-green{color:var(--green)} .text-red{color:var(--red)} .text-gold{color:var(--gold)} .text-orange{color:var(--orange)} .text-muted{color:var(--text-muted)}
+
+        /* ---- Payments ---- */
+        .pay-method { display:flex; align-items:center; gap:12px; padding:14px 16px; background:var(--bg-elevated); border:1px solid var(--border); border-radius:14px; margin-bottom:12px; }
+        .pm-card { width:42px; height:28px; border-radius:6px; background:linear-gradient(135deg,#1a1a2e,#16213e); display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:800; color:#fff; letter-spacing:0.5px; }
+        .toggle { width:44px; height:26px; border-radius:100px; background:var(--bg-input); border:1px solid var(--border); position:relative; cursor:pointer; flex:0 0 auto; transition:background .2s; }
+        .toggle.on { background:var(--green); border-color:var(--green); }
+        .toggle i { position:absolute; top:2px; left:2px; width:20px; height:20px; border-radius:50%; background:#fff; transition:left .2s; }
+        .toggle.on i { left:20px; }
+        .setting-row { display:flex; align-items:center; gap:13px; padding:14px 16px; }
+        .setting-row + .setting-row { border-top:1px solid var(--border); }
+        .setting-main { flex:1; } .setting-title { font-size:13px; font-weight:600; } .setting-sub { font-size:11px; color:var(--text-muted); margin-top:2px; }
+
+        /* ---- Deposit ---- */
+        .deposit { background:linear-gradient(135deg,rgba(10,132,255,0.10),transparent); border:1px solid rgba(10,132,255,0.25); border-radius:18px; padding:18px; margin-bottom:14px; }
+        .dep-top { display:flex; align-items:center; gap:13px; }
+        .dep-ring { width:46px; height:46px; border-radius:50%; border:2px solid var(--blue); display:flex; align-items:center; justify-content:center; font-size:19px; flex:0 0 auto; }
+        .dep-bars { margin-top:14px; display:flex; flex-direction:column; gap:8px; }
+        .dep-line { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--text-secondary); }
+        .dep-line .ck { color:var(--green); }
+
+        /* ---- Maintenance timeline ---- */
+        .ticket { background:var(--bg-card); border:1px solid var(--border); border-radius:16px; padding:16px; margin-bottom:12px; }
+        .ticket.urgent { border-color:rgba(255,59,48,0.3); }
+        .ticket-head { display:flex; align-items:flex-start; gap:12px; }
+        .ticket-ico { width:42px; height:42px; border-radius:12px; background:var(--bg-elevated); display:flex; align-items:center; justify-content:center; font-size:19px; flex:0 0 auto; }
+        .ticket-title { font-size:14px; font-weight:600; }
+        .ticket-meta { font-size:11px; color:var(--text-muted); margin-top:2px; }
+        .timeline { margin-top:14px; padding-top:14px; border-top:1px solid var(--border); display:flex; justify-content:space-between; position:relative; }
+        .timeline::before { content:''; position:absolute; top:9px; left:14px; right:14px; height:2px; background:var(--border); }
+        .tl-fill { position:absolute; top:9px; left:14px; height:2px; background:linear-gradient(90deg,var(--green),var(--gold)); }
+        .tl-step { display:flex; flex-direction:column; align-items:center; gap:6px; position:relative; z-index:1; flex:1; }
+        .tl-dot { width:20px; height:20px; border-radius:50%; background:var(--bg-card); border:2px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:8px; }
+        .tl-step.done .tl-dot { background:var(--green); border-color:var(--green); color:#000; }
+        .tl-step.active .tl-dot { background:var(--gold); border-color:var(--gold); color:#000; box-shadow:0 0 12px var(--gold-glow); }
+        .tl-lbl { font-size:8px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.3px; text-align:center; }
+        .tl-step.done .tl-lbl, .tl-step.active .tl-lbl { color:var(--text-secondary); }
+        .rate { margin-top:14px; padding-top:14px; border-top:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+        .stars { display:flex; gap:4px; } .star { font-size:20px; cursor:pointer; color:var(--text-muted); transition:transform .1s; } .star:active { transform:scale(1.3); } .star.on { color:var(--gold); }
+
+        /* ---- Documents ---- */
+        .wallet-card { background:linear-gradient(135deg,#161616,#0a0a0a); border:1px solid rgba(212,175,55,0.3); border-radius:18px; padding:18px; margin-bottom:14px; position:relative; overflow:hidden; }
+        .wallet-card::after { content:''; position:absolute; top:-40px; right:-40px; width:140px; height:140px; border-radius:50%; background:radial-gradient(circle,var(--gold-glow),transparent 70%); opacity:0.5; }
+        .wallet-row { display:flex; align-items:center; gap:14px; position:relative; }
+        .wallet-ring { width:48px; height:48px; border-radius:50%; border:2px solid var(--gold); display:flex; align-items:center; justify-content:center; font-size:20px; box-shadow:0 0 20px var(--gold-glow); flex:0 0 auto; }
+        .doc-pills { display:flex; gap:7px; flex-wrap:wrap; margin-bottom:14px; }
+        .doc-pill { padding:7px 13px; background:var(--bg-card); border:1px solid var(--border); border-radius:100px; color:var(--text-secondary); font-size:11px; cursor:pointer; }
+        .doc-pill.active { border-color:var(--gold); color:var(--gold); background:var(--gold-light); }
+
+        /* ---- Notices ---- */
+        .notice { display:flex; gap:12px; padding:14px; background:var(--bg-card); border:1px solid var(--border); border-radius:14px; margin-bottom:10px; }
+        .notice-ico { width:40px; height:40px; border-radius:11px; display:flex; align-items:center; justify-content:center; font-size:18px; flex:0 0 auto; }
+        .notice-main { flex:1; min-width:0; } .notice-t { font-size:13px; font-weight:600; } .notice-b { font-size:11px; color:var(--text-secondary); margin-top:3px; line-height:1.45; } .notice-w { font-size:10px; color:var(--text-muted); margin-top:5px; }
+
+        /* ---- Chat ---- */
+        .chat-wrap { display:flex; flex-direction:column; gap:10px; margin-bottom:16px; }
+        .msg { max-width:80%; padding:11px 14px; border-radius:16px; font-size:13px; line-height:1.4; }
+        .msg .t { font-size:9px; color:var(--text-muted); margin-top:5px; }
+        .msg.them { background:var(--bg-elevated); border:1px solid var(--border); border-bottom-left-radius:5px; align-self:flex-start; }
+        .msg.me { background:linear-gradient(135deg,var(--gold),var(--gold-dark)); color:#000; border-bottom-right-radius:5px; align-self:flex-end; }
+        .msg.me .t { color:rgba(0,0,0,0.5); }
+        .chat-input { display:flex; gap:8px; align-items:center; }
+        .chat-input input { flex:1; background:var(--bg-input); border:1px solid var(--border); border-radius:100px; padding:12px 16px; color:var(--text); font-family:inherit; font-size:13px; outline:none; }
+        .chat-input input:focus { border-color:var(--gold); }
+        .send-btn { width:44px; height:44px; border-radius:50%; background:var(--gold); border:none; color:#000; font-size:17px; cursor:pointer; flex:0 0 auto; }
+
+        .conc-card { display:flex; align-items:center; gap:13px; padding:14px; background:var(--bg-card); border:1px solid var(--border); border-radius:14px; margin-bottom:10px; cursor:pointer; transition:border-color .15s; }
+        .conc-card:active { border-color:var(--gold); }
+        .conc-ico { width:42px; height:42px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:20px; flex:0 0 auto; background:var(--bg-elevated); }
+        .conc-main { flex:1; min-width:0; }
+        .conc-title { font-size:13px; font-weight:600; }
+        .conc-sub { font-size:11px; color:var(--text-muted); margin-top:2px; }
+
+        /* ---- Checklist (move-in) ---- */
+        .check-item { display:flex; align-items:center; gap:13px; padding:14px 4px; cursor:pointer; }
+        .check-item + .check-item { border-top:1px solid var(--border); }
+        .check-box { width:24px; height:24px; border-radius:8px; border:2px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:13px; flex:0 0 auto; transition:all .15s; }
+        .check-item.done .check-box { background:var(--green); border-color:var(--green); color:#000; }
+        .check-main { flex:1; } .check-t { font-size:13px; font-weight:600; } .check-item.done .check-t { color:var(--text-muted); text-decoration:line-through; } .check-s { font-size:11px; color:var(--text-muted); margin-top:2px; }
+
+        /* ---- Bottom nav ---- */
+        .bottom-nav { position:fixed; bottom:0; left:0; right:0; height:68px; background:rgba(0,0,0,0.96); backdrop-filter:blur(20px); border-top:1px solid var(--border); display:flex; justify-content:space-around; align-items:center; z-index:100; padding-bottom:env(safe-area-inset-bottom); }
+        .nav-item { display:flex; flex-direction:column; align-items:center; gap:3px; color:var(--text-muted); cursor:pointer; padding:6px 8px; position:relative; }
+        .nav-item.active { color:var(--gold); }
+        .nav-ico { font-size:19px; } .nav-lbl { font-size:9px; text-transform:uppercase; letter-spacing:0.5px; }
+        .nav-dot { position:absolute; top:2px; right:7px; width:7px; height:7px; border-radius:50%; background:var(--red); }
+
+        /* ---- Sheet / modal ---- */
+        .overlay { position:fixed; inset:0; background:rgba(0,0,0,0.72); backdrop-filter:blur(6px); z-index:1000; display:none; align-items:flex-end; justify-content:center; }
+        .overlay.show { display:flex; }
+        .sheet { width:100%; max-width:520px; background:var(--bg-card); border:1px solid var(--border); border-bottom:none; border-radius:24px 24px 0 0; padding:8px 18px 30px; max-height:92vh; overflow-y:auto; animation:slideUp .28s cubic-bezier(.2,.8,.2,1); }
+        @keyframes slideUp { from { transform:translateY(100%); } to { transform:translateY(0); } }
+        .sheet-grab { width:40px; height:4px; border-radius:100px; background:var(--border-strong); margin:8px auto 16px; }
+        .sheet-title { font-size:18px; font-weight:700; margin-bottom:4px; }
+        .sheet-sub { font-size:12px; color:var(--text-secondary); margin-bottom:18px; line-height:1.5; }
+        .summary-line { display:flex; justify-content:space-between; align-items:center; padding:12px 0; font-size:13px; }
+        .summary-line + .summary-line { border-top:1px solid var(--border); }
+        .summary-line .lab { color:var(--text-secondary); }
+        .summary-line.total { font-size:16px; font-weight:700; }
+        .field { margin-bottom:14px; }
+        .field label { display:block; font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--text-secondary); margin-bottom:7px; }
+        .field textarea, .field input { width:100%; background:var(--bg-input); border:1px solid var(--border); border-radius:12px; padding:12px 14px; color:var(--text); font-family:inherit; font-size:13px; outline:none; resize:none; }
+        .field textarea:focus, .field input:focus { border-color:var(--gold); }
+        .cat-chips { display:flex; gap:8px; flex-wrap:wrap; }
+        .cat-chip { padding:9px 14px; background:var(--bg-input); border:1px solid var(--border); border-radius:100px; font-size:12px; cursor:pointer; }
+        .cat-chip.active { border-color:var(--gold); color:var(--gold); background:var(--gold-light); }
+        .photo-drop { border:1.5px dashed var(--border-strong); border-radius:14px; padding:22px; text-align:center; color:var(--text-muted); font-size:12px; cursor:pointer; }
+        .photo-drop:active { border-color:var(--gold); color:var(--gold); }
+
+        /* ---- Toast + confetti ---- */
+        .toast { position:fixed; bottom:88px; left:50%; transform:translateX(-50%) translateY(120px); padding:13px 22px; background:var(--bg-elevated); border:1px solid var(--border); border-radius:100px; font-size:13px; display:flex; align-items:center; gap:9px; z-index:1100; opacity:0; transition:all .3s; max-width:90%; }
+        .toast.show { transform:translateX(-50%) translateY(0); opacity:1; }
+        .toast.success { border-color:var(--green); }
+        #confetti { position:fixed; inset:0; width:100%; height:100%; pointer-events:none; z-index:1200; }
+
+        .empty { text-align:center; padding:42px 20px; color:var(--text-muted); }
+        .demo-flag { position:fixed; top:70px; left:50%; transform:translateX(-50%); z-index:200; font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--text-muted); background:var(--bg-card); border:1px solid var(--border); padding:4px 12px; border-radius:100px; }
+    </style>
+</head>
+<body>
+    <canvas id="confetti"></canvas>
+    <div class="demo-flag">Anteprima Demo · Lato Inquilino</div>
+
+    <header class="header">
+        <div class="h-left"><div class="logo-mark"></div><div class="h-title">BOOM<small>Inquilino</small></div></div>
+        <div class="h-right">
+            <button class="icon-btn" onclick="go('chat')">🔔<span class="dot">3</span></button>
+            <div class="avatar" id="avatar" onclick="openProfile()">M</div>
+        </div>
+    </header>
+
+    <main class="main" id="main"></main>
+
+    <nav class="bottom-nav">
+        <div class="nav-item active" data-tab="home" onclick="go('home')"><span class="nav-ico">🏠</span><span class="nav-lbl">Home</span></div>
+        <div class="nav-item" data-tab="pagamenti" onclick="go('pagamenti')"><span class="nav-ico">💳</span><span class="nav-lbl">Affitto</span></div>
+        <div class="nav-item" data-tab="assistenza" onclick="go('assistenza')"><span class="nav-ico">🔧</span><span class="nav-lbl">Assistenza</span></div>
+        <div class="nav-item" data-tab="documenti" onclick="go('documenti')"><span class="nav-ico">📁</span><span class="nav-lbl">Archivio</span></div>
+        <div class="nav-item" data-tab="chat" onclick="go('chat')"><span class="nav-ico">💬</span><span class="nav-lbl">Chat</span><span class="nav-dot"></span></div>
+    </nav>
+
+    <div class="toast" id="toast"><span class="toast-ico">✓</span><span class="toast-text"></span></div>
+
+    <!-- Pay sheet -->
+    <div class="overlay" id="payOverlay" onclick="if(event.target===this)closeSheet('payOverlay')">
+        <div class="sheet">
+            <div class="sheet-grab"></div>
+            <div class="sheet-title">Paga l'affitto</div>
+            <div class="sheet-sub" id="paySub"></div>
+            <div class="summary-line"><span class="lab">Canone</span><span id="paySumRent"></span></div>
+            <div class="summary-line"><span class="lab">Commissione</span><span class="text-green">Gratis</span></div>
+            <div class="summary-line total"><span>Totale</span><span id="paySumTotal"></span></div>
+            <div class="pay-method" style="margin-top:18px"><div class="pm-card" style="background:linear-gradient(135deg,#0a3d2e,#0a2540)">SEPA</div><div style="flex:1"><div style="font-size:13px;font-weight:600">Addebito diretto SEPA</div><div style="font-size:11px;color:var(--text-muted)">IT60 •••• 4242 · mandato attivo</div></div><span class="badge gray" style="cursor:pointer" onclick="toast('Demo: passa a carta (con commissione)')">Cambia</span></div>
+            <button class="btn btn-block" style="margin-top:14px" onclick="confirmPay()">🔒 Conferma addebito SEPA</button>
+            <div style="text-align:center;font-size:10px;color:var(--text-muted);margin-top:12px">Addebito SEPA sicuro · nessuna commissione carta · ricevuta automatica · demo, nessun addebito reale</div>
+        </div>
+    </div>
+
+    <!-- Maintenance sheet -->
+    <div class="overlay" id="maintOverlay" onclick="if(event.target===this)closeSheet('maintOverlay')">
+        <div class="sheet">
+            <div class="sheet-grab"></div>
+            <div class="sheet-title">Segnala un problema</div>
+            <div class="sheet-sub">BOOM smista la richiesta al tecnico giusto. Tu segui tutto da qui.</div>
+            <div class="field"><label>Categoria</label><div class="cat-chips" id="catChips"></div></div>
+            <div class="field"><label>Descrizione</label><textarea id="maintDesc" rows="3" placeholder="Es. C'è una perdita sotto il lavandino del bagno…"></textarea></div>
+            <div class="field"><label>Foto (consigliato)</label><div class="photo-drop" id="photoDrop" onclick="addPhoto()">📷 Tocca per allegare una foto<div id="photoCount" style="margin-top:6px;color:var(--gold);display:none"></div></div></div>
+            <button class="btn btn-block" onclick="submitMaint()">📨 Invia richiesta</button>
+        </div>
+    </div>
+
+    <!-- Move-in sheet -->
+    <div class="overlay" id="moveinOverlay" onclick="if(event.target===this)closeSheet('moveinOverlay')">
+        <div class="sheet">
+            <div class="sheet-grab"></div>
+            <div class="sheet-title">Il tuo ingresso</div>
+            <div class="sheet-sub">Pochi passi per essere completamente a casa. Spunta man mano — BOOM è con te.</div>
+            <div id="moveinList"></div>
+        </div>
+    </div>
+
+    <!-- Profile sheet -->
+    <div class="overlay" id="profileOverlay" onclick="if(event.target===this)closeSheet('profileOverlay')">
+        <div class="sheet">
+            <div class="sheet-grab"></div>
+            <div id="profileBody"></div>
+        </div>
+    </div>
+
+    <script>
+        const U='https://images.unsplash.com/';
+        const eur=n=>'€'+Math.round(n).toLocaleString('it-IT');
+        const TODAY=new Date('2026-06-17');
+
+        // ---- Confetti ----
+        const canvas=document.getElementById('confetti'), cx=canvas.getContext('2d');
+        let parts=[];
+        function rsz(){ canvas.width=innerWidth; canvas.height=innerHeight; } rsz(); addEventListener('resize',rsz);
+        function confetti(x,y,n=40){ const cols=['#D4AF37','#00D26A','#0A84FF','#FFF']; for(let i=0;i<n;i++)parts.push({x,y,vx:(Math.random()-.5)*15,vy:Math.random()*-12-3,c:cols[~~(Math.random()*cols.length)],s:Math.random()*6+3,life:1}); anim(); }
+        function anim(){ if(!parts.length)return; cx.clearRect(0,0,canvas.width,canvas.height); parts=parts.filter(p=>{p.vy+=.2;p.x+=p.vx;p.y+=p.vy;p.life-=.015;if(p.life<=0)return false;cx.globalAlpha=p.life;cx.fillStyle=p.c;cx.fillRect(p.x,p.y,p.s,p.s);return true;}); if(parts.length)requestAnimationFrame(anim); }
+        function haptic(){ try{ if('vibrate' in navigator)navigator.vibrate(10); }catch(e){} }
+        function toast(msg,ok=true){ const t=document.getElementById('toast'); t.querySelector('.toast-text').textContent=msg; t.classList.toggle('success',ok); t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2800); }
+
+        // ---- Demo data ----
+        const tenant={
+            name:'Marco Rossi',
+            property:{ name:'Loft Trastevere', addr:'Via della Scala 42, Roma', img:U+'photo-1502672260266-1c1ef2d93688?w=900', beds:2, sqm:85, floor:'2° piano' },
+            lease:{ start:'2024-12-01', end:'2026-11-30', rent:1800, deposit:3600 },
+            autopay:false, movedInDaysAgo:6, welcomeDismissed:false,
+            profile:{ email:'marco.rossi@email.com', phone:'+39 333 555 0142', household:'2 persone', emergency:'Anna Rossi · +39 333 555 0199', notifPush:true, notifEmail:true },
+        };
+        const rent={ month:'Luglio 2026', amount:tenant.lease.rent, due:'2026-07-05', paid:false, processing:false };
+        let payments=[
+            { month:'Giugno 2026', amount:1800, status:'paid', date:'03 giu 2026', method:'Addebito SEPA' },
+            { month:'Maggio 2026', amount:1800, status:'paid', date:'02 mag 2026', method:'Addebito SEPA' },
+            { month:'Aprile 2026', amount:1800, status:'paid', date:'04 apr 2026', method:'Bonifico' },
+            { month:'Marzo 2026', amount:1800, status:'paid', date:'03 mar 2026', method:'Addebito SEPA' },
+        ];
+        let maintenance=[
+            { id:'m1', title:'Infiltrazione bagno', cat:'Idraulico', ico:'🚿', when:'ieri', stage:3, pri:'urgent', note:'Tecnico assegnato — Giovedì 19 giu, 10:00–12:00', photos:1, rating:0 },
+            { id:'m2', title:'Caldaia rumorosa', cat:'Riscaldamento', ico:'🔥', when:'3 giorni fa', stage:2, pri:'normal', note:'BOOM ha preso in carico la segnalazione', photos:0, rating:0 },
+            { id:'m3', title:'Tapparella cucina bloccata', cat:'Infissi', ico:'🪟', when:'2 sett. fa', stage:5, pri:'normal', note:'Risolto da Tecnomenico — 02 giu', photos:0, rating:0 },
+        ];
+        const TL=['Inviata','Presa in carico','Assegnato','In corso','Risolta'];
+        let moveInTasks=[
+            { key:'keys', ico:'🔑', label:'Ritiro chiavi & accessi', sub:'Codici portone e citofono ricevuti', done:true },
+            { key:'condition', ico:'📸', label:'Verbale di consegna', sub:'Foto stanze — protegge il tuo deposito', done:true },
+            { key:'meters', ico:'🔢', label:'Lettura contatori', sub:'Luce, gas, acqua all\'ingresso', done:false },
+            { key:'wifi', ico:'📶', label:'Attiva Wi-Fi & utenze', sub:'Offerta fibra partner BOOM', done:false },
+            { key:'rules', ico:'📖', label:'Regole del palazzo', sub:'Orari, raccolta, aree comuni', done:false },
+        ];
+        let documents=[
+            { name:'Contratto di locazione — firmato', type:'Contratto', date:'01 dic 2024', size:'420 KB', ico:'📝' },
+            { name:'Verbale di consegna + inventario', type:'Contratto', date:'01 dic 2024', size:'310 KB', ico:'🔑' },
+            { name:'Ricevuta affitto — Giugno 2026', type:'Ricevuta', date:'03 giu 2026', size:'88 KB', ico:'🧾' },
+            { name:'Ricevuta affitto — Maggio 2026', type:'Ricevuta', date:'02 mag 2026', size:'88 KB', ico:'🧾' },
+            { name:'APE — Loft Trastevere', type:'Immobile', date:'12 nov 2024', size:'1.1 MB', ico:'🏠' },
+            { name:'Regolamento condominiale', type:'Immobile', date:'12 nov 2024', size:'640 KB', ico:'📋' },
+        ];
+        let messages=[
+            { from:'them', text:'Benvenuto nel Loft Trastevere, Marco! Per qualsiasi cosa siamo qui. 🔑', t:'Lun 9:12' },
+            { from:'me', text:'Grazie mille! Tutto perfetto finora.', t:'Lun 9:30' },
+            { from:'them', text:'Per l\'infiltrazione in bagno: il tecnico passa giovedì 19 tra le 10 e le 12. Va bene?', t:'Ieri 16:40' },
+            { from:'me', text:'Perfetto, ci sarò. Grazie!', t:'Ieri 16:45' },
+        ];
+        const notices=[
+            { ico:'🛗', col:'blue', title:'Manutenzione ascensore', body:'Mercoledì 24 giu, 9:00–13:00 l\'ascensore sarà fermo per la revisione annuale.', when:'2 giorni fa' },
+            { ico:'🔢', col:'orange', title:'Lettura contatori condominiale', body:'L\'amministratore passa lunedì 30 giu. Lascia accessibile il contatore acqua.', when:'4 giorni fa' },
+            { ico:'🎉', col:'gold', title:'Benvenuto in BOOM', body:'Siamo felici di averti. Il tuo gestore è a un tap di distanza, sempre.', when:'1 sett. fa' },
+        ];
+        const concierge=[
+            { ico:'🚰', title:'Idraulico convenzionato', sub:'Pronto intervento · sconto inquilini BOOM', col:'blue' },
+            { ico:'🧹', title:'Pulizie a domicilio', sub:'Prenota in 2 tap · da €18/h', col:'green' },
+            { ico:'📶', title:'Attiva internet casa', sub:'Offerte fibra partner · installazione rapida', col:'purple' },
+            { ico:'🗺️', title:'Guida al quartiere', sub:'Trastevere: mercati, farmacie, parcheggi', col:'gold' },
+            { ico:'🆘', title:'Numeri utili & emergenze', sub:'Portineria, condominio, urgenze 24/7', col:'red' },
+        ];
+
+        let maintCat='Idraulico', maintPhotos=0;
+        const CATS=['Idraulico','Elettrico','Riscaldamento','Infissi','Elettrodomestici','Altro'];
+
+        document.getElementById('avatar').textContent=tenant.name.charAt(0);
+        let tab='home';
+        function go(t){ haptic(); tab=t; document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active',n.dataset.tab===t)); render(); scrollTo(0,0); }
+
+        function daysTo(iso){ return Math.round((new Date(iso)-TODAY)/864e5); }
+        function fmt(iso){ const d=new Date(iso); return d.toLocaleDateString('it-IT',{day:'2-digit',month:'short',year:'numeric'}); }
+        const moveInDone=()=>moveInTasks.filter(t=>t.done).length;
+
+        function rentBlock(){
+            const d=daysTo(rent.due);
+            if(rent.processing){
+                return `<div class="rent-card" style="border-color:rgba(10,132,255,0.32);background:linear-gradient(135deg,rgba(10,132,255,0.12),transparent)">
+                    <div class="rent-top"><div><div class="rent-lbl">Affitto ${rent.month}</div><div class="rent-amt">${eur(rent.amount)}</div></div><span class="rent-pill" style="background:var(--blue-light);color:var(--blue)">⏳ In elaborazione</span></div>
+                    <div class="rent-meta">Addebito SEPA avviato · accredito in 1–2 giorni lavorativi</div>
+                </div>`;
+            }
+            if(rent.paid){
+                return `<div class="rent-card paid">
+                    <div class="rent-top"><div><div class="rent-lbl">Affitto ${rent.month}</div><div class="rent-amt">${eur(rent.amount)}</div></div><span class="rent-pill paid">✓ Pagato</span></div>
+                    <div class="rent-meta">Addebito SEPA completato · ricevuta nel tuo archivio</div>
+                </div>`;
+            }
+            const cls=d<=3?'due':'soon';
+            const lbl=d<0?`In ritardo di ${-d} gg`:d===0?'Scade oggi':`Scade tra ${d} giorni`;
+            return `<div class="rent-card">
+                <div class="rent-top"><div><div class="rent-lbl">Prossimo affitto · ${rent.month}</div><div class="rent-amt">${eur(rent.amount)}<span>/mese</span></div></div><span class="rent-pill ${cls}">${lbl}</span></div>
+                <div class="rent-meta">Scadenza ${fmt(rent.due)} · Addebito SEPA · IT60 •••• 4242 · <span class="text-green">commissione €0</span></div>
+                <div class="rent-actions"><button class="btn btn-block" onclick="openPay()">💳 Paga ora</button><button class="btn btn-secondary btn-sm" onclick="go('pagamenti')">Dettagli</button></div>
+            </div>`;
+        }
+
+        function needsYou(){
+            const items=[];
+            const dRent=daysTo(rent.due);
+            if(!rent.paid && !rent.processing && dRent<=7) items.push({cls:'gold',ico:'💳',t:`Affitto ${rent.month}`,s:`${eur(rent.amount)} · ${dRent<=0?'scade oggi':'tra '+dRent+' giorni'}`,act:'openPay()'});
+            const urgent=maintenance.find(x=>x.pri==='urgent'&&x.stage<5);
+            if(urgent) items.push({cls:'red',ico:'🚨',t:urgent.title,s:urgent.note,act:"go('assistenza')"});
+            if(moveInDone()<moveInTasks.length) items.push({cls:'blue',ico:'📦',t:'Completa il tuo ingresso',s:`${moveInDone()}/${moveInTasks.length} passi · ${moveInTasks.length-moveInDone()} da fare`,act:'openMovein()'});
+            const resolvedUnrated=maintenance.find(x=>x.stage>=5&&!x.rating);
+            if(resolvedUnrated) items.push({cls:'',ico:'⭐',t:'Com\'è andato l\'intervento?',s:resolvedUnrated.title,act:"go('assistenza')"});
+            if(!items.length) return '';
+            return `<div class="section"><div class="section-header"><div class="section-title">Cosa serve a te</div></div>
+                ${items.map(i=>`<div class="needs ${i.cls}" onclick="${i.act}"><span class="needs-ico">${i.ico}</span><div class="needs-main"><div class="needs-t">${i.t}</div><div class="needs-s">${i.s}</div></div><span class="needs-arrow">→</span></div>`).join('')}
+            </div>`;
+        }
+
+        function render(){
+            const m=document.getElementById('main');
+            const openTickets=maintenance.filter(x=>x.stage<5);
+
+            if(tab==='home'){
+                const dLease=daysTo(tenant.lease.end);
+                const dRent=Math.max(0,daysTo(rent.due));
+                const showWelcome=tenant.movedInDaysAgo<=14 && moveInDone()<moveInTasks.length && !tenant.welcomeDismissed;
+                m.innerHTML=`
+                <div class="home-hero">
+                    <img src="${tenant.property.img}" alt=""><div class="scrim"></div>
+                    <div class="hh-body">
+                        <div class="hh-greet">Bentornato a casa,</div>
+                        <div class="hh-name">${tenant.name.split(' ')[0]}</div>
+                        <div class="hh-addr">📍 ${tenant.property.name} · ${tenant.property.addr}</div>
+                        <div class="hh-chips"><span class="chip-glass green">● Contratto attivo</span><span class="chip-glass">${tenant.property.beds} cam · ${tenant.property.sqm} m²</span><span class="chip-glass">${tenant.property.floor}</span></div>
+                    </div>
+                </div>
+                ${showWelcome?`<div class="welcome"><div class="wx">🔑</div>
+                    <div class="wtop"><div><div class="wkick">Benvenuto a casa</div><div class="wtitle">Completiamo il tuo ingresso</div><div class="wsub">Ti sei trasferito ${tenant.movedInDaysAgo} giorni fa — mancano pochi passi.</div></div><button class="x-btn" onclick="dismissWelcome(event)">✕</button></div>
+                    <div class="wbar"><i style="width:${moveInDone()/moveInTasks.length*100}%"></i></div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px"><span class="wbar-l">${moveInDone()}/${moveInTasks.length} completati</span><button class="btn btn-sm" onclick="openMovein()">Continua →</button></div>
+                </div>`:''}
+                ${rentBlock()}
+                <div class="dates">
+                    <div class="date-c"><div class="di">💸</div><div class="dv ${dRent<=3?'orange':'gold'}">${dRent} gg</div><div class="dl">al canone</div></div>
+                    <div class="date-c"><div class="di">🔒</div><div class="dv">${eur(tenant.lease.deposit)}</div><div class="dl">Deposito</div></div>
+                    <div class="date-c"><div class="di">📄</div><div class="dv ${dLease<90?'orange':''}">${dLease} gg</div><div class="dl">a fine contratto</div></div>
+                </div>
+                ${needsYou()}
+                <div class="section">
+                    <div class="section-header"><div class="section-title">Cosa puoi fare</div></div>
+                    <div class="qa-grid">
+                        <div class="qa" onclick="openPay()"><div class="qa-ico" style="background:var(--gold-light)">💳</div><div class="qa-tx">Paga affitto<small>${rent.month}</small></div></div>
+                        <div class="qa" onclick="openMaint()"><div class="qa-ico" style="background:var(--orange-light)">🔧</div><div class="qa-tx">Segnala guasto<small>Assistenza 24/7</small></div></div>
+                        <div class="qa" onclick="go('documenti')"><div class="qa-ico" style="background:var(--blue-light)">📁</div><div class="qa-tx">Documenti<small>${documents.length} file</small></div></div>
+                        <div class="qa" onclick="go('chat')"><div class="qa-ico" style="background:var(--green-light)">💬</div><div class="qa-tx">Scrivi a BOOM<small>Risposta rapida</small></div></div>
+                    </div>
+                </div>
+                ${openTickets.length?`<div class="section">
+                    <div class="section-header"><div class="section-title">Le tue richieste</div><span class="link" onclick="go('assistenza')">Vedi tutte</span></div>
+                    <div class="card flush">
+                    ${openTickets.map(x=>`<div class="row" onclick="go('assistenza')"><div class="row-ico">${x.ico}</div><div class="row-main"><div class="row-title">${x.title}</div><div class="row-sub">${x.cat} · ${x.note}</div></div><span class="badge ${x.stage>=4?'blue':x.pri==='urgent'?'red':'orange'}">${TL[x.stage-1]}</span></div>`).join('')}
+                    </div>
+                </div>`:''}
+                <div class="section">
+                    <div class="section-header"><div class="section-title">Avvisi dal palazzo</div><span class="link" onclick="go('chat')">Tutti</span></div>
+                    ${notices.slice(0,2).map(n=>`<div class="notice"><div class="notice-ico" style="background:var(--${n.col}-light)">${n.ico}</div><div class="notice-main"><div class="notice-t">${n.title}</div><div class="notice-b">${n.body}</div><div class="notice-w">${n.when}</div></div></div>`).join('')}
+                </div>
+                <div class="section">
+                    <div class="section-header"><div class="section-title">Servizi per te</div></div>
+                    ${concierge.slice(0,3).map(c=>`<div class="conc-card" onclick="toast('Demo: aprirebbe ${c.title}')"><div class="conc-ico" style="background:var(--${c.col}-light)">${c.ico}</div><div class="conc-main"><div class="conc-title">${c.title}</div><div class="conc-sub">${c.sub}</div></div><span style="color:var(--text-muted)">→</span></div>`).join('')}
+                </div>`;
+            }
+
+            else if(tab==='pagamenti'){
+                const paidTot=payments.filter(p=>p.status==='paid').reduce((s,p)=>s+p.amount,0);
+                const dLease=daysTo(tenant.lease.end);
+                m.innerHTML=`<h2 class="view-title">Affitto <span class="dot">●</span></h2><div class="view-sub">Paga in un tap, ricevuta automatica nell'archivio. Niente bonifici da ricordare.</div>
+                ${rentBlock()}
+                <div class="section">
+                    <div class="section-header"><div class="section-title">Metodo & automatico</div></div>
+                    <div class="card" style="padding:0">
+                        <div class="setting-row"><div class="qa-ico" style="background:var(--gold-light)">⚡</div><div class="setting-main"><div class="setting-title">Addebito automatico</div><div class="setting-sub">Ogni mese alla scadenza — ti avvisiamo 2 giorni prima</div></div><div class="toggle ${tenant.autopay?'on':''}" id="autopayToggle" onclick="toggleAutopay()"><i></i></div></div>
+                        <div class="setting-row"><div class="qa-ico" style="background:var(--green-light)">🏦</div><div class="setting-main"><div class="setting-title">Addebito SEPA · IT60 •••• 4242</div><div class="setting-sub">Predefinito · mandato attivo · <span class="text-green">commissione €0</span></div></div><span class="badge gray" style="cursor:pointer">Gestisci</span></div>
+                        <div class="setting-row"><div class="qa-ico" style="background:var(--blue-light)">💳</div><div class="setting-main"><div class="setting-title">Carta (riserva)</div><div class="setting-sub">Usata solo se l'addebito SEPA non va a buon fine</div></div><span class="badge gray" style="cursor:pointer">Aggiungi</span></div>
+                    </div>
+                </div>
+                <div class="section">
+                    <div class="section-header"><div class="section-title">Deposito cauzionale</div></div>
+                    <div class="deposit">
+                        <div class="dep-top"><div class="dep-ring">🔒</div><div style="flex:1"><div style="font-size:20px;font-weight:700">${eur(tenant.lease.deposit)}</div><div style="font-size:11px;color:var(--text-secondary)">custodito su conto vincolato · protetto</div></div></div>
+                        <div class="dep-bars">
+                            <div class="dep-line"><span class="ck">✓</span> Versato all'ingresso · 01 dic 2024</div>
+                            <div class="dep-line"><span class="ck">✓</span> Verbale di consegna con foto a tutela</div>
+                            <div class="dep-line"><span style="color:var(--blue)">→</span> Rientro previsto a fine locazione (${fmt(tenant.lease.end)})</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="section">
+                    <div class="section-header"><div class="section-title">Storico pagamenti</div><span class="link" onclick="toast('Demo: esporta PDF')">Esporta</span></div>
+                    <div class="card flush">
+                    ${payments.map(p=>`<div class="row"><div class="row-ico" style="background:var(--green-light)">✓</div><div class="row-main"><div class="row-title">${p.month}</div><div class="row-sub">${p.date} · ${p.method}</div></div><div class="row-right"><div class="row-val">${eur(p.amount)}</div><span class="link" onclick="toast('Demo: scarica ricevuta')">🧾 Ricevuta</span></div></div>`).join('')}
+                    </div>
+                </div>
+                <div style="text-align:center;font-size:11px;color:var(--text-muted);margin-top:6px">Totale versato in questa locazione: <b class="text-green">${eur(paidTot)}</b> · contratto fino a ${fmt(tenant.lease.end)} (${dLease} gg)</div>`;
+            }
+
+            else if(tab==='assistenza'){
+                m.innerHTML=`<h2 class="view-title">Assistenza</h2><div class="view-sub">Segnala un guasto con una foto. BOOM trova il tecnico e ti aggiorna a ogni passo.</div>
+                <button class="btn btn-block" style="margin-bottom:18px" onclick="openMaint()">＋ Segnala un nuovo problema</button>
+                <div class="dates" style="margin-bottom:18px">
+                    <div class="date-c"><div class="dv" style="color:var(--red)">${maintenance.filter(x=>x.pri==='urgent'&&x.stage<5).length}</div><div class="dl">Urgenti</div></div>
+                    <div class="date-c"><div class="dv orange">${maintenance.filter(x=>x.stage<5).length}</div><div class="dl">In corso</div></div>
+                    <div class="date-c"><div class="dv" style="color:var(--green)">${maintenance.filter(x=>x.stage>=5).length}</div><div class="dl">Risolte</div></div>
+                </div>
+                ${maintenance.map(x=>`<div class="ticket ${x.pri==='urgent'&&x.stage<5?'urgent':''}">
+                    <div class="ticket-head"><div class="ticket-ico">${x.ico}</div><div style="flex:1"><div class="ticket-title">${x.title}</div><div class="ticket-meta">${x.cat} · segnalato ${x.when}${x.photos?` · 📷 ${x.photos}`:''}</div></div>${x.pri==='urgent'&&x.stage<5?'<span class="badge red">Urgente</span>':x.stage>=5?'<span class="badge green">✓ Risolto</span>':''}</div>
+                    <div style="font-size:12px;color:var(--text-secondary);margin-top:10px">${x.note}</div>
+                    <div class="timeline"><div class="tl-fill" style="width:${(x.stage-1)/(TL.length-1)*100}%"></div>
+                    ${TL.map((s,i)=>`<div class="tl-step ${x.stage>i+1?'done':''} ${x.stage===i+1?'active':''}"><div class="tl-dot">${x.stage>i+1?'✓':''}</div><div class="tl-lbl">${s}</div></div>`).join('')}
+                    </div>
+                    ${x.stage>=5?`<div class="rate"><span style="font-size:12px;color:var(--text-secondary)">${x.rating?'Grazie per il feedback!':'Com\'è andata?'}</span><div class="stars">${[1,2,3,4,5].map(n=>`<span class="star ${x.rating>=n?'on':''}" onclick="rateTicket('${x.id}',${n})">★</span>`).join('')}</div></div>`:''}
+                </div>`).join('')}`;
+            }
+
+            else if(tab==='documenti'){
+                m.innerHTML=`<h2 class="view-title">Archivio</h2><div class="view-sub">Contratto, ricevute e documenti casa — sempre con te, scaricabili in un tap.</div>
+                <div class="wallet-card">
+                    <div class="wallet-row"><div class="wallet-ring">🎟️</div><div style="flex:1"><div style="font-size:14px;font-weight:700">Tessera Inquilino BOOM</div><div style="font-size:11px;color:var(--text-secondary);margin-top:2px">Loft Trastevere · accesso, contatti e info sempre a portata</div></div></div>
+                    <button class="btn btn-block" style="margin-top:14px;background:#000;color:#fff;border:1px solid var(--border-strong)" onclick="toast('Demo: genera .pkpass via /api/generate-pass')">  Aggiungi a Apple Wallet</button>
+                </div>
+                <div class="doc-pills"><span class="doc-pill active">Tutti (${documents.length})</span><span class="doc-pill">Contratto</span><span class="doc-pill">Ricevute</span><span class="doc-pill">Immobile</span></div>
+                <div class="card flush">
+                ${documents.map(d=>`<div class="row" onclick="toast('Demo: apre ${d.name}')"><div class="row-ico">${d.ico}</div><div class="row-main"><div class="row-title">${d.name}</div><div class="row-sub">${d.type} · ${d.date} · ${d.size}</div></div><span class="link" onclick="event.stopPropagation();toast('Demo: scarica file')">⬇</span></div>`).join('')}
+                </div>
+                <button class="btn btn-secondary btn-block" style="margin-top:6px" onclick="toast('Demo: carica un documento')">⬆ Carica un documento</button>`;
+            }
+
+            else if(tab==='chat'){
+                m.innerHTML=`<h2 class="view-title">BOOM</h2><div class="view-sub">Il tuo gestore, in chat. Rispondiamo in fretta — e qui sotto trovi avvisi e servizi.</div>
+                <div class="card gold-soft" style="display:flex;align-items:center;gap:13px"><div class="conc-ico" style="background:rgba(212,175,55,0.2)">🅱️</div><div style="flex:1"><div style="font-size:14px;font-weight:600">BOOM Property Management</div><div style="font-size:11px;color:var(--text-secondary)">Online · risponde in genere in pochi minuti</div></div><a class="btn btn-success btn-sm" onclick="toast('Demo: apre WhatsApp')">WhatsApp</a></div>
+                <div class="chat-wrap" id="chatWrap">
+                ${messages.map(msg=>`<div class="msg ${msg.from}">${msg.text}<div class="t">${msg.t}</div></div>`).join('')}
+                </div>
+                <div class="chat-input"><input id="chatInput" placeholder="Scrivi un messaggio…" onkeydown="if(event.key==='Enter')sendMsg()"><button class="send-btn" onclick="sendMsg()">➤</button></div>
+                <div class="section" style="margin-top:24px"><div class="section-header"><div class="section-title">Avvisi dal palazzo</div></div>
+                ${notices.map(n=>`<div class="notice"><div class="notice-ico" style="background:var(--${n.col}-light)">${n.ico}</div><div class="notice-main"><div class="notice-t">${n.title}</div><div class="notice-b">${n.body}</div><div class="notice-w">${n.when}</div></div></div>`).join('')}
+                </div>
+                <div class="section"><div class="section-header"><div class="section-title">Concierge · Servizi casa</div></div>
+                ${concierge.map(c=>`<div class="conc-card" onclick="toast('Demo: aprirebbe ${c.title}')"><div class="conc-ico" style="background:var(--${c.col}-light)">${c.ico}</div><div class="conc-main"><div class="conc-title">${c.title}</div><div class="conc-sub">${c.sub}</div></div><span style="color:var(--text-muted)">→</span></div>`).join('')}
+                </div>`;
+            }
+        }
+
+        // ---- Pay flow ----
+        function openPay(){ if(rent.paid||rent.processing){ toast(rent.processing?'Addebito già in elaborazione ⏳':'Affitto già pagato per questo mese ✓'); return; } haptic();
+            document.getElementById('paySub').textContent=`${rent.month} · ${tenant.property.name}`;
+            document.getElementById('paySumRent').textContent=eur(rent.amount);
+            document.getElementById('paySumTotal').textContent=eur(rent.amount);
+            document.getElementById('payOverlay').classList.add('show');
+        }
+        function confirmPay(){
+            closeSheet('payOverlay'); haptic(); rent.processing=true; render();
+            toast('Addebito SEPA avviato · in elaborazione');
+            setTimeout(()=>{
+                rent.processing=false; rent.paid=true;
+                payments.unshift({ month:rent.month, amount:rent.amount, status:'paid', date:fmt(TODAY.toISOString()), method:'Addebito SEPA' });
+                documents.unshift({ name:`Ricevuta affitto — ${rent.month}`, type:'Ricevuta', date:fmt(TODAY.toISOString()), size:'88 KB', ico:'🧾' });
+                confetti(innerWidth/2, innerHeight/2, 60);
+                toast(`Affitto ${rent.month} incassato ✓ ricevuta pronta`);
+                render();
+            }, 1800);
+        }
+        function toggleAutopay(){ tenant.autopay=!tenant.autopay; haptic(); document.getElementById('autopayToggle').classList.toggle('on',tenant.autopay); toast(tenant.autopay?'Addebito automatico attivo ⚡':'Addebito automatico disattivato'); }
+
+        // ---- Maintenance flow ----
+        function openMaint(){ haptic(); maintCat='Idraulico'; maintPhotos=0;
+            document.getElementById('catChips').innerHTML=CATS.map(c=>`<span class="cat-chip ${c===maintCat?'active':''}" onclick="pickCat('${c}',this)">${c}</span>`).join('');
+            document.getElementById('maintDesc').value='';
+            document.getElementById('photoCount').style.display='none';
+            document.getElementById('maintOverlay').classList.add('show');
+        }
+        function pickCat(c,el){ maintCat=c; document.querySelectorAll('#catChips .cat-chip').forEach(n=>n.classList.remove('active')); el.classList.add('active'); }
+        function addPhoto(){ maintPhotos++; const pc=document.getElementById('photoCount'); pc.style.display='block'; pc.textContent=`📷 ${maintPhotos} foto allegata${maintPhotos>1?'e':''} (demo)`; haptic(); }
+        function submitMaint(){
+            const desc=document.getElementById('maintDesc').value.trim();
+            if(!desc){ toast('Aggiungi una breve descrizione',false); return; }
+            const icoMap={Idraulico:'🚿',Elettrico:'💡',Riscaldamento:'🔥',Infissi:'🪟',Elettrodomestici:'🔌',Altro:'🛠️'};
+            maintenance.unshift({ id:'m'+Date.now(), title:desc.length>42?desc.slice(0,42)+'…':desc, cat:maintCat, ico:icoMap[maintCat]||'🛠️', when:'adesso', stage:1, pri:'normal', note:'Inviata a BOOM — ti rispondiamo a breve', photos:maintPhotos, rating:0 });
+            closeSheet('maintOverlay'); haptic(); confetti(innerWidth/2, innerHeight/3, 30);
+            toast('Richiesta inviata ✓ BOOM la sta smistando');
+            go('assistenza');
+        }
+        function rateTicket(id,n){ const t=maintenance.find(x=>x.id===id); if(!t)return; t.rating=n; haptic(); confetti(innerWidth/2, innerHeight/2, 24); toast('Grazie! Valutazione registrata ⭐'); render(); }
+
+        // ---- Move-in ----
+        function openMovein(){ haptic(); renderMovein(); document.getElementById('moveinOverlay').classList.add('show'); }
+        function renderMovein(){
+            document.getElementById('moveinList').innerHTML=moveInTasks.map(t=>`<div class="check-item ${t.done?'done':''}" onclick="toggleTask('${t.key}')"><div class="check-box">${t.done?'✓':''}</div><div class="check-main"><div class="check-t">${t.ico} ${t.label}</div><div class="check-s">${t.sub}</div></div></div>`).join('')
+            + (moveInDone()===moveInTasks.length?`<div style="text-align:center;padding:18px 0 4px;color:var(--green);font-size:13px;font-weight:600">🎉 Ingresso completato — sei ufficialmente a casa!</div>`:`<div style="text-align:center;font-size:11px;color:var(--text-muted);margin-top:14px">${moveInDone()}/${moveInTasks.length} completati · spunta gli ultimi passi</div>`);
+        }
+        function toggleTask(key){ const t=moveInTasks.find(x=>x.key===key); if(!t)return; t.done=!t.done; haptic(); if(t.done&&moveInDone()===moveInTasks.length){ confetti(innerWidth/2, innerHeight/2, 70); toast('Ingresso completato 🎉'); } renderMovein(); }
+        function dismissWelcome(e){ e.stopPropagation(); tenant.welcomeDismissed=true; render(); toast('Lo trovi sempre in Home se ti serve'); }
+
+        // ---- Profile ----
+        function openProfile(){ haptic(); const p=tenant.profile;
+            document.getElementById('profileBody').innerHTML=`
+            <div class="sheet-grab"></div>
+            <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px">
+                <div class="avatar" style="width:52px;height:52px;font-size:20px">${tenant.name.charAt(0)}</div>
+                <div><div style="font-size:17px;font-weight:700">${tenant.name}</div><div style="font-size:12px;color:var(--text-secondary)">${tenant.property.name} · inquilino dal ${fmt(tenant.lease.start)}</div></div>
+            </div>
+            <div class="card flush" style="margin-bottom:14px">
+                <div class="row"><div class="row-ico">📧</div><div class="row-main"><div class="row-title">${p.email}</div><div class="row-sub">Email</div></div></div>
+                <div class="row"><div class="row-ico">📱</div><div class="row-main"><div class="row-title">${p.phone}</div><div class="row-sub">Telefono</div></div></div>
+                <div class="row"><div class="row-ico">👥</div><div class="row-main"><div class="row-title">${p.household}</div><div class="row-sub">Nucleo</div></div></div>
+                <div class="row"><div class="row-ico">🆘</div><div class="row-main"><div class="row-title">${p.emergency}</div><div class="row-sub">Contatto d'emergenza</div></div></div>
+            </div>
+            <div class="section-title" style="margin:4px 0 8px">Notifiche</div>
+            <div class="card" style="padding:0;margin-bottom:14px">
+                <div class="setting-row"><div class="setting-main"><div class="setting-title">Push sul telefono</div><div class="setting-sub">Affitto, interventi, avvisi</div></div><div class="toggle ${p.notifPush?'on':''}" onclick="this.classList.toggle('on');haptic()"><i></i></div></div>
+                <div class="setting-row"><div class="setting-main"><div class="setting-title">Email</div><div class="setting-sub">Ricevute e promemoria</div></div><div class="toggle ${p.notifEmail?'on':''}" onclick="this.classList.toggle('on');haptic()"><i></i></div></div>
+            </div>
+            <button class="btn btn-secondary btn-block" onclick="toast('Demo: gestione contratto')">📄 Il mio contratto · scade ${fmt(tenant.lease.end)}</button>
+            <button class="btn btn-secondary btn-block" style="margin-top:8px;color:var(--red);border-color:rgba(255,59,48,0.3)" onclick="closeSheet('profileOverlay')">Esci</button>`;
+            document.getElementById('profileOverlay').classList.add('show');
+        }
+
+        function sendMsg(){ const i=document.getElementById('chatInput'); const v=i.value.trim(); if(!v)return; messages.push({from:'me',text:v,t:'Ora'}); i.value=''; render();
+            setTimeout(()=>{ messages.push({from:'them',text:'Ricevuto, Marco! Ci pensiamo noi e ti aggiorniamo qui. 👍',t:'Ora'}); render(); const w=document.getElementById('chatWrap'); if(w)w.scrollTop=w.scrollHeight; }, 900);
+            const w=document.getElementById('chatWrap'); if(w)w.scrollTop=w.scrollHeight;
+        }
+
+        function closeSheet(id){ document.getElementById(id).classList.remove('show'); }
+
+        render();
+    </script>
+</body>
+</html>
