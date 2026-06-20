@@ -169,14 +169,14 @@ function initEstimator(){
   function draw(prog){if(!ctx||!cur)return;const r=cv.getBoundingClientRect(),W=r.width,H=r.height;ctx.clearRect(0,0,W,H);
     const pad=2,baseY=H-12,mid=(cur.lo+cur.hi)/2,spread=(cur.hi-cur.lo),minX=cur.lo-spread*.9,maxX=cur.hi+spread*.9;
     const xOf=v=>pad+((v-minX)/(maxX-minX))*(W-2*pad),g=v=>Math.exp(-Math.pow((v-mid)/(spread*.55),2));
-    ctx.fillStyle='rgba(229,66,26,0.13)';ctx.beginPath();ctx.moveTo(xOf(cur.lo),baseY);
+    ctx.fillStyle='rgba(181,83,46,0.13)';ctx.beginPath();ctx.moveTo(xOf(cur.lo),baseY);
     for(let v=cur.lo;v<=cur.hi;v+=(cur.hi-cur.lo)/44)ctx.lineTo(xOf(v),baseY-g(v)*(baseY-6)*prog);
     ctx.lineTo(xOf(cur.hi),baseY);ctx.closePath();ctx.fill();
     ctx.strokeStyle='rgba(21,19,13,0.5)';ctx.lineWidth=1.3;ctx.beginPath();let st=false;const endV=minX+(maxX-minX)*prog;
     for(let v=minX;v<=endV;v+=(maxX-minX)/130){const x=xOf(v),yv=baseY-g(v)*(baseY-6);if(!st){ctx.moveTo(x,yv);st=true;}else ctx.lineTo(x,yv);}
     ctx.stroke();ctx.strokeStyle='rgba(21,19,13,0.16)';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(pad,baseY+.5);ctx.lineTo(W-pad,baseY+.5);ctx.stroke();
-    if(prog>.55){const x=xOf(mid);ctx.strokeStyle='#E5421A';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(x,baseY);ctx.lineTo(x,baseY-g(mid)*(baseY-6));ctx.stroke();
-      ctx.fillStyle='#E5421A';ctx.font='9px "IBM Plex Mono",monospace';ctx.textAlign='center';ctx.fillText('prezzo onesto',Math.min(Math.max(x,40),W-40),8);}}
+    if(prog>.55){const x=xOf(mid);ctx.strokeStyle='#B5532E';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(x,baseY);ctx.lineTo(x,baseY-g(mid)*(baseY-6));ctx.stroke();
+      ctx.fillStyle='#B5532E';ctx.font='9px "IBM Plex Mono",monospace';ctx.textAlign='center';ctx.fillText('prezzo onesto',Math.min(Math.max(x,40),W-40),8);}}
   function animate(){if(!ctx)return;cancelAnimationFrame(raf);const s=performance.now();
     (function step(t){const p=Math.min((t-s)/950,1);draw(1-Math.pow(1-p,3));if(p<1)raf=requestAnimationFrame(step);})(s);}
   sel.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
@@ -204,7 +204,7 @@ function initShader(){
   'float veins=abs(sin((p.x+f*3.2)*3.14159+r.x*4.0));veins=pow(1.0-veins,2.2);'+
   'vec3 base=mix(vec3(0.82,0.78,0.68),vec3(0.73,0.68,0.56),f);vec3 col=mix(base,vec3(0.60,0.55,0.44),veins*0.55);'+
   'col=mix(col,vec3(0.88,0.85,0.76),smoothstep(0.45,0.95,f)*0.5);float d=distance(uv,u_mouse);'+
-  'col+=vec3(0.95,0.32,0.10)*smoothstep(0.55,0.0,d)*0.16;col+=vec3(1.0,0.96,0.86)*smoothstep(0.32,0.0,d)*0.10;'+
+  'col+=vec3(0.71,0.33,0.18)*smoothstep(0.55,0.0,d)*0.16;col+=vec3(1.0,0.96,0.86)*smoothstep(0.32,0.0,d)*0.10;'+
   'col+=(hash(gl_FragCoord.xy+u_time)-0.5)*0.025;gl_FragColor=vec4(col,1.0);}';
   const sh=(t,s)=>{const o=gl.createShader(t);gl.shaderSource(o,s);gl.compileShader(o);return gl.getShaderParameter(o,gl.COMPILE_STATUS)?o:null;};
   const v=sh(gl.VERTEX_SHADER,vs),f=sh(gl.FRAGMENT_SHADER,fs);if(!v||!f){cv.remove();return;}
@@ -242,9 +242,9 @@ function initDashboard(){
     size();return{cv,ctx,data,size};});
   function draw(s,prog){const{cv,ctx,data}=s;if(!ctx)return;const r=cv.getBoundingClientRect(),W=r.width,H=r.height;ctx.clearRect(0,0,W,H);
     const max=Math.max.apply(0,data),min=Math.min.apply(0,data),X=i=>i/(data.length-1)*W,Y=v=>H-((v-min)/((max-min)||1))*(H-4)-2,n=Math.max(2,Math.round(data.length*prog));
-    ctx.beginPath();ctx.moveTo(X(0),H);for(let i=0;i<n;i++)ctx.lineTo(X(i),Y(data[i]));ctx.lineTo(X(n-1),H);ctx.closePath();ctx.fillStyle='rgba(229,66,26,.10)';ctx.fill();
-    ctx.beginPath();for(let i=0;i<n;i++){const px=X(i),py=Y(data[i]);i?ctx.lineTo(px,py):ctx.moveTo(px,py);}ctx.strokeStyle='#E5421A';ctx.lineWidth=1.5;ctx.stroke();
-    ctx.beginPath();ctx.arc(X(n-1),Y(data[n-1]),2.2,0,6.283);ctx.fillStyle='#E5421A';ctx.fill();}
+    ctx.beginPath();ctx.moveTo(X(0),H);for(let i=0;i<n;i++)ctx.lineTo(X(i),Y(data[i]));ctx.lineTo(X(n-1),H);ctx.closePath();ctx.fillStyle='rgba(181,83,46,.10)';ctx.fill();
+    ctx.beginPath();for(let i=0;i<n;i++){const px=X(i),py=Y(data[i]);i?ctx.lineTo(px,py):ctx.moveTo(px,py);}ctx.strokeStyle='#B5532E';ctx.lineWidth=1.5;ctx.stroke();
+    ctx.beginPath();ctx.arc(X(n-1),Y(data[n-1]),2.2,0,6.283);ctx.fillStyle='#B5532E';ctx.fill();}
   function run(){
     const fill=$('.pipe-fill'),nodes=$$('.pnode'),stage=+dash.dataset.stage||0.6,on=Math.max(1,Math.round(nodes.length*stage));
     nodes.forEach((nd,i)=>setTimeout(()=>nd.classList.toggle('on',i<on),reduce?0:120*i+200));
@@ -291,15 +291,15 @@ function initConstellation(){
     mx+=(tmx-mx)*.05;my+=(tmy-my)*.05;ctx.clearRect(0,0,W,H);
     E.forEach((e,k)=>{const ep=Math.min(1,Math.max(0,prog*E.length-k));if(ep<=0)return;
       const a=pos(N[e.a]),b=pos(N[e.b]),hot=hover===e.a||hover===e.b;
-      ctx.strokeStyle=hot?'rgba(229,66,26,.5)':'rgba(20,18,13,.13)';ctx.lineWidth=hot?1.3:1;
+      ctx.strokeStyle=hot?'rgba(181,83,46,.5)':'rgba(20,18,13,.13)';ctx.lineWidth=hot?1.3:1;
       ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(a.x+(b.x-a.x)*ep,a.y+(b.y-a.y)*ep);ctx.stroke();});
     N.forEach((nd,i)=>{const np=Math.min(1,Math.max(0,prog*1.4-(i/N.length)*0.4));if(np<=0)return;
       const pp=pos(nd),pulse=1+Math.sin(now/900+i)*0.12,r=(3+(nd.p/maxP)*4)*np*(hover===i?1.55:1)*pulse;
-      if(hover===i){ctx.beginPath();ctx.arc(pp.x,pp.y,r+6,0,6.283);ctx.strokeStyle='rgba(229,66,26,.4)';ctx.lineWidth=1;ctx.stroke();}
-      ctx.beginPath();ctx.arc(pp.x,pp.y,r,0,6.283);ctx.fillStyle=hover===i?'#E5421A':'rgba(20,18,13,.82)';ctx.fill();
+      if(hover===i){ctx.beginPath();ctx.arc(pp.x,pp.y,r+6,0,6.283);ctx.strokeStyle='rgba(181,83,46,.4)';ctx.lineWidth=1;ctx.stroke();}
+      ctx.beginPath();ctx.arc(pp.x,pp.y,r,0,6.283);ctx.fillStyle=hover===i?'#B5532E':'rgba(20,18,13,.82)';ctx.fill();
       if(np>0.8){ctx.globalAlpha=hover===i?1:0.8;ctx.textAlign='left';
         ctx.font='600 11px "IBM Plex Mono",monospace';ctx.fillStyle='#14120d';ctx.fillText(nd.n.toUpperCase(),pp.x+11,pp.y-2);
-        ctx.font='400 10px "IBM Plex Mono",monospace';ctx.fillStyle='#E5421A';ctx.fillText('€'+nd.p.toLocaleString('it-IT')+'/m²',pp.x+11,pp.y+11);ctx.globalAlpha=1;}});
+        ctx.font='400 10px "IBM Plex Mono",monospace';ctx.fillStyle='#B5532E';ctx.fillText('€'+nd.p.toLocaleString('it-IT')+'/m²',pp.x+11,pp.y+11);ctx.globalAlpha=1;}});
   }
   function loop(now){if(!running)return;if(prog<1)prog=Math.min(1,prog+0.012);draw(now);requestAnimationFrame(loop);}
   if(reduce){prog=1;draw(performance.now());return;}
