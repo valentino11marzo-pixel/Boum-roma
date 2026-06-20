@@ -85,27 +85,14 @@ service cloud.firestore {
                                         'tenantNotes','proofUrl','proofName']));
     }
 
-    // ─── BOOM Pay — rent rails (all writes server-side via admin REST) ──
-    // payProfiles: a landlord's Stripe Connect status, keyed by ownerId.
-    match /payProfiles/{ownerId} {
-      allow read:  if isAdmin() || (isSignedIn() && ownerId == uid());
-      allow write: if isAdmin();
-    }
-    // mandates: a tenant's SEPA Direct Debit mandate, keyed by contractId.
-    match /mandates/{cId} {
-      allow read:  if isAdmin()
-                   || (isTenant() && resource.data.tenantId == uid())
-                   || (resource.data.propertyId != null && ownsProperty(resource.data.propertyId));
-      allow write: if isAdmin();
-    }
-    // payouts: landlord payout records. They read their own.
-    match /payouts/{poId} {
-      allow read:  if isAdmin() || (isSignedIn() && resource.data.ownerId == uid());
-      allow write: if isAdmin();
-    }
-    // payEvents: immutable internal money ledger. Admin only.
-    match /payEvents/{eId} {
-      allow read:  if isAdmin();
+    // ─── rentPayments (BOOM Pay money ledger — all writes server-side) ──
+    // Keyed <contractId>_<period>. Tenant/landlord read theirs via the contract.
+    match /rentPayments/{rId} {
+      allow read: if isAdmin()
+                  || (isTenant()
+                      && contractData(resource.data.contractId).tenantId == uid())
+                  || (isLandlord()
+                      && ownsProperty(contractData(resource.data.contractId).propertyId));
       allow write: if isAdmin();
     }
 

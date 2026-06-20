@@ -108,14 +108,14 @@
       ]
     },
     {
-      "source": "/(portal|admin|admin-flats|setup-firebase|seed-listings|boom-doc-parser|boom_doc_parser|cockpit-preview|portal.html|admin.html|admin-flats.html|setup-firebase.html|seed-listings.html|boom_doc_parser.html|cockpit-preview.html)(.*)",
+      "source": "/(portal|admin|admin-flats|setup-firebase|seed-listings|boom-doc-parser|boom_doc_parser|cockpit-preview|pay-rent-test|connect-test|preview-owner-payouts|portal.html|admin.html|admin-flats.html|setup-firebase.html|seed-listings.html|boom_doc_parser.html|cockpit-preview.html|pay-rent-test.html|connect-test.html|preview-owner-payouts.html)(.*)",
       "headers": [
         { "key": "X-Robots-Tag", "value": "noindex, nofollow, noarchive, nosnippet" },
         { "key": "Cache-Control", "value": "private, no-store, max-age=0" }
       ]
     },
     {
-      "source": "/(dashboard|client-portal|owner-dashboard|tenant-registration|login|onboarding|pre-arrival|precheck|thank-you|proppass|pass-delivery|form-tenant|form-landlord)(.*)",
+      "source": "/(dashboard|client-portal|owner-dashboard|tenant-registration|login|onboarding|pre-arrival|precheck|thank-you|proppass|pass-delivery|form-tenant|form-landlord|rent|rent.html)(.*)",
       "headers": [
         { "key": "X-Robots-Tag", "value": "noindex, follow" }
       ]
@@ -179,6 +179,10 @@
     {
       "path": "/api/telegram/notify-pending",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/payments/autopay-run",
+      "schedule": "0 6 * * *"
     }
   ]
 }

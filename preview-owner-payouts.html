@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Preview — Payout Proprietario (IBAN diretto) — BOOM</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* === PREVIEW DEMO — autonomo, dati finti, nessun Firebase ===
+           Il proprietario collega il suo IBAN: gli affitti arrivano direttamente
+           sul suo conto (modello Stripe Connect Custom), BOOM trattiene solo la
+           sua commissione. Mostra anche l'alternativa "incasso tramite BOOM". */
+        * { margin:0; padding:0; box-sizing:border-box; }
+        :root {
+            --gold:#D4AF37; --gold-dark:#B8960C; --gold-light:rgba(212,175,55,0.15); --gold-glow:rgba(212,175,55,0.45);
+            --bg:#08080A; --bg-card:#0C0C0E; --bg-elevated:#16161A; --bg-input:#1A1A1A;
+            --border:rgba(255,255,255,0.09); --border-strong:rgba(255,255,255,0.16);
+            --text:#FFF; --text-secondary:#9a9a9a; --text-muted:#5a5a5a;
+            --green:#00D26A; --green-light:rgba(0,210,106,0.13);
+            --orange:#FF9F0A; --orange-light:rgba(255,159,10,0.13);
+            --red:#FF3B30; --red-light:rgba(255,59,48,0.13);
+            --blue:#0A84FF; --blue-light:rgba(10,132,255,0.13);
+        }
+        body { font-family:'Inter',-apple-system,sans-serif; background:radial-gradient(900px 500px at 50% -10%,rgba(212,175,55,0.06),transparent 70%),var(--bg); color:var(--text); min-height:100vh; -webkit-font-smoothing:antialiased; }
+        .topbar { height:60px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; padding:0 18px; position:sticky; top:0; background:rgba(8,8,10,0.9); backdrop-filter:blur(18px); z-index:10; }
+        .tb-l { display:flex; align-items:center; gap:10px; }
+        .logo-mark { width:30px; height:30px; background:linear-gradient(135deg,var(--gold),var(--gold-dark)); border-radius:50%; box-shadow:0 0 16px var(--gold-glow); }
+        .tb-l .t { font-size:12px; letter-spacing:2px; } .tb-l .t small { display:block; font-size:9px; letter-spacing:1px; color:var(--text-muted); text-transform:uppercase; }
+        .role-badge { font-size:9px; letter-spacing:2px; color:var(--gold); background:var(--gold-light); border-radius:100px; padding:5px 11px; text-transform:uppercase; }
+
+        .wrap { max-width:600px; margin:0 auto; padding:24px 18px 70px; }
+        h1 { font-size:24px; font-weight:300; letter-spacing:0.3px; } h1 b{font-weight:700}
+        h1 .dot { color:var(--gold); }
+        .sub { color:var(--text-secondary); font-size:13px; margin:6px 0 20px; line-height:1.55; }
+
+        .card { background:var(--bg-card); border:1px solid var(--border); border-radius:18px; padding:20px; margin-bottom:16px; }
+        .card.flush { padding:6px 0; }
+        .card.gold { background:linear-gradient(135deg,rgba(212,175,55,0.12),transparent); border-color:rgba(212,175,55,0.25); }
+        .card.green { background:linear-gradient(135deg,rgba(0,210,106,0.10),transparent); border-color:rgba(0,210,106,0.28); }
+
+        /* stepper */
+        .stepper { display:flex; justify-content:space-between; position:relative; margin-bottom:22px; padding:0 6px; }
+        .stepper::before { content:''; position:absolute; top:15px; left:24px; right:24px; height:2px; background:var(--border); }
+        .stp-fill { position:absolute; top:15px; left:24px; height:2px; background:linear-gradient(90deg,var(--green),var(--gold)); transition:width .4s; }
+        .stp { display:flex; flex-direction:column; align-items:center; gap:7px; position:relative; z-index:1; }
+        .stp .b { width:30px; height:30px; border-radius:50%; background:var(--bg-card); border:2px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; }
+        .stp.done .b { background:var(--green); border-color:var(--green); color:#000; }
+        .stp.active .b { background:var(--gold); border-color:var(--gold); color:#000; box-shadow:0 0 16px var(--gold-glow); }
+        .stp .l { font-size:9px; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-muted); }
+        .stp.done .l, .stp.active .l { color:var(--text-secondary); }
+
+        .big-ico { font-size:40px; }
+        .hl { font-size:18px; font-weight:700; } .hl-sub { font-size:13px; color:var(--text-secondary); margin-top:4px; line-height:1.5; }
+
+        label { display:block; font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--text-secondary); margin:14px 0 7px; }
+        input { width:100%; background:var(--bg-input); border:1px solid var(--border); border-radius:11px; padding:13px 14px; color:var(--text); font-family:inherit; font-size:14px; outline:none; letter-spacing:0.5px; }
+        input:focus { border-color:var(--gold); }
+
+        .btn { width:100%; padding:14px; border:none; border-radius:12px; font-family:inherit; font-size:13px; font-weight:700; cursor:pointer; margin-top:18px; display:flex; align-items:center; justify-content:center; gap:7px; transition:transform .12s; }
+        .btn:active { transform:scale(0.98); }
+        .btn-gold { background:var(--gold); color:#000; }
+        .btn-ghost { background:var(--bg-elevated); color:var(--text); border:1px solid var(--border); }
+        .btn-sm { padding:10px 14px; font-size:12px; width:auto; margin:0; border-radius:10px; }
+
+        .opt { display:flex; align-items:center; gap:13px; padding:15px; background:var(--bg-elevated); border:1px solid var(--border); border-radius:13px; margin-bottom:10px; cursor:pointer; transition:border-color .15s; }
+        .opt:hover { border-color:var(--gold); }
+        .opt .o-ico { width:42px; height:42px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:20px; background:var(--bg-card); flex:0 0 auto; }
+        .opt .o-main { flex:1; } .opt .o-t { font-size:13px; font-weight:600; } .opt .o-s { font-size:11px; color:var(--text-muted); margin-top:2px; }
+
+        .summary { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:16px; }
+        .sum { background:var(--bg-card); border:1px solid var(--border); border-radius:14px; padding:14px; text-align:center; }
+        .sum .v { font-size:19px; font-weight:700; } .sum .v.gold{color:var(--gold)} .sum .v.green{color:var(--green)} .sum .v.blue{color:var(--blue)}
+        .sum .l { font-size:9px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin-top:4px; }
+
+        .row { display:flex; align-items:center; gap:13px; padding:13px 16px; }
+        .row + .row { border-top:1px solid var(--border); }
+        .row-ico { width:40px; height:40px; border-radius:11px; background:var(--bg-elevated); display:flex; align-items:center; justify-content:center; font-size:17px; flex:0 0 auto; }
+        .row-main { flex:1; min-width:0; } .row-t { font-size:13px; font-weight:600; } .row-s { font-size:11px; color:var(--text-muted); margin-top:2px; }
+        .row-r { text-align:right; } .row-v { font-weight:700; font-size:13px; }
+        .badge { padding:4px 10px; border-radius:100px; font-size:10px; font-weight:700; }
+        .badge.green{background:var(--green-light);color:var(--green)} .badge.orange{background:var(--orange-light);color:var(--orange)}
+        .badge.blue{background:var(--blue-light);color:var(--blue)} .badge.gray{background:var(--bg-elevated);color:var(--text-muted)}
+        .text-green{color:var(--green)} .text-gold{color:var(--gold)} .text-muted{color:var(--text-muted)}
+
+        .card-head { display:flex; align-items:center; justify-content:space-between; padding:0 0 14px; }
+        .card-title { font-size:12px; letter-spacing:1px; text-transform:uppercase; color:var(--text-secondary); }
+
+        .flow { display:flex; align-items:center; gap:8px; justify-content:space-between; margin-top:6px; }
+        .flow .n { flex:1; text-align:center; }
+        .flow .n .i { width:40px; height:40px; border-radius:50%; margin:0 auto 6px; display:flex; align-items:center; justify-content:center; font-size:18px; background:var(--bg-elevated); border:1px solid var(--border); }
+        .flow .n .x { font-size:10px; color:var(--text-secondary); line-height:1.3; }
+        .flow .a { color:var(--text-muted); font-size:14px; }
+
+        .note { font-size:11px; color:var(--text-muted); line-height:1.55; margin-top:10px; }
+        .note b { color:var(--text-secondary); }
+        .demo-flag { position:fixed; bottom:12px; right:12px; font-size:9px; letter-spacing:1px; text-transform:uppercase; color:var(--text-muted); background:var(--bg-card); border:1px solid var(--border); padding:5px 12px; border-radius:100px; }
+        .reset { position:fixed; bottom:12px; left:12px; font-size:10px; color:var(--gold); background:var(--bg-card); border:1px solid var(--border); padding:6px 12px; border-radius:100px; cursor:pointer; }
+        .toast { position:fixed; bottom:54px; left:50%; transform:translateX(-50%) translateY(80px); padding:12px 20px; background:var(--bg-elevated); border:1px solid var(--green); border-radius:100px; font-size:13px; opacity:0; transition:all .3s; z-index:50; }
+        .toast.show { transform:translateX(-50%) translateY(0); opacity:1; }
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <div class="tb-l"><div class="logo-mark"></div><div class="t">BOOM<small>Incassi</small></div></div>
+        <span class="role-badge">Proprietario</span>
+    </div>
+    <div class="wrap" id="wrap"></div>
+    <div class="reset" onclick="reset()">↺ Demo da capo</div>
+    <div class="demo-flag">Demo · Payout Proprietario</div>
+    <div class="toast" id="toast"></div>
+
+<script>
+    const eur = n => '€'+Math.round(n).toLocaleString('it-IT');
+    const props = [
+        { name:'Loft Trastevere', tenant:'M. Rossi', rent:1800, status:'paid' },
+        { name:'Attico Nomentano', tenant:'L. Bianchi', rent:1200, status:'incoming' },
+        { name:'Bilocale Centro', tenant:'S. Greco', rent:1450, status:'scheduled' },
+    ];
+    const feePct = 0; // commissione BOOM sull'incasso diretto (demo: 0)
+    const collected = props.filter(p=>p.status==='paid').reduce((s,p)=>s+p.rent,0);
+    const monthly = props.reduce((s,p)=>s+p.rent,0);
+
+    let state = 'intro';   // intro -> iban -> verify -> active
+    let iban = '';
+    function go(s){ state=s; render(); window.scrollTo({top:0,behavior:'smooth'}); }
+    function reset(){ state='intro'; iban=''; render(); }
+    function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2600); }
+
+    function stepper(active){
+        const steps=['IBAN','Verifica','Attivo']; const idx={iban:1,verify:2,active:3}[active]||1;
+        return `<div class="stepper"><div class="stp-fill" style="width:${(idx-1)/2*100}%"></div>
+        ${steps.map((s,i)=>`<div class="stp ${idx>i+1?'done':''} ${idx===i+1?'active':''}"><div class="b">${idx>i+1?'✓':i+1}</div><div class="l">${s}</div></div>`).join('')}</div>`;
+    }
+
+    function howFlow(){
+        return `<div class="card"><div class="card-head"><span class="card-title">Come arriva il denaro</span></div>
+            <div class="flow">
+                <div class="n"><div class="i">👤</div><div class="x">L'inquilino<br>tocca "Paga"</div></div>
+                <div class="a">→</div>
+                <div class="n"><div class="i">⚡</div><div class="x">SEPA<br>via Stripe</div></div>
+                <div class="a">→</div>
+                <div class="n"><div class="i" style="border-color:var(--gold);color:var(--gold)">🏦</div><div class="x">Diretto sul<br><b>tuo IBAN</b></div></div>
+            </div>
+            <div class="note"><b>BOOM non trattiene i tuoi soldi.</b> L'affitto arriva sul tuo conto; noi tratteniamo solo la commissione di gestione (se prevista). Commissione carta a carico nostro: tu ricevi l'intero canone.</div>
+        </div>`;
+    }
+
+    function render(){
+        const w=document.getElementById('wrap');
+
+        if(state==='intro'){
+            w.innerHTML=`<h1><span class="dot">●</span> I tuoi <b>incassi</b></h1>
+            <div class="sub">Collega il tuo IBAN una volta sola: gli affitti dei tuoi inquilini arriveranno <b>direttamente sul tuo conto</b>, in automatico, a ogni pagamento.</div>
+            <div class="card gold">
+                <div style="display:flex;gap:16px;align-items:center"><div class="big-ico">🏦</div>
+                <div><div class="hl">Ricevi gli affitti sul tuo conto</div><div class="hl-sub">${props.length} immobili · ${eur(monthly)}/mese di canoni pronti ad arrivare direttamente da te.</div></div></div>
+                <button class="btn btn-gold" onclick="go('iban')">Collega il mio IBAN →</button>
+                <div class="note" style="text-align:center">⏱️ 2 minuti · 🔒 verifica sicura · nessun conto Stripe da creare</div>
+            </div>
+            ${howFlow()}
+            <div class="card"><div class="card-head"><span class="card-title">Preferisci non pensarci?</span></div>
+                <div class="opt" onclick="toast('Demo: incasso gestito da BOOM')"><div class="o-ico">🅱️</div><div class="o-main"><div class="o-t">Incasso tramite BOOM</div><div class="o-s">Incassiamo noi e ti bonifichiamo l'affitto. Nessuna verifica, zero pensieri.</div></div><span class="badge gray">Alternativa</span></div>
+                <div class="note">Puoi cambiare in qualsiasi momento. La maggior parte dei proprietari sceglie <b>l'IBAN diretto</b> per avere i soldi prima e senza intermediari.</div>
+            </div>`;
+        }
+
+        else if(state==='iban'){
+            w.innerHTML=`<h1>Collega il tuo <b>IBAN</b></h1><div class="sub">Dove vuoi ricevere gli affitti. I dati sono cifrati e gestiti da Stripe — BOOM non vede mai il numero completo.</div>
+            ${stepper('iban')}
+            <div class="card">
+                <label>Intestatario del conto</label>
+                <input id="holder" value="Valentino Egidi" autocomplete="name">
+                <label>IBAN</label>
+                <input id="ibanInput" placeholder="IT00 X000 0000 0000 0000 0000 000" value="IT60 X054 2811 1010 0000 0123 456">
+                <button class="btn btn-gold" onclick="submitIban()">Continua →</button>
+                <div class="note">🔒 Connessione sicura. Useremo questo IBAN solo per accreditarti gli affitti.</div>
+            </div>
+            <div class="card"><div class="row" style="padding:6px 4px"><div class="row-ico" style="background:var(--green-light)">⚡</div><div class="row-main"><div class="row-t">Accredito in 1–2 giorni lavorativi</div><div class="row-s">Dal momento in cui l'inquilino paga</div></div></div></div>`;
+        }
+
+        else if(state==='verify'){
+            w.innerHTML=`<h1>Verifica <b>identità</b></h1><div class="sub">Un passaggio obbligatorio per legge (antiriciclaggio) prima di accreditare denaro sul tuo conto. Si fa <b>una volta sola</b>.</div>
+            ${stepper('verify')}
+            <div class="card">
+                <div class="opt" onclick="completeVerify('documento')"><div class="o-ico">🪪</div><div class="o-main"><div class="o-t">Documento d'identità</div><div class="o-s">Carta d'identità o passaporto · scatto rapido dal telefono</div></div><span style="color:var(--text-muted)">→</span></div>
+                <div class="opt" onclick="completeVerify('online')"><div class="o-ico">⚡</div><div class="o-main"><div class="o-t">Verifica online istantanea</div><div class="o-s">Conferma i tuoi dati in pochi secondi</div></div><span style="color:var(--text-muted)">→</span></div>
+                <div class="note">I documenti vanno a <b>Stripe</b> (provider certificato), non restano su BOOM. È lo stesso standard di una banca.</div>
+            </div>
+            <div class="card"><div class="card-head"><span class="card-title">Cosa serve</span></div>
+                <div class="row" style="padding:8px 2px"><div class="row-ico">✓</div><div class="row-main"><div class="row-t">Nome, data di nascita, indirizzo</div></div></div>
+                <div class="row" style="padding:8px 2px"><div class="row-ico">✓</div><div class="row-main"><div class="row-t">Un documento d'identità valido</div></div></div>
+            </div>`;
+        }
+
+        else if(state==='active'){
+            const last4 = (iban.replace(/\s/g,'').slice(-4))||'3456';
+            w.innerHTML=`<h1><span class="dot">●</span> Incassi <b>attivi</b></h1><div class="sub">Tutto pronto. Gli affitti arrivano direttamente sul tuo conto, in automatico.</div>
+            <div class="card green">
+                <div style="display:flex;gap:14px;align-items:center"><div class="big-ico">✅</div>
+                <div style="flex:1"><div class="hl">IBAN collegato · IT60 •••• ${last4}</div><div class="hl-sub">Verificato · accredito automatico in 1–2 giorni a ogni pagamento.</div></div></div>
+            </div>
+            <div class="summary">
+                <div class="sum"><div class="v green">${eur(collected)}</div><div class="l">Incassato</div></div>
+                <div class="sum"><div class="v gold">${eur(props.filter(p=>p.status!=='paid').reduce((s,p)=>s+p.rent,0))}</div><div class="l">In arrivo</div></div>
+                <div class="sum"><div class="v blue">${eur(monthly)}</div><div class="l">Canoni/mese</div></div>
+            </div>
+            <div class="card flush"><div class="card-head" style="padding:14px 18px 10px"><span class="card-title">Affitti per immobile</span></div>
+                ${props.map(p=>{const m={paid:['green','✓ Sul tuo conto'],incoming:['blue','In arrivo'],scheduled:['orange','Programmato']};const t=m[p.status];return `<div class="row"><div class="row-ico" style="background:var(--${t[0]}-light)">🏠</div><div class="row-main"><div class="row-t">${p.name}</div><div class="row-s">${p.tenant} · ${eur(p.rent)}/mese</div></div><div class="row-r"><div class="row-v">${eur(p.rent)}</div><span class="badge ${t[0]}">${t[1]}</span></div></div>`;}).join('')}
+            </div>
+            <div class="card"><div class="card-head"><span class="card-title">Prossimo accredito</span></div>
+                <div style="display:flex;align-items:center;gap:13px"><div class="row-ico" style="background:var(--gold-light)">💸</div><div style="flex:1"><div class="row-t">${eur(props[1].rent)} · ${props[1].name}</div><div class="row-s">previsto domani sul tuo IBAN</div></div><span class="text-gold" style="font-weight:700">${eur(props[1].rent)}</span></div>
+            </div>
+            ${howFlow()}
+            <div class="card"><div class="card-head"><span class="card-title">Metodo di incasso</span></div>
+                <div class="opt" style="cursor:default;border-color:var(--green)"><div class="o-ico">🏦</div><div class="o-main"><div class="o-t">IBAN diretto <span class="badge green" style="margin-left:4px">Attivo</span></div><div class="o-s">IT60 •••• ${last4} · l'affitto arriva direttamente da te</div></div></div>
+                <button class="btn btn-ghost btn-sm" style="width:100%;margin-top:6px" onclick="toast('Demo: passa a incasso tramite BOOM')">Passa a "incasso tramite BOOM"</button>
+            </div>`;
+        }
+    }
+
+    function submitIban(){ iban=(document.getElementById('ibanInput').value||'').trim(); if(iban.replace(/\s/g,'').length<15){ toast('Inserisci un IBAN valido'); return; } go('verify'); }
+    function completeVerify(){ toast('Verifica completata ✓'); setTimeout(()=>go('active'),700); }
+
+    render();
+</script>
+</body>
+</html>
