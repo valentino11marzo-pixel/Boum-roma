@@ -5,6 +5,7 @@
    Shared by every valentino-*.html page. BOOM appears ONLY in its own section.
    ═════════════════════════════════════════════════════════════════════════ */
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Allura&display=swap');
+@view-transition{navigation:auto}
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 :root{
   --paper:#F4F1EA;--paper-2:#ECE6DB;--paper-3:#E3DCCD;
@@ -407,6 +408,19 @@ footer{background:var(--paper);padding:0 0 46px;border-top:1px solid var(--line)
 .pnode .pl{font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);text-align:center;transition:.4s}
 .pnode.on .pl{color:var(--ink)}
 @media(max-width:560px){.pnode .pl{font-size:8.5px}}
+
+/* ── CROSS-PAGE VIEW TRANSITIONS (persistent chrome) ───────── */
+nav{view-transition-name:v-nav}
+.fab{view-transition-name:v-fab}
+::view-transition-old(root){animation-duration:.5s}
+::view-transition-new(root){animation-duration:.5s}
+
+/* ── CONSTELLATION (Roma in dati — generative data-art) ────── */
+.constell-wrap{position:relative;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:linear-gradient(180deg,var(--paper),var(--paper-2));box-shadow:var(--shadow-s)}
+#mapCanvas{display:block;width:100%;height:clamp(360px,52vh,560px);cursor:crosshair}
+.constell-legend{position:absolute;left:18px;bottom:14px;font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;color:var(--ink-3);pointer-events:none}
+.constell-corner{position:absolute;right:18px;top:14px;font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ember);pointer-events:none;display:flex;align-items:center;gap:8px}
+.constell-corner .dot{width:7px;height:7px;border-radius:50%;background:var(--ember);animation:pulse 2.2s infinite}
 
 /* ── REDUCED MOTION ────────────────────────────────────────── */
 @media(prefers-reduced-motion:reduce){

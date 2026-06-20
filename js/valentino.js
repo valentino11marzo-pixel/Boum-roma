@@ -256,11 +256,62 @@ function initDashboard(){
   addEventListener('resize',()=>sparks.forEach(s=>{s.size();draw(s,1);}));
 }
 
+/* ── decode (scramble → resolve) ───────────────────────────── */
+function initDecode(){
+  const els=$$('[data-decode]');if(!els.length)return;
+  const G='ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#%/&';
+  const run=el=>{const final=el.getAttribute('data-final')||el.textContent;el.setAttribute('data-final',final);
+    if(reduce){el.textContent=final;return;}
+    const start=performance.now(),dur=820,n=final.length;
+    (function step(t){const p=Math.min((t-start)/dur,1),rev=Math.floor(p*n);let out='';
+      for(let i=0;i<n;i++){const c=final[i];out+=(c===' '||i<rev)?c:G[(Math.random()*G.length)|0];}
+      el.textContent=out;if(p<1)requestAnimationFrame(step);else el.textContent=final;})(start);};
+  if(reduce||!('IntersectionObserver'in window)){els.forEach(run);return;}
+  const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){run(e.target);io.unobserve(e.target);}}),{threshold:.6});
+  els.forEach(e=>io.observe(e));
+}
+
+/* ── constellation (Roma in dati — generative data-art) ────── */
+function initConstellation(){
+  const cv=$('#mapCanvas');if(!cv)return;const ctx=cv.getContext('2d');if(!ctx)return;
+  const N=[{n:'Centro Storico',x:.46,y:.40,p:8000},{n:'Prati',x:.31,y:.27,p:6500},{n:'Parioli',x:.63,y:.17,p:6200},
+    {n:'Monti',x:.56,y:.45,p:6800},{n:'Trastevere',x:.39,y:.60,p:6000},{n:'Aventino',x:.51,y:.66,p:6500},
+    {n:'Testaccio',x:.40,y:.75,p:5200},{n:'Pigneto',x:.75,y:.60,p:3800},{n:'EUR',x:.59,y:.89,p:4200}];
+  const E=[];N.forEach((a,i)=>{N.map((b,j)=>({j,d:Math.hypot(a.x-b.x,a.y-b.y)})).filter(o=>o.j!==i)
+    .sort((u,v)=>u.d-v.d).slice(0,2).forEach(o=>{const key=i<o.j?i+'-'+o.j:o.j+'-'+i;if(!E.some(e=>e.key===key))E.push({key,a:i,b:o.j});});});
+  const maxP=Math.max.apply(0,N.map(n=>n.p));
+  let W=0,H=0,mx=0,my=0,tmx=0,tmy=0,prog=0,hover=-1,running=false;
+  function size(){const D=Math.min(devicePixelRatio||1,2),r=cv.getBoundingClientRect();W=r.width;H=r.height;cv.width=Math.max(1,W*D);cv.height=Math.max(1,H*D);ctx.setTransform(D,0,0,D,0,0);}
+  size();addEventListener('resize',size);
+  function pos(nd){const px=Math.min(W*0.17,130),py=Math.min(H*0.16,84);return{x:px+nd.x*(W-2*px)+mx*16,y:py+nd.y*(H-2*py)+my*16};}
+  cv.addEventListener('mousemove',e=>{const r=cv.getBoundingClientRect();tmx=((e.clientX-r.left)/r.width-.5)*2;tmy=((e.clientY-r.top)/r.height-.5)*2;
+    let best=-1,bd=24;N.forEach((nd,i)=>{const pp=pos(nd),d=Math.hypot(e.clientX-r.left-pp.x,e.clientY-r.top-pp.y);if(d<bd){bd=d;best=i;}});hover=best;});
+  cv.addEventListener('mouseleave',()=>{tmx=tmy=0;hover=-1;});
+  function draw(now){
+    mx+=(tmx-mx)*.05;my+=(tmy-my)*.05;ctx.clearRect(0,0,W,H);
+    E.forEach((e,k)=>{const ep=Math.min(1,Math.max(0,prog*E.length-k));if(ep<=0)return;
+      const a=pos(N[e.a]),b=pos(N[e.b]),hot=hover===e.a||hover===e.b;
+      ctx.strokeStyle=hot?'rgba(229,66,26,.5)':'rgba(20,18,13,.13)';ctx.lineWidth=hot?1.3:1;
+      ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(a.x+(b.x-a.x)*ep,a.y+(b.y-a.y)*ep);ctx.stroke();});
+    N.forEach((nd,i)=>{const np=Math.min(1,Math.max(0,prog*1.4-(i/N.length)*0.4));if(np<=0)return;
+      const pp=pos(nd),pulse=1+Math.sin(now/900+i)*0.12,r=(3+(nd.p/maxP)*4)*np*(hover===i?1.55:1)*pulse;
+      if(hover===i){ctx.beginPath();ctx.arc(pp.x,pp.y,r+6,0,6.283);ctx.strokeStyle='rgba(229,66,26,.4)';ctx.lineWidth=1;ctx.stroke();}
+      ctx.beginPath();ctx.arc(pp.x,pp.y,r,0,6.283);ctx.fillStyle=hover===i?'#E5421A':'rgba(20,18,13,.82)';ctx.fill();
+      if(np>0.8){ctx.globalAlpha=hover===i?1:0.8;ctx.textAlign='left';
+        ctx.font='600 11px "IBM Plex Mono",monospace';ctx.fillStyle='#14120d';ctx.fillText(nd.n.toUpperCase(),pp.x+11,pp.y-2);
+        ctx.font='400 10px "IBM Plex Mono",monospace';ctx.fillStyle='#E5421A';ctx.fillText('€'+nd.p.toLocaleString('it-IT')+'/m²',pp.x+11,pp.y+11);ctx.globalAlpha=1;}});
+  }
+  function loop(now){if(!running)return;if(prog<1)prog=Math.min(1,prog+0.012);draw(now);requestAnimationFrame(loop);}
+  if(reduce){prog=1;draw(performance.now());return;}
+  if('IntersectionObserver'in window){new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){if(!running){running=true;requestAnimationFrame(loop);}}else running=false;}),{threshold:.05}).observe(cv);}
+  else{running=true;requestAnimationFrame(loop);}
+}
+
 /* ── boot all ──────────────────────────────────────────────── */
 function init(){
   initLang();initBoot();initTransitions();initCursor();initTiltMag();
   initReveals();initScroll();initClock();initFab();initForm();initEstimator();initShader();
-  initSignature();initDashboard();
+  initSignature();initDashboard();initDecode();initConstellation();
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
