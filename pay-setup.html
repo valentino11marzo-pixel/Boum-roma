@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BOOM Pay — Automatic rent</title>
+<meta name="robots" content="noindex" />
+<style>
+  :root{
+    --gold:#D4AF37; --gold-dark:#B8960C; --bg:#08080A; --bg-card:#0C0C0E;
+    --bg-input:#1A1A1C; --border:rgba(255,255,255,0.08); --text:#FFF;
+    --text-secondary:#999; --text-dim:#666; --green:#34D399; --red:#F87171;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:'Helvetica Neue',Inter,Helvetica,Arial,sans-serif;font-weight:300;-webkit-font-smoothing:antialiased;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+  .card{width:100%;max-width:440px;background:linear-gradient(160deg,#101013 0%,#0A0A0C 100%);border:1px solid var(--border);border-radius:22px;overflow:hidden;position:relative}
+  .card::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),#F5D98B,var(--gold),transparent)}
+  .pad{padding:34px 30px}
+  .brand{display:flex;align-items:center;gap:9px;margin-bottom:26px}
+  .brand-dot{width:8px;height:8px;border-radius:50%;background:var(--gold);box-shadow:0 0 12px var(--gold)}
+  .brand-name{font-size:12px;letter-spacing:.4em;text-transform:uppercase;color:#EAEAEA}
+  .brand-name b{color:var(--gold);font-weight:400}
+  .eyebrow{font-size:10px;letter-spacing:.3em;text-transform:uppercase;color:var(--text-dim);margin-bottom:12px}
+  h1{font-size:27px;font-weight:200;letter-spacing:-0.4px;line-height:1.15;margin-bottom:10px}
+  h1 .g{color:var(--gold)}
+  .lede{font-size:13.5px;color:var(--text-secondary);line-height:1.6;margin-bottom:24px}
+  .rentline{display:flex;align-items:baseline;justify-content:space-between;padding:14px 16px;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;margin-bottom:20px}
+  .rentline .l{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-dim)}
+  .rentline .v{font-size:20px;font-weight:300}
+  label{display:block;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--text-dim);margin:0 0 8px 2px}
+  input[type=text]{width:100%;background:var(--bg-input);border:1px solid var(--border);border-radius:11px;padding:14px 14px;color:var(--text);font-family:inherit;font-size:15px;font-weight:300;margin-bottom:18px}
+  input[type=text]:focus{outline:none;border-color:var(--gold)}
+  #iban{background:var(--bg-input);border:1px solid var(--border);border-radius:11px;padding:15px 14px;margin-bottom:18px}
+  #iban.StripeElement--focus{border-color:var(--gold)}
+  .mandate{font-size:11px;color:var(--text-dim);line-height:1.55;background:var(--bg-card);border:1px solid var(--border);border-radius:11px;padding:13px 14px;margin-bottom:20px}
+  .btn{width:100%;border:none;border-radius:13px;padding:16px;cursor:pointer;font-family:inherit;font-size:13px;letter-spacing:.16em;text-transform:uppercase;font-weight:500;background:linear-gradient(135deg,var(--gold),var(--gold-dark));color:#0A0A0A;transition:.2s}
+  .btn:hover{filter:brightness(1.08)}
+  .btn:disabled{opacity:.45;cursor:default;filter:none}
+  .err{color:var(--red);font-size:12px;margin-top:14px;min-height:16px;text-align:center}
+  .secured{margin-top:18px;text-align:center;font-size:10px;letter-spacing:.08em;color:#444}
+  /* success / loading states */
+  .state{text-align:center;padding:8px 0 4px}
+  .ring{width:74px;height:74px;border-radius:50%;margin:0 auto 22px;display:flex;align-items:center;justify-content:center;font-size:34px;background:rgba(52,211,153,0.12);border:2px solid var(--green);color:var(--green);box-shadow:0 0 30px rgba(52,211,153,0.25)}
+  .spin{width:42px;height:42px;border-radius:50%;border:2px solid var(--border);border-top-color:var(--gold);margin:30px auto;animation:s 0.8s linear infinite}
+  @keyframes s{to{transform:rotate(360deg)}}
+  .chip{display:inline-flex;align-items:center;gap:8px;margin-top:18px;padding:9px 16px;border-radius:999px;font-size:11px;letter-spacing:.14em;text-transform:uppercase;background:rgba(52,211,153,0.12);color:var(--green)}
+  .chip .d{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 10px var(--green)}
+  .muted{font-size:12.5px;color:var(--text-secondary);line-height:1.6;margin-top:6px}
+</style>
+</head>
+<body>
+  <div class="card"><div class="pad">
+    <div class="brand"><span class="brand-dot"></span><span class="brand-name">BOOM <b>Pay</b></span></div>
+    <div id="app"><div class="spin"></div></div>
+    <div class="secured">🔒 Secured by Stripe · SEPA Direct Debit</div>
+  </div></div>
+
+  <script src="https://js.stripe.com/v3/"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/boom-portal.js"></script>
+
+  <script>
+    const app = document.getElementById('app');
+    const euro = (n) => '€' + Number(n||0).toLocaleString('it-IT', { maximumFractionDigits: 0 });
+
+    async function api(path, body){
+      const token = await firebase.auth().currentUser.getIdToken();
+      const res = await fetch(path, {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer '+token },
+        body: JSON.stringify(body||{}),
+      });
+      return res.json();
+    }
+
+    function activeView(ibanLast4){
+      app.innerHTML = `
+        <div class="state">
+          <div class="ring">✓</div>
+          <div class="eyebrow">Automatic rent</div>
+          <h1>You're all <span class="g">set</span>.</h1>
+          <p class="muted">Your rent is collected automatically every month${ibanLast4?` from the account ending <b>${ibanLast4}</b>`:''}. No transfers, no late fees — ever.</p>
+          <div class="chip"><span class="d"></span>Autopay active</div>
+        </div>`;
+    }
+
+    function errorView(msg){
+      app.innerHTML = `<div class="state"><div class="eyebrow">BOOM Pay</div><h1>Hmm.</h1><p class="muted">${msg||'Something went wrong. Please try again.'}</p></div>`;
+    }
+
+    function formView(data){
+      app.innerHTML = `
+        <div class="eyebrow">Set up automatic rent</div>
+        <h1>Never think about <span class="g">rent</span> again.</h1>
+        <p class="lede">Authorise once and BOOM collects your rent automatically every month — straight from your bank by SEPA Direct Debit.</p>
+        ${data.rent ? `<div class="rentline"><span class="l">Monthly rent</span><span class="v">${euro(data.rent)}</span></div>` : ''}
+        <label>Account holder</label>
+        <input id="name" type="text" placeholder="Full name" value="${(data.tenantName||'').replace(/"/g,'&quot;')}" />
+        <label>IBAN</label>
+        <div id="iban"></div>
+        <div class="mandate">By providing your IBAN and confirming, you authorise BOOM (Egidi Immobiliare S.r.l.) and Stripe, our payment provider, to send instructions to your bank to debit your account for your monthly rent, in accordance with those instructions. You are entitled to a refund from your bank under the terms of your agreement with it, within 8 weeks of the debit date.</div>
+        <button class="btn" id="go">Authorise automatic rent</button>
+        <div class="err" id="err"></div>`;
+
+      const stripe = Stripe(data.publishableKey);
+      const elements = stripe.elements();
+      const style = { base: { color:'#FFFFFF', fontFamily:'Helvetica Neue, Inter, sans-serif', fontWeight:'300', fontSize:'15px', '::placeholder':{ color:'#666' } }, invalid:{ color:'#F87171' } };
+      const iban = elements.create('iban', { supportedCountries:['SEPA'], placeholderCountry:'IT', style });
+      iban.mount('#iban');
+
+      const btn = document.getElementById('go');
+      const err = document.getElementById('err');
+      btn.addEventListener('click', async () => {
+        err.textContent = '';
+        const name = (document.getElementById('name').value || '').trim();
+        if (!name) { err.textContent = 'Please enter the account holder name.'; return; }
+        btn.disabled = true; btn.textContent = 'Authorising…';
+        try {
+          const { setupIntent, error } = await stripe.confirmSepaDebitSetup(data.clientSecret, {
+            payment_method: { sepa_debit: iban, billing_details: { name, email: (firebase.auth().currentUser||{}).email || undefined } },
+          });
+          if (error) { err.textContent = error.message; btn.disabled = false; btn.textContent = 'Authorise automatic rent'; return; }
+          if (setupIntent && setupIntent.status === 'succeeded') {
+            // The setup_intent.succeeded webhook activates the mandate server-side.
+            activeView();
+          } else {
+            err.textContent = 'Authorisation pending — please check back shortly.';
+            btn.disabled = false; btn.textContent = 'Authorise automatic rent';
+          }
+        } catch (e) {
+          err.textContent = e.message || 'Something went wrong.';
+          btn.disabled = false; btn.textContent = 'Authorise automatic rent';
+        }
+      });
+    }
+
+    (async function init(){
+      try {
+        await BoomPortal.requireAuth(['tenant','admin','owner','landlord'], { loginUrl:'/login.html' });
+      } catch(e){ return; }
+      try {
+        const data = await api('/api/pay/mandate-setup', {});
+        if (!data || !data.ok) return errorView(data && data.error ? data.error.replace(/_/g,' ') : null);
+        if (data.alreadyActive) return activeView(data.ibanLast4);
+        if (!data.publishableKey) return errorView('Payments are not configured yet. Please contact BOOM.');
+        formView(data);
+      } catch(e){ errorView(e.message); }
+    })();
+  </script>
+</body>
+</html>

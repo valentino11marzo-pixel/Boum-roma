@@ -210,10 +210,18 @@ async function handlePayEvent(res, event) {
 
   if (event.type === 'setup_intent.succeeded') {
     if (meta.kind === 'mandate' && meta.contractId) {
+      let ibanLast4 = '';
+      try {
+        if (obj.payment_method) {
+          const pm = await stripe.paymentMethods.retrieve(obj.payment_method);
+          ibanLast4 = (pm && pm.sepa_debit && pm.sepa_debit.last4) || '';
+        }
+      } catch (e) { /* cosmetic only */ }
       await fsPatch('mandates/' + meta.contractId, {
         status: 'active',
         stripePaymentMethodId: obj.payment_method || '',
         stripeMandateId: obj.mandate || '',
+        ibanLast4,
         activatedAt: new Date(),
       });
       await payLedger('mandate_active', { contractId: meta.contractId, tenantId: meta.tenantId || '' });

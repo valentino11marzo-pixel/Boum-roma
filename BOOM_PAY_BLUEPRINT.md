@@ -266,3 +266,38 @@ draw one timeline. Everything downstream (status, wallet, recovery, receipts) al
 
 *Build order across the company: BOOM Pay → Autonomous Operator → Rental Graph → Verified →
 Productize. Pay is the spine; everything compounds off the euros and the data it puts in motion.*
+
+---
+
+## 10. Build status — shipped
+
+The end-to-end product is implemented (Phases 1 + 2). Backend (additive — live
+flows untouched):
+
+- `api/pay/_pay.js` — Stripe client + split-fee math (landlord + tenant portions)
+- `api/pay/_collect.js` — shared collection core (one PaymentIntent per `payments` doc)
+- `api/pay/collect.js` — manual/admin + cron trigger over the core
+- `api/pay/connect.js` — landlord Stripe Connect (Express) onboarding + status
+- `api/pay/mandate-setup.js` — tenant SEPA mandate (auto-resolves the tenant's contract)
+- `api/pay/summary.js` — landlord cashflow summary
+- `api/pay/admin-summary.js` — admin Collections Command Center data
+- `api/stripe-webhook.js` — +6 money events (payment_intent.*, setup_intent.succeeded,
+  account.updated, payout.paid, charge.dispute.created) → drives docs + `payEvents` ledger
+- `api/reminder-cron.js` — **autonomous collection** on the due date, retry ladder
+  (0 / +2d / +5d), parks off-rail payments 24h, exhausted → overdue (fail-soft lazy import)
+
+Surfaces (gold/black, `BoomPortal` auth):
+
+- `boom-pay.html` — landlord: activate + cashflow timeline (nav-linked from owner-dashboard)
+- `pay-setup.html` — tenant: one-tap SEPA authorisation (Stripe IBAN element)
+- `boom-pay-admin.html` — admin: stats, recovery queue (Collect-now + dunning), money ledger
+
+`firestore.rules` — `payProfiles / mandates / payouts / payEvents` (admin-only writes,
+scoped reads).
+
+**To go live (Stripe dashboard + Vercel):** enable Connect + SEPA Direct Debit; set
+`STRIPE_PUBLISHABLE_KEY` (+ optional `PAY_FEE_LANDLORD_BPS` / `PAY_FEE_TENANT_BPS`,
+default 100/100 = 1%+1%); subscribe the webhook to the 6 events above incl. "events on
+connected accounts"; `firebase deploy --only firestore:rules`. Then verify with one
+test-mode onboarding + one test collection. Next: fold `pay-setup.html` into the
+magic-sign onboarding so a tenant activates autopay the moment they sign.

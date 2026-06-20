@@ -26,6 +26,20 @@ async function pushPass(serial) {
   if (_pushPass) return _pushPass(serial);
 }
 
+// BOOM Pay collection is loaded the same lazy, fail-soft way: a broken Stripe
+// import must never take down the reminder cron.
+let _collect;
+async function collectPayment(paymentId, opts) {
+  if (_collect === undefined) {
+    try { _collect = (await import('./pay/_collect.js')).collectPayment; }
+    catch (e) { console.error('collectPayment module unavailable:', (e && e.message) || e); _collect = null; }
+  }
+  if (_collect) return _collect(paymentId, opts);
+  return { ok: false, code: 'module_unavailable' };
+}
+
+const INELIGIBLE = ['landlord_not_onboarded', 'landlord_connect_incomplete', 'no_active_mandate', 'stripe_unconfigured', 'module_unavailable'];
+
 const PROJECT_ID = process.env.FIREBASE_PROJECT_ID;
 const API_KEY    = process.env.FIREBASE_API_KEY;
 
@@ -217,6 +231,54 @@ export default async function handler(req, res) {
       }
       results.paidPush = paidPush;
     } catch (e) { results.errors.push(`paid-push: ${e.message}`); }
+
+    // ── Autonomous rent collection (BOOM Pay) ────────────────────────────
+    // On the due date, charge the tenant's saved SEPA mandate. Retry ladder:
+    // attempt 0 when due, then +2d, then +5d. After 3 failures → overdue (the
+    // admin Collections Command Center surfaces it for recovery). Payments not
+    // on the rails (no mandate / landlord not onboarded) are parked for 24h so
+    // we don't re-check them every 15 minutes.
+    try {
+      const today = now.toISOString().split('T')[0];
+      const nowMs = now.getTime();
+      const pendQ  = await fsQuery('payments', token, { field: { fieldPath: 'status' }, op: 'EQUAL', value: { stringValue: 'pending' } });
+      const failQ  = await fsQuery('payments', token, { field: { fieldPath: 'status' }, op: 'EQUAL', value: { stringValue: 'failed' } });
+      const due = [...(pendQ || []), ...(failQ || [])].filter(r => r.document).map(r => parseDoc(r.document)).filter(Boolean);
+
+      let autoCollected = 0, exhausted = 0, parked = 0;
+      for (const p of due) {
+        if (!p.dueDate || p.dueDate > today) continue;            // not due yet
+        if (p.autopaySkipUntil && p.autopaySkipUntil > now.toISOString()) continue; // parked
+
+        const attempt = Number(p.attemptCount) || 0;
+        const ageDays = p.lastAttemptAt ? (nowMs - new Date(p.lastAttemptAt).getTime()) / 86400000 : 999;
+
+        // Exhausted retries → overdue, hand off to recovery.
+        if (p.status === 'failed' && attempt >= 3) {
+          await fsPatch(`payments/${p.id}`, { status: { stringValue: 'overdue' } }, token);
+          exhausted++;
+          continue;
+        }
+
+        let shouldTry = false;
+        if (attempt === 0) shouldTry = true;
+        else if (attempt === 1 && ageDays >= 2) shouldTry = true;
+        else if (attempt === 2 && ageDays >= 5) shouldTry = true;
+        if (!shouldTry) continue;
+
+        const r = await collectPayment(p.id, { source: 'cron' });
+        if (r && r.ok) { autoCollected++; }
+        else if (r && INELIGIBLE.includes(r.code)) {
+          // Not on the rails — re-check tomorrow rather than every tick.
+          await fsPatch(`payments/${p.id}`, { autopaySkipUntil: { timestampValue: new Date(nowMs + 86400000).toISOString() } }, token);
+          parked++;
+        }
+        // other failures: _collect already marked the doc failed + bumped attempt
+      }
+      results.autoCollected = autoCollected;
+      results.collectExhausted = exhausted;
+      results.collectParked = parked;
+    } catch (e) { results.errors.push(`autopay: ${e.message}`); }
 
     return res.status(200).json({ ok: true, timestamp: now.toISOString(), ...results });
   } catch (e) {
