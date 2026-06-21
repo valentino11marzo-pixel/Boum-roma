@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Affitto — BOOM</title>
+<meta name="robots" content="noindex" />
+<style>
+  :root{
+    --gold:#D4AF37; --gold-dark:#B8960C; --bg:#08080A; --bg-card:#0C0C0E;
+    --bg-elevated:#141416; --bg-input:#1A1A1C; --border:rgba(255,255,255,0.08);
+    --text:#FFF; --text-secondary:#999; --text-dim:#666;
+    --green:#34D399; --green-dim:rgba(52,211,153,0.12);
+    --amber:#F5B14C; --amber-dim:rgba(245,177,76,0.12);
+    --red:#F87171; --red-dim:rgba(248,113,113,0.12);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:'Helvetica Neue',Inter,Helvetica,Arial,sans-serif;font-weight:300;-webkit-font-smoothing:antialiased;min-height:100vh;padding:max(20px,env(safe-area-inset-top)) 18px 60px}
+  .wrap{max-width:480px;margin:0 auto}
+  .topbar{display:flex;align-items:center;justify-content:space-between;padding:6px 0 24px}
+  .brand{display:flex;align-items:center;gap:9px}
+  .brand-dot{width:8px;height:8px;border-radius:50%;background:var(--gold);box-shadow:0 0 12px var(--gold)}
+  .brand-name{font-size:12px;letter-spacing:.4em;text-transform:uppercase;color:#EAEAEA}
+  .back{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--text-dim)}
+  .mode{font-size:8px;letter-spacing:.16em;text-transform:uppercase;color:var(--amber);border:1px solid var(--amber-dim);padding:3px 7px;border-radius:6px}
+
+  .card{background:linear-gradient(160deg,#101013,#0A0A0C);border:1px solid var(--border);border-radius:18px;padding:22px 20px;margin-bottom:14px;position:relative;overflow:hidden}
+  .card.lead::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),#F5D98B,var(--gold),transparent)}
+  .eyebrow{font-size:9px;letter-spacing:.28em;text-transform:uppercase;color:var(--text-dim);margin-bottom:10px}
+  h1{font-size:24px;font-weight:200;letter-spacing:-0.3px;line-height:1.15;margin-bottom:8px}
+  h1 .g{color:var(--gold)}
+  .lede{font-size:13px;color:var(--text-secondary);line-height:1.6}
+
+  .nextrow{display:flex;align-items:flex-end;justify-content:space-between;margin:6px 0 2px}
+  .nextrow .amt{font-size:34px;font-weight:200;letter-spacing:-1px}
+  .nextrow .due{text-align:right;font-size:11px;color:var(--text-dim)}
+  .chip{display:inline-flex;align-items:center;gap:7px;padding:7px 13px;border-radius:999px;font-size:10px;letter-spacing:.12em;text-transform:uppercase;margin-top:6px}
+  .chip .d{width:6px;height:6px;border-radius:50%}
+  .c-active{background:var(--green-dim);color:var(--green)} .c-active .d{background:var(--green);box-shadow:0 0 8px var(--green)}
+  .c-off{background:var(--bg-input);color:var(--text-secondary)} .c-off .d{background:var(--text-dim)}
+  .c-proc{background:var(--amber-dim);color:var(--amber)} .c-proc .d{background:var(--amber)}
+
+  .btn{width:100%;border:none;border-radius:12px;padding:15px;cursor:pointer;font-family:inherit;font-size:13px;letter-spacing:.12em;text-transform:uppercase;font-weight:500;transition:.18s;margin-top:14px}
+  .btn-gold{background:linear-gradient(135deg,var(--gold),var(--gold-dark));color:#0A0A0A}
+  .btn-gold:hover{filter:brightness(1.08)} .btn:disabled{opacity:.45;cursor:default;filter:none}
+  .btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text-secondary)}
+
+  label{display:block;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--text-dim);margin:14px 0 7px 2px}
+  input[type=text]{width:100%;background:var(--bg-input);border:1px solid var(--border);border-radius:11px;padding:13px;color:var(--text);font-family:inherit;font-size:15px;font-weight:300}
+  input:focus{outline:none;border-color:var(--gold)}
+  #iban{background:var(--bg-input);border:1px solid var(--border);border-radius:11px;padding:14px 13px}
+  #iban.StripeElement--focus{border-color:var(--gold)}
+  .mandate{font-size:10.5px;color:var(--text-dim);line-height:1.55;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 13px;margin-top:14px}
+
+  .toggle{display:flex;align-items:center;justify-content:space-between;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-top:12px}
+  .toggle .t{font-size:13px} .toggle .s{font-size:11px;color:var(--text-dim);margin-top:2px}
+  .sw{width:46px;height:26px;border-radius:999px;background:var(--bg-input);border:1px solid var(--border);position:relative;cursor:pointer;flex:0 0 auto;transition:.2s}
+  .sw.on{background:var(--green-dim);border-color:var(--green)}
+  .sw::after{content:"";position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#888;transition:.2s}
+  .sw.on::after{left:22px;background:var(--green)}
+
+  .sched-title{font-size:11px;letter-spacing:.26em;text-transform:uppercase;color:var(--text-secondary);margin:24px 0 12px 2px}
+  .row{display:flex;align-items:center;justify-content:space-between;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:13px 15px;margin-bottom:8px}
+  .row .m{font-size:14px} .row .sub{font-size:10px;color:var(--text-dim);margin-top:3px}
+  .row .r{text-align:right}
+  .pill{display:inline-block;padding:3px 9px;border-radius:999px;font-size:9px;letter-spacing:.1em;text-transform:uppercase}
+  .pill.paid{background:var(--green-dim);color:var(--green)}
+  .pill.processing{background:var(--amber-dim);color:var(--amber)}
+  .pill.pending{background:var(--bg-input);color:var(--text-secondary)}
+  .pill.overdue{background:var(--red-dim);color:var(--red)}
+  .amt2{font-size:15px}
+  .err{color:var(--red);font-size:12px;margin-top:12px;min-height:15px;text-align:center}
+  .empty{text-align:center;padding:30px 18px;color:var(--text-dim);font-size:13px;border:1px dashed var(--border);border-radius:14px}
+  .spin{width:38px;height:38px;border-radius:50%;border:2px solid var(--border);border-top-color:var(--gold);margin:70px auto;animation:s .8s linear infinite}
+  @keyframes s{to{transform:rotate(360deg)}}
+  .secured{margin-top:22px;text-align:center;font-size:10px;letter-spacing:.06em;color:#3a3a3a}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="brand-dot"></span><span class="brand-name">BOOM</span></div>
+      <div style="display:flex;align-items:center;gap:10px"><span class="mode" id="modeChip" style="display:none"></span><a class="back" href="/tenant">← Portale</a></div>
+    </div>
+    <div id="app"><div class="spin"></div></div>
+    <div class="secured">🔒 Pagamenti protetti da Stripe · Addebito Diretto SEPA</div>
+  </div>
+
+  <script src="https://js.stripe.com/v3/"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/boom-portal.js"></script>
+  <script>
+    const app = document.getElementById('app');
+    const euro = (n) => '€' + Number(n||0).toLocaleString('it-IT',{maximumFractionDigits:0});
+    const monthLabel = (m)=>{ if(!m) return '—'; const [y,mo]=String(m).split('-'); const n=['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic']; return (n[parseInt(mo,10)-1]||m)+' '+y; };
+    const todayStr = () => new Date().toISOString().split('T')[0];
+
+    let stripe=null, cfg=null, contract=null, schedule=[], user=null;
+
+    async function api(path, body){
+      const token = await firebase.auth().currentUser.getIdToken();
+      const res = await fetch(path, { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+token}, body: JSON.stringify(body||{}) });
+      return res.json();
+    }
+
+    async function loadData(){
+      const db = firebase.firestore();
+      const cs = await db.collection('contracts').where('tenantId','==',user.uid).get();
+      const contracts = cs.docs.map(d=>Object.assign({id:d.id}, d.data()));
+      contract = contracts.find(c=>c.status==='active' && c.payment) || contracts.find(c=>c.payment) || contracts.find(c=>c.status==='active') || contracts[0] || null;
+      const ps = await db.collection('payments').where('tenantId','==',user.uid).get();
+      schedule = ps.docs.map(d=>Object.assign({id:d.id}, d.data()))
+        .filter(p => !contract || p.contractId === contract.id)
+        .sort((a,b)=> String(a.dueDate||'').localeCompare(String(b.dueDate||'')));
+    }
+
+    function mandateActive(){ return contract && contract.payment && contract.payment.status === 'active'; }
+    function nextDue(){ return schedule.find(p => p.status === 'pending' || p.status === 'overdue'); }
+
+    function render(){
+      if(!contract){ app.innerHTML = `<div class="empty">Nessun contratto attivo collegato al tuo profilo. Se pensi sia un errore, scrivici su WhatsApp.</div>`; return; }
+      const next = nextDue();
+      const active = mandateActive();
+      const processing = schedule.some(p => p.status === 'processing');
+      let html = '';
+
+      // Lead card
+      html += `<div class="card lead"><div class="eyebrow">Il tuo affitto</div>`;
+      if (next) {
+        const overdue = next.status==='overdue' || (next.dueDate && next.dueDate < todayStr());
+        html += `<div class="nextrow"><div class="amt">${euro(next.amount)}</div><div class="due">${overdue?'<span style="color:var(--red)">scaduto</span>':'prossima rata'}<br>${monthLabel(next.month)} · ${next.dueDate||''}</div></div>`;
+      } else {
+        html += `<div class="lede">Sei in pari. Nessuna rata in attesa. ✨</div>`;
+      }
+      html += active
+        ? `<div class="chip c-active"><span class="d"></span>Addebito automatico attivo${contract.payment.ibanLast4?` · ••••${contract.payment.ibanLast4}`:''}</div>`
+        : `<div class="chip c-off"><span class="d"></span>Addebito automatico non attivo</div>`;
+      if (processing) html += `<div class="chip c-proc" style="margin-left:8px"><span class="d"></span>In elaborazione</div>`;
+
+      if (active && next) {
+        html += `<button class="btn btn-gold" id="payBtn" onclick="payNow('${next.month}')">Paga ${euro(next.amount)} ora</button>`;
+      }
+      html += `<div class="err" id="err"></div></div>`;
+
+      // Mandate setup OR autopay toggle
+      if (!active) {
+        html += `<div class="card">
+          <div class="eyebrow">Mai più bonifici</div>
+          <div class="lede">Autorizza una volta e l'affitto viene addebitato automaticamente ogni mese dal tuo conto. Zero commissioni per te.</div>
+          <label>Intestatario del conto</label>
+          <input id="name" type="text" placeholder="Nome e cognome" value="${(contract.tenant||'').replace(/"/g,'&quot;')}" />
+          <label>IBAN</label><div id="iban"></div>
+          <div class="mandate">Fornendo l'IBAN e confermando, autorizzi BOOM (Egidi Immobiliare S.r.l.) e Stripe a inviare istruzioni alla tua banca per addebitare il conto, e la banca ad addebitarlo secondo tali istruzioni. Hai diritto al rimborso dalla tua banca secondo le condizioni del tuo contratto, entro 8 settimane dall'addebito.</div>
+          <button class="btn btn-gold" id="setupBtn">Attiva addebito automatico</button>
+          <div class="err" id="setupErr"></div>
+        </div>`;
+      } else {
+        const on = !!contract.autopay;
+        html += `<div class="toggle">
+          <div><div class="t">Addebito automatico mensile</div><div class="s">${on?'Attivo — la rata parte da sola ogni mese':'Disattivato — paghi a mano con "Paga ora"'}</div></div>
+          <div class="sw ${on?'on':''}" id="autopaySw" onclick="toggleAutopay()"></div>
+        </div>`;
+      }
+
+      // Schedule
+      if (schedule.length) {
+        html += `<div class="sched-title">Storico rate</div>`;
+        html += schedule.slice().reverse().map(p=>{
+          const st = (p.status==='pending' && p.dueDate && p.dueDate < todayStr()) ? 'overdue' : (p.status||'pending');
+          const labels = { paid:'Pagato', processing:'In elaborazione', pending:'In attesa', overdue:'Scaduto' };
+          return `<div class="row"><div><div class="m">${monthLabel(p.month)}</div><div class="sub">Scadenza ${p.dueDate||'—'}</div></div>
+            <div class="r"><div class="amt2">${euro(p.amount)}</div><span class="pill ${st}">${labels[st]||st}</span></div></div>`;
+        }).join('');
+      }
+
+      app.innerHTML = html;
+      if (!active) mountIban();
+    }
+
+    function mountIban(){
+      const elements = stripe.elements();
+      const style = { base:{ color:'#FFF', fontFamily:'Helvetica Neue, Inter, sans-serif', fontWeight:'300', fontSize:'15px', '::placeholder':{color:'#666'} }, invalid:{color:'#F87171'} };
+      const iban = elements.create('iban', { supportedCountries:['SEPA'], placeholderCountry:'IT', style });
+      iban.mount('#iban');
+      const btn = document.getElementById('setupBtn');
+      const err = document.getElementById('setupErr');
+      btn.addEventListener('click', async ()=>{
+        err.textContent=''; const name=(document.getElementById('name').value||'').trim();
+        if(!name){ err.textContent='Inserisci l\\'intestatario del conto.'; return; }
+        btn.disabled=true; btn.textContent='Attivazione…';
+        try{
+          const r = await api('/api/payments/setup-mandate', { contractId: contract.id, tenant:{ name } });
+          if(!r.ok || !r.clientSecret){ err.textContent = (r.error||'Errore').replace(/_/g,' '); btn.disabled=false; btn.textContent='Attiva addebito automatico'; return; }
+          const { setupIntent, error } = await stripe.confirmSepaDebitSetup(r.clientSecret, { payment_method:{ sepa_debit:iban, billing_details:{ name, email:(firebase.auth().currentUser||{}).email||undefined } } });
+          if(error){ err.textContent=error.message; btn.disabled=false; btn.textContent='Attiva addebito automatico'; return; }
+          if(setupIntent && setupIntent.status==='succeeded'){ btn.textContent='Attivato ✓'; await waitForActive(); }
+          else { err.textContent='Autorizzazione in corso — riprova tra poco.'; btn.disabled=false; btn.textContent='Attiva addebito automatico'; }
+        }catch(e){ err.textContent=e.message||'Errore'; btn.disabled=false; btn.textContent='Attiva addebito automatico'; }
+      });
+    }
+
+    // The webhook activates the mandate async — re-read the contract a few times.
+    async function waitForActive(){
+      for (let i=0;i<5;i++){
+        await new Promise(r=>setTimeout(r, 2500));
+        await loadData();
+        if (mandateActive()) { render(); return; }
+      }
+      render(); // show whatever we have
+    }
+
+    window.payNow = async (period)=>{
+      const btn = document.getElementById('payBtn'); const err = document.getElementById('err');
+      if(btn){ btn.disabled=true; btn.textContent='Addebito in corso…'; } if(err) err.textContent='';
+      try{
+        const r = await api('/api/payments/pay-rent', { contractId: contract.id, period });
+        if(!r.ok){ if(err) err.textContent=(r.error||'Errore').replace(/_/g,' '); if(btn){btn.disabled=false;btn.textContent='Riprova';} return; }
+        if(r.clientSecret){
+          const { paymentIntent, error } = await stripe.confirmSepaDebitPayment(r.clientSecret);
+          if(error){ if(err) err.textContent=error.message; if(btn){btn.disabled=false;btn.textContent='Riprova';} return; }
+        }
+        if(btn){ btn.textContent='In elaborazione ✓'; }
+        setTimeout(async ()=>{ await loadData(); render(); }, 1500);
+      }catch(e){ if(err) err.textContent=e.message; if(btn){btn.disabled=false;btn.textContent='Riprova';} }
+    };
+
+    window.toggleAutopay = async ()=>{
+      const sw = document.getElementById('autopaySw'); const next = !sw.classList.contains('on');
+      sw.classList.toggle('on', next);
+      try{
+        const r = await api('/api/payments/autopay', { contractId: contract.id, enabled: next });
+        if(!r.ok){ sw.classList.toggle('on', !next); BoomPortal.toast((r.error||'Errore').replace(/_/g,' '),{type:'error'}); return; }
+        contract.autopay = next;
+        BoomPortal.toast(next?'Addebito automatico attivato':'Addebito automatico disattivato',{type:'success'});
+      }catch(e){ sw.classList.toggle('on', !next); BoomPortal.toast(e.message,{type:'error'}); }
+    };
+
+    (async function init(){
+      try { const a = await BoomPortal.requireAuth(['tenant','admin','owner','landlord'], { loginUrl:'/login.html' }); user = a.user; }
+      catch(e){ return; }
+      try {
+        const cr = await fetch('/api/payments/config').then(r=>r.json());
+        cfg = cr;
+        if (cr && cr.mode === 'test'){ const mc=document.getElementById('modeChip'); mc.textContent='TEST'; mc.style.display='inline-block'; }
+        if (!cr || !cr.publishableKey){ app.innerHTML = `<div class="empty">I pagamenti non sono ancora configurati. Riprova più tardi o scrivici.</div>`; return; }
+        stripe = Stripe(cr.publishableKey);
+        await loadData();
+        render();
+      } catch(e){ app.innerHTML = `<div class="empty">Impossibile caricare l'affitto: ${e.message}</div>`; }
+    })();
+  </script>
+</body>
+</html>
