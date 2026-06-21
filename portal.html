@@ -17959,8 +17959,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 createdBy: S.profile.id
             });
             logActivity('Magic Sign richiesta creata', 'contract', { reqId, title, roles: [...roles] });
-            closeModal();
-            toast('success', 'Richiesta creata', 'Invia i link di firma alle parti');
+            toast('success', 'Richiesta creata');
+            _msShowSendPanel(reqId, title, signers);
         } catch (e) {
             console.error(e); btn.disabled = false; btn.textContent = 'Crea richiesta di firma';
             toast('error', 'Errore', e.message);
@@ -17968,6 +17968,60 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
 
     function _msToken() { return (crypto?.randomUUID ? crypto.randomUUID() : 'tk' + Date.now() + Math.random().toString(36).slice(2)).replace(/-/g, '').slice(0, 24); }
+
+    // ── Send panel: shown right after a custom sign request is created, so the
+    //    admin immediately gets the two ready-to-send links (Copia/WhatsApp/Email)
+    //    instead of hunting for them. ──
+    function _msSignLink(reqId, role, token) {
+        return `https://www.boomrome.com/sign?csign=${encodeURIComponent(reqId)}&role=${role}&t=${encodeURIComponent(token)}`;
+    }
+    function _msCopyLink(id) {
+        const i = document.getElementById(id); if (!i) return;
+        i.select();
+        const done = () => toast('success', 'Link copiato');
+        if (navigator.clipboard) navigator.clipboard.writeText(i.value).then(done).catch(() => { try { document.execCommand('copy'); done(); } catch (_) {} });
+        else { try { document.execCommand('copy'); done(); } catch (_) {} }
+    }
+    function _msShowSendPanel(reqId, title, signers) {
+        const card = (role, label, s) => {
+            if (!s) return '';
+            const link = _msSignLink(reqId, role, s.token);
+            const user = s.userId ? S.users.find(u => u.id === s.userId) : null;
+            const phone = String((user && (user.phone || user.telefono)) || '').replace(/\D/g, '');
+            const who = esc(s.name || label) + (s.email ? ' · ' + esc(s.email) : '');
+            const waMsg = encodeURIComponent(`Ciao ${s.name || ''}, ecco il link per firmare "${title}" dal tuo telefono: ${link}`);
+            const wa = phone ? `https://wa.me/${phone}?text=${waMsg}` : `https://wa.me/?text=${waMsg}`;
+            const mailto = `mailto:${encodeURIComponent(s.email || '')}?subject=${encodeURIComponent('Firma: ' + title)}&body=${encodeURIComponent('Apri questo link per firmare dal telefono:\n\n' + link)}`;
+            return `
+            <div style="border:1px solid var(--border);border-radius:12px;padding:12px;background:var(--bg-elevated)">
+                <div style="font-size:13px;margin-bottom:8px">${role === 'tenant' ? '👤' : '🏠'} <b>${label}</b> · <span style="color:var(--text-secondary)">${who}</span></div>
+                <input class="ms-ed-input" id="mslink-${role}" readonly value="${esc(link)}" onclick="this.select()" style="font-size:12px">
+                <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+                    <button class="btn btn-sm" onclick="_msCopyLink('mslink-${role}')">📋 Copia link</button>
+                    <a class="btn btn-sm btn-secondary" href="${esc(wa)}" target="_blank" rel="noopener noreferrer">🟢 WhatsApp</a>
+                    <a class="btn btn-sm btn-secondary" href="${esc(mailto)}">✉️ Email</a>
+                </div>
+            </div>`;
+        };
+        document.getElementById('modals').innerHTML = `
+        <div class="modal-overlay active">
+          <div class="modal" style="max-width:560px">
+            <div class="ms-ed-head">
+                <div>
+                    <div class="ms-ed-title">✅ Richiesta di firma creata</div>
+                    <div class="ms-ed-sub">${esc(title)} — invia il link a ciascuna parte: ognuno firma dal proprio telefono.</div>
+                </div>
+                <button class="dash-act" onclick="closeModal()">✕</button>
+            </div>
+            <div style="padding:18px;display:flex;flex-direction:column;gap:14px;max-height:70vh;overflow:auto">
+                ${card('tenant', 'Inquilino', signers.tenant)}
+                ${card('landlord', 'Locatore', signers.landlord)}
+                <div style="font-size:11px;color:var(--text-muted)">Puoi ritrovare e re-inviare questi link quando vuoi dalla lista delle richieste di firma.</div>
+                <button class="btn" onclick="closeModal()">Fatto</button>
+            </div>
+          </div>
+        </div>`;
+    }
 
     // ── Sign flow ─────────────────────────────────────────────────────────────
     async function openMagicSignRequest(reqId, role) {
