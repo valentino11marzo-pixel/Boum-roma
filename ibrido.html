@@ -469,7 +469,7 @@
 
         /* 4 · FISCO — scadenze spuntate da sole */
         .tf-cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
-        .tf-cal i { aspect-ratio: 1; border-radius: 3px; background: rgba(255,255,255,0.05); }
+        .tf-cal i { height: 13px; border-radius: 3px; background: rgba(255,255,255,0.05); }   /* altezza fissa: niente overflow al crescere della card */
         .tf-cal i.due { position: relative; background: rgba(255,215,0,0.12); border: 1px solid var(--border-gold); }
         .kit-card.live .tf-cal i.due { animation: duepulse 0.9s var(--ease-out) 0.6s 2; }
         @keyframes duepulse { 0%,100% { box-shadow: 0 0 0 0 rgba(255,215,0,0); } 50% { box-shadow: 0 0 0 4px rgba(255,215,0,0.22); } }
@@ -544,10 +544,10 @@
         .lv-total span { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-tertiary); }
         .lv-total b { font-family: var(--font-display); font-weight: 200; font-size: 26px; color: var(--gold); }
         @media (max-width: 879px) {
-            .live-stage { align-items: flex-start; padding-top: 86px; }
-            .lv-line { font-size: clamp(26px, 7.4vw, 38px); min-height: 2.2em; }
-            .lv-screen { min-height: 340px; }
-            .lv-phone { width: min(280px, 78vw); }
+            .live-stage { align-items: flex-start; padding-top: 70px; }
+            .lv-line { font-size: clamp(24px, 6.8vw, 34px); min-height: 2em; }
+            .lv-screen { min-height: 270px; }
+            .lv-phone { width: min(248px, 70vw); }
             .lv-progress { margin-top: var(--sp-md); }
         }
 
