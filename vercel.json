@@ -179,6 +179,22 @@
     {
       "path": "/api/telegram/notify-pending",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/pfs/scan-inbox",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/pfs/scan-market",
+      "schedule": "0,30 * * * *"
+    },
+    {
+      "path": "/api/pfs/sync-searches",
+      "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/api/pfs/brief",
+      "schedule": "0 6 * * *"
     }
   ]
 }

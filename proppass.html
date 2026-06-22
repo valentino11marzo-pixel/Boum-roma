@@ -245,6 +245,25 @@ body{font-family:'Helvetica Neue',-apple-system,sans-serif;background:var(--blac
 </div>
 </div>
 </div>
+<!-- Admin-only gate: this is the Wallet pass generator (admin tool). -->
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+<script src="/js/firebase-config.js"></script>
+<script src="/js/boom-portal.js"></script>
+<div id="ppAuthShield" style="position:fixed;inset:0;z-index:99999;background:#08080A;color:#D4AF37;display:flex;align-items:center;justify-content:center;font:300 14px/1.6 'Helvetica Neue',Inter,sans-serif;letter-spacing:3px;text-transform:uppercase">Verifica accesso…</div>
+<script>
+// requireAuth redirects non-admins to /login; the shield hides the tool
+// until an admin session is confirmed. (Endpoint /api/generate-pass is shared
+// with user-facing pass delivery, so the gate lives here, not on the API.)
+(async () => {
+  try {
+    const { user } = await BoomPortal.requireAuth(['admin'], { loginUrl: '/login.html' });
+    void user;
+    const s = document.getElementById('ppAuthShield'); if (s) s.remove();
+  } catch (e) { console.warn('[proppass] auth gate:', e && e.message); }
+})();
+</script>
 <script>
 let activeType='viewing',lastBlob=null,lastData={};
 const TITLES={viewing:'Viewing Pass',tenant:'Tenant Card',landlord:'Landlord Card',referral:'Referral Pass'};

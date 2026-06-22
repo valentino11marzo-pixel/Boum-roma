@@ -2142,8 +2142,9 @@
             btn.disabled=true;btn.textContent='Sending…';
             try{
                 const _v=(elId)=>{const el=document.getElementById(elId);return el?el.value:'';};
-                const _db=getDB(); if(!_db) throw new Error('sdk-not-ready');
-                await _db.collection('leads').add({
+                // Server-side lead write (firestore.rules locks `leads` to admin,
+                // so a public browser write fails silently — see api/apply.js).
+                const resp=await fetch('/api/apply',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
                     name: document.getElementById('iqName').value,
                     email: document.getElementById('iqEmail').value,
                     phone: document.getElementById('iqPhone').value||'',
@@ -2151,13 +2152,11 @@
                     duration: _v('iqDuration'),
                     occupants: _v('iqOccupants'),
                     message: document.getElementById('formMessage').value||'',
-                    source: 'apartment-detail',
-                    type: 'application',
                     listingId: id,
-                    listingName: name,
-                    status: 'new',
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
+                    listingName: name
+                })});
+                const data=await resp.json().catch(()=>({}));
+                if(!resp.ok||!data.ok) throw new Error((data&&data.error)||('HTTP '+resp.status));
                 iqForm.style.display='none';document.getElementById('inquirySuccess').style.display='block';
                 if(typeof gtag==='function')gtag('event','inquiry_sent',{listing_id:id,listing_name:name});
             }catch(err){btn.textContent='Error — try again';btn.disabled=false;console.error('Inquiry error:',err)}
