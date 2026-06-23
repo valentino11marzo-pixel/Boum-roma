@@ -28,8 +28,8 @@
     radial-gradient(1000px 560px at 80% -10%, rgba(255,215,0,.07), transparent 60%),
     radial-gradient(760px 520px at 6% 104%, rgba(255,215,0,.04), transparent 60%),
     var(--void);}
-  #l-pave{position:fixed;inset:0;z-index:-3;width:100%;height:100%;pointer-events:none;opacity:.5;transition:opacity .4s var(--ease)}
-  #l-grain{position:fixed;inset:0;z-index:-2;width:100%;height:100%;pointer-events:none;opacity:.5}
+  #l-pave{position:fixed;inset:0;z-index:-3;width:100%;height:100%;pointer-events:none;opacity:.12;transition:opacity .4s var(--ease)}
+  #l-grain{position:fixed;inset:0;z-index:-2;width:100%;height:100%;pointer-events:none;opacity:.34}
   #l-vign{position:fixed;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(125% 95% at 50% 28%, transparent 52%, rgba(0,0,0,.6) 100%)}
 
   nav{display:flex;align-items:center;justify-content:space-between;padding:20px 32px;max-width:1240px;margin:0 auto}
@@ -68,7 +68,7 @@
 <body>
 
 <div id="l-base"></div>
-<svg id="l-pave" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><path id="pavePath" fill="none" stroke="rgba(255,226,170,1)" stroke-width="1" stroke-linecap="round"/></svg>
+<svg id="l-pave" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><path id="pavePath" fill="none" stroke="rgba(255,231,201,1)" stroke-width="0.6" stroke-linecap="round"/></svg>
 <svg id="l-grain" aria-hidden="true">
   <defs>
     <filter id="f-grain"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="4" stitchTiles="stitch" result="n"/>
@@ -116,9 +116,9 @@
     <button class="swatch" data-p="none">None</button>
   </div>
   <div class="row2">
-    <label class="ctrl">Intensity <input type="range" id="opacity" min="0" max="100" value="50"></label>
-    <label class="ctrl">Stone size <input type="range" id="scale" min="34" max="120" value="64"></label>
-    <label class="ctrl">Grain <input type="range" id="grainOp" min="0" max="100" value="50"></label>
+    <label class="ctrl">Intensity <input type="range" id="opacity" min="0" max="100" value="12"></label>
+    <label class="ctrl">Stone size <input type="range" id="scale" min="34" max="140" value="84"></label>
+    <label class="ctrl">Grain <input type="range" id="grainOp" min="0" max="100" value="34"></label>
     <label class="toggle"><input type="checkbox" id="travToggle"> Stone grain</label>
   </div>
 </div>
@@ -127,7 +127,7 @@
 const pave=document.getElementById('l-pave');
 const path=document.getElementById('pavePath');
 const grainRect=document.getElementById('grainRect');
-let MODE='fan', R=64;
+let MODE='fan', R=84;
 
 /* generate the sampietrino "fan" paving as one SVG path (concentric cobble arcs + radial joints).
    Fish-scale interlock: rows offset by R; arcs bulge upward; radial ticks delimit the stones. */
@@ -135,7 +135,7 @@ function buildPave(){
   const W=innerWidth, H=innerHeight;
   pave.setAttribute('viewBox',`0 0 ${W} ${H}`);
   const rings = MODE==='fantight'?6:5;
-  const tickStep = MODE==='fantight'?15:22;
+  const tickStep = MODE==='fantight'?18:28;
   let d='';
   const cols=Math.ceil(W/(2*R))+2, rows=Math.ceil(H/R)+2;
   for(let j=-1;j<rows;j++){
