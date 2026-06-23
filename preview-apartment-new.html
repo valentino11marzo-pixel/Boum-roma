@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#060607">
+<meta name="color-scheme" content="dark">
+<title>BOOM · Apartment — new identity (mobile-first)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://images.unsplash.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --gold:#FFD700;--gold-light:#FFE55C;--gold-dark:#E5C200;--gold-muted:rgba(255,215,0,.14);--gold-faint:rgba(255,215,0,.05);
+  --green:#28E08A;--green-muted:rgba(40,224,138,.13);
+  --void:#060607;--surface:#0B0B0C;--elev:#121214;--card:#0E0E10;--input:#17171A;
+  --t1:#FAFAFA;--t2:rgba(250,250,250,.72);--t3:rgba(250,250,250,.46);--t4:rgba(250,250,250,.26);
+  --line:rgba(255,255,255,.08);--line-soft:rgba(255,255,255,.045);--line-gold:rgba(255,215,0,.16);
+  --sans:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;--disp:'Helvetica Neue',Helvetica,Arial,sans-serif;
+  --ease:cubic-bezier(.16,1,.3,1);
+  --sh:0 4px 28px rgba(0,0,0,.5);--sh-gold:0 12px 40px rgba(255,215,0,.16);
+  --maxw:1180px;--nav:62px;--safe:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;scroll-behavior:smooth}
+body{font-family:var(--sans);background:var(--void);color:var(--t1);font-weight:300;line-height:1.6;overflow-x:hidden;padding-bottom:calc(76px + var(--safe))}
+@media(min-width:921px){body{padding-bottom:0}}
+img{display:block;max-width:100%}a{color:inherit;text-decoration:none}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px;border-radius:4px}
+h1,h2,h3,h4{font-family:var(--disp);font-weight:300;letter-spacing:-.4px;line-height:1.1}
+.g{color:var(--gold)}
+.eyebrow{font-size:10.5px;letter-spacing:2.6px;text-transform:uppercase;color:var(--gold);font-weight:500;font-family:var(--sans)}
+.reveal{opacity:0;transform:translateY(20px);transition:opacity .8s var(--ease),transform .8s var(--ease)}
+.reveal.in{opacity:1;transform:none}
+@media(prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none}html{scroll-behavior:auto}*{transition:none!important;animation:none!important}}
+
+/* ── brand background: sampietrino whisper + aureo grain (static, light) ── */
+#bgPave{position:fixed;inset:0;z-index:-3;width:100%;height:100%;pointer-events:none;opacity:.10}
+#bgGrain{position:fixed;inset:0;z-index:-2;width:100%;height:100%;pointer-events:none;opacity:.3}
+#bgGlow{position:fixed;inset:0;z-index:-4;pointer-events:none;background:radial-gradient(900px 520px at 82% -8%,rgba(255,215,0,.06),transparent 60%),radial-gradient(680px 460px at 4% 102%,rgba(255,215,0,.035),transparent 60%),var(--void)}
+
+/* ── NAV ── */
+nav{position:fixed;top:0;width:100%;z-index:100;background:rgba(6,6,7,.62);backdrop-filter:blur(20px);border-bottom:1px solid transparent;transition:.4s var(--ease)}
+nav.scr{background:rgba(6,6,7,.96);border-color:var(--line-gold)}
+.nav-c{max-width:1340px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;padding:13px 18px}
+@media(min-width:921px){.nav-c{padding:14px 40px}}
+.logo{display:flex;align-items:center;gap:10px}.logo img{width:34px;height:34px;filter:drop-shadow(0 0 14px rgba(255,215,0,.4))}
+.logo span{font-family:var(--disp);font-size:21px;letter-spacing:4px}
+.nav-links{display:none;gap:22px;align-items:center}
+@media(min-width:921px){.nav-links{display:flex}}
+.nav-links a{color:var(--t2);font-size:12px;text-transform:uppercase;letter-spacing:1px;transition:color .25s}.nav-links a:hover{color:var(--gold)}.nav-links a.wa{color:#25D366}
+.burger{display:flex;flex-direction:column;gap:5px;padding:8px}@media(min-width:921px){.burger{display:none}}
+.burger span{width:22px;height:2px;background:var(--gold);transition:.3s}
+.burger.on span:nth-child(1){transform:translateY(7px) rotate(45deg)}.burger.on span:nth-child(2){opacity:0}.burger.on span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
+.mm{position:fixed;inset:0;z-index:150;background:rgba(6,6,7,.98);backdrop-filter:blur(28px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;opacity:0;pointer-events:none;transition:.3s}
+.mm.on{opacity:1;pointer-events:auto}.mm a{font-size:18px;letter-spacing:2px;text-transform:uppercase;color:var(--t2)}
+
+.shell{max-width:var(--maxw);margin:0 auto;padding:0 16px}
+@media(min-width:921px){.shell{padding:0 24px}}
+.crumb{padding:calc(var(--nav) + 22px) 0 14px;font-size:12px;color:var(--t3)}.crumb a:hover{color:var(--gold)}
+
+/* ── HERO carousel (mobile-first, native scroll-snap = bulletproof) ── */
+.hero{position:relative;border-radius:18px;overflow:hidden;background:var(--card);box-shadow:var(--sh)}
+.track{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.track::-webkit-scrollbar{display:none}
+.slide{position:relative;flex:0 0 100%;scroll-snap-align:center;aspect-ratio:4/3;background:linear-gradient(135deg,#1a1a20,#0c0c0e)}
+@media(min-width:560px){.slide{aspect-ratio:16/10}}
+@media(min-width:921px){.slide{aspect-ratio:16/9}}
+.slide img{width:100%;height:100%;object-fit:cover}
+.hero-scrim{position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,rgba(0,0,0,.34) 0%,transparent 26%,transparent 52%,rgba(6,6,7,.86) 100%)}
+.hero-top{position:absolute;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;z-index:3}
+.vbadge{display:inline-flex;align-items:center;gap:7px;background:rgba(0,0,0,.5);backdrop-filter:blur(10px);border:1px solid var(--green-muted);color:var(--green);padding:7px 12px;border-radius:100px;font-size:11.5px;font-weight:500}
+.hero-acts{display:flex;gap:8px}
+.icbtn{width:42px;height:42px;border:1px solid var(--line);border-radius:50%;display:grid;place-items:center;background:rgba(0,0,0,.4);backdrop-filter:blur(10px);font-size:16px;transition:.25s var(--ease)}
+.icbtn:hover{border-color:var(--line-gold);color:var(--gold)}.icbtn.on{color:var(--gold);border-color:var(--line-gold);background:var(--gold-muted)}
+.hero-foot{position:absolute;left:14px;right:14px;bottom:12px;z-index:3;display:flex;align-items:flex-end;justify-content:space-between;gap:12px;pointer-events:none}
+.dots{display:flex;gap:6px}.dots i{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.4);transition:.3s}.dots i.on{background:var(--gold);width:18px;border-radius:100px}
+.counter{pointer-events:auto;background:rgba(0,0,0,.5);backdrop-filter:blur(8px);border-radius:100px;padding:6px 12px;font-size:12px;font-variant-numeric:tabular-nums}
+.arrow{position:absolute;top:50%;transform:translateY(-50%);z-index:3;width:44px;height:44px;border-radius:50%;background:rgba(0,0,0,.45);backdrop-filter:blur(8px);border:1px solid var(--line);display:none;place-items:center;font-size:18px;transition:.25s}
+.arrow:hover{background:rgba(0,0,0,.75);border-color:var(--line-gold);color:var(--gold)}
+.arrow.l{left:14px}.arrow.r{right:14px}
+@media(min-width:760px) and (hover:hover){.arrow{display:grid}}
+
+/* ── TITLE ── */
+.titlewrap{margin-top:22px;display:flex;flex-wrap:wrap;gap:14px 24px;align-items:flex-end;justify-content:space-between}
+.titlewrap h1{font-size:clamp(27px,6vw,46px);font-weight:200;letter-spacing:-1px}
+.loc{margin-top:10px;color:var(--t2);font-size:14px;display:flex;align-items:center;gap:9px;flex-wrap:wrap}.loc .d{color:var(--gold)}
+.price-inline{text-align:right}.price-inline b{font-family:var(--disp);font-size:clamp(24px,5vw,34px);font-weight:200;color:var(--gold);display:block;line-height:1}.price-inline small{font-size:12.5px;color:var(--t3)}
+
+/* ── FACTS strip (scroll on mobile, grid on desktop) ── */
+.facts{margin-top:20px;display:grid;grid-auto-flow:column;grid-auto-columns:minmax(116px,1fr);gap:10px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.facts::-webkit-scrollbar{display:none}
+@media(min-width:680px){.facts{grid-auto-flow:row;grid-template-columns:repeat(5,1fr);overflow:visible}}
+.fact{border:1px solid var(--line);background:var(--card);border-radius:14px;padding:14px 16px;min-width:0}
+.fact .i{font-size:17px}.fact .k{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--t3);margin-top:8px}.fact .v{font-size:15px;color:var(--t1);margin-top:3px;font-family:var(--disp)}
+
+/* ── LAYOUT ── */
+.layout{margin-top:30px;display:grid;grid-template-columns:1fr;gap:24px}
+@media(min-width:921px){.layout{grid-template-columns:minmax(0,1fr) 360px;gap:44px;align-items:start}}
+.side{order:-1}@media(min-width:921px){.side{order:0;position:sticky;top:calc(var(--nav) + 16px)}}
+
+/* decision card */
+.dcard{border:1px solid var(--line-gold);border-radius:20px;overflow:hidden;background:linear-gradient(180deg,rgba(18,18,20,.94),var(--card));box-shadow:var(--sh)}
+.dtop{padding:20px 20px 16px;border-bottom:1px solid var(--line-soft);position:relative;overflow:hidden}
+.dtop::before{content:"";position:absolute;top:-50%;right:-12%;width:60%;height:160%;background:radial-gradient(closest-side,rgba(255,215,0,.12),transparent);pointer-events:none}
+.dtop .p{font-family:var(--disp);font-size:32px;font-weight:200;color:var(--gold);line-height:1}.dtop .p small{font-size:14px;color:var(--t2)}
+.dtop .ps{font-size:12px;color:var(--t3);margin-top:7px}
+.dbody{padding:18px 20px}
+.stitle{font-size:10.5px;letter-spacing:1.4px;text-transform:uppercase;color:var(--gold);font-weight:600;margin-bottom:13px;display:flex;align-items:center;gap:7px}
+.field label{display:block;font-size:10.5px;letter-spacing:.8px;text-transform:uppercase;color:var(--t2);margin-bottom:7px}
+.datein{width:100%;background:var(--input);border:1px solid var(--line);border-radius:11px;color:var(--t1);font-family:inherit;font-size:15px;padding:13px;transition:border-color .25s}
+.datein:focus{outline:none;border-color:var(--gold)}
+.seg{display:flex;gap:4px;margin-top:12px;background:var(--input);border:1px solid var(--line);border-radius:100px;padding:4px}
+.seg button{flex:1;border-radius:100px;padding:9px 4px;font-size:12px;color:var(--t2);transition:.2s var(--ease);white-space:nowrap}
+.seg button.on{background:var(--gold);color:#1a1407;font-weight:600}
+.avail{display:flex;gap:10px;align-items:center;font-size:13px;margin:16px 0;padding:12px;border-radius:11px;background:rgba(255,255,255,.015);border:1px solid var(--line)}
+.avail .pin{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;flex:none;font-size:13px}
+.avail.ok{color:var(--green);border-color:var(--green-muted)}.avail.ok .pin{background:var(--green-muted)}
+.avail.after{color:var(--gold-light);border-color:var(--line-gold)}.avail.after .pin{background:var(--gold-muted)}
+.avail.none{color:var(--t2)}.avail.none .pin{background:var(--gold-muted);color:var(--gold)}
+.avail small{display:block;color:var(--t3);font-size:11px;margin-top:2px}
+.srows{display:grid;gap:1px;background:var(--line);border-radius:11px;overflow:hidden;border:1px solid var(--line)}
+.srow{display:flex;justify-content:space-between;align-items:center;background:var(--card);padding:12px 14px;font-size:13px}
+.srow .k{color:var(--t2)}.srow .v{font-variant-numeric:tabular-nums;font-family:var(--disp)}.srow .note{font-size:10px;color:var(--t3)}
+.srow.tot{background:linear-gradient(90deg,var(--gold-muted),transparent)}.srow.tot .v{color:var(--gold);font-size:17px}
+.gbtn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;background:linear-gradient(180deg,var(--gold-light),var(--gold));color:#1a1407;font-weight:600;border-radius:100px;padding:15px;font-size:14.5px;margin-top:15px;transition:.25s var(--ease);box-shadow:var(--sh-gold)}
+.gbtn:hover{filter:brightness(1.05);transform:translateY(-2px)}
+.obtn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;border:1px solid var(--line);border-radius:100px;padding:13px;font-size:13px;margin-top:9px;background:var(--card);transition:.25s}.obtn:hover{border-color:var(--line-gold);color:var(--gold)}
+.upnudge{margin-top:13px;padding:12px 14px;border:1px dashed var(--line-gold);border-radius:12px;font-size:12.5px;color:var(--t2);display:none}.upnudge.show{display:block}.upnudge a{color:var(--gold);border-bottom:1px solid var(--line-gold)}
+.trust{display:flex;gap:13px;flex-wrap:wrap;margin-top:15px;padding-top:14px;border-top:1px solid var(--line-soft);font-size:11.5px;color:var(--t3)}.trust span{display:inline-flex;gap:5px;align-items:center}.trust .c{color:var(--green)}
+
+/* ── sections ── */
+.sec{margin-top:44px}
+.sec-h{display:flex;align-items:baseline;gap:13px;margin-bottom:14px}
+.sec-h .num{font-size:11px;color:var(--t4);letter-spacing:2px;font-variant-numeric:tabular-nums}
+.sec-h h2{font-size:clamp(21px,4.4vw,30px);font-weight:200}
+.sub{color:var(--t2);font-size:14.5px;max-width:54ch;margin-bottom:18px}
+.desc{color:var(--t2);font-size:15px;line-height:1.8}
+.feat{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.feat span{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:9px 13px;font-size:13px}
+
+.mtiles{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}@media(min-width:560px){.mtiles{grid-template-columns:repeat(4,1fr)}}
+.mt{border:1px solid var(--line);background:var(--card);border-radius:14px;padding:16px}
+.mt .k{font-size:10px;letter-spacing:.8px;text-transform:uppercase;color:var(--t3)}.mt .v{font-size:21px;font-weight:200;margin-top:8px;font-variant-numeric:tabular-nums;font-family:var(--disp)}.mt .s{font-size:11px;color:var(--t2);margin-top:4px}
+.mt.tot{border-color:var(--line-gold);background:linear-gradient(180deg,var(--gold-muted),transparent)}.mt.tot .v{color:var(--gold)}
+.dtog{margin-top:14px;display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:100px;padding:11px 17px;font-size:13px;background:var(--card);transition:.25s}.dtog:hover{border-color:var(--line-gold);color:var(--gold)}
+.decoded{max-height:0;overflow:hidden;transition:max-height .55s var(--ease)}.decoded.open{max-height:1400px}
+.dinner{margin-top:14px;display:grid;gap:9px;grid-template-columns:1fr}@media(min-width:640px){.dinner{grid-template-columns:1fr 1fr}}
+.dcd{border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:16px}.dcd h4{font-weight:400;font-size:13.5px;margin-bottom:6px;font-family:var(--sans)}.dcd p{color:var(--t2);font-size:13px}.dcd .amt{color:var(--gold)}
+
+/* location: 3D block + nearby */
+.block3d{position:relative;height:230px;border-radius:16px;overflow:hidden;border:1px solid var(--line);background:radial-gradient(130% 130% at 32% 18%,#16161d,#08080a);display:grid;place-items:center}
+@media(min-width:560px){.block3d{height:280px}}
+.block3d .rings{position:absolute;inset:0;display:grid;place-items:center}
+.block3d .ring{position:absolute;border:1px dashed rgba(255,215,0,.32);border-radius:50%}
+.block3d .blip{width:13px;height:13px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 8px var(--gold-muted),0 0 22px 4px rgba(255,215,0,.5);position:relative;z-index:2}
+.block3d .go{position:absolute;left:14px;bottom:14px;z-index:3;border:1px solid var(--line);background:rgba(0,0,0,.5);border-radius:100px;padding:11px 16px;font-size:12.5px;backdrop-filter:blur(8px)}
+.block3d .ringlbl{position:absolute;z-index:2;font-size:10px;color:rgba(255,215,0,.6);letter-spacing:.5px}
+.nearby{margin-top:14px;display:grid;gap:9px;grid-template-columns:1fr}@media(min-width:560px){.nearby{grid-template-columns:1fr 1fr}}
+.nb{display:flex;align-items:center;gap:12px;border:1px solid var(--line);background:var(--card);border-radius:12px;padding:12px 14px}
+.nb .ico{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;background:var(--gold-faint);font-size:15px;flex:none}
+.nb .tx{flex:1;min-width:0}.nb .n{font-size:13.5px}.nb .m{font-size:11.5px;color:var(--t3)}.nb .t{font-family:var(--disp);color:var(--gold);font-size:14px;white-space:nowrap}
+
+/* trust steps */
+.proofs{display:flex;flex-wrap:wrap;gap:9px;margin-bottom:18px}
+.proof{display:flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--card);border-radius:100px;padding:10px 15px;font-size:12.5px}.proof .c{color:var(--green)}
+.steps{display:grid;grid-template-columns:1fr;gap:10px}@media(min-width:560px){.steps{grid-template-columns:repeat(3,1fr)}}
+.step{border:1px solid var(--line);background:var(--card);border-radius:14px;padding:16px;position:relative;overflow:hidden}
+.step::after{content:"";position:absolute;top:0;left:0;width:3px;height:0;background:linear-gradient(var(--gold),var(--gold-dark));transition:height .7s var(--ease)}
+.step.in::after{height:100%}
+.step .n{font-size:11px;letter-spacing:2px;color:var(--gold)}.step h4{font-weight:400;font-size:14px;margin-top:8px;font-family:var(--sans)}.step p{font-size:12.5px;color:var(--t2);margin-top:5px}
+.after{margin-top:12px;border:1px solid var(--line);background:linear-gradient(180deg,var(--gold-faint),transparent),var(--card);border-radius:15px;padding:18px;display:flex;gap:13px;align-items:center;flex-wrap:wrap}
+.after .ico{font-size:21px}.after .tx{flex:1;min-width:200px}.after h4{font-weight:400;font-size:14.5px;font-family:var(--sans)}.after p{color:var(--t2);font-size:13px;margin-top:3px}
+
+/* similar in zone carousel */
+.simrow{display:flex;gap:13px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;padding-bottom:4px;margin:0 -16px;padding-left:16px;padding-right:16px}
+@media(min-width:921px){.simrow{margin:0;padding-left:0;padding-right:0}}
+.simrow::-webkit-scrollbar{display:none}
+.sim{flex:0 0 78%;max-width:300px;scroll-snap-align:start;border:1px solid var(--line);background:var(--card);border-radius:16px;overflow:hidden;transition:.25s var(--ease)}
+@media(min-width:560px){.sim{flex-basis:42%}}@media(min-width:921px){.sim{flex-basis:31%}}
+.sim:hover{border-color:var(--line-gold);transform:translateY(-3px)}
+.sim .ph{aspect-ratio:3/2;overflow:hidden;background:#15151a}.sim .ph img{width:100%;height:100%;object-fit:cover;transition:transform .8s var(--ease)}.sim:hover .ph img{transform:scale(1.05)}
+.sim .b{padding:14px}.sim .z{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--gold)}.sim .n{font-family:var(--disp);font-size:15px;margin-top:5px}.sim .m{font-size:11.5px;color:var(--t3);margin-top:3px}
+.sim .pr{margin-top:10px;display:flex;justify-content:space-between;align-items:baseline}.sim .pr b{font-family:var(--disp);font-size:18px;font-weight:200;color:var(--gold)}.sim .pr .fit{font-size:10.5px;color:var(--green);background:var(--green-muted);padding:4px 9px;border-radius:100px}
+
+/* faq */
+.faq .qa{border-bottom:1px solid var(--line)}
+.faq .q{width:100%;text-align:left;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:17px 2px;font-size:15px;font-family:var(--sans);font-weight:300}
+.faq .q .x{color:var(--gold);font-size:20px;transition:.3s var(--ease);flex:none}.faq .qa.open .q .x{transform:rotate(45deg)}
+.faq .a{max-height:0;overflow:hidden;transition:max-height .4s var(--ease);color:var(--t2);font-size:13.5px}.faq .qa.open .a{max-height:300px}.faq .a div{padding:0 2px 17px}
+
+/* upsell */
+.upsell{margin-top:54px;border:1px solid var(--line-gold);border-radius:22px;padding:26px;background:radial-gradient(600px 240px at 88% -30%,var(--gold-muted),transparent 60%),var(--card)}
+@media(min-width:560px){.upsell{padding:32px}}
+.upsell h2{font-size:clamp(21px,4vw,30px);font-weight:200;margin-bottom:7px}.upsell .lead{color:var(--t2);font-size:14px;max-width:56ch;margin-bottom:20px}
+.ucards{display:grid;gap:12px;grid-template-columns:1fr}@media(min-width:680px){.ucards{grid-template-columns:repeat(3,1fr)}}
+.ucard{border:1px solid var(--line);background:var(--surface);border-radius:15px;padding:20px;transition:.25s var(--ease)}.ucard:hover{border-color:var(--line-gold);transform:translateY(-3px)}
+.ucard .ico{font-size:19px}.ucard h4{font-family:var(--disp);font-weight:400;font-size:15.5px;margin:11px 0 6px}.ucard p{color:var(--t2);font-size:12.5px;margin-bottom:12px}.ucard a{color:var(--gold);font-size:13px}
+
+/* footer */
+footer{margin-top:70px;border-top:1px solid var(--line);padding:48px 16px 30px}
+.fg{max-width:var(--maxw);margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:32px}@media(min-width:820px){.fg{grid-template-columns:1.6fr 1fr 1fr 1fr}}
+.fb h3{font-family:var(--disp);font-size:22px;letter-spacing:4px}.fb p{color:var(--t3);font-size:12px;line-height:1.8;margin-top:12px}.fb strong{color:var(--t2)}
+.fl h4{font-size:10.5px;letter-spacing:2px;text-transform:uppercase;color:var(--gold);margin-bottom:14px}.fl ul{list-style:none}.fl li{margin-bottom:9px}.fl a{color:var(--t3);font-size:13px}.fl a:hover{color:var(--gold)}
+.fbot{max-width:var(--maxw);margin:36px auto 0;padding-top:20px;border-top:1px solid var(--line-soft);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;color:var(--t4);font-size:12px}.fbot .op{color:var(--green)}
+
+/* mobile rail */
+.rail{position:fixed;left:0;right:0;bottom:0;z-index:95;background:rgba(6,6,7,.92);backdrop-filter:blur(20px);border-top:1px solid var(--line);padding-bottom:var(--safe)}
+.rail .prog{height:2px;background:var(--line)}.rail .prog i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--gold),var(--gold-light))}
+.rail .in{display:flex;align-items:center;gap:11px;padding:10px 16px}
+.rail .l{flex:1;min-width:0}.rail .l b{font-family:var(--disp);font-size:14px}.rail .l small{display:block;color:var(--t3);font-size:11px}
+.rail .ask{width:44px;height:44px;border-radius:50%;border:1px solid var(--line);display:grid;place-items:center;font-size:17px;color:var(--gold);flex:none}
+.rail .go{background:linear-gradient(180deg,var(--gold-light),var(--gold));color:#1a1407;font-weight:600;border-radius:100px;padding:13px 22px;font-size:14px;white-space:nowrap}
+@media(min-width:921px){.rail{display:none}}
+
+/* overlays */
+.ov{position:fixed;inset:0;z-index:140;background:rgba(3,3,3,.72);backdrop-filter:blur(7px);opacity:0;pointer-events:none;transition:.3s;display:flex;align-items:flex-end;justify-content:center}
+.ov.show{opacity:1;pointer-events:auto}
+.sheet{background:var(--surface);border:1px solid var(--line);border-radius:22px 22px 0 0;width:100%;max-width:660px;max-height:88vh;overflow:auto;transform:translateY(24px);transition:.34s var(--ease)}
+.ov.show .sheet{transform:none}@media(min-width:700px){.ov{align-items:center}.sheet{border-radius:22px}}
+.sheet-h{display:flex;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--surface);z-index:2}
+.sheet-h h3{font-size:16px;font-weight:300}.sheet-b{padding:20px}
+.xc{font-size:21px;color:var(--t2);width:36px;height:36px;border-radius:50%;border:1px solid var(--line);display:grid;place-items:center}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}.chips button{border:1px solid var(--line);background:var(--card);border-radius:100px;padding:10px 13px;font-size:12.5px}.chips button:hover{border-color:var(--line-gold)}
+.aimsg{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:15px;font-size:13.5px;color:var(--t2);margin-bottom:10px}.aimsg b{color:var(--t1)}
+.lb{position:fixed;inset:0;z-index:160;background:rgba(3,3,3,.95);opacity:0;pointer-events:none;transition:.3s;display:grid;place-items:center;padding:24px}
+.lb.show{opacity:1;pointer-events:auto}.lb img{max-width:94vw;max-height:86vh;border-radius:12px}.lb .xc{position:absolute;top:20px;right:20px}
+
+.proto{position:fixed;bottom:calc(80px + var(--safe));left:50%;transform:translateX(-50%);z-index:130;background:rgba(8,8,10,.92);backdrop-filter:blur(12px);border:1px solid var(--line-gold);border-radius:100px;font-size:11px;color:var(--t2);padding:7px 14px;white-space:nowrap}.proto b{color:var(--gold)}
+@media(min-width:921px){.proto{bottom:16px}}
+</style>
+</head>
+<body>
+
+<div id="bgGlow"></div>
+<svg id="bgPave" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><path id="pavePath" fill="none" stroke="rgba(255,231,201,1)" stroke-width="0.6" stroke-linecap="round"/></svg>
+<svg id="bgGrain" aria-hidden="true"><defs><filter id="grain"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="4" stitchTiles="stitch" result="n"/><feColorMatrix in="n" type="matrix" values="0 0 0 0 1  0 0 0 0 .86  0 0 0 0 .28  0 0 0 .5 0"/></filter></defs><rect width="100%" height="100%" filter="url(#grain)"/></svg>
+
+<nav id="nav"><div class="nav-c">
+  <a href="/apartments" class="logo"><img src="/favicon.svg" alt="" onerror="this.style.display='none'"><span>BOOM</span></a>
+  <div class="nav-links"><a href="/apartments">Apartments</a><a href="#">Property Finding</a><a href="#">Deal Assistance</a><a href="#">Virtual Viewing</a><a href="#">About</a><a href="https://wa.me/393313251961" class="wa">WhatsApp</a></div>
+  <div class="burger" id="burger"><span></span><span></span><span></span></div>
+</div></nav>
+<div class="mm" id="mm"><a href="/apartments">Apartments</a><a href="#">Property Finding</a><a href="#">Deal Assistance</a><a href="#">Virtual Viewing</a><a href="#">About</a><a href="#">Login</a></div>
+
+<div class="shell">
+  <div class="crumb reveal"><a href="/apartments">Apartments</a> · <span id="cZone">Trastevere</span></div>
+
+  <!-- HERO -->
+  <section class="hero reveal">
+    <div class="track" id="track"></div>
+    <div class="hero-scrim"></div>
+    <div class="hero-top">
+      <span class="vbadge">✓ Video-verified</span>
+      <div class="hero-acts">
+        <button class="icbtn" id="saveBtn" onclick="this.classList.toggle('on')" aria-label="Save">♡</button>
+        <button class="icbtn" aria-label="Share">↗</button>
+      </div>
+    </div>
+    <button class="arrow l" onclick="slideBy(-1)" aria-label="Previous">‹</button>
+    <button class="arrow r" onclick="slideBy(1)" aria-label="Next">›</button>
+    <div class="hero-foot"><div class="dots" id="dots"></div><button class="counter" id="counter" onclick="openLb(curIdx)">1 / 5 · view</button></div>
+  </section>
+
+  <!-- TITLE -->
+  <div class="titlewrap reveal">
+    <div>
+      <h1 id="hName">Bright Attic in Trastevere</h1>
+      <div class="loc"><span id="hZone">Trastevere, Rome</span><span class="d">·</span><span id="hAvail">Available Sep 1</span></div>
+    </div>
+    <div class="price-inline"><b id="hPrice">€1,500</b><small>per month · BOOM-managed</small></div>
+  </div>
+
+  <!-- FACTS -->
+  <div class="facts reveal" id="facts"></div>
+
+  <!-- LAYOUT -->
+  <div class="layout">
+    <!-- MAIN -->
+    <div class="main">
+      <section class="sec reveal" id="about">
+        <div class="sec-h"><span class="num">01</span><div><div class="eyebrow">The home</div><h2>Light, a terrace, the <span class="g">heart of Trastevere</span>.</h2></div></div>
+        <p class="desc">A furnished attic in the pedestrian heart of Trastevere: double aspect, all-day light, and a private terrace over the rooftops. Steps from Sapienza, the historic centre and the rione’s evening life. Verified in person and on video by our team — what you see is exactly what you get.</p>
+        <div class="feat" id="feat"></div>
+      </section>
+
+      <section class="sec reveal" id="money">
+        <div class="sec-h"><span class="num">02</span><div><div class="eyebrow">The money</div><h2>Exactly what you <span class="g">pay</span>. And what comes back.</h2></div></div>
+        <p class="sub">Everything to move in — computed on the dates you choose. No fees invented at the table.</p>
+        <div class="mtiles" id="mtiles"></div>
+        <button class="dtog" onclick="toggleDecode()" id="dtog">＋ See every euro, decoded</button>
+        <div class="decoded" id="decoded"><div class="dinner" id="dinner"></div></div>
+      </section>
+
+      <section class="sec reveal" id="place">
+        <div class="sec-h"><span class="num">03</span><div><div class="eyebrow">The location</div><h2>See the <span class="g">block</span>, on foot.</h2></div></div>
+        <div class="block3d">
+          <div class="rings">
+            <div class="ring" style="width:110px;height:110px"></div>
+            <div class="ring" style="width:200px;height:200px"></div>
+            <div class="ring" style="width:300px;height:300px"></div>
+          </div>
+          <span class="ringlbl" style="top:38%">5 min</span>
+          <div class="blip"></div>
+          <button class="go" onclick="open3d()">◆ Explore the block in 3D — walk rings</button>
+        </div>
+        <div class="nearby" id="nearby"></div>
+      </section>
+
+      <section class="sec reveal" id="trust">
+        <div class="sec-h"><span class="num">04</span><div><div class="eyebrow">Safe &amp; fast</div><h2>Proof, not <span class="g">promises</span>.</h2></div></div>
+        <div class="proofs">
+          <div class="proof"><span class="c">✓</span> Verified in person &amp; video</div>
+          <div class="proof"><span class="c">✓</span> ID-checked owner</div>
+          <div class="proof"><span class="c">✓</span> Registered legal contract</div>
+          <div class="proof"><span class="c">✓</span> Deposit protected</div>
+        </div>
+        <div class="steps">
+          <div class="step"><div class="n">01</div><h4>Apply</h4><p>2 minutes. We reply within 2 hours.</p></div>
+          <div class="step"><div class="n">02</div><h4>Sign + register</h4><p>Legal contract, fully digital.</p></div>
+          <div class="step"><div class="n">03</div><h4>Keys</h4><p>In as little as 48 hours.</p></div>
+        </div>
+        <div class="after"><div class="ico">📱</div><div class="tx"><h4>After you move in, BOOM stays</h4><p>Rent, documents, maintenance and your deposit — all in your BOOM app. An agency’s care, a product’s convenience.</p></div></div>
+      </section>
+
+      <section class="sec reveal" id="similar">
+        <div class="sec-h"><span class="num">05</span><div><div class="eyebrow">In this zone</div><h2>Others in <span class="g">Trastevere</span>.</h2></div></div>
+        <p class="sub">Ranked by how well they fit your dates &amp; budget — the smart match in action.</p>
+        <div class="simrow" id="simrow"></div>
+      </section>
+
+      <section class="sec reveal" id="faq">
+        <div class="sec-h"><span class="num">06</span><div><div class="eyebrow">Answers</div><h2>Before you even <span class="g">ask</span>.</h2></div></div>
+        <div class="faq" id="faqList"></div>
+      </section>
+
+      <section class="upsell reveal">
+        <div class="eyebrow">More than a portal</div>
+        <h2>Not the perfect one? <span class="g">We’ll find it.</span></h2>
+        <p class="lead">We’re an agency with a tech engine, not a listings wall. Wrong dates, wrong zone? Put us to work.</p>
+        <div class="ucards">
+          <div class="ucard"><div class="ico">🎯</div><h4>Property Finding</h4><p>Tell us your dates &amp; budget. We hunt, verify and bring you the right home.</p><a href="#">Start a search →</a></div>
+          <div class="ucard"><div class="ico">🎥</div><h4>Virtual Viewing</h4><p>Can’t come to Rome? See it live on a video walk-through.</p><a href="#">Book a tour →</a></div>
+          <div class="ucard"><div class="ico">🛡️</div><h4>Deal Assistance</h4><p>Found one elsewhere? We verify the contract and negotiate for you.</p><a href="#">Get protected →</a></div>
+        </div>
+      </section>
+    </div>
+
+    <!-- SIDE -->
+    <aside class="side reveal">
+      <div class="dcard">
+        <div class="dtop"><div class="p" id="price">€1,500 <small>/month</small></div><div class="ps" id="priceSub">Available from 1 September 2026 · BOOM-managed</div></div>
+        <div class="dbody">
+          <div class="stitle">📅 Your stay</div>
+          <div class="field"><label for="moveIn">Your move-in date</label><input type="date" id="moveIn" class="datein"></div>
+          <div class="seg" id="durs"><button data-m="6">6 mo</button><button class="on" data-m="12">12 mo</button><button data-m="18">18 mo</button><button data-m="0">Flex</button></div>
+          <div id="availBadge"></div>
+          <div class="srows" id="srows"></div>
+          <button class="gbtn" id="applyBtn" onclick="apply()">Apply →</button>
+          <button class="obtn" onclick="apply()">🔒 Reserve &amp; hold · €300</button>
+          <div class="upnudge" id="upNudge"></div>
+          <div class="trust"><span><span class="c">✓</span> Reply in 2h</span><span><span class="c">✓</span> No commitment</span><span><span class="c">✓</span> Stripe-secured</span></div>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<footer>
+  <div class="fg">
+    <div class="fb"><h3>BOOM</h3><p>Built in Rome, for Rome. If we can make Rome's rental market work, we can make it work anywhere.<br><br><strong>Egidi Immobiliare S.r.l.</strong><br>P.IVA 17322991005 · REA RM-1710623<br>Rome, Italy</p></div>
+    <div class="fl"><h4>Services</h4><ul><li><a href="/apartments">Apartments</a></li><li><a href="#">Property Finding</a></li><li><a href="#">Deal Assistance</a></li><li><a href="#">Virtual Viewing</a></li></ul></div>
+    <div class="fl"><h4>Company</h4><ul><li><a href="#">About</a></li><li><a href="#">How It Works</a></li><li><a href="#">For Owners</a></li><li><a href="#">Blog</a></li></ul></div>
+    <div class="fl"><h4>Legal</h4><ul><li><a href="#">Terms</a></li><li><a href="#">Privacy</a></li><li><a href="#">Login</a></li></ul></div>
+  </div>
+  <div class="fbot"><span>© 2026 BOOM — All Rights Reserved</span><span class="op">Status: Operational</span></div>
+</footer>
+
+<div class="proto">NEW IDENTITY · <b>mobile-first</b> · sample data</div>
+
+<div class="rail">
+  <div class="prog"><i id="prog"></i></div>
+  <div class="in"><div class="l"><b id="railP">€1,500/mo</b><small id="railS">pick your dates ↑</small></div>
+    <button class="ask" onclick="openOv('aiOv')" aria-label="Ask">✦</button>
+    <button class="go" onclick="apply()">Apply</button></div>
+</div>
+
+<div class="ov" id="aiOv"><div class="sheet">
+  <div class="sheet-h"><h3>✦ Ask this home</h3><button class="xc" onclick="closeOv('aiOv')">×</button></div>
+  <div class="sheet-b">
+    <div class="chips"><button onclick="aiAsk(this)">💰 Total to move in?</button><button onclick="aiAsk(this)">🛡️ How does the deposit work?</button><button onclick="aiAsk(this)">📍 What's the area like?</button><button onclick="aiAsk(this)">⚡ How fast can I move in?</button></div>
+    <div id="aiThread"><div class="aimsg">I know this home and the reality of renting in Rome. Ask about cost, deposit, the area, the contract or timing. <span style="color:var(--t4)">(demo)</span></div></div>
+  </div>
+</div></div>
+
+<div class="ov" id="d3Ov"><div class="sheet">
+  <div class="sheet-h"><h3>◆ The block in 3D</h3><button class="xc" onclick="closeOv('d3Ov')">×</button></div>
+  <div class="sheet-b"><div class="block3d" style="height:330px"><div class="rings"><div class="ring" style="width:120px;height:120px"></div><div class="ring" style="width:230px;height:230px"></div><div class="ring" style="width:340px;height:340px"></div></div><div class="blip"></div></div>
+  <p style="color:var(--t2);font-size:13px;margin-top:13px">5 / 10 / 15-minute walk rings around the flat. In production this is the cinematic MapLibre flyover with height-graded buildings and a gold spotlight on the exact block — already wired in <b>apartment-detail.html</b>.</p></div>
+</div></div>
+
+<div class="lb" id="lb" onclick="if(event.target.id==='lb')this.classList.remove('show')"><button class="xc" onclick="document.getElementById('lb').classList.remove('show')">×</button><img id="lbImg" src="" alt=""></div>
+
+<script>
+const L={name:"Bright Attic in Trastevere",zone:"Trastevere",price:1500,deposit:1500,agencyFee:0,beds:2,baths:1,sqm:65,floor:3,furnished:true,availableFrom:"2026-09-01",
+  images:[["1502672260266-1c1ef2d93688","Living"],["1505691938895-1758d7feb511","Bedroom"],["1484154218962-a197022b5858","Kitchen"],["1493809842364-78817add7ffb","Terrace"],["1560448204-e02f11c3d0e2","Bathroom"]],
+  features:["Furnished","Private terrace","Double aspect","Air conditioning","Washer","Fibre Wi-Fi","Elevator","Eat-in kitchen"],
+  nearby:[["🚇","Trastevere station","Trains + tram","8 min"],["🎓","Sapienza University","Main campus","16 min"],["🛒","Conad supermarket","Daily groceries","4 min"],["🏛️","Piazza Navona","Historic centre","19 min"]],
+  similar:[["1522708323590-d24dbb6b0267","Trastevere","Cosy 1-bed by the Tiber","1 bed · 48 m²",1250,"96% fit"],["1560185007-cee345f7c8b9","Trastevere","Designer loft, San Cosimato","2 bed · 70 m²",1750,"91% fit"],["1554995207-c18c203602cb","Trastevere","Sunny studio, Viale Glorioso","Studio · 38 m²",980,"88% fit"]]};
+const img=(id,w,q)=>'https://images.unsplash.com/photo-'+id+'?auto=format&fit=crop&w='+w+'&q='+(q||72);
+const eur=n=>'€'+Math.round(n).toLocaleString('en-US');
+const fmtD=d=>d.toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
+const fmtS=d=>d.toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+const dim=(y,m)=>new Date(y,m+1,0).getDate();
+
+/* ---- sampietrino whisper background (generated, static) ---- */
+const pave=document.getElementById('bgPave'),pavePath=document.getElementById('pavePath');let R=84;
+function buildPave(){const W=innerWidth,H=innerHeight;pave.setAttribute('viewBox','0 0 '+W+' '+H);let d='';
+  const cols=Math.ceil(W/(2*R))+2,rows=Math.ceil(H/R)+2;
+  for(let j=-1;j<rows;j++){const cy=j*R,off=(j&1)?R:0;
+    for(let i=-1;i<cols;i++){const cx=i*2*R+off+R;
+      for(let k=1;k<=5;k++){const r=R*k/5;d+='M'+(cx-r).toFixed(1)+','+cy+' A'+r.toFixed(1)+','+r.toFixed(1)+' 0 0 0 '+(cx+r).toFixed(1)+','+cy+' ';}
+      for(let a=28;a<180;a+=28){const rad=a*Math.PI/180,co=Math.cos(rad),si=Math.sin(rad),r0=R*.16;
+        d+='M'+(cx+r0*co).toFixed(1)+','+(cy-r0*si).toFixed(1)+' L'+(cx+R*co).toFixed(1)+','+(cy-R*si).toFixed(1)+' ';}}}
+  pavePath.setAttribute('d',d);}
+let pt;addEventListener('resize',()=>{clearTimeout(pt);pt=setTimeout(buildPave,160);},{passive:true});buildPave();
+
+/* ---- hero carousel ---- */
+const track=document.getElementById('track'),dots=document.getElementById('dots'),counter=document.getElementById('counter');
+let curIdx=0;
+track.innerHTML=L.images.map(([id,t],i)=>`<div class="slide"><img src="${img(id,1200)}" alt="${t}" loading="${i===0?'eager':'lazy'}" onerror="this.style.opacity=0" onclick="openLb(${i})"></div>`).join('');
+dots.innerHTML=L.images.map((_,i)=>`<i class="${i===0?'on':''}"></i>`).join('');
+function setIdx(i){curIdx=Math.max(0,Math.min(L.images.length-1,i));[...dots.children].forEach((d,k)=>d.classList.toggle('on',k===curIdx));counter.textContent=(curIdx+1)+' / '+L.images.length+' · view';}
+function slideBy(dir){const w=track.clientWidth;track.scrollTo({left:(curIdx+dir)*w,behavior:'smooth'});setIdx(curIdx+dir);}
+let st;track.addEventListener('scroll',()=>{clearTimeout(st);st=setTimeout(()=>{const i=Math.round(track.scrollLeft/track.clientWidth);if(i!==curIdx)setIdx(i);},80);},{passive:true});
+
+/* ---- lightbox ---- */
+function openLb(i){document.getElementById('lbImg').src=img(L.images[i][0],1600,82);document.getElementById('lb').classList.add('show');}
+
+/* ---- static fills ---- */
+document.getElementById('hAvail').textContent='Available '+fmtS(new Date(L.availableFrom+'T00:00'));
+document.getElementById('priceSub').textContent='Available from '+fmtD(new Date(L.availableFrom+'T00:00'))+' · BOOM-managed';
+document.getElementById('feat').innerHTML=L.features.map(f=>`<span>${f}</span>`).join('');
+document.getElementById('facts').innerHTML=[['🛏️','Bedrooms',L.beds],['🛁','Bathrooms',L.baths],['📐','Size',L.sqm+' m²'],['🏢','Floor',L.floor+(L.floor===1?'st':L.floor===2?'nd':L.floor===3?'rd':'th')],['🪑','Furnished',L.furnished?'Yes':'No']].map(([i,k,v])=>`<div class="fact"><div class="i">${i}</div><div class="k">${k}</div><div class="v">${v}</div></div>`).join('');
+document.getElementById('nearby').innerHTML=L.nearby.map(([ic,n,m,t])=>`<div class="nb"><div class="ico">${ic}</div><div class="tx"><div class="n">${n}</div><div class="m">${m}</div></div><div class="t">${t}</div></div>`).join('');
+document.getElementById('simrow').innerHTML=L.similar.map(([id,z,n,m,p,fit])=>`<a class="sim" href="#"><div class="ph"><img src="${img(id,700)}" alt="" loading="lazy" onerror="this.style.opacity=0"></div><div class="b"><div class="z">${z}</div><div class="n">${n}</div><div class="m">${m}</div><div class="pr"><b>${eur(p)}<span style="font-size:11px;color:var(--t3);font-weight:300">/mo</span></b><span class="fit">${fit}</span></div></div></a>`).join('');
+
+/* ---- stay & money engine ---- */
+let DUR=12;
+function computeStay(){const avail=new Date(L.availableFrom+'T00:00');const raw=document.getElementById('moveIn').value;const req=raw?new Date(raw+'T00:00'):null;
+  const start=(!req||req<avail)?avail:req;const gap=req?Math.round((avail-req)/86400000):0;const di=dim(start.getFullYear(),start.getMonth());
+  const rem=di-start.getDate()+1;const prorated=Math.round(L.price*rem/di);const full=rem===di;const total=prorated+L.deposit+L.agencyFee;
+  let end=null;if(DUR>0){end=new Date(start);end.setMonth(end.getMonth()+DUR);}return{avail,req,start,end,gap,di,rem,prorated,full,total,fit:!req?'none':(req>=avail?'ok':'after')};}
+function countUp(el,to){const from=parseInt(el.dataset.cur||'0',10);const t0=performance.now();
+  if(matchMedia('(prefers-reduced-motion:reduce)').matches){el.textContent=eur(to);el.dataset.cur=to;return;}
+  (function step(t){const p=Math.min(1,(t-t0)/480);const e=1-Math.pow(1-p,3);el.textContent=eur(Math.round(from+(to-from)*e));if(p<1)requestAnimationFrame(step);else el.dataset.cur=to;})(performance.now());}
+function render(){const s=computeStay();let av;
+  if(s.fit==='none')av=`<div class="avail none"><span class="pin">📅</span><div>Pick a date for real availability &amp; exact cost<small>Free from ${fmtD(s.avail)}</small></div></div>`;
+  else if(s.fit==='ok')av=`<div class="avail ok"><span class="pin">✓</span><div>Free for your date<small>You move in ${fmtD(s.start)}</small></div></div>`;
+  else av=`<div class="avail after"><span class="pin">!</span><div>Free from ${fmtS(s.avail)} — ${s.gap} days after you'd like<small>We can alert you if it frees sooner</small></div></div>`;
+  document.getElementById('availBadge').innerHTML=av;
+  document.getElementById('srows').innerHTML=`
+    <div class="srow"><span class="k">First month${s.full?'':` <span class="note">(pro-rata, ${s.rem}/${s.di} d)</span>`}</span><span class="v">${eur(s.prorated)}</span></div>
+    <div class="srow"><span class="k">Deposit <span class="note">refundable</span></span><span class="v">${eur(L.deposit)}</span></div>
+    <div class="srow"><span class="k">Agency fee</span><span class="v">${L.agencyFee?eur(L.agencyFee):'€0'}</span></div>
+    <div class="srow tot"><span class="k">To move in${s.fit==='none'?'':` ${fmtS(s.start)}`}</span><span class="v" id="totV">${eur(s.total)}</span></div>
+    ${s.end?`<div class="srow"><span class="k">Stay until</span><span class="v">${fmtD(s.end)}</span></div>`:''}`;
+  const tv=document.getElementById('totV');if(tv)countUp(tv,s.total);
+  document.getElementById('applyBtn').innerHTML=(s.fit==='none')?'Apply →':`Apply for ${fmtS(s.start)} →`;
+  const up=document.getElementById('upNudge');
+  if(s.fit==='after'){up.classList.add('show');up.innerHTML=`Need it by ${fmtS(s.req)}? We can <a href="#">find one for your exact dates →</a>`;}else up.classList.remove('show');
+  document.getElementById('mtiles').innerHTML=[
+    ['First month',eur(s.prorated),s.full?'full rent':'pro-rata on your date'],
+    ['Deposit',eur(L.deposit),'refundable at end'],
+    ['Agency fee',L.agencyFee?eur(L.agencyFee):'€0',L.agencyFee?'one-off':'none, on this home'],
+    ['To move in',eur(s.total),s.fit==='none'?'from first open day':'for your dates',true]
+  ].map(([k,v,sub,t])=>`<div class="mt ${t?'tot':''}"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${sub}</div></div>`).join('');
+  document.getElementById('railP').textContent=(s.fit==='none')?eur(L.price)+'/mo':'Move in: '+eur(s.total);
+  document.getElementById('railS').textContent=(s.fit==='none')?'pick your dates ↑':fmtS(s.start);}
+document.getElementById('durs').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;document.querySelectorAll('#durs button').forEach(x=>x.classList.remove('on'));b.classList.add('on');DUR=+b.dataset.m;render();});
+const mi=document.getElementById('moveIn');mi.addEventListener('change',render);mi.min=L.availableFrom;
+
+const DEC=[['First month','The only rent to move in — you’d pay it anywhere. Mid-month, you pay only the days you live.',''],
+['The deposit','Security, not a cost: protected, returned at the end of your stay net of any damage.','refundable'],
+['Agency fee','€0 on this home. When there is one, it’s once and stated up front — never a surprise.','€0'],
+['Monthly bills','Condominio and utilities: the real monthly picture, clear before you sign.',''],
+['No envelopes','Every euro through Stripe, with a receipt. No cash, no invented “check-in fees”.','']];
+document.getElementById('dinner').innerHTML=DEC.map(([h,p,a])=>`<div class="dcd"><h4>${h}${a?` · <span class="amt">${a}</span>`:''}</h4><p>${p}</p></div>`).join('');
+function toggleDecode(){const d=document.getElementById('decoded');const o=d.classList.toggle('open');document.getElementById('dtog').textContent=o?'− Hide the detail':'＋ See every euro, decoded';}
+
+const FAQ=[['Can I move in on a different date than availability?','Yes. Set your date in “Your stay”: after availability you move in straight away; before it, we show the exact gap and can alert you or find an alternative.'],
+['How fast can I really move in?','As fast as 48 hours from approval. We reply to every application within 2 hours and handle contract and keys.'],
+['Is the contract legitimate?','Always: registered legal contract, ID-verified owner, protected deposit. We’re a licensed Rome agency (Egidi Immobiliare S.r.l.).'],
+['What do I actually pay to move in?','Only what you see in “Your stay”: first month + refundable deposit + any agency fee. Nothing else.'],
+['What happens after I move in?','Rent, documents, maintenance and your deposit are all managed in your BOOM app — the difference between us and a listings site.']];
+document.getElementById('faqList').innerHTML=FAQ.map(([q,a])=>`<div class="qa"><button class="q" onclick="this.parentNode.classList.toggle('open')"><span>${q}</span><span class="x">+</span></button><div class="a"><div>${a}</div></div></div>`).join('');
+
+/* ---- overlays / ai ---- */
+function openOv(i){document.getElementById(i).classList.add('show')}
+function closeOv(i){document.getElementById(i).classList.remove('show')}
+function open3d(){openOv('d3Ov')}
+document.querySelectorAll('.ov').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('show')}));
+const AI={'💰 Total to move in?':'For your chosen dates the total is first month + refundable deposit + agency fee (€0 here). You see it live in “Your stay”.',
+'🛡️ How does the deposit work?':'Security, not a cost: held safely and returned at the end of your stay, net of any damage.',
+'📍 What\'s the area like?':'Trastevere: cobbled, pedestrian, lively at night, walking distance to Sapienza and the centre. Tap “Explore the block in 3D”.',
+'⚡ How fast can I move in?':'As fast as 48 hours from approval. Set your date and we tell you instantly if it’s free.'};
+function aiAsk(b){const q=b.textContent;const t=document.getElementById('aiThread');t.insertAdjacentHTML('beforeend',`<div class="aimsg" style="border-color:var(--line-gold)"><b>You:</b> ${q}</div><div class="aimsg">${AI[q]||'Demo — in production, a real answer from the AI that knows this home.'}</div>`);t.lastElementChild.scrollIntoView({behavior:'smooth',block:'nearest'});}
+function apply(){const s=computeStay();const when=s.fit==='none'?'the first open date':fmtD(s.start);alert('Prototype — in production this opens the application PRE-FILLED with:\\n\\n• Move-in: '+when+'\\n• Length: '+(DUR?DUR+' months':'flexible')+'\\n• Total to move in: '+eur(s.total)+'\\n\\nand the dates flow into the lead for matching + qualification.');}
+
+/* ---- chrome ---- */
+addEventListener('scroll',()=>{document.getElementById('nav').classList.toggle('scr',scrollY>16);const h=document.body.scrollHeight-innerHeight;document.getElementById('prog').style.width=(scrollY/Math.max(1,h)*100)+'%';},{passive:true});
+const burger=document.getElementById('burger'),mm=document.getElementById('mm');
+burger.addEventListener('click',()=>{burger.classList.toggle('on');mm.classList.toggle('on');document.body.style.overflow=mm.classList.contains('on')?'hidden':'';});
+mm.addEventListener('click',e=>{if(e.target.tagName==='A'){burger.classList.remove('on');mm.classList.remove('on');document.body.style.overflow='';}});
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}}),{threshold:.1});
+document.querySelectorAll('.reveal,.step').forEach(el=>io.observe(el));
+render();
+</script>
+</body>
+</html>
