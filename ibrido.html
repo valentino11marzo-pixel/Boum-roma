@@ -591,6 +591,28 @@
             .pane-inner { width: 62%; }
             .split { min-height: 520px; }
         }
+        /* ═══════════════ DESIGN POLISH — coesione · tatto · ritmo ═══════════════ */
+        /* un unico film: via i bordi netti, cuciture in oro sfumato */
+        .kit, .terms { border-top: none; border-bottom: none; }
+        .pub-section { position: relative; }
+        .kit::before, .terms::before, .pub-section::before {
+            content: ''; position: absolute; top: 0; left: 12%; right: 12%; height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255,215,0,0.22), transparent);
+        }
+        /* respiro editoriale: a-capo bilanciati su titoli, rag morbido sui paragrafi */
+        .section-title, .hero-title, .lv-line, .est-head h2, .cmp-head h3, .final h2, .manifesto-text, .who h2 { text-wrap: balance; }
+        .hero-sub, .kit-head p, .est-head p, .split-head p, .cmp-head p, .who p, .term p, .kit-card > p, .final p { text-wrap: pretty; }
+        /* tatto: pressione sui bottoni, focus dorato sui campi, focus-visible accessibile */
+        .btn:active { transform: translateY(0) scale(0.984); }
+        .seg button:active { transform: scale(0.97); }
+        .fld input:focus, .fld select:focus, .est-fld input:focus, .est-fld select:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(255,215,0,0.12); }
+        a:focus-visible, button:focus-visible, [tabindex]:focus-visible, .drop:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; border-radius: 6px; }
+        /* hero · invito a scorrere */
+        .hero-scroll { position: absolute; left: 50%; bottom: 24px; transform: translateX(-50%); width: 1px; height: 44px; background: linear-gradient(var(--gold), transparent); opacity: 0; z-index: 2; pointer-events: none; }
+        .hero.play .hero-scroll { opacity: 0.5; transition: opacity 0.9s var(--ease-out) 1.7s; }
+        .hero-scroll i { position: absolute; top: 0; left: -2px; width: 5px; height: 5px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 10px var(--gold); animation: scrollcue 2.3s ease-in-out infinite; }
+        @keyframes scrollcue { 0% { top: 0; opacity: 0; } 25% { opacity: 1; } 100% { top: 38px; opacity: 0; } }
+
         @media (prefers-reduced-motion: reduce) {
             *, *::before, *::after { animation: none !important; transition: none !important; }
             .reveal, .hero .eyebrow, .hero-sub, .hero-actions, .hero-kicker { opacity: 1 !important; transform: none !important; }
@@ -601,6 +623,7 @@
             .tp-spark polyline, .ts-sig path { stroke-dashoffset: 0 !important; }
             .ta-doc, .tp-row, .ta-share, .ts-stamp, .tw-added, .tai-chip { opacity: 1 !important; transform: none !important; }
             .tf-cal i.due::after { opacity: 1 !important; }
+            .hero-scroll { display: none !important; }
         }
     </style>
 </head>
@@ -719,6 +742,7 @@
             </div>
             <div class="hero-kicker">Egidi Immobiliare S.r.l. · <b>agenzia registrata</b> · P.IVA 17322991005</div>
         </div>
+        <div class="hero-scroll" aria-hidden="true"><i></i></div>
     </section>
 
     <!-- ═══════════ STIMA — quanto rende la tua casa ═══════════ -->
