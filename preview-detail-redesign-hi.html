@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#08080A">
+<meta name="color-scheme" content="dark">
+<title>BOOM · Listing — Redesign (Hi-Fi Prototype A)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://images.unsplash.com" crossorigin>
+<style>
+  :root{
+    --gold:#FFD700;--gold-light:#FFE55C;--gold-dark:#E5C200;--gold-muted:rgba(255,215,0,.15);
+    --cyan:#00CED1;--green:#00FF88;--green-muted:rgba(0,255,136,.14);
+    --black:#030303;--void:#060607;--surface:#0B0B0C;--surface-elevated:#121214;--surface-hover:#1A1A1D;--surface-card:#0E0E10;
+    --text-primary:#FAFAFA;--text-secondary:rgba(250,250,250,.72);--text-tertiary:rgba(250,250,250,.44);--text-muted:rgba(250,250,250,.24);
+    --border-subtle:rgba(255,255,255,.04);--border-default:rgba(255,255,255,.08);--border-hover:rgba(255,215,0,.25);--border-gold:rgba(255,215,0,.12);
+    --font-sans:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;--font-display:'Helvetica Neue',Helvetica,Arial,sans-serif;
+    --ease-out:cubic-bezier(.16,1,.3,1);--ease-in-out:cubic-bezier(.65,0,.35,1);
+    --shadow-glow:0 0 80px rgba(255,215,0,.1);--shadow-card:0 4px 32px rgba(0,0,0,.5);--shadow-card-hover:0 12px 48px rgba(0,0,0,.7);
+    --maxw:1180px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;scroll-behavior:smooth}
+  body{font-family:var(--font-sans);background:var(--void);color:var(--text-primary);font-weight:300;line-height:1.6;letter-spacing:.1px;padding-bottom:90px}
+  img{display:block;max-width:100%}a{color:inherit;text-decoration:none}
+  button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 28px}
+  h1,h2,h3,h4{font-family:var(--font-display);font-weight:300;letter-spacing:-.5px;line-height:1.08}
+  .g{color:var(--gold)}
+  .eyebrow{font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--gold);font-weight:500;font-family:var(--font-sans)}
+  .reveal{opacity:0;transform:translateY(26px);transition:opacity .8s var(--ease-out),transform .8s var(--ease-out)}
+  .reveal.in{opacity:1;transform:none}
+  @media (prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none}html{scroll-behavior:auto}}
+
+  .proto{position:fixed;bottom:84px;left:50%;transform:translateX(-50%);z-index:70;background:rgba(8,8,10,.92);backdrop-filter:blur(14px);
+    border:1px solid var(--border-gold);border-radius:100px;font-size:11.5px;color:var(--text-secondary);display:flex;gap:12px;align-items:center;padding:8px 16px;letter-spacing:.4px}
+  .proto b{color:var(--gold);font-weight:500}.proto a{color:var(--text-tertiary);border-bottom:1px solid var(--border-default)}
+
+  /* ===== NAV (faithful) ===== */
+  nav{position:fixed;width:100%;top:0;z-index:100;padding:18px 50px;background:rgba(6,6,7,.7);backdrop-filter:blur(20px);
+    border-bottom:1px solid transparent;transition:padding .4s var(--ease-out),background .4s,border-color .4s}
+  nav.scrolled{padding:11px 50px;background:rgba(6,6,7,.97);border-bottom:1px solid var(--border-gold)}
+  .nav-container{max-width:1400px;margin:0 auto;display:flex;justify-content:space-between;align-items:center}
+  .logo{display:flex;align-items:center;gap:13px;color:#fff}
+  .logo-svg{width:46px;height:46px;filter:drop-shadow(0 0 16px rgba(255,215,0,.45));transition:filter .3s,width .4s var(--ease-out)}
+  nav.scrolled .logo-svg{width:38px;height:38px}
+  .logo:hover .logo-svg{filter:drop-shadow(0 0 30px rgba(255,215,0,.8))}
+  .logo-text{font-family:var(--font-display);font-size:26px;font-weight:300;letter-spacing:4px;text-transform:uppercase}
+  .nav-links{display:flex;gap:28px;align-items:center}
+  .nav-links a{color:rgba(255,255,255,.6);font-size:12.5px;font-weight:300;text-transform:uppercase;letter-spacing:1px;transition:color .3s}
+  .nav-links a:hover{color:var(--gold)}.nav-links a.wa-link{color:#25D366}
+  .hamburger{display:none;flex-direction:column;gap:5px;cursor:pointer;padding:8px}
+  .hamburger span{width:24px;height:2px;background:var(--gold);transition:.3s}
+  .hamburger.active span:nth-child(1){transform:rotate(45deg) translate(5px,5px)}
+  .hamburger.active span:nth-child(2){opacity:0}
+  .hamburger.active span:nth-child(3){transform:rotate(-45deg) translate(5px,-5px)}
+  .mobile-menu{display:none;position:fixed;inset:0;background:rgba(6,6,7,.98);backdrop-filter:blur(30px);z-index:150;flex-direction:column;align-items:center;justify-content:center;gap:26px}
+  .mobile-menu.active{display:flex}
+  .mobile-menu a{color:rgba(255,255,255,.75);font-size:18px;font-weight:300;letter-spacing:2px;text-transform:uppercase}
+  .mobile-menu a:hover{color:var(--gold)}
+  @media(max-width:980px){nav,nav.scrolled{padding:14px 20px}.nav-links{display:none}.hamburger{display:flex}}
+
+  /* breadcrumb */
+  .crumb{max-width:var(--maxw);margin:0 auto;padding:104px 28px 0;font-size:12px;color:var(--text-tertiary);letter-spacing:.5px}
+  .crumb a:hover{color:var(--gold)}
+
+  /* ════ ACT 1 — SEE IT ════ */
+  .hero{margin-top:14px}
+  .gallery{display:grid;grid-template-columns:repeat(4,1fr);grid-auto-rows:122px;gap:8px;max-width:var(--maxw);margin:0 auto;padding:0 28px;border-radius:0}
+  .shot{position:relative;overflow:hidden;border-radius:14px;background:linear-gradient(135deg,#1b1b20,#0c0c0e)}
+  .shot:first-child{grid-column:1/3;grid-row:1/3}
+  .shot img{width:100%;height:100%;object-fit:cover;transition:transform .9s var(--ease-out)}
+  .shot:hover img{transform:scale(1.05)}
+  .shot .more{position:absolute;right:12px;bottom:12px;background:rgba(0,0,0,.6);backdrop-filter:blur(8px);padding:7px 13px;border-radius:100px;font-size:12px;letter-spacing:.3px}
+  @media(max-width:720px){.gallery{grid-template-columns:repeat(2,1fr);grid-auto-rows:120px}.shot:first-child{grid-column:1/3}}
+  .hero-meta{max-width:var(--maxw);margin:26px auto 0;padding:0 28px;display:flex;flex-wrap:wrap;gap:22px;align-items:flex-end;justify-content:space-between}
+  .hero-title h1{font-size:clamp(30px,5.2vw,52px);font-weight:200;letter-spacing:-1px}
+  .hero-loc{margin-top:12px;color:var(--text-secondary);font-size:14px;letter-spacing:.5px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .hero-loc .v{display:inline-flex;align-items:center;gap:6px;color:var(--green)}
+  .hero-loc .dot{color:var(--gold)}
+  .hero-actions{display:flex;gap:10px}
+  .icbtn{width:46px;height:46px;border:1px solid var(--border-default);border-radius:50%;display:grid;place-items:center;background:var(--surface-card);font-size:17px;transition:.25s var(--ease-out)}
+  .icbtn:hover{border-color:var(--border-hover);color:var(--gold);transform:translateY(-2px)}
+  .icbtn.on{color:var(--gold);border-color:var(--border-hover);background:var(--gold-muted)}
+  .facts{max-width:var(--maxw);margin:24px auto 0;padding:24px 28px;display:flex;flex-wrap:wrap;gap:0;border-top:1px solid var(--border-default);border-bottom:1px solid var(--border-default)}
+  .factx{padding:0 26px;border-right:1px solid var(--border-subtle)}
+  .factx:first-child{padding-left:0}.factx:last-child{border-right:none}
+  .factx .k{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--text-tertiary)}
+  .factx .v{font-size:21px;font-weight:200;font-family:var(--font-display);margin-top:6px}
+  .factx .v.price{color:var(--gold)}.factx .v small{font-size:13px;color:var(--text-tertiary)}
+  .hero-cta{max-width:var(--maxw);margin:18px auto 0;padding:0 28px;display:flex;gap:10px;flex-wrap:wrap}
+  .pill{border:1px solid var(--border-default);border-radius:100px;padding:12px 20px;font-size:13px;letter-spacing:.4px;display:inline-flex;align-items:center;gap:9px;background:var(--surface-card);transition:.25s var(--ease-out)}
+  .pill:hover{border-color:var(--border-hover);color:var(--gold);transform:translateY(-2px)}
+
+  section.act{max-width:var(--maxw);margin:0 auto;padding:84px 28px 0}
+  .act-head{display:flex;align-items:baseline;gap:18px;margin-bottom:14px}
+  .act-num{font-size:12px;color:var(--text-muted);letter-spacing:2px;font-variant-numeric:tabular-nums;font-family:var(--font-sans)}
+  .act-head h2{font-size:clamp(26px,3.8vw,38px);font-weight:200}
+  .act-sub{color:var(--text-secondary);font-size:15.5px;max-width:50ch;margin-bottom:30px}
+
+  /* ════ ACT 2 — YOUR STAY ════ */
+  .stay{border:1px solid var(--border-gold);border-radius:24px;padding:30px;position:relative;overflow:hidden;
+    background:linear-gradient(180deg,rgba(18,18,20,.9),var(--surface-card));box-shadow:var(--shadow-card)}
+  .stay::before{content:"";position:absolute;top:-40%;left:-10%;width:60%;height:140%;background:radial-gradient(closest-side,rgba(255,215,0,.10),transparent);pointer-events:none}
+  .stay-grid{display:grid;grid-template-columns:1fr;gap:28px;position:relative}
+  @media(min-width:860px){.stay-grid{grid-template-columns:.92fr 1.08fr;gap:40px}}
+  .field{margin-bottom:22px}
+  .field label{display:block;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-secondary);margin-bottom:11px;font-family:var(--font-sans)}
+  .datein{width:100%;background:var(--surface-elevated);border:1px solid var(--border-default);border-radius:13px;color:var(--text-primary);
+    font-family:inherit;font-size:16px;padding:15px 16px;letter-spacing:.4px;transition:border-color .25s}
+  .datein:focus{outline:none;border-color:var(--gold)}
+  .seg{display:inline-flex;background:var(--surface-elevated);border:1px solid var(--border-default);border-radius:100px;padding:4px;gap:2px;flex-wrap:wrap}
+  .seg button{border-radius:100px;padding:10px 16px;font-size:13px;letter-spacing:.4px;color:var(--text-secondary);transition:.2s var(--ease-out)}
+  .seg button.on{background:var(--gold);color:#1a1407;font-weight:600}
+  .stay-out{background:rgba(255,255,255,.015);border:1px solid var(--border-default);border-radius:18px;padding:24px;align-self:start}
+  .avail{display:flex;gap:13px;align-items:center;font-size:15px;margin-bottom:20px;letter-spacing:.2px}
+  .avail .pin{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;flex:none;font-size:15px}
+  .avail.ok{color:var(--green)}.avail.ok .pin{background:var(--green-muted)}
+  .avail.after{color:var(--gold-light)}.avail.after .pin{background:var(--gold-muted)}
+  .avail.none{color:var(--text-secondary)}.avail.none .pin{background:var(--gold-muted);color:var(--gold)}
+  .avail small{display:block;color:var(--text-tertiary);font-size:12px;margin-top:3px;letter-spacing:.2px}
+  .srows{display:grid;gap:1px;background:var(--border-default);border-radius:13px;overflow:hidden;border:1px solid var(--border-default)}
+  .srow{display:flex;justify-content:space-between;align-items:center;background:var(--surface-card);padding:14px 16px;font-size:14.5px}
+  .srow .k{color:var(--text-secondary)}.srow .v{font-weight:400;font-variant-numeric:tabular-nums;font-family:var(--font-display)}
+  .srow .note{font-size:11px;color:var(--text-tertiary)}
+  .srow.total{background:linear-gradient(90deg,var(--gold-muted),transparent)}.srow.total .v{color:var(--gold);font-size:20px}
+  .gbtn{background:linear-gradient(180deg,var(--gold-light),var(--gold));color:#1a1407;font-weight:600;border-radius:100px;
+    padding:15px 24px;font-size:14.5px;letter-spacing:.4px;transition:.25s var(--ease-out);box-shadow:0 6px 22px rgba(255,215,0,.18)}
+  .gbtn:hover{filter:brightness(1.05);transform:translateY(-2px)}
+  .stay-cta{margin-top:18px}
+
+  /* ════ ACT 3 — MONEY ════ */
+  .mtiles{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+  @media(min-width:760px){.mtiles{grid-template-columns:repeat(4,1fr)}}
+  .mt{border:1px solid var(--border-default);background:var(--surface-card);border-radius:16px;padding:20px;box-shadow:var(--shadow-inner)}
+  .mt .k{font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:var(--text-tertiary)}
+  .mt .v{font-size:25px;font-weight:200;margin-top:10px;font-variant-numeric:tabular-nums;font-family:var(--font-display)}
+  .mt .s{font-size:12px;color:var(--text-secondary);margin-top:6px}
+  .mt.tot{border-color:var(--border-hover);background:linear-gradient(180deg,var(--gold-muted),transparent)}.mt.tot .v{color:var(--gold)}
+  .dtog{margin-top:18px;display:inline-flex;align-items:center;gap:9px;border:1px solid var(--border-default);border-radius:100px;padding:12px 20px;font-size:13px;letter-spacing:.4px;background:var(--surface-card);transition:.25s}
+  .dtog:hover{border-color:var(--border-hover);color:var(--gold)}
+  .decoded{max-height:0;overflow:hidden;transition:max-height .55s var(--ease-out)}.decoded.open{max-height:1400px}
+  .dinner{margin-top:18px;display:grid;gap:10px;grid-template-columns:1fr}@media(min-width:760px){.dinner{grid-template-columns:1fr 1fr}}
+  .dcard{border:1px solid var(--border-default);background:var(--surface);border-radius:14px;padding:20px}
+  .dcard h4{font-weight:400;font-size:15px;margin-bottom:8px;font-family:var(--font-sans)}.dcard p{color:var(--text-secondary);font-size:14px}
+  .dcard .amt{color:var(--gold)}
+
+  /* ════ ACT 4 — TRUST ════ */
+  .proofs{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:28px}
+  .proof{display:flex;align-items:center;gap:9px;border:1px solid var(--border-default);background:var(--surface-card);border-radius:100px;padding:11px 17px;font-size:13px;letter-spacing:.2px}
+  .proof .c{color:var(--green)}
+  .t48{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:28px}
+  @media(max-width:620px){.t48{grid-template-columns:1fr}}
+  .t48 .s{border:1px solid var(--border-default);background:var(--surface-card);border-radius:16px;padding:20px;position:relative;overflow:hidden}
+  .t48 .s::after{content:"";position:absolute;top:0;left:0;width:3px;height:0;background:var(--gold);transition:height .6s var(--ease-out)}
+  .t48 .s.in::after{height:100%}
+  .t48 .n{font-size:11px;letter-spacing:2px;color:var(--gold);font-family:var(--font-sans)}
+  .t48 .s h4{font-weight:400;font-size:15px;margin-top:10px;font-family:var(--font-sans)}.t48 .s p{font-size:13px;color:var(--text-secondary);margin-top:6px}
+  .faq .qa{border-bottom:1px solid var(--border-default)}
+  .faq .q{width:100%;text-align:left;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:19px 2px;font-size:15.5px;font-family:var(--font-sans);font-weight:300}
+  .faq .q .x{color:var(--gold);font-size:21px;transition:.3s var(--ease-out);flex:none}
+  .faq .qa.open .q .x{transform:rotate(45deg)}
+  .faq .a{max-height:0;overflow:hidden;transition:max-height .4s var(--ease-out);color:var(--text-secondary);font-size:14px}
+  .faq .qa.open .a{max-height:260px}.faq .a div{padding:0 2px 20px}
+
+  /* ════ ACT 5 — GET IT ════ */
+  .getit{border:1px solid var(--border-gold);border-radius:26px;padding:38px;position:relative;overflow:hidden;
+    background:radial-gradient(700px 280px at 85% -30%,var(--gold-muted),transparent 60%),var(--surface-card);box-shadow:var(--shadow-card)}
+  .getit h2{font-size:clamp(26px,4vw,38px);font-weight:200;margin-bottom:10px}
+  .getit p{color:var(--text-secondary);max-width:50ch;margin-bottom:26px}
+  .getit-acts{display:flex;flex-direction:column;gap:11px;max-width:440px}
+  .getit-acts .row2{display:flex;gap:11px}.getit-acts .row2 .pill{flex:1;justify-content:center}
+  .getbig{width:100%;justify-content:center;font-size:15px;padding:17px}
+  .ailaunch{display:inline-flex;align-items:center;gap:8px;margin-top:20px;color:var(--gold);font-size:13px;letter-spacing:.4px;border-bottom:1px solid var(--border-gold);padding-bottom:4px}
+
+  /* ===== FOOTER (faithful) ===== */
+  footer{margin-top:90px;border-top:1px solid var(--border-default);padding:60px 28px 30px}
+  .footer-grid{max-width:var(--maxw);margin:0 auto;display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr;gap:40px}
+  @media(max-width:820px){.footer-grid{grid-template-columns:1fr 1fr}}
+  .footer-brand h3{font-family:var(--font-display);font-size:24px;font-weight:300;letter-spacing:4px}
+  .footer-brand p{color:var(--text-tertiary);font-size:12.5px;line-height:1.8;margin-top:14px}
+  .footer-brand strong{color:var(--text-secondary);font-weight:500}
+  .footer-links h4{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--gold);margin-bottom:16px;font-family:var(--font-sans);font-weight:500}
+  .footer-links ul{list-style:none}.footer-links li{margin-bottom:10px}
+  .footer-links a{color:var(--text-tertiary);font-size:13px}.footer-links a:hover{color:var(--gold)}
+  .footer-bottom{max-width:var(--maxw);margin:44px auto 0;padding-top:22px;border-top:1px solid var(--border-subtle);display:flex;justify-content:space-between;color:var(--text-muted);font-size:12px}
+  .footer-bottom .op{color:var(--green)}
+
+  /* ===== action rail ===== */
+  .rail{position:fixed;left:0;right:0;bottom:0;z-index:90;background:rgba(6,6,7,.86);backdrop-filter:blur(18px);border-top:1px solid var(--border-default)}
+  .rail .prog{height:2px;background:var(--border-default)}.rail .prog i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--gold),var(--gold-light));transition:width .12s linear}
+  .rail .inner{max-width:var(--maxw);margin:0 auto;display:flex;align-items:center;gap:14px;padding:12px 20px}
+  .rail .lbl{flex:1;min-width:0;font-size:13px;color:var(--text-secondary)}.rail .lbl b{color:var(--text-primary);font-weight:500;font-family:var(--font-display)}
+  .rail .lbl small{display:block;color:var(--text-tertiary);font-size:11.5px}
+  .rail .ask{width:46px;height:46px;border-radius:50%;border:1px solid var(--border-default);display:grid;place-items:center;font-size:18px;color:var(--gold)}
+  .rail .go{background:linear-gradient(180deg,var(--gold-light),var(--gold));color:#1a1407;font-weight:600;border-radius:100px;padding:13px 24px;font-size:14px;letter-spacing:.3px;white-space:nowrap;box-shadow:0 6px 22px rgba(255,215,0,.2)}
+
+  /* overlays */
+  .ov{position:fixed;inset:0;z-index:120;background:rgba(3,3,3,.66);backdrop-filter:blur(7px);opacity:0;pointer-events:none;transition:.28s;display:flex;align-items:flex-end;justify-content:center}
+  .ov.show{opacity:1;pointer-events:auto}
+  .sheet{background:var(--surface);border:1px solid var(--border-default);border-radius:24px 24px 0 0;width:100%;max-width:660px;max-height:86vh;overflow:auto;transform:translateY(24px);transition:.32s var(--ease-out)}
+  .ov.show .sheet{transform:none}
+  @media(min-width:700px){.ov{align-items:center}.sheet{border-radius:24px}}
+  .sheet-h{display:flex;align-items:center;justify-content:space-between;padding:20px 22px;border-bottom:1px solid var(--border-default);position:sticky;top:0;background:var(--surface)}
+  .sheet-h h3{font-size:17px;font-weight:300}
+  .sheet-b{padding:22px}
+  .xc{font-size:22px;color:var(--text-secondary);width:36px;height:36px;border-radius:50%;border:1px solid var(--border-default)}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}
+  .chips button{border:1px solid var(--border-default);background:var(--surface-card);border-radius:100px;padding:10px 14px;font-size:12.5px}
+  .chips button:hover{border-color:var(--border-hover)}
+  .aimsg{background:var(--surface-card);border:1px solid var(--border-default);border-radius:14px;padding:16px;font-size:14px;color:var(--text-secondary);margin-bottom:11px}
+  .aimsg b{color:var(--text-primary);font-weight:500}
+  .map3d{height:320px;border-radius:16px;border:1px solid var(--border-default);position:relative;overflow:hidden;background:radial-gradient(120% 120% at 30% 20%,#16161c,#08080a)}
+  .map3d .ring{position:absolute;left:50%;top:48%;transform:translate(-50%,-50%);border:1px dashed rgba(255,215,0,.4);border-radius:50%}
+  .map3d .blip{position:absolute;left:50%;top:48%;transform:translate(-50%,-50%);width:14px;height:14px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 8px var(--gold-muted)}
+</style>
+</head>
+<body>
+
+<nav id="nav">
+  <div class="nav-container">
+    <a href="/apartments" class="logo">
+      <img src="/favicon.svg" class="logo-svg" alt="" onerror="this.style.display='none'">
+      <span class="logo-text">BOOM</span>
+    </a>
+    <div class="nav-links">
+      <a href="/apartments">Apartments</a><a href="#">Property Finding</a><a href="#">Deal Assistance</a>
+      <a href="#">Virtual Viewing</a><a href="#">Concierge</a><a href="#">About</a>
+      <a href="https://wa.me/393313251961" class="wa-link">WhatsApp</a>
+    </div>
+    <div class="hamburger" id="ham"><span></span><span></span><span></span></div>
+  </div>
+</nav>
+<div class="mobile-menu" id="mm">
+  <a href="/apartments">Apartments</a><a href="#">Property Finding</a><a href="#">Deal Assistance</a>
+  <a href="#">Virtual Viewing</a><a href="#">Concierge</a><a href="#">About</a><a href="#">Login</a>
+</div>
+
+<div class="crumb reveal"><a href="/apartments">Apartments</a> · <span id="cZone">Trastevere</span></div>
+
+<!-- ════ ACT 1 — SEE IT ════ -->
+<header class="hero">
+  <div class="gallery reveal" id="gallery"></div>
+  <div class="hero-meta reveal">
+    <div class="hero-title">
+      <h1 id="hName">Bright Attic in Trastevere</h1>
+      <div class="hero-loc"><span class="v">✓ Video-verified</span><span class="dot">·</span><span id="hZone">Trastevere, Rome</span><span class="dot">·</span><span id="hAvail">Available Sep 1</span></div>
+    </div>
+    <div class="hero-actions">
+      <button class="icbtn" onclick="this.classList.toggle('on')" aria-label="Save">♡</button>
+      <button class="icbtn" aria-label="Share">↗</button>
+    </div>
+  </div>
+  <div class="facts reveal" id="facts"></div>
+  <div class="hero-cta reveal">
+    <button class="pill" onclick="open3d()">◆ Explore the block in 3D</button>
+    <button class="pill" onclick="openAi()">✦ Ask this home anything</button>
+  </div>
+</header>
+
+<main>
+  <!-- ════ ACT 2 — YOUR STAY ════ -->
+  <section class="act" id="act-stay">
+    <div class="act-head reveal"><span class="act-num">02</span><div><div class="eyebrow">Your stay</div><h2>When do <span class="g">you</span> move in?</h2></div></div>
+    <p class="act-sub reveal">Tell us your date and how long. The home answers instantly — real availability for <em>your</em> date, the exact first month, and what it takes to move in.</p>
+    <div class="stay reveal">
+      <div class="stay-grid">
+        <div>
+          <div class="field"><label for="moveIn">Your move-in date</label><input type="date" id="moveIn" class="datein"></div>
+          <div class="field"><label>How long?</label><div class="seg" id="durs">
+            <button data-m="6">6 mo</button><button class="on" data-m="12">12 mo</button><button data-m="18">18 mo</button><button data-m="0">Flexible</button>
+          </div></div>
+        </div>
+        <div class="stay-out" id="stayOut"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════ ACT 3 — MONEY ════ -->
+  <section class="act" id="act-money">
+    <div class="act-head reveal"><span class="act-num">03</span><div><div class="eyebrow">The money</div><h2>Exactly what you <span class="g">pay</span>. And what comes back.</h2></div></div>
+    <p class="act-sub reveal">Everything it takes to move in, on your dates. No “fees” invented at the table.</p>
+    <div class="mtiles reveal" id="mtiles"></div>
+    <button class="dtog reveal" id="dtog" onclick="toggleDecode()">＋ See every euro, decoded</button>
+    <div class="decoded" id="decoded"><div class="dinner" id="dinner"></div></div>
+  </section>
+
+  <!-- ════ ACT 4 — TRUST ════ -->
+  <section class="act" id="act-trust">
+    <div class="act-head reveal"><span class="act-num">04</span><div><div class="eyebrow">Safe & fast</div><h2>Proof, not <span class="g">promises</span>.</h2></div></div>
+    <div class="proofs reveal">
+      <div class="proof"><span class="c">✓</span> Verified in person, on video</div>
+      <div class="proof"><span class="c">✓</span> ID-checked owner</div>
+      <div class="proof"><span class="c">✓</span> Registered legal contract</div>
+      <div class="proof"><span class="c">✓</span> Deposit protected, returned</div>
+    </div>
+    <div class="t48 reveal">
+      <div class="s"><div class="n">01</div><h4>Apply</h4><p>2 minutes. We reply within 2 hours.</p></div>
+      <div class="s"><div class="n">02</div><h4>Sign + register</h4><p>Legal contract, fully digital.</p></div>
+      <div class="s"><div class="n">03</div><h4>Keys</h4><p>In as little as 48 hours.</p></div>
+    </div>
+    <div class="faq reveal" id="faq"></div>
+  </section>
+
+  <!-- ════ ACT 5 — GET IT ════ -->
+  <section class="act" id="act-get">
+    <div class="getit reveal">
+      <h2>Get it.</h2>
+      <p>Apply in 2 minutes — with the dates you picked already filled in. We reply within 2 hours. No commitment.</p>
+      <div class="getit-acts">
+        <button class="gbtn getbig" onclick="apply()">Apply for <span id="getDate">your date</span> →</button>
+        <div class="row2">
+          <button class="pill" onclick="apply()">🔒 Reserve &amp; hold · €300</button>
+          <button class="pill" onclick="apply()">🎥 Book a live tour</button>
+        </div>
+      </div>
+      <button class="ailaunch" onclick="openAi()">✦ A question? Ask this home →</button>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="footer-grid">
+    <div class="footer-brand">
+      <h3>BOOM</h3>
+      <p>Built in Rome, for Rome. If we can make Rome's rental market work, we can make it work anywhere.<br><br><strong>Egidi Immobiliare S.r.l.</strong><br>P.IVA 17322991005<br>REA RM - 1710623<br>Rome, Italy</p>
+    </div>
+    <div class="footer-links"><h4>Services</h4><ul><li><a href="/apartments">Apartments</a></li><li><a href="#">Property Finding</a></li><li><a href="#">Deal Assistance</a></li><li><a href="#">Virtual Viewing</a></li><li><a href="#">Concierge</a></li></ul></div>
+    <div class="footer-links"><h4>Company</h4><ul><li><a href="#">About</a></li><li><a href="#">How It Works</a></li><li><a href="#">For Universities</a></li><li><a href="#">For Owners</a></li><li><a href="#">Blog</a></li></ul></div>
+    <div class="footer-links"><h4>Legal</h4><ul><li><a href="#">Terms</a></li><li><a href="#">Privacy</a></li><li><a href="#">Login</a></li></ul></div>
+  </div>
+  <div class="footer-bottom"><span>© 2025 BOOM — All Rights Reserved</span><span class="op">Status: Operational</span></div>
+</footer>
+
+<div class="proto">PROTO A · <b>Listing redesign · Hi-Fi</b> · <a href="/preview-detail-clean-hi">B →</a> · <a href="/preview-apartments-hi">grid →</a></div>
+
+<div class="rail">
+  <div class="prog"><i id="prog"></i></div>
+  <div class="inner">
+    <div class="lbl"><b id="railTitle">Bright Attic, Trastevere</b><small id="railSub">€1,500/mo · pick your dates ↑</small></div>
+    <button class="ask" onclick="openAi()" aria-label="Ask">✦</button>
+    <button class="go" onclick="apply()">Apply</button>
+  </div>
+</div>
+
+<!-- AI overlay -->
+<div class="ov" id="aiOv"><div class="sheet">
+  <div class="sheet-h"><h3>✦ Ask this home</h3><button class="xc" onclick="closeOv('aiOv')">×</button></div>
+  <div class="sheet-b">
+    <div class="chips">
+      <button onclick="aiAsk(this)">💰 Total to move in?</button><button onclick="aiAsk(this)">🛡️ How does the deposit work?</button>
+      <button onclick="aiAsk(this)">📍 What's the area like?</button><button onclick="aiAsk(this)">⚡ How fast can I move in?</button>
+    </div>
+    <div id="aiThread"><div class="aimsg">I know this home and the reality of renting in Rome. Ask me about cost, deposit, the area, the contract or timing — honest answers in seconds. <span style="color:var(--text-muted)">(demo)</span></div></div>
+  </div>
+</div></div>
+
+<!-- 3D overlay -->
+<div class="ov" id="d3Ov"><div class="sheet">
+  <div class="sheet-h"><h3>◆ The block in 3D</h3><button class="xc" onclick="closeOv('d3Ov')">×</button></div>
+  <div class="sheet-b">
+    <div class="map3d"><div class="ring" style="width:120px;height:120px"></div><div class="ring" style="width:220px;height:220px"></div><div class="ring" style="width:330px;height:330px"></div><div class="blip"></div></div>
+    <p style="color:var(--text-secondary);font-size:13px;margin-top:14px">5 / 10 / 15-minute walk rings around the flat. In production this becomes the cinematic building flyover you already built.</p>
+  </div>
+</div></div>
+
+<script>
+const L={name:"Bright Attic in Trastevere",zone:"Trastevere",price:1500,deposit:1500,agencyFee:0,beds:2,baths:1,sqm:65,floor:3,furnished:true,
+  availableFrom:"2026-09-01",
+  images:[["1502672260266-1c1ef2d93688","Living"],["1505691938895-1758d7feb511","Bedroom"],["1484154218962-a197022b5858","Kitchen"],["1493809842364-78817add7ffb","Terrace"]]};
+const eur=n=>'€'+Math.round(n).toLocaleString('en-US');
+const fmtD=d=>d.toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
+const fmtS=d=>d.toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+const dim=(y,m)=>new Date(y,m+1,0).getDate();
+
+document.getElementById('gallery').innerHTML=L.images.map(([id,t],i)=>
+  `<div class="shot"><img src="https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=1100&q=72" alt="${t}" loading="${i===0?'eager':'lazy'}" onerror="this.style.display='none'">${i===3?'<span class="more">+8 photos</span>':''}</div>`).join('');
+document.getElementById('facts').innerHTML=[
+  ['Rent',`<span class="price">${eur(L.price)}</span><small> /mo</small>`],['Bedrooms',L.beds],['Bathroom',L.baths],['Size',`${L.sqm}<small> m²</small>`],['Floor',`${L.floor}<small>th</small>`],['Furnished','Yes']
+].map(([k,v])=>`<div class="factx"><div class="k">${k}</div><div class="v">${v}</div></div>`).join('');
+document.getElementById('hAvail').textContent='Available '+fmtS(new Date(L.availableFrom+'T00:00'));
+
+let DUR=12;
+function computeStay(){
+  const avail=new Date(L.availableFrom+'T00:00');const raw=document.getElementById('moveIn').value;
+  const req=raw?new Date(raw+'T00:00'):null;const start=(!req||req<avail)?avail:req;
+  const gap=req?Math.round((avail-req)/86400000):0;const di=dim(start.getFullYear(),start.getMonth());
+  const rem=di-start.getDate()+1;const prorated=Math.round(L.price*rem/di);const full=rem===di;
+  const total=prorated+L.deposit+L.agencyFee;let end=null;if(DUR>0){end=new Date(start);end.setMonth(end.getMonth()+DUR);}
+  return{avail,req,start,end,gap,di,rem,prorated,full,total,fit:!req?'none':(req>=avail?'ok':'after')};
+}
+function render(){
+  const s=computeStay();let av;
+  if(s.fit==='none')av=`<div class="avail none"><span class="pin">📅</span><div>Pick a date to see availability &amp; cost for your dates<small>Free from ${fmtD(s.avail)}</small></div></div>`;
+  else if(s.fit==='ok')av=`<div class="avail ok"><span class="pin">✓</span><div>Free from your date<small>You move in ${fmtD(s.start)}</small></div></div>`;
+  else av=`<div class="avail after"><span class="pin">!</span><div>Free from ${fmtS(s.avail)} — ${s.gap} days after you'd like<small>We can alert you if it frees sooner, or find one for your date</small></div></div>`;
+  document.getElementById('stayOut').innerHTML=av+`<div class="srows">
+    <div class="srow"><span class="k">First month${s.full?'':` <span class="note">(pro-rata, ${s.rem}/${s.di} d)</span>`}</span><span class="v">${eur(s.prorated)}</span></div>
+    <div class="srow"><span class="k">Deposit <span class="note">refundable</span></span><span class="v">${eur(L.deposit)}</span></div>
+    <div class="srow"><span class="k">Agency fee</span><span class="v">${L.agencyFee?eur(L.agencyFee):'€0'}</span></div>
+    <div class="srow total"><span class="k">To move in${s.fit==='none'?'':` ${fmtS(s.start)}`}</span><span class="v" data-count="${s.total}">${eur(s.total)}</span></div>
+    ${s.end?`<div class="srow"><span class="k">Stay until</span><span class="v">${fmtD(s.end)}</span></div>`:''}</div>
+    <div class="stay-cta"><button class="gbtn" onclick="apply()">${s.fit==='none'?'Apply':'Lock these dates'} →</button></div>`;
+  document.getElementById('mtiles').innerHTML=[
+    ['First month',eur(s.prorated),s.full?'full rent':'pro-rata on your date'],
+    ['Deposit',eur(L.deposit),'refundable at end'],
+    ['Agency fee',L.agencyFee?eur(L.agencyFee):'€0',L.agencyFee?'one-off':'none, on this home'],
+    ['To move in',eur(s.total),s.fit==='none'?'from first open day':'for your dates',true]
+  ].map(([k,v,sub,t])=>`<div class="mt ${t?'tot':''}"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${sub}</div></div>`).join('');
+  document.getElementById('railSub').textContent=(s.fit==='none')?`${eur(L.price)}/mo · pick your dates ↑`:`To move in ${fmtS(s.start)}: ${eur(s.total)}`;
+  document.getElementById('getDate').textContent=(s.fit==='none')?'your date':fmtS(s.start);
+}
+document.getElementById('durs').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+  document.querySelectorAll('#durs button').forEach(x=>x.classList.remove('on'));b.classList.add('on');DUR=+b.dataset.m;render();});
+document.getElementById('moveIn').addEventListener('change',render);
+document.getElementById('moveIn').min=L.availableFrom;
+
+const DEC=[['First month','The only rent to move in — you’d pay it anywhere. Mid-month, you pay only the days you live.',''],
+['The deposit','Security, not a cost: protected, returned at the end of your stay net of any damage.','refundable'],
+['Agency fee','€0 on this home. When there is one, it’s once and stated up front — never a surprise.','€0'],
+['Monthly bills','Condominio and utilities: the real monthly picture, in the clear before you sign.',''],
+['No envelopes','Every euro through Stripe, with a receipt. No cash, no invented “check-in fees”.','']];
+document.getElementById('dinner').innerHTML=DEC.map(([h,p,a])=>`<div class="dcard"><h4>${h}${a?` · <span class="amt">${a}</span>`:''}</h4><p>${p}</p></div>`).join('');
+function toggleDecode(){const d=document.getElementById('decoded');const o=d.classList.toggle('open');document.getElementById('dtog').textContent=o?'− Hide the detail':'＋ See every euro, decoded';}
+
+const FAQ=[['Can I move in on a different date than availability?','Yes. Set your date above: after availability you move in straight away; before it, we show the exact gap and can alert you or find an alternative for your date.'],
+['How fast can I really move in?','As fast as 48 hours from approval. We reply to every application within 2 hours and handle the contract and keys for you.'],
+['Is the contract legitimate?','Always: registered legal contract, ID-verified owner, protected deposit.'],
+['What do I actually pay to move in?','Only what you see in “Your stay”: first month + refundable deposit + any agency fee. Nothing else.']];
+document.getElementById('faq').innerHTML=FAQ.map(([q,a])=>`<div class="qa"><button class="q" onclick="this.parentNode.classList.toggle('open')"><span>${q}</span><span class="x">+</span></button><div class="a"><div>${a}</div></div></div>`).join('');
+
+function openAi(){document.getElementById('aiOv').classList.add('show')}
+function open3d(){document.getElementById('d3Ov').classList.add('show')}
+function closeOv(i){document.getElementById(i).classList.remove('show')}
+document.querySelectorAll('.ov').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('show')}));
+const AI={'💰 Total to move in?':'For your chosen dates, the total is first month + refundable deposit + agency fee (€0 here). You see it live in “Your stay”.',
+'🛡️ How does the deposit work?':'It’s security, not a cost: held safely and returned at the end of your stay, net of any damage.',
+'📍 What\'s the area like?':'Trastevere: cobbled, pedestrian, lively at night, walking distance to Sapienza and the centre. Tap “Explore the block in 3D” for the walk rings.',
+'⚡ How fast can I move in?':'As fast as 48 hours from approval. Set your date above and we tell you instantly if it’s free for that day.'};
+function aiAsk(b){const q=b.textContent;const t=document.getElementById('aiThread');
+  t.insertAdjacentHTML('beforeend',`<div class="aimsg" style="border-color:var(--border-gold)"><b>You:</b> ${q}</div><div class="aimsg">${AI[q]||'Demo — in production, a real answer from the AI that knows this home.'}</div>`);
+  t.lastElementChild.scrollIntoView({behavior:'smooth',block:'nearest'});}
+function apply(){const s=computeStay();const when=s.fit==='none'?'the first open date':fmtD(s.start);
+  alert('Prototype demo — in production this opens the application PRE-FILLED with:\n\n• Move-in: '+when+'\n• Length: '+(DUR?DUR+' months':'flexible')+'\n• Total to move in: '+eur(s.total)+'\n\nand the dates flow into the lead (desiredMoveIn / duration) for matching + qualification.');}
+
+/* nav scroll + ham */
+addEventListener('scroll',()=>{document.getElementById('nav').classList.toggle('scrolled',scrollY>20);
+  const h=document.body.scrollHeight-innerHeight;document.getElementById('prog').style.width=(scrollY/h*100)+'%';},{passive:true});
+document.getElementById('ham').addEventListener('click',function(){this.classList.toggle('active');document.getElementById('mm').classList.toggle('active');});
+document.getElementById('mm').addEventListener('click',e=>{if(e.target.tagName==='A'){document.getElementById('mm').classList.remove('active');document.getElementById('ham').classList.remove('active');}});
+
+/* reveals + count-up */
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}}),{threshold:.12});
+document.querySelectorAll('.reveal,.t48 .s').forEach(el=>io.observe(el));
+render();
+</script>
+</body>
+</html>
