@@ -2320,7 +2320,8 @@
                     const srcs=Object.keys(map.getStyle().sources||{});
                     const src=srcs.find(function(s){return /openmaptiles|vector|planet/i.test(s)})||srcs[0];
                     if(src){
-                        map.addLayer({id:'boom-3d',type:'fill-extrusion',source:src,'source-layer':'building',minzoom:13,paint:{'fill-extrusion-color':'#26262E','fill-extrusion-height':['coalesce',['get','render_height'],14],'fill-extrusion-base':['coalesce',['get','render_min_height'],0],'fill-extrusion-opacity':.94}});
+                        // Height-graded skyline: short blocks sink dark, tall ones rise into a warm stone tone → real depth instead of flat grey.
+                        map.addLayer({id:'boom-3d',type:'fill-extrusion',source:src,'source-layer':'building',minzoom:13,paint:{'fill-extrusion-color':['interpolate',['linear'],['coalesce',['get','render_height'],10],0,'#191920',14,'#24242C',32,'#30303A',60,'#3C3A40',110,'#46413E'],'fill-extrusion-height':['coalesce',['get','render_height'],14],'fill-extrusion-base':['coalesce',['get','render_min_height'],0],'fill-extrusion-opacity':1,'fill-extrusion-vertical-gradient':true}});
                         // Points of interest, coloured by category — straight from the tile data (keyless)
                         var POI=['match',['get','class'],
                             'railway','#00CED1','subway','#00CED1','bus','#00CED1','bus_stop','#00CED1','station','#00CED1',
@@ -2343,8 +2344,11 @@
                             var ringLbls={type:'FeatureCollection',features:ringFC.features.map(function(f){var ring=f.geometry.coordinates[0];return {type:'Feature',properties:{m:'~'+f.properties.m+' walk'},geometry:{type:'Point',coordinates:ring[Math.floor(ring.length*0.12)]}};})};
                             map.addSource('boom-rings-lbl',{type:'geojson',data:ringLbls});
                             map.addLayer({id:'boom-rings-lbl-l',type:'symbol',source:'boom-rings-lbl',layout:{'text-field':['get','m'],'text-font':boomFont,'text-size':10,'text-allow-overlap':false},paint:{'text-color':'#FFD700','text-opacity':0.62,'text-halo-color':'#0B0B0E','text-halo-width':1.4}});
-                            map.addSource('boom-flat',{type:'geojson',data:bcircle(lng,lat,9,30)});
-                            map.addLayer({id:'boom-flat-beam',type:'fill-extrusion',source:'boom-flat',paint:{'fill-extrusion-color':'#FFD700','fill-extrusion-height':95,'fill-extrusion-base':0,'fill-extrusion-opacity':0.5}});
+                            // Ground spotlight pooled around the exact building, then a slim gold beam rising from it — reads as "right here", elegantly.
+                            map.addSource('boom-flat-glow',{type:'geojson',data:bcircle(lng,lat,38,48)});
+                            map.addLayer({id:'boom-flat-glow-l',type:'fill',source:'boom-flat-glow',paint:{'fill-color':'#FFD700','fill-opacity':0.13}});
+                            map.addSource('boom-flat',{type:'geojson',data:bcircle(lng,lat,8,30)});
+                            map.addLayer({id:'boom-flat-beam',type:'fill-extrusion',source:'boom-flat',paint:{'fill-extrusion-color':'#FFE55C','fill-extrusion-height':82,'fill-extrusion-base':0,'fill-extrusion-opacity':0.42}});
                         }catch(e){console.warn('BOOM 3D: rings/beam failed',e&&e.message);}
                     }
                 }catch(e){}
