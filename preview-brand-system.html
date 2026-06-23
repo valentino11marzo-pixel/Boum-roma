@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#060607">
+<meta name="color-scheme" content="dark">
+<title>BOOM · Brand Background System — Sampietrino</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --gold:#FFD700;--gold-light:#FFE55C;--gold-muted:rgba(255,215,0,.15);
+    --void:#060607;--surface:#0B0B0C;--surface-card:#0E0E10;
+    --text:#FAFAFA;--text-2:rgba(250,250,250,.72);--text-3:rgba(250,250,250,.44);
+    --line:rgba(255,255,255,.08);--line-gold:rgba(255,215,0,.12);
+    --sans:'Inter',-apple-system,sans-serif;--disp:'Helvetica Neue',Helvetica,Arial,sans-serif;
+    --ease:cubic-bezier(.16,1,.3,1);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--sans);background:var(--void);color:var(--text);font-weight:300;line-height:1.6;min-height:100vh;overflow-x:hidden}
+  h1,h2,h3{font-family:var(--disp);font-weight:300;letter-spacing:-.5px;line-height:1.1}.g{color:var(--gold)}
+
+  /* ── background system layers (all fixed, static, GPU-cheap) ── */
+  #l-base{position:fixed;inset:0;z-index:-4;background:
+    radial-gradient(1000px 560px at 80% -10%, rgba(255,215,0,.07), transparent 60%),
+    radial-gradient(760px 520px at 6% 104%, rgba(255,215,0,.04), transparent 60%),
+    var(--void);}
+  #l-pave{position:fixed;inset:0;z-index:-3;width:100%;height:100%;pointer-events:none;opacity:.5;transition:opacity .4s var(--ease)}
+  #l-grain{position:fixed;inset:0;z-index:-2;width:100%;height:100%;pointer-events:none;opacity:.5}
+  #l-vign{position:fixed;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(125% 95% at 50% 28%, transparent 52%, rgba(0,0,0,.6) 100%)}
+
+  nav{display:flex;align-items:center;justify-content:space-between;padding:20px 32px;max-width:1240px;margin:0 auto}
+  .logo{font-family:var(--disp);font-size:24px;letter-spacing:5px;font-weight:300}.logo b{color:var(--gold)}
+  .tag{font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--text-3)}
+  .wrap{max-width:1240px;margin:0 auto;padding:36px 32px 170px}
+  .eyebrow{font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--gold);font-weight:500}
+  .hero h1{font-size:clamp(34px,6vw,68px);font-weight:200;letter-spacing:-1.5px;margin-top:16px;max-width:14ch}
+  .hero p{color:var(--text-2);font-size:17px;margin-top:18px;max-width:52ch}
+  .hero .cta{margin-top:28px;display:flex;gap:10px;flex-wrap:wrap}
+  .btn-gold{background:linear-gradient(180deg,var(--gold-light),var(--gold));color:#1a1407;font-weight:600;border-radius:100px;padding:14px 26px;font-size:14px;box-shadow:0 10px 40px rgba(255,215,0,.16)}
+  .btn-ghost{border:1px solid var(--line);border-radius:100px;padding:14px 24px;font-size:14px;color:var(--text);background:rgba(14,14,16,.5);backdrop-filter:blur(6px)}
+  .showcase{margin-top:60px;display:grid;gap:20px;grid-template-columns:1fr}@media(min-width:760px){.showcase{grid-template-columns:1.1fr .9fr}}
+  .panel{border:1px solid var(--line-gold);border-radius:22px;padding:26px;background:linear-gradient(180deg,rgba(18,18,20,.66),rgba(11,11,12,.66));backdrop-filter:blur(12px);box-shadow:0 4px 32px rgba(0,0,0,.4)}
+  .panel h3{font-size:20px;font-weight:300;margin-bottom:6px}.panel .sub{color:var(--text-3);font-size:13px;margin-bottom:18px}
+  .panel p{color:var(--text-2);font-size:14px}.panel p+p{margin-top:12px}
+  .pcard{border:1px solid var(--line);border-radius:18px;overflow:hidden;background:rgba(14,14,16,.5);backdrop-filter:blur(8px)}
+  .pcard .ph{aspect-ratio:5/3;background:linear-gradient(135deg,#15151a,#0c0c0e);display:grid;place-items:center;color:var(--gold);font-size:26px;border-bottom:1px solid var(--line)}
+  .pcard .b{padding:18px}.pcard .z{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold)}
+  .pcard .n{font-family:var(--disp);font-size:18px;margin-top:6px}.pcard .m{color:var(--text-3);font-size:12.5px;margin-top:4px}
+  .pcard .pr{color:var(--gold);font-family:var(--disp);font-size:21px;font-weight:200;margin-top:12px}
+
+  .dock{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:30;background:rgba(8,8,10,.82);backdrop-filter:blur(18px);border:1px solid var(--line-gold);border-radius:20px;padding:14px 16px;width:min(94vw,760px);box-shadow:0 12px 48px rgba(0,0,0,.6)}
+  .dock .name{text-align:center;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold);margin-bottom:10px}
+  .row1{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:12px}
+  .swatch{border:1px solid var(--line);border-radius:100px;padding:9px 14px;font-size:12.5px;color:var(--text-2);transition:.2s var(--ease);background:none;cursor:pointer;font-family:inherit}
+  .swatch:hover{border-color:var(--line-gold)}.swatch.on{background:var(--gold);color:#1a1407;font-weight:600;border-color:var(--gold)}
+  .row2{display:flex;gap:16px;align-items:center;justify-content:center;flex-wrap:wrap}
+  .ctrl{display:flex;align-items:center;gap:9px;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--text-3)}
+  .ctrl input[type=range]{width:108px;accent-color:var(--gold)}
+  .toggle{display:inline-flex;align-items:center;gap:8px;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--text-3);cursor:pointer}
+  .toggle input{accent-color:var(--gold)}
+  .proto{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:30;font-size:11px;letter-spacing:.5px;color:var(--text-3);background:rgba(8,8,10,.7);backdrop-filter:blur(10px);border:1px solid var(--line);border-radius:100px;padding:6px 14px}.proto b{color:var(--gold)}
+</style>
+</head>
+<body>
+
+<div id="l-base"></div>
+<svg id="l-pave" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><path id="pavePath" fill="none" stroke="rgba(255,226,170,1)" stroke-width="1" stroke-linecap="round"/></svg>
+<svg id="l-grain" aria-hidden="true">
+  <defs>
+    <filter id="f-grain"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="4" stitchTiles="stitch" result="n"/>
+      <feColorMatrix in="n" type="matrix" values="0 0 0 0 1  0 0 0 0 .86  0 0 0 0 .28  0 0 0 0.55 0"/></filter>
+    <filter id="f-trav"><feTurbulence type="fractalNoise" baseFrequency="0.012 0.028" numOctaves="3" seed="9" stitchTiles="stitch" result="n"/>
+      <feColorMatrix in="n" type="matrix" values="0 0 0 0 .86  0 0 0 0 .70  0 0 0 0 .24  0 0 0 .9 0"/></filter>
+  </defs>
+  <rect id="grainRect" width="100%" height="100%" filter="url(#f-grain)"/>
+</svg>
+<div id="l-vign"></div>
+
+<div class="proto">BRAND BACKGROUND SYSTEM · <b>Sampietrino di Roma</b> · regola e scegli</div>
+<nav><div class="logo">BO<b>O</b>M</div><div class="tag">Atelier · Roma</div></nav>
+
+<div class="wrap">
+  <section class="hero">
+    <span class="eyebrow">Verified apartments · Rome</span>
+    <h1>Find a home in Rome, <span class="g">for your dates.</span></h1>
+    <p>Dark and gold, now laid on Rome’s own pavement — the sampietrino fan, stylised in hairline gold. A texture you feel before you read it: structured, authentic, couture.</p>
+    <div class="cta"><button class="btn-gold">Browse apartments →</button><button class="btn-ghost">How BOOM works</button></div>
+  </section>
+  <section class="showcase">
+    <div class="panel">
+      <h3>The pavement, in context</h3>
+      <div class="sub">Real UI on top — see how it reads behind content, not just empty space.</div>
+      <div class="pcard"><div class="ph">◆</div><div class="b"><div class="z">Trastevere</div><div class="n">Bright Attic with Terrace</div><div class="m">2 beds · 65 m² · video-verified</div><div class="pr">€1,500 <span style="font-size:13px;color:var(--text-3)">/month</span></div></div></div>
+    </div>
+    <div class="panel">
+      <h3>The system</h3>
+      <div class="sub">Three stacked layers — drop-in, static, GPU-cheap.</div>
+      <p><strong style="color:var(--text)">1 · Base</strong> — the void with two soft gold glows (depth without weight).</p>
+      <p><strong style="color:var(--text)">2 · Sampietrino</strong> — generated SVG fan-paving in hairline gold; scales to any screen, no images, no animation.</p>
+      <p><strong style="color:var(--text)">3 · Aureo grain</strong> — the fine film you liked, for stone-like life. Plus a vignette to focus the centre.</p>
+      <p style="color:var(--text-3);font-size:13px">Default keeps it whispered, so it frames the gold and never fights the content — luxury by restraint.</p>
+    </div>
+  </section>
+</div>
+
+<div class="dock">
+  <div class="name" id="patName">Sampietrino · fan paving</div>
+  <div class="row1" id="swatches">
+    <button class="swatch on" data-p="fan">Sampietrino (fan)</button>
+    <button class="swatch" data-p="fantight">Sampietrino (tight)</button>
+    <button class="swatch" data-p="trav">Travertine</button>
+    <button class="swatch" data-p="none">None</button>
+  </div>
+  <div class="row2">
+    <label class="ctrl">Intensity <input type="range" id="opacity" min="0" max="100" value="50"></label>
+    <label class="ctrl">Stone size <input type="range" id="scale" min="34" max="120" value="64"></label>
+    <label class="ctrl">Grain <input type="range" id="grainOp" min="0" max="100" value="50"></label>
+    <label class="toggle"><input type="checkbox" id="travToggle"> Stone grain</label>
+  </div>
+</div>
+
+<script>
+const pave=document.getElementById('l-pave');
+const path=document.getElementById('pavePath');
+const grainRect=document.getElementById('grainRect');
+let MODE='fan', R=64;
+
+/* generate the sampietrino "fan" paving as one SVG path (concentric cobble arcs + radial joints).
+   Fish-scale interlock: rows offset by R; arcs bulge upward; radial ticks delimit the stones. */
+function buildPave(){
+  const W=innerWidth, H=innerHeight;
+  pave.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  const rings = MODE==='fantight'?6:5;
+  const tickStep = MODE==='fantight'?15:22;
+  let d='';
+  const cols=Math.ceil(W/(2*R))+2, rows=Math.ceil(H/R)+2;
+  for(let j=-1;j<rows;j++){
+    const cy=j*R, off=(j&1)?R:0;
+    for(let i=-1;i<cols;i++){
+      const cx=i*2*R+off+R;
+      for(let k=1;k<=rings;k++){ const r=R*k/rings; d+=`M${(cx-r).toFixed(1)},${cy} A${r.toFixed(1)},${r.toFixed(1)} 0 0 0 ${(cx+r).toFixed(1)},${cy} `; }
+      for(let a=tickStep;a<180;a+=tickStep){ const rad=a*Math.PI/180,co=Math.cos(rad),si=Math.sin(rad);
+        const r0=R*0.16, x1=cx+r0*co, y1=cy-r0*si, x2=cx+R*co, y2=cy-R*si;
+        d+=`M${x1.toFixed(1)},${y1.toFixed(1)} L${x2.toFixed(1)},${y2.toFixed(1)} `;
+      }
+    }
+  }
+  path.setAttribute('d',d);
+}
+function apply(){
+  document.getElementById('patName').textContent =
+    MODE==='fan'?'Sampietrino · fan paving':MODE==='fantight'?'Sampietrino · tight fan':MODE==='trav'?'Travertine · Roman stone':'No texture';
+  const op=+document.getElementById('opacity').value/100;
+  if(MODE==='none'){ pave.style.opacity=0; grainRect.setAttribute('filter','url(#f-grain)'); }
+  else if(MODE==='trav'){ pave.style.opacity=0; /* travertine handled as grain layer */ }
+  else { buildPave(); pave.style.opacity=op.toFixed(3); }
+  // grain / stone layer
+  const trav=document.getElementById('travToggle').checked || MODE==='trav';
+  grainRect.setAttribute('filter', trav?'url(#f-trav)':'url(#f-grain)');
+  const g=+document.getElementById('grainOp').value/100;
+  document.getElementById('l-grain').style.opacity = (MODE==='trav'? Math.max(g,.45) : g*(trav?.7:1)).toFixed(3);
+}
+document.getElementById('swatches').addEventListener('click',e=>{const b=e.target.closest('.swatch');if(!b)return;
+  document.querySelectorAll('.swatch').forEach(x=>x.classList.remove('on'));b.classList.add('on');MODE=b.dataset.p;apply();});
+document.getElementById('opacity').addEventListener('input',apply);
+document.getElementById('scale').addEventListener('input',e=>{R=+e.target.value;if(MODE==='fan'||MODE==='fantight'){buildPave();}});
+document.getElementById('grainOp').addEventListener('input',apply);
+document.getElementById('travToggle').addEventListener('change',apply);
+let rt;addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>{if(MODE==='fan'||MODE==='fantight')buildPave();},150);},{passive:true});
+buildPave();apply();
+</script>
+</body>
+</html>
