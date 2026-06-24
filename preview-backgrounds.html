@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#060607">
+<meta name="color-scheme" content="dark">
+<title>BOOM · Background Atelier — high-craft concepts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://images.unsplash.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --gold:#FFD700;--gold-light:#FFE55C;--gold-dark:#E5C200;--gold-muted:rgba(255,215,0,.14);
+  --void:#060607;--card:#0E0E10;--elev:#141416;
+  --t1:#FAFAFA;--t2:rgba(250,250,250,.72);--t3:rgba(250,250,250,.46);
+  --line:rgba(255,255,255,.08);--line-gold:rgba(255,215,0,.16);
+  --sans:'Inter',-apple-system,sans-serif;--disp:'Helvetica Neue',Helvetica,Arial,sans-serif;
+  --ease:cubic-bezier(.16,1,.3,1);
+  --i:1;   /* intensity */
+  --g:1;   /* grain on/off */
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--sans);background:var(--void);color:var(--t1);font-weight:300;line-height:1.6;min-height:100vh;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+h1,h2,h3{font-family:var(--disp);font-weight:300;letter-spacing:-.5px;line-height:1.1}.g{color:var(--gold)}
+img{display:block;max-width:100%}button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+
+/* ============ BACKGROUND ENGINE ============ */
+#bg{position:fixed;inset:0;z-index:-1;overflow:hidden;background:var(--void)}
+.layer{position:absolute;inset:0;opacity:0;transition:opacity .8s var(--ease);pointer-events:none;will-change:opacity}
+.layer svg,.layer img{width:100%;height:100%}
+
+/* 1 · AUREO HAZE — pure atmosphere: soft drifting gold light, like dust in a sunbeam */
+.l-haze{background:
+  radial-gradient(60vmax 46vmax at 78% -8%, rgba(255,213,90,.10), transparent 60%),
+  radial-gradient(52vmax 44vmax at 8% 108%, rgba(255,180,60,.06), transparent 62%),
+  radial-gradient(80vmax 60vmax at 50% 50%, rgba(255,225,150,.025), transparent 70%);}
+.l-haze::after{content:"";position:absolute;inset:-10%;background:radial-gradient(40vmax 30vmax at 30% 24%,rgba(255,215,0,.05),transparent 60%);filter:blur(10px)}
+body[data-bg="haze"] .l-haze{opacity:calc(1*var(--i))}
+
+/* 2 · TRAVERTINO — Rome's own stone: organic marble mottle + faint gold veining (non-repeating) */
+body[data-bg="travertine"] .l-trav{opacity:calc(.9*var(--i))}
+.l-trav .stone{position:absolute;inset:0;mix-blend-mode:screen}
+.l-trav .veins{position:absolute;inset:0;mix-blend-mode:screen}
+
+/* 3 · CONTOUR — the seven hills as architect's iso-lines, hairline gold, organic flow */
+body[data-bg="contour"] .l-contour{opacity:calc(1*var(--i))}
+
+/* 4 · PANTHEON — the oculus beam: a single shaft of gold light + a pool where it lands */
+body[data-bg="beam"] .l-beam{opacity:calc(1*var(--i))}
+.l-beam .shaft{position:absolute;top:-24%;left:34%;width:34%;height:150%;transform:rotate(16deg);
+  background:linear-gradient(100deg,transparent 8%,rgba(255,215,0,.07) 38%,rgba(255,228,150,.15) 50%,rgba(255,215,0,.05) 62%,transparent 92%);filter:blur(30px)}
+.l-beam .pool{position:absolute;left:40%;bottom:4%;width:44vmax;height:26vmax;transform:translateX(-50%);
+  background:radial-gradient(closest-side,rgba(255,215,0,.16),rgba(255,200,80,.05) 55%,transparent 72%);filter:blur(18px)}
+.l-beam .mote{position:absolute;border-radius:50%;background:rgba(255,228,160,.5);filter:blur(1px)}
+
+/* 5 · GUILLOCHÉ — a luxury seal: one large engraved rosette, bleeding off-corner, faint */
+body[data-bg="guilloche"] .l-guil{opacity:calc(1*var(--i))}
+
+/* shared finish */
+.l-grain{opacity:calc(.32*var(--g));mix-blend-mode:overlay}
+.l-vign{opacity:1;background:radial-gradient(130% 100% at 50% 32%,transparent 50%,rgba(0,0,0,.62) 100%)}
+
+/* ============ STUDIO CHROME ============ */
+.atelier{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:60;width:min(96vw,860px);
+  background:rgba(8,8,10,.84);backdrop-filter:blur(20px);border:1px solid var(--line-gold);border-radius:20px;
+  padding:13px 15px;box-shadow:0 14px 50px rgba(0,0,0,.6)}
+.atelier .row{display:flex;gap:7px;flex-wrap:wrap;justify-content:center}
+.chip{border:1px solid var(--line);border-radius:100px;padding:9px 15px;font-size:12.5px;color:var(--t2);transition:.22s var(--ease);background:none}
+.chip:hover{border-color:var(--line-gold);color:var(--t1)}
+.chip.on{background:var(--gold);color:#1a1407;font-weight:600;border-color:var(--gold)}
+.meta{margin-top:11px;text-align:center}
+.meta .nm{font-family:var(--disp);font-size:15px;letter-spacing:.3px}
+.meta .ds{font-size:12px;color:var(--t3);margin-top:3px;max-width:60ch;margin-left:auto;margin-right:auto}
+.ctrls{display:flex;gap:18px;align-items:center;justify-content:center;flex-wrap:wrap;margin-top:12px;padding-top:11px;border-top:1px solid var(--line)}
+.ctrl{display:flex;align-items:center;gap:9px;font-size:10.5px;letter-spacing:1px;text-transform:uppercase;color:var(--t3)}
+.ctrl input[type=range]{width:120px;accent-color:var(--gold)}
+.tog{display:inline-flex;gap:7px;align-items:center;font-size:10.5px;letter-spacing:1px;text-transform:uppercase;color:var(--t3);cursor:pointer}.tog input{accent-color:var(--gold)}
+
+/* ============ SAMPLE UI (judge in context) ============ */
+.stage{max-width:1080px;margin:0 auto;padding:188px 22px 90px}
+nav.demo{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;padding:20px 30px;max-width:1340px;margin:0 auto}
+.logo{font-family:var(--disp);font-size:22px;letter-spacing:5px}.logo b{color:var(--gold)}
+.tag{font-size:10.5px;letter-spacing:3px;text-transform:uppercase;color:var(--t3)}
+.hero{max-width:760px}
+.eyebrow{font-size:10.5px;letter-spacing:2.8px;text-transform:uppercase;color:var(--gold);font-weight:500}
+.hero h1{font-size:clamp(34px,6.4vw,68px);font-weight:200;letter-spacing:-1.6px;margin-top:16px}
+.hero p{color:var(--t2);font-size:17px;margin-top:18px;max-width:52ch}
+.cta{margin-top:26px;display:flex;gap:10px;flex-wrap:wrap}
+.bg-gold{background:linear-gradient(180deg,var(--gold-light),var(--gold));color:#1a1407;font-weight:600;border-radius:100px;padding:14px 26px;font-size:14px;box-shadow:0 10px 40px rgba(255,215,0,.16)}
+.bg-ghost{border:1px solid var(--line);border-radius:100px;padding:14px 24px;font-size:14px;background:rgba(14,14,16,.55);backdrop-filter:blur(8px)}
+.cards{margin-top:64px;display:grid;gap:18px;grid-template-columns:1fr}
+@media(min-width:680px){.cards{grid-template-columns:repeat(3,1fr)}}
+.pc{border:1px solid var(--line);border-radius:18px;overflow:hidden;background:linear-gradient(180deg,rgba(18,18,20,.62),rgba(11,11,12,.62));backdrop-filter:blur(10px);transition:.3s var(--ease)}
+.pc:hover{border-color:var(--line-gold);transform:translateY(-4px)}
+.pc .ph{aspect-ratio:5/3;overflow:hidden;background:#15151a}.pc .ph img{width:100%;height:100%;object-fit:cover;transition:transform .9s var(--ease)}.pc:hover .ph img{transform:scale(1.05)}
+.pc .b{padding:17px}.pc .z{font-size:10px;letter-spacing:1.4px;text-transform:uppercase;color:var(--gold)}
+.pc .n{font-family:var(--disp);font-size:17px;margin-top:6px}.pc .m{color:var(--t3);font-size:12px;margin-top:4px}
+.pc .pr{margin-top:12px;font-family:var(--disp);font-size:20px;font-weight:200;color:var(--gold)}.pc .pr small{font-size:12px;color:var(--t3)}
+.glasspanel{margin-top:34px;border:1px solid var(--line-gold);border-radius:20px;padding:26px;background:linear-gradient(180deg,rgba(18,18,20,.5),rgba(11,11,12,.5));backdrop-filter:blur(12px)}
+.glasspanel h3{font-size:19px;font-weight:300}.glasspanel p{color:var(--t2);font-size:14px;margin-top:8px}
+</style>
+</head>
+<body data-bg="haze">
+
+<!-- ===== BACKGROUND LAYERS ===== -->
+<div id="bg">
+  <div class="layer l-haze"></div>
+  <div class="layer l-trav">
+    <svg class="stone" preserveAspectRatio="xMidYMid slice"><rect width="100%" height="100%" filter="url(#fTravStone)"/></svg>
+    <svg class="veins" preserveAspectRatio="xMidYMid slice"><rect width="100%" height="100%" filter="url(#fTravVein)"/></svg>
+  </div>
+  <div class="layer l-contour"><svg id="svContour" preserveAspectRatio="xMidYMid slice" aria-hidden="true"></svg></div>
+  <div class="layer l-beam">
+    <div class="shaft"></div><div class="pool"></div>
+    <div class="mote" style="left:42%;top:30%;width:4px;height:4px"></div>
+    <div class="mote" style="left:48%;top:46%;width:3px;height:3px;opacity:.7"></div>
+    <div class="mote" style="left:38%;top:55%;width:5px;height:5px;opacity:.5"></div>
+    <div class="mote" style="left:52%;top:62%;width:3px;height:3px;opacity:.6"></div>
+    <div class="mote" style="left:45%;top:72%;width:4px;height:4px;opacity:.4"></div>
+  </div>
+  <div class="layer l-guil"><svg id="svGuil" preserveAspectRatio="xMidYMid slice" aria-hidden="true"></svg></div>
+
+  <!-- shared filters + finish -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+    <filter id="fTravStone"><feTurbulence type="fractalNoise" baseFrequency="0.011 0.016" numOctaves="4" seed="11" stitchTiles="stitch" result="n"/>
+      <feColorMatrix in="n" type="matrix" values="0 0 0 0 .15  0 0 0 0 .13  0 0 0 0 .10  .34 .30 .22 0 0"/></filter>
+    <filter id="fTravVein"><feTurbulence type="turbulence" baseFrequency="0.006 0.011" numOctaves="3" seed="6" stitchTiles="stitch" result="t"/>
+      <feColorMatrix in="t" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  1 0 0 0 0" result="a"/>
+      <feComponentTransfer in="a" result="aa"><feFuncA type="table" tableValues="0 0 0 .12 .5 0 0"/></feComponentTransfer>
+      <feFlood flood-color="#D9B976" result="col"/>
+      <feComposite in="col" in2="aa" operator="in"/></filter>
+  </defs></svg>
+  <svg class="layer l-grain" style="opacity:calc(.32*var(--g))" preserveAspectRatio="none" aria-hidden="true"><defs>
+    <filter id="fGrain"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="4" stitchTiles="stitch" result="n"/>
+      <feColorMatrix in="n" type="matrix" values="0 0 0 0 1  0 0 0 0 .86  0 0 0 0 .3  0 0 0 .55 0"/></filter>
+    <rect width="100%" height="100%" filter="url(#fGrain)"/></svg>
+  <div class="layer l-vign" style="opacity:1"></div>
+</div>
+
+<!-- ===== STUDIO BAR ===== -->
+<div class="atelier">
+  <div class="row" id="chips">
+    <button class="chip on" data-bg="haze">Aureo Haze</button>
+    <button class="chip" data-bg="travertine">Travertino</button>
+    <button class="chip" data-bg="contour">Contour</button>
+    <button class="chip" data-bg="beam">Pantheon</button>
+    <button class="chip" data-bg="guilloche">Guilloché</button>
+  </div>
+  <div class="meta"><div class="nm" id="bgName">Aureo Haze</div><div class="ds" id="bgDesc">Pura atmosfera: luce d'oro morbida e non ripetuta, come polvere in un raggio di sole. Il più discreto — lascia respirare il contenuto.</div></div>
+  <div class="ctrls">
+    <label class="ctrl">Intensity <input type="range" id="rngI" min="30" max="140" value="100"></label>
+    <label class="tog"><input type="checkbox" id="togG" checked> Grain</label>
+  </div>
+</div>
+
+<!-- ===== SAMPLE UI ===== -->
+<nav class="demo"><div class="logo">BO<b>O</b>M</div><div class="tag">Atelier · Roma</div></nav>
+<div class="stage">
+  <section class="hero">
+    <span class="eyebrow">Verified apartments · Rome</span>
+    <h1>A home in Rome, <span class="g">for your dates.</span></h1>
+    <p>Giudica lo sfondo dietro a contenuto reale — titoli, testo, vetro, immagini. Deve dare profondità e non disturbare mai la lettura.</p>
+    <div class="cta"><button class="bg-gold">Browse apartments →</button><button class="bg-ghost">How BOOM works</button></div>
+  </section>
+
+  <div class="cards">
+    <div class="pc"><div class="ph"><img src="https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=700&q=72" alt="" loading="lazy" onerror="this.style.opacity=0"></div><div class="b"><div class="z">Trastevere</div><div class="n">Bright Attic with Terrace</div><div class="m">2 bed · 65 m² · video-verified</div><div class="pr">€1,500 <small>/month</small></div></div></div>
+    <div class="pc"><div class="ph"><img src="https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=700&q=72" alt="" loading="lazy" onerror="this.style.opacity=0"></div><div class="b"><div class="z">Monti</div><div class="n">Designer One-Bed</div><div class="m">1 bed · 52 m² · furnished</div><div class="pr">€1,350 <small>/month</small></div></div></div>
+    <div class="pc"><div class="ph"><img src="https://images.unsplash.com/photo-1493809842364-78817add7ffb?auto=format&fit=crop&w=700&q=72" alt="" loading="lazy" onerror="this.style.opacity=0"></div><div class="b"><div class="z">Prati</div><div class="n">Elegant Family Flat</div><div class="m">3 bed · 95 m² · elevator</div><div class="pr">€2,200 <small>/month</small></div></div></div>
+  </div>
+
+  <div class="glasspanel">
+    <h3>Vetro su sfondo</h3>
+    <p>I pannelli glass (blur + bordo oro) sono ovunque nel sito. Qui controlli che lo sfondo crei profondità sotto al vetro senza diventare rumore.</p>
+  </div>
+</div>
+
+<script>
+const DESC={
+  haze:["Aureo Haze","Pura atmosfera: luce d'oro morbida e non ripetuta, come polvere in un raggio di sole. Il più discreto — lascia respirare il contenuto."],
+  travertine:["Travertino","La pietra di Roma (Colosseo, fontane): venatura marmorea organica generata, mai uguale a sé stessa. Tattile, materico, di lusso silenzioso."],
+  contour:["Contour","I sette colli come linee di livello d'architetto: filamenti d'oro sottilissimi che scorrono. Astratto, tecnico, raffinato — niente che si ripeta."],
+  beam:["Pantheon","Il raggio dell'oculus: un fascio di luce dorata e la pozza dove cade, con polvere sospesa. Iconico, cinematografico, inconfondibilmente romano."],
+  guilloche:["Guilloché","Un unico grande sigillo inciso che sborda da un angolo — come la guilloche di un quadrante o di una banconota. Prezioso, intricato, ma singolo: zero tiling."]
+};
+const NS='http://www.w3.org/2000/svg';
+
+/* ---- CONTOUR: organic flowing iso-lines ---- */
+function buildContour(){
+  const sv=document.getElementById('svContour'),W=innerWidth,H=innerHeight;
+  sv.setAttribute('viewBox','0 0 '+W+' '+H);
+  let defs='<defs><linearGradient id="cg" x1="0" y1="0" x2="1" y2="0">'
+    +'<stop offset="0" stop-color="rgba(255,215,0,0)"/><stop offset="0.5" stop-color="rgba(255,221,120,0.9)"/><stop offset="1" stop-color="rgba(255,215,0,0)"/></linearGradient></defs>';
+  const lines=20,step=14;let out='';
+  for(let li=0;li<lines;li++){
+    const baseY=(li+0.5)/lines*H;
+    const a1=16+(li%3)*11,a2=7+(li%4)*4,a3=4;
+    const f1=0.6+(li%5)*0.06,f2=1.35,f3=2.2,ph=li*0.72;
+    let d='M0,'+baseY.toFixed(1);
+    for(let x=step;x<=W;x+=step){
+      const t=x/W*Math.PI*2;
+      const y=baseY+a1*Math.sin(f1*t+ph)+a2*Math.sin(f2*t+ph*1.3)+a3*Math.sin(f3*t+ph*0.6);
+      d+=' L'+x.toFixed(1)+','+y.toFixed(1);
+    }
+    const edge=1-Math.abs(li-(lines-1)/2)/((lines-1)/2);   /* brightest mid-band */
+    const op=(0.10+edge*0.34).toFixed(3);
+    const w=(li%6===0?1.1:0.55);
+    out+='<path d="'+d+'" fill="none" stroke="url(#cg)" stroke-width="'+w+'" opacity="'+op+'"/>';
+  }
+  sv.innerHTML=defs+out;
+}
+
+/* ---- GUILLOCHÉ: layered rose curves + a hypotrochoid, one big faint seal ---- */
+function buildGuil(){
+  const sv=document.getElementById('svGuil'),W=innerWidth,H=innerHeight;
+  sv.setAttribute('viewBox','0 0 '+W+' '+H);
+  const cx=W*0.74,cy=H*0.42,base=Math.min(W,H)*0.62;
+  let out='';
+  /* concentric petalled rings */
+  for(let r=0;r<6;r++){
+    const k=6+r*2,amp=0.10+r*0.018,RR=base*(0.34+0.66*r/6),N=540;let d='';
+    for(let n=0;n<=N;n++){const th=n/N*Math.PI*2,rad=RR*(1+amp*Math.cos(k*th));
+      const x=cx+rad*Math.cos(th),y=cy+rad*Math.sin(th);d+=(n?'L':'M')+x.toFixed(1)+','+y.toFixed(1);}
+    out+='<path d="'+d+'" fill="none" stroke="rgba(255,215,0,1)" stroke-width="0.5" opacity="'+(0.15-r*0.012).toFixed(3)+'"/>';
+  }
+  /* fine engraved hypotrochoid for the woven look */
+  const Rr=base*0.86,rr=base*0.86*7/12,dd=base*0.30,turns=12,N=turns*240;let h='';
+  for(let n=0;n<=N;n++){const th=n/240*Math.PI*2;
+    const x=cx+(Rr-rr)*Math.cos(th)+dd*Math.cos((Rr-rr)/rr*th);
+    const y=cy+(Rr-rr)*Math.sin(th)-dd*Math.sin((Rr-rr)/rr*th);
+    h+=(n?'L':'M')+x.toFixed(1)+','+y.toFixed(1);}
+  out+='<path d="'+h+'" fill="none" stroke="rgba(255,221,130,1)" stroke-width="0.4" opacity="0.10"/>';
+  sv.innerHTML=out;
+}
+
+function setBg(key){
+  document.body.dataset.bg=key;
+  document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('on',c.dataset.bg===key));
+  document.getElementById('bgName').textContent=DESC[key][0];
+  document.getElementById('bgDesc').textContent=DESC[key][1];
+}
+document.getElementById('chips').addEventListener('click',e=>{const b=e.target.closest('.chip');if(b)setBg(b.dataset.bg);});
+document.getElementById('rngI').addEventListener('input',e=>document.documentElement.style.setProperty('--i',(e.target.value/100).toFixed(2)));
+document.getElementById('togG').addEventListener('change',e=>document.documentElement.style.setProperty('--g',e.target.checked?'1':'0'));
+let rt;addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>{buildContour();buildGuil();},160);},{passive:true});
+buildContour();buildGuil();setBg('haze');
+</script>
+</body>
+</html>
