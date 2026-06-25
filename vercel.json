@@ -169,6 +169,12 @@
     },
     "api/geocode-all.js": {
       "maxDuration": 60
+    },
+    "api/magic-sign/submit.js": {
+      "maxDuration": 60
+    },
+    "api/sign/custom/submit.js": {
+      "maxDuration": 60
     }
   },
   "crons": [

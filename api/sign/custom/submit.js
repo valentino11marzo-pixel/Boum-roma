@@ -164,6 +164,49 @@ export default async function handler(req, res) {
     }
 
     await fsPatch(`signRequests/${reqId}`, patch);
+
+    // Post-signature automation for the drop-direct flow. Fire-and-forget, all
+    // caught + time-boxed so it can never block or fail the signer's response.
+    // (The fiscal/procedural obligations engine is NOT run here: a dropped PDF
+    // carries no structured rent/dates/regime — that runs only for contracts
+    // created in the portal. Here we notify the operator and deliver the copy.)
+    if (complete) {
+      try {
+        const { fsCreate } = await import('../../homie/_lib.js');
+        await fsCreate('agentNotifications', {
+          type: 'document.signed',
+          summary: `📄 Documento firmato da tutte le parti · ${doc.title || reqId}`,
+          priority: 'high',
+          ref: { collection: 'signRequests', id: reqId },
+          payload: { reqId, title: doc.title || '', signedPdfUrl: patch.signedPdfUrl || '' },
+          dedupKey: `docsigned-${reqId}`,
+          status: 'pending',
+          actor: 'magic-sign-custom',
+          createdAt: now.toISOString(),
+          attempts: 0,
+        });
+      } catch (e) { console.warn('[custom/submit] notify:', e.message); }
+      try {
+        const { sendEmail } = await import('../../agent/_lib.js');
+        const url = patch.signedPdfUrl || '';
+        const safe = (s) => String(s || '').replace(/[<>&]/g, '');
+        const jobs = required.map((r) => {
+          const sg = freshSigners[r];
+          if (!sg || !sg.email) return null;
+          return sendEmail({
+            to: sg.email,
+            subject: `✓ Documento firmato — ${doc.title || 'BOOM Roma'}`,
+            html: '<div style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#222">'
+              + `<p>Ciao ${safe(sg.name)},</p>`
+              + `<p>Il documento <b>"${safe(doc.title)}"</b> è stato firmato da tutte le parti.</p>`
+              + (url ? `<p><a href="${url}" style="color:#B8860B">⬇ Scarica il PDF firmato</a></p>` : '')
+              + '<p style="color:#888;font-size:12px">Firma Elettronica Semplice (Art. 21 CAD) · BOOM Roma</p></div>',
+          }).catch((e) => console.warn('[custom/submit] email', sg.email, e.message));
+        }).filter(Boolean);
+        await Promise.race([Promise.all(jobs), new Promise((rs) => setTimeout(rs, 12000))]);
+      } catch (e) { console.warn('[custom/submit] emails:', e.message); }
+    }
+
     res.setHeader('Cache-Control','private, no-store');
     return res.status(200).json({ ok:true, complete, signedPdfUrl: patch.signedPdfUrl || '' });
   } catch (e) {
