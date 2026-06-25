@@ -38,7 +38,11 @@ h1,h2,h3,h4{font-family:var(--disp);font-weight:300;letter-spacing:-.4px;line-he
 @media(prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none}html{scroll-behavior:auto}*{transition:none!important;animation:none!important}}
 
 /* ── brand background: sampietrino whisper + aureo grain (static, light) ── */
-#bgPave{position:fixed;inset:0;z-index:-3;width:100%;height:100%;pointer-events:none;opacity:.10}
+#bgArt{position:fixed;inset:0;z-index:-3;width:100%;height:100%;pointer-events:none}
+.bgswitch{position:fixed;left:14px;bottom:calc(86px + var(--safe));z-index:96;display:flex;gap:5px;background:rgba(8,8,10,.86);backdrop-filter:blur(14px);border:1px solid var(--line-gold);border-radius:100px;padding:5px;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+.bgswitch button{border:none;background:none;color:var(--t3);font-size:11px;letter-spacing:.4px;padding:7px 11px;border-radius:100px;font-family:inherit;cursor:pointer;transition:.2s var(--ease)}
+.bgswitch button.on{background:var(--gold);color:#1a1407;font-weight:600}
+@media(min-width:921px){.bgswitch{bottom:16px}}
 #bgGrain{position:fixed;inset:0;z-index:-2;width:100%;height:100%;pointer-events:none;opacity:.3}
 #bgGlow{position:fixed;inset:0;z-index:-4;pointer-events:none;background:radial-gradient(900px 520px at 82% -8%,rgba(255,215,0,.06),transparent 60%),radial-gradient(680px 460px at 4% 102%,rgba(255,215,0,.035),transparent 60%),var(--void)}
 
@@ -236,7 +240,7 @@ footer{margin-top:70px;border-top:1px solid var(--line);padding:48px 16px 30px}
 <body>
 
 <div id="bgGlow"></div>
-<svg id="bgPave" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><path id="pavePath" fill="none" stroke="rgba(255,231,201,1)" stroke-width="0.6" stroke-linecap="round"/></svg>
+<svg id="bgArt" preserveAspectRatio="xMidYMid slice" aria-hidden="true"></svg>
 <svg id="bgGrain" aria-hidden="true"><defs><filter id="grain"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="4" stitchTiles="stitch" result="n"/><feColorMatrix in="n" type="matrix" values="0 0 0 0 1  0 0 0 0 .86  0 0 0 0 .28  0 0 0 .5 0"/></filter></defs><rect width="100%" height="100%" filter="url(#grain)"/></svg>
 
 <nav id="nav"><div class="nav-c">
@@ -380,6 +384,7 @@ footer{margin-top:70px;border-top:1px solid var(--line);padding:48px 16px 30px}
 </footer>
 
 <div class="proto">NEW IDENTITY · <b>mobile-first</b> · sample data</div>
+<div class="bgswitch" id="bgswitch"><button data-m="none">Off</button><button data-m="colli">Colli</button><button data-m="maison">Maison</button><button data-m="anelli">Anelli</button></div>
 
 <div class="rail">
   <div class="prog"><i id="prog"></i></div>
@@ -416,17 +421,33 @@ const fmtD=d=>d.toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'num
 const fmtS=d=>d.toLocaleDateString('en-GB',{day:'numeric',month:'short'});
 const dim=(y,m)=>new Date(y,m+1,0).getDate();
 
-/* ---- sampietrino whisper background (generated, static) ---- */
-const pave=document.getElementById('bgPave'),pavePath=document.getElementById('pavePath');let R=84;
-function buildPave(){const W=innerWidth,H=innerHeight;pave.setAttribute('viewBox','0 0 '+W+' '+H);let d='';
-  const cols=Math.ceil(W/(2*R))+2,rows=Math.ceil(H/R)+2;
-  for(let j=-1;j<rows;j++){const cy=j*R,off=(j&1)?R:0;
-    for(let i=-1;i<cols;i++){const cx=i*2*R+off+R;
-      for(let k=1;k<=5;k++){const r=R*k/5;d+='M'+(cx-r).toFixed(1)+','+cy+' A'+r.toFixed(1)+','+r.toFixed(1)+' 0 0 0 '+(cx+r).toFixed(1)+','+cy+' ';}
-      for(let a=28;a<180;a+=28){const rad=a*Math.PI/180,co=Math.cos(rad),si=Math.sin(rad),r0=R*.16;
-        d+='M'+(cx+r0*co).toFixed(1)+','+(cy-r0*si).toFixed(1)+' L'+(cx+R*co).toFixed(1)+','+(cy-R*si).toFixed(1)+' ';}}}
-  pavePath.setAttribute('d',d);}
-let pt;addEventListener('resize',()=>{clearTimeout(pt);pt=setTimeout(buildPave,160);},{passive:true});buildPave();
+/* ---- background system — evaluate ON the real page (switch, bottom-left) ---- */
+const bgArt=document.getElementById('bgArt');const GOLD='rgba(255,223,140,1)';let BG='colli';
+function _march(W,H,step,levels,F){const cols=Math.ceil(W/step)+1,rows=Math.ceil(H/step)+1,vals=new Float32Array(cols*rows);
+  for(let r=0;r<rows;r++)for(let c=0;c<cols;c++)vals[r*cols+c]=F(c*step,r*step);
+  const out=levels.map(()=>'');
+  for(let r=0;r<rows-1;r++)for(let c=0;c<cols-1;c++){const x0=c*step,y0=r*step,x1=x0+step,y1=y0+step,
+    tl=vals[r*cols+c],tr=vals[r*cols+c+1],br=vals[(r+1)*cols+c+1],bl=vals[(r+1)*cols+c],mn=Math.min(tl,tr,br,bl),mx=Math.max(tl,tr,br,bl);
+    for(let li=0;li<levels.length;li++){const L=levels[li];if(L<mn||L>mx)continue;let idx=0;if(tl>=L)idx|=8;if(tr>=L)idx|=4;if(br>=L)idx|=2;if(bl>=L)idx|=1;if(idx===0||idx===15)continue;
+      const it=(a,b)=>{const d=b-a;return d===0?0.5:(L-a)/d;};
+      const top=[x0+step*it(tl,tr),y0],right=[x1,y0+step*it(tr,br)],bottom=[x0+step*it(bl,br),y1],left=[x0,y0+step*it(tl,bl)];
+      const sg=(p,q)=>{out[li]+='M'+p[0].toFixed(1)+','+p[1].toFixed(1)+'L'+q[0].toFixed(1)+','+q[1].toFixed(1);};
+      switch(idx){case 1:sg(left,bottom);break;case 2:sg(bottom,right);break;case 3:sg(left,right);break;case 4:sg(top,right);break;case 5:sg(top,right);sg(left,bottom);break;case 6:sg(top,bottom);break;case 7:sg(left,top);break;case 8:sg(top,left);break;case 9:sg(top,bottom);break;case 10:sg(top,left);sg(right,bottom);break;case 11:sg(top,right);break;case 12:sg(left,right);break;case 13:sg(right,bottom);break;case 14:sg(bottom,left);break;}}}
+  return out;}
+function _paint(paths){const n=paths.length;let s='';paths.forEach((d,li)=>{if(!d)return;const t=n>1?li/(n-1):0;const op=(0.12+0.26*Math.sin(Math.PI*t)).toFixed(3),w=(li%3===0?1.0:0.5);s+='<path d="'+d+'" fill="none" stroke="'+GOLD+'" stroke-width="'+w+'" opacity="'+op+'"/>';});return s;}
+function _topo(W,H){const m=Math.min(W,H);const P=[[.17,.30,1.0,.16],[.40,.63,.92,.20],[.62,.23,1.06,.15],[.81,.54,.96,.18],[.30,.86,.82,.16],[.71,.87,.86,.17],[.50,.42,.70,.23]].map(p=>({x:p[0]*W,y:p[1]*H,a:p[2],s:p[3]*m}));return (x,y)=>{let v=0;for(const p of P){const dx=x-p.x,dy=y-p.y;v+=p.a*Math.exp(-(dx*dx+dy*dy)/(2*p.s*p.s));}return v+0.05*Math.sin(x/230)*Math.cos(y/270);};}
+function _oo(cx,cy,r,op){const o=r*0.6;return '<circle cx="'+(cx-o).toFixed(1)+'" cy="'+cy.toFixed(1)+'" r="'+r.toFixed(1)+'" fill="none" stroke="'+GOLD+'" stroke-width="1" opacity="'+op+'"/><circle cx="'+(cx+o).toFixed(1)+'" cy="'+cy.toFixed(1)+'" r="'+r.toFixed(1)+'" fill="none" stroke="'+GOLD+'" stroke-width="1" opacity="'+op+'"/>';}
+function buildBg(){const W=innerWidth,H=innerHeight;bgArt.setAttribute('viewBox','0 0 '+W+' '+H);
+  if(BG==='none'){bgArt.innerHTML='';return;}
+  if(BG==='colli'){const n=15,lv=[];for(let i=0;i<n;i++)lv.push(0.10+0.86*i/(n-1));bgArt.innerHTML=_paint(_march(W,H,11,lv,_topo(W,H)));return;}
+  let T=BG==='anelli'?150:116,s='';
+  for(let y=-T;y<H+T;y+=T){const row=Math.round((y+T)/T),off=(row%2)?T/2:0;
+    for(let x=-T;x<W+T;x+=T){const cx=x+off,cy=y;s+=_oo(cx,cy,T*0.15,0.12);
+      if(BG==='maison'){const dx=cx+T/2,dy=cy+T/2,k=T*0.06;s+='<path d="M'+dx+','+(dy-k)+' L'+(dx+k)+','+dy+' L'+dx+','+(dy+k)+' L'+(dx-k)+','+dy+' Z" fill="none" stroke="'+GOLD+'" stroke-width="0.8" opacity="0.07"/>';}}}
+  bgArt.innerHTML=s;}
+function setBg(m){BG=m;document.querySelectorAll('#bgswitch button').forEach(b=>b.classList.toggle('on',b.dataset.m===m));buildBg();}
+document.getElementById('bgswitch').addEventListener('click',e=>{const b=e.target.closest('button');if(b)setBg(b.dataset.m);});
+let pt;addEventListener('resize',()=>{clearTimeout(pt);pt=setTimeout(buildBg,170);},{passive:true});setBg('colli');
 
 /* ---- hero carousel ---- */
 const track=document.getElementById('track'),dots=document.getElementById('dots'),counter=document.getElementById('counter');
