@@ -1775,7 +1775,7 @@
     const FB_CONFIG={apiKey:"AIzaSyDDb8UeSc8RhO_VxQrhLrupu1aPD4rwRso",authDomain:"boom-property-dashboards.firebaseapp.com",projectId:"boom-property-dashboards",storageBucket:"boom-property-dashboards.firebasestorage.app",messagingSenderId:"937269017440",appId:"1:937269017440:web:41c1a0b1e1633c2f373c05"};
     let db=null;
     function getDB(){ if(!db){ try{ if(window.firebase){ if(!firebase.apps.length) firebase.initializeApp(FB_CONFIG); db=firebase.firestore(); } }catch(e){} } return db; }
-    let aptAddress='',galleryImgs=[],lbIndex=0;
+    let aptAddress='',galleryImgs=[],lbIndex=0,galleryAlt='Apartment photo';
     // Right-size imgur photos (l=640px, h=1024px). Originals stay full-size in the lightbox.
     function imgSized(u,s){u=String(u||'');if(!/i\.imgur\.com/.test(u))return u;return u.replace(/(\/[A-Za-z0-9]{7})(\.(?:jpe?g|png|webp))/i,'$1'+s+'$2')}
     // Optimised delivery via Vercel Image (AVIF/WebP, exact width). The markup's
@@ -2198,10 +2198,11 @@
         galleryImgs=[...imgs];
         // Check both videoUrl and youtubeUrl (portal uses youtubeUrl)
         const vUrl=d.videoUrl||d.youtubeUrl,hasV=!!vUrl,vId=hasV?exYT(vUrl):null;
+        const altB=((d.name?String(d.name):'Apartment photo')+(d.zone?' — '+d.zone:'')).replace(/[<>"]/g,'');galleryAlt=altB;
 
         if(!imgs.length&&!hasV){sec.innerHTML='<div class="media-placeholder"><span>📷</span><p>Photos coming soon</p></div>';return}
-        if(imgs.length===1&&!hasV){sec.innerHTML=`<img src="${imgSized(imgs[0],'h')}" alt="Apartment photo" class="single-hero-img" loading="eager" fetchpriority="high" decoding="async" onclick="openLightbox(0)">`;return}
-        if(imgs.length===1&&hasV&&vId){sec.innerHTML=`<img src="${imgSized(imgs[0],'h')}" alt="Apartment photo" class="single-hero-img" loading="eager" fetchpriority="high" decoding="async" onclick="openLightbox(0)"><div class="video-section"><div class="video-section-label">Video Tour</div><div class="video-embed"><iframe src="https://www.youtube.com/embed/${vId}?rel=0" allowfullscreen loading="lazy"></iframe></div></div>`;return}
+        if(imgs.length===1&&!hasV){sec.innerHTML=`<img src="${imgSized(imgs[0],'h')}" alt="${altB}" class="single-hero-img" loading="eager" fetchpriority="high" decoding="async" onclick="openLightbox(0)">`;return}
+        if(imgs.length===1&&hasV&&vId){sec.innerHTML=`<img src="${imgSized(imgs[0],'h')}" alt="${altB}" class="single-hero-img" loading="eager" fetchpriority="high" decoding="async" onclick="openLightbox(0)"><div class="video-section"><div class="video-section-label">Video Tour</div><div class="video-embed"><iframe src="https://www.youtube.com/embed/${vId}?rel=0" allowfullscreen loading="lazy"></iframe></div></div>`;return}
 
         // No photos but a video → embed it; otherwise an asymmetric editorial gallery
         if(!imgs.length){ if(vId) sec.innerHTML=`<div style="border-radius:16px;overflow:hidden;border:1px solid rgba(255,255,255,.06)"><iframe src="https://www.youtube.com/embed/${vId}?rel=0" allowfullscreen loading="lazy" style="width:100%;height:480px;border:0;display:block"></iframe></div>`; return; }
@@ -2209,7 +2210,7 @@
         const cells=shown.map((src,i)=>{
           const more=(i===shown.length-1&&imgs.length>shown.length)?`<div class="gal-more">+${imgs.length-shown.length} photos</div>`:'';
           const vb=(i===0&&vId)?`<span class="gal-video" onclick="event.stopPropagation();window.open('https://www.youtube.com/watch?v=${vId}','_blank')">▶ Play tour</span>`:'';
-          return `<div class="gal-it${i===0?' main':''}" onclick="openLightbox(${i})"><img src="${i===0?imgSized(src,'h'):imgOpt(src,640)}" onerror="this.onerror=null;this.src='${imgSized(src,i===0?'h':'l')}'" alt="Photo ${i+1}" loading="${i===0?'eager':'lazy'}" decoding="async"${i===0?' fetchpriority="high"':''}>${more}${vb}</div>`;
+          return `<div class="gal-it${i===0?' main':''}" onclick="openLightbox(${i})"><img src="${i===0?imgSized(src,'h'):imgOpt(src,640)}" onerror="this.onerror=null;this.src='${imgSized(src,i===0?'h':'l')}'" alt="${altB} — photo ${i+1}" loading="${i===0?'eager':'lazy'}" decoding="async"${i===0?' fetchpriority="high"':''}>${more}${vb}</div>`;
         }).join('');
         sec.innerHTML=`<div class="gal" id="galGrid">${cells}</div>`;
     }
@@ -2225,6 +2226,7 @@
     }
     function paintLightbox(){
       document.getElementById('lbImg').src=galleryImgs[lbIndex];
+      document.getElementById('lbImg').alt=galleryAlt+' — photo '+(lbIndex+1);
       document.getElementById('lbCounter').textContent=`${lbIndex+1} / ${galleryImgs.length}`;
       const multi=galleryImgs.length>1;
       document.getElementById('lbPrev').style.display=multi?'flex':'none';
