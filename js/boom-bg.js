@@ -127,19 +127,24 @@
       tex.innerHTML = c.gen(W,H);
     }
 
-    /* switcher */
-    var sw=document.createElement('div'); sw.className='bb-switch';
-    var html='<span class="bb-lbl">Sfondo</span>';
-    ORDER.forEach(function(k){ var nm = k==='auto' ? 'Auto' : DEF[k].nm; html+='<button data-k="'+k+'">'+nm+'</button>'; });
-    sw.innerHTML=html; document.body.appendChild(sw);
-    function paint(){ sw.querySelectorAll('button').forEach(function(b){ b.classList.toggle('on', b.dataset.k===mode); }); }
-    sw.addEventListener('click', function(e){ var b=e.target.closest('button'); if(!b) return;
-      mode=b.dataset.k;
-      try{ mode==='auto' ? localStorage.removeItem('boomBg') : localStorage.setItem('boomBg', mode); }catch(_){}
-      paint(); build();
-    });
-
-    paint(); build();
+    /* switcher — hidden on the live site by default; reveal with ?bg=1 (or set
+       localStorage boomBgPanel=1). The chosen background still applies without it. */
+    var showSwitch=/[?&]bg=1(?:&|$)/.test(location.search);
+    try{ if(localStorage.getItem('boomBgPanel')==='1') showSwitch=true; }catch(_){}
+    if(showSwitch){
+      var sw=document.createElement('div'); sw.className='bb-switch';
+      var html='<span class="bb-lbl">Sfondo</span>';
+      ORDER.forEach(function(k){ var nm = k==='auto' ? 'Auto' : DEF[k].nm; html+='<button data-k="'+k+'">'+nm+'</button>'; });
+      sw.innerHTML=html; document.body.appendChild(sw);
+      var paint=function(){ sw.querySelectorAll('button').forEach(function(b){ b.classList.toggle('on', b.dataset.k===mode); }); };
+      sw.addEventListener('click', function(e){ var b=e.target.closest('button'); if(!b) return;
+        mode=b.dataset.k;
+        try{ mode==='auto' ? localStorage.removeItem('boomBg') : localStorage.setItem('boomBg', mode); }catch(_){}
+        paint(); build();
+      });
+      paint();
+    }
+    build();
     var rt; addEventListener('resize', function(){ clearTimeout(rt); rt=setTimeout(build,180); }, {passive:true});
   });
 })();

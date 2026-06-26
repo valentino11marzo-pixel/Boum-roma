@@ -410,11 +410,12 @@ footer{margin-top:70px;border-top:1px solid var(--line);padding:48px 16px 30px}
 <div class="lb" id="lb" onclick="if(event.target.id==='lb')this.classList.remove('show')"><button class="xc" onclick="document.getElementById('lb').classList.remove('show')">×</button><img id="lbImg" src="" alt=""></div>
 
 <script>
-const L={name:"Bright Attic in Trastevere",zone:"Trastevere",price:1500,deposit:1500,agencyFee:0,beds:2,baths:1,sqm:65,floor:3,furnished:true,availableFrom:"2026-09-01",
+let L={name:"Bright Attic in Trastevere",zone:"Trastevere",price:1500,deposit:1500,agencyFee:0,beds:2,baths:1,sqm:65,floor:3,furnished:true,availableFrom:"2026-09-01",
   images:[["1502672260266-1c1ef2d93688","Living"],["1505691938895-1758d7feb511","Bedroom"],["1484154218962-a197022b5858","Kitchen"],["1493809842364-78817add7ffb","Terrace"],["1560448204-e02f11c3d0e2","Bathroom"]],
   features:["Furnished","Private terrace","Double aspect","Air conditioning","Washer","Fibre Wi-Fi","Elevator","Eat-in kitchen"],
   nearby:[["🚇","Trastevere station","Trains + tram","8 min"],["🎓","Sapienza University","Main campus","16 min"],["🛒","Conad supermarket","Daily groceries","4 min"],["🏛️","Piazza Navona","Historic centre","19 min"]],
   similar:[["1522708323590-d24dbb6b0267","Trastevere","Cosy 1-bed by the Tiber","1 bed · 48 m²",1250,"96% fit"],["1560185007-cee345f7c8b9","Trastevere","Designer loft, San Cosimato","2 bed · 70 m²",1750,"91% fit"],["1554995207-c18c203602cb","Trastevere","Sunny studio, Viale Glorioso","Studio · 38 m²",980,"88% fit"]]};
+let IMGS=[]; const SAMPLE=L;
 const img=(id,w,q)=>'https://images.unsplash.com/photo-'+id+'?auto=format&fit=crop&w='+w+'&q='+(q||72);
 const eur=n=>'€'+Math.round(n).toLocaleString('en-US');
 const fmtD=d=>d.toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
@@ -452,22 +453,16 @@ let pt;addEventListener('resize',()=>{clearTimeout(pt);pt=setTimeout(buildBg,170
 /* ---- hero carousel ---- */
 const track=document.getElementById('track'),dots=document.getElementById('dots'),counter=document.getElementById('counter');
 let curIdx=0;
-track.innerHTML=L.images.map(([id,t],i)=>`<div class="slide"><img src="${img(id,1200)}" alt="${t}" loading="${i===0?'eager':'lazy'}" onerror="this.style.opacity=0" onclick="openLb(${i})"></div>`).join('');
-dots.innerHTML=L.images.map((_,i)=>`<i class="${i===0?'on':''}"></i>`).join('');
-function setIdx(i){curIdx=Math.max(0,Math.min(L.images.length-1,i));[...dots.children].forEach((d,k)=>d.classList.toggle('on',k===curIdx));counter.textContent=(curIdx+1)+' / '+L.images.length+' · view';}
+/* carousel + dots are painted by paintData() (sample or live data) */
+function setIdx(i){curIdx=Math.max(0,Math.min(IMGS.length-1,i));[...dots.children].forEach((d,k)=>d.classList.toggle('on',k===curIdx));counter.textContent=(curIdx+1)+' / '+IMGS.length+' · view';}
 function slideBy(dir){const w=track.clientWidth;track.scrollTo({left:(curIdx+dir)*w,behavior:'smooth'});setIdx(curIdx+dir);}
 let st;track.addEventListener('scroll',()=>{clearTimeout(st);st=setTimeout(()=>{const i=Math.round(track.scrollLeft/track.clientWidth);if(i!==curIdx)setIdx(i);},80);},{passive:true});
 
 /* ---- lightbox ---- */
-function openLb(i){document.getElementById('lbImg').src=img(L.images[i][0],1600,82);document.getElementById('lb').classList.add('show');}
+function openLb(i){document.getElementById('lbImg').src=(IMGS[i]&&IMGS[i].full)||'';document.getElementById('lb').classList.add('show');}
 
 /* ---- static fills ---- */
-document.getElementById('hAvail').textContent='Available '+fmtS(new Date(L.availableFrom+'T00:00'));
-document.getElementById('priceSub').textContent='Available from '+fmtD(new Date(L.availableFrom+'T00:00'))+' · BOOM-managed';
-document.getElementById('feat').innerHTML=L.features.map(f=>`<span>${f}</span>`).join('');
-document.getElementById('facts').innerHTML=[['🛏️','Bedrooms',L.beds],['🛁','Bathrooms',L.baths],['📐','Size',L.sqm+' m²'],['🏢','Floor',L.floor+(L.floor===1?'st':L.floor===2?'nd':L.floor===3?'rd':'th')],['🪑','Furnished',L.furnished?'Yes':'No']].map(([i,k,v])=>`<div class="fact"><div class="i">${i}</div><div class="k">${k}</div><div class="v">${v}</div></div>`).join('');
-document.getElementById('nearby').innerHTML=L.nearby.map(([ic,n,m,t])=>`<div class="nb"><div class="ico">${ic}</div><div class="tx"><div class="n">${n}</div><div class="m">${m}</div></div><div class="t">${t}</div></div>`).join('');
-document.getElementById('simrow').innerHTML=L.similar.map(([id,z,n,m,p,fit])=>`<a class="sim" href="#"><div class="ph"><img src="${img(id,700)}" alt="" loading="lazy" onerror="this.style.opacity=0"></div><div class="b"><div class="z">${z}</div><div class="n">${n}</div><div class="m">${m}</div><div class="pr"><b>${eur(p)}<span style="font-size:11px;color:var(--t3);font-weight:300">/mo</span></b><span class="fit">${fit}</span></div></div></a>`).join('');
+/* data fills are done in paintData() (sample or live data) */
 
 /* ---- stay & money engine ---- */
 let DUR=12;
@@ -538,7 +533,36 @@ burger.addEventListener('click',()=>{burger.classList.toggle('on');mm.classList.
 mm.addEventListener('click',e=>{if(e.target.tagName==='A'){burger.classList.remove('on');mm.classList.remove('on');document.body.style.overflow='';}});
 const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}}),{threshold:.1});
 document.querySelectorAll('.reveal,.step').forEach(el=>io.observe(el));
-render();
+
+/* ---- paint (sample by default; real listing when ?id= resolves) ---- */
+function paintData(){
+  IMGS=(L.images||[]).map((e,i)=>Array.isArray(e)?{thumb:img(e[0],1200),full:img(e[0],1600,82),alt:e[1]}:{thumb:e,full:e,alt:(L.name+' — photo '+(i+1))});
+  if(!IMGS.length)IMGS=[{thumb:'',full:'',alt:L.name}];
+  track.innerHTML=IMGS.map((im,i)=>`<div class="slide"><img src="${im.thumb}" alt="${im.alt}" loading="${i===0?'eager':'lazy'}" onerror="this.style.opacity=0" onclick="openLb(${i})"></div>`).join('');
+  dots.innerHTML=IMGS.map((_,i)=>`<i class="${i===0?'on':''}"></i>`).join('');
+  curIdx=0;counter.textContent='1 / '+IMGS.length+' · view';
+  document.getElementById('hName').textContent=L.name;
+  document.getElementById('hZone').textContent=L.zone+', Rome';
+  document.getElementById('hPrice').textContent=eur(L.price);
+  const af=L.availableFrom;
+  document.getElementById('hAvail').textContent=af?('Available '+fmtS(new Date(af+'T00:00'))):'Ask availability';
+  document.getElementById('priceSub').textContent=(af?('Available from '+fmtD(new Date(af+'T00:00'))):'Availability on request')+' · BOOM-managed';
+  document.getElementById('price').innerHTML=eur(L.price)+' <small>/month</small>';
+  document.getElementById('feat').innerHTML=(L.features||[]).map(f=>`<span>${f}</span>`).join('');
+  document.getElementById('facts').innerHTML=[['🛏️','Bedrooms',L.beds||'Studio'],['🛁','Bathrooms',L.baths],['📐','Size',L.sqm+' m²'],['🏢','Floor',L.floor],['🪑','Furnished',L.furnished?'Yes':'No']].map(([i,k,v])=>`<div class="fact"><div class="i">${i}</div><div class="k">${k}</div><div class="v">${v}</div></div>`).join('');
+  document.getElementById('nearby').innerHTML=(L.nearby||[]).map(([ic,n,m,t])=>`<div class="nb"><div class="ico">${ic}</div><div class="tx"><div class="n">${n}</div><div class="m">${m}</div></div><div class="t">${t}</div></div>`).join('');
+  document.getElementById('simrow').innerHTML=(L.similar||[]).map(([id,z,n,m,p,fit])=>`<a class="sim" href="#"><div class="ph"><img src="${img(id,700)}" alt="" loading="lazy" onerror="this.style.opacity=0"></div><div class="b"><div class="z">${z}</div><div class="n">${n}</div><div class="m">${m}</div><div class="pr"><b>${eur(p)}<span style="font-size:11px;color:var(--t3);font-weight:300">/mo</span></b><span class="fit">${fit}</span></div></div></a>`).join('');
+  render();
+}
+function mapReal(d){
+  const imgs=(Array.isArray(d.images)&&d.images.length)?d.images:(d.image?[d.image]:[]);
+  const feat=Array.isArray(d.features)?d.features:(Array.isArray(d.amenities)?d.amenities:[]);
+  const rawAf=d.availableFrom||d.availableDate;const af=(typeof rawAf==='string'&&rawAf)?rawAf.slice(0,10):SAMPLE.availableFrom;
+  return {name:d.name||d.title||'Apartment in Rome',zone:d.zone||d.neighborhood||d.address||'Rome',price:+d.price||0,deposit:+d.deposit||+d.price||0,agencyFee:+d.agencyFee||0,beds:(d.beds!=null?d.beds:(d.bedrooms!=null?d.bedrooms:0)),baths:(d.bathrooms!=null?d.bathrooms:(d.baths!=null?d.baths:1)),sqm:d.sqm||d.size||0,floor:d.floor||1,furnished:(d.furnished===true)||/furnish/i.test(feat.join(' ')+' '+(d.description||'')),availableFrom:af,images:imgs.length?imgs:SAMPLE.images,features:feat.length?feat:SAMPLE.features,nearby:SAMPLE.nearby,similar:SAMPLE.similar};
+}
+const PID=new URLSearchParams(location.search).get('id');
+if(PID){fetch('/api/listings?id='+encodeURIComponent(PID),{cache:'no-store'}).then(r=>r.ok?r.json():null).then(j=>{if(j&&j.ok&&j.listing){L=mapReal(j.listing);const pc=document.querySelector('.proto');if(pc)pc.innerHTML='NEW IDENTITY · <b>live data</b>';}}).catch(()=>{}).finally(paintData);}
+else paintData();
 </script>
 </body>
 </html>
