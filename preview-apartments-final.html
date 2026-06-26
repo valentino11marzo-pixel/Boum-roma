@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#060607">
+<meta name="color-scheme" content="dark">
+<title>BOOM · Apartments — definitive discovery (preview)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://images.unsplash.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --gold:#FFD700;--gold-light:#FFE55C;--gold-dark:#E5C200;--gold-muted:rgba(255,215,0,.14);--gold-faint:rgba(255,215,0,.05);
+  --green:#28E08A;--green-muted:rgba(40,224,138,.13);
+  --void:#060607;--surface:#0B0B0C;--elev:#121214;--card:#0E0E10;--input:#17171A;
+  --t1:#FAFAFA;--t2:rgba(250,250,250,.72);--t3:rgba(250,250,250,.46);--t4:rgba(250,250,250,.26);
+  --line:rgba(255,255,255,.08);--line-soft:rgba(255,255,255,.045);--line-gold:rgba(255,215,0,.16);
+  --sans:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;--disp:'Helvetica Neue',Helvetica,Arial,sans-serif;
+  --ease:cubic-bezier(.16,1,.3,1);--sh:0 4px 28px rgba(0,0,0,.5);--sh-gold:0 12px 40px rgba(255,215,0,.16);
+  --maxw:1240px;--nav:60px;--safe:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;scroll-behavior:smooth}
+body{font-family:var(--sans);background:var(--void);color:var(--t1);font-weight:300;line-height:1.6;overflow-x:hidden;padding-bottom:calc(64px + var(--safe))}
+@media(min-width:781px){body{padding-bottom:0}}
+img{display:block;max-width:100%}a{color:inherit;text-decoration:none}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px;border-radius:4px}
+h1,h2,h3{font-family:var(--disp);font-weight:300;letter-spacing:-.4px;line-height:1.1}.g{color:var(--gold)}
+.eyebrow{font-size:10.5px;letter-spacing:2.6px;text-transform:uppercase;color:var(--gold);font-weight:500}
+
+/* nav */
+nav{position:fixed;top:0;width:100%;z-index:100;background:rgba(6,6,7,.66);backdrop-filter:blur(20px);border-bottom:1px solid transparent;transition:.4s var(--ease)}
+nav.scr{background:rgba(6,6,7,.96);border-color:var(--line-gold)}
+.nav-c{max-width:1340px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;padding:12px 18px}
+@media(min-width:781px){.nav-c{padding:13px 38px}}
+.logo{display:flex;align-items:center;gap:9px}.logo img{width:32px;height:32px;filter:drop-shadow(0 0 12px rgba(255,215,0,.4))}.logo span{font-family:var(--disp);font-size:20px;letter-spacing:4px}
+.nav-links{display:none;gap:20px;align-items:center}@media(min-width:781px){.nav-links{display:flex}}
+.nav-links a{color:var(--t2);font-size:12px;text-transform:uppercase;letter-spacing:1px;transition:.25s}.nav-links a:hover{color:var(--gold)}.nav-links a.active{color:var(--gold)}.nav-links a.wa{color:#25D366}
+.burger{display:flex;flex-direction:column;gap:5px;padding:8px}@media(min-width:781px){.burger{display:none}}
+.burger span{width:22px;height:2px;background:var(--gold);transition:.3s}
+
+.shell{max-width:var(--maxw);margin:0 auto;padding:0 16px}@media(min-width:781px){.shell{padding:0 24px}}
+
+/* hero + intent */
+.hero{padding:calc(var(--nav) + 26px) 0 6px}
+.hero h1{font-size:clamp(28px,5.4vw,46px);font-weight:200;letter-spacing:-1px;max-width:18ch}
+.hero p{color:var(--t2);font-size:15px;margin-top:10px;max-width:54ch}
+.intent{margin-top:20px;display:grid;gap:10px;grid-template-columns:1fr;background:linear-gradient(180deg,rgba(18,18,20,.7),rgba(11,11,12,.7));border:1px solid var(--line-gold);border-radius:18px;padding:14px;backdrop-filter:blur(10px)}
+@media(min-width:680px){.intent{grid-template-columns:1.4fr 1fr 1fr auto;align-items:end}}
+.ifield label{display:block;font-size:9.5px;letter-spacing:1px;text-transform:uppercase;color:var(--t3);margin-bottom:6px}
+.ifield input,.ifield select{width:100%;background:var(--input);border:1px solid var(--line);border-radius:11px;color:var(--t1);font-family:inherit;font-size:14px;padding:11px 12px}
+.ifield input:focus,.ifield select:focus{outline:none;border-color:var(--gold)}
+.isearch{position:relative}.isearch input{padding-left:34px}.isearch .ic{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--t3);font-size:14px}
+.igo{background:linear-gradient(180deg,var(--gold-light),var(--gold));color:#1a1407;font-weight:600;border-radius:11px;padding:12px 20px;font-size:14px;white-space:nowrap;box-shadow:var(--sh-gold)}
+
+/* filter bar */
+.fbar{position:sticky;top:var(--nav);z-index:40;margin-top:16px;padding:10px 0;background:rgba(6,6,7,.82);backdrop-filter:blur(16px)}
+.fbar-in{display:flex;gap:8px;align-items:center;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.fbar-in::-webkit-scrollbar{display:none}
+.fpill{flex:0 0 auto;display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:var(--card);border-radius:100px;padding:9px 14px;font-size:13px;color:var(--t2);transition:.2s var(--ease)}
+.fpill:hover{border-color:var(--line-gold)}.fpill.on{border-color:var(--gold);color:var(--gold);background:var(--gold-faint)}
+.fpill .cnt{font-size:11px;color:var(--gold);font-weight:600}
+.fpill.filters{border-color:var(--line-gold);color:var(--gold)}
+@media(min-width:781px){.fpill.filters{display:none}}
+
+/* results header */
+.rhead{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:18px 0 10px}
+.rcount{font-size:14px}.rcount b{font-family:var(--disp);font-size:19px;font-weight:200;color:var(--gold)}
+.facets{display:flex;gap:7px;flex-wrap:wrap;margin-top:6px}
+.facet{font-size:11px;color:var(--t3);border:1px solid var(--line);border-radius:100px;padding:4px 10px;cursor:pointer;transition:.2s}.facet:hover{color:var(--gold);border-color:var(--line-gold)}.facet b{color:var(--t2)}
+.rtools{display:flex;gap:8px;align-items:center}
+.rtools select{background:var(--input);border:1px solid var(--line);border-radius:10px;color:var(--t1);font-family:inherit;font-size:13px;padding:9px 12px}
+.viewtog{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.viewtog button{padding:9px 12px;font-size:12px;color:var(--t3);background:var(--card)}.viewtog button.on{background:var(--gold);color:#1a1407;font-weight:600}
+
+/* grid + cards */
+.grid{display:grid;gap:16px;grid-template-columns:1fr}
+@media(min-width:560px){.grid{grid-template-columns:repeat(2,1fr)}}
+@media(min-width:920px){.grid{grid-template-columns:repeat(3,1fr)}}
+.pc{border:1px solid var(--line);border-radius:18px;overflow:hidden;background:linear-gradient(180deg,rgba(16,16,18,.7),rgba(11,11,12,.7));backdrop-filter:blur(8px);transition:.3s var(--ease);display:flex;flex-direction:column}
+.pc:hover{border-color:var(--line-gold);transform:translateY(-4px);box-shadow:var(--sh)}
+.pc .ph{position:relative;aspect-ratio:4/3;overflow:hidden;background:#15151a}
+.pc .ph img{width:100%;height:100%;object-fit:cover;transition:transform .8s var(--ease)}.pc:hover .ph img{transform:scale(1.05)}
+.pc .badges{position:absolute;top:10px;left:10px;display:flex;gap:6px;flex-wrap:wrap}
+.bdg{display:inline-flex;align-items:center;gap:5px;background:rgba(0,0,0,.55);backdrop-filter:blur(8px);border-radius:100px;padding:5px 10px;font-size:10.5px;font-weight:500}
+.bdg.video{color:var(--gold)}.bdg.new{color:#fff}.bdg.avail{color:var(--green);border:1px solid var(--green-muted)}
+.pc .acts{position:absolute;top:10px;right:10px;display:flex;gap:6px;opacity:1}
+.iact{width:34px;height:34px;border-radius:50%;background:rgba(0,0,0,.5);backdrop-filter:blur(8px);border:1px solid var(--line);display:grid;place-items:center;font-size:13px;transition:.2s}
+.iact:hover{border-color:var(--line-gold);color:var(--gold)}.iact.on{color:var(--gold);background:var(--gold-muted);border-color:var(--line-gold)}
+.pc .fit{position:absolute;bottom:10px;left:10px;background:var(--green-muted);color:var(--green);border-radius:100px;padding:5px 10px;font-size:11px;font-weight:600;backdrop-filter:blur(8px)}
+.pc .b{padding:15px;display:flex;flex-direction:column;flex:1}
+.pc .z{font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:var(--gold)}
+.pc .n{font-family:var(--disp);font-size:17px;margin-top:5px;line-height:1.2}
+.pc .specs{display:flex;gap:12px;margin-top:9px;color:var(--t3);font-size:12px}
+.pc .specs span{display:inline-flex;align-items:center;gap:4px}
+.pc .avail{margin-top:9px;font-size:11.5px;color:var(--t2)}.pc .avail.after{color:var(--gold-light)}
+.pc .foot{margin-top:auto;padding-top:12px;display:flex;align-items:baseline;justify-content:space-between}
+.pc .pr{font-family:var(--disp);font-size:21px;font-weight:200;color:var(--gold)}.pc .pr small{font-size:12px;color:var(--t3)}
+.pc .view{font-size:12px;color:var(--t2);border:1px solid var(--line);border-radius:100px;padding:7px 13px;transition:.2s}.pc:hover .view{border-color:var(--line-gold);color:var(--gold)}
+
+/* skeleton */
+.sk{border:1px solid var(--line);border-radius:18px;overflow:hidden;background:var(--card)}
+.sk .ph{aspect-ratio:4/3;background:linear-gradient(100deg,#141417 30%,#1c1c20 50%,#141417 70%);background-size:200% 100%;animation:shim 1.3s linear infinite}
+.sk .b{padding:15px}.sk .l{height:11px;border-radius:6px;background:linear-gradient(100deg,#141417 30%,#1c1c20 50%,#141417 70%);background-size:200% 100%;animation:shim 1.3s linear infinite;margin-bottom:10px}
+@keyframes shim{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+.empty{text-align:center;padding:60px 20px;color:var(--t3)}.empty h3{font-size:22px;font-weight:200;color:var(--t1);margin-bottom:8px}.empty a{color:var(--gold);border-bottom:1px solid var(--line-gold)}
+
+/* map view */
+.mapview{display:none;margin-top:6px;height:62vh;min-height:420px;border:1px solid var(--line);border-radius:18px;position:relative;overflow:hidden;background:radial-gradient(130% 130% at 30% 18%,#15151c,#08080a)}
+.mapview.on{display:block}
+.mpin{position:absolute;transform:translate(-50%,-100%);background:var(--card);border:1px solid var(--line-gold);border-radius:100px;padding:6px 11px;font-size:12px;font-family:var(--disp);color:var(--gold);cursor:pointer;transition:.2s;white-space:nowrap;box-shadow:0 6px 18px rgba(0,0,0,.5)}
+.mpin:hover,.mpin.on{background:var(--gold);color:#1a1407;font-weight:600;z-index:5}
+.mapnote{position:absolute;left:14px;bottom:12px;font-size:11px;color:var(--t3);background:rgba(0,0,0,.5);backdrop-filter:blur(8px);border-radius:100px;padding:7px 12px}
+
+/* upsell */
+.upsell{margin-top:46px;border:1px solid var(--line-gold);border-radius:22px;padding:26px;background:radial-gradient(560px 220px at 88% -30%,var(--gold-muted),transparent 60%),var(--card)}
+.upsell h2{font-size:clamp(20px,3.6vw,28px);font-weight:200;margin-bottom:6px}.upsell .lead{color:var(--t2);font-size:14px;max-width:54ch;margin-bottom:18px}
+.ucards{display:grid;gap:12px;grid-template-columns:1fr}@media(min-width:680px){.ucards{grid-template-columns:repeat(3,1fr)}}
+.ucard{border:1px solid var(--line);background:var(--surface);border-radius:14px;padding:18px;transition:.25s var(--ease)}.ucard:hover{border-color:var(--line-gold);transform:translateY(-3px)}
+.ucard .ico{font-size:18px}.ucard h4{font-family:var(--disp);font-weight:400;font-size:15px;margin:9px 0 5px}.ucard p{color:var(--t2);font-size:12.5px;margin-bottom:10px}.ucard a{color:var(--gold);font-size:13px}
+
+footer{margin-top:64px;border-top:1px solid var(--line);padding:44px 16px 28px}
+.fg{max-width:var(--maxw);margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:30px}@media(min-width:820px){.fg{grid-template-columns:1.6fr 1fr 1fr 1fr}}
+.fb h3{font-family:var(--disp);font-size:21px;letter-spacing:4px}.fb p{color:var(--t3);font-size:12px;line-height:1.8;margin-top:12px}.fb strong{color:var(--t2)}
+.fl h4{font-size:10.5px;letter-spacing:2px;text-transform:uppercase;color:var(--gold);margin-bottom:13px}.fl ul{list-style:none}.fl li{margin-bottom:9px}.fl a{color:var(--t3);font-size:13px}.fl a:hover{color:var(--gold)}
+
+/* compare bar */
+.cmpbar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(70px + var(--safe));z-index:90;background:rgba(8,8,10,.92);backdrop-filter:blur(16px);border:1px solid var(--line-gold);border-radius:16px;padding:10px 14px;display:none;align-items:center;gap:12px;box-shadow:var(--sh)}
+.cmpbar.on{display:flex}@media(min-width:781px){.cmpbar{bottom:18px}}
+.cmpbar .n{font-size:13px;color:var(--t2)}.cmpbar .n b{color:var(--gold)}
+.cmpbar .go{background:linear-gradient(180deg,var(--gold-light),var(--gold));color:#1a1407;font-weight:600;border-radius:100px;padding:9px 16px;font-size:13px}
+.cmpbar .clr{font-size:12px;color:var(--t3)}
+
+/* filter sheet (mobile) */
+.ov{position:fixed;inset:0;z-index:140;background:rgba(3,3,3,.72);backdrop-filter:blur(7px);opacity:0;pointer-events:none;transition:.3s;display:flex;align-items:flex-end;justify-content:center}
+.ov.show{opacity:1;pointer-events:auto}
+.sheet{background:var(--surface);border:1px solid var(--line);border-radius:22px 22px 0 0;width:100%;max-width:620px;max-height:88vh;overflow:auto;transform:translateY(24px);transition:.34s var(--ease)}
+.ov.show .sheet{transform:none}@media(min-width:700px){.ov{align-items:center}.sheet{border-radius:22px}}
+.sheet-h{display:flex;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--surface);z-index:2}
+.sheet-h h3{font-size:16px;font-weight:300}.sheet-b{padding:20px}
+.xc{font-size:20px;color:var(--t2);width:36px;height:36px;border-radius:50%;border:1px solid var(--line);display:grid;place-items:center}
+.fgroup{margin-bottom:22px}.fgroup>label{display:block;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--t3);margin-bottom:10px}
+.seg{display:flex;gap:5px;flex-wrap:wrap}
+.seg button{border:1px solid var(--line);background:var(--card);border-radius:100px;padding:9px 14px;font-size:13px;color:var(--t2);transition:.2s}.seg button.on{background:var(--gold);color:#1a1407;font-weight:600;border-color:var(--gold)}
+.sheet-foot{position:sticky;bottom:0;background:var(--surface);border-top:1px solid var(--line);padding:14px 20px;display:flex;gap:10px}
+.sheet-foot .apply{flex:1;background:linear-gradient(180deg,var(--gold-light),var(--gold));color:#1a1407;font-weight:600;border-radius:100px;padding:13px;font-size:14px}
+.sheet-foot .reset{border:1px solid var(--line);border-radius:100px;padding:13px 18px;font-size:13px;color:var(--t2)}
+
+.proto{position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:130;font-size:11px;color:var(--t3);background:rgba(8,8,10,.7);backdrop-filter:blur(10px);border:1px solid var(--line);border-radius:100px;padding:5px 13px}.proto b{color:var(--gold)}
+</style>
+</head>
+<body>
+
+<nav id="nav"><div class="nav-c">
+  <a href="/" class="logo"><img src="/favicon.svg" alt="" onerror="this.style.display='none'"><span>BOOM</span></a>
+  <div class="nav-links"><a href="/apartments" class="active">Apartments</a><a href="#">Property Finding</a><a href="#">Deal Assistance</a><a href="#">Virtual Viewing</a><a href="#">About</a><a href="https://wa.me/393313251961" class="wa">WhatsApp</a></div>
+  <div class="burger"><span></span><span></span><span></span></div>
+</div></nav>
+
+<div class="shell">
+  <header class="hero">
+    <span class="eyebrow">Verified apartments · Rome</span>
+    <h1>Find your home in Rome, <span class="g">for your dates.</span></h1>
+    <p>Every home filmed and verified by our team. Tell us your budget and move-in date — we’ll rank them by how well they fit.</p>
+    <div class="intent">
+      <div class="ifield isearch"><label>Search</label><span class="ic">⌕</span><input id="q" type="text" placeholder="Zone, street, landmark…"></div>
+      <div class="ifield"><label>Max budget /month</label><select id="budget"><option value="4000">Any</option><option value="1000">€1,000</option><option value="1500">€1,500</option><option value="2000">€2,000</option><option value="2500">€2,500</option><option value="3000">€3,000</option></select></div>
+      <div class="ifield"><label>Move-in by</label><input id="moveIn" type="date"></div>
+      <button class="igo" onclick="applyAll()">Search</button>
+    </div>
+  </header>
+</div>
+
+<div class="shell">
+  <div class="fbar"><div class="fbar-in" id="fbar">
+    <button class="fpill filters" onclick="openSheet()">⚙ Filtri <span class="cnt" id="fcount"></span></button>
+    <button class="fpill" data-quick="beds" onclick="cycleBeds()">Bedrooms <span id="bedsLbl">Any</span></button>
+    <button class="fpill" data-quick="furn" onclick="toggleFurn()">Furnished</button>
+    <button class="fpill" data-quick="video" onclick="toggleVideo()">Video tour</button>
+    <button class="fpill" data-quick="terrace" onclick="toggleFeat('Terrace',this)">Terrace</button>
+    <button class="fpill" data-quick="lift" onclick="toggleFeat('Lift',this)">Lift</button>
+    <button class="fpill" data-quick="ac" onclick="toggleFeat('Air conditioning',this)">A/C</button>
+  </div></div>
+
+  <div class="rhead">
+    <div>
+      <div class="rcount"><b id="count">—</b> homes <span id="ctx" style="color:var(--t3)"></span></div>
+      <div class="facets" id="facets"></div>
+    </div>
+    <div class="rtools">
+      <div class="viewtog"><button id="vList" class="on" onclick="setView('list')">List</button><button id="vMap" onclick="setView('map')">Map</button></div>
+      <select id="sort" onchange="render()"><option value="match">Recommended</option><option value="priceA">Price ↑</option><option value="priceD">Price ↓</option><option value="new">Newest</option><option value="avail">Move-in date</option></select>
+    </div>
+  </div>
+
+  <div class="grid" id="grid"></div>
+  <div class="mapview" id="mapview"></div>
+  <div class="empty" id="empty" style="display:none"><h3>No exact match</h3><p>Try widening the budget or dates — or <a href="#">let us find it for you →</a></p></div>
+
+  <section class="upsell">
+    <div class="eyebrow">More than a portal</div>
+    <h2>Not seeing the one? <span class="g">We’ll find it.</span></h2>
+    <p class="lead">We’re an agency with a tech engine. Tell us your dates and budget and we hunt, verify and bring you the right home.</p>
+    <div class="ucards">
+      <div class="ucard"><div class="ico">🎯</div><h4>Property Finding</h4><p>We search, verify and negotiate for your exact brief.</p><a href="#">Start a search →</a></div>
+      <div class="ucard"><div class="ico">🎥</div><h4>Virtual Viewing</h4><p>Can’t come to Rome? See it live on a video walk-through.</p><a href="#">Book a tour →</a></div>
+      <div class="ucard"><div class="ico">🛡️</div><h4>Deal Assistance</h4><p>Found one elsewhere? We verify the contract for you.</p><a href="#">Get protected →</a></div>
+    </div>
+  </section>
+</div>
+
+<footer><div class="fg">
+  <div class="fb"><h3>BOOM</h3><p>Built in Rome, for Rome.<br><br><strong>Egidi Immobiliare S.r.l.</strong><br>P.IVA 17322991005 · REA RM-1710623</p></div>
+  <div class="fl"><h4>Services</h4><ul><li><a href="/apartments">Apartments</a></li><li><a href="#">Property Finding</a></li><li><a href="#">Deal Assistance</a></li></ul></div>
+  <div class="fl"><h4>Company</h4><ul><li><a href="#">About</a></li><li><a href="#">How It Works</a></li><li><a href="#">For Owners</a></li></ul></div>
+  <div class="fl"><h4>Legal</h4><ul><li><a href="#">Terms</a></li><li><a href="#">Privacy</a></li></ul></div>
+</div></footer>
+
+<div class="proto">DEFINITIVE DISCOVERY · <b>mobile-first</b> · sample data</div>
+<div class="cmpbar" id="cmpbar"><span class="n"><b id="cmpN">0</b> to compare</span><button class="go" onclick="alert('Prototype — opens the side-by-side compare modal.')">Compare →</button><button class="clr" onclick="clearCmp()">Clear</button></div>
+
+<!-- filter sheet -->
+<div class="ov" id="sheet"><div class="sheet">
+  <div class="sheet-h"><h3>Filters</h3><button class="xc" onclick="closeSheet()">×</button></div>
+  <div class="sheet-b">
+    <div class="fgroup"><label>Bedrooms</label><div class="seg" id="sBeds"></div></div>
+    <div class="fgroup"><label>Bathrooms</label><div class="seg" id="sBaths"></div></div>
+    <div class="fgroup"><label>Zone</label><div class="seg" id="sZones"></div></div>
+    <div class="fgroup"><label>Features</label><div class="seg" id="sFeats"></div></div>
+    <div class="fgroup"><label>Furnished</label><div class="seg" id="sFurn"></div></div>
+  </div>
+  <div class="sheet-foot"><button class="reset" onclick="resetAll()">Reset</button><button class="apply" onclick="closeSheet()">Show <span id="applyN"></span> homes</button></div>
+</div></div>
+
+<script defer src="/js/boom-bg.js"></script>
+<script>
+/* ---- sample data: real `listings` field names ---- */
+const ZONES=['Trastevere','Monti','Prati','Centro Storico','Testaccio','San Lorenzo','Pigneto','Ostiense'];
+const IMG=['1502672260266-1c1ef2d93688','1522708323590-d24dbb6b0267','1493809842364-78817add7ffb','1505691938895-1758d7feb511','1484154218962-a197022b5858','1560448204-e02f11c3d0e2','1554995207-c18c203602cb','1560185007-cee345f7c8b9','1493663284031-b7e3aefcae8e','1556912173-3bb406ef7e77','1522771739844-6a9f6d5f14af','1567767292278-a4f21aa2d36e'];
+const FEATS=['Furnished','Terrace','Lift','Air conditioning','Washer','Dishwasher','Wifi','Parking','Pet-friendly'];
+let _d=0; const day=n=>{const t=new Date(2026,5,26);t.setDate(t.getDate()+n);return t.toISOString().slice(0,10);};
+const L=[
+ ['Bright Attic with Terrace','Trastevere',1500,2,1,65,18,['Furnished','Terrace','Air conditioning','Washer','Wifi','Lift'],1,0],
+ ['Designer One-Bed','Monti',1350,1,1,52,9,['Furnished','Air conditioning','Wifi','Lift'],1,1],
+ ['Elegant Family Flat','Prati',2200,3,2,95,40,['Furnished','Lift','Dishwasher','Washer','Parking'],0,0],
+ ['Cosy Studio by the Tiber','Trastevere',980,0,1,38,3,['Furnished','Wifi','Air conditioning'],1,0],
+ ['Sunny Loft, San Cosimato','Trastevere',1750,2,2,70,25,['Furnished','Terrace','Lift','Washer','Dishwasher','Wifi'],1,1],
+ ['Quiet Two-Bed, Monti','Monti',1650,2,1,68,55,['Furnished','Lift','Washer','Pet-friendly'],0,0],
+ ['Modern Flat near Sapienza','San Lorenzo',1150,2,1,58,6,['Furnished','Wifi','Air conditioning','Washer'],1,0],
+ ['Artist Studio, Pigneto','Pigneto',850,0,1,34,12,['Furnished','Wifi','Pet-friendly'],1,1],
+ ['Riverside Two-Bed','Ostiense',1450,2,1,64,30,['Furnished','Lift','Air conditioning','Parking'],0,0],
+ ['Grand Apartment, Centro','Centro Storico',2800,3,2,110,70,['Furnished','Lift','Dishwasher','Washer','Air conditioning'],0,0],
+ ['Charming One-Bed, Testaccio','Testaccio',1250,1,1,48,4,['Furnished','Terrace','Wifi','Washer'],1,0],
+ ['Penthouse with Roof Terrace','Prati',3200,3,3,130,90,['Furnished','Terrace','Lift','Parking','Dishwasher','Air conditioning'],0,1]
+].map((r,i)=>({id:'sample'+(i+1),name:r[0],zone:r[1],price:r[2],beds:r[3],baths:r[4],sqm:r[5],availableFrom:day(r[6]),features:r[7],videoUrl:r[8]?('y'):'',isNew:r[9],img:IMG[i%IMG.length],createdAt:100-i,lat:41.86+(i%5)*0.01-0.02,lng:12.47+(i%4)*0.012-0.018}));
+
+/* ---- state ---- */
+const S={q:'',budgetMax:4000,moveIn:'',beds:0,baths:0,furnished:false,video:false,zones:[],feats:[],sort:'match',view:'list'};
+const saved=new Set(),cmp=new Set();
+const eur=n=>'€'+Math.round(n).toLocaleString('en-US');
+const parseD=s=>new Date(s+'T00:00');
+const fmtS=s=>parseD(s).toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+
+function score(l){ /* smart match 0-100 */
+  let s=100;
+  if(l.price>S.budgetMax){s-=Math.min(45,(l.price-S.budgetMax)/S.budgetMax*120);}
+  else s+=6;
+  if(S.moveIn){const g=Math.round((parseD(l.availableFrom)-parseD(S.moveIn))/864e5);if(g>0)s-=Math.min(28,g*0.5);else s+=5;}
+  if(S.zones.length){s+=S.zones.includes(l.zone)?10:-22;}
+  if(l.videoUrl)s+=4; if(l.features.includes('Furnished'))s+=2; if(l.isNew)s+=3;
+  s-=l.createdAt*0.04;
+  return Math.max(35,Math.min(99,Math.round(s)));
+}
+function pass(l){
+  if(S.q){const q=S.q.toLowerCase();if(!(l.name+' '+l.zone).toLowerCase().includes(q))return false;}
+  if(l.price>S.budgetMax*1.15)return false; /* soft budget: allow 15% over, flag later */
+  if(S.beds&&l.beds<S.beds)return false;
+  if(S.baths&&l.baths<S.baths)return false;
+  if(S.furnished&&!l.features.includes('Furnished'))return false;
+  if(S.video&&!l.videoUrl)return false;
+  if(S.zones.length&&!S.zones.includes(l.zone))return false;
+  if(S.feats.length&&!S.feats.every(f=>l.features.includes(f)))return false;
+  return true;
+}
+function activeCount(){let n=0;if(S.beds)n++;if(S.baths)n++;if(S.furnished)n++;if(S.video)n++;n+=S.zones.length+S.feats.length;if(S.budgetMax<4000)n++;if(S.moveIn)n++;if(S.q)n++;return n;}
+
+function cardHTML(l){
+  const over=l.price>S.budgetMax;
+  const fit=score(l);
+  const gap=S.moveIn?Math.round((parseD(l.availableFrom)-parseD(S.moveIn))/864e5):0;
+  const av=gap>0?`<div class="avail after">Free ${fmtS(l.availableFrom)} · ${gap}d after</div>`:`<div class="avail">Available ${fmtS(l.availableFrom)}</div>`;
+  return `<a class="pc" href="/listing/${l.id}">
+    <div class="ph"><img src="https://images.unsplash.com/photo-${l.img}?auto=format&fit=crop&w=700&q=72" alt="${l.name}" loading="lazy" onerror="this.style.opacity=0">
+      <div class="badges">${l.videoUrl?'<span class="bdg video">▶ Video</span>':''}${l.isNew?'<span class="bdg new">New</span>':''}<span class="bdg avail">✓ Verified</span></div>
+      <div class="acts"><button class="iact" onclick="event.preventDefault();event.stopPropagation();this.classList.toggle('on');toggleSave('${l.id}')" aria-label="Save">♡</button><button class="iact" onclick="event.preventDefault();event.stopPropagation();toggleCmp('${l.id}',this)" aria-label="Compare">⇄</button></div>
+      ${(S.budgetMax<4000||S.moveIn||S.zones.length)?`<span class="fit">${fit}% fit</span>`:''}</div>
+    <div class="b"><div class="z">${l.zone}</div><div class="n">${l.name}</div>
+      <div class="specs"><span>🛏 ${l.beds||'Studio'}</span><span>🛁 ${l.baths}</span><span>📐 ${l.sqm} m²</span></div>
+      ${av}
+      <div class="foot"><div class="pr">${eur(l.price)} <small>/mo${over?' · over':''}</small></div><span class="view">View →</span></div>
+    </div></a>`;
+}
+
+function render(){
+  S.sort=document.getElementById('sort').value;
+  let list=L.filter(pass);
+  const sorters={match:(a,b)=>score(b)-score(a),priceA:(a,b)=>a.price-b.price,priceD:(a,b)=>b.price-a.price,new:(a,b)=>a.createdAt-b.createdAt,avail:(a,b)=>parseD(a.availableFrom)-parseD(b.availableFrom)};
+  list.sort(sorters[S.sort]);
+  const grid=document.getElementById('grid'),empty=document.getElementById('empty');
+  document.getElementById('count').textContent=list.length;
+  document.getElementById('ctx').textContent=(S.zones.length?('in '+S.zones.join(', ')):'')+(S.moveIn?(' · by '+fmtS(S.moveIn)):'');
+  document.getElementById('applyN').textContent=list.length;
+  document.getElementById('fcount').textContent=activeCount()||'';
+  /* facets by zone */
+  const fc={};list.forEach(l=>fc[l.zone]=(fc[l.zone]||0)+1);
+  document.getElementById('facets').innerHTML=Object.entries(fc).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([z,n])=>`<span class="facet" onclick="quickZone('${z}')"><b>${n}</b> ${z}</span>`).join('');
+  if(S.view==='map'){renderMap(list);grid.style.display='none';empty.style.display='none';return;}
+  document.getElementById('mapview').classList.remove('on');grid.style.display='';
+  if(!list.length){grid.innerHTML='';empty.style.display='';return;}
+  empty.style.display='none';
+  grid.innerHTML=list.map(cardHTML).join('');
+}
+function renderMap(list){
+  const mv=document.getElementById('mapview');mv.classList.add('on');
+  const xs=list.map(l=>l.lng),ys=list.map(l=>l.lat);
+  const minx=Math.min(...xs),maxx=Math.max(...xs),miny=Math.min(...ys),maxy=Math.max(...ys);
+  mv.innerHTML=list.map(l=>{const px=8+(maxx===minx?0.5:(l.lng-minx)/(maxx-minx))*84,py=12+(maxy===miny?0.5:(maxy-l.lat)/(maxy-miny))*72;
+    return `<a class="mpin" href="/listing/${l.id}" style="left:${px}%;top:${py}%">${eur(l.price)}</a>`;}).join('')
+    +'<div class="mapnote">◆ Mappa illustrativa — in produzione è la MapLibre reale già in apartments.html</div>';
+}
+
+/* ---- controls ---- */
+function applyAll(){S.q=document.getElementById('q').value.trim();S.budgetMax=+document.getElementById('budget').value;S.moveIn=document.getElementById('moveIn').value;render();}
+document.getElementById('q').addEventListener('input',()=>{S.q=document.getElementById('q').value.trim();render();});
+document.getElementById('budget').addEventListener('change',()=>{S.budgetMax=+document.getElementById('budget').value;render();});
+document.getElementById('moveIn').addEventListener('change',()=>{S.moveIn=document.getElementById('moveIn').value;render();});
+const BEDS=[['Any',0],['1+',1],['2+',2],['3+',3],['4+',4]];
+function cycleBeds(){const i=BEDS.findIndex(b=>b[1]===S.beds);S.beds=BEDS[(i+1)%BEDS.length][1];document.getElementById('bedsLbl').textContent=BEDS.find(b=>b[1]===S.beds)[0];document.querySelector('[data-quick=beds]').classList.toggle('on',!!S.beds);syncSheet();render();}
+function toggleFurn(){S.furnished=!S.furnished;document.querySelector('[data-quick=furn]').classList.toggle('on',S.furnished);syncSheet();render();}
+function toggleVideo(){S.video=!S.video;document.querySelector('[data-quick=video]').classList.toggle('on',S.video);render();}
+function toggleFeat(f,el){const i=S.feats.indexOf(f);if(i<0)S.feats.push(f);else S.feats.splice(i,1);if(el)el.classList.toggle('on',S.feats.includes(f));syncSheet();render();}
+function quickZone(z){const i=S.zones.indexOf(z);if(i<0)S.zones.push(z);else S.zones.splice(i,1);syncSheet();render();}
+function setView(v){S.view=v;document.getElementById('vList').classList.toggle('on',v==='list');document.getElementById('vMap').classList.toggle('on',v==='map');render();}
+function toggleSave(id){saved.has(id)?saved.delete(id):saved.add(id);}
+function toggleCmp(id,el){if(cmp.has(id)){cmp.delete(id);el.classList.remove('on');}else if(cmp.size<4){cmp.add(id);el.classList.add('on');}document.getElementById('cmpN').textContent=cmp.size;document.getElementById('cmpbar').classList.toggle('on',cmp.size>0);}
+function clearCmp(){cmp.clear();document.querySelectorAll('.iact.on').forEach(b=>b.classList.remove('on'));document.getElementById('cmpbar').classList.remove('on');}
+
+/* ---- sheet ---- */
+function chips(host,items,sel,multi,cb){host.innerHTML=items.map(it=>`<button data-v="${it.v}">${it.l}</button>`).join('');
+  [...host.children].forEach(b=>{const v=b.dataset.v;const on=multi?sel.includes(v):(''+sel===''+v);b.classList.toggle('on',on);b.onclick=()=>cb(v,b);});}
+function buildSheet(){
+  chips(document.getElementById('sBeds'),BEDS.map(b=>({v:b[1],l:b[0]})),S.beds,false,(v)=>{S.beds=+v;document.getElementById('bedsLbl').textContent=BEDS.find(b=>b[1]===S.beds)[0];document.querySelector('[data-quick=beds]').classList.toggle('on',!!S.beds);buildSheet();render();});
+  chips(document.getElementById('sBaths'),[['Any',0],['1+',1],['2+',2],['3+',3]].map(b=>({v:b[1],l:b[0]})),S.baths,false,(v)=>{S.baths=+v;buildSheet();render();});
+  chips(document.getElementById('sZones'),ZONES.map(z=>({v:z,l:z})),S.zones,true,(v)=>{quickZone(v);buildSheet();});
+  chips(document.getElementById('sFeats'),FEATS.map(f=>({v:f,l:f})),S.feats,true,(v)=>{toggleFeat(v);buildSheet();});
+  chips(document.getElementById('sFurn'),[{v:'no',l:'Any'},{v:'yes',l:'Furnished only'}],S.furnished?'yes':'no',false,(v)=>{S.furnished=(v==='yes');document.querySelector('[data-quick=furn]').classList.toggle('on',S.furnished);buildSheet();render();});
+}
+function syncSheet(){if(document.getElementById('sheet').classList.contains('show'))buildSheet();}
+function openSheet(){buildSheet();document.getElementById('sheet').classList.add('show');}
+function closeSheet(){document.getElementById('sheet').classList.remove('show');}
+function resetAll(){Object.assign(S,{q:'',budgetMax:4000,moveIn:'',beds:0,baths:0,furnished:false,video:false,zones:[],feats:[],sort:'match'});
+  document.getElementById('q').value='';document.getElementById('budget').value='4000';document.getElementById('moveIn').value='';document.getElementById('bedsLbl').textContent='Any';
+  document.querySelectorAll('.fpill.on').forEach(p=>p.classList.remove('on'));buildSheet();render();}
+document.getElementById('sheet').addEventListener('click',e=>{if(e.target.id==='sheet')closeSheet();});
+
+/* skeleton then load */
+document.getElementById('grid').innerHTML=Array.from({length:6},()=>'<div class="sk"><div class="ph"></div><div class="b"><div class="l" style="width:40%"></div><div class="l" style="width:80%"></div><div class="l" style="width:60%"></div></div></div>').join('');
+addEventListener('scroll',()=>document.getElementById('nav').classList.toggle('scr',scrollY>16),{passive:true});
+setTimeout(render,600);
+</script>
+</body>
+</html>
