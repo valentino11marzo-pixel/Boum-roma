@@ -560,6 +560,7 @@ function paintData(){
   document.getElementById('facts').innerHTML=[['🛏️','Bedrooms',L.beds||'Studio'],['🛁','Bathrooms',L.baths],['📐','Size',L.sqm+' m²'],['🏢','Floor',L.floor],['🪑','Furnished',L.furnished?'Yes':'No']].map(([i,k,v])=>`<div class="fact"><div class="i">${i}</div><div class="k">${k}</div><div class="v">${v}</div></div>`).join('');
   document.getElementById('nearby').innerHTML=(L.nearby||[]).map(([ic,n,m,t])=>`<div class="nb"><div class="ico">${ic}</div><div class="tx"><div class="n">${n}</div><div class="m">${m}</div></div><div class="t">${t}</div></div>`).join('');
   document.getElementById('simrow').innerHTML=(L.similar||[]).map(([id,z,n,m,p,fit])=>`<a class="sim" href="#"><div class="ph"><img src="${img(id,700)}" alt="" loading="lazy" onerror="this.style.opacity=0"></div><div class="b"><div class="z">${z}</div><div class="n">${n}</div><div class="m">${m}</div><div class="pr"><b>${eur(p)}<span style="font-size:11px;color:var(--t3);font-weight:300">/mo</span></b><span class="fit">${fit}</span></div></div></a>`).join('');
+  try{document.getElementById('moveIn').min=L.availableFrom||'';}catch(e){}
   render();
 }
 function mapReal(d){
