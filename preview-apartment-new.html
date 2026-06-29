@@ -69,12 +69,12 @@ nav.scr{background:rgba(6,6,7,.96);border-color:var(--line-gold)}
 .crumb{padding:calc(var(--nav) + 22px) 0 14px;font-size:12px;color:var(--t3)}.crumb a:hover{color:var(--gold)}
 
 /* ── HERO carousel (mobile-first, native scroll-snap = bulletproof) ── */
-.hero{position:relative;border-radius:18px;overflow:hidden;background:var(--card);box-shadow:var(--sh)}
-.track{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.hero{position:relative;border-radius:18px;overflow:hidden;background:var(--card);box-shadow:var(--sh);aspect-ratio:4/3}
+@media(min-width:560px){.hero{aspect-ratio:16/10}}
+@media(min-width:921px){.hero{aspect-ratio:16/9}}
+.track{display:flex;height:100%;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;scrollbar-width:none;-webkit-overflow-scrolling:touch}
 .track::-webkit-scrollbar{display:none}
-.slide{position:relative;flex:0 0 100%;scroll-snap-align:center;aspect-ratio:4/3;background:linear-gradient(135deg,#1a1a20,#0c0c0e)}
-@media(min-width:560px){.slide{aspect-ratio:16/10}}
-@media(min-width:921px){.slide{aspect-ratio:16/9}}
+.slide{position:relative;flex:0 0 100%;height:100%;scroll-snap-align:center;background:linear-gradient(135deg,#1a1a20,#0c0c0e)}
 .slide img{width:100%;height:100%;object-fit:cover}
 .hero-scrim{position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,rgba(0,0,0,.34) 0%,transparent 26%,transparent 52%,rgba(6,6,7,.86) 100%)}
 .hero-top{position:absolute;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;z-index:3}
@@ -541,15 +541,53 @@ const AI={'💰 Total to move in?':'For your chosen dates the total is first mon
 '📍 What\'s the area like?':'Trastevere: cobbled, pedestrian, lively at night, walking distance to Sapienza and the centre. Tap “Explore the block in 3D”.',
 '⚡ How fast can I move in?':'As fast as 48 hours from approval. Set your date and we tell you instantly if it’s free.'};
 function aiAsk(b){const q=b.textContent;const t=document.getElementById('aiThread');t.insertAdjacentHTML('beforeend',`<div class="aimsg" style="border-color:var(--line-gold)"><b>You:</b> ${q}</div><div class="aimsg">${AI[q]||'Demo — in production, a real answer from the AI that knows this home.'}</div>`);t.lastElementChild.scrollIntoView({behavior:'smooth',block:'nearest'});}
-function apply(){openApplySheet('apply');}
-function reserve(){openApplySheet('reserve');}
-function openApplySheet(kind){try{navigator.vibrate&&navigator.vibrate(8)}catch(e){}
-  const s=computeStay();const when=s.fit==='none'?'the first open date':fmtD(s.start);const len=DUR?DUR+' months':'flexible';
-  const ok=kind==='reserve'?'Request to hold sent':'Application started';
-  const sub=kind==='reserve'?'We’ll hold this home while we confirm — refundable, Stripe-secured. No charge until you say yes.':'We’ve got your details — we reply within 2 hours. Free, no commitment.';
-  document.getElementById('applyTitle').textContent=kind==='reserve'?'Reserve & hold':'Apply';
-  document.getElementById('applyBody').innerHTML='<div class="aimsg" style="border-color:var(--line-gold)"><div style="display:flex;align-items:center;gap:8px;color:var(--green);font-weight:500;margin-bottom:12px"><span aria-hidden="true">✓</span> '+ok+'</div><div style="display:grid;gap:9px;font-size:14px"><div style="display:flex;justify-content:space-between"><span style="color:var(--t3)">Home</span><b>'+L.name+'</b></div><div style="display:flex;justify-content:space-between"><span style="color:var(--t3)">Move-in</span><b>'+when+'</b></div><div style="display:flex;justify-content:space-between"><span style="color:var(--t3)">Length</span><b>'+len+'</b></div><div style="display:flex;justify-content:space-between;border-top:1px solid var(--line);padding-top:9px;margin-top:2px"><span style="color:var(--t3)">To move in</span><b style="color:var(--gold)">'+eur(s.total)+'</b></div></div></div><p style="color:var(--t2);font-size:13px;margin-top:6px">'+sub+'</p><a href="https://wa.me/393313251961" class="gbtn" style="margin-top:14px;text-decoration:none">Continue on WhatsApp →</a>';
-  openOv('applyOv');
+/* ── Secure-this-home flow: quick-check pre-approval → fair €300 Stripe hold ── */
+let RES={kind:'apply',step:1,approved:null,need:0};
+function apply(){startRes('apply');}
+function reserve(){startRes('reserve');}
+function startRes(kind){try{navigator.vibrate&&navigator.vibrate(8)}catch(e){}RES={kind:kind,step:1,approved:null,need:0};document.getElementById('applyTitle').textContent=kind==='reserve'?'Secure this home':'Apply for this home';renderRes();openOv('applyOv');}
+function resStep(n){RES.step=n;renderRes();}
+function resSubmit(){var inc=+(document.getElementById('rqInc')||{}).value||0;var guar=!!(document.getElementById('rqGuar')||{}).checked;RES.need=Math.round(L.price*2.5);RES.approved=(inc>=RES.need)||guar;resStep(2);}
+function resHold(){try{navigator.vibrate&&navigator.vibrate(12)}catch(e){}/* production: redirect to Stripe Checkout (/api/reserve-checkout) */resStep(3);}
+function renderRes(){
+  var s=computeStay(),when=s.fit==='none'?'the first open date':fmtD(s.start),len=DUR?DUR+' months':'flexible',b=document.getElementById('applyBody');
+  var prog=function(p){return '<div style="height:3px;background:var(--line);border-radius:3px;overflow:hidden;margin-bottom:18px"><i style="display:block;height:100%;width:'+p+'%;background:linear-gradient(90deg,var(--gold),var(--gold-light));transition:width var(--d-4) var(--ease)"></i></div>';};
+  var summary='<div class="aimsg" style="margin-top:16px"><div style="display:grid;gap:8px;font-size:13.5px"><div style="display:flex;justify-content:space-between"><span style="color:var(--t3)">Home</span><b>'+L.name+'</b></div><div style="display:flex;justify-content:space-between"><span style="color:var(--t3)">Move-in</span><b>'+when+'</b></div><div style="display:flex;justify-content:space-between"><span style="color:var(--t3)">Length</span><b>'+len+'</b></div><div style="display:flex;justify-content:space-between;border-top:1px solid var(--line);padding-top:8px"><span style="color:var(--t3)">To move in</span><b style="color:var(--gold)">'+eur(s.total)+'</b></div></div></div>';
+  if(RES.step===1){
+    b.innerHTML=prog(33)
+      +'<div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--gold);margin-bottom:6px">Quick check · 60 seconds</div>'
+      +'<h3 style="font-family:var(--disp);font-weight:200;font-size:22px;margin-bottom:6px">Let’s see if it’s yours.</h3>'
+      +'<p style="color:var(--t2);font-size:13.5px;margin-bottom:18px">A soft check — no credit impact, no documents yet. So we only ever hold a home you can actually take.</p>'
+      +'<div style="display:grid;gap:14px">'
+      +'<label style="display:block"><span style="display:block;font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:var(--t3);margin-bottom:6px">Your net monthly income (€)</span><input id="rqInc" type="number" inputmode="numeric" placeholder="e.g. 2800" style="width:100%;background:var(--input);border:1px solid var(--line);border-radius:11px;color:var(--t1);font-family:inherit;font-size:15px;padding:12px 13px"></label>'
+      +'<label style="display:flex;align-items:center;gap:10px;font-size:13.5px;color:var(--t2);cursor:pointer"><input id="rqGuar" type="checkbox" style="accent-color:var(--gold);width:18px;height:18px"> I have a guarantor (or can pay a larger deposit)</label>'
+      +'</div>'
+      +'<button class="gbtn" style="margin-top:18px" onclick="resSubmit()">Check eligibility →</button>'
+      +'<p style="font-size:11px;color:var(--t3);margin-top:12px;text-align:center">🔒 Private · used only to qualify your application</p>';
+  } else if(RES.step===2){
+    var ok=RES.approved;
+    var verdict=ok
+      ? '<div style="display:flex;align-items:center;gap:9px;color:var(--green);font-weight:500;font-size:15px"><span style="width:26px;height:26px;border-radius:50%;background:var(--green-muted);display:grid;place-items:center">✓</span> Pre-approved</div><p style="color:var(--t2);font-size:13.5px;margin-top:8px">Great news — on these numbers you qualify for '+L.name+'. Lock it in before someone else does.</p>'
+      : '<div style="display:flex;align-items:center;gap:9px;color:var(--gold-light);font-weight:500;font-size:15px"><span style="width:26px;height:26px;border-radius:50%;background:var(--gold-muted);display:grid;place-items:center">!</span> One step to go</div><p style="color:var(--t2);font-size:13.5px;margin-top:8px">Income is just under the usual 2.5× rent (≈ '+eur(RES.need)+'/mo). A guarantor or a larger deposit usually solves it — we’ll guide you.</p>';
+    var cta;
+    if(RES.kind==='reserve'&&ok){
+      cta='<button class="gbtn" style="margin-top:16px" onclick="resHold()">🔒 Hold this home · €300 →</button>'
+        +'<div style="margin-top:12px;border:1px dashed var(--line-gold);border-radius:12px;padding:13px 15px;font-size:12.5px;color:var(--t2);line-height:1.6"><b style="color:var(--t1)">A fair hold, not a fee.</b> €300 takes '+L.name+' off the market for <b>48h</b> while we verify your documents. It’s <b>fully credited to your first month</b>, and <b>100% refunded</b> if we can’t proceed or you change your mind within 48h.</div>';
+    } else if(RES.kind==='reserve'){
+      cta='<a href="https://wa.me/393313251961" class="gbtn" style="margin-top:16px;text-decoration:none">Set up a guarantor with us →</a>';
+    } else {
+      cta='<a href="https://wa.me/393313251961" class="gbtn" style="margin-top:16px;text-decoration:none">Continue your application →</a>'
+        +(ok?'<button class="obtn" style="margin-top:9px" onclick="RES.kind=\'reserve\';resStep(2)">Or secure it now — hold for 48h</button>':'');
+    }
+    b.innerHTML=prog(66)+verdict+summary+cta+'<p style="font-size:11px;color:var(--t3);margin-top:12px;text-align:center">We reply within 2 hours · free, no commitment</p>';
+  } else {
+    b.innerHTML=prog(100)
+      +'<div style="text-align:center;padding:8px 0 4px"><div style="width:54px;height:54px;border-radius:50%;background:var(--green-muted);color:var(--green);display:grid;place-items:center;font-size:24px;margin:0 auto 14px">✓</div>'
+      +'<h3 style="font-family:var(--disp);font-weight:200;font-size:23px">Held for 48 hours</h3>'
+      +'<p style="color:var(--t2);font-size:14px;margin-top:8px;max-width:34ch;margin-left:auto;margin-right:auto">'+L.name+' is yours to confirm. We’ve emailed your hold receipt and a BOOM advisor will reach out to verify and finalise.</p></div>'
+      +'<div class="aimsg" style="margin-top:14px;font-size:13px;color:var(--t2)"><b style="color:var(--t1)">€300 hold</b> · credited to your first month · refundable within 48h · secured by Stripe.</div>'
+      +'<a href="https://wa.me/393313251961" class="gbtn" style="margin-top:14px;text-decoration:none">Talk to your advisor →</a>';
+  }
 }
 
 /* ---- chrome ---- */
