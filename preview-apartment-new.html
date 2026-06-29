@@ -19,7 +19,9 @@
   --t1:#FAFAFA;--t2:rgba(250,250,250,.72);--t3:rgba(250,250,250,.46);--t4:rgba(250,250,250,.26);
   --line:rgba(255,255,255,.08);--line-soft:rgba(255,255,255,.045);--line-gold:rgba(255,215,0,.16);
   --sans:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;--disp:'Helvetica Neue',Helvetica,Arial,sans-serif;
-  --ease:cubic-bezier(.16,1,.3,1);
+  --d-1:120ms;--d-2:180ms;--d-3:240ms;--d-4:320ms;--d-5:440ms;--d-6:620ms;
+  --ease-out:cubic-bezier(.16,1,.3,1);--ease-inout:cubic-bezier(.65,0,.35,1);--ease-spring:cubic-bezier(.34,1.56,.64,1);
+  --ease:var(--ease-out);
   --sh:0 4px 28px rgba(0,0,0,.5);--sh-gold:0 12px 40px rgba(255,215,0,.16);
   --maxw:1180px;--nav:62px;--safe:env(safe-area-inset-bottom,0px);
 }
@@ -372,7 +374,7 @@ footer{margin-top:70px;border-top:1px solid var(--line);padding:48px 16px 30px}
           <div id="availBadge"></div>
           <div class="srows" id="srows"></div>
           <button class="gbtn" id="applyBtn" onclick="apply()">Apply →</button>
-          <button class="obtn" onclick="apply()">🔒 Reserve &amp; hold · €300</button>
+          <button class="obtn" onclick="reserve()">🔒 Request to hold · €300</button>
           <div class="upnudge" id="upNudge"></div>
           <div class="trust"><span><span class="c">✓</span> Reply in 2h</span><span><span class="c">✓</span> No commitment</span><span><span class="c">✓</span> Stripe-secured</span></div>
         </div>
@@ -414,6 +416,8 @@ footer{margin-top:70px;border-top:1px solid var(--line);padding:48px 16px 30px}
   <div class="sheet-b"><div class="block3d" style="height:330px"><div class="rings"><div class="ring" style="width:120px;height:120px"></div><div class="ring" style="width:230px;height:230px"></div><div class="ring" style="width:340px;height:340px"></div></div><div class="blip"></div></div>
   <p style="color:var(--t2);font-size:13px;margin-top:13px">5 / 10 / 15-minute walk rings around the flat. In production this is the cinematic MapLibre flyover with height-graded buildings and a gold spotlight on the exact block — already wired in <b>apartment-detail.html</b>.</p></div>
 </div></div>
+
+<div class="ov" id="applyOv"><div class="sheet" role="dialog" aria-modal="true" aria-label="Apply"><div class="sheet-h"><h3 id="applyTitle">Apply</h3><button class="xc" onclick="closeOv('applyOv')" aria-label="Close">×</button></div><div class="sheet-b" id="applyBody"></div></div></div>
 
 <div class="lb" id="lb" onclick="if(event.target.id==='lb')this.classList.remove('show')"><button class="xc" onclick="document.getElementById('lb').classList.remove('show')">×</button><img id="lbImg" src="" alt=""></div>
 
@@ -525,6 +529,11 @@ document.getElementById('faqList').innerHTML=FAQ.map(([q,a])=>`<div class="qa"><
 /* ---- overlays / ai ---- */
 function openOv(i){document.getElementById(i).classList.add('show')}
 function closeOv(i){document.getElementById(i).classList.remove('show')}
+addEventListener('keydown',function(e){if(e.key!=='Escape')return;
+  var lb=document.getElementById('lb');if(lb&&lb.classList.contains('show')){lb.classList.remove('show');return;}
+  var ov=document.querySelector('.ov.show');if(ov){ov.classList.remove('show');return;}
+  var mmEl=document.getElementById('mm');if(mmEl&&mmEl.classList.contains('on')){mmEl.classList.remove('on');var hb=document.getElementById('burger')||document.querySelector('.burger');if(hb)hb.classList.remove('on');document.body.style.overflow='';}
+});
 function open3d(){openOv('d3Ov')}
 document.querySelectorAll('.ov').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('show')}));
 const AI={'💰 Total to move in?':'For your chosen dates the total is first month + refundable deposit + agency fee (€0 here). You see it live in “Your stay”.',
@@ -532,7 +541,16 @@ const AI={'💰 Total to move in?':'For your chosen dates the total is first mon
 '📍 What\'s the area like?':'Trastevere: cobbled, pedestrian, lively at night, walking distance to Sapienza and the centre. Tap “Explore the block in 3D”.',
 '⚡ How fast can I move in?':'As fast as 48 hours from approval. Set your date and we tell you instantly if it’s free.'};
 function aiAsk(b){const q=b.textContent;const t=document.getElementById('aiThread');t.insertAdjacentHTML('beforeend',`<div class="aimsg" style="border-color:var(--line-gold)"><b>You:</b> ${q}</div><div class="aimsg">${AI[q]||'Demo — in production, a real answer from the AI that knows this home.'}</div>`);t.lastElementChild.scrollIntoView({behavior:'smooth',block:'nearest'});}
-function apply(){const s=computeStay();const when=s.fit==='none'?'the first open date':fmtD(s.start);alert('Prototype — in production this opens the application PRE-FILLED with:\\n\\n• Move-in: '+when+'\\n• Length: '+(DUR?DUR+' months':'flexible')+'\\n• Total to move in: '+eur(s.total)+'\\n\\nand the dates flow into the lead for matching + qualification.');}
+function apply(){openApplySheet('apply');}
+function reserve(){openApplySheet('reserve');}
+function openApplySheet(kind){try{navigator.vibrate&&navigator.vibrate(8)}catch(e){}
+  const s=computeStay();const when=s.fit==='none'?'the first open date':fmtD(s.start);const len=DUR?DUR+' months':'flexible';
+  const ok=kind==='reserve'?'Request to hold sent':'Application started';
+  const sub=kind==='reserve'?'We’ll hold this home while we confirm — refundable, Stripe-secured. No charge until you say yes.':'We’ve got your details — we reply within 2 hours. Free, no commitment.';
+  document.getElementById('applyTitle').textContent=kind==='reserve'?'Reserve & hold':'Apply';
+  document.getElementById('applyBody').innerHTML='<div class="aimsg" style="border-color:var(--line-gold)"><div style="display:flex;align-items:center;gap:8px;color:var(--green);font-weight:500;margin-bottom:12px"><span aria-hidden="true">✓</span> '+ok+'</div><div style="display:grid;gap:9px;font-size:14px"><div style="display:flex;justify-content:space-between"><span style="color:var(--t3)">Home</span><b>'+L.name+'</b></div><div style="display:flex;justify-content:space-between"><span style="color:var(--t3)">Move-in</span><b>'+when+'</b></div><div style="display:flex;justify-content:space-between"><span style="color:var(--t3)">Length</span><b>'+len+'</b></div><div style="display:flex;justify-content:space-between;border-top:1px solid var(--line);padding-top:9px;margin-top:2px"><span style="color:var(--t3)">To move in</span><b style="color:var(--gold)">'+eur(s.total)+'</b></div></div></div><p style="color:var(--t2);font-size:13px;margin-top:6px">'+sub+'</p><a href="https://wa.me/393313251961" class="gbtn" style="margin-top:14px;text-decoration:none">Continue on WhatsApp →</a>';
+  openOv('applyOv');
+}
 
 /* ---- chrome ---- */
 addEventListener('scroll',()=>{document.getElementById('nav').classList.toggle('scr',scrollY>16);const h=document.body.scrollHeight-innerHeight;document.getElementById('prog').style.width=(scrollY/Math.max(1,h)*100)+'%';},{passive:true});
