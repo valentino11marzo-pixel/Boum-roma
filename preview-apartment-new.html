@@ -165,6 +165,11 @@ nav.scr{background:rgba(6,6,7,.96);border-color:var(--line-gold)}
 .block3d .blip{width:13px;height:13px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 8px var(--gold-muted),0 0 22px 4px rgba(255,215,0,.5);position:relative;z-index:2}
 .block3d .go{position:absolute;left:14px;bottom:14px;z-index:3;border:1px solid var(--line);background:rgba(0,0,0,.5);border-radius:100px;padding:11px 16px;font-size:12.5px;backdrop-filter:blur(8px)}
 .block3d .ringlbl{position:absolute;z-index:2;font-size:10px;color:rgba(255,215,0,.6);letter-spacing:.5px}
+#map3d .maplibregl-map{position:absolute;inset:0}
+.m3facade{position:absolute;inset:0;z-index:4;display:flex;flex-direction:column;gap:5px;align-items:center;justify-content:center;border:none;background:linear-gradient(180deg,rgba(8,8,10,.12),rgba(8,8,10,.5));color:var(--gold);font-size:14px;cursor:pointer}
+.m3facade small{color:var(--t3);font-size:11px;letter-spacing:.3px}
+.m3pin{width:16px;height:16px;border-radius:50%;background:var(--gold);border:2px solid #1a1407;box-shadow:0 0 0 6px rgba(255,215,0,.22),0 0 18px 5px rgba(255,215,0,.5)}
+.maplibregl-ctrl-group{background:rgba(8,8,10,.86)!important;border:1px solid var(--line)!important}.maplibregl-ctrl-group button+button{border-top:1px solid var(--line)!important}.maplibregl-ctrl-group button{filter:invert(1) hue-rotate(180deg)}
 .nearby{margin-top:14px;display:grid;gap:9px;grid-template-columns:1fr}@media(min-width:560px){.nearby{grid-template-columns:1fr 1fr}}
 .nb{display:flex;align-items:center;gap:12px;border:1px solid var(--line);background:var(--card);border-radius:12px;padding:12px 14px}
 .nb .ico{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;background:var(--gold-faint);font-size:15px;flex:none}
@@ -311,15 +316,14 @@ footer{margin-top:70px;border-top:1px solid var(--line);padding:48px 16px 30px}
 
       <section class="sec reveal" id="place">
         <div class="sec-h"><span class="num">03</span><div><div class="eyebrow">The location</div><h2>See the <span class="g">block</span>, on foot.</h2></div></div>
-        <div class="block3d">
-          <div class="rings">
+        <div class="block3d" id="map3d">
+          <div class="rings" aria-hidden="true">
             <div class="ring" style="width:110px;height:110px"></div>
             <div class="ring" style="width:200px;height:200px"></div>
             <div class="ring" style="width:300px;height:300px"></div>
           </div>
-          <span class="ringlbl" style="top:38%">5 min</span>
-          <div class="blip"></div>
-          <button class="go" onclick="open3d()">◆ Explore the block in 3D — walk rings</button>
+          <div class="blip" aria-hidden="true"></div>
+          <button class="m3facade" onclick="boom3D(this)" aria-label="Explore the block in 3D">◆ Explore the block in 3D<small>Real map · 3D buildings · 5 / 10 / 15-min walk rings</small></button>
         </div>
         <div class="nearby" id="nearby"></div>
       </section>
@@ -422,7 +426,7 @@ footer{margin-top:70px;border-top:1px solid var(--line);padding:48px 16px 30px}
 <div class="lb" id="lb" onclick="if(event.target.id==='lb')this.classList.remove('show')"><button class="xc" onclick="document.getElementById('lb').classList.remove('show')">×</button><img id="lbImg" src="" alt=""></div>
 
 <script>
-let L={name:"Bright Attic in Trastevere",zone:"Trastevere",price:1500,deposit:1500,agencyFee:0,beds:2,baths:1,sqm:65,floor:3,furnished:true,availableFrom:"2026-09-01",
+let L={name:"Bright Attic in Trastevere",zone:"Trastevere",price:1500,deposit:1500,agencyFee:0,beds:2,baths:1,sqm:65,floor:3,furnished:true,availableFrom:"2026-09-01",lat:41.8867,lng:12.4692,
   images:[["1502672260266-1c1ef2d93688","Living"],["1505691938895-1758d7feb511","Bedroom"],["1484154218962-a197022b5858","Kitchen"],["1493809842364-78817add7ffb","Terrace"],["1560448204-e02f11c3d0e2","Bathroom"]],
   features:["Furnished","Private terrace","Double aspect","Air conditioning","Washer","Fibre Wi-Fi","Elevator","Eat-in kitchen"],
   nearby:[["🚇","Trastevere station","Trains + tram","8 min"],["🎓","Sapienza University","Main campus","16 min"],["🛒","Conad supermarket","Daily groceries","4 min"],["🏛️","Piazza Navona","Historic centre","19 min"]],
@@ -534,7 +538,36 @@ addEventListener('keydown',function(e){if(e.key!=='Escape')return;
   var ov=document.querySelector('.ov.show');if(ov){ov.classList.remove('show');return;}
   var mmEl=document.getElementById('mm');if(mmEl&&mmEl.classList.contains('on')){mmEl.classList.remove('on');var hb=document.getElementById('burger')||document.querySelector('.burger');if(hb)hb.classList.remove('on');document.body.style.overflow='';}
 });
-function open3d(){openOv('d3Ov')}
+function open3d(){boom3D(document.querySelector('#map3d .m3facade'));}
+/* ---- real MapLibre 3D flyover (lazy-loaded, colored realistic + 3D buildings + walk rings) ---- */
+let _map3d=null;
+function ensureML(){return window.__mlp||(window.__mlp=new Promise(function(res,rej){if(window.maplibregl)return res();
+  var c=document.createElement('link');c.rel='stylesheet';c.href='https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css';document.head.appendChild(c);
+  var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.min.js';s.onload=function(){res()};s.onerror=rej;document.head.appendChild(s);}));}
+function boom3D(btn){
+  if(_map3d)return;var host=document.getElementById('map3d');if(!host)return;
+  var lat=+L.lat||41.8902,lng=+L.lng||12.4922;
+  if(btn){btn.innerHTML='<span style="color:var(--t3);font-size:12px">Loading map…</span>';btn.style.pointerEvents='none';}
+  ensureML().then(function(){
+    var reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;
+    var map=new maplibregl.Map({container:'map3d',style:'https://tiles.openfreemap.org/styles/liberty',center:[lng,lat],zoom:reduce?16:13.4,pitch:reduce?55:0,bearing:0,cooperativeGestures:true,antialias:true,attributionControl:false});
+    _map3d=map;
+    map.addControl(new maplibregl.NavigationControl({visualizePitch:true}),'top-right');
+    map.addControl(new maplibregl.FullscreenControl(),'top-right');
+    map.on('load',function(){
+      try{var srcs=Object.keys(map.getStyle().sources||{});var src=srcs.find(function(s){return /openmaptiles|vector|planet/i.test(s);})||srcs[0];
+        if(src)map.addLayer({id:'b3d',type:'fill-extrusion',source:src,'source-layer':'building',minzoom:13,paint:{'fill-extrusion-color':['interpolate',['linear'],['coalesce',['get','render_height'],10],0,'#e7dcc4',45,'#d8c49a',95,'#bd9f68'],'fill-extrusion-height':['coalesce',['get','render_height'],12],'fill-extrusion-base':['coalesce',['get','render_min_height'],0],'fill-extrusion-opacity':.92,'fill-extrusion-vertical-gradient':true}});}catch(e){}
+      try{var ring=function(r){var co=[],dLat=r/111320,dLng=r/(111320*Math.cos(lat*Math.PI/180)),i,a;for(i=0;i<=64;i++){a=i/64*2*Math.PI;co.push([lng+dLng*Math.cos(a),lat+dLat*Math.sin(a)]);}return{type:'Feature',properties:{},geometry:{type:'Polygon',coordinates:[co]}};};
+        map.addSource('rings',{type:'geojson',data:{type:'FeatureCollection',features:[ring(350),ring(700),ring(1050)]}});
+        map.addLayer({id:'rings-l',type:'line',source:'rings',paint:{'line-color':'#FFD700','line-opacity':.45,'line-width':1.4,'line-dasharray':[2,2]}});}catch(e){}
+      var el=document.createElement('div');el.className='m3pin';
+      new maplibregl.Marker({element:el,anchor:'bottom'}).setLngLat([lng,lat]).addTo(map);
+      host.querySelectorAll('.rings,.blip,.m3facade').forEach(function(n){n.remove();});
+      if(!reduce)map.flyTo({center:[lng,lat],zoom:16.2,pitch:60,bearing:-18,duration:3200});
+    });
+    map.on('error',function(){});
+  }).catch(function(){host.innerHTML='<div style="position:absolute;inset:0;display:grid;place-items:center;color:var(--t3);font-size:12px">Map unavailable</div>';});
+}
 document.querySelectorAll('.ov').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('show')}));
 const AI={'💰 Total to move in?':'For your chosen dates the total is first month + refundable deposit + agency fee (€0 here). You see it live in “Your stay”.',
 '🛡️ How does the deposit work?':'Security, not a cost: held safely and returned at the end of your stay, net of any damage.',
@@ -623,7 +656,7 @@ function mapReal(d){
   const imgs=(Array.isArray(d.images)&&d.images.length)?d.images:(d.image?[d.image]:[]);
   const feat=Array.isArray(d.features)?d.features:(Array.isArray(d.amenities)?d.amenities:[]);
   const rawAf=d.availableFrom||d.availableDate;const af=(typeof rawAf==='string'&&rawAf)?rawAf.slice(0,10):SAMPLE.availableFrom;
-  return {name:d.name||d.title||'Apartment in Rome',zone:d.zone||d.neighborhood||d.address||'Rome',price:+d.price||0,deposit:+d.deposit||+d.price||0,agencyFee:+d.agencyFee||0,beds:(d.beds!=null?d.beds:(d.bedrooms!=null?d.bedrooms:0)),baths:(d.bathrooms!=null?d.bathrooms:(d.baths!=null?d.baths:1)),sqm:d.sqm||d.size||0,floor:d.floor||1,furnished:(d.furnished===true)||/furnish/i.test(feat.join(' ')+' '+(d.description||'')),availableFrom:af,images:imgs.length?imgs:SAMPLE.images,features:feat.length?feat:SAMPLE.features,nearby:SAMPLE.nearby,similar:SAMPLE.similar};
+  return {name:d.name||d.title||'Apartment in Rome',zone:d.zone||d.neighborhood||d.address||'Rome',price:+d.price||0,deposit:+d.deposit||+d.price||0,agencyFee:+d.agencyFee||0,beds:(d.beds!=null?d.beds:(d.bedrooms!=null?d.bedrooms:0)),baths:(d.bathrooms!=null?d.bathrooms:(d.baths!=null?d.baths:1)),sqm:d.sqm||d.size||0,floor:d.floor||1,furnished:(d.furnished===true)||/furnish/i.test(feat.join(' ')+' '+(d.description||'')),availableFrom:af,images:imgs.length?imgs:SAMPLE.images,features:feat.length?feat:SAMPLE.features,nearby:SAMPLE.nearby,similar:SAMPLE.similar,lat:+d.lat||SAMPLE.lat,lng:+d.lng||SAMPLE.lng};
 }
 const PID=new URLSearchParams(location.search).get('id');
 if(PID){fetch('/api/listings?id='+encodeURIComponent(PID),{cache:'no-store'}).then(r=>r.ok?r.json():null).then(j=>{if(j&&j.ok&&j.listing){L=mapReal(j.listing);const pc=document.querySelector('.proto');if(pc)pc.innerHTML='NEW IDENTITY · <b>live data</b>';}}).catch(()=>{}).finally(paintData);}
