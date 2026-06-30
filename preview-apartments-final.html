@@ -85,6 +85,9 @@ nav.scr{background:rgba(6,6,7,.96);border-color:var(--line-gold)}
 .fbar-in::-webkit-scrollbar{display:none}
 .fpill{flex:0 0 auto;display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:var(--card);border-radius:100px;padding:10px 15px;font-size:13px;color:var(--t2);transition:.2s var(--ease);min-height:40px}
 .fpill:hover{border-color:var(--line-gold)}.fpill.on{border-color:var(--gold);color:var(--gold);background:var(--gold-faint)}
+.fpill.on::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--gold);flex:none}
+.fpill.clearall{border-color:var(--line-gold);color:var(--gold)}.fpill.clearall:hover{background:var(--gold);color:#1a1407}
+.fbar{position:sticky}.fbar::after{content:"";position:absolute;right:0;top:10px;bottom:10px;width:34px;background:linear-gradient(90deg,transparent,rgba(6,6,7,.82));pointer-events:none}
 .fpill .cnt{font-size:11px;color:var(--gold);font-weight:600}
 .fpill.filters{border-color:var(--line-gold);color:var(--gold)}
 @media(min-width:880px){.fpill.filters{display:none}}
@@ -227,6 +230,7 @@ footer{margin-top:64px;border-top:1px solid var(--line);padding:44px 16px 28px}
     <button class="fpill" data-quick="lift" onclick="toggleFeat('Lift',this)" aria-pressed="false">Lift</button>
     <button class="fpill" data-quick="ac" onclick="toggleFeat('Air conditioning',this)" aria-pressed="false">A/C</button>
     <button class="fpill" data-quick="saved" onclick="toggleSavedOnly()" aria-pressed="false">♥ Saved <span class="cnt" id="savedCnt"></span></button>
+    <button class="fpill clearall" id="clearAll" onclick="resetAll()" style="display:none" aria-label="Clear all filters">✕ Clear all <span class="cnt" id="clearCnt"></span></button>
   </div></div>
 
   <div class="rhead">
@@ -419,8 +423,9 @@ function render(){
   document.getElementById('count').textContent=list.length;
   document.getElementById('ctx').textContent=(S.zones.length?('in '+S.zones.join(', ')):'')+(S.moveIn?(' · by '+fmtS(S.moveIn)):'')+(S.savedOnly?' · saved':'');
   document.getElementById('applyN').textContent=list.length;
-  document.getElementById('fcount').textContent=activeCount()||'';
+  var _ac=activeCount();document.getElementById('fcount').textContent=_ac||'';
   document.getElementById('savedCnt').textContent=saved.size||'';
+  document.getElementById('clearAll').style.display=_ac?'inline-flex':'none';document.getElementById('clearCnt').textContent=_ac;
   /* facets from the pre-zone-filtered set so zones stay explorable */
   const preZone=L.filter(l=>{const z=S.zones;S.zones=[];const ok=pass(l);S.zones=z;return ok;});
   const fc={};preZone.forEach(l=>fc[l.zone]=(fc[l.zone]||0)+1);
