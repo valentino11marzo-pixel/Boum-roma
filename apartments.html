@@ -1018,6 +1018,7 @@
     <!-- FIREBASE -->
     <!-- Shared zone → neighborhood-slug helper (auto-generated from neighborhoods-data.js) -->
     <script src="/js/neighborhoods.js"></script>
+    <script src="/js/boom-elevate.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
     <script>
@@ -1347,8 +1348,12 @@
         return;
       }
       $('#aptEmpty').hidden = true;
+      // FLIP: record current card positions, swap in the new list, glide them home.
+      const _flip = (window.BoomElevate && BoomElevate.flipCapture) ? BoomElevate.flipCapture(grid, '.card') : null;
       grid.innerHTML = list.map(makeCard).join('');
-      grid.classList.remove('apt-results-anim'); void grid.offsetWidth; grid.classList.add('apt-results-anim');
+      if (_flip) { _flip(); }
+      else { grid.classList.remove('apt-results-anim'); void grid.offsetWidth; grid.classList.add('apt-results-anim'); }
+      if (window.BoomElevate && BoomElevate.scan) BoomElevate.scan(grid);   // blur-up the new card photos
       injectListingsJsonLd(list);  // keep ItemList JSON-LD in sync
     }
 
@@ -1388,7 +1393,7 @@
         ? `<div class="card-img-dots">${images.map((_,i) => `<span class="card-img-dot${i===0?' active':''}"></span>`).join('')}</div>` : '';
       return `<article class="card" data-id="${id}" data-href="${link}" role="link" tabindex="0" aria-label="${alt}">
         <div class="card-img" data-images='${imagesAttr}'>
-          <img src="${imgUrl}" alt="${alt}" loading="lazy" decoding="async" onerror="this.style.opacity=0">
+          <img src="${imgUrl}" alt="${alt}" loading="lazy" decoding="async" data-blur-up onerror="this.style.opacity=0">
           ${dots}
           <div class="card-actions">
             <button class="card-act${savedOn}" data-act="save" data-id="${id}" aria-label="Save" title="Save">
@@ -1904,12 +1909,15 @@
       const card = e.target.closest('article.card[data-href]');
       if (card) { if (window.getSelection && window.getSelection().toString().length) return;
         boomTrack('select_item', { items: [listingParams(card.dataset.id)] });
+        try { if (window.BoomElevate) BoomElevate.captureHandoff(card.querySelector('.card-img img'), card.dataset.id); } catch (_) {}
         window.location.href = card.getAttribute('data-href'); }
     });
     document.addEventListener('keydown', e => {
       if (e.key !== 'Enter' && e.key !== ' ') return;
       const card = e.target.closest && e.target.closest('article.card[data-href]');
-      if (card && card === document.activeElement) { e.preventDefault(); window.location.href = card.getAttribute('data-href'); }
+      if (card && card === document.activeElement) { e.preventDefault();
+        try { if (window.BoomElevate) BoomElevate.captureHandoff(card.querySelector('.card-img img'), card.dataset.id); } catch (_) {}
+        window.location.href = card.getAttribute('data-href'); }
     });
     // Hover-cycle through card images
     let cardImgTimer;

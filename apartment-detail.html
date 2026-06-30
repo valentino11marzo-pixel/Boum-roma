@@ -1768,6 +1768,8 @@
     <!-- FIREBASE + APP -->
     <script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
     <script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+    <!-- Apple-tech elevation layer: loaded synchronously so the arrival morph is ready before the (possibly SSR-instant) hero render -->
+    <script src="/js/boom-elevate.js"></script>
     <script>
     // Firebase loads DEFERRED (no longer render-blocking). Init lazily, only when a
     // DB call is actually needed (zone footer / application submit). The listing
@@ -2130,6 +2132,8 @@
 
         document.getElementById('pageLoading').style.display='none';
         var ap=document.getElementById('apartmentPage');ap.style.display='block';ap.classList.add('show');
+        // Apple-tech continuity: morph the hero in from the tapped listing card, then blur-up the rest.
+        try{ if(window.BoomElevate){ var _hero=document.querySelector('#mediaSection .single-hero-img, #mediaSection .gal-it.main img, #mediaSection img'); if(_hero) BoomElevate.playArrival(_hero,id); BoomElevate.scan(document.getElementById('mediaSection')); } }catch(_e){}
 
         if(typeof gtag==='function')gtag('event','view_listing',{listing_id:id,listing_name:name,listing_price:d.price});
 
@@ -2199,8 +2203,8 @@
         const vUrl=d.videoUrl||d.youtubeUrl,hasV=!!vUrl,vId=hasV?exYT(vUrl):null;
 
         if(!imgs.length&&!hasV){sec.innerHTML='<div class="media-placeholder"><span>📷</span><p>Photos coming soon</p></div>';return}
-        if(imgs.length===1&&!hasV){sec.innerHTML=`<img src="${imgSized(imgs[0],'h')}" alt="Apartment photo" class="single-hero-img" loading="eager" fetchpriority="high" decoding="async" onclick="openLightbox(0)">`;return}
-        if(imgs.length===1&&hasV&&vId){sec.innerHTML=`<img src="${imgSized(imgs[0],'h')}" alt="Apartment photo" class="single-hero-img" loading="eager" fetchpriority="high" decoding="async" onclick="openLightbox(0)"><div class="video-section"><div class="video-section-label">Video Tour</div><div class="video-embed"><iframe src="https://www.youtube.com/embed/${vId}?rel=0" allowfullscreen loading="lazy"></iframe></div></div>`;return}
+        if(imgs.length===1&&!hasV){sec.innerHTML=`<img src="${imgSized(imgs[0],'h')}" alt="Apartment photo" class="single-hero-img" loading="eager" fetchpriority="high" decoding="async" data-blur-up onclick="openLightbox(0)">`;return}
+        if(imgs.length===1&&hasV&&vId){sec.innerHTML=`<img src="${imgSized(imgs[0],'h')}" alt="Apartment photo" class="single-hero-img" loading="eager" fetchpriority="high" decoding="async" data-blur-up onclick="openLightbox(0)"><div class="video-section"><div class="video-section-label">Video Tour</div><div class="video-embed"><iframe src="https://www.youtube.com/embed/${vId}?rel=0" allowfullscreen loading="lazy"></iframe></div></div>`;return}
 
         // No photos but a video → embed it; otherwise an asymmetric editorial gallery
         if(!imgs.length){ if(vId) sec.innerHTML=`<div style="border-radius:16px;overflow:hidden;border:1px solid rgba(255,255,255,.06)"><iframe src="https://www.youtube.com/embed/${vId}?rel=0" allowfullscreen loading="lazy" style="width:100%;height:480px;border:0;display:block"></iframe></div>`; return; }
@@ -2208,7 +2212,7 @@
         const cells=shown.map((src,i)=>{
           const more=(i===shown.length-1&&imgs.length>shown.length)?`<div class="gal-more">+${imgs.length-shown.length} photos</div>`:'';
           const vb=(i===0&&vId)?`<span class="gal-video" onclick="event.stopPropagation();window.open('https://www.youtube.com/watch?v=${vId}','_blank')">▶ Play tour</span>`:'';
-          return `<div class="gal-it${i===0?' main':''}" onclick="openLightbox(${i})"><img src="${i===0?imgSized(src,'h'):imgOpt(src,640)}" onerror="this.onerror=null;this.src='${imgSized(src,i===0?'h':'l')}'" alt="Photo ${i+1}" loading="${i===0?'eager':'lazy'}" decoding="async"${i===0?' fetchpriority="high"':''}>${more}${vb}</div>`;
+          return `<div class="gal-it${i===0?' main':''}" onclick="openLightbox(${i})"><img src="${i===0?imgSized(src,'h'):imgOpt(src,640)}" onerror="this.onerror=null;this.src='${imgSized(src,i===0?'h':'l')}'" alt="Photo ${i+1}" loading="${i===0?'eager':'lazy'}" decoding="async" data-blur-up${i===0?' fetchpriority="high"':''}>${more}${vb}</div>`;
         }).join('');
         sec.innerHTML=`<div class="gal" id="galGrid">${cells}</div>`;
     }
