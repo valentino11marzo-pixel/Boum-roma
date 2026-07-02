@@ -297,6 +297,7 @@ footer{margin-top:64px;border-top:1px solid var(--line);padding:44px 16px 28px}
 </div></div>
 
 <script defer src="/js/boom-bg.js"></script>
+<script src="/js/boom-elevate.js"></script>
 <script>
 /* ---------- data ---------- */
 const ZONES=['Trastevere','Monti','Prati','Centro Storico','Testaccio','San Lorenzo','Pigneto','Ostiense'];
@@ -406,8 +407,8 @@ function cardHTML(l){
   const av=gap>0?`<div class="avail after">Free ${fmtS(l.availableFrom)} · ${gap}d after your date</div>`:`<div class="avail">Available ${fmtS(l.availableFrom)}</div>`;
   const showFit=(S.budgetMax<4000||S.moveIn||S.zones.length);
   const alt=(l.name+' — '+l.zone).replace(/"/g,'');
-  return `<a class="pc" href="/listing/${encodeURIComponent(l.id)}" aria-label="${alt}, ${eur(l.price)} per month">
-    <div class="ph"><img src="${l.img||''}" alt="${alt}" loading="lazy" onerror="this.style.opacity=0">
+  return `<a class="pc" data-id="${l.id}" href="/listing/${encodeURIComponent(l.id)}" aria-label="${alt}, ${eur(l.price)} per month">
+    <div class="ph"><img src="${l.img||''}" alt="${alt}" loading="lazy" data-blur-up onerror="this.style.opacity=0">
       <div class="badges">${l.videoUrl?'<span class="bdg video">▶ Video</span>':''}${l.isNew?'<span class="bdg new">New</span>':''}<span class="bdg avail">✓ Verified</span>${over?'<span class="bdg over">€'+Math.round(l.price-S.budgetMax)+' over</span>':''}</div>
       <div class="acts"><button class="iact${saved.has(l.id)?' on':''}" aria-pressed="${saved.has(l.id)}" onclick="event.preventDefault();event.stopPropagation();toggleSave('${l.id}',this)" aria-label="Save">♡</button><button class="iact cmp${cmp.has(l.id)?' on':''}" aria-pressed="${cmp.has(l.id)}" onclick="event.preventDefault();event.stopPropagation();toggleCmp('${l.id}',this)" aria-label="Add to compare">⇄</button></div>
       ${showFit?`<span class="fit" title="Fit: ${sp.parts.join(' · ')||'baseline'}">${sp.score}% fit</span>`:''}</div>
@@ -432,7 +433,12 @@ function render(){
   document.getElementById('facets').innerHTML=Object.entries(fc).sort((a,b)=>b[1]-a[1]).slice(0,7).map(([z,n])=>`<button class="facet${S.zones.includes(z)?' on':''}" aria-pressed="${S.zones.includes(z)}" onclick="quickZone('${z.replace(/'/g,"\\'")}')"><b>${n}</b> ${z}</button>`).join('');
   if(S.view==='map'){renderMap(list);grid.style.display='none';empty.style.display='none';}
   else{document.getElementById('mapview').classList.remove('on');grid.style.display='';
-    if(!list.length){grid.innerHTML='';empty.style.display='';}else{empty.style.display='none';grid.innerHTML=list.map(cardHTML).join('');}}
+    if(!list.length){grid.innerHTML='';empty.style.display='';}else{empty.style.display='none';
+      /* FLIP: persisting cards glide to their new slot; new ones rise-fade in */
+      const _flip=(window.BoomElevate&&BoomElevate.flipCapture)?BoomElevate.flipCapture(grid,'.pc'):null;
+      grid.innerHTML=list.map(cardHTML).join('');
+      if(_flip)_flip();
+      if(window.BoomElevate&&BoomElevate.scan)BoomElevate.scan(grid);}}
   syncURL();
 }
 let _ML=null;
@@ -558,6 +564,22 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'){
 }});
 addEventListener('scroll',()=>document.getElementById('nav').classList.toggle('scr',scrollY>16),{passive:true});
 
+/* ---------- list→scheda continuity + scroll restore ---------- */
+document.getElementById('grid').addEventListener('click',function(e){
+  var a=e.target.closest('a.pc[data-id]');if(!a)return;
+  try{
+    if(window.BoomElevate)BoomElevate.captureHandoff(a.querySelector('.ph img'),a.dataset.id);
+    sessionStorage.setItem('boom:scroll:disc',String(scrollY));
+  }catch(_){}
+});
+function restoreScroll(){
+  try{
+    var nav=performance.getEntriesByType('navigation')[0];
+    if(nav&&nav.type==='back_forward'){var y=+sessionStorage.getItem('boom:scroll:disc')||0;
+      if(y)requestAnimationFrame(function(){scrollTo(0,y);});}
+  }catch(_){}
+}
+
 /* ---------- boot ---------- */
 setCalLabel();
 document.getElementById('grid').innerHTML=Array.from({length:6},()=>'<div class="sk"><div class="ph"></div><div class="b"><div class="l" style="width:40%"></div><div class="l" style="width:80%"></div><div class="l" style="width:60%"></div></div></div>').join('');
@@ -565,7 +587,7 @@ hydrate();syncControls();document.getElementById('cmpN').textContent=cmp.size;do
 fetch('/api/listings',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(j=>{
   if(j&&j.ok&&Array.isArray(j.listings)&&j.listings.length){L=j.listings.filter(isRentable).map(mapReal);if(!L.length)L=SAMPLE;
     document.querySelector('.proto').innerHTML='DISCOVERY · <b>live data</b> · '+L.length+' homes';}
-}).catch(()=>{}).finally(render);
+}).catch(()=>{}).finally(function(){render();restoreScroll();});
 </script>
 </body>
 </html>

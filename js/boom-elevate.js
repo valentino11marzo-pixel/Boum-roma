@@ -171,6 +171,7 @@
         rect: { top: r.top, left: r.left, width: r.width, height: r.height },
         t: Date.now()
       }));
+      // one-shot per stored handoff; readHandoff enforces the TTL on the other side
     } catch (e) {}
   }
 
@@ -180,7 +181,7 @@
       if (!raw) return null;
       var h = JSON.parse(raw);
       if (!h || h.id !== id) return null;
-      if (Date.now() - h.t > 5000) { sessionStorage.removeItem(HKEY); return null; }
+      if (Date.now() - h.t > 10000) { sessionStorage.removeItem(HKEY); return null; }   // generous TTL: slow-3G detail loads can pass 5s
       return h;
     } catch (e) { return null; }
   }
