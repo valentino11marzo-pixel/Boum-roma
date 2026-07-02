@@ -242,6 +242,29 @@ footer{margin-top:70px;border-top:1px solid var(--line);padding:48px 16px 30px}
 
 .proto{position:fixed;bottom:calc(80px + var(--safe));left:50%;transform:translateX(-50%);z-index:130;background:rgba(8,8,10,.92);backdrop-filter:blur(12px);border:1px solid var(--line-gold);border-radius:100px;font-size:11px;color:var(--t2);padding:7px 14px;white-space:nowrap}.proto b{color:var(--gold)}
 @media(min-width:921px){.proto{bottom:16px}}
+
+/* ═══ EXPERIENCE SEQUENCE — the vital facts arrive as a choreography ═══ */
+/* Act I · Arrival: name → price (counts up) → vital facts, one beat apart.  */
+@media(prefers-reduced-motion:no-preference){
+  body.arrive .titlewrap>div:first-child{animation:seqIn .55s cubic-bezier(.16,1,.3,1) .05s both}
+  body.arrive .price-inline{animation:seqIn .6s cubic-bezier(.16,1,.3,1) .18s both}
+  body.arrive .facts .fact{opacity:0;animation:seqIn .5s cubic-bezier(.16,1,.3,1) both}
+  body.arrive .facts .fact:nth-child(1){animation-delay:.30s}
+  body.arrive .facts .fact:nth-child(2){animation-delay:.38s}
+  body.arrive .facts .fact:nth-child(3){animation-delay:.46s}
+  body.arrive .facts .fact:nth-child(4){animation-delay:.54s}
+  body.arrive .facts .fact:nth-child(5){animation-delay:.62s}
+}
+@keyframes seqIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+/* Chapter rail: the visit's script, always visible on desktop */
+.chrail{position:fixed;right:18px;top:50%;transform:translateY(-50%);z-index:120;display:none;flex-direction:column;gap:4px}
+@media(min-width:1150px){.chrail{display:flex}}
+.chrail a{display:flex;align-items:center;justify-content:flex-end;gap:9px;padding:7px 4px;color:var(--t3,rgba(255,255,255,.46))}
+.chrail a .cl{opacity:0;transform:translateX(4px);transition:all .25s cubic-bezier(.16,1,.3,1);font-size:10.5px;letter-spacing:1.6px;text-transform:uppercase;pointer-events:none}
+.chrail a i{width:7px;height:7px;border-radius:50%;border:1.5px solid rgba(255,255,255,.3);transition:all .25s cubic-bezier(.16,1,.3,1);flex:0 0 auto}
+.chrail a:hover .cl{opacity:1;transform:none}
+.chrail a.on i{background:var(--gold,#FFD700);border-color:var(--gold,#FFD700);box-shadow:0 0 10px rgba(255,215,0,.5);transform:scale(1.25)}
+.chrail a.on .cl{opacity:1;transform:none;color:var(--gold,#FFD700)}
 </style>
 </head>
 <body>
@@ -283,6 +306,9 @@ footer{margin-top:70px;border-top:1px solid var(--line);padding:48px 16px 30px}
     <button class="arrow r" onclick="slideBy(1)" aria-label="Next">›</button>
     <div class="hero-foot"><div class="dots" id="dots"></div><button class="counter" id="counter" onclick="openLb(curIdx)">1 / 5 · view</button></div>
   </section>
+
+  <!-- CHAPTER RAIL (desktop) — the visit has a script: Photos → Home → Money → Location -->
+  <nav class="chrail" id="chrail" aria-label="Page chapters"></nav>
 
   <!-- TITLE -->
   <div class="titlewrap reveal">
@@ -668,9 +694,49 @@ function mapReal(d){
   const rawAf=d.availableFrom||d.availableDate;const af=(typeof rawAf==='string'&&rawAf)?rawAf.slice(0,10):SAMPLE.availableFrom;
   return {name:d.name||d.title||'Apartment in Rome',zone:d.zone||d.neighborhood||d.address||'Rome',price:+d.price||0,deposit:+d.deposit||+d.price||0,agencyFee:+d.agencyFee||0,beds:(d.beds!=null?d.beds:(d.bedrooms!=null?d.bedrooms:0)),baths:(d.bathrooms!=null?d.bathrooms:(d.baths!=null?d.baths:1)),sqm:d.sqm||d.size||0,floor:d.floor||1,furnished:(d.furnished===true)||/furnish/i.test(feat.join(' ')+' '+(d.description||'')),availableFrom:af,images:imgs.length?imgs:SAMPLE.images,features:feat.length?feat:SAMPLE.features,nearby:SAMPLE.nearby,similar:SAMPLE.similar,lat:+d.lat||SAMPLE.lat,lng:+d.lng||SAMPLE.lng};
 }
+/* ═══ EXPERIENCE SEQUENCE — arrival choreography + chapter rail + money roll-up ═══ */
+const REDUCE_SEQ=matchMedia('(prefers-reduced-motion: reduce)').matches;
+function rollNum(el,delay){ // "€1,500" rolls from 0 and lands on the exact original string
+  if(REDUCE_SEQ||!el||el.__rolled)return;el.__rolled=1;
+  const txt=el.textContent,m=txt.match(/(\d[\d.,]*)/);if(!m)return;
+  const num=parseFloat(m[1].replace(/[.,](?=\d{3}(\D|$))/g,''));if(!isFinite(num)||num<=0)return;
+  const pre=txt.slice(0,m.index),suf=txt.slice(m.index+m[1].length),dur=950;
+  setTimeout(()=>{const t0=performance.now();
+    (function tick(now){const p=Math.min(1,(now-t0)/dur),e=1-Math.pow(1-p,3);
+      el.textContent=p<1?(pre+Math.round(num*e).toLocaleString('en-US')+suf):txt;
+      if(p<1)requestAnimationFrame(tick);})(t0);},delay||0);
+}
+function experienceArrive(){
+  document.body.classList.add('arrive');            // name → price → facts cascade (CSS)
+  rollNum(document.getElementById('hPrice'),260);   // the price lands with weight
+}
+(function(){ // chapter rail — the visit has a script: Photos → Home → Money → Location
+  const CH=[['top','Photos'],['about','The home'],['money','The money'],['place','The location']];
+  const rail=document.getElementById('chrail');if(!rail)return;
+  rail.innerHTML=CH.map(([id,l])=>`<a href="${id==='top'?'#':'#'+id}" data-t="${id}"><span class="cl">${l}</span><i></i></a>`).join('');
+  rail.addEventListener('click',function(e){const a=e.target.closest('a');if(!a)return;e.preventDefault();
+    if(a.dataset.t==='top')scrollTo({top:0,behavior:'smooth'});
+    else{const el=document.getElementById(a.dataset.t);if(el)el.scrollIntoView({behavior:'smooth',block:'start'});}});
+  const setOn=t=>rail.querySelectorAll('a').forEach(a=>a.classList.toggle('on',a.dataset.t===t));
+  let tick=false;
+  addEventListener('scroll',function(){if(tick)return;tick=true;requestAnimationFrame(function(){tick=false;
+    const y=scrollY+innerHeight*0.38;let cur='top';
+    CH.forEach(([id])=>{if(id==='top')return;const el=document.getElementById(id);if(el&&el.offsetTop<=y)cur=id;});
+    setOn(cur);});},{passive:true});
+  setOn('top');
+})();
+(function(){ // money roll-up: the first time the ledger enters view, every figure counts up
+  const mo=document.getElementById('money');
+  if(!mo||REDUCE_SEQ||!('IntersectionObserver' in window))return;
+  new IntersectionObserver(function(es,io){es.forEach(function(en){
+    if(!en.isIntersecting)return;io.disconnect();
+    let d=0;document.querySelectorAll('#mtiles .mt .v, #srows .srow .v').forEach(el=>{rollNum(el,d);d+=90;});
+  })},{threshold:.35}).observe(mo);
+})();
+
 const PID=new URLSearchParams(location.search).get('id');
-if(PID){fetch('/api/listings?id='+encodeURIComponent(PID),{cache:'no-store'}).then(r=>r.ok?r.json():null).then(j=>{if(j&&j.ok&&j.listing){L=mapReal(j.listing);const pc=document.querySelector('.proto');if(pc)pc.innerHTML='NEW IDENTITY · <b>live data</b>';}}).catch(()=>{}).finally(paintData);}
-else paintData();
+if(PID){fetch('/api/listings?id='+encodeURIComponent(PID),{cache:'no-store'}).then(r=>r.ok?r.json():null).then(j=>{if(j&&j.ok&&j.listing){L=mapReal(j.listing);const pc=document.querySelector('.proto');if(pc)pc.innerHTML='NEW IDENTITY · <b>live data</b>';}}).catch(()=>{}).finally(function(){paintData();experienceArrive();});}
+else{paintData();experienceArrive();}
 </script>
 </body>
 </html>

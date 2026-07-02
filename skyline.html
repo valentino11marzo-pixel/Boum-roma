@@ -175,20 +175,41 @@ function buildAnchors(){
   map.on('click',clearLinks); // tapping empty map dismisses the lines
 }
 
-function gradeDark(){
+function gradeColor(){
+  // FULL COLOUR (same treatment as the listing 3D explorer): keep liberty's real
+  // palette, only declutter tiny POI icons. Travertine-graded 3D buildings,
+  // hybrid satellite layer (hidden until toggled) and real terrain.
   try{
     map.getStyle().layers.forEach(function(L){try{
       if(L.type==='symbol'&&/poi|housenumber|aeroway|airport/.test(L.id)){map.setLayoutProperty(L.id,'visibility','none');return;}
-      if(L.type==='background')map.setPaintProperty(L.id,'background-color','#0B0B0E');
-      else if(L.type==='fill')map.setPaintProperty(L.id,'fill-color',/water/.test(L.id)?'#10181F':/park|grass|wood|green/.test(L.id)?'#101510':'#121216');
-      else if(L.type==='line')map.setPaintProperty(L.id,'line-color',/primary|trunk|motorway|major/.test(L.id)?'#2B2B33':'#1C1C22');
-      else if(L.type==='symbol'){map.setPaintProperty(L.id,'text-color','#8A8A92');map.setPaintProperty(L.id,'text-halo-color','#0B0B0E');}
     }catch(e){}});
+    try{
+      map.addSource('sky-sat',{type:'raster',tiles:['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],tileSize:256,maxzoom:19,attribution:'Imagery © Esri, Maxar, Earthstar Geographics'});
+      var firstSym=(map.getStyle().layers.find(function(L){return L.type==='symbol'})||{}).id;
+      map.addLayer({id:'sky-sat-l',type:'raster',source:'sky-sat',layout:{visibility:'none'},paint:{'raster-opacity':1,'raster-fade-duration':300}},firstSym);
+    }catch(e){}
+    try{
+      map.addSource('sky-dem',{type:'raster-dem',tiles:['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],encoding:'terrarium',tileSize:256,maxzoom:13});
+      map.setTerrain({source:'sky-dem',exaggeration:1.15});
+    }catch(e){}
     var srcs=Object.keys(map.getStyle().sources||{});
     var src=srcs.find(function(s){return /openmaptiles|vector|planet/i.test(s);})||srcs[0];
-    if(src)map.addLayer({id:'sky-3d',type:'fill-extrusion',source:src,'source-layer':'building',minzoom:13,paint:{'fill-extrusion-color':'#22222a','fill-extrusion-height':['coalesce',['get','render_height'],12],'fill-extrusion-base':['coalesce',['get','render_min_height'],0],'fill-extrusion-opacity':.92}});
+    if(src)map.addLayer({id:'sky-3d',type:'fill-extrusion',source:src,'source-layer':'building',minzoom:13,paint:{'fill-extrusion-color':['interpolate',['linear'],['coalesce',['get','render_height'],10],0,'#B8AD97',14,'#C8BDA5',32,'#D6CBB2',60,'#E2D8C0',110,'#EFE6CF'],'fill-extrusion-height':['coalesce',['get','render_height'],12],'fill-extrusion-base':['coalesce',['get','render_min_height'],0],'fill-extrusion-opacity':.92}});
   }catch(e){}
-  try{ if(map.setSky)map.setSky({'sky-color':'#0a0a12','horizon-color':'#1c1208','fog-color':'#0B0B0E','sky-horizon-blend':.6,'horizon-fog-blend':.5,'fog-ground-blend':.4}); }catch(e){}
+  try{ if(map.setSky)map.setSky({'sky-color':'#8FB8E8','horizon-color':'#F2DEB6','fog-color':'#E8E0CE','sky-horizon-blend':.55,'horizon-fog-blend':.5,'fog-ground-blend':.35}); }catch(e){}
+  // Map ⇄ Satellite chip in the existing filter bar
+  try{
+    var fl=document.getElementById('filters');
+    if(fl&&map.getLayer('sky-sat-l')&&!document.getElementById('satChip')){
+      var chip=document.createElement('button');chip.className='chip';chip.id='satChip';chip.type='button';chip.textContent='🛰 Satellite';
+      chip.addEventListener('click',function(){
+        var on=chip.classList.toggle('on');
+        try{map.setLayoutProperty('sky-sat-l','visibility',on?'visible':'none');}catch(e){}
+        try{map.setPaintProperty('sky-3d','fill-extrusion-opacity',on?0.45:0.92);}catch(e){}
+      });
+      fl.appendChild(chip);
+    }
+  }catch(e){}
 }
 
 function makePin(l,co){
@@ -226,7 +247,7 @@ async function boot(){
   map.addControl(new maplibregl.NavigationControl({visualizePitch:true}),'bottom-right');
   map.addControl(new maplibregl.FullscreenControl(),'bottom-right');
   await new Promise(function(res){ map.on('load',res); });
-  gradeDark();
+  gradeColor();
   buildAnchors();
   $('load').classList.add('off');
   var bounds=new maplibregl.LngLatBounds(), placed=0;

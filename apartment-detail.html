@@ -1795,6 +1795,31 @@
     // Optimised delivery via Vercel Image (AVIF/WebP, exact width). The markup's
     // onerror falls back to the imgur-sized JPEG, so a photo can never break.
     function imgOpt(u,w,q){u=String(u||'');if(!/^https?:\/\//.test(u))return u;return '/_vercel/image?url='+encodeURIComponent(u)+'&w='+(w||1080)+'&q='+(q||72)}
+    // Money numbers count up in gold as they enter the viewport ("€2,400" → rolls
+    // from 0, lands on the exact original string). Locale-aware, one-shot,
+    // reduced-motion exempt. Re-scannable: late-rendered ledgers just call it again.
+    function boomCountUps(root){
+        if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+        var els=(root||document).querySelectorAll('.bmx-row-v, .apt-price, .bmx-total-v, .m48-v');
+        if(!els.length)return;
+        if(!boomCountUps._io){
+            boomCountUps._io=new IntersectionObserver(function(es){es.forEach(function(en){
+                if(!en.isIntersecting)return;
+                boomCountUps._io.unobserve(en.target);
+                var el=en.target;if(el.__cc)return;el.__cc=1;
+                var txt=el.textContent,m=txt.match(/(\d[\d.,]*)/);if(!m)return;
+                var num=parseFloat(m[1].replace(/[.,](?=\d{3}(\D|$))/g,'').replace(',','.'));
+                if(!isFinite(num)||num<=0)return;
+                var pre=txt.slice(0,m.index),suf=txt.slice(m.index+m[1].length),t0=performance.now(),dur=1050;
+                (function tick(now){
+                    var p=Math.min(1,(now-t0)/dur),e=1-Math.pow(1-p,3);
+                    el.textContent=p<1?(pre+Math.round(num*e).toLocaleString('en-US')+suf):txt;
+                    if(p<1)requestAnimationFrame(tick);
+                })(t0);
+            })},{threshold:.6});
+        }
+        els.forEach(function(el){if(!el.__cc&&!el.__ccObs){el.__ccObs=1;boomCountUps._io.observe(el)}});
+    }
 
     // Boot immediately — this script sits at the end of <body>, so the DOM is ready
     // and we render from window.__LISTING without waiting for the deferred SDK.
@@ -2146,6 +2171,9 @@
         var ap=document.getElementById('apartmentPage');ap.style.display='block';ap.classList.add('show');
         // Apple-tech continuity: morph the hero in from the tapped listing card, then blur-up the rest.
         try{ if(window.BoomElevate){ var _hero=document.querySelector('#mediaSection .single-hero-img, #mediaSection .gal-it.main img, #mediaSection img'); if(_hero) BoomElevate.playArrival(_hero,id); BoomElevate.scan(document.getElementById('mediaSection')); } }catch(_e){}
+        // Gold count-up on money values (header price + ledger rows); the retry
+        // catches ledgers rendered after the money engine finishes.
+        try{ boomCountUps(); setTimeout(function(){boomCountUps()},2000); }catch(_e){}
 
         if(typeof gtag==='function')gtag('event','view_listing',{listing_id:id,listing_name:name,listing_price:d.price});
 
@@ -2310,7 +2338,10 @@
         const fail=()=>{try{fallback()}catch(e){}};
         // Geodesic circle helper — shared by rings/beam/accuracy so refine() can rebuild them all.
         const bcircle=function(clng,clat,rM,n){n=n||72;var co=[],dLat=rM/111320,dLng=rM/(111320*Math.cos(clat*Math.PI/180));for(var i=0;i<=n;i++){var a=i/n*2*Math.PI;co.push([clng+dLng*Math.cos(a),clat+dLat*Math.sin(a)]);}return {type:'Feature',properties:{},geometry:{type:'Polygon',coordinates:[co]}};};
-        const ringFCat=function(clng,clat){var defs=[[350,'5 min'],[700,'10 min'],[1050,'15 min']];return {type:'FeatureCollection',features:defs.map(function(d){var f=bcircle(clng,clat,d[0]);f.properties={m:d[1]};return f;})};};
+        // Partial arc as a LineString — lets the walk rings DRAW themselves on open.
+        const barc=function(clng,clat,rM,frac,n){n=n||72;var co=[],dLat=rM/111320,dLng=rM/(111320*Math.cos(clat*Math.PI/180)),steps=Math.max(2,Math.round(n*Math.max(0,Math.min(1,frac))));for(var i=0;i<=steps;i++){var a=(i/n)*2*Math.PI-Math.PI/2;co.push([clng+dLng*Math.cos(a),clat+dLat*Math.sin(a)]);}return {type:'Feature',properties:{},geometry:{type:'LineString',coordinates:co}};};
+        const RING_DEFS=[[350,'5 min'],[700,'10 min'],[1050,'15 min']];
+        const ringFCat=function(clng,clat){return {type:'FeatureCollection',features:RING_DEFS.map(function(d){var f=barc(clng,clat,d[0],1);f.properties={m:d[1]};return f;})};};
         const ringLblAt=function(fc){return {type:'FeatureCollection',features:fc.features.map(function(f){var ring=f.geometry.coordinates[0];return {type:'Feature',properties:{m:'~'+f.properties.m+' walk'},geometry:{type:'Point',coordinates:ring[Math.floor(ring.length*0.12)]}};})};};
         const api={_loaded:false,_map:null,_marker:null,_label:null,refine:function(nlat,nlng){try{
             if(api._marker)api._marker.setLngLat([nlng,nlat]);
@@ -2382,8 +2413,28 @@
                         // every element to the true position in one call.
                         try{
                             var ringFC=ringFCat(lng,lat);
-                            map.addSource('boom-rings',{type:'geojson',data:ringFC});
+                            var reduceR=matchMedia('(prefers-reduced-motion: reduce)').matches;
+                            map.addSource('boom-rings',{type:'geojson',data:reduceR?ringFC:{type:'FeatureCollection',features:[]}});
                             map.addLayer({id:'boom-rings-l',type:'line',source:'boom-rings',paint:{'line-color':'#B8860B','line-opacity':0.55,'line-width':1.6,'line-dasharray':[3,3]}});
+                            // The rings DRAW themselves 5′ → 10′ → 15′, one after the other,
+                            // starting as the flyover settles. Reduced-motion: instant.
+                            if(!reduceR){
+                                var ringT0=null;
+                                var ringTick=function(now){
+                                    if(!ringT0)ringT0=now;
+                                    var t=now-ringT0,done=true,feats=[];
+                                    for(var ri=0;ri<RING_DEFS.length;ri++){
+                                        var fr=(t-(1400+ri*450))/900;
+                                        if(fr<=0){done=false;continue;}
+                                        if(fr<1)done=false;
+                                        var ff=barc(lng,lat,RING_DEFS[ri][0],Math.min(1,fr));ff.properties={m:RING_DEFS[ri][1]};feats.push(ff);
+                                    }
+                                    try{map.getSource('boom-rings').setData({type:'FeatureCollection',features:feats});}catch(e){return}
+                                    if(!done)requestAnimationFrame(ringTick);
+                                    else try{map.getSource('boom-rings').setData(ringFCat(lng,lat));}catch(e){}
+                                };
+                                requestAnimationFrame(ringTick);
+                            }
                             map.addSource('boom-rings-lbl',{type:'geojson',data:ringLblAt(ringFC)});
                             map.addLayer({id:'boom-rings-lbl-l',type:'symbol',source:'boom-rings-lbl',layout:{'text-field':['get','m'],'text-font':boomFont,'text-size':10.5,'text-allow-overlap':false},paint:{'text-color':'#7A5C00','text-opacity':0.9,'text-halo-color':'rgba(255,255,255,.85)','text-halo-width':1.6}});
                             // Honesty disc: when the position is zone-approximate, show the
@@ -2398,6 +2449,47 @@
                             map.addSource('boom-flat',{type:'geojson',data:bcircle(lng,lat,8,30)});
                             map.addLayer({id:'boom-flat-beam',type:'fill-extrusion',source:'boom-flat',paint:{'fill-extrusion-color':'#FFD700','fill-extrusion-height':82,'fill-extrusion-base':0,'fill-extrusion-opacity':0.5}});
                         }catch(e){console.warn('BOOM 3D: rings/beam failed',e&&e.message);}
+                        // Commute thread: once the flyover settles, find the nearest rendered
+                        // metro/rail station and run a gold line from the flat to it, labelled
+                        // with the real walking time. Skipped silently if none is close enough.
+                        try{
+                            map.once('idle',function(){try{
+                                if(!map.getLayer('boom-transit'))return;
+                                var feats=map.queryRenderedFeatures(undefined,{layers:['boom-transit']});
+                                if(!feats||!feats.length)return;
+                                var best=null,bd=Infinity;
+                                feats.forEach(function(f){try{
+                                    var cds=f.geometry&&f.geometry.coordinates;if(!cds)return;
+                                    var dx=(cds[0]-lng)*111320*Math.cos(lat*Math.PI/180),dy=(cds[1]-lat)*111320,d=Math.hypot(dx,dy);
+                                    if(d<bd){bd=d;best={c:cds,name:(f.properties&&f.properties.name)||'Metro'};}
+                                }catch(e){}});
+                                if(!best||bd>1200||bd<40)return;                    // only when genuinely walkable
+                                var mins=Math.max(1,Math.round(bd/75));             // ~4.5 km/h
+                                // gentle curve: midpoint pushed perpendicular by 12% of the distance
+                                var mx=(lng+best.c[0])/2,my=(lat+best.c[1])/2;
+                                var px=-(best.c[1]-lat),py=(best.c[0]-lng);
+                                var norm=Math.hypot(px,py)||1;px/=norm;py/=norm;
+                                var off=bd*0.12/111320;
+                                var ctrl=[mx+px*off,my+py*off];
+                                var PTS=[];for(var i=0;i<=48;i++){var q=i/48,a1=1-q;
+                                    PTS.push([a1*a1*lng+2*a1*q*ctrl[0]+q*q*best.c[0], a1*a1*lat+2*a1*q*ctrl[1]+q*q*best.c[1]]);}
+                                map.addSource('boom-commute',{type:'geojson',data:{type:'Feature',properties:{},geometry:{type:'LineString',coordinates:[PTS[0],PTS[0]]}}});
+                                map.addLayer({id:'boom-commute-glow',type:'line',source:'boom-commute',layout:{'line-cap':'round'},paint:{'line-color':'#FFD700','line-width':6,'line-blur':6,'line-opacity':.25}});
+                                map.addLayer({id:'boom-commute-l',type:'line',source:'boom-commute',layout:{'line-cap':'round'},paint:{'line-color':'#FFE680','line-width':1.8,'line-opacity':.95,'line-dasharray':[1,1.6]}});
+                                map.addSource('boom-commute-lbl',{type:'geojson',data:{type:'Feature',properties:{t:'~'+mins+' min walk · '+best.name},geometry:{type:'Point',coordinates:ctrl}}});
+                                var reduceC=matchMedia('(prefers-reduced-motion: reduce)').matches;
+                                var showLbl=function(){try{map.addLayer({id:'boom-commute-lbl-l',type:'symbol',source:'boom-commute-lbl',layout:{'text-field':['get','t'],'text-font':boomFont,'text-size':11.5,'text-offset':[0,-0.8]},paint:{'text-color':'#7A5C00','text-halo-color':'rgba(255,255,255,.9)','text-halo-width':1.7}});}catch(e){}};
+                                if(reduceC){try{map.getSource('boom-commute').setData({type:'Feature',properties:{},geometry:{type:'LineString',coordinates:PTS}});}catch(e){}showLbl();return;}
+                                var t0=null;
+                                var run=function(now){ if(!t0)t0=now;
+                                    var p=Math.min(1,(now-t0)/900),ease=1-Math.pow(1-p,3);
+                                    var upto=Math.max(2,Math.round(ease*PTS.length));
+                                    try{map.getSource('boom-commute').setData({type:'Feature',properties:{},geometry:{type:'LineString',coordinates:PTS.slice(0,upto)}});}catch(e){return}
+                                    if(p<1)requestAnimationFrame(run); else showLbl();
+                                };
+                                requestAnimationFrame(run);
+                            }catch(e){console.warn('BOOM 3D: commute thread failed',e&&e.message)}});
+                        }catch(e){}
                     }
                 }catch(e){}
                 // Roman late-afternoon sky — warm horizon over the coloured city.
